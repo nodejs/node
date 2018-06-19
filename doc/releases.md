@@ -78,8 +78,9 @@ Notes:
 
 - Dates listed below as _"YYYY-MM-DD"_ should be the date of the release **as
   UTC**. Use `date -u +'%Y-%m-%d'` to find out what this is.
-- Version strings are listed below as _"vx.y.z"_. Substitute for the release
-  version.
+- Version strings are listed below as _"vx.y.z"_ or _"x.y.z"_. Substitute for
+  the release version.
+- Examples will use the fictional release version `1.2.3`.
 
 ### 0. Pre-release steps
 
@@ -98,29 +99,54 @@ of the `nodejs-private/node-private` repository a day or so before the
 [CI lockdown procedure][] begins. This is to confirm that Jenkins can properly
 access the private repository.
 
-### 1. Cherry-picking from `master` and other branches
+### 1. Update the staging branch
 
-Create a new branch named _"vx.y.z-proposal"_, or something similar. Using `git
-cherry-pick`, bring the appropriate commits into your new branch. To determine
-the relevant commits, use [`branch-diff`](https://github.com/rvagg/branch-diff)
-and [`changelog-maker`](https://github.com/rvagg/changelog-maker/) (both are
-available on npm and should be installed globally). These tools depend on our
-commit metadata, as well as the `semver-minor` and `semver-major` GitHub labels.
-One drawback is that when the `PR-URL` metadata is accidentally omitted from a
-commit, the commit will show up because it's unsure if it's a duplicate or not.
-
-For a list of commits that could be landed in a patch release on v5.x:
+Checkout the staging branch locally.
 
 ```console
-$ branch-diff v5.x master --exclude-label=semver-major,semver-minor,dont-land-on-v5.x --filter-release --format=simple
+$ git remote update
+$ git checkout v1.x-staging
+$ git reset --hard upstream/v1.x-staging
+```
+
+If the staging branch is not up to date relative to `master`, bring the
+appropriate commits into it. To determine the relevant commits, use
+[`branch-diff`](https://github.com/nodejs/branch-diff). The tool is available on
+npm and should be installed globally or run with `npx`. It depends on our commit
+metadata, as well as the GitHub labels such as `semver-minor` and
+`semver-major`. One drawback is that when the `PR-URL` metadata is accidentally
+omitted from a commit, the commit will show up because it's unsure if it's a
+duplicate or not.
+
+For a list of commits that could be landed in a patch release on v1.x:
+
+```console
+$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x --filter-release --format=simple
 ```
 
 Carefully review the list of commits looking for errors (incorrect `PR-URL`,
-incorrect semver, etc.). Commits labeled as semver minor or semver major should
-only be cherry-picked when appropriate for the type of release being made.
-Previous release commits and version bumps do not need to be cherry-picked.
+incorrect semver, etc.). Commits labeled as `semver-minor` or `semver-major`
+should only be cherry-picked when appropriate for the type of release being
+made. Previous release commits and version bumps do not need to be
+cherry-picked.
 
-### 2. Update `src/node_version.h`
+If commits were cherry-picked in this step, push to the staging branch to keep
+it up-to-date.
+
+```console
+$ git push upstream v1.x-staging
+```
+
+### 2. Create a new branch for the release
+
+Create a new branch named `vx.y.z-proposal`, off the corresponding staging
+branch.
+
+```console
+$ git checkout -b v1.2.3-proposal upstream/v1.x-staging
+```
+
+### 3. Update `src/node_version.h`
 
 Set the version for the proposed release using the following macros, which are
 already defined in `src/node_version.h`:
@@ -160,12 +186,12 @@ informed perspective, such as a member of the NAN team.
 see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC.
 Commits may need to be reverted or a major version bump may need to happen.
 
-### 3. Update the Changelog
+### 4. Update the Changelog
 
-#### Step 1: Collecting the formatted list of changes:
+#### Step 1: Collect the formatted list of changes
 
 Collect a formatted list of commits since the last release. Use
-[`changelog-maker`](https://github.com/rvagg/changelog-maker) to do this:
+[`changelog-maker`](https://github.com/nodejs/changelog-maker) to do this:
 
 ```console
 $ changelog-maker --group
@@ -176,12 +202,12 @@ in the repository was not on the current branch you may have to supply a
 `--start-ref` argument:
 
 ```console
-$ changelog-maker --group --start-ref v2.3.1
+$ changelog-maker --group --start-ref v1.2.2
 ```
 
 #### Step 2: Update the appropriate doc/changelogs/CHANGELOG_*.md file
 
-There is a separate `CHANGELOG_*.md` file for each major Node.js release line.
+There is a separate `CHANGELOG_Vx.md` file for each major Node.js release line.
 These are located in the `doc/changelogs/` directory. Once the formatted list of
 changes is collected, it must be added to the top of the relevant changelog file
 in the release branch (e.g. a release for Node.js v4 would be added to the
@@ -210,18 +236,22 @@ The new entry should take the following form:
 The release type should be either Current, LTS, or Maintenance, depending on the
 type of release being produced.
 
+You can use `branch-diff` to get a list of commits with the `notable-change`
+label:
+
+```console
+$ branch-diff upstream/v1.x v1.2.3-proposal --require-label=notable-change -format=simple
+```
+
 Be sure that the `<a>` tag, as well as the two headings, are not indented at
 all.
 
-At the top of each `CHANGELOG_*.md` file, and in the root `CHANGELOG.md` file,
-there is a table indexing all releases in each major release line. A link to the
-new release needs to be added to each. Follow the existing examples and be sure
-to add the release to the *top* of the list.
-
-In the root `CHANGELOG.md` file, the most recent release for each release line
-is shown in **bold** in the index. When updating the index, please make sure to
-update the display accordingly by removing the bold styling from the previous
-release.
+At the top of the root `CHANGELOG.md` file, there is a table indexing all
+releases in each major release line. A link to the new release needs to be added
+to it. Follow the existing examples and be sure to add the release to the *top*
+of the list. The most recent release for each release line is shown in **bold**
+in the index. When updating the index, please make sure to update the display
+accordingly by removing the bold styling from the previous release.
 
 #### Step 3: Update any REPLACEME and DEP00XX tags in the docs
 
@@ -239,12 +269,12 @@ If this release includes any new deprecations it is necessary to ensure that
 those are assigned a proper static deprecation code. These are listed in the
 docs (see `doc/api/deprecations.md`) and in the source as `DEP00XX`. The code
 must be assigned a number (e.g. `DEP0012`). Note that this assignment should
-occur when the PR is landed, but a check will be made when the release built is
+occur when the PR is landed, but a check will be made when the release build is
 run.
 
-### 4. Create Release Commit
+### 5. Create Release Commit
 
-The `CHANGELOG.md`, `doc/changelogs/CHANGELOG_*.md`, `src/node_version.h`, and
+The `CHANGELOG.md`, `doc/changelogs/CHANGELOG_Vx.md`, `src/node_version.h`, and
 `REPLACEME` changes should be the final commit that will be tagged for the
 release. When committing these to git, use the following message format:
 
@@ -256,14 +286,14 @@ Notable changes:
 * Copy the notable changes list here, reformatted for plain-text
 ```
 
-### 5. Propose Release on GitHub
+### 6. Propose Release on GitHub
 
 Push the release branch to `nodejs/node`, not to your own fork. This allows
 release branches to more easily be passed between members of the release team if
 necessary.
 
 Create a pull request targeting the correct release line. For example, a
-v5.3.0-proposal PR should target v5.x, not master. Paste the CHANGELOG
+`v5.3.0-proposal` PR should target `v5.x`, not master. Paste the CHANGELOG
 modifications into the body of the PR so that collaborators can see what is
 changing. These PRs should be left open for at least 24 hours, and can be
 updated as new commits land.
@@ -271,23 +301,25 @@ updated as new commits land.
 If you need any additional information about any of the commits, this PR is a
 good place to @-mention the relevant contributors.
 
-This is also a good time to update the release commit to include `PR-URL`
-metadata.
+After opening the PR, update the release commit to include `PR-URL` metadata and
+force-push the proposal.
 
-### 6. Ensure that the Release Branch is Stable
+### 7. Ensure that the Release Branch is Stable
 
-Run a
-**[node-test-pull-request](https://ci.nodejs.org/job/node-test-pull-request/)**
+Run a **[`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)**
 test run to ensure that the build is stable and the HEAD commit is ready for
 release.
 
-Perform some smoke-testing. We have [citgm](https://github.com/nodejs/citgm) for
-this. You can also manually test important modules from the ecosystem. Remember
-that node-gyp and npm both take a `--nodedir` flag to point to your local
-repository so that you can test unreleased versions without needing node-gyp to
-download headers for you.
+Also run a **[`node-test-commit-v8-linux`](https://ci.nodejs.org/job/node-test-commit-v8-linux/)**
+test run if the release contains changes to `deps/v8`.
 
-### 7. Produce a Nightly Build _(optional)_
+Perform some smoke-testing. There is the
+**[`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)** CI job for this
+purpose. Run it once with the base `vx.x` branch as a reference and with the
+proposal branch to check if new regressions could be introduced in the
+ecosystem.
+
+### 8. Produce a Nightly Build _(optional)_
 
 If there is a reason to produce a test release for the purpose of having others
 try out installers or specifics of builds, produce a nightly build using
@@ -299,7 +331,7 @@ enter a proper length commit SHA, enter a date string, and select "nightly" for
 This is particularly recommended if there has been recent work relating to the
 macOS or Windows installers as they are not tested in any way by CI.
 
-### 8. Produce Release Builds
+### 9. Produce Release Builds
 
 Use **[iojs+release](https://ci-release.nodejs.org/job/iojs+release/)** to
 produce release artifacts. Enter the commit that you want to build from and
@@ -345,19 +377,19 @@ can use the
 build in the release CI to re-run the build only for ARMv6. When launching the
 build make sure to use the same commit hash as for the original release.
 
-### 9. Test the Build
+### 10. Test the Build
 
 Jenkins collects the artifacts from the builds, allowing you to download and
 install the new build. Make sure that the build appears correct. Check the
 version numbers, and perform some basic checks to confirm that all is well with
 the build before moving forward.
 
-### 10. Tag and Sign the Release Commit
+### 11. Tag and Sign the Release Commit
 
 Once you have produced builds that you're happy with, create a new tag. By
 waiting until this stage to create tags, you can discard a proposed release if
 something goes wrong or additional commits are required. Once you have created a
-tag and pushed it to GitHub, you ***should not*** delete and re-tag. If you make
+tag and pushed it to GitHub, you ***must not*** delete and re-tag. If you make
 a mistake after tagging then you'll have to version-bump and start again and
 count that tag/version as lost.
 
@@ -388,7 +420,7 @@ following command:
 $ git push <remote> <vx.y.z>
 ```
 
-### 11. Set Up For the Next Release
+### 12. Set Up For the Next Release
 
 On release proposal branch, edit `src/node_version.h` again and:
 
@@ -407,17 +439,26 @@ This sets up the branch so that nightly builds are produced with the next
 version number _and_ a pre-release tag.
 
 Merge your release proposal branch into the stable branch that you are releasing
-from (e.g. `v8.x`), and rebase the corresponding staging branch (`v8.x-staging`)
-on top of that.
+from and rebase the corresponding staging branch on top of that.
+
+```console
+$ git checkout v1.x
+$ git merge --ff-only v1.2.3-proposal
+$ git push upstream v1.x
+$ git checkout v1.x-staging
+$ git rebase v1.x
+$ git push upstream v1.x-staging
+```
 
 Cherry-pick the release commit to `master`. After cherry-picking, edit
 `src/node_version.h` to ensure the version macros contain whatever values were
-previously on `master`. `NODE_VERSION_IS_RELEASE` should be `0`.
+previously on `master`. `NODE_VERSION_IS_RELEASE` should be `0`. **Do not**
+cherry-pick the "Working on vx.y.z" commit to `master`.
 
 Run `make lint-md-build; make lint` before pushing to `master`, to make sure the
 Changelog formatting passes the lint rules on `master`.
 
-### 12. Promote and Sign the Release Builds
+### 13. Promote and Sign the Release Builds
 
 **It is important that the same individual who signed the release tag be the one
 to promote the builds as the SHASUMS256.txt file needs to be signed with the
@@ -469,7 +510,7 @@ be prompted to re-sign SHASUMS256.txt.
 *Note*: It is possible to only sign a release by running `./tools/release.sh -s
 vX.Y.Z`.
 
-### 13. Check the Release
+### 14. Check the Release
 
 Your release should be available at `https://nodejs.org/dist/vx.y.z/` and
 <https://nodejs.org/dist/latest/>. Check that the appropriate files are in
@@ -478,7 +519,7 @@ have the right internal version strings. Check that the API docs are available
 at <https://nodejs.org/api/>. Check that the release catalog files are correct
 at <https://nodejs.org/dist/index.tab> and <https://nodejs.org/dist/index.json>.
 
-### 14. Create a Blog Post
+### 15. Create a Blog Post
 
 There is an automatic build that is kicked off when you promote new builds, so
 within a few minutes nodejs.org will be listing your new version as the latest
@@ -512,7 +553,7 @@ This script will use the promoted builds and changelog to generate the post. Run
 - Changes to `master` on the nodejs.org repo will trigger a new build of
   nodejs.org so your changes should appear in a few minutes after pushing.
 
-### 15. Announce
+### 16. Announce
 
 The nodejs.org website will automatically rebuild and include the new version.
 To announce the build on Twitter through the official @nodejs account, email
@@ -527,11 +568,19 @@ To ensure communication goes out with the timing of the blog post, please allow
 will be shared with the community in the email to coordinate these
 announcements.
 
-### 16. Cleanup
+### 17. Create the release on GitHub
 
-Close your release proposal PR and remove the proposal branch.
+- Got to the [New release page](https://github.com/nodejs/node/releases/new).
+- Select the tag version you pushed earlier.
+- For release title, copy the title from the changelog.
+- For the description, copy the rest of the changelog entry.
+- Click on the "Publish release" button.
 
-### 17. Celebrate
+### 18. Cleanup
+
+Close your release proposal PR and delete the proposal branch.
+
+### 19. Celebrate
 
 _In whatever form you do this..._
 
