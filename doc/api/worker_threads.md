@@ -24,27 +24,27 @@ share memory efficiently by transferring `ArrayBuffer` instances or sharing
 
 ```js
 const {
-  Worker, isMainThread, parentPort, workerData
+  Worker, isMainThread, parentPort
 } = require('worker_threads');
 
 if (isMainThread) {
   module.exports = async function parseJSAsync(script) {
     return new Promise((resolve, reject) => {
-      const worker = new Worker(__filename, {
-        workerData: script
-      });
+      const worker = new Worker(__filename);
       worker.on('message', resolve);
       worker.on('error', reject);
       worker.on('exit', (code) => {
         if (code !== 0)
           reject(new Error(`Worker stopped with exit code ${code}`));
       });
+      worker.postMessage(script);
     });
   };
 } else {
   const { parse } = require('some-js-parsing-library');
-  const script = workerData;
-  parentPort.postMessage(parse(script));
+  parentPort.once('message', (script) => {
+    parentPort.postMessage(parse(script));
+  });
 }
 ```
 
@@ -85,14 +85,6 @@ added: REPLACEME
 
 An integer identifier for the current thread. On the corresponding worker object
 (if there is any), it is available as [`worker.threadId`][].
-
-## worker.workerData
-<!-- YAML
-added: REPLACEME
--->
-
-An arbitrary JavaScript value that contains a clone of the data passed
-to this thread’s `Worker` constructor.
 
 ## Class: MessageChannel
 <!-- YAML
@@ -312,11 +304,6 @@ if (isMainThread) {
 * `options` {Object}
   * `eval` {boolean} If true, interpret the first argument to the constructor
     as a script that is executed once the worker is online.
-  * `workerData` {any} Any JavaScript value that will be cloned and made
-    available as [`require('worker_threads').workerData`][]. The cloning will
-    occur as described in the [HTML structured clone algorithm][], and an error
-    will be thrown if the object cannot be cloned (e.g. because it contains
-    `function`s).
   * stdin {boolean} If this is set to `true`, then `worker.stdin` will
     provide a writable stream whose contents will appear as `process.stdin`
     inside the Worker. By default, no data is provided.
@@ -477,7 +464,6 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdout`]: process.html#process_process_stdout
 [`process.title`]: process.html#process_process_title
-[`require('worker_threads').workerData`]: #worker_threads_worker_workerdata
 [`require('worker_threads').on('workerMessage')`]: #worker_threads_event_workermessage
 [`require('worker_threads').postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`require('worker_threads').isMainThread`]: #worker_threads_worker_ismainthread

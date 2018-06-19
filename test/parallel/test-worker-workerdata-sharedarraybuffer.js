@@ -10,23 +10,22 @@ const { Worker } = require('worker_threads');
   const local = Buffer.from(sharedArrayBuffer);
 
   const w = new Worker(`
-    const { parentPort, workerData } = require('worker_threads');
-    const local = Buffer.from(workerData.sharedArrayBuffer);
+    const { parentPort } = require('worker_threads');
 
-    parentPort.on('message', () => {
+    parentPort.on('message', ({ sharedArrayBuffer }) => {
+      const local = Buffer.from(sharedArrayBuffer);
       local.write('world!', 6);
       parentPort.postMessage('written!');
     });
   `, {
     eval: true,
-    workerData: { sharedArrayBuffer }
   });
   w.on('message', common.mustCall(() => {
     assert.strictEqual(local.toString(), 'Hello world!');
     global.gc();
     w.terminate();
   }));
-  w.postMessage({});
+  w.postMessage({ sharedArrayBuffer });
   // This would be a race condition if the memory regions were overlapping
   local.write('Hello ');
 }
