@@ -40,6 +40,7 @@
 #include <stdlib.h>
 
 #include <string>
+#include <vector>
 
 // Custom constants used by both node_constants.cc and node_zlib.cc
 #define Z_MIN_WINDOWBITS 8
@@ -314,6 +315,39 @@ class FatalTryCatch : public v8::TryCatch {
  private:
   Environment* env_;
 };
+
+class SlicedArguments {
+ public:
+  inline explicit SlicedArguments(
+      const v8::FunctionCallbackInfo<v8::Value>& args,
+      size_t start = 0);
+  inline size_t size() const { return size_; }
+  inline v8::Local<v8::Value>* data() { return data_; }
+
+ private:
+  size_t size_;
+  v8::Local<v8::Value>* data_;
+  v8::Local<v8::Value> fixed_[64];
+  std::vector<v8::Local<v8::Value>> dynamic_;
+};
+
+SlicedArguments::SlicedArguments(
+    const v8::FunctionCallbackInfo<v8::Value>& args,
+    size_t start) : size_(0), data_(fixed_) {
+  const size_t length = static_cast<size_t>(args.Length());
+  if (start >= length) return;
+  const size_t size = length - start;
+
+  if (size > arraysize(fixed_)) {
+    dynamic_.resize(size);
+    data_ = dynamic_.data();
+  }
+
+  for (size_t i = 0; i < size; ++i)
+    data_[i] = args[i + start];
+
+  size_ = size;
+}
 
 void ReportException(Environment* env,
                      v8::Local<v8::Value> er,
