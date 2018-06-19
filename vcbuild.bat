@@ -55,13 +55,14 @@ set http2_debug=
 set nghttp2_debug=
 set link_module=
 set no_cctest=
+set cctest=
 set openssl_no_asm=
 set doc=
 
 :next-arg
 if "%1"=="" goto args-done
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
-if /i "%1"=="release"       set config=Release&set ltcg=1&set "pch="&goto arg-ok
+if /i "%1"=="release"       set config=Release&set ltcg=1&set "pch="&set cctest=1&goto arg-ok
 if /i "%1"=="clean"         set target=Clean&goto arg-ok
 if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
@@ -125,6 +126,7 @@ if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
 if /i "%1"=="link-module"   set "link_module= --link-module=%2%link_module%"&goto arg-ok-2
 if /i "%1"=="no-cctest"     set no_cctest=1&goto arg-ok
+if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
 
@@ -151,6 +153,7 @@ if defined build_release (
   set download_arg="--download=all"
   set i18n_arg=small-icu
   set projgen=1
+  set cctest=1
   set ltcg=1
   set "pch="
 )
@@ -301,7 +304,12 @@ set "msbcpu=/m:2"
 if "%NUMBER_OF_PROCESSORS%"=="1" set "msbcpu=/m:1"
 set "msbplatform=Win32"
 if "%target_arch%"=="x64" set "msbplatform=x64"
-if "%target%"=="Build" if defined no_cctest set target=node
+if "%target%"=="Build" (
+  if defined no_cctest set target=rename_node_bin_win
+  if "%test_args%"=="" set target=rename_node_bin_win
+  if defined cctest set target="Build"
+)
+if "%target%"=="rename_node_bin_win" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
 msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 (
   if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
@@ -533,7 +541,7 @@ if "%test_args%"=="" goto test-v8
 if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 if defined no_cctest echo Skipping cctest because no-cctest was specified && goto run-test-py
-if not exist %config%\cctest.exe goto run-test-py
+if not exist "%config%\cctest.exe" echo cctest.exe not found. Run "vcbuild test" or "vcbuild cctest" to build it. && goto run-test-py
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
 :run-test-py
@@ -635,7 +643,7 @@ del .used_configure_flags
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-addons-napi/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [nopch] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-addons-napi/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [nopch] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
