@@ -3795,6 +3795,31 @@ class TsFn: public node::AsyncResource {
     return context;
   }
 
+  void CloseHandlesAndMaybeDelete(bool set_closing = false) {
+    if (set_closing) {
+      node::Mutex::ScopedLock lock(this->mutex);
+      is_closing = true;
+      cond->Signal(lock);
+    }
+    if (handles_closing) {
+      return;
+    }
+    handles_closing = true;
+    NodeEnv()->CloseHandle(
+        reinterpret_cast<uv_handle_t*>(&async),
+        [] (uv_handle_t* handle) -> void {
+          TsFn* ts_fn = node::ContainerOf(&TsFn::async,
+              reinterpret_cast<uv_async_t*>(handle));
+          ts_fn->NodeEnv()->CloseHandle(
+              reinterpret_cast<uv_handle_t*>(&ts_fn->idle),
+              [] (uv_handle_t* handle) -> void {
+                TsFn* ts_fn = node::ContainerOf(&TsFn::idle,
+                    reinterpret_cast<uv_idle_t*>(handle));
+                ts_fn->Finalize();
+              });
+        });
+  }
+
   // Default way of calling into JavaScript. Used when TsFn is constructed
   // without a call_js_cb_.
   static void CallJs(napi_env env, napi_value cb, void* context, void* data) {
@@ -3832,31 +3857,6 @@ class TsFn: public node::AsyncResource {
 
   static void Cleanup(void* data) {
     reinterpret_cast<TsFn*>(data)->CloseHandlesAndMaybeDelete(true);
-  }
-
-  void CloseHandlesAndMaybeDelete(bool set_closing = false) {
-    if (set_closing) {
-      node::Mutex::ScopedLock lock(this->mutex);
-      is_closing = true;
-      cond->Signal(lock);
-    }
-    if (handles_closing) {
-      return;
-    }
-    handles_closing = true;
-    NodeEnv()->CloseHandle(
-        reinterpret_cast<uv_handle_t*>(&async),
-        [] (uv_handle_t* handle) -> void {
-          TsFn* ts_fn = node::ContainerOf(&TsFn::async,
-              reinterpret_cast<uv_async_t*>(handle));
-          ts_fn->NodeEnv()->CloseHandle(
-              reinterpret_cast<uv_handle_t*>(&ts_fn->idle),
-              [] (uv_handle_t* handle) -> void {
-                TsFn* ts_fn = node::ContainerOf(&TsFn::idle,
-                    reinterpret_cast<uv_idle_t*>(handle));
-                ts_fn->Finalize();
-              });
-        });
   }
 
  private:
