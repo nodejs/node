@@ -100,7 +100,17 @@ Local<Value> UVException(Isolate* isolate,
   if (!msg || !msg[0])
     msg = uv_strerror(errorno);
 
-  Local<String> js_code = OneByteString(isolate, uv_err_name(errorno));
+  const char* err_name = uv_err_name(errorno);
+
+  // prevent V8 crash on creating string from nullptr
+  if (err_name == nullptr) {
+    err_name = "UnknownSystemError";
+    // handle memory leak resultant of uv_err_name
+    // being called with unknown error code
+    free(const_cast<char*>(err_name));
+  }
+
+  Local<String> js_code = OneByteString(isolate, err_name);
   Local<String> js_syscall = OneByteString(isolate, syscall);
   Local<String> js_path;
   Local<String> js_dest;
