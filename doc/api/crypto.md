@@ -2143,7 +2143,7 @@ request.
 
 ### crypto.scrypt(password, salt, keylen[, options], callback)
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 - `password` {string|Buffer|TypedArray}
 - `salt` {string|Buffer|TypedArray}
@@ -2189,7 +2189,7 @@ crypto.scrypt('secret', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
 
 ### crypto.scryptSync(password, salt, keylen[, options])
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 - `password` {string|Buffer|TypedArray}
 - `salt` {string|Buffer|TypedArray}

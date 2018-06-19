@@ -1,6 +1,6 @@
 # Worker Threads
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v10.5.0-->
 
 > Stability: 1 - Experimental
 
@@ -55,7 +55,7 @@ benefit of handing the work off to it.
 
 ## worker.isMainThread
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * {boolean}
@@ -64,7 +64,7 @@ Is `true` if this code is not running inside of a [`Worker`][] thread.
 
 ## worker.parentPort
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * {null|MessagePort}
@@ -78,7 +78,7 @@ using `worker.postMessage()` will be available in this thread using
 
 ## worker.threadId
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * {integer}
@@ -88,7 +88,7 @@ An integer identifier for the current thread. On the corresponding worker object
 
 ## worker.workerData
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 An arbitrary JavaScript value that contains a clone of the data passed
@@ -96,7 +96,7 @@ to this thread’s `Worker` constructor.
 
 ## Class: MessageChannel
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 Instances of the `worker.MessageChannel` class represent an asynchronous,
@@ -116,7 +116,7 @@ port2.postMessage({ foo: 'bar' });
 
 ## Class: MessagePort
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * Extends: {EventEmitter}
@@ -131,7 +131,7 @@ than `EventTarget`s, this implementation matches [browser `MessagePort`][]s.
 
 ### Event: 'close'
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 The `'close'` event is emitted once either side of the channel has been
@@ -139,7 +139,7 @@ disconnected.
 
 ### Event: 'message'
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * `value` {any} The transmitted value
@@ -152,7 +152,7 @@ to `postMessage()` and no further arguments.
 
 ### port.close()
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 Disables further sending of messages on either side of the connection.
@@ -161,7 +161,7 @@ will happen over this `MessagePort`.
 
 ### port.postMessage(value[, transferList])
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * `value` {any}
@@ -198,7 +198,7 @@ behind this API, see the [serialization API of the `v8` module][v8.serdes].
 
 ### port.ref()
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 Opposite of `unref()`. Calling `ref()` on a previously `unref()`ed port will
@@ -211,7 +211,7 @@ listeners for the event exist.
 
 ### port.start()
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 Starts receiving messages on this `MessagePort`. When using this port
@@ -220,7 +220,7 @@ listeners are attached.
 
 ### port.unref()
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 Calling `unref()` on a port will allow the thread to exit if this is the only
@@ -233,7 +233,7 @@ listeners for the event exist.
 
 ## Class: Worker
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 The `Worker` class represents an independent JavaScript execution thread.
@@ -327,7 +327,7 @@ if (isMainThread) {
 
 ### Event: 'error'
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * `err` {Error}
@@ -337,7 +337,7 @@ exception. In that case, the worker will be terminated.
 
 ### Event: 'exit'
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * `exitCode` {integer}
@@ -349,7 +349,7 @@ be `1`.
 
 ### Event: 'message'
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * `value` {any} The transmitted value
@@ -360,7 +360,7 @@ event for more details.
 
 ### Event: 'online'
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 The `'online'` event is emitted when the worker thread has started executing
@@ -368,7 +368,7 @@ JavaScript code.
 
 ### worker.postMessage(value[, transferList])
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * `value` {any}
@@ -380,7 +380,7 @@ See [`port.postMessage()`][] for more details.
 
 ### worker.ref()
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 Opposite of `unref()`, calling `ref()` on a previously `unref()`ed worker will
@@ -390,7 +390,7 @@ no effect.
 
 ### worker.stderr
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * {stream.Readable}
@@ -402,7 +402,7 @@ inside the worker thread. If `stderr: true` was not passed to the
 
 ### worker.stdin
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * {null|stream.Writable}
@@ -413,7 +413,7 @@ the worker thread as [`process.stdin`][].
 
 ### worker.stdout
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * {stream.Readable}
@@ -425,7 +425,7 @@ inside the worker thread. If `stdout: true` was not passed to the
 
 ### worker.terminate([callback])
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * `callback` {Function}
@@ -442,7 +442,7 @@ than what is exposed in the `worker` module.
 
 ### worker.threadId
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 * {integer}
@@ -452,7 +452,7 @@ it is available as [`require('worker_threads').threadId`][].
 
 ### worker.unref()
 <!-- YAML
-added: REPLACEME
+added: v10.5.0
 -->
 
 Calling `unref()` on a worker will allow the thread to exit if this is the only
