@@ -25,19 +25,28 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
-  crypto.timingSafeEqual(Uint8Array.of(1, 0, 0, 0, 0, 0, 0), BigUint64Array.of(1n)),
+  crypto.timingSafeEqual(
+    Uint8Array.of(1, 0, 0, 0, 0, 0, 0, 0),
+    BigUint64Array.of(1n)
+  ),
   true,
   'should consider equal binary integers to be equal'
 );
 
 assert.strictEqual(
-  crypto.timingSafeEqual(Buffer.allocUnsafe(8).fill(255), BigInt64Array.of(-1n)),
+  crypto.timingSafeEqual(
+    Buffer.allocUnsafe(8).fill(255),
+    BigInt64Array.of(-1n)
+  ),
   true,
   'should consider equal binary integers to be equal'
 );
 
 assert.strictEqual(
-  crypto.timingSafeEqual(new DataView(new ArrayBuffer(8)), BigInt64Array.of(0n)),
+  crypto.timingSafeEqual(
+    new DataView(new ArrayBuffer(8)),
+    BigInt64Array.of(0n)
+  ),
   true,
   'should consider equal views to be equal'
 );
@@ -58,7 +67,10 @@ common.expectsError(
 );
 
 common.expectsError(
-  () => crypto.timingSafeEqual(Uint8Array.of(1, 2, 3), Uint16Array.of(1, 2, 3)),
+  () => crypto.timingSafeEqual(
+    Uint8Array.of(1, 2, 3),
+    Uint16Array.of(1, 2, 3)
+  ),
   {
     code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
     type: RangeError,
