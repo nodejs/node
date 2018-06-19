@@ -243,6 +243,7 @@ module.exports = {
     'node-core/no-unescaped-regexp-dot': 'error',
   },
   globals: {
+    Atomics: false,
     BigInt: false,
     BigInt64Array: false,
     BigUint64Array: false,
