@@ -1,8 +1,6 @@
 #include "node_internals.h"
 #include "node_perf.h"
 
-#include <vector>
-
 #ifdef __POSIX__
 #include <sys/time.h>  // gettimeofday
 #endif
@@ -309,10 +307,7 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   Local<Function> fn = args.Data().As<Function>();
   size_t count = args.Length();
   size_t idx;
-  std::vector<Local<Value>> call_args;
-  for (size_t i = 0; i < count; ++i)
-    call_args.push_back(args[i]);
-
+  SlicedArguments call_args(args);
   Utf8Value name(isolate, GetName(fn));
 
   uint64_t start;

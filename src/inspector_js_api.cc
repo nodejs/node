@@ -131,11 +131,7 @@ void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GT(args.Length(), 1);
   CHECK(args[0]->IsFunction());
-  std::vector<v8::Local<v8::Value>> call_args;
-  for (int i = 2; i < args.Length(); i++) {
-    call_args.push_back(args[i]);
-  }
-
+  SlicedArguments call_args(args, /* start */ 2);
   env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
   v8::MaybeLocal<v8::Value> retval =
       args[0].As<v8::Function>()->Call(env->context(), args[1],
@@ -150,10 +146,7 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   CHECK_LT(2, info.Length());
-  std::vector<Local<Value>> call_args;
-  for (int i = 3; i < info.Length(); ++i) {
-    call_args.push_back(info[i]);
-  }
+  SlicedArguments call_args(info, /* start */ 3);
   Environment* env = Environment::GetCurrent(isolate);
   if (InspectorEnabled(env)) {
     Local<Value> inspector_method = info[0];
