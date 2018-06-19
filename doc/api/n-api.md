@@ -4016,9 +4016,11 @@ to `napi_call_threadsafe_function`. Data associated with the
 `napi_threadsafe_function` can be freed in its `napi_finalize` callback which
 was passed to `napi_create_threadsafe_function()`.
 
-Once the reference count of a `napi_threadsafe_function` reaches zero, it can no
-longer be incremented. In fact, all APIs associated with it will return an error
-value of `napi_closing`.
+Once the number of threads making use of a `napi_threadsafe_function` reaches
+zero, no further threads can start making use of it by calling
+`napi_acquire_threadsafe_function()`. In fact, all subsequent API calls
+associated with it, except `napi_release_threadsafe_function()`, will return an
+error value of `napi_closing`.
 
 The thread-safe function can be "aborted" by giving a value of `napi_tsfn_abort`
 to `napi_release_threadsafe_function()`. This will cause all subsequent APIs
