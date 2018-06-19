@@ -1383,11 +1383,6 @@ function.
 An error occurred while attempting to retrieve the JavaScript `undefined`
 value.
 
-<a id="ERR_NAPI_TSFN_REMOVE_ENV_CLEANUP"></a>
-### ERR_NAPI_TSFN_REMOVE_ENV_CLEANUP
-
-An error occured while attempting to remove the environment cleanup handler.
-
 <a id="ERR_NAPI_TSFN_START_IDLE_LOOP"></a>
 ### ERR_NAPI_TSFN_START_IDLE_LOOP
 
