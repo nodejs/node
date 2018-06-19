@@ -45,8 +45,15 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int err = args[0]->Int32Value();
   CHECK_LT(err, 0);
-  const char* name = uv_err_name(err);
-  args.GetReturnValue().Set(OneByteString(env->isolate(), name));
+  const char* err_name = uv_err_name(err);
+  // prevent V8 crash on creating string from nullptr
+  if (err_name == nullptr) {
+    err_name = "UnknownSystemError";
+    // handle memory leak resultant of uv_err_name
+    // being called with unknown error code
+    free(const_cast<char*>(err_name));
+  }
+  args.GetReturnValue().Set(OneByteString(env->isolate(), err_name));
 }
 
 
