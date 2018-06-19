@@ -448,13 +448,11 @@ for /d %%F in (test\addons\??_*) do (
 "%node_exe%" tools\doc\addon-verify.js
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
-setlocal EnableDelayedExpansion
-for /d %%F in (test\addons\*) do (
-  %node_gyp_exe% rebuild ^
-    --directory="%%F" ^
-    --nodedir="%cd%"
-  if !errorlevel! neq 0 exit /b !errorlevel!
-)
+setlocal
+set npm_config_nodedir=%~dp0
+"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons"
+if errorlevel 1 exit /b 1
+endlocal
 
 :build-addons-napi
 if not defined build_addons_napi goto run-tests
