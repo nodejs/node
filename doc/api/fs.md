@@ -1681,8 +1681,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
                  it will emit a deprecation warning with id DEP0013.
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v10.5.0
+    pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
                  the numeric values returned should be bigint.
 -->
@@ -1703,8 +1703,8 @@ except that the file to be stat-ed is specified by the file descriptor `fd`.
 <!-- YAML
 added: v0.1.95
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v10.5.0
+    pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
                  the numeric values returned should be bigint.
 -->
@@ -1994,8 +1994,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
                  it will emit a deprecation warning with id DEP0013.
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v10.5.0
+    pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
                  the numeric values returned should be bigint.
 -->
@@ -2021,8 +2021,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v10.5.0
+    pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
                  the numeric values returned should be bigint.
 -->
@@ -2764,8 +2764,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
                  it will emit a deprecation warning with id DEP0013.
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v10.5.0
+    pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
                  the numeric values returned should be bigint.
 -->
@@ -2799,8 +2799,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v10.5.0
+    pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
                  the numeric values returned should be bigint.
 -->
@@ -3589,8 +3589,8 @@ The `FileHandle` has to support reading.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v10.5.0
+    pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
                  the numeric values returned should be bigint.
 -->
@@ -3925,8 +3925,8 @@ Asynchronous link(2). The `Promise` is resolved with no arguments upon success.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v10.5.0
+    pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
                  the numeric values returned should be bigint.
 -->
@@ -4119,8 +4119,8 @@ error on POSIX.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v10.5.0
+    pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
                  the numeric values returned should be bigint.
 -->
