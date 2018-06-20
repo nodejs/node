@@ -245,7 +245,8 @@ once will result in an error being thrown.
 added: v1.0.0
 -->
 - `buffer` {Buffer}
-- `options` {Object}
+- `options` {Object} [`stream.transform` options][]
+  - `plaintextLength` {number}
 - Returns: {Cipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` and `CCM` are currently
@@ -398,7 +399,7 @@ Once the `decipher.final()` method has been called, the `Decipher` object can
 no longer be used to decrypt data. Attempts to call `decipher.final()` more
 than once will result in an error being thrown.
 
-### decipher.setAAD(buffer)
+### decipher.setAAD(buffer[, options])
 <!-- YAML
 added: v1.0.0
 changes:
@@ -407,11 +408,17 @@ changes:
     description: This method now returns a reference to `decipher`.
 -->
 - `buffer` {Buffer | TypedArray | DataView}
-- Returns: {Cipher} for method chaining.
+- `options` {Object} [`stream.transform` options][]
+  - `plaintextLength` {number}
+- Returns: {Decipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` and `CCM` are currently
 supported), the `decipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
+
+The `options` argument is optional for `GCM`. When using `CCM`, the
+`plaintextLength` option must be specified and its value must match the length
+of the plaintext in bytes. See [CCM mode][].
 
 The `decipher.setAAD()` method must be called before [`decipher.update()`][].
 
@@ -424,7 +431,7 @@ changes:
     description: This method now returns a reference to `decipher`.
 -->
 - `buffer` {Buffer | TypedArray | DataView}
-- Returns: {Cipher} for method chaining.
+- Returns: {Decipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` and `CCM` are currently
 supported), the `decipher.setAuthTag()` method is used to pass in the
@@ -448,7 +455,7 @@ The `decipher.setAuthTag()` method must be called before
 added: v0.7.1
 -->
 - `autoPadding` {boolean} **Default:** `true`
-- Returns: {Cipher} for method chaining.
+- Returns: {Decipher} for method chaining.
 
 When data has been encrypted without standard block padding, calling
 `decipher.setAutoPadding(false)` will disable automatic padding to prevent
