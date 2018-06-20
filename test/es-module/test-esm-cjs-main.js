@@ -1,11 +1,11 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
+const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
 const assert = require('assert');
-const path = require('path');
 
-const entry = path.resolve(__dirname, '../fixtures/es-modules/cjs.js');
+const entry = fixtures.path('/es-modules/cjs.js');
 
 const child = spawn(process.execPath, ['--experimental-modules', entry]);
 let experimentalWarning = false;
@@ -21,7 +21,7 @@ child.stdout.on('data', (data) => {
   assert.strictEqual(data.toString(), 'executed\n');
   validatedExecution = true;
 });
-child.on('close', (code, stdout) => {
+child.on('close', common.mustCall((code, stdout) => {
   assert.strictEqual(validatedExecution, true);
   assert.strictEqual(code, 0);
-});
+}));
