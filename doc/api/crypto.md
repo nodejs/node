@@ -1337,7 +1337,7 @@ changes:
 
 - `algorithm` {string}
 - `password` {string | Buffer | TypedArray | DataView}
-- `options` {Object | AADOptions} [`stream.transform` options][]
+- `options` {Object} [`stream.transform` options][]
 - Returns: {Cipher}
 
 Creates and returns a `Cipher` object that uses the given `algorithm` and
