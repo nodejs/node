@@ -44,6 +44,8 @@ Worker::Worker(Environment* env, Local<Object> wrap)
     Mutex::ScopedLock next_thread_id_lock(next_thread_id_mutex);
     thread_id_ = next_thread_id++;
   }
+
+  Debug(this, "Creating worker with id %llu", thread_id_);
   wrap->Set(env->context(),
             env->thread_id_string(),
             Number::New(env->isolate(),
@@ -107,6 +109,8 @@ Worker::Worker(Environment* env, Local<Object> wrap)
 
   // The new isolate won't be bothered on this thread again.
   isolate_->DiscardThreadSpecificMetadata();
+
+  Debug(this, "Set up worker with id %llu", thread_id_);
 }
 
 bool Worker::is_stopped() const {
@@ -123,6 +127,7 @@ void Worker::Run() {
   MultiIsolatePlatform* platform = isolate_data_->platform();
   CHECK_NE(platform, nullptr);
 
+  Debug(this, "Starting worker with id %llu", thread_id_);
   {
     Locker locker(isolate_);
     Isolate::Scope isolate_scope(isolate_);
@@ -143,6 +148,8 @@ void Worker::Run() {
         // within it.
         if (child_port_ != nullptr)
           env_->set_message_port(child_port_->object(isolate_));
+
+        Debug(this, "Created message port for worker %llu", thread_id_);
       }
 
       if (!is_stopped()) {
@@ -152,6 +159,8 @@ void Worker::Run() {
         // This loads the Node bootstrapping code.
         LoadEnvironment(env_.get());
         env_->async_hooks()->pop_async_id(1);
+
+        Debug(this, "Loaded environment for worker %llu", thread_id_);
       }
 
       {
@@ -189,6 +198,9 @@ void Worker::Run() {
       Mutex::ScopedLock lock(mutex_);
       if (exit_code_ == 0 && !stopped)
         exit_code_ = exit_code;
+
+      Debug(this, "Exiting thread for worker %llu with exit code %d",
+            thread_id_, exit_code_);
     }
 
     env_->set_can_call_into_js(false);
@@ -237,12 +249,15 @@ void Worker::Run() {
     scheduled_on_thread_stopped_ = true;
     uv_async_send(thread_exit_async_.get());
   }
+
+  Debug(this, "Worker %llu thread stops", thread_id_);
 }
 
 void Worker::DisposeIsolate() {
   if (isolate_ == nullptr)
     return;
 
+  Debug(this, "Worker %llu dispose isolate", thread_id_);
   CHECK(isolate_data_);
   MultiIsolatePlatform* platform = isolate_data_->platform();
   platform->CancelPendingDelayedTasks(isolate_);
@@ -274,6 +289,8 @@ void Worker::JoinThread() {
 void Worker::OnThreadStopped() {
   Mutex::ScopedLock lock(mutex_);
   scheduled_on_thread_stopped_ = false;
+
+  Debug(this, "Worker %llu thread stopped", thread_id_);
 
   {
     Mutex::ScopedLock stopped_lock(stopped_mutex_);
@@ -318,6 +335,8 @@ Worker::~Worker() {
   // This has most likely already happened within the worker thread -- this
   // is just in case Worker creation failed early.
   DisposeIsolate();
+
+  Debug(this, "Worker %llu destroyed", thread_id_);
 }
 
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
@@ -371,6 +390,9 @@ void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
 void Worker::Exit(int code) {
   Mutex::ScopedLock lock(mutex_);
   Mutex::ScopedLock stopped_lock(stopped_mutex_);
+
+  Debug(this, "Worker %llu called Exit(%d)", thread_id_, code);
+
   if (!stopped_) {
     CHECK_NE(env_, nullptr);
     stopped_ = true;
