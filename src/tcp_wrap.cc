@@ -211,8 +211,12 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
   int fd = static_cast<int>(args[0]->IntegerValue());
-  uv_tcp_open(&wrap->handle_, fd);
-  wrap->set_fd(fd);
+  int err = uv_tcp_open(&wrap->handle_, fd);
+
+  if (err == 0)
+    wrap->set_fd(fd);
+
+  args.GetReturnValue().Set(err);
 }
 
 
