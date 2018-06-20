@@ -509,8 +509,8 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
     BIND(&if_existingcallbacks);
     {
       Label if_singlecallback(this), if_multiplecallbacks(this);
-      BranchIfJSObject(existing_deferred_promise, &if_singlecallback,
-                       &if_multiplecallbacks);
+      Branch(HasInstanceType(existing_deferred_promise, FIXED_ARRAY_TYPE),
+             &if_multiplecallbacks, &if_singlecallback);
 
       BIND(&if_singlecallback);
       {
