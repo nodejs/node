@@ -4,6 +4,14 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
+common.expectsError(() => {
+  new net.Socket({ fd: -1 });
+}, { code: 'ERR_OUT_OF_RANGE' });
+
+common.expectsError(() => {
+  new net.Socket({ fd: 'foo' });
+}, { code: 'ERR_INVALID_ARG_TYPE' });
+
 function test(sock, readable, writable) {
   let socket;
   if (sock instanceof net.Socket) {
