@@ -53,13 +53,14 @@ struct Argv {
   int nr_args_;
 };
 
+using ArrayBufferUniquePtr = std::unique_ptr<node::ArrayBufferAllocator,
+      decltype(&node::FreeArrayBufferAllocator)>;
 
 class NodeTestFixture : public ::testing::Test {
  protected:
-  static std::unique_ptr<v8::ArrayBuffer::Allocator> allocator;
+  static ArrayBufferUniquePtr allocator;
   static std::unique_ptr<v8::TracingController> tracing_controller;
   static std::unique_ptr<node::NodePlatform> platform;
-  static v8::Isolate::CreateParams params;
   static uv_loop_t current_loop;
   v8::Isolate* isolate_;
 
@@ -68,8 +69,6 @@ class NodeTestFixture : public ::testing::Test {
     node::tracing::TraceEventHelper::SetTracingController(
         tracing_controller.get());
     platform.reset(new node::NodePlatform(4, nullptr));
-    allocator.reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
-    params.array_buffer_allocator = allocator.get();
     CHECK_EQ(0, uv_loop_init(&current_loop));
     v8::V8::InitializePlatform(platform.get());
     v8::V8::Initialize();
@@ -85,7 +84,9 @@ class NodeTestFixture : public ::testing::Test {
   }
 
   virtual void SetUp() {
-    isolate_ = v8::Isolate::New(params);
+    allocator = ArrayBufferUniquePtr(node::CreateArrayBufferAllocator(),
+                                     &node::FreeArrayBufferAllocator);
+    isolate_ = NewIsolate(allocator.get());
     CHECK_NE(isolate_, nullptr);
   }
 
