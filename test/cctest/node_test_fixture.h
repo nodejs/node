@@ -55,12 +55,14 @@ struct Argv {
 
 using ArrayBufferUniquePtr = std::unique_ptr<node::ArrayBufferAllocator,
       decltype(&node::FreeArrayBufferAllocator)>;
+using TracingControllerUniquePtr = std::unique_ptr<v8::TracingController>;
+using NodePlatformUniquePtr = std::unique_ptr<node::NodePlatform>;
 
 class NodeTestFixture : public ::testing::Test {
  protected:
   static ArrayBufferUniquePtr allocator;
-  static std::unique_ptr<v8::TracingController> tracing_controller;
-  static std::unique_ptr<node::NodePlatform> platform;
+  static TracingControllerUniquePtr tracing_controller;
+  static NodePlatformUniquePtr platform;
   static uv_loop_t current_loop;
   v8::Isolate* isolate_;
 

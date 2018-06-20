@@ -2,5 +2,5 @@
 
 ArrayBufferUniquePtr NodeTestFixture::allocator{nullptr, nullptr};
 uv_loop_t NodeTestFixture::current_loop;
-std::unique_ptr<node::NodePlatform> NodeTestFixture::platform;
-std::unique_ptr<v8::TracingController> NodeTestFixture::tracing_controller;
+NodePlatformUniquePtr NodeTestFixture::platform;
+TracingControllerUniquePtr NodeTestFixture::tracing_controller;
