@@ -1,3 +1,4 @@
+#include "debug_utils.h"
 #include "node_messaging.h"
 #include "node_internals.h"
 #include "node_buffer.h"
@@ -305,8 +306,10 @@ void MessagePortData::AddToIncomingQueue(Message&& message) {
   Mutex::ScopedLock lock(mutex_);
   incoming_messages_.emplace_back(std::move(message));
 
-  if (owner_ != nullptr)
+  if (owner_ != nullptr) {
+    Debug(owner_, "Adding message to incoming queue");
     owner_->TriggerAsync();
+  }
 }
 
 bool MessagePortData::IsSiblingClosed() const {
@@ -380,6 +383,8 @@ MessagePort::MessagePort(Environment* env,
     Local<Function> init = fn.As<Function>();
     USE(init->Call(context, wrap, 0, nullptr));
   }
+
+  Debug(this, "Created message port");
 }
 
 void MessagePort::AddToIncomingQueue(Message&& message) {
@@ -396,6 +401,8 @@ void MessagePort::TriggerAsync() {
 }
 
 void MessagePort::Close(v8::Local<v8::Value> close_callback) {
+  Debug(this, "Closing message port, data set = %d", static_cast<int>(!!data_));
+
   if (data_) {
     // Wrap this call with accessing the mutex, so that TriggerAsync()
     // can check IsHandleClosing() without race conditions.
@@ -447,6 +454,7 @@ MessagePort* MessagePort::New(
 }
 
 void MessagePort::OnMessage() {
+  Debug(this, "Running MessagePort::OnMessage()");
   HandleScope handle_scope(env()->isolate());
   Local<Context> context = object(env()->isolate())->CreationContext();
 
@@ -461,10 +469,14 @@ void MessagePort::OnMessage() {
       Mutex::ScopedLock lock(data_->mutex_);
 
       if (stop_event_loop_) {
+        Debug(this, "MessagePort stops loop as requested");
         CHECK(!data_->receiving_messages_);
         uv_stop(env()->event_loop());
         break;
       }
+
+      Debug(this, "MessagePort has message, receiving = %d",
+            static_cast<int>(data_->receiving_messages_));
 
       if (!data_->receiving_messages_)
         break;
@@ -475,6 +487,7 @@ void MessagePort::OnMessage() {
     }
 
     if (!env()->can_call_into_js()) {
+      Debug(this, "MessagePort drains queue because !can_call_into_js()");
       // In this case there is nothing to do but to drain the current queue.
       continue;
     }
@@ -508,6 +521,7 @@ bool MessagePort::IsSiblingClosed() const {
 }
 
 void MessagePort::OnClose() {
+  Debug(this, "MessagePort::OnClose()");
   if (data_) {
     data_->owner_ = nullptr;
     data_->Disentangle();
@@ -557,6 +571,7 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
 
 void MessagePort::Start() {
   Mutex::ScopedLock lock(data_->mutex_);
+  Debug(this, "Start receiving messages");
   data_->receiving_messages_ = true;
   if (!data_->incoming_messages_.empty())
     TriggerAsync();
@@ -564,6 +579,7 @@ void MessagePort::Start() {
 
 void MessagePort::Stop() {
   Mutex::ScopedLock lock(data_->mutex_);
+  Debug(this, "Stop receiving messages");
   data_->receiving_messages_ = false;
 }
 
@@ -572,6 +588,7 @@ void MessagePort::StopEventLoop() {
   data_->receiving_messages_ = false;
   stop_event_loop_ = true;
 
+  Debug(this, "Received StopEventLoop request");
   TriggerAsync();
 }
 
