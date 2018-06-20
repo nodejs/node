@@ -2409,7 +2409,7 @@ The following constants exported by `crypto.constants` apply to various uses of
 the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 ### OpenSSL Options
-
+<!--lint disable maximum-line-length-->
 <table>
   <tr>
     <th>Constant</th>
@@ -2418,20 +2418,20 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   <tr>
     <td><code>SSL_OP_ALL</code></td>
     <td>Applies multiple bug workarounds within OpenSSL. See
-    https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html for
-    detail.</td>
+    <a href="https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html">https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html</a>
+    for detail.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION</code></td>
     <td>Allows legacy insecure renegotiation between OpenSSL and unpatched
     clients or servers. See
-    https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.</td>
+    <a href="https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html">https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html</a>.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_CIPHER_SERVER_PREFERENCE</code></td>
     <td>Attempts to use the server's preferences instead of the client's when
     selecting a cipher. Behavior depends on protocol version. See
-    https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.</td>
+    <a href="https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html">https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html</a>.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_CISCO_ANYCONNECT</code></td>
@@ -2565,6 +2565,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 </table>
 
 ### OpenSSL Engine Constants
+<!--lint enable maximum-line-length remark-lint-->
 
 <table>
   <tr>
