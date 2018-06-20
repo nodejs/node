@@ -537,7 +537,7 @@ void Environment::set_debug_categories(const std::string& cats, bool enabled) {
     if (comma_pos == std::string::npos)
       break;
     // Use everything after the `,` as the list for the next iteration.
-    debug_categories = debug_categories.substr(comma_pos);
+    debug_categories = debug_categories.substr(comma_pos + 1);
   }
 }
 
