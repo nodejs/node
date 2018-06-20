@@ -481,6 +481,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`require('worker_threads').on('workerMessage')`]: #worker_threads_event_workermessage
 [`require('worker_threads').postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`require('worker_threads').isMainThread`]: #worker_threads_worker_ismainthread
+[`require('worker_threads').parentPort`]: #worker_threads_worker_parentport
 [`require('worker_threads').threadId`]: #worker_threads_worker_threadid
 [`cluster` module]: cluster.html
 [`inspector`]: inspector.html
