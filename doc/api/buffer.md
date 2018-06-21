@@ -941,6 +941,28 @@ added: v0.9.1
 Returns `true` if `encoding` contains a supported character encoding, or `false`
 otherwise.
 
+### Class Method: Buffer.of(...items)
+<!-- YAML
+added: 6.0.0
+-->
+
+* `...items` {number[]} A list of values for buffer initialisation
+* Returns: {Buffer}
+
+Returns a `Buffer` from the list of values. Alternative to
+`Buffer.from` that bypasses the `Array` constructor and
+several internal setup calls.
+
+```js
+Buffer.from(1, 2, 3, 4).equals(Buffer.from([1, 2, 3, 4]))
+```
+
+Identical to the built-in [%TypedArray%.of()], but avoids
+using the deprecated `Buffer()` constructor. <!--Additionally,
+`Buffer.of` may be more performant as it creates and
+fills the Buffer directly, and does not create a `this`
+reference as it uses arrow syntax. -->
+
 ### Class Property: Buffer.poolSize
 <!-- YAML
 added: v0.11.3
