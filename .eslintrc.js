@@ -131,7 +131,7 @@ module.exports = {
       {
         object: 'assert',
         property: 'equal',
-        message: 'Use assert.astrictEqual() rather than assert.equal().',
+        message: 'Use assert.strictEqual() rather than assert.equal().',
       },
       {
         object: 'assert',
