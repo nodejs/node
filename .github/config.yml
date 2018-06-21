@@ -17,7 +17,7 @@ newPRWelcomeComment: >
 
   For non-trivial changes, pull requests must be left open for *at least* 48 hours during the week, and 72 hours on a weekend (in UTC time) before being merged.
 
-  If this pull request changes includes code changes, the CI must be started by a collaborator.
+  If this pull request changes includes code changes, the CI must be started by a [collaborator](https://github.com/nodejs/node/blob/master/GOVERNANCE.md#collaborators).
 
   We get a lot of pull requests on this repo, so please be patient and we will review this as soon as we can.
 
