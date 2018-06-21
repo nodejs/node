@@ -140,14 +140,25 @@ function verifyStatObject(stat) {
                          (await realpath(newLink)).toLowerCase());
       assert.strictEqual(newPath.toLowerCase(),
                          (await readlink(newLink)).toLowerCase());
+
+      const newMode = 0o666;
       if (common.isOSX) {
         // lchmod is only available on macOS
-        const newMode = 0o666;
         await lchmod(newLink, newMode);
         stats = await lstat(newLink);
         assert.strictEqual(stats.mode & 0o777, newMode);
+      } else {
+        await Promise.all([
+          assert.rejects(
+            lchmod(newLink, newMode),
+            common.expectsError({
+              code: 'ERR_METHOD_NOT_IMPLEMENTED',
+              type: Error,
+              message: 'The lchmod() method is not implemented'
+            })
+          )
+        ]);
       }
-
 
       await unlink(newLink);
     }
