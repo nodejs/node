@@ -1016,27 +1016,19 @@ static MaybeLocal<Value> ExecuteString(Environment* env,
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Array> ary = Array::New(args.GetIsolate());
   Local<Context> ctx = env->context();
-  Local<Function> fn = env->push_values_to_array_function();
-  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  size_t idx = 0;
+  Local<Object> return_obj = Object::New(args.GetIsolate());
 
   for (auto w : *env->req_wrap_queue()) {
     if (w->persistent().IsEmpty())
       continue;
-    argv[idx] = w->object();
-    if (++idx >= arraysize(argv)) {
-      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-      idx = 0;
-    }
+    double async_id = w->get_async_id();
+    Local<Object> req_obj = w->object();
+
+    return_obj->Set(ctx, Number::New(args.GetIsolate(), async_id), req_obj);
   }
 
-  if (idx > 0) {
-    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-  }
-
-  args.GetReturnValue().Set(ary);
+  args.GetReturnValue().Set(return_obj);
 }
 
 
@@ -1045,32 +1037,22 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Array> ary = Array::New(env->isolate());
   Local<Context> ctx = env->context();
-  Local<Function> fn = env->push_values_to_array_function();
-  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  size_t idx = 0;
+  Local<Object> return_obj = Object::New(args.GetIsolate());
 
   Local<String> owner_sym = env->owner_string();
 
   for (auto w : *env->handle_wrap_queue()) {
     if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w))
       continue;
-    Local<Object> object = w->object();
-    Local<Value> owner = object->Get(owner_sym);
-    if (owner->IsUndefined())
-      owner = object;
-    argv[idx] = owner;
-    if (++idx >= arraysize(argv)) {
-      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-      idx = 0;
-    }
-  }
-  if (idx > 0) {
-    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+    double async_id = w->get_async_id();
+    Local<Object> handle_object = w->object();
+    return_obj->Set(ctx, Number::New(args.GetIsolate(),
+                                     async_id),
+                                     handle_object);
   }
 
-  args.GetReturnValue().Set(ary);
+  args.GetReturnValue().Set(return_obj);
 }
 
 

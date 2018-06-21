@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const strictEqual = require('assert').strictEqual;
+const { getActiveResources } = require('async_hooks');
 
 // child_process
 {
@@ -113,10 +114,10 @@ const dgram = require('dgram');
 // timers
 {
   const { Timer } = process.binding('timer_wrap');
-  strictEqual(process._getActiveHandles().filter(
+  strictEqual(Object.values(getActiveResources()).filter(
     (handle) => (handle instanceof Timer)).length, 0);
   const timer = setTimeout(() => {}, 500);
-  const handles = process._getActiveHandles().filter(
+  const handles = Object.values(getActiveResources()).filter(
     (handle) => (handle instanceof Timer));
   strictEqual(handles.length, 1);
   const handle = handles[0];

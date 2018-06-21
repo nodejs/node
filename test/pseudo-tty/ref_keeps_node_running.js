@@ -4,6 +4,7 @@ require('../common');
 
 const { TTY, isTTY } = process.binding('tty_wrap');
 const strictEqual = require('assert').strictEqual;
+const { getActiveResources } = require('async_hooks');
 
 strictEqual(isTTY(0), true, 'fd 0 is not a TTY');
 
@@ -12,7 +13,8 @@ handle.readStart();
 handle.onread = () => {};
 
 function isHandleActive(handle) {
-  return process._getActiveHandles().some((active) => active === handle);
+  return Object.values(getActiveResources())
+    .some((active) => active === handle);
 }
 
 strictEqual(isHandleActive(handle), true, 'TTY handle not initially active');
