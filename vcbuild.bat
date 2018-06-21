@@ -256,20 +256,23 @@ goto build-doc
 set project_generated=
 :project-gen
 @rem Skip project generation if requested.
-if defined noprojgen goto skip-configure
+if defined noprojgen goto msbuild
 if defined projgen goto run-configure
 if not exist node.sln goto run-configure
-if not exist .used_configure_flags goto run-configure
-SETLOCAL EnableDelayedExpansion
-set /p prev_configure_flags=<.used_configure_flags
-if NOT !prev_configure_flags! == !configure_flags! ENDLOCAL && goto run-configure
-ENDLOCAL
+if not exist .gyp_configure_stamp goto run-configure
+echo %configure_flags% > .tmp_gyp_configure_stamp
+where /R . /T *.gyp? >> .tmp_gyp_configure_stamp
+fc .gyp_configure_stamp .tmp_gyp_configure_stamp >NUL 2>&1
+if errorlevel 1 goto run-configure
 
 :skip-configure
-echo Reusing solution generated with %prev_configure_flags%
+del .tmp_gyp_configure_stamp
+echo Reusing solution generated with %configure_flags%
 goto msbuild
 
 :run-configure
+del .tmp_gyp_configure_stamp
+del .gyp_configure_stamp
 @rem Generate the VS project.
 echo configure %configure_flags%
 echo %configure_flags%> .used_configure_flags
@@ -278,6 +281,8 @@ if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 set project_generated=1
 echo Project files generated.
+echo %configure_flags% > .gyp_configure_stamp
+where /R . /T *.gyp? >> .gyp_configure_stamp
 
 :msbuild
 @rem Skip build if requested.
