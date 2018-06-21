@@ -114,6 +114,28 @@ function verifyStatObject(stat) {
       await handle.chown(process.getuid(), process.getgid());
     }
 
+    assert.rejects(
+      async () => {
+        await chown(dest, 1, -1);
+      },
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        message: 'The value of "gid" is out of range. ' +
+                 'It must be >= 0 && < 4294967296. Received -1'
+      });
+
+    assert.rejects(
+      async () => {
+        await handle.chown(1, -1);
+      },
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        message: 'The value of "gid" is out of range. ' +
+                  'It must be >= 0 && < 4294967296. Received -1'
+      });
+
     await utimes(dest, new Date(), new Date());
 
     try {
