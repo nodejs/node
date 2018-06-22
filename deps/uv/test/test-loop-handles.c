@@ -228,8 +228,8 @@ static void check_cb(uv_check_t* handle) {
       uv_close((uv_handle_t*)&idle_1_handles[i], idle_1_close_cb);
     }
 
-    /* This handle is closed/recreated every time, close it only if it is */
-    /* active.*/
+    /* This handle is closed/recreated every time, close it only if it is
+     * active. */
     if (idle_2_is_active) {
       uv_close((uv_handle_t*)&idle_2_handle, idle_2_close_cb);
     }
@@ -246,10 +246,10 @@ static void prepare_2_cb(uv_prepare_t* handle) {
   fflush(stderr);
   ASSERT(handle == &prepare_2_handle);
 
-  /* prepare_2 gets started by prepare_1 when (loop_iteration % 2 == 0), */
-  /* and it stops itself immediately. A started watcher is not queued */
-  /* until the next round, so when this callback is made */
-  /* (loop_iteration % 2 == 0) cannot be true. */
+  /* Prepare_2 gets started by prepare_1 when (loop_iteration % 2 == 0), and it
+   * stops itself immediately. A started watcher is not queued until the next
+   * round, so when this callback is made (loop_iteration % 2 == 0) cannot be
+   * true. */
   ASSERT(loop_iteration % 2 != 0);
 
   r = uv_prepare_stop((uv_prepare_t*)handle);
@@ -304,8 +304,8 @@ TEST_IMPL(loop_handles) {
 
   /* don't init or start idle_2, both is done by idle_1_cb */
 
-  /* the timer callback is there to keep the event loop polling */
-  /* unref it as it is not supposed to keep the loop alive */
+  /* The timer callback is there to keep the event loop polling unref it as it
+   * is not supposed to keep the loop alive */
   r = uv_timer_init(uv_default_loop(), &timer_handle);
   ASSERT(r == 0);
   r = uv_timer_start(&timer_handle, timer_cb, TIMEOUT, TIMEOUT);

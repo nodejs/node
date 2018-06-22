@@ -63,9 +63,9 @@ const char *_getprogname(void) {
 static void parse_opts(server_config *cf, int argc, char **argv) {
   int opt;
 
-  while (-1 != (opt = getopt(argc, argv, "H:hp:"))) {
+  while (-1 != (opt = getopt(argc, argv, "b:hp:"))) {
     switch (opt) {
-      case 'H':
+      case 'b':
         cf->bind_host = optarg;
         break;
 
@@ -85,7 +85,7 @@ static void parse_opts(server_config *cf, int argc, char **argv) {
 static void usage(void) {
   printf("Usage:\n"
          "\n"
-         "  %s [-b <address> [-h] [-p <port>]\n"
+         "  %s [-b <address>] [-h] [-p <port>]\n"
          "\n"
          "Options:\n"
          "\n"

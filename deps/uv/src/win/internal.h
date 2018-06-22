@@ -25,7 +25,7 @@
 #include "uv.h"
 #include "../uv-common.h"
 
-#include "tree.h"
+#include "uv/tree.h"
 #include "winapi.h"
 #include "winsock.h"
 
@@ -99,7 +99,6 @@ extern UV_THREAD_LOCAL int uv__crt_assert_enabled;
 /* Only used by uv_pipe_t handles. */
 #define UV_HANDLE_NON_OVERLAPPED_PIPE           0x01000000
 #define UV_HANDLE_PIPESERVER                    0x02000000
-#define UV_HANDLE_PIPE_READ_CANCELABLE          0x04000000
 
 /* Only used by uv_tty_t handles. */
 #define UV_HANDLE_TTY_READABLE                  0x01000000
@@ -127,8 +126,9 @@ extern UV_THREAD_LOCAL int uv__crt_assert_enabled;
 
 typedef struct {
   WSAPROTOCOL_INFOW socket_info;
-  int delayed_error;
-} uv__ipc_socket_info_ex;
+  uint32_t delayed_error;
+  uint32_t flags; /* Either zero or UV_HANDLE_CONNECTION. */
+} uv__ipc_socket_xfer_info_t;
 
 int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
 int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client);
@@ -150,11 +150,10 @@ void uv_process_tcp_connect_req(uv_loop_t* loop, uv_tcp_t* handle,
 void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp);
 void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle);
 
-int uv_tcp_import(uv_tcp_t* tcp, uv__ipc_socket_info_ex* socket_info_ex,
-    int tcp_connection);
-
-int uv_tcp_duplicate_socket(uv_tcp_t* handle, int pid,
-    LPWSAPROTOCOL_INFOW protocol_info);
+int uv__tcp_xfer_export(uv_tcp_t* handle,
+                        int pid,
+                        uv__ipc_socket_xfer_info_t* xfer_info);
+int uv__tcp_xfer_import(uv_tcp_t* tcp, uv__ipc_socket_xfer_info_t* xfer_info);
 
 
 /*
@@ -178,14 +177,14 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client);
 int uv_pipe_read_start(uv_pipe_t* handle, uv_alloc_cb alloc_cb,
     uv_read_cb read_cb);
-int uv_pipe_write(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
-    const uv_buf_t bufs[], unsigned int nbufs, uv_write_cb cb);
-int uv_pipe_write2(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
-    const uv_buf_t bufs[], unsigned int nbufs, uv_stream_t* send_handle,
-    uv_write_cb cb);
-void uv__pipe_pause_read(uv_pipe_t* handle);
-void uv__pipe_unpause_read(uv_pipe_t* handle);
-void uv__pipe_stop_read(uv_pipe_t* handle);
+void uv__pipe_read_stop(uv_pipe_t* handle);
+int uv__pipe_write(uv_loop_t* loop,
+                   uv_write_t* req,
+                   uv_pipe_t* handle,
+                   const uv_buf_t bufs[],
+                   size_t nbufs,
+                   uv_stream_t* send_handle,
+                   uv_write_cb cb);
 
 void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
     uv_req_t* req);
@@ -332,7 +331,6 @@ void uv__fs_poll_endgame(uv_loop_t* loop, uv_fs_poll_t* handle);
 void uv__util_init(void);
 
 uint64_t uv__hrtime(double scale);
-int uv_current_pid(void);
 __declspec(noreturn) void uv_fatal_error(const int errorno, const char* syscall);
 int uv__getpwuid_r(uv_passwd_t* pwd);
 int uv__convert_utf16_to_utf8(const WCHAR* utf16, int utf16len, char** utf8);

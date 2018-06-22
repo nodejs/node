@@ -359,58 +359,7 @@ int uv_backend_timeout(const uv_loop_t* loop) {
 }
 
 
-static void uv_poll(uv_loop_t* loop, DWORD timeout) {
-  DWORD bytes;
-  ULONG_PTR key;
-  OVERLAPPED* overlapped;
-  uv_req_t* req;
-  int repeat;
-  uint64_t timeout_time;
-
-  timeout_time = loop->time + timeout;
-
-  for (repeat = 0; ; repeat++) {
-    GetQueuedCompletionStatus(loop->iocp,
-                              &bytes,
-                              &key,
-                              &overlapped,
-                              timeout);
-
-    if (overlapped) {
-      /* Package was dequeued */
-      req = uv_overlapped_to_req(overlapped);
-      uv_insert_pending_req(loop, req);
-
-      /* Some time might have passed waiting for I/O,
-       * so update the loop time here.
-       */
-      uv_update_time(loop);
-    } else if (GetLastError() != WAIT_TIMEOUT) {
-      /* Serious error */
-      uv_fatal_error(GetLastError(), "GetQueuedCompletionStatus");
-    } else if (timeout > 0) {
-      /* GetQueuedCompletionStatus can occasionally return a little early.
-       * Make sure that the desired timeout target time is reached.
-       */
-      uv_update_time(loop);
-      if (timeout_time > loop->time) {
-        timeout = (DWORD)(timeout_time - loop->time);
-        /* The first call to GetQueuedCompletionStatus should return very
-         * close to the target time and the second should reach it, but
-         * this is not stated in the documentation. To make sure a busy
-         * loop cannot happen, the timeout is increased exponentially
-         * starting on the third round.
-         */
-        timeout += repeat ? (1 << (repeat - 1)) : 0;
-        continue;
-      }
-    }
-    break;
-  }
-}
-
-
-static void uv_poll_ex(uv_loop_t* loop, DWORD timeout) {
+static void uv__poll(uv_loop_t* loop, DWORD timeout) {
   BOOL success;
   uv_req_t* req;
   OVERLAPPED_ENTRY overlappeds[128];
@@ -422,12 +371,12 @@ static void uv_poll_ex(uv_loop_t* loop, DWORD timeout) {
   timeout_time = loop->time + timeout;
 
   for (repeat = 0; ; repeat++) {
-    success = pGetQueuedCompletionStatusEx(loop->iocp,
-                                           overlappeds,
-                                           ARRAY_SIZE(overlappeds),
-                                           &count,
-                                           timeout,
-                                           FALSE);
+    success = GetQueuedCompletionStatusEx(loop->iocp,
+                                          overlappeds,
+                                          ARRAY_SIZE(overlappeds),
+                                          &count,
+                                          timeout,
+                                          FALSE);
 
     if (success) {
       for (i = 0; i < count; i++) {
@@ -485,12 +434,6 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
   DWORD timeout;
   int r;
   int ran_pending;
-  void (*poll)(uv_loop_t* loop, DWORD timeout);
-
-  if (pGetQueuedCompletionStatusEx)
-    poll = &uv_poll_ex;
-  else
-    poll = &uv_poll;
 
   r = uv__loop_alive(loop);
   if (!r)
@@ -508,7 +451,7 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     if ((mode == UV_RUN_ONCE && !ran_pending) || mode == UV_RUN_DEFAULT)
       timeout = uv_backend_timeout(loop);
 
-    (*poll)(loop, timeout);
+    uv__poll(loop, timeout);
 
     uv_check_invoke(loop);
     uv_process_endgames(loop);

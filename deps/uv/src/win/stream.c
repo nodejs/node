@@ -105,12 +105,10 @@ int uv_read_stop(uv_stream_t* handle) {
   err = 0;
   if (handle->type == UV_TTY) {
     err = uv_tty_read_stop((uv_tty_t*) handle);
+  } else if (handle->type == UV_NAMED_PIPE) {
+    uv__pipe_read_stop((uv_pipe_t*) handle);
   } else {
-    if (handle->type == UV_NAMED_PIPE) {
-      uv__pipe_stop_read((uv_pipe_t*) handle);
-    } else {
-      handle->flags &= ~UV_HANDLE_READING;
-    }
+    handle->flags &= ~UV_HANDLE_READING;
     DECREASE_ACTIVE_COUNT(handle->loop, handle);
   }
 
@@ -136,7 +134,8 @@ int uv_write(uv_write_t* req,
       err = uv_tcp_write(loop, req, (uv_tcp_t*) handle, bufs, nbufs, cb);
       break;
     case UV_NAMED_PIPE:
-      err = uv_pipe_write(loop, req, (uv_pipe_t*) handle, bufs, nbufs, cb);
+      err = uv__pipe_write(
+          loop, req, (uv_pipe_t*) handle, bufs, nbufs, NULL, cb);
       break;
     case UV_TTY:
       err = uv_tty_write(loop, req, (uv_tty_t*) handle, bufs, nbufs, cb);
@@ -158,25 +157,18 @@ int uv_write2(uv_write_t* req,
   uv_loop_t* loop = handle->loop;
   int err;
 
-  if (!(handle->flags & UV_HANDLE_WRITABLE)) {
+  if (send_handle == NULL) {
+    return uv_write(req, handle, bufs, nbufs, cb);
+  }
+
+  if (handle->type != UV_NAMED_PIPE || !((uv_pipe_t*) handle)->ipc) {
+    return UV_EINVAL;
+  } else if (!(handle->flags & UV_HANDLE_WRITABLE)) {
     return UV_EPIPE;
   }
 
-  err = ERROR_INVALID_PARAMETER;
-  switch (handle->type) {
-    case UV_NAMED_PIPE:
-      err = uv_pipe_write2(loop,
-                           req,
-                           (uv_pipe_t*) handle,
-                           bufs,
-                           nbufs,
-                           send_handle,
-                           cb);
-      break;
-    default:
-      assert(0);
-  }
-
+  err = uv__pipe_write(
+      loop, req, (uv_pipe_t*) handle, bufs, nbufs, send_handle, cb);
   return uv_translate_sys_error(err);
 }
 

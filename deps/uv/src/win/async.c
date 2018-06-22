@@ -71,8 +71,8 @@ int uv_async_send(uv_async_t* handle) {
     return -1;
   }
 
-  /* The user should make sure never to call uv_async_send to a closing */
-  /* or closed handle. */
+  /* The user should make sure never to call uv_async_send to a closing or
+   * closed handle. */
   assert(!(handle->flags & UV__HANDLE_CLOSING));
 
   if (!uv__atomic_exchange_set(&handle->async_sent)) {

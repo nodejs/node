@@ -261,8 +261,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       w = loop->watchers[fd];
 
       if (w == NULL) {
-        /* File descriptor that we've stopped watching, disarm it. */
-        /* TODO batch up */
+        /* File descriptor that we've stopped watching, disarm it.
+         * TODO: batch up. */
         struct kevent events[1];
 
         EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
