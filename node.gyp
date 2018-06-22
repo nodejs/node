@@ -380,6 +380,7 @@
         'src/tracing/node_trace_buffer.cc',
         'src/tracing/node_trace_writer.cc',
         'src/tracing/trace_event.cc',
+        'src/tracing/traced_value.cc',
         'src/tty_wrap.cc',
         'src/udp_wrap.cc',
         'src/util.cc',
@@ -440,6 +441,7 @@
         'src/tracing/node_trace_buffer.h',
         'src/tracing/node_trace_writer.h',
         'src/tracing/trace_event.h',
+        'src/tracing/traced_value.h',
         'src/util.h',
         'src/util-inl.h',
         'deps/http_parser/http_parser.h',
@@ -953,6 +955,7 @@
         'test/cctest/test_node_postmortem_metadata.cc',
         'test/cctest/test_environment.cc',
         'test/cctest/test_platform.cc',
+        'test/cctest/test_traced_value.cc',
         'test/cctest/test_util.cc',
         'test/cctest/test_url.cc'
       ],
