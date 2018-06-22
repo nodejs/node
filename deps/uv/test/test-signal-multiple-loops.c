@@ -249,7 +249,7 @@ TEST_IMPL(signal_multiple_loops) {
     uv_sem_wait(&sem);
 
   /* Block all signals to this thread, so we are sure that from here the signal
-   * handler runs in another thread. This is is more likely to catch thread and
+   * handler runs in another thread. This is more likely to catch thread and
    * signal safety issues if there are any.
    */
   sigfillset(&sigset);

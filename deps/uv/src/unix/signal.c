@@ -54,8 +54,7 @@ static void uv__signal_unregister_handler(int signum);
 static uv_once_t uv__signal_global_init_guard = UV_ONCE_INIT;
 static struct uv__signal_tree_s uv__signal_tree =
     RB_INITIALIZER(uv__signal_tree);
-static int uv__signal_lock_pipefd[2];
-
+static int uv__signal_lock_pipefd[2] = { -1, -1 };
 
 RB_GENERATE_STATIC(uv__signal_tree_s,
                    uv_signal_s, tree_entry,
@@ -64,7 +63,7 @@ RB_GENERATE_STATIC(uv__signal_tree_s,
 static void uv__signal_global_reinit(void);
 
 static void uv__signal_global_init(void) {
-  if (!uv__signal_lock_pipefd[0])
+  if (uv__signal_lock_pipefd[0] == -1)
     /* pthread_atfork can register before and after handlers, one
      * for each child. This only registers one for the child. That
      * state is both persistent and cumulative, so if we keep doing
@@ -74,6 +73,33 @@ static void uv__signal_global_init(void) {
     if (pthread_atfork(NULL, NULL, &uv__signal_global_reinit))
       abort();
 
+  uv__signal_global_reinit();
+}
+
+
+UV_DESTRUCTOR(static void uv__signal_global_fini(void)) {
+  /* We can only use signal-safe functions here.
+   * That includes read/write and close, fortunately.
+   * We do all of this directly here instead of resetting
+   * uv__signal_global_init_guard because
+   * uv__signal_global_once_init is only called from uv_loop_init
+   * and this needs to function in existing loops.
+   */
+  if (uv__signal_lock_pipefd[0] != -1) {
+    uv__close(uv__signal_lock_pipefd[0]);
+    uv__signal_lock_pipefd[0] = -1;
+  }
+
+  if (uv__signal_lock_pipefd[1] != -1) {
+    uv__close(uv__signal_lock_pipefd[1]);
+    uv__signal_lock_pipefd[1] = -1;
+  }
+}
+
+
+static void uv__signal_global_reinit(void) {
+  uv__signal_global_fini();
+
   if (uv__make_pipe(uv__signal_lock_pipefd, 0))
     abort();
 
@@ -82,26 +108,9 @@ static void uv__signal_global_init(void) {
 }
 
 
-static void uv__signal_global_reinit(void) {
-  /* We can only use signal-safe functions here.
-   * That includes read/write and close, fortunately.
-   * We do all of this directly here instead of resetting
-   * uv__signal_global_init_guard because
-   * uv__signal_global_once_init is only called from uv_loop_init
-   * and this needs to function in existing loops.
-   */
-  uv__close(uv__signal_lock_pipefd[0]);
-  uv__signal_lock_pipefd[0] = -1;
-  uv__close(uv__signal_lock_pipefd[1]);
-  uv__signal_lock_pipefd[1] = -1;
-  uv__signal_global_init();
-}
-
-
 void uv__signal_global_once_init(void) {
   uv_once(&uv__signal_global_init_guard, uv__signal_global_init);
 }
-
 
 
 static int uv__signal_lock(void) {

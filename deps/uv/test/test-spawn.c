@@ -1637,8 +1637,8 @@ TEST_IMPL(spawn_reads_child_path) {
   static const char dyld_path_var[] = "LD_LIBRARY_PATH";
 #endif
 
-  /* Set up the process, but make sure that the file to run is relative and */
-  /* requires a lookup into PATH */
+  /* Set up the process, but make sure that the file to run is relative and
+   * requires a lookup into PATH. */
   init_process_options("spawn_helper1", exit_cb);
 
   /* Set up the PATH env variable */
@@ -1805,8 +1805,8 @@ TEST_IMPL(spawn_quoted_path) {
   options.args = args;
   options.exit_cb = exit_cb;
   options.flags = 0;
-  /* We test if search_path works correctly with semicolons in quoted path. */
-  /* We will use invalid drive, so we are sure no executable is spawned */
+  /* We test if search_path works correctly with semicolons in quoted path. We
+   * will use an invalid drive, so we are sure no executable is spawned. */
   quoted_path_env[0] = "PATH=\"xyz:\\test;\";xyz:\\other";
   quoted_path_env[1] = NULL;
   options.env = quoted_path_env;

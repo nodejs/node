@@ -323,6 +323,13 @@ Error constants
 API
 ---
 
+.. c:function:: UV_ERRNO_MAP(iter_macro)
+
+    Macro that expands to a series of invocations of `iter_macro` for
+    each of the error constants above. `iter_macro` is invoked with two
+    arguments: the name of the error constant without the `UV_` prefix,
+    and the error message string literal.
+
 .. c:function:: const char* uv_strerror(int err)
 
     Returns the error message for the given error code.  Leaks a few bytes

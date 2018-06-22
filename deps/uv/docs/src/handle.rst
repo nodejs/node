@@ -101,6 +101,14 @@ Public members
 API
 ---
 
+.. c:function:: UV_HANDLE_TYPE_MAP(iter_macro)
+
+    Macro that expands to a series of invocations of `iter_macro` for
+    each of the handle types. `iter_macro` is invoked with two
+    arguments: the name of the `uv_handle_type` element without the
+    `UV_` prefix, and the name of the corresponding structure type
+    without the `uv_` prefix and `_t` suffix.
+
 .. c:function:: int uv_is_active(const uv_handle_t* handle)
 
     Returns non-zero if the handle is active, zero if it's inactive. What

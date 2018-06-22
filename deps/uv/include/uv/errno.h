@@ -433,5 +433,11 @@
 # define UV__ENOTTY (-4029)
 #endif
 
+#if defined(EFTYPE) && !defined(_WIN32)
+# define UV__EFTYPE UV__ERR(EFTYPE)
+#else
+# define UV__EFTYPE (-4028)
+#endif
+
 
 #endif /* UV_ERRNO_H_ */

@@ -181,6 +181,20 @@ TEST_IMPL(tcp_open) {
                      connect_cb);
   ASSERT(r == 0);
 
+#ifndef _WIN32
+  {
+    uv_tcp_t client2;
+
+    r = uv_tcp_init(uv_default_loop(), &client2);
+    ASSERT(r == 0);
+
+    r = uv_tcp_open(&client2, sock);
+    ASSERT(r == UV_EEXIST);
+
+    uv_close((uv_handle_t*) &client2, NULL);
+  }
+#endif  /* !_WIN32 */
+
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(shutdown_cb_called == 1);
