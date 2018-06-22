@@ -415,10 +415,10 @@ struct ContextInfo {
 };
 
 // Listing the AsyncWrap provider types first enables us to cast directly
-// from a provider type to a debug category. Currently no other debug
-// categories are available.
+// from a provider type to a debug category.
 #define DEBUG_CATEGORY_NAMES(V) \
-    NODE_ASYNC_PROVIDER_TYPES(V)
+    NODE_ASYNC_PROVIDER_TYPES(V) \
+    V(INSPECTOR_SERVER)
 
 enum class DebugCategory {
 #define V(name) name,

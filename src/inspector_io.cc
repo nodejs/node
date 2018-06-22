@@ -314,6 +314,8 @@ void InspectorIo::SwapBehindLock(MessageQueue<ActionType>* vector1,
 
 void InspectorIo::PostIncomingMessage(InspectorAction action, int session_id,
                                       const std::string& message) {
+  Debug(parent_env_, DebugCategory::INSPECTOR_SERVER,
+        ">>> %s\n", message.c_str());
   if (AppendMessage(&incoming_message_queue_, action, session_id,
                     Utf8ToStringView(message))) {
     Agent* agent = main_thread_req_->second;
@@ -395,6 +397,10 @@ void InspectorIo::MainThreadReqAsyncCb(uv_async_t* req) {
 
 void InspectorIo::Write(TransportAction action, int session_id,
                         const StringView& inspector_message) {
+  std::string message_str =
+      protocol::StringUtil::StringViewToUtf8(inspector_message);
+  Debug(parent_env_, DebugCategory::INSPECTOR_SERVER,
+        "<<< %s\n", message_str.c_str());
   AppendMessage(&outgoing_message_queue_, action, session_id,
                 StringBuffer::create(inspector_message));
   int err = uv_async_send(&thread_req_);
