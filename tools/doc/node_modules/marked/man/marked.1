@@ -23,7 +23,7 @@ cat in.md | marked > out.html
 .TP
 echo "hello *world*" | marked
 .TP
-marked \-o out.html in.md \-\-gfm
+marked \-o out.html \-i in.md \-\-gfm
 .TP
 marked \-\-output="hello world.html" \-i in.md \-\-no-breaks
 
@@ -81,7 +81,7 @@ For configuring and running programmatically.
     require('marked')('*foo*', { gfm: true });
 
 .SH BUGS
-Please report any bugs to https://github.com/chjj/marked.
+Please report any bugs to https://github.com/markedjs/marked.
 
 .SH LICENSE
 Copyright (c) 2011-2014, Christopher Jeffrey (MIT License).

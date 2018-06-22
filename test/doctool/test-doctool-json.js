@@ -130,7 +130,7 @@ const testData = [
             {
               textRaw: 'Something',
               name: 'something',
-              desc: '<!-- This is not a metadata comment -->\n<p>' +
+              desc: '<!-- This is not a metadata comment -->\n\n<p>' +
                 'Describe <code>Something</code> in more detail here.</p>\n',
               type: 'module',
               displayName: 'Something'
