@@ -291,12 +291,12 @@ const mockedErrorCode = 'ENOTFOUND';
 const mockedSysCall = 'getaddrinfo';
 
 function errorLookupMock(code = mockedErrorCode, syscall = mockedSysCall) {
-  return function lookupWithError(host, dnsopts, cb) {
-    const err = new Error(`${syscall} ${code} ${host}`);
+  return function lookupWithError(hostname, dnsopts, cb) {
+    const err = new Error(`${syscall} ${code} ${hostname}`);
     err.code = code;
     err.errno = code;
     err.syscall = syscall;
-    err.hostname = host;
+    err.hostname = hostname;
     cb(err);
   };
 }
