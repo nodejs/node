@@ -170,6 +170,7 @@ static Mutex environ_mutex;
 
 static bool print_eval = false;
 static bool force_repl = false;
+static bool experimental_repl = false;
 static bool syntax_check_only = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
@@ -2133,6 +2134,10 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "_forceRepl", True(env->isolate()));
   }
 
+  if (experimental_repl) {
+    READONLY_PROPERTY(process, "_experimentalRepl", True(env->isolate()));
+  }
+
   // -r, --require
   if (!preload_modules.empty()) {
     Local<Array> array = Array::New(env->isolate());
@@ -2771,6 +2776,8 @@ static void ParseArgs(int* argc,
       syntax_check_only = true;
     } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
       force_repl = true;
+    } else if (strcmp(arg, "--experimental-repl") == 0) {
+      experimental_repl = true;
     } else if (strcmp(arg, "--no-deprecation") == 0) {
       no_deprecation = true;
     } else if (strcmp(arg, "--napi-modules") == 0) {
