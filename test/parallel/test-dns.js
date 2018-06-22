@@ -261,11 +261,12 @@ dns.lookup('', {
   const err = {
     code: 'ERR_MISSING_ARGS',
     type: TypeError,
-    message: 'The "host", "port", and "callback" arguments must be specified'
+    message: 'The "hostname", "port", and "callback" arguments must be ' +
+    'specified'
   };
 
   common.expectsError(() => dns.lookupService('0.0.0.0'), err);
-  err.message = 'The "host" and "port" arguments must be specified';
+  err.message = 'The "hostname" and "port" arguments must be specified';
   common.expectsError(() => dnsPromises.lookupService('0.0.0.0'), err);
 }
 
@@ -274,7 +275,7 @@ dns.lookup('', {
   const err = {
     code: 'ERR_INVALID_OPT_VALUE',
     type: TypeError,
-    message: `The value "${invalidHost}" is invalid for option "host"`
+    message: `The value "${invalidHost}" is invalid for option "hostname"`
   };
 
   common.expectsError(() => {
