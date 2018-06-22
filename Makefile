@@ -1046,11 +1046,17 @@ ifneq ("","$(wildcard tools/remark-cli/node_modules/)")
 
 LINT_MD_DOC_FILES = $(shell ls doc/*.md doc/**/*.md)
 run-lint-doc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_DOC_FILES)
+node_use_openssl = $(shell $(call available-node,"-p" \
+		   "process.versions.openssl != undefined"))
 # Lint all changed markdown files under doc/
 tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
+ifeq ($(node_use_openssl),true)
 	@echo "Running Markdown linter on docs..."
 	@$(call available-node,$(run-lint-doc-md))
 	@touch $@
+else
+	@echo "Skipping Markdown linter on docs (no crypto)"
+endif
 
 LINT_MD_TARGETS = src lib benchmark tools/doc tools/icu
 LINT_MD_ROOT_DOCS := $(wildcard *.md)
@@ -1059,9 +1065,13 @@ LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
 run-lint-misc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_MISC_FILES)
 # Lint other changed markdown files maintained by us
 tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)
+ifeq ($(node_use_openssl),true)
 	@echo "Running Markdown linter on misc docs..."
 	@$(call available-node,$(run-lint-misc-md))
 	@touch $@
+else
+	@echo "Skipping Markdown linter on misc docs (no crypto)"
+endif
 
 tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
 
