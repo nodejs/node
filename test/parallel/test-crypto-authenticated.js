@@ -1016,3 +1016,13 @@ for (const test of TEST_CASES) {
   assert.strictEqual(decrypt.update('807022', 'hex', 'hex'), 'abcdef');
   assert.strictEqual(decrypt.final('hex'), '');
 }
+
+// Test that an IV length of 11 does not overflow max_message_size_.
+{
+  const key = 'x'.repeat(16);
+  const iv = Buffer.from('112233445566778899aabb', 'hex');
+  const options = { authTagLength: 8 };
+  const encrypt = crypto.createCipheriv('aes-128-ccm', key, iv, options);
+  encrypt.update('boom');  // Should not throw 'Message exceeds maximum size'.
+  encrypt.final();
+}
