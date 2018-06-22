@@ -278,6 +278,13 @@ added: v0.11.14
 
 Throw errors for deprecations.
 
+### `--title=title`
+<!-- YAML
+added: REPLACEME
+-->
+
+Set `process.title` on startup.
+
 ### `--tls-cipher-list=list`
 <!-- YAML
 added: v4.0.0
@@ -539,6 +546,7 @@ Node options that are allowed are:
 - `--redirect-warnings`
 - `--require`, `-r`
 - `--throw-deprecation`
+- `--title`
 - `--tls-cipher-list`
 - `--trace-deprecation`
 - `--trace-event-categories`
