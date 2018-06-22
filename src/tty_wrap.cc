@@ -58,15 +58,15 @@ void TTYWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
-  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
+  env->SetProtoMethodNoSideEffect(t, "hasRef", HandleWrap::HasRef);
 
   LibuvStreamWrap::AddMethods(env, t);
 
-  env->SetProtoMethod(t, "getWindowSize", TTYWrap::GetWindowSize);
+  env->SetProtoMethodNoSideEffect(t, "getWindowSize", TTYWrap::GetWindowSize);
   env->SetProtoMethod(t, "setRawMode", SetRawMode);
 
-  env->SetMethod(target, "isTTY", IsTTY);
-  env->SetMethod(target, "guessHandleType", GuessHandleType);
+  env->SetMethodNoSideEffect(target, "isTTY", IsTTY);
+  env->SetMethodNoSideEffect(target, "guessHandleType", GuessHandleType);
 
   target->Set(ttyString, t->GetFunction());
   env->set_tty_constructor_template(t);

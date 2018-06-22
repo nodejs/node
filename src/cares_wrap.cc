@@ -2107,8 +2107,8 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "getaddrinfo", GetAddrInfo);
   env->SetMethod(target, "getnameinfo", GetNameInfo);
-  env->SetMethod(target, "isIPv6", IsIPv6);
-  env->SetMethod(target, "canonicalizeIP", CanonicalizeIP);
+  env->SetMethodNoSideEffect(target, "isIPv6", IsIPv6);
+  env->SetMethodNoSideEffect(target, "canonicalizeIP", CanonicalizeIP);
 
   env->SetMethod(target, "strerror", StrError);
 
@@ -2165,7 +2165,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(channel_wrap, "querySoa", Query<QuerySoaWrap>);
   env->SetProtoMethod(channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
 
-  env->SetProtoMethod(channel_wrap, "getServers", GetServers);
+  env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
   env->SetProtoMethod(channel_wrap, "setServers", SetServers);
   env->SetProtoMethod(channel_wrap, "cancel", Cancel);
 

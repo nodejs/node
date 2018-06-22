@@ -277,29 +277,30 @@ void StreamBase::AddMethods(Environment* env,
 
   Local<Signature> signature = Signature::New(env->isolate(), t);
 
+  // TODO(TimothyGu): None of these should have ConstructorBehavior::kAllow.
   Local<FunctionTemplate> get_fd_templ =
-      FunctionTemplate::New(env->isolate(),
-                            GetFD<Base>,
-                            env->as_external(),
-                            signature);
+      env->NewFunctionTemplate(GetFD<Base>,
+                               signature,
+                               v8::ConstructorBehavior::kAllow,
+                               v8::SideEffectType::kHasNoSideEffect);
 
   Local<FunctionTemplate> get_external_templ =
-      FunctionTemplate::New(env->isolate(),
-                            GetExternal<Base>,
-                            env->as_external(),
-                            signature);
+      env->NewFunctionTemplate(GetExternal<Base>,
+                               signature,
+                               v8::ConstructorBehavior::kAllow,
+                               v8::SideEffectType::kHasNoSideEffect);
 
   Local<FunctionTemplate> get_bytes_read_templ =
-      FunctionTemplate::New(env->isolate(),
-                            GetBytesRead<Base>,
-                            env->as_external(),
-                            signature);
+      env->NewFunctionTemplate(GetBytesRead<Base>,
+                               signature,
+                               v8::ConstructorBehavior::kAllow,
+                               v8::SideEffectType::kHasNoSideEffect);
 
   Local<FunctionTemplate> get_bytes_written_templ =
-      FunctionTemplate::New(env->isolate(),
-                            GetBytesWritten<Base>,
-                            env->as_external(),
-                            signature);
+      env->NewFunctionTemplate(GetBytesWritten<Base>,
+                               signature,
+                               v8::ConstructorBehavior::kAllow,
+                               v8::SideEffectType::kHasNoSideEffect);
 
   t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
                                               get_fd_templ,

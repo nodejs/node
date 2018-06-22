@@ -62,6 +62,7 @@ namespace crypto {
 
 using v8::Array;
 using v8::Boolean;
+using v8::ConstructorBehavior;
 using v8::Context;
 using v8::DontDelete;
 using v8::EscapableHandleScope;
@@ -83,6 +84,7 @@ using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
+using v8::SideEffectType;
 using v8::Signature;
 using v8::String;
 using v8::Uint32;
@@ -345,12 +347,12 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
 #ifndef OPENSSL_NO_ENGINE
   env->SetProtoMethod(t, "setClientCertEngine", SetClientCertEngine);
 #endif  // !OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "getTicketKeys", GetTicketKeys);
+  env->SetProtoMethodNoSideEffect(t, "getTicketKeys", GetTicketKeys);
   env->SetProtoMethod(t, "setTicketKeys", SetTicketKeys);
   env->SetProtoMethod(t, "setFreeListLength", SetFreeListLength);
   env->SetProtoMethod(t, "enableTicketKeyCallback", EnableTicketKeyCallback);
-  env->SetProtoMethod(t, "getCertificate", GetCertificate<true>);
-  env->SetProtoMethod(t, "getIssuer", GetCertificate<false>);
+  env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate<true>);
+  env->SetProtoMethodNoSideEffect(t, "getIssuer", GetCertificate<false>);
 
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyReturnIndex"),
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyReturnIndex));
@@ -1366,32 +1368,34 @@ template <class Base>
 void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
-  env->SetProtoMethod(t, "getPeerCertificate", GetPeerCertificate);
-  env->SetProtoMethod(t, "getFinished", GetFinished);
-  env->SetProtoMethod(t, "getPeerFinished", GetPeerFinished);
-  env->SetProtoMethod(t, "getSession", GetSession);
+  env->SetProtoMethodNoSideEffect(t, "getPeerCertificate", GetPeerCertificate);
+  env->SetProtoMethodNoSideEffect(t, "getFinished", GetFinished);
+  env->SetProtoMethodNoSideEffect(t, "getPeerFinished", GetPeerFinished);
+  env->SetProtoMethodNoSideEffect(t, "getSession", GetSession);
   env->SetProtoMethod(t, "setSession", SetSession);
   env->SetProtoMethod(t, "loadSession", LoadSession);
-  env->SetProtoMethod(t, "isSessionReused", IsSessionReused);
-  env->SetProtoMethod(t, "isInitFinished", IsInitFinished);
-  env->SetProtoMethod(t, "verifyError", VerifyError);
-  env->SetProtoMethod(t, "getCurrentCipher", GetCurrentCipher);
+  env->SetProtoMethodNoSideEffect(t, "isSessionReused", IsSessionReused);
+  env->SetProtoMethodNoSideEffect(t, "isInitFinished", IsInitFinished);
+  env->SetProtoMethodNoSideEffect(t, "verifyError", VerifyError);
+  env->SetProtoMethodNoSideEffect(t, "getCurrentCipher", GetCurrentCipher);
   env->SetProtoMethod(t, "endParser", EndParser);
   env->SetProtoMethod(t, "certCbDone", CertCbDone);
   env->SetProtoMethod(t, "renegotiate", Renegotiate);
   env->SetProtoMethod(t, "shutdownSSL", Shutdown);
-  env->SetProtoMethod(t, "getTLSTicket", GetTLSTicket);
+  env->SetProtoMethodNoSideEffect(t, "getTLSTicket", GetTLSTicket);
   env->SetProtoMethod(t, "newSessionDone", NewSessionDone);
   env->SetProtoMethod(t, "setOCSPResponse", SetOCSPResponse);
   env->SetProtoMethod(t, "requestOCSP", RequestOCSP);
-  env->SetProtoMethod(t, "getEphemeralKeyInfo", GetEphemeralKeyInfo);
-  env->SetProtoMethod(t, "getProtocol", GetProtocol);
+  env->SetProtoMethodNoSideEffect(t, "getEphemeralKeyInfo",
+                                  GetEphemeralKeyInfo);
+  env->SetProtoMethodNoSideEffect(t, "getProtocol", GetProtocol);
 
 #ifdef SSL_set_max_send_fragment
   env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
 #endif  // SSL_set_max_send_fragment
 
-  env->SetProtoMethod(t, "getALPNNegotiatedProtocol", GetALPNNegotiatedProto);
+  env->SetProtoMethodNoSideEffect(t, "getALPNNegotiatedProtocol",
+                                  GetALPNNegotiatedProto);
   env->SetProtoMethod(t, "setALPNProtocols", SetALPNProtocols);
 }
 
@@ -2559,7 +2563,7 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "update", Update);
   env->SetProtoMethod(t, "final", Final);
   env->SetProtoMethod(t, "setAutoPadding", SetAutoPadding);
-  env->SetProtoMethod(t, "getAuthTag", GetAuthTag);
+  env->SetProtoMethodNoSideEffect(t, "getAuthTag", GetAuthTag);
   env->SetProtoMethod(t, "setAuthTag", SetAuthTag);
   env->SetProtoMethod(t, "setAAD", SetAAD);
 
@@ -3892,10 +3896,10 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
 
   env->SetProtoMethod(t, "generateKeys", GenerateKeys);
   env->SetProtoMethod(t, "computeSecret", ComputeSecret);
-  env->SetProtoMethod(t, "getPrime", GetPrime);
-  env->SetProtoMethod(t, "getGenerator", GetGenerator);
-  env->SetProtoMethod(t, "getPublicKey", GetPublicKey);
-  env->SetProtoMethod(t, "getPrivateKey", GetPrivateKey);
+  env->SetProtoMethodNoSideEffect(t, "getPrime", GetPrime);
+  env->SetProtoMethodNoSideEffect(t, "getGenerator", GetGenerator);
+  env->SetProtoMethodNoSideEffect(t, "getPublicKey", GetPublicKey);
+  env->SetProtoMethodNoSideEffect(t, "getPrivateKey", GetPrivateKey);
   env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
@@ -3903,7 +3907,11 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
       FunctionTemplate::New(env->isolate(),
                             DiffieHellman::VerifyErrorGetter,
                             env->as_external(),
-                            Signature::New(env->isolate(), t));
+                            Signature::New(env->isolate(), t),
+                            /* length */ 0,
+                            // TODO(TimothyGu): should be deny
+                            ConstructorBehavior::kAllow,
+                            SideEffectType::kHasNoSideEffect);
 
   t->InstanceTemplate()->SetAccessorProperty(
       env->verify_error_string(),
@@ -3919,16 +3927,20 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
 
   env->SetProtoMethod(t2, "generateKeys", GenerateKeys);
   env->SetProtoMethod(t2, "computeSecret", ComputeSecret);
-  env->SetProtoMethod(t2, "getPrime", GetPrime);
-  env->SetProtoMethod(t2, "getGenerator", GetGenerator);
-  env->SetProtoMethod(t2, "getPublicKey", GetPublicKey);
-  env->SetProtoMethod(t2, "getPrivateKey", GetPrivateKey);
+  env->SetProtoMethodNoSideEffect(t2, "getPrime", GetPrime);
+  env->SetProtoMethodNoSideEffect(t2, "getGenerator", GetGenerator);
+  env->SetProtoMethodNoSideEffect(t2, "getPublicKey", GetPublicKey);
+  env->SetProtoMethodNoSideEffect(t2, "getPrivateKey", GetPrivateKey);
 
   Local<FunctionTemplate> verify_error_getter_templ2 =
       FunctionTemplate::New(env->isolate(),
                             DiffieHellman::VerifyErrorGetter,
                             env->as_external(),
-                            Signature::New(env->isolate(), t2));
+                            Signature::New(env->isolate(), t2),
+                            /* length */ 0,
+                            // TODO(TimothyGu): should be deny
+                            ConstructorBehavior::kAllow,
+                            SideEffectType::kHasNoSideEffect);
 
   t2->InstanceTemplate()->SetAccessorProperty(
       env->verify_error_string(),
@@ -4280,8 +4292,8 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
 
   env->SetProtoMethod(t, "generateKeys", GenerateKeys);
   env->SetProtoMethod(t, "computeSecret", ComputeSecret);
-  env->SetProtoMethod(t, "getPublicKey", GetPublicKey);
-  env->SetProtoMethod(t, "getPrivateKey", GetPrivateKey);
+  env->SetProtoMethodNoSideEffect(t, "getPublicKey", GetPublicKey);
+  env->SetProtoMethodNoSideEffect(t, "getPrivateKey", GetPrivateKey);
   env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
@@ -5172,27 +5184,27 @@ void Initialize(Local<Object> target,
   Sign::Initialize(env, target);
   Verify::Initialize(env, target);
 
-  env->SetMethod(target, "certVerifySpkac", VerifySpkac);
-  env->SetMethod(target, "certExportPublicKey", ExportPublicKey);
-  env->SetMethod(target, "certExportChallenge", ExportChallenge);
+  env->SetMethodNoSideEffect(target, "certVerifySpkac", VerifySpkac);
+  env->SetMethodNoSideEffect(target, "certExportPublicKey", ExportPublicKey);
+  env->SetMethodNoSideEffect(target, "certExportChallenge", ExportChallenge);
 
-  env->SetMethod(target, "ECDHConvertKey", ConvertKey);
+  env->SetMethodNoSideEffect(target, "ECDHConvertKey", ConvertKey);
 #ifndef OPENSSL_NO_ENGINE
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
 
 #ifdef NODE_FIPS_MODE
-  env->SetMethod(target, "getFipsCrypto", GetFipsCrypto);
+  env->SetMethodNoSideEffect(target, "getFipsCrypto", GetFipsCrypto);
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
 #endif
 
   env->SetMethod(target, "pbkdf2", PBKDF2);
   env->SetMethod(target, "randomBytes", RandomBytes);
-  env->SetMethod(target, "timingSafeEqual", TimingSafeEqual);
-  env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
-  env->SetMethod(target, "getCiphers", GetCiphers);
-  env->SetMethod(target, "getHashes", GetHashes);
-  env->SetMethod(target, "getCurves", GetCurves);
+  env->SetMethodNoSideEffect(target, "timingSafeEqual", TimingSafeEqual);
+  env->SetMethodNoSideEffect(target, "getSSLCiphers", GetSSLCiphers);
+  env->SetMethodNoSideEffect(target, "getCiphers", GetCiphers);
+  env->SetMethodNoSideEffect(target, "getHashes", GetHashes);
+  env->SetMethodNoSideEffect(target, "getCurves", GetCurves);
   env->SetMethod(target, "publicEncrypt",
                  PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_encrypt_init,
