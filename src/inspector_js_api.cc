@@ -287,7 +287,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
   if (agent->WillWaitForConnect())
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "open", Open);
-  env->SetMethod(target, "url", Url);
+  env->SetMethodNoSideEffect(target, "url", Url);
 
   env->SetMethod(target, "asyncTaskScheduled", AsyncTaskScheduledWrapper);
   env->SetMethod(target, "asyncTaskCanceled",
@@ -298,7 +298,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
       InvokeAsyncTaskFnWithId<&Agent::AsyncTaskFinished>);
 
   env->SetMethod(target, "registerAsyncHook", RegisterAsyncHookWrapper);
-  env->SetMethod(target, "isEnabled", IsEnabled);
+  env->SetMethodNoSideEffect(target, "isEnabled", IsEnabled);
 
   auto conn_str = FIXED_ONE_BYTE_STRING(env->isolate(), "Connection");
   Local<FunctionTemplate> tmpl =
