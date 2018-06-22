@@ -1655,6 +1655,8 @@ static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
+  TRACE_EVENT_METADATA1("__metadata", "process_name", "name",
+                        TRACE_STR_COPY(*title));
   uv_set_process_title(*title);
 }
 
@@ -3528,6 +3530,13 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Environment env(isolate_data, context, v8_platform.GetTracingAgent());
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
+  char name_buffer[512];
+  if (uv_get_process_title(name_buffer, sizeof(name_buffer)) == 0) {
+    // Only emit the metadata event if the title can be retrieved successfully.
+    // Ignore it otherwise.
+    TRACE_EVENT_METADATA1("__metadata", "process_name", "name",
+                          TRACE_STR_COPY(name_buffer));
+  }
   TRACE_EVENT_METADATA1("__metadata", "version", "node", NODE_VERSION_STRING);
   TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
                         "JavaScriptMainThread");
