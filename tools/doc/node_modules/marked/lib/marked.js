@@ -655,7 +655,8 @@ InlineLexer.prototype.output = function(src) {
       text,
       href,
       title,
-      cap;
+      cap,
+      prevCapZero;
 
   while (src) {
     // escape
@@ -681,7 +682,10 @@ InlineLexer.prototype.output = function(src) {
 
     // url (gfm)
     if (!this.inLink && (cap = this.rules.url.exec(src))) {
-      cap[0] = this.rules._backpedal.exec(cap[0])[0];
+      do {
+        prevCapZero = cap[0];
+        cap[0] = this.rules._backpedal.exec(cap[0])[0];
+      } while (prevCapZero !== cap[0]);
       src = src.substring(cap[0].length);
       if (cap[2] === '@') {
         text = escape(cap[0]);
