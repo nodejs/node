@@ -14,7 +14,6 @@ using v8::Object;
 using v8::Private;
 using v8::Promise;
 using v8::Proxy;
-using v8::SideEffectType;
 using v8::String;
 using v8::Value;
 
@@ -213,25 +212,19 @@ void Initialize(Local<Object> target,
   V(kRejected);
 #undef V
 
-  env->SetMethod(target, "getHiddenValue", GetHiddenValue,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "getHiddenValue", GetHiddenValue);
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
-  env->SetMethod(target, "getPromiseDetails", GetPromiseDetails,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(target, "getProxyDetails", GetProxyDetails,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(target, "safeToString", SafeToString,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(target, "previewEntries", PreviewEntries,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "getPromiseDetails", GetPromiseDetails);
+  env->SetSafeMethod(target, "getProxyDetails", GetProxyDetails);
+  env->SetSafeMethod(target, "safeToString", SafeToString);
+  env->SetSafeMethod(target, "previewEntries", PreviewEntries);
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
-  env->SetMethod(target, "watchdogHasPendingSigint", WatchdogHasPendingSigint,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "watchdogHasPendingSigint",
+                     WatchdogHasPendingSigint);
 
-  env->SetMethod(target, "createPromise", CreatePromise,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "createPromise", CreatePromise);
   env->SetMethod(target, "promiseResolve", PromiseResolve);
   env->SetMethod(target, "promiseReject", PromiseReject);
 

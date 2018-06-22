@@ -2256,24 +2256,17 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
   env->SetMethod(process, "_kill", Kill);
 
-  env->SetMethod(process, "cwd", Cwd,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(process, "cwd", Cwd);
   env->SetMethod(process, "dlopen", DLOpen);
   env->SetMethod(process, "reallyExit", Exit);
-  env->SetMethod(process, "uptime", Uptime,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(process, "uptime", Uptime);
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-  env->SetMethod(process, "getuid", GetUid,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(process, "geteuid", GetEUid,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(process, "getgid", GetGid,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(process, "getegid", GetEGid,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(process, "getgroups", GetGroups,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(process, "getuid", GetUid);
+  env->SetSafeMethod(process, "geteuid", GetEUid);
+  env->SetSafeMethod(process, "getgid", GetGid);
+  env->SetSafeMethod(process, "getegid", GetEGid);
+  env->SetSafeMethod(process, "getgroups", GetGroups);
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 }
 

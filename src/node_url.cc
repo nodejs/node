@@ -22,7 +22,6 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Null;
 using v8::Object;
-using v8::SideEffectType;
 using v8::String;
 using v8::TryCatch;
 using v8::Undefined;
@@ -2335,14 +2334,10 @@ static void Initialize(Local<Object> target,
                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "parse", Parse);
-  env->SetMethod(target, "encodeAuth", EncodeAuthSet,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(target, "toUSVString", ToUSVString,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(target, "domainToASCII", DomainToASCII,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(target, "domainToUnicode", DomainToUnicode,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "encodeAuth", EncodeAuthSet);
+  env->SetSafeMethod(target, "toUSVString", ToUSVString);
+  env->SetSafeMethod(target, "domainToASCII", DomainToASCII);
+  env->SetSafeMethod(target, "domainToUnicode", DomainToUnicode);
   env->SetMethod(target, "setURLConstructor", SetURLConstructor);
 
 #define XX(name, _) NODE_DEFINE_CONSTANT(target, name);

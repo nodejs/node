@@ -65,7 +65,6 @@ using v8::Integer;
 using v8::Local;
 using v8::Null;
 using v8::Object;
-using v8::SideEffectType;
 using v8::String;
 using v8::Value;
 
@@ -2108,10 +2107,8 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "getaddrinfo", GetAddrInfo);
   env->SetMethod(target, "getnameinfo", GetNameInfo);
-  env->SetMethod(target, "isIPv6", IsIPv6,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(target, "canonicalizeIP", CanonicalizeIP,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "isIPv6", IsIPv6);
+  env->SetSafeMethod(target, "canonicalizeIP", CanonicalizeIP);
 
   env->SetMethod(target, "strerror", StrError);
 
@@ -2168,8 +2165,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(channel_wrap, "querySoa", Query<QuerySoaWrap>);
   env->SetProtoMethod(channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
 
-  env->SetProtoMethod(channel_wrap, "getServers", GetServers,
-                      SideEffectType::kHasNoSideEffect);
+  env->SetSafeProtoMethod(channel_wrap, "getServers", GetServers);
   env->SetProtoMethod(channel_wrap, "setServers", SetServers);
   env->SetProtoMethod(channel_wrap, "cancel", Cancel);
 

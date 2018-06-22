@@ -82,7 +82,6 @@ using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Object;
-using v8::SideEffectType;
 using v8::String;
 using v8::Uint32Array;
 using v8::Uint8Array;
@@ -1084,18 +1083,12 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   Local<Object> proto = args[0].As<Object>();
   env->set_buffer_prototype_object(proto);
 
-  env->SetMethod(proto, "asciiSlice", StringSlice<ASCII>,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(proto, "base64Slice", StringSlice<BASE64>,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(proto, "latin1Slice", StringSlice<LATIN1>,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(proto, "hexSlice", StringSlice<HEX>,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(proto, "ucs2Slice", StringSlice<UCS2>,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(proto, "utf8Slice", StringSlice<UTF8>,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(proto, "asciiSlice", StringSlice<ASCII>);
+  env->SetSafeMethod(proto, "base64Slice", StringSlice<BASE64>);
+  env->SetSafeMethod(proto, "latin1Slice", StringSlice<LATIN1>);
+  env->SetSafeMethod(proto, "hexSlice", StringSlice<HEX>);
+  env->SetSafeMethod(proto, "ucs2Slice", StringSlice<UCS2>);
+  env->SetSafeMethod(proto, "utf8Slice", StringSlice<UTF8>);
 
   env->SetMethod(proto, "asciiWrite", StringWrite<ASCII>);
   env->SetMethod(proto, "base64Write", StringWrite<BASE64>);
@@ -1123,30 +1116,22 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);
-  env->SetMethod(target, "createFromString", CreateFromString,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "createFromString", CreateFromString);
 
-  env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "byteLengthUtf8", ByteLengthUtf8);
   env->SetMethod(target, "copy", Copy);
-  env->SetMethod(target, "compare", Compare,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(target, "compareOffset", CompareOffset,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "compare", Compare);
+  env->SetSafeMethod(target, "compareOffset", CompareOffset);
   env->SetMethod(target, "fill", Fill);
-  env->SetMethod(target, "indexOfBuffer", IndexOfBuffer,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(target, "indexOfNumber", IndexOfNumber,
-                 SideEffectType::kHasNoSideEffect);
-  env->SetMethod(target, "indexOfString", IndexOfString,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "indexOfBuffer", IndexOfBuffer);
+  env->SetSafeMethod(target, "indexOfNumber", IndexOfNumber);
+  env->SetSafeMethod(target, "indexOfString", IndexOfString);
 
   env->SetMethod(target, "swap16", Swap16);
   env->SetMethod(target, "swap32", Swap32);
   env->SetMethod(target, "swap64", Swap64);
 
-  env->SetMethod(target, "encodeUtf8String", EncodeUtf8String,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "encodeUtf8String", EncodeUtf8String);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),

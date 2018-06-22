@@ -37,7 +37,6 @@ using v8::Object;
 using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
-using v8::SideEffectType;
 using v8::String;
 using v8::TryCatch;
 using v8::Undefined;
@@ -790,15 +789,11 @@ void ModuleWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(tpl, "link", Link);
   env->SetProtoMethod(tpl, "instantiate", Instantiate);
   env->SetProtoMethod(tpl, "evaluate", Evaluate);
-  env->SetProtoMethod(tpl, "namespace", Namespace,
-                      SideEffectType::kHasNoSideEffect);
-  env->SetProtoMethod(tpl, "getStatus", GetStatus,
-                      SideEffectType::kHasNoSideEffect);
-  env->SetProtoMethod(tpl, "getError", GetError,
-                      SideEffectType::kHasNoSideEffect);
-  env->SetProtoMethod(tpl, "getStaticDependencySpecifiers",
-                      GetStaticDependencySpecifiers,
-                      SideEffectType::kHasNoSideEffect);
+  env->SetSafeProtoMethod(tpl, "namespace", Namespace);
+  env->SetSafeProtoMethod(tpl, "getStatus", GetStatus);
+  env->SetSafeProtoMethod(tpl, "getError", GetError);
+  env->SetSafeProtoMethod(tpl, "getStaticDependencySpecifiers",
+                          GetStaticDependencySpecifiers);
 
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "ModuleWrap"), tpl->GetFunction());
   env->SetMethod(target, "resolve", Resolve);

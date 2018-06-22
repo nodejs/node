@@ -684,15 +684,32 @@ inline v8::Local<v8::FunctionTemplate>
 
 inline void Environment::SetMethod(v8::Local<v8::Object> that,
                                    const char* name,
-                                   v8::FunctionCallback callback,
-                                   v8::SideEffectType side_effect_type) {
+                                   v8::FunctionCallback callback) {
   v8::Local<v8::Function> function =
       NewFunctionTemplate(callback,
                           v8::Local<v8::Signature>(),
                           // TODO(TimothyGu): Investigate if SetMethod is ever
                           // used for constructors.
                           v8::ConstructorBehavior::kAllow,
-                          side_effect_type)->GetFunction();
+                          v8::SideEffectType::kHasSideEffect)->GetFunction();
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  v8::Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->Set(name_string, function);
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+inline void Environment::SetSafeMethod(v8::Local<v8::Object> that,
+                                       const char* name,
+                                       v8::FunctionCallback callback) {
+  v8::Local<v8::Function> function =
+      NewFunctionTemplate(callback,
+                          v8::Local<v8::Signature>(),
+                          // TODO(TimothyGu): Investigate if SetMethod is ever
+                          // used for constructors.
+                          v8::ConstructorBehavior::kAllow,
+                          v8::SideEffectType::kHasNoSideEffect)->GetFunction();
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
@@ -703,12 +720,11 @@ inline void Environment::SetMethod(v8::Local<v8::Object> that,
 
 inline void Environment::SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
                                         const char* name,
-                                        v8::FunctionCallback callback,
-                                        v8::SideEffectType side_effect_type) {
+                                        v8::FunctionCallback callback) {
   v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
   v8::Local<v8::FunctionTemplate> t =
       NewFunctionTemplate(callback, signature, v8::ConstructorBehavior::kThrow,
-                          side_effect_type);
+                          v8::SideEffectType::kHasSideEffect);
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
@@ -717,14 +733,44 @@ inline void Environment::SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
   t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
 }
 
-inline void Environment::SetTemplateMethod(
-    v8::Local<v8::FunctionTemplate> that,
-    const char* name,
-    v8::FunctionCallback callback,
-    v8::SideEffectType side_effect_type) {
+inline void Environment::SetSafeProtoMethod(
+    v8::Local<v8::FunctionTemplate> that, const char* name,
+    v8::FunctionCallback callback) {
+  v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
+  v8::Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback, signature, v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  v8::Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
+                                           const char* name,
+                                           v8::FunctionCallback callback) {
   v8::Local<v8::FunctionTemplate> t =
       NewFunctionTemplate(callback, v8::Local<v8::Signature>(),
-                          v8::ConstructorBehavior::kAllow, side_effect_type);
+                          v8::ConstructorBehavior::kAllow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  v8::Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+inline void Environment::SetSafeTemplateMethod(
+    v8::Local<v8::FunctionTemplate> that,
+    const char* name,
+    v8::FunctionCallback callback) {
+  v8::Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback, v8::Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kAllow,
+                          v8::SideEffectType::kHasNoSideEffect);
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =

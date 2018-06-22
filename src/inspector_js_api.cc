@@ -20,7 +20,6 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Object;
-using v8::SideEffectType;
 using v8::String;
 using v8::Value;
 
@@ -290,8 +289,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
   if (agent->IsWaitingForConnect())
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "open", Open);
-  env->SetMethod(target, "url", Url,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "url", Url);
 
   env->SetMethod(target, "asyncTaskScheduled", AsyncTaskScheduledWrapper);
   env->SetMethod(target, "asyncTaskCanceled",
@@ -302,8 +300,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
       InvokeAsyncTaskFnWithId<&Agent::AsyncTaskFinished>);
 
   env->SetMethod(target, "registerAsyncHook", RegisterAsyncHookWrapper);
-  env->SetMethod(target, "isEnabled", IsEnabled,
-                 SideEffectType::kHasNoSideEffect);
+  env->SetSafeMethod(target, "isEnabled", IsEnabled);
 
   auto conn_str = FIXED_ONE_BYTE_STRING(env->isolate(), "Connection");
   Local<FunctionTemplate> tmpl =
