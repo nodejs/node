@@ -159,6 +159,7 @@ using v8::Promise;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
+using v8::SideEffectType;
 using v8::String;
 using v8::TryCatch;
 using v8::Undefined;
@@ -1947,7 +1948,10 @@ void SetupProcessObject(Environment* env,
       title_string,
       ProcessTitleGetter,
       env->is_main_thread() ? ProcessTitleSetter : nullptr,
-      env->as_external()).FromJust());
+      env->as_external(),
+      v8::DEFAULT,
+      v8::None,
+      SideEffectType::kHasNoSideEffect).FromJust());
 
   // process.version
   READONLY_PROPERTY(process,
@@ -2252,17 +2256,24 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
   env->SetMethod(process, "_kill", Kill);
 
-  env->SetMethod(process, "cwd", Cwd);
+  env->SetMethod(process, "cwd", Cwd,
+                 SideEffectType::kHasNoSideEffect);
   env->SetMethod(process, "dlopen", DLOpen);
   env->SetMethod(process, "reallyExit", Exit);
-  env->SetMethod(process, "uptime", Uptime);
+  env->SetMethod(process, "uptime", Uptime,
+                 SideEffectType::kHasNoSideEffect);
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-  env->SetMethod(process, "getuid", GetUid);
-  env->SetMethod(process, "geteuid", GetEUid);
-  env->SetMethod(process, "getgid", GetGid);
-  env->SetMethod(process, "getegid", GetEGid);
-  env->SetMethod(process, "getgroups", GetGroups);
+  env->SetMethod(process, "getuid", GetUid,
+                 SideEffectType::kHasNoSideEffect);
+  env->SetMethod(process, "geteuid", GetEUid,
+                 SideEffectType::kHasNoSideEffect);
+  env->SetMethod(process, "getgid", GetGid,
+                 SideEffectType::kHasNoSideEffect);
+  env->SetMethod(process, "getegid", GetEGid,
+                 SideEffectType::kHasNoSideEffect);
+  env->SetMethod(process, "getgroups", GetGroups,
+                 SideEffectType::kHasNoSideEffect);
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 }
 

@@ -38,6 +38,7 @@ using v8::FunctionTemplate;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::SideEffectType;
 using v8::String;
 using v8::Value;
 
@@ -58,15 +59,19 @@ void TTYWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
-  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
+  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef,
+                      SideEffectType::kHasNoSideEffect);
 
   LibuvStreamWrap::AddMethods(env, t);
 
-  env->SetProtoMethod(t, "getWindowSize", TTYWrap::GetWindowSize);
+  env->SetProtoMethod(t, "getWindowSize", TTYWrap::GetWindowSize,
+                      SideEffectType::kHasNoSideEffect);
   env->SetProtoMethod(t, "setRawMode", SetRawMode);
 
-  env->SetMethod(target, "isTTY", IsTTY);
-  env->SetMethod(target, "guessHandleType", GuessHandleType);
+  env->SetMethod(target, "isTTY", IsTTY,
+                 SideEffectType::kHasNoSideEffect);
+  env->SetMethod(target, "guessHandleType", GuessHandleType,
+                 SideEffectType::kHasNoSideEffect);
 
   target->Set(ttyString, t->GetFunction());
   env->set_tty_constructor_template(t);

@@ -752,18 +752,26 @@ class Environment {
                           v8::Local<v8::Signature> signature =
                               v8::Local<v8::Signature>(),
                           v8::ConstructorBehavior behavior =
-                              v8::ConstructorBehavior::kAllow);
+                              v8::ConstructorBehavior::kAllow,
+                          v8::SideEffectType side_effect_type =
+                              v8::SideEffectType::kHasSideEffect);
 
   // Convenience methods for NewFunctionTemplate().
   inline void SetMethod(v8::Local<v8::Object> that,
                         const char* name,
-                        v8::FunctionCallback callback);
+                        v8::FunctionCallback callback,
+                        v8::SideEffectType side_effect_type =
+                            v8::SideEffectType::kHasSideEffect);
   inline void SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
                              const char* name,
-                             v8::FunctionCallback callback);
+                             v8::FunctionCallback callback,
+                             v8::SideEffectType side_effect_type =
+                                 v8::SideEffectType::kHasSideEffect);
   inline void SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
                                 const char* name,
-                                v8::FunctionCallback callback);
+                                v8::FunctionCallback callback,
+                                v8::SideEffectType side_effect_type =
+                                    v8::SideEffectType::kHasSideEffect);
 
   void BeforeExit(void (*cb)(void* arg), void* arg);
   void RunBeforeExitCallbacks();

@@ -39,6 +39,7 @@ using v8::Local;
 using v8::NewStringType;
 using v8::Object;
 using v8::ScriptCompiler;
+using v8::SideEffectType;
 using v8::String;
 using v8::Uint32;
 using v8::V8;
@@ -122,7 +123,8 @@ void Initialize(Local<Object> target,
                 Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  env->SetMethod(target, "cachedDataVersionTag", CachedDataVersionTag);
+  env->SetMethod(target, "cachedDataVersionTag", CachedDataVersionTag,
+                 SideEffectType::kHasNoSideEffect);
 
   env->SetMethod(target,
                  "updateHeapStatisticsArrayBuffer",

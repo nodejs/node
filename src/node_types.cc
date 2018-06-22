@@ -4,6 +4,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Object;
+using v8::SideEffectType;
 using v8::Value;
 
 namespace node {
@@ -58,11 +59,13 @@ void InitializeTypes(Local<Object> target,
 
 #define V(type) env->SetMethod(target,     \
                                "is" #type, \
-                               Is##type);
+                               Is##type,   \
+                               SideEffectType::kHasNoSideEffect);
   VALUE_METHOD_MAP(V)
 #undef V
 
-  env->SetMethod(target, "isAnyArrayBuffer", IsAnyArrayBuffer);
+  env->SetMethod(target, "isAnyArrayBuffer", IsAnyArrayBuffer,
+                 SideEffectType::kHasNoSideEffect);
 }
 
 }  // anonymous namespace

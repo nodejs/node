@@ -84,6 +84,7 @@ using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
+using v8::SideEffectType;
 using v8::Signature;
 using v8::String;
 using v8::Uint32;
@@ -5193,12 +5194,18 @@ void Initialize(Local<Object> target,
 #endif
 
   env->SetMethod(target, "pbkdf2", PBKDF2);
-  env->SetMethod(target, "randomBytes", RandomBytes);
-  env->SetMethod(target, "timingSafeEqual", TimingSafeEqual);
-  env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
-  env->SetMethod(target, "getCiphers", GetCiphers);
-  env->SetMethod(target, "getHashes", GetHashes);
-  env->SetMethod(target, "getCurves", GetCurves);
+  env->SetMethod(target, "randomBytes", RandomBytes,
+                 SideEffectType::kHasNoSideEffect);
+  env->SetMethod(target, "timingSafeEqual", TimingSafeEqual,
+                 SideEffectType::kHasNoSideEffect);
+  env->SetMethod(target, "getSSLCiphers", GetSSLCiphers,
+                 SideEffectType::kHasNoSideEffect);
+  env->SetMethod(target, "getCiphers", GetCiphers,
+                 SideEffectType::kHasNoSideEffect);
+  env->SetMethod(target, "getHashes", GetHashes,
+                 SideEffectType::kHasNoSideEffect);
+  env->SetMethod(target, "getCurves", GetCurves,
+                 SideEffectType::kHasNoSideEffect);
   env->SetMethod(target, "publicEncrypt",
                  PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_encrypt_init,
