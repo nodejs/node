@@ -57,6 +57,7 @@ TEST_DECLARE   (tty_pty)
 TEST_DECLARE   (stdio_over_pipes)
 TEST_DECLARE   (ip6_pton)
 TEST_DECLARE   (connect_unspecified)
+TEST_DECLARE   (ipc_heavy_traffic_deadlock_bug)
 TEST_DECLARE   (ipc_listen_before_write)
 TEST_DECLARE   (ipc_listen_after_write)
 #ifndef _WIN32
@@ -71,8 +72,11 @@ TEST_DECLARE   (ipc_closed_handle)
 #endif
 TEST_DECLARE   (tcp_alloc_cb_fail)
 TEST_DECLARE   (tcp_ping_pong)
-TEST_DECLARE   (tcp_ping_pong_v6)
+TEST_DECLARE   (tcp_ping_pong_vec)
+TEST_DECLARE   (tcp6_ping_pong)
+TEST_DECLARE   (tcp6_ping_pong_vec)
 TEST_DECLARE   (pipe_ping_pong)
+TEST_DECLARE   (pipe_ping_pong_vec)
 TEST_DECLARE   (delayed_accept)
 TEST_DECLARE   (multiple_listen)
 #ifndef _WIN32
@@ -337,6 +341,8 @@ TEST_DECLARE   (fs_file_pos_after_op_with_offset)
 TEST_DECLARE   (fs_null_req)
 #ifdef _WIN32
 TEST_DECLARE   (fs_exclusive_sharing_mode)
+TEST_DECLARE   (fs_open_readonly_acl)
+TEST_DECLARE   (fs_fchmod_archive_readonly)
 #endif
 TEST_DECLARE   (threadpool_queue_work_simple)
 TEST_DECLARE   (threadpool_queue_work_einval)
@@ -479,6 +485,7 @@ TASK_LIST_START
   TEST_ENTRY  (stdio_over_pipes)
   TEST_ENTRY  (ip6_pton)
   TEST_ENTRY  (connect_unspecified)
+  TEST_ENTRY  (ipc_heavy_traffic_deadlock_bug)
   TEST_ENTRY  (ipc_listen_before_write)
   TEST_ENTRY  (ipc_listen_after_write)
 #ifndef _WIN32
@@ -497,11 +504,20 @@ TASK_LIST_START
   TEST_ENTRY  (tcp_ping_pong)
   TEST_HELPER (tcp_ping_pong, tcp4_echo_server)
 
-  TEST_ENTRY  (tcp_ping_pong_v6)
-  TEST_HELPER (tcp_ping_pong_v6, tcp6_echo_server)
+  TEST_ENTRY  (tcp_ping_pong_vec)
+  TEST_HELPER (tcp_ping_pong_vec, tcp4_echo_server)
+
+  TEST_ENTRY  (tcp6_ping_pong)
+  TEST_HELPER (tcp6_ping_pong, tcp6_echo_server)
+
+  TEST_ENTRY  (tcp6_ping_pong_vec)
+  TEST_HELPER (tcp6_ping_pong_vec, tcp6_echo_server)
 
   TEST_ENTRY  (pipe_ping_pong)
   TEST_HELPER (pipe_ping_pong, pipe_echo_server)
+
+  TEST_ENTRY  (pipe_ping_pong_vec)
+  TEST_HELPER (pipe_ping_pong_vec, pipe_echo_server)
 
   TEST_ENTRY  (delayed_accept)
   TEST_ENTRY  (multiple_listen)
@@ -708,7 +724,7 @@ TASK_LIST_START
   TEST_ENTRY  (hrtime)
 
   TEST_ENTRY_CUSTOM (getaddrinfo_fail, 0, 0, 10000)
-  TEST_ENTRY  (getaddrinfo_fail_sync)
+  TEST_ENTRY_CUSTOM (getaddrinfo_fail_sync, 0, 0, 10000)
 
   TEST_ENTRY  (getaddrinfo_basic)
   TEST_ENTRY  (getaddrinfo_basic_sync)
@@ -869,6 +885,8 @@ TASK_LIST_START
   TEST_ENTRY  (fs_null_req)
 #ifdef _WIN32
   TEST_ENTRY  (fs_exclusive_sharing_mode)
+  TEST_ENTRY  (fs_open_readonly_acl)
+  TEST_ENTRY  (fs_fchmod_archive_readonly)
 #endif
   TEST_ENTRY  (get_osfhandle_valid_handle)
   TEST_ENTRY  (threadpool_queue_work_simple)

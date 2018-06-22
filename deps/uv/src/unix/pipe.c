@@ -134,6 +134,9 @@ void uv__pipe_close(uv_pipe_t* handle) {
 int uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
   int err;
 
+  if (uv__fd_exists(handle->loop, fd))
+    return UV_EEXIST;
+
   err = uv__nonblock(fd, 1);
   if (err)
     return err;

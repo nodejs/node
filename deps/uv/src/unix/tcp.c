@@ -263,6 +263,9 @@ int uv__tcp_connect(uv_connect_t* req,
 int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
   int err;
 
+  if (uv__fd_exists(handle->loop, sock))
+    return UV_EEXIST;
+
   err = uv__nonblock(sock, 1);
   if (err)
     return err;

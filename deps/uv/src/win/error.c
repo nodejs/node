@@ -46,8 +46,8 @@ void uv_fatal_error(const int errorno, const char* syscall) {
     errmsg = "Unknown error";
   }
 
-  /* FormatMessage messages include a newline character already, */
-  /* so don't add another. */
+  /* FormatMessage messages include a newline character already, so don't add
+   * another. */
   if (syscall) {
     fprintf(stderr, "%s: (%d) %s", syscall, errorno, errmsg);
   } else {
