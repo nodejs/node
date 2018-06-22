@@ -137,7 +137,10 @@ $ git rebase upstream/v1.x  # or upstream/master
 ### TEST
 
 Bug fixes and features should come with tests.  Add your tests in the
-`test/` directory. Each new test needs to be registered in `test/test-list.h`. If you add a new test file, it needs to be registered in two places:
+`test/` directory. Each new test needs to be registered in `test/test-list.h`.
+
+If you add a new test file, it needs to be registered in three places:
+- `CMakeLists.txt`: add the file's name to the `uv_test_sources` list.
 - `Makefile.am`: add the file's name to the `test_run_tests_SOURCES` list.
 - `uv.gyp`: add the file's name to the `sources` list in the `run-tests` target.
 

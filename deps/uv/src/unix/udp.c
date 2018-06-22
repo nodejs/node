@@ -624,6 +624,9 @@ int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
   if (handle->io_watcher.fd != -1)
     return UV_EBUSY;
 
+  if (uv__fd_exists(handle->loop, sock))
+    return UV_EEXIST;
+
   err = uv__nonblock(sock, 1);
   if (err)
     return err;

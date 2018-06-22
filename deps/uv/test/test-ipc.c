@@ -281,7 +281,7 @@ void spawn_helper(uv_pipe_t* channel,
   char exepath[1024];
   char* args[3];
   int r;
-  uv_stdio_container_t stdio[1];
+  uv_stdio_container_t stdio[3];
 
   r = uv_pipe_init(uv_default_loop(), channel, 1);
   ASSERT(r == 0);
@@ -300,12 +300,15 @@ void spawn_helper(uv_pipe_t* channel,
   options.file = exepath;
   options.args = args;
   options.exit_cb = exit_cb;
-
   options.stdio = stdio;
-  options.stdio[0].flags = UV_CREATE_PIPE |
-    UV_READABLE_PIPE | UV_WRITABLE_PIPE;
-  options.stdio[0].data.stream = (uv_stream_t*)channel;
-  options.stdio_count = 1;
+  options.stdio_count = ARRAY_SIZE(stdio);
+
+  stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE;
+  stdio[0].data.stream = (uv_stream_t*) channel;
+  stdio[1].flags = UV_INHERIT_FD;
+  stdio[1].data.fd = 1;
+  stdio[2].flags = UV_INHERIT_FD;
+  stdio[2].data.fd = 2;
 
   r = uv_spawn(uv_default_loop(), process, &options);
   ASSERT(r == 0);

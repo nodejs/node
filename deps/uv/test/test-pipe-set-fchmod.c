@@ -39,8 +39,8 @@ TEST_IMPL(pipe_set_chmod) {
   r = uv_pipe_bind(&pipe_handle, TEST_PIPENAME);
   ASSERT(r == 0);
 
-  /* No easy way to test if this works, we will only make sure that */
-  /* the call is successful. */
+  /* No easy way to test if this works, we will only make sure that the call is
+   * successful. */
   r = uv_pipe_chmod(&pipe_handle, UV_READABLE);
   if (r == UV_EPERM) {
     MAKE_VALGRIND_HAPPY();

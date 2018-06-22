@@ -92,6 +92,7 @@ Data types
             UV_FS_READLINK,
             UV_FS_CHOWN,
             UV_FS_FCHOWN,
+            UV_FS_LCHOWN,
             UV_FS_REALPATH,
             UV_FS_COPYFILE
         } uv_fs_type;
@@ -234,6 +235,10 @@ API
 
     Equivalent to :man:`fsync(2)`.
 
+    .. note::
+        For AIX, `uv_fs_fsync` returns `UV_EBADF` on file descriptors referencing
+        non regular files.
+
 .. c:function:: int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 
     Equivalent to :man:`fdatasync(2)`.
@@ -345,11 +350,14 @@ API
 
 .. c:function:: int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb)
 .. c:function:: int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb)
+.. c:function:: int uv_fs_lchown(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb)
 
-    Equivalent to :man:`chown(2)` and :man:`fchown(2)` respectively.
+    Equivalent to :man:`chown(2)`, :man:`fchown(2)` and :man:`lchown(2)` respectively.
 
     .. note::
         These functions are not implemented on Windows.
+
+    .. versionchanged:: 1.21.0 implemented uv_fs_lchown
 
 .. c:function:: uv_fs_type uv_fs_get_type(const uv_fs_t* req)
 

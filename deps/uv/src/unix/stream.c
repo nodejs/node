@@ -1121,6 +1121,7 @@ static int uv__stream_recv_cmsg(uv_stream_t* stream, struct msghdr* msg) {
 #ifdef __clang__
 # pragma clang diagnostic push
 # pragma clang diagnostic ignored "-Wgnu-folding-constant"
+# pragma clang diagnostic ignored "-Wvla-extension"
 #endif
 
 static void uv__read(uv_stream_t* stream) {
@@ -1311,7 +1312,7 @@ static void uv__stream_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
   assert(uv__stream_fd(stream) >= 0);
 
-  /* Ignore POLLHUP here. Even it it's set, there may still be data to read. */
+  /* Ignore POLLHUP here. Even if it's set, there may still be data to read. */
   if (events & (POLLIN | POLLERR | POLLHUP))
     uv__read(stream);
 

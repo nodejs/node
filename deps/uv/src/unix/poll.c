@@ -68,6 +68,9 @@ static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
   int err;
 
+  if (uv__fd_exists(loop, fd))
+    return UV_EEXIST;
+
   err = uv__io_check_fd(loop, fd);
   if (err)
     return err;

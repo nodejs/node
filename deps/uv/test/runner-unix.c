@@ -57,8 +57,8 @@ int platform_init(int argc, char **argv) {
 }
 
 
-/* Invoke "argv[0] test-name [test-part]". Store process info in *p. */
-/* Make sure that all stdio output of the processes is buffered up. */
+/* Invoke "argv[0] test-name [test-part]". Store process info in *p. Make sure
+ * that all stdio output of the processes is buffered up. */
 int process_start(char* name, char* part, process_info_t* p, int is_helper) {
   FILE* stdout_file;
   int stdout_fd;
@@ -161,9 +161,9 @@ static void* dowait(void* data) {
 }
 
 
-/* Wait for all `n` processes in `vec` to terminate. */
-/* Time out after `timeout` msec, or never if timeout == -1 */
-/* Return 0 if all processes are terminated, -1 on error, -2 on timeout. */
+/* Wait for all `n` processes in `vec` to terminate. Time out after `timeout`
+ * msec, or never if timeout == -1. Return 0 if all processes are terminated,
+ * -1 on error, -2 on timeout. */
 int process_wait(process_info_t* vec, int n, int timeout) {
   int i;
   int r;
@@ -358,8 +358,7 @@ int process_terminate(process_info_t *p) {
 }
 
 
-/* Return the exit code of process p. */
-/* On error, return -1. */
+/* Return the exit code of process p. On error, return -1. */
 int process_reap(process_info_t *p) {
   if (WIFEXITED(p->status)) {
     return WEXITSTATUS(p->status);

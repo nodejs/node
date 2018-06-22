@@ -24,7 +24,7 @@
 
 #include "uv.h"
 #include "internal.h"
-#include "tree.h"
+#include "uv/tree.h"
 #include "handle-inl.h"
 
 

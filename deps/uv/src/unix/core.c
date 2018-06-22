@@ -174,8 +174,8 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
 
   case UV_SIGNAL:
     uv__signal_close((uv_signal_t*) handle);
-    /* Signal handles may not be closed immediately. The signal code will */
-    /* itself close uv__make_close_pending whenever appropriate. */
+    /* Signal handles may not be closed immediately. The signal code will
+     * itself close uv__make_close_pending whenever appropriate. */
     return;
 
   default:
@@ -924,6 +924,11 @@ int uv__io_active(const uv__io_t* w, unsigned int events) {
   assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI)));
   assert(0 != events);
   return 0 != (w->pevents & events);
+}
+
+
+int uv__fd_exists(uv_loop_t* loop, int fd) {
+  return (unsigned) fd < loop->nwatchers && loop->watchers[fd] != NULL;
 }
 
 
