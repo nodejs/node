@@ -1,7 +1,6 @@
 {
   "name": "marked",
-  "version": "0.3.4",
-  "homepage": "https://github.com/chjj/marked",
+  "homepage": "https://github.com/markedjs/marked",
   "authors": [
     "Christopher Jeffrey <chjjeffrey@gmail.com>"
   ],
