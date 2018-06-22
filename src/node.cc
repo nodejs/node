@@ -277,6 +277,8 @@ std::string config_warning_file;  // NOLINT(runtime/string)
 // that is used by lib/internal/bootstrap/node.js
 bool config_expose_internals = false;
 
+std::string config_process_title;  // NOLINT(runtime/string)
+
 bool v8_initialized = false;
 
 bool linux_at_secure = false;
@@ -3066,6 +3068,7 @@ static void PrintHelp() {
          "                             write warnings to file instead of\n"
          "                             stderr\n"
          "  --throw-deprecation        throw an exception on deprecations\n"
+         "  --title=title              the process title to use on start up\n"
 #if HAVE_OPENSSL
          "  --tls-cipher-list=val      use an alternative default TLS cipher "
          "list\n"
@@ -3204,6 +3207,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--redirect-warnings",
     "--require",
     "--throw-deprecation",
+    "--title",
     "--tls-cipher-list",
     "--trace-deprecation",
     "--trace-event-categories",
@@ -3374,6 +3378,8 @@ static void ParseArgs(int* argc,
     } else if (strncmp(arg, "--security-revert=", 18) == 0) {
       const char* cve = arg + 18;
       Revert(cve);
+    } else if (strncmp(arg, "--title=", 8) == 0) {
+      config_process_title = arg + 8;
     } else if (strcmp(arg, "--preserve-symlinks") == 0) {
       config_preserve_symlinks = true;
     } else if (strcmp(arg, "--preserve-symlinks-main") == 0) {
@@ -3867,6 +3873,10 @@ void Init(int* argc,
 #endif
 
   ProcessArgv(argc, argv, exec_argc, exec_argv);
+
+  // Set the process.title immediately after processing argv if --title is set.
+  if (!config_process_title.empty())
+    uv_set_process_title(config_process_title.c_str());
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
   // If the parameter isn't given, use the env variable.
