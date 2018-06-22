@@ -8,7 +8,8 @@ if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
 
 const CODE =
-  'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1)';
+  'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1);' +
+  'process.title = "foo"';
 const FILE_NAME = 'node_trace.1.log';
 
 const tmpdir = require('../common/tmpdir');
@@ -17,6 +18,7 @@ process.chdir(tmpdir.path);
 
 const proc = cp.spawn(process.execPath,
                       [ '--trace-event-categories', 'node.perf.usertiming',
+                        '--title=bar',
                         '-e', CODE ]);
 proc.once('exit', common.mustCall(() => {
   assert(common.fileExists(FILE_NAME));
@@ -32,5 +34,14 @@ proc.once('exit', common.mustCall(() => {
     assert(traces.some((trace) =>
       trace.cat === '__metadata' && trace.name === 'version' &&
         trace.args.node === process.versions.node));
+    if (!common.isSunOS) {
+      // Changing process.title is currently unsupported on SunOS/SmartOS
+      assert(traces.some((trace) =>
+        trace.cat === '__metadata' && trace.name === 'process_name' &&
+          trace.args.name === 'foo'));
+      assert(traces.some((trace) =>
+        trace.cat === '__metadata' && trace.name === 'process_name' &&
+          trace.args.name === 'bar'));
+    }
   }));
 }));
