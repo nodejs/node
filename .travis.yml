@@ -18,9 +18,6 @@ matrix:
       script:
         - make -j2 test-ci
 before_install:
-  - export HOMEBREW_NO_AUTO_UPDATE=1 # work around https://github.com/travis-ci/travis-ci/issues/7456
-  - if [ $TRAVIS_OS_NAME = osx ]; then brew install ccache; fi
-  - export PATH="/usr/local/opt/ccache/libexec:$PATH"
   - export CXX="ccache clang++ -Qunused-arguments"
-  - export CC="ccache clang -Qunused-arguments"
+  - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
   - export JOBS=2
