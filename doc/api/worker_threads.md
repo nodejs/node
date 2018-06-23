@@ -377,7 +377,7 @@ added: v10.5.0
 * `transferList` {Object[]}
 
 Send a message to the worker that will be received via
-[`require('worker_threads').on('message')`][].
+[`require('worker_threads').parentPort.on('message')`][].
 See [`port.postMessage()`][] for more details.
 
 ### worker.ref()
@@ -480,7 +480,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`process.stdout`]: process.html#process_process_stdout
 [`process.title`]: process.html#process_process_title
 [`require('worker_threads').workerData`]: #worker_threads_worker_workerdata
-[`require('worker_threads').on('message')`]: #worker_threads_event_message_1
+[`require('worker_threads').parentPort.on('message')`]: #worker_threads_event_message
 [`require('worker_threads').postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`require('worker_threads').isMainThread`]: #worker_threads_worker_ismainthread
 [`require('worker_threads').parentPort`]: #worker_threads_worker_parentport
