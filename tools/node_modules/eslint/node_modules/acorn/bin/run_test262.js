@@ -8,12 +8,11 @@ const unsupportedFeatures = [
   "class-fields",
   "class-fields-private",
   "class-fields-public",
-  "numeric-separator-literal",
-  "optional-catch-binding"
+  "numeric-separator-literal"
 ];
 
 run(
-  (content, {sourceType}) => parse(content, {sourceType, ecmaVersion: 9}),
+  (content, {sourceType}) => parse(content, {sourceType, ecmaVersion: 10}),
   {
     testsDirectory: path.dirname(require.resolve("test262/package.json")),
     skip: test => (test.attrs.features && unsupportedFeatures.some(f => test.attrs.features.includes(f))),

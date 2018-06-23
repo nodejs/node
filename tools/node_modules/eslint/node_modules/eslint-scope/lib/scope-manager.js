@@ -36,7 +36,6 @@ const ClassScope = Scope.ClassScope;
 const SwitchScope = Scope.SwitchScope;
 const FunctionScope = Scope.FunctionScope;
 const ForScope = Scope.ForScope;
-const TDZScope = Scope.TDZScope;
 const FunctionExpressionNameScope = Scope.FunctionExpressionNameScope;
 const BlockScope = Scope.BlockScope;
 
@@ -116,9 +115,6 @@ class ScopeManager {
          */
         function predicate(testScope) {
             if (testScope.type === "function" && testScope.functionExpressionScope) {
-                return false;
-            }
-            if (testScope.type === "TDZ") {
                 return false;
             }
             return true;
@@ -235,10 +231,6 @@ class ScopeManager {
 
     __nestModuleScope(node) {
         return this.__nestScope(new ModuleScope(this, this.__currentScope, node));
-    }
-
-    __nestTDZScope(node) {
-        return this.__nestScope(new TDZScope(this, this.__currentScope, node));
     }
 
     __nestFunctionExpressionNameScope(node) {

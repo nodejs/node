@@ -13,11 +13,11 @@ npm install trim-trailing-lines
 ## Usage
 
 ```js
-var trimTrailingLines = require('trim-trailing-lines');
+var trimTrailingLines = require('trim-trailing-lines')
 
-trimTrailingLines('foo\nbar'); //=> 'foo\nbar'
-trimTrailingLines('foo\nbar\n'); //=> 'foo\nbar'
-trimTrailingLines('foo\nbar\n\n'); //=> 'foo\nbar'
+trimTrailingLines('foo\nbar') // => 'foo\nbar'
+trimTrailingLines('foo\nbar\n') // => 'foo\nbar'
+trimTrailingLines('foo\nbar\n\n') // => 'foo\nbar'
 ```
 
 ## API

@@ -225,7 +225,7 @@ module.exports = {
 
                 // If we have any errors remaining report on them
                 errors.forEach(error => {
-                    context.report.apply(context, error);
+                    context.report(...error);
                 });
             };
         } else {

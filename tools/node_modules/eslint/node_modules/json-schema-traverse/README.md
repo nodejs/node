@@ -24,14 +24,28 @@ const schema = {
   }
 };
 
-traverse(schema, cb);
+traverse(schema, {cb});
 // cb is called 3 times with:
 // 1. root schema
 // 2. {type: 'string'}
 // 3. {type: 'integer'}
+
+// Or:
+
+traverse(schema, {cb: {pre, post}});
+// pre is called 3 times with:
+// 1. root schema
+// 2. {type: 'string'}
+// 3. {type: 'integer'}
+//
+// post is called 3 times with:
+// 1. {type: 'string'}
+// 2. {type: 'integer'}
+// 3. root schema
+
 ```
 
-Callback function is called for each schema object (not including draft-06 boolean schemas), including the root schema. Schema references ($ref) are not resolved, they are passed as is.
+Callback function `cb` is called for each schema object (not including draft-06 boolean schemas), including the root schema, in pre-order traversal. Schema references ($ref) are not resolved, they are passed as is.  Alternatively, you can pass a `{pre, post}` object as `cb`, and then `pre` will be called before traversing child elements, and `post` will be called after all child elements have been traversed.
 
 Callback is passed these parameters:
 
@@ -55,7 +69,7 @@ const schema = {
   }
 };
 
-traverse(schema, {allKeys: true}, cb);
+traverse(schema, {allKeys: true, cb});
 // cb is called 2 times with:
 // 1. root schema
 // 2. mySchema

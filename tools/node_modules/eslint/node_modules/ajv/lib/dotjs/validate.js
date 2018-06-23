@@ -5,25 +5,12 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
     $refKeywords = it.util.schemaHasRulesExcept(it.schema, it.RULES.all, '$ref'),
     $id = it.self._getId(it.schema);
   if (it.isTop) {
-    if ($async) {
-      it.async = true;
-      var $es7 = it.opts.async == 'es7';
-      it.yieldAwait = $es7 ? 'await' : 'yield';
-    }
     out += ' var validate = ';
     if ($async) {
-      if ($es7) {
-        out += ' (async function ';
-      } else {
-        if (it.opts.async != '*') {
-          out += 'co.wrap';
-        }
-        out += '(function* ';
-      }
-    } else {
-      out += ' (function ';
+      it.async = true;
+      out += 'async ';
     }
-    out += ' (data, dataPath, parentData, parentDataProperty, rootData) { \'use strict\'; ';
+    out += 'function(data, dataPath, parentData, parentDataProperty, rootData) { \'use strict\'; ';
     if ($id && (it.opts.sourceCode || it.opts.processCode)) {
       out += ' ' + ('/\*# sourceURL=' + $id + ' */') + ' ';
     }
@@ -83,7 +70,7 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
       }
     }
     if (it.isTop) {
-      out += ' }); return validate; ';
+      out += ' }; return validate; ';
     }
     return out;
   }
@@ -125,6 +112,9 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
       $refKeywords = false;
       it.logger.warn('$ref: keywords ignored in schema at path "' + it.errSchemaPath + '"');
     }
+  }
+  if (it.schema.$comment && it.opts.$comment) {
+    out += ' ' + (it.RULES.all.$comment.code(it, '$comment'));
   }
   if ($typeSchema) {
     if (it.opts.coerceTypes) {
@@ -280,9 +270,6 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
       $closingBraces2 += '}';
     }
   } else {
-    if (it.opts.v5 && it.schema.patternGroups) {
-      it.logger.warn('keyword "patternGroups" is deprecated and disabled. Use option patternGroups: true to enable.');
-    }
     var arr2 = it.RULES;
     if (arr2) {
       var $rulesGroup, i2 = -1,
@@ -430,7 +417,7 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
       out += ' validate.errors = vErrors; ';
       out += ' return errors === 0;       ';
     }
-    out += ' }); return validate;';
+    out += ' }; return validate;';
   } else {
     out += ' var ' + ($valid) + ' = errors === errs_' + ($lvl) + ';';
   }

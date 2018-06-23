@@ -1,7 +1,7 @@
 <h1 align="center">
 	<br>
 	<br>
-	<img width="320" src="https://cdn.rawgit.com/chalk/chalk/19935d6484811c5e468817f846b7b3d417d7bf4a/logo.svg" alt="chalk">
+	<img width="320" src="media/logo.svg" alt="Chalk">
 	<br>
 	<br>
 	<br>
@@ -34,6 +34,10 @@
 ```console
 $ npm install chalk
 ```
+
+<a href="https://www.patreon.com/sindresorhus">
+	<img src="https://c5.patreon.com/external/logo/become_a_patron_button@2x.png" width="160">
+</a>
 
 
 ## Usage
@@ -296,6 +300,7 @@ If you're on Windows, do yourself a favor and use [`cmder`](http://cmder.net/) i
 - [chalk-animation](https://github.com/bokub/chalk-animation) - Animate strings in the terminal
 - [gradient-string](https://github.com/bokub/gradient-string) - Apply color gradients to strings
 - [chalk-pipe](https://github.com/LitoMore/chalk-pipe) - Create chalk style schemes with simpler style strings
+- [terminal-link](https://github.com/sindresorhus/terminal-link) - Create clickable links in the terminal
 
 
 ## Maintainers

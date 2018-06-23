@@ -99,13 +99,13 @@ module.exports = function generate_custom(it, $keyword, $ruleType) {
     if ($rDef.errors === false) {
       out += ' ' + ($valid) + ' = ';
       if ($asyncKeyword) {
-        out += '' + (it.yieldAwait);
+        out += 'await ';
       }
       out += '' + (def_callRuleValidate) + '; ';
     } else {
       if ($asyncKeyword) {
         $ruleErrs = 'customErrors' + $lvl;
-        out += ' var ' + ($ruleErrs) + ' = null; try { ' + ($valid) + ' = ' + (it.yieldAwait) + (def_callRuleValidate) + '; } catch (e) { ' + ($valid) + ' = false; if (e instanceof ValidationError) ' + ($ruleErrs) + ' = e.errors; else throw e; } ';
+        out += ' var ' + ($ruleErrs) + ' = null; try { ' + ($valid) + ' = await ' + (def_callRuleValidate) + '; } catch (e) { ' + ($valid) + ' = false; if (e instanceof ValidationError) ' + ($ruleErrs) + ' = e.errors; else throw e; } ';
       } else {
         out += ' ' + ($ruleErrs) + ' = null; ' + ($valid) + ' = ' + (def_callRuleValidate) + '; ';
       }

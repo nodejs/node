@@ -116,10 +116,10 @@ module.exports = (function() {
             data[key] = 0;
         }
 
-        return function() {
+        return function(...args) {
             let t = process.hrtime();
 
-            fn.apply(null, Array.prototype.slice.call(arguments));
+            fn(...args);
             t = process.hrtime(t);
             data[key] += t[0] * 1e3 + t[1] / 1e6;
         };

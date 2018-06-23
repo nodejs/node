@@ -1,0 +1,18 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["tsconfig.json"])
+
+load("@build_bazel_rules_typescript//:defs.bzl", "ts_library")
+
+ts_library(
+  name = "rxjs",
+  module_name = "rxjs",
+  srcs = glob(["*.ts", "**/*.ts"]),
+  tsconfig = "tsconfig.json",
+  # Specify the compile-time dependencies to run the compilation (eg. typescript)
+  # The default value assumes that the end-user has a target //:node_modules
+  # but not all users do.
+  # This also makes the build more reproducible, in case the user's TypeScript
+  # version isn't compatible.
+  node_modules = "@build_bazel_rules_typescript_tsc_wrapped_deps//:node_modules",
+)

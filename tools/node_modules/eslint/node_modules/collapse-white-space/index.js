@@ -1,8 +1,8 @@
-'use strict';
+'use strict'
 
-module.exports = collapse;
+module.exports = collapse
 
 /* collapse(' \t\nbar \nbaz\t'); // ' bar baz ' */
 function collapse(value) {
-  return String(value).replace(/\s+/g, ' ');
+  return String(value).replace(/\s+/g, ' ')
 }

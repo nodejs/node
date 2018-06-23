@@ -1,0 +1,1 @@
+{"version":3,"file":"toPromise.js","sourceRoot":"","sources":["../../../src/add/operator/toPromise.ts"],"names":[],"mappings":"AAAA,gFAAgF;AAChF,gDAAgD","sourcesContent":["// HACK: does nothing, because `toPromise` now lives on the `Observable` itself.\n// leaving this module here to prevent breakage.\n"]}

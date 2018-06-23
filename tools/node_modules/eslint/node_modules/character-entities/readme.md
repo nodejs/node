@@ -13,9 +13,11 @@ npm install character-entities
 ## Usage
 
 ```js
-console.log(characterEntities.AElig); //=> 'Æ'
-console.log(characterEntities.aelig); //=> 'æ'
-console.log(characterEntities.amp); //=> '&'
+var characterEntities = require('character-entities')
+
+console.log(characterEntities.AElig) // => 'Æ'
+console.log(characterEntities.aelig) // => 'æ'
+console.log(characterEntities.amp) // => '&'
 ```
 
 ## API

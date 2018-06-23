@@ -35,8 +35,6 @@ module.exports = {
     DoWhileStatement: "DoWhileStatement",
     DebuggerStatement: "DebuggerStatement",
     EmptyStatement: "EmptyStatement",
-    ExperimentalRestProperty: "ExperimentalRestProperty",
-    ExperimentalSpreadProperty: "ExperimentalSpreadProperty",
     ExpressionStatement: "ExpressionStatement",
     ForStatement: "ForStatement",
     ForInStatement: "ForInStatement",

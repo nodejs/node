@@ -1,0 +1,1 @@
+{"version":3,"file":"defer.js","sourceRoot":"","sources":["../../src/observable/defer.ts"],"names":[],"mappings":";AAAA,gCAAkC,mBAAmB,CAAC,CAAA;AAEzC,aAAK,GAAG,iCAAe,CAAC,MAAM,CAAC","sourcesContent":["import {  DeferObservable  } from './DeferObservable';\n\nexport const defer = DeferObservable.create;"]}

@@ -50,7 +50,7 @@ module.exports = {
 
                     if (isLexicalDeclaration(statement)) {
                         context.report({
-                            node,
+                            node: statement,
                             messageId: "unexpected"
                         });
                     }

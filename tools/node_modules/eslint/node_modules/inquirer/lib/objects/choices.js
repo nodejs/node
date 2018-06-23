@@ -11,102 +11,104 @@ var Choice = require('./choice');
  * @param {Array} choices  All `choice` to keep in the collection
  */
 
-var Choices = module.exports = function (choices, answers) {
-  this.choices = choices.map(function (val) {
-    if (val.type === 'separator') {
-      if (!(val instanceof Separator)) {
-        val = new Separator(val.line);
+module.exports = class Choices {
+  constructor(choices, answers) {
+    this.choices = choices.map(val => {
+      if (val.type === 'separator') {
+        if (!(val instanceof Separator)) {
+          val = new Separator(val.line);
+        }
+        return val;
       }
-      return val;
-    }
-    return new Choice(val, answers);
-  });
-
-  this.realChoices = this.choices
-    .filter(Separator.exclude)
-    .filter(function (item) {
-      return !item.disabled;
+      return new Choice(val, answers);
     });
 
-  Object.defineProperty(this, 'length', {
-    get: function () {
-      return this.choices.length;
-    },
-    set: function (val) {
-      this.choices.length = val;
-    }
-  });
+    this.realChoices = this.choices
+      .filter(Separator.exclude)
+      .filter(item => !item.disabled);
 
-  Object.defineProperty(this, 'realLength', {
-    get: function () {
-      return this.realChoices.length;
-    },
-    set: function () {
-      throw new Error('Cannot set `realLength` of a Choices collection');
-    }
-  });
-};
+    Object.defineProperty(this, 'length', {
+      get() {
+        return this.choices.length;
+      },
+      set(val) {
+        this.choices.length = val;
+      }
+    });
 
-/**
- * Get a valid choice from the collection
- * @param  {Number} selector  The selected choice index
- * @return {Choice|Undefined} Return the matched choice or undefined
- */
+    Object.defineProperty(this, 'realLength', {
+      get() {
+        return this.realChoices.length;
+      },
+      set() {
+        throw new Error('Cannot set `realLength` of a Choices collection');
+      }
+    });
+  }
 
-Choices.prototype.getChoice = function (selector) {
-  assert(_.isNumber(selector));
-  return this.realChoices[selector];
-};
+  /**
+   * Get a valid choice from the collection
+   * @param  {Number} selector  The selected choice index
+   * @return {Choice|Undefined} Return the matched choice or undefined
+   */
 
-/**
- * Get a raw element from the collection
- * @param  {Number} selector  The selected index value
- * @return {Choice|Undefined} Return the matched choice or undefined
- */
+  getChoice(selector) {
+    assert(_.isNumber(selector));
+    return this.realChoices[selector];
+  }
 
-Choices.prototype.get = function (selector) {
-  assert(_.isNumber(selector));
-  return this.choices[selector];
-};
+  /**
+   * Get a raw element from the collection
+   * @param  {Number} selector  The selected index value
+   * @return {Choice|Undefined} Return the matched choice or undefined
+   */
 
-/**
- * Match the valid choices against a where clause
- * @param  {Object} whereClause Lodash `where` clause
- * @return {Array}              Matching choices or empty array
- */
+  get(selector) {
+    assert(_.isNumber(selector));
+    return this.choices[selector];
+  }
 
-Choices.prototype.where = function (whereClause) {
-  return _.filter(this.realChoices, whereClause);
-};
+  /**
+   * Match the valid choices against a where clause
+   * @param  {Object} whereClause Lodash `where` clause
+   * @return {Array}              Matching choices or empty array
+   */
 
-/**
- * Pluck a particular key from the choices
- * @param  {String} propertyName Property name to select
- * @return {Array}               Selected properties
- */
+  where(whereClause) {
+    return _.filter(this.realChoices, whereClause);
+  }
 
-Choices.prototype.pluck = function (propertyName) {
-  return _.map(this.realChoices, propertyName);
-};
+  /**
+   * Pluck a particular key from the choices
+   * @param  {String} propertyName Property name to select
+   * @return {Array}               Selected properties
+   */
 
-// Expose usual Array methods
-Choices.prototype.indexOf = function () {
-  return this.choices.indexOf.apply(this.choices, arguments);
-};
-Choices.prototype.forEach = function () {
-  return this.choices.forEach.apply(this.choices, arguments);
-};
-Choices.prototype.filter = function () {
-  return this.choices.filter.apply(this.choices, arguments);
-};
-Choices.prototype.find = function (func) {
-  return _.find(this.choices, func);
-};
-Choices.prototype.push = function () {
-  var objs = _.map(arguments, function (val) {
-    return new Choice(val);
-  });
-  this.choices.push.apply(this.choices, objs);
-  this.realChoices = this.choices.filter(Separator.exclude);
-  return this.choices;
+  pluck(propertyName) {
+    return _.map(this.realChoices, propertyName);
+  }
+
+  // Expose usual Array methods
+  indexOf() {
+    return this.choices.indexOf.apply(this.choices, arguments);
+  }
+
+  forEach() {
+    return this.choices.forEach.apply(this.choices, arguments);
+  }
+
+  filter() {
+    return this.choices.filter.apply(this.choices, arguments);
+  }
+
+  find(func) {
+    return _.find(this.choices, func);
+  }
+
+  push() {
+    var objs = _.map(arguments, val => new Choice(val));
+    this.choices.push.apply(this.choices, objs);
+    this.realChoices = this.choices.filter(Separator.exclude);
+    return this.choices;
+  }
 };
