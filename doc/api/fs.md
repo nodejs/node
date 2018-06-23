@@ -1143,6 +1143,9 @@ changes:
 Synchronously changes the permissions of a file. Returns `undefined`.
 This is the synchronous version of [`fs.chmod()`][].
 
+For detailed information, see the documentation of
+ [`fs.chmod()`](#fschmodpath-mode-callback).
+
 See also: chmod(2).
 
 ## fs.chown(path, uid, gid, callback)
@@ -1191,6 +1194,9 @@ changes:
 Synchronously changes owner and group of a file. Returns `undefined`.
 This is the synchronous version of [`fs.chown()`][].
 
+For detailed information, see the documentation of
+ [`fs.chown()`](#fschownpath-uid-gid-callback).
+
 See also: chown(2).
 
 ## fs.close(fd, callback)
@@ -1222,6 +1228,9 @@ added: v0.1.21
 * `fd` {integer}
 
 Synchronous close(2). Returns `undefined`.
+
+For detailed information, see the documentation of
+ [`fs.close()`](#fsclosefd-callback).
 
 ## fs.constants
 
@@ -1573,6 +1582,9 @@ changes:
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the path exists, `false` otherwise.
 
+For detailed information, see the documentation of
+ [`fs.exists()`](#fsexistspath-callback).
+
 Note that `fs.exists()` is deprecated, but `fs.existsSync()` is not.
 (The `callback` parameter to `fs.exists()` accepts parameters that are
 inconsistent with other Node.js callbacks. `fs.existsSync()` does not use
@@ -1610,6 +1622,9 @@ added: v0.4.7
 
 Synchronous fchmod(2). Returns `undefined`.
 
+For detailed information, see the documentation of
+ [`fs.fchmod()`](#fsfchmodfd-mode-callback).
+
 ## fs.fchown(fd, uid, gid, callback)
 <!-- YAML
 added: v0.4.7
@@ -1644,6 +1659,9 @@ added: v0.4.7
 
 Synchronous fchown(2). Returns `undefined`.
 
+For detailed information, see the documentation of
+ [`fs.fchown()`](#fsfchownfd-uid-gid-callback).
+
 ## fs.fdatasync(fd, callback)
 <!-- YAML
 added: v0.1.96
@@ -1673,6 +1691,9 @@ added: v0.1.96
 * `fd` {integer}
 
 Synchronous fdatasync(2). Returns `undefined`.
+
+For detailed information, see the documentation of
+ [`fs.fdatasync()`](#fsfdatasyncfd-callback).
 
 ## fs.fstat(fd[, options], callback)
 <!-- YAML
@@ -1722,6 +1743,9 @@ changes:
 
 Synchronous fstat(2).
 
+For detailed information, see the documentation of
+ [`fs.fstat()`](#fsfstatfd-options-callback).
+
 ## fs.fsync(fd, callback)
 <!-- YAML
 added: v0.1.96
@@ -1751,6 +1775,9 @@ added: v0.1.96
 * `fd` {integer}
 
 Synchronous fsync(2). Returns `undefined`.
+
+For detailed information, see the documentation of
+ [`fs.fsync()`](#fsfsyncfd-callback).
 
 ## fs.ftruncate(fd[, len], callback)
 <!-- YAML
@@ -1826,6 +1853,9 @@ added: v0.8.6
 
 Synchronous ftruncate(2). Returns `undefined`.
 
+For detailed information, see the documentation of
+ [`fs.ftruncate()`](#fsftruncatefd-len-callback).
+
 ## fs.futimes(fd, atime, mtime, callback)
 <!-- YAML
 added: v0.4.2
@@ -1872,6 +1902,9 @@ changes:
 
 Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
+For detailed information, see the documentation of
+ [`fs.futimes()](#fsfutimesfd-atime-mtime-callback).
+
 ## fs.lchmod(path, mode, callback)
 <!-- YAML
 deprecated: v0.4.7
@@ -1906,6 +1939,9 @@ deprecated: v0.4.7
 
 Synchronous lchmod(2). Returns `undefined`.
 
+For detailed information, see the documentation of
+ [`fs.lchmod()`](#fslchmodpath-mode-callback).
+
 ## fs.lchown(path, uid, gid, callback)
 <!-- YAML
 deprecated: v0.4.7
@@ -1939,6 +1975,9 @@ deprecated: v0.4.7
 * `gid` {integer}
 
 Synchronous lchown(2). Returns `undefined`.
+
+For detailed information, see the documentation of
+ [`fs.lchown()`](#fslchownpath-uid-gid-callback).
 
 ## fs.link(existingPath, newPath, callback)
 <!-- YAML
@@ -1982,6 +2021,9 @@ changes:
 * `newPath` {string|Buffer|URL}
 
 Synchronous link(2). Returns `undefined`.
+
+For detailed information, see the documentation of
+ [`fs.link()`](#fslinkexistingpath-newpath-callback).
 
 ## fs.lstat(path[, options], callback)
 <!-- YAML
@@ -2040,6 +2082,9 @@ changes:
 
 Synchronous lstat(2).
 
+For detailed information, see the documentation of
+ [`fs.lstat()`](#fslstatpath-options-callback).
+
 ## fs.mkdir(path[, mode], callback)
 <!-- YAML
 added: v0.1.8
@@ -2083,6 +2128,9 @@ changes:
 
 Synchronously creates a directory. Returns `undefined`.
 This is the synchronous version of [`fs.mkdir()`][].
+
+For detailed information, see the documentation of
+ [`fs.mkdir()`](#fsmkdirpath-mode-callback).
 
 See also: mkdir(2).
 
@@ -2173,6 +2221,9 @@ added: v5.10.0
 The synchronous version of [`fs.mkdtemp()`][]. Returns the created
 folder path.
 
+For detailed information, see the documentation of
+ [`fs.mkdtemp()`](#fsmkdtempprefix-options-callback).
+
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
@@ -2229,6 +2280,9 @@ changes:
 
 Synchronous version of [`fs.open()`][]. Returns an integer representing the file
 descriptor.
+
+For detailed information, see the documentation of
+ [`fs.open()`](#fsopenpath-flags-mode-callback).
 
 ## fs.read(fd, buffer, offset, length, position, callback)
 <!-- YAML
@@ -2323,6 +2377,9 @@ changes:
 * Returns: {string[]} An array of filenames excluding `'.'` and `'..'`.
 
 Synchronous readdir(3).
+
+For detailed information, see the documentation of
+ [`fs.readdir()`](#fsreaddirpath-options-callback).
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
@@ -2428,6 +2485,9 @@ changes:
 
 Synchronous version of [`fs.readFile()`][]. Returns the contents of the `path`.
 
+For detailed information, see the documentation of
+ [`fs.readFile()`](#fsreadfilepath-options-callback).
+
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
 
@@ -2493,6 +2553,9 @@ changes:
 
 Synchronous readlink(2). Returns the symbolic link's string value.
 
+For detailed information, see the documentation of
+ [`fs.readlink()`](#fsreadlinkpath-options-callback).
+
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
 the link path passed to the callback. If the `encoding` is set to `'buffer'`,
@@ -2515,6 +2578,9 @@ changes:
 * Returns: {number}
 
 Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
+
+For detailed information, see the documentation of
+ [`fs.read()`](#fsreadfd-buffer-offset-length-position-callback).
 
 ## fs.realpath(path[, options], callback)
 <!-- YAML
@@ -2631,6 +2697,9 @@ changes:
 
 Synchronous version of [`fs.realpath()`][]. Returns the resolved pathname.
 
+For detailed information, see the documentation of
+ [`fs.realpath()`](#fsrealpathpath-options-callback).
+
 ## fs.realpathSync.native(path[, options])
 <!-- YAML
 added: v9.2.0
@@ -2642,6 +2711,9 @@ added: v9.2.0
 * Returns: {string|Buffer}
 
 Synchronous realpath(3).
+
+For detailed information, see the documentation of
+ [`fs.realpath()`](#fsrealpathpath-options-callback).
 
 Only paths that can be converted to UTF8 strings are supported.
 
@@ -2708,6 +2780,9 @@ changes:
 
 Synchronous rename(2). Returns `undefined`.
 
+For detailed information, see the documentation of
+ [`fs.rename()`](#fsrenameoldpath-newpath-callback).
+
 ## fs.rmdir(path, callback)
 <!-- YAML
 added: v0.0.2
@@ -2749,6 +2824,9 @@ changes:
 * `path` {string|Buffer|URL}
 
 Synchronous rmdir(2). Returns `undefined`.
+
+For detailed information, see the documentation of
+ [`fs.rmdir()`](#fsrmdirpath-callback).
 
 Using `fs.rmdirSync()` on a file (not a directory) results in an `ENOENT` error
 on Windows and an `ENOTDIR` error on POSIX.
@@ -2818,6 +2896,9 @@ changes:
 
 Synchronous stat(2).
 
+For detailed information, see the documentation of
+ [`fs.stat()`](#fsstatpath-options-callback).
+
 ## fs.symlink(target, path[, type], callback)
 <!-- YAML
 added: v0.1.31
@@ -2867,6 +2948,9 @@ changes:
 
 Synchronous symlink(2). Returns `undefined`.
 
+For detailed information, see the documentation of
+ [`fs.symlink()`](#fssymlinktarget-path-type-callback).
+
 ## fs.truncate(path[, len], callback)
 <!-- YAML
 added: v0.8.6
@@ -2903,6 +2987,9 @@ added: v0.8.6
 
 Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
 passed as the first argument. In this case, `fs.ftruncateSync()` is called.
+
+For detailed information, see the documentation of
+ [`fs.truncate()`](#fstruncatepath-len-callback).
 
 Passing a file descriptor is deprecated and may result in an error being thrown
 in the future.
@@ -2958,6 +3045,9 @@ changes:
 * `path` {string|Buffer|URL}
 
 Synchronous unlink(2). Returns `undefined`.
+
+For detailed information, see the documentation of
+ [`fs.unlink()`](#fsunlinkpath-callback).
 
 ## fs.unwatchFile(filename[, listener])
 <!-- YAML
@@ -3042,6 +3132,9 @@ changes:
 * `mtime` {integer}
 
 Synchronous version of [`fs.utimes()`][]. Returns `undefined`.
+
+For detailed information, see the documentation of
+ [`fs.utimes()`](#fsutimespath-atime-mtime-callback).
 
 ## fs.watch(filename[, options][, listener])
 <!-- YAML
@@ -3430,6 +3523,9 @@ changes:
 * Returns: {number}
 
 Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
+
+For detailed information, see the documentation of
+ [`fs.writeSync()`](#fswritesyncfd-buffer-offset-length-position).
 
 ## fs Promises API
 
