@@ -1407,6 +1407,7 @@ An attempt was made to `require()` an [ES6 module][].
 Script execution was interrupted by `SIGINT` (For example, when Ctrl+C was
 pressed).
 
+<a id="ERR_SCRIPT_EXECUTION_TIMEOUT"></a>
 ### ERR_SCRIPT_EXECUTION_TIMEOUT
 
 Script execution timed out, possibly due to bugs in the script being executed.
