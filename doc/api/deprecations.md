@@ -351,20 +351,6 @@ Type: Documentation-only
 
 The [`fs.lchmodSync(path, mode)`][] API is deprecated.
 
-<a id="DEP0037"></a>
-### DEP0037: fs.lchown(path, uid, gid, callback)
-
-Type: Documentation-only
-
-The [`fs.lchown(path, uid, gid, callback)`][] API is deprecated.
-
-<a id="DEP0038"></a>
-### DEP0038: fs.lchownSync(path, uid, gid)
-
-Type: Documentation-only
-
-The [`fs.lchownSync(path, uid, gid)`][] API is deprecated.
-
 <a id="DEP0039"></a>
 ### DEP0039: require.extensions
 
@@ -1049,8 +1035,6 @@ The option `produceCachedData` has been deprecated. Use
 [`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
 [`fs.lchmod(path, mode, callback)`]: fs.html#fs_fs_lchmod_path_mode_callback
 [`fs.lchmodSync(path, mode)`]: fs.html#fs_fs_lchmodsync_path_mode
-[`fs.lchown(path, uid, gid, callback)`]: fs.html#fs_fs_lchown_path_uid_gid_callback
-[`fs.lchownSync(path, uid, gid)`]: fs.html#fs_fs_lchownsync_path_uid_gid
 [`fs.read()`]: fs.html#fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readSync()`]: fs.html#fs_fs_readsync_fd_buffer_offset_length_position
 [`fs.stat()`]: fs.html#fs_fs_stat_path_callback
