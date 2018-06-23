@@ -21,8 +21,8 @@ const toHTML = require('../../tools/doc/html.js');
 const testData = [
   {
     file: fixtures.path('sample_document.md'),
-    html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
-      '<li>Bluefish</li></ol>'
+    html: '<ol><li>fish</li><li>fish</li></ol>' +
+      '<ul><li>Redfish</li><li>Bluefish</li></ul>'
   },
   {
     file: fixtures.path('order_of_end_tags_5873.md'),
@@ -31,7 +31,7 @@ const testData = [
       'id="foo_class_method_buffer_from_array">#</a> </span> </h3>' +
       '<ul><li><code>array</code><a ' +
       'href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/' +
-      'Reference/Global_Objects/Array" class="type">&lt;Array&gt;</a></li></ul>'
+      'Reference/Global_Objects/Array" class="type">&#x3C;Array></a></li></ul>'
   },
   {
     file: fixtures.path('doc_with_yaml.md'),
@@ -45,11 +45,11 @@ const testData = [
       '<h2>Foobar II<span><a class="mark" href="#foo_foobar_ii" ' +
       'id="foo_foobar_ii">#</a></span></h2><div class="api_metadata">' +
       '<details class="changelog"><summary>History</summary>' +
-      '<table><tr><th>Version</th><th>Changes</th></tr>' +
+      '<table><tbody><tr><th>Version</th><th>Changes</th></tr>' +
       '<tr><td>v5.3.0, v4.2.0</td>' +
       '<td><p><span>Added in: v5.3.0, v4.2.0</span></p></td></tr>' +
       '<tr><td>v4.2.0</td><td><p>The <code>error</code> parameter can now be' +
-      'an arrow function.</p></td></tr></table></details></div> ' +
+      'an arrow function.</p></td></tr></tbody></table></details></div> ' +
       '<p>Describe <code>Foobar II</code> in more detail here.' +
       '<a href="http://man7.org/linux/man-pages/man1/fg.1.html"><code>fg(1)' +
       '</code></a></p><h2>Deprecated thingy<span><a class="mark" ' +
@@ -65,8 +65,8 @@ const testData = [
   },
   {
     file: fixtures.path('sample_document.md'),
-    html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
-      '<li>Bluefish</li></ol>',
+    html: '<ol><li>fish</li><li>fish</li></ol>' +
+      '<ul><li>Red fish</li><li>Blue fish</li></ul>',
     analyticsId: 'UA-67020396-1'
   },
 ];
