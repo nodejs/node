@@ -64,7 +64,7 @@ function normalizeOptionValue(value) {
             consistent = Boolean(value.consistent);
         }
     } else {
-        multiline = true;
+        consistent = true;
     }
 
     return { multiline, minProperties, consistent };

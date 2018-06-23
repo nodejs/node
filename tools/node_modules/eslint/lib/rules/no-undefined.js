@@ -68,7 +68,7 @@ module.exports = {
                 while (stack.length) {
                     const scope = stack.pop();
 
-                    stack.push.apply(stack, scope.childScopes);
+                    stack.push(...scope.childScopes);
                     checkScope(scope);
                 }
             }

@@ -60,6 +60,7 @@ var result = (function(){
         "field": parse_field,
         "negation": parse_negation,
         "matches": parse_matches,
+        "has": parse_has,
         "firstChild": parse_firstChild,
         "lastChild": parse_lastChild,
         "nthChild": parse_nthChild,
@@ -700,15 +701,18 @@ var result = (function(){
                 if (result0 === null) {
                   result0 = parse_matches();
                   if (result0 === null) {
-                    result0 = parse_firstChild();
+                    result0 = parse_has();
                     if (result0 === null) {
-                      result0 = parse_lastChild();
+                      result0 = parse_firstChild();
                       if (result0 === null) {
-                        result0 = parse_nthChild();
+                        result0 = parse_lastChild();
                         if (result0 === null) {
-                          result0 = parse_nthLastChild();
+                          result0 = parse_nthChild();
                           if (result0 === null) {
-                            result0 = parse_class();
+                            result0 = parse_nthLastChild();
+                            if (result0 === null) {
+                              result0 = parse_class();
+                            }
                           }
                         }
                       }
@@ -2061,6 +2065,80 @@ var result = (function(){
         }
         if (result0 !== null) {
           result0 = (function(offset, ss) { return { type: 'matches', selectors: ss }; })(pos0, result0[2]);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
+        
+        cache[cacheKey] = {
+          nextPos: pos,
+          result:  result0
+        };
+        return result0;
+      }
+      
+      function parse_has() {
+        var cacheKey = "has@" + pos;
+        var cachedResult = cache[cacheKey];
+        if (cachedResult) {
+          pos = cachedResult.nextPos;
+          return cachedResult.result;
+        }
+        
+        var result0, result1, result2, result3, result4;
+        var pos0, pos1;
+        
+        pos0 = pos;
+        pos1 = pos;
+        if (input.substr(pos, 5) === ":has(") {
+          result0 = ":has(";
+          pos += 5;
+        } else {
+          result0 = null;
+          if (reportFailures === 0) {
+            matchFailed("\":has(\"");
+          }
+        }
+        if (result0 !== null) {
+          result1 = parse__();
+          if (result1 !== null) {
+            result2 = parse_selectors();
+            if (result2 !== null) {
+              result3 = parse__();
+              if (result3 !== null) {
+                if (input.charCodeAt(pos) === 41) {
+                  result4 = ")";
+                  pos++;
+                } else {
+                  result4 = null;
+                  if (reportFailures === 0) {
+                    matchFailed("\")\"");
+                  }
+                }
+                if (result4 !== null) {
+                  result0 = [result0, result1, result2, result3, result4];
+                } else {
+                  result0 = null;
+                  pos = pos1;
+                }
+              } else {
+                result0 = null;
+                pos = pos1;
+              }
+            } else {
+              result0 = null;
+              pos = pos1;
+            }
+          } else {
+            result0 = null;
+            pos = pos1;
+          }
+        } else {
+          result0 = null;
+          pos = pos1;
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, ss) { return { type: 'has', selectors: ss }; })(pos0, result0[2]);
         }
         if (result0 === null) {
           pos = pos0;

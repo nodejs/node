@@ -1,0 +1,18 @@
+import { ObservableInput } from '../Observable';
+import { IScheduler } from '../Scheduler';
+import { OperatorFunction, MonoTypeOperatorFunction } from '../interfaces';
+export { merge as mergeStatic } from '../observable/merge';
+export declare function merge<T>(scheduler?: IScheduler): MonoTypeOperatorFunction<T>;
+export declare function merge<T>(concurrent?: number, scheduler?: IScheduler): MonoTypeOperatorFunction<T>;
+export declare function merge<T, T2>(v2: ObservableInput<T2>, scheduler?: IScheduler): OperatorFunction<T, T | T2>;
+export declare function merge<T, T2>(v2: ObservableInput<T2>, concurrent?: number, scheduler?: IScheduler): OperatorFunction<T, T | T2>;
+export declare function merge<T, T2, T3>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3>;
+export declare function merge<T, T2, T3>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, concurrent?: number, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3>;
+export declare function merge<T, T2, T3, T4>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3 | T4>;
+export declare function merge<T, T2, T3, T4>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, concurrent?: number, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3 | T4>;
+export declare function merge<T, T2, T3, T4, T5>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, v5: ObservableInput<T5>, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3 | T4 | T5>;
+export declare function merge<T, T2, T3, T4, T5>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, v5: ObservableInput<T5>, concurrent?: number, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3 | T4 | T5>;
+export declare function merge<T, T2, T3, T4, T5, T6>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, v5: ObservableInput<T5>, v6: ObservableInput<T6>, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3 | T4 | T5 | T6>;
+export declare function merge<T, T2, T3, T4, T5, T6>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, v5: ObservableInput<T5>, v6: ObservableInput<T6>, concurrent?: number, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3 | T4 | T5 | T6>;
+export declare function merge<T>(...observables: Array<ObservableInput<T> | IScheduler | number>): MonoTypeOperatorFunction<T>;
+export declare function merge<T, R>(...observables: Array<ObservableInput<any> | IScheduler | number>): OperatorFunction<T, R>;

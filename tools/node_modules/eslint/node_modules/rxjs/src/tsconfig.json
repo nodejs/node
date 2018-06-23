@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "removeComments": false,
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "declaration": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "suppressImplicitAnyIndexErrors": true,
+    "moduleResolution": "node",
+    "target": "es6",
+    "outDir": "dist/es6",
+    "lib": [
+      "es5",
+      "es2015.iterable",
+      "es2015.collection",
+      "es2015.promise",
+      "dom"
+    ]
+  },
+  "formatCodeOptions": {
+    "indentSize": 2,
+    "tabSize": 2
+  },
+  "bazelOptions": {
+    "suppressTsconfigOverrideWarnings": true
+  },
+  "files": [
+    "src/Rx.ts"
+  ]
+}

@@ -1,15 +1,17 @@
-'use strict';
+'use strict'
 
-module.exports = trimTrailingLines;
+module.exports = trimTrailingLines
 
-var line = '\n';
+var line = '\n'
 
 /* Remove final newline characters from `value`. */
 function trimTrailingLines(value) {
-  var val = String(value);
-  var index = val.length;
+  var val = String(value)
+  var index = val.length
 
-  while (val.charAt(--index) === line) { /* empty */ }
+  while (val.charAt(--index) === line) {
+    /* Empty */
+  }
 
-  return val.slice(0, index + 1);
+  return val.slice(0, index + 1)
 }

@@ -134,7 +134,7 @@ class FileFinder {
 
         // Add what has been cached previously to the cache of each directory searched.
         for (let i = 0; i < searched; i++) {
-            [].push.apply(cache[dirs[i]], cache[directory]);
+            cache[dirs[i]].push(...cache[directory]);
         }
 
         yield* cache[dirs[0]];

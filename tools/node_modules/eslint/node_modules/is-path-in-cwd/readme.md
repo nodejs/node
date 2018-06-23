@@ -20,6 +20,9 @@ isPathInCwd('unicorn');
 
 isPathInCwd('../rainbow');
 //=> false
+
+isPathInCwd('.');
+//=> false
 ```
 
 

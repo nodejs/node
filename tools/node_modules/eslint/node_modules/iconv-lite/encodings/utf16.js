@@ -1,5 +1,5 @@
 "use strict";
-var Buffer = require("buffer").Buffer;
+var Buffer = require("safer-buffer").Buffer;
 
 // Note: UTF16-LE (or UCS2) codec is Node.js native. See encodings/internal.js
 
@@ -20,7 +20,7 @@ function Utf16BEEncoder() {
 }
 
 Utf16BEEncoder.prototype.write = function(str) {
-    var buf = new Buffer(str, 'ucs2');
+    var buf = Buffer.from(str, 'ucs2');
     for (var i = 0; i < buf.length; i += 2) {
         var tmp = buf[i]; buf[i] = buf[i+1]; buf[i+1] = tmp;
     }
@@ -41,7 +41,7 @@ Utf16BEDecoder.prototype.write = function(buf) {
     if (buf.length == 0)
         return '';
 
-    var buf2 = new Buffer(buf.length + 1),
+    var buf2 = Buffer.alloc(buf.length + 1),
         i = 0, j = 0;
 
     if (this.overflowByte !== -1) {

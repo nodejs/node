@@ -119,9 +119,5 @@ module.exports = {
     JSXOpeningElement: ["name", "attributes"],
     JSXAttribute: ["name", "value"],
     JSXText: null,
-    JSXSpreadAttribute: ["argument"],
-
-    // Experimental features
-    ExperimentalRestProperty: ["argument"],
-    ExperimentalSpreadProperty: ["argument"]
+    JSXSpreadAttribute: ["argument"]
 };

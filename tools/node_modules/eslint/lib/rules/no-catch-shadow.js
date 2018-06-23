@@ -53,7 +53,7 @@ module.exports = {
 
         return {
 
-            CatchClause(node) {
+            "CatchClause[param!=null]"(node) {
                 let scope = context.getScope();
 
                 /*

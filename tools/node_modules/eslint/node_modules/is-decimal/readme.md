@@ -13,12 +13,12 @@ npm install is-decimal
 ## Usage
 
 ```javascript
-var decimal = require('is-decimal');
+var decimal = require('is-decimal')
 
-decimal('0'); //=> true
-decimal('9'); //=> true
-decimal('a'); //=> false
-decimal('💩'); //=> false
+decimal('0') // => true
+decimal('9') // => true
+decimal('a') // => false
+decimal('💩') // => false
 ```
 
 ## API

@@ -46,7 +46,7 @@ module.exports = function generate_format(it, $keyword, $ruleType) {
     }
     out += ' (' + ($format) + ' && ' + ($formatType) + ' == \'' + ($ruleType) + '\' && !(typeof ' + ($format) + ' == \'function\' ? ';
     if (it.async) {
-      out += ' (async' + ($lvl) + ' ? ' + (it.yieldAwait) + ' ' + ($format) + '(' + ($data) + ') : ' + ($format) + '(' + ($data) + ')) ';
+      out += ' (async' + ($lvl) + ' ? await ' + ($format) + '(' + ($data) + ') : ' + ($format) + '(' + ($data) + ')) ';
     } else {
       out += ' ' + ($format) + '(' + ($data) + ') ';
     }
@@ -84,7 +84,7 @@ module.exports = function generate_format(it, $keyword, $ruleType) {
     if ($async) {
       if (!it.async) throw new Error('async format in sync schema');
       var $formatRef = 'formats' + it.util.getProperty($schema) + '.validate';
-      out += ' if (!(' + (it.yieldAwait) + ' ' + ($formatRef) + '(' + ($data) + '))) { ';
+      out += ' if (!(await ' + ($formatRef) + '(' + ($data) + '))) { ';
     } else {
       out += ' if (! ';
       var $formatRef = 'formats' + it.util.getProperty($schema);
