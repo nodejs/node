@@ -869,6 +869,11 @@ forbidden.
 For HTTP/2 requests using the `CONNECT` method, the `:scheme` pseudo-header is
 forbidden.
 
+<a id="ERR_HTTP2_ERROR"></a>
+### ERR_HTTP2_ERROR
+
+A non-specific HTTP/2 error has occurred.
+
 <a id="ERR_HTTP2_GOAWAY_SESSION"></a>
 ### ERR_HTTP2_GOAWAY_SESSION
 
@@ -1643,6 +1648,13 @@ A string that contained unescaped characters was received.
 
 An unhandled error occurred (for instance, when an `'error'` event is emitted
 by an [`EventEmitter`][] but an `'error'` handler is not registered).
+
+<a id="ERR_UNKNOWN_BUILTIN_MODULE"></a>
+### ERR_UNKNOWN_BUILTIN_MODULE
+
+Used to identify a specific kind of internal Node.js error that should not
+typically be triggered by user code. Instances of this error point to an
+internal bug within the Node.js binary itself.
 
 <a id="ERR_UNKNOWN_CREDENTIAL"></a>
 ### ERR_UNKNOWN_CREDENTIAL
