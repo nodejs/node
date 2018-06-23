@@ -875,12 +875,6 @@ forbidden.
 New HTTP/2 Streams may not be opened after the `Http2Session` has received a
 `GOAWAY` frame from the connected peer.
 
-<a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
-### ERR_HTTP2_HEADER_SINGLE_VALUE
-
-Multiple values were provided for an HTTP/2 header field that was required to
-have only a single value.
-
 <a id="ERR_HTTP2_HEADERS_AFTER_RESPOND"></a>
 ### ERR_HTTP2_HEADERS_AFTER_RESPOND
 
@@ -890,6 +884,12 @@ An additional headers was specified after an HTTP/2 response was initiated.
 ### ERR_HTTP2_HEADERS_SENT
 
 An attempt was made to send multiple response headers.
+
+<a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
+### ERR_HTTP2_HEADER_SINGLE_VALUE
+
+Multiple values were provided for an HTTP/2 header field that was required to
+have only a single value.
 
 <a id="ERR_HTTP2_INFO_STATUS_NOT_ALLOWED"></a>
 ### ERR_HTTP2_INFO_STATUS_NOT_ALLOWED
@@ -1491,6 +1491,12 @@ does not allow `stdout` or `stderr` streams to be closed by user code.
 
 An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 
+<a id="ERR_STREAM_DESTROYED"></a>
+### ERR_STREAM_DESTROYED
+
+A stream method was called that cannot complete because the stream was
+destroyed using `stream.destroy()`.
+
 <a id="ERR_STREAM_NULL_VALUES"></a>
 ### ERR_STREAM_NULL_VALUES
 
@@ -1540,24 +1546,18 @@ instance.setEncoding('utf8');
 An attempt was made to call [`stream.write()`][] after `stream.end()` has been
 called.
 
+<a id="ERR_STRING_TOO_LONG"></a>
+### ERR_STRING_TOO_LONG
+
+An attempt has been made to create a string longer than the maximum allowed
+length.
+
 <a id="ERR_SYSTEM_ERROR"></a>
 ### ERR_SYSTEM_ERROR
 
 An unspecified or non-specific system error has occurred within the Node.js
 process. The error object will have an `err.info` object property with
 additional details.
-
-<a id="ERR_STREAM_DESTROYED"></a>
-### ERR_STREAM_DESTROYED
-
-A stream method was called that cannot complete because the stream was
-destroyed using `stream.destroy()`.
-
-<a id="ERR_STRING_TOO_LONG"></a>
-### ERR_STRING_TOO_LONG
-
-An attempt has been made to create a string longer than the maximum allowed
-length.
 
 <a id="ERR_TLS_CERT_ALTNAME_INVALID"></a>
 ### ERR_TLS_CERT_ALTNAME_INVALID
@@ -1579,6 +1579,11 @@ recommended to use 2048 bits or larger for stronger security.
 A TLS/SSL handshake timed out. In this case, the server must also abort the
 connection.
 
+<a id="ERR_TLS_RENEGOTIATION_DISABLED"></a>
+### ERR_TLS_RENEGOTIATION_DISABLED
+
+An attempt was made to renegotiate TLS on a socket instance with TLS disabled.
+
 <a id="ERR_TLS_REQUIRED_SERVER_NAME"></a>
 ### ERR_TLS_REQUIRED_SERVER_NAME
 
@@ -1596,11 +1601,6 @@ vector for denial-of-service attacks.
 
 An attempt was made to issue Server Name Indication from a TLS server-side
 socket, which is only valid from a client.
-
-<a id="ERR_TLS_RENEGOTIATION_DISABLED"></a>
-### ERR_TLS_RENEGOTIATION_DISABLED
-
-An attempt was made to renegotiate TLS on a socket instance with TLS disabled.
 
 <a id="ERR_TRACE_EVENTS_CATEGORY_REQUIRED"></a>
 ### ERR_TRACE_EVENTS_CATEGORY_REQUIRED
