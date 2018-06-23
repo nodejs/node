@@ -1771,6 +1771,36 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void LChown(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+
+  CHECK(args[1]->IsUint32());
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Uint32>()->Value());
+
+  CHECK(args[2]->IsUint32());
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Uint32>()->Value());
+
+  FSReqBase* req_wrap_async = GetReqWrap(env, args[3]);
+  if (req_wrap_async != nullptr) {  // lchown(path, uid, gid, req)
+    AsyncCall(env, req_wrap_async, args, "lchown", UTF8, AfterNoArgs,
+              uv_fs_lchown, *path, uid, gid);
+  } else {  // lchown(path, uid, gid, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(lchown);
+    SyncCall(env, args[4], &req_wrap_sync, "lchown",
+             uv_fs_lchown, *path, uid, gid);
+    FS_SYNC_TRACE_END(lchown);
+  }
+}
+
+
 static void UTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1904,7 +1934,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "chown", Chown);
   env->SetMethod(target, "fchown", FChown);
-  // env->SetMethod(target, "lchown", LChown);
+  env->SetMethod(target, "lchown", LChown);
 
   env->SetMethod(target, "utimes", UTimes);
   env->SetMethod(target, "futimes", FUTimes);

@@ -1903,8 +1903,10 @@ Synchronous lchmod(2). Returns `undefined`.
 
 ## fs.lchown(path, uid, gid, callback)
 <!-- YAML
-deprecated: v0.4.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21498
+    description: This API is no longer deprecated.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -1926,7 +1928,10 @@ to the completion callback.
 
 ## fs.lchownSync(path, uid, gid)
 <!-- YAML
-deprecated: v0.4.7
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21498
+    description: This API is no longer deprecated.
 -->
 
 * `path` {string|Buffer|URL}
@@ -3899,7 +3904,11 @@ no arguments upon success. This method is only implemented on macOS.
 
 ### fsPromises.lchown(path, uid, gid)
 <!-- YAML
-deprecated: v10.0.0
+added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21498
+    description: This API is no longer deprecated.
 -->
 
 * `path` {string|Buffer|URL}
@@ -3908,7 +3917,7 @@ deprecated: v10.0.0
 * Returns: {Promise}
 
 Changes the ownership on a symbolic link then resolves the `Promise` with
-no arguments upon success. This method is only implemented on macOS.
+no arguments upon success.
 
 ### fsPromises.link(existingPath, newPath)
 <!-- YAML
