@@ -28,5 +28,22 @@ async function validateReadFile() {
   assert.deepStrictEqual(buffer, readFileData);
 }
 
+async function validateReadFileProc() {
+  // Test to make sure reading a file under the /proc directory works. Adapted
+  // from test-fs-read-file-sync-hostname.js.
+  // Refs:
+  // - https://groups.google.com/forum/#!topic/nodejs-dev/rxZ_RoH1Gn0
+  // - https://github.com/nodejs/node/issues/21331
+
+  // Test is Linux-specific.
+  if (!common.isLinux)
+    return;
+
+  const fileHandle = await open('/proc/sys/kernel/hostname', 'r');
+  const hostname = await fileHandle.readFile();
+  assert.ok(hostname.length > 0);
+}
+
 validateReadFile()
+  .then(() => validateReadFileProc())
   .then(common.mustCall());
