@@ -769,15 +769,16 @@ class Environment {
                                 v8::FunctionCallback callback);
 
   // Safe variants denote the function has no side effects.
-  inline void SetSafeMethod(v8::Local<v8::Object> that,
-                            const char* name,
-                            v8::FunctionCallback callback);
-  inline void SetSafeProtoMethod(v8::Local<v8::FunctionTemplate> that,
-                                 const char* name,
-                                 v8::FunctionCallback callback);
-  inline void SetSafeTemplateMethod(v8::Local<v8::FunctionTemplate> that,
+  inline void SetMethodNoSideEffect(v8::Local<v8::Object> that,
                                     const char* name,
                                     v8::FunctionCallback callback);
+  inline void SetProtoMethodNoSideEffect(v8::Local<v8::FunctionTemplate> that,
+                                         const char* name,
+                                         v8::FunctionCallback callback);
+  inline void SetTemplateMethodNoSideEffect(
+      v8::Local<v8::FunctionTemplate> that,
+      const char* name,
+      v8::FunctionCallback callback);
 
   void BeforeExit(void (*cb)(void* arg), void* arg);
   void RunBeforeExitCallbacks();

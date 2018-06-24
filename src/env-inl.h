@@ -700,9 +700,9 @@ inline void Environment::SetMethod(v8::Local<v8::Object> that,
   function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
-inline void Environment::SetSafeMethod(v8::Local<v8::Object> that,
-                                       const char* name,
-                                       v8::FunctionCallback callback) {
+inline void Environment::SetMethodNoSideEffect(v8::Local<v8::Object> that,
+                                               const char* name,
+                                               v8::FunctionCallback callback) {
   v8::Local<v8::Function> function =
       NewFunctionTemplate(callback,
                           v8::Local<v8::Signature>(),
@@ -733,8 +733,9 @@ inline void Environment::SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
   t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
 }
 
-inline void Environment::SetSafeProtoMethod(
-    v8::Local<v8::FunctionTemplate> that, const char* name,
+inline void Environment::SetProtoMethodNoSideEffect(
+    v8::Local<v8::FunctionTemplate> that,
+    const char* name,
     v8::FunctionCallback callback) {
   v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
   v8::Local<v8::FunctionTemplate> t =
@@ -763,7 +764,7 @@ inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
   t->SetClassName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
-inline void Environment::SetSafeTemplateMethod(
+inline void Environment::SetTemplateMethodNoSideEffect(
     v8::Local<v8::FunctionTemplate> that,
     const char* name,
     v8::FunctionCallback callback) {

@@ -789,11 +789,11 @@ void ModuleWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(tpl, "link", Link);
   env->SetProtoMethod(tpl, "instantiate", Instantiate);
   env->SetProtoMethod(tpl, "evaluate", Evaluate);
-  env->SetSafeProtoMethod(tpl, "namespace", Namespace);
-  env->SetSafeProtoMethod(tpl, "getStatus", GetStatus);
-  env->SetSafeProtoMethod(tpl, "getError", GetError);
-  env->SetSafeProtoMethod(tpl, "getStaticDependencySpecifiers",
-                          GetStaticDependencySpecifiers);
+  env->SetProtoMethodNoSideEffect(tpl, "namespace", Namespace);
+  env->SetProtoMethodNoSideEffect(tpl, "getStatus", GetStatus);
+  env->SetProtoMethodNoSideEffect(tpl, "getError", GetError);
+  env->SetProtoMethodNoSideEffect(tpl, "getStaticDependencySpecifiers",
+                                  GetStaticDependencySpecifiers);
 
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "ModuleWrap"), tpl->GetFunction());
   env->SetMethod(target, "resolve", Resolve);

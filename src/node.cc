@@ -2256,17 +2256,17 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
   env->SetMethod(process, "_kill", Kill);
 
-  env->SetSafeMethod(process, "cwd", Cwd);
+  env->SetMethodNoSideEffect(process, "cwd", Cwd);
   env->SetMethod(process, "dlopen", DLOpen);
   env->SetMethod(process, "reallyExit", Exit);
-  env->SetSafeMethod(process, "uptime", Uptime);
+  env->SetMethodNoSideEffect(process, "uptime", Uptime);
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-  env->SetSafeMethod(process, "getuid", GetUid);
-  env->SetSafeMethod(process, "geteuid", GetEUid);
-  env->SetSafeMethod(process, "getgid", GetGid);
-  env->SetSafeMethod(process, "getegid", GetEGid);
-  env->SetSafeMethod(process, "getgroups", GetGroups);
+  env->SetMethodNoSideEffect(process, "getuid", GetUid);
+  env->SetMethodNoSideEffect(process, "geteuid", GetEUid);
+  env->SetMethodNoSideEffect(process, "getgid", GetGid);
+  env->SetMethodNoSideEffect(process, "getegid", GetEGid);
+  env->SetMethodNoSideEffect(process, "getgroups", GetGroups);
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 }
 

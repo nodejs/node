@@ -2334,10 +2334,10 @@ static void Initialize(Local<Object> target,
                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "parse", Parse);
-  env->SetSafeMethod(target, "encodeAuth", EncodeAuthSet);
-  env->SetSafeMethod(target, "toUSVString", ToUSVString);
-  env->SetSafeMethod(target, "domainToASCII", DomainToASCII);
-  env->SetSafeMethod(target, "domainToUnicode", DomainToUnicode);
+  env->SetMethodNoSideEffect(target, "encodeAuth", EncodeAuthSet);
+  env->SetMethodNoSideEffect(target, "toUSVString", ToUSVString);
+  env->SetMethodNoSideEffect(target, "domainToASCII", DomainToASCII);
+  env->SetMethodNoSideEffect(target, "domainToUnicode", DomainToUnicode);
   env->SetMethod(target, "setURLConstructor", SetURLConstructor);
 
 #define XX(name, _) NODE_DEFINE_CONSTANT(target, name);

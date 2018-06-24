@@ -212,19 +212,19 @@ void Initialize(Local<Object> target,
   V(kRejected);
 #undef V
 
-  env->SetSafeMethod(target, "getHiddenValue", GetHiddenValue);
+  env->SetMethodNoSideEffect(target, "getHiddenValue", GetHiddenValue);
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
-  env->SetSafeMethod(target, "getPromiseDetails", GetPromiseDetails);
-  env->SetSafeMethod(target, "getProxyDetails", GetProxyDetails);
-  env->SetSafeMethod(target, "safeToString", SafeToString);
-  env->SetSafeMethod(target, "previewEntries", PreviewEntries);
+  env->SetMethodNoSideEffect(target, "getPromiseDetails", GetPromiseDetails);
+  env->SetMethodNoSideEffect(target, "getProxyDetails", GetProxyDetails);
+  env->SetMethodNoSideEffect(target, "safeToString", SafeToString);
+  env->SetMethodNoSideEffect(target, "previewEntries", PreviewEntries);
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
-  env->SetSafeMethod(target, "watchdogHasPendingSigint",
-                     WatchdogHasPendingSigint);
+  env->SetMethodNoSideEffect(target, "watchdogHasPendingSigint",
+                             WatchdogHasPendingSigint);
 
-  env->SetSafeMethod(target, "createPromise", CreatePromise);
+  env->SetMethodNoSideEffect(target, "createPromise", CreatePromise);
   env->SetMethod(target, "promiseResolve", PromiseResolve);
   env->SetMethod(target, "promiseReject", PromiseReject);
 
