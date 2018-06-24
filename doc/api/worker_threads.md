@@ -304,7 +304,7 @@ if (isMainThread) {
 }
 ```
 
-### new Worker(filename, options)
+### new Worker(filename[, options])
 
 * `filename` {string} The absolute path to the Worker’s main script.
   If `options.eval` is true, this is a string containing JavaScript code rather
