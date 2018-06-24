@@ -2154,9 +2154,6 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   if (x509_verify_error == X509_V_OK)
     return args.GetReturnValue().SetNull();
 
-  // XXX(bnoordhuis) X509_verify_cert_error_string() is not actually thread-safe
-  // in the presence of invalid error codes.  Probably academical but something
-  // to keep in mind if/when node ever grows multi-isolate capabilities.
   const char* reason = X509_verify_cert_error_string(x509_verify_error);
   const char* code = reason;
 #define CASE_X509_ERR(CODE) case X509_V_ERR_##CODE: code = #CODE; break;
