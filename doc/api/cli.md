@@ -81,6 +81,13 @@ added: v9.6.0
 
 Enable experimental ES Module support in the `vm` module.
 
+### `--experimental-worker`
+<!-- YAML
+added: v10.5.0
+-->
+
+Enable experimental worker threads using the `worker_threads` module.
+
 ### `--force-fips`
 <!-- YAML
 added: v6.0.0

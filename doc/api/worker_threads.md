@@ -6,7 +6,7 @@
 
 The `worker` module provides a way to create multiple environments running
 on independent threads, and to create message channels between them. It
-can be accessed using:
+can be accessed using the `--experimental-worker` flag and:
 
 ```js
 const worker = require('worker_threads');
