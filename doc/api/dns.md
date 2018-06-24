@@ -82,7 +82,6 @@ resolver.resolve4('example.org', (err, addresses) => {
 The following methods from the `dns` module are available:
 
 * [`resolver.getServers()`][`dns.getServers()`]
-* [`resolver.setServers()`][`dns.setServers()`]
 * [`resolver.resolve()`][`dns.resolve()`]
 * [`resolver.resolve4()`][`dns.resolve4()`]
 * [`resolver.resolve6()`][`dns.resolve6()`]
@@ -96,6 +95,7 @@ The following methods from the `dns` module are available:
 * [`resolver.resolveSrv()`][`dns.resolveSrv()`]
 * [`resolver.resolveTxt()`][`dns.resolveTxt()`]
 * [`resolver.reverse()`][`dns.reverse()`]
+* [`resolver.setServers()`][`dns.setServers()`]
 
 ### resolver.cancel()
 <!-- YAML
@@ -259,6 +259,7 @@ records. The type and structure of individual results varies based on `rrtype`:
 |-----------|--------------------------------|-------------|--------------------------|
 | `'A'`     | IPv4 addresses (default)       | {string}    | [`dns.resolve4()`][]     |
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dns.resolve6()`][]     |
+| `'ANY'`   | any records                    | {Object}    | [`dns.resolveAny()`][]   |
 | `'CNAME'` | canonical name records         | {string}    | [`dns.resolveCname()`][] |
 | `'MX'`    | mail exchange records          | {Object}    | [`dns.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dns.resolveNaptr()`][] |
@@ -267,7 +268,6 @@ records. The type and structure of individual results varies based on `rrtype`:
 | `'SOA'`   | start of authority records     | {Object}    | [`dns.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dns.resolveSrv()`][]   |
 | `'TXT'`   | text records                   | {string[]}  | [`dns.resolveTxt()`][]   |
-| `'ANY'`   | any records                    | {Object}    | [`dns.resolveAny()`][]   |
 
 On error, `err` is an [`Error`][] object, where `err.code` is one of the
 [DNS error codes](#dns_error_codes).
@@ -318,6 +318,51 @@ changes:
 Uses the DNS protocol to resolve a IPv6 addresses (`AAAA` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
 will contain an array of IPv6 addresses.
+
+## dns.resolveAny(hostname, callback)
+
+- `hostname` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `ret` {Object[]}
+
+Uses the DNS protocol to resolve all records (also known as `ANY` or `*` query).
+The `ret` argument passed to the `callback` function will be an array containing
+various types of records. Each object has a property `type` that indicates the
+type of the current record. And depending on the `type`, additional properties
+will be present on the object:
+
+| Type | Properties |
+|------|------------|
+| `'A'` | `address`/`ttl` |
+| `'AAAA'` | `address`/`ttl` |
+| `'CNAME'` | `value` |
+| `'MX'` | Refer to [`dns.resolveMx()`][] |
+| `'NAPTR'` | Refer to [`dns.resolveNaptr()`][] |
+| `'NS'` | `value` |
+| `'PTR'` | `value` |
+| `'SOA'` | Refer to [`dns.resolveSoa()`][] |
+| `'SRV'` | Refer to [`dns.resolveSrv()`][] |
+| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
+
+Here is an example of the `ret` object passed to the callback:
+
+<!-- eslint-disable semi -->
+```js
+[ { type: 'A', address: '127.0.0.1', ttl: 299 },
+  { type: 'CNAME', value: 'example.com' },
+  { type: 'MX', exchange: 'alt4.aspmx.l.example.com', priority: 50 },
+  { type: 'NS', value: 'ns1.example.com' },
+  { type: 'TXT', entries: [ 'v=spf1 include:_spf.example.com ~all' ] },
+  { type: 'SOA',
+    nsname: 'ns1.example.com',
+    hostmaster: 'admin.example.com',
+    serial: 156696742,
+    refresh: 900,
+    retry: 900,
+    expire: 1800,
+    minttl: 60 } ]
+```
 
 ## dns.resolveCname(hostname, callback)
 <!-- YAML
@@ -484,51 +529,6 @@ two-dimensional array of the text records available for `hostname` (e.g.
 one record. Depending on the use case, these could be either joined together or
 treated separately.
 
-## dns.resolveAny(hostname, callback)
-
-- `hostname` {string}
-- `callback` {Function}
-  - `err` {Error}
-  - `ret` {Object[]}
-
-Uses the DNS protocol to resolve all records (also known as `ANY` or `*` query).
-The `ret` argument passed to the `callback` function will be an array containing
-various types of records. Each object has a property `type` that indicates the
-type of the current record. And depending on the `type`, additional properties
-will be present on the object:
-
-| Type | Properties |
-|------|------------|
-| `'A'` | `address`/`ttl` |
-| `'AAAA'` | `address`/`ttl` |
-| `'CNAME'` | `value` |
-| `'MX'` | Refer to [`dns.resolveMx()`][] |
-| `'NAPTR'` | Refer to [`dns.resolveNaptr()`][] |
-| `'NS'` | `value` |
-| `'PTR'` | `value` |
-| `'SOA'` | Refer to [`dns.resolveSoa()`][] |
-| `'SRV'` | Refer to [`dns.resolveSrv()`][] |
-| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
-
-Here is an example of the `ret` object passed to the callback:
-
-<!-- eslint-disable semi -->
-```js
-[ { type: 'A', address: '127.0.0.1', ttl: 299 },
-  { type: 'CNAME', value: 'example.com' },
-  { type: 'MX', exchange: 'alt4.aspmx.l.example.com', priority: 50 },
-  { type: 'NS', value: 'ns1.example.com' },
-  { type: 'TXT', entries: [ 'v=spf1 include:_spf.example.com ~all' ] },
-  { type: 'SOA',
-    nsname: 'ns1.example.com',
-    hostmaster: 'admin.example.com',
-    serial: 156696742,
-    refresh: 900,
-    retry: 900,
-    expire: 1800,
-    minttl: 60 } ]
-```
-
 ## dns.reverse(ip, callback)
 <!-- YAML
 added: v0.1.16
@@ -607,7 +607,6 @@ resolver.resolve4('example.org').then((addresses) => {
 The following methods from the `dnsPromises` API are available:
 
 * [`resolver.getServers()`][`dnsPromises.getServers()`]
-* [`resolver.setServers()`][`dnsPromises.setServers()`]
 * [`resolver.resolve()`][`dnsPromises.resolve()`]
 * [`resolver.resolve4()`][`dnsPromises.resolve4()`]
 * [`resolver.resolve6()`][`dnsPromises.resolve6()`]
@@ -621,6 +620,7 @@ The following methods from the `dnsPromises` API are available:
 * [`resolver.resolveSrv()`][`dnsPromises.resolveSrv()`]
 * [`resolver.resolveTxt()`][`dnsPromises.resolveTxt()`]
 * [`resolver.reverse()`][`dnsPromises.reverse()`]
+* [`resolver.setServers()`][`dnsPromises.setServers()`]
 
 ### dnsPromises.getServers()
 <!-- YAML
@@ -747,6 +747,7 @@ based on `rrtype`:
 |-----------|--------------------------------|-------------|--------------------------|
 | `'A'`     | IPv4 addresses (default)       | {string}    | [`dnsPromises.resolve4()`][]     |
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dnsPromises.resolve6()`][]     |
+| `'ANY'`   | any records                    | {Object}    | [`dnsPromises.resolveAny()`][]   |
 | `'CNAME'` | canonical name records         | {string}    | [`dnsPromises.resolveCname()`][] |
 | `'MX'`    | mail exchange records          | {Object}    | [`dnsPromises.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dnsPromises.resolveNaptr()`][] |
@@ -755,7 +756,6 @@ based on `rrtype`:
 | `'SOA'`   | start of authority records     | {Object}    | [`dnsPromises.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dnsPromises.resolveSrv()`][]   |
 | `'TXT'`   | text records                   | {string[]}  | [`dnsPromises.resolveTxt()`][]   |
-| `'ANY'`   | any records                    | {Object}    | [`dnsPromises.resolveAny()`][]   |
 
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is one of the [DNS error codes](#dns_error_codes).
@@ -789,6 +789,50 @@ added: REPLACEME
 Uses the DNS protocol to resolve IPv6 addresses (`AAAA` records) for the
 `hostname`. On success, the `Promise` is resolved with an array of IPv6
 addresses.
+
+### dnsPromises.resolveAny(hostname)
+<!-- YAML
+added: REPLACEME
+-->
+- `hostname` {string}
+
+Uses the DNS protocol to resolve all records (also known as `ANY` or `*` query).
+On success, the `Promise` is resolved with an array containing various types of
+records. Each object has a property `type` that indicates the type of the
+current record. And depending on the `type`, additional properties will be
+present on the object:
+
+| Type | Properties |
+|------|------------|
+| `'A'` | `address`/`ttl` |
+| `'AAAA'` | `address`/`ttl` |
+| `'CNAME'` | `value` |
+| `'MX'` | Refer to [`dnsPromises.resolveMx()`][] |
+| `'NAPTR'` | Refer to [`dnsPromises.resolveNaptr()`][] |
+| `'NS'` | `value` |
+| `'PTR'` | `value` |
+| `'SOA'` | Refer to [`dnsPromises.resolveSoa()`][] |
+| `'SRV'` | Refer to [`dnsPromises.resolveSrv()`][] |
+| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dnsPromises.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
+
+Here is an example of the result object:
+
+<!-- eslint-disable semi -->
+```js
+[ { type: 'A', address: '127.0.0.1', ttl: 299 },
+  { type: 'CNAME', value: 'example.com' },
+  { type: 'MX', exchange: 'alt4.aspmx.l.example.com', priority: 50 },
+  { type: 'NS', value: 'ns1.example.com' },
+  { type: 'TXT', entries: [ 'v=spf1 include:_spf.example.com ~all' ] },
+  { type: 'SOA',
+    nsname: 'ns1.example.com',
+    hostmaster: 'admin.example.com',
+    serial: 156696742,
+    refresh: 900,
+    retry: 900,
+    expire: 1800,
+    minttl: 60 } ]
+```
 
 ### dnsPromises.resolveCname(hostname)
 <!-- YAML
@@ -929,50 +973,6 @@ of the text records available for `hostname` (e.g.
 `[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
 one record. Depending on the use case, these could be either joined together or
 treated separately.
-
-### dnsPromises.resolveAny(hostname)
-<!-- YAML
-added: REPLACEME
--->
-- `hostname` {string}
-
-Uses the DNS protocol to resolve all records (also known as `ANY` or `*` query).
-On success, the `Promise` is resolved with an array containing various types of
-records. Each object has a property `type` that indicates the type of the
-current record. And depending on the `type`, additional properties will be
-present on the object:
-
-| Type | Properties |
-|------|------------|
-| `'A'` | `address`/`ttl` |
-| `'AAAA'` | `address`/`ttl` |
-| `'CNAME'` | `value` |
-| `'MX'` | Refer to [`dnsPromises.resolveMx()`][] |
-| `'NAPTR'` | Refer to [`dnsPromises.resolveNaptr()`][] |
-| `'NS'` | `value` |
-| `'PTR'` | `value` |
-| `'SOA'` | Refer to [`dnsPromises.resolveSoa()`][] |
-| `'SRV'` | Refer to [`dnsPromises.resolveSrv()`][] |
-| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dnsPromises.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
-
-Here is an example of the result object:
-
-<!-- eslint-disable semi -->
-```js
-[ { type: 'A', address: '127.0.0.1', ttl: 299 },
-  { type: 'CNAME', value: 'example.com' },
-  { type: 'MX', exchange: 'alt4.aspmx.l.example.com', priority: 50 },
-  { type: 'NS', value: 'ns1.example.com' },
-  { type: 'TXT', entries: [ 'v=spf1 include:_spf.example.com ~all' ] },
-  { type: 'SOA',
-    nsname: 'ns1.example.com',
-    hostmaster: 'admin.example.com',
-    serial: 156696742,
-    refresh: 900,
-    retry: 900,
-    expire: 1800,
-    minttl: 60 } ]
-```
 
 ### dnsPromises.reverse(ip)
 <!-- YAML
