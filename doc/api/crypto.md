@@ -245,7 +245,8 @@ once will result in an error being thrown.
 added: v1.0.0
 -->
 - `buffer` {Buffer}
-- `options` {Object}
+- `options` {Object} [`stream.transform` options][]
+  - `plaintextLength`: {nunmber}
 - Returns: {Cipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` and `CCM` are currently
@@ -407,7 +408,8 @@ changes:
     description: This method now returns a reference to `decipher`.
 -->
 - `buffer` {Buffer | TypedArray | DataView}
-- `options` {Object}
+- `options` {Object} [`stream.transform` options][]
+  - `plaintextLength`: {nunmber}
 - Returns: {Decipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` and `CCM` are currently
