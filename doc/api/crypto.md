@@ -246,7 +246,7 @@ added: v1.0.0
 -->
 - `buffer` {Buffer}
 - `options` {Object} [`stream.transform` options][]
-  - `plaintextLength`: {nunmber}
+  - `plaintextLength` {number}
 - Returns: {Cipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` and `CCM` are currently
@@ -409,7 +409,7 @@ changes:
 -->
 - `buffer` {Buffer | TypedArray | DataView}
 - `options` {Object} [`stream.transform` options][]
-  - `plaintextLength`: {nunmber}
+  - `plaintextLength` {number}
 - Returns: {Decipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` and `CCM` are currently
