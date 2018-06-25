@@ -803,7 +803,8 @@ void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
 
 std::string AsyncWrap::diagnostic_name() const {
   return std::string(provider_names[provider_type()]) +
-      " (" + std::to_string(static_cast<int64_t>(async_id_)) + ")";
+      " (" + std::to_string(env()->thread_id()) + ":" +
+      std::to_string(static_cast<int64_t>(async_id_)) + ")";
 }
 
 }  // namespace node
