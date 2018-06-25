@@ -322,6 +322,7 @@ struct PackageConfig {
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(domain_callback, v8::Function)                                            \
+  V(domexception_function, v8::Function)                                      \
   V(fdclose_constructor_template, v8::ObjectTemplate)                         \
   V(fd_constructor_template, v8::ObjectTemplate)                              \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                          \

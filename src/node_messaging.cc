@@ -144,6 +144,21 @@ void Message::AddMessagePort(std::unique_ptr<MessagePortData>&& data) {
 
 namespace {
 
+void ThrowDataCloneError(Environment* env, Local<String> message) {
+  Local<Value> argv[] = {
+    message,
+    FIXED_ONE_BYTE_STRING(env->isolate(), "DataCloneError")
+  };
+  Local<Value> exception;
+  Local<Function> domexception_ctor = env->domexception_function();
+  CHECK(!domexception_ctor.IsEmpty());
+  if (!domexception_ctor->NewInstance(env->context(), arraysize(argv), argv)
+          .ToLocal(&exception)) {
+    return;
+  }
+  env->isolate()->ThrowException(exception);
+}
+
 // This tells V8 how to serialize objects that it does not understand
 // (e.g. C++ objects) into the output buffer, in a way that our own
 // DeserializerDelegate understands how to unpack.
@@ -153,7 +168,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       : env_(env), context_(context), msg_(m) {}
 
   void ThrowDataCloneError(Local<String> message) override {
-    env_->isolate()->ThrowException(Exception::Error(message));
+    ThrowDataCloneError(env_, message);
   }
 
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
@@ -688,6 +703,13 @@ static void MessageChannel(const FunctionCallbackInfo<Value>& args) {
       .FromJust();
 }
 
+static void RegisterDOMException(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsFunction());
+  env->set_domexception_function(args[0].As<Function>());
+}
+
 static void InitMessaging(Local<Object> target,
                           Local<Value> unused,
                           Local<Context> context,
@@ -708,6 +730,8 @@ static void InitMessaging(Local<Object> target,
               env->message_port_constructor_string(),
               GetMessagePortConstructor(env, context).ToLocalChecked())
                   .FromJust();
+
+  env->SetMethod(target, "registerDOMException", RegisterDOMException);
 }
 
 }  // anonymous namespace
