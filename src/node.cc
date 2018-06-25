@@ -3497,35 +3497,19 @@ Local<Context> NewContext(Isolate* isolate,
   auto context = Context::New(isolate, nullptr, object_template);
   if (context.IsEmpty()) return context;
   HandleScope handle_scope(isolate);
+
   context->SetEmbedderData(
       ContextEmbedderIndex::kAllowWasmCodeGeneration, True(isolate));
 
-  auto intl_key = FIXED_ONE_BYTE_STRING(isolate, "Intl");
-  auto break_iter_key = FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
-  Local<Value> intl_v;
-  if (context->Global()->Get(context, intl_key).ToLocal(&intl_v) &&
-      intl_v->IsObject()) {
-    Local<Object> intl = intl_v.As<Object>();
-    intl->Delete(context, break_iter_key).FromJust();
-  }
-
-  // https://github.com/nodejs/node/issues/21219
-  // TODO(devsnek): remove when v8 supports Atomics.notify
-  auto atomics_key = FIXED_ONE_BYTE_STRING(isolate, "Atomics");
-  Local<Value> atomics_v;
-  if (context->Global()->Get(context, atomics_key).ToLocal(&atomics_v) &&
-      atomics_v->IsObject()) {
-    Local<Object> atomics = atomics_v.As<Object>();
-    auto wake_key = FIXED_ONE_BYTE_STRING(isolate, "wake");
-
-    Local<Value> wake = atomics->Get(context, wake_key).ToLocalChecked();
-    auto notify_key = FIXED_ONE_BYTE_STRING(isolate, "notify");
-
-    v8::PropertyDescriptor desc(wake, true);
-    desc.set_enumerable(false);
-    desc.set_configurable(true);
-
-    atomics->DefineProperty(context, notify_key, desc).ToChecked();
+  {
+    // Run lib/internal/per_context.js
+    Context::Scope context_scope(context);
+    Local<String> per_context = NodePerContextSource(isolate);
+    v8::ScriptCompiler::Source per_context_src(per_context, nullptr);
+    Local<v8::Script> s = v8::ScriptCompiler::Compile(
+        context,
+        &per_context_src).ToLocalChecked();
+    s->Run(context).ToLocalChecked();
   }
 
   return context;
