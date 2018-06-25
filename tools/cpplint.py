@@ -1904,16 +1904,14 @@ def CheckInlineHeader(filename, include_state, error):
       # Proceed further for only inline headers
       m = Match(r'^(.+)-inl.h$', header[0])
       if m:
-        name = '%s.h'.format(m.group(0))
+        name = '%s.h' % m.group(1)
         # Look for the corresponding header
         for sl in include_state.include_list:
           for h in section_list:
             if h[0] == name:
-              error(filename, h[1], 'build/include', 5,
-                    '%s includes both %s and %s'.format(filename, header[0],
-                                                        h[0]))
-
-
+              err =  '%s includes both %s and %s' % (filename, header[0], h[0])
+              error(filename, h[1], 'build/include', 5, err)
+              print err
 
 
 def CheckForNewlineAtEOF(filename, lines, error):
@@ -5882,7 +5880,7 @@ def ProcessFileData(filename, file_extension, lines, error,
 
   CheckForNewlineAtEOF(filename, lines, error)
 
-  CheckInlineHeader(filename, lines, error)
+  CheckInlineHeader(filename, include_state, error)
 
 def ProcessConfigOverrides(filename):
   """ Loads the configuration files and processes the config overrides.
