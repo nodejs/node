@@ -183,7 +183,9 @@ static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
 static bool v8_is_profiling = false;
 static bool node_is_initialized = false;
+static Mutex module_mutex;
 static node_module* modpending;
+static std::unordered_map<std::string, node_module *> modmap_metadata;
 static node_module* modlist_builtin;
 static node_module* modlist_internal;
 static node_module* modlist_linked;
@@ -1266,8 +1268,6 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto context = env->context();
 
-  CHECK_NULL(modpending);
-
   if (args.Length() < 2) {
     env->ThrowError("process.dlopen needs at least 2 arguments.");
     return;
@@ -1289,13 +1289,27 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
   DLib dlib(*filename, flags);
-  bool is_opened = dlib.Open();
-
-  // Objects containing v14 or later modules will have registered themselves
-  // on the pending list.  Activate all of them now.  At present, only one
-  // module per object is supported.
-  node_module* const mp = modpending;
-  modpending = nullptr;
+  bool is_opened;
+  node_module* mp;
+  {
+    Mutex::ScopedLock lock(module_mutex);
+    CHECK_NULL(modpending);
+    is_opened = dlib.Open();
+    // Objects containing v14 or later modules will have registered themselves
+    // on the pending list.  Activate all of them now.  At present, only one
+    // module per object is supported.
+    std::string key(*filename, filename.length());
+    mp = modpending;
+    if (mp) {
+      modpending = nullptr;
+      modmap_metadata.emplace(std::move(key), mp);
+    } else {
+      auto existing = modmap_metadata.find(key);
+      if (existing != modmap_metadata.end()) {
+        mp = existing->second;
+      }
+    }
+  }
 
   if (!is_opened) {
     Local<String> errmsg = OneByteString(env->isolate(), dlib.errmsg_.c_str());
