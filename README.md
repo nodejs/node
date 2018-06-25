@@ -315,6 +315,8 @@ For more information about the governance of the Node.js project, see
 **Anatoli Papirovski** &lt;apapirovski@mac.com&gt; (he/him)
 * [aqrln](https://github.com/aqrln) -
 **Alexey Orlenko** &lt;eaglexrlnk@gmail.com&gt; (he/him)
+* [bcoe](https://github.com/bcoe) -
+**Ben Coe** &lt;bencoe@gmail.com&gt; (he/him)
 * [bengl](https://github.com/bengl) -
 **Bryan English** &lt;bryan@bryanenglish.com&gt; (he/him)
 * [benjamingr](https://github.com/benjamingr) -
