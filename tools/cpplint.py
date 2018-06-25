@@ -1895,6 +1895,27 @@ def CheckForBadCharacters(filename, lines, error):
       error(filename, linenum, 'readability/nul', 5, 'Line contains NUL byte.')
 
 
+def CheckInlineHeader(filename, include_state, error):
+  """Logs an error if both a header and its inline variant are included."""
+
+  # Iterate over all headers, looking for any inline headers
+  for section_list in include_state.include_list:
+    for header in section_list:
+      # Proceed further for only inline headers
+      m = Match(r'^(.+)-inl.h$', header[0])
+      if m:
+        name = '%s.h'.format(m.group(0))
+        # Look for the corresponding header
+        for sl in include_state.include_list:
+          for h in section_list:
+            if h[0] == name:
+              error(filename, h[1], 'build/include', 5,
+                    '%s includes both %s and %s'.format(filename, header[0],
+                                                        h[0]))
+
+
+
+
 def CheckForNewlineAtEOF(filename, lines, error):
   """Logs an error if there is no newline char at the end of the file.
 
@@ -5860,6 +5881,8 @@ def ProcessFileData(filename, file_extension, lines, error,
   CheckForBadCharacters(filename, lines, error)
 
   CheckForNewlineAtEOF(filename, lines, error)
+
+  CheckInlineHeader(filename, lines, error)
 
 def ProcessConfigOverrides(filename):
   """ Loads the configuration files and processes the config overrides.
