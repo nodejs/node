@@ -15,9 +15,12 @@ const apiPath = path.resolve(__dirname, '..', '..', 'out', 'doc', 'api');
 const allDocs = fs.readdirSync(apiPath);
 assert.ok(allDocs.includes('_toc.html'));
 
-const filter = ['assets', '_toc.html', '.md'];
 const actualDocs = allDocs.filter(
-  (name) => !filter.some((str) => name.includes(str))
+  (name) => {
+    const extension = path.extname(name);
+    return (extension === '.html' || extension === '.json') &&
+           name !== '_toc.html';
+  }
 );
 
 const toc = fs.readFileSync(path.resolve(apiPath, '_toc.html'), 'utf8');
