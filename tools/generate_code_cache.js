@@ -59,7 +59,7 @@ function getInitalizer(key, cache) {
   v8::Local<v8::Uint8Array> ${defName}_array =
     v8::Uint8Array::New(${defName}_ab, 0, ${cache.length});
   target->Set(context,
-              OneByteString(isolate, "${key}"),
+              FIXED_ONE_BYTE_STRING(isolate, "${key}"),
               ${defName}_array).FromJust();
   `;
   return {

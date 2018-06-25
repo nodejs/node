@@ -91,7 +91,7 @@ $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 
-CODE_CACHE_DIR ?= out/$(BUILDTYPE)/obj.target
+CODE_CACHE_DIR ?= out/$(BUILDTYPE)/obj/gen
 CODE_CACHE_FILE ?= $(CODE_CACHE_DIR)/node_code_cache.cc
 
 .PHONY: with-code-cache
