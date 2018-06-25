@@ -65,7 +65,6 @@ function onexit() {
       { type: 'WRITEWRAP', id: 'write:1', triggerAsyncId: 'tcpconnect:1' },
       { type: 'TCPWRAP', id: 'tcp:2', triggerAsyncId: 'tcpserver:1' },
       { type: 'TLSWRAP', id: 'tls:2', triggerAsyncId: 'tcpserver:1' },
-      { type: 'TIMERWRAP', id: 'timer:1', triggerAsyncId: 'tcpserver:1' },
       { type: 'WRITEWRAP', id: 'write:2', triggerAsyncId: null },
       { type: 'WRITEWRAP', id: 'write:3', triggerAsyncId: null },
       { type: 'WRITEWRAP', id: 'write:4', triggerAsyncId: null },

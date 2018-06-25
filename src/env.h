@@ -551,10 +551,8 @@ class Environment {
     inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
     inline bool has_scheduled() const;
     inline bool has_promise_rejections() const;
-    inline bool has_thrown() const;
 
     inline void promise_rejections_toggle_on();
-    inline void set_has_thrown(bool state);
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -563,7 +561,6 @@ class Environment {
     enum Fields {
       kHasScheduled,
       kHasPromiseRejections,
-      kHasThrown,
       kFieldsCount
     };
 
@@ -627,6 +624,9 @@ class Environment {
   inline tracing::Agent* tracing_agent() const;
   inline uv_loop_t* event_loop() const;
   inline uint32_t watched_providers() const;
+
+  static inline Environment* from_timer_handle(uv_timer_t* handle);
+  inline uv_timer_t* timer_handle();
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
   inline uv_check_t* immediate_check_handle();
@@ -840,6 +840,8 @@ class Environment {
   static inline Environment* ForAsyncHooks(AsyncHooks* hooks);
 
   v8::Local<v8::Value> GetNow();
+  void ScheduleTimer(int64_t duration);
+  void ToggleTimerRef(bool ref);
 
   inline void AddCleanupHook(void (*fn)(void*), void* arg);
   inline void RemoveCleanupHook(void (*fn)(void*), void* arg);
@@ -857,6 +859,7 @@ class Environment {
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
   tracing::Agent* const tracing_agent_;
+  uv_timer_t timer_handle_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
   uv_prepare_t idle_prepare_handle_;
@@ -918,6 +921,8 @@ class Environment {
       file_handle_read_wrap_freelist_;
 
   worker::Worker* worker_context_ = nullptr;
+
+  static void RunTimers(uv_timer_t* handle);
 
   struct ExitCallback {
     void (*cb_)(void* arg);

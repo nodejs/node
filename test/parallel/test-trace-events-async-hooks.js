@@ -42,8 +42,6 @@ proc.once('exit', common.mustCall(() => {
         return false;
       if (trace.cat !== 'node,node.async_hooks')
         return false;
-      if (trace.name !== 'TIMERWRAP')
-        return false;
       return true;
     }));
 

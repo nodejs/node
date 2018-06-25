@@ -256,12 +256,6 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 }
 
 
-{
-  const TimerWrap = process.binding('timer_wrap').Timer;
-  testInitialized(new TimerWrap(), 'Timer');
-}
-
-
 if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
   const tcp = new TCP(TCPConstants.SOCKET);

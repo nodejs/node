@@ -42,7 +42,7 @@ class TestHandleWrap : public node::HandleWrap {
       : node::HandleWrap(env,
                          object,
                          reinterpret_cast<uv_handle_t*>(handle),
-                         node::AsyncWrap::PROVIDER_TIMERWRAP) {}
+                         node::AsyncWrap::PROVIDER_TCPWRAP) {}
 };
 
 
@@ -53,7 +53,7 @@ class TestReqWrap : public node::ReqWrap<uv_req_t> {
   TestReqWrap(node::Environment* env, v8::Local<v8::Object> object)
       : node::ReqWrap<uv_req_t>(env,
                                 object,
-                                node::AsyncWrap::PROVIDER_TIMERWRAP) {}
+                                node::AsyncWrap::PROVIDER_FSREQWRAP) {}
 };
 
 TEST_F(DebugSymbolsTest, ContextEmbedderEnvironmentIndex) {
