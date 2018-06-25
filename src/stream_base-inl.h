@@ -266,9 +266,7 @@ inline WriteWrap* StreamBase::CreateWriteWrap(
 }
 
 template <class Base>
-void StreamBase::AddMethods(Environment* env,
-                            Local<FunctionTemplate> t,
-                            int flags) {
+void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
   enum PropertyAttribute attributes =
@@ -324,8 +322,7 @@ void StreamBase::AddMethods(Environment* env,
   env->SetProtoMethod(t, "readStart", JSMethod<Base, &StreamBase::ReadStartJS>);
   env->SetProtoMethod(t, "readStop", JSMethod<Base, &StreamBase::ReadStopJS>);
   env->SetProtoMethod(t, "shutdown", JSMethod<Base, &StreamBase::Shutdown>);
-  if ((flags & kFlagHasWritev) != 0)
-    env->SetProtoMethod(t, "writev", JSMethod<Base, &StreamBase::Writev>);
+  env->SetProtoMethod(t, "writev", JSMethod<Base, &StreamBase::Writev>);
   env->SetProtoMethod(t,
                       "writeBuffer",
                       JSMethod<Base, &StreamBase::WriteBuffer>);
