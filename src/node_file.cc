@@ -1967,7 +1967,7 @@ void Initialize(Local<Object> target,
   Local<String> handleString =
        FIXED_ONE_BYTE_STRING(env->isolate(), "FileHandle");
   fd->SetClassName(handleString);
-  StreamBase::AddMethods<FileHandle>(env, fd, StreamBase::kFlagNone);
+  StreamBase::AddMethods<FileHandle>(env, fd);
   target->Set(context, handleString, fd->GetFunction()).FromJust();
   env->set_fd_constructor_template(fdt);
 

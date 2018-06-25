@@ -255,15 +255,9 @@ class StreamResource {
 
 class StreamBase : public StreamResource {
  public:
-  enum Flags {
-    kFlagNone = 0x0,
-    kFlagHasWritev = 0x1
-  };
-
   template <class Base>
   static inline void AddMethods(Environment* env,
-                                v8::Local<v8::FunctionTemplate> target,
-                                int flags = kFlagNone);
+                                v8::Local<v8::FunctionTemplate> target);
 
   virtual bool IsAlive() = 0;
   virtual bool IsClosing() = 0;

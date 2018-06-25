@@ -87,8 +87,7 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   AsyncWrap* GetAsyncWrap() override;
 
   static void AddMethods(Environment* env,
-                         v8::Local<v8::FunctionTemplate> target,
-                         int flags = StreamBase::kFlagNone);
+                         v8::Local<v8::FunctionTemplate> target);
 
  protected:
   inline void set_fd(int fd) {
