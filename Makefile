@@ -175,7 +175,8 @@ coverage-build: all
 		"$(CURDIR)/build/jenkins/scripts/coverage/gcovr-patches-3.4.diff"); fi
 	if [ -d lib_ ]; then $(RM) -r lib; mv lib_ lib; fi
 	mv lib lib_
-	$(NODE) ./node_modules/.bin/nyc instrument --extension .js --extension .mjs lib_/ lib/
+	NODE_DEBUG=nyc $(NODE) ./node_modules/.bin/nyc instrument --extension .js \
+		--extension .mjs --exit-on-error lib_/ lib/
 	$(MAKE)
 
 .PHONY: coverage-test
