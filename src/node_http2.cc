@@ -2840,7 +2840,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(stream, "rstStream", Http2Stream::RstStream);
   env->SetProtoMethod(stream, "refreshState", Http2Stream::RefreshState);
   AsyncWrap::AddWrapMethods(env, stream);
-  StreamBase::AddMethods<Http2Stream>(env, stream, StreamBase::kFlagHasWritev);
+  StreamBase::AddMethods<Http2Stream>(env, stream);
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
   streamt->SetInternalFieldCount(1);
   env->set_http2stream_constructor_template(streamt);
