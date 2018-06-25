@@ -47,6 +47,13 @@ using v8::Value;
 // used in Hrtime() below
 #define NANOS_PER_SEC 1000000000
 
+#ifdef _WIN32
+/* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
+#define CHDIR_BUFSIZE (MAX_PATH * 4)
+#else
+#define CHDIR_BUFSIZE (PATH_MAX)
+#endif
+
 void Abort(const FunctionCallbackInfo<Value>& args) {
   Abort();
 }
@@ -59,8 +66,14 @@ void Chdir(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Utf8Value path(env->isolate(), args[0]);
   int err = uv_chdir(*path);
-  if (err)
-    return env->ThrowUVException(err, "chdir", nullptr, *path, nullptr);
+  if (err) {
+    // Also include the original working directory, since that will usually
+    // be helpful information when debugging a `chdir()` failure.
+    char buf[CHDIR_BUFSIZE];
+    size_t cwd_len = sizeof(buf);
+    uv_cwd(buf, &cwd_len);
+    return env->ThrowUVException(err, "chdir", nullptr, buf, *path);
+  }
 }
 
 // CPUUsage use libuv's uv_getrusage() this-process resource usage accessor,
@@ -93,13 +106,7 @@ void CPUUsage(const FunctionCallbackInfo<Value>& args) {
 
 void Cwd(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-#ifdef _WIN32
-  /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
-  char buf[MAX_PATH * 4];
-#else
-  char buf[PATH_MAX];
-#endif
-
+  char buf[CHDIR_BUFSIZE];
   size_t cwd_len = sizeof(buf);
   int err = uv_cwd(buf, &cwd_len);
   if (err)
