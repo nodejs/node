@@ -634,6 +634,9 @@ The `defaultOptions` value allows customization of the default options used by
 object containing one or more valid [`util.inspect()`][] options. Setting
 option properties directly is also supported.
 
+It is strongly discouraged using this inside userland modules. Changing the
+default options should only ever be considered by end users.
+
 ```js
 const util = require('util');
 const arr = Array(101).fill(0);
