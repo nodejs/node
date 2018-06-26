@@ -635,6 +635,9 @@ out/doc/api/%.json: doc/api/%.md
 out/doc/api/%.html: doc/api/%.md
 	$(call available-node, $(gen-html))
 
+out/doc/api/all.html: $(filter-out out/doc/api/all.html, $(apidocs_html))
+	$(call available-node, tools/doc/allhtml.js)
+
 .PHONY: docopen
 docopen: $(apidocs_html)
 	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html

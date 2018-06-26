@@ -73,6 +73,8 @@ addlicense "npm" "deps/npm" "$(cat ${rootdir}/deps/npm/LICENSE)"
 addlicense "GYP" "tools/gyp" "$(cat ${rootdir}/tools/gyp/LICENSE)"
 addlicense "marked" "tools/doc/node_modules/marked" \
            "$(cat ${rootdir}/tools/doc/node_modules/marked/LICENSE)"
+addlicense "jsdom" "tools/doc/node_modules/jsdom" \
+           "$(cat ${rootdir}/tools/doc/node_modules/jsdom/LICENSE.txt)"
 
 # Testing tools
 addlicense "cpplint.py" "tools/cpplint.py" \
