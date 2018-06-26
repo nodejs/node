@@ -2683,9 +2683,11 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   cipher->Init(*cipher_type, key_buf, key_buf_len, auth_tag_len);
 }
 
-#define IS_SUPPORTED_AUTHENTICATED_MODE(mode) ((mode) == EVP_CIPH_CCM_MODE || \
-                                               (mode) == EVP_CIPH_GCM_MODE || \
-                                               (mode) == EVP_CIPH_OCB_MODE)
+static bool IsSupportedAuthenticatedMode(int mode) {
+  return mode == EVP_CIPH_CCM_MODE ||
+         mode == EVP_CIPH_GCM_MODE ||
+         mode == EVP_CIPH_OCB_MODE;
+}
 
 void CipherBase::InitIv(const char* cipher_type,
                         const char* key,
@@ -2703,7 +2705,7 @@ void CipherBase::InitIv(const char* cipher_type,
 
   const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
   const int mode = EVP_CIPHER_mode(cipher);
-  const bool is_authenticated_mode = IS_SUPPORTED_AUTHENTICATED_MODE(mode);
+  const bool is_authenticated_mode = IsSupportedAuthenticatedMode(mode);
   const bool has_iv = iv_len >= 0;
 
   // Throw if no IV was passed and the cipher requires an IV
@@ -2876,7 +2878,7 @@ bool CipherBase::IsAuthenticatedMode() const {
   // Check if this cipher operates in an AEAD mode that we support.
   CHECK(ctx_);
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
-  return IS_SUPPORTED_AUTHENTICATED_MODE(mode);
+  return IsSupportedAuthenticatedMode(mode);
 }
 
 
