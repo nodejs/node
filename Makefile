@@ -620,7 +620,7 @@ available-node = \
 		exit 1; \
 	fi;
 
-run-npm-install = $(PWD)/$(NPM) ci --production --no-package-lock
+run-npm-install = $(PWD)/$(NPM) ci --production
 
 tools/doc/node_modules/js-yaml/package.json:
 	cd tools/doc && $(call available-node,$(run-npm-install))
