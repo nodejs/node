@@ -102,7 +102,7 @@ void FSEventWrap::Initialize(Local<Object> target,
 
   AsyncWrap::AddWrapMethods(env, t);
   env->SetProtoMethod(t, "start", Start);
-  env->SetProtoMethod(t, "close", HandleWrap::Close);
+  env->SetProtoMethod(t, "close", Close);
 
   Local<FunctionTemplate> get_initialized_templ =
       FunctionTemplate::New(env->isolate(),
