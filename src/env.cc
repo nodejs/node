@@ -4,6 +4,7 @@
 #include "node_buffer.h"
 #include "node_platform.h"
 #include "node_file.h"
+#include "node_context_data.h"
 #include "node_worker.h"
 #include "tracing/agent.h"
 
