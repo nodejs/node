@@ -33,9 +33,10 @@ using worker::Worker;
 
 const int kNodeContextTag = 0x6e6f64;
 // We don't store a pointer to kNodeContextTag itself since there might be
-// the case where a promise might reside on a different process, yet is a node context
+// the case where a promise might reside on a different process, yet is a
+// node context
 void* kNodeContextTagPtr = const_cast<void*>(
-    static_cast<const void*>(kNodeContextTag));
+    reinterpret_cast<const void*>(kNodeContextTag));
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
