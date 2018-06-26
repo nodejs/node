@@ -2154,7 +2154,7 @@ added: v10.5.0
   - `r` {number} Block size parameter. **Default:** `8`.
   - `p` {number} Parallelization parameter. **Default:** `1`.
   - `maxmem` {number} Memory upper bound. It is an error when (approximately)
-    `128 * N * r > maxmem` **Default:** `32 * 1024 * 1024`.
+    `128 * N * r > maxmem`. **Default:** `32 * 1024 * 1024`.
 - `callback` {Function}
   - `err` {Error}
   - `derivedKey` {Buffer}
@@ -2200,7 +2200,7 @@ added: v10.5.0
   - `r` {number} Block size parameter. **Default:** `8`.
   - `p` {number} Parallelization parameter. **Default:** `1`.
   - `maxmem` {number} Memory upper bound. It is an error when (approximately)
-    `128 * N * r > maxmem` **Default:** `32 * 1024 * 1024`.
+    `128 * N * r > maxmem`. **Default:** `32 * 1024 * 1024`.
 - Returns: {Buffer}
 
 Provides a synchronous [scrypt][] implementation. Scrypt is a password-based
