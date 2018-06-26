@@ -169,6 +169,16 @@ $ make check
 $ make install
 ```
 
+To build with [CMake](https://cmake.org/):
+
+```bash
+$ mkdir -p out/cmake ; cd out/cmake ; cmake -DBUILD_TESTING=ON ../..
+$ make all test
+# Or manually:
+$ ./uv_run_tests    # shared library build
+$ ./uv_run_tests_a  # static library build
+```
+
 To build with GYP, first run:
 
 ```bash
@@ -321,6 +331,13 @@ that is detected by `autoconf`.
 describes the package in more detail.
 
 AIX support for filesystem events is not compiled when building with `gyp`.
+
+### z/OS Notes
+
+z/OS creates System V semaphores and message queues. These persist on the system
+after the process terminates unless the event loop is closed.
+
+Use the `ipcrm` command to manually clear up System V resources.
 
 ## Patches
 

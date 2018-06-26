@@ -22,6 +22,7 @@ namespace wasm {
 #define CASE_I64_OP(name, str) CASE_OP(I64##name, "i64." str)
 #define CASE_F32_OP(name, str) CASE_OP(F32##name, "f32." str)
 #define CASE_F64_OP(name, str) CASE_OP(F64##name, "f64." str)
+#define CASE_REF_OP(name, str) CASE_OP(Ref##name, "ref." str)
 #define CASE_F32x4_OP(name, str) CASE_OP(F32x4##name, "f32x4." str)
 #define CASE_I32x4_OP(name, str) CASE_OP(I32x4##name, "i32x4." str)
 #define CASE_I16x8_OP(name, str) CASE_OP(I16x8##name, "i16x8." str)
@@ -60,6 +61,12 @@ namespace wasm {
   CASE_I32_OP(name, str "32")             \
   CASE_UNSIGNED_OP(I32, name##8, str "8") \
   CASE_UNSIGNED_OP(I32, name##16, str "16")
+#define CASE_UNSIGNED_ALL_OP(name, str)     \
+  CASE_U32_OP(name, str)                    \
+  CASE_I64_OP(name, str "64")               \
+  CASE_UNSIGNED_OP(I64, name##8, str "8")   \
+  CASE_UNSIGNED_OP(I64, name##16, str "16") \
+  CASE_UNSIGNED_OP(I64, name##32, str "32")
 
 const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
   switch (opcode) {
@@ -98,6 +105,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_FLOAT_OP(Min, "min")
     CASE_FLOAT_OP(Max, "max")
     CASE_FLOAT_OP(CopySign, "copysign")
+    CASE_REF_OP(Null, "null")
+    CASE_REF_OP(IsNull, "is_null")
+    CASE_REF_OP(Eq, "eq")
     CASE_I32_OP(ConvertI64, "wrap/i64")
     CASE_CONVERT_OP(Convert, INT, F32, "f32", "trunc")
     CASE_CONVERT_OP(Convert, INT, F64, "f64", "trunc")
@@ -247,15 +257,15 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S1x16_OP(AllTrue, "all_true")
 
     // Atomic operations.
-    CASE_U32_OP(AtomicLoad, "atomic_load")
-    CASE_U32_OP(AtomicStore, "atomic_store")
-    CASE_U32_OP(AtomicAdd, "atomic_add")
-    CASE_U32_OP(AtomicSub, "atomic_sub")
-    CASE_U32_OP(AtomicAnd, "atomic_and")
-    CASE_U32_OP(AtomicOr, "atomic_or")
-    CASE_U32_OP(AtomicXor, "atomic_xor")
-    CASE_U32_OP(AtomicExchange, "atomic_xchng")
-    CASE_U32_OP(AtomicCompareExchange, "atomic_cmpxchng")
+    CASE_UNSIGNED_ALL_OP(AtomicLoad, "atomic_load")
+    CASE_UNSIGNED_ALL_OP(AtomicStore, "atomic_store")
+    CASE_UNSIGNED_ALL_OP(AtomicAdd, "atomic_add")
+    CASE_UNSIGNED_ALL_OP(AtomicSub, "atomic_sub")
+    CASE_UNSIGNED_ALL_OP(AtomicAnd, "atomic_and")
+    CASE_UNSIGNED_ALL_OP(AtomicOr, "atomic_or")
+    CASE_UNSIGNED_ALL_OP(AtomicXor, "atomic_xor")
+    CASE_UNSIGNED_ALL_OP(AtomicExchange, "atomic_xchng")
+    CASE_UNSIGNED_ALL_OP(AtomicCompareExchange, "atomic_cmpxchng")
 
     default : return "unknown";
     // clang-format on
@@ -267,6 +277,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_I64_OP
 #undef CASE_F32_OP
 #undef CASE_F64_OP
+#undef CASE_REF_OP
 #undef CASE_F32x4_OP
 #undef CASE_I32x4_OP
 #undef CASE_I16x8_OP
@@ -285,6 +296,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_SIMDI_OP
 #undef CASE_SIGN_OP
 #undef CASE_UNSIGNED_OP
+#undef CASE_UNSIGNED_ALL_OP
 #undef CASE_ALL_SIGN_OP
 #undef CASE_CONVERT_OP
 #undef CASE_CONVERT_SAT_OP
@@ -338,6 +350,16 @@ bool WasmOpcodes::IsSignExtensionOpcode(WasmOpcode opcode) {
   }
 }
 
+bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
+  switch (opcode) {
+    case kExprRefNull:
+    case kExprRefIsNull:
+    case kExprRefEq:
+      return true;
+    default:
+      return false;
+  }
+}
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
   for (auto ret : sig.returns()) {

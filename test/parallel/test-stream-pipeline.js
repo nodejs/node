@@ -60,7 +60,7 @@ common.crashOnUnhandledRejection();
   }, /ERR_MISSING_ARGS/);
   assert.throws(() => {
     pipeline();
-  }, /ERR_MISSING_ARGS/);
+  }, /ERR_INVALID_CALLBACK/);
 }
 
 {
@@ -142,7 +142,7 @@ common.crashOnUnhandledRejection();
       }
     });
 
-    pipeline(rs, res);
+    pipeline(rs, res, () => {});
   });
 
   server.listen(0, () => {
@@ -177,7 +177,7 @@ common.crashOnUnhandledRejection();
       })
     });
 
-    pipeline(rs, res);
+    pipeline(rs, res, () => {});
   });
 
   server.listen(0, () => {
@@ -206,7 +206,7 @@ common.crashOnUnhandledRejection();
       })
     });
 
-    pipeline(rs, res);
+    pipeline(rs, res, () => {});
   });
 
   let cnt = 10;
@@ -281,12 +281,6 @@ common.crashOnUnhandledRejection();
     });
 
     pipeline(rs, req, common.mustCall((err) => {
-      // TODO: this is working around an http2 bug
-      // where the client keeps the event loop going
-      // (replacing the rs.destroy() with req.end()
-      // exits it so seems to be a destroy bug there
-      client.unref();
-
       server.close();
       client.close();
     }));
@@ -480,4 +474,27 @@ common.crashOnUnhandledRejection();
   }
 
   run();
+}
+
+{
+  const read = new Readable({
+    read() {}
+  });
+
+  const transform = new Transform({
+    transform(data, enc, cb) {
+      cb(new Error('kaboom'));
+    }
+  });
+
+  const write = new Writable({
+    write(data, enc, cb) {
+      cb();
+    }
+  });
+
+  assert.throws(
+    () => pipeline(read, transform, write),
+    { code: 'ERR_INVALID_CALLBACK' }
+  );
 }

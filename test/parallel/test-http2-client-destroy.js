@@ -109,9 +109,6 @@ const Countdown = require('../common/countdown');
 
   server.listen(0, common.mustCall(() => {
     const client = h2.connect(`http://localhost:${server.address().port}`);
-    // On some platforms (e.g. windows), an ECONNRESET may occur at this
-    // point -- or it may not. Do not make this a mustCall
-    client.on('error', () => {});
 
     client.on('close', () => {
       server.close();
@@ -119,9 +116,24 @@ const Countdown = require('../common/countdown');
       client.destroy();
     });
 
+    client.request();
+  }));
+}
+
+// test destroy before connect
+{
+  const server = h2.createServer();
+  server.on('stream', common.mustNotCall());
+
+  server.listen(0, common.mustCall(() => {
+    const client = h2.connect(`http://localhost:${server.address().port}`);
+
+    server.on('connection', common.mustCall(() => {
+      server.close();
+      client.close();
+    }));
+
     const req = client.request();
-    // On some platforms (e.g. windows), an ECONNRESET may occur at this
-    // point -- or it may not. Do not make this a mustCall
-    req.on('error', () => {});
+    req.destroy();
   }));
 }

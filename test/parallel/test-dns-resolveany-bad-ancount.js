@@ -4,6 +4,9 @@ const dnstools = require('../common/dns');
 const dns = require('dns');
 const assert = require('assert');
 const dgram = require('dgram');
+const dnsPromises = dns.promises;
+
+common.crashOnUnhandledRejection();
 
 const server = dgram.createSocket('udp4');
 
@@ -20,11 +23,19 @@ server.on('message', common.mustCall((msg, { address, port }) => {
   // Overwrite the # of answers with 2, which is incorrect.
   buf.writeUInt16LE(2, 6);
   server.send(buf, port, address);
-}));
+}, 2));
 
-server.bind(0, common.mustCall(() => {
+server.bind(0, common.mustCall(async () => {
   const address = server.address();
   dns.setServers([`127.0.0.1:${address.port}`]);
+
+  dnsPromises.resolveAny('example.org')
+    .then(common.mustNotCall())
+    .catch(common.expectsError({
+      code: 'EBADRESP',
+      syscall: 'queryAny',
+      hostname: 'example.org'
+    }));
 
   dns.resolveAny('example.org', common.mustCall((err) => {
     assert.strictEqual(err.code, 'EBADRESP');

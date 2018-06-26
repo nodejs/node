@@ -116,7 +116,44 @@ InspectorTest.runAsyncTestSuite([
       await queryObjects(session, objectId, 'p');
     }
     session.disconnect();
-  }
+  },
+
+  async function testWithObjectGroup() {
+    let contextGroup = new InspectorTest.ContextGroup();
+    let session = contextGroup.connect();
+    let Protocol = session.Protocol;
+    let {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({
+      expression: 'Array.prototype'
+    });
+
+    let initialArrayCount;
+    const N = 3;
+    InspectorTest.log(`Query for Array.prototype ${N} times`);
+    for (let i = 0; i < N; ++i) {
+      const {result:{objects}} = await Protocol.Runtime.queryObjects({
+        prototypeObjectId: objectId,
+        objectGroup: 'console'
+      });
+      logCountSinceInitial(objects.description);
+    }
+
+    await Protocol.Runtime.releaseObjectGroup({objectGroup: 'console'});
+    InspectorTest.log('\nReleased object group.');
+
+    const {result:{objects}} = await Protocol.Runtime.queryObjects({
+      prototypeObjectId: objectId,
+      objectGroup: 'console'
+    });
+    logCountSinceInitial(objects.description);
+    session.disconnect();
+
+    function logCountSinceInitial(description) {
+      const count = parseInt(/Array\((\d+)\)/.exec(description)[1]);
+      if (typeof initialArrayCount === 'undefined')
+        initialArrayCount = count;
+      InspectorTest.logMessage(`Results since initial: ${count - initialArrayCount}`);
+    }
+  },
 ]);
 
 const constructorsNameFunction = `

@@ -180,6 +180,16 @@ function testFtruncate(cb) {
 
   ['', false, null, {}, []].forEach((input) => {
     assert.throws(
+      () => fs.truncate(file5, input, common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "len" argument must be of type number. ' +
+                 `Received type ${typeof input}`
+      }
+    );
+
+    assert.throws(
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
@@ -192,7 +202,7 @@ function testFtruncate(cb) {
 
   [-1.5, 1.5].forEach((input) => {
     assert.throws(
-      () => fs.ftruncate(fd, input),
+      () => fs.truncate(file5, input),
       {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError [ERR_OUT_OF_RANGE]',
@@ -200,17 +210,14 @@ function testFtruncate(cb) {
                   `an integer. Received ${input}`
       }
     );
-  });
 
-  // 2 ** 31 = 2147483648
-  [2147483648, -2147483649].forEach((input) => {
     assert.throws(
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError [ERR_OUT_OF_RANGE]',
         message: 'The value of "len" is out of range. It must be ' +
-                  `> -2147483649 && < 2147483648. Received ${input}`
+                  `an integer. Received ${input}`
       }
     );
   });

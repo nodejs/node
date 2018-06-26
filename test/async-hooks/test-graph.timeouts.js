@@ -26,10 +26,7 @@ function onexit() {
   verifyGraph(
     hooks,
     [ { type: 'Timeout', id: 'timeout:1', triggerAsyncId: null },
-      { type: 'TIMERWRAP', id: 'timer:1', triggerAsyncId: null },
       { type: 'Timeout', id: 'timeout:2', triggerAsyncId: 'timeout:1' },
-      { type: 'TIMERWRAP', id: 'timer:2', triggerAsyncId: 'timeout:1' },
-      { type: 'Timeout', id: 'timeout:3', triggerAsyncId: 'timeout:2' },
-      { type: 'TIMERWRAP', id: 'timer:3', triggerAsyncId: 'timeout:2' } ]
+      { type: 'Timeout', id: 'timeout:3', triggerAsyncId: 'timeout:2' }]
   );
 }

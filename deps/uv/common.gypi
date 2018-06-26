@@ -134,7 +134,7 @@
           }]
         ]
       }],
-      ['OS in "freebsd dragonflybsd linux openbsd solaris android"', {
+      ['OS in "freebsd dragonflybsd linux openbsd solaris android aix"', {
         'cflags': [ '-Wall' ],
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions' ],
         'target_conditions': [
@@ -161,6 +161,10 @@
           [ 'OS not in "solaris android zos"', {
             'cflags': [ '-pthread' ],
             'ldflags': [ '-pthread' ],
+          }],
+          [ 'OS=="aix" and target_arch=="ppc64"', {
+            'cflags': [ '-maix64' ],
+            'ldflags': [ '-maix64' ],
           }],
         ],
       }],

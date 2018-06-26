@@ -25,6 +25,9 @@ const assert = require('assert');
 const child = require('child_process');
 const fixtures = require('../common/fixtures');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 if (process.env.TEST_INIT) {
   return process.stdout.write('Loaded successfully!');
 }

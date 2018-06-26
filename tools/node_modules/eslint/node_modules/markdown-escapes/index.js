@@ -1,6 +1,6 @@
-'use strict';
+'use strict'
 
-module.exports = escapes;
+module.exports = escapes
 
 var defaults = [
   '\\',
@@ -19,9 +19,9 @@ var defaults = [
   '!',
   '_',
   '>'
-];
+]
 
-var gfm = defaults.concat(['~', '|']);
+var gfm = defaults.concat(['~', '|'])
 
 var commonmark = gfm.concat([
   '\n',
@@ -29,7 +29,7 @@ var commonmark = gfm.concat([
   '$',
   '%',
   '&',
-  '\'',
+  "'",
   ',',
   '/',
   ':',
@@ -39,19 +39,19 @@ var commonmark = gfm.concat([
   '?',
   '@',
   '^'
-]);
+])
 
-escapes.default = defaults;
-escapes.gfm = gfm;
-escapes.commonmark = commonmark;
+escapes.default = defaults
+escapes.gfm = gfm
+escapes.commonmark = commonmark
 
 /* Get markdown escapes. */
 function escapes(options) {
-  var settings = options || {};
+  var settings = options || {}
 
   if (settings.commonmark) {
-    return commonmark;
+    return commonmark
   }
 
-  return settings.gfm ? gfm : defaults;
+  return settings.gfm ? gfm : defaults
 }

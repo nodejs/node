@@ -14,6 +14,7 @@
 !.mailmap
 !.nycrc
 !.remarkrc
+!.travis.yml
 
 core
 vgcore.*
@@ -105,7 +106,6 @@ deps/npm/node_modules/.bin/
 /SHASUMS*.txt*
 
 # test artifacts
-tools/faketime
 tools/remark-cli/node_modules
 tools/remark-preset-lint-node/node_modules
 icu_config.gypi
@@ -123,7 +123,10 @@ deps/uv/docs/src/guide/
 # do not override V8's .gitignore
 !deps/v8/**
 # ignore VS compiler output unhandled by V8's .gitignore
+deps/v8/gypfiles/Debug/
+deps/v8/gypfiles/Release/
 deps/v8/src/Debug/
 deps/v8/src/Release/
 deps/v8/src/inspector/Debug/
 deps/v8/src/inspector/Release/
+deps/v8/third_party/eu-strip/

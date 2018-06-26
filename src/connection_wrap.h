@@ -23,12 +23,9 @@ class ConnectionWrap : public LibuvStreamWrap {
   ConnectionWrap(Environment* env,
                  v8::Local<v8::Object> object,
                  ProviderType provider);
-  ~ConnectionWrap() {
-  }
 
   UVType handle_;
 };
-
 
 }  // namespace node
 

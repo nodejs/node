@@ -161,6 +161,7 @@
   V(query_colon_string, "(?:)")                                    \
   V(RangeError_string, "RangeError")                               \
   V(raw_string, "raw")                                             \
+  V(ReconfigureToDataProperty_string, "ReconfigureToDataProperty") \
   V(ReferenceError_string, "ReferenceError")                       \
   V(RegExp_string, "RegExp")                                       \
   V(regexp_to_string, "[object RegExp]")                           \
@@ -200,8 +201,8 @@
   V(toJSON_string, "toJSON")                                       \
   V(toString_string, "toString")                                   \
   V(true_string, "true")                                           \
-  V(type_string, "type")                                           \
   V(TypeError_string, "TypeError")                                 \
+  V(type_string, "type")                                           \
   V(Uint16Array_string, "Uint16Array")                             \
   V(Uint32Array_string, "Uint32Array")                             \
   V(Uint8Array_string, "Uint8Array")                               \
@@ -236,12 +237,12 @@
   V(error_script_symbol)               \
   V(error_start_pos_symbol)            \
   V(frozen_symbol)                     \
-  V(generator_outer_promise_symbol)    \
   V(generic_symbol)                    \
   V(home_object_symbol)                \
   V(intl_initialized_marker_symbol)    \
   V(intl_pattern_symbol)               \
   V(intl_resolved_symbol)              \
+  V(interpreter_trampoline_symbol)     \
   V(megamorphic_symbol)                \
   V(native_context_index_symbol)       \
   V(nonextensible_symbol)              \
@@ -263,6 +264,7 @@
   V(async_iterator_symbol, Symbol.asyncIterator) \
   V(iterator_symbol, Symbol.iterator)            \
   V(intl_fallback_symbol, IntlFallback)          \
+  V(match_all_symbol, Symbol.matchAll)           \
   V(match_symbol, Symbol.match)                  \
   V(replace_symbol, Symbol.replace)              \
   V(search_symbol, Symbol.search)                \
@@ -309,6 +311,7 @@
   F(MC_CLEAR_WEAK_CELLS)                             \
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
   F(MC_CLEAR_WEAK_LISTS)                             \
+  F(MC_CLEAR_WEAK_REFERENCES)                        \
   F(MC_EPILOGUE)                                     \
   F(MC_EVACUATE)                                     \
   F(MC_EVACUATE_CANDIDATES)                          \

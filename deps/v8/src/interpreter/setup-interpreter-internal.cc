@@ -19,7 +19,7 @@ void PrintBuiltinSize(Bytecode bytecode, OperandScale operand_scale,
                       Handle<Code> code) {
   PrintF(stdout, "Ignition Handler, %s, %d\n",
          Bytecodes::ToString(bytecode, operand_scale).c_str(),
-         code->instruction_size());
+         code->InstructionSize());
 }
 }  // namespace
 

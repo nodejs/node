@@ -194,7 +194,7 @@ void DTRACE_HTTP_SERVER_RESPONSE(const FunctionCallbackInfo<Value>& args) {
 
 void DTRACE_HTTP_CLIENT_REQUEST(const FunctionCallbackInfo<Value>& args) {
   node_dtrace_http_client_request_t req;
-  char *header;
+  char* header;
 
   if (!NODE_HTTP_CLIENT_REQUEST_ENABLED())
     return;
@@ -259,7 +259,7 @@ void InitDTrace(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   static struct {
-    const char *name;
+    const char* name;
     void (*func)(const FunctionCallbackInfo<Value>&);
   } tab[] = {
 #define NODE_PROBE(name) #name, name

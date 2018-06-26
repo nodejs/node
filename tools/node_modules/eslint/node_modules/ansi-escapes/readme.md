@@ -123,6 +123,12 @@ Clear the terminal screen.
 
 Output a beeping sound.
 
+### link(text, url)
+
+Create a clickable link.
+
+[Supported terminals.](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda) Use [`supports-hyperlinks`](https://github.com/jamestalmage/supports-hyperlinks) to detect link support.
+
 ### image(input, [options])
 
 Display an image.

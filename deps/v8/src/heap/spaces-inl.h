@@ -281,8 +281,9 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
 }
 
 bool PagedSpace::EnsureLinearAllocationArea(int size_in_bytes) {
-  if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit())
+  if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit()) {
     return true;
+  }
   return SlowRefillLinearAllocationArea(size_in_bytes);
 }
 
@@ -458,8 +459,7 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
 #endif
 }
 
-
-MUST_USE_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(
+V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(
     int size_in_bytes, AllocationAlignment alignment) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   return AllocateRaw(size_in_bytes, alignment);

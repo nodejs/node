@@ -81,7 +81,6 @@ Variable.FunctionName = "FunctionName";
 Variable.ClassName = "ClassName";
 Variable.Variable = "Variable";
 Variable.ImportBinding = "ImportBinding";
-Variable.TDZ = "TDZ";
 Variable.ImplicitGlobalVariable = "ImplicitGlobalVariable";
 
 module.exports = Variable;

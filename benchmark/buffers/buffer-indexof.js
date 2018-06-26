@@ -25,10 +25,10 @@ const bench = common.createBenchmark(main, {
   search: searchStrings,
   encoding: ['undefined', 'utf8', 'ucs2', 'binary'],
   type: ['buffer', 'string'],
-  iter: [100000]
+  n: [100000]
 });
 
-function main({ iter, search, encoding, type }) {
+function main({ n, search, encoding, type }) {
   var aliceBuffer = fs.readFileSync(
     path.resolve(__dirname, '../fixtures/alice.html')
   );
@@ -46,8 +46,8 @@ function main({ iter, search, encoding, type }) {
   }
 
   bench.start();
-  for (var i = 0; i < iter; i++) {
+  for (var i = 0; i < n; i++) {
     aliceBuffer.indexOf(search, 0, encoding);
   }
-  bench.end(iter);
+  bench.end(n);
 }

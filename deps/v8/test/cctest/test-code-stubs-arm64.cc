@@ -32,7 +32,7 @@
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
@@ -55,7 +55,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   DoubleToIStub stub(isolate, destination_reg);
 
-  byte* start = stub.GetCode()->instruction_start();
+  byte* start = stub.GetCode()->raw_instruction_start();
 
   __ PushCalleeSavedRegisters();
 
@@ -64,7 +64,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 0;
-  queue.Queue(xzr);  // Push xzr to maintain sp alignment.
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);

@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
+class OptimizedCompilationInfo;
 
 namespace compiler {
 
@@ -20,7 +20,7 @@ class Schedule;
 
 class BasicBlockInstrumentor : public AllStatic {
  public:
-  static BasicBlockProfiler::Data* Instrument(CompilationInfo* info,
+  static BasicBlockProfiler::Data* Instrument(OptimizedCompilationInfo* info,
                                               Graph* graph, Schedule* schedule,
                                               Isolate* isolate);
 };

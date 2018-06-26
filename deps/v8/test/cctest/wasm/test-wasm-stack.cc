@@ -102,15 +102,16 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
 
 // Call from JS to wasm to JS and throw an Error from JS.
 WASM_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
-  WasmRunner<void> r(execution_mode);
   TestSignatures sigs;
-
-  Handle<FixedArray> js_imports_table =
-      r.main_isolate()->factory()->NewFixedArray(2 * 3 + 1, TENURED);
-  uint32_t js_throwing_index = r.builder().AddJsFunction(
-      sigs.v_v(),
-      "(function js() {\n function a() {\n throw new Error(); };\n a(); })",
-      js_imports_table);
+  HandleScope scope(CcTest::InitIsolateOnce());
+  const char* source =
+      "(function js() {\n function a() {\n throw new Error(); };\n a(); })";
+  Handle<JSFunction> js_function =
+      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+          *v8::Local<v8::Function>::Cast(CompileRun(source))));
+  ManuallyImportedJSFunction import = {sigs.v_v(), js_function};
+  uint32_t js_throwing_index = 0;
+  WasmRunner<void> r(execution_mode, &import);
 
   // Add a nop such that we don't always get position 1.
   BUILD(r, WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index));
@@ -156,7 +157,7 @@ WASM_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     int unreachable_pos = 1 << (8 * pos_shift);
     TestSignatures sigs;
     // Create a WasmRunner with stack checks and traps enabled.
-    WasmRunner<int> r(execution_mode, "main",
+    WasmRunner<int> r(execution_mode, 0, "main",
                       compiler::kRuntimeExceptionSupport);
 
     std::vector<byte> code(unreachable_pos + 1, kExprNop);

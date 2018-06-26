@@ -90,10 +90,6 @@
         'NODE_RELEASE_URLBASE="<(node_release_urlbase)"',
       ]
     }],
-    [
-      'debug_http2==1', {
-      'defines': [ 'NODE_DEBUG_HTTP2=1' ]
-    }],
     [ 'v8_enable_i18n_support==1', {
       'defines': [ 'NODE_HAVE_I18N_SUPPORT=1' ],
       'dependencies': [
@@ -291,7 +287,10 @@
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
     }],
-
+    [ 'OS in "freebsd linux"', {
+      'ldflags': [ '-Wl,-z,relro',
+                   '-Wl,-z,now' ]
+    }],
     [ 'node_use_openssl=="true"', {
       'defines': [ 'HAVE_OPENSSL=1' ],
       'conditions': [

@@ -63,7 +63,6 @@ changes:
                  will now be ignored by default.
 -->
 
-
 <!--type=class-->
 
 The `Console` class can be used to create a simple logger with configurable
@@ -85,7 +84,7 @@ changes:
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/9744
     description: The `ignoreErrors` option was introduced.
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19372
     description: The `Console` constructor now supports an `options` argument,
                  and the `colorMode` option was introduced.
@@ -95,12 +94,12 @@ changes:
   * `stdout` {stream.Writable}
   * `stderr` {stream.Writable}
   * `ignoreErrors` {boolean} Ignore errors when writing to the underlying
-                             streams. **Default:** `true`.
+    streams. **Default:** `true`.
   * `colorMode` {boolean|string} Set color support for this `Console` instance.
     Setting to `true` enables coloring while inspecting values, setting to
     `'auto'` will make color support depend on the value of the `isTTY` property
     and the value returned by `getColorDepth()` on the respective stream.
-    **Default:** `'auto'`
+    **Default:** `'auto'`.
 
 Creates a new `Console` with one or two writable stream instances. `stdout` is a
 writable stream to print log or info output. `stderr` is used for warning or
@@ -128,7 +127,7 @@ new Console({ stdout: process.stdout, stderr: process.stderr });
 <!-- YAML
 added: v0.1.101
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17706
     description: The implementation is now spec compliant and does not throw
                  anymore.
@@ -198,7 +197,7 @@ undefined
 >
 ```
 
-### console.countReset([label='default'])
+### console.countReset([label])
 <!-- YAML
 added: v8.3.0
 -->
@@ -347,14 +346,14 @@ See [`util.format()`][] for more information.
 
 ### console.table(tabularData[, properties])
 <!-- YAML
-added: REPLACEME
+added: v10.0.0
 -->
 
 * `tabularData` {any}
 * `properties` {string[]} Alternate properties for constructing the table.
 
 Try to construct a table with the columns of the properties of `tabularData`
-(or use `properties`) and rows of `tabularData` and logit. Falls back to just
+(or use `properties`) and rows of `tabularData` and log it. Falls back to just
 logging the argument if it can’t be parsed as tabular.
 
 ```js
@@ -364,9 +363,7 @@ console.table(Symbol());
 
 console.table(undefined);
 // undefined
-```
 
-```js
 console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }]);
 // ┌─────────┬─────┬─────┐
 // │ (index) │  a  │  b  │
@@ -374,9 +371,7 @@ console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }]);
 // │    0    │  1  │ 'Y' │
 // │    1    │ 'Z' │  2  │
 // └─────────┴─────┴─────┘
-```
 
-```js
 console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], ['a']);
 // ┌─────────┬─────┐
 // │ (index) │  a  │
@@ -386,7 +381,7 @@ console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], ['a']);
 // └─────────┴─────┘
 ```
 
-### console.time(label)
+### console.time([label])
 <!-- YAML
 added: v0.1.104
 -->
@@ -397,7 +392,7 @@ are identified by a unique `label`. Use the same `label` when calling
 [`console.timeEnd()`][] to stop the timer and output the elapsed time in
 milliseconds to `stdout`. Timer durations are accurate to the sub-millisecond.
 
-### console.timeEnd(label)
+### console.timeEnd([label])
 <!-- YAML
 added: v0.1.104
 changes:
@@ -425,7 +420,7 @@ added: v0.1.104
 * `message` {any}
 * `...args` {any}
 
-Prints to `stderr` the string `'Trace :'`, followed by the [`util.format()`][]
+Prints to `stderr` the string `'Trace: '`, followed by the [`util.format()`][]
 formatted message and stack trace to the current position in the code.
 
 ```js
@@ -458,7 +453,7 @@ The following methods are exposed by the V8 engine in the general API but do
 not display anything unless used in conjunction with the [inspector][]
 (`--inspect` flag).
 
-### console.markTimeline(label)
+### console.markTimeline([label])
 <!-- YAML
 added: v8.0.0
 -->
@@ -481,11 +476,11 @@ the **Profile** panel of the inspector.
 ```js
 console.profile('MyLabel');
 // Some code
-console.profileEnd();
+console.profileEnd('MyLabel');
 // Adds the profile 'MyLabel' to the Profiles panel of the inspector.
 ```
 
-### console.profileEnd()
+### console.profileEnd([label])
 <!-- YAML
 added: v8.0.0
 -->
@@ -495,16 +490,8 @@ current JavaScript CPU profiling session if one has been started and prints
 the report to the **Profiles** panel of the inspector. See
 [`console.profile()`][] for an example.
 
-### console.table(array[, columns])
-<!-- YAML
-added: v8.0.0
--->
-* `array` {Array|Object}
-* `columns` {string[]} Display only selected properties of objects in the
-  `array`.
-
-This method does not display anything unless used in the inspector. Prints to
-`stdout` the array `array` formatted as a table.
+If this method is called without a label, the most recently started profile is
+stopped.
 
 ### console.timeStamp([label])
 <!-- YAML
@@ -539,7 +526,7 @@ This method does not display anything unless used in the inspector. The
 [`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args
 [`console.profile()`]: #console_console_profile_label
-[`console.profileEnd()`]: #console_console_profileend
+[`console.profileEnd()`]: #console_console_profileend_label
 [`console.time()`]: #console_console_time_label
 [`console.timeEnd()`]: #console_console_timeend_label
 [`console.timeStamp()`]: #console_console_timestamp_label

@@ -245,6 +245,8 @@ class V8_BASE_EXPORT OS {
 
   static int GetCurrentThreadId();
 
+  static void ExitProcess(int exit_code);
+
  private:
   // These classes use the private memory management API below.
   friend class MemoryMappedFile;
@@ -278,6 +280,18 @@ class V8_BASE_EXPORT OS {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(OS);
 };
+
+#if (defined(_WIN32) || defined(_WIN64))
+V8_BASE_EXPORT void EnsureConsoleOutputWin32();
+#endif  // (defined(_WIN32) || defined(_WIN64))
+
+inline void EnsureConsoleOutput() {
+#if (defined(_WIN32) || defined(_WIN64))
+  // Windows requires extra calls to send assert output to the console
+  // rather than a dialog box.
+  EnsureConsoleOutputWin32();
+#endif  // (defined(_WIN32) || defined(_WIN64))
+}
 
 // ----------------------------------------------------------------------------
 // Thread

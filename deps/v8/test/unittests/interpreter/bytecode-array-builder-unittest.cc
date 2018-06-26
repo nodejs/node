@@ -104,6 +104,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   FeedbackSlot strict_keyed_store_slot =
       feedback_spec.AddKeyedStoreICSlot(LanguageMode::kStrict);
   FeedbackSlot store_own_slot = feedback_spec.AddStoreOwnICSlot();
+  FeedbackSlot store_array_element_slot =
+      feedback_spec.AddStoreInArrayLiteralICSlot();
 
   // Emit global load / store operations.
   const AstRawString* name = ast_factory.GetOneByteString("var_name");
@@ -141,7 +143,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                           LanguageMode::kStrict)
       .StoreKeyedProperty(reg, reg, strict_keyed_store_slot.ToInt(),
                           LanguageMode::kStrict)
-      .StoreNamedOwnProperty(reg, name, store_own_slot.ToInt());
+      .StoreNamedOwnProperty(reg, name, store_own_slot.ToInt())
+      .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt());
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -190,7 +193,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallUndefinedReceiver(reg, pair, 1)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
-      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list)
+      .CallJSRuntime(Context::OBJECT_IS_FROZEN, reg_list)
       .CallWithSpread(reg, reg_list, 1);
 
   // Emit binary operator invocations.
@@ -259,7 +262,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareNull();
 
   // Emit conversion operator invocations.
-  builder.ToNumber(1).ToNumeric(1).ToObject(reg).ToName(reg);
+  builder.ToNumber(1).ToNumeric(1).ToObject(reg).ToName(reg).ToString();
 
   // Emit GetSuperConstructor.
   builder.GetSuperConstructor(reg);

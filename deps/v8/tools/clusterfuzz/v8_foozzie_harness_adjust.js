@@ -18,8 +18,8 @@ try {
 
     // Override prettyPrinted with a version that also recusively prints object
     // properties (with a depth of 3).
-    let origPrettyPrinted = this.prettyPrinted;
-    this.prettyPrinted = function prettyPrinted(value, depth=3) {
+    let origPrettyPrinted = prettyPrinted;
+    prettyPrinted = function prettyPrinted(value, depth=3) {
       if (depth == 0) {
         return "...";
       }
@@ -46,55 +46,51 @@ try {
     }
 
     // We're not interested in stack traces.
-    this.MjsUnitAssertionError = function MjsUnitAssertionError(message) {}
+    MjsUnitAssertionError = function MjsUnitAssertionError(message) {}
     MjsUnitAssertionError.prototype.toString = function () { return ""; };
 
     // Do more printing in assertions for more correctness coverage.
-    this.failWithMessage = function failWithMessage(message) {
+    failWithMessage = function failWithMessage(message) {
       print(prettyPrinted(message))
     }
 
-    this.fail = function fail(expectedText, found, name_opt) {
+    assertSame = function assertSame(expected, found, name_opt) {
       print(prettyPrinted(found));
     }
 
-    this.assertSame = function assertSame(expected, found, name_opt) {
+    assertNotSame = function assertNotSame(expected, found, name_opt) {
       print(prettyPrinted(found));
     }
 
-    this.assertNotSame = function assertNotSame(expected, found, name_opt) {
+    assertEquals = function assertEquals(expected, found, name_opt) {
       print(prettyPrinted(found));
     }
 
-    this.assertEquals = function assertEquals(expected, found, name_opt) {
+    assertNotEquals = function assertNotEquals(expected, found, name_opt) {
       print(prettyPrinted(found));
     }
 
-    this.assertNotEquals = function assertNotEquals(expected, found, name_opt) {
-      print(prettyPrinted(found));
-    }
-
-    this.assertNull = function assertNull(value, name_opt) {
+    assertNull = function assertNull(value, name_opt) {
       print(prettyPrinted(value));
     }
 
-    this.assertNotNull = function assertNotNull(value, name_opt) {
+    assertNotNull = function assertNotNull(value, name_opt) {
       print(prettyPrinted(value));
     }
 
     // Suppress optimization status as it leads to false positives.
-    this.assertUnoptimized = function assertUnoptimized() {}
+    assertUnoptimized = function assertUnoptimized() {}
 
-    this.assertOptimized = function assertOptimized() {}
+    assertOptimized = function assertOptimized() {}
 
-    this.isNeverOptimize = function isNeverOptimize() {}
+    isNeverOptimize = function isNeverOptimize() {}
 
-    this.isAlwaysOptimize = function isAlwaysOptimize() {}
+    isAlwaysOptimize = function isAlwaysOptimize() {}
 
-    this.isInterpreted = function isInterpreted() {}
+    isInterpreted = function isInterpreted() {}
 
-    this.isOptimized = function isOptimized() {}
+    isOptimized = function isOptimized() {}
 
-    this.isTurboFanned = function isTurboFanned() {}
+    isTurboFanned = function isTurboFanned() {}
   })();
 } catch(e) { }

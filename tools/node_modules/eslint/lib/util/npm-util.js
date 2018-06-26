@@ -109,8 +109,14 @@ function check(packages, opt) {
     try {
         fileJson = JSON.parse(fs.readFileSync(pkgJson, "utf8"));
     } catch (e) {
-        log.info("Could not read package.json file. Please check that the file contains valid JSON.");
-        throw new Error(e);
+        const error = new Error(e);
+
+        error.messageTemplate = "failed-to-read-json";
+        error.messageData = {
+            path: pkgJson,
+            message: e.message
+        };
+        throw error;
     }
 
     if (opt.devDependencies && typeof fileJson.devDependencies === "object") {

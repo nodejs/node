@@ -13,9 +13,9 @@ npm install collapse-white-space
 ## Usage
 
 ```javascript
-var collapse = require('collapse-white-space');
+var collapse = require('collapse-white-space')
 
-collapse('\tfoo \n\tbar  \t\r\nbaz'); //=> ' foo bar baz'
+collapse('\tfoo \n\tbar  \t\r\nbaz') //=> ' foo bar baz'
 ```
 
 ## API

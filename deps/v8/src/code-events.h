@@ -15,7 +15,6 @@ namespace v8 {
 namespace internal {
 
 class AbstractCode;
-class InstructionStream;
 class Name;
 class SharedFunctionInfo;
 class String;
@@ -25,30 +24,37 @@ class WasmCode;
 using WasmName = Vector<const char>;
 }  // namespace wasm
 
-#define LOG_EVENTS_AND_TAGS_LIST(V)                                      \
-  V(CODE_CREATION_EVENT, "code-creation")                                \
-  V(CODE_DISABLE_OPT_EVENT, "code-disable-optimization")                 \
-  V(CODE_MOVE_EVENT, "code-move")                                        \
-  V(CODE_DELETE_EVENT, "code-delete")                                    \
-  V(CODE_MOVING_GC, "code-moving-gc")                                    \
-  V(SHARED_FUNC_MOVE_EVENT, "sfi-move")                                  \
-  V(SNAPSHOT_CODE_NAME_EVENT, "snapshot-code-name")                      \
-  V(TICK_EVENT, "tick")                                                  \
-  V(BUILTIN_TAG, "Builtin")                                              \
-  V(CALLBACK_TAG, "Callback")                                            \
-  V(EVAL_TAG, "Eval")                                                    \
-  V(FUNCTION_TAG, "Function")                                            \
-  V(HANDLER_TAG, "Handler")                                              \
-  V(BYTECODE_HANDLER_TAG, "BytecodeHandler")                             \
-  V(LAZY_COMPILE_TAG, "LazyCompile")                                     \
-  V(REG_EXP_TAG, "RegExp")                                               \
-  V(SCRIPT_TAG, "Script")                                                \
-  V(STUB_TAG, "Stub")                                                    \
-  V(NATIVE_FUNCTION_TAG, "Function")                                     \
-  V(NATIVE_LAZY_COMPILE_TAG, "LazyCompile")                              \
-  V(NATIVE_SCRIPT_TAG, "Script")
+#define LOG_EVENTS_LIST(V)                             \
+  V(CODE_CREATION_EVENT, code-creation)                \
+  V(CODE_DISABLE_OPT_EVENT, code-disable-optimization) \
+  V(CODE_MOVE_EVENT, code-move)                        \
+  V(CODE_DELETE_EVENT, code-delete)                    \
+  V(CODE_MOVING_GC, code-moving-gc)                    \
+  V(SHARED_FUNC_MOVE_EVENT, sfi-move)                  \
+  V(SNAPSHOT_CODE_NAME_EVENT, snapshot-code-name)      \
+  V(TICK_EVENT, tick)
+
+#define TAGS_LIST(V)                               \
+  V(BUILTIN_TAG, Builtin)                          \
+  V(CALLBACK_TAG, Callback)                        \
+  V(EVAL_TAG, Eval)                                \
+  V(FUNCTION_TAG, Function)                        \
+  V(INTERPRETED_FUNCTION_TAG, InterpretedFunction) \
+  V(HANDLER_TAG, Handler)                          \
+  V(BYTECODE_HANDLER_TAG, BytecodeHandler)         \
+  V(LAZY_COMPILE_TAG, LazyCompile)                 \
+  V(REG_EXP_TAG, RegExp)                           \
+  V(SCRIPT_TAG, Script)                            \
+  V(STUB_TAG, Stub)                                \
+  V(NATIVE_FUNCTION_TAG, Function)                 \
+  V(NATIVE_LAZY_COMPILE_TAG, LazyCompile)          \
+  V(NATIVE_SCRIPT_TAG, Script)
 // Note that 'NATIVE_' cases for functions and scripts are mapped onto
 // original tags when writing to the log.
+
+#define LOG_EVENTS_AND_TAGS_LIST(V) \
+  LOG_EVENTS_LIST(V)                \
+  TAGS_LIST(V)
 
 #define PROFILE(the_isolate, Call) (the_isolate)->code_event_dispatcher()->Call;
 
@@ -71,15 +77,12 @@ class CodeEventListener {
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                                SharedFunctionInfo* shared, Name* source,
                                int line, int column) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, wasm::WasmCode* code,
+  virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                                wasm::WasmName name) = 0;
   virtual void CallbackEvent(Name* name, Address entry_point) = 0;
   virtual void GetterCallbackEvent(Name* name, Address entry_point) = 0;
   virtual void SetterCallbackEvent(Name* name, Address entry_point) = 0;
   virtual void RegExpCodeCreateEvent(AbstractCode* code, String* source) = 0;
-  virtual void InstructionStreamCreateEvent(LogEventsAndTags tag,
-                                            const InstructionStream* stream,
-                                            const char* description) = 0;
   virtual void CodeMoveEvent(AbstractCode* from, Address to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
@@ -88,6 +91,8 @@ class CodeEventListener {
   enum DeoptKind { kSoft, kLazy, kEager };
   virtual void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
                               int fp_to_sp_delta) = 0;
+
+  virtual bool is_listening_to_code_events() { return false; }
 };
 
 class CodeEventDispatcher {
@@ -103,6 +108,14 @@ class CodeEventDispatcher {
   void RemoveListener(CodeEventListener* listener) {
     base::LockGuard<base::Mutex> guard(&mutex_);
     listeners_.erase(listener);
+  }
+  bool IsListeningToCodeEvents() {
+    for (auto it : listeners_) {
+      if (it->is_listening_to_code_events()) {
+        return true;
+      }
+    }
+    return false;
   }
 
 #define CODE_EVENT_DISPATCH(code)              \
@@ -126,7 +139,7 @@ class CodeEventDispatcher {
     CODE_EVENT_DISPATCH(
         CodeCreateEvent(tag, code, shared, source, line, column));
   }
-  void CodeCreateEvent(LogEventsAndTags tag, wasm::WasmCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name) {
     CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, name));
   }
@@ -141,11 +154,6 @@ class CodeEventDispatcher {
   }
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) {
     CODE_EVENT_DISPATCH(RegExpCodeCreateEvent(code, source));
-  }
-  void InstructionStreamCreateEvent(LogEventsAndTags tag,
-                                    const InstructionStream* stream,
-                                    const char* description) {
-    CODE_EVENT_DISPATCH(InstructionStreamCreateEvent(tag, stream, description));
   }
   void CodeMoveEvent(AbstractCode* from, Address to) {
     CODE_EVENT_DISPATCH(CodeMoveEvent(from, to));

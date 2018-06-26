@@ -43,26 +43,13 @@ int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
 
 class PatchDirectCallsHelper {
  public:
-  PatchDirectCallsHelper(WasmInstanceObject* instance, const WasmCode* code)
-      : source_pos_it(ByteArray::cast(
-            instance->compiled_module()->source_positions()->get(
-                static_cast<int>(code->index())))),
-        decoder(nullptr, nullptr) {
+  PatchDirectCallsHelper(NativeModule* native_module, const WasmCode* code)
+      : source_pos_it(code->source_positions()), decoder(nullptr, nullptr) {
     uint32_t func_index = code->index();
-    WasmCompiledModule* comp_mod = instance->compiled_module();
+    WasmCompiledModule* comp_mod = native_module->compiled_module();
     func_bytes =
         comp_mod->shared()->module_bytes()->GetChars() +
         comp_mod->shared()->module()->functions[func_index].code.offset();
-  }
-
-  PatchDirectCallsHelper(WasmInstanceObject* instance, Code* code)
-      : source_pos_it(code->SourcePositionTable()), decoder(nullptr, nullptr) {
-    FixedArray* deopt_data = code->deoptimization_data();
-    DCHECK_EQ(2, deopt_data->length());
-    WasmSharedModuleData* shared = instance->compiled_module()->shared();
-    int func_index = Smi::ToInt(deopt_data->get(1));
-    func_bytes = shared->module_bytes()->GetChars() +
-                 shared->module()->functions[func_index].code.offset();
   }
 
   SourcePositionTableIterator source_pos_it;
@@ -70,54 +57,30 @@ class PatchDirectCallsHelper {
   const byte* func_bytes;
 };
 
-bool IsAtWasmDirectCallTarget(RelocIterator& it) {
-  DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
-  Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-  return code->kind() == Code::WASM_FUNCTION ||
-         code->kind() == Code::WASM_TO_JS_FUNCTION ||
-         code->kind() == Code::WASM_TO_WASM_FUNCTION ||
-         code->kind() == Code::WASM_INTERPRETER_ENTRY ||
-         code->builtin_index() == Builtins::kIllegal ||
-         code->builtin_index() == Builtins::kWasmCompileLazy;
-}
-
 }  // namespace
 
-CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone) {}
+CodeSpecialization::CodeSpecialization() {}
 
 CodeSpecialization::~CodeSpecialization() {}
 
-void CodeSpecialization::RelocateWasmContextReferences(Address new_context) {
-  DCHECK_NOT_NULL(new_context);
-  DCHECK_NULL(new_wasm_context_address_);
-  new_wasm_context_address_ = new_context;
+void CodeSpecialization::UpdateInstanceReferences(
+    Handle<WeakCell> old_weak_instance, Handle<WeakCell> new_weak_instance) {
+  DCHECK(!old_weak_instance.is_null());
+  DCHECK(!new_weak_instance.is_null());
+  old_weak_instance_ = old_weak_instance;
+  new_weak_instance_ = new_weak_instance;
 }
 
-void CodeSpecialization::PatchTableSize(uint32_t old_size, uint32_t new_size) {
-  DCHECK(old_function_table_size_ == 0 && new_function_table_size_ == 0);
-  old_function_table_size_ = old_size;
-  new_function_table_size_ = new_size;
+void CodeSpecialization::RelocateDirectCalls(NativeModule* native_module) {
+  DCHECK_NULL(relocate_direct_calls_module_);
+  DCHECK_NOT_NULL(native_module);
+  relocate_direct_calls_module_ = native_module;
 }
 
-void CodeSpecialization::RelocateDirectCalls(
-    Handle<WasmInstanceObject> instance) {
-  DCHECK(relocate_direct_calls_instance_.is_null());
-  DCHECK(!instance.is_null());
-  relocate_direct_calls_instance_ = instance;
-}
-
-void CodeSpecialization::RelocatePointer(Address old_ptr, Address new_ptr) {
-  DCHECK_EQ(0, pointers_to_relocate_.count(old_ptr));
-  DCHECK_EQ(0, pointers_to_relocate_.count(new_ptr));
-  pointers_to_relocate_.insert(std::make_pair(old_ptr, new_ptr));
-}
-
-bool CodeSpecialization::ApplyToWholeInstance(
-    WasmInstanceObject* instance, ICacheFlushMode icache_flush_mode) {
+bool CodeSpecialization::ApplyToWholeModule(NativeModule* native_module,
+                                            ICacheFlushMode icache_flush_mode) {
   DisallowHeapAllocation no_gc;
-  WasmCompiledModule* compiled_module = instance->compiled_module();
-  NativeModule* native_module = compiled_module->GetNativeModule();
-  FixedArray* code_table = compiled_module->code_table();
+  WasmCompiledModule* compiled_module = native_module->compiled_module();
   WasmSharedModuleData* shared = compiled_module->shared();
   WasmModule* module = shared->module();
   std::vector<WasmFunction>* wasm_functions = &shared->module()->functions;
@@ -130,157 +93,105 @@ bool CodeSpecialization::ApplyToWholeInstance(
   // Patch all wasm functions.
   for (int num_wasm_functions = static_cast<int>(wasm_functions->size());
        func_index < num_wasm_functions; ++func_index) {
-    WasmCodeWrapper wrapper;
-    if (FLAG_wasm_jit_to_native) {
-      const WasmCode* wasm_function = native_module->GetCode(func_index);
-      if (wasm_function->kind() != WasmCode::kFunction) {
-        continue;
-      }
-      wrapper = WasmCodeWrapper(wasm_function);
-    } else {
-      Code* wasm_function = Code::cast(code_table->get(func_index));
-      if (wasm_function->kind() != Code::WASM_FUNCTION) continue;
-      wrapper = WasmCodeWrapper(handle(wasm_function));
+    WasmCode* wasm_function = native_module->GetCode(func_index);
+    // TODO(clemensh): Get rid of this nullptr check
+    if (wasm_function == nullptr ||
+        wasm_function->kind() != WasmCode::kFunction) {
+      continue;
     }
-    changed |= ApplyToWasmCode(wrapper, icache_flush_mode);
+    changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
   }
+
+  bool patch_wasm_weak_instances =
+      !old_weak_instance_.is_identical_to(new_weak_instance_);
 
   // Patch all exported functions (JS_TO_WASM_FUNCTION).
   int reloc_mode = 0;
-  // We need to patch WASM_CONTEXT_REFERENCE to put the correct address.
-  if (new_wasm_context_address_) {
-    reloc_mode |= RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE);
-  }
   // Patch CODE_TARGET if we shall relocate direct calls. If we patch direct
-  // calls, the instance registered for that (relocate_direct_calls_instance_)
+  // calls, the instance registered for that (relocate_direct_calls_module_)
   // should match the instance we currently patch (instance).
-  if (!relocate_direct_calls_instance_.is_null()) {
-    DCHECK_EQ(instance, *relocate_direct_calls_instance_);
-    reloc_mode |=
-        RelocInfo::ModeMask(FLAG_wasm_jit_to_native ? RelocInfo::JS_TO_WASM_CALL
-                                                    : RelocInfo::CODE_TARGET);
+  if (relocate_direct_calls_module_ != nullptr) {
+    DCHECK_EQ(native_module, relocate_direct_calls_module_);
+    reloc_mode |= RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL);
+  }
+  // Instance references are simply embedded objects.
+  if (patch_wasm_weak_instances) {
+    reloc_mode |= RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   }
   if (!reloc_mode) return changed;
   int wrapper_index = 0;
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
     Code* export_wrapper =
-        Code::cast(compiled_module->export_wrappers()->get(wrapper_index));
-    DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
+        Code::cast(compiled_module->export_wrappers()->get(wrapper_index++));
+    if (export_wrapper->kind() != Code::JS_TO_WASM_FUNCTION) continue;
     for (RelocIterator it(export_wrapper, reloc_mode); !it.done(); it.next()) {
       RelocInfo::Mode mode = it.rinfo()->rmode();
       switch (mode) {
-        case RelocInfo::WASM_CONTEXT_REFERENCE:
-          it.rinfo()->set_wasm_context_reference(new_wasm_context_address_,
-                                                 icache_flush_mode);
-          break;
         case RelocInfo::JS_TO_WASM_CALL: {
-          DCHECK(FLAG_wasm_jit_to_native);
-          const WasmCode* new_code = native_module->GetCode(exp.index);
+          changed = true;
+          const WasmCode* new_code =
+              native_module->GetIndirectlyCallableCode(exp.index);
           it.rinfo()->set_js_to_wasm_address(new_code->instructions().start(),
-                                             SKIP_ICACHE_FLUSH);
+                                             icache_flush_mode);
         } break;
-        case RelocInfo::CODE_TARGET: {
-          DCHECK(!FLAG_wasm_jit_to_native);
-          // Ignore calls to other builtins like ToNumber.
-          if (!IsAtWasmDirectCallTarget(it)) continue;
-          Code* new_code = Code::cast(code_table->get(exp.index));
-          it.rinfo()->set_target_address(new_code->instruction_start(),
-                                         UPDATE_WRITE_BARRIER,
-                                         SKIP_ICACHE_FLUSH);
+        case RelocInfo::EMBEDDED_OBJECT: {
+          changed = true;
+          const HeapObject* old = it.rinfo()->target_object();
+          if (*old_weak_instance_ == old) {
+            it.rinfo()->set_target_object(
+                *new_weak_instance_, WriteBarrierMode::UPDATE_WRITE_BARRIER,
+                icache_flush_mode);
+          }
         } break;
         default:
           UNREACHABLE();
       }
     }
-    changed = true;
-    ++wrapper_index;
   }
   DCHECK_EQ(module->functions.size(), func_index);
   DCHECK_EQ(compiled_module->export_wrappers()->length(), wrapper_index);
   return changed;
 }
 
-bool CodeSpecialization::ApplyToWasmCode(WasmCodeWrapper code,
+bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
                                          ICacheFlushMode icache_flush_mode) {
   DisallowHeapAllocation no_gc;
-  if (code.IsCodeObject()) {
-    DCHECK_EQ(Code::WASM_FUNCTION, code.GetCode()->kind());
-  } else {
-    DCHECK_EQ(wasm::WasmCode::kFunction, code.GetWasmCode()->kind());
-  }
+  DCHECK_EQ(wasm::WasmCode::kFunction, code->kind());
 
-  bool patch_table_size = old_function_table_size_ || new_function_table_size_;
-  bool reloc_direct_calls = !relocate_direct_calls_instance_.is_null();
-  bool reloc_pointers = pointers_to_relocate_.size() > 0;
+  bool reloc_direct_calls = relocate_direct_calls_module_ != nullptr;
 
   int reloc_mode = 0;
   auto add_mode = [&reloc_mode](bool cond, RelocInfo::Mode mode) {
     if (cond) reloc_mode |= RelocInfo::ModeMask(mode);
   };
-  add_mode(patch_table_size, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
-  if (code.IsCodeObject()) {
-    add_mode(reloc_direct_calls, RelocInfo::CODE_TARGET);
-  } else {
-    add_mode(reloc_direct_calls, RelocInfo::WASM_CALL);
-  }
-  add_mode(reloc_pointers, RelocInfo::WASM_GLOBAL_HANDLE);
+  add_mode(reloc_direct_calls, RelocInfo::WASM_CALL);
+
+  // Always patch the code table entry address which is used in Liftoff
+  // prologue to jump to optimized code if existent.
+  reloc_mode |= RelocInfo::ModeMask(RelocInfo::WASM_CODE_TABLE_ENTRY);
 
   base::Optional<PatchDirectCallsHelper> patch_direct_calls_helper;
   bool changed = false;
 
-  NativeModule* native_module =
-      code.IsCodeObject() ? nullptr : code.GetWasmCode()->owner();
+  NativeModule* native_module = code->native_module();
 
-  RelocIterator it =
-      code.IsCodeObject()
-          ? RelocIterator(*code.GetCode(), reloc_mode)
-          : RelocIterator(code.GetWasmCode()->instructions(),
-                          code.GetWasmCode()->reloc_info(),
-                          code.GetWasmCode()->constant_pool(), reloc_mode);
+  RelocIterator it(code->instructions(), code->reloc_info(),
+                   code->constant_pool(), reloc_mode);
   for (; !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     switch (mode) {
-      case RelocInfo::CODE_TARGET: {
-        DCHECK(!FLAG_wasm_jit_to_native);
-        DCHECK(reloc_direct_calls);
-        // Skip everything which is not a wasm call (stack checks, traps, ...).
-        if (!IsAtWasmDirectCallTarget(it)) continue;
-        // Iterate simultaneously over the relocation information and the source
-        // position table. For each call in the reloc info, move the source
-        // position iterator forward to that position to find the byte offset of
-        // the respective call. Then extract the call index from the module wire
-        // bytes to find the new compiled function.
-        size_t offset = it.rinfo()->pc() - code.GetCode()->instruction_start();
-        if (!patch_direct_calls_helper) {
-          patch_direct_calls_helper.emplace(*relocate_direct_calls_instance_,
-                                            *code.GetCode());
-        }
-        int byte_pos = AdvanceSourcePositionTableIterator(
-            patch_direct_calls_helper->source_pos_it, offset);
-        int called_func_index = ExtractDirectCallIndex(
-            patch_direct_calls_helper->decoder,
-            patch_direct_calls_helper->func_bytes + byte_pos);
-        FixedArray* code_table =
-            relocate_direct_calls_instance_->compiled_module()->code_table();
-        Code* new_code = Code::cast(code_table->get(called_func_index));
-        it.rinfo()->set_target_address(new_code->instruction_start(),
-                                       UPDATE_WRITE_BARRIER, icache_flush_mode);
-        changed = true;
-      } break;
       case RelocInfo::WASM_CALL: {
-        DCHECK(FLAG_wasm_jit_to_native);
         DCHECK(reloc_direct_calls);
         // Iterate simultaneously over the relocation information and the source
         // position table. For each call in the reloc info, move the source
         // position iterator forward to that position to find the byte offset of
         // the respective call. Then extract the call index from the module wire
         // bytes to find the new compiled function.
-        size_t offset =
-            it.rinfo()->pc() - code.GetWasmCode()->instructions().start();
+        size_t offset = it.rinfo()->pc() - code->instructions().start();
         if (!patch_direct_calls_helper) {
-          patch_direct_calls_helper.emplace(*relocate_direct_calls_instance_,
-                                            code.GetWasmCode());
+          patch_direct_calls_helper.emplace(relocate_direct_calls_module_,
+                                            code);
         }
         int byte_pos = AdvanceSourcePositionTableIterator(
             patch_direct_calls_helper->source_pos_it, offset);
@@ -292,23 +203,16 @@ bool CodeSpecialization::ApplyToWasmCode(WasmCodeWrapper code,
                                           icache_flush_mode);
         changed = true;
       } break;
-      case RelocInfo::WASM_GLOBAL_HANDLE: {
-        DCHECK(reloc_pointers);
-        Address old_ptr = it.rinfo()->global_handle();
-        auto entry = pointers_to_relocate_.find(old_ptr);
-        if (entry != pointers_to_relocate_.end()) {
-          Address new_ptr = entry->second;
-          it.rinfo()->set_global_handle(new_ptr, icache_flush_mode);
-          changed = true;
-        }
-      } break;
-      case RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE:
-        DCHECK(patch_table_size);
-        it.rinfo()->update_wasm_function_table_size_reference(
-            old_function_table_size_, new_function_table_size_,
+      case RelocInfo::WASM_CODE_TABLE_ENTRY: {
+        DCHECK(FLAG_wasm_tier_up);
+        WasmCode* const* code_table_entry =
+            native_module->code_table().data() + code->index();
+        it.rinfo()->set_wasm_code_table_entry(
+            const_cast<Address>(
+                reinterpret_cast<byte const*>(code_table_entry)),
             icache_flush_mode);
-        changed = true;
-        break;
+      } break;
+
       default:
         UNREACHABLE();
     }

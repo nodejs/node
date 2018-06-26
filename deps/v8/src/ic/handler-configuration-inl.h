@@ -130,8 +130,7 @@ Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {
 
 Handle<Smi> StoreHandler::StoreField(Isolate* isolate, Kind kind,
                                      int descriptor, FieldIndex field_index,
-                                     Representation representation,
-                                     bool extend_storage) {
+                                     Representation representation) {
   FieldRepresentation field_rep;
   switch (representation.kind()) {
     case Representation::kSmi:
@@ -150,13 +149,9 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, Kind kind,
       UNREACHABLE();
   }
 
-  DCHECK(kind == kField || kind == kTransitionToField ||
-         (kind == kConstField && FLAG_track_constant_fields));
-  DCHECK_IMPLIES(extend_storage, kind == kTransitionToField);
-  DCHECK_IMPLIES(field_index.is_inobject(), !extend_storage);
+  DCHECK(kind == kField || (kind == kConstField && FLAG_track_constant_fields));
 
   int config = KindBits::encode(kind) |
-               ExtendStorageBits::encode(extend_storage) |
                IsInobjectBits::encode(field_index.is_inobject()) |
                FieldRepresentationBits::encode(field_rep) |
                DescriptorBits::encode(descriptor) |
@@ -170,24 +165,7 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, int descriptor,
                                      Representation representation) {
   DCHECK_IMPLIES(!FLAG_track_constant_fields, constness == kMutable);
   Kind kind = constness == kMutable ? kField : kConstField;
-  return StoreField(isolate, kind, descriptor, field_index, representation,
-                    false);
-}
-
-Handle<Smi> StoreHandler::TransitionToField(Isolate* isolate, int descriptor,
-                                            FieldIndex field_index,
-                                            Representation representation,
-                                            bool extend_storage) {
-  return StoreField(isolate, kTransitionToField, descriptor, field_index,
-                    representation, extend_storage);
-}
-
-Handle<Smi> StoreHandler::TransitionToConstant(Isolate* isolate,
-                                               int descriptor) {
-  DCHECK(!FLAG_track_constant_fields);
-  int config = KindBits::encode(kTransitionToConstant) |
-               DescriptorBits::encode(descriptor);
-  return handle(Smi::FromInt(config), isolate);
+  return StoreField(isolate, kind, descriptor, field_index, representation);
 }
 
 Handle<Smi> StoreHandler::StoreNativeDataProperty(Isolate* isolate,

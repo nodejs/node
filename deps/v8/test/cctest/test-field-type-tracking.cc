@@ -11,14 +11,14 @@
 
 #include "src/compilation-cache.h"
 #include "src/compilation-dependencies.h"
-#include "src/compilation-info.h"
 #include "src/execution.h"
-#include "src/factory.h"
 #include "src/field-type.h"
 #include "src/global-handles.h"
+#include "src/heap/factory.h"
 #include "src/ic/stub-cache.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/optimized-compilation-info.h"
 #include "src/property.h"
 #include "src/transitions.h"
 
@@ -368,10 +368,9 @@ class Expectations {
                  heap_type);
 
     Handle<String> name = MakeName("prop", property_index);
-    bool created_new_map;
     return Map::TransitionToDataProperty(
         map, name, value, attributes, constness,
-        Object::CERTAINLY_NOT_STORE_FROM_KEYED, &created_new_map);
+        Object::CERTAINLY_NOT_STORE_FROM_KEYED);
   }
 
   Handle<Map> TransitionToDataConstant(Handle<Map> map,
@@ -382,10 +381,9 @@ class Expectations {
     SetDataConstant(property_index, attributes, value);
 
     Handle<String> name = MakeName("prop", property_index);
-    bool created_new_map;
-    return Map::TransitionToDataProperty(map, name, value, attributes, kConst,
-                                         Object::CERTAINLY_NOT_STORE_FROM_KEYED,
-                                         &created_new_map);
+    return Map::TransitionToDataProperty(
+        map, name, value, attributes, kConst,
+        Object::CERTAINLY_NOT_STORE_FROM_KEYED);
   }
 
   Handle<Map> FollowDataTransition(Handle<Map> map,
@@ -1520,8 +1518,8 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
       Handle<String> name = factory->empty_string();
       Handle<Map> sloppy_map =
           Map::CopyInitialMap(isolate->sloppy_function_map());
-      Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfo(
-          name, MaybeHandle<Code>(), sloppy_map->is_constructor());
+      Handle<SharedFunctionInfo> info =
+          factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
       function_type_ = FieldType::Class(sloppy_map, isolate);
       CHECK(sloppy_map->is_stable());
 
@@ -2659,8 +2657,8 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
   Factory* factory = isolate->factory();
   Handle<String> name = factory->empty_string();
   Handle<Map> sloppy_map = Map::CopyInitialMap(isolate->sloppy_function_map());
-  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfo(
-      name, MaybeHandle<Code>(), sloppy_map->is_constructor());
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
   Handle<FieldType> function_type = FieldType::Class(sloppy_map, isolate);
   CHECK(sloppy_map->is_stable());
 

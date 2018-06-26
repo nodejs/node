@@ -110,6 +110,17 @@ const assert = require('assert');
   assert.ok(data.equals(new Uint8Array([0x6d, 0x6d, 0x6d, 0x0a, 0xf9, 0xe7])));
 }
 
+// Test 48 bit
+{
+  const value = 0x1234567890ab;
+  const data = Buffer.allocUnsafe(6);
+  data.writeUIntBE(value, 0, 6);
+  assert.ok(data.equals(new Uint8Array([0x12, 0x34, 0x56, 0x78, 0x90, 0xab])));
+
+  data.writeUIntLE(value, 0, 6);
+  assert.ok(data.equals(new Uint8Array([0xab, 0x90, 0x78, 0x56, 0x34, 0x12])));
+}
+
 // Test UInt
 {
   const data = Buffer.alloc(8);
@@ -117,25 +128,19 @@ const assert = require('assert');
 
   // Check byteLength.
   ['writeUIntBE', 'writeUIntLE'].forEach((fn) => {
-
-    // Verify that default offset & byteLength works fine.
-    data[fn](undefined, undefined);
-    data[fn](undefined);
-    data[fn]();
-
-    ['', '0', null, {}, [], () => {}, true, false].forEach((bl) => {
+    ['', '0', null, {}, [], () => {}, true, false, undefined].forEach((bl) => {
       assert.throws(
         () => data[fn](23, 0, bl),
         { code: 'ERR_INVALID_ARG_TYPE' });
     });
 
-    [Infinity, -1].forEach((offset) => {
+    [Infinity, -1].forEach((byteLength) => {
       assert.throws(
-        () => data[fn](23, 0, offset),
+        () => data[fn](23, 0, byteLength),
         {
           code: 'ERR_OUT_OF_RANGE',
           message: 'The value of "byteLength" is out of range. ' +
-                   `It must be >= 1 and <= 6. Received ${offset}`
+                   `It must be >= 1 and <= 6. Received ${byteLength}`
         }
       );
     });

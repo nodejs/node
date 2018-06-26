@@ -114,14 +114,14 @@ void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
 
 void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
-  int32_t imm = OpParameter<int32_t>(node);
+  int32_t imm = OpParameter<int32_t>(node->op());
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm));
 }
 
 void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
-  int32_t imm = OpParameter<int32_t>(node);
+  int32_t imm = OpParameter<int32_t>(node->op());
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
                  g.UseRegister(node->InputAt(1)));
@@ -248,9 +248,9 @@ void VisitBinop(InstructionSelector* selector, Node* node,
                 FlagsContinuation* cont) {
   ArmOperandGenerator g(selector);
   Int32BinopMatcher m(node);
-  InstructionOperand inputs[5];
+  InstructionOperand inputs[3];
   size_t input_count = 0;
-  InstructionOperand outputs[2];
+  InstructionOperand outputs[1];
   size_t output_count = 0;
 
   if (m.left().node() == m.right().node()) {
@@ -281,33 +281,16 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.UseRegister(m.right().node());
   }
 
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  }
-
   outputs[output_count++] = g.DefineAsRegister(node);
-  if (cont->IsSet()) {
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
-  }
 
   DCHECK_NE(0u, input_count);
-  DCHECK_NE(0u, output_count);
+  DCHECK_EQ(1u, output_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
   DCHECK_NE(kMode_None, AddressingModeField::decode(opcode));
 
-  opcode = cont->Encode(opcode);
-  if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsTrap()) {
-    inputs[input_count++] = g.UseImmediate(cont->trap_id());
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  } else {
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  }
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
 }
 
 
@@ -461,7 +444,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       return;
   }
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
-    CHECK_EQ(load_poisoning_, LoadPoisoning::kDoPoison);
+    CHECK_EQ(poisoning_enabled_, PoisoningMitigationLevel::kOn);
     opcode |= MiscField::encode(kMemoryAccessPoisoned);
   }
 
@@ -569,7 +552,7 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
 
 void InstructionSelector::VisitUnalignedLoad(Node* node) {
   MachineRepresentation load_rep =
-      UnalignedLoadRepresentationOf(node->op()).representation();
+      LoadRepresentationOf(node->op()).representation();
   ArmOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -889,22 +872,14 @@ void VisitShift(InstructionSelector* selector, Node* node,
                 TryMatchShift try_match_shift, FlagsContinuation* cont) {
   ArmOperandGenerator g(selector);
   InstructionCode opcode = kArmMov;
-  InstructionOperand inputs[4];
+  InstructionOperand inputs[2];
   size_t input_count = 2;
-  InstructionOperand outputs[2];
+  InstructionOperand outputs[1];
   size_t output_count = 0;
 
   CHECK(try_match_shift(selector, &opcode, node, &inputs[0], &inputs[1]));
 
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  }
-
   outputs[output_count++] = g.DefineAsRegister(node);
-  if (cont->IsSet()) {
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
-  }
 
   DCHECK_NE(0u, input_count);
   DCHECK_NE(0u, output_count);
@@ -912,17 +887,8 @@ void VisitShift(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(outputs), output_count);
   DCHECK_NE(kMode_None, AddressingModeField::decode(opcode));
 
-  opcode = cont->Encode(opcode);
-  if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsTrap()) {
-    inputs[input_count++] = g.UseImmediate(cont->trap_id());
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  } else {
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  }
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
 }
 
 
@@ -1279,25 +1245,10 @@ void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
 
   // result operand needs shift operator.
   InstructionOperand shift_31 = g.UseImmediate(31);
-  InstructionCode opcode = cont->Encode(kArmCmp) |
-                           AddressingModeField::encode(kMode_Operand2_R_ASR_I);
-  if (cont->IsBranch()) {
-    selector->Emit(opcode, g.NoOutput(), temp_operand, result_operand, shift_31,
-                   g.Label(cont->true_block()), g.Label(cont->false_block()));
-  } else if (cont->IsDeoptimize()) {
-    InstructionOperand in[] = {temp_operand, result_operand, shift_31};
-    selector->EmitDeoptimize(opcode, 0, nullptr, 3, in, cont->kind(),
-                             cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsSet()) {
-    selector->Emit(opcode, g.DefineAsRegister(cont->result()), temp_operand,
-                   result_operand, shift_31);
-  } else {
-    DCHECK(cont->IsTrap());
-    InstructionOperand in[] = {temp_operand, result_operand, shift_31,
-                               g.UseImmediate(cont->trap_id())};
-    selector->Emit(opcode, 0, nullptr, 4, in);
-  }
+  InstructionCode opcode =
+      kArmCmp | AddressingModeField::encode(kMode_Operand2_R_ASR_I);
+  selector->EmitWithContinuation(opcode, temp_operand, result_operand, shift_31,
+                                 cont);
 }
 
 }  // namespace
@@ -1578,22 +1529,7 @@ namespace {
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
                   FlagsContinuation* cont) {
-  ArmOperandGenerator g(selector);
-  opcode = cont->Encode(opcode);
-  if (cont->IsBranch()) {
-    selector->Emit(opcode, g.NoOutput(), left, right,
-                   g.Label(cont->true_block()), g.Label(cont->false_block()));
-  } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->kind(),
-                             cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsSet()) {
-    selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
-  } else {
-    DCHECK(cont->IsTrap());
-    selector->Emit(opcode, g.NoOutput(), left, right,
-                   g.UseImmediate(cont->trap_id()));
-  }
+  selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
 
@@ -1734,7 +1670,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
                       InstructionCode opcode, FlagsContinuation* cont) {
   ArmOperandGenerator g(selector);
   Int32BinopMatcher m(node);
-  InstructionOperand inputs[5];
+  InstructionOperand inputs[3];
   size_t input_count = 0;
   InstructionOperand outputs[2];
   size_t output_count = 0;
@@ -1767,28 +1703,12 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
     }
   }
 
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  } else if (cont->IsSet()) {
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
-  }
-
   DCHECK_NE(0u, input_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  opcode = cont->Encode(opcode);
-  if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsTrap()) {
-    inputs[input_count++] = g.UseImmediate(cont->trap_id());
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  } else {
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  }
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
 }
 
 
@@ -1934,23 +1854,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
   // Continuation could not be combined with a compare, emit compare against 0.
   ArmOperandGenerator g(this);
   InstructionCode const opcode =
-      cont->Encode(kArmTst) | AddressingModeField::encode(kMode_Operand2_R);
+      kArmTst | AddressingModeField::encode(kMode_Operand2_R);
   InstructionOperand const value_operand = g.UseRegister(value);
-  if (cont->IsBranch()) {
-    Emit(opcode, g.NoOutput(), value_operand, value_operand,
-         g.Label(cont->true_block()), g.Label(cont->false_block()));
-  } else if (cont->IsDeoptimize()) {
-    EmitDeoptimize(opcode, g.NoOutput(), value_operand, value_operand,
-                   cont->kind(), cont->reason(), cont->feedback(),
-                   cont->frame_state());
-  } else if (cont->IsSet()) {
-    Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
-         value_operand);
-  } else {
-    DCHECK(cont->IsTrap());
-    Emit(opcode, g.NoOutput(), value_operand, value_operand,
-         g.UseImmediate(cont->trap_id()));
-  }
+  EmitWithContinuation(opcode, value_operand, value_operand, cont);
 }
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
@@ -1960,20 +1866,20 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   // Emit either ArchTableSwitch or ArchLookupSwitch.
   if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
-    size_t table_space_cost = 4 + sw.value_range;
+    size_t table_space_cost = 4 + sw.value_range();
     size_t table_time_cost = 3;
-    size_t lookup_space_cost = 3 + 2 * sw.case_count;
-    size_t lookup_time_cost = sw.case_count;
-    if (sw.case_count > 0 &&
+    size_t lookup_space_cost = 3 + 2 * sw.case_count();
+    size_t lookup_time_cost = sw.case_count();
+    if (sw.case_count() > 0 &&
         table_space_cost + 3 * table_time_cost <=
             lookup_space_cost + 3 * lookup_time_cost &&
-        sw.min_value > std::numeric_limits<int32_t>::min() &&
-        sw.value_range <= kMaxTableSwitchValueRange) {
+        sw.min_value() > std::numeric_limits<int32_t>::min() &&
+        sw.value_range() <= kMaxTableSwitchValueRange) {
       InstructionOperand index_operand = value_operand;
-      if (sw.min_value) {
+      if (sw.min_value()) {
         index_operand = g.TempRegister();
         Emit(kArmSub | AddressingModeField::encode(kMode_Operand2_I),
-             index_operand, value_operand, g.TempImmediate(sw.min_value));
+             index_operand, value_operand, g.TempImmediate(sw.min_value()));
       }
       // Generate a table lookup.
       return EmitTableSwitch(sw, index_operand);
@@ -2560,7 +2466,7 @@ void ArrangeShuffleTable(ArmOperandGenerator* g, Node* input0, Node* input1,
 }  // namespace
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {
-  const uint8_t* shuffle = OpParameter<uint8_t*>(node);
+  const uint8_t* shuffle = OpParameter<uint8_t*>(node->op());
   uint8_t mask = CanonicalizeShuffle(node);
   uint8_t shuffle32x4[4];
   ArmOperandGenerator g(this);
@@ -2673,9 +2579,6 @@ InstructionSelector::AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       SomeUnalignedAccessUnsupported(req_aligned, req_aligned);
 }
-
-// static
-bool InstructionSelector::SupportsSpeculationPoisoning() { return true; }
 
 }  // namespace compiler
 }  // namespace internal

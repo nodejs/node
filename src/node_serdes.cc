@@ -86,7 +86,7 @@ class DeserializerContext : public BaseObject,
 SerializerContext::SerializerContext(Environment* env, Local<Object> wrap)
   : BaseObject(env, wrap),
     serializer_(env->isolate(), this) {
-  MakeWeak<SerializerContext>(this);
+  MakeWeak();
 }
 
 void SerializerContext::ThrowDataCloneError(Local<String> message) {
@@ -274,7 +274,7 @@ DeserializerContext::DeserializerContext(Environment* env,
     deserializer_(env->isolate(), data_, length_, this) {
   object()->Set(env->context(), env->buffer_string(), buffer).FromJust();
 
-  MakeWeak<DeserializerContext>(this);
+  MakeWeak();
 }
 
 MaybeLocal<Object> DeserializerContext::ReadHostObject(Isolate* isolate) {

@@ -70,10 +70,11 @@ enum node_zlib_mode {
 /**
  * Deflate/Inflate
  */
-class ZCtx : public AsyncWrap {
+class ZCtx : public AsyncWrap, public ThreadPoolWork {
  public:
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
+        ThreadPoolWork(env),
         dictionary_(nullptr),
         dictionary_len_(0),
         err_(0),
@@ -89,8 +90,6 @@ class ZCtx : public AsyncWrap {
         refs_(0),
         gzip_id_bytes_read_(0),
         write_result_(nullptr) {
-    MakeWeak<ZCtx>(this);
-    Wrap(wrap, this);
   }
 
 
@@ -165,8 +164,8 @@ class ZCtx : public AsyncWrap {
       CHECK(0 && "Invalid flush value");
     }
 
-    Bytef *in;
-    Bytef *out;
+    Bytef* in;
+    Bytef* out;
     size_t in_off, in_len, out_off, out_len;
     Environment* env = ctx->env();
 
@@ -193,9 +192,6 @@ class ZCtx : public AsyncWrap {
     CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
     out = reinterpret_cast<Bytef *>(Buffer::Data(out_buf) + out_off);
 
-    // build up the work request
-    uv_work_t* work_req = &(ctx->work_req_);
-
     ctx->strm_.avail_in = in_len;
     ctx->strm_.next_in = in;
     ctx->strm_.avail_out = out_len;
@@ -205,8 +201,8 @@ class ZCtx : public AsyncWrap {
     if (!async) {
       // sync version
       env->PrintSyncTrace();
-      Process(work_req);
-      if (CheckError(ctx)) {
+      ctx->DoThreadPoolWork();
+      if (ctx->CheckError()) {
         ctx->write_result_[0] = ctx->strm_.avail_out;
         ctx->write_result_[1] = ctx->strm_.avail_in;
         ctx->write_in_progress_ = false;
@@ -216,49 +212,46 @@ class ZCtx : public AsyncWrap {
     }
 
     // async version
-    uv_queue_work(env->event_loop(), work_req, ZCtx::Process, ZCtx::After);
+    ctx->ScheduleWork();
   }
-
 
   // thread pool!
   // This function may be called multiple times on the uv_work pool
   // for a single write() call, until all of the input bytes have
   // been consumed.
-  static void Process(uv_work_t* work_req) {
-    ZCtx *ctx = ContainerOf(&ZCtx::work_req_, work_req);
-
+  void DoThreadPoolWork() override {
     const Bytef* next_expected_header_byte = nullptr;
 
     // If the avail_out is left at 0, then it means that it ran out
     // of room.  If there was avail_out left over, then it means
     // that all of the input was consumed.
-    switch (ctx->mode_) {
+    switch (mode_) {
       case DEFLATE:
       case GZIP:
       case DEFLATERAW:
-        ctx->err_ = deflate(&ctx->strm_, ctx->flush_);
+        err_ = deflate(&strm_, flush_);
         break;
       case UNZIP:
-        if (ctx->strm_.avail_in > 0) {
-          next_expected_header_byte = ctx->strm_.next_in;
+        if (strm_.avail_in > 0) {
+          next_expected_header_byte = strm_.next_in;
         }
 
-        switch (ctx->gzip_id_bytes_read_) {
+        switch (gzip_id_bytes_read_) {
           case 0:
             if (next_expected_header_byte == nullptr) {
               break;
             }
 
             if (*next_expected_header_byte == GZIP_HEADER_ID1) {
-              ctx->gzip_id_bytes_read_ = 1;
+              gzip_id_bytes_read_ = 1;
               next_expected_header_byte++;
 
-              if (ctx->strm_.avail_in == 1) {
+              if (strm_.avail_in == 1) {
                 // The only available byte was already read.
                 break;
               }
             } else {
-              ctx->mode_ = INFLATE;
+              mode_ = INFLATE;
               break;
             }
 
@@ -269,12 +262,12 @@ class ZCtx : public AsyncWrap {
             }
 
             if (*next_expected_header_byte == GZIP_HEADER_ID2) {
-              ctx->gzip_id_bytes_read_ = 2;
-              ctx->mode_ = GUNZIP;
+              gzip_id_bytes_read_ = 2;
+              mode_ = GUNZIP;
             } else {
               // There is no actual difference between INFLATE and INFLATERAW
               // (after initialization).
-              ctx->mode_ = INFLATE;
+              mode_ = INFLATE;
             }
 
             break;
@@ -286,39 +279,37 @@ class ZCtx : public AsyncWrap {
       case INFLATE:
       case GUNZIP:
       case INFLATERAW:
-        ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
+        err_ = inflate(&strm_, flush_);
 
         // If data was encoded with dictionary (INFLATERAW will have it set in
         // SetDictionary, don't repeat that here)
-        if (ctx->mode_ != INFLATERAW &&
-            ctx->err_ == Z_NEED_DICT &&
-            ctx->dictionary_ != nullptr) {
+        if (mode_ != INFLATERAW &&
+            err_ == Z_NEED_DICT &&
+            dictionary_ != nullptr) {
           // Load it
-          ctx->err_ = inflateSetDictionary(&ctx->strm_,
-                                           ctx->dictionary_,
-                                           ctx->dictionary_len_);
-          if (ctx->err_ == Z_OK) {
+          err_ = inflateSetDictionary(&strm_, dictionary_, dictionary_len_);
+          if (err_ == Z_OK) {
             // And try to decode again
-            ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
-          } else if (ctx->err_ == Z_DATA_ERROR) {
+            err_ = inflate(&strm_, flush_);
+          } else if (err_ == Z_DATA_ERROR) {
             // Both inflateSetDictionary() and inflate() return Z_DATA_ERROR.
             // Make it possible for After() to tell a bad dictionary from bad
             // input.
-            ctx->err_ = Z_NEED_DICT;
+            err_ = Z_NEED_DICT;
           }
         }
 
-        while (ctx->strm_.avail_in > 0 &&
-               ctx->mode_ == GUNZIP &&
-               ctx->err_ == Z_STREAM_END &&
-               ctx->strm_.next_in[0] != 0x00) {
+        while (strm_.avail_in > 0 &&
+               mode_ == GUNZIP &&
+               err_ == Z_STREAM_END &&
+               strm_.next_in[0] != 0x00) {
           // Bytes remain in input buffer. Perhaps this is another compressed
           // member in the same archive, or just trailing garbage.
           // Trailing zero bytes are okay, though, since they are frequently
           // used for padding.
 
-          Reset(ctx);
-          ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
+          Reset();
+          err_ = inflate(&strm_, flush_);
         }
         break;
       default:
@@ -333,27 +324,27 @@ class ZCtx : public AsyncWrap {
   }
 
 
-  static bool CheckError(ZCtx* ctx) {
+  bool CheckError() {
     // Acceptable error states depend on the type of zlib stream.
-    switch (ctx->err_) {
+    switch (err_) {
     case Z_OK:
     case Z_BUF_ERROR:
-      if (ctx->strm_.avail_out != 0 && ctx->flush_ == Z_FINISH) {
-        ZCtx::Error(ctx, "unexpected end of file");
+      if (strm_.avail_out != 0 && flush_ == Z_FINISH) {
+        Error("unexpected end of file");
         return false;
       }
     case Z_STREAM_END:
       // normal statuses, not fatal
       break;
     case Z_NEED_DICT:
-      if (ctx->dictionary_ == nullptr)
-        ZCtx::Error(ctx, "Missing dictionary");
+      if (dictionary_ == nullptr)
+        Error("Missing dictionary");
       else
-        ZCtx::Error(ctx, "Bad dictionary");
+        Error("Bad dictionary");
       return false;
     default:
       // something else.
-      ZCtx::Error(ctx, "Zlib error");
+      Error("Zlib error");
       return false;
     }
 
@@ -362,55 +353,57 @@ class ZCtx : public AsyncWrap {
 
 
   // v8 land!
-  static void After(uv_work_t* work_req, int status) {
-    CHECK_EQ(status, 0);
+  void AfterThreadPoolWork(int status) override {
+    write_in_progress_ = false;
 
-    ZCtx* ctx = ContainerOf(&ZCtx::work_req_, work_req);
-    Environment* env = ctx->env();
-
-    HandleScope handle_scope(env->isolate());
-    Context::Scope context_scope(env->context());
-
-    if (!CheckError(ctx))
+    if (status == UV_ECANCELED) {
+      Close();
       return;
-
-    ctx->write_result_[0] = ctx->strm_.avail_out;
-    ctx->write_result_[1] = ctx->strm_.avail_in;
-    ctx->write_in_progress_ = false;
-
-    // call the write() cb
-    Local<Function> cb = PersistentToLocal(env->isolate(),
-                                           ctx->write_js_callback_);
-    ctx->MakeCallback(cb, 0, nullptr);
-
-    ctx->Unref();
-    if (ctx->pending_close_)
-      ctx->Close();
-  }
-
-  static void Error(ZCtx* ctx, const char* message) {
-    Environment* env = ctx->env();
-
-    // If you hit this assertion, you forgot to enter the v8::Context first.
-    CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
-
-    if (ctx->strm_.msg != nullptr) {
-      message = ctx->strm_.msg;
     }
 
-    HandleScope scope(env->isolate());
+    CHECK_EQ(status, 0);
+
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
+
+    if (!CheckError())
+      return;
+
+    write_result_[0] = strm_.avail_out;
+    write_result_[1] = strm_.avail_in;
+
+    // call the write() cb
+    Local<Function> cb = PersistentToLocal(env()->isolate(),
+                                           write_js_callback_);
+    MakeCallback(cb, 0, nullptr);
+
+    Unref();
+    if (pending_close_)
+      Close();
+  }
+
+  // TODO(addaleax): Switch to modern error system (node_errors.h).
+  void Error(const char* message) {
+    // If you hit this assertion, you forgot to enter the v8::Context first.
+    CHECK_EQ(env()->context(), env()->isolate()->GetCurrentContext());
+
+    if (strm_.msg != nullptr) {
+      message = strm_.msg;
+    }
+
+    HandleScope scope(env()->isolate());
     Local<Value> args[2] = {
-      OneByteString(env->isolate(), message),
-      Number::New(env->isolate(), ctx->err_)
+      OneByteString(env()->isolate(), message),
+      Number::New(env()->isolate(), err_)
     };
-    ctx->MakeCallback(env->onerror_string(), arraysize(args), args);
+    MakeCallback(env()->onerror_string(), arraysize(args), args);
 
     // no hope of rescue.
-    if (ctx->write_in_progress_)
-      ctx->Unref();
-    ctx->write_in_progress_ = false;
-    if (ctx->pending_close_)
-      ctx->Close();
+    if (write_in_progress_)
+      Unref();
+    write_in_progress_ = false;
+    if (pending_close_)
+      Close();
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
@@ -503,11 +496,11 @@ class ZCtx : public AsyncWrap {
   static void Reset(const FunctionCallbackInfo<Value> &args) {
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
-    Reset(ctx);
+    ctx->Reset();
     SetDictionary(ctx);
   }
 
-  static bool Init(ZCtx *ctx, int level, int windowBits, int memLevel,
+  static bool Init(ZCtx* ctx, int level, int windowBits, int memLevel,
                    int strategy, uint32_t* write_result,
                    Local<Function> write_js_callback, char* dictionary,
                    size_t dictionary_len) {
@@ -606,7 +599,7 @@ class ZCtx : public AsyncWrap {
     }
 
     if (ctx->err_ != Z_OK) {
-      ZCtx::Error(ctx, "Failed to set dictionary");
+      ctx->Error("Failed to set dictionary");
     }
   }
 
@@ -623,30 +616,30 @@ class ZCtx : public AsyncWrap {
     }
 
     if (ctx->err_ != Z_OK && ctx->err_ != Z_BUF_ERROR) {
-      ZCtx::Error(ctx, "Failed to set parameters");
+      ctx->Error("Failed to set parameters");
     }
   }
 
-  static void Reset(ZCtx* ctx) {
-    ctx->err_ = Z_OK;
+  void Reset() {
+    err_ = Z_OK;
 
-    switch (ctx->mode_) {
+    switch (mode_) {
       case DEFLATE:
       case DEFLATERAW:
       case GZIP:
-        ctx->err_ = deflateReset(&ctx->strm_);
+        err_ = deflateReset(&strm_);
         break;
       case INFLATE:
       case INFLATERAW:
       case GUNZIP:
-        ctx->err_ = inflateReset(&ctx->strm_);
+        err_ = inflateReset(&strm_);
         break;
       default:
         break;
     }
 
-    if (ctx->err_ != Z_OK) {
-      ZCtx::Error(ctx, "Failed to reset stream");
+    if (err_ != Z_OK) {
+      Error("Failed to reset stream");
     }
   }
 
@@ -662,7 +655,7 @@ class ZCtx : public AsyncWrap {
   void Unref() {
     CHECK_GT(refs_, 0);
     if (--refs_ == 0) {
-      MakeWeak<ZCtx>(this);
+      MakeWeak();
     }
   }
 
@@ -680,7 +673,6 @@ class ZCtx : public AsyncWrap {
   int strategy_;
   z_stream strm_;
   int windowBits_;
-  uv_work_t work_req_;
   bool write_in_progress_;
   bool pending_close_;
   unsigned int refs_;

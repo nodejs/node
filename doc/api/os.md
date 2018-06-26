@@ -254,7 +254,7 @@ The properties available on the assigned network address object include:
   is `IPv6`)
 * `cidr` {string} The assigned IPv4 or IPv6 address with the routing prefix
   in CIDR notation. If the `netmask` is invalid, this property is set
-  to `null`
+  to `null`.
 
 <!-- eslint-skip -->
 ```js
@@ -381,14 +381,16 @@ systems.
 ## os.uptime()
 <!-- YAML
 added: v0.3.3
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/20129
+    description: The result of this function no longer contains a fraction
+                 component on Windows.
 -->
 
 * Returns: {integer}
 
 The `os.uptime()` method returns the system uptime in number of seconds.
-
-On Windows the returned value includes fractions of a second. Use `Math.floor()`
-to get whole seconds.
 
 ## os.userInfo([options])
 <!-- YAML
@@ -1112,7 +1114,7 @@ The following error codes are specific to the Windows operating system:
   </tr>
   <tr>
     <td><code>WSAVERNOTSUPPORTED</code></td>
-    <td>Indicates that the winsock.dll version is out of range.</td>
+    <td>Indicates that the `winsock.dll` version is out of range.</td>
   </tr>
   <tr>
     <td><code>WSANOTINITIALISED</code></td>
@@ -1195,7 +1197,7 @@ information.
   </tr>
   <tr>
     <td><code>RTLD_LOCAL</code></td>
-    <td>The converse of RTLD_GLOBAL. This is the default behavior if neither
+    <td>The converse of `RTLD_GLOBAL`. This is the default behavior if neither
     flag is specified.</td>
   </tr>
   <tr>

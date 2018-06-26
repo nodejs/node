@@ -6,7 +6,7 @@ Checks basic ES6 modules support.
         endLine : 5
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : E885A593519C4CD31BC243D5D06DCB961A1C69B5
+        hash : 395a588e3dc4c9155d342cb169bcd60d5b96c1a1
         isLiveEdit : false
         isModule : true
         length : 83
@@ -24,7 +24,7 @@ Checks basic ES6 modules support.
         endLine : 5
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : EFD8445134EBF926917EAE6072964574AB6D6C60
+        hash : 15448dfe629fbe4306eae7194754692706c6d6ba
         isLiveEdit : false
         isModule : true
         length : 84
@@ -42,7 +42,7 @@ Checks basic ES6 modules support.
         endLine : 8
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : B454ADE26B54DA4057C498A205C459099654AC47
+        hash : 2eda454b04ad45b62a894c7590954c5074ca4569
         isLiveEdit : false
         isModule : true
         length : 191
@@ -189,7 +189,7 @@ console.log(239)
         endLine : 0
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : FF746120E4E4F1BA4CB5762843D429DC872EBA18
+        hash : 021647ffab1f4e4e82675bc4cd924d3481abe278
         isModule : true
         length : 1
         scriptId : <scriptId>

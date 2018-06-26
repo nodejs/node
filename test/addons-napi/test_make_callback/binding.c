@@ -3,8 +3,7 @@
 
 #define MAX_ARGUMENTS 10
 
-static
-napi_value MakeCallback(napi_env env, napi_callback_info info) {
+static napi_value MakeCallback(napi_env env, napi_callback_info info) {
   size_t argc = MAX_ARGUMENTS;
   size_t n;
   napi_value args[MAX_ARGUMENTS];

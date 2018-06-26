@@ -17,10 +17,10 @@ StreamPipe::StreamPipe(StreamBase* source,
                        StreamBase* sink,
                        Local<Object> obj)
     : AsyncWrap(source->stream_env(), obj, AsyncWrap::PROVIDER_STREAMPIPE) {
-  MakeWeak(this);
+  MakeWeak();
 
-  CHECK_NE(sink, nullptr);
-  CHECK_NE(source, nullptr);
+  CHECK_NOT_NULL(sink);
+  CHECK_NOT_NULL(source);
 
   source->PushStreamListener(&readable_listener_);
   sink->PushStreamListener(&writable_listener_);
@@ -120,7 +120,7 @@ void StreamPipe::ReadableListener::OnStreamRead(ssize_t nread,
     free(buf.base);
     pipe->is_eof_ = true;
     stream()->ReadStop();
-    CHECK_NE(previous_listener_, nullptr);
+    CHECK_NOT_NULL(previous_listener_);
     previous_listener_->OnStreamRead(nread, uv_buf_init(nullptr, 0));
     // If we’re not writing, close now. Otherwise, we’ll do that in
     // `OnStreamAfterWrite()`.
@@ -164,7 +164,7 @@ void StreamPipe::WritableListener::OnStreamAfterWrite(WriteWrap* w,
   }
 
   if (status != 0) {
-    CHECK_NE(previous_listener_, nullptr);
+    CHECK_NOT_NULL(previous_listener_);
     StreamListener* prev = previous_listener_;
     pipe->Unpipe();
     prev->OnStreamAfterWrite(w, status);
@@ -175,7 +175,7 @@ void StreamPipe::WritableListener::OnStreamAfterWrite(WriteWrap* w,
 void StreamPipe::WritableListener::OnStreamAfterShutdown(ShutdownWrap* w,
                                                          int status) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::writable_listener_, this);
-  CHECK_NE(previous_listener_, nullptr);
+  CHECK_NOT_NULL(previous_listener_);
   StreamListener* prev = previous_listener_;
   pipe->Unpipe();
   prev->OnStreamAfterShutdown(w, status);
@@ -205,13 +205,13 @@ void StreamPipe::WritableListener::OnStreamWantsWrite(size_t suggested_size) {
 }
 
 uv_buf_t StreamPipe::WritableListener::OnStreamAlloc(size_t suggested_size) {
-  CHECK_NE(previous_listener_, nullptr);
+  CHECK_NOT_NULL(previous_listener_);
   return previous_listener_->OnStreamAlloc(suggested_size);
 }
 
 void StreamPipe::WritableListener::OnStreamRead(ssize_t nread,
                                                 const uv_buf_t& buf) {
-  CHECK_NE(previous_listener_, nullptr);
+  CHECK_NOT_NULL(previous_listener_);
   return previous_listener_->OnStreamRead(nread, buf);
 }
 

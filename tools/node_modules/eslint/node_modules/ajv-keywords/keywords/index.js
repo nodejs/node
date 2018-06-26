@@ -6,7 +6,6 @@ module.exports = {
   regexp: require('./regexp'),
   'typeof': require('./typeof'),
   dynamicDefaults: require('./dynamicDefaults'),
-  'if': require('./if'),
   prohibited: require('./prohibited'),
   uniqueItemProperties: require('./uniqueItemProperties'),
   deepProperties: require('./deepProperties'),
@@ -15,5 +14,6 @@ module.exports = {
   formatMaximum: require('./formatMaximum'),
   patternRequired: require('./patternRequired'),
   'switch': require('./switch'),
-  select: require('./select')
+  select: require('./select'),
+  transform: require('./transform')
 };

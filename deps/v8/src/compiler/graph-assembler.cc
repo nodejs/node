@@ -86,10 +86,13 @@ CHECKED_ASSEMBLER_MACH_BINOP_LIST(CHECKED_BINOP_DEF)
 #undef CHECKED_BINOP_DEF
 
 Node* GraphAssembler::Float64RoundDown(Node* value) {
-  if (machine()->Float64RoundDown().IsSupported()) {
-    return graph()->NewNode(machine()->Float64RoundDown().op(), value);
-  }
-  return nullptr;
+  CHECK(machine()->Float64RoundDown().IsSupported());
+  return graph()->NewNode(machine()->Float64RoundDown().op(), value);
+}
+
+Node* GraphAssembler::Float64RoundTruncate(Node* value) {
+  CHECK(machine()->Float64RoundTruncate().IsSupported());
+  return graph()->NewNode(machine()->Float64RoundTruncate().op(), value);
 }
 
 Node* GraphAssembler::Projection(int index, Node* value) {

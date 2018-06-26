@@ -46,7 +46,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
 
   // Print the function signature.
   os << "func";
-  WasmName fun_name = wire_bytes.GetNameOrNull(fun);
+  WasmName fun_name = wire_bytes.GetNameOrNull(fun, module);
   if (IsValidFunctionName(fun_name)) {
     os << " $";
     os.write(fun_name.start(), fun_name.length());

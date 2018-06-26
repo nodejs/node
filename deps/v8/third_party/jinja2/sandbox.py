@@ -9,14 +9,19 @@
 
     The behavior can be changed by subclassing the environment.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD.
 """
 import types
 import operator
+from collections import Mapping
 from jinja2.environment import Environment
 from jinja2.exceptions import SecurityError
 from jinja2._compat import string_types, PY2
+from jinja2.utils import Markup
+
+from markupsafe import EscapeFormatter
+from string import Formatter
 
 
 #: maximum number of items a range may produce
@@ -37,6 +42,12 @@ UNSAFE_METHOD_ATTRIBUTES = set(['im_class', 'im_func', 'im_self'])
 
 #: unsafe generator attirbutes.
 UNSAFE_GENERATOR_ATTRIBUTES = set(['gi_frame', 'gi_code'])
+
+#: unsafe attributes on coroutines
+UNSAFE_COROUTINE_ATTRIBUTES = set(['cr_frame', 'cr_code'])
+
+#: unsafe attributes on async generators
+UNSAFE_ASYNC_GENERATOR_ATTRIBUTES = set(['ag_code', 'ag_frame'])
 
 import warnings
 
@@ -68,13 +79,11 @@ except ImportError:
     pass
 
 #: register Python 2.6 abstract base classes
-try:
-    from collections import MutableSet, MutableMapping, MutableSequence
-    _mutable_set_types += (MutableSet,)
-    _mutable_mapping_types += (MutableMapping,)
-    _mutable_sequence_types += (MutableSequence,)
-except ImportError:
-    pass
+from collections import MutableSet, MutableMapping, MutableSequence
+_mutable_set_types += (MutableSet,)
+_mutable_mapping_types += (MutableMapping,)
+_mutable_sequence_types += (MutableSequence,)
+
 
 _mutable_spec = (
     (_mutable_set_types, frozenset([
@@ -92,6 +101,47 @@ _mutable_spec = (
         'popleft', 'remove', 'rotate'
     ]))
 )
+
+
+class _MagicFormatMapping(Mapping):
+    """This class implements a dummy wrapper to fix a bug in the Python
+    standard library for string formatting.
+
+    See https://bugs.python.org/issue13598 for information about why
+    this is necessary.
+    """
+
+    def __init__(self, args, kwargs):
+        self._args = args
+        self._kwargs = kwargs
+        self._last_index = 0
+
+    def __getitem__(self, key):
+        if key == '':
+            idx = self._last_index
+            self._last_index += 1
+            try:
+                return self._args[idx]
+            except LookupError:
+                pass
+            key = str(idx)
+        return self._kwargs[key]
+
+    def __iter__(self):
+        return iter(self._kwargs)
+
+    def __len__(self):
+        return len(self._kwargs)
+
+
+def inspect_format_method(callable):
+    if not isinstance(callable, (types.MethodType,
+                                 types.BuiltinMethodType)) or \
+       callable.__name__ != 'format':
+        return None
+    obj = callable.__self__
+    if isinstance(obj, string_types):
+        return obj
 
 
 def safe_range(*args):
@@ -145,6 +195,12 @@ def is_internal_attribute(obj, attr):
     elif isinstance(obj, types.GeneratorType):
         if attr in UNSAFE_GENERATOR_ATTRIBUTES:
             return True
+    elif hasattr(types, 'CoroutineType') and isinstance(obj, types.CoroutineType):
+        if attr in UNSAFE_COROUTINE_ATTRIBUTES:
+            return True
+    elif hasattr(types, 'AsyncGeneratorType') and isinstance(obj, types.AsyncGeneratorType):
+        if attr in UNSAFE_ASYNC_GENERATOR_ATTRIBUTES:
+            return True
     return attr.startswith('__')
 
 
@@ -183,8 +239,8 @@ class SandboxedEnvironment(Environment):
     attributes or functions are safe to access.
 
     If the template tries to access insecure code a :exc:`SecurityError` is
-    raised.  However also other exceptions may occour during the rendering so
-    the caller has to ensure that all exceptions are catched.
+    raised.  However also other exceptions may occur during the rendering so
+    the caller has to ensure that all exceptions are caught.
     """
     sandboxed = True
 
@@ -346,8 +402,24 @@ class SandboxedEnvironment(Environment):
             obj.__class__.__name__
         ), name=attribute, obj=obj, exc=SecurityError)
 
+    def format_string(self, s, args, kwargs):
+        """If a format call is detected, then this is routed through this
+        method so that our safety sandbox can be used for it.
+        """
+        if isinstance(s, Markup):
+            formatter = SandboxedEscapeFormatter(self, s.escape)
+        else:
+            formatter = SandboxedFormatter(self)
+        kwargs = _MagicFormatMapping(args, kwargs)
+        rv = formatter.vformat(s, args, kwargs)
+        return type(s)(rv)
+
     def call(__self, __context, __obj, *args, **kwargs):
         """Call an object from sandboxed code."""
+        fmt = inspect_format_method(__obj)
+        if fmt is not None:
+            return __self.format_string(fmt, args, kwargs)
+
         # the double prefixes are to avoid double keyword argument
         # errors when proxying the call.
         if not __self.is_safe_callable(__obj):
@@ -365,3 +437,39 @@ class ImmutableSandboxedEnvironment(SandboxedEnvironment):
         if not SandboxedEnvironment.is_safe_attribute(self, obj, attr, value):
             return False
         return not modifies_known_mutable(obj, attr)
+
+
+# This really is not a public API apparenlty.
+try:
+    from _string import formatter_field_name_split
+except ImportError:
+    def formatter_field_name_split(field_name):
+        return field_name._formatter_field_name_split()
+
+
+class SandboxedFormatterMixin(object):
+
+    def __init__(self, env):
+        self._env = env
+
+    def get_field(self, field_name, args, kwargs):
+        first, rest = formatter_field_name_split(field_name)
+        obj = self.get_value(first, args, kwargs)
+        for is_attr, i in rest:
+            if is_attr:
+                obj = self._env.getattr(obj, i)
+            else:
+                obj = self._env.getitem(obj, i)
+        return obj, first
+
+class SandboxedFormatter(SandboxedFormatterMixin, Formatter):
+
+    def __init__(self, env):
+        SandboxedFormatterMixin.__init__(self, env)
+        Formatter.__init__(self)
+
+class SandboxedEscapeFormatter(SandboxedFormatterMixin, EscapeFormatter):
+
+    def __init__(self, env, escape):
+        SandboxedFormatterMixin.__init__(self, env)
+        EscapeFormatter.__init__(self, escape)

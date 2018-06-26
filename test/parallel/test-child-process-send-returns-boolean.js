@@ -17,9 +17,9 @@ const subScript = fixtures.path('child-process-persistent.js');
   // Test `send` return value on `fork` that opens and IPC by default.
   const n = fork(subScript);
   // `subprocess.send` should always return `true` for the first send.
-  const rv = n.send({ h: 'w' }, (err) => { if (err) assert.fail(err); });
+  const rv = n.send({ h: 'w' }, assert.ifError);
   assert.strictEqual(rv, true);
-  n.kill();
+  n.kill('SIGKILL');
 }
 
 {

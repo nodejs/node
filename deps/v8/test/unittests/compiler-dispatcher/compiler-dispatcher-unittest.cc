@@ -10,6 +10,7 @@
 #include "src/api.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/base/platform/semaphore.h"
+#include "src/base/template-utils.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 #include "src/compiler-dispatcher/unoptimized-compile-job.h"
@@ -93,11 +94,11 @@ class MockPlatform : public v8::Platform {
   ~MockPlatform() override {
     base::LockGuard<base::Mutex> lock(&mutex_);
     EXPECT_TRUE(foreground_tasks_.empty());
-    EXPECT_TRUE(background_tasks_.empty());
+    EXPECT_TRUE(worker_tasks_.empty());
     EXPECT_TRUE(idle_task_ == nullptr);
   }
 
-  size_t NumberOfAvailableBackgroundThreads() override { return 1; }
+  int NumberOfWorkerThreads() override { return 1; }
 
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override {
@@ -105,21 +106,20 @@ class MockPlatform : public v8::Platform {
     return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);
   }
 
-  std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
+  std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
       v8::Isolate* isolate) override {
     constexpr bool is_foreground_task_runner = false;
     return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);
   }
 
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {
+  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    background_tasks_.push_back(task);
+    worker_tasks_.push_back(std::move(task));
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    foreground_tasks_.push_back(task);
+    foreground_tasks_.push_back(std::unique_ptr<Task>(task));
   }
 
   void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
@@ -167,9 +167,9 @@ class MockPlatform : public v8::Platform {
     return idle_task_;
   }
 
-  bool BackgroundTasksPending() {
+  bool WorkerTasksPending() {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    return !background_tasks_.empty();
+    return !worker_tasks_.empty();
   }
 
   bool ForegroundTasksPending() {
@@ -177,58 +177,53 @@ class MockPlatform : public v8::Platform {
     return !foreground_tasks_.empty();
   }
 
-  void RunBackgroundTasksAndBlock(Platform* platform) {
-    std::vector<Task*> tasks;
+  void RunWorkerTasksAndBlock(Platform* platform) {
+    std::vector<std::unique_ptr<Task>> tasks;
     {
       base::LockGuard<base::Mutex> lock(&mutex_);
-      tasks.swap(background_tasks_);
+      tasks.swap(worker_tasks_);
     }
-    platform->CallOnBackgroundThread(new TaskWrapper(this, tasks, true),
-                                     kShortRunningTask);
+    platform->CallOnWorkerThread(
+        base::make_unique<TaskWrapper>(this, std::move(tasks), true));
     sem_.Wait();
   }
 
-  void RunBackgroundTasks(Platform* platform) {
-    std::vector<Task*> tasks;
+  void RunWorkerTasks(Platform* platform) {
+    std::vector<std::unique_ptr<Task>> tasks;
     {
       base::LockGuard<base::Mutex> lock(&mutex_);
-      tasks.swap(background_tasks_);
+      tasks.swap(worker_tasks_);
     }
-    platform->CallOnBackgroundThread(new TaskWrapper(this, tasks, false),
-                                     kShortRunningTask);
+    platform->CallOnWorkerThread(
+        base::make_unique<TaskWrapper>(this, std::move(tasks), false));
   }
 
   void RunForegroundTasks() {
-    std::vector<Task*> tasks;
+    std::vector<std::unique_ptr<Task>> tasks;
     {
       base::LockGuard<base::Mutex> lock(&mutex_);
       tasks.swap(foreground_tasks_);
     }
     for (auto& task : tasks) {
       task->Run();
-      delete task;
+      // Reset |task| before running the next one.
+      task.reset();
     }
   }
 
-  void ClearBackgroundTasks() {
-    std::vector<Task*> tasks;
+  void ClearWorkerTasks() {
+    std::vector<std::unique_ptr<Task>> tasks;
     {
       base::LockGuard<base::Mutex> lock(&mutex_);
-      tasks.swap(background_tasks_);
-    }
-    for (auto& task : tasks) {
-      delete task;
+      tasks.swap(worker_tasks_);
     }
   }
 
   void ClearForegroundTasks() {
-    std::vector<Task*> tasks;
+    std::vector<std::unique_ptr<Task>> tasks;
     {
       base::LockGuard<base::Mutex> lock(&mutex_);
       tasks.swap(foreground_tasks_);
-    }
-    for (auto& task : tasks) {
-      delete task;
     }
   }
 
@@ -242,22 +237,23 @@ class MockPlatform : public v8::Platform {
  private:
   class TaskWrapper : public Task {
    public:
-    TaskWrapper(MockPlatform* platform, const std::vector<Task*>& tasks,
-                bool signal)
-        : platform_(platform), tasks_(tasks), signal_(signal) {}
+    TaskWrapper(MockPlatform* platform,
+                std::vector<std::unique_ptr<Task>> tasks, bool signal)
+        : platform_(platform), tasks_(std::move(tasks)), signal_(signal) {}
     ~TaskWrapper() = default;
 
     void Run() override {
       for (auto& task : tasks_) {
         task->Run();
-        delete task;
+        // Reset |task| before running the next one.
+        task.reset();
       }
       if (signal_) platform_->sem_.Signal();
     }
 
    private:
     MockPlatform* platform_;
-    std::vector<Task*> tasks_;
+    std::vector<std::unique_ptr<Task>> tasks_;
     bool signal_;
 
     DISALLOW_COPY_AND_ASSIGN(TaskWrapper);
@@ -272,9 +268,9 @@ class MockPlatform : public v8::Platform {
     void PostTask(std::unique_ptr<v8::Task> task) override {
       base::LockGuard<base::Mutex> lock(&platform_->mutex_);
       if (is_foreground_task_runner_) {
-        platform_->foreground_tasks_.push_back(task.release());
+        platform_->foreground_tasks_.push_back(std::move(task));
       } else {
-        platform_->background_tasks_.push_back(task.release());
+        platform_->worker_tasks_.push_back(std::move(task));
       }
     }
 
@@ -307,8 +303,8 @@ class MockPlatform : public v8::Platform {
   base::Mutex mutex_;
 
   IdleTask* idle_task_;
-  std::vector<Task*> background_tasks_;
-  std::vector<Task*> foreground_tasks_;
+  std::vector<std::unique_ptr<Task>> worker_tasks_;
+  std::vector<std::unique_ptr<Task>> foreground_tasks_;
 
   base::Semaphore sem_;
 
@@ -386,7 +382,7 @@ TEST_F(CompilerDispatcherTest, FinishAllNow) {
     ASSERT_TRUE(shared[i]->is_compiled());
   }
   platform.ClearIdleTask();
-  platform.ClearBackgroundTasks();
+  platform.ClearWorkerTasks();
 }
 
 TEST_F(CompilerDispatcherTest, IdleTask) {
@@ -500,12 +496,12 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_TRUE(platform.BackgroundTasksPending());
+  ASSERT_TRUE(platform.WorkerTasksPending());
 
-  platform.RunBackgroundTasksAndBlock(V8::GetCurrentPlatform());
+  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
 
   ASSERT_TRUE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
   ASSERT_EQ(UnoptimizedCompileJob::Status::kCompiled,
             dispatcher.jobs_.begin()->second->status());
 
@@ -517,7 +513,7 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
   ASSERT_FALSE(platform.IdleTaskPending());
 }
 
-TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
+TEST_F(CompilerDispatcherTest, FinishNowWithWorkerTask) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -543,17 +539,17 @@ TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_TRUE(platform.BackgroundTasksPending());
+  ASSERT_TRUE(platform.WorkerTasksPending());
 
   // This does not block, but races with the FinishNow() call below.
-  platform.RunBackgroundTasks(V8::GetCurrentPlatform());
+  platform.RunWorkerTasks(V8::GetCurrentPlatform());
 
   ASSERT_TRUE(dispatcher.FinishNow(shared));
   // Finishing removes the SFI from the queue.
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(shared->is_compiled());
   if (platform.IdleTaskPending()) platform.ClearIdleTask();
-  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
 }
 
 TEST_F(CompilerDispatcherTest, IdleTaskMultipleJobs) {
@@ -611,7 +607,7 @@ TEST_F(CompilerDispatcherTest, FinishNowException) {
   platform.ClearIdleTask();
 }
 
-TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
+TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingWorkerTask) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -637,7 +633,7 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_TRUE(platform.BackgroundTasksPending());
+  ASSERT_TRUE(platform.WorkerTasksPending());
 
   // The background task hasn't yet started, so we can just cancel it.
   dispatcher.AbortAll(BlockingBehavior::kDontBlock);
@@ -646,14 +642,14 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
 
-  platform.RunBackgroundTasksAndBlock(V8::GetCurrentPlatform());
+  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
 
   if (platform.IdleTaskPending()) platform.ClearIdleTask();
-  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
   ASSERT_FALSE(platform.ForegroundTasksPending());
 }
 
-TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
+TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningWorkerTask) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -683,11 +679,11 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
   ASSERT_TRUE(dispatcher.IsEnqueued(shared1));
   ASSERT_FALSE(shared1->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_TRUE(platform.BackgroundTasksPending());
+  ASSERT_TRUE(platform.WorkerTasksPending());
 
   // Kick off background tasks and freeze them.
   dispatcher.block_for_testing_.SetValue(true);
-  platform.RunBackgroundTasks(V8::GetCurrentPlatform());
+  platform.RunWorkerTasks(V8::GetCurrentPlatform());
 
   // Busy loop until the background task started running.
   while (dispatcher.block_for_testing_.Value()) {
@@ -722,13 +718,13 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
 
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.RunIdleTask(5.0, 1.0);
-  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
   ASSERT_FALSE(platform.ForegroundTasksPending());
 
   // Now it's possible to enqueue new functions again.
   ASSERT_TRUE(dispatcher.Enqueue(shared2));
   ASSERT_TRUE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
   ASSERT_FALSE(platform.ForegroundTasksPending());
   platform.ClearIdleTask();
 }
@@ -759,11 +755,11 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_TRUE(platform.BackgroundTasksPending());
+  ASSERT_TRUE(platform.WorkerTasksPending());
 
   // Kick off background tasks and freeze them.
   dispatcher.block_for_testing_.SetValue(true);
-  platform.RunBackgroundTasks(V8::GetCurrentPlatform());
+  platform.RunWorkerTasks(V8::GetCurrentPlatform());
 
   // Busy loop until the background task started running.
   while (dispatcher.block_for_testing_.Value()) {
@@ -792,14 +788,14 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   // Busy wait for the background task to finish.
   for (;;) {
     base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
-    if (dispatcher.num_background_tasks_ == 0) {
+    if (dispatcher.num_worker_tasks_ == 0) {
       break;
     }
   }
 
   ASSERT_TRUE(platform.ForegroundTasksPending());
   ASSERT_TRUE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
 
   platform.RunForegroundTasks();
   {
@@ -868,9 +864,9 @@ TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
 
   ASSERT_TRUE(dispatcher.Enqueue(shared));
   base::Semaphore sem(0);
-  V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new PressureNotificationTask(i_isolate(), &dispatcher, &sem),
-      v8::Platform::kShortRunningTask);
+  V8::GetCurrentPlatform()->CallOnWorkerThread(
+      base::make_unique<PressureNotificationTask>(i_isolate(), &dispatcher,
+                                                  &sem));
 
   sem.Wait();
 
@@ -905,7 +901,7 @@ TEST_F(CompilerDispatcherTest, EnqueueJob) {
 
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.ClearIdleTask();
-  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
 }
 
 TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
@@ -925,8 +921,8 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
 
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.ClearIdleTask();
-  ASSERT_TRUE(platform.BackgroundTasksPending());
-  platform.ClearBackgroundTasks();
+  ASSERT_TRUE(platform.WorkerTasksPending());
+  platform.ClearWorkerTasks();
 }
 
 TEST_F(CompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
@@ -995,9 +991,9 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
             dispatcher.jobs_.begin()->second->status());
 
   ASSERT_TRUE(platform.IdleTaskPending());
-  ASSERT_TRUE(platform.BackgroundTasksPending());
+  ASSERT_TRUE(platform.WorkerTasksPending());
   platform.ClearIdleTask();
-  platform.ClearBackgroundTasks();
+  platform.ClearWorkerTasks();
 }
 
 TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
@@ -1037,12 +1033,12 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   ASSERT_FALSE(shared1->is_compiled());
   ASSERT_FALSE(shared2->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_TRUE(platform.BackgroundTasksPending());
+  ASSERT_TRUE(platform.WorkerTasksPending());
 
-  platform.RunBackgroundTasksAndBlock(V8::GetCurrentPlatform());
+  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
 
   ASSERT_TRUE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
   ASSERT_EQ(UnoptimizedCompileJob::Status::kCompiled,
             dispatcher.jobs_.begin()->second->status());

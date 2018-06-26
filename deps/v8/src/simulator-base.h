@@ -9,6 +9,7 @@
 
 #include "src/assembler.h"
 #include "src/globals.h"
+#include "src/isolate.h"
 
 #if defined(USE_SIMULATOR)
 

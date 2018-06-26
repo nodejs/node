@@ -150,11 +150,6 @@ Attempts to get a valid TTY file descriptor. Returns `-1` if it fails.
 
 The TTY file descriptor is assumed to be capable of being writable.
 
-### globalCheck
-* [&lt;boolean>]
-
-Set to `false` if the test should not check for global leaks.
-
 ### hasCrypto
 * [&lt;boolean>]
 

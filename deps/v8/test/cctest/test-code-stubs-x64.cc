@@ -31,7 +31,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
@@ -54,7 +54,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
                       v8::internal::CodeObjectRequired::kYes);
 
   DoubleToIStub stub(isolate, destination_reg);
-  byte* start = stub.GetCode()->instruction_start();
+  byte* start = stub.GetCode()->raw_instruction_start();
 
   __ pushq(rbx);
   __ pushq(rcx);

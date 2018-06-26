@@ -7,8 +7,10 @@
 
 #include <vector>
 
+#include "src/accessors.h"
 #include "src/address-map.h"
 #include "src/builtins/builtins.h"
+#include "src/external-reference.h"
 
 namespace v8 {
 namespace internal {
@@ -20,35 +22,66 @@ class Isolate;
 // hashmaps in ExternalReferenceEncoder and ExternalReferenceDecoder.
 class ExternalReferenceTable {
  public:
-  static ExternalReferenceTable* instance(Isolate* isolate);
+  // For the nullptr ref, see the constructor.
+  static constexpr int kSpecialReferenceCount = 1;
+  static constexpr int kExternalReferenceCount =
+      ExternalReference::kExternalReferenceCount;
+  static constexpr int kBuiltinsReferenceCount =
+#define COUNT_C_BUILTIN(...) +1
+      BUILTIN_LIST_C(COUNT_C_BUILTIN);
+#undef COUNT_C_BUILTIN
+  static constexpr int kRuntimeReferenceCount =
+      Runtime::kNumFunctions / 2;  // Don't count dupe kInline... functions.
+  static constexpr int kIsolateAddressReferenceCount = kIsolateAddressCount;
+  static constexpr int kAccessorReferenceCount =
+      Accessors::kAccessorInfoCount + Accessors::kAccessorSetterCount;
+  // The number of stub cache external references, see AddStubCache.
+  static constexpr int kStubCacheReferenceCount = 12;
+  static constexpr int kSize =
+      kSpecialReferenceCount + kExternalReferenceCount +
+      kBuiltinsReferenceCount + kRuntimeReferenceCount +
+      kIsolateAddressReferenceCount + kAccessorReferenceCount +
+      kStubCacheReferenceCount;
 
-  uint32_t size() const { return static_cast<uint32_t>(refs_.size()); }
+  uint32_t size() const { return static_cast<uint32_t>(kSize); }
   Address address(uint32_t i) { return refs_[i].address; }
   const char* name(uint32_t i) { return refs_[i].name; }
 
+  bool is_initialized() const { return is_initialized_; }
+
   static const char* ResolveSymbol(void* address);
+
+  static uint32_t OffsetOfEntry(uint32_t i) {
+    // Used in CodeAssembler::LookupExternalReference.
+    STATIC_ASSERT(offsetof(ExternalReferenceEntry, address) == 0);
+    return i * sizeof(ExternalReferenceEntry);
+  }
+
+  ExternalReferenceTable() {}
+  void Init(Isolate* isolate);
 
  private:
   struct ExternalReferenceEntry {
     Address address;
     const char* name;
 
+    ExternalReferenceEntry() : address(nullptr), name(nullptr) {}
     ExternalReferenceEntry(Address address, const char* name)
         : address(address), name(name) {}
   };
 
-  explicit ExternalReferenceTable(Isolate* isolate);
+  void Add(Address address, const char* name, int* index);
 
-  void Add(Address address, const char* name);
+  void AddReferences(Isolate* isolate, int* index);
+  void AddBuiltins(Isolate* isolate, int* index);
+  void AddRuntimeFunctions(Isolate* isolate, int* index);
+  void AddIsolateAddresses(Isolate* isolate, int* index);
+  void AddAccessors(Isolate* isolate, int* index);
+  void AddStubCache(Isolate* isolate, int* index);
 
-  void AddReferences(Isolate* isolate);
-  void AddBuiltins(Isolate* isolate);
-  void AddRuntimeFunctions(Isolate* isolate);
-  void AddIsolateAddresses(Isolate* isolate);
-  void AddAccessors(Isolate* isolate);
-  void AddStubCache(Isolate* isolate);
+  ExternalReferenceEntry refs_[kSize];
+  bool is_initialized_ = false;
 
-  std::vector<ExternalReferenceEntry> refs_;
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);
 };
 

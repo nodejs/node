@@ -3,9 +3,10 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (common.isWindows) {
+if (common.isWindows)
   common.skip('Sending signals with process.kill is not supported on Windows');
-}
+if (!common.isMainThread)
+  common.skip('No signal handling available in Workers');
 
 process.once('SIGINT', common.mustCall((signal) => {
   assert.strictEqual(signal, 'SIGINT');

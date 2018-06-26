@@ -21,9 +21,11 @@
 
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 
 const backslash = /\\/g;
 
@@ -168,9 +170,10 @@ assert.strictEqual(require('../fixtures/foo').foo, 'ok',
 
 // Should not attempt to load a directory
 try {
-  require('../fixtures/empty');
+  tmpdir.refresh();
+  require(tmpdir.path);
 } catch (err) {
-  assert.strictEqual(err.message, 'Cannot find module \'../fixtures/empty\'');
+  assert.strictEqual(err.message, `Cannot find module '${tmpdir.path}'`);
 }
 
 {
@@ -284,7 +287,6 @@ try {
     'fixtures/registerExt.test': {},
     'fixtures/registerExt.hello.world': {},
     'fixtures/registerExt2.test': {},
-    'fixtures/empty.js': {},
     'fixtures/module-load-order/file1': {},
     'fixtures/module-load-order/file2.js': {},
     'fixtures/module-load-order/file3.node': {},

@@ -9,7 +9,7 @@ just as if they were an ordinary Node.js module. They are used primarily to
 provide an interface between JavaScript running in Node.js and C/C++ libraries.
 
 At the moment, the method for implementing Addons is rather complicated,
-involving knowledge of several components and APIs :
+involving knowledge of several components and APIs:
 
  - V8: the C++ library Node.js currently uses to provide the
    JavaScript implementation. V8 provides the mechanisms for creating objects,
@@ -72,11 +72,11 @@ void Method(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(String::NewFromUtf8(isolate, "world"));
 }
 
-void init(Local<Object> exports) {
+void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "hello", Method);
 }
 
-NODE_MODULE(NODE_GYP_MODULE_NAME, init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
 
 }  // namespace demo
 ```
@@ -93,10 +93,10 @@ There is no semi-colon after `NODE_MODULE` as it's not a function (see
 `node.h`).
 
 The `module_name` must match the filename of the final binary (excluding
-the .node suffix).
+the `.node` suffix).
 
-In the `hello.cc` example, then, the initialization function is `init` and the
-Addon module name is `addon`.
+In the `hello.cc` example, then, the initialization function is `Initialize`
+and the addon module name is `addon`.
 
 ### Building
 
@@ -217,15 +217,14 @@ Addon developers are recommended to use to keep compatibility between past and
 future releases of V8 and Node.js. See the `nan` [examples][] for an
 illustration of how it can be used.
 
-
 ## N-API
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 N-API is an API for building native Addons. It is independent from
 the underlying JavaScript runtime (e.g. V8) and is maintained as part of
 Node.js itself. This API will be Application Binary Interface (ABI) stable
-across version of Node.js. It is intended to insulate Addons from
+across versions of Node.js. It is intended to insulate Addons from
 changes in the underlying JavaScript engine and allow modules
 compiled for one version to run on later versions of Node.js without
 recompilation. Addons are built/packaged with the same approach/tools
@@ -307,7 +306,6 @@ built using `node-gyp`:
 $ node-gyp configure build
 ```
 
-
 ### Function arguments
 
 Addons will typically expose objects and functions that can be accessed from
@@ -380,7 +378,6 @@ const addon = require('./build/Release/addon');
 
 console.log('This should be eight:', addon.add(3, 5));
 ```
-
 
 ### Callbacks
 
@@ -488,7 +485,6 @@ console.log(obj1.msg, obj2.msg);
 // Prints: 'hello world'
 ```
 
-
 ### Function factory
 
 Another common scenario is creating JavaScript functions that wrap C++
@@ -545,7 +541,6 @@ const fn = addon();
 console.log(fn());
 // Prints: 'hello world'
 ```
-
 
 ### Wrapping C++ objects
 
@@ -916,7 +911,6 @@ console.log(obj2.plusOne());
 // Prints: 23
 ```
 
-
 ### Passing wrapped objects around
 
 In addition to wrapping and returning C++ objects, it is possible to pass
@@ -1091,9 +1085,9 @@ console.log(result);
 
 ### AtExit hooks
 
-An "AtExit" hook is a function that is invoked after the Node.js event loop
+An `AtExit` hook is a function that is invoked after the Node.js event loop
 has ended but before the JavaScript VM is terminated and Node.js shuts down.
-"AtExit" hooks are registered using the `node::AtExit` API.
+`AtExit` hooks are registered using the `node::AtExit` API.
 
 #### void AtExit(callback, args)
 
@@ -1105,12 +1099,12 @@ has ended but before the JavaScript VM is terminated and Node.js shuts down.
 Registers exit hooks that run after the event loop has ended but before the VM
 is killed.
 
-AtExit takes two parameters: a pointer to a callback function to run at exit,
+`AtExit` takes two parameters: a pointer to a callback function to run at exit,
 and a pointer to untyped context data to be passed to that callback.
 
 Callbacks are run in last-in first-out order.
 
-The following `addon.cc` implements AtExit:
+The following `addon.cc` implements `AtExit`:
 
 ```cpp
 // addon.cc

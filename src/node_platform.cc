@@ -1,7 +1,6 @@
 #include "node_platform.h"
 #include "node_internals.h"
 
-#include "env.h"
 #include "env-inl.h"
 #include "util.h"
 #include <algorithm>
@@ -17,7 +16,9 @@ using v8::Task;
 using v8::TracingController;
 
 static void BackgroundRunner(void* data) {
-  TaskQueue<Task>* background_tasks = static_cast<TaskQueue<Task>*>(data);
+  TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
+                        "BackgroundTaskRunner");
+  TaskQueue<Task> *background_tasks = static_cast<TaskQueue<Task> *>(data);
   while (std::unique_ptr<Task> task = background_tasks->BlockingPop()) {
     task->Run();
     background_tasks->NotifyOfCompletion();
@@ -63,7 +64,7 @@ size_t BackgroundTaskRunner::NumberOfAvailableBackgroundThreads() const {
 
 PerIsolatePlatformData::PerIsolatePlatformData(
     v8::Isolate* isolate, uv_loop_t* loop)
-  : isolate_(isolate), loop_(loop) {
+  : loop_(loop) {
   flush_tasks_ = new uv_async_t();
   CHECK_EQ(0, uv_async_init(loop, flush_tasks_, FlushTasks));
   flush_tasks_->data = static_cast<void*>(this);
@@ -80,12 +81,14 @@ void PerIsolatePlatformData::PostIdleTask(std::unique_ptr<v8::IdleTask> task) {
 }
 
 void PerIsolatePlatformData::PostTask(std::unique_ptr<Task> task) {
+  CHECK_NE(flush_tasks_, nullptr);
   foreground_tasks_.Push(std::move(task));
   uv_async_send(flush_tasks_);
 }
 
 void PerIsolatePlatformData::PostDelayedTask(
     std::unique_ptr<Task> task, double delay_in_seconds) {
+  CHECK_NE(flush_tasks_, nullptr);
   std::unique_ptr<DelayedTask> delayed(new DelayedTask());
   delayed->task = std::move(task);
   delayed->platform_data = shared_from_this();
@@ -95,13 +98,21 @@ void PerIsolatePlatformData::PostDelayedTask(
 }
 
 PerIsolatePlatformData::~PerIsolatePlatformData() {
-  FlushForegroundTasksInternal();
+  Shutdown();
+}
+
+void PerIsolatePlatformData::Shutdown() {
+  if (flush_tasks_ == nullptr)
+    return;
+
+  while (FlushForegroundTasksInternal()) {}
   CancelPendingDelayedTasks();
 
   uv_close(reinterpret_cast<uv_handle_t*>(flush_tasks_),
            [](uv_handle_t* handle) {
     delete reinterpret_cast<uv_async_t*>(handle);
   });
+  flush_tasks_ = nullptr;
 }
 
 void PerIsolatePlatformData::ref() {
@@ -129,6 +140,7 @@ void NodePlatform::RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) {
   Mutex::ScopedLock lock(per_isolate_mutex_);
   std::shared_ptr<PerIsolatePlatformData> existing = per_isolate_[isolate];
   if (existing) {
+    CHECK_EQ(loop, existing->event_loop());
     existing->ref();
   } else {
     per_isolate_[isolate] =
@@ -142,6 +154,7 @@ void NodePlatform::UnregisterIsolate(IsolateData* isolate_data) {
   std::shared_ptr<PerIsolatePlatformData> existing = per_isolate_[isolate];
   CHECK(existing);
   if (existing->unref() == 0) {
+    existing->Shutdown();
     per_isolate_.erase(isolate);
   }
 }
@@ -223,7 +236,13 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
       });
     });
   }
-  while (std::unique_ptr<Task> task = foreground_tasks_.Pop()) {
+  // Move all foreground tasks into a separate queue and flush that queue.
+  // This way tasks that are posted while flushing the queue will be run on the
+  // next call of FlushForegroundTasksInternal.
+  std::queue<std::unique_ptr<Task>> tasks = foreground_tasks_.PopAll();
+  while (!tasks.empty()) {
+    std::unique_ptr<Task> task = std::move(tasks.front());
+    tasks.pop();
     did_work = true;
     RunForegroundTask(std::move(task));
   }
@@ -254,8 +273,8 @@ void NodePlatform::CallDelayedOnForegroundThread(Isolate* isolate,
     std::unique_ptr<Task>(task), delay_in_seconds);
 }
 
-void NodePlatform::FlushForegroundTasks(v8::Isolate* isolate) {
-  ForIsolate(isolate)->FlushForegroundTasksInternal();
+bool NodePlatform::FlushForegroundTasks(v8::Isolate* isolate) {
+  return ForIsolate(isolate)->FlushForegroundTasksInternal();
 }
 
 void NodePlatform::CancelPendingDelayedTasks(v8::Isolate* isolate) {
@@ -346,6 +365,14 @@ void TaskQueue<T>::Stop() {
   Mutex::ScopedLock scoped_lock(lock_);
   stopped_ = true;
   tasks_available_.Broadcast(scoped_lock);
+}
+
+template <class T>
+std::queue<std::unique_ptr<T>> TaskQueue<T>::PopAll() {
+  Mutex::ScopedLock scoped_lock(lock_);
+  std::queue<std::unique_ptr<T>> result;
+  result.swap(task_queue_);
+  return result;
 }
 
 }  // namespace node

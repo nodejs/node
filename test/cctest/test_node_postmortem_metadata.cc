@@ -42,7 +42,7 @@ class TestHandleWrap : public node::HandleWrap {
       : node::HandleWrap(env,
                          object,
                          reinterpret_cast<uv_handle_t*>(handle),
-                         node::AsyncWrap::PROVIDER_TIMERWRAP) {}
+                         node::AsyncWrap::PROVIDER_TCPWRAP) {}
 };
 
 
@@ -53,7 +53,7 @@ class TestReqWrap : public node::ReqWrap<uv_req_t> {
   TestReqWrap(node::Environment* env, v8::Local<v8::Object> object)
       : node::ReqWrap<uv_req_t>(env,
                                 object,
-                                node::AsyncWrap::PROVIDER_TIMERWRAP) {}
+                                node::AsyncWrap::PROVIDER_FSREQWRAP) {}
 };
 
 TEST_F(DebugSymbolsTest, ContextEmbedderEnvironmentIndex) {
@@ -72,7 +72,11 @@ TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
   const Argv argv;
   Env env{handle_scope, argv};
 
-  v8::Local<v8::Object> object = v8::Object::New(isolate_);
+  v8::Local<v8::ObjectTemplate> obj_templ = v8::ObjectTemplate::New(isolate_);
+  obj_templ->SetInternalFieldCount(1);
+
+  v8::Local<v8::Object> object =
+      obj_templ->NewInstance(env.context()).ToLocalChecked();
   node::BaseObject obj(*env, object);
 
   auto expected = reinterpret_cast<uintptr_t>(&obj.persistent());

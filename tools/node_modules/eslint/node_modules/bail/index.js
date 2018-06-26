@@ -1,9 +1,9 @@
-'use strict';
+'use strict'
 
-module.exports = bail;
+module.exports = bail
 
 function bail(err) {
   if (err) {
-    throw err;
+    throw err
   }
 }

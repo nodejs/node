@@ -85,70 +85,64 @@
   'language/statements/variable/binding-resolution': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
+  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-detached-when-species-retrieved-different-type': [FAIL],
+  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-detached-when-species-retrieved-different-type': [FAIL],
+  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-detached-when-species-retrieved-same-type': [FAIL],
+  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-detached-when-species-retrieved-same-type': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/BigInt/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/BigInt/detached-buffer-realm': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/Get/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/Get/BigInt/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/Get/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/Get/BigInt/detached-buffer-realm': [FAIL],
   'built-ins/TypedArrays/internals/Get/infinity-detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/Get/BigInt/infinity-detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/GetOwnProperty/BigInt/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/GetOwnProperty/BigInt/detached-buffer-realm': [FAIL],
   'built-ins/TypedArrays/internals/GetOwnProperty/enumerate-detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/GetOwnProperty/BigInt/enumerate-detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/HasProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/HasProperty/BigInt/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/HasProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/HasProperty/BigInt/detached-buffer-realm': [FAIL],
   'built-ins/TypedArrays/internals/HasProperty/infinity-with-detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/HasProperty/BigInt/infinity-with-detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/Set/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/Set/BigInt/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/Set/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/Set/BigInt/detached-buffer-realm': [FAIL],
   'built-ins/TypedArrays/internals/Set/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-detached-when-species-retrieved-different-type': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-detached-when-species-retrieved-same-type': [FAIL],
+  'built-ins/TypedArrays/internals/Set/BigInt/tonumber-value-detached-buffer': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/every/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/find/predicate-may-detach-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/find/BigInt/predicate-may-detach-buffer': [FAIL],
   'built-ins/TypedArray/prototype/findIndex/predicate-may-detach-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/findIndex/BigInt/predicate-may-detach-buffer': [FAIL],
   'built-ins/TypedArray/prototype/forEach/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/forEach/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/map/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/map/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/reduce/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/reduce/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/reduceRight/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/reduceRight/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/some/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/sort/detached-buffer-comparefn': [FAIL],
+  'built-ins/TypedArray/prototype/sort/BigInt/detached-buffer-comparefn': [FAIL],
   # DataView functions should also throw on detached buffers
   'built-ins/ArrayBuffer/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/getFloat32/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/getFloat32/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getFloat64/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/getFloat64/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getInt16/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/getInt16/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getInt32/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/getInt32/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getInt8/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/getInt8/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getUint16/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/getUint16/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getUint32/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/getUint32/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getUint8/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/getUint8/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setFloat32/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/setFloat32/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setFloat64/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/setFloat64/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setInt16/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/setInt16/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setInt32/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/setInt32/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setInt8/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/setInt8/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setUint16/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/setUint16/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setUint32/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/setUint32/detached-buffer-before-outofrange-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setUint8/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/setUint8/detached-buffer-before-outofrange-byteoffset': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4231
   'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
@@ -216,6 +210,7 @@
   'language/literals/regexp/u-invalid-quantifiable-assertion': [FAIL],
   'language/literals/regexp/u-unicode-esc-bounds': [FAIL],
   'language/literals/regexp/u-unicode-esc-non-hex': [FAIL],
+  'language/literals/regexp/unicode-escape-nls-err': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
@@ -313,9 +308,13 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5327
   'built-ins/TypedArrays/internals/Set/key-is-minus-zero': [FAIL],
+  'built-ins/TypedArrays/internals/Set/BigInt/key-is-minus-zero': [FAIL],
   'built-ins/TypedArrays/internals/Set/key-is-not-integer': [FAIL],
+  'built-ins/TypedArrays/internals/Set/BigInt/key-is-not-integer': [FAIL],
   'built-ins/TypedArrays/internals/Set/key-is-out-of-bounds': [FAIL],
+  'built-ins/TypedArrays/internals/Set/BigInt/key-is-out-of-bounds': [FAIL],
   'built-ins/TypedArrays/internals/Set/tonumber-value-throws': [FAIL],
+  'built-ins/TypedArrays/internals/Set/BigInt/tonumber-value-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5329
   'built-ins/RegExp/prototype/source/value-line-terminator': [FAIL],
@@ -352,7 +351,6 @@
   'built-ins/DataView/buffer-does-not-have-arraybuffer-data-throws-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/buffer-reference-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/byteoffset-is-negative-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/custom-proto-access-throws-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/custom-proto-if-not-object-fallbacks-to-default-prototype-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/custom-proto-if-object-is-used-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/defined-bytelength-and-byteoffset-sab': ['--harmony-sharedarraybuffer'],
@@ -380,7 +378,6 @@
   'built-ins/DataView/prototype/getInt32/return-values-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/prototype/getInt32/this-has-no-dataview-internal-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/prototype/getInt32/to-boolean-littleendian-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/toindex-byteoffset-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/return-abrupt-tonumber-bytelength-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/return-abrupt-tonumber-bytelength-symbol-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/return-abrupt-tonumber-byteoffset-sab': ['--harmony-sharedarraybuffer'],
@@ -392,32 +389,20 @@
   'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-other-type-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-same-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-bufferbyteoffset-throws-from-modulo-element-size-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-byteoffset-is-negative-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-byteoffset-is-negative-zero-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-byteoffset-is-symbol-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-byteoffset-throws-from-modulo-element-size-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-byteoffset-to-number-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-custom-proto-access-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-defined-length-and-offset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-defined-length-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-defined-negative-length-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-defined-offset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-excessive-length-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-excessive-offset-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-invoked-with-undefined-newtarget-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-is-referenced-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-length-access-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-length-is-symbol-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-new-instance-extensibility-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-proto-from-ctor-realm-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-returns-new-instance-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-toindex-bytelength-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-toindex-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-typedarray-backed-by-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-use-custom-proto-if-object-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-use-default-proto-if-custom-proto-is-not-object-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/internals/Get/indexed-value-sab': ['--harmony-sharedarraybuffer'],
+
+  # 64-bit Atomics are not implemented yet.
+  'built-ins/Atomics/wake/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/xor/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/load/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/compareExchange/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/wait/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/exchange/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/sub/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/store/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/or/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/and/bad-range': ['--noharmony-bigint'],
+  'built-ins/Atomics/add/bad-range': ['--noharmony-bigint'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
@@ -427,16 +412,9 @@
   'built-ins/Proxy/ownKeys/return-duplicate-entries-throws': [FAIL],
   'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6791
-  'built-ins/BigInt/prototype/Symbol.toStringTag': [SKIP],
-  'built-ins/DataView/prototype/getBigInt64/*': [SKIP],
-  'built-ins/DataView/prototype/getBigUint64/*': [SKIP],
-  'built-ins/DataView/prototype/setBigInt64/*': [SKIP],
-  'built-ins/DataView/prototype/setBigUint64/*': [SKIP],
-  'built-ins/TypedArrays/BigInt64Array/*': [SKIP],
-  'built-ins/TypedArrays/BigUint64Array/*': [SKIP],
-  # The current version of test262 still uses parseInt.
-  'built-ins/BigInt/parseInt/*': [SKIP],
+  # https://github.com/tc39/test262/issues/1467
+  'built-ins/BigInt/prototype/Symbol.toStringTag': [FAIL],
+  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-other-ctor-returns-new-typedarray': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7184
   'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],
@@ -447,9 +425,6 @@
   'language/statements/class/fields-indirect-eval-err-contains-arguments': [FAIL],
   'language/expressions/class/fields-indirect-eval-err-contains-arguments': [FAIL],
 
-  # https://github.com/tc39/test262/pull/1452
-  'built-ins/Object/setPrototypeOf/bigint': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7468
   'language/statements/class/privatename-not-valid-earlyerr-script-8': [FAIL],
 
@@ -457,11 +432,6 @@
   'language/expressions/call/eval-spread': [FAIL],
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
   'language/expressions/call/eval-spread-empty-trailing': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7470
-  'language/module-code/namespace/internals/enumerate-binding-uninit': [FAIL],
-  'language/module-code/namespace/internals/object-keys-binding-uninit': [FAIL],
-  'language/module-code/namespace/internals/object-propertyIsEnumerable-binding-uninit': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7471
   'intl402/DateTimeFormat/prototype/format/time-clip-near-time-boundaries': [FAIL],
@@ -500,6 +470,16 @@
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7513
+  'built-ins/TypedArrays/ctors/buffer-arg/buffer-arg-bufferbyteoffset-throws-from-modulo-element-size': [FAIL],
+  'built-ins/TypedArrays/ctors/buffer-arg/buffer-arg-byteoffset-throws-from-modulo-element-size': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7512
+  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-other-ctor-buffer-ctor-custom-species-proto-from-ctor-realm': [FAIL],
+  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-same-ctor-buffer-ctor-species-custom-proto-from-ctor-realm': [FAIL],
+  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-other-ctor-buffer-ctor-custom-species-proto-from-ctor-realm': [FAIL],
+  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-same-ctor-buffer-ctor-species-custom-proto-from-ctor-realm': [FAIL],
 
 ######################## NEEDS INVESTIGATION ###########################
 
@@ -560,10 +540,6 @@
 
   # https://github.com/tc39/test262/pull/688#pullrequestreview-14025354
   'built-ins/Function/internals/Construct/derived-this-uninitialized-realm': [FAIL],
-
-  # https://github.com/tc39/test262/pull/688/files#r93657665
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-custom-species-proto-from-ctor-realm': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-custom-proto-from-ctor-realm': [FAIL],
 
   # Date tests that fail in CE(S)T timezone.
   # https://bugs.chromium.org/p/v8/issues/detail?id=5449

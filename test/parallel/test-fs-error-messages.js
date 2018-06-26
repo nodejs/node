@@ -22,13 +22,17 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
+
+tmpdir.refresh();
+
 const nonexistentFile = fixtures.path('non-existent');
 const nonexistentDir = fixtures.path('non-existent', 'foo', 'bar');
 const existingFile = fixtures.path('exit.js');
 const existingFile2 = fixtures.path('create-file.js');
-const existingDir = fixtures.path('empty');
+const existingDir = tmpdir.path;
 const existingDir2 = fixtures.path('keys');
 const { COPYFILE_EXCL } = fs.constants;
 const uv = process.binding('uv');
@@ -636,22 +640,21 @@ if (!common.isAIX) {
   );
 }
 
-// copyFile with invalid flags
+// Check copyFile with invalid flags.
 {
-  const validateError = (err) => {
-    assert.strictEqual(err.message,
-                       'EINVAL: invalid argument, copyfile ' +
-                       `'${existingFile}' -> '${nonexistentFile}'`);
-    assert.strictEqual(err.errno, uv.UV_EINVAL);
-    assert.strictEqual(err.code, 'EINVAL');
-    assert.strictEqual(err.syscall, 'copyfile');
-    return true;
+  const validateError = {
+    // TODO: Make sure the error message always also contains the src.
+    message: `EINVAL: invalid argument, copyfile -> '${nonexistentFile}'`,
+    errno: uv.UV_EINVAL,
+    code: 'EINVAL',
+    syscall: 'copyfile'
   };
 
-  // TODO(joyeecheung): test fs.copyFile() when uv_fs_copyfile does not
-  // keep the loop open when the flags are invalid.
-  // See https://github.com/libuv/libuv/pull/1747
+  fs.copyFile(existingFile, nonexistentFile, -1,
+              common.expectsError(validateError));
 
+  validateError.message = 'EINVAL: invalid argument, copyfile ' +
+                          `'${existingFile}' -> '${nonexistentFile}'`;
   assert.throws(
     () => fs.copyFileSync(existingFile, nonexistentFile, -1),
     validateError

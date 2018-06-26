@@ -286,12 +286,6 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   uv_stream_t* send_handle = nullptr;
 
   if (IsIPCPipe() && !send_handle_obj.IsEmpty()) {
-    // TODO(addaleax): This relies on the fact that HandleWrap comes first
-    // as a superclass of each individual subclass.
-    // There are similar assumptions in other places in the code base.
-    // A better idea would be having all BaseObject's internal pointers
-    // refer to the BaseObject* itself; this would require refactoring
-    // throughout the code base but makes Node rely much less on C++ quirks.
     HandleWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, send_handle_obj, UV_EINVAL);
     send_handle = reinterpret_cast<uv_stream_t*>(wrap->GetHandle());
@@ -324,7 +318,7 @@ void StreamBase::CallJSOnreadMethod(ssize_t nread, Local<Object> buf) {
     argv[1] = Undefined(env->isolate());
 
   AsyncWrap* wrap = GetAsyncWrap();
-  CHECK_NE(wrap, nullptr);
+  CHECK_NOT_NULL(wrap);
   wrap->MakeCallback(env->onread_string(), arraysize(argv), argv);
 }
 
@@ -366,7 +360,7 @@ uv_buf_t StreamListener::OnStreamAlloc(size_t suggested_size) {
 
 
 void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
-  CHECK_NE(stream_, nullptr);
+  CHECK_NOT_NULL(stream_);
   StreamBase* stream = static_cast<StreamBase*>(stream_);
   Environment* env = stream->stream_env();
   HandleScope handle_scope(env->isolate());
@@ -380,8 +374,9 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   }
 
   CHECK_LE(static_cast<size_t>(nread), buf.len);
+  char* base = Realloc(buf.base, nread);
 
-  Local<Object> obj = Buffer::New(env, buf.base, nread).ToLocalChecked();
+  Local<Object> obj = Buffer::New(env, base, nread).ToLocalChecked();
   stream->CallJSOnreadMethod(nread, obj);
 }
 
@@ -393,6 +388,7 @@ void ReportWritesToJSStreamListener::OnStreamAfterReqFinished(
   AsyncWrap* async_wrap = req_wrap->GetAsyncWrap();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
+  CHECK(!async_wrap->persistent().IsEmpty());
   Local<Object> req_wrap_obj = async_wrap->object();
 
   Local<Value> argv[] = {

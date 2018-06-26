@@ -70,11 +70,22 @@ class HandleWrap : public AsyncWrap {
 
   inline uv_handle_t* GetHandle() const { return handle_; }
 
+  virtual void Close(
+      v8::Local<v8::Value> close_callback = v8::Local<v8::Value>());
+
  protected:
   HandleWrap(Environment* env,
              v8::Local<v8::Object> object,
              uv_handle_t* handle,
              AsyncWrap::ProviderType provider);
+  virtual void OnClose() {}
+
+  void MarkAsInitialized();
+  void MarkAsUninitialized();
+
+  inline bool IsHandleClosing() const {
+    return state_ == kClosing || state_ == kClosed;
+  }
 
  private:
   friend class Environment;
@@ -88,7 +99,7 @@ class HandleWrap : public AsyncWrap {
   // refer to `doc/guides/node-postmortem-support.md`
   friend int GenDebugSymbols();
   ListNode<HandleWrap> handle_wrap_queue_;
-  enum { kInitialized, kClosing, kClosingWithCallback, kClosed } state_;
+  enum { kInitialized, kClosing, kClosed } state_;
   uv_handle_t* const handle_;
 };
 

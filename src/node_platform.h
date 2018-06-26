@@ -26,6 +26,7 @@ class TaskQueue {
   void Push(std::unique_ptr<T> task);
   std::unique_ptr<T> Pop();
   std::unique_ptr<T> BlockingPop();
+  std::queue<std::unique_ptr<T>> PopAll();
   void NotifyOfCompletion();
   void BlockingDrain();
   void Stop();
@@ -65,9 +66,13 @@ class PerIsolatePlatformData :
   void ref();
   int unref();
 
-  // Returns true iff work was dispatched or executed.
+  // Returns true if work was dispatched or executed. New tasks that are
+  // posted during flushing of the queue are postponed until the next
+  // flushing.
   bool FlushForegroundTasksInternal();
   void CancelPendingDelayedTasks();
+
+  const uv_loop_t* event_loop() const { return loop_; }
 
  private:
   void DeleteFromScheduledTasks(DelayedTask* task);
@@ -77,7 +82,6 @@ class PerIsolatePlatformData :
   static void RunForegroundTask(uv_timer_t* timer);
 
   int ref_count_ = 1;
-  v8::Isolate* isolate_;
   uv_loop_t* const loop_;
   uv_async_t* flush_tasks_ = nullptr;
   TaskQueue<v8::Task> foreground_tasks_;
@@ -129,8 +133,7 @@ class NodePlatform : public MultiIsolatePlatform {
   double MonotonicallyIncreasingTime() override;
   double CurrentClockTimeMillis() override;
   v8::TracingController* GetTracingController() override;
-
-  void FlushForegroundTasks(v8::Isolate* isolate);
+  bool FlushForegroundTasks(v8::Isolate* isolate) override;
 
   void RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) override;
   void UnregisterIsolate(IsolateData* isolate_data) override;

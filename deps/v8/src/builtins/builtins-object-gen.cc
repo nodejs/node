@@ -5,7 +5,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/shared-function-info.h"
 
@@ -141,14 +141,15 @@ Node* ObjectBuiltinsAssembler::ConstructDataDescriptor(Node* context,
 
 Node* ObjectBuiltinsAssembler::IsSpecialReceiverMap(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  Node* is_special = IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
+  TNode<BoolT> is_special =
+      IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
   uint32_t mask =
       Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
   USE(mask);
   // Interceptors or access checks imply special receiver.
   CSA_ASSERT(this,
-             SelectConstant(IsSetWord32(LoadMapBitField(map), mask), is_special,
-                            Int32Constant(1), MachineRepresentation::kWord32));
+             SelectConstant<BoolT>(IsSetWord32(LoadMapBitField(map), mask),
+                                   is_special, Int32TrueConstant()));
   return is_special;
 }
 
@@ -268,7 +269,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel));
 
   // In case, we found enum_cache in object,
-  // we use it as array_length becuase it has same size for
+  // we use it as array_length because it has same size for
   // Object.(entries/values) result array object length.
   // So object_enum_length use less memory space than
   // NumberOfOwnDescriptorsBits value.
@@ -285,7 +286,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
                            INTPTR_PARAMETERS, kAllowLargeObjectAllocation));
 
     // If in case we have enum_cache,
-    // we can't detect accessor of object until loop through descritpros.
+    // we can't detect accessor of object until loop through descriptors.
     // So if object might have accessor,
     // we will remain invalid addresses of FixedArray.
     // Because in that case, we need to jump to runtime call.
@@ -299,7 +300,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
     Variable* vars[] = {&var_descriptor_number, &var_result_index};
     // Let desc be ? O.[[GetOwnProperty]](key).
     TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
-    Label loop(this, 2, vars), after_loop(this), loop_condition(this);
+    Label loop(this, 2, vars), after_loop(this), next_descriptor(this);
     Branch(IntPtrEqual(var_descriptor_number.value(), object_enum_length),
            &after_loop, &loop);
 
@@ -313,10 +314,10 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       CSA_ASSERT(this, WordEqual(map, LoadMap(object)));
       TNode<Uint32T> descriptor_index = TNode<Uint32T>::UncheckedCast(
           TruncateIntPtrToInt32(var_descriptor_number.value()));
-      Node* next_key = DescriptorArrayGetKey(descriptors, descriptor_index);
+      Node* next_key = GetKey(descriptors, descriptor_index);
 
       // Skip Symbols.
-      GotoIf(IsSymbol(next_key), &loop_condition);
+      GotoIf(IsSymbol(next_key), &next_descriptor);
 
       TNode<Uint32T> details = TNode<Uint32T>::UncheckedCast(
           DescriptorArrayGetDetails(descriptors, descriptor_index));
@@ -326,13 +327,14 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       GotoIf(IsPropertyKindAccessor(kind), if_call_runtime_with_fast_path);
       CSA_ASSERT(this, IsPropertyKindData(kind));
 
-      // If desc is not undefined and desc.[[Enumerable]] is true, then
-      GotoIfNot(IsPropertyEnumerable(details), &loop_condition);
+      // If desc is not undefined and desc.[[Enumerable]] is true, then skip to
+      // the next descriptor.
+      GotoIfNot(IsPropertyEnumerable(details), &next_descriptor);
 
       VARIABLE(var_property_value, MachineRepresentation::kTagged,
                UndefinedConstant());
-      Node* descriptor_name_index = DescriptorArrayToKeyIndex(
-          TruncateIntPtrToInt32(var_descriptor_number.value()));
+      TNode<IntPtrT> descriptor_name_index = ToKeyIndex<DescriptorArray>(
+          Unsigned(TruncateIntPtrToInt32(var_descriptor_number.value())));
 
       // Let value be ? Get(O, key).
       LoadPropertyFromFastObject(object, map, descriptors,
@@ -357,12 +359,12 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       StoreFixedArrayElement(values_or_entries, var_result_index.value(),
                              value);
       Increment(&var_result_index, 1);
-      Goto(&loop_condition);
+      Goto(&next_descriptor);
 
-      BIND(&loop_condition);
+      BIND(&next_descriptor);
       {
         Increment(&var_descriptor_number, 1);
-        Branch(IntPtrEqual(var_descriptor_number.value(), object_enum_length),
+        Branch(IntPtrEqual(var_result_index.value(), object_enum_length),
                &after_loop, &loop);
       }
     }
@@ -770,11 +772,15 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
     // as the exception is observable.
     Node* receiver_is_array =
         CallRuntime(Runtime::kArrayIsArray, context, receiver);
-    Node* builtin_tag = SelectTaggedConstant<Object>(
-        IsTrue(receiver_is_array), LoadRoot(Heap::kArray_stringRootIndex),
-        SelectTaggedConstant<Object>(IsCallableMap(receiver_map),
-                                     LoadRoot(Heap::kFunction_stringRootIndex),
-                                     LoadRoot(Heap::kObject_stringRootIndex)));
+    TNode<String> builtin_tag = Select<String>(
+        IsTrue(receiver_is_array),
+        [=] { return CAST(LoadRoot(Heap::kArray_stringRootIndex)); },
+        [=] {
+          return Select<String>(
+              IsCallableMap(receiver_map),
+              [=] { return CAST(LoadRoot(Heap::kFunction_stringRootIndex)); },
+              [=] { return CAST(LoadRoot(Heap::kObject_stringRootIndex)); });
+        });
 
     // Lookup the @@toStringTag property on the {receiver}.
     VARIABLE(var_tag, MachineRepresentation::kTagged,
@@ -1052,7 +1058,7 @@ TF_BUILTIN(GetSuperConstructor, ObjectBuiltinsAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* context = Parameter(Descriptor::kContext);
 
-  Return(GetSuperConstructor(object, context));
+  Return(GetSuperConstructor(context, object));
 }
 
 TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
@@ -1070,8 +1076,8 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 
   Node* shared =
       LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
-  Node* bytecode_array =
-      LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
+  Node* bytecode_array = LoadSharedFunctionInfoBytecodeArray(shared);
+
   Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
   Node* size = WordSar(frame_size, IntPtrConstant(kPointerSizeLog2));
@@ -1129,9 +1135,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
       return_undefined(this, Label::kDeferred), if_notunique_name(this);
   Node* map = LoadMap(object);
   Node* instance_type = LoadMapInstanceType(map);
-  GotoIf(Int32LessThanOrEqual(instance_type,
-                              Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
-         &call_runtime);
+  GotoIf(IsSpecialReceiverInstanceType(instance_type), &call_runtime);
   {
     VARIABLE(var_index, MachineType::PointerRepresentation(),
              IntPtrConstant(0));

@@ -35,6 +35,10 @@
 #endif  // __linux__
 
 #include <unordered_set>
+#include <vector>
+// The C++ style guide recommends using <re2> instead of <regex>. However, the
+// former isn't available in V8.
+#include <regex>  // NOLINT(build/c++11)
 #include "src/api.h"
 #include "src/log-utils.h"
 #include "src/log.h"
@@ -52,10 +56,6 @@ using v8::internal::Address;
 using v8::internal::EmbeddedVector;
 using v8::internal::Logger;
 using v8::internal::StrLength;
-
-namespace internal {
-class InstructionStream;
-}
 
 namespace {
 
@@ -253,6 +253,49 @@ class ScopedLoggerInitializer {
   i::Vector<const char> log_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedLoggerInitializer);
+};
+
+class TestCodeEventHandler : public v8::CodeEventHandler {
+ public:
+  explicit TestCodeEventHandler(v8::Isolate* isolate)
+      : v8::CodeEventHandler(isolate) {}
+
+  size_t CountLines(std::string prefix, std::string suffix = std::string()) {
+    if (!log_.length()) return 0;
+
+    std::regex expression("(^|\\n)" + prefix + ".*" + suffix + "(?=\\n|$)");
+
+    size_t match_count(std::distance(
+        std::sregex_iterator(log_.begin(), log_.end(), expression),
+        std::sregex_iterator()));
+
+    return match_count;
+  }
+
+  void Handle(v8::CodeEvent* code_event) override {
+    std::string log_line = "";
+    log_line += v8::CodeEvent::GetCodeEventTypeName(code_event->GetCodeType());
+    log_line += " ";
+    log_line += FormatName(code_event);
+    log_line += "\n";
+    log_ += log_line;
+  }
+
+ private:
+  std::string FormatName(v8::CodeEvent* code_event) {
+    std::string name = std::string(code_event->GetComment());
+    if (name.empty()) {
+      v8::Local<v8::String> functionName = code_event->GetFunctionName();
+      std::string buffer(functionName->Utf8Length() + 1, 0);
+      functionName->WriteUtf8(&buffer[0], functionName->Utf8Length() + 1);
+      // Sanitize name, removing unwanted \0 resulted from WriteUtf8
+      name = std::string(buffer.c_str());
+    }
+
+    return name;
+  }
+
+  std::string log_;
 };
 
 }  // namespace
@@ -703,9 +746,7 @@ TEST(Issue539892) {
    private:
     void LogRecordedBuffer(i::AbstractCode* code, i::SharedFunctionInfo* shared,
                            const char* name, int length) override {}
-    void LogRecordedBuffer(const i::InstructionStream* stream, const char* name,
-                           int length) override {}
-    void LogRecordedBuffer(i::wasm::WasmCode* code, const char* name,
+    void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                            int length) override {}
   } code_event_logger;
   SETUP_FLAGS();
@@ -780,6 +821,124 @@ TEST(LogAll) {
       CHECK(logger.FindLine("timer-event-start", "V8.DeoptimizeCode"));
       CHECK(logger.FindLine("timer-event-end", "V8.DeoptimizeCode"));
     }
+  }
+  isolate->Dispose();
+}
+
+TEST(LogInterpretedFramesNativeStack) {
+  SETUP_FLAGS();
+  i::FLAG_interpreted_frames_native_stack = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+
+    const char* source_text =
+        "function testLogInterpretedFramesNativeStack(a,b) { return a + b };"
+        "testLogInterpretedFramesNativeStack('1', 1);";
+    CompileRun(source_text);
+
+    logger.StopLogging();
+
+    CHECK(logger.FindLine("InterpretedFunction",
+                          "testLogInterpretedFramesNativeStack"));
+  }
+  isolate->Dispose();
+}
+
+TEST(ExternalCodeEventListener) {
+  i::FLAG_log = false;
+  i::FLAG_prof = false;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    context->Enter();
+
+    TestCodeEventHandler code_event_handler(isolate);
+
+    const char* source_text_before_start =
+        "function testCodeEventListenerBeforeStart(a,b) { return a + b };"
+        "testCodeEventListenerBeforeStart('1', 1);";
+    CompileRun(source_text_before_start);
+
+    CHECK_EQ(code_event_handler.CountLines("LazyCompile",
+                                           "testCodeEventListenerBeforeStart"),
+             0);
+
+    code_event_handler.Enable();
+
+    CHECK_GE(code_event_handler.CountLines("LazyCompile",
+                                           "testCodeEventListenerBeforeStart"),
+             1);
+
+    const char* source_text_after_start =
+        "function testCodeEventListenerAfterStart(a,b) { return a + b };"
+        "testCodeEventListenerAfterStart('1', 1);";
+    CompileRun(source_text_after_start);
+
+    CHECK_GE(code_event_handler.CountLines("LazyCompile",
+                                           "testCodeEventListenerAfterStart"),
+             1);
+
+    context->Exit();
+  }
+  isolate->Dispose();
+}
+
+TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
+  i::FLAG_log = false;
+  i::FLAG_prof = false;
+  i::FLAG_interpreted_frames_native_stack = true;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    context->Enter();
+
+    TestCodeEventHandler code_event_handler(isolate);
+
+    const char* source_text_before_start =
+        "function testCodeEventListenerBeforeStart(a,b) { return a + b };"
+        "testCodeEventListenerBeforeStart('1', 1);";
+    CompileRun(source_text_before_start);
+
+    CHECK_EQ(code_event_handler.CountLines("InterpretedFunction",
+                                           "testCodeEventListenerBeforeStart"),
+             0);
+
+    code_event_handler.Enable();
+
+    CHECK_GE(code_event_handler.CountLines("InterpretedFunction",
+                                           "testCodeEventListenerBeforeStart"),
+             1);
+
+    const char* source_text_after_start =
+        "function testCodeEventListenerAfterStart(a,b) { return a + b };"
+        "testCodeEventListenerAfterStart('1', 1);";
+    CompileRun(source_text_after_start);
+
+    CHECK_GE(code_event_handler.CountLines("InterpretedFunction",
+                                           "testCodeEventListenerAfterStart"),
+             1);
+
+    CHECK_EQ(
+        code_event_handler.CountLines("Builtin", "InterpreterEntryTrampoline"),
+        1);
+
+    context->Exit();
   }
   isolate->Dispose();
 }

@@ -84,6 +84,9 @@ Depending on host platform, the selection of toolchains may vary.
 * GCC 4.9.4 or newer
 * Clang 3.4.2 or newer
 
+#### AIX
+* GCC 6.3 or newer
+
 #### Windows
 
 * Visual Studio 2017 or the Build Tools thereof
@@ -91,14 +94,16 @@ Depending on host platform, the selection of toolchains may vary.
 #### OpenSSL asm support
 
 OpenSSL-1.1.0 requires the following asssembler version for use of asm
-support.
+support on x86_64 and ia32.
 
 * gas (GNU assembler) version 2.23 or higher
 * xcode version 5.0 or higher
 * llvm version 3.3 or higher
 * nasm version 2.10 or higher in Windows
 
-Otherwise, `--openssl-no-asm` is added with warning in configure.
+Otherwise `configure` will fail with an error. This can be avoided by
+either providing a newer assembler as per the list above or by
+using the `--openssl-no-asm` flag.
 
 *Note:* The forthcoming OpenSSL-1.1.1 will require higher
  version. Please refer
@@ -128,7 +133,7 @@ More Developer Tools...`. This step will install `clang`, `clang++`, and
 If the path to your build directory contains a space, the build will likely
 fail.
 
-After building, setting up [firewall rules](tools/macosx-firewall.sh) can avoid
+After building, setting up [firewall rules](tools/macos-firewall.sh) can avoid
 popups asking to accept incoming network connections when running tests.
 
 Running the following script on macOS will add the firewall rules for the
@@ -136,7 +141,7 @@ executable `node` in the `out` directory and the symbolic `node` link in the
 project's root directory.
 
 ```console
-$ sudo ./tools/macosx-firewall.sh
+$ sudo ./tools/macos-firewall.sh
 ```
 
 On FreeBSD and OpenBSD, you may also need:
@@ -176,10 +181,10 @@ If you are running tests prior to submitting a Pull Request, the recommended
 command is:
 
 ```console
-$ make test
+$ make -j4 test
 ```
 
-`make test` does a full check on the codebase, including running linters and
+`make -j4 test` does a full check on the codebase, including running linters and
 documentation tests.
 
 Optionally, continue below.
@@ -306,7 +311,7 @@ $ make
 
 ### `Intl` (ECMA-402) support:
 
-[Intl](https://github.com/nodejs/node/wiki/Intl) support is
+[Intl](https://github.com/nodejs/node/blob/master/doc/api/intl.md) support is
 enabled by default, with English data only.
 
 #### Default: `small-icu` (English only) support
@@ -315,9 +320,6 @@ By default, only English data is included, but
 the full `Intl` (ECMA-402) APIs.  It does not need to download
 any dependencies to function. You can add full
 data at runtime.
-
-*Note:* more docs are on
-[the node wiki](https://github.com/nodejs/node/wiki/Intl).
 
 #### Build with full ICU support (all locales supported by ICU):
 
@@ -418,8 +420,9 @@ $ ./configure --link-module '/root/myModule.js' --link-module './myModule2.js'
 
 ### Windows
 
-To make `./myCustomModule.js` available via `require('myCustomModule')`.
+To make `./myModule.js` available via `require('myModule')` and
+`./myModule2.js` available via `require('myModule2')`:
 
 ```console
-> .\vcbuild link-module './myCustomModule.js'
+> .\vcbuild link-module './myModule.js' link-module './myModule2.js'
 ```

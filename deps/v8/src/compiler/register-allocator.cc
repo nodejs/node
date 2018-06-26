@@ -261,7 +261,7 @@ UsePosition::UsePosition(LifetimePosition pos, InstructionOperand* operand,
     : operand_(operand), hint_(hint), next_(nullptr), pos_(pos), flags_(0) {
   DCHECK_IMPLIES(hint == nullptr, hint_type == UsePositionHintType::kNone);
   bool register_beneficial = true;
-  UsePositionType type = UsePositionType::kAny;
+  UsePositionType type = UsePositionType::kRegisterOrSlot;
   if (operand_ != nullptr && operand_->IsUnallocated()) {
     const UnallocatedOperand* unalloc = UnallocatedOperand::cast(operand_);
     if (unalloc->HasRegisterPolicy()) {
@@ -269,8 +269,11 @@ UsePosition::UsePosition(LifetimePosition pos, InstructionOperand* operand,
     } else if (unalloc->HasSlotPolicy()) {
       type = UsePositionType::kRequiresSlot;
       register_beneficial = false;
+    } else if (unalloc->HasRegisterOrSlotOrConstantPolicy()) {
+      type = UsePositionType::kRegisterOrSlotOrConstant;
+      register_beneficial = false;
     } else {
-      register_beneficial = !unalloc->HasAnyPolicy();
+      register_beneficial = !unalloc->HasRegisterOrSlotPolicy();
     }
   }
   flags_ = TypeField::encode(type) | HintTypeField::encode(hint_type) |
@@ -714,7 +717,8 @@ void LiveRange::ConvertUsesToOperand(const InstructionOperand& op,
       case UsePositionType::kRequiresRegister:
         DCHECK(op.IsRegister() || op.IsFPRegister());
         V8_FALLTHROUGH;
-      case UsePositionType::kAny:
+      case UsePositionType::kRegisterOrSlot:
+      case UsePositionType::kRegisterOrSlotOrConstant:
         InstructionOperand::ReplaceWith(pos->operand(), &op);
         break;
     }
@@ -748,7 +752,8 @@ void LiveRange::SetUseHints(int register_index) {
       case UsePositionType::kRequiresSlot:
         break;
       case UsePositionType::kRequiresRegister:
-      case UsePositionType::kAny:
+      case UsePositionType::kRegisterOrSlot:
+      case UsePositionType::kRegisterOrSlotOrConstant:
         pos->set_assigned_register(register_index);
         break;
     }
@@ -1674,7 +1679,8 @@ void ConstraintBuilder::MeetRegisterConstraintsForLastInstructionInBlock(
         int gap_index = successor->first_instruction_index();
         // Create an unconstrained operand for the same virtual register
         // and insert a gap move from the fixed output to the operand.
-        UnallocatedOperand output_copy(UnallocatedOperand::ANY, output_vreg);
+        UnallocatedOperand output_copy(UnallocatedOperand::REGISTER_OR_SLOT,
+                                       output_vreg);
         data()->AddGapMove(gap_index, Instruction::START, *output, output_copy);
       }
     }
@@ -1715,7 +1721,8 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
     bool assigned = false;
     if (first_output->HasFixedPolicy()) {
       int output_vreg = first_output->virtual_register();
-      UnallocatedOperand output_copy(UnallocatedOperand::ANY, output_vreg);
+      UnallocatedOperand output_copy(UnallocatedOperand::REGISTER_OR_SLOT,
+                                     output_vreg);
       bool is_tagged = code()->IsReference(output_vreg);
       if (first_output->HasSecondaryStorage()) {
         range->MarkHasPreassignedSlot();
@@ -1757,7 +1764,8 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
     UnallocatedOperand* cur_input = UnallocatedOperand::cast(input);
     if (cur_input->HasFixedPolicy()) {
       int input_vreg = cur_input->virtual_register();
-      UnallocatedOperand input_copy(UnallocatedOperand::ANY, input_vreg);
+      UnallocatedOperand input_copy(UnallocatedOperand::REGISTER_OR_SLOT,
+                                    input_vreg);
       bool is_tagged = code()->IsReference(input_vreg);
       AllocateFixed(cur_input, instr_index, is_tagged);
       data()->AddGapMove(instr_index, Instruction::END, input_copy, *cur_input);
@@ -1774,7 +1782,8 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
         UnallocatedOperand::cast(second->InputAt(0));
     int output_vreg = second_output->virtual_register();
     int input_vreg = cur_input->virtual_register();
-    UnallocatedOperand input_copy(UnallocatedOperand::ANY, input_vreg);
+    UnallocatedOperand input_copy(UnallocatedOperand::REGISTER_OR_SLOT,
+                                  input_vreg);
     *cur_input =
         UnallocatedOperand(*cur_input, second_output->virtual_register());
     MoveOperands* gap_move = data()->AddGapMove(instr_index, Instruction::END,
@@ -1816,7 +1825,8 @@ void ConstraintBuilder::ResolvePhis(const InstructionBlock* block) {
     for (size_t i = 0; i < phi->operands().size(); ++i) {
       InstructionBlock* cur_block =
           code()->InstructionBlockAt(block->predecessors()[i]);
-      UnallocatedOperand input(UnallocatedOperand::ANY, phi->operands()[i]);
+      UnallocatedOperand input(UnallocatedOperand::REGISTER_OR_SLOT,
+                               phi->operands()[i]);
       MoveOperands* move = data()->AddGapMove(
           cur_block->last_instruction_index(), Instruction::END, input, output);
       map_value->AddOperand(&move->destination());
@@ -2410,8 +2420,11 @@ void LiveRangeBuilder::BuildLiveRanges() {
     if (range->HasSpillOperand() && range->GetSpillOperand()->IsConstant()) {
       for (UsePosition* pos = range->first_pos(); pos != nullptr;
            pos = pos->next()) {
-        if (pos->type() == UsePositionType::kRequiresSlot) continue;
-        UsePositionType new_type = UsePositionType::kAny;
+        if (pos->type() == UsePositionType::kRequiresSlot ||
+            pos->type() == UsePositionType::kRegisterOrSlotOrConstant) {
+          continue;
+        }
+        UsePositionType new_type = UsePositionType::kRegisterOrSlot;
         // Can't mark phis as needing a register.
         if (!pos->pos().IsGapPosition()) {
           new_type = UsePositionType::kRequiresRegister;
@@ -2639,7 +2652,7 @@ LifetimePosition RegisterAllocator::FindOptimalSplitPos(LifetimePosition start,
                                                         LifetimePosition end) {
   int start_instr = start.ToInstructionIndex();
   int end_instr = end.ToInstructionIndex();
-  DCHECK(start_instr <= end_instr);
+  DCHECK_LE(start_instr, end_instr);
 
   // We have no choice
   if (start_instr == end_instr) return end;

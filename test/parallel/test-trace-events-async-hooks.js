@@ -3,6 +3,10 @@ const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
+const util = require('util');
+
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
 const CODE =
   'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1)';
@@ -38,8 +42,6 @@ proc.once('exit', common.mustCall(() => {
         return false;
       if (trace.cat !== 'node,node.async_hooks')
         return false;
-      if (trace.name !== 'TIMERWRAP')
-        return false;
       return true;
     }));
 
@@ -58,9 +60,9 @@ proc.once('exit', common.mustCall(() => {
     const initEvents = traces.filter((trace) => {
       return (trace.ph === 'b' && !trace.name.includes('_CALLBACK'));
     });
-    assert(initEvents.every((trace) => {
+    assert.ok(initEvents.every((trace) => {
       return (trace.args.executionAsyncId > 0 &&
               trace.args.triggerAsyncId > 0);
-    }));
+    }), `Unexpected initEvents format: ${util.inspect(initEvents)}`);
   }));
 }));

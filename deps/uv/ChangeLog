@@ -1,3 +1,155 @@
+2018.06.23, Version 1.21.0 (Stable), e4983a9b0c152932f7553ff4a9ff189d2314cdcb
+
+Changes since version 1.20.3:
+
+* unix,windows: map EFTYPE errno (cjihrig)
+
+* win: perform case insensitive PATH= comparison (cjihrig)
+
+* win, fs: uv_fs_fchmod support for -A files (Bartosz Sosnowski)
+
+* src,lib: fix comments (Tobias Nießen)
+
+* win,process: allow child pipe handles to be opened in overlapped mode (Björn
+  Linse)
+
+* src,test: fix idiosyncratic comment style (Bert Belder)
+
+* test: fs_fchmod_archive_readonly must return a value (Bert Belder)
+
+* win,pipe: fix incorrect error code returned from uv_pipe_write_impl() (Bert
+  Belder)
+
+* win,pipe: properly set uv_write_t.send_handle in uv_write2() (Bert Belder)
+
+* test: add vectored uv_write() ping-pong tests (Bert Belder)
+
+* win,pipe: support vectored uv_write() calls (Bert Belder)
+
+* win,pipe: refactor pipe read cancellation logic (Bert Belder)
+
+* test: improve output from IPC test helpers (Bert Belder)
+
+* test: add test for IPC deadlock on Windows (
+
+* win,pipe: fix IPC pipe deadlock (Bert Belder)
+
+* unix: catch some cases of watching fd twice (Ben Noordhuis)
+
+* test: use custom timeout for getaddrinfo_fail_sync (Ben Noordhuis)
+
+* Revert "win: add Windows XP support to uv_if_indextoname()" (Bert Belder)
+
+* win,thread: remove fallback uv_cond implementation (Bert Belder)
+
+* src,test: s/olny/only (cjihrig)
+
+* unix: close signal pipe fds on unload (Ben Noordhuis)
+
+* win: allow setting udp socket options before bind (cjihrig)
+
+* unix: return UV_ENOTSUP on FICLONE_FORCE failure (cjihrig)
+
+* win,pipe: remove unreferenced local variable (Bert Belder)
+
+* win,code: remove GetQueuedCompletionStatus-based poller (Bert Belder)
+
+* win: remove the remaining dynamic kernel32 imports (Bert Belder)
+
+* test: speedup process-title-threadsafe on macOS (cjihrig)
+
+* core: move all include files except uv.h to uv/ (Saúl Ibarra Corretgé)
+
+* win: move stdint-msvc2008.h to include/uv/ (Ben Noordhuis)
+
+* build: fix cygwin install (Ben Noordhuis)
+
+* build,win: remove MinGW Makefile (Saúl Ibarra Corretgé)
+
+* build: add a cmake build file (Ben Noordhuis)
+
+* build: add test suite option to cmake build (Ben Noordhuis)
+
+* unix: set errno in uv_fs_copyfile() (cjihrig)
+
+* samples: fix inconsistency in parse_opts vs usage (zyxwvu Shi)
+
+* linux: handle exclusive POLLHUP with UV_DISCONNECT (Brad King)
+
+* include: declare uv_cpu_times_s in higher scope (Peter Johnson)
+
+* doc: add uv_fs_fsync() AIX limitations (jBarz)
+
+* unix,win: add uv_fs_lchown() (Paolo Greppi)
+
+* unix: disable clang variable length array warning (Peter Johnson)
+
+* doc: document uv_pipe_t::ipc (Ed Schouten)
+
+* doc: undocument uv_req_type's UV_REQ_TYPE_PRIVATE (Ed Schouten)
+
+* doc: document UV_*_MAP() macros (Ed Schouten)
+
+* win: remove use of min() macro in pipe.c (Peter Johnson)
+
+* doc: add jbarz as maintainer (
+
+
+2018.05.08, Version 1.20.3 (Stable), 8cfd67e59195251dff793ee47c185c9d6a8f3818
+
+Changes since version 1.20.2:
+
+* win: add Windows XP support to uv_if_indextoname() (ssrlive)
+
+* win: fix `'floor' undefined` compiler warning (ssrlive)
+
+* win, pipe: stop read for overlapped pipe (Bartosz Sosnowski)
+
+* build: fix utf-8 name of copyright holder (Jérémy Lal)
+
+* zos: initialize pollfd revents (jBarz)
+
+* zos,doc: add system V message queue note (jBarz)
+
+* linux: don't use uv__nonblock_ioctl() on sparc (Ben Noordhuis)
+
+
+2018.04.23, Version 1.20.2 (Stable), c51fd3f66bbb386a1efdeba6812789f35a372d1e
+
+Changes since version 1.20.1:
+
+* zos: use custom semaphore (jBarz)
+
+* win: fix registry API error handling (Kyle Farnung)
+
+* build: add support for 64-bit AIX (Richard Lau)
+
+* aix: guard STATIC_ASSERT for glibc work around (Richard Lau)
+
+
+2018.04.19, Version 1.20.1 (Stable), 36ac2fc8edfd5ff3e9be529be1d4a3f0d5364e94
+
+Changes since version 1.20.0:
+
+* doc,fs: improve documentation (Bob Burger)
+
+* win: return a floored double from uv_uptime() (Refael Ackermann)
+
+* doc: clarify platform specific pipe naming (Thomas Versteeg)
+
+* unix: fix uv_pipe_chmod() on macOS (zzzjim)
+
+* unix: work around glibc semaphore race condition (Anna Henningsen)
+
+* tcp,openbsd: disable Unix TCP check for IPV6_ONLY (Alex Arslan)
+
+* test,openbsd: use RETURN_SKIP in UDP IPv6 tests (Alex Arslan)
+
+* test,openbsd: fix multicast test (Alex Arslan)
+
+* Revert "win, fs: use FILE_WRITE_ATTRIBUTES when opening files" (cjihrig)
+
+
 2018.04.03, Version 1.20.0 (Stable), 0012178ee2b04d9e4a2c66c27cf8891ad8325ceb
 
 Changes since version 1.19.2:

@@ -33,6 +33,8 @@
 
 namespace node {
 
+// TODO(addaleax): Use real inheritance for the JS object templates to avoid
+// this unnecessary case switching.
 #define WITH_GENERIC_UV_STREAM(env, obj, BODY, ELSE)                          \
     do {                                                                      \
       if (env->tcp_constructor_template().IsEmpty() == false &&               \

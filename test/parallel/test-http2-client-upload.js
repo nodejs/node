@@ -11,7 +11,7 @@ const fs = require('fs');
 const fixtures = require('../common/fixtures');
 const Countdown = require('../common/countdown');
 
-const loc = fixtures.path('person.jpg');
+const loc = fixtures.path('person-large.jpg');
 let fileData;
 
 assert(fs.existsSync(loc));

@@ -26,7 +26,7 @@ const obs = new PerformanceObserver(common.mustCall((items) => {
       switch (entry.type) {
         case 'server':
           assert.strictEqual(entry.streamCount, 1);
-          assert.strictEqual(entry.framesReceived, 5);
+          assert(entry.framesReceived >= 3);
           break;
         case 'client':
           assert.strictEqual(entry.streamCount, 1);

@@ -16,14 +16,16 @@ namespace internal {
 namespace compiler {
 
 MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
-                                 LoadPoisoning load_poisoning)
+                                 PoisoningMitigationLevel poisoning_enabled,
+                                 AllocationFolding allocation_folding)
     : jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
       pending_(zone),
       tokens_(zone),
       zone_(zone),
       graph_assembler_(jsgraph, nullptr, nullptr, zone),
-      load_poisoning_(load_poisoning) {}
+      poisoning_enabled_(poisoning_enabled),
+      allocation_folding_(allocation_folding) {}
 
 void MemoryOptimizer::Optimize() {
   EnqueueUses(graph()->start(), empty_state());
@@ -172,7 +174,8 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
   Int32Matcher m(size);
   if (m.HasValue() && m.Value() < kMaxRegularHeapObjectSize) {
     int32_t const object_size = m.Value();
-    if (state->size() <= kMaxRegularHeapObjectSize - object_size &&
+    if (allocation_folding_ == AllocationFolding::kDoAllocationFolding &&
+        state->size() <= kMaxRegularHeapObjectSize - object_size &&
         state->group()->pretenure() == pretenure) {
       // We can fold this Allocate {node} into the allocation {group}
       // represented by the given {state}. Compute the upper bound for
@@ -181,7 +184,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
       // Update the reservation check to the actual maximum upper bound.
       AllocationGroup* const group = state->group();
-      if (OpParameter<int32_t>(group->size()) < state_size) {
+      if (OpParameter<int32_t>(group->size()->op()) < state_size) {
         NodeProperties::ChangeOp(group->size(),
                                  common()->Int32Constant(state_size));
       }
@@ -350,7 +353,7 @@ void MemoryOptimizer::VisitLoadElement(Node* node,
   ElementAccess const& access = ElementAccessOf(node->op());
   Node* index = node->InputAt(1);
   node->ReplaceInput(1, ComputeIndex(access, index));
-  if (load_poisoning_ == LoadPoisoning::kDoPoison &&
+  if (poisoning_enabled_ == PoisoningMitigationLevel::kOn &&
       access.machine_type.representation() !=
           MachineRepresentation::kTaggedPointer) {
     NodeProperties::ChangeOp(node,
@@ -366,7 +369,7 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   FieldAccess const& access = FieldAccessOf(node->op());
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
-  if (load_poisoning_ == LoadPoisoning::kDoPoison &&
+  if (poisoning_enabled_ == PoisoningMitigationLevel::kOn &&
       access.machine_type.representation() !=
           MachineRepresentation::kTaggedPointer) {
     NodeProperties::ChangeOp(node,

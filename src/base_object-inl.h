@@ -31,53 +31,105 @@
 
 namespace node {
 
-inline BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
-    : persistent_handle_(env->isolate(), handle),
+BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> object)
+    : persistent_handle_(env->isolate(), object),
       env_(env) {
-  CHECK_EQ(false, handle.IsEmpty());
-  // The zero field holds a pointer to the handle. Immediately set it to
-  // nullptr in case it's accessed by the user before construction is complete.
-  if (handle->InternalFieldCount() > 0)
-    handle->SetAlignedPointerInInternalField(0, nullptr);
+  CHECK_EQ(false, object.IsEmpty());
+  CHECK_GT(object->InternalFieldCount(), 0);
+  object->SetAlignedPointerInInternalField(0, static_cast<void*>(this));
+  env_->AddCleanupHook(DeleteMe, static_cast<void*>(this));
 }
 
 
-inline Persistent<v8::Object>& BaseObject::persistent() {
+BaseObject::~BaseObject() {
+  env_->RemoveCleanupHook(DeleteMe, static_cast<void*>(this));
+
+  if (persistent_handle_.IsEmpty()) {
+    // This most likely happened because the weak callback below cleared it.
+    return;
+  }
+
+  {
+    v8::HandleScope handle_scope(env_->isolate());
+    object()->SetAlignedPointerInInternalField(0, nullptr);
+  }
+}
+
+
+Persistent<v8::Object>& BaseObject::persistent() {
   return persistent_handle_;
 }
 
 
-inline v8::Local<v8::Object> BaseObject::object() {
+v8::Local<v8::Object> BaseObject::object() {
   return PersistentToLocal(env_->isolate(), persistent_handle_);
 }
 
+v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) {
+  v8::Local<v8::Object> handle = object();
+#ifdef DEBUG
+  CHECK_EQ(handle->CreationContext()->GetIsolate(), isolate);
+  CHECK_EQ(env_->isolate(), isolate);
+#endif
+  return handle;
+}
 
-inline Environment* BaseObject::env() const {
+Environment* BaseObject::env() const {
   return env_;
 }
 
 
-template <typename Type>
-inline void BaseObject::WeakCallback(
-    const v8::WeakCallbackInfo<Type>& data) {
-  delete data.GetParameter();
+BaseObject* BaseObject::FromJSObject(v8::Local<v8::Object> obj) {
+  CHECK_GT(obj->InternalFieldCount(), 0);
+  return static_cast<BaseObject*>(obj->GetAlignedPointerFromInternalField(0));
 }
 
 
-template <typename Type>
-inline void BaseObject::MakeWeak(Type* ptr) {
-  v8::HandleScope scope(env_->isolate());
-  v8::Local<v8::Object> handle = object();
-  CHECK_GT(handle->InternalFieldCount(), 0);
-  Wrap(handle, ptr);
-  persistent_handle_.MarkIndependent();
-  persistent_handle_.SetWeak<Type>(ptr, WeakCallback<Type>,
-                                   v8::WeakCallbackType::kParameter);
+template <typename T>
+T* BaseObject::FromJSObject(v8::Local<v8::Object> object) {
+  return static_cast<T*>(FromJSObject(object));
 }
 
 
-inline void BaseObject::ClearWeak() {
+void BaseObject::DeleteMe(void* data) {
+  BaseObject* self = static_cast<BaseObject*>(data);
+  delete self;
+}
+
+
+void BaseObject::MakeWeak() {
+  persistent_handle_.SetWeak(
+      this,
+      [](const v8::WeakCallbackInfo<BaseObject>& data) {
+        BaseObject* obj = data.GetParameter();
+        // Clear the persistent handle so that ~BaseObject() doesn't attempt
+        // to mess with internal fields, since the JS object may have
+        // transitioned into an invalid state.
+        // Refs: https://github.com/nodejs/node/issues/18897
+        obj->persistent_handle_.Reset();
+        delete obj;
+      }, v8::WeakCallbackType::kParameter);
+}
+
+
+void BaseObject::ClearWeak() {
   persistent_handle_.ClearWeak();
+}
+
+
+v8::Local<v8::FunctionTemplate>
+BaseObject::MakeLazilyInitializedJSTemplate(Environment* env) {
+  auto constructor = [](const v8::FunctionCallbackInfo<v8::Value>& args) {
+#ifdef DEBUG
+    CHECK(args.IsConstructCall());
+    CHECK_GT(args.This()->InternalFieldCount(), 0);
+#endif
+    args.This()->SetAlignedPointerInInternalField(0, nullptr);
+  };
+
+  v8::Local<v8::FunctionTemplate> t = env->NewFunctionTemplate(constructor);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
+  return t;
 }
 
 }  // namespace node

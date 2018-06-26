@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 
+#include "include/v8-profiler.h"
 #include "src/allocation.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/platform/elapsed-timer.h"
@@ -87,11 +88,34 @@ class WasmCode;
     if (logger->is_logging()) logger->Call;             \
   } while (false)
 
-#define LOG_CODE_EVENT(isolate, Call)                   \
-  do {                                                  \
-    v8::internal::Logger* logger = (isolate)->logger(); \
-    if (logger->is_logging_code_events()) logger->Call; \
+#define LOG_CODE_EVENT(isolate, Call)                        \
+  do {                                                       \
+    v8::internal::Logger* logger = (isolate)->logger();      \
+    if (logger->is_listening_to_code_events()) logger->Call; \
   } while (false)
+
+class ExistingCodeLogger {
+ public:
+  explicit ExistingCodeLogger(Isolate* isolate,
+                              CodeEventListener* listener = nullptr)
+      : isolate_(isolate), listener_(listener) {}
+
+  void LogCodeObjects();
+  void LogBytecodeHandlers();
+
+  void LogCompiledFunctions();
+  void LogExistingFunction(Handle<SharedFunctionInfo> shared,
+                           Handle<AbstractCode> code,
+                           CodeEventListener::LogEventsAndTags tag =
+                               CodeEventListener::LAZY_COMPILE_TAG);
+  void LogCodeObject(Object* object);
+  void LogBytecodeHandler(interpreter::Bytecode bytecode,
+                          interpreter::OperandScale operand_scale, Code* code);
+
+ private:
+  Isolate* isolate_;
+  CodeEventListener* listener_;
+};
 
 class Logger : public CodeEventListener {
  public:
@@ -182,20 +206,19 @@ class Logger : public CodeEventListener {
                        AbstractCode* code, SharedFunctionInfo* shared,
                        Name* source, int line, int column);
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       wasm::WasmCode* code, wasm::WasmName name);
+                       const wasm::WasmCode* code, wasm::WasmName name);
   // Emits a code deoptimization event.
   void CodeDisableOptEvent(AbstractCode* code, SharedFunctionInfo* shared);
   void CodeMovingGCEvent();
   // Emits a code create event for a RegExp.
   void RegExpCodeCreateEvent(AbstractCode* code, String* source);
-  void InstructionStreamCreateEvent(LogEventsAndTags tag,
-                                    const InstructionStream* stream,
-                                    const char* description);
   // Emits a code move event.
   void CodeMoveEvent(AbstractCode* from, Address to);
   // Emits a code line info record event.
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray* source_position_table);
+  void CodeLinePosInfoRecordEvent(Address code_start,
+                                  Vector<const byte> source_position_table);
 
   void SharedFunctionInfoMoveEvent(Address from, Address to);
 
@@ -234,7 +257,7 @@ class Logger : public CodeEventListener {
     return is_logging_;
   }
 
-  bool is_logging_code_events() {
+  bool is_listening_to_code_events() {
     return is_logging() || jit_logger_ != nullptr;
   }
 
@@ -267,9 +290,6 @@ class Logger : public CodeEventListener {
 
   // Used for logging stubs found in the snapshot.
   void LogCodeObject(Object* code_object);
-
-  // Used for logging off-heap instruction streams.
-  void LogInstructionStream(Code* code, const InstructionStream* stream);
 
  private:
   explicit Logger(Isolate* isolate);
@@ -336,6 +356,8 @@ class Logger : public CodeEventListener {
   // 'true' between SetUp() and TearDown().
   bool is_initialized_;
 
+  ExistingCodeLogger existing_code_logger_;
+
   base::ElapsedTimer timer_;
 
   friend class CpuProfiler;
@@ -393,13 +415,10 @@ class CodeEventLogger : public CodeEventListener {
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        SharedFunctionInfo* shared, Name* source, int line,
                        int column) override;
-  void CodeCreateEvent(LogEventsAndTags tag, wasm::WasmCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name) override;
 
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
-  void InstructionStreamCreateEvent(LogEventsAndTags tag,
-                                    const InstructionStream* stream,
-                                    const char* description) override;
   void CallbackEvent(Name* name, Address entry_point) override {}
   void GetterCallbackEvent(Name* name, Address entry_point) override {}
   void SetterCallbackEvent(Name* name, Address entry_point) override {}
@@ -413,14 +432,64 @@ class CodeEventLogger : public CodeEventListener {
 
   virtual void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo* shared,
                                  const char* name, int length) = 0;
-  virtual void LogRecordedBuffer(const InstructionStream* stream,
-                                 const char* name, int length) = 0;
-  virtual void LogRecordedBuffer(wasm::WasmCode* code, const char* name,
+  virtual void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                  int length) = 0;
 
   NameBuffer* name_buffer_;
 };
 
+struct CodeEvent {
+  uintptr_t code_start_address;
+  size_t code_size;
+  Handle<String> function_name;
+  Handle<String> script_name;
+  int script_line;
+  int script_column;
+  CodeEventType code_type;
+  const char* comment;
+};
+
+class ExternalCodeEventListener : public CodeEventListener {
+ public:
+  explicit ExternalCodeEventListener(Isolate* isolate);
+  ~ExternalCodeEventListener() override;
+
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       const char* comment) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       Name* name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, Name* name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, Name* source, int line,
+                       int column) override;
+  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
+                       wasm::WasmName name) override;
+
+  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
+  void CallbackEvent(Name* name, Address entry_point) override {}
+  void GetterCallbackEvent(Name* name, Address entry_point) override {}
+  void SetterCallbackEvent(Name* name, Address entry_point) override {}
+  void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void CodeMoveEvent(AbstractCode* from, Address to) override {}
+  void CodeDisableOptEvent(AbstractCode* code,
+                           SharedFunctionInfo* shared) override {}
+  void CodeMovingGCEvent() override {}
+  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+                      int fp_to_sp_delta) override {}
+
+  void StartListening(CodeEventHandler* code_event_handler);
+  void StopListening();
+
+  bool is_listening_to_code_events() override { return true; }
+
+ private:
+  void LogExistingCode();
+
+  bool is_listening_;
+  Isolate* isolate_;
+  v8::CodeEventHandler* code_event_handler_;
+};
 
 }  // namespace internal
 }  // namespace v8

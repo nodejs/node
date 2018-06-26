@@ -131,6 +131,9 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21316
+    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -153,7 +156,7 @@ changes:
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `false`.
+    normally be created on Windows systems. **Default:** `true`.
 * `callback` {Function} called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -211,7 +214,7 @@ Unlike the exec(3) POSIX system call, `child_process.exec()` does not replace
 the existing process and uses a shell to execute the command.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a Promise for an object with `stdout` and `stderr` properties. In case of an
+a `Promise` for an `Object` with `stdout` and `stderr` properties. In case of an
 error (including any error resulting in an exit code other than 0), a rejected
 promise is returned, with the same `error` object given in the callback, but
 with an additional two properties `stdout` and `stderr`.
@@ -232,6 +235,9 @@ lsExample();
 <!-- YAML
 added: v0.1.91
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21316
+    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -251,7 +257,7 @@ changes:
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `false`.
+    normally be created on Windows systems. **Default:** `true`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
@@ -290,7 +296,7 @@ stderr output. If `encoding` is `'buffer'`, or an unrecognized character
 encoding, `Buffer` objects will be passed to the callback instead.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a Promise for an object with `stdout` and `stderr` properties. In case of an
+a `Promise` for an `Object` with `stdout` and `stderr` properties. In case of an
 error (including any error resulting in an exit code other than 0), a rejected
 promise is returned, with the same `error` object given in the
 callback, but with an additional two properties `stdout` and `stderr`.
@@ -375,6 +381,9 @@ The `shell` option available in [`child_process.spawn()`][] is not supported by
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21316
+    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -408,7 +417,7 @@ changes:
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `false`.
+    normally be created on Windows systems. **Default:** `true`.
 * Returns: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
@@ -456,7 +465,6 @@ ls.on('close', (code) => {
 });
 ```
 
-
 Example: A very elaborate way to run `ps ax | grep ssh`
 
 ```js
@@ -493,7 +501,6 @@ grep.on('close', (code) => {
   }
 });
 ```
-
 
 Example of checking for failed `spawn`:
 
@@ -654,7 +661,13 @@ child registers an event handler for the [`'disconnect'`][] event
 or the [`'message'`][] event. This allows the child to exit
 normally without the process being held open by the open IPC channel.*
 
-See also: [`child_process.exec()`][] and [`child_process.fork()`][]
+On UNIX-like operating systems, the [`child_process.spawn()`][] method
+performs memory operations synchronously before decoupling the event loop
+from the child. Applications with a large memory footprint may find frequent
+[`child_process.spawn()`][] calls to be a bottleneck. For more information,
+see [V8 issue 7381](https://bugs.chromium.org/p/v8/issues/detail?id=7381).
+
+See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 
 ## Synchronous Process Creation
 
@@ -671,6 +684,9 @@ configuration at startup.
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21316
+    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -704,7 +720,7 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `false`.
+    normally be created on Windows systems. **Default:** `true`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
@@ -733,6 +749,9 @@ arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21316
+    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -765,7 +784,7 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `false`.
+    normally be created on Windows systems. **Default:** `true`.
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execSync()` method is generally identical to
@@ -778,7 +797,7 @@ process has exited.*
 
 If the process times out or has a non-zero exit code, this method ***will***
 throw. The [`Error`][] object will contain the entire result from
-[`child_process.spawnSync()`][]
+[`child_process.spawnSync()`][].
 
 **Never pass unsanitized user input to this function. Any input containing shell
 metacharacters may be used to trigger arbitrary command execution.**
@@ -787,6 +806,9 @@ metacharacters may be used to trigger arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21316
+    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -828,7 +850,7 @@ changes:
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `false`.
+    normally be created on Windows systems. **Default:** `true`.
 * Returns: {Object}
   * `pid` {number} Pid of the child process.
   * `output` {Array} Array of results from stdio output.
@@ -1058,7 +1080,7 @@ does not indicate that the child process has been terminated.
 added: v0.1.90
 -->
 
-* {number} Integer
+* {integer}
 
 Returns the process identifier (PID) of the child process.
 

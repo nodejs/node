@@ -77,5 +77,22 @@ TEST(DisposeCollect) {
   CHECK(deleted2);
 }
 
+TEST(CollectOnGC) {
+  i::Isolate* i_isolate = CcTest::InitIsolateOnce();
+
+  bool deleted = false;
+  {
+    HandleScope scope(i_isolate);
+    Managed<DeleteRecorder>::Allocate(i_isolate, &deleted);
+  }
+  // TODO(ulan): It should be possible to trigger a normal gc before the
+  // "critical" one, and the "critical" one should still process pending
+  // second-pass phantom callbacks (crbug.com/v8/7628).
+  // CcTest::CollectAllGarbage();
+  CcTest::CollectAllAvailableGarbage();
+
+  CHECK(deleted);
+}
+
 }  // namespace internal
 }  // namespace v8

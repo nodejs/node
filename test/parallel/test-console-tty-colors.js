@@ -44,3 +44,27 @@ check(true, true, true);
 check(false, true, true);
 check(true, false, false);
 check(false, false, false);
+
+// check invalid colorMode type
+{
+  const stream = new Writable({
+    write: common.mustNotCall()
+  });
+
+  [0, 'true', null, {}, [], () => {}].forEach((colorMode) => {
+    const received = util.inspect(colorMode);
+    assert.throws(
+      () => {
+        new Console({
+          stdout: stream,
+          ignoreErrors: false,
+          colorMode: colorMode
+        });
+      },
+      {
+        message: `The argument 'colorMode' is invalid. Received ${received}`,
+        code: 'ERR_INVALID_ARG_VALUE'
+      }
+    );
+  });
+}

@@ -22,6 +22,9 @@ module.exports = {
             {
                 type: "object",
                 properties: {
+                    ignoreDestructuring: {
+                        type: "boolean"
+                    },
                     properties: {
                         enum: ["always", "never"]
                     }
@@ -58,6 +61,26 @@ module.exports = {
         }
 
         /**
+         * Checks if a parent of a node is an ObjectPattern.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} if the node is inside an ObjectPattern
+         * @private
+         */
+        function isInsideObjectPattern(node) {
+            let { parent } = node;
+
+            while (parent) {
+                if (parent.type === "ObjectPattern") {
+                    return true;
+                }
+
+                parent = parent.parent;
+            }
+
+            return false;
+        }
+
+        /**
          * Reports an AST node as a rule violation.
          * @param {ASTNode} node The node to report.
          * @returns {void}
@@ -72,6 +95,7 @@ module.exports = {
 
         const options = context.options[0] || {};
         let properties = options.properties || "";
+        const ignoreDestructuring = options.ignoreDestructuring || false;
 
         if (properties !== "always" && properties !== "never") {
             properties = "always";
@@ -113,24 +137,28 @@ module.exports = {
                 } else if (node.parent.type === "Property" || node.parent.type === "AssignmentPattern") {
 
                     if (node.parent.parent && node.parent.parent.type === "ObjectPattern") {
-
                         if (node.parent.shorthand && node.parent.value.left && isUnderscored(name)) {
 
                             report(node);
                         }
 
+                        const assignmentKeyEqualsValue = node.parent.key.name === node.parent.value.name;
+
                         // prevent checking righthand side of destructured object
-                        if (node.parent.key === node && node.parent.value !== node) {
+                        if (!assignmentKeyEqualsValue && node.parent.key === node) {
                             return;
                         }
 
-                        if (node.parent.value.name && isUnderscored(name)) {
+                        const valueIsUnderscored = node.parent.value.name && isUnderscored(name);
+
+                        // ignore destructuring if the option is set, unless a new identifier is created
+                        if (valueIsUnderscored && !(assignmentKeyEqualsValue && ignoreDestructuring)) {
                             report(node);
                         }
                     }
 
-                    // "never" check properties
-                    if (properties === "never") {
+                    // "never" check properties or always ignore destructuring
+                    if (properties === "never" || (ignoreDestructuring && isInsideObjectPattern(node))) {
                         return;
                     }
 

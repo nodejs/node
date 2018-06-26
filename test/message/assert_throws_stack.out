@@ -1,6 +1,6 @@
 assert.js:*
-  throw new AssertionError(obj);
-  ^
+      throw err;
+      ^
 
 AssertionError [ERR_ASSERTION]: Input A expected to strictly deep-equal input B:
 + expected - actual

@@ -24,5 +24,6 @@
   "shell": "命令行解释器",
   "package": "包",
   "npx: installed %s in %ss": "npx: %s 安装成功，用时 %s 秒",
-  "Suppress output from npx itself. Subcommands will not be affected.": "隐藏 npx 的输出，子命令不会受到影响"
+  "Suppress output from npx itself. Subcommands will not be affected.": "隐藏 npx 的输出，子命令不会受到影响",
+  "Extra node argument when calling a node binary.": "调用 node 二进制时使用额外的 node 参数。"
 }

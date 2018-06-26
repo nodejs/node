@@ -109,6 +109,11 @@ Data types
             */
             UV_READABLE_PIPE = 0x10,
             UV_WRITABLE_PIPE = 0x20
+            /*
+             * Open the child pipe handle in overlapped mode on Windows.
+             * On Unix it is silently ignored.
+             */
+            UV_OVERLAPPED_PIPE = 0x40
         } uv_stdio_flags;
 
 

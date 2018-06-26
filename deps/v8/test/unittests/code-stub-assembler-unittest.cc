@@ -32,7 +32,7 @@ CodeStubAssemblerTestState::CodeStubAssemblerTestState(
     CodeStubAssemblerTest* test)
     : compiler::CodeAssemblerState(test->isolate(), test->zone(),
                                    VoidDescriptor(test->isolate()), Code::STUB,
-                                   "test") {}
+                                   "test", PoisoningMitigationLevel::kOn) {}
 
 TARGET_TEST_F(CodeStubAssemblerTest, SmiTag) {
   CodeStubAssemblerTestState state(this);

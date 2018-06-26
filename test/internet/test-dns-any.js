@@ -9,6 +9,9 @@ const net = require('net');
 let running = false;
 const queue = [];
 
+common.crashOnUnhandledRejection();
+
+const dnsPromises = dns.promises;
 const isIPv4 = net.isIPv4;
 const isIPv6 = net.isIPv6;
 
@@ -101,93 +104,95 @@ function TEST(f) {
   }
 }
 
-TEST(function test_google(done) {
+function processResult(res) {
+  assert.ok(Array.isArray(res));
+  assert.ok(res.length > 0);
+
+  const types = {};
+  res.forEach((obj) => {
+    types[obj.type] = true;
+    checkers[`check${obj.type}`](obj);
+  });
+
+  return types;
+}
+
+TEST(async function test_google(done) {
+  function validateResult(res) {
+    const types = processResult(res);
+    assert.ok(
+      types.A && types.AAAA && types.MX &&
+      types.NS && types.TXT && types.SOA);
+  }
+
+  validateResult(await dnsPromises.resolve('google.com', 'ANY'));
+
   const req = dns.resolve(
     'google.com',
     'ANY',
     common.mustCall(function(err, ret) {
       assert.ifError(err);
-      assert.ok(Array.isArray(ret));
-      assert.ok(ret.length > 0);
-
-      /* current google.com has A / AAAA / MX / NS / TXT and SOA records */
-      const types = {};
-      ret.forEach((obj) => {
-        types[obj.type] = true;
-        checkers[`check${obj.type}`](obj);
-      });
-      assert.ok(
-        types.A && types.AAAA && types.MX &&
-        types.NS && types.TXT && types.SOA);
-
+      validateResult(ret);
       done();
     }));
 
   checkWrap(req);
 });
 
-TEST(function test_sip2sip_for_naptr(done) {
+TEST(async function test_sip2sip_for_naptr(done) {
+  function validateResult(res) {
+    const types = processResult(res);
+    assert.ok(types.A && types.NS && types.NAPTR && types.SOA);
+  }
+
+  validateResult(await dnsPromises.resolve('sip2sip.info', 'ANY'));
+
   const req = dns.resolve(
     'sip2sip.info',
     'ANY',
     common.mustCall(function(err, ret) {
       assert.ifError(err);
-      assert.ok(Array.isArray(ret));
-      assert.ok(ret.length > 0);
-
-      /* current sip2sip.info has A / NS / NAPTR and SOA records */
-      const types = {};
-      ret.forEach((obj) => {
-        types[obj.type] = true;
-        checkers[`check${obj.type}`](obj);
-      });
-      assert.ok(types.A && types.NS && types.NAPTR && types.SOA);
-
+      validateResult(ret);
       done();
     }));
 
   checkWrap(req);
 });
 
-TEST(function test_google_for_cname_and_srv(done) {
+TEST(async function test_google_for_cname_and_srv(done) {
+  function validateResult(res) {
+    const types = processResult(res);
+    assert.ok(types.SRV);
+  }
+
+  validateResult(await dnsPromises.resolve('_jabber._tcp.google.com', 'ANY'));
+
   const req = dns.resolve(
     '_jabber._tcp.google.com',
     'ANY',
     common.mustCall(function(err, ret) {
       assert.ifError(err);
-      assert.ok(Array.isArray(ret));
-      assert.ok(ret.length > 0);
-
-      const types = {};
-      ret.forEach((obj) => {
-        types[obj.type] = true;
-        checkers[`check${obj.type}`](obj);
-      });
-      assert.ok(types.SRV);
-
+      validateResult(ret);
       done();
     }));
 
   checkWrap(req);
 });
 
-TEST(function test_ptr(done) {
+TEST(async function test_ptr(done) {
+  function validateResult(res) {
+    const types = processResult(res);
+    assert.ok(types.PTR);
+  }
+
+  validateResult(await dnsPromises.resolve('8.8.8.8.in-addr.arpa', 'ANY'));
+
   const req = dns.resolve(
     '8.8.8.8.in-addr.arpa',
     'ANY',
     common.mustCall(function(err, ret) {
       assert.ifError(err);
-      assert.ok(Array.isArray(ret));
-      assert.ok(ret.length > 0);
-
-      /* current 8.8.8.8.in-addr.arpa has PTR record */
-      const types = {};
-      ret.forEach((obj) => {
-        types[obj.type] = true;
-        checkers[`check${obj.type}`](obj);
-      });
-      assert.ok(types.PTR);
-
+      validateResult(ret);
       done();
     }));
 

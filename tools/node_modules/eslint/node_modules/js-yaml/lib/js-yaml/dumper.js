@@ -234,6 +234,12 @@ function isPlainSafeFirst(c) {
     && c !== CHAR_GRAVE_ACCENT;
 }
 
+// Determines whether block indentation indicator is required.
+function needIndentIndicator(string) {
+  var leadingSpaceRe = /^\n* /;
+  return leadingSpaceRe.test(string);
+}
+
 var STYLE_PLAIN   = 1,
     STYLE_SINGLE  = 2,
     STYLE_LITERAL = 3,
@@ -301,7 +307,7 @@ function chooseScalarStyle(string, singleLineOnly, indentPerLevel, lineWidth, te
       ? STYLE_PLAIN : STYLE_SINGLE;
   }
   // Edge case: block indentation indicator can only have one digit.
-  if (string[0] === ' ' && indentPerLevel > 9) {
+  if (indentPerLevel > 9 && needIndentIndicator(string)) {
     return STYLE_DOUBLE;
   }
   // At this point we know block styles are valid.
@@ -365,7 +371,7 @@ function writeScalar(state, string, level, iskey) {
 
 // Pre-conditions: string is valid for a block scalar, 1 <= indentPerLevel <= 9.
 function blockHeader(string, indentPerLevel) {
-  var indentIndicator = (string[0] === ' ') ? String(indentPerLevel) : '';
+  var indentIndicator = needIndentIndicator(string) ? String(indentPerLevel) : '';
 
   // note the special case: the string '\n' counts as a "trailing" empty line.
   var clip =          string[string.length - 1] === '\n';

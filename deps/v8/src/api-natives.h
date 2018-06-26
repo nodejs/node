@@ -21,15 +21,15 @@ class ApiNatives {
  public:
   static const int kInitialFunctionCacheSize = 256;
 
-  MUST_USE_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
       Handle<FunctionTemplateInfo> data,
       MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
 
-  MUST_USE_RESULT static MaybeHandle<JSObject> InstantiateObject(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> InstantiateObject(
       Handle<ObjectTemplateInfo> data,
       Handle<JSReceiver> new_target = Handle<JSReceiver>());
 
-  MUST_USE_RESULT static MaybeHandle<JSObject> InstantiateRemoteObject(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> InstantiateRemoteObject(
       Handle<ObjectTemplateInfo> data);
 
   enum ApiInstanceType {
@@ -41,7 +41,7 @@ class ApiNatives {
   static Handle<JSFunction> CreateApiFunction(
       Isolate* isolate, Handle<FunctionTemplateInfo> obj,
       Handle<Object> prototype, ApiInstanceType instance_type,
-      MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
+      MaybeHandle<Name> name = MaybeHandle<Name>());
 
   static void AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                               Handle<Name> name, Handle<Object> value,

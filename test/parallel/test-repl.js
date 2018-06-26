@@ -26,7 +26,6 @@ const assert = require('assert');
 const net = require('net');
 const repl = require('repl');
 
-common.globalCheck = false;
 common.crashOnUnhandledRejection();
 
 const message = 'Read, Eval, Print Loop';
@@ -40,7 +39,6 @@ const moduleFilename = fixtures.path('a');
 global.invoke_me = function(arg) {
   return `invoked ${arg}`;
 };
-
 
 // Helpers for describing the expected output:
 const kArrow = /^ *\^+ *$/;  // Arrow of ^ pointing to syntax error location
@@ -755,6 +753,7 @@ const tcpTests = [
 
     socket.end();
   }
+  common.allowGlobals(...Object.values(global));
 })();
 
 function startTCPRepl() {

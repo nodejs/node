@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax --opt --no-always-opt
 
+let id = 0;
+
 function runTest(f, message, mkICTraining, deoptArg) {
   function test(f, message, ictraining, deoptArg) {
     // Train the call ic to the maps.
@@ -58,7 +60,14 @@ function runTest(f, message, mkICTraining, deoptArg) {
   // Substitute parameters.
   testString = testString.replace(new RegExp("ictraining", 'g'), mkICTraining.toString());
   testString = testString.replace(new RegExp("deoptArg", 'g'),
-    deoptArg ? JSON.stringify(deoptArg) : "undefined");
+    deoptArg ? JSON.stringify(deoptArg).replace(/"/g,'') : "undefined");
+
+  // Make field names unique to avoid learning of types.
+  id = id + 1;
+  testString = testString.replace(/[.]el/g, '.el' + id);
+  testString = testString.replace(/el:/g, 'el' + id + ':');
+  testString = testString.replace(/[.]arr/g, '.arr' + id);
+  testString = testString.replace(/arr:/g, 'arr' + id + ':');
 
   var modTest = new Function("message", testString);
   //print(modTest);
@@ -114,10 +123,10 @@ Object.keys(checks).forEach(
     let check = checks[key];
 
     for (fnc in functions) {
-      runTest(functions[fnc], "test-reliable-" + key, check.mkTrainingArguments);
+      runTest(functions[fnc], "test-" + fnc + "-" + key, check.mkTrainingArguments);
       // Test each deopting arg separately.
       for (let deoptArg of check.deoptingArguments) {
-        runTest(functions[fnc], "testDeopt-reliable-" + key, check.mkTrainingArguments, deoptArg);
+        runTest(functions[fnc], "testDeopt-" + fnc + "-" + key, check.mkTrainingArguments, deoptArg);
       }
     }
   }

@@ -161,8 +161,8 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     Isolate* isolate, int start_index, bool is_direct_call,
     Address* return_address, Code* re_code, String** subject,
     const byte** input_start, const byte** input_end) {
-  DCHECK(re_code->instruction_start() <= *return_address);
-  DCHECK(*return_address <= re_code->instruction_end());
+  DCHECK(re_code->raw_instruction_start() <= *return_address);
+  DCHECK(*return_address <= re_code->raw_instruction_end());
   int return_value = 0;
   // Prepare for possible GC.
   HandleScope handles(isolate);

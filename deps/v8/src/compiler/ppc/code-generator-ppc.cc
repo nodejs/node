@@ -6,12 +6,12 @@
 
 #include "src/assembler-inl.h"
 #include "src/callable.h"
-#include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/double.h"
+#include "src/optimized-compilation-info.h"
 #include "src/ppc/macro-assembler-ppc.h"
 
 namespace v8 {
@@ -794,12 +794,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
   Register scratch = kScratchReg;
-
-  Label current_pc;
-  __ mov_label_addr(scratch, &current_pc);
-
-  __ bind(&current_pc);
-  __ subi(scratch, scratch, Operand(__ pc_offset()));
+  __ ComputeCodeStartAddress(scratch);
   __ cmp(scratch, kJavaScriptCallCodeStartRegister);
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
 }
@@ -814,11 +809,7 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 void CodeGenerator::BailoutIfDeoptimized() {
   if (FLAG_debug_code) {
     // Check that {kJavaScriptCallCodeStartRegister} is correct.
-    Label current_pc;
-    __ mov_label_addr(ip, &current_pc);
-
-    __ bind(&current_pc);
-    __ subi(ip, ip, Operand(__ pc_offset()));
+    __ ComputeCodeStartAddress(ip);
     __ cmp(ip, kJavaScriptCallCodeStartRegister);
     __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
   }
@@ -833,7 +824,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Jump(code, RelocInfo::CODE_TARGET, ne, cr0);
 }
 
-void CodeGenerator::GenerateSpeculationPoison() {
+void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   Register scratch = kScratchReg;
 
   Label current_pc;
@@ -844,18 +835,11 @@ void CodeGenerator::GenerateSpeculationPoison() {
 
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
-  //    difference = (current - expected) | (expected - current)
-  //    poison = ~(difference >> (kBitsPerPointer - 1))
-  __ mr(kSpeculationPoisonRegister, scratch);
-  __ sub(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kJavaScriptCallCodeStartRegister);
-  __ sub(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
-         scratch);
-  __ orx(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kJavaScriptCallCodeStartRegister);
-  __ ShiftRightArithImm(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-                        kBitsPerPointer - 1);
-  __ notx(kSpeculationPoisonRegister, kSpeculationPoisonRegister);
+  __ cmp(kJavaScriptCallCodeStartRegister, scratch);
+  __ li(scratch, Operand::Zero());
+  __ notx(kSpeculationPoisonRegister, scratch);
+  __ isel(eq, kSpeculationPoisonRegister,
+          kSpeculationPoisonRegister, scratch);
 }
 
 void CodeGenerator::AssembleRegisterArgumentPoisoning() {
@@ -1109,6 +1093,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mr(i.OutputRegister(), fp);
       }
       break;
+    case kArchRootsPointer:
+      __ mr(i.OutputRegister(), kRootRegister);
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
     case kArchTruncateDoubleToI:
       // TODO(mbrandy): move slow call to stub out of line.
       __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
@@ -1151,6 +1139,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               Operand(offset.offset()));
       break;
     }
+    case kArchPoisonOnSpeculationWord:
+      __ and_(i.OutputRegister(), i.InputRegister(0),
+              kSpeculationPoisonRegister);
+      break;
     case kPPC_And:
       if (HasRegisterInput(instr, 1)) {
         __ and_(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
@@ -1553,8 +1545,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
     case kIeee754Float64Pow: {
-      __ CallStubDelayed(new (zone())
-                             MathPowStub(nullptr, MathPowStub::DOUBLE));
+      __ CallStubDelayed(new (zone()) MathPowStub());
       __ Move(d1, d3);
       break;
     }
@@ -2259,7 +2250,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
-    InitializePoisonForLoadsIfNeeded();
+    ResetSpeculationPoison();
   }
 
   const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
@@ -2325,7 +2316,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   // Constant pool is unavailable since the frame has been destructed
   ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
   if (pop->IsImmediate()) {
-    DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
+    DCHECK(Constant::kInt32 == g.ToConstant(pop).type() ||
+           Constant::kInt64 == g.ToConstant(pop).type());
     pop_count += g.ToConstant(pop).ToInt32();
   } else {
     __ Drop(g.ToRegister(pop));
@@ -2367,7 +2359,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       switch (src.type()) {
         case Constant::kInt32:
 #if V8_TARGET_ARCH_PPC64
-          if (RelocInfo::IsWasmSizeReference(src.rmode())) {
+          if (false) {
 #else
           if (RelocInfo::IsWasmReference(src.rmode())) {
 #endif
@@ -2381,7 +2373,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           if (RelocInfo::IsWasmPtrReference(src.rmode())) {
             __ mov(dst, Operand(src.ToInt64(), src.rmode()));
           } else {
-            DCHECK(!RelocInfo::IsWasmSizeReference(src.rmode()));
 #endif
             __ mov(dst, Operand(src.ToInt64()));
 #if V8_TARGET_ARCH_PPC64

@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#9.11.2">9.11.2</a><br/>
 <a href="#9.11.1">9.11.1</a><br/>
 <a href="#9.11.0">9.11.0</a><br/>
 <a href="#9.10.1">9.10.1</a><br/>
@@ -31,6 +32,7 @@
 </table>
 
 * Other Versions
+  * [10.x](CHANGELOG_V10.md)
   * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)
@@ -40,6 +42,30 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="9.11.2"></a>
+## 2018-06-12, Version 9.11.2 (Current), @evanlucas
+
+### Notable Changes
+
+* **Fixes memory exhaustion DoS** (CVE-2018-7164): Fixes a bug introduced in 9.7.0 that increases the memory consumed when reading from the network into JavaScript using the net.Socket object directly as a stream.
+* **buffer** (CVE-2018-7167): Fixes Denial of Service vulnerability where calling Buffer.fill() could hang
+* **http2**
+  * (CVE-2018-7161): Fixes Denial of Service vulnerability by updating the http2 implementation to not crash under certain circumstances during cleanup
+  * (CVE-2018-1000168): Fixes Denial of Service vulnerability by upgrading nghttp2 to 1.32.0
+* **tls** (CVE-2018-7162): Fixes Denial of Service vulnerability by updating the TLS implementation to not crash upon receiving
+
+### Commits
+
+* [[`65ed3213ca`](https://github.com/nodejs/node/commit/65ed3213ca)] - **deps**: update to nghttp2 1.32.0 (James M Snell) [nodejs-private/node-private#124](https://github.com/nodejs-private/node-private/pull/124)
+* [[`f0af3b09bd`](https://github.com/nodejs/node/commit/f0af3b09bd)] - **doc**: buffer.fill() can zero-fill on invalid input (Сковорода Никита Андреевич) [nodejs-private/node-private#120](https://github.com/nodejs-private/node-private/pull/120)
+* [[`828159fcd4`](https://github.com/nodejs/node/commit/828159fcd4)] - **http2**: fixup http2stream cleanup and other nits (James M Snell) [nodejs-private/node-private#122](https://github.com/nodejs-private/node-private/pull/122)
+* [[`be103eba41`](https://github.com/nodejs/node/commit/be103eba41)] - **src**: re-add `Realloc()` shrink after reading stream data (Anna Henningsen) [nodejs-private/node-private#129](https://github.com/nodejs-private/node-private/pull/129)
+* [[`555696df51`](https://github.com/nodejs/node/commit/555696df51)] - **src**: avoid hanging on Buffer#fill 0-length input (Сковорода Никита Андреевич) [nodejs-private/node-private#120](https://github.com/nodejs-private/node-private/pull/120)
+* [[`7684ba63c4`](https://github.com/nodejs/node/commit/7684ba63c4)] - **test**: add tls write error regression test (Shigeki Ohtsu) [nodejs-private/node-private#130](https://github.com/nodejs-private/node-private/pull/130)
+* [[`0ab90acaf3`](https://github.com/nodejs/node/commit/0ab90acaf3)] - **test**: add regression test for nghttp2 CVE-2018-1000168 (James M Snell) [nodejs-private/node-private#124](https://github.com/nodejs-private/node-private/pull/124)
+* [[`84f23d2f12`](https://github.com/nodejs/node/commit/84f23d2f12)] - **tls**: fix SSL write error handling (Anna Henningsen) [nodejs-private/node-private#130](https://github.com/nodejs-private/node-private/pull/130)
+
 
 <a id="9.11.1"></a>
 ## 2018-04-05, Version 9.11.1 (Current), @MylesBorins
@@ -258,8 +284,8 @@ Fixes for the following CVEs are included in this release:
 * [[`5960cde4eb`](https://github.com/nodejs/node/commit/5960cde4eb)] - **doc**: fix changelog (Myles Borins) [#19515](https://github.com/nodejs/node/pull/19515)
 * [[`b351e0eda6`](https://github.com/nodejs/node/commit/b351e0eda6)] - **http**: use more destructuring (Tobias Nießen) [#19481](https://github.com/nodejs/node/pull/19481)
 * [[`49c0efd2a2`](https://github.com/nodejs/node/commit/49c0efd2a2)] - **http2**: remove some unnecessary next ticks (James M Snell) [#19451](https://github.com/nodejs/node/pull/19451)
-* [[`583d5afa5e`](https://github.com/nodejs/node/commit/583d5afa5e)] - **inspector**: do not allow host names (Eugene Ostroukhov) 
-* [[`fc1a610a00`](https://github.com/nodejs/node/commit/fc1a610a00)] - **inspector**: check Host header for local connections (Eugene Ostroukhov) 
+* [[`583d5afa5e`](https://github.com/nodejs/node/commit/583d5afa5e)] - **inspector**: do not allow host names (Eugene Ostroukhov)
+* [[`fc1a610a00`](https://github.com/nodejs/node/commit/fc1a610a00)] - **inspector**: check Host header for local connections (Eugene Ostroukhov)
 * [[`419e88ea4a`](https://github.com/nodejs/node/commit/419e88ea4a)] - **lib,test**: lint fixes for linter upgrade (Rich Trott) [#19528](https://github.com/nodejs/node/pull/19528)
 * [[`fd8523fe44`](https://github.com/nodejs/node/commit/fd8523fe44)] - **n-api**: re-write test\_make\_callback (Gabriel Schulhof) [#19448](https://github.com/nodejs/node/pull/19448)
 * [[`29a04b7ed6`](https://github.com/nodejs/node/commit/29a04b7ed6)] - **(SEMVER-MINOR)** **n-api**: add napi\_fatal\_exception (Mathias Buus) [#19337](https://github.com/nodejs/node/pull/19337)
@@ -311,7 +337,7 @@ Fixes for the following CVEs are included in this release:
 
 ### Commits
 
-* [[`acc86ed246`](https://github.com/nodejs/node/commit/acc86ed246)] - 2018-03-XX, Version 9.9.0 (Current) (Michaël Zasso) 
+* [[`acc86ed246`](https://github.com/nodejs/node/commit/acc86ed246)] - 2018-03-XX, Version 9.9.0 (Current) (Michaël Zasso)
 * [[`8d33e5c214`](https://github.com/nodejs/node/commit/8d33e5c214)] - **assert**: improve error check (Ruben Bridgewater) [#17574](https://github.com/nodejs/node/pull/17574)
 * [[`5e6b42ec9c`](https://github.com/nodejs/node/commit/5e6b42ec9c)] - **assert**: show proper differences (Ruben Bridgewater) [#18611](https://github.com/nodejs/node/pull/18611)
 * [[`9abbb6b857`](https://github.com/nodejs/node/commit/9abbb6b857)] - **assert**: fix infinite loop (Ruben Bridgewater) [#18611](https://github.com/nodejs/node/pull/18611)

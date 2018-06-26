@@ -23,7 +23,6 @@ Showing which kind of async resource is covered by which test:
 | STATWATCHER          | test-statwatcher.js                    |
 | TCPCONNECTWRAP       | test-tcpwrap.js                        |
 | TCPWRAP              | test-tcpwrap.js                        |
-| TIMERWRAP            | test-timerwrap.set{Timeout,Interval}.js|
 | TLSWRAP              | test-tlswrap.js                        |
 | TTYWRAP              | test-ttywrap.{read,write}stream.js     |
 | UDPSENDWRAP          | test-udpsendwrap.js                    |

@@ -30,11 +30,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   enum PromiseAllResolveElementContextSlots {
-    // Index into the values array, or -1 if the callback was already called
-    kPromiseAllResolveElementIndexSlot = Context::MIN_CONTEXT_SLOTS,
-
-    // Remaining elements count (mutable HeapNumber)
-    kPromiseAllResolveElementRemainingElementsSlot,
+    // Remaining elements count
+    kPromiseAllResolveElementRemainingSlot = Context::MIN_CONTEXT_SLOTS,
 
     // Promise capability from Promise.all
     kPromiseAllResolveElementCapabilitySlot,
@@ -88,14 +85,16 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocateAndSetJSPromise(Node* context, v8::Promise::PromiseState status,
                                 Node* result);
 
-  Node* AllocatePromiseReaction(Node* next, Node* payload,
+  Node* AllocatePromiseReaction(Node* next, Node* promise_or_capability,
                                 Node* fulfill_handler, Node* reject_handler);
 
   Node* AllocatePromiseReactionJobTask(Heap::RootListIndex map_root_index,
                                        Node* context, Node* argument,
-                                       Node* handler, Node* payload);
+                                       Node* handler,
+                                       Node* promise_or_capability);
   Node* AllocatePromiseReactionJobTask(Node* map, Node* context, Node* argument,
-                                       Node* handler, Node* payload);
+                                       Node* handler,
+                                       Node* promise_or_capability);
   Node* AllocatePromiseResolveThenableJobTask(Node* promise_to_resolve,
                                               Node* then, Node* thenable,
                                               Node* context);
@@ -104,6 +103,18 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
       Node* promise, Node* native_context, Node* promise_context);
 
   Node* PromiseHasHandler(Node* promise);
+
+  // Creates the context used by all Promise.all resolve element closures,
+  // together with the values array. Since all closures for a single Promise.all
+  // call use the same context, we need to store the indices for the individual
+  // closures somewhere else (we put them into the identity hash field of the
+  // closures), and we also need to have a separate marker for when the closure
+  // was called already (we slap the native context onto the closure in that
+  // case to mark it's done).
+  Node* CreatePromiseAllResolveElementContext(Node* promise_capability,
+                                              Node* native_context);
+  Node* CreatePromiseAllResolveElementFunction(Node* context, Node* index,
+                                               Node* native_context);
 
   Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
                                                Node* native_context);
@@ -126,6 +137,14 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* TriggerPromiseReactions(Node* context, Node* promise, Node* result,
                                 PromiseReaction::Type type);
 
+  // We can skip the "resolve" lookup on {constructor} if it's the (initial)
+  // Promise constructor and the Promise.resolve() protector is intact, as
+  // that guards the lookup path for the "resolve" property on the %Promise%
+  // intrinsic object.
+  void BranchIfPromiseResolveLookupChainIntact(Node* native_context,
+                                               Node* constructor,
+                                               Label* if_fast, Label* if_slow);
+
   // We can shortcut the SpeciesConstructor on {promise_map} if it's
   // [[Prototype]] is the (initial)  Promise.prototype and the @@species
   // protector is intact, as that guards the lookup path for the "constructor"
@@ -142,6 +161,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                             Node* receiver_map, Label* if_fast,
                                             Label* if_slow);
 
+  Node* InvokeResolve(Node* native_context, Node* constructor, Node* value,
+                      Label* if_exception, Variable* var_exception);
   template <typename... TArgs>
   Node* InvokeThen(Node* native_context, Node* receiver, TArgs... args);
 
@@ -160,9 +181,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                           const IteratorRecord& record, Label* if_exception,
                           Variable* var_exception);
 
-  Node* IncrementSmiCell(Node* cell, Label* if_overflow = nullptr);
-  Node* DecrementSmiCell(Node* cell);
-
   void SetForwardingHandlerIfTrue(Node* context, Node* condition,
                                   const NodeGenerator& object);
   inline void SetForwardingHandlerIfTrue(Node* context, Node* condition,
@@ -176,7 +194,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* PromiseStatus(Node* promise);
 
   void PromiseReactionJob(Node* context, Node* argument, Node* handler,
-                          Node* payload, PromiseReaction::Type type);
+                          Node* promise_or_capability,
+                          PromiseReaction::Type type);
 
   Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);
   void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);

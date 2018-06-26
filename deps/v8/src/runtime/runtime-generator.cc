@@ -5,7 +5,7 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -26,7 +26,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
 
   // Underlying function needs to have bytecode available.
   DCHECK(function->shared()->HasBytecodeArray());
-  int size = function->shared()->bytecode_array()->register_count();
+  int size = function->shared()->GetBytecodeArray()->register_count();
   Handle<FixedArray> register_file = isolate->factory()->NewFixedArray(size);
 
   Handle<JSGeneratorObject> generator =
@@ -65,30 +65,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
-  // Runtime call is implemented in InterpreterIntrinsics and lowered in
-  // JSIntrinsicLowering
-  UNREACHABLE();
-}
-
-RUNTIME_FUNCTION(Runtime_AsyncFunctionAwaitCaught) {
-  // Runtime call is implemented in InterpreterIntrinsics and lowered in
-  // JSIntrinsicLowering
-  UNREACHABLE();
-}
-
-RUNTIME_FUNCTION(Runtime_AsyncFunctionAwaitUncaught) {
-  // Runtime call is implemented in InterpreterIntrinsics and lowered in
-  // JSIntrinsicLowering
-  UNREACHABLE();
-}
-
-RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwaitCaught) {
-  // Runtime call is implemented in InterpreterIntrinsics and lowered in
-  // JSIntrinsicLowering
-  UNREACHABLE();
-}
-
-RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwaitUncaught) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
@@ -153,7 +129,7 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
 
   SharedFunctionInfo* shared = generator->function()->shared();
   DCHECK(shared->HasBytecodeArray());
-  HandlerTable handler_table(shared->bytecode_array());
+  HandlerTable handler_table(shared->GetBytecodeArray());
 
   int pc = Smi::cast(generator->input_or_debug_pos())->value();
   HandlerTable::CatchPrediction catch_prediction = HandlerTable::ASYNC_AWAIT;

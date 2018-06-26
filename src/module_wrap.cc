@@ -106,7 +106,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       ContextifyContext* sandbox =
           ContextifyContext::ContextFromContextifiedSandbox(
               env, args[2].As<Object>());
-      CHECK_NE(sandbox, nullptr);
+      CHECK_NOT_NULL(sandbox);
       context = sandbox->context();
     }
 
@@ -158,7 +158,6 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   obj->context_.Reset(isolate, context);
 
   env->module_map.emplace(module->GetIdentityHash(), obj);
-  Wrap(that, obj);
 
   that->SetIntegrityLevel(context, IntegrityLevel::kFrozen);
   args.GetReturnValue().Set(that);
@@ -225,8 +224,7 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
   TryCatch try_catch(isolate);
-  Maybe<bool> ok =
-      module->InstantiateModule(context, ModuleWrap::ResolveCallback);
+  Maybe<bool> ok = module->InstantiateModule(context, ResolveCallback);
 
   // clear resolve cache on instantiate
   obj->resolve_cache_.clear();
@@ -279,16 +277,17 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
     result = module->Evaluate(context);
   }
 
+  // Convert the termination exception into a regular exception.
   if (timed_out || received_signal) {
+    env->isolate()->CancelTerminateExecution();
     // It is possible that execution was terminated by another timeout in
     // which this timeout is nested, so check whether one of the watchdogs
     // from this invocation is responsible for termination.
     if (timed_out) {
-      env->ThrowError("Script execution timed out.");
+      THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, timeout);
     } else if (received_signal) {
-      env->ThrowError("Script execution interrupted.");
+      THROW_ERR_SCRIPT_EXECUTION_INTERRUPTED(env);
     }
-    env->isolate()->CancelTerminateExecution();
   }
 
   if (try_catch.HasCaught()) {
@@ -369,7 +368,7 @@ MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
     return MaybeLocal<Module>();
   }
 
-  ModuleWrap* dependent = ModuleWrap::GetFromModule(env, referrer);
+  ModuleWrap* dependent = GetFromModule(env, referrer);
 
   if (dependent == nullptr) {
     env->ThrowError("linking error, null dep");
@@ -549,7 +548,7 @@ enum ResolveExtensionsOptions {
   ONLY_VIA_EXTENSIONS
 };
 
-template<ResolveExtensionsOptions options>
+template <ResolveExtensionsOptions options>
 Maybe<URL> ResolveExtensions(const URL& search) {
   if (options == TRY_EXACT_NAME) {
     std::string filePath = search.ToFilePath();
@@ -749,7 +748,7 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
     Local<Context> context, Local<Module> module, Local<Object> meta) {
   Isolate* isolate = context->GetIsolate();
   Environment* env = Environment::GetCurrent(context);
-  ModuleWrap* module_wrap = ModuleWrap::GetFromModule(env, module);
+  ModuleWrap* module_wrap = GetFromModule(env, module);
 
   if (module_wrap == nullptr) {
     return;
@@ -790,20 +789,20 @@ void ModuleWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(tpl, "link", Link);
   env->SetProtoMethod(tpl, "instantiate", Instantiate);
   env->SetProtoMethod(tpl, "evaluate", Evaluate);
-  env->SetProtoMethod(tpl, "namespace", Namespace);
-  env->SetProtoMethod(tpl, "getStatus", GetStatus);
-  env->SetProtoMethod(tpl, "getError", GetError);
-  env->SetProtoMethod(tpl, "getStaticDependencySpecifiers",
-                      GetStaticDependencySpecifiers);
+  env->SetProtoMethodNoSideEffect(tpl, "namespace", Namespace);
+  env->SetProtoMethodNoSideEffect(tpl, "getStatus", GetStatus);
+  env->SetProtoMethodNoSideEffect(tpl, "getError", GetError);
+  env->SetProtoMethodNoSideEffect(tpl, "getStaticDependencySpecifiers",
+                                  GetStaticDependencySpecifiers);
 
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "ModuleWrap"), tpl->GetFunction());
-  env->SetMethod(target, "resolve", node::loader::ModuleWrap::Resolve);
+  env->SetMethod(target, "resolve", Resolve);
   env->SetMethod(target,
                  "setImportModuleDynamicallyCallback",
-                 node::loader::ModuleWrap::SetImportModuleDynamicallyCallback);
+                 SetImportModuleDynamicallyCallback);
   env->SetMethod(target,
                  "setInitializeImportMetaObjectCallback",
-                 ModuleWrap::SetInitializeImportMetaObjectCallback);
+                 SetInitializeImportMetaObjectCallback);
 
 #define V(name)                                                                \
     target->Set(context,                                                       \

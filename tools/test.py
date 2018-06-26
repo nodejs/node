@@ -54,6 +54,7 @@ skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
 
 VERBOSE = False
 
+os.environ['NODE_OPTIONS'] = ''
 
 # ---------------------------------------------
 # --- P r o g r e s s   I n d i c a t o r s ---
@@ -297,10 +298,8 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
       if output.HasCrashed():
         self.severity = 'crashed'
-        exit_code = output.output.exit_code
-        self.traceback = "oh no!\nexit code: " + PrintCrashed(exit_code)
 
-      if output.HasTimedOut():
+      elif output.HasTimedOut():
         self.severity = 'fail'
 
     else:
@@ -332,7 +331,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
       (total_seconds, duration.microseconds / 1000))
     if self.severity is not 'ok' or self.traceback is not '':
       if output.HasTimedOut():
-        self.traceback = 'timeout'
+        self.traceback = 'timeout\n' + output.output.stdout + output.output.stderr
       self._printDiagnostic()
     logger.info('  ...')
 
@@ -1376,6 +1375,8 @@ def BuildOptions():
       help="Expect test cases to fail", default=False, action="store_true")
   result.add_option("--valgrind", help="Run tests through valgrind",
       default=False, action="store_true")
+  result.add_option("--worker", help="Run parallel tests inside a worker context",
+      default=False, action="store_true")
   result.add_option("--check-deopts", help="Check tests for permanent deoptimizations",
       default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
@@ -1383,6 +1384,9 @@ def BuildOptions():
   result.add_option("--flaky-tests",
       help="Regard tests marked as flaky (run|skip|dontcare)",
       default="run")
+  result.add_option("--skip-tests",
+      help="Tests that should not be executed (comma-separated)",
+      default="")
   result.add_option("--warn-unused", help="Report unused rules",
       default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
@@ -1425,6 +1429,7 @@ def ProcessOptions(options):
   options.arch = options.arch.split(',')
   options.mode = options.mode.split(',')
   options.run = options.run.split(',')
+  options.skip_tests = options.skip_tests.split(',')
   if options.run == [""]:
     options.run = None
   elif len(options.run) != 2:
@@ -1550,7 +1555,8 @@ IGNORED_SUITES = [
   'pummel',
   'test-known-issues',
   'tick-processor',
-  'timers'
+  'timers',
+  'v8-updates'
 ]
 
 
@@ -1613,6 +1619,11 @@ def Main():
     # optimizer to kick in, so this flag will force it to run.
     options.node_args.append("--always-opt")
     options.progress = "deopts"
+
+  if options.worker:
+    run_worker = join(workspace, "tools", "run-worker.js")
+    options.node_args.append('--experimental-worker')
+    options.node_args.append(run_worker)
 
   shell = abspath(options.shell)
   buildspace = dirname(shell)
@@ -1711,6 +1722,11 @@ def Main():
 
   result = None
   def DoSkip(case):
+    # A list of tests that should be skipped can be provided. This is
+    # useful for tests that fail in some environments, e.g., under coverage.
+    if options.skip_tests != [""]:
+        if [ st for st in options.skip_tests if st in case.case.file ]:
+            return True
     if SKIP in case.outcomes or SLOW in case.outcomes:
       return True
     return FLAKY in case.outcomes and options.flaky_tests == SKIP
@@ -1748,7 +1764,7 @@ def Main():
     timed_tests.sort(lambda a, b: a.CompareTime(b))
     index = 1
     for entry in timed_tests[:20]:
-      t = FormatTime(entry.duration)
+      t = FormatTime(entry.duration.total_seconds())
       sys.stderr.write("%4i (%s) %s\n" % (index, t, entry.GetLabel()))
       index += 1
 

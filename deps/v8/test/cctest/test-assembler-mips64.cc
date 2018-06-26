@@ -32,7 +32,7 @@
 #include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/disassembler.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips64/macro-assembler-mips64.h"
 #include "src/simulator.h"
@@ -8191,35 +8191,35 @@ TEST(MSA_fclass) {
   CcTest::InitializeVM();
 
 #define BIT(n) (0x1 << n)
-#define SNAN BIT(0)
-#define QNAN BIT(1)
-#define NEG_INFINITY BIT((2))
-#define NEG_NORMAL BIT(3)
-#define NEG_SUBNORMAL BIT(4)
-#define NEG_ZERO BIT(5)
-#define POS_INFINITY BIT(6)
-#define POS_NORMAL BIT(7)
-#define POS_SUBNORMAL BIT(8)
-#define POS_ZERO BIT(9)
+#define SNAN_BIT BIT(0)
+#define QNAN_BIT BIT(1)
+#define NEG_INFINITY_BIT BIT((2))
+#define NEG_NORMAL_BIT BIT(3)
+#define NEG_SUBNORMAL_BIT BIT(4)
+#define NEG_ZERO_BIT BIT(5)
+#define POS_INFINITY_BIT BIT(6)
+#define POS_NORMAL_BIT BIT(7)
+#define POS_SUBNORMAL_BIT BIT(8)
+#define POS_ZERO_BIT BIT(9)
 
   const float inf_float = std::numeric_limits<float>::infinity();
   const double inf_double = std::numeric_limits<double>::infinity();
 
   const struct TestCaseMsa2RF_F_U tc_s[] = {
-      {1.f, -0.00001, 208e10f, -34.8e-30f, POS_NORMAL, NEG_NORMAL, POS_NORMAL,
-       NEG_NORMAL},
-      {inf_float, -inf_float, 0, -0.f, POS_INFINITY, NEG_INFINITY, POS_ZERO,
-       NEG_ZERO},
-      {3.036e-40f, -6.392e-43f, 1.41e-45f, -1.17e-38f, POS_SUBNORMAL,
-       NEG_SUBNORMAL, POS_SUBNORMAL, NEG_SUBNORMAL}};
+      {1.f, -0.00001, 208e10f, -34.8e-30f, POS_NORMAL_BIT, NEG_NORMAL_BIT,
+       POS_NORMAL_BIT, NEG_NORMAL_BIT},
+      {inf_float, -inf_float, 0, -0.f, POS_INFINITY_BIT, NEG_INFINITY_BIT,
+       POS_ZERO_BIT, NEG_ZERO_BIT},
+      {3.036e-40f, -6.392e-43f, 1.41e-45f, -1.17e-38f, POS_SUBNORMAL_BIT,
+       NEG_SUBNORMAL_BIT, POS_SUBNORMAL_BIT, NEG_SUBNORMAL_BIT}};
 
   const struct TestCaseMsa2RF_D_U tc_d[] = {
-      {1., -0.00000001, POS_NORMAL, NEG_NORMAL},
-      {208e10, -34.8e-300, POS_NORMAL, NEG_NORMAL},
-      {inf_double, -inf_double, POS_INFINITY, NEG_INFINITY},
-      {0, -0., POS_ZERO, NEG_ZERO},
-      {1.036e-308, -6.392e-309, POS_SUBNORMAL, NEG_SUBNORMAL},
-      {1.41e-323, -3.17e208, POS_SUBNORMAL, NEG_NORMAL}};
+      {1., -0.00000001, POS_NORMAL_BIT, NEG_NORMAL_BIT},
+      {208e10, -34.8e-300, POS_NORMAL_BIT, NEG_NORMAL_BIT},
+      {inf_double, -inf_double, POS_INFINITY_BIT, NEG_INFINITY_BIT},
+      {0, -0., POS_ZERO_BIT, NEG_ZERO_BIT},
+      {1.036e-308, -6.392e-309, POS_SUBNORMAL_BIT, NEG_SUBNORMAL_BIT},
+      {1.41e-323, -3.17e208, POS_SUBNORMAL_BIT, NEG_NORMAL_BIT}};
 
   for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_F_U); ++i) {
     run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
@@ -8231,16 +8231,16 @@ TEST(MSA_fclass) {
   }
 
 #undef BIT
-#undef SNAN
-#undef QNAN
-#undef NEG_INFINITY
-#undef NEG_NORMAL
-#undef NEG_SUBNORMAL
-#undef NEG_ZERO
-#undef POS_INFINITY
-#undef POS_NORMAL
-#undef POS_SUBNORMAL
-#undef POS_ZERO
+#undef SNAN_BIT
+#undef QNAN_BIT
+#undef NEG_INFINITY_BIT
+#undef NEG_NORMAL_BIT
+#undef NEG_SUBNORMAL_BIT
+#undef NEG_ZERO_BIT
+#undef POS_INFINITY_BIT
+#undef POS_NORMAL_BIT
+#undef POS_SUBNORMAL_BIT
+#undef POS_ZERO_BIT
 }
 
 struct TestCaseMsa2RF_F_I {
@@ -11265,7 +11265,8 @@ TEST(MSA_fexdo) {
        -inf_float, 0, 0, 0, 0},
       {-0.f, 0.f, 123.567f, -765.321f, -6e-8f, 5.9e-8f, 1e-7f, -1e-20f, 0, 0, 0,
        0},
-      {1e-36f, 1e20f, -1e20f, 2e-20f, 6e-8f, -2.9e-8f, -66505.f, -65504.f}};
+      {1e-36f, 1e20f, -1e20f, 2e-20f, 6e-8f, -2.9e-8f, -66505.f, -65504.f, 0, 0,
+       0, 0}};
 
   const struct TestCaseMsa3RF_D tc_d[] = {
       // ws_lo, ws_hi, wt_lo, wt_hi, wd_lo, wd_hi

@@ -28,6 +28,8 @@ set upload=
 set licensertf=
 set lint_js=
 set lint_cpp=
+set lint_md=
+set lint_md_build=
 set build_testgc_addon=
 set noetw=
 set noetw_msi_arg=
@@ -53,6 +55,7 @@ set nghttp2_debug=
 set link_module=
 set no_cctest=
 set openssl_no_asm=
+set doc=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -71,7 +74,7 @@ if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
-if /i "%1"=="test"          set test_args=%test_args% -J %common_test_suites%&set lint_cpp=1&set lint_js=1&goto arg-ok
+if /i "%1"=="test"          set test_args=%test_args% -J %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %common_test_suites%&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&goto arg-ok
 if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
 if /i "%1"=="build-addons-napi"   set build_addons_napi=1&goto arg-ok
@@ -98,7 +101,9 @@ if /i "%1"=="lint-js"       set lint_js=1&goto arg-ok
 if /i "%1"=="jslint"        set lint_js=1&echo Please use lint-js instead of jslint&goto arg-ok
 if /i "%1"=="lint-js-ci"    set lint_js_ci=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set lint_js_ci=1&echo Please use lint-js-ci instead of jslint-ci&goto arg-ok
-if /i "%1"=="lint"          set lint_cpp=1&set lint_js=1&goto arg-ok
+if /i "%1"=="lint-md"       set lint_md=1&goto arg-ok
+if /i "%1"=="lint-md-build" set lint_md_build=1&goto arg-ok
+if /i "%1"=="lint"          set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="lint-ci"       set lint_cpp=1&set lint_js_ci=1&goto arg-ok
 if /i "%1"=="package"       set package=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
@@ -114,11 +119,11 @@ if /i "%1"=="enable-vtune"  set enable_vtune_arg=1&goto arg-ok
 if /i "%1"=="dll"           set dll=1&goto arg-ok
 if /i "%1"=="static"           set enable_static=1&goto arg-ok
 if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
-if /i "%1"=="debug-http2"   set debug_http2=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
 if /i "%1"=="link-module"   set "link_module= --link-module=%2%link_module%"&goto arg-ok-2
 if /i "%1"=="no-cctest"     set no_cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
+if /i "%1"=="doc"           set doc=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -147,6 +152,7 @@ if defined build_release (
 :: assign path to node_exe
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
+set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
 if "%target_env%"=="vs2017" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2017"
 
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
@@ -180,7 +186,11 @@ call :getnodeversion || exit /b 1
 
 if defined TAG set configure_flags=%configure_flags% --tag=%TAG%
 
-if "%target%"=="Clean" rmdir /Q /S "%~dp0%config%\node-v%FULLVERSION%-win-%target_arch%" > nul 2> nul
+if not "%target%"=="Clean" goto skip-clean
+rmdir /Q /S "%~dp0%config%\node-v%FULLVERSION%-win-%target_arch%" > nul 2> nul
+rmdir /Q /S "%~dp0tools\remark-cli\node_modules"
+rmdir /Q /S "%~dp0tools\remark-preset-lint-node\node_modules"
+:skip-clean
 
 if defined noprojgen if defined nobuild if not defined sign if not defined msi goto licensertf
 
@@ -193,6 +203,8 @@ if _%PROCESSOR_ARCHITEW6432%_==_AMD64_ set msvs_host_arch=amd64
 set vcvarsall_arg=%msvs_host_arch%_%target_arch%
 @rem unless both host and target are x64
 if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
+@rem also if both are x86
+if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
 
 @rem Look for Visual Studio 2017
 :vs-set-2017
@@ -236,7 +248,7 @@ goto exit
 
 :wix-not-found
 echo Build skipped. To generate installer, you need to install Wix.
-goto run
+goto build-doc
 
 :msbuild-found
 
@@ -343,7 +355,7 @@ exit /b 1
 
 :msi
 @rem Skip msi generation if not requested
-if not defined msi goto run
+if not defined msi goto build-doc
 
 :msibuild
 echo Building node-v%FULLVERSION%-%target_arch%.msi
@@ -358,7 +370,7 @@ if errorlevel 1 echo Failed to sign msi&goto exit
 
 :upload
 @rem Skip upload if not requested
-if not defined upload goto run
+if not defined upload goto build-doc
 
 if not defined SSHCONFIG (
   echo SSHCONFIG is not set for upload
@@ -385,6 +397,30 @@ if errorlevel 1 goto exit
 ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-win-%target_arch%.zip.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-win-%target_arch%.7z.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.* nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
 if errorlevel 1 goto exit
 
+
+:build-doc
+@rem Build documentation if requested
+if not defined doc goto run
+if not exist %node_exe% (
+  echo Failed to find node.exe
+  goto run
+)
+mkdir %config%\doc
+robocopy /e doc\api %config%\doc\api
+robocopy /e doc\api_assets %config%\doc\api\assets
+
+if exist "tools\doc\node_modules\js-yaml\package.json" goto doc-skip-js-yaml
+SETLOCAL
+cd tools\doc
+%npm_exe% install
+cd ..\..
+if errorlevel 1 goto exit
+ENDLOCAL
+:doc-skip-js-yaml
+for %%F in (%config%\doc\api\*.md) do (
+  %node_exe% tools\doc\generate.js --format=json %%F > %%~dF%%~pF%%~nF.json
+  %node_exe% tools\doc\generate.js --node-version=v%FULLVERSION% --format=html --analytics=%DOCS_ANALYTICS% %%F > %%~dF%%~pF%%~nF.html
+)
 
 :run
 @rem Run tests if requested.
@@ -414,13 +450,11 @@ for /d %%F in (test\addons\??_*) do (
 "%node_exe%" tools\doc\addon-verify.js
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
-setlocal EnableDelayedExpansion
-for /d %%F in (test\addons\*) do (
-  %node_gyp_exe% rebuild ^
-    --directory="%%F" ^
-    --nodedir="%cd%"
-  if !errorlevel! neq 0 exit /b !errorlevel!
-)
+setlocal
+set npm_config_nodedir=%~dp0
+"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons"
+if errorlevel 1 exit /b 1
+endlocal
 
 :build-addons-napi
 if not defined build_addons_napi goto run-tests
@@ -529,28 +563,73 @@ goto exit
 
 :lint-js
 if defined lint_js_ci goto lint-js-ci
-if not defined lint_js goto exit
+if not defined lint_js goto lint-md-build
 if not exist tools\node_modules\eslint goto no-lint
 echo running lint-js
 %config%\node tools\node_modules\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --ext=.js,.mjs,.md .eslintrc.js benchmark doc lib test tools
-goto exit
+goto lint-md-build
 
 :lint-js-ci
 echo running lint-js-ci
 %config%\node tools\lint-js.js -J -f tap -o test-eslint.tap benchmark doc lib test tools
-goto exit
+goto lint-md-build
 
 :no-lint
 echo Linting is not available through the source tarball.
 echo Use the git repo instead: $ git clone https://github.com/nodejs/node.git
+goto lint-md-build
+
+:lint-md-build
+if not defined lint_md_build goto lint-md
+SETLOCAL
+echo Markdown linter: installing remark-cli into tools\
+cd tools\remark-cli
+%npm_exe% install
+cd ..\..
+if errorlevel 1 goto lint-md-build-failed
+echo Markdown linter: installing remark-preset-lint-node into tools\
+cd tools\remark-preset-lint-node
+%npm_exe% install
+cd ..\..
+if errorlevel 1 goto lint-md-build-failed
+ENDLOCAL
+goto lint-md
+
+:if errorlevel 1 goto lint-md-build-failed
+ENDLOCAL
+echo Failed to install markdown linter
+exit /b 1
+
+:lint-md
+if not defined lint_md goto exit
+if not exist tools\remark-cli\node_modules goto lint-md-no-tools
+if not exist tools\remark-preset-lint-node\node_modules goto lint-md-no-tools
+echo Running Markdown linter on docs...
+SETLOCAL ENABLEDELAYEDEXPANSION
+set lint_md_files=
+cd doc
+for /D %%D IN (*) do (
+  for %%F IN (%%D\*.md) do (
+    set "lint_md_files="doc\%%F" !lint_md_files!"
+  )
+)
+cd ..
+%config%\node tools\remark-cli\cli.js -q -f %lint_md_files%
+ENDLOCAL
 goto exit
+
+:lint-md-no-tools
+echo The markdown linter is not installed.
+echo To install (requires internet access) run: vcbuild lint-md-build
+goto exit
+
 
 :create-msvs-files-failed
 echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
@@ -559,7 +638,7 @@ echo   vcbuild.bat test                     : builds debug build and runs tests
 echo   vcbuild.bat build-release            : builds the release distribution as used by nodejs.org
 echo   vcbuild.bat enable-vtune             : builds nodejs with Intel VTune profiling support to profile JavaScript
 echo   vcbuild.bat link-module my_module.js : bundles my_module as built-in module
-echo   vcbuild.bat lint                     : runs the C++ and JavaScript linter
+echo   vcbuild.bat lint                     : runs the C++, documentation and JavaScript linter
 echo   vcbuild.bat no-cctest                : skip building cctest.exe
 goto exit
 

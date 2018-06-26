@@ -21,7 +21,7 @@ function test(host) {
       const throws = () => { modules[module][fn](host, doNotCall); };
       common.expectsError(throws, {
         type: TypeError,
-        code: 'ERR_INVALID_DOMAIN_NAME'
+        code: 'ERR_INVALID_URL'
       });
     });
   });

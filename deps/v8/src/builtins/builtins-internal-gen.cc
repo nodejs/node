@@ -7,7 +7,9 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/heap/heap-inl.h"
+#include "src/ic/accessor-assembler.h"
 #include "src/macro-assembler.h"
+#include "src/objects/debug-objects.h"
 #include "src/objects/shared-function-info.h"
 #include "src/runtime/runtime.h"
 
@@ -73,8 +75,9 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
 
 TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
   Node* frame = Parameter(Descriptor::kFrame);
-  Node* length = SmiToIntPtr(Parameter(Descriptor::kLength));
-  Node* mapped_count = SmiToIntPtr(Parameter(Descriptor::kMappedCount));
+  TNode<IntPtrT> length = SmiToIntPtr(Parameter(Descriptor::kLength));
+  TNode<IntPtrT> mapped_count =
+      SmiToIntPtr(Parameter(Descriptor::kMappedCount));
 
   // Check if we can allocate in new space.
   ElementsKind kind = PACKED_ELEMENTS;
@@ -102,9 +105,7 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
       // The elements might be used to back mapped arguments. In that case fill
       // the mapped elements (i.e. the first {mapped_count}) with the hole, but
       // make sure not to overshoot the {length} if some arguments are missing.
-      Node* number_of_holes =
-          SelectConstant(IntPtrLessThan(mapped_count, length), mapped_count,
-                         length, MachineType::PointerRepresentation());
+      TNode<IntPtrT> number_of_holes = IntPtrMin(mapped_count, length);
       Node* the_hole = TheHoleConstant();
 
       // Fill the first elements up to {number_of_holes} with the hole.
@@ -171,6 +172,43 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
 
 TF_BUILTIN(ReturnReceiver, CodeStubAssembler) {
   Return(Parameter(Descriptor::kReceiver));
+}
+
+TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
+  Label tailcall_to_shared(this);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
+  TNode<Int32T> arg_count =
+      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<JSFunction> function = CAST(LoadFromFrame(
+      StandardFrameConstants::kFunctionOffset, MachineType::TaggedPointer()));
+
+  // Check break-at-entry flag on the debug info.
+  TNode<SharedFunctionInfo> shared =
+      CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
+  TNode<Object> maybe_debug_info =
+      LoadObjectField(shared, SharedFunctionInfo::kDebugInfoOffset);
+  GotoIf(TaggedIsSmi(maybe_debug_info), &tailcall_to_shared);
+
+  {
+    TNode<DebugInfo> debug_info = CAST(maybe_debug_info);
+    TNode<Smi> flags =
+        CAST(LoadObjectField(debug_info, DebugInfo::kFlagsOffset));
+    GotoIfNot(SmiToInt32(SmiAnd(flags, SmiConstant(DebugInfo::kBreakAtEntry))),
+              &tailcall_to_shared);
+
+    CallRuntime(Runtime::kDebugBreakAtEntry, context, function);
+    Goto(&tailcall_to_shared);
+  }
+
+  BIND(&tailcall_to_shared);
+  // Tail call into code object on the SharedFunctionInfo.
+  TNode<Code> code = GetSharedFunctionInfoCode(shared);
+  // Use the ConstructTrampolineDescriptor because it passes new.target too in
+  // case this is called during construct.
+  CSA_ASSERT(this, IsCode(code));
+  ConstructTrampolineDescriptor descriptor(isolate());
+  TailCallStub(descriptor, code, context, function, new_target, arg_count);
 }
 
 class RecordWriteCodeStubAssembler : public CodeStubAssembler {
@@ -442,10 +480,10 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   Return(TrueConstant());
 }
 
-class DeletePropertyBaseAssembler : public CodeStubAssembler {
+class DeletePropertyBaseAssembler : public AccessorAssembler {
  public:
   explicit DeletePropertyBaseAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+      : AccessorAssembler(state) {}
 
   void DeleteDictionaryProperty(Node* receiver, Node* properties, Node* name,
                                 Node* context, Label* dont_delete,
@@ -532,6 +570,8 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
     BIND(&dictionary);
     {
+      InvalidateValidityCellIfPrototype(receiver_map);
+
       Node* properties = LoadSlowProperties(receiver);
       DeleteDictionaryProperty(receiver, properties, unique, context,
                                &dont_delete, &if_notfound);
@@ -629,7 +669,7 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
   void LeaveMicrotaskContext();
 
   void RunPromiseHook(Runtime::FunctionId id, TNode<Context> context,
-                      SloppyTNode<HeapObject> payload);
+                      SloppyTNode<HeapObject> promise_or_capability);
 
   TNode<Object> GetPendingException() {
     auto ref = ExternalReference(kPendingExceptionAddress, isolate());
@@ -750,12 +790,20 @@ void InternalBuiltinsAssembler::LeaveMicrotaskContext() {
 
 void InternalBuiltinsAssembler::RunPromiseHook(
     Runtime::FunctionId id, TNode<Context> context,
-    SloppyTNode<HeapObject> payload) {
+    SloppyTNode<HeapObject> promise_or_capability) {
   Label hook(this, Label::kDeferred), done_hook(this);
   Branch(IsPromiseHookEnabledOrDebugIsActive(), &hook, &done_hook);
   BIND(&hook);
   {
-    CallRuntime(id, context, payload);
+    // Get to the underlying JSPromise instance.
+    Node* const promise = Select<HeapObject>(
+        IsJSPromise(promise_or_capability),
+        [=] { return promise_or_capability; },
+        [=] {
+          return CAST(LoadObjectField(promise_or_capability,
+                                      PromiseCapability::kPromiseOffset));
+        });
+    CallRuntime(id, context, promise);
     Goto(&done_hook);
   }
   BIND(&done_hook);
@@ -853,8 +901,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
     Goto(&loop);
     BIND(&loop);
     {
-      TNode<HeapObject> microtask = TNode<HeapObject>::UncheckedCast(
-          LoadFixedArrayElement(queue, index.value()));
+      TNode<HeapObject> microtask =
+          CAST(LoadFixedArrayElement(queue, index.value()));
       index = IntPtrAdd(index.value(), IntPtrConstant(1));
 
       CSA_ASSERT(this, TaggedIsNotSmi(microtask));
@@ -921,8 +969,10 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         // But from our current measurements it doesn't seem to be a
         // serious performance problem, even if the microtask is full
         // of CallHandlerTasks (which is not a realistic use case anyways).
-        CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
-                    microtask_callback, microtask_data);
+        Node* const result =
+            CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
+                        microtask_callback, microtask_data);
+        GotoIfException(result, &if_exception, &var_exception);
         Goto(&loop_next);
       }
 
@@ -966,19 +1016,21 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
         Node* const handler =
             LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
-        Node* const payload =
-            LoadObjectField(microtask, PromiseReactionJobTask::kPayloadOffset);
+        Node* const promise_or_capability = LoadObjectField(
+            microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset);
 
         // Run the promise before/debug hook if enabled.
-        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context, payload);
+        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
+                       promise_or_capability);
 
         Node* const result =
             CallBuiltin(Builtins::kPromiseFulfillReactionJob, microtask_context,
-                        argument, handler, payload);
+                        argument, handler, promise_or_capability);
         GotoIfException(result, &if_exception, &var_exception);
 
         // Run the promise after/debug hook if enabled.
-        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context, payload);
+        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
+                       promise_or_capability);
 
         LeaveMicrotaskContext();
         SetCurrentContext(current_context);
@@ -999,19 +1051,21 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
         Node* const handler =
             LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
-        Node* const payload =
-            LoadObjectField(microtask, PromiseReactionJobTask::kPayloadOffset);
+        Node* const promise_or_capability = LoadObjectField(
+            microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset);
 
         // Run the promise before/debug hook if enabled.
-        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context, payload);
+        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
+                       promise_or_capability);
 
         Node* const result =
             CallBuiltin(Builtins::kPromiseRejectReactionJob, microtask_context,
-                        argument, handler, payload);
+                        argument, handler, promise_or_capability);
         GotoIfException(result, &if_exception, &var_exception);
 
         // Run the promise after/debug hook if enabled.
-        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context, payload);
+        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
+                       promise_or_capability);
 
         LeaveMicrotaskContext();
         SetCurrentContext(current_context);

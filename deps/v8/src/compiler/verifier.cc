@@ -298,8 +298,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
           case IrOpcode::kIfValue: {
             for (const Node* user : node->uses()) {
               if (user != use && user->opcode() == IrOpcode::kIfValue) {
-                CHECK_NE(OpParameter<int32_t>(use->op()),
-                         OpParameter<int32_t>(user->op()));
+                CHECK_NE(IfValueParametersOf(use->op()).value(),
+                         IfValueParametersOf(user->op()).value());
               }
             }
             ++count_case;
@@ -665,6 +665,14 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Type is Array.
       CheckTypeIs(node, Type::Array());
       break;
+    case IrOpcode::kJSCreateArrayIterator:
+      // Type is OtherObject.
+      CheckTypeIs(node, Type::OtherObject());
+      break;
+    case IrOpcode::kJSCreateCollectionIterator:
+      // Type is OtherObject.
+      CheckTypeIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSCreateBoundFunction:
       // Type is BoundFunction.
       CheckTypeIs(node, Type::BoundFunction());
@@ -686,6 +694,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSCreatePromise:
+      // Type is OtherObject.
+      CheckTypeIs(node, Type::OtherObject());
+      break;
+    case IrOpcode::kJSCreateTypedArray:
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());
       break;
@@ -739,8 +751,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CHECK(StoreNamedOwnParametersOf(node->op()).feedback().IsValid());
       break;
     case IrOpcode::kJSStoreDataPropertyInLiteral:
+    case IrOpcode::kJSStoreInArrayLiteral:
       // Type is empty.
       CheckNotTyped(node);
+      CHECK(FeedbackParameterOf(node->op()).feedback().IsValid());
       break;
     case IrOpcode::kJSDeleteProperty:
     case IrOpcode::kJSHasProperty:
@@ -1078,21 +1092,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::String());
       CheckTypeIs(node, Type::Number());
       break;
-    case IrOpcode::kStringCharAt:
-      // (String, Unsigned32) -> String
-      CheckValueInputIs(node, 0, Type::String());
-      CheckValueInputIs(node, 1, Type::Unsigned32());
-      CheckTypeIs(node, Type::String());
-      break;
     case IrOpcode::kStringCharCodeAt:
       // (String, Unsigned32) -> UnsignedSmall
       CheckValueInputIs(node, 0, Type::String());
-      CheckValueInputIs(node, 1, Type::Unsigned32());
-      CheckTypeIs(node, Type::UnsignedSmall());
-      break;
-    case IrOpcode::kSeqStringCharCodeAt:
-      // (SeqString, Unsigned32) -> UnsignedSmall
-      CheckValueInputIs(node, 0, Type::SeqString());
       CheckValueInputIs(node, 1, Type::Unsigned32());
       CheckTypeIs(node, Type::UnsignedSmall());
       break;
@@ -1102,18 +1104,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::Unsigned32());
       CheckTypeIs(node, Type::UnsignedSmall());
       break;
-    case IrOpcode::kSeqStringCodePointAt:
-      // (String, Unsigned32) -> UnsignedSmall
-      CheckValueInputIs(node, 0, Type::String());
-      CheckValueInputIs(node, 1, Type::Unsigned32());
-      CheckTypeIs(node, Type::UnsignedSmall());
-      break;
-    case IrOpcode::kStringFromCharCode:
+    case IrOpcode::kStringFromSingleCharCode:
       // Number -> String
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::String());
       break;
-    case IrOpcode::kStringFromCodePoint:
+    case IrOpcode::kStringFromSingleCodePoint:
       // (Unsigned32) -> String
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::String());
@@ -1174,6 +1170,30 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::NumberOrHole());
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kNumberIsFinite:
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckTypeIs(node, Type::Boolean());
+      break;
+    case IrOpcode::kObjectIsFiniteNumber:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Boolean());
+      break;
+    case IrOpcode::kNumberIsInteger:
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckTypeIs(node, Type::Boolean());
+      break;
+    case IrOpcode::kObjectIsSafeInteger:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Boolean());
+      break;
+    case IrOpcode::kNumberIsSafeInteger:
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckTypeIs(node, Type::Boolean());
+      break;
+    case IrOpcode::kObjectIsInteger:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kFindOrderedHashMapEntry:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::SignedSmall());
@@ -1206,7 +1226,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, TypeCache::Get().kStringLengthType);
       CheckValueInputIs(node, 1, Type::String());
       CheckValueInputIs(node, 2, Type::String());
-      CheckTypeIs(node, Type::OtherString());
+      CheckTypeIs(node, Type::String());
       break;
     case IrOpcode::kAllocate:
       CheckValueInputIs(node, 0, Type::PlainNumber());
@@ -1391,10 +1411,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckString:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::String());
-      break;
-    case IrOpcode::kCheckSeqString:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::SeqString());
       break;
     case IrOpcode::kCheckSymbol:
       CheckValueInputIs(node, 0, Type::Any());
@@ -1673,10 +1689,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord32PairShl:
     case IrOpcode::kWord32PairShr:
     case IrOpcode::kWord32PairSar:
-    case IrOpcode::kSpeculationPoison:
+    case IrOpcode::kPoisonOnSpeculationTagged:
+    case IrOpcode::kPoisonOnSpeculationWord:
     case IrOpcode::kLoadStackPointer:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:
+    case IrOpcode::kLoadRootsPointer:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kWord32AtomicLoad:
@@ -1688,6 +1706,15 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord32AtomicAnd:
     case IrOpcode::kWord32AtomicOr:
     case IrOpcode::kWord32AtomicXor:
+    case IrOpcode::kWord64AtomicLoad:
+    case IrOpcode::kWord64AtomicStore:
+    case IrOpcode::kWord64AtomicAdd:
+    case IrOpcode::kWord64AtomicSub:
+    case IrOpcode::kWord64AtomicAnd:
+    case IrOpcode::kWord64AtomicOr:
+    case IrOpcode::kWord64AtomicXor:
+    case IrOpcode::kWord64AtomicExchange:
+    case IrOpcode::kWord64AtomicCompareExchange:
     case IrOpcode::kSpeculationFence:
     case IrOpcode::kSignExtendWord8ToInt32:
     case IrOpcode::kSignExtendWord16ToInt32:

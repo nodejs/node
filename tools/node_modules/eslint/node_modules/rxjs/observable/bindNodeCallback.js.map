@@ -1,0 +1,1 @@
+{"version":3,"file":"bindNodeCallback.js","sourceRoot":"","sources":["../../src/observable/bindNodeCallback.ts"],"names":[],"mappings":";AAAA,4CAA8C,+BAA+B,CAAC,CAAA;AAEjE,wBAAgB,GAAG,yDAA2B,CAAC,MAAM,CAAC","sourcesContent":["import {  BoundNodeCallbackObservable  } from './BoundNodeCallbackObservable';\n\nexport const bindNodeCallback = BoundNodeCallbackObservable.create;"]}

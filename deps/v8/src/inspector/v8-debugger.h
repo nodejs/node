@@ -32,6 +32,8 @@ struct V8StackTraceId;
 using protocol::Response;
 using ScheduleStepIntoAsyncCallback =
     protocol::Debugger::Backend::ScheduleStepIntoAsyncCallback;
+using TerminateExecutionCallback =
+    protocol::Runtime::Backend::TerminateExecutionCallback;
 
 class V8Debugger : public v8::debug::DebugDelegate {
  public:
@@ -59,6 +61,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
       int targetContextGroupId);
   void pauseOnAsyncCall(int targetContextGroupId, uintptr_t task,
                         const String16& debuggerId);
+
+  void terminateExecution(std::unique_ptr<TerminateExecutionCallback> callback);
 
   Response continueToLocation(int targetContextGroupId,
                               V8DebuggerScript* script,
@@ -131,7 +135,9 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void clearContinueToLocation();
   bool shouldContinueToCurrentLocation();
 
-  static void v8OOMCallback(void* data);
+  static size_t nearHeapLimitCallback(void* data, size_t current_heap_limit,
+                                      size_t initial_heap_limit);
+  static void terminateExecutionCompletedCallback(v8::Isolate* isolate);
 
   void handleProgramBreak(
       v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
@@ -184,6 +190,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   int m_enableCount;
   int m_breakpointsActiveCount = 0;
   int m_ignoreScriptParsedEventsCounter;
+  size_t m_originalHeapLimit = 0;
   bool m_scheduledOOMBreak = false;
   bool m_scheduledAssertBreak = false;
   int m_targetContextGroupId = 0;
@@ -231,6 +238,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
       m_contextGroupIdToDebuggerId;
   protocol::HashMap<String16, std::pair<int64_t, int64_t>>
       m_serializedDebuggerIdToDebuggerId;
+
+  std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
 
   WasmTranslation m_wasmTranslation;
 

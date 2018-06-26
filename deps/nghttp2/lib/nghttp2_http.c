@@ -244,7 +244,7 @@ static int http_response_on_header(nghttp2_stream *stream, nghttp2_hd_nv *nv,
       return NGHTTP2_ERR_HTTP_HEADER;
     }
     stream->status_code = (int16_t)parse_uint(nv->value->base, nv->value->len);
-    if (stream->status_code == -1) {
+    if (stream->status_code == -1 || stream->status_code == 101) {
       return NGHTTP2_ERR_HTTP_HEADER;
     }
     break;

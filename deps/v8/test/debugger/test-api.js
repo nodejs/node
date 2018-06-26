@@ -641,6 +641,12 @@ class DebugWrapper {
         }
         break;
       }
+      case "bigint": {
+        assertEquals("n", obj.unserializableValue.charAt(
+            obj.unserializableValue.length - 1));
+        value = eval(obj.unserializableValue);
+        break;
+      }
       case "string":
       case "boolean": {
         break;
@@ -725,9 +731,9 @@ class DebugWrapper {
            };
   }
 
-  execStateEvaluateGlobal(expr) {
+  evaluateGlobal(expr, throw_on_side_effect) {
     const {msgid, msg} = this.createMessage(
-        "Runtime.evaluate", { expression : expr });
+        "Runtime.evaluate", { expression : expr, throwOnSideEffect: throw_on_side_effect });
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
 
@@ -824,7 +830,7 @@ class DebugWrapper {
     let execState = { frames : params.callFrames,
                       prepareStep : this.execStatePrepareStep.bind(this),
                       evaluateGlobal :
-                        (expr) => this.execStateEvaluateGlobal(expr),
+                        (expr) => this.evaluateGlobal(expr),
                       frame : (index) => this.execStateFrame(
                           index ? params.callFrames[index]
                                 : params.callFrames[0]),

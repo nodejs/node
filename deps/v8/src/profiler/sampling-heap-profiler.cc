@@ -99,6 +99,7 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   Sample* sample = new Sample(size, node, loc, this);
   samples_.emplace(sample);
   sample->global.SetWeak(sample, OnWeakCallback, WeakCallbackType::kParameter);
+  sample->global.MarkIndependent();
 }
 
 void SamplingHeapProfiler::OnWeakCallback(
@@ -209,7 +210,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
       Script* script = Script::cast(shared->script());
       script_id = script->id();
     }
-    node = node->FindOrAddChildNode(name, script_id, shared->start_position());
+    node = node->FindOrAddChildNode(name, script_id, shared->StartPosition());
   }
 
   if (found_arguments_marker_frames) {

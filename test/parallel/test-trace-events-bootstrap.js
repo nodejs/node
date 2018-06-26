@@ -6,6 +6,9 @@ const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 const names = [
   'environment',
   'nodeStart',
@@ -42,7 +45,8 @@ if (process.argv[2] === 'child') {
 
     assert(common.fileExists(file));
     fs.readFile(file, common.mustCall((err, data) => {
-      const traces = JSON.parse(data.toString()).traceEvents;
+      const traces = JSON.parse(data.toString()).traceEvents
+        .filter((trace) => trace.cat !== '__metadata');
       traces.forEach((trace) => {
         assert.strictEqual(trace.pid, proc.pid);
         assert(names.includes(trace.name));

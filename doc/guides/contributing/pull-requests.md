@@ -35,7 +35,7 @@ so that you can make the actual changes. This is where we will start.
   * [Getting Approvals for your Pull Request](#getting-approvals-for-your-pull-request)
   * [CI Testing](#ci-testing)
   * [Waiting Until the Pull Request Gets Landed](#waiting-until-the-pull-request-gets-landed)
-  * [Check Out the Collaborator's Guide](#check-out-the-collaborators-guide)
+  * [Check Out the Collaborator Guide](#check-out-the-collaborator-guide)
 
 ## Dependencies
 
@@ -137,8 +137,8 @@ notes about [commit squashing](#commit-squashing)).
 A good commit message should describe what changed and why.
 
 1. The first line should:
-   - contain a short description of the change (preferably 50 characters or less,
-     and no more than 72 characters)
+   - contain a short description of the change (preferably 50 characters or
+     less, and no more than 72 characters)
    - be entirely in lowercase with the exception of proper nouns, acronyms, and
    the words that refer to code, like function/variable names
    - be prefixed with the name of the changed subsystem and start with an
@@ -151,7 +151,7 @@ A good commit message should describe what changed and why.
 
 
 2. Keep the second line blank.
-3. Wrap all other lines at 72 columns.
+3. Wrap all other lines at 72 columns (except for long URLs).
 
 4. If your patch fixes an open issue, you can add a reference to it at the end
 of the log. Use the `Fixes:` prefix and the full issue URL. For other references
@@ -334,9 +334,6 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 - [ ] tests and/or benchmarks are included
 - [ ] documentation is changed or added
 - [ ] commit message follows [commit guidelines](https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#commit-message-guidelines)
-
-#### Affected core subsystem(s)
-<!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->
 ```
 
 Please try to do your best at filling out the details, but feel free to skip
@@ -459,7 +456,8 @@ Focus first on the most significant aspects of the change:
 1. Does this change make sense for Node.js?
 2. Does this change make Node.js better, even if only incrementally?
 3. Are there clear bugs or larger scale issues that need attending to?
-4. Is the commit message readable and correct? If it contains a breaking change is it clear enough?
+4. Is the commit message readable and correct? If it contains a breaking change
+   is it clear enough?
 
 When changes are necessary, *request* them, do not *demand* them, and do not
 assume that the submitter already knows how to add a test or run a benchmark.
@@ -602,9 +600,10 @@ whether the failure was caused by the changes in the Pull Request.
 
 ### Commit Squashing
 
-When the commits in your Pull Request land, they may be squashed
-into one commit per logical change. Metadata will be added to the commit
-message (including links to the Pull Request, links to relevant issues,
+In most cases, do not squash commits that you add to your Pull Request during
+the review process. When the commits in your Pull Request land, they may be
+squashed into one commit per logical change. Metadata will be added to the
+commit message (including links to the Pull Request, links to relevant issues,
 and the names of the reviewers). The commit history of your Pull Request,
 however, will stay intact on the Pull Request page.
 
@@ -647,17 +646,17 @@ doesn't need to wait. A Pull Request may well take longer to be
 merged in. All these precautions are important because Node.js is
 widely used, so don't be discouraged!
 
-### Check Out the Collaborator's Guide
+### Check Out the Collaborator Guide
 
-If you want to know more about the code review and the landing process,
-you can take a look at the
-[collaborator's guide](https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md).
+If you want to know more about the code review and the landing process, see the
+[Collaborator Guide][].
 
 [approved]: #getting-approvals-for-your-pull-request
 [benchmark results]: ../writing-and-running-benchmarks.md
 [Building guide]: ../../../BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
+[Collaborator Guide]: ../../../COLLABORATOR_GUIDE.md
 [guide for writing tests in Node.js]: ../writing-tests.md
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4

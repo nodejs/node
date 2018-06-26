@@ -1,18 +1,18 @@
 #include <node_api.h>
 #include "../common.h"
 
-napi_value Test(napi_env env, napi_callback_info info) {
+static napi_value Test(napi_env env, napi_callback_info info) {
   napi_fatal_error("test_fatal::Test", NAPI_AUTO_LENGTH,
                    "fatal message", NAPI_AUTO_LENGTH);
   return NULL;
 }
 
-napi_value TestStringLength(napi_env env, napi_callback_info info) {
+static napi_value TestStringLength(napi_env env, napi_callback_info info) {
   napi_fatal_error("test_fatal::TestStringLength", 16, "fatal message", 13);
   return NULL;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("Test", Test),
     DECLARE_NAPI_PROPERTY("TestStringLength", TestStringLength),

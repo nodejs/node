@@ -10,9 +10,9 @@
 #include "src/code-factory.h"
 #include "src/conversions-inl.h"
 #include "src/counters.h"
-#include "src/factory.h"
 #include "src/futex-emulation.h"
 #include "src/globals.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -34,7 +34,7 @@ BUILTIN(AtomicsIsLockFree) {
 }
 
 // ES #sec-validatesharedintegertypedarray
-MUST_USE_RESULT MaybeHandle<JSTypedArray> ValidateSharedIntegerTypedArray(
+V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateSharedIntegerTypedArray(
     Isolate* isolate, Handle<Object> object, bool only_int32 = false) {
   if (object->IsJSTypedArray()) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
@@ -60,7 +60,7 @@ MUST_USE_RESULT MaybeHandle<JSTypedArray> ValidateSharedIntegerTypedArray(
 
 // ES #sec-validateatomicaccess
 // ValidateAtomicAccess( typedArray, requestIndex )
-MUST_USE_RESULT Maybe<size_t> ValidateAtomicAccess(
+V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
     Isolate* isolate, Handle<JSTypedArray> typed_array,
     Handle<Object> request_index) {
   Handle<Object> access_index_obj;

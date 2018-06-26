@@ -54,7 +54,11 @@ function sha1(bytes) {
       W[t] = ROTL(W[t - 3] ^ W[t - 8] ^ W[t - 14] ^ W[t - 16], 1);
     }
 
-    var a = H[0], b = H[1], c = H[2], d = H[3], e = H[4];
+    var a = H[0];
+    var b = H[1];
+    var c = H[2];
+    var d = H[3];
+    var e = H[4];
 
     for (var t=0; t<80; t++) {
       var s = Math.floor(t/20);

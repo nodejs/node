@@ -17,12 +17,14 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/maybe-object.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module.h"
 #include "src/objects/promise-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/transitions.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -69,6 +71,15 @@ void Object::VerifyPointer(Object* p) {
   }
 }
 
+void MaybeObject::VerifyMaybeObjectPointer(MaybeObject* p) {
+  HeapObject* heap_object;
+  if (p->ToStrongOrWeakHeapObject(&heap_object)) {
+    HeapObject::VerifyHeapPointer(heap_object);
+  } else {
+    CHECK(p->IsSmi() || p->IsClearedWeakHeapObject());
+  }
+}
+
 namespace {
 void VerifyForeignPointer(HeapObject* host, Object* foreign) {
   host->VerifyPointer(foreign);
@@ -109,13 +120,32 @@ void HeapObject::HeapObjectVerify() {
     case BIGINT_TYPE:
       BigInt::cast(this)->BigIntVerify();
       break;
+    case CALL_HANDLER_INFO_TYPE:
+      CallHandlerInfo::cast(this)->CallHandlerInfoVerify();
+      break;
     case HASH_TABLE_TYPE:
+    case BOILERPLATE_DESCRIPTION_TYPE:
     case FIXED_ARRAY_TYPE:
     case SCOPE_INFO_TYPE:
+    case BLOCK_CONTEXT_TYPE:
+    case CATCH_CONTEXT_TYPE:
+    case DEBUG_EVALUATE_CONTEXT_TYPE:
+    case EVAL_CONTEXT_TYPE:
+    case FUNCTION_CONTEXT_TYPE:
+    case MODULE_CONTEXT_TYPE:
+    case NATIVE_CONTEXT_TYPE:
+    case SCRIPT_CONTEXT_TYPE:
+    case WITH_CONTEXT_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
+      break;
+    case WEAK_FIXED_ARRAY_TYPE:
+      WeakFixedArray::cast(this)->WeakFixedArrayVerify();
       break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayVerify();
+      break;
+    case FEEDBACK_METADATA_TYPE:
+      FeedbackMetadata::cast(this)->FeedbackMetadataVerify();
       break;
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
@@ -161,6 +191,7 @@ void HeapObject::HeapObjectVerify() {
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case WASM_GLOBAL_TYPE:
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
@@ -224,13 +255,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_MAP_VALUE_ITERATOR_TYPE:
       JSMapIterator::cast(this)->JSMapIteratorVerify();
       break;
-
-#define ARRAY_ITERATOR_CASE(type) case type:
-      ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_CASE)
-#undef ARRAY_ITERATOR_CASE
+    case JS_ARRAY_ITERATOR_TYPE:
       JSArrayIterator::cast(this)->JSArrayIteratorVerify();
       break;
-
     case JS_STRING_ITERATOR_TYPE:
       JSStringIterator::cast(this)->JSStringIteratorVerify();
       break;
@@ -248,6 +275,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_REGEXP_TYPE:
       JSRegExp::cast(this)->JSRegExpVerify();
+      break;
+    case JS_REGEXP_STRING_ITERATOR_TYPE:
+      JSRegExpStringIterator::cast(this)->JSRegExpStringIteratorVerify();
       break;
     case FILLER_TYPE:
       break;
@@ -348,7 +378,13 @@ void FeedbackCell::FeedbackCellVerify() {
   CHECK(value()->IsUndefined(isolate) || value()->IsFeedbackVector());
 }
 
-void FeedbackVector::FeedbackVectorVerify() { CHECK(IsFeedbackVector()); }
+void FeedbackVector::FeedbackVectorVerify() {
+  CHECK(IsFeedbackVector());
+  MaybeObject* code = optimized_code_weak_or_smi();
+  MaybeObject::VerifyMaybeObjectPointer(code);
+  CHECK(code->IsSmi() || code->IsClearedWeakHeapObject() ||
+        code->IsWeakHeapObject());
+}
 
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
@@ -357,7 +393,8 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
             Traits::kInstanceType);
   if (base_pointer() == this) {
     CHECK(external_pointer() ==
-          ExternalReference::fixed_typed_array_base_data_offset().address());
+          ExternalReference::fixed_typed_array_base_data_offset(GetIsolate())
+              .address());
   } else {
     CHECK_NULL(base_pointer());
   }
@@ -485,6 +522,8 @@ void Map::MapVerify() {
     DCHECK(prototype_info() == Smi::kZero ||
            prototype_info()->IsPrototypeInfo());
   }
+  CHECK(prototype_validity_cell()->IsSmi() ||
+        prototype_validity_cell()->IsCell());
 }
 
 
@@ -506,6 +545,12 @@ void FixedArray::FixedArrayVerify() {
   for (int i = 0; i < length(); i++) {
     Object* e = get(i);
     VerifyPointer(e);
+  }
+}
+
+void WeakFixedArray::WeakFixedArrayVerify() {
+  for (int i = 0; i < length(); i++) {
+    MaybeObject::VerifyMaybeObjectPointer(Get(i));
   }
 }
 
@@ -537,17 +582,45 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
   }
 }
 
+void FeedbackMetadata::FeedbackMetadataVerify() {
+  if (slot_count() == 0) {
+    CHECK_EQ(GetHeap()->empty_feedback_metadata(), this);
+  } else {
+    FeedbackMetadataIterator iter(this);
+    while (iter.HasNext()) {
+      iter.Next();
+      FeedbackSlotKind kind = iter.kind();
+      CHECK_NE(FeedbackSlotKind::kInvalid, kind);
+      CHECK_GT(FeedbackSlotKind::kKindsNumber, kind);
+    }
+  }
+}
+
 void DescriptorArray::DescriptorArrayVerify() {
   FixedArrayVerify();
+  int nof_descriptors = number_of_descriptors();
   if (number_of_descriptors_storage() == 0) {
     Heap* heap = GetHeap();
     CHECK_EQ(heap->empty_descriptor_array(), this);
     CHECK_EQ(2, length());
-    CHECK_EQ(0, number_of_descriptors());
+    CHECK_EQ(0, nof_descriptors);
     CHECK_EQ(heap->empty_enum_cache(), GetEnumCache());
   } else {
     CHECK_LT(2, length());
-    CHECK_LE(LengthFor(number_of_descriptors()), length());
+    CHECK_LE(LengthFor(nof_descriptors), length());
+
+    Isolate* isolate = GetIsolate();
+    // Check that properties with private symbols names are non-enumerable.
+    for (int descriptor = 0; descriptor < nof_descriptors; descriptor++) {
+      Object* key = get(ToKeyIndex(descriptor));
+      // number_of_descriptors() may be out of sync with the actual descriptors
+      // written during descriptor array construction.
+      if (key->IsUndefined(isolate)) continue;
+      if (Name::cast(key)->IsPrivate()) {
+        PropertyDetails details = GetDetails(descriptor);
+        CHECK_NE(details.attributes() & DONT_ENUM, 0);
+      }
+    }
   }
 }
 
@@ -789,33 +862,60 @@ void JSFunction::JSFunctionVerify() {
 void SharedFunctionInfo::SharedFunctionInfoVerify() {
   CHECK(IsSharedFunctionInfo());
 
-  VerifyObjectField(kCodeOffset);
-  VerifyObjectField(kDebugInfoOffset);
-  VerifyObjectField(kFeedbackMetadataOffset);
   VerifyObjectField(kFunctionDataOffset);
+  VerifyObjectField(kDebugInfoOffset);
+  VerifyObjectField(kOuterScopeInfoOrFeedbackMetadataOffset);
   VerifyObjectField(kFunctionIdentifierOffset);
-  VerifyObjectField(kNameOffset);
-  VerifyObjectField(kOuterScopeInfoOffset);
-  VerifyObjectField(kScopeInfoOffset);
+  VerifyObjectField(kNameOrScopeInfoOffset);
   VerifyObjectField(kScriptOffset);
 
-  CHECK(raw_name() == kNoSharedNameSentinel || raw_name()->IsString());
+  Object* value = name_or_scope_info();
+  CHECK(value == kNoSharedNameSentinel || value->IsString() ||
+        value->IsScopeInfo());
+  if (value->IsScopeInfo()) {
+    CHECK_LT(0, ScopeInfo::cast(value)->length());
+    CHECK_NE(value, GetHeap()->empty_scope_info());
+  }
 
   Isolate* isolate = GetIsolate();
-  CHECK(function_data()->IsUndefined(isolate) || IsApiFunction() ||
-        HasBytecodeArray() || HasAsmWasmData() ||
-        HasLazyDeserializationBuiltinId() || HasPreParsedScopeData());
+  CHECK(HasCodeObject() || IsApiFunction() || HasBytecodeArray() ||
+        HasAsmWasmData() || HasBuiltinId() || HasPreParsedScopeData());
 
   CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
         HasInferredName());
 
+  if (!is_compiled()) {
+    CHECK(!HasFeedbackMetadata());
+    CHECK(outer_scope_info()->IsScopeInfo() ||
+          outer_scope_info()->IsTheHole(isolate));
+  } else if (HasBytecodeArray()) {
+    CHECK(HasFeedbackMetadata());
+    CHECK(feedback_metadata()->IsFeedbackMetadata());
+  }
+
   int expected_map_index = Context::FunctionMapIndex(
-      language_mode(), kind(), true, has_shared_name(), needs_home_object());
+      language_mode(), kind(), true, HasSharedName(), needs_home_object());
   CHECK_EQ(expected_map_index, function_map_index());
 
   if (scope_info()->length() > 0) {
-    CHECK(kind() == scope_info()->function_kind());
-    CHECK_EQ(kind() == kModule, scope_info()->scope_type() == MODULE_SCOPE);
+    ScopeInfo* info = scope_info();
+    CHECK(kind() == info->function_kind());
+    CHECK_EQ(kind() == kModule, info->scope_type() == MODULE_SCOPE);
+    CHECK_EQ(raw_start_position(), info->StartPosition());
+    CHECK_EQ(raw_end_position(), info->EndPosition());
+  }
+
+  if (IsApiFunction()) {
+    CHECK(construct_as_builtin());
+  } else if (!HasBuiltinId()) {
+    CHECK(!construct_as_builtin());
+  } else {
+    int id = builtin_id();
+    if (id != Builtins::kCompileLazy && id != Builtins::kEmptyFunction) {
+      CHECK(construct_as_builtin());
+    } else {
+      CHECK(!construct_as_builtin());
+    }
   }
 }
 
@@ -908,7 +1008,8 @@ void CodeDataContainer::CodeDataContainerVerify() {
 }
 
 void Code::CodeVerify() {
-  CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
+  CHECK_LE(constant_pool_offset(), InstructionSize());
+  CHECK(IsAligned(reinterpret_cast<intptr_t>(InstructionStart()),
                   kCodeAlignment));
   relocation_info()->ObjectVerify();
   Address last_gc_pc = nullptr;
@@ -919,46 +1020,6 @@ void Code::CodeVerify() {
     if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
       CHECK(it.rinfo()->pc() != last_gc_pc);
       last_gc_pc = it.rinfo()->pc();
-    }
-  }
-}
-
-
-void Code::VerifyEmbeddedObjectsDependency() {
-  if (!CanContainWeakObjects()) return;
-  WeakCell* cell = CachedWeakCell();
-  DisallowHeapAllocation no_gc;
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
-    Object* obj = it.rinfo()->target_object();
-    if (IsWeakObject(obj)) {
-      if (obj->IsMap()) {
-        Map* map = Map::cast(obj);
-        CHECK(map->dependent_code()->Contains(DependentCode::kWeakCodeGroup,
-                                              cell));
-      } else if (obj->IsJSObject()) {
-        if (isolate->heap()->InNewSpace(obj)) {
-          ArrayList* list =
-              GetIsolate()->heap()->weak_new_space_object_to_code_list();
-          bool found = false;
-          for (int i = 0; i < list->Length(); i += 2) {
-            WeakCell* obj_cell = WeakCell::cast(list->Get(i));
-            if (!obj_cell->cleared() && obj_cell->value() == obj &&
-                WeakCell::cast(list->Get(i + 1)) == cell) {
-              found = true;
-              break;
-            }
-          }
-          CHECK(found);
-        } else {
-          Handle<HeapObject> key_obj(HeapObject::cast(obj), isolate);
-          DependentCode* dep =
-              GetIsolate()->heap()->LookupWeakObjectToCodeDependency(key_obj);
-          dep->Contains(DependentCode::kWeakCodeGroup, cell);
-        }
-      }
     }
   }
 }
@@ -1047,11 +1108,20 @@ void JSWeakMap::JSWeakMapVerify() {
 void JSArrayIterator::JSArrayIteratorVerify() {
   CHECK(IsJSArrayIterator());
   JSObjectVerify();
-  CHECK(object()->IsJSReceiver() || object()->IsUndefined(GetIsolate()));
+  CHECK(iterated_object()->IsJSReceiver() ||
+        iterated_object()->IsUndefined(GetIsolate()));
 
-  CHECK_GE(index()->Number(), 0);
-  CHECK_LE(index()->Number(), kMaxSafeInteger);
-  CHECK(object_map()->IsMap() || object_map()->IsUndefined(GetIsolate()));
+  CHECK_GE(next_index()->Number(), 0);
+  CHECK_LE(next_index()->Number(), kMaxSafeInteger);
+
+  if (iterated_object()->IsJSTypedArray()) {
+    // JSTypedArray::length is limited to Smi range.
+    CHECK(next_index()->IsSmi());
+    CHECK_LE(next_index()->Number(), Smi::kMaxValue);
+  } else if (iterated_object()->IsJSArray()) {
+    // JSArray::length is limited to Uint32 range.
+    CHECK_LE(next_index()->Number(), kMaxUInt32);
+  }
 }
 
 void JSStringIterator::JSStringIteratorVerify() {
@@ -1102,13 +1172,10 @@ void PromiseReactionJobTask::PromiseReactionJobTaskVerify() {
   VerifyHeapPointer(context());
   CHECK(context()->IsContext());
   VerifyHeapPointer(handler());
-  VerifyHeapPointer(payload());
-  if (handler()->IsCode()) {
-    CHECK(payload()->IsJSReceiver());
-  } else {
-    CHECK(handler()->IsUndefined(isolate) || handler()->IsCallable());
-    CHECK(payload()->IsJSPromise() || payload()->IsPromiseCapability());
-  }
+  CHECK(handler()->IsUndefined(isolate) || handler()->IsCallable());
+  VerifyHeapPointer(promise_or_capability());
+  CHECK(promise_or_capability()->IsJSPromise() ||
+        promise_or_capability()->IsPromiseCapability());
 }
 
 void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskVerify() {
@@ -1150,18 +1217,14 @@ void PromiseReaction::PromiseReactionVerify() {
   VerifyPointer(next());
   CHECK(next()->IsSmi() || next()->IsPromiseReaction());
   VerifyHeapPointer(reject_handler());
+  CHECK(reject_handler()->IsUndefined(isolate) ||
+        reject_handler()->IsCallable());
   VerifyHeapPointer(fulfill_handler());
-  VerifyHeapPointer(payload());
-  if (reject_handler()->IsCode()) {
-    CHECK(fulfill_handler()->IsCode());
-    CHECK(payload()->IsJSReceiver());
-  } else {
-    CHECK(reject_handler()->IsUndefined(isolate) ||
-          reject_handler()->IsCallable());
-    CHECK(fulfill_handler()->IsUndefined(isolate) ||
-          fulfill_handler()->IsCallable());
-    CHECK(payload()->IsJSPromise() || payload()->IsPromiseCapability());
-  }
+  CHECK(fulfill_handler()->IsUndefined(isolate) ||
+        fulfill_handler()->IsCallable());
+  VerifyHeapPointer(promise_or_capability());
+  CHECK(promise_or_capability()->IsJSPromise() ||
+        promise_or_capability()->IsPromiseCapability());
 }
 
 void JSPromise::JSPromiseVerify() {
@@ -1254,6 +1317,14 @@ void JSRegExp::JSRegExpVerify() {
       CHECK(data()->IsUndefined(isolate));
       break;
   }
+}
+
+void JSRegExpStringIterator::JSRegExpStringIteratorVerify() {
+  CHECK(IsJSRegExpStringIterator());
+  JSObjectVerify();
+  CHECK(iterating_string()->IsString());
+  CHECK(iterating_regexp()->IsObject());
+  VerifySmiField(kFlagsOffset);
 }
 
 void JSProxy::JSProxyVerify() {
@@ -1395,12 +1466,11 @@ void Module::ModuleVerify() {
 void PrototypeInfo::PrototypeInfoVerify() {
   CHECK(IsPrototypeInfo());
   CHECK(weak_cell()->IsWeakCell() || weak_cell()->IsUndefined(GetIsolate()));
-  if (prototype_users()->IsWeakFixedArray()) {
-    WeakFixedArray::cast(prototype_users())->FixedArrayVerify();
+  if (prototype_users()->IsFixedArrayOfWeakCells()) {
+    FixedArrayOfWeakCells::cast(prototype_users())->FixedArrayVerify();
   } else {
     CHECK(prototype_users()->IsSmi());
   }
-  CHECK(validity_cell()->IsSmi() || validity_cell()->IsCell());
 }
 
 void Tuple2::Tuple2Verify() {
@@ -1420,6 +1490,43 @@ void Tuple3::Tuple3Verify() {
   VerifyObjectField(kValue1Offset);
   VerifyObjectField(kValue2Offset);
   VerifyObjectField(kValue3Offset);
+}
+
+void WasmCompiledModule::WasmCompiledModuleVerify() {
+  CHECK(IsWasmCompiledModule());
+  VerifyObjectField(kSharedOffset);
+  VerifyObjectField(kNativeContextOffset);
+  VerifyObjectField(kExportWrappersOffset);
+  VerifyObjectField(kNextInstanceOffset);
+  VerifyObjectField(kPrevInstanceOffset);
+  VerifyObjectField(kOwningInstanceOffset);
+  VerifyObjectField(kWasmModuleOffset);
+  VerifyObjectField(kNativeModuleOffset);
+  VerifyObjectField(kLazyCompileDataOffset);
+  VerifyObjectField(kUseTrapHandlerOffset);
+}
+
+void WasmDebugInfo::WasmDebugInfoVerify() {
+  CHECK(IsWasmDebugInfo());
+  VerifyObjectField(kInstanceOffset);
+  CHECK(wasm_instance()->IsWasmInstanceObject());
+  VerifyObjectField(kInterpreterHandleOffset);
+  CHECK(interpreter_handle()->IsUndefined(GetIsolate()) ||
+        interpreter_handle()->IsForeign());
+  VerifyObjectField(kInterpretedFunctionsOffset);
+  VerifyObjectField(kLocalsNamesOffset);
+  VerifyObjectField(kCWasmEntriesOffset);
+  VerifyObjectField(kCWasmEntryMapOffset);
+}
+
+void WasmSharedModuleData::WasmSharedModuleDataVerify() {
+  CHECK(IsWasmSharedModuleData());
+  VerifyObjectField(kModuleWrapperOffset);
+  CHECK(module_wrapper()->IsForeign());
+  VerifyObjectField(kModuleBytesOffset);
+  VerifyObjectField(kScriptOffset);
+  VerifyObjectField(kAsmJsOffsetTableOffset);
+  VerifyObjectField(kBreakPointInfosOffset);
 }
 
 void DataHandler::DataHandlerVerify() {
@@ -1481,6 +1588,14 @@ void AccessCheckInfo::AccessCheckInfoVerify() {
   VerifyPointer(data());
 }
 
+void CallHandlerInfo::CallHandlerInfoVerify() {
+  CHECK(IsCallHandlerInfo());
+  CHECK(map() == GetHeap()->side_effect_call_handler_info_map() ||
+        map() == GetHeap()->side_effect_free_call_handler_info_map());
+  VerifyPointer(callback());
+  VerifyPointer(js_callback());
+  VerifyPointer(data());
+}
 
 void InterceptorInfo::InterceptorInfoVerify() {
   CHECK(IsInterceptorInfo());
@@ -1543,6 +1658,14 @@ void Script::ScriptVerify() {
   VerifyPointer(name());
   VerifyPointer(wrapper());
   VerifyPointer(line_ends());
+  for (int i = 0; i < shared_function_infos()->length(); ++i) {
+    MaybeObject* maybe_object = shared_function_infos()->Get(i);
+    HeapObject* heap_object;
+    CHECK(maybe_object->IsWeakHeapObject() ||
+          maybe_object->IsClearedWeakHeapObject() ||
+          (maybe_object->ToStrongHeapObject(&heap_object) &&
+           heap_object->IsUndefined(GetIsolate())));
+  }
 }
 
 
@@ -1583,6 +1706,12 @@ void PreParsedScopeData::PreParsedScopeDataVerify() {
   CHECK(IsPreParsedScopeData());
   CHECK(scope_data()->IsByteArray());
   CHECK(child_data()->IsFixedArray());
+}
+
+void InterpreterData::InterpreterDataVerify() {
+  CHECK(IsInterpreterData());
+  CHECK(bytecode_array()->IsBytecodeArray());
+  CHECK(interpreter_trampoline()->IsCode());
 }
 
 #endif  // VERIFY_HEAP

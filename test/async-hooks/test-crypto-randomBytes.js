@@ -3,6 +3,8 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+if (!common.isMainThread)
+  common.skip('Worker bootstrapping works differently -> different async IDs');
 
 const assert = require('assert');
 const tick = require('./tick');

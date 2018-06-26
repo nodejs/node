@@ -4,7 +4,7 @@ const common = require('../common');
 
 const assert = require('assert');
 const path = require('path');
-const { writeFile, readFile } = require('fs/promises');
+const { writeFile, readFile } = require('fs').promises;
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 

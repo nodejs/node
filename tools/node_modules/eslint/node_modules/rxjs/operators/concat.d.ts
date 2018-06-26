@@ -1,0 +1,12 @@
+import { ObservableInput } from '../Observable';
+import { IScheduler } from '../Scheduler';
+import { OperatorFunction, MonoTypeOperatorFunction } from '../interfaces';
+export { concat as concatStatic } from '../observable/concat';
+export declare function concat<T>(scheduler?: IScheduler): MonoTypeOperatorFunction<T>;
+export declare function concat<T, T2>(v2: ObservableInput<T2>, scheduler?: IScheduler): OperatorFunction<T, T | T2>;
+export declare function concat<T, T2, T3>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3>;
+export declare function concat<T, T2, T3, T4>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3 | T4>;
+export declare function concat<T, T2, T3, T4, T5>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, v5: ObservableInput<T5>, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3 | T4 | T5>;
+export declare function concat<T, T2, T3, T4, T5, T6>(v2: ObservableInput<T2>, v3: ObservableInput<T3>, v4: ObservableInput<T4>, v5: ObservableInput<T5>, v6: ObservableInput<T6>, scheduler?: IScheduler): OperatorFunction<T, T | T2 | T3 | T4 | T5 | T6>;
+export declare function concat<T>(...observables: Array<ObservableInput<T> | IScheduler>): MonoTypeOperatorFunction<T>;
+export declare function concat<T, R>(...observables: Array<ObservableInput<any> | IScheduler>): OperatorFunction<T, R>;

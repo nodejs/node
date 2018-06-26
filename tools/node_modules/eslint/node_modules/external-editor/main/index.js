@@ -48,20 +48,24 @@
         text = '';
       }
       editor = new ExternalEditor(text);
-      return editor.runAsync(function(error_run, response) {
+      return editor.runAsync(function(error_run, text) {
         var error_cleanup;
         if (!error_run) {
           try {
             editor.cleanup();
+            if (typeof callback === 'function') {
+              return setImmediate(callback, null, text);
+            }
           } catch (error) {
             error_cleanup = error;
             if (typeof callback === 'function') {
-              callback(error_cleanup);
+              return setImmediate(callback, error_cleanup, null);
             }
           }
-          return callback(null, response);
         } else {
-          return callback(error_run) in typeof callback === 'function';
+          if (typeof callback === 'function') {
+            return setImmediate(callback, error_run, null);
+          }
         }
       });
     };
@@ -82,6 +86,8 @@
       bin: void 0,
       args: []
     };
+
+    ExternalEditor.prototype.last_exit_status = void 0;
 
     function ExternalEditor(text1) {
       this.text = text1 != null ? text1 : '';
@@ -112,12 +118,12 @@
             try {
               _this.readTemporaryFile();
               if (typeof callback === 'function') {
-                return callback(null, _this.text);
+                return setImmediate(callback, null, _this.text);
               }
             } catch (error) {
               error_read = error;
               if (typeof callback === 'function') {
-                return callback(error_read);
+                return setImmediate(callback, error_read, null);
               }
             }
           };
@@ -125,7 +131,7 @@
       } catch (error) {
         error_launch = error;
         if (typeof callback === 'function') {
-          return callback(error_launch);
+          return setImmediate(callback, error_launch, null);
         }
       }
     };
@@ -139,8 +145,8 @@
       ed = /^win/.test(process.platform) ? 'notepad' : 'vim';
       editor = process.env.VISUAL || process.env.EDITOR || ed;
       args = editor.split(/\s+/);
-      this.bin = args.shift();
-      return this.args = args;
+      this.editor.bin = args.shift();
+      return this.editor.args = args;
     };
 
     ExternalEditor.prototype.createTemporaryFile = function() {
@@ -182,11 +188,12 @@
     };
 
     ExternalEditor.prototype.launchEditor = function() {
-      var e;
+      var e, run;
       try {
-        return SpawnSync(this.bin, this.args.concat([this.temp_file]), {
+        run = SpawnSync(this.editor.bin, this.editor.args.concat([this.temp_file]), {
           stdio: 'inherit'
         });
+        return this.last_exit_status = run.status;
       } catch (error) {
         e = error;
         throw new LaunchEditorError(e);
@@ -196,14 +203,17 @@
     ExternalEditor.prototype.launchEditorAsync = function(callback) {
       var child_process, e;
       try {
-        child_process = Spawn(this.bin, this.args.concat([this.temp_file]), {
+        child_process = Spawn(this.editor.bin, this.editor.args.concat([this.temp_file]), {
           stdio: 'inherit'
         });
-        return child_process.on('exit', function() {
-          if (typeof callback === 'function') {
-            return callback();
-          }
-        });
+        return child_process.on('exit', (function(_this) {
+          return function(code) {
+            _this.last_exit_status = code;
+            if (typeof callback === 'function') {
+              return callback();
+            }
+          };
+        })(this));
       } catch (error) {
         e = error;
         throw new LaunchEditorError(e);

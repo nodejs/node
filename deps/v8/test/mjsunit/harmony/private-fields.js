@@ -7,8 +7,6 @@
 
 "use strict";
 
-// TODO(gsathya): Missing tests:
-// (d) tests involving eval
 {
   class C {
     #a;
@@ -438,4 +436,43 @@
   let c = new C();
   c.b = () => c;
   assertEquals(1, c.getA(c));
+}
+
+{
+  class C {
+    #a = 1;
+    getA() { return eval('this.#a'); }
+  }
+
+  let c = new C;
+  assertEquals(1, c.getA());
+}
+
+{
+  var C;
+  eval('C = class {#a = 1;getA() { return eval(\'this.#a\'); }}');
+
+  let c = new C;
+  assertEquals(1, c.getA());
+}
+
+{
+  class C {
+    #a = 1;
+    getA() { return this.#a; }
+    setA() { eval('this.#a = 4'); }
+  }
+  let c = new C;
+  assertEquals(1, c.getA());
+  c.setA();
+  assertEquals(4, c.getA());
+}
+
+{
+  class C {
+    getA() { return eval('this.#a'); }
+  }
+
+  let c = new C;
+  assertThrows(() => c.getA(), SyntaxError);
 }

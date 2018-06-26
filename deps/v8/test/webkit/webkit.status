@@ -68,6 +68,10 @@
   # Too slow for mips big-endian boards on bots (no FPU).
   'dfg-int-overflow-in-loop': [SKIP],
 }], # 'arch == mips'
+['(arch == mips64 or arch == mips64el) and simulator_run', {
+  # Too slow.
+  'dfg-int-overflow-in-loop': [SKIP],
+}], # '(arch == mips64 or arch == mips64el) and simulator_run'
 ['(arch == ppc or arch == ppc64) and simulator_run', {
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],

@@ -83,6 +83,22 @@
                     }
                     return true;
 
+                case 'has':
+                    var a, collector = [];
+                    for (i = 0, l = selector.selectors.length; i < l; ++i) {
+                      a = [];
+                      estraverse.traverse(node, {
+                          enter: function (node, parent) {
+                              if (parent != null) { a.unshift(parent); }
+                              if (matches(node, selector.selectors[i], a)) {
+                                collector.push(node);
+                              }
+                          },
+                          leave: function () { a.shift(); }
+                      });
+                    }
+                    return collector.length !== 0;
+
                 case 'child':
                     if (matches(node, selector.right, ancestry)) {
                         return matches(ancestry[0], selector.left, ancestry.slice(1));
@@ -107,7 +123,7 @@
                             return p != null;
                         case '=':
                             switch (selector.value.type) {
-                                case 'regexp': return selector.value.value.test(p);
+                                case 'regexp': return typeof p === 'string' && selector.value.value.test(p);
                                 case 'literal': return '' + selector.value.value === '' + p;
                                 case 'type': return selector.value.value === typeof p;
                             }
@@ -162,8 +178,12 @@
                             // fallthrough: interface Expression <: Node, Pattern { }
                         case 'expression':
                             return node.type.slice(-10) === 'Expression' ||
-                                node.type === 'Literal' ||
-                                node.type === 'Identifier';
+                                node.type.slice(-7) === 'Literal' ||
+                                (
+                                    node.type === 'Identifier' &&
+                                    (ancestry.length === 0 || ancestry[0].type !== 'MetaProperty')
+                                ) ||
+                                node.type === 'MetaProperty';
                         case 'function':
                             return node.type.slice(0, 8) === 'Function' ||
                                 node.type === 'ArrowFunctionExpression';

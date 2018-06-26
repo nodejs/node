@@ -208,11 +208,16 @@ NODE_EXTERN extern bool force_fips_crypto;
 # endif
 #endif
 
-NODE_EXTERN int Start(int argc, char *argv[]);
+NODE_EXTERN int Start(int argc, char* argv[]);
 NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
                       const char*** exec_argv);
+
+class ArrayBufferAllocator;
+
+NODE_EXTERN ArrayBufferAllocator* CreateArrayBufferAllocator();
+NODE_EXTERN void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator);
 
 class IsolateData;
 class Environment;
@@ -220,6 +225,10 @@ class Environment;
 class MultiIsolatePlatform : public v8::Platform {
  public:
   virtual ~MultiIsolatePlatform() { }
+  // Returns true if work was dispatched or executed. New tasks that are
+  // posted during flushing of the queue are postponed until the next
+  // flushing.
+  virtual bool FlushForegroundTasks(v8::Isolate* isolate) = 0;
   virtual void DrainBackgroundTasks(v8::Isolate* isolate) = 0;
   virtual void CancelPendingDelayedTasks(v8::Isolate* isolate) = 0;
 
@@ -229,9 +238,21 @@ class MultiIsolatePlatform : public v8::Platform {
   virtual void UnregisterIsolate(IsolateData* isolate_data) = 0;
 };
 
+// Creates a new isolate with Node.js-specific settings.
+NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator);
+
+// Creates a new context with Node.js-specific tweaks.  Currently, it removes
+// the `v8BreakIterator` property from the global `Intl` object if present.
+// See https://github.com/nodejs/node/issues/14909 for more info.
+NODE_EXTERN v8::Local<v8::Context> NewContext(
+    v8::Isolate* isolate,
+    v8::Local<v8::ObjectTemplate> object_template =
+        v8::Local<v8::ObjectTemplate>());
+
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
 // Environments that use this `IsolateData` will not work.
+// TODO(helloshuangzi): switch to default parameters.
 NODE_EXTERN IsolateData* CreateIsolateData(
     v8::Isolate* isolate,
     struct uv_loop_s* loop);
@@ -239,6 +260,11 @@ NODE_EXTERN IsolateData* CreateIsolateData(
     v8::Isolate* isolate,
     struct uv_loop_s* loop,
     MultiIsolatePlatform* platform);
+NODE_EXTERN IsolateData* CreateIsolateData(
+    v8::Isolate* isolate,
+    struct uv_loop_s* loop,
+    MultiIsolatePlatform* platform,
+    ArrayBufferAllocator* allocator);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
 NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
@@ -250,6 +276,11 @@ NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
 
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);
+
+// This returns the MultiIsolatePlatform used in the main thread of Node.js.
+// If NODE_USE_V8_PLATFORM haven't been defined when Node.js was built,
+// it returns nullptr.
+NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform();
 
 NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
@@ -428,14 +459,14 @@ NODE_DEPRECATED("Use DecodeWrite(isolate, ...)",
 NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
     v8::Isolate* isolate,
     int errorno,
-    const char *syscall = nullptr,
-    const char *msg = "",
-    const char *path = nullptr);
+    const char* syscall = nullptr,
+    const char* msg = "",
+    const char* path = nullptr);
 
 NODE_DEPRECATED("Use WinapiErrnoException(isolate, ...)",
                 inline v8::Local<v8::Value> WinapiErrnoException(int errorno,
-    const char *syscall = nullptr,  const char *msg = "",
-    const char *path = nullptr) {
+    const char* syscall = nullptr,  const char* msg = "",
+    const char* path = nullptr) {
   return WinapiErrnoException(v8::Isolate::GetCurrent(),
                               errorno,
                               syscall,
@@ -444,7 +475,7 @@ NODE_DEPRECATED("Use WinapiErrnoException(isolate, ...)",
 })
 #endif
 
-const char *signo_string(int errorno);
+const char* signo_string(int errorno);
 
 
 typedef void (*addon_register_func)(
@@ -578,6 +609,19 @@ NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
                                 promise_hook_func fn,
                                 void* arg);
 
+/* This is a lot like node::AtExit, except that the hooks added via this
+ * function are run before the AtExit ones and will always be registered
+ * for the current Environment instance.
+ * These functions are safe to use in an addon supporting multiple
+ * threads/isolates. */
+NODE_EXTERN void AddEnvironmentCleanupHook(v8::Isolate* isolate,
+                                           void (*fun)(void* arg),
+                                           void* arg);
+
+NODE_EXTERN void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
+                                              void (*fun)(void* arg),
+                                              void* arg);
+
 /* Returns the id of the current execution context. If the return value is
  * zero then no execution has been set. This will happen if the user handles
  * I/O from native code. */
@@ -694,8 +738,9 @@ class AsyncResource {
                                      trigger_async_id);
     }
 
-    ~AsyncResource() {
+    virtual ~AsyncResource() {
       EmitAsyncDestroy(isolate_, async_context_);
+      resource_.Reset();
     }
 
     v8::MaybeLocal<v8::Value> MakeCallback(

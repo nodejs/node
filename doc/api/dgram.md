@@ -1,4 +1,4 @@
-# UDP / Datagram Sockets
+# UDP/Datagram Sockets
 
 <!--introduced_in=v0.10.0-->
 
@@ -57,7 +57,7 @@ added: v0.1.99
 * `exception` {Error}
 
 The `'error'` event is emitted whenever any error occurs. The event handler
-function is passed a single Error object.
+function is passed a single `Error` object.
 
 ### Event: 'listening'
 <!-- YAML
@@ -111,7 +111,7 @@ properties.
 added: v0.1.99
 -->
 
-* `port` {number} Integer.
+* `port` {integer}
 * `address` {string}
 * `callback` {Function} with no parameters. Called when binding is complete.
 
@@ -264,7 +264,7 @@ added: v0.1.99
 changes:
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11985
-    description: The `msg` parameter can be an Uint8Array now.
+    description: The `msg` parameter can be an `Uint8Array` now.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10473
     description: The `address` parameter is always optional now.
@@ -279,9 +279,9 @@ changes:
 -->
 
 * `msg` {Buffer|Uint8Array|string|Array} Message to be sent.
-* `offset` {number} Integer. Offset in the buffer where the message starts.
-* `length` {number} Integer. Number of bytes in the message.
-* `port` {number} Integer. Destination port.
+* `offset` {integer} Offset in the buffer where the message starts.
+* `length` {integer} Number of bytes in the message.
+* `port` {integer} Destination port.
 * `address` {string} Destination hostname or IP address.
 * `callback` {Function} Called when the message has been sent.
 
@@ -464,7 +464,6 @@ A socket's address family's ANY address (IPv4 `'0.0.0.0'` or IPv6 `'::'`) can be
 used to return control of the sockets default outgoing interface to the system
 for future multicast packets.
 
-
 ### socket.setMulticastLoopback(flag)
 <!-- YAML
 added: v0.3.8
@@ -480,7 +479,7 @@ multicast packets will also be received on the local interface.
 added: v0.3.8
 -->
 
-* `ttl` {number} Integer.
+* `ttl` {integer}
 
 Sets the `IP_MULTICAST_TTL` socket option. While TTL generally stands for
 "Time to Live", in this context it specifies the number of IP hops that a
@@ -496,7 +495,7 @@ between 0 and 255. The default on most systems is `1` but can vary.
 added: v8.7.0
 -->
 
-* `size` {number} Integer
+* `size` {integer}
 
 Sets the `SO_RCVBUF` socket option. Sets the maximum socket receive buffer
 in bytes.
@@ -506,7 +505,7 @@ in bytes.
 added: v8.7.0
 -->
 
-* `size` {number} Integer
+* `size` {integer}
 
 Sets the `SO_SNDBUF` socket option. Sets the maximum socket send buffer
 in bytes.
@@ -516,7 +515,7 @@ in bytes.
 added: v0.1.101
 -->
 
-* `ttl` {number} Integer.
+* `ttl` {integer}
 
 Sets the `IP_TTL` socket option. While TTL generally stands for "Time to Live",
 in this context it specifies the number of IP hops that a packet is allowed to

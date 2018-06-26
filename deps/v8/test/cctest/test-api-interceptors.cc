@@ -64,6 +64,14 @@ void EmptyInterceptorGetter(Local<Name> name,
 void EmptyInterceptorSetter(Local<Name> name, Local<Value> value,
                             const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
+void EmptyInterceptorQuery(Local<Name> name,
+                           const v8::PropertyCallbackInfo<v8::Integer>& info) {}
+
+void EmptyInterceptorDeleter(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Boolean>& info) {}
+
+void EmptyInterceptorEnumerator(
+    const v8::PropertyCallbackInfo<v8::Array>& info) {}
 
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -2587,6 +2595,52 @@ static void InterceptorForHiddenProperties(
   interceptor_for_hidden_properties_called = true;
 }
 
+THREADED_TEST(NoSideEffectPropertyHandler) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      EmptyInterceptorGetter, EmptyInterceptorSetter, EmptyInterceptorQuery,
+      EmptyInterceptorDeleter, EmptyInterceptorEnumerator));
+  v8::Local<v8::Object> object =
+      templ->NewInstance(context.local()).ToLocalChecked();
+  context->Global()->Set(context.local(), v8_str("obj"), object).FromJust();
+
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj.x"), true).IsEmpty());
+  CHECK(
+      v8::debug::EvaluateGlobal(isolate, v8_str("obj.x = 1"), true).IsEmpty());
+  CHECK(
+      v8::debug::EvaluateGlobal(isolate, v8_str("'x' in obj"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("delete obj.x"), true)
+            .IsEmpty());
+  // Wrap the variable declaration since declaring globals is a side effect.
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("(function() { for (var p in obj) ; })()"), true)
+            .IsEmpty());
+
+  // Side-effect-free version.
+  Local<ObjectTemplate> templ2 = ObjectTemplate::New(isolate);
+  templ2->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      EmptyInterceptorGetter, EmptyInterceptorSetter, EmptyInterceptorQuery,
+      EmptyInterceptorDeleter, EmptyInterceptorEnumerator,
+      v8::Local<v8::Value>(), v8::PropertyHandlerFlags::kHasNoSideEffect));
+  v8::Local<v8::Object> object2 =
+      templ2->NewInstance(context.local()).ToLocalChecked();
+  context->Global()->Set(context.local(), v8_str("obj2"), object2).FromJust();
+
+  v8::debug::EvaluateGlobal(isolate, v8_str("obj2.x"), true).ToLocalChecked();
+  CHECK(
+      v8::debug::EvaluateGlobal(isolate, v8_str("obj2.x = 1"), true).IsEmpty());
+  v8::debug::EvaluateGlobal(isolate, v8_str("'x' in obj2"), true)
+      .ToLocalChecked();
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("delete obj2.x"), true)
+            .IsEmpty());
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("(function() { for (var p in obj2) ; })()"), true)
+      .ToLocalChecked();
+}
 
 THREADED_TEST(HiddenPropertiesWithInterceptors) {
   LocalContext context;

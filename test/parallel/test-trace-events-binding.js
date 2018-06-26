@@ -4,6 +4,9 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 const CODE = `
   process.binding("trace_events").emit(
     'b'.charCodeAt(0), 'custom',
@@ -31,7 +34,8 @@ const proc = cp.spawn(process.execPath,
 proc.once('exit', common.mustCall(() => {
   assert(common.fileExists(FILE_NAME));
   fs.readFile(FILE_NAME, common.mustCall((err, data) => {
-    const traces = JSON.parse(data.toString()).traceEvents;
+    const traces = JSON.parse(data.toString()).traceEvents
+      .filter((trace) => trace.cat !== '__metadata');
     assert.strictEqual(traces.length, 3);
 
     assert.strictEqual(traces[0].pid, proc.pid);

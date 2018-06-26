@@ -6,6 +6,7 @@ var test = require('tap').test
 var Tacks = require('tacks')
 var File = Tacks.File
 var Dir = Tacks.Dir
+var path = require('path')
 
 var common = require('../common-tap')
 
@@ -57,7 +58,7 @@ var fixture = new Tacks(Dir({
     },
     scripts: {
       build: 'helper',
-      prepublishOnly: 'npm run build'
+      prepublishOnly: 'node ' + path.resolve(__dirname, '../../') + ' run build'
     }
   })
 }))
@@ -93,8 +94,8 @@ test('setup', function (t) {
 
 test('test', function (t) {
   server.filteringRequestBody(function () { return true })
-        .put('/npm-test-prepublish-only', true)
-        .reply(201, {ok: true})
+    .put('/npm-test-prepublish-only', true)
+    .reply(201, {ok: true})
 
   common.npm(
     [
@@ -113,7 +114,7 @@ test('test', function (t) {
       var c = stdout.trim()
       var regex = new RegExp(
         '> npm-test-prepublish-only@1.2.5 prepublishOnly [^\\r\\n]+\\r?\\n' +
-        '> npm run build\\r?\\n' +
+        '> .* run build\\r?\\n' +
         '\\r?\\n' +
         '\\r?\\n' +
         '> npm-test-prepublish-only@1.2.5 build [^\\r\\n]+\\r?\\n' +

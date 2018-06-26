@@ -11,6 +11,8 @@ const tmpdir = require('../common/tmpdir');
 if (common.isWindows)
   common.skip('On Windows named pipes live in their own ' +
               'filesystem and don\'t have a ~100 byte limit');
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
 // Choose a socket name such that the absolute path would exceed 100 bytes.
 const socketDir = './unix-socket-dir';

@@ -15,9 +15,11 @@ npm install character-entities-legacy
 ## Usage
 
 ```js
-console.log(characterEntitiesLegacy.copy); //=> '©'
-console.log(characterEntitiesLegacy.frac34); //=> '¾'
-console.log(characterEntitiesLegacy.sup1); //=> '¹'
+var characterEntitiesLegacy = require('character-entities-legacy')
+
+console.log(characterEntitiesLegacy.copy) // => '©'
+console.log(characterEntitiesLegacy.frac34) // => '¾'
+console.log(characterEntitiesLegacy.sup1) // => '¹'
 ```
 
 ## API

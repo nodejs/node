@@ -115,7 +115,7 @@ Good:
 
 ## Whitespace
 
-Put a single space in front of ( for anything other than a function call.
+Put a single space in front of `(` for anything other than a function call.
 Also use a single space wherever it makes things more readable.
 
 Don't leave trailing whitespace at the end of lines.  Don't indent empty

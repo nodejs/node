@@ -58,11 +58,14 @@ V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
       m_debugger(new V8Debugger(isolate, this)),
       m_capturingStackTracesCount(0),
       m_lastExceptionId(0),
-      m_lastContextId(0) {
+      m_lastContextId(0),
+      m_isolateId(v8::debug::GetNextRandomInt64(m_isolate)) {
+  v8::debug::SetInspector(m_isolate, this);
   v8::debug::SetConsoleDelegate(m_isolate, console());
 }
 
 V8InspectorImpl::~V8InspectorImpl() {
+  v8::debug::SetInspector(m_isolate, nullptr);
   v8::debug::SetConsoleDelegate(m_isolate, nullptr);
 }
 
@@ -234,21 +237,9 @@ void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   m_debugger->wasmTranslation()->Clear();
 }
 
-void V8InspectorImpl::idleStarted() {
-  for (auto& it : m_sessions) {
-    for (auto& it2 : it.second) {
-      if (it2.second->profilerAgent()->idleStarted()) return;
-    }
-  }
-}
+void V8InspectorImpl::idleStarted() { m_isolate->SetIdle(true); }
 
-void V8InspectorImpl::idleFinished() {
-  for (auto& it : m_sessions) {
-    for (auto& it2 : it.second) {
-      if (it2.second->profilerAgent()->idleFinished()) return;
-    }
-  }
-}
+void V8InspectorImpl::idleFinished() { m_isolate->SetIdle(false); }
 
 unsigned V8InspectorImpl::exceptionThrown(
     v8::Local<v8::Context> context, const StringView& message,

@@ -141,26 +141,6 @@ class Referencer extends esrecurse.Visitor {
         this.isInnerMethodDefinition = isInnerMethodDefinition;
     }
 
-    materializeTDZScope(node, iterationNode) {
-
-        // http://people.mozilla.org/~jorendorff/es6-draft.html#sec-runtime-semantics-forin-div-ofexpressionevaluation-abstract-operation
-        // TDZ scope hides the declaration's names.
-        this.scopeManager.__nestTDZScope(node, iterationNode);
-        this.visitVariableDeclaration(this.currentScope(), Variable.TDZ, iterationNode.left, 0, true);
-    }
-
-    materializeIterationScope(node) {
-
-        // Generate iteration scope for upper ForIn/ForOf Statements.
-        const letOrConstDecl = node.left;
-
-        this.scopeManager.__nestForScope(node);
-        this.visitVariableDeclaration(this.currentScope(), Variable.Variable, letOrConstDecl, 0);
-        this.visitPattern(letOrConstDecl.declarations[0].id, pattern => {
-            this.currentScope().__referencing(pattern, Reference.WRITE, node.right, null, true, true);
-        });
-    }
-
     referencingDefaultValue(pattern, assignments, maybeImplicitGlobal, init) {
         const scope = this.currentScope();
 
@@ -288,7 +268,6 @@ class Referencer extends esrecurse.Visitor {
                     ));
         }
 
-        // FIXME: Maybe consider TDZ.
         this.visit(node.superClass);
 
         this.scopeManager.__nestClassScope(node);
@@ -326,46 +305,42 @@ class Referencer extends esrecurse.Visitor {
 
     visitForIn(node) {
         if (node.left.type === Syntax.VariableDeclaration && node.left.kind !== "var") {
-            this.materializeTDZScope(node.right, node);
-            this.visit(node.right);
-            this.close(node.right);
-
-            this.materializeIterationScope(node);
-            this.visit(node.body);
-            this.close(node);
-        } else {
-            if (node.left.type === Syntax.VariableDeclaration) {
-                this.visit(node.left);
-                this.visitPattern(node.left.declarations[0].id, pattern => {
-                    this.currentScope().__referencing(pattern, Reference.WRITE, node.right, null, true, true);
-                });
-            } else {
-                this.visitPattern(node.left, { processRightHandNodes: true }, (pattern, info) => {
-                    let maybeImplicitGlobal = null;
-
-                    if (!this.currentScope().isStrict) {
-                        maybeImplicitGlobal = {
-                            pattern,
-                            node
-                        };
-                    }
-                    this.referencingDefaultValue(pattern, info.assignments, maybeImplicitGlobal, false);
-                    this.currentScope().__referencing(pattern, Reference.WRITE, node.right, maybeImplicitGlobal, true, false);
-                });
-            }
-            this.visit(node.right);
-            this.visit(node.body);
+            this.scopeManager.__nestForScope(node);
         }
+
+        if (node.left.type === Syntax.VariableDeclaration) {
+            this.visit(node.left);
+            this.visitPattern(node.left.declarations[0].id, pattern => {
+                this.currentScope().__referencing(pattern, Reference.WRITE, node.right, null, true, true);
+            });
+        } else {
+            this.visitPattern(node.left, { processRightHandNodes: true }, (pattern, info) => {
+                let maybeImplicitGlobal = null;
+
+                if (!this.currentScope().isStrict) {
+                    maybeImplicitGlobal = {
+                        pattern,
+                        node
+                    };
+                }
+                this.referencingDefaultValue(pattern, info.assignments, maybeImplicitGlobal, false);
+                this.currentScope().__referencing(pattern, Reference.WRITE, node.right, maybeImplicitGlobal, true, false);
+            });
+        }
+        this.visit(node.right);
+        this.visit(node.body);
+
+        this.close(node);
     }
 
-    visitVariableDeclaration(variableTargetScope, type, node, index, fromTDZ) {
+    visitVariableDeclaration(variableTargetScope, type, node, index) {
 
-        // If this was called to initialize a TDZ scope, this needs to make definitions, but doesn't make references.
         const decl = node.declarations[index];
         const init = decl.init;
 
-        this.visitPattern(decl.id, { processRightHandNodes: !fromTDZ }, (pattern, info) => {
-            variableTargetScope.__define(pattern,
+        this.visitPattern(decl.id, { processRightHandNodes: true }, (pattern, info) => {
+            variableTargetScope.__define(
+                pattern,
                 new Definition(
                     type,
                     pattern,
@@ -373,11 +348,10 @@ class Referencer extends esrecurse.Visitor {
                     node,
                     index,
                     node.kind
-                ));
+                )
+            );
 
-            if (!fromTDZ) {
-                this.referencingDefaultValue(pattern, info.assignments, null, true);
-            }
+            this.referencingDefaultValue(pattern, info.assignments, null, true);
             if (init) {
                 this.currentScope().__referencing(pattern, Reference.WRITE, init, null, !info.topLevel, true);
             }

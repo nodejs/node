@@ -26,13 +26,9 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
  public:
   typedef MaybeStackBuffer<char, 64> FSReqBuffer;
 
-  FSReqBase(Environment* env, Local<Object> req, AsyncWrap::ProviderType type)
-      : ReqWrap(env, req, type) {
-    Wrap(object(), this);
-  }
-
-  virtual ~FSReqBase() {
-    ClearWrap(object());
+  FSReqBase(Environment* env, Local<Object> req, AsyncWrap::ProviderType type,
+            bool use_bigint)
+      : ReqWrap(env, req, type), use_bigint_(use_bigint) {
   }
 
   void Init(const char* syscall,
@@ -71,11 +67,13 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   enum encoding encoding() const { return encoding_; }
 
   size_t self_size() const override { return sizeof(*this); }
+  bool use_bigint() const { return use_bigint_; }
 
  private:
   enum encoding encoding_ = UTF8;
   bool has_data_ = false;
   const char* syscall_ = nullptr;
+  bool use_bigint_ = false;
 
   // Typically, the content of buffer_ is something like a file name, so
   // something around 64 bytes should be enough.
@@ -86,8 +84,8 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
 
 class FSReqWrap : public FSReqBase {
  public:
-  FSReqWrap(Environment* env, Local<Object> req)
-      : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQWRAP) { }
+  FSReqWrap(Environment* env, Local<Object> req, bool use_bigint)
+      : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQWRAP, use_bigint) { }
 
   void Reject(Local<Value> reject) override;
   void Resolve(Local<Value> value) override;
@@ -101,11 +99,12 @@ class FSReqWrap : public FSReqBase {
 template <typename NativeT = double, typename V8T = v8::Float64Array>
 class FSReqPromise : public FSReqBase {
  public:
-  explicit FSReqPromise(Environment* env)
+  explicit FSReqPromise(Environment* env, bool use_bigint)
       : FSReqBase(env,
                   env->fsreqpromise_constructor_template()
                       ->NewInstance(env->context()).ToLocalChecked(),
-                  AsyncWrap::PROVIDER_FSREQPROMISE),
+                  AsyncWrap::PROVIDER_FSREQPROMISE,
+                  use_bigint),
         stats_field_array_(env->isolate(), env->kFsStatsFieldsLength) {
     auto resolver = Promise::Resolver::New(env->context()).ToLocalChecked();
     object()->Set(env->context(), env->promise_string(),
@@ -140,8 +139,7 @@ class FSReqPromise : public FSReqBase {
   }
 
   void ResolveStat(const uv_stat_t* stat) override {
-    node::FillStatsArray(&stats_field_array_, stat);
-    Resolve(stats_field_array_.GetJSArray());
+    Resolve(node::FillStatsArray(&stats_field_array_, stat));
   }
 
   void SetReturnValue(const FunctionCallbackInfo<Value>& args) override {
@@ -249,10 +247,10 @@ class FileHandle : public AsyncWrap, public StreamBase {
                   env->fdclose_constructor_template()
                       ->NewInstance(env->context()).ToLocalChecked(),
                   AsyncWrap::PROVIDER_FILEHANDLECLOSEREQ) {
-      Wrap(object(), this);
       promise_.Reset(env->isolate(), promise);
       ref_.Reset(env->isolate(), ref);
     }
+
     ~CloseReq() {
       uv_fs_req_cleanup(req());
       promise_.Reset();

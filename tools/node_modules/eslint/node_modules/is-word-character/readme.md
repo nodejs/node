@@ -14,14 +14,14 @@ npm install is-word-character
 ## Usage
 
 ```javascript
-var wordCharacter = require('is-word-character');
+var wordCharacter = require('is-word-character')
 
-wordCharacter('a'); //=> true
-wordCharacter('Z'); //=> true
-wordCharacter('0'); //=> true
-wordCharacter('_'); //=> true
-wordCharacter(' '); //=> false
-wordCharacter('💩'); //=> false
+wordCharacter('a') // => true
+wordCharacter('Z') // => true
+wordCharacter('0') // => true
+wordCharacter('_') // => true
+wordCharacter(' ') // => false
+wordCharacter('💩') // => false
 ```
 
 ## API

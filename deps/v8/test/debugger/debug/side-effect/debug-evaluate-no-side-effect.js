@@ -67,8 +67,8 @@ function listener(event, exec_state, event_data, data) {
     // Constructed literals.
     success([1], "[1]");
     success({x: 1}, "({x: 1})");
-    fail("[a]");
-    fail("({x: a})");
+    success([1], "[a]");
+    success({x: 1}, "({x: a})");
     // Test that template literal evaluation fails.
     fail("simple_return`1`");
     // Test that non-read-only code fails.
@@ -82,6 +82,11 @@ function listener(event, exec_state, event_data, data) {
     fail("try { set_a() } catch (e) {}");
     // Test that call to set accessor fails.
     fail("array.length = 4");
+    fail("'x'.length = 1");
+    fail("set_a.name = 'set_b'");
+    fail("set_a.length = 1");
+    fail("bound.name = 'bound'");
+    fail("bound.length = 1");
     // Test that call to non-whitelisted get accessor fails.
     fail("error.stack");
     // Eval is not allowed.

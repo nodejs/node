@@ -6,8 +6,8 @@
 #define V8_STRING_BUILDER_H_
 
 #include "src/assert-scope.h"
-#include "src/factory.h"
 #include "src/handles.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/utils.h"

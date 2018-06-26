@@ -3,9 +3,11 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (common.isWindows) {
-  assert.strictEqual(process.geteuid, undefined);
-  assert.strictEqual(process.getegid, undefined);
+if (common.isWindows || !common.isMainThread) {
+  if (common.isMainThread) {
+    assert.strictEqual(process.geteuid, undefined);
+    assert.strictEqual(process.getegid, undefined);
+  }
   assert.strictEqual(process.seteuid, undefined);
   assert.strictEqual(process.setegid, undefined);
   return;
@@ -13,11 +15,18 @@ if (common.isWindows) {
 
 assert.throws(() => {
   process.seteuid({});
-}, /^TypeError: seteuid argument must be a number or string$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "id" argument must be one of type number or string. ' +
+    'Received type object'
+});
 
 assert.throws(() => {
-  process.seteuid('fhqwhgadshgnsdhjsdbkhsdabkfabkveybvf');
-}, /^Error: seteuid user id does not exist$/);
+  process.seteuid('fhqwhgadshgnsdhjsdbkhsdabkfabkveyb');
+}, {
+  code: 'ERR_UNKNOWN_CREDENTIAL',
+  message: 'User identifier does not exist: fhqwhgadshgnsdhjsdbkhsdabkfabkveyb'
+});
 
 // If we're not running as super user...
 if (process.getuid() !== 0) {
@@ -27,11 +36,11 @@ if (process.getuid() !== 0) {
 
   assert.throws(() => {
     process.setegid('nobody');
-  }, /^Error: (?:EPERM, .+|setegid group id does not exist)$/);
+  }, /(?:EPERM, .+|Group identifier does not exist: nobody)$/);
 
   assert.throws(() => {
     process.seteuid('nobody');
-  }, /^Error: (?:EPERM, .+|seteuid user id does not exist)$/);
+  }, /^Error: (?:EPERM, .+|User identifier does not exist: nobody)$/);
 
   return;
 }
@@ -41,7 +50,7 @@ const oldgid = process.getegid();
 try {
   process.setegid('nobody');
 } catch (err) {
-  if (err.message !== 'setegid group id does not exist') {
+  if (err.message !== 'Group identifier does not exist: nobody') {
     throw err;
   } else {
     process.setegid('nogroup');

@@ -12,7 +12,10 @@ const fixtures = require('../common/fixtures');
 
 // Tests below are not from WPT.
 const tests = require(fixtures.path('url-tests'));
-const failureTests = tests.filter((test) => test.failure).concat([
+
+const originalFailures = tests.filter((test) => test.failure);
+
+const typeFailures = [
   { input: '' },
   { input: 'test' },
   { input: undefined },
@@ -25,7 +28,23 @@ const failureTests = tests.filter((test) => test.failure).concat([
   { input: 'test', base: null },
   { input: 'http://nodejs.org', base: null },
   { input: () => {} }
-]);
+];
+
+// See https://github.com/w3c/web-platform-tests/pull/10955
+// > If `failure` is true, parsing `about:blank` against `base`
+// > must give failure. This tests that the logic for converting
+// > base URLs into strings properly fails the whole parsing
+// > algorithm if the base URL cannot be parsed.
+const aboutBlankFailures = originalFailures
+  .map((test) => ({
+    input: 'about:blank',
+    base: test.input,
+    failure: true
+  }));
+
+const failureTests = originalFailures
+  .concat(typeFailures)
+  .concat(aboutBlankFailures);
 
 const expectedError = common.expectsError(
   { code: 'ERR_INVALID_URL', type: TypeError }, failureTests.length);

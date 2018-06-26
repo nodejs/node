@@ -153,6 +153,10 @@ class TypeCache final {
   Type* const kArgumentsLengthType =
       Type::Range(0.0, Code::kMaxArguments, zone());
 
+  // The JSArrayIterator::kind property always contains an integer in the
+  // range [0, 2], representing the possible IterationKinds.
+  Type* const kJSArrayIteratorKindType = CreateRange(0.0, 2.0);
+
  private:
   template <typename T>
   Type* CreateRange() {

@@ -88,6 +88,7 @@ class ProcessWrap : public HandleWrap {
                    object,
                    reinterpret_cast<uv_handle_t*>(&process_),
                    AsyncWrap::PROVIDER_PROCESSWRAP) {
+    MarkAsUninitialized();
   }
 
   static void ParseStdioOptions(Environment* env,
@@ -125,7 +126,7 @@ class ProcessWrap : public HandleWrap {
         Local<Object> handle =
             stdio->Get(context, handle_key).ToLocalChecked().As<Object>();
         uv_stream_t* stream = HandleToStream(env, handle);
-        CHECK_NE(stream, nullptr);
+        CHECK_NOT_NULL(stream);
 
         options->stdio[i].flags = UV_INHERIT_STREAM;
         options->stdio[i].data.stream = stream;
@@ -196,7 +197,7 @@ class ProcessWrap : public HandleWrap {
         node::Utf8Value arg(env->isolate(),
                             js_argv->Get(context, i).ToLocalChecked());
         options.args[i] = strdup(*arg);
-        CHECK_NE(options.args[i], nullptr);
+        CHECK_NOT_NULL(options.args[i]);
       }
       options.args[argc] = nullptr;
     }
@@ -222,7 +223,7 @@ class ProcessWrap : public HandleWrap {
         node::Utf8Value pair(env->isolate(),
                              env_opt->Get(context, i).ToLocalChecked());
         options.env[i] = strdup(*pair);
-        CHECK_NE(options.env[i], nullptr);
+        CHECK_NOT_NULL(options.env[i]);
       }
       options.env[envc] = nullptr;
     }
@@ -256,6 +257,7 @@ class ProcessWrap : public HandleWrap {
     }
 
     int err = uv_spawn(env->event_loop(), &wrap->process_, &options);
+    wrap->MarkAsInitialized();
 
     if (err == 0) {
       CHECK_EQ(wrap->process_.data, wrap);
@@ -292,7 +294,7 @@ class ProcessWrap : public HandleWrap {
                      int64_t exit_status,
                      int term_signal) {
     ProcessWrap* wrap = static_cast<ProcessWrap*>(handle->data);
-    CHECK_NE(wrap, nullptr);
+    CHECK_NOT_NULL(wrap);
     CHECK_EQ(&wrap->process_, handle);
 
     Environment* env = wrap->env();

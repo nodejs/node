@@ -24,14 +24,16 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const exec = require('child_process').exec;
 let async_completed = 0;
 let async_expected = 0;
 const unlink = [];
-let skipSymlinks = false;
+const skipSymlinks = !common.canCreateSymLink();
 const tmpDir = tmpdir.path;
 
 tmpdir.refresh();
@@ -45,25 +47,9 @@ if (common.isWindows) {
     assert
       .strictEqual(path_left.toLowerCase(), path_right.toLowerCase(), message);
   };
-
-  // On Windows, creating symlinks requires admin privileges.
-  // We'll only try to run symlink test if we have enough privileges.
-  try {
-    exec('whoami /priv', function(err, o) {
-      if (err || !o.includes('SeCreateSymbolicLinkPrivilege')) {
-        skipSymlinks = true;
-      }
-      runTest();
-    });
-  } catch (er) {
-    // better safe than sorry
-    skipSymlinks = true;
-    process.nextTick(runTest);
-  }
-} else {
-  process.nextTick(runTest);
 }
 
+process.nextTick(runTest);
 
 function tmp(p) {
   return path.join(tmpDir, p);

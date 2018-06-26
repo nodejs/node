@@ -1,5 +1,4 @@
 // Flags: --harmony-bigint --experimental-vm-modules
-/* global SharedArrayBuffer */
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
@@ -21,6 +20,7 @@ for (const [ value, _method ] of [
   [ new Number(), 'isNumberObject' ],
   [ new String(), 'isStringObject' ],
   [ Object(Symbol()), 'isSymbolObject' ],
+  [ Object(BigInt(0)), 'isBigIntObject' ],
   [ new Error(), 'isNativeError' ],
   [ new RegExp() ],
   [ async function() {}, 'isAsyncFunction' ],

@@ -37,7 +37,7 @@
 #include <tlhelp32.h>
 #include <windows.h>
 #include <userenv.h>
-
+#include <math.h>
 
 /*
  * Max title length; the only thing MSDN tells us about the maximum length
@@ -73,10 +73,6 @@
 /* Cached copy of the process title, plus a mutex guarding it. */
 static char *process_title;
 static CRITICAL_SECTION process_title_lock;
-
-/* Cached copy of the process id, written once. */
-static DWORD current_pid = 0;
-
 
 /* Interval (in seconds) of the high-resolution clock. */
 static double hrtime_interval_ = 0;
@@ -149,8 +145,8 @@ int uv_exepath(char* buffer, size_t* size_ptr) {
 
   uv__free(utf16_buffer);
 
-  /* utf8_len *does* include the terminating null at this point, but the */
-  /* returned size shouldn't. */
+  /* utf8_len *does* include the terminating null at this point, but the
+   * returned size shouldn't. */
   *size_ptr = utf8_len - 1;
   return 0;
 
@@ -173,16 +169,16 @@ int uv_cwd(char* buffer, size_t* size) {
   if (utf16_len == 0) {
     return uv_translate_sys_error(GetLastError());
   } else if (utf16_len > MAX_PATH) {
-    /* This should be impossible;  however the CRT has a code path to deal */
-    /* with this scenario, so I added a check anyway. */
+    /* This should be impossible; however the CRT has a code path to deal with
+     * this scenario, so I added a check anyway. */
     return UV_EIO;
   }
 
   /* utf16_len contains the length, *not* including the terminating null. */
   utf16_buffer[utf16_len] = L'\0';
 
-  /* The returned directory should not have a trailing slash, unless it */
-  /* points at a drive root, like c:\. Remove it if needed.*/
+  /* The returned directory should not have a trailing slash, unless it points
+   * at a drive root, like c:\. Remove it if needed. */
   if (utf16_buffer[utf16_len - 1] == L'\\' &&
       !(utf16_len == 3 && utf16_buffer[1] == L':')) {
     utf16_len--;
@@ -239,9 +235,9 @@ int uv_chdir(const char* dir) {
                           utf16_buffer,
                           MAX_PATH) == 0) {
     DWORD error = GetLastError();
-    /* The maximum length of the current working directory is 260 chars, */
-    /* including terminating null. If it doesn't fit, the path name must be */
-    /* too long. */
+    /* The maximum length of the current working directory is 260 chars,
+     * including terminating null. If it doesn't fit, the path name must be too
+     * long. */
     if (error == ERROR_INSUFFICIENT_BUFFER) {
       return UV_ENAMETOOLONG;
     } else {
@@ -253,9 +249,9 @@ int uv_chdir(const char* dir) {
     return uv_translate_sys_error(GetLastError());
   }
 
-  /* Windows stores the drive-local path in an "hidden" environment variable, */
-  /* which has the form "=C:=C:\Windows". SetCurrentDirectory does not */
-  /* update this, so we'll have to do it. */
+  /* Windows stores the drive-local path in an "hidden" environment variable,
+   * which has the form "=C:=C:\Windows". SetCurrentDirectory does not update
+   * this, so we'll have to do it. */
   utf16_len = GetCurrentDirectoryW(MAX_PATH, utf16_buffer);
   if (utf16_len == 0) {
     return uv_translate_sys_error(GetLastError());
@@ -263,8 +259,8 @@ int uv_chdir(const char* dir) {
     return UV_EIO;
   }
 
-  /* The returned directory should not have a trailing slash, unless it */
-  /* points at a drive root, like c:\. Remove it if needed. */
+  /* The returned directory should not have a trailing slash, unless it points
+   * at a drive root, like c:\. Remove it if needed. */
   if (utf16_buffer[utf16_len - 1] == L'\\' &&
       !(utf16_len == 3 && utf16_buffer[1] == L':')) {
     utf16_len--;
@@ -272,8 +268,8 @@ int uv_chdir(const char* dir) {
   }
 
   if (utf16_len < 2 || utf16_buffer[1] != L':') {
-    /* Doesn't look like a drive letter could be there - probably an UNC */
-    /* path. TODO: Need to handle win32 namespaces like \\?\C:\ ? */
+    /* Doesn't look like a drive letter could be there - probably an UNC path.
+     * TODO: Need to handle win32 namespaces like \\?\C:\ ? */
     drive_letter = 0;
   } else if (utf16_buffer[0] >= L'A' && utf16_buffer[0] <= L'Z') {
     drive_letter = utf16_buffer[0];
@@ -356,14 +352,6 @@ uv_pid_t uv_os_getppid(void) {
 
   CloseHandle(handle);
   return parent_pid;
-}
-
-
-int uv_current_pid(void) {
-  if (current_pid == 0) {
-    current_pid = GetCurrentProcessId();
-  }
-  return current_pid;
 }
 
 
@@ -587,8 +575,8 @@ int uv_uptime(double* uptime) {
         BYTE* address = (BYTE*) object_type + object_type->DefinitionLength +
                         counter_definition->CounterOffset;
         uint64_t value = *((uint64_t*) address);
-        *uptime = (double) (object_type->PerfTime.QuadPart - value) /
-                  (double) object_type->PerfFreq.QuadPart;
+        *uptime = floor((double) (object_type->PerfTime.QuadPart - value) /
+                        (double) object_type->PerfFreq.QuadPart);
         uv__free(malloced_buffer);
         return 0;
       }
@@ -615,7 +603,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos_ptr, int* cpu_count_ptr) {
   SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION* sppi;
   DWORD sppi_size;
   SYSTEM_INFO system_info;
-  DWORD cpu_count, r, i;
+  DWORD cpu_count, i;
   NTSTATUS status;
   ULONG result_size;
   int err;
@@ -670,34 +658,33 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos_ptr, int* cpu_count_ptr) {
 
     assert(len > 0 && len < ARRAY_SIZE(key_name));
 
-    r = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-                      key_name,
-                      0,
-                      KEY_QUERY_VALUE,
-                      &processor_key);
-    if (r != ERROR_SUCCESS) {
-      err = GetLastError();
+    err = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                        key_name,
+                        0,
+                        KEY_QUERY_VALUE,
+                        &processor_key);
+    if (err != ERROR_SUCCESS) {
       goto error;
     }
 
-    if (RegQueryValueExW(processor_key,
-                         L"~MHz",
-                         NULL,
-                         NULL,
-                         (BYTE*) &cpu_speed,
-                         &cpu_speed_size) != ERROR_SUCCESS) {
-      err = GetLastError();
+    err = RegQueryValueExW(processor_key,
+                           L"~MHz",
+                           NULL,
+                           NULL,
+                           (BYTE*)&cpu_speed,
+                           &cpu_speed_size);
+    if (err != ERROR_SUCCESS) {
       RegCloseKey(processor_key);
       goto error;
     }
 
-    if (RegQueryValueExW(processor_key,
-                         L"ProcessorNameString",
-                         NULL,
-                         NULL,
-                         (BYTE*) &cpu_brand,
-                         &cpu_brand_size) != ERROR_SUCCESS) {
-      err = GetLastError();
+    err = RegQueryValueExW(processor_key,
+                           L"ProcessorNameString",
+                           NULL,
+                           NULL,
+                           (BYTE*)&cpu_brand,
+                           &cpu_brand_size);
+    if (err != ERROR_SUCCESS) {
       RegCloseKey(processor_key);
       goto error;
     }
@@ -843,17 +830,17 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
   }
 
 
-  /* Fetch the size of the adapters reported by windows, and then get the */
-  /* list itself. */
+  /* Fetch the size of the adapters reported by windows, and then get the list
+   * itself. */
   win_address_buf_size = 0;
   win_address_buf = NULL;
 
   for (;;) {
     ULONG r;
 
-    /* If win_address_buf is 0, then GetAdaptersAddresses will fail with */
-    /* ERROR_BUFFER_OVERFLOW, and the required buffer size will be stored in */
-    /* win_address_buf_size. */
+    /* If win_address_buf is 0, then GetAdaptersAddresses will fail with.
+     * ERROR_BUFFER_OVERFLOW, and the required buffer size will be stored in
+     * win_address_buf_size. */
     r = GetAdaptersAddresses(AF_UNSPEC,
                              flags,
                              NULL,
@@ -867,8 +854,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
 
     switch (r) {
       case ERROR_BUFFER_OVERFLOW:
-        /* This happens when win_address_buf is NULL or too small to hold */
-        /* all adapters. */
+        /* This happens when win_address_buf is NULL or too small to hold all
+         * adapters. */
         win_address_buf = uv__malloc(win_address_buf_size);
         if (win_address_buf == NULL)
           return UV_ENOMEM;
@@ -902,15 +889,15 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
         return UV_ENOBUFS;
 
       default:
-        /* Other (unspecified) errors can happen, but we don't have any */
-        /* special meaning for them. */
+        /* Other (unspecified) errors can happen, but we don't have any special
+         * meaning for them. */
         assert(r != ERROR_SUCCESS);
         return uv_translate_sys_error(r);
     }
   }
 
-  /* Count the number of enabled interfaces and compute how much space is */
-  /* needed to store their info. */
+  /* Count the number of enabled interfaces and compute how much space is
+   * needed to store their info. */
   count = 0;
   uv_address_buf_size = 0;
 
@@ -920,9 +907,9 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
     IP_ADAPTER_UNICAST_ADDRESS* unicast_address;
     int name_size;
 
-    /* Interfaces that are not 'up' should not be reported. Also skip */
-    /* interfaces that have no associated unicast address, as to avoid */
-    /* allocating space for the name for this interface. */
+    /* Interfaces that are not 'up' should not be reported. Also skip
+     * interfaces that have no associated unicast address, as to avoid
+     * allocating space for the name for this interface. */
     if (adapter->OperStatus != IfOperStatusUp ||
         adapter->FirstUnicastAddress == NULL)
       continue;
@@ -942,8 +929,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
     }
     uv_address_buf_size += name_size;
 
-    /* Count the number of addresses associated with this interface, and */
-    /* compute the size. */
+    /* Count the number of addresses associated with this interface, and
+     * compute the size. */
     for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS*)
                            adapter->FirstUnicastAddress;
          unicast_address != NULL;
@@ -960,8 +947,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
     return UV_ENOMEM;
   }
 
-  /* Compute the start of the uv_interface_address_t array, and the place in */
-  /* the buffer where the interface names will be stored. */
+  /* Compute the start of the uv_interface_address_t array, and the place in
+   * the buffer where the interface names will be stored. */
   uv_address = uv_address_buf;
   name_buf = (char*) (uv_address_buf + count);
 
@@ -1200,8 +1187,8 @@ int uv_os_tmpdir(char* buffer, size_t* size) {
     return UV_EIO;
   }
 
-  /* The returned directory should not have a trailing slash, unless it */
-  /* points at a drive root, like c:\. Remove it if needed.*/
+  /* The returned directory should not have a trailing slash, unless it points
+   * at a drive root, like c:\. Remove it if needed. */
   if (path[len - 1] == L'\\' &&
       !(len == 3 && path[1] == L':')) {
     len--;

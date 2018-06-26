@@ -24,22 +24,31 @@ const common = require('../common');
 
 const assert = require('assert');
 
-if (common.isWindows) {
-  // uid/gid functions are POSIX only
-  assert.strictEqual(process.getuid, undefined);
+if (common.isWindows || !common.isMainThread) {
+  // uid/gid functions are POSIX only, setters are main-thread only.
+  if (common.isMainThread) {
+    assert.strictEqual(process.getuid, undefined);
+    assert.strictEqual(process.getgid, undefined);
+  }
   assert.strictEqual(process.setuid, undefined);
-  assert.strictEqual(process.getgid, undefined);
   assert.strictEqual(process.setgid, undefined);
   return;
 }
 
 assert.throws(() => {
   process.setuid({});
-}, /^TypeError: setuid argument must be a number or a string$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "id" argument must be one of type ' +
+    'number or string. Received type object'
+});
 
 assert.throws(() => {
-  process.setuid('fhqwhgadshgnsdhjsdbkhsdabkfabkveybvf');
-}, /^Error: setuid user id does not exist$/);
+  process.setuid('fhqwhgadshgnsdhjsdbkhsdabkfabkveyb');
+}, {
+  code: 'ERR_UNKNOWN_CREDENTIAL',
+  message: 'User identifier does not exist: fhqwhgadshgnsdhjsdbkhsdabkfabkveyb'
+});
 
 // If we're not running as super user...
 if (process.getuid() !== 0) {
@@ -49,19 +58,26 @@ if (process.getuid() !== 0) {
 
   assert.throws(
     () => { process.setgid('nobody'); },
-    /^Error: (?:EPERM, .+|setgid group id does not exist)$/
+    /(?:EPERM, .+|Group identifier does not exist: nobody)$/
   );
 
   assert.throws(
     () => { process.setuid('nobody'); },
-    /^Error: (?:EPERM, .+|setuid user id does not exist)$/
+    /(?:EPERM, .+|User identifier does not exist: nobody)$/
   );
   return;
 }
 
 // If we are running as super user...
 const oldgid = process.getgid();
-process.setgid('nobody');
+try {
+  process.setgid('nobody');
+} catch (err) {
+  if (err.message !== 'setgid group id does not exist') {
+    throw err;
+  }
+  process.setgid('nogroup');
+}
 const newgid = process.getgid();
 assert.notStrictEqual(newgid, oldgid);
 

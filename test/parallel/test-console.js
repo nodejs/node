@@ -22,13 +22,15 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const util = require('util');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 // Support legacy API
-assert.strictEqual(typeof process.stdout.fd, 'number');
-assert.strictEqual(typeof process.stderr.fd, 'number');
-
+if (common.isMainThread) {
+  assert.strictEqual(typeof process.stdout.fd, 'number');
+  assert.strictEqual(typeof process.stderr.fd, 'number');
+}
 process.once('warning', common.mustCall((warning) => {
   assert(/no such label/.test(warning.message));
 }));
@@ -46,8 +48,8 @@ assert.throws(() => console.timeEnd(Symbol('test')),
               TypeError);
 
 
-// an Object with a custom .inspect() function
-const custom_inspect = { foo: 'bar', inspect: () => 'inspect' };
+// An Object with a custom inspect function.
+const custom_inspect = { foo: 'bar', [util.inspect.custom]: () => 'inspect' };
 
 const strings = [];
 const errStrings = [];
@@ -138,6 +140,20 @@ console.timeEnd();
 console.time(NaN);
 console.timeEnd(NaN);
 
+// make sure calling time twice without timeEnd doesn't reset the timer.
+console.time('test');
+const time = console._times.get('test');
+setTimeout(() => {
+  common.expectWarning(
+    'Warning',
+    'Label \'test\' already exists for console.time()',
+    common.noWarnCode);
+  console.time('test');
+  assert.deepStrictEqual(console._times.get('test'), time);
+  console.timeEnd('test');
+}, 1);
+
+
 console.assert(false, '%s should', 'console.assert', 'not throw');
 assert.strictEqual(errStrings[errStrings.length - 1],
                    'Assertion failed: console.assert should not throw\n');
@@ -178,9 +194,11 @@ for (const expected of expectedStrings) {
 }
 
 assert.strictEqual(strings.shift(),
-                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
+                   "{ foo: 'bar',\n  [Symbol(util.inspect.custom)]: " +
+                    '[Function: [util.inspect.custom]] }\n');
 assert.strictEqual(strings.shift(),
-                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
+                   "{ foo: 'bar',\n  [Symbol(util.inspect.custom)]: " +
+                    '[Function: [util.inspect.custom]] }\n');
 assert.ok(strings.shift().includes('foo: [Object]'));
 assert.strictEqual(strings.shift().includes('baz'), false);
 assert.strictEqual(strings.shift(), 'inspect inspect\n');

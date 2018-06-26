@@ -10,16 +10,16 @@
 #include "src/ast/ast.h"
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
-#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/execution.h"
-#include "src/factory.h"
 #include "src/handles.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
+#include "src/unoptimized-compilation-info.h"
 
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
@@ -65,21 +65,20 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
     if (!value->IsNaN()) return false;
   }
-#define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)                       \
-  if (members.Contains(wasm::AsmJsParser::StandardMember::kMath##FName)) {     \
-    members.Remove(wasm::AsmJsParser::StandardMember::kMath##FName);           \
-    Handle<Name> name(isolate->factory()->InternalizeOneByteString(            \
-        STATIC_CHAR_VECTOR(#fname)));                                          \
-    Handle<Object> value = StdlibMathMember(isolate, stdlib, name);            \
-    if (!value->IsJSFunction()) return false;                                  \
-    SharedFunctionInfo* shared = Handle<JSFunction>::cast(value)->shared();    \
-    if (shared->HasLazyDeserializationBuiltinId()) {                           \
-      if (shared->lazy_deserialization_builtin_id() != Builtins::kMath##FName) \
-        return false;                                                          \
-    } else if (shared->code() !=                                               \
-               isolate->builtins()->builtin(Builtins::kMath##FName)) {         \
-      return false;                                                            \
-    }                                                                          \
+#define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)                    \
+  if (members.Contains(wasm::AsmJsParser::StandardMember::kMath##FName)) {  \
+    members.Remove(wasm::AsmJsParser::StandardMember::kMath##FName);        \
+    Handle<Name> name(isolate->factory()->InternalizeOneByteString(         \
+        STATIC_CHAR_VECTOR(#fname)));                                       \
+    Handle<Object> value = StdlibMathMember(isolate, stdlib, name);         \
+    if (!value->IsJSFunction()) return false;                               \
+    SharedFunctionInfo* shared = Handle<JSFunction>::cast(value)->shared(); \
+    if (!shared->HasBuiltinId() ||                                          \
+        shared->builtin_id() != Builtins::kMath##FName) {                   \
+      return false;                                                         \
+    }                                                                       \
+    DCHECK_EQ(shared->GetCode(),                                            \
+              isolate->builtins()->builtin(Builtins::kMath##FName));        \
   }
   STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
 #undef STDLIB_MATH_FUNC
@@ -185,12 +184,12 @@ void ReportInstantiationFailure(Handle<Script> script, int position,
 //  [2] FinalizeJobImpl: The module is handed to WebAssembly which decodes it
 //      into an internal representation and eventually compiles it to machine
 //      code.
-class AsmJsCompilationJob final : public CompilationJob {
+class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
  public:
   explicit AsmJsCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
                                AccountingAllocator* allocator)
-      : CompilationJob(parse_info->stack_limit(), parse_info,
-                       &compilation_info_, "AsmJs", State::kReadyToExecute),
+      : UnoptimizedCompilationJob(parse_info->stack_limit(), parse_info,
+                                  &compilation_info_),
         allocator_(allocator),
         zone_(allocator, ZONE_NAME),
         compilation_info_(&zone_, parse_info, literal),
@@ -203,16 +202,16 @@ class AsmJsCompilationJob final : public CompilationJob {
         translate_zone_size_(0) {}
 
  protected:
-  Status PrepareJobImpl(Isolate* isolate) final;
   Status ExecuteJobImpl() final;
-  Status FinalizeJobImpl(Isolate* isolate) final;
+  Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+                         Isolate* isolate) final;
 
  private:
   void RecordHistograms(Isolate* isolate);
 
   AccountingAllocator* allocator_;
   Zone zone_;
-  CompilationInfo compilation_info_;
+  UnoptimizedCompilationInfo compilation_info_;
   wasm::ZoneBuffer* module_;
   wasm::ZoneBuffer* asm_offsets_;
   wasm::AsmJsParser::StdlibSet stdlib_uses_;
@@ -226,12 +225,7 @@ class AsmJsCompilationJob final : public CompilationJob {
   DISALLOW_COPY_AND_ASSIGN(AsmJsCompilationJob);
 };
 
-CompilationJob::Status AsmJsCompilationJob::PrepareJobImpl(Isolate* isolate) {
-  UNREACHABLE();  // Prepare should always be skipped.
-  return SUCCEEDED;
-}
-
-CompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
+UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   // Step 1: Translate asm.js module to WebAssembly module.
   size_t compile_zone_start = compilation_info()->zone()->allocation_size();
   base::ElapsedTimer translate_timer;
@@ -276,7 +270,8 @@ CompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   return SUCCEEDED;
 }
 
-CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(Isolate* isolate) {
+UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
+    Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
   // Step 2: Compile and decode the WebAssembly module.
   base::ElapsedTimer compile_timer;
   compile_timer.Start();
@@ -302,7 +297,6 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   result->set(kWasmDataCompiledModule, *compiled);
   result->set(kWasmDataUsesBitSet, *uses_bitset);
   compilation_info()->SetAsmWasmData(result);
-  compilation_info()->SetCode(BUILTIN_CODE(isolate, InstantiateAsmJs));
 
   RecordHistograms(isolate);
   ReportCompilationSuccess(parse_info()->script(),
@@ -329,9 +323,9 @@ void AsmJsCompilationJob::RecordHistograms(Isolate* isolate) {
       translation_throughput);
 }
 
-CompilationJob* AsmJs::NewCompilationJob(ParseInfo* parse_info,
-                                         FunctionLiteral* literal,
-                                         AccountingAllocator* allocator) {
+UnoptimizedCompilationJob* AsmJs::NewCompilationJob(
+    ParseInfo* parse_info, FunctionLiteral* literal,
+    AccountingAllocator* allocator) {
   return new AsmJsCompilationJob(parse_info, literal, allocator);
 }
 
@@ -350,7 +344,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   Handle<Script> script(Script::cast(shared->script()));
   // TODO(mstarzinger): The position currently points to the module definition
   // but should instead point to the instantiation site (more intuitive).
-  int position = shared->start_position();
+  int position = shared->StartPosition();
 
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;

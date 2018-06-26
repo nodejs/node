@@ -22,7 +22,8 @@ namespace inspector {
 
 class TcpHolder {
  public:
-  using Pointer = std::unique_ptr<TcpHolder, void(*)(TcpHolder*)>;
+  static void DisconnectAndDispose(TcpHolder* holder);
+  using Pointer = DeleteFnPtr<TcpHolder, DisconnectAndDispose>;
 
   static Pointer Accept(uv_stream_t* server,
                         InspectorSocket::DelegatePointer delegate);
@@ -41,7 +42,6 @@ class TcpHolder {
   static void OnClosed(uv_handle_t* handle);
   static void OnDataReceivedCb(uv_stream_t* stream, ssize_t nread,
                                const uv_buf_t* buf);
-  static void DisconnectAndDispose(TcpHolder* holder);
   explicit TcpHolder(InspectorSocket::DelegatePointer delegate);
   ~TcpHolder() = default;
   void ReclaimUvBuf(const uv_buf_t* buf, ssize_t read);
@@ -68,14 +68,10 @@ class ProtocolHandler {
   InspectorSocket* inspector() {
     return inspector_;
   }
-
-  static void Shutdown(ProtocolHandler* handler) {
-    handler->Shutdown();
-  }
+  virtual void Shutdown() = 0;
 
  protected:
   virtual ~ProtocolHandler() = default;
-  virtual void Shutdown() = 0;
   int WriteRaw(const std::vector<char>& buffer, uv_write_cb write_cb);
   InspectorSocket::Delegate* delegate();
 
@@ -599,7 +595,7 @@ class HttpHandler : public ProtocolHandler {
 ProtocolHandler::ProtocolHandler(InspectorSocket* inspector,
                                  TcpHolder::Pointer tcp)
                                  : inspector_(inspector), tcp_(std::move(tcp)) {
-  CHECK_NE(nullptr, tcp_);
+  CHECK_NOT_NULL(tcp_);
   tcp_->SetHandler(this);
 }
 
@@ -653,10 +649,10 @@ TcpHolder::Pointer TcpHolder::Accept(
     err = uv_read_start(tcp, allocate_buffer, OnDataReceivedCb);
   }
   if (err == 0) {
-    return { result, DisconnectAndDispose };
+    return TcpHolder::Pointer(result);
   } else {
     delete result;
-    return { nullptr, nullptr };
+    return nullptr;
   }
 }
 
@@ -721,11 +717,12 @@ void TcpHolder::ReclaimUvBuf(const uv_buf_t* buf, ssize_t read) {
   delete[] buf->base;
 }
 
-// Public interface
-InspectorSocket::InspectorSocket()
-    : protocol_handler_(nullptr, ProtocolHandler::Shutdown) { }
-
 InspectorSocket::~InspectorSocket() = default;
+
+// static
+void InspectorSocket::Shutdown(ProtocolHandler* handler) {
+  handler->Shutdown();
+}
 
 // static
 InspectorSocket::Pointer InspectorSocket::Accept(uv_stream_t* server,

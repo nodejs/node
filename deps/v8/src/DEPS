@@ -8,6 +8,8 @@ include_rules = [
   "+src/compiler/code-assembler.h",
   "+src/compiler/wasm-compiler.h",
   "-src/heap",
+  "+src/heap/factory.h",
+  "+src/heap/factory-inl.h",
   "+src/heap/heap.h",
   "+src/heap/heap-inl.h",
   "-src/inspector",

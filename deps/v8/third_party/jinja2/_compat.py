@@ -45,7 +45,6 @@ if not PY2:
     implements_iterator = _identity
     implements_to_string = _identity
     encode_filename = _identity
-    get_next = lambda x: x.__next__
 
 else:
     unichr = unichr
@@ -77,8 +76,6 @@ else:
         cls.__str__ = lambda x: x.__unicode__().encode('utf-8')
         return cls
 
-    get_next = lambda x: x.next
-
     def encode_filename(filename):
         if isinstance(filename, unicode):
             return filename.encode('utf-8')
@@ -86,23 +83,14 @@ else:
 
 
 def with_metaclass(meta, *bases):
+    """Create a base class with a metaclass."""
     # This requires a bit of explanation: the basic idea is to make a
-    # dummy metaclass for one level of class instanciation that replaces
-    # itself with the actual metaclass.  Because of internal type checks
-    # we also need to make sure that we downgrade the custom metaclass
-    # for one level to something closer to type (that's why __call__ and
-    # __init__ comes back from type etc.).
-    #
-    # This has the advantage over six.with_metaclass in that it does not
-    # introduce dummy classes into the final MRO.
-    class metaclass(meta):
-        __call__ = type.__call__
-        __init__ = type.__init__
+    # dummy metaclass for one level of class instantiation that replaces
+    # itself with the actual metaclass.
+    class metaclass(type):
         def __new__(cls, name, this_bases, d):
-            if this_bases is None:
-                return type.__new__(cls, name, (), d)
             return meta(name, bases, d)
-    return metaclass('temporary_class', None, {})
+    return type.__new__(metaclass, 'temporary_class', (), {})
 
 
 try:

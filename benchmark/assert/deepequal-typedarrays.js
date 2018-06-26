@@ -25,6 +25,8 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ type, n, len, method }) {
+  if (!method)
+    method = 'deepEqual';
   const clazz = global[type];
   const actual = new clazz(len);
   const expected = new clazz(len);
@@ -32,8 +34,7 @@ function main({ type, n, len, method }) {
   const wrongIndex = Math.floor(len / 2);
   expectedWrong[wrongIndex] = 123;
 
-  // eslint-disable-next-line no-restricted-properties
-  const fn = method !== '' ? assert[method] : assert.deepEqual;
+  const fn = assert[method];
   const value2 = method.includes('not') ? expectedWrong : expected;
 
   bench.start();

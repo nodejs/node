@@ -75,7 +75,7 @@ const myURL =
 <!-- YAML
 added: v7.0.0
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18281
     description: The class is now available on the global object.
 -->
@@ -86,8 +86,8 @@ The `URL` class is also available on the global object.
 
 In accordance with browser conventions, all properties of `URL` objects
 are implemented as getters and setters on the class prototype, rather than as
-data properties on the object itself. Thus, unlike [legacy urlObject][]s, using
-the `delete` keyword on any properties of `URL` objects (e.g. `delete
+data properties on the object itself. Thus, unlike [legacy `urlObject`][]s,
+using the `delete` keyword on any properties of `URL` objects (e.g. `delete
 myURL.protocol`, `delete myURL.pathname`, etc) has no effect but will still
 return `true`.
 
@@ -132,8 +132,6 @@ and a `base` is provided, it is advised to validate that the `origin` of
 the `URL` object is what is expected.
 
 ```js
-const { URL } = require('url');
-
 let myURL = new URL('http://anotherExample.org/', 'https://example.org/');
 // http://anotherexample.org/
 
@@ -348,7 +346,7 @@ console.log(myURL.port);
 // Prints 1234
 ```
 
-The port value may be set as either a number or as a String containing a number
+The port value may be set as either a number or as a string containing a number
 in the range `0` to `65535` (inclusive). Setting the value to the default port
 of the `URL` objects given `protocol` will result in the `port` value becoming
 the empty string (`''`).
@@ -477,7 +475,7 @@ console.log(JSON.stringify(myURLs));
 <!-- YAML
 added: v7.5.0
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18281
     description: The class is now available on the global object.
 -->
@@ -583,7 +581,7 @@ added: v7.10.0
 * `iterable` {Iterable} An iterable object whose elements are key-value pairs
 
 Instantiate a new `URLSearchParams` object with an iterable map in a way that
-is similar to [`Map`][]'s constructor. `iterable` can be an Array or any
+is similar to [`Map`][]'s constructor. `iterable` can be an `Array` or any
 iterable object. That means `iterable` can be another `URLSearchParams`, in
 which case the constructor will simply create a clone of the provided
 `URLSearchParams`. Elements of `iterable` are key-value pairs, and can
@@ -646,16 +644,16 @@ Remove all name-value pairs whose name is `name`.
 
 * Returns: {Iterator}
 
-Returns an ES6 Iterator over each of the name-value pairs in the query.
-Each item of the iterator is a JavaScript Array. The first item of the Array
-is the `name`, the second item of the Array is the `value`.
+Returns an ES6 `Iterator` over each of the name-value pairs in the query.
+Each item of the iterator is a JavaScript `Array`. The first item of the `Array`
+is the `name`, the second item of the `Array` is the `value`.
 
 Alias for [`urlSearchParams[@@iterator]()`][`urlSearchParams@@iterator()`].
 
 #### urlSearchParams.forEach(fn[, thisArg])
 
-* `fn` {Function} Function invoked for each name-value pair in the query.
-* `thisArg` {Object} Object to be used as `this` value for when `fn` is called
+* `fn` {Function} Invoked for each name-value pair in the query
+* `thisArg` {Object} To be used as `this` value for when `fn` is called
 
 Iterates over each name-value pair in the query and invokes the given function.
 
@@ -697,7 +695,7 @@ Returns `true` if there is at least one name-value pair whose name is `name`.
 
 * Returns: {Iterator}
 
-Returns an ES6 Iterator over the names of each name-value pair.
+Returns an ES6 `Iterator` over the names of each name-value pair.
 
 ```js
 const params = new URLSearchParams('foo=bar&foo=baz');
@@ -762,15 +760,15 @@ percent-encoded where necessary.
 
 * Returns: {Iterator}
 
-Returns an ES6 Iterator over the values of each name-value pair.
+Returns an ES6 `Iterator` over the values of each name-value pair.
 
 #### urlSearchParams\[Symbol.iterator\]()
 
 * Returns: {Iterator}
 
-Returns an ES6 Iterator over each of the name-value pairs in the query string.
-Each item of the iterator is a JavaScript Array. The first item of the Array
-is the `name`, the second item of the Array is the `value`.
+Returns an ES6 `Iterator` over each of the name-value pairs in the query string.
+Each item of the iterator is a JavaScript `Array`. The first item of the `Array`
+is the `name`, the second item of the `Array` is the `value`.
 
 Alias for [`urlSearchParams.entries()`][].
 
@@ -848,7 +846,7 @@ added: v7.6.0
     Punycode encoded. **Default:** `false`.
 * Returns: {string}
 
-Returns a customizable serialization of a URL String representation of a
+Returns a customizable serialization of a URL `String` representation of a
 [WHATWG URL][] object.
 
 The URL object has both a `toString()` method and `href` property that return
@@ -873,9 +871,9 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 
 ## Legacy URL API
 
-### Legacy urlObject
+### Legacy `urlObject`
 
-The legacy urlObject (`require('url').Url`) is created and returned by the
+The legacy `urlObject` (`require('url').Url`) is created and returned by the
 `url.parse()` function.
 
 #### urlObject.auth
@@ -886,42 +884,42 @@ double slashes (if present) and precedes the `host` component, delimited by an
 ASCII "at sign" (`@`). The format of the string is `{username}[:{password}]`,
 with the `[:{password}]` portion being optional.
 
-For example: `'user:pass'`
+For example: `'user:pass'`.
 
 #### urlObject.hash
 
 The `hash` property consists of the "fragment" portion of the URL including
 the leading ASCII hash (`#`) character.
 
-For example: `'#hash'`
+For example: `'#hash'`.
 
 #### urlObject.host
 
 The `host` property is the full lower-cased host portion of the URL, including
 the `port` if specified.
 
-For example: `'sub.host.com:8080'`
+For example: `'sub.host.com:8080'`.
 
 #### urlObject.hostname
 
 The `hostname` property is the lower-cased host name portion of the `host`
 component *without* the `port` included.
 
-For example: `'sub.host.com'`
+For example: `'sub.host.com'`.
 
 #### urlObject.href
 
 The `href` property is the full URL string that was parsed with both the
 `protocol` and `host` components converted to lower-case.
 
-For example: `'http://user:pass@sub.host.com:8080/p/a/t/h?query=string#hash'`
+For example: `'http://user:pass@sub.host.com:8080/p/a/t/h?query=string#hash'`.
 
 #### urlObject.path
 
 The `path` property is a concatenation of the `pathname` and `search`
 components.
 
-For example: `'/p/a/t/h?query=string'`
+For example: `'/p/a/t/h?query=string'`.
 
 No decoding of the `path` is performed.
 
@@ -932,7 +930,7 @@ is everything following the `host` (including the `port`) and before the start
 of the `query` or `hash` components, delimited by either the ASCII question
 mark (`?`) or hash (`#`) characters.
 
-For example `'/p/a/t/h'`
+For example `'/p/a/t/h'`.
 
 No decoding of the path string is performed.
 
@@ -940,13 +938,13 @@ No decoding of the path string is performed.
 
 The `port` property is the numeric port portion of the `host` component.
 
-For example: `'8080'`
+For example: `'8080'`.
 
 #### urlObject.protocol
 
 The `protocol` property identifies the URL's lower-cased protocol scheme.
 
-For example: `'http:'`
+For example: `'http:'`.
 
 #### urlObject.query
 
@@ -955,7 +953,7 @@ question mark (`?`), or an object returned by the [`querystring`][] module's
 `parse()` method. Whether the `query` property is a string or object is
 determined by the `parseQueryString` argument passed to `url.parse()`.
 
-For example: `'query=string'` or `{'query': 'string'}`
+For example: `'query=string'` or `{'query': 'string'}`.
 
 If returned as a string, no decoding of the query string is performed. If
 returned as an object, both keys and values are decoded.
@@ -965,7 +963,7 @@ returned as an object, both keys and values are decoded.
 The `search` property consists of the entire "query string" portion of the
 URL, including the leading ASCII question mark (`?`) character.
 
-For example: `'?query=string'`
+For example: `'?query=string'`.
 
 No decoding of the query string is performed.
 
@@ -1041,7 +1039,7 @@ The formatting process operates as follows:
   `urlObject.host` is coerced to a string and appended to `result`.
 * If the `urlObject.pathname` property is a string that is not an empty string:
   * If the `urlObject.pathname` *does not start* with an ASCII forward slash
-    (`/`), then the literal string '/' is appended to `result`.
+    (`/`), then the literal string `'/'` is appended to `result`.
   * The value of `urlObject.pathname` is appended to `result`.
 * Otherwise, if `urlObject.pathname` is not `undefined` and is not a string, an
   [`Error`][] is thrown.
@@ -1062,7 +1060,6 @@ The formatting process operates as follows:
 * Otherwise, if the `urlObject.hash` property is not `undefined` and is not a
   string, an [`Error`][] is thrown.
 * `result` is returned.
-
 
 ### url.parse(urlString[, parseQueryString[, slashesDenoteHost]])
 <!-- YAML
@@ -1208,6 +1205,6 @@ console.log(myURL.origin);
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
 [WHATWG URL]: #url_the_whatwg_url_api
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
-[legacy urlObject]: #url_legacy_urlobject
+[legacy `urlObject`]: #url_legacy_urlobject
 [percent-encoded]: #whatwg-percent-encoding
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability

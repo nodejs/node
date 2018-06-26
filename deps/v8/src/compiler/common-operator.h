@@ -69,8 +69,9 @@ inline bool operator==(const BranchOperatorInfo& a,
 }
 
 V8_EXPORT_PRIVATE const BranchOperatorInfo& BranchOperatorInfoOf(
-    const Operator* const);
-V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const);
+    const Operator* const) V8_WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const)
+    V8_WARN_UNUSED_RESULT;
 
 // Helper function for return nodes, because returns have a hidden value input.
 int ValueInputCountOfReturn(Operator const* const op);
@@ -105,9 +106,10 @@ size_t hast_value(DeoptimizeParameters p);
 
 std::ostream& operator<<(std::ostream&, DeoptimizeParameters p);
 
-DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const);
+DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const)
+    V8_WARN_UNUSED_RESULT;
 
-IsSafetyCheck IsSafetyCheckOf(const Operator* op);
+IsSafetyCheck IsSafetyCheckOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class SelectParameters final {
  public:
@@ -131,14 +133,16 @@ size_t hash_value(SelectParameters const& p);
 std::ostream& operator<<(std::ostream&, SelectParameters const& p);
 
 V8_EXPORT_PRIVATE SelectParameters const& SelectParametersOf(
-    const Operator* const);
+    const Operator* const) V8_WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE CallDescriptor const* CallDescriptorOf(const Operator* const);
+V8_EXPORT_PRIVATE CallDescriptor const* CallDescriptorOf(const Operator* const)
+    V8_WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const);
+V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const)
+    V8_WARN_UNUSED_RESULT;
 
 V8_EXPORT_PRIVATE MachineRepresentation
-PhiRepresentationOf(const Operator* const);
+PhiRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
 
 // The {IrOpcode::kParameter} opcode represents an incoming parameter to the
 // function. This class bundles the index and a debug name for such operators.
@@ -157,8 +161,10 @@ class ParameterInfo final {
 
 std::ostream& operator<<(std::ostream&, ParameterInfo const&);
 
-V8_EXPORT_PRIVATE int ParameterIndexOf(const Operator* const);
-const ParameterInfo& ParameterInfoOf(const Operator* const);
+V8_EXPORT_PRIVATE int ParameterIndexOf(const Operator* const)
+    V8_WARN_UNUSED_RESULT;
+const ParameterInfo& ParameterInfoOf(const Operator* const)
+    V8_WARN_UNUSED_RESULT;
 
 struct ObjectStateInfo final : std::pair<uint32_t, int> {
   ObjectStateInfo(uint32_t object_id, int size)
@@ -335,19 +341,20 @@ size_t hash_value(RegionObservability);
 
 std::ostream& operator<<(std::ostream&, RegionObservability);
 
-RegionObservability RegionObservabilityOf(Operator const*) WARN_UNUSED_RESULT;
+RegionObservability RegionObservabilityOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
 
 std::ostream& operator<<(std::ostream& os,
                          const ZoneVector<MachineType>* types);
 
-Type* TypeGuardTypeOf(Operator const*) WARN_UNUSED_RESULT;
+Type* TypeGuardTypeOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
-int OsrValueIndexOf(Operator const*);
+int OsrValueIndexOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
-SparseInputMask SparseInputMaskOf(Operator const*);
+SparseInputMask SparseInputMaskOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 // The ArgumentsElementsState and ArgumentsLengthState can describe the layout
 // for backing stores of arguments objects of various types:
@@ -370,11 +377,41 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
 // type to carry a backing store of {kUnappedArguments} type when {K == 0}.
 typedef CreateArgumentsType ArgumentsStateType;
 
-ArgumentsStateType ArgumentsStateTypeOf(Operator const*) WARN_UNUSED_RESULT;
+ArgumentsStateType ArgumentsStateTypeOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 uint32_t ObjectIdOf(Operator const*);
 
-MachineRepresentation DeadValueRepresentationOf(Operator const*);
+MachineRepresentation DeadValueRepresentationOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
+
+class IfValueParameters final {
+ public:
+  IfValueParameters(int32_t value, int32_t comparison_order)
+      : value_(value), comparison_order_(comparison_order) {}
+
+  int32_t value() const { return value_; }
+  int32_t comparison_order() const { return comparison_order_; }
+
+ private:
+  int32_t value_;
+  int32_t comparison_order_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(IfValueParameters const&,
+                                  IfValueParameters const&);
+
+size_t hash_value(IfValueParameters const&);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           IfValueParameters const&);
+
+V8_EXPORT_PRIVATE IfValueParameters const& IfValueParametersOf(
+    const Operator* op) V8_WARN_UNUSED_RESULT;
+
+const FrameStateInfo& FrameStateInfoOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
+Handle<HeapObject> HeapConstantOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
@@ -395,7 +432,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* IfSuccess();
   const Operator* IfException();
   const Operator* Switch(size_t control_output_count);
-  const Operator* IfValue(int32_t value);
+  const Operator* IfValue(int32_t value, int32_t order = 0);
   const Operator* IfDefault();
   const Operator* Throw();
   const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
@@ -486,10 +523,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
 
   DISALLOW_COPY_AND_ASSIGN(CommonOperatorBuilder);
 };
-
-// This should go into some common compiler header, but we do not have such a
-// thing at the moment.
-enum class LoadPoisoning { kDoPoison, kDontPoison };
 
 }  // namespace compiler
 }  // namespace internal

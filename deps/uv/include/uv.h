@@ -45,21 +45,21 @@ extern "C" {
 # define UV_EXTERN /* nothing */
 #endif
 
-#include "uv-errno.h"
-#include "uv-version.h"
+#include "uv/errno.h"
+#include "uv/version.h"
 #include <stddef.h>
 #include <stdio.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
-# include "stdint-msvc2008.h"
+# include "uv/stdint-msvc2008.h"
 #else
 # include <stdint.h>
 #endif
 
 #if defined(_WIN32)
-# include "uv-win.h"
+# include "uv/win.h"
 #else
-# include "uv-unix.h"
+# include "uv/unix.h"
 #endif
 
 /* Expand this list if necessary. */
@@ -142,6 +142,7 @@ extern "C" {
   XX(EHOSTDOWN, "host is down")                                               \
   XX(EREMOTEIO, "remote I/O error")                                           \
   XX(ENOTTY, "inappropriate ioctl for device")                                \
+  XX(EFTYPE, "inappropriate file type or format")                             \
 
 #define UV_HANDLE_TYPE_MAP(XX)                                                \
   XX(ASYNC, async)                                                            \
@@ -503,7 +504,7 @@ UV_EXTERN int uv_try_write(uv_stream_t* handle,
 struct uv_write_s {
   UV_REQ_FIELDS
   uv_write_cb cb;
-  uv_stream_t* send_handle;
+  uv_stream_t* send_handle; /* TODO: make private and unix-only in v2.x. */
   uv_stream_t* handle;
   UV_WRITE_PRIVATE_FIELDS
 };
@@ -865,7 +866,13 @@ typedef enum {
    * flags may be specified to create a duplex data stream.
    */
   UV_READABLE_PIPE  = 0x10,
-  UV_WRITABLE_PIPE  = 0x20
+  UV_WRITABLE_PIPE  = 0x20,
+
+  /*
+   * Open the child pipe handle in overlapped mode on Windows.
+   * On Unix it is silently ignored.
+   */
+  UV_OVERLAPPED_PIPE = 0x40
 } uv_stdio_flags;
 
 typedef struct uv_stdio_container_s {
@@ -997,16 +1004,18 @@ UV_EXTERN int uv_queue_work(uv_loop_t* loop,
 UV_EXTERN int uv_cancel(uv_req_t* req);
 
 
+struct uv_cpu_times_s {
+  uint64_t user;
+  uint64_t nice;
+  uint64_t sys;
+  uint64_t idle;
+  uint64_t irq;
+};
+
 struct uv_cpu_info_s {
   char* model;
   int speed;
-  struct uv_cpu_times_s {
-    uint64_t user;
-    uint64_t nice;
-    uint64_t sys;
-    uint64_t idle;
-    uint64_t irq;
-  } cpu_times;
+  struct uv_cpu_times_s cpu_times;
 };
 
 struct uv_interface_address_s {
@@ -1132,6 +1141,7 @@ typedef enum {
   UV_FS_READLINK,
   UV_FS_CHOWN,
   UV_FS_FCHOWN,
+  UV_FS_LCHOWN,
   UV_FS_REALPATH,
   UV_FS_COPYFILE
 } uv_fs_type;
@@ -1333,6 +1343,12 @@ UV_EXTERN int uv_fs_chown(uv_loop_t* loop,
 UV_EXTERN int uv_fs_fchown(uv_loop_t* loop,
                            uv_fs_t* req,
                            uv_file file,
+                           uv_uid_t uid,
+                           uv_gid_t gid,
+                           uv_fs_cb cb);
+UV_EXTERN int uv_fs_lchown(uv_loop_t* loop,
+                           uv_fs_t* req,
+                           const char* path,
                            uv_uid_t uid,
                            uv_gid_t gid,
                            uv_fs_cb cb);

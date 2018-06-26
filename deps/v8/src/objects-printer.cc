@@ -91,7 +91,19 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
+    case BLOCK_CONTEXT_TYPE:
+    case CATCH_CONTEXT_TYPE:
+    case DEBUG_EVALUATE_CONTEXT_TYPE:
+    case EVAL_CONTEXT_TYPE:
+    case FUNCTION_CONTEXT_TYPE:
+    case MODULE_CONTEXT_TYPE:
+    case NATIVE_CONTEXT_TYPE:
+    case SCRIPT_CONTEXT_TYPE:
+    case WITH_CONTEXT_TYPE:
       FixedArray::cast(this)->FixedArrayPrint(os);
+      break;
+    case BOILERPLATE_DESCRIPTION_TYPE:
+      BoilerplateDescription::cast(this)->BoilerplateDescriptionPrint(os);
       break;
     case PROPERTY_ARRAY_TYPE:
       PropertyArray::cast(this)->PropertyArrayPrint(os);
@@ -126,12 +138,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
 #undef PRINT_FIXED_TYPED_ARRAY
 
-#define ARRAY_ITERATOR_CASE(type) case type:
-    ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_CASE)
-#undef ARRAY_ITERATOR_CASE
-    JSArrayIterator::cast(this)->JSArrayIteratorPrint(os);
-    break;
-
     case FILLER_TYPE:
       os << "filler";
       break;
@@ -143,6 +149,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
+    case WASM_GLOBAL_TYPE:
     case WASM_INSTANCE_TYPE:  // TODO(titzer): debug printing for wasm objects
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
@@ -157,6 +164,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case JS_REGEXP_TYPE:
       JSRegExp::cast(this)->JSRegExpPrint(os);
+      break;
+    case JS_REGEXP_STRING_ITERATOR_TYPE:
+      JSRegExpStringIterator::cast(this)->JSRegExpStringIteratorPrint(os);
       break;
     case ODDBALL_TYPE:
       Oddball::cast(this)->to_string()->Print(os);
@@ -215,6 +225,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignPrint(os);
       break;
+    case CALL_HANDLER_INFO_TYPE:
+      CallHandlerInfo::cast(this)->CallHandlerInfoPrint(os);
+      break;
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(this)->SharedFunctionInfoPrint(os);
       break;
@@ -232,6 +245,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case JS_ARRAY_BUFFER_TYPE:
       JSArrayBuffer::cast(this)->JSArrayBufferPrint(os);
+      break;
+    case JS_ARRAY_ITERATOR_TYPE:
+      JSArrayIterator::cast(this)->JSArrayIteratorPrint(os);
       break;
     case JS_TYPED_ARRAY_TYPE:
       JSTypedArray::cast(this)->JSTypedArrayPrint(os);
@@ -255,8 +271,39 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case SCOPE_INFO_TYPE:
       ScopeInfo::cast(this)->ScopeInfoPrint(os);
       break;
-
-    default:
+    case FEEDBACK_METADATA_TYPE:
+      FeedbackMetadata::cast(this)->FeedbackMetadataPrint(os);
+      break;
+    case WEAK_FIXED_ARRAY_TYPE:
+      WeakFixedArray::cast(this)->WeakFixedArrayPrint(os);
+      break;
+    case INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case STRING_TYPE:
+    case CONS_STRING_TYPE:
+    case EXTERNAL_STRING_TYPE:
+    case SLICED_STRING_TYPE:
+    case THIN_STRING_TYPE:
+    case ONE_BYTE_STRING_TYPE:
+    case CONS_ONE_BYTE_STRING_TYPE:
+    case EXTERNAL_ONE_BYTE_STRING_TYPE:
+    case SLICED_ONE_BYTE_STRING_TYPE:
+    case THIN_ONE_BYTE_STRING_TYPE:
+    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case SHORT_EXTERNAL_STRING_TYPE:
+    case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
+    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case SMALL_ORDERED_HASH_MAP_TYPE:
+    case SMALL_ORDERED_HASH_SET_TYPE:
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
+    case JS_STRING_ITERATOR_TYPE:
+      // TODO(all): Handle these types too.
       os << "UNKNOWN TYPE " << map()->instance_type();
       UNREACHABLE();
       break;
@@ -575,6 +622,16 @@ void JSRegExp::JSRegExpPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintBody(os, this);
 }
 
+void JSRegExpStringIterator::JSRegExpStringIteratorPrint(
+    std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSRegExpStringIterator");
+  os << "\n - regex: " << Brief(iterating_regexp());
+  os << "\n - string: " << Brief(iterating_string());
+  os << "\n - done: " << done();
+  os << "\n - global: " << global();
+  os << "\n - unicode: " << unicode();
+  JSObjectPrintBody(os, this);
+}
 
 void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Symbol");
@@ -591,7 +648,12 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
 void Map::MapPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Map");
   os << "\n - type: " << instance_type();
-  os << "\n - instance size: " << instance_size();
+  os << "\n - instance size: ";
+  if (instance_size() == kVariableSizeSentinel) {
+    os << "variable";
+  } else {
+    os << instance_size();
+  }
   if (IsJSObjectMap()) {
     os << "\n - inobject properties: " << GetInObjectProperties();
   }
@@ -626,6 +688,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   } else {
     os << "\n - back pointer: " << Brief(GetBackPointer());
   }
+  os << "\n - prototype_validity cell: " << Brief(prototype_validity_cell());
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
      << Brief(instance_descriptors());
@@ -638,8 +701,14 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
     TransitionsAccessor transitions(this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0) {
-      os << "\n - transitions #" << nof_transitions << ": "
-         << Brief(raw_transitions());
+      os << "\n - transitions #" << nof_transitions << ": ";
+      HeapObject* heap_object;
+      Smi* smi;
+      if (raw_transitions()->ToSmi(&smi)) {
+        os << Brief(smi);
+      } else if (raw_transitions()->ToStrongOrWeakHeapObject(&heap_object)) {
+        os << Brief(heap_object);
+      }
       transitions.PrintTransitions(os);
     }
   }
@@ -657,12 +726,54 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
   os << "\n - aliased_context_slot: " << aliased_context_slot();
 }
 
+namespace {
+void PrintFixedArrayWithHeader(std::ostream& os, FixedArray* array,
+                               const char* type) {
+  array->PrintHeader(os, type);
+  os << "\n - length: " << array->length();
+  PrintFixedArrayElements(os, array);
+  os << "\n";
+}
+
+void PrintWeakFixedArrayElements(std::ostream& os, WeakFixedArray* array) {
+  // Print in array notation for non-sparse arrays.
+  MaybeObject* previous_value = array->length() > 0 ? array->Get(0) : nullptr;
+  MaybeObject* value = nullptr;
+  int previous_index = 0;
+  int i;
+  for (i = 1; i <= array->length(); i++) {
+    if (i < array->length()) value = array->Get(i);
+    if (previous_value == value && i != array->length()) {
+      continue;
+    }
+    os << "\n";
+    std::stringstream ss;
+    ss << previous_index;
+    if (previous_index != i - 1) {
+      ss << '-' << (i - 1);
+    }
+    os << std::setw(12) << ss.str() << ": " << MaybeObjectBrief(previous_value);
+    previous_index = i;
+    previous_value = value;
+  }
+}
+
+void PrintWeakFixedArrayWithHeader(std::ostream& os, WeakFixedArray* array) {
+  array->PrintHeader(os, "WeakFixedArray");
+  os << "\n - length: " << array->length() << "\n";
+  PrintWeakFixedArrayElements(os, array);
+  os << "\n";
+}
+
+}  // namespace
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, IsHashTable() ? "HashTable" : "FixedArray");
-  os << "\n - length: " << length();
-  PrintFixedArrayElements(os, this);
-  os << "\n";
+  PrintFixedArrayWithHeader(os, this,
+                            IsHashTable() ? "HashTable" : "FixedArray");
+}
+
+void BoilerplateDescription::BoilerplateDescriptionPrint(std::ostream& os) {
+  PrintFixedArrayWithHeader(os, this, "BoilerplateDescription");
 }
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
@@ -680,6 +791,9 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void WeakFixedArray::WeakFixedArrayPrint(std::ostream& os) {
+  PrintWeakFixedArrayWithHeader(os, this);
+}
 
 void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "TransitionArray");
@@ -739,13 +853,8 @@ void FeedbackMetadata::Print() {
   os << std::flush;
 }
 
-void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {  // NOLINT
+void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
   HeapObject::PrintHeader(os, "FeedbackMetadata");
-  os << "\n - length: " << length();
-  if (length() == 0) {
-    os << " (empty)\n";
-    return;
-  }
   os << "\n - slot_count: " << slot_count();
 
   FeedbackMetadataIterator iter(this);
@@ -844,7 +953,8 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
     case FeedbackSlotKind::kStoreKeyedSloppy:
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-    case FeedbackSlotKind::kStoreKeyedStrict: {
+    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreInArrayLiteral: {
       os << ICState2String(StateFromFeedback());
       break;
     }
@@ -988,7 +1098,6 @@ void JSCollectionIterator::JSCollectionIteratorPrint(
   os << "\n";
 }
 
-
 void JSSetIterator::JSSetIteratorPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSSetIterator");
   JSCollectionIteratorPrint(os);
@@ -1023,7 +1132,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
   if (is_neuterable()) os << "\n - neuterable";
   if (was_neutered()) os << "\n - neutered";
   if (is_shared()) os << "\n - shared";
-  if (has_guard_region()) os << "\n - has_guard_region";
+  if (is_wasm_memory()) os << "\n - is_wasm_memory";
   if (is_growable()) os << "\n - growable";
   JSObjectPrintBody(os, this, !was_neutered());
 }
@@ -1041,20 +1150,9 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
 
 void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
   JSObjectPrintHeader(os, this, "JSArrayIterator");
-
-  InstanceType instance_type = map()->instance_type();
-  os << "\n - type: ";
-  if (instance_type <= LAST_ARRAY_KEY_ITERATOR_TYPE) {
-    os << "keys";
-  } else if (instance_type <= LAST_ARRAY_KEY_VALUE_ITERATOR_TYPE) {
-    os << "entries";
-  } else {
-    os << "values";
-  }
-
-  os << "\n - object: " << Brief(object());
-  os << "\n - index: " << Brief(index());
-
+  os << "\n - iterated_object: " << Brief(iterated_object());
+  os << "\n - next_index: " << Brief(next_index());
+  os << "\n - kind: " << kind();
   JSObjectPrintBody(os, this);
 }
 
@@ -1092,14 +1190,14 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     os << "<no-prototype-slot>";
   }
   os << "\n - shared_info: " << Brief(shared());
-  os << "\n - name: " << Brief(shared()->name());
+  os << "\n - name: " << Brief(shared()->Name());
 
   // Print Builtin name for builtin functions
   int builtin_index = code()->builtin_index();
   if (builtin_index != -1 && !IsInterpreted()) {
     if (builtin_index == Builtins::kDeserializeLazy) {
-      if (shared()->HasLazyDeserializationBuiltinId()) {
-        builtin_index = shared()->lazy_deserialization_builtin_id();
+      if (shared()->HasBuiltinId()) {
+        builtin_index = shared()->builtin_id();
         os << "\n - builtin: " << GetIsolate()->builtins()->name(builtin_index)
            << "(lazy)";
       }
@@ -1116,15 +1214,13 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   if (IsInterpreted()) {
     os << "\n - interpreted";
     if (shared()->HasBytecodeArray()) {
-      os << "\n - bytecode: " << shared()->bytecode_array();
+      os << "\n - bytecode: " << shared()->GetBytecodeArray();
     }
   }
   if (WasmExportedFunction::IsWasmExportedFunction(this)) {
     WasmExportedFunction* function = WasmExportedFunction::cast(this);
     os << "\n - WASM instance "
        << reinterpret_cast<void*>(function->instance());
-    os << "\n   context "
-       << reinterpret_cast<void*>(function->instance()->wasm_context()->get());
     os << "\n - WASM function index " << function->function_index();
   }
   shared()->PrintSourceCode(os);
@@ -1141,8 +1237,8 @@ void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
   if (HasSourceCode()) {
     os << "\n - source code: ";
     String* source = String::cast(Script::cast(script())->source());
-    int start = start_position();
-    int length = end_position() - start;
+    int start = StartPosition();
+    int length = EndPosition() - start;
     std::unique_ptr<char[]> source_string = source->ToCString(
         DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, nullptr);
     os << source_string.get();
@@ -1152,10 +1248,13 @@ void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "SharedFunctionInfo");
   os << "\n - name: ";
-  if (has_shared_name()) {
-    os << Brief(raw_name());
+  if (HasSharedName()) {
+    os << Brief(Name());
   } else {
     os << "<no-shared-name>";
+  }
+  if (HasInferredName()) {
+    os << "\n - inferred name: " << Brief(inferred_name());
   }
   os << "\n - kind: " << kind();
   if (needs_home_object()) {
@@ -1165,13 +1264,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
-  os << " - code: " << Brief(code());
-  if (HasBytecodeArray()) {
-    os << "\n - bytecode_array: " << bytecode_array();
-  }
-  if (HasAsmWasmData()) {
-    os << "\n - asm_wasm_data: " << Brief(asm_wasm_data());
-  }
+  os << "\n - data: " << Brief(function_data());
+  os << "\n - code (from data): " << Brief(GetCode());
   PrintSourceCode(os);
   // Script files are often large, hard to read.
   // os << "\n - script =";
@@ -1184,21 +1278,23 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
     os << "\n - declaration";
   }
   os << "\n - function token position: " << function_token_position();
-  os << "\n - start position: " << start_position();
-  os << "\n - end position: " << end_position();
+  os << "\n - start position: " << StartPosition();
+  os << "\n - end position: " << EndPosition();
   if (HasDebugInfo()) {
     os << "\n - debug info: " << Brief(debug_info());
   } else {
     os << "\n - no debug info";
   }
   os << "\n - scope info: " << Brief(scope_info());
+  if (HasOuterScopeInfo()) {
+    os << "\n - outer scope info: " << Brief(GetOuterScopeInfo());
+  }
   os << "\n - length: " << length();
   os << "\n - feedback_metadata: ";
-  feedback_metadata()->FeedbackMetadataPrint(os);
-  if (HasPreParsedScopeData()) {
-    os << "\n - preparsed scope data: " << preparsed_scope_data();
+  if (HasFeedbackMetadata()) {
+    feedback_metadata()->FeedbackMetadataPrint(os);
   } else {
-    os << "\n - no preparsed scope data";
+    os << "<none>";
   }
   os << "\n";
 }
@@ -1345,7 +1441,7 @@ void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskPrint(
   os << "\n - argument: " << Brief(argument());
   os << "\n - context: " << Brief(context());
   os << "\n - handler: " << Brief(handler());
-  os << "\n - payload: " << Brief(payload());
+  os << "\n - promise_or_capability: " << Brief(promise_or_capability());
   os << "\n";
 }
 
@@ -1355,7 +1451,7 @@ void PromiseRejectReactionJobTask::PromiseRejectReactionJobTaskPrint(
   os << "\n - argument: " << Brief(argument());
   os << "\n - context: " << Brief(context());
   os << "\n - handler: " << Brief(handler());
-  os << "\n - payload: " << Brief(payload());
+  os << "\n - promise_or_capability: " << Brief(promise_or_capability());
   os << "\n";
 }
 
@@ -1382,7 +1478,7 @@ void PromiseReaction::PromiseReactionPrint(std::ostream& os) {  // NOLINT
   os << "\n - next: " << Brief(next());
   os << "\n - reject_handler: " << Brief(reject_handler());
   os << "\n - fulfill_handler: " << Brief(fulfill_handler());
-  os << "\n - payload: " << Brief(payload());
+  os << "\n - promise_or_capability: " << Brief(promise_or_capability());
   os << "\n";
 }
 
@@ -1443,7 +1539,6 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - weak cell: " << Brief(weak_cell());
   os << "\n - prototype users: " << Brief(prototype_users());
   os << "\n - registry slot: " << registry_slot();
-  os << "\n - validity cell: " << Brief(validity_cell());
   os << "\n - object create map: " << Brief(object_create_map());
   os << "\n - should_be_fast_map: " << should_be_fast_map();
   os << "\n";
@@ -1461,6 +1556,25 @@ void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
   os << "\n - value1: " << Brief(value1());
   os << "\n - value2: " << Brief(value2());
   os << "\n - value3: " << Brief(value3());
+  os << "\n";
+}
+
+void WasmCompiledModule::WasmCompiledModulePrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "WasmCompiledModule");
+  os << "\n - shared: " << Brief(shared());
+  os << "\n";
+}
+
+void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "WasmDebugInfo");
+  os << "\n - wasm_instance: " << Brief(wasm_instance());
+  os << "\n";
+}
+
+void WasmSharedModuleData::WasmSharedModuleDataPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "WasmSharedModuleData");
+  os << "\n - module: " << module();
   os << "\n";
 }
 
@@ -1524,6 +1638,15 @@ void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "CallHandlerInfo");
+  os << "\n - callback: " << Brief(callback());
+  os << "\n - js_callback: " << Brief(js_callback());
+  os << "\n - data: " << Brief(data());
+  os << "\n - side_effect_free: "
+     << (IsSideEffectFreeCallHandlerInfo() ? "true" : "false");
+  os << "\n";
+}
 
 void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "InterceptorInfo");
@@ -1656,7 +1779,7 @@ void PrintScopeInfoList(ScopeInfo* scope_info, std::ostream& os,
 void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "ScopeInfo");
   if (length() == 0) {
-    os << "\n - length = 0";
+    os << "\n - length = 0\n";
     return;
   }
 
@@ -1670,8 +1793,15 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
     os << "\n - outer scope info: " << Brief(OuterScopeInfo());
   }
   if (HasFunctionName()) {
-    os << "\n - function name: ";
-    FunctionName()->ShortPrint(os);
+    os << "\n - function name: " << Brief(FunctionName());
+  }
+  if (HasInferredFunctionName()) {
+    os << "\n - inferred function name: " << Brief(InferredFunctionName());
+  }
+
+  if (HasPositionInfo()) {
+    os << "\n - start position: " << StartPosition();
+    os << "\n - end position: " << EndPosition();
   }
   os << "\n - length: " << length();
   if (length() > 0) {
@@ -1760,6 +1890,13 @@ void PreParsedScopeData::PreParsedScopeDataPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PreParsedScopeData");
   os << "\n - scope_data: " << Brief(scope_data());
   os << "\n - child_data: " << Brief(child_data());
+  os << "\n";
+}
+
+void InterpreterData::InterpreterDataPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "InterpreterData");
+  os << "\n - bytecode_array: " << Brief(bytecode_array());
+  os << "\n - interpreter_trampoline: " << Brief(interpreter_trampoline());
   os << "\n";
 }
 
@@ -1925,24 +2062,25 @@ void TransitionArray::Print(std::ostream& os) {
 }
 
 void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
-  WeakCell* cell = nullptr;
+  Map* target;
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
       return;
-    case kWeakCell:
-      cell = GetTargetCell<kWeakCell>();
+    case kWeakRef:
+      target = Map::cast(raw_transitions_->ToWeakHeapObject());
       break;
-    case kHandler:
-      cell = GetTargetCell<kHandler>();
+    case kHandler: {
+      WeakCell* cell = GetTargetCell();
+      DCHECK(!cell->cleared());
+      target = Map::cast(cell->value());
       break;
+    }
     case kFullTransitionArray:
       return transitions()->Print(os);
   }
-  DCHECK(!cell->cleared());
-  Map* target = Map::cast(cell->value());
   Name* key = GetSimpleTransitionKey(target);
-  PrintOneTransition(os, key, target, raw_transitions_);
+  PrintOneTransition(os, key, target, raw_transitions_->GetHeapObject());
 }
 
 void TransitionsAccessor::PrintTransitionTree() {

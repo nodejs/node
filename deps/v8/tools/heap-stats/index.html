@@ -16,6 +16,8 @@ found in the LICENSE file. -->
           integrity="sha256-N1z6ddQzX83fjw8v7uSNe7/MgOmMKdwFUv1+AJMDqNM="
           crossorigin="anonymous"></script>
 
+  <script src="helper.js"></script>
+
   <link rel="import" href="details-selection.html">
   <link rel="import" href="global-timeline.html">
   <link rel="import" href="histogram-viewer.html">
@@ -68,13 +70,13 @@ function globalSelectionChangedA(e) {
 </head>
 
 <body>
+  <h1>V8 Heap Statistics</h1>
   <trace-file-reader onchange="globalDataChanged(event)"></trace-file-reader>
 
   <details-selection id="details-selection" onchange="globalSelectionChangedA(event)"></details-selection>
   <global-timeline id="global-timeline"></global-timeline>
   <histogram-viewer id="histogram-viewer"></histogram-viewer>
 
-  <h1>V8 Heap Statistics</h1>
   <p>Visualize object statistics that have been gathered using</p>
   <ul>
     <li><code>--trace-gc-object-stats</code> on V8</li>
@@ -85,6 +87,10 @@ function globalSelectionChangedA(e) {
       <code>v8.gc_stats</code>.
     </li>
   </ul>
+  <p>
+    Note that you only get a data point on major GCs. You can enforce this by
+    using the <code>--gc-global</code> flag.
+  </p>
   <p>
     Note that the visualizer needs to run on a web server due to HTML imports
     requiring <a

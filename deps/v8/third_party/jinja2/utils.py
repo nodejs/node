@@ -5,10 +5,11 @@
 
     Utility functions.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
 import re
+import json
 import errno
 from collections import deque
 from threading import Lock
@@ -36,6 +37,8 @@ missing = type('MissingType', (), {'__repr__': lambda x: 'missing'})()
 internal_code = set()
 
 concat = u''.join
+
+_slash_escape = '\\/' not in json.dumps('/')
 
 
 def contextfunction(f):
@@ -109,7 +112,7 @@ def clear_caches():
     """Jinja2 keeps internal caches for environments and lexers.  These are
     used so that Jinja2 doesn't have to recreate environments and lexers all
     the time.  Normally you don't have to care about that but if you are
-    messuring memory consumption you may want to clean the caches.
+    measuring memory consumption you may want to clean the caches.
     """
     from jinja2.environment import _spontaneous_environments
     from jinja2.lexer import _lexer_cache
@@ -183,7 +186,7 @@ def pformat(obj, verbose=False):
         return pformat(obj)
 
 
-def urlize(text, trim_url_limit=None, nofollow=False, target=None):
+def urlize(text, trim_url_limit=None, rel=None, target=None):
     """Converts any URLs in text into clickable links. Works on http://,
     https:// and www. links. Links can have trailing punctuation (periods,
     commas, close-parens) and leading punctuation (opening parens) and
@@ -201,11 +204,9 @@ def urlize(text, trim_url_limit=None, nofollow=False, target=None):
                          and (x[:limit] + (len(x) >=limit and '...'
                          or '')) or x
     words = _word_split_re.split(text_type(escape(text)))
-    nofollow_attr = nofollow and ' rel="nofollow"' or ''
-    if target is not None and isinstance(target, string_types):
-        target_attr = ' target="%s"' % target
-    else:
-        target_attr = ''
+    rel_attr = rel and ' rel="%s"' % text_type(escape(rel)) or ''
+    target_attr = target and ' target="%s"' % escape(target) or ''
+
     for i, word in enumerate(words):
         match = _punctuation_re.match(word)
         if match:
@@ -221,11 +222,11 @@ def urlize(text, trim_url_limit=None, nofollow=False, target=None):
                     middle.endswith('.com')
                 )):
                 middle = '<a href="http://%s"%s%s>%s</a>' % (middle,
-                    nofollow_attr, target_attr, trim_url(middle))
+                    rel_attr, target_attr, trim_url(middle))
             if middle.startswith('http://') or \
                middle.startswith('https://'):
                 middle = '<a href="%s"%s%s>%s</a>' % (middle,
-                    nofollow_attr, target_attr, trim_url(middle))
+                    rel_attr, target_attr, trim_url(middle))
             if '@' in middle and not middle.startswith('www.') and \
                not ':' in middle and _simple_email_re.match(middle):
                 middle = '<a href="mailto:%s">%s</a>' % (middle, middle)
@@ -295,7 +296,7 @@ def unicode_urlencode(obj, charset='utf-8', for_qs=False):
         obj = text_type(obj)
     if isinstance(obj, text_type):
         obj = obj.encode(charset)
-    safe = for_qs and b'' or b'/'
+    safe = not for_qs and b'/' or b''
     rv = text_type(url_quote(obj, safe))
     if for_qs:
         rv = rv.replace('%20', '+')
@@ -487,6 +488,88 @@ except ImportError:
     pass
 
 
+def select_autoescape(enabled_extensions=('html', 'htm', 'xml'),
+                      disabled_extensions=(),
+                      default_for_string=True,
+                      default=False):
+    """Intelligently sets the initial value of autoescaping based on the
+    filename of the template.  This is the recommended way to configure
+    autoescaping if you do not want to write a custom function yourself.
+
+    If you want to enable it for all templates created from strings or
+    for all templates with `.html` and `.xml` extensions::
+
+        from jinja2 import Environment, select_autoescape
+        env = Environment(autoescape=select_autoescape(
+            enabled_extensions=('html', 'xml'),
+            default_for_string=True,
+        ))
+
+    Example configuration to turn it on at all times except if the template
+    ends with `.txt`::
+
+        from jinja2 import Environment, select_autoescape
+        env = Environment(autoescape=select_autoescape(
+            disabled_extensions=('txt',),
+            default_for_string=True,
+            default=True,
+        ))
+
+    The `enabled_extensions` is an iterable of all the extensions that
+    autoescaping should be enabled for.  Likewise `disabled_extensions` is
+    a list of all templates it should be disabled for.  If a template is
+    loaded from a string then the default from `default_for_string` is used.
+    If nothing matches then the initial value of autoescaping is set to the
+    value of `default`.
+
+    For security reasons this function operates case insensitive.
+
+    .. versionadded:: 2.9
+    """
+    enabled_patterns = tuple('.' + x.lstrip('.').lower()
+                             for x in enabled_extensions)
+    disabled_patterns = tuple('.' + x.lstrip('.').lower()
+                              for x in disabled_extensions)
+    def autoescape(template_name):
+        if template_name is None:
+            return default_for_string
+        template_name = template_name.lower()
+        if template_name.endswith(enabled_patterns):
+            return True
+        if template_name.endswith(disabled_patterns):
+            return False
+        return default
+    return autoescape
+
+
+def htmlsafe_json_dumps(obj, dumper=None, **kwargs):
+    """Works exactly like :func:`dumps` but is safe for use in ``<script>``
+    tags.  It accepts the same arguments and returns a JSON string.  Note that
+    this is available in templates through the ``|tojson`` filter which will
+    also mark the result as safe.  Due to how this function escapes certain
+    characters this is safe even if used outside of ``<script>`` tags.
+
+    The following characters are escaped in strings:
+
+    -   ``<``
+    -   ``>``
+    -   ``&``
+    -   ``'``
+
+    This makes it safe to embed such strings in any place in HTML with the
+    notable exception of double quoted attributes.  In that case single
+    quote your attributes or HTML escape it in addition.
+    """
+    if dumper is None:
+        dumper = json.dumps
+    rv = dumper(obj, **kwargs) \
+        .replace(u'<', u'\\u003c') \
+        .replace(u'>', u'\\u003e') \
+        .replace(u'&', u'\\u0026') \
+        .replace(u"'", u'\\u0027')
+    return Markup(rv)
+
+
 @implements_iterator
 class Cycler(object):
     """A cycle helper for templates."""
@@ -506,11 +589,13 @@ class Cycler(object):
         """Returns the current item."""
         return self.items[self.pos]
 
-    def __next__(self):
+    def next(self):
         """Goes one item ahead and returns it."""
         rv = self.current
         self.pos = (self.pos + 1) % len(self.items)
         return rv
+
+    __next__ = next
 
 
 class Joiner(object):
@@ -525,6 +610,37 @@ class Joiner(object):
             self.used = True
             return u''
         return self.sep
+
+
+class Namespace(object):
+    """A namespace object that can hold arbitrary attributes.  It may be
+    initialized from a dictionary or with keyword argments."""
+
+    def __init__(*args, **kwargs):
+        self, args = args[0], args[1:]
+        self.__attrs = dict(*args, **kwargs)
+
+    def __getattribute__(self, name):
+        if name == '_Namespace__attrs':
+            return object.__getattribute__(self, name)
+        try:
+            return self.__attrs[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __setitem__(self, name, value):
+        self.__attrs[name] = value
+
+    def __repr__(self):
+        return '<Namespace %r>' % self.__attrs
+
+
+# does this python version support async for in and async generators?
+try:
+    exec('async def _():\n async for _ in ():\n  yield _')
+    have_async_gen = True
+except SyntaxError:
+    have_async_gen = False
 
 
 # Imported here because that's where it was in the past

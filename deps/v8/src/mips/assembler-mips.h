@@ -320,9 +320,9 @@ const Simd128Register no_msareg = Simd128Register::no_reg();
 // cp is assumed to be a callee saved register.
 constexpr Register kRootRegister = s6;
 constexpr Register cp = s7;
-constexpr Register kLithiumScratchReg = s3;
-constexpr Register kLithiumScratchReg2 = s4;
-constexpr DoubleRegister kLithiumScratchDouble = f30;
+constexpr Register kScratchReg = s3;
+constexpr Register kScratchReg2 = s4;
+constexpr DoubleRegister kScratchDoubleReg = f30;
 constexpr DoubleRegister kDoubleRegZero = f28;
 // Used on mips32r6 for compare operations.
 constexpr DoubleRegister kDoubleCompareReg = f26;
@@ -674,9 +674,6 @@ class Assembler : public AssemblerBase {
     // Helper values.
     LAST_CODE_MARKER,
     FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED,
-    // Code aging
-    CODE_AGE_MARKER_NOP = 6,
-    CODE_AGE_SEQUENCE_NOP
   };
 
   // Type == 0 is the default non-marking nop. For mips this is a

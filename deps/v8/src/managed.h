@@ -5,9 +5,9 @@
 #ifndef V8_MANAGED_H_
 #define V8_MANAGED_H_
 
-#include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/handles.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -59,22 +59,30 @@ class Managed : public Foreign {
         isolate->factory()->NewForeign(reinterpret_cast<Address>(finalizer)));
     Handle<Object> global_handle = isolate->global_handles()->Create(*handle);
     finalizer->global_handle_location = global_handle.location();
-    GlobalHandles::MakeWeak(finalizer->global_handle_location,
-                            handle->GetFinalizer(), &Managed<CppType>::GCDelete,
-                            v8::WeakCallbackType::kParameter);
+    GlobalHandles::MakeWeak(
+        finalizer->global_handle_location, handle->GetFinalizer(),
+        &ResetWeakAndScheduleGCDelete, v8::WeakCallbackType::kParameter);
 
     return handle;
   }
 
  private:
+  static void ResetWeakAndScheduleGCDelete(
+      const v8::WeakCallbackInfo<void>& data) {
+    FinalizerWithHandle* finalizer =
+        reinterpret_cast<FinalizerWithHandle*>(data.GetParameter());
+    GlobalHandles::Destroy(finalizer->global_handle_location);
+    Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
+    isolate->UnregisterFromReleaseAtTeardown(finalizer);
+    // We need to call GCDelete as a second pass callback because
+    // it can trigger garbage collection. The first pass callbacks
+    // are not allowed to invoke V8 API.
+    data.SetSecondPassCallback(&GCDelete);
+  }
+
   static void GCDelete(const v8::WeakCallbackInfo<void>& data) {
     FinalizerWithHandle* finalizer =
         reinterpret_cast<FinalizerWithHandle*>(data.GetParameter());
-
-    Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
-    isolate->UnregisterFromReleaseAtTeardown(finalizer);
-
-    GlobalHandles::Destroy(finalizer->global_handle_location);
     NativeDelete(finalizer);
   }
 

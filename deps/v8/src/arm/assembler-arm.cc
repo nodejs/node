@@ -5081,7 +5081,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if (desc.buffer_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
+    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   // Set up new buffer.
@@ -5144,14 +5144,6 @@ void Assembler::dq(uint64_t value) {
   pc_ += sizeof(uint64_t);
 }
 
-
-void Assembler::emit_code_stub_address(Code* stub) {
-  CheckBuffer();
-  *reinterpret_cast<uint32_t*>(pc_) =
-      reinterpret_cast<uint32_t>(stub->instruction_start());
-  pc_ += sizeof(uint32_t);
-}
-
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (RelocInfo::IsNone(rmode) ||
       // Don't record external references unless the heap will be serialized.
@@ -5175,7 +5167,8 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
   }
   ConstantPoolEntry entry(position, value,
                           sharing_ok || (rmode == RelocInfo::CODE_TARGET &&
-                                         IsCodeTargetSharingAllowed()));
+                                         IsCodeTargetSharingAllowed()),
+                          rmode);
 
   bool shared = false;
   if (sharing_ok) {
@@ -5183,7 +5176,8 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
     for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
       ConstantPoolEntry& current_entry = pending_32_bit_constants_[i];
       if (!current_entry.sharing_ok()) continue;
-      if (entry.value() == current_entry.value()) {
+      if (entry.value() == current_entry.value() &&
+          entry.rmode() == current_entry.rmode()) {
         entry.set_merged_index(i);
         shared = true;
         break;

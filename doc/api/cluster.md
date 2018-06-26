@@ -117,7 +117,7 @@ also be used for other use cases requiring worker processes.
 added: v0.7.0
 -->
 
-A Worker object contains all public information and method about a worker.
+A `Worker` object contains all public information and method about a worker.
 In the master it can be obtained using `cluster.workers`. In a worker
 it can be obtained using `cluster.worker`.
 
@@ -363,7 +363,7 @@ Each new worker is given its own unique id, this id is stored in the
 `id`.
 
 While a worker is alive, this is the key that indexes it in
-cluster.workers
+`cluster.workers`.
 
 ### worker.isConnected()
 <!-- YAML
@@ -412,7 +412,7 @@ All workers are created using [`child_process.fork()`][], the returned object
 from this function is stored as `.process`. In a worker, the global `process`
 is stored.
 
-See: [Child Process module][]
+See: [Child Process module][].
 
 Note that workers will call `process.exit(0)` if the `'disconnect'` event occurs
 on `process` and `.exitedAfterDisconnect` is not `true`. This protects against
@@ -497,7 +497,7 @@ cluster.on('exit', (worker, code, signal) => {
 });
 ```
 
-See [child_process event: `'exit'`][].
+See [`child_process` event: `'exit'`][].
 
 ## Event: 'fork'
 <!-- YAML
@@ -573,7 +573,7 @@ changes:
 
 Emitted when the cluster master receives a message from any worker.
 
-See [child_process event: `'message'`][].
+See [`child_process` event: `'message'`][].
 
 Before Node.js v6.0, this event emitted only the message and the handle,
 but not the worker object, contrary to what the documentation stated.
@@ -698,6 +698,9 @@ values are `'rr'` and `'none'`.
 <!-- YAML
 added: v0.7.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21316
+    description: The `windowsHide` option now defaults to `true`.
   - version: v9.5.0
     pr-url: https://github.com/nodejs/node/pull/18399
     description: The `cwd` option is supported now.
@@ -732,7 +735,7 @@ changes:
     number. By default each worker gets its own port, incremented from the
     master's `process.debugPort`.
   * `windowsHide` {boolean} Hide the forked processes console window that would
-    normally be created on Windows systems. **Default:** `false`.
+    normally be created on Windows systems. **Default:** `true`.
 
 After calling `.setupMaster()` (or `.fork()`) this settings object will contain
 the settings, including the default values.
@@ -748,7 +751,7 @@ changes:
     description: The `stdio` option is supported now.
 -->
 
-* `settings` {Object} see [`cluster.settings`][]
+* `settings` {Object} See [`cluster.settings`][].
 
 `setupMaster` is used to change the default 'fork' behavior. Once called,
 the settings will be present in `cluster.settings`.
@@ -813,10 +816,10 @@ A hash that stores the active worker objects, keyed by `id` field. Makes it
 easy to loop through all the workers. It is only available in the master
 process.
 
-A worker is removed from cluster.workers after the worker has disconnected _and_
-exited. The order between these two events cannot be determined in advance.
-However, it is guaranteed that the removal from the cluster.workers list happens
-before last `'disconnect'` or `'exit'` event is emitted.
+A worker is removed from `cluster.workers` after the worker has disconnected
+_and_ exited. The order between these two events cannot be determined in
+advance. However, it is guaranteed that the removal from the `cluster.workers`
+list happens before last `'disconnect'` or `'exit'` event is emitted.
 
 ```js
 // Go through all workers
@@ -840,12 +843,12 @@ socket.on('data', (id) => {
 
 [`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
+[`child_process` event: `'exit'`]: child_process.html#child_process_event_exit
+[`child_process` event: `'message'`]: child_process.html#child_process_event_message
+[`cluster.settings`]: #cluster_cluster_settings
 [`disconnect`]: child_process.html#child_process_subprocess_disconnect
 [`kill`]: process.html#process_process_kill_pid_signal
 [`process` event: `'message'`]: process.html#process_event_message
 [`server.close()`]: net.html#net_event_close
 [`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
-[child_process event: `'exit'`]: child_process.html#child_process_event_exit
-[child_process event: `'message'`]: child_process.html#child_process_event_message
-[`cluster.settings`]: #cluster_cluster_settings

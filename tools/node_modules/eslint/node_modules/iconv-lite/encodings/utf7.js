@@ -1,5 +1,5 @@
 "use strict";
-var Buffer = require("buffer").Buffer;
+var Buffer = require("safer-buffer").Buffer;
 
 // UTF-7 codec, according to https://tools.ietf.org/html/rfc2152
 // See also below a UTF-7-IMAP codec, according to http://tools.ietf.org/html/rfc3501#section-5.1.3
@@ -26,7 +26,7 @@ function Utf7Encoder(options, codec) {
 Utf7Encoder.prototype.write = function(str) {
     // Naive implementation.
     // Non-direct chars are encoded as "+<base64>-"; single "+" char is encoded as "+-".
-    return new Buffer(str.replace(nonDirectChars, function(chunk) {
+    return Buffer.from(str.replace(nonDirectChars, function(chunk) {
         return "+" + (chunk === '+' ? '' : 
             this.iconv.encode(chunk, 'utf16-be').toString('base64').replace(/=+$/, '')) 
             + "-";
@@ -75,7 +75,7 @@ Utf7Decoder.prototype.write = function(buf) {
                     res += "+";
                 } else {
                     var b64str = base64Accum + buf.slice(lastI, i).toString();
-                    res += this.iconv.decode(new Buffer(b64str, 'base64'), "utf16-be");
+                    res += this.iconv.decode(Buffer.from(b64str, 'base64'), "utf16-be");
                 }
 
                 if (buf[i] != minusChar) // Minus is absorbed after base64.
@@ -97,7 +97,7 @@ Utf7Decoder.prototype.write = function(buf) {
         base64Accum = b64str.slice(canBeDecoded); // The rest will be decoded in future.
         b64str = b64str.slice(0, canBeDecoded);
 
-        res += this.iconv.decode(new Buffer(b64str, 'base64'), "utf16-be");
+        res += this.iconv.decode(Buffer.from(b64str, 'base64'), "utf16-be");
     }
 
     this.inBase64 = inBase64;
@@ -109,7 +109,7 @@ Utf7Decoder.prototype.write = function(buf) {
 Utf7Decoder.prototype.end = function() {
     var res = "";
     if (this.inBase64 && this.base64Accum.length > 0)
-        res = this.iconv.decode(new Buffer(this.base64Accum, 'base64'), "utf16-be");
+        res = this.iconv.decode(Buffer.from(this.base64Accum, 'base64'), "utf16-be");
 
     this.inBase64 = false;
     this.base64Accum = '';
@@ -144,7 +144,7 @@ Utf7IMAPCodec.prototype.bomAware = true;
 function Utf7IMAPEncoder(options, codec) {
     this.iconv = codec.iconv;
     this.inBase64 = false;
-    this.base64Accum = new Buffer(6);
+    this.base64Accum = Buffer.alloc(6);
     this.base64AccumIdx = 0;
 }
 
@@ -152,7 +152,7 @@ Utf7IMAPEncoder.prototype.write = function(str) {
     var inBase64 = this.inBase64,
         base64Accum = this.base64Accum,
         base64AccumIdx = this.base64AccumIdx,
-        buf = new Buffer(str.length*5 + 10), bufIdx = 0;
+        buf = Buffer.alloc(str.length*5 + 10), bufIdx = 0;
 
     for (var i = 0; i < str.length; i++) {
         var uChar = str.charCodeAt(i);
@@ -198,7 +198,7 @@ Utf7IMAPEncoder.prototype.write = function(str) {
 }
 
 Utf7IMAPEncoder.prototype.end = function() {
-    var buf = new Buffer(10), bufIdx = 0;
+    var buf = Buffer.alloc(10), bufIdx = 0;
     if (this.inBase64) {
         if (this.base64AccumIdx > 0) {
             bufIdx += buf.write(this.base64Accum.slice(0, this.base64AccumIdx).toString('base64').replace(/\//g, ',').replace(/=+$/, ''), bufIdx);
@@ -246,7 +246,7 @@ Utf7IMAPDecoder.prototype.write = function(buf) {
                     res += "&";
                 } else {
                     var b64str = base64Accum + buf.slice(lastI, i).toString().replace(/,/g, '/');
-                    res += this.iconv.decode(new Buffer(b64str, 'base64'), "utf16-be");
+                    res += this.iconv.decode(Buffer.from(b64str, 'base64'), "utf16-be");
                 }
 
                 if (buf[i] != minusChar) // Minus may be absorbed after base64.
@@ -268,7 +268,7 @@ Utf7IMAPDecoder.prototype.write = function(buf) {
         base64Accum = b64str.slice(canBeDecoded); // The rest will be decoded in future.
         b64str = b64str.slice(0, canBeDecoded);
 
-        res += this.iconv.decode(new Buffer(b64str, 'base64'), "utf16-be");
+        res += this.iconv.decode(Buffer.from(b64str, 'base64'), "utf16-be");
     }
 
     this.inBase64 = inBase64;
@@ -280,7 +280,7 @@ Utf7IMAPDecoder.prototype.write = function(buf) {
 Utf7IMAPDecoder.prototype.end = function() {
     var res = "";
     if (this.inBase64 && this.base64Accum.length > 0)
-        res = this.iconv.decode(new Buffer(this.base64Accum, 'base64'), "utf16-be");
+        res = this.iconv.decode(Buffer.from(this.base64Accum, 'base64'), "utf16-be");
 
     this.inBase64 = false;
     this.base64Accum = '';

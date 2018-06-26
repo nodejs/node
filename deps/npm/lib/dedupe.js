@@ -134,7 +134,7 @@ function hoistChildren_ (tree, diff, seen, next) {
   if (seen.has(tree)) return next()
   seen.add(tree)
   asyncMap(tree.children, function (child, done) {
-    if (!tree.parent) return hoistChildren_(child, diff, seen, done)
+    if (!tree.parent || child.fromBundle || child.package._inBundle) return hoistChildren_(child, diff, seen, done)
     var better = findRequirement(tree.parent, moduleName(child), getRequested(child) || npa(packageId(child)))
     if (better) {
       return chain([
@@ -142,7 +142,7 @@ function hoistChildren_ (tree, diff, seen, next) {
         [andComputeMetadata(tree)]
       ], done)
     }
-    var hoistTo = earliestInstallable(tree, tree.parent, child.package)
+    var hoistTo = earliestInstallable(tree, tree.parent, child.package, log)
     if (hoistTo) {
       move(child, hoistTo, diff)
       chain([

@@ -77,8 +77,8 @@ Note that `CTRL`+`C` will no longer cause a `SIGINT` when in this mode.
 added: v0.5.8
 -->
 
-The `tty.WriteStream` class is a subclass of `net.Socket` that represents the
-writable side of a TTY. In normal circumstances, [`process.stdout`][] and
+The `tty.WriteStream` class is a subclass of [`net.Socket`][] that represents
+the writable side of a TTY. In normal circumstances, [`process.stdout`][] and
 [`process.stderr`][] will be the only `tty.WriteStream` instances created for a
 Node.js process and there should be no reason to create additional instances.
 
@@ -126,15 +126,15 @@ is updated whenever the `'resize'` event is emitted.
 added: v9.9.0
 -->
 
-* `env` {Object} A object containing the environment variables to check.
+* `env` {Object} An object containing the environment variables to check.
   **Default:** `process.env`.
 * Returns: {number}
 
 Returns:
-* 1 for 2,
-* 4 for 16,
-* 8 for 256,
-* 24 for 16,777,216
+* `1` for 2,
+* `4` for 16,
+* `8` for 256,
+* `24` for 16,777,216
 colors supported.
 
 Use this to determine what colors the terminal supports. Due to the nature of

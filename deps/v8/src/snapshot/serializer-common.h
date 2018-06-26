@@ -117,67 +117,55 @@ class SerializerDeserializer : public RootVisitor {
       const std::vector<CallHandlerInfo*>& call_handler_infos);
 
 #define UNUSED_SERIALIZER_BYTE_CODES(V) \
-  V(0x1d)                               \
-  V(0x1e)                               \
-  V(0x55)                               \
-  V(0x56)                               \
-  V(0x57)                               \
-  V(0x75)                               \
+  V(0x18)                               \
+  V(0x3d)                               \
+  V(0x3e)                               \
+  V(0x3f)                               \
+  V(0x58)                               \
+  V(0x59)                               \
+  V(0x5a)                               \
+  V(0x5b)                               \
+  V(0x5c)                               \
+  V(0x5d)                               \
+  V(0x5e)                               \
+  V(0x5f)                               \
+  V(0x67)                               \
   V(0x76)                               \
-  V(0x77)                               \
   V(0x78)                               \
   V(0x79)                               \
   V(0x7a)                               \
   V(0x7b)                               \
   V(0x7c)                               \
-  V(0x7d)                               \
-  V(0x7e)                               \
-  V(0x7f)                               \
-  V(0xf0)                               \
-  V(0xf1)                               \
-  V(0xf2)                               \
-  V(0xf3)                               \
-  V(0xf4)                               \
-  V(0xf5)                               \
-  V(0xf6)                               \
-  V(0xf7)                               \
-  V(0xf8)                               \
-  V(0xf9)                               \
-  V(0xfa)                               \
-  V(0xfb)                               \
-  V(0xfc)                               \
-  V(0xfd)                               \
-  V(0xfe)                               \
-  V(0xff)
+  V(0x7d)
 
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
   // Where the pointed-to object can be found:
   // The static assert below will trigger when the number of preallocated spaces
   // changed. If that happens, update the bytecode ranges in the comments below.
-  STATIC_ASSERT(5 == kNumberOfSpaces);
+  STATIC_ASSERT(6 == kNumberOfSpaces);
   enum Where {
-    // 0x00..0x04  Allocate new object, in specified space.
+    // 0x00..0x05  Allocate new object, in specified space.
     kNewObject = 0x00,
-    // 0x08..0x0c  Reference to previous object from space.
+    // 0x08..0x0d  Reference to previous object from space.
     kBackref = 0x08,
-    // 0x10..0x14  Reference to previous object from space after skip.
+    // 0x10..0x15  Reference to previous object from space after skip.
     kBackrefWithSkip = 0x10,
 
-    // 0x05       Root array item.
-    kRootArray = 0x05,
     // 0x06        Object in the partial snapshot cache.
     kPartialSnapshotCache = 0x06,
     // 0x07        External reference referenced by id.
     kExternalReference = 0x07,
 
-    // 0x0d        Object provided in the attached list.
-    kAttachedReference = 0x0d,
     // 0x0e        Builtin code referenced by index.
     kBuiltin = 0x0e,
+    // 0x16       Root array item.
+    kRootArray = 0x16,
+    // 0x17        Object provided in the attached list.
+    kAttachedReference = 0x17,
 
     // 0x0f        Misc, see below (incl. 0x2f, 0x4f, 0x6f).
-    // 0x15..0x1f  Misc, see below (incl. 0x35..0x3f, 0x55..0x5f, 0x75..0x7f).
+    // 0x18..0x1f  Misc, see below (incl. 0x38..0x3f, 0x58..0x5f, 0x78..0x7f).
   };
 
   static const int kWhereMask = 0x1f;
@@ -213,41 +201,38 @@ class SerializerDeserializer : public RootVisitor {
   static const int kNextChunk = 0x4f;
   // Deferring object content.
   static const int kDeferred = 0x6f;
-  // Alignment prefixes 0x15..0x17
-  static const int kAlignmentPrefix = 0x15;
+  // Alignment prefixes 0x19..0x1b
+  static const int kAlignmentPrefix = 0x19;
   // A tag emitted at strategic points in the snapshot to delineate sections.
   // If the deserializer does not find these at the expected moments then it
   // is an indication that the snapshot and the VM do not fit together.
   // Examine the build process for architecture, version or configuration
   // mismatches.
-  static const int kSynchronize = 0x18;
+  static const int kSynchronize = 0x1c;
   // Repeats of variable length.
-  static const int kVariableRepeat = 0x19;
+  static const int kVariableRepeat = 0x1d;
   // Raw data of variable length.
-  static const int kVariableRawCode = 0x1a;
-  static const int kVariableRawData = 0x1b;
 
   // Used for embedder-allocated backing stores for TypedArrays.
-  static const int kOffHeapBackingStore = 0x1c;
+  static const int kOffHeapBackingStore = 0x1e;
 
   // Used for embedder-provided serialization data for embedder fields.
   static const int kEmbedderFieldsData = 0x1f;
 
-  // Internal reference encoded as offsets of pc and target from code entry.
-  static const int kInternalReference = 0x35;
-  static const int kInternalReferenceEncoded = 0x36;
-
   // Used to encode external referenced provided through the API.
-  static const int kApiReference = 0x37;
+  static const int kApiReference = 0x38;
 
-  // 8 hot (recently seen or back-referenced) objects with optional skip.
-  static const int kNumberOfHotObjects = 8;
-  STATIC_ASSERT(kNumberOfHotObjects == HotObjectsList::kSize);
-  // 0x38..0x3f
-  static const int kHotObject = 0x38;
-  // 0x58..0x5f
-  static const int kHotObjectWithSkip = 0x58;
-  static const int kHotObjectMask = 0x07;
+  static const int kVariableRawCode = 0x39;
+  static const int kVariableRawData = 0x3a;
+
+  static const int kInternalReference = 0x3b;
+  static const int kInternalReferenceEncoded = 0x3c;
+
+  // In-place weak references
+  static const int kWeakPrefix = 0x7e;
+
+  // Encodes an off-heap instruction stream target.
+  static const int kOffHeapTarget = 0x7f;
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.
@@ -270,6 +255,15 @@ class SerializerDeserializer : public RootVisitor {
   // 0xe0..0xef
   static const int kFixedRepeat = 0xe0;
   static const int kFixedRepeatStart = kFixedRepeat - 1;
+
+  // 8 hot (recently seen or back-referenced) objects with optional skip.
+  static const int kNumberOfHotObjects = 8;
+  STATIC_ASSERT(kNumberOfHotObjects == HotObjectsList::kSize);
+  // 0xf0..0xf7
+  static const int kHotObject = 0xf0;
+  // 0xf8..0xff
+  static const int kHotObjectWithSkip = 0xf8;
+  static const int kHotObjectMask = 0x07;
 
   // ---------- special values ----------
   static const int kAnyOldSpace = -1;
@@ -334,9 +328,7 @@ class SerializedData {
 
   void AllocateData(uint32_t size);
 
-  static uint32_t ComputeMagicNumber(Isolate* isolate) {
-    return ComputeMagicNumber(ExternalReferenceTable::instance(isolate));
-  }
+  static uint32_t ComputeMagicNumber(Isolate* isolate);
 
   void SetMagicNumber(Isolate* isolate) {
     SetHeaderValue(kMagicNumberOffset, ComputeMagicNumber(isolate));

@@ -142,6 +142,8 @@ class V8_EXPORT_PRIVATE Bitmap {
 
   void Clear();
 
+  void MarkAllBits();
+
   // Clears bits in the given cell. The mask specifies bits to clear: if a
   // bit is set in the mask then the corresponding bit is cleared in the cell.
   template <AccessMode mode = AccessMode::NON_ATOMIC>

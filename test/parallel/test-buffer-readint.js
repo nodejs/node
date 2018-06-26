@@ -46,18 +46,14 @@ const assert = require('assert');
 
 // Test 8 bit signed integers
 {
-  const data = Buffer.alloc(4);
+  const data = Buffer.from([0x23, 0xab, 0x7c, 0xef]);
 
-  data[0] = 0x23;
   assert.strictEqual(data.readInt8(0), 0x23);
 
   data[0] = 0xff;
   assert.strictEqual(data.readInt8(0), -1);
 
   data[0] = 0x87;
-  data[1] = 0xab;
-  data[2] = 0x7c;
-  data[3] = 0xef;
   assert.strictEqual(data.readInt8(0), -121);
   assert.strictEqual(data.readInt8(1), -85);
   assert.strictEqual(data.readInt8(2), 124);
@@ -66,10 +62,8 @@ const assert = require('assert');
 
 // Test 16 bit integers
 {
-  const buffer = Buffer.alloc(6);
+  const buffer = Buffer.from([0x16, 0x79, 0x65, 0x6e, 0x69, 0x78]);
 
-  buffer[0] = 0x16;
-  buffer[1] = 0x79;
   assert.strictEqual(buffer.readInt16BE(0), 0x1679);
   assert.strictEqual(buffer.readInt16LE(0), 0x7916);
 
@@ -80,10 +74,6 @@ const assert = require('assert');
 
   buffer[0] = 0x77;
   buffer[1] = 0x65;
-  buffer[2] = 0x65;
-  buffer[3] = 0x6e;
-  buffer[4] = 0x69;
-  buffer[5] = 0x78;
   assert.strictEqual(buffer.readInt16BE(0), 0x7765);
   assert.strictEqual(buffer.readInt16BE(1), 0x6565);
   assert.strictEqual(buffer.readInt16BE(2), 0x656e);
@@ -98,12 +88,8 @@ const assert = require('assert');
 
 // Test 32 bit integers
 {
-  const buffer = Buffer.alloc(6);
+  const buffer = Buffer.from([0x43, 0x53, 0x16, 0x79, 0x36, 0x17]);
 
-  buffer[0] = 0x43;
-  buffer[1] = 0x53;
-  buffer[2] = 0x16;
-  buffer[3] = 0x79;
   assert.strictEqual(buffer.readInt32BE(0), 0x43531679);
   assert.strictEqual(buffer.readInt32LE(0), 0x79165343);
 
@@ -118,8 +104,6 @@ const assert = require('assert');
   buffer[1] = 0xc3;
   buffer[2] = 0x95;
   buffer[3] = 0xa9;
-  buffer[4] = 0x36;
-  buffer[5] = 0x17;
   assert.strictEqual(buffer.readInt32BE(0), 0x42c395a9);
   assert.strictEqual(buffer.readInt32BE(1), -1013601994);
   assert.strictEqual(buffer.readInt32BE(2), -1784072681);
@@ -130,17 +114,24 @@ const assert = require('assert');
 
 // Test Int
 {
-  const buffer = Buffer.alloc(8);
+  const buffer = Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]);
+
+  assert.strictEqual(buffer.readIntLE(0, 1), 0x01);
+  assert.strictEqual(buffer.readIntBE(0, 1), 0x01);
+  assert.strictEqual(buffer.readIntLE(0, 3), 0x030201);
+  assert.strictEqual(buffer.readIntBE(0, 3), 0x010203);
+  assert.strictEqual(buffer.readIntLE(0, 5), 0x0504030201);
+  assert.strictEqual(buffer.readIntBE(0, 5), 0x0102030405);
+  assert.strictEqual(buffer.readIntLE(0, 6), 0x060504030201);
+  assert.strictEqual(buffer.readIntBE(0, 6), 0x010203040506);
+  assert.strictEqual(buffer.readIntLE(1, 6), 0x070605040302);
+  assert.strictEqual(buffer.readIntBE(1, 6), 0x020304050607);
+  assert.strictEqual(buffer.readIntLE(2, 6), 0x080706050403);
+  assert.strictEqual(buffer.readIntBE(2, 6), 0x030405060708);
 
   // Check byteLength.
   ['readIntBE', 'readIntLE'].forEach((fn) => {
-
-    // Verify that default offset & byteLength works fine.
-    buffer[fn](undefined, undefined);
-    buffer[fn](undefined);
-    buffer[fn]();
-
-    ['', '0', null, {}, [], () => {}, true, false].forEach((len) => {
+    ['', '0', null, {}, [], () => {}, true, false, undefined].forEach((len) => {
       assert.throws(
         () => buffer[fn](0, len),
         { code: 'ERR_INVALID_ARG_TYPE' });
@@ -169,9 +160,9 @@ const assert = require('assert');
   });
 
   // Test 1 to 6 bytes.
-  for (let i = 1; i < 6; i++) {
+  for (let i = 1; i <= 6; i++) {
     ['readIntBE', 'readIntLE'].forEach((fn) => {
-      ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {
+      ['', '0', null, {}, [], () => {}, true, false, undefined].forEach((o) => {
         assert.throws(
           () => buffer[fn](o, i),
           {

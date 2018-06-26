@@ -12,9 +12,13 @@ bool DebugInfo::IsEmpty() const { return flags() == kNone; }
 
 bool DebugInfo::HasBreakInfo() const { return (flags() & kHasBreakInfo) != 0; }
 
-bool DebugInfo::IsPreparedForBreakpoints() const {
-  DCHECK(HasBreakInfo());
-  return (flags() & kPreparedForBreakpoints) != 0;
+DebugInfo::ExecutionMode DebugInfo::DebugExecutionMode() const {
+  return (flags() & kDebugExecutionMode) != 0 ? kSideEffects : kBreakpoints;
+}
+
+void DebugInfo::SetDebugExecutionMode(ExecutionMode value) {
+  set_flags(value == kSideEffects ? (flags() | kDebugExecutionMode)
+                                  : (flags() & ~kDebugExecutionMode));
 }
 
 bool DebugInfo::ClearBreakInfo() {
@@ -24,8 +28,9 @@ bool DebugInfo::ClearBreakInfo() {
   set_break_points(isolate->heap()->empty_fixed_array());
 
   int new_flags = flags();
-  new_flags &= ~kHasBreakInfo & ~kPreparedForBreakpoints;
+  new_flags &= ~kHasBreakInfo & ~kPreparedForDebugExecution;
   new_flags &= ~kBreakAtEntry & ~kCanBreakAtEntry;
+  new_flags &= ~kDebugExecutionMode;
   set_flags(new_flags);
 
   return new_flags == kNone;
@@ -346,15 +351,14 @@ void CoverageInfo::ResetBlockCount(int slot_index) {
   set(slot_start + kSlotBlockCountIndex, Smi::kZero);
 }
 
-void CoverageInfo::Print(String* function_name) {
+void CoverageInfo::Print(std::unique_ptr<char[]> function_name) {
   DCHECK(FLAG_trace_block_coverage);
   DisallowHeapAllocation no_gc;
 
   OFStream os(stdout);
   os << "Coverage info (";
-  if (function_name->length() > 0) {
-    auto function_name_cstr = function_name->ToCString();
-    os << function_name_cstr.get();
+  if (strlen(function_name.get()) > 0) {
+    os << function_name.get();
   } else {
     os << "{anonymous}";
   }

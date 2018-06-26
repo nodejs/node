@@ -34,23 +34,28 @@ import node_common
 TARGET_SUBDIR = os.path.join("deps", "v8")
 
 SUB_REPOSITORIES = [ ["base", "trace_event", "common"],
-                     ["testing", "gtest"],
+                     ["third_party", "googletest", "src"],
                      ["third_party", "jinja2"],
                      ["third_party", "markupsafe"] ]
 
 DELETE_FROM_GITIGNORE = [ "/base",
-                          "/testing/gtest",
+                          "/third_party/googletest/src",
                           "/third_party/jinja2",
                           "/third_party/markupsafe" ]
 
 # Node.js requires only a single header file from gtest to build V8.
 # Both jinja2 and markupsafe are required to generate part of the inspector.
-ADD_TO_GITIGNORE = [ "/testing/gtest/*",
-                     "!/testing/gtest/include",
-                     "/testing/gtest/include/*",
-                     "!/testing/gtest/include/gtest",
-                     "/testing/gtest/include/gtest/*",
-                     "!/testing/gtest/include/gtest/gtest_prod.h",
+ADD_TO_GITIGNORE = [ "/third_party/googletest/*",
+                     "!/third_party/googletest/BUILD.gn",
+                     "!/third_party/googletest/src",
+                     "/third_party/googletest/src/*",
+                     "!/third_party/googletest/src/googletest",
+                     "/third_party/googletest/src/googletest/*",
+                     "!/third_party/googletest/src/googletest/include",
+                     "/third_party/googletest/src/googletest/include/*",
+                     "!/third_party/googletest/src/googletest/include/gtest",
+                     "/third_party/googletest/src/googletest/include/gtest/*",
+                     "!/third_party/googletest/src/googletest/include/gtest/gtest_prod.h",
                      "!/third_party/jinja2",
                      "!/third_party/markupsafe" ]
 

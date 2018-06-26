@@ -1,3 +1,4 @@
+/* eslint-disable standard/no-callback-literal */
 var mapToRegistry = require('./utils/map-to-registry.js')
 var npm = require('./npm')
 var output = require('./utils/output.js')
@@ -41,7 +42,7 @@ function team (args, cb) {
     try {
       return npm.registry.team(cmd, uri, {
         auth: auth,
-        scope: entity[0],
+        scope: entity[0].replace(/^@/, ''), // '@' prefix on scope is optional.
         team: entity[1],
         user: args.shift()
       }, function (err, data) {

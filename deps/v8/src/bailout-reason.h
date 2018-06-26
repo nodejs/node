@@ -32,6 +32,7 @@ namespace internal {
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                     \
   V(kInvalidJumpTableIndex, "Invalid jump table index")                        \
   V(kInvalidRegisterFileInGenerator, "invalid register file in generator")     \
+  V(kInvalidSharedFunctionInfoData, "Invalid SharedFunctionInfo data")         \
   V(kMissingBytecodeArray, "Missing bytecode array from function")             \
   V(kObjectNotTagged, "The object is not tagged")                              \
   V(kObjectTagged, "The object is tagged")                                     \
@@ -39,11 +40,14 @@ namespace internal {
   V(kOperandIsASmi, "Operand is a smi")                                        \
   V(kOperandIsASmiAndNotABoundFunction,                                        \
     "Operand is a smi and not a bound function")                               \
+  V(kOperandIsASmiAndNotAConstructor,                                          \
+    "Operand is a smi and not a constructor")                                  \
   V(kOperandIsASmiAndNotAFixedArray, "Operand is a smi and not a fixed array") \
   V(kOperandIsASmiAndNotAFunction, "Operand is a smi and not a function")      \
   V(kOperandIsASmiAndNotAGeneratorObject,                                      \
     "Operand is a smi and not a generator object")                             \
   V(kOperandIsNotABoundFunction, "Operand is not a bound function")            \
+  V(kOperandIsNotAConstructor, "Operand is not a constructor")                 \
   V(kOperandIsNotAFixedArray, "Operand is not a fixed array")                  \
   V(kOperandIsNotAFunction, "Operand is not a function")                       \
   V(kOperandIsNotAGeneratorObject, "Operand is not a generator object")        \

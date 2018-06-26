@@ -164,6 +164,7 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   if (setsockopt(tcp->io_watcher.fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
     return UV__ERR(errno);
 
+#ifndef __OpenBSD__
 #ifdef IPV6_V6ONLY
   if (addr->sa_family == AF_INET6) {
     on = (flags & UV_TCP_IPV6ONLY) != 0;
@@ -179,6 +180,7 @@ int uv__tcp_bind(uv_tcp_t* tcp,
       return UV__ERR(errno);
     }
   }
+#endif
 #endif
 
   errno = 0;
@@ -260,6 +262,9 @@ int uv__tcp_connect(uv_connect_t* req,
 
 int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
   int err;
+
+  if (uv__fd_exists(handle->loop, sock))
+    return UV_EEXIST;
 
   err = uv__nonblock(sock, 1);
   if (err)

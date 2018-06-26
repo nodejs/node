@@ -269,20 +269,12 @@ inline bool Environment::TickInfo::has_scheduled() const {
   return fields_[kHasScheduled] == 1;
 }
 
-inline bool Environment::TickInfo::has_thrown() const {
-  return fields_[kHasThrown] == 1;
-}
-
 inline bool Environment::TickInfo::has_promise_rejections() const {
   return fields_[kHasPromiseRejections] == 1;
 }
 
 inline void Environment::TickInfo::promise_rejections_toggle_on() {
   fields_[kHasPromiseRejections] = 1;
-}
-
-inline void Environment::TickInfo::set_has_thrown(bool state) {
-  fields_[kHasThrown] = state ? 1 : 0;
 }
 
 inline void Environment::AssignToContext(v8::Local<v8::Context> context,
@@ -322,12 +314,24 @@ inline Environment* Environment::GetThreadLocalEnv() {
   return static_cast<Environment*>(uv_key_get(&thread_local_env));
 }
 
+inline bool Environment::profiler_idle_notifier_started() const {
+  return profiler_idle_notifier_started_;
+}
+
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
 
 inline tracing::Agent* Environment::tracing_agent() const {
   return tracing_agent_;
+}
+
+inline Environment* Environment::from_timer_handle(uv_timer_t* handle) {
+  return ContainerOf(&Environment::timer_handle_, handle);
+}
+
+inline uv_timer_t* Environment::timer_handle() {
+  return &timer_handle_;
 }
 
 inline Environment* Environment::from_immediate_check_handle(
@@ -345,12 +349,39 @@ inline uv_idle_t* Environment::immediate_idle_handle() {
 
 inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
                                                HandleCleanupCb cb,
-                                               void *arg) {
+                                               void* arg) {
   handle_cleanup_queue_.push_back(HandleCleanup{handle, cb, arg});
 }
 
-inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {
-  handle_cleanup_waiting_--;
+template <typename T, typename OnCloseCallback>
+inline void Environment::CloseHandle(T* handle, OnCloseCallback callback) {
+  handle_cleanup_waiting_++;
+  static_assert(sizeof(T) >= sizeof(uv_handle_t), "T is a libuv handle");
+  static_assert(offsetof(T, data) == offsetof(uv_handle_t, data),
+                "T is a libuv handle");
+  static_assert(offsetof(T, close_cb) == offsetof(uv_handle_t, close_cb),
+                "T is a libuv handle");
+  struct CloseData {
+    Environment* env;
+    OnCloseCallback callback;
+    void* original_data;
+  };
+  handle->data = new CloseData { this, callback, handle->data };
+  uv_close(reinterpret_cast<uv_handle_t*>(handle), [](uv_handle_t* handle) {
+    std::unique_ptr<CloseData> data { static_cast<CloseData*>(handle->data) };
+    data->env->handle_cleanup_waiting_--;
+    handle->data = data->original_data;
+    data->callback(reinterpret_cast<T*>(handle));
+  });
+}
+
+void Environment::IncreaseWaitingRequestCounter() {
+  request_waiting_++;
+}
+
+void Environment::DecreaseWaitingRequestCounter() {
+  request_waiting_--;
+  CHECK_GE(request_waiting_, 0);
 }
 
 inline uv_loop_t* Environment::event_loop() const {
@@ -446,22 +477,22 @@ inline double Environment::get_default_trigger_async_id() {
 }
 
 inline double* Environment::heap_statistics_buffer() const {
-  CHECK_NE(heap_statistics_buffer_, nullptr);
+  CHECK_NOT_NULL(heap_statistics_buffer_);
   return heap_statistics_buffer_;
 }
 
 inline void Environment::set_heap_statistics_buffer(double* pointer) {
-  CHECK_EQ(heap_statistics_buffer_, nullptr);  // Should be set only once.
+  CHECK_NULL(heap_statistics_buffer_);  // Should be set only once.
   heap_statistics_buffer_ = pointer;
 }
 
 inline double* Environment::heap_space_statistics_buffer() const {
-  CHECK_NE(heap_space_statistics_buffer_, nullptr);
+  CHECK_NOT_NULL(heap_space_statistics_buffer_);
   return heap_space_statistics_buffer_;
 }
 
 inline void Environment::set_heap_space_statistics_buffer(double* pointer) {
-  CHECK_EQ(heap_space_statistics_buffer_, nullptr);  // Should be set only once.
+  CHECK_NULL(heap_space_statistics_buffer_);  // Should be set only once.
   heap_space_statistics_buffer_ = pointer;
 }
 
@@ -470,7 +501,7 @@ inline char* Environment::http_parser_buffer() const {
 }
 
 inline void Environment::set_http_parser_buffer(char* buffer) {
-  CHECK_EQ(http_parser_buffer_, nullptr);  // Should be set only once.
+  CHECK_NULL(http_parser_buffer_);  // Should be set only once.
   http_parser_buffer_ = buffer;
 }
 
@@ -482,19 +513,42 @@ inline void Environment::set_http_parser_buffer_in_use(bool in_use) {
   http_parser_buffer_in_use_ = in_use;
 }
 
-inline http2::http2_state* Environment::http2_state() const {
+inline http2::Http2State* Environment::http2_state() const {
   return http2_state_.get();
 }
 
 inline void Environment::set_http2_state(
-    std::unique_ptr<http2::http2_state> buffer) {
+    std::unique_ptr<http2::Http2State> buffer) {
   CHECK(!http2_state_);  // Should be set only once.
   http2_state_ = std::move(buffer);
+}
+
+bool Environment::debug_enabled(DebugCategory category) const {
+#ifdef DEBUG
+  CHECK_GE(static_cast<int>(category), 0);
+  CHECK_LT(static_cast<int>(category),
+           static_cast<int>(DebugCategory::CATEGORY_COUNT));
+#endif
+  return debug_enabled_[static_cast<int>(category)];
+}
+
+void Environment::set_debug_enabled(DebugCategory category, bool enabled) {
+#ifdef DEBUG
+  CHECK_GE(static_cast<int>(category), 0);
+  CHECK_LT(static_cast<int>(category),
+           static_cast<int>(DebugCategory::CATEGORY_COUNT));
+#endif
+  debug_enabled_[static_cast<int>(category)] = enabled;
 }
 
 inline AliasedBuffer<double, v8::Float64Array>*
 Environment::fs_stats_field_array() {
   return &fs_stats_field_array_;
+}
+
+inline AliasedBuffer<uint64_t, v8::BigUint64Array>*
+Environment::fs_stats_field_bigint_array() {
+  return &fs_stats_field_bigint_array_;
 }
 
 inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
@@ -530,6 +584,43 @@ void Environment::SetUnrefImmediate(native_immediate_callback cb,
                                     void* data,
                                     v8::Local<v8::Object> obj) {
   CreateImmediate(cb, data, obj, false);
+}
+
+inline bool Environment::can_call_into_js() const {
+  return can_call_into_js_ && (is_main_thread() || !is_stopping_worker());
+}
+
+inline void Environment::set_can_call_into_js(bool can_call_into_js) {
+  can_call_into_js_ = can_call_into_js;
+}
+
+inline bool Environment::is_main_thread() const {
+  return thread_id_ == 0;
+}
+
+inline uint64_t Environment::thread_id() const {
+  return thread_id_;
+}
+
+inline void Environment::set_thread_id(uint64_t id) {
+  thread_id_ = id;
+}
+
+inline worker::Worker* Environment::worker_context() const {
+  return worker_context_;
+}
+
+inline void Environment::set_worker_context(worker::Worker* context) {
+  CHECK_EQ(worker_context_, nullptr);  // Should be set only once.
+  worker_context_ = context;
+}
+
+inline void Environment::add_sub_worker_context(worker::Worker* context) {
+  sub_worker_contexts_.insert(context);
+}
+
+inline void Environment::remove_sub_worker_context(worker::Worker* context) {
+  sub_worker_contexts_.erase(context);
 }
 
 inline performance::performance_state* Environment::performance_state() {
@@ -583,16 +674,42 @@ inline void Environment::ThrowUVException(int errorno,
 
 inline v8::Local<v8::FunctionTemplate>
     Environment::NewFunctionTemplate(v8::FunctionCallback callback,
-                                     v8::Local<v8::Signature> signature) {
+                                     v8::Local<v8::Signature> signature,
+                                     v8::ConstructorBehavior behavior,
+                                     v8::SideEffectType side_effect_type) {
   v8::Local<v8::External> external = as_external();
-  return v8::FunctionTemplate::New(isolate(), callback, external, signature);
+  return v8::FunctionTemplate::New(isolate(), callback, external,
+                                   signature, 0, behavior, side_effect_type);
 }
 
 inline void Environment::SetMethod(v8::Local<v8::Object> that,
                                    const char* name,
                                    v8::FunctionCallback callback) {
   v8::Local<v8::Function> function =
-      NewFunctionTemplate(callback)->GetFunction();
+      NewFunctionTemplate(callback,
+                          v8::Local<v8::Signature>(),
+                          // TODO(TimothyGu): Investigate if SetMethod is ever
+                          // used for constructors.
+                          v8::ConstructorBehavior::kAllow,
+                          v8::SideEffectType::kHasSideEffect)->GetFunction();
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  v8::Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->Set(name_string, function);
+  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+inline void Environment::SetMethodNoSideEffect(v8::Local<v8::Object> that,
+                                               const char* name,
+                                               v8::FunctionCallback callback) {
+  v8::Local<v8::Function> function =
+      NewFunctionTemplate(callback,
+                          v8::Local<v8::Signature>(),
+                          // TODO(TimothyGu): Investigate if SetMethod is ever
+                          // used for constructors.
+                          v8::ConstructorBehavior::kAllow,
+                          v8::SideEffectType::kHasNoSideEffect)->GetFunction();
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
@@ -605,7 +722,25 @@ inline void Environment::SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
                                         const char* name,
                                         v8::FunctionCallback callback) {
   v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
-  v8::Local<v8::FunctionTemplate> t = NewFunctionTemplate(callback, signature);
+  v8::Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback, signature, v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  v8::Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
+inline void Environment::SetProtoMethodNoSideEffect(
+    v8::Local<v8::FunctionTemplate> that,
+    const char* name,
+    v8::FunctionCallback callback) {
+  v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
+  v8::Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback, signature, v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect);
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
@@ -617,7 +752,10 @@ inline void Environment::SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
 inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
                                            const char* name,
                                            v8::FunctionCallback callback) {
-  v8::Local<v8::FunctionTemplate> t = NewFunctionTemplate(callback);
+  v8::Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback, v8::Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kAllow,
+                          v8::SideEffectType::kHasSideEffect);
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
@@ -626,7 +764,47 @@ inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
   t->SetClassName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
+inline void Environment::SetTemplateMethodNoSideEffect(
+    v8::Local<v8::FunctionTemplate> that,
+    const char* name,
+    v8::FunctionCallback callback) {
+  v8::Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback, v8::Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kAllow,
+                          v8::SideEffectType::kHasNoSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  v8::Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+void Environment::AddCleanupHook(void (*fn)(void*), void* arg) {
+  auto insertion_info = cleanup_hooks_.emplace(CleanupHookCallback {
+    fn, arg, cleanup_hook_counter_++
+  });
+  // Make sure there was no existing element with these values.
+  CHECK_EQ(insertion_info.second, true);
+}
+
+void Environment::RemoveCleanupHook(void (*fn)(void*), void* arg) {
+  CleanupHookCallback search { fn, arg, 0 };
+  cleanup_hooks_.erase(search);
+}
+
+size_t Environment::CleanupHookCallback::Hash::operator()(
+    const CleanupHookCallback& cb) const {
+  return std::hash<void*>()(cb.arg_);
+}
+
+bool Environment::CleanupHookCallback::Equal::operator()(
+    const CleanupHookCallback& a, const CleanupHookCallback& b) const {
+  return a.fn_ == b.fn_ && a.arg_ == b.arg_;
+}
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   inline                                                                      \
@@ -635,21 +813,26 @@ inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
     return const_cast<IsolateData*>(this)->PropertyName ## _.Get(isolate);    \
   }
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
 #undef VS
+#undef VY
 #undef VP
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   inline v8::Local<TypeName> Environment::PropertyName() const {              \
     return isolate_data()->PropertyName(isolate());                           \
   }
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
 #undef VS
+#undef VY
 #undef VP
 
 #define V(PropertyName, TypeName)                                             \

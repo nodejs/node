@@ -248,6 +248,42 @@ TEST(LoggingDeathTest, V8_DcheckCanBeOverridden) {
       "Dread pirate");
 }
 
+#if defined(DEBUG)
+namespace {
+int g_log_sink_call_count = 0;
+void DcheckCountFunction(const char* file, int line, const char* message) {
+  ++g_log_sink_call_count;
+}
+
+void DcheckEmptyFunction1() {
+  // Provide a body so that Release builds do not cause the compiler to
+  // optimize DcheckEmptyFunction1 and DcheckEmptyFunction2 as a single
+  // function, which breaks the Dcheck tests below.
+  // Note that this function is never actually called.
+  g_log_sink_call_count += 42;
+}
+void DcheckEmptyFunction2() {}
+
+}  // namespace
+
+TEST(LoggingTest, LogFunctionPointers) {
+  v8::base::SetDcheckFunction(&DcheckCountFunction);
+  g_log_sink_call_count = 0;
+  void (*fp1)() = DcheckEmptyFunction1;
+  void (*fp2)() = DcheckEmptyFunction2;
+  void (*fp3)() = DcheckEmptyFunction1;
+  DCHECK_EQ(fp1, DcheckEmptyFunction1);
+  DCHECK_EQ(fp1, fp3);
+  EXPECT_EQ(0, g_log_sink_call_count);
+  DCHECK_EQ(fp1, fp2);
+  EXPECT_EQ(1, g_log_sink_call_count);
+  std::string* error_message =
+      CheckEQImpl<decltype(fp1), decltype(fp2)>(fp1, fp2, "");
+  EXPECT_NE(*error_message, "(1 vs 1)");
+  delete error_message;
+}
+#endif  // defined(DEBUG)
+
 }  // namespace logging_unittest
 }  // namespace base
 }  // namespace v8

@@ -210,6 +210,24 @@ function TestPropertyFilter(withWarmup) {
 TestPropertyFilter();
 TestPropertyFilter(true);
 
+function TestPropertyFilter2(withWarmup) {
+  var object = { };
+  Object.defineProperty(object, "prop1", { value: 10 });
+  Object.defineProperty(object, "prop2", { value: 20 });
+  object.prop3 = 30;
+
+  if (withWarmup) {
+    for (const key in object) {}
+  }
+
+  values = Object.entries(object);
+  assertEquals(1, values.length);
+  assertEquals([
+    [ "prop3", 30 ],
+  ], values);
+}
+TestPropertyFilter2();
+TestPropertyFilter2(true);
 
 function TestWithProxy(withWarmup) {
   var obj1 = {prop1:10};

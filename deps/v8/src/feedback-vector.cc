@@ -53,16 +53,16 @@ std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind) {
 }
 
 FeedbackSlotKind FeedbackMetadata::GetKind(FeedbackSlot slot) const {
-  int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
-  int data = Smi::ToInt(get(index));
+  int index = VectorICComputer::index(0, slot.ToInt());
+  int data = get(index);
   return VectorICComputer::decode(data, slot.ToInt());
 }
 
 void FeedbackMetadata::SetKind(FeedbackSlot slot, FeedbackSlotKind kind) {
-  int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
-  int data = Smi::ToInt(get(index));
+  int index = VectorICComputer::index(0, slot.ToInt());
+  int data = get(index);
   int new_data = VectorICComputer::encode(data, slot.ToInt(), kind);
-  set(index, Smi::FromInt(new_data));
+  set(index, new_data);
 }
 
 // static
@@ -71,10 +71,8 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
   Factory* factory = isolate->factory();
 
   const int slot_count = spec == nullptr ? 0 : spec->slots();
-  const int slot_kinds_length = VectorICComputer::word_count(slot_count);
-  const int length = slot_kinds_length + kReservedIndexCount;
-  if (length == kReservedIndexCount) {
-    return Handle<FeedbackMetadata>::cast(factory->empty_fixed_array());
+  if (slot_count == 0) {
+    return factory->empty_feedback_metadata();
   }
 #ifdef DEBUG
   for (int i = 0; i < slot_count;) {
@@ -89,28 +87,16 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
   }
 #endif
 
-  Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
-  array->set(kSlotsCountIndex, Smi::FromInt(slot_count));
-  // Fill the bit-vector part with zeros.
-  for (int i = 0; i < slot_kinds_length; i++) {
-    array->set(kReservedIndexCount + i, Smi::kZero);
-  }
+  Handle<FeedbackMetadata> metadata = factory->NewFeedbackMetadata(slot_count);
 
-  Handle<FeedbackMetadata> metadata = Handle<FeedbackMetadata>::cast(array);
-
+  // Initialize the slots. The raw data section has already been pre-zeroed in
+  // NewFeedbackMetadata.
   for (int i = 0; i < slot_count; i++) {
     DCHECK(spec);
     FeedbackSlot slot(i);
     FeedbackSlotKind kind = spec->GetKind(slot);
     metadata->SetKind(slot, kind);
   }
-
-  // It's important that the FeedbackMetadata have a COW map, since it's
-  // pointed to by both a SharedFunctionInfo and indirectly by closures through
-  // the FeedbackVector. The serializer uses the COW map type to decide
-  // this object belongs in the startup snapshot and not the partial
-  // snapshot(s).
-  metadata->set_map(isolate->heap()->fixed_cow_array_map());
 
   return metadata;
 }
@@ -163,6 +149,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "StoreKeyedSloppy";
     case FeedbackSlotKind::kStoreKeyedStrict:
       return "StoreKeyedStrict";
+    case FeedbackSlotKind::kStoreInArrayLiteral:
+      return "StoreInArrayLiteral";
     case FeedbackSlotKind::kBinaryOp:
       return "BinaryOp";
     case FeedbackSlotKind::kCompareOp:
@@ -188,7 +176,7 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
 bool FeedbackMetadata::HasTypeProfileSlot() const {
   FeedbackSlot slot =
       FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  return slot.ToInt() < this->length() &&
+  return slot.ToInt() < slot_count() &&
          GetKind(slot) == FeedbackSlotKind::kTypeProfile;
 }
 
@@ -217,10 +205,11 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
   DCHECK_EQ(vector->length(), slot_count);
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
-  DCHECK_EQ(vector->optimized_code_cell(),
-            Smi::FromEnum(FLAG_log_function_events
-                              ? OptimizationMarker::kLogFirstExecution
-                              : OptimizationMarker::kNone));
+  DCHECK_EQ(
+      vector->optimized_code_weak_or_smi(),
+      MaybeObject::FromSmi(Smi::FromEnum(
+          FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
+                                   : OptimizationMarker::kNone)));
   DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK_EQ(vector->profiler_ticks(), 0);
   DCHECK_EQ(vector->deopt_count(), 0);
@@ -268,6 +257,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kStoreOwnNamed:
       case FeedbackSlotKind::kStoreKeyedSloppy:
       case FeedbackSlotKind::kStoreKeyedStrict:
+      case FeedbackSlotKind::kStoreInArrayLiteral:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       case FeedbackSlotKind::kTypeProfile:
       case FeedbackSlotKind::kInstanceOf:
@@ -322,9 +312,7 @@ void FeedbackVector::AddToVectorsForProfilingTools(
 void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
                                       Handle<Code> code) {
   DCHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
-  Factory* factory = vector->GetIsolate()->factory();
-  Handle<WeakCell> cell = factory->NewWeakCell(code);
-  vector->set_optimized_code_cell(*cell);
+  vector->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*code));
 }
 
 void FeedbackVector::ClearOptimizedCode() {
@@ -338,21 +326,22 @@ void FeedbackVector::ClearOptimizationMarker() {
 }
 
 void FeedbackVector::SetOptimizationMarker(OptimizationMarker marker) {
-  set_optimized_code_cell(Smi::FromEnum(marker));
+  set_optimized_code_weak_or_smi(MaybeObject::FromSmi(Smi::FromEnum(marker)));
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     SharedFunctionInfo* shared, const char* reason) {
-  Object* slot = optimized_code_cell();
-  if (slot->IsSmi()) return;
+  MaybeObject* slot = optimized_code_weak_or_smi();
+  if (slot->IsSmi()) {
+    return;
+  }
 
-  WeakCell* cell = WeakCell::cast(slot);
-  if (cell->cleared()) {
+  if (slot->IsClearedWeakHeapObject()) {
     ClearOptimizationMarker();
     return;
   }
 
-  Code* code = Code::cast(cell->value());
+  Code* code = Code::cast(slot->GetHeapObject());
   if (code->marked_for_deoptimization()) {
     if (FLAG_trace_deopt) {
       PrintF("[evicting optimizing code marked for deoptimization (%s) for ",
@@ -469,6 +458,7 @@ bool FeedbackNexus::Clear() {
     case FeedbackSlotKind::kStoreNamedStrict:
     case FeedbackSlotKind::kStoreKeyedSloppy:
     case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kStoreOwnNamed:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed:
@@ -548,10 +538,12 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
       }
       return UNINITIALIZED;
     }
+
     case FeedbackSlotKind::kStoreNamedSloppy:
     case FeedbackSlotKind::kStoreNamedStrict:
     case FeedbackSlotKind::kStoreKeyedSloppy:
     case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kStoreOwnNamed:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed: {
@@ -773,7 +765,8 @@ void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
 int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
   DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
          IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
-         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()));
+         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
+         IsStoreInArrayLiteralICKind(kind()));
 
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
@@ -851,7 +844,8 @@ MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
 bool FeedbackNexus::FindHandlers(ObjectHandles* code_list, int length) const {
   DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
          IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
-         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()));
+         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
+         IsStoreInArrayLiteralICKind(kind()));
 
   Object* feedback = GetFeedback();
   Isolate* isolate = GetIsolate();
@@ -914,7 +908,7 @@ KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
 }
 
 KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
-  DCHECK(IsKeyedStoreICKind(kind()));
+  DCHECK(IsKeyedStoreICKind(kind()) || IsStoreInArrayLiteralICKind(kind()));
   KeyedAccessStoreMode mode = STANDARD_STORE;
   MapHandles maps;
   ObjectHandles handlers;
@@ -944,6 +938,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
     CHECK(major_key == CodeStub::KeyedStoreSloppyArguments ||
           major_key == CodeStub::StoreFastElement ||
           major_key == CodeStub::StoreSlowElement ||
+          major_key == CodeStub::StoreInArrayLiteralSlow ||
           major_key == CodeStub::ElementsTransitionAndStore ||
           major_key == CodeStub::NoCache);
     if (major_key != CodeStub::NoCache) {
@@ -956,7 +951,8 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 }
 
 IcCheckType FeedbackNexus::GetKeyType() const {
-  DCHECK(IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind()));
+  DCHECK(IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind()) ||
+         IsStoreInArrayLiteralICKind(kind()));
   Object* feedback = GetFeedback();
   if (feedback == *FeedbackVector::MegamorphicSentinel(GetIsolate())) {
     return static_cast<IcCheckType>(Smi::ToInt(GetFeedbackExtra()));

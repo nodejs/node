@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "node_errors.h"
 #include "node_internals.h"
 #include "node_watchdog.h"
 #include "base_object-inl.h"
@@ -63,6 +64,7 @@ using v8::Uint8Array;
 using v8::UnboundScript;
 using v8::Value;
 using v8::WeakCallbackInfo;
+using v8::WeakCallbackType;
 
 // The vm module executes code in a sandboxed environment with a different
 // global object than the rest of the code. This is achieved by applying
@@ -103,8 +105,7 @@ ContextifyContext::ContextifyContext(
   // Allocation failure or maximum call stack size reached
   if (context_.IsEmpty())
     return;
-  context_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
-  context_.MarkIndependent();
+  context_.SetWeak(this, WeakCallback, WeakCallbackType::kParameter);
 }
 
 
@@ -121,7 +122,7 @@ Local<Value> ContextifyContext::CreateDataWrapper(Environment* env) {
   if (wrapper.IsEmpty())
     return scope.Escape(Local<Value>::New(env->isolate(), Local<Value>()));
 
-  Wrap(wrapper, this);
+  wrapper->SetAlignedPointerInInternalField(0, this);
   return scope.Escape(wrapper);
 }
 
@@ -292,11 +293,18 @@ ContextifyContext* ContextifyContext::ContextFromContextifiedSandbox(
 }
 
 // static
+template <typename T>
+ContextifyContext* ContextifyContext::Get(const PropertyCallbackInfo<T>& args) {
+  Local<Value> data = args.Data();
+  return static_cast<ContextifyContext*>(
+      data.As<Object>()->GetAlignedPointerFromInternalField(0));
+}
+
+// static
 void ContextifyContext::PropertyGetterCallback(
     Local<Name> property,
     const PropertyCallbackInfo<Value>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
@@ -325,8 +333,7 @@ void ContextifyContext::PropertySetterCallback(
     Local<Name> property,
     Local<Value> value,
     const PropertyCallbackInfo<Value>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
@@ -386,8 +393,7 @@ void ContextifyContext::PropertySetterCallback(
 void ContextifyContext::PropertyDescriptorCallback(
     Local<Name> property,
     const PropertyCallbackInfo<Value>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
@@ -409,15 +415,14 @@ void ContextifyContext::PropertyDefinerCallback(
     Local<Name> property,
     const PropertyDescriptor& desc,
     const PropertyCallbackInfo<Value>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
     return;
 
   Local<Context> context = ctx->context();
-  v8::Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = context->GetIsolate();
 
   auto attributes = PropertyAttribute::None;
   bool is_declared =
@@ -450,13 +455,13 @@ void ContextifyContext::PropertyDefinerCallback(
 
   if (desc.has_get() || desc.has_set()) {
     PropertyDescriptor desc_for_sandbox(
-        desc.has_get() ? desc.get() : v8::Undefined(isolate).As<Value>(),
-        desc.has_set() ? desc.set() : v8::Undefined(isolate).As<Value>());
+        desc.has_get() ? desc.get() : Undefined(isolate).As<Value>(),
+        desc.has_set() ? desc.set() : Undefined(isolate).As<Value>());
 
     define_prop_on_sandbox(&desc_for_sandbox);
   } else {
     Local<Value> value =
-        desc.has_value() ? desc.value() : v8::Undefined(isolate).As<Value>();
+        desc.has_value() ? desc.value() : Undefined(isolate).As<Value>();
 
     if (desc.has_writable()) {
       PropertyDescriptor desc_for_sandbox(value, desc.writable());
@@ -472,8 +477,7 @@ void ContextifyContext::PropertyDefinerCallback(
 void ContextifyContext::PropertyDeleterCallback(
     Local<Name> property,
     const PropertyCallbackInfo<Boolean>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
@@ -492,8 +496,7 @@ void ContextifyContext::PropertyDeleterCallback(
 // static
 void ContextifyContext::PropertyEnumeratorCallback(
     const PropertyCallbackInfo<Array>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
@@ -506,8 +509,7 @@ void ContextifyContext::PropertyEnumeratorCallback(
 void ContextifyContext::IndexedPropertyGetterCallback(
     uint32_t index,
     const PropertyCallbackInfo<Value>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
@@ -522,8 +524,7 @@ void ContextifyContext::IndexedPropertySetterCallback(
     uint32_t index,
     Local<Value> value,
     const PropertyCallbackInfo<Value>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
@@ -537,8 +538,7 @@ void ContextifyContext::IndexedPropertySetterCallback(
 void ContextifyContext::IndexedPropertyDescriptorCallback(
     uint32_t index,
     const PropertyCallbackInfo<Value>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
@@ -553,8 +553,7 @@ void ContextifyContext::IndexedPropertyDefinerCallback(
     uint32_t index,
     const PropertyDescriptor& desc,
     const PropertyCallbackInfo<Value>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
@@ -568,8 +567,7 @@ void ContextifyContext::IndexedPropertyDefinerCallback(
 void ContextifyContext::IndexedPropertyDeleterCallback(
     uint32_t index,
     const PropertyCallbackInfo<Boolean>& args) {
-  ContextifyContext* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+  ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (ctx->context_.IsEmpty())
@@ -657,7 +655,7 @@ class ContextifyScript : public BaseObject {
         ContextifyContext* sandbox =
             ContextifyContext::ContextFromContextifiedSandbox(
                 env, args[6].As<Object>());
-        CHECK_NE(sandbox, nullptr);
+        CHECK_NOT_NULL(sandbox);
         parsing_context = sandbox->context();
       }
     } else {
@@ -667,6 +665,16 @@ class ContextifyScript : public BaseObject {
 
     ContextifyScript* contextify_script =
         new ContextifyScript(env, args.This());
+
+    if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+            TRACING_CATEGORY_NODE2(vm, script)) != 0) {
+      Utf8Value fn(isolate, filename);
+      TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
+          TRACING_CATEGORY_NODE2(vm, script),
+          "ContextifyScript::New",
+          contextify_script,
+          "filename", TRACE_STR_COPY(*fn));
+    }
 
     ScriptCompiler::CachedData* cached_data = nullptr;
     if (!cached_data_buf.IsEmpty()) {
@@ -697,6 +705,10 @@ class ContextifyScript : public BaseObject {
       DecorateErrorStack(env, try_catch);
       no_abort_scope.Close();
       try_catch.ReThrow();
+      TRACE_EVENT_NESTABLE_ASYNC_END0(
+          TRACING_CATEGORY_NODE2(vm, script),
+          "ContextifyScript::New",
+          contextify_script);
       return;
     }
     contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
@@ -720,6 +732,10 @@ class ContextifyScript : public BaseObject {
           env->cached_data_produced_string(),
           Boolean::New(isolate, cached_data_produced));
     }
+    TRACE_EVENT_NESTABLE_ASYNC_END0(
+        TRACING_CATEGORY_NODE2(vm, script),
+        "ContextifyScript::New",
+        contextify_script);
   }
 
 
@@ -731,6 +747,12 @@ class ContextifyScript : public BaseObject {
 
   static void RunInThisContext(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
+
+    ContextifyScript* wrapped_script;
+    ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
+
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
+        TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
 
     CHECK_EQ(args.Length(), 3);
 
@@ -745,10 +767,16 @@ class ContextifyScript : public BaseObject {
 
     // Do the eval within this context
     EvalMachine(env, timeout, display_errors, break_on_sigint, args);
+
+    TRACE_EVENT_NESTABLE_ASYNC_END0(
+        TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
   }
 
   static void RunInContext(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
+
+    ContextifyScript* wrapped_script;
+    ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
 
     CHECK_EQ(args.Length(), 4);
 
@@ -757,10 +785,13 @@ class ContextifyScript : public BaseObject {
     // Get the context from the sandbox
     ContextifyContext* contextify_context =
         ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
-    CHECK_NE(contextify_context, nullptr);
+    CHECK_NOT_NULL(contextify_context);
 
     if (contextify_context->context().IsEmpty())
       return;
+
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
+        TRACING_CATEGORY_NODE2(vm, script), "RunInContext", wrapped_script);
 
     CHECK(args[1]->IsNumber());
     int64_t timeout = args[1]->IntegerValue(env->context()).FromJust();
@@ -778,6 +809,9 @@ class ContextifyScript : public BaseObject {
                 display_errors,
                 break_on_sigint,
                 args);
+
+    TRACE_EVENT_NESTABLE_ASYNC_END0(
+        TRACING_CATEGORY_NODE2(vm, script), "RunInContext", wrapped_script);
   }
 
   static void DecorateErrorStack(Environment* env, const TryCatch& try_catch) {
@@ -823,6 +857,8 @@ class ContextifyScript : public BaseObject {
                           const bool display_errors,
                           const bool break_on_sigint,
                           const FunctionCallbackInfo<Value>& args) {
+    if (!env->can_call_into_js())
+      return false;
     if (!ContextifyScript::InstanceOf(env, args.Holder())) {
       env->ThrowTypeError(
           "Script methods can only be called on script instances.");
@@ -852,16 +888,17 @@ class ContextifyScript : public BaseObject {
       result = script->Run(env->context());
     }
 
+    // Convert the termination exception into a regular exception.
     if (timed_out || received_signal) {
+      env->isolate()->CancelTerminateExecution();
       // It is possible that execution was terminated by another timeout in
       // which this timeout is nested, so check whether one of the watchdogs
       // from this invocation is responsible for termination.
       if (timed_out) {
-        env->ThrowError("Script execution timed out.");
+        node::THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, timeout);
       } else if (received_signal) {
-        env->ThrowError("Script execution interrupted.");
+        node::THROW_ERR_SCRIPT_EXECUTION_INTERRUPTED(env);
       }
-      env->isolate()->CancelTerminateExecution();
     }
 
     if (try_catch.HasCaught()) {
@@ -887,7 +924,7 @@ class ContextifyScript : public BaseObject {
 
   ContextifyScript(Environment* env, Local<Object> object)
       : BaseObject(env, object) {
-    MakeWeak<ContextifyScript>(this);
+    MakeWeak();
   }
 };
 

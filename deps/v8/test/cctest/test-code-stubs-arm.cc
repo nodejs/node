@@ -30,7 +30,7 @@
 #include "src/assembler-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/simulator.h"
@@ -54,7 +54,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   DoubleToIStub stub(isolate, destination_reg);
 
-  byte* start = stub.GetCode()->instruction_start();
+  byte* start = stub.GetCode()->raw_instruction_start();
 
   // Save callee save registers.
   __ Push(r7, r6, r5, r4);

@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "December 2017" "" ""
+.TH "NPM\-CONFIG" "7" "May 2018" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -211,6 +211,18 @@ Type: String
 .P
 When "dev" or "development" and running local \fBnpm shrinkwrap\fP,
 \fBnpm outdated\fP, or \fBnpm update\fP, is an alias for \fB\-\-dev\fP\|\.
+.SS audit
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When "true" submit audit reports alongside \fBnpm install\fP runs to the default
+registry and all registries configured for scopes\.  See the documentation
+for npm help audit for details on what is submitted\.
 .SS auth\-type
 .RS 0
 .IP \(bu 2
@@ -394,6 +406,9 @@ Type: Boolean or \fB"always"\fP
 .P
 If false, never shows colors\.  If \fB"always"\fP then always shows colors\.
 If true, then only prints color codes for tty file descriptors\.
+.P
+This option can also be changed using the environment: colors are
+disabled when the environment variable \fBNO_COLOR\fP is set to any value\.
 .SS depth
 .RS 0
 .IP \(bu 2
@@ -902,7 +917,7 @@ Any "%s" in the message will be replaced with the version number\.
 .SS metrics\-registry
 .RS 0
 .IP \(bu 2
-Default: The value of  \fBregistry\fP (which defaults to "https://registry\.npmjs\.org/")
+Default: The value of  \fBregistry\fP (which defaults to "https://
 .IP \(bu 2
 Type: String
 
@@ -931,6 +946,16 @@ Type: semver or false
 .RE
 .P
 The node version to use when checking a package's \fBengines\fP map\.
+.SS no\-proxy
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: String or Array
+
+.RE
+.P
+A comma\-separated string or an array of domain extensions that a proxy should not be used for\.
 .SS offline
 .RS 0
 .IP \(bu 2
@@ -1009,6 +1034,10 @@ Type: Boolean
 If set to false, then ignore \fBpackage\-lock\.json\fP files when installing\. This
 will also prevent \fIwriting\fR \fBpackage\-lock\.json\fP if \fBsave\fP is true\.
 .P
+When package package\-locks are disabled, automatic pruning of extraneous
+modules will also be disabled\.  To remove extraneous modules with
+package\-locks disabled use \fBnpm prune\fP\|\.
+.P
 This option is an alias for \fB\-\-shrinkwrap\fP\|\.
 .SS package\-lock\-only
 .RS 0
@@ -1019,7 +1048,7 @@ Type: Boolean
 
 .RE
 .P
-If set to true, it will update only the \fBpackage\-json\fP,
+If set to true, it will update only the \fBpackage\-lock\.json\fP,
 instead of checking \fBnode_modules\fP and downloading dependencies\.
 .SS parseable
 .RS 0
@@ -1133,7 +1162,7 @@ Rebuild bundled dependencies after installation\.
 .SS registry
 .RS 0
 .IP \(bu 2
-Default: https://registry\.npmjs\.org/
+Default: https://
 .IP \(bu 2
 Type: url
 
@@ -1153,7 +1182,7 @@ Remove failed installs\.
 .SS save
 .RS 0
 .IP \(bu 2
-Default: false
+Default: true
 .IP \(bu 2
 Type: Boolean
 

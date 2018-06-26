@@ -7,6 +7,7 @@
 #include "uv.h"
 
 #include <deque>
+#include <unordered_map>
 #include <memory>
 #include <stddef.h>
 
@@ -52,9 +53,8 @@ enum class TransportAction {
 
 class InspectorIo {
  public:
-  InspectorIo(node::Environment* env, v8::Platform* platform,
-              const std::string& path, const DebugOptions& options,
-              bool wait_for_connect);
+  InspectorIo(node::Environment* env, const std::string& path,
+              const DebugOptions& options, bool wait_for_connect);
 
   ~InspectorIo();
   // Start the inspector agent thread, waiting for it to initialize,
@@ -76,6 +76,7 @@ class InspectorIo {
   void ServerDone() {
     uv_close(reinterpret_cast<uv_handle_t*>(&thread_req_), nullptr);
   }
+  bool WaitForFrontendEvent();
 
   int port() const { return port_; }
   std::string host() const { return options_.host_name(); }
@@ -89,7 +90,6 @@ class InspectorIo {
   enum class State {
     kNew,
     kAccepting,
-    kConnected,
     kDone,
     kError,
     kShutDown
@@ -107,7 +107,6 @@ class InspectorIo {
   // messages from outgoing_message_queue to the InspectorSockerServer
   template <typename Transport> static void IoThreadAsyncCb(uv_async_t* async);
 
-  void SetConnected(bool connected);
   void DispatchMessages();
   // Write action to outgoing_message_queue, and wake the thread
   void Write(TransportAction action, int session_id,
@@ -122,10 +121,6 @@ class InspectorIo {
   template <typename ActionType>
   void SwapBehindLock(MessageQueue<ActionType>* vector1,
                       MessageQueue<ActionType>* vector2);
-  // Wait on incoming_message_cond_
-  void WaitForFrontendMessageWhilePaused();
-  // Broadcast incoming_message_cond_
-  void NotifyMessageReceived();
   // Attach session to an inspector. Either kAcceptSession or kDeclineSession
   TransportAction Attach(int session_id);
 
@@ -138,7 +133,6 @@ class InspectorIo {
   // and receive a connection if wait_for_connect was requested.
   uv_sem_t thread_start_sem_;
 
-  InspectorIoDelegate* delegate_;
   State state_;
   node::Environment* parent_env_;
 
@@ -147,23 +141,27 @@ class InspectorIo {
   // Note that this will live while the async is being closed - likely, past
   // the parent object lifespan
   std::pair<uv_async_t, Agent*>* main_thread_req_;
-  std::unique_ptr<InspectorSessionDelegate> session_delegate_;
-  v8::Platform* platform_;
+  // Will be used to post tasks from another thread
+  v8::Platform* const platform_;
 
   // Message queues
   ConditionVariable incoming_message_cond_;
   Mutex state_lock_;  // Locked before mutating either queue.
   MessageQueue<InspectorAction> incoming_message_queue_;
   MessageQueue<TransportAction> outgoing_message_queue_;
+  // This queue is to maintain the order of the messages for the cases
+  // when we reenter the DispatchMessages function.
   MessageQueue<InspectorAction> dispatching_message_queue_;
 
   bool dispatching_messages_;
-  int session_id_;
 
   std::string script_name_;
   std::string script_path_;
   const bool wait_for_connect_;
   int port_;
+  std::unordered_map<int, std::unique_ptr<InspectorSession>> sessions_;
+  // May be accessed from any thread
+  const std::string id_;
 
   friend class DispatchMessagesTask;
   friend class IoSessionDelegate;

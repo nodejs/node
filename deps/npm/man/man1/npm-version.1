@@ -1,4 +1,4 @@
-.TH "NPM\-VERSION" "1" "December 2017" "" ""
+.TH "NPM\-VERSION" "1" "May 2018" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SH SYNOPSIS
@@ -15,7 +15,7 @@ npm version [<newversion> | major | minor | patch | premajor | preminor | prepat
 .SH DESCRIPTION
 .P
 Run this in a package directory to bump the version and write the new
-data back to \fBpackage\.json\fP and, if present, \fBnpm\-shrinkwrap\.json\fP\|\.
+data back to \fBpackage\.json\fP, \fBpackage\-lock\.json\fP, and, if present, \fBnpm\-shrinkwrap\.json\fP\|\.
 .P
 The \fBnewversion\fP argument should be a valid semver string, a
 valid second argument to semver\.inc \fIhttps://github\.com/npm/node\-semver#functions\fR (one of \fBpatch\fP, \fBminor\fP, \fBmajor\fP,

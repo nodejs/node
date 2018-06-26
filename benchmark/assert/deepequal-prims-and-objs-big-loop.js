@@ -25,13 +25,14 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, primitive, method }) {
+  if (!method)
+    method = 'deepEqual';
   const prim = primValues[primitive];
   const actual = prim;
   const expected = prim;
   const expectedWrong = 'b';
 
-  // eslint-disable-next-line no-restricted-properties
-  const fn = method !== '' ? assert[method] : assert.deepEqual;
+  const fn = assert[method];
   const value2 = method.includes('not') ? expectedWrong : expected;
 
   bench.start();

@@ -28,6 +28,23 @@ namespace interpreter {
   V(Wide, AccumulatorUse::kNone)                                               \
   V(ExtraWide, AccumulatorUse::kNone)                                          \
                                                                                \
+  /* Debug Breakpoints - one for each possible size of unscaled bytecodes */   \
+  /* and one for each operand widening prefix bytecode                    */   \
+  V(DebugBreakWide, AccumulatorUse::kReadWrite)                                \
+  V(DebugBreakExtraWide, AccumulatorUse::kReadWrite)                           \
+  V(DebugBreak0, AccumulatorUse::kReadWrite)                                   \
+  V(DebugBreak1, AccumulatorUse::kReadWrite, OperandType::kReg)                \
+  V(DebugBreak2, AccumulatorUse::kReadWrite, OperandType::kReg,                \
+    OperandType::kReg)                                                         \
+  V(DebugBreak3, AccumulatorUse::kReadWrite, OperandType::kReg,                \
+    OperandType::kReg, OperandType::kReg)                                      \
+  V(DebugBreak4, AccumulatorUse::kReadWrite, OperandType::kReg,                \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg)                   \
+  V(DebugBreak5, AccumulatorUse::kReadWrite, OperandType::kRuntimeId,          \
+    OperandType::kReg, OperandType::kReg)                                      \
+  V(DebugBreak6, AccumulatorUse::kReadWrite, OperandType::kRuntimeId,          \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg)                   \
+                                                                               \
   /* Loading the accumulator */                                                \
   V(LdaZero, AccumulatorUse::kWrite)                                           \
   V(LdaSmi, AccumulatorUse::kWrite, OperandType::kImm)                         \
@@ -96,6 +113,8 @@ namespace interpreter {
   V(StaNamedOwnProperty, AccumulatorUse::kReadWrite, OperandType::kReg,        \
     OperandType::kIdx, OperandType::kIdx)                                      \
   V(StaKeyedProperty, AccumulatorUse::kReadWrite, OperandType::kReg,           \
+    OperandType::kReg, OperandType::kIdx)                                      \
+  V(StaInArrayLiteral, AccumulatorUse::kReadWrite, OperandType::kReg,          \
     OperandType::kReg, OperandType::kIdx)                                      \
   V(StaDataPropertyInLiteral, AccumulatorUse::kRead, OperandType::kReg,        \
     OperandType::kReg, OperandType::kFlag8, OperandType::kIdx)                 \
@@ -221,6 +240,7 @@ namespace interpreter {
   V(ToNumber, AccumulatorUse::kReadWrite, OperandType::kIdx)                   \
   V(ToNumeric, AccumulatorUse::kReadWrite, OperandType::kIdx)                  \
   V(ToObject, AccumulatorUse::kRead, OperandType::kRegOut)                     \
+  V(ToString, AccumulatorUse::kReadWrite)                                      \
                                                                                \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, AccumulatorUse::kWrite, OperandType::kIdx,            \
@@ -324,23 +344,6 @@ namespace interpreter {
                                                                                \
   /* Debugger */                                                               \
   V(Debugger, AccumulatorUse::kNone)                                           \
-                                                                               \
-  /* Debug Breakpoints - one for each possible size of unscaled bytecodes */   \
-  /* and one for each operand widening prefix bytecode                    */   \
-  V(DebugBreak0, AccumulatorUse::kReadWrite)                                   \
-  V(DebugBreak1, AccumulatorUse::kReadWrite, OperandType::kReg)                \
-  V(DebugBreak2, AccumulatorUse::kReadWrite, OperandType::kReg,                \
-    OperandType::kReg)                                                         \
-  V(DebugBreak3, AccumulatorUse::kReadWrite, OperandType::kReg,                \
-    OperandType::kReg, OperandType::kReg)                                      \
-  V(DebugBreak4, AccumulatorUse::kReadWrite, OperandType::kReg,                \
-    OperandType::kReg, OperandType::kReg, OperandType::kReg)                   \
-  V(DebugBreak5, AccumulatorUse::kReadWrite, OperandType::kRuntimeId,          \
-    OperandType::kReg, OperandType::kReg)                                      \
-  V(DebugBreak6, AccumulatorUse::kReadWrite, OperandType::kRuntimeId,          \
-    OperandType::kReg, OperandType::kReg, OperandType::kReg)                   \
-  V(DebugBreakWide, AccumulatorUse::kReadWrite)                                \
-  V(DebugBreakExtraWide, AccumulatorUse::kReadWrite)                           \
                                                                                \
   /* Block Coverage */                                                         \
   V(IncBlockCounter, AccumulatorUse::kNone, OperandType::kIdx)                 \

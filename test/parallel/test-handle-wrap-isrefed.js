@@ -110,21 +110,4 @@ const dgram = require('dgram');
 }
 
 
-// timers
-{
-  const timer = setTimeout(() => {}, 500);
-  timer.unref();
-  strictEqual(Object.getPrototypeOf(timer._handle).hasOwnProperty('hasRef'),
-              true, 'timer_wrap: hasRef() missing');
-  strictEqual(timer._handle.hasRef(),
-              false, 'timer_wrap: unref() ineffective');
-  timer.ref();
-  strictEqual(timer._handle.hasRef(),
-              true, 'timer_wrap: ref() ineffective');
-  timer._handle.close(common.mustCall(() =>
-    strictEqual(timer._handle.hasRef(),
-                false, 'timer_wrap: not unrefed on close')));
-}
-
-
 // see also test/pseudo-tty/test-handle-wrap-isrefed-tty.js

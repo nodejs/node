@@ -724,9 +724,75 @@ for (const test of TEST_CASES) {
       decrypt.setAuthTag(Buffer.from('1'.repeat(length)));
     }, {
       type: Error,
-      message: `Invalid GCM authentication tag length: ${length}`
+      message: `Invalid authentication tag length: ${length}`
+    });
+
+    common.expectsError(() => {
+      crypto.createCipheriv('aes-256-gcm',
+                            'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                            'qkuZpJWCewa6Szih',
+                            {
+                              authTagLength: length
+                            });
+    }, {
+      type: Error,
+      message: `Invalid authentication tag length: ${length}`
+    });
+
+    common.expectsError(() => {
+      crypto.createDecipheriv('aes-256-gcm',
+                              'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                              'qkuZpJWCewa6Szih',
+                              {
+                                authTagLength: length
+                              });
+    }, {
+      type: Error,
+      message: `Invalid authentication tag length: ${length}`
     });
   }
+}
+
+// Test that GCM can produce shorter authentication tags than 16 bytes.
+{
+  const fullTag = '1debb47b2c91ba2cea16fad021703070';
+  for (const [authTagLength, e] of [[undefined, 16], [12, 12], [4, 4]]) {
+    const cipher = crypto.createCipheriv('aes-256-gcm',
+                                         'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                         'qkuZpJWCewa6Szih', {
+                                           authTagLength
+                                         });
+    cipher.setAAD(Buffer.from('abcd'));
+    cipher.update('01234567', 'hex');
+    cipher.final();
+    const tag = cipher.getAuthTag();
+    assert.strictEqual(tag.toString('hex'), fullTag.substr(0, 2 * e));
+  }
+}
+
+// Test that users can manually restrict the GCM tag length to a single value.
+{
+  const decipher = crypto.createDecipheriv('aes-256-gcm',
+                                           'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                           'qkuZpJWCewa6Szih', {
+                                             authTagLength: 8
+                                           });
+
+  common.expectsError(() => {
+    // This tag would normally be allowed.
+    decipher.setAuthTag(Buffer.from('1'.repeat(12)));
+  }, {
+    type: Error,
+    message: 'Invalid authentication tag length: 12'
+  });
+
+  // The Decipher object should be left intact.
+  decipher.setAuthTag(Buffer.from('445352d3ff85cf94', 'hex'));
+  const text = Buffer.concat([
+    decipher.update('3a2a3647', 'hex'),
+    decipher.final()
+  ]);
+  assert.strictEqual(text.toString('utf8'), 'node');
 }
 
 // Test that create(De|C)ipher(iv)? throws if the mode is CCM and an invalid
@@ -919,7 +985,7 @@ for (const test of TEST_CASES) {
   }
 }
 
-// Test that setAAD throws in CCM mode when no authentication tag is provided.
+// Test that final() throws in CCM mode when no authentication tag is provided.
 {
   if (!common.hasFipsCrypto) {
     const key = Buffer.from('1ed2233fa2223ef5d7df08546049406c', 'hex');
@@ -934,6 +1000,8 @@ for (const test of TEST_CASES) {
       decrypt.setAAD(Buffer.from('63616c76696e', 'hex'), {
         plaintextLength: ct.length
       });
+      decrypt.update(ct);
+      decrypt.final();
     }, errMessages.state);
   }
 }
@@ -947,4 +1015,14 @@ for (const test of TEST_CASES) {
   decrypt.setAuthTag(Buffer.from('1bb9253e250b8069cde97151d7ef32d9', 'hex'));
   assert.strictEqual(decrypt.update('807022', 'hex', 'hex'), 'abcdef');
   assert.strictEqual(decrypt.final('hex'), '');
+}
+
+// Test that an IV length of 11 does not overflow max_message_size_.
+{
+  const key = 'x'.repeat(16);
+  const iv = Buffer.from('112233445566778899aabb', 'hex');
+  const options = { authTagLength: 8 };
+  const encrypt = crypto.createCipheriv('aes-128-ccm', key, iv, options);
+  encrypt.update('boom');  // Should not throw 'Message exceeds maximum size'.
+  encrypt.final();
 }

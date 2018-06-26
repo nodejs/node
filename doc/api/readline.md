@@ -90,7 +90,7 @@ The `'pause'` event is emitted when one of the following occur:
 
 * The `input` stream is paused.
 * The `input` stream is not paused and receives the `'SIGCONT'` event. (See
-  events [`'SIGTSTP'`][] and [`'SIGCONT'`][])
+  events [`'SIGTSTP'`][] and [`'SIGCONT'`][].)
 
 The listener function is called without passing any arguments.
 
@@ -303,7 +303,7 @@ rl.write('Delete this!');
 rl.write(null, { ctrl: true, name: 'u' });
 ```
 
-The `rl.write()` method will write the data to the `readline` Interface's
+The `rl.write()` method will write the data to the `readline` `Interface`'s
 `input` *as if it were provided by the user*.
 
 ## readline.clearLine(stream, dir)
@@ -319,7 +319,6 @@ added: v0.7.7
 
 The `readline.clearLine()` method clears current line of given [TTY][] stream
 in a specified direction identified by `dir`.
-
 
 ## readline.clearScreenDown(stream)
 <!-- YAML
@@ -402,9 +401,9 @@ a `'resize'` event on the `output` if or when the columns ever change
 ### Use of the `completer` Function
 
 The `completer` function takes the current line entered by the user
-as an argument, and returns an Array with 2 entries:
+as an argument, and returns an `Array` with 2 entries:
 
-* An Array with matching entries for the completion.
+* An `Array` with matching entries for the completion.
 * The substring that was used for the matching.
 
 For instance: `[[substr1, substr2, ...], originalsubstring]`.
@@ -448,7 +447,7 @@ added: v0.7.7
 * `interface` {readline.Interface}
 
 The `readline.emitKeypressEvents()` method causes the given [Readable][]
-`stream` to begin emitting `'keypress'` events corresponding to received input.
+stream to begin emitting `'keypress'` events corresponding to received input.
 
 Optionally, `interface` specifies a `readline.Interface` instance for which
 autocompletion is disabled when copy-pasted input is detected.
@@ -476,7 +475,6 @@ added: v0.7.7
 
 The `readline.moveCursor()` method moves the cursor *relative* to its current
 position in a given [TTY][] `stream`.
-
 
 ## Example: Tiny CLI
 
