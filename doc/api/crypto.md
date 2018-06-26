@@ -1779,8 +1779,8 @@ changes:
     description: The default encoding for `password` if it is a string changed
                  from `binary` to `utf8`.
 -->
-- `password` {string|Buffer|TypedArray}
-- `salt` {string|Buffer|TypedArray}
+- `password` {string|Buffer|TypedArray|DataView}
+- `salt` {string|Buffer|TypedArray|DataView}
 - `iterations` {number}
 - `keylen` {number}
 - `digest` {string}
@@ -1849,8 +1849,8 @@ changes:
     description: The default encoding for `password` if it is a string changed
                  from `binary` to `utf8`.
 -->
-- `password` {string|Buffer|TypedArray}
-- `salt` {string|Buffer|TypedArray}
+- `password` {string|Buffer|TypedArray|DataView}
+- `salt` {string|Buffer|TypedArray|DataView}
 - `iterations` {number}
 - `keylen` {number}
 - `digest` {string}
@@ -2147,8 +2147,8 @@ request.
 <!-- YAML
 added: v10.5.0
 -->
-- `password` {string|Buffer|TypedArray}
-- `salt` {string|Buffer|TypedArray}
+- `password` {string|Buffer|TypedArray|DataView}
+- `salt` {string|Buffer|TypedArray|DataView}
 - `keylen` {number}
 - `options` {Object}
   - `N` {number} CPU/memory cost parameter. Must be a power of two greater
@@ -2193,8 +2193,8 @@ crypto.scrypt('secret', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
 <!-- YAML
 added: v10.5.0
 -->
-- `password` {string|Buffer|TypedArray}
-- `salt` {string|Buffer|TypedArray}
+- `password` {string|Buffer|TypedArray|DataView}
+- `salt` {string|Buffer|TypedArray|DataView}
 - `keylen` {number}
 - `options` {Object}
   - `N` {number} CPU/memory cost parameter. Must be a power of two greater
