@@ -25,6 +25,7 @@
 #include "base_object-inl.h"
 #include "node_contextify.h"
 #include "node_context_data.h"
+#include "node_errors.h"
 
 namespace node {
 namespace contextify {
@@ -596,6 +597,7 @@ class ContextifyScript : public BaseObject {
     Local<FunctionTemplate> script_tmpl = env->NewFunctionTemplate(New);
     script_tmpl->InstanceTemplate()->SetInternalFieldCount(1);
     script_tmpl->SetClassName(class_name);
+    env->SetProtoMethod(script_tmpl, "createCachedData", CreateCachedData);
     env->SetProtoMethod(script_tmpl, "runInContext", RunInContext);
     env->SetProtoMethod(script_tmpl, "runInThisContext", RunInThisContext);
 
@@ -637,7 +639,7 @@ class ContextifyScript : public BaseObject {
     Local<Context> parsing_context = context;
 
     if (argc > 2) {
-      // new ContextifyScript(code, filename, lineOffset, columnOffset
+      // new ContextifyScript(code, filename, lineOffset, columnOffset,
       //                      cachedData, produceCachedData, parsingContext)
       CHECK_EQ(argc, 7);
       CHECK(args[2]->IsNumber());
@@ -719,7 +721,7 @@ class ContextifyScript : public BaseObject {
           Boolean::New(isolate, source.GetCachedData()->rejected));
     } else if (produce_cached_data) {
       const ScriptCompiler::CachedData* cached_data =
-        ScriptCompiler::CreateCodeCache(v8_script.ToLocalChecked(), code);
+        ScriptCompiler::CreateCodeCache(v8_script.ToLocalChecked());
       bool cached_data_produced = cached_data != nullptr;
       if (cached_data_produced) {
         MaybeLocal<Object> buf = Buffer::Copy(
@@ -742,6 +744,26 @@ class ContextifyScript : public BaseObject {
   static bool InstanceOf(Environment* env, const Local<Value>& value) {
     return !value.IsEmpty() &&
            env->script_context_constructor_template()->HasInstance(value);
+  }
+
+
+  static void CreateCachedData(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    ContextifyScript* wrapped_script;
+    ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
+    Local<UnboundScript> unbound_script =
+        PersistentToLocal(env->isolate(), wrapped_script->script_);
+    std::unique_ptr<ScriptCompiler::CachedData> cached_data(
+        ScriptCompiler::CreateCodeCache(unbound_script));
+    if (!cached_data) {
+      args.GetReturnValue().Set(Buffer::New(env, 0).ToLocalChecked());
+    } else {
+      MaybeLocal<Object> buf = Buffer::Copy(
+          env,
+          reinterpret_cast<const char*>(cached_data->data),
+          cached_data->length);
+      args.GetReturnValue().Set(buf.ToLocalChecked());
+    }
   }
 
 
