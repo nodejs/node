@@ -224,7 +224,8 @@ void Environment::Start(int argc,
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
 
   // Used by EnvPromiseHook to know that we are on a node context.
-  context()->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kContextTag, kNodeContextTagPtr);
+  context()->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kContextTag, kNodeContextTagPtr);
 
   LoadAsyncWrapperInfo(this);
 
@@ -447,9 +448,11 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
 
   // Grow the embedder data if necessary to make sure we are not out of bounds
   // when reading the magic number.
-  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kContextTagBoundary, nullptr);
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kContextTagBoundary, nullptr);
   int* magicNumberPtr = reinterpret_cast<int*>(
-      context->GetAlignedPointerFromEmbedderData(ContextEmbedderIndex::kContextTag));
+      context->GetAlignedPointerFromEmbedderData(
+          ContextEmbedderIndex::kContextTag));
   if (magicNumberPtr != kNodeContextTagPtr) {
     return;
   }
