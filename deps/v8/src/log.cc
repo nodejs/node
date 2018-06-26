@@ -22,7 +22,6 @@
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
 #include "src/perf-jit.h"
-#include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"
 #include "src/runtime-profiler.h"
 #include "src/source-position-table.h"
@@ -218,7 +217,7 @@ class PerfBasicLogger : public CodeEventLogger {
   PerfBasicLogger();
   ~PerfBasicLogger() override;
 
-  void CodeMoveEvent(AbstractCode* from, Address to) override {}
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override {}
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
 
@@ -287,7 +286,7 @@ class LowLevelLogger : public CodeEventLogger {
   explicit LowLevelLogger(const char* file_name);
   ~LowLevelLogger() override;
 
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
   void SnapshotPositionEvent(HeapObject* obj, int pos);
@@ -393,11 +392,10 @@ void LowLevelLogger::LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
       code->instruction_size());
 }
 
-void LowLevelLogger::CodeMoveEvent(AbstractCode* from, Address to) {
+void LowLevelLogger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
   CodeMoveStruct event;
   event.from_address = from->instruction_start();
-  size_t header_size = from->instruction_start() - from->address();
-  event.to_address = to + header_size;
+  event.to_address = to->instruction_start();
   LogWriteStruct(event);
 }
 
@@ -419,7 +417,7 @@ class JitLogger : public CodeEventLogger {
  public:
   explicit JitLogger(JitCodeEventHandler code_event_handler);
 
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
   void AddCodeLinePosInfoEvent(void* jit_handler_data, int pc_offset,
@@ -460,19 +458,14 @@ void JitLogger::LogRecordedBuffer(AbstractCode* code,
   code_event_handler_(&event);
 }
 
-void JitLogger::CodeMoveEvent(AbstractCode* from, Address to) {
+void JitLogger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
   base::LockGuard<base::Mutex> guard(&logger_mutex_);
 
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_MOVED;
-  event.code_start = from->instruction_start();
+  event.code_start = reinterpret_cast<void*>(from->instruction_start());
   event.code_len = from->instruction_size();
-
-  // Calculate the header size.
-  const size_t header_size = from->instruction_start() - from->address();
-
-  // Calculate the new start address of the instructions.
-  event.new_code_start = to + header_size;
+  event.new_code_start = reinterpret_cast<void*>(to->instruction_start());
 
   code_event_handler_(&event);
 }
@@ -739,7 +732,6 @@ Logger::Logger(Isolate* isolate)
       perf_jit_logger_(NULL),
       ll_logger_(NULL),
       jit_logger_(NULL),
-      listeners_(5),
       is_initialized_(false) {}
 
 Logger::~Logger() {
@@ -1297,9 +1289,10 @@ void Logger::RegExpCodeCreateEvent(AbstractCode* code, String* source) {
   msg.WriteToLogFile();
 }
 
-void Logger::CodeMoveEvent(AbstractCode* from, Address to) {
+void Logger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
   if (!is_logging_code_events()) return;
-  MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from->address(), to);
+  MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from->address(),
+                    to->address());
 }
 
 void Logger::CodeLinePosInfoRecordEvent(AbstractCode* code,
@@ -1876,8 +1869,6 @@ bool Logger::SetUp(Isolate* isolate) {
     profiler_->Engage();
   }
 
-  profiler_listener_.reset();
-
   if (is_logging_) {
     addCodeEventListener(this);
   }
@@ -1903,19 +1894,6 @@ void Logger::SetCodeEventHandler(uint32_t options,
       LogCompiledFunctions();
     }
   }
-}
-
-void Logger::SetUpProfilerListener() {
-  if (!is_initialized_) return;
-  if (profiler_listener_.get() == nullptr) {
-    profiler_listener_.reset(new ProfilerListener(isolate_));
-  }
-  addCodeEventListener(profiler_listener_.get());
-}
-
-void Logger::TearDownProfilerListener() {
-  if (profiler_listener_->HasObservers()) return;
-  removeCodeEventListener(profiler_listener_.get());
 }
 
 sampler::Sampler* Logger::sampler() {
@@ -1959,10 +1937,6 @@ FILE* Logger::TearDown() {
     removeCodeEventListener(jit_logger_);
     delete jit_logger_;
     jit_logger_ = NULL;
-  }
-
-  if (profiler_listener_.get() != nullptr) {
-    removeCodeEventListener(profiler_listener_.get());
   }
 
   return log_->Close();

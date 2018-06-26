@@ -16,7 +16,7 @@ namespace internal {
 
 HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
-      names_(new StringsStorage(heap)),
+      names_(new StringsStorage(heap->HashSeed())),
       is_tracking_object_moves_(false),
       get_retainer_infos_callback_(nullptr) {}
 
@@ -34,7 +34,7 @@ HeapProfiler::~HeapProfiler() {
 void HeapProfiler::DeleteAllSnapshots() {
   snapshots_.Iterate(DeleteHeapSnapshot);
   snapshots_.Clear();
-  names_.reset(new StringsStorage(heap()));
+  names_.reset(new StringsStorage(heap()->HashSeed()));
 }
 
 
