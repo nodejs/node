@@ -278,51 +278,49 @@ static inline i::Address ToAddress(int n) {
 
 TEST(CodeMapAddCode) {
   CodeMap code_map;
-  CodeEntry entry1(i::CodeEventListener::FUNCTION_TAG, "aaa");
-  CodeEntry entry2(i::CodeEventListener::FUNCTION_TAG, "bbb");
-  CodeEntry entry3(i::CodeEventListener::FUNCTION_TAG, "ccc");
-  CodeEntry entry4(i::CodeEventListener::FUNCTION_TAG, "ddd");
-  code_map.AddCode(ToAddress(0x1500), &entry1, 0x200);
-  code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
-  code_map.AddCode(ToAddress(0x1900), &entry3, 0x50);
-  code_map.AddCode(ToAddress(0x1950), &entry4, 0x10);
+  CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
+  CodeEntry* entry4 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ddd");
+  code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
+  code_map.AddCode(ToAddress(0x1700), entry2, 0x100);
+  code_map.AddCode(ToAddress(0x1900), entry3, 0x50);
+  code_map.AddCode(ToAddress(0x1950), entry4, 0x10);
   CHECK(!code_map.FindEntry(0));
   CHECK(!code_map.FindEntry(ToAddress(0x1500 - 1)));
-  CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500)));
-  CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500 + 0x100)));
-  CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500 + 0x200 - 1)));
-  CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700)));
-  CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700 + 0x50)));
-  CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700 + 0x100 - 1)));
+  CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1500)));
+  CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1500 + 0x100)));
+  CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1500 + 0x200 - 1)));
+  CHECK_EQ(entry2, code_map.FindEntry(ToAddress(0x1700)));
+  CHECK_EQ(entry2, code_map.FindEntry(ToAddress(0x1700 + 0x50)));
+  CHECK_EQ(entry2, code_map.FindEntry(ToAddress(0x1700 + 0x100 - 1)));
   CHECK(!code_map.FindEntry(ToAddress(0x1700 + 0x100)));
   CHECK(!code_map.FindEntry(ToAddress(0x1900 - 1)));
-  CHECK_EQ(&entry3, code_map.FindEntry(ToAddress(0x1900)));
-  CHECK_EQ(&entry3, code_map.FindEntry(ToAddress(0x1900 + 0x28)));
-  CHECK_EQ(&entry4, code_map.FindEntry(ToAddress(0x1950)));
-  CHECK_EQ(&entry4, code_map.FindEntry(ToAddress(0x1950 + 0x7)));
-  CHECK_EQ(&entry4, code_map.FindEntry(ToAddress(0x1950 + 0x10 - 1)));
+  CHECK_EQ(entry3, code_map.FindEntry(ToAddress(0x1900)));
+  CHECK_EQ(entry3, code_map.FindEntry(ToAddress(0x1900 + 0x28)));
+  CHECK_EQ(entry4, code_map.FindEntry(ToAddress(0x1950)));
+  CHECK_EQ(entry4, code_map.FindEntry(ToAddress(0x1950 + 0x7)));
+  CHECK_EQ(entry4, code_map.FindEntry(ToAddress(0x1950 + 0x10 - 1)));
   CHECK(!code_map.FindEntry(ToAddress(0x1950 + 0x10)));
   CHECK(!code_map.FindEntry(ToAddress(0xFFFFFFFF)));
 }
 
-
 TEST(CodeMapMoveAndDeleteCode) {
   CodeMap code_map;
-  CodeEntry entry1(i::CodeEventListener::FUNCTION_TAG, "aaa");
-  CodeEntry entry2(i::CodeEventListener::FUNCTION_TAG, "bbb");
-  code_map.AddCode(ToAddress(0x1500), &entry1, 0x200);
-  code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
-  CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500)));
-  CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700)));
+  CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
+  code_map.AddCode(ToAddress(0x1700), entry2, 0x100);
+  CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1500)));
+  CHECK_EQ(entry2, code_map.FindEntry(ToAddress(0x1700)));
   code_map.MoveCode(ToAddress(0x1500), ToAddress(0x1700));  // Deprecate bbb.
   CHECK(!code_map.FindEntry(ToAddress(0x1500)));
-  CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1700)));
-  CodeEntry entry3(i::CodeEventListener::FUNCTION_TAG, "ccc");
-  code_map.AddCode(ToAddress(0x1750), &entry3, 0x100);
+  CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1700)));
+  CodeEntry* entry3 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
+  code_map.AddCode(ToAddress(0x1750), entry3, 0x100);
   CHECK(!code_map.FindEntry(ToAddress(0x1700)));
-  CHECK_EQ(&entry3, code_map.FindEntry(ToAddress(0x1750)));
+  CHECK_EQ(entry3, code_map.FindEntry(ToAddress(0x1750)));
 }
-
 
 namespace {
 
@@ -401,10 +399,6 @@ TEST(RecordTickSample) {
   ProfileNode* node4 = top_down_test_helper.Walk(entry1, entry3, entry1);
   CHECK(node4);
   CHECK_EQ(entry1, node4->entry());
-
-  delete entry1;
-  delete entry2;
-  delete entry3;
 }
 
 static void CheckNodeIds(const ProfileNode* node, unsigned* expectedId) {
@@ -466,10 +460,6 @@ TEST(SampleIds) {
   for (int i = 0; i < 3; i++) {
     CHECK_EQ(expected_id[i], profile->sample(i)->id());
   }
-
-  delete entry1;
-  delete entry2;
-  delete entry3;
 }
 
 
@@ -498,8 +488,6 @@ TEST(NoSamples) {
   CHECK_EQ(3u, nodeId - 1);
 
   CHECK_EQ(0, profile->samples_count());
-
-  delete entry1;
 }
 
 

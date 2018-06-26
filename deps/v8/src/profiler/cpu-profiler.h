@@ -86,6 +86,8 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   int deopt_id;
   void* pc;
   int fp_to_sp_delta;
+  CpuProfileDeoptFrame* deopt_frames;
+  int deopt_frame_count;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -214,6 +216,10 @@ class CpuProfiler : public CodeEventObserver {
   ProfilerEventsProcessor* processor() const { return processor_.get(); }
   Isolate* isolate() const { return isolate_; }
 
+  ProfilerListener* profiler_listener_for_test() {
+    return profiler_listener_.get();
+  }
+
  private:
   void StartProcessorIfNotStarted();
   void StopProcessorIfLastProfile(const char* title);
@@ -227,7 +233,7 @@ class CpuProfiler : public CodeEventObserver {
   std::unique_ptr<CpuProfilesCollection> profiles_;
   std::unique_ptr<ProfileGenerator> generator_;
   std::unique_ptr<ProfilerEventsProcessor> processor_;
-  std::vector<std::unique_ptr<CodeEntry>> static_entries_;
+  std::unique_ptr<ProfilerListener> profiler_listener_;
   bool saved_is_logging_;
   bool is_profiling_;
 
@@ -236,6 +242,5 @@ class CpuProfiler : public CodeEventObserver {
 
 }  // namespace internal
 }  // namespace v8
-
 
 #endif  // V8_PROFILER_CPU_PROFILER_H_

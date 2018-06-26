@@ -22,7 +22,6 @@
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
 #include "src/perf-jit.h"
-#include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"
 #include "src/runtime-profiler.h"
 #include "src/source-position-table.h"
@@ -739,7 +738,6 @@ Logger::Logger(Isolate* isolate)
       perf_jit_logger_(NULL),
       ll_logger_(NULL),
       jit_logger_(NULL),
-      listeners_(5),
       is_initialized_(false) {}
 
 Logger::~Logger() {
@@ -1876,8 +1874,6 @@ bool Logger::SetUp(Isolate* isolate) {
     profiler_->Engage();
   }
 
-  profiler_listener_.reset();
-
   if (is_logging_) {
     addCodeEventListener(this);
   }
@@ -1903,19 +1899,6 @@ void Logger::SetCodeEventHandler(uint32_t options,
       LogCompiledFunctions();
     }
   }
-}
-
-void Logger::SetUpProfilerListener() {
-  if (!is_initialized_) return;
-  if (profiler_listener_.get() == nullptr) {
-    profiler_listener_.reset(new ProfilerListener(isolate_));
-  }
-  addCodeEventListener(profiler_listener_.get());
-}
-
-void Logger::TearDownProfilerListener() {
-  if (profiler_listener_->HasObservers()) return;
-  removeCodeEventListener(profiler_listener_.get());
 }
 
 sampler::Sampler* Logger::sampler() {
@@ -1959,10 +1942,6 @@ FILE* Logger::TearDown() {
     removeCodeEventListener(jit_logger_);
     delete jit_logger_;
     jit_logger_ = NULL;
-  }
-
-  if (profiler_listener_.get() != nullptr) {
-    removeCodeEventListener(profiler_listener_.get());
   }
 
   return log_->Close();
