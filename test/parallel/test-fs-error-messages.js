@@ -303,6 +303,11 @@ function re(literals, ...values) {
         `ENOTEMPTY: directory not empty, rename '${existingDir}' -> ` +
         `'${existingDir2}'`);
       assert.strictEqual(err.errno, uv.UV_ENOTEMPTY);
+    } else if (err.code === 'EXDEV') {  // not on the same mounted filesystem
+      assert.strictEqual(
+        err.message,
+        `EXDEV: cross-device link not permitted, rename '${existingDir}' -> ` +
+            `'${existingDir2}'`);
     } else if (err.code === 'EEXIST') {  // smartos and aix
       assert.strictEqual(
         err.message,
