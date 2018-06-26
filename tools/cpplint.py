@@ -1898,20 +1898,15 @@ def CheckForBadCharacters(filename, lines, error):
 def CheckInlineHeader(filename, include_state, error):
   """Logs an error if both a header and its inline variant are included."""
 
-  # Iterate over all headers, looking for any inline headers
-  for section_list in include_state.include_list:
-    for header in section_list:
-      # Proceed further for only inline headers
-      m = Match(r'^(.+)-inl.h$', header[0])
-      if m:
-        name = '%s.h' % m.group(1)
-        # Look for the corresponding header
-        for sl in include_state.include_list:
-          for h in section_list:
-            if h[0] == name:
-              err =  '%s includes both %s and %s' % (filename, header[0], h[0])
-              error(filename, h[1], 'build/include', 5, err)
-              print err
+  all_headers = dict(item for sublist in include_state.include_list
+                     for item in sublist)
+  bad_headers = set('%s.h' % name[:-6] for name in all_headers.keys()
+                    if name.endswith('-inl.h'))
+  bad_headers &= set(all_headers.keys())
+
+  for name in bad_headers:
+    err =  '%s includes both %s and %s-inl.h' % (filename, name, name)
+    error(filename, all_headers[name], 'build/include', 5, err)
 
 
 def CheckForNewlineAtEOF(filename, lines, error):
