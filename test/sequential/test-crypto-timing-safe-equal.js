@@ -15,13 +15,15 @@ assert.strictEqual(
 assert.strictEqual(
   crypto.timingSafeEqual(Uint8Array.of(1, 0), Uint16Array.of(1)),
   true,
-  'should consider equal binary integers to be equal'
+  'should consider equal binary views to be equal' +
+  ' (Uint8Array 1 0, Uint16Array 1)'
 );
 
 assert.strictEqual(
   crypto.timingSafeEqual(Uint8Array.of(0, 1), Uint16Array.of(1)),
   false,
-  'should consider unequal binary integers to be unequal'
+  'should consider unequal binary views to be unequal' +
+  ' (Uint8Array 0 1, Uint16Array 1)'
 );
 
 assert.strictEqual(
@@ -30,16 +32,18 @@ assert.strictEqual(
     BigUint64Array.of(1n)
   ),
   true,
-  'should consider equal binary integers to be equal'
+  'should consider equal binary views to be equal' +
+  ' (Uint8Array 1 ...0, BigUint64Array 1n)'
 );
 
 assert.strictEqual(
   crypto.timingSafeEqual(
-    Buffer.allocUnsafe(8).fill(255),
+    Buffer.alloc(8, 255),
     BigInt64Array.of(-1n)
   ),
   true,
-  'should consider equal binary integers to be equal'
+  'should consider equal binary views to be equal' +
+  ' (Buffer 0xFF, BigInt64Array -1)'
 );
 
 assert.strictEqual(
@@ -48,7 +52,8 @@ assert.strictEqual(
     BigInt64Array.of(0n)
   ),
   true,
-  'should consider equal views to be equal'
+  'should consider equal binary views to be equal' +
+  ' (DataView, BigInt64Array)'
 );
 
 assert.strictEqual(
