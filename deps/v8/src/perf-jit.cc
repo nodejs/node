@@ -376,7 +376,7 @@ void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
   LogWriteBytes(padding_bytes, static_cast<int>(padding_size));
 }
 
-void PerfJitLogger::CodeMoveEvent(AbstractCode* from, Address to) {
+void PerfJitLogger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
   // Code relocation not supported.
   UNREACHABLE();
 }

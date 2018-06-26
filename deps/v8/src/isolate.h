@@ -1019,6 +1019,8 @@ class Isolate {
 
   bool NeedsSourcePositionsForProfiling() const;
 
+  bool NeedsDetailedOptimizedCodeLineInfo() const;
+
   bool is_best_effort_code_coverage() const {
     return code_coverage_mode() == debug::Coverage::kBestEffort;
   }
@@ -1449,7 +1451,7 @@ class Isolate {
 
   // TODO(alph): Remove along with the deprecated GetCpuProfiler().
   friend v8::CpuProfiler* v8::Isolate::GetCpuProfiler();
-  CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
+  CpuProfiler* EnsureCpuProfiler();
 
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;
