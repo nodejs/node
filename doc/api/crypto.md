@@ -2149,10 +2149,12 @@ added: v10.5.0
 - `salt` {string|Buffer|TypedArray}
 - `keylen` {number}
 - `options` {Object}
-  - `N` {number} CPU/memory cost parameter. Must be a power of two greater than one. **Default:** `16384`.
+  - `N` {number} CPU/memory cost parameter. Must be a power of two greater
+    than one. **Default:** `16384`.
   - `r` {number} Block size parameter. **Default:** `8`.
   - `p` {number} Parallelization parameter. **Default:** `1`.
-  - `maxmem` {number} Memory upper bound. It is an error when (approximately) `128*N*r > maxmem` **Default:** `32 * 1024 * 1024`.
+  - `maxmem` {number} Memory upper bound. It is an error when (approximately)
+    `128 * N * r > maxmem` **Default:** `32 * 1024 * 1024`.
 - `callback` {Function}
   - `err` {Error}
   - `derivedKey` {Buffer}
@@ -2193,10 +2195,12 @@ added: v10.5.0
 - `salt` {string|Buffer|TypedArray}
 - `keylen` {number}
 - `options` {Object}
-  - `N` {number} CPU/memory cost parameter. Must be a power of two greater than one. **Default:** `16384`.
+  - `N` {number} CPU/memory cost parameter. Must be a power of two greater
+    than one. **Default:** `16384`.
   - `r` {number} Block size parameter. **Default:** `8`.
   - `p` {number} Parallelization parameter. **Default:** `1`.
-  - `maxmem` {number} Memory upper bound. It is an error when (approximately) `128*N*r > maxmem` **Default:** `32 * 1024 * 1024`.
+  - `maxmem` {number} Memory upper bound. It is an error when (approximately)
+    `128 * N * r > maxmem` **Default:** `32 * 1024 * 1024`.
 - Returns: {Buffer}
 
 Provides a synchronous [scrypt][] implementation. Scrypt is a password-based
