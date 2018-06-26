@@ -74,7 +74,6 @@ class LowLevelLogger;
 class PerfBasicLogger;
 class PerfJitLogger;
 class Profiler;
-class ProfilerListener;
 class RuntimeCallTimer;
 class Ticker;
 
@@ -102,15 +101,7 @@ class Logger : public CodeEventListener {
   void SetCodeEventHandler(uint32_t options,
                            JitCodeEventHandler event_handler);
 
-  // Sets up ProfilerListener.
-  void SetUpProfilerListener();
-
-  // Tear down ProfilerListener if it has no observers.
-  void TearDownProfilerListener();
-
   sampler::Sampler* sampler();
-
-  ProfilerListener* profiler_listener() { return profiler_listener_.get(); }
 
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,
@@ -177,7 +168,7 @@ class Logger : public CodeEventListener {
   // Emits a code create event for a RegExp.
   void RegExpCodeCreateEvent(AbstractCode* code, String* source);
   // Emits a code move event.
-  void CodeMoveEvent(AbstractCode* from, Address to);
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to);
   // Emits a code line info record event.
   void CodeLinePosInfoRecordEvent(AbstractCode* code,
                                   ByteArray* source_position_table);
@@ -316,8 +307,6 @@ class Logger : public CodeEventListener {
   PerfJitLogger* perf_jit_logger_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
-  std::unique_ptr<ProfilerListener> profiler_listener_;
-  List<CodeEventListener*> listeners_;
   std::set<int> logged_source_code_;
   uint32_t next_source_info_id_ = 0;
 
@@ -399,7 +388,6 @@ class CodeEventLogger : public CodeEventListener {
 
   NameBuffer* name_buffer_;
 };
-
 
 }  // namespace internal
 }  // namespace v8

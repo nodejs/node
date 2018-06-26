@@ -51,7 +51,7 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
   // more memory consumption.
-  if (isolate_->NeedsSourcePositionsForProfiling()) {
+  if (isolate_->NeedsDetailedOptimizedCodeLineInfo()) {
     MarkAsSourcePositionsEnabled();
   }
 }

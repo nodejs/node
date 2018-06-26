@@ -8418,7 +8418,7 @@ HeapProfiler* Isolate::GetHeapProfiler() {
 
 CpuProfiler* Isolate::GetCpuProfiler() {
   i::CpuProfiler* cpu_profiler =
-      reinterpret_cast<i::Isolate*>(this)->cpu_profiler();
+      reinterpret_cast<i::Isolate*>(this)->EnsureCpuProfiler();
   return reinterpret_cast<CpuProfiler*>(cpu_profiler);
 }
 
@@ -10138,15 +10138,7 @@ Local<String> CpuProfileNode::GetFunctionName() const {
   const i::CodeEntry* entry = node->entry();
   i::Handle<i::String> name =
       isolate->factory()->InternalizeUtf8String(entry->name());
-  if (!entry->has_name_prefix()) {
-    return ToApiHandle<String>(name);
-  } else {
-    // We do not expect this to fail. Change this if it does.
-    i::Handle<i::String> cons = isolate->factory()->NewConsString(
-        isolate->factory()->InternalizeUtf8String(entry->name_prefix()),
-        name).ToHandleChecked();
-    return ToApiHandle<String>(cons);
-  }
+  return ToApiHandle<String>(name);
 }
 
 int debug::Coverage::BlockData::StartOffset() const { return block_->start; }
@@ -10237,7 +10229,7 @@ const char* CpuProfileNode::GetScriptResourceNameStr() const {
 }
 
 int CpuProfileNode::GetLineNumber() const {
-  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->line_number();
+  return reinterpret_cast<const i::ProfileNode*>(this)->line_number();
 }
 
 
@@ -10370,9 +10362,14 @@ void CpuProfiler::CollectSample() {
 
 void CpuProfiler::StartProfiling(Local<String> title, bool record_samples) {
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), record_samples);
+      *Utils::OpenHandle(*title), record_samples, kLeafNodeLineNumbers);
 }
 
+void CpuProfiler::StartProfiling(Local<String> title, CpuProfilingMode mode,
+                                 bool record_samples) {
+  reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+      *Utils::OpenHandle(*title), record_samples, mode);
+}
 
 CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {
   return reinterpret_cast<CpuProfile*>(
