@@ -22,6 +22,7 @@
 #include "node_buffer.h"
 #include "node_constants.h"
 #include "node_javascript.h"
+#include "node_code_cache.h"
 #include "node_platform.h"
 #include "node_version.h"
 #include "node_internals.h"
@@ -1596,10 +1597,18 @@ static void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> module = args[0].As<String>();
   node::Utf8Value module_v(env->isolate(), module);
+  Local<Object> exports;
 
   node_module* mod = get_internal_module(*module_v);
-  if (mod == nullptr) return ThrowIfNoSuchModule(env, *module_v);
-  Local<Object> exports = InitModule(env, mod, module);
+  if (mod != nullptr) {
+    exports = InitModule(env, mod, module);
+  } else if (!strcmp(*module_v, "code_cache")) {
+    // internalBinding('code_cache')
+    exports = Object::New(env->isolate());
+    DefineCodeCache(env, exports);
+  } else {
+    return ThrowIfNoSuchModule(env, *module_v);
+  }
 
   args.GetReturnValue().Set(exports);
 }
