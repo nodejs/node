@@ -2060,10 +2060,9 @@ int Http2Stream::DoWrite(WriteWrap* req_wrap,
                          uv_buf_t* bufs,
                          size_t nbufs,
                          uv_stream_t* send_handle) {
-  CHECK(!this->IsDestroyed());
   CHECK_NULL(send_handle);
   Http2Scope h2scope(this);
-  if (!IsWritable()) {
+  if (!IsWritable() || IsDestroyed()) {
     req_wrap->Done(UV_EOF);
     return 0;
   }
