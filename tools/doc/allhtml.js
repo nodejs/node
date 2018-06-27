@@ -25,6 +25,14 @@ const canonical = doc.querySelector('link[rel=canonical]');
 canonical.setAttribute('href',
                        canonical.getAttribute('href').replace('_toc', 'all'));
 
+const versionPickerLinks = doc.querySelectorAll('ol.version-picker a');
+versionPickerLinks.forEach((versionPicker) => {
+  versionPicker.setAttribute(
+    'href',
+    versionPicker.getAttribute('href').replace('_toc', 'all')
+  );
+});
+
 doc.querySelector('body').setAttribute('id', 'api-section-all');
 
 const owner = doc.ownerDocument;
