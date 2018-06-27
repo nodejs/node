@@ -1050,6 +1050,8 @@ changes:
     certificate, and the handshake will fail.
   * `ciphers` {string} Optional cipher suite specification, replacing the
     default. For more information, see [modifying the default cipher suite][].
+    Permitted ciphers can be obtained via [`tls.getCiphers()`][]. Cipher names
+    must be uppercased in order for OpenSSL to accept them.
   * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
     provide the client certificate.
   * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
@@ -1386,6 +1388,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`tls.createSecureContext()`]: #tls_tls_createsecurecontext_options
 [`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
+[`tls.getCiphers()`]: #tls_tls_getciphers
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
