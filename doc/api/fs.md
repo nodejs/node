@@ -1138,7 +1138,6 @@ changes:
 * `mode` {integer}
 
 Synchronously changes the permissions of a file. Returns `undefined`.
-This is the synchronous version of [`fs.chmod()`][].
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.chmod()`][].
@@ -1570,7 +1569,6 @@ changes:
 * `path` {string|Buffer|URL}
 * Returns: {boolean}
 
-Synchronous version of [`fs.exists()`][].
 Returns `true` if the path exists, `false` otherwise.
 
 For detailed information, see the documentation of the asynchronous version of
@@ -1827,7 +1825,7 @@ added: v0.8.6
 * `fd` {integer}
 * `len` {integer} **Default:** `0`
 
-Synchronous ftruncate(2). Returns `undefined`.
+Returns `undefined`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.ftruncate()`][].
@@ -2180,8 +2178,7 @@ added: v5.10.0
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {string}
 
-The synchronous version of [`fs.mkdtemp()`][]. Returns the created
-folder path.
+Returns the created folder path.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.mkdtemp()`][].
@@ -2240,8 +2237,7 @@ changes:
 * `mode` {integer} **Default:** `0o666`
 * Returns: {number}
 
-Synchronous version of [`fs.open()`][]. Returns an integer representing the file
-descriptor.
+Returns an integer representing the file descriptor.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.open()`][].
@@ -2442,7 +2438,7 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
 * Returns: {string|Buffer}
 
-Synchronous version of [`fs.readFile()`][]. Returns the contents of the `path`.
+Returns the contents of the `path`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.readFile()`][].
@@ -2533,7 +2529,7 @@ changes:
 * `position` {integer}
 * Returns: {number}
 
-Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
+Returns the number of `bytesRead`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.read()`][].
@@ -2651,7 +2647,7 @@ changes:
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {string|Buffer}
 
-Synchronous version of [`fs.realpath()`][]. Returns the resolved pathname.
+Returns the resolved pathname.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.realpath()`][].
@@ -2890,7 +2886,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `type` {string} **Default:** `'file'`
 
-Synchronous symlink(2). Returns `undefined`.
+Returns `undefined`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.symlink()`][].
@@ -3069,7 +3065,7 @@ changes:
 * `atime` {integer}
 * `mtime` {integer}
 
-Synchronous version of [`fs.utimes()`][]. Returns `undefined`.
+Returns `undefined`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.utimes()`][].
@@ -3423,7 +3419,7 @@ changes:
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
 
-The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
+Returns `undefined`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.writeFile()`][].
@@ -3462,7 +3458,7 @@ changes:
 * `encoding` {string}
 * Returns: {number}
 
-Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
+Returns the number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.write()`][].
