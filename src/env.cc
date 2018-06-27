@@ -31,9 +31,9 @@ using v8::TryCatch;
 using v8::Value;
 using worker::Worker;
 
-const int kNodeContextTag = 0x6e6f64;
-void* kNodeContextTagPtr = const_cast<void*>(
-    static_cast<const void*>(&kNodeContextTag));
+int const Environment::kNodeContextTag = 0x6e6f64;
+void* Environment::kNodeContextTagPtr = const_cast<void*>(
+    static_cast<const void*>(&Environment::kNodeContextTag));
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
@@ -222,10 +222,6 @@ void Environment::Start(int argc,
   set_process_object(process_object);
 
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
-
-  // Used by EnvPromiseHook to know that we are on a node context.
-  context()->SetAlignedPointerInEmbedderData(
-      ContextEmbedderIndex::kContextTag, kNodeContextTagPtr);
 
   LoadAsyncWrapperInfo(this);
 
@@ -453,7 +449,7 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
   int* magicNumberPtr = reinterpret_cast<int*>(
       context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kContextTag));
-  if (magicNumberPtr != kNodeContextTagPtr) {
+  if (magicNumberPtr != Environment::kNodeContextTagPtr) {
     return;
   }
 
