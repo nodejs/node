@@ -8,12 +8,10 @@
 // of `configure`.
 
 const {
-  nativeModuleWrap,
-  builtinSource,
-  cannotUseCache
+  getCodeCache,
+  cachableBuiltins
 } = require('internal/bootstrap/cache');
 
-const vm = require('vm');
 const fs = require('fs');
 
 const resultPath = process.argv[2];
@@ -72,25 +70,16 @@ const cacheInitializers = [];
 let totalCacheSize = 0;
 
 
-for (const key of Object.keys(builtinSource)) {
-  if (cannotUseCache.includes(key)) continue;
-  const code = nativeModuleWrap(builtinSource[key]);
-
-  // Note that this must corresponds to the code in
-  // NativeModule.prototype.compile
-  const script = new vm.Script(code, {
-    filename: `${key}.js`,
-    produceCachedData: true
-  });
-
-  if (!script.cachedData) {
+for (const key of cachableBuiltins) {
+  const cachedData = getCodeCache(key);
+  if (!cachedData.length) {
     console.error(`Failed to generate code cache for '${key}'`);
     process.exit(1);
   }
 
-  const length = script.cachedData.length;
+  const length = cachedData.length;
   totalCacheSize += length;
-  const { definition, initializer } = getInitalizer(key, script.cachedData);
+  const { definition, initializer } = getInitalizer(key, cachedData);
   cacheDefinitions.push(definition);
   cacheInitializers.push(initializer);
   console.log(`Generated cache for '${key}', size = ${formatSize(length)}` +
