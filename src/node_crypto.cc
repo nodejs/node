@@ -904,7 +904,13 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Ciphers");
 
   const node::Utf8Value ciphers(args.GetIsolate(), args[0]);
-  SSL_CTX_set_cipher_list(sc->ctx_.get(), *ciphers);
+  if (!SSL_CTX_set_cipher_list(sc->ctx_.get(), *ciphers)) {
+    unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+    if (!err) {
+      return env->ThrowError("Failed to set ciphers");
+    }
+    return ThrowCryptoError(env, err);
+  }
 }
 
 
