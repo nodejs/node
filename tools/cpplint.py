@@ -1906,7 +1906,8 @@ def CheckInlineHeader(filename, include_state, error):
 
   for name in bad_headers:
     err =  '%s includes both %s and %s-inl.h' % (filename, name, name)
-    error(filename, all_headers[name], 'build/include', 5, err)
+    linenum = all_headers[name]
+    error(filename, linenum, 'build/include', 5, err)
 
 
 def CheckForNewlineAtEOF(filename, lines, error):
