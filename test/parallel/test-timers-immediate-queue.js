@@ -50,5 +50,5 @@ for (let i = 0; i < QUEUE; i++)
 
 process.on('exit', function() {
   console.log('hit', hit);
-  assert.strictEqual(hit, QUEUE, 'We ticked between the immediate queue');
+  assert.strictEqual(hit, QUEUE);
 });
