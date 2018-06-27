@@ -369,6 +369,12 @@ putIn.run(['.clear']);
 testMe.complete('.b', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['break'], 'b']);
 }));
+putIn.run(['.clear']);
+putIn.run(['var obj = {"hello, world!": "some string", "key": 123}']);
+testMe.complete('obj.', common.mustCall((error, data) => {
+  assert.strictEqual(data[0].includes('obj.hello, world!'), false);
+  assert(data[0].includes('obj.key'));
+}));
 
 // tab completion for large buffer
 const warningRegEx = new RegExp(
