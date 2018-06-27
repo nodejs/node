@@ -650,11 +650,15 @@ gen-json = tools/doc/generate.js --format=json $< > $@
 gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html \
 			--analytics=$(DOCS_ANALYTICS) $< > $@
 
-out/doc/api/%.json: doc/api/%.md
+out/doc/api/%.json: doc/api/%.md tools/doc/generate.js tools/doc/json.js
 	$(call available-node, $(gen-json))
 
-out/doc/api/%.html: doc/api/%.md
+out/doc/api/%.html: doc/api/%.md tools/doc/generate.js tools/doc/html.js
 	$(call available-node, $(gen-html))
+
+out/doc/api/all.html: $(filter-out out/doc/api/all.html, $(apidocs_html)) \
+	tools/doc/allhtml.js
+	$(call available-node, tools/doc/allhtml.js)
 
 .PHONY: docopen
 docopen: $(apidocs_html)
