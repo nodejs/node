@@ -12,9 +12,8 @@ const {
   }
 } = require('util');
 const {
-  builtinSource,
+  cachableBuiltins,
   codeCache,
-  cannotUseCache,
   compiledWithCache,
   compiledWithoutCache
 } = require('internal/bootstrap/cache');
@@ -35,8 +34,7 @@ for (const key of loadedModules) {
          `"${key}" should've been compiled with code cache`);
 }
 
-for (const key of Object.keys(builtinSource)) {
-  if (cannotUseCache.includes(key)) continue;
+for (const key of cachableBuiltins) {
   assert(isUint8Array(codeCache[key]) && codeCache[key].length > 0,
          `Code cache for "${key}" should've been generated`);
 }
