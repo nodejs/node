@@ -1776,8 +1776,8 @@ changes:
     description: The default encoding for `password` if it is a string changed
                  from `binary` to `utf8`.
 -->
-- `password` {string|Buffer|TypedArray}
-- `salt` {string|Buffer|TypedArray}
+- `password` {string|Buffer|TypedArray|DataView}
+- `salt` {string|Buffer|TypedArray|DataView}
 - `iterations` {number}
 - `keylen` {number}
 - `digest` {string}
@@ -1846,8 +1846,8 @@ changes:
     description: The default encoding for `password` if it is a string changed
                  from `binary` to `utf8`.
 -->
-- `password` {string|Buffer|TypedArray}
-- `salt` {string|Buffer|TypedArray}
+- `password` {string|Buffer|TypedArray|DataView}
+- `salt` {string|Buffer|TypedArray|DataView}
 - `iterations` {number}
 - `keylen` {number}
 - `digest` {string}
