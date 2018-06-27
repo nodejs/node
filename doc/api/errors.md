@@ -1014,6 +1014,11 @@ provided.
 
 The `Http2Session` closed with a non-zero error code.
 
+<a id="ERR_HTTP2_SETTINGS_CANCEL"></a>
+### ERR_HTTP2_SETTINGS_CANCEL
+
+The `Http2Session` settings canceled.
+
 <a id="ERR_HTTP2_SOCKET_BOUND"></a>
 ### ERR_HTTP2_SOCKET_BOUND
 
@@ -1623,6 +1628,11 @@ recommended to use 2048 bits or larger for stronger security.
 
 A TLS/SSL handshake timed out. In this case, the server must also abort the
 connection.
+
+<a id="ERR_TLS_RENEGOTIATE"></a>
+### ERR_TLS_RENEGOTIATE
+
+An attempt to renegotiate the TLS session failed.
 
 <a id="ERR_TLS_RENEGOTIATION_DISABLED"></a>
 ### ERR_TLS_RENEGOTIATION_DISABLED
