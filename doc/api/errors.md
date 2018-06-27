@@ -826,6 +826,11 @@ send something other than a regular file.
 
 The `Http2Session` closed with a non-zero error code.
 
+<a id="ERR_HTTP2_SETTINGS_CANCEL"></a>
+### ERR_HTTP2_SETTINGS_CANCEL
+
+The `Http2Session` settings canceled.
+
 <a id="ERR_HTTP2_SOCKET_BOUND"></a>
 ### ERR_HTTP2_SOCKET_BOUND
 
