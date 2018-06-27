@@ -1137,7 +1137,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer}
 
-Synchronously changes the permissions of a file. Returns `undefined`.
+Returns `undefined`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.chmod()`][].
