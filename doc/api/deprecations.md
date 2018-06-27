@@ -979,8 +979,8 @@ because it also made sense to interpret the value as the number of bytes
 read by the engine, but is inconsistent with other streams in Node.js that
 expose values under these names.
 
-<a id="DEP00XX"></a>
-### DEP00XX: vm.Script cached data
+<a id="DEP0110"></a>
+### DEP0110: vm.Script cached data
 
 Type: Documentation-only
 
@@ -1031,7 +1031,7 @@ The option `produceCachedData` has been deprecated. Use
 [`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
-[`script.createCachedData()`]: vm.html#vm_script_create_cached_data
+[`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream

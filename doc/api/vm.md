@@ -435,7 +435,7 @@ changes:
     `cachedData` property of the returned `vm.Script` instance.
     The `cachedDataProduced` value will be set to either `true` or `false`
     depending on whether code cache data is produced successfully.
-    This option is deprecated in favor of `script.createCachedData`.
+    This option is deprecated in favor of `script.createCachedData()`.
 
 Creating a new `vm.Script` object compiles `code` but does not run it. The
 compiled `vm.Script` can be run later multiple times. The `code` is not bound to
