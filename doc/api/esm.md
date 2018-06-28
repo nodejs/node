@@ -54,6 +54,14 @@ property:
 
 ## Notable differences between `import` and `require`
 
+### Mandatory file extensions
+
+You must provide a file extension when using the `import` keyword.
+
+### No importing directories
+
+There is no support for importing directories.
+
 ### No NODE_PATH
 
 `NODE_PATH` is not part of resolving `import` specifiers. Please use symlinks
@@ -78,8 +86,8 @@ Modules will be loaded multiple times if the `import` specifier used to resolve
 them have a different query or fragment.
 
 ```js
-import './foo?query=1'; // loads ./foo with query of "?query=1"
-import './foo?query=2'; // loads ./foo with query of "?query=2"
+import './foo.mjs?query=1'; // loads ./foo.mjs with query of "?query=1"
+import './foo.mjs?query=2'; // loads ./foo.mjs with query of "?query=2"
 ```
 
 For now, only modules using the `file:` protocol can be loaded.
