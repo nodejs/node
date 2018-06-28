@@ -1391,7 +1391,7 @@ compiled with ICU support.
 <a id="ERR_NON_EXPLICIT_SPECIFIER"></a>
 ### ERR_NON_EXPLICIT_SPECIFIER
 
-Modules that are imported must use explicit file extensions
+Modules that are imported must use explicit file extensions.
 
 <a id="ERR_NO_LONGER_SUPPORTED"></a>
 ### ERR_NO_LONGER_SUPPORTED

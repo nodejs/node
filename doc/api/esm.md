@@ -56,7 +56,7 @@ property:
 
 ### Mandatory file extensions
 
-You must provide a file extension when using the `import` keyword.
+File extension must be provided when using the `import` keyword.
 
 ### No importing directories
 
