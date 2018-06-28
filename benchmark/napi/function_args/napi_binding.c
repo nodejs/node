@@ -94,29 +94,20 @@ static napi_value CallWithObject(napi_env env, napi_callback_info info) {
   status = napi_typeof(env, args[0], types);
   assert(status == napi_ok);
 
-  assert(types[0] == napi_object);
-  if (types[0] == napi_object) {
-    napi_value key;
+  assert(argc == 1 && types[0] == napi_object);
+  if (argc == 1 && types[0] == napi_object) {
     napi_value value;
 
-    status = napi_create_string_utf8(env, "map", strlen("map"), &key);
-    assert(status == napi_ok);
-    status = napi_get_property(env, args[0], key, &value);
+    status = napi_get_named_property(env, args[0], "map", &value);
     assert(status == napi_ok);
 
-    status = napi_create_string_utf8(env, "operand", strlen("operand"), &key);
-    assert(status == napi_ok);
-    status = napi_get_property(env, args[0], key, &value);
+    status = napi_get_named_property(env, args[0], "operand", &value);
     assert(status == napi_ok);
 
-    status = napi_create_string_utf8(env, "data", strlen("data"), &key);
-    assert(status == napi_ok);
-    status = napi_get_property(env, args[0], key, &value);
+    status = napi_get_named_property(env, args[0], "data", &value);
     assert(status == napi_ok);
 
-    status = napi_create_string_utf8(env, "reduce", strlen("reduce"), &key);
-    assert(status == napi_ok);
-    status = napi_get_property(env, args[0], key, &value);
+    status = napi_get_named_property(env, args[0], "reduce", &value);
     assert(status == napi_ok);
   }
 

@@ -2,7 +2,10 @@
 #include <node.h>
 #include <assert.h>
 
+using v8::Isolate;
+using v8::Context;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Value;
 using v8::Number;
 using v8::String;
@@ -42,15 +45,44 @@ void CallWithNumber(const FunctionCallbackInfo<Value>& args) {
 }
 
 void CallWithObject(const FunctionCallbackInfo<Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
 
   assert(args.Length() == 1 && args[0]->IsObject());
   if (args.Length() == 1 && args[0]->IsObject()) {
     Local<Object> obj = args[0].As<Object>();
-    Local<Value> map = obj->Get(String::NewFromUtf8(isolate, "map"));
-    Local<Value> operand = obj->Get(String::NewFromUtf8(isolate, "operand"));
-    Local<Value> data = obj->Get(String::NewFromUtf8(isolate, "data"));
-    Local<Value> reduce = obj->Get(String::NewFromUtf8(isolate, "reduce"));
+
+    MaybeLocal<String> map_key = String::NewFromUtf8(isolate,
+        "map", v8::NewStringType::kNormal);
+    assert(!map_key.IsEmpty());
+    MaybeLocal<Value> map_maybe = obj->Get(context,
+        map_key.ToLocalChecked());
+    assert(!map_maybe.IsEmpty());
+    Local<Value> map = map_maybe.ToLocalChecked();
+
+    MaybeLocal<String> operand_key = String::NewFromUtf8(isolate,
+        "operand", v8::NewStringType::kNormal);
+    assert(!operand_key.IsEmpty());
+    MaybeLocal<Value> operand_maybe = obj->Get(context,
+        operand_key.ToLocalChecked());
+    assert(!operand_maybe.IsEmpty());
+    Local<Value> operand = operand_maybe.ToLocalChecked();
+
+    MaybeLocal<String> data_key = String::NewFromUtf8(isolate,
+        "data", v8::NewStringType::kNormal);
+    assert(!data_key.IsEmpty());
+    MaybeLocal<Value> data_maybe = obj->Get(context,
+        data_key.ToLocalChecked());
+    assert(!data_maybe.IsEmpty());
+    Local<Value> data = data_maybe.ToLocalChecked();
+
+    MaybeLocal<String> reduce_key = String::NewFromUtf8(isolate,
+        "reduce", v8::NewStringType::kNormal);
+    assert(!reduce_key.IsEmpty());
+    MaybeLocal<Value> reduce_maybe = obj->Get(context,
+        reduce_key.ToLocalChecked());
+    assert(!reduce_maybe.IsEmpty());
+    Local<Value> reduce = reduce_maybe.ToLocalChecked();
   }
 }
 
