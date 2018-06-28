@@ -105,11 +105,17 @@ binary will be passed to `NODE_MODULE()`.
 ### Context-aware addons
 
 There are environments in which Node.js addons may need to be loaded multiple
-times in multiple contexts. The macro `NODE_MODULE_INIT()` will construct an
-addon which supports such a use case. Unlike `NODE_MODULE()`, which is used to
-construct an addon around an addon initializer such as `Initialize` in the
-above example, `NODE_MODULE_INIT()` serves as the declaration of such an
-initializer to be followed by a function body.
+times in multiple contexts. For example, the [Electron][] runtime runs multiple
+instances of Node.js in a single process. Each instance will have its own
+`require()` cache, and thus each instance will need a native addon to behave
+correctly when loaded via `require()`. From the addon's perspective, this means
+that it must support multiple initializations.
+
+The macro `NODE_MODULE_INIT()` will construct an addon which supports such a use
+case. Unlike `NODE_MODULE()`, which is used to construct an addon around an
+addon initializer such as `Initialize` in the above example,
+`NODE_MODULE_INIT()` serves as the declaration of such an initializer to be
+followed by a function body.
 
 The following three variables may be used inside the function body following an
 invocation of `NODE_MODULE_INIT()`:
@@ -1274,6 +1280,7 @@ Test in JavaScript by running:
 require('./build/Release/addon');
 ```
 
+[Electron]: https://electronjs.org/
 [Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
