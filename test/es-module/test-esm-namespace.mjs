@@ -1,5 +1,7 @@
 // Flags: --experimental-modules
-import '../common';
+/* eslint-disable node-core/required-modules */
+
+import '../common/index.mjs';
 import * as fs from 'fs';
 import assert from 'assert';
 import Module from 'module';

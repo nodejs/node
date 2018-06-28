@@ -12,8 +12,8 @@ const tmpDir = tmpdir.path;
 
 const entry = path.join(tmpDir, 'entry.mjs');
 const real = path.join(tmpDir, 'index.mjs');
-const link_absolute_path = path.join(tmpDir, 'absolute');
-const link_relative_path = path.join(tmpDir, 'relative');
+const link_absolute_path = path.join(tmpDir, 'absolute.mjs');
+const link_relative_path = path.join(tmpDir, 'relative.mjs');
 const link_ignore_extension = path.join(tmpDir,
                                         'ignore_extension.json');
 const link_directory = path.join(tmpDir, 'directory');
@@ -22,15 +22,13 @@ fs.writeFileSync(real, 'export default [];');
 fs.writeFileSync(entry, `
 import assert from 'assert';
 import real from './index.mjs';
-import absolute from './absolute';
-import relative from './relative';
+import absolute from './absolute.mjs';
+import relative from './relative.mjs';
 import ignoreExtension from './ignore_extension.json';
-import directory from './directory';
 
 assert.strictEqual(absolute, real);
 assert.strictEqual(relative, real);
 assert.strictEqual(ignoreExtension, real);
-assert.strictEqual(directory, real);
 `);
 
 try {
