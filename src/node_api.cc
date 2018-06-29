@@ -3883,7 +3883,6 @@ class TsFn: public node::AsyncResource {
   void* finalize_data;
   napi_finalize finalize_cb;
   bool idle_running;
-  napi_async_context async_context;
   napi_threadsafe_function_call_js call_js_cb;
   bool handles_closing;
 };
