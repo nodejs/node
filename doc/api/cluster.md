@@ -731,10 +731,10 @@ values are `'rr'` and `'none'`.
 <!-- YAML
 added: v0.7.1
 changes:
-  - version: REPLACEME
+  - version: v8.12.0
     pr-url: https://github.com/nodejs/node/pull/18399
     description: The `cwd` option is supported now.
-  - version: REPLACEME
+  - version: v8.12.0
     pr-url: https://github.com/nodejs/node/pull/17412
     description: The `windowsHide` option is supported now.
   - version: 8.2.0

@@ -240,7 +240,7 @@ tracing is enabled using `--trace-events-enabled`.
 
 ### `--trace-event-file-pattern`
 <!-- YAML
-added: REPLACEME
+added: v8.12.0
 -->
 
 Template string specifying the filepath for the trace event data, it

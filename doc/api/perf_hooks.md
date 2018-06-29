@@ -127,7 +127,7 @@ to mark specific significant moments in the Performance Timeline.
 
 ### performance.maxEntries
 <!-- YAML
-added: REPLACEME
+added: v8.12.0
 -->
 
 Value: {number}

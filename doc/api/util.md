@@ -219,7 +219,7 @@ util.format('%% %s'); // '%% %s'
 
 ## util.getSystemErrorName(err)
 <!-- YAML
-added: REPLACEME
+added: v8.12.0
 -->
 
 * `err` {number}

@@ -1698,7 +1698,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/16676
     description: Added the `maxHeaderListPairs` option with a default limit of
                  128 header pairs.
-  - version: REPLACEME
+  - version: v8.12.0
     pr-url: https://github.com/nodejs/node/pull/15752
     description: Added the `Http1IncomingMessage` and `Http1ServerResponse`
                  option.
