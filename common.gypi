@@ -179,9 +179,19 @@
           }],
           ['OS=="linux"', {
             'variables': {
+              'pgo_generate': ' -fprofile-generate ',
+              'pgo_use': ' -fprofile-use -fprofile-correction ',
               'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
             },
             'conditions': [
+              ['enable_pgo_generate=="true"', {
+                'cflags': ['<(pgo_generate)'],
+                'ldflags': ['<(pgo_generate)'],
+              },],
+              ['enable_pgo_use=="true"', {
+                'cflags': ['<(pgo_use)'],
+                'ldflags': ['<(pgo_use)'],
+              },],
               ['enable_lto=="true"', {
                 'cflags': ['<(lto)'],
                 'ldflags': ['<(lto)'],
