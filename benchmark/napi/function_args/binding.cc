@@ -96,7 +96,7 @@ void CallWithTypedarray(const FunctionCallbackInfo<Value>& args) {
     assert(view->HasBuffer());
     Local<ArrayBuffer> buffer = view->Buffer();
     ArrayBuffer::Contents contents = buffer->GetContents();
-    uint32_t* data = static_cast<uint32_t*>(contents.Data()) + byte_offset;
+    uint32_t* data = static_cast<uint32_t*>(contents.Data() + byte_offset);
   }
 }
 
