@@ -135,7 +135,7 @@ block.pedantic = merge({}, block.normal, {
 
 function Lexer(options) {
   this.tokens = [];
-  this.tokens.links = {};
+  this.tokens.links = Object.create(null);
   this.options = options || marked.defaults;
   this.rules = block.normal;
 
