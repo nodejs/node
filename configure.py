@@ -132,11 +132,23 @@ parser.add_option("--enable-vtune-profiling",
          "JavaScript code executed in nodejs. This feature is only available "
          "for x32, x86, and x64 architectures.")
 
+parser.add_option("--enable-pgo-generate",
+    action="store_true",
+    dest="enable_pgo_generate",
+    help="Enable profiling with pgo of a binary. This feature is only available "
+         "on linux with gcc and g++ 5.4.1 or newer.")
+
+parser.add_option("--enable-pgo-use",
+    action="store_true",
+    dest="enable_pgo_use",
+    help="Enable use of the profile generated with --enable-pgo-generate. This "
+         "feature is only available on linux with gcc and g++ 5.4.1 or newer.")
+
 parser.add_option("--enable-lto",
     action="store_true",
     dest="enable_lto",
     help="Enable compiling with lto of a binary. This feature is only available "
-         "on linux with gcc and g++.")
+         "on linux with gcc and g++ 5.4.1 or newer.")
 
 parser.add_option("--link-module",
     action="append",
@@ -887,6 +899,16 @@ def configure_mips(o):
   o['variables']['mips_fpu_mode'] = options.mips_fpu_mode
 
 
+def gcc_version_ge(version_checked):
+  for compiler in [(CC, 'c'), (CXX, 'c++')]:
+    ok, is_clang, clang_version, compiler_version = \
+      try_check_compiler(compiler[0], compiler[1])
+    compiler_version_num = tuple(map(int, compiler_version))
+    if is_clang or compiler_version_num < version_checked:
+      return False
+  return True
+
+
 def configure_node(o):
   if options.dest_os == 'android':
     o['variables']['OS'] = 'android'
@@ -931,6 +953,29 @@ def configure_node(o):
   else:
     o['variables']['node_enable_v8_vtunejit'] = 'false'
 
+  if flavor != 'linux' and (options.enable_pgo_generate or options.enable_pgo_use):
+    raise Exception(
+      'The pgo option is supported only on linux.')
+
+  if flavor == 'linux':
+    if options.enable_pgo_generate or options.enable_pgo_use:
+      version_checked = (5, 4, 1)
+      if not gcc_version_ge(version_checked):
+        version_checked_str = ".".join(map(str, version_checked))
+        raise Exception(
+          'The options --enable-pgo-generate and --enable-pgo-use '
+          'are supported for gcc and gxx %s or newer only.' % (version_checked_str))
+
+    if options.enable_pgo_generate and options.enable_pgo_use:
+      raise Exception(
+        'Only one of the --enable-pgo-generate or --enable-pgo-use options '
+        'can be specified at a time. You would like to use '
+        '--enable-pgo-generate first, profile node, and then recompile '
+        'with --enable-pgo-use')
+
+  o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
+  o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
+
   if flavor != 'linux' and (options.enable_lto):
     raise Exception(
       'The lto option is supported only on linux.')
@@ -938,15 +983,11 @@ def configure_node(o):
   if flavor == 'linux':
     if options.enable_lto:
       version_checked = (5, 4, 1)
-      for compiler in [(CC, 'c'), (CXX, 'c++')]:
-        ok, is_clang, clang_version, compiler_version = \
-          try_check_compiler(compiler[0], compiler[1])
-        compiler_version_num = tuple(map(int, compiler_version))
-        if is_clang or compiler_version_num < version_checked:
-          version_checked_str = ".".join(map(str, version_checked))
-          raise Exception(
-            'The option --enable-lto is supported for gcc and gxx %s'
-            ' or newer only.' % (version_checked_str))
+      if not gcc_version_ge(version_checked):
+        version_checked_str = ".".join(map(str, version_checked))
+        raise Exception(
+          'The option --enable-lto is supported for gcc and gxx %s'
+          ' or newer only.' % (version_checked_str))
 
   o['variables']['enable_lto'] = b(options.enable_lto)
 
