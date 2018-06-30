@@ -8,16 +8,16 @@ release lines.
 
 Select a Node.js version below to view the changelog history:
 
-* [Node.js 10](doc/changelogs/CHANGELOG_V10.md)
-* [Node.js 9](doc/changelogs/CHANGELOG_V9.md)
-* [Node.js 8](doc/changelogs/CHANGELOG_V8.md)
-* [Node.js 7](doc/changelogs/CHANGELOG_V7.md)
-* [Node.js 6](doc/changelogs/CHANGELOG_V6.md)
-* [Node.js 5](doc/changelogs/CHANGELOG_V5.md)
-* [Node.js 4](doc/changelogs/CHANGELOG_V4.md)
-* [io.js](doc/changelogs/CHANGELOG_IOJS.md)
-* [Node.js 0.12](doc/changelogs/CHANGELOG_V012.md)
-* [Node.js 0.10](doc/changelogs/CHANGELOG_V010.md)
+* [Node.js 10](doc/changelogs/CHANGELOG_V10.md) — **Current**
+* [Node.js 9](doc/changelogs/CHANGELOG_V9.md) — End-of-Life
+* [Node.js 8](doc/changelogs/CHANGELOG_V8.md) — **Long Term Support**
+* [Node.js 7](doc/changelogs/CHANGELOG_V7.md) — End-of-Life
+* [Node.js 6](doc/changelogs/CHANGELOG_V6.md) — Long Term Support
+* [Node.js 5](doc/changelogs/CHANGELOG_V5.md) — End-of-Life
+* [Node.js 4](doc/changelogs/CHANGELOG_V4.md) — End-of-Life
+* [io.js](doc/changelogs/CHANGELOG_IOJS.md) — End-of-Life
+* [Node.js 0.12](doc/changelogs/CHANGELOG_V012.md) — End-of-Life
+* [Node.js 0.10](doc/changelogs/CHANGELOG_V010.md) — End-of-Life
 * [Archive](doc/changelogs/CHANGELOG_ARCHIVE.md)
 
 Please use the following table to find the changelog for a specific Node.js
@@ -26,10 +26,8 @@ release.
 <table>
 <tr>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V10.md">10</a><sup>Current</sup></th>
-  <th><a href="doc/changelogs/CHANGELOG_V9.md">9</a></th>
   <th title="LTS Until 2019-12"><a href="doc/changelogs/CHANGELOG_V8.md">8</a><sup>LTS</sup></th>
   <th title="LTS Until 2019-04"><a href="doc/changelogs/CHANGELOG_V6.md">6</a><sup>LTS</sup></th>
-  <th title="End-of-life since 2018-05-01"><a href="doc/changelogs/CHANGELOG_V4.md">4</a><sup>EOL</sup></th>
 </tr>
 <tr>
     <td valign="top">
@@ -42,26 +40,6 @@ release.
 <a href="doc/changelogs/CHANGELOG_V10.md#10.2.0">10.2.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V10.md#10.1.0">10.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V10.md#10.0.0">10.0.0</a><br/>
-    </td>
-    <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V9.md#9.11.2">9.11.2</a></b><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.11.1">9.11.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.11.0">9.11.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.10.1">9.10.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.10.0">9.10.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.9.0">9.9.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.8.0">9.8.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.7.1">9.7.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.7.0">9.7.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.6.1">9.6.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.6.0">9.6.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.5.0">9.5.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.4.0">9.4.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.3.0">9.3.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.2.1">9.2.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.2.0">9.2.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.1.0">9.1.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V9.md#9.0.0">9.0.0</a><br/>
     </td>
     <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V8.md#8.11.3">8.11.3</a></b><br/>
@@ -131,55 +109,13 @@ release.
 <a href="doc/changelogs/CHANGELOG_V6.md#6.1.0">6.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.0.0">6.0.0</a><br/>
   </td>
-  <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V4.md#4.9.1">4.9.1</a></b><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.9.0">4.9.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.8.7">4.8.7</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.8.6">4.8.6</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.8.5">4.8.5</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.8.4">4.8.4</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.8.3">4.8.3</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.8.2">4.8.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.8.1">4.8.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.8.0">4.8.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.7.3">4.7.3</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.7.2">4.7.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.7.1">4.7.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.7.0">4.7.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.6.1">4.6.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.6.1">4.6.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.6.0">4.6.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.5.0">4.5.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.7">4.4.7</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.6">4.4.6</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.5">4.4.5</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.4">4.4.4</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.3">4.4.3</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.2">4.4.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.1">4.4.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.0">4.4.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.3.2">4.3.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.3.1">4.3.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.3.0">4.3.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.2.6">4.2.6</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.2.5">4.2.5</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.2.4">4.2.4</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.2.3">4.2.3</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.2.2">4.2.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.2.1">4.2.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.2.0">4.2.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.1.2">4.1.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.1.1">4.1.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.1.0">4.1.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V4.md#4.0.0">4.0.0</a><br/>
-  </td>
 </tr>
 </table>
 
 ### Notes
 
 * Release streams marked with `LTS` are currently covered by the
-  [Node.js Long Term Support plan](https://github.com/nodejs/LTS).
+  [Node.js Long Term Support plan](https://github.com/nodejs/Release).
 * Release versions displayed in **bold** text represent the most
   recent actively supported release.
 
