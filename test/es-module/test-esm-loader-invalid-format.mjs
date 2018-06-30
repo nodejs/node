@@ -4,8 +4,8 @@ import assert from 'assert';
 
 import('../fixtures/es-modules/test-esm-ok.mjs')
 .then(assert.fail, expectsError({
-  code: 'ERR_INVALID_RETURN_PROPERTY',
-  message: 'Expected string to be returned for the "url" from the ' +
-           '"loader resolve" function but got "undefined"'
+  code: 'ERR_INVALID_RETURN_PROPERTY_VALUE',
+  message: 'Expected string to be returned for the "format" from the ' +
+           '"loader resolve" function but got type undefined.'
 }))
 .then(mustCall());
