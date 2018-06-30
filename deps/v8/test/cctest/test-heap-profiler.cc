@@ -1541,8 +1541,8 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
         graph->AddNode(std::unique_ptr<Group>(new Group("ccc-group")));
   }
 
-  static void BuildEmbedderGraph(v8::Isolate* isolate,
-                                 v8::EmbedderGraph* graph) {
+  static void BuildEmbedderGraph(v8::Isolate* isolate, v8::EmbedderGraph* graph,
+                                 void* data) {
     EmbedderGraphBuilder builder(isolate, graph);
     isolate->VisitHandlesWithClassIds(&builder);
   }
@@ -1604,8 +1604,8 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   v8::HandleScope scope(isolate);
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
 
-  heap_profiler->SetBuildEmbedderGraphCallback(
-      EmbedderGraphBuilder::BuildEmbedderGraph);
+  heap_profiler->AddBuildEmbedderGraphCallback(
+      EmbedderGraphBuilder::BuildEmbedderGraph, nullptr);
   v8::Persistent<v8::String> p_AAA(isolate, v8_str("AAA"));
   p_AAA.SetWrapperClassId(1);
   v8::Persistent<v8::String> p_BBB(isolate, v8_str("BBB"));
@@ -2932,7 +2932,8 @@ class EmbedderRootNode : public EmbedderNode {
 // global object.
 v8::Local<v8::Value>* global_object_pointer;
 
-void BuildEmbedderGraph(v8::Isolate* v8_isolate, v8::EmbedderGraph* graph) {
+void BuildEmbedderGraph(v8::Isolate* v8_isolate, v8::EmbedderGraph* graph,
+                        void* data) {
   using Node = v8::EmbedderGraph::Node;
   Node* global_node = graph->V8Node(*global_object_pointer);
   Node* embedder_node_A = graph->AddNode(
@@ -2979,10 +2980,90 @@ TEST(EmbedderGraph) {
           (isolate->context()->native_context()->global_object())));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  heap_profiler->SetBuildEmbedderGraphCallback(BuildEmbedderGraph);
+  heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraph, nullptr);
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   CheckEmbedderGraphSnapshot(env->GetIsolate(), snapshot);
+}
+
+struct GraphBuildingContext {
+  int counter = 0;
+};
+
+void CheckEmbedderGraphSnapshotWithContext(
+    v8::Isolate* isolate, const v8::HeapSnapshot* snapshot,
+    const GraphBuildingContext* context) {
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_GE(context->counter, 1);
+  CHECK_LE(context->counter, 2);
+
+  const v8::HeapGraphNode* embedder_node_A =
+      GetChildByName(global, "EmbedderNodeA");
+  CHECK_EQ(10, GetSize(embedder_node_A));
+
+  const v8::HeapGraphNode* embedder_node_B =
+      GetChildByName(global, "EmbedderNodeB");
+  if (context->counter == 2) {
+    CHECK_NOT_NULL(embedder_node_B);
+    CHECK_EQ(20, GetSize(embedder_node_B));
+  } else {
+    CHECK_NULL(embedder_node_B);
+  }
+}
+
+void BuildEmbedderGraphWithContext(v8::Isolate* v8_isolate,
+                                   v8::EmbedderGraph* graph, void* data) {
+  using Node = v8::EmbedderGraph::Node;
+  GraphBuildingContext* context = static_cast<GraphBuildingContext*>(data);
+  Node* global_node = graph->V8Node(*global_object_pointer);
+
+  CHECK_GE(context->counter, 0);
+  CHECK_LE(context->counter, 1);
+  switch (context->counter++) {
+    case 0: {
+      Node* embedder_node_A = graph->AddNode(
+          std::unique_ptr<Node>(new EmbedderNode("EmbedderNodeA", 10)));
+      graph->AddEdge(global_node, embedder_node_A);
+      break;
+    }
+    case 1: {
+      Node* embedder_node_B = graph->AddNode(
+          std::unique_ptr<Node>(new EmbedderNode("EmbedderNodeB", 20)));
+      graph->AddEdge(global_node, embedder_node_B);
+      break;
+    }
+  }
+}
+
+TEST(EmbedderGraphMultipleCallbacks) {
+  i::FLAG_heap_profiler_use_embedder_graph = true;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
+  v8::Local<v8::Value> global_object =
+      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+          (isolate->context()->native_context()->global_object())));
+  global_object_pointer = &global_object;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  GraphBuildingContext context;
+
+  heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraphWithContext,
+                                               &context);
+  heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraphWithContext,
+                                               &context);
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK_EQ(context.counter, 2);
+  CHECK(ValidateSnapshot(snapshot));
+  CheckEmbedderGraphSnapshotWithContext(env->GetIsolate(), snapshot, &context);
+
+  heap_profiler->RemoveBuildEmbedderGraphCallback(BuildEmbedderGraphWithContext,
+                                                  &context);
+  context.counter = 0;
+
+  snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK_EQ(context.counter, 1);
+  CHECK(ValidateSnapshot(snapshot));
+  CheckEmbedderGraphSnapshotWithContext(env->GetIsolate(), snapshot, &context);
 }
 
 TEST(StrongHandleAnnotation) {
@@ -3010,7 +3091,7 @@ TEST(StrongHandleAnnotation) {
 }
 
 void BuildEmbedderGraphWithWrapperNode(v8::Isolate* v8_isolate,
-                                       v8::EmbedderGraph* graph) {
+                                       v8::EmbedderGraph* graph, void* data) {
   using Node = v8::EmbedderGraph::Node;
   Node* global_node = graph->V8Node(*global_object_pointer);
   Node* wrapper_node = graph->AddNode(
@@ -3041,8 +3122,8 @@ TEST(EmbedderGraphWithWrapperNode) {
           (isolate->context()->native_context()->global_object())));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  heap_profiler->SetBuildEmbedderGraphCallback(
-      BuildEmbedderGraphWithWrapperNode);
+  heap_profiler->AddBuildEmbedderGraphCallback(
+      BuildEmbedderGraphWithWrapperNode, nullptr);
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
@@ -3080,7 +3161,7 @@ class EmbedderNodeWithPrefix : public v8::EmbedderGraph::Node {
 };
 
 void BuildEmbedderGraphWithPrefix(v8::Isolate* v8_isolate,
-                                  v8::EmbedderGraph* graph) {
+                                  v8::EmbedderGraph* graph, void* data) {
   using Node = v8::EmbedderGraph::Node;
   Node* global_node = graph->V8Node(*global_object_pointer);
   Node* node = graph->AddNode(
@@ -3098,7 +3179,8 @@ TEST(EmbedderGraphWithPrefix) {
           (isolate->context()->native_context()->global_object())));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  heap_profiler->SetBuildEmbedderGraphCallback(BuildEmbedderGraphWithPrefix);
+  heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraphWithPrefix,
+                                               nullptr);
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
