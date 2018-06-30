@@ -185,7 +185,8 @@ static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
 static bool v8_is_profiling = false;
 static bool node_is_initialized = false;
-static node_module* modpending;
+static uv_once_t init_once = UV_ONCE_INIT;
+static uv_key_t thread_local_modpending;
 static node_module* modlist_builtin;
 static node_module* modlist_internal;
 static node_module* modlist_linked;
@@ -1144,7 +1145,7 @@ extern "C" void node_module_register(void* m) {
     mp->nm_link = modlist_linked;
     modlist_linked = mp;
   } else {
-    modpending = mp;
+    uv_key_set(&thread_local_modpending, mp);
   }
 }
 
@@ -1258,6 +1259,10 @@ inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
       reinterpret_cast<napi_addon_register_func>(dlib->GetSymbolAddress(name));
 }
 
+void InitDLOpenOnce() {
+  CHECK_EQ(0, uv_key_create(&thread_local_modpending));
+}
+
 // DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
 //
@@ -1268,7 +1273,8 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto context = env->context();
 
-  CHECK_NULL(modpending);
+  uv_once(&init_once, InitDLOpenOnce);
+  CHECK_NULL(uv_key_get(&thread_local_modpending));
 
   if (args.Length() < 2) {
     env->ThrowError("process.dlopen needs at least 2 arguments.");
@@ -1296,8 +1302,9 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   // Objects containing v14 or later modules will have registered themselves
   // on the pending list.  Activate all of them now.  At present, only one
   // module per object is supported.
-  node_module* const mp = modpending;
-  modpending = nullptr;
+  node_module* const mp = static_cast<node_module*>(
+      uv_key_get(&thread_local_modpending));
+  uv_key_set(&thread_local_modpending, nullptr);
 
   if (!is_opened) {
     Local<String> errmsg = OneByteString(env->isolate(), dlib.errmsg_.c_str());
