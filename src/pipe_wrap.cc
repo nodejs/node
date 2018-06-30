@@ -83,11 +83,7 @@ void PipeWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
 
-#ifdef _WIN32
   LibuvStreamWrap::AddMethods(env, t);
-#else
-  LibuvStreamWrap::AddMethods(env, t, StreamBase::kFlagHasWritev);
-#endif
 
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "listen", Listen);
