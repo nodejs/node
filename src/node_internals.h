@@ -111,6 +111,7 @@ struct sockaddr;
     V(domain)                                                                 \
     V(fs)                                                                     \
     V(fs_event_wrap)                                                          \
+    V(heap_utils)                                                             \
     V(http2)                                                                  \
     V(http_parser)                                                            \
     V(inspector)                                                              \
