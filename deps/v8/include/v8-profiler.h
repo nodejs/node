@@ -636,7 +636,7 @@ class V8_EXPORT AllocationProfile {
  * Usage:
  * 1) Define derived class of EmbedderGraph::Node for embedder objects.
  * 2) Set the build embedder graph callback on the heap profiler using
- *    HeapProfiler::SetBuildEmbedderGraphCallback.
+ *    HeapProfiler::AddBuildEmbedderGraphCallback.
  * 3) In the callback use graph->AddEdge(node1, node2) to add an edge from
  *    node1 to node2.
  * 4) To represent references from/to V8 object, construct V8 nodes using
@@ -736,7 +736,12 @@ class V8_EXPORT HeapProfiler {
    * The callback must not trigger garbage collection in V8.
    */
   typedef void (*BuildEmbedderGraphCallback)(v8::Isolate* isolate,
-                                             v8::EmbedderGraph* graph);
+                                             v8::EmbedderGraph* graph,
+                                             void* data);
+
+  /** TODO(addaleax): Remove */
+  typedef void (*LegacyBuildEmbedderGraphCallback)(v8::Isolate* isolate,
+                                                   v8::EmbedderGraph* graph);
 
   /** Returns the number of snapshots taken. */
   int GetSnapshotCount();
@@ -878,15 +883,22 @@ class V8_EXPORT HeapProfiler {
 
   /** Binds a callback to embedder's class ID. */
   V8_DEPRECATED(
-      "Use SetBuildEmbedderGraphCallback to provide info about embedder nodes",
+      "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
       void SetWrapperClassInfoProvider(uint16_t class_id,
                                        WrapperInfoCallback callback));
 
   V8_DEPRECATED(
-      "Use SetBuildEmbedderGraphCallback to provide info about embedder nodes",
+      "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
       void SetGetRetainerInfosCallback(GetRetainerInfosCallback callback));
 
-  void SetBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback);
+  V8_DEPRECATE_SOON(
+      "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
+      void SetBuildEmbedderGraphCallback(
+          LegacyBuildEmbedderGraphCallback callback));
+  void AddBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback,
+                                     void* data);
+  void RemoveBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback,
+                                        void* data);
 
   /**
    * Default value of persistent handle class ID. Must not be used to
