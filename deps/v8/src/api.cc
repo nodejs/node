@@ -10558,9 +10558,25 @@ void HeapProfiler::SetGetRetainerInfosCallback(
 }
 
 void HeapProfiler::SetBuildEmbedderGraphCallback(
-    BuildEmbedderGraphCallback callback) {
-  reinterpret_cast<i::HeapProfiler*>(this)->SetBuildEmbedderGraphCallback(
-      callback);
+    LegacyBuildEmbedderGraphCallback callback) {
+  reinterpret_cast<i::HeapProfiler*>(this)->AddBuildEmbedderGraphCallback(
+      [](v8::Isolate* isolate, v8::EmbedderGraph* graph, void* data) {
+        reinterpret_cast<LegacyBuildEmbedderGraphCallback>(data)(isolate,
+                                                                 graph);
+      },
+      reinterpret_cast<void*>(callback));
+}
+
+void HeapProfiler::AddBuildEmbedderGraphCallback(
+    BuildEmbedderGraphCallback callback, void* data) {
+  reinterpret_cast<i::HeapProfiler*>(this)->AddBuildEmbedderGraphCallback(
+      callback, data);
+}
+
+void HeapProfiler::RemoveBuildEmbedderGraphCallback(
+    BuildEmbedderGraphCallback callback, void* data) {
+  reinterpret_cast<i::HeapProfiler*>(this)->RemoveBuildEmbedderGraphCallback(
+      callback, data);
 }
 
 v8::Testing::StressType internal::Testing::stress_type_ =
