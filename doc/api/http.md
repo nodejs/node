@@ -1796,15 +1796,20 @@ The `requestListener` is a function which is automatically
 added to the [`'request'`][] event.
 
 ## http.get(options[, callback])
+## http.get(url[, options][, callback])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21616
+    description: allow both url and options to be passed to `http.get()`
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
-* `options` {Object | string | URL} Accepts the same `options` as
+* `url` {string | URL}
+* `options` {Object} Accepts the same `options` as
   [`http.request()`][], with the `method` always set to `GET`.
   Properties that are inherited from the prototype are ignored.
 * `callback` {Function}
@@ -1868,15 +1873,20 @@ Global instance of `Agent` which is used as the default for all HTTP client
 requests.
 
 ## http.request(options[, callback])
+## http.request(url[, options][, callback])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21616
+    description: allow both url and options to be passed to `http.request()`
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
-* `options` {Object | string | URL}
+* `url` {string | URL}
+* `options` {Object}
   * `protocol` {string} Protocol to use. **Default:** `'http:'`.
   * `host` {string} A domain name or IP address of the server to issue the
     request to. **Default:** `'localhost'`.
@@ -1918,9 +1928,12 @@ changes:
 Node.js maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.
 
-`options` can be an object, a string, or a [`URL`][] object. If `options` is a
+`url` can be a string or a [`URL`][] object. If `url` is a
 string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
+
+If both `url` and `options` are specified, the objects are merged, with the
+`options` properties taking precedence.
 
 The optional `callback` parameter will be added as a one-time listener for
 the [`'response'`][] event.
