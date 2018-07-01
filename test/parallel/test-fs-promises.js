@@ -159,7 +159,7 @@ function verifyStatObject(stat) {
     if (common.canCreateSymLink()) {
       const newLink = path.resolve(tmpDir, 'baz3.js');
       await symlink(newPath, newLink);
-      if (common.isOSX) {
+      if (!common.isWindows) {
         await lchown(newLink, process.getuid(), process.getgid());
       }
       stats = await lstat(newLink);
