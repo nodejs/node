@@ -112,14 +112,19 @@ https.createServer(options, (req, res) => {
 ```
 
 ## https.get(options[, callback])
+## https.get(url[, options][, callback])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21616
+    description: allow both url and options to be passed to `https.get()`
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `options` {Object | string | URL} Accepts the same `options` as
+- `url` {string | URL}
+- `options` {Object} Accepts the same `options` as
   [`https.request()`][], with the `method` always set to `GET`.
 - `callback` {Function}
 
@@ -155,9 +160,13 @@ added: v0.5.9
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
 ## https.request(options[, callback])
+## https.request(url[, options][, callback])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21616
+    description: allow both url and options to be passed to `https.request()`
   - version: v9.3.0
     pr-url: https://github.com/nodejs/node/pull/14903
     description: The `options` parameter can now include `clientCertEngine`.
@@ -165,7 +174,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `options` {Object | string | URL} Accepts all `options` from
+- `url` {string | URL}
+- `options` {Object} Accepts all `options` from
   [`http.request()`][], with some differences in default values:
   - `protocol` **Default:** `'https:'`
   - `port` **Default:** `443`
