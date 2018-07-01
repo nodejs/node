@@ -5,7 +5,6 @@ rules:
   no-restricted-properties: off
   no-undef: off
   no-unused-vars: off
-  strict: off
   symbol-description: off
 
   # add new ECMAScript features gradually
