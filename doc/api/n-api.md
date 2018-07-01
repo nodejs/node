@@ -4066,10 +4066,10 @@ napi_create_threadsafe_function(napi_env env,
 - `[in] func`: The JavaScript function to call from another thread.
 - `[in] async_resource`: An optional object associated with the async work that
 will be passed to possible `async_hooks` [`init` hooks][].
-- `[in] async_resource_name`: A javaScript string to provide an identifier for
+- `[in] async_resource_name`: A JavaScript string to provide an identifier for
 the kind of resource that is being provided for diagnostic information exposed
 by the `async_hooks` API.
-- `[in] max_queue_size`: Maximum size of the queue. 0 for no limit.
+- `[in] max_queue_size`: Maximum size of the queue. `0` for no limit.
 - `[in] initial_thread_count`: The initial number of threads, including the main
 thread, which will be making use of this function.
 - `[in] thread_finalize_data`: Data to be passed to `thread_finalize_cb`.
@@ -4097,7 +4097,7 @@ napi_get_threadsafe_function_context(napi_threadsafe_function func,
 ```
 
 - `[in] func`: The thread-safe function for which to retrieve the context.
-- `[out] context`: The location where to store the context.
+- `[out] result`: The location where to store the context.
 
 This API may be called from any thread which makes use of `func`.
 
