@@ -457,7 +457,7 @@ added properties.
 
 ### Class: SystemError
 
-### error.info
+#### error.info
 
 `SystemError` instances may have an additional `info` property whose
 value is an object with additional details about the error conditions.
