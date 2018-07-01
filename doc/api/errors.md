@@ -1828,7 +1828,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
 [`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
-[`crypto.scryptSync()`]: crypto.html#crypto_crypto_scryptSync_password_salt_keylen_options
+[`crypto.scryptSync()`]: crypto.html#crypto_crypto_scryptsync_password_salt_keylen_options
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE

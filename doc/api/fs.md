@@ -4617,14 +4617,14 @@ the file contents.
 [`inotify(7)`]: http://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`net.Socket`]: net.html#net_class_net_socket
-[`stat()`]: fs.html#fs_fs_stat_path_callback
+[`stat()`]: fs.html#fs_fs_stat_path_options_callback
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
 [FS Constants]: #fs_fs_constants_1
 [MDN-Date]: https://developer.mozilla.org/en-US/JavaScript/Reference/Global_Objects/Date
 [MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
-[MSDN-Rel-Path]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx#fully_qualified_vs._relative_paths
+[MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [Readable Streams]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
 [inode]: https://en.wikipedia.org/wiki/Inode
