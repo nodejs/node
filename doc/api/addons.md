@@ -111,9 +111,25 @@ instances of Node.js in a single process. Each instance will have its own
 correctly when loaded via `require()`. From the addon's perspective, this means
 that it must support multiple initializations.
 
-The macro `NODE_MODULE_INIT()` will construct an addon which supports such a use
-case. Unlike `NODE_MODULE()`, which is used to construct an addon around an
-addon initializer such as `Initialize` in the above example,
+A context-aware addon can be constructed by using the macro
+`NODE_MODULE_INITIALIZER`, which expands to the name of a function which Node.js
+will expect to find when it loads an addon. An addon can thus be initialized as
+in the following example:
+
+```cpp
+using namespace v8;
+
+extern "C" NODE_MODULE_EXPORT void
+NODE_MODULE_INITIALIZER(Local<Object> exports,
+                        Local<Value> module,
+                        Local<Context> context) {
+  /* Perform addon initialization steps here. */
+}
+```
+
+Another option is to use the macro `NODE_MODULE_INIT()`, which will also
+construct a context-aware addon. Unlike `NODE_MODULE()`, which is used to
+construct an addon around a given addon initializer function,
 `NODE_MODULE_INIT()` serves as the declaration of such an initializer to be
 followed by a function body.
 
