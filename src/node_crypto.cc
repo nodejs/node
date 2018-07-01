@@ -2595,8 +2595,11 @@ void CipherBase::Init(const char* cipher_type,
 
   ctx_.reset(EVP_CIPHER_CTX_new());
   const bool encrypt = (kind_ == kCipher);
-  CHECK(EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
-                          nullptr, nullptr, encrypt));
+  if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
+                             nullptr, nullptr, encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 
   int mode = EVP_CIPHER_CTX_mode(ctx_.get());
   if (encrypt && (mode == EVP_CIPH_CTR_MODE || mode == EVP_CIPH_GCM_MODE ||
@@ -2619,12 +2622,15 @@ void CipherBase::Init(const char* cipher_type,
 
   CHECK_EQ(1, EVP_CIPHER_CTX_set_key_length(ctx_.get(), key_len));
 
-  CHECK(EVP_CipherInit_ex(ctx_.get(),
-                          nullptr,
-                          nullptr,
-                          reinterpret_cast<unsigned char*>(key),
-                          reinterpret_cast<unsigned char*>(iv),
-                          encrypt));
+  if (1 != EVP_CipherInit_ex(ctx_.get(),
+                             nullptr,
+                             nullptr,
+                             reinterpret_cast<unsigned char*>(key),
+                             reinterpret_cast<unsigned char*>(iv),
+                             encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 }
 
 
@@ -2690,8 +2696,11 @@ void CipherBase::InitIv(const char* cipher_type,
     EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
   const bool encrypt = (kind_ == kCipher);
-  CHECK(EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
-                          nullptr, nullptr, encrypt));
+  if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
+                             nullptr, nullptr, encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 
   if (IsAuthenticatedMode()) {
     CHECK(has_iv);
@@ -2704,12 +2713,15 @@ void CipherBase::InitIv(const char* cipher_type,
     return env()->ThrowError("Invalid key length");
   }
 
-  CHECK(EVP_CipherInit_ex(ctx_.get(),
-                          nullptr,
-                          nullptr,
-                          reinterpret_cast<const unsigned char*>(key),
-                          reinterpret_cast<const unsigned char*>(iv),
-                          encrypt));
+  if (1 != EVP_CipherInit_ex(ctx_.get(),
+                             nullptr,
+                             nullptr,
+                             reinterpret_cast<const unsigned char*>(key),
+                             reinterpret_cast<const unsigned char*>(iv),
+                             encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 }
 
 
