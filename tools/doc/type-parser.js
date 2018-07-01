@@ -118,7 +118,7 @@ const customTypesMap = {
   'URL': 'url.html#url_the_whatwg_url_api',
   'URLSearchParams': 'url.html#url_class_urlsearchparams',
 
-  'MessagePort': 'worker.html#worker_class_messageport'
+  'MessagePort': 'worker_threads.html#worker_threads_class_messageport'
 };
 
 const arrayPart = /(?:\[])+$/;
