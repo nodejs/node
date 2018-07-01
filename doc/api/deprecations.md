@@ -1025,7 +1025,7 @@ The option `produceCachedData` has been deprecated. Use
 [`fs.lchmodSync(path, mode)`]: fs.html#fs_fs_lchmodsync_path_mode
 [`fs.read()`]: fs.html#fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readSync()`]: fs.html#fs_fs_readsync_fd_buffer_offset_length_position
-[`fs.stat()`]: fs.html#fs_fs_stat_path_callback
+[`fs.stat()`]: fs.html#fs_fs_stat_path_options_callback
 [`os.networkInterfaces`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
