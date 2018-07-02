@@ -24,7 +24,7 @@ process.on('exit', function() {
   // https://github.com/nodejs/node/pull/16485#issuecomment-350428638
   // The color setting of the REPL should not have leaked over into
   // the color setting of `util.inspect.defaultOptions`.
-  strictEqual(output.includes(`'\\'string\\''`), true);
+  strictEqual(output.includes(`"'string'"`), true);
   strictEqual(output.includes(`'\u001b[32m\\'string\\'\u001b[39m'`), false);
   strictEqual(inspect.defaultOptions.colors, false);
   strictEqual(repl.writer.options.colors, true);

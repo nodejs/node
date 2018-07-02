@@ -47,7 +47,7 @@ assert.strictEqual(util.inspect(new Date('')), (new Date('')).toString());
 assert.strictEqual(util.inspect('\n\u0001'), "'\\n\\u0001'");
 assert.strictEqual(
   util.inspect(`${Array(75).fill(1)}'\n\u001d\n\u0003`),
-  `'${Array(75).fill(1)}\\'\\n\\u001d\\n\\u0003'`
+  `"${Array(75).fill(1)}'\\n\\u001d\\n\\u0003"`
 );
 assert.strictEqual(util.inspect([]), '[]');
 assert.strictEqual(util.inspect(Object.create([])), 'Array {}');
