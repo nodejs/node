@@ -76,30 +76,19 @@ const generateArgs = (argType) => {
   return args;
 };
 
-const getArgs = (type) => {
-  return generateArgs(type.split('-')[1]);
-};
-
-const benchTypes = [];
-
-argsTypes.forEach((arg) => {
-  ['v8', 'napi'].forEach((type) => {
-    benchTypes.push(type + '-' + arg);
-  });
-});
-
 const bench = common.createBenchmark(main, {
-  type: benchTypes,
+  type: argsTypes,
+  engine: ['v8', 'napi'],
   n: [1, 1e1, 1e2, 1e3, 1e4, 1e5],
 });
 
-function main({ n, type }) {
-  const bindings = type.split('-')[0] === 'v8' ? v8 : napi;
-  const methodName = 'callWith' + type.split('-')[1];
+function main({ n, engine, type }) {
+  const bindings = engine === 'v8' ? v8 : napi;
+  const methodName = 'callWith' + type;
   const fn = bindings[methodName];
 
   if (fn) {
-    const args = getArgs(type);
+    const args = generateArgs(type);
 
     bench.start();
     for (var i = 0; i < n; i++) {
