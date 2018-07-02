@@ -1,4 +1,5 @@
 rules:
+  prefer-object-spread: error
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
