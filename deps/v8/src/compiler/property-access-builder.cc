@@ -168,22 +168,6 @@ Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Node** effect,
   return expected;
 }
 
-void PropertyAccessBuilder::AssumePrototypesStable(
-    Handle<Context> native_context,
-    std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder) {
-  // Determine actual holder and perform prototype chain checks.
-  for (auto map : receiver_maps) {
-    // Perform the implicit ToObject for primitives here.
-    // Implemented according to ES6 section 7.3.2 GetV (V, P).
-    Handle<JSFunction> constructor;
-    if (Map::GetConstructorFunction(map, native_context)
-            .ToHandle(&constructor)) {
-      map = handle(constructor->initial_map(), holder->GetIsolate());
-    }
-    dependencies()->AssumePrototypeMapsStable(map, holder);
-  }
-}
-
 Node* PropertyAccessBuilder::ResolveHolder(
     PropertyAccessInfo const& access_info, Node* receiver) {
   Handle<JSObject> holder;
@@ -242,7 +226,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
   }
 
   FieldIndex const field_index = access_info.field_index();
-  Type* const field_type = access_info.field_type();
+  Type const field_type = access_info.field_type();
   MachineRepresentation const field_representation =
       access_info.field_representation();
   Node* storage = receiver;

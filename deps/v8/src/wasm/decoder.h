@@ -280,7 +280,7 @@ class Decoder {
     } else if (!validate_size(pc, sizeof(IntType), msg)) {
       return IntType{0};
     }
-    return ReadLittleEndianValue<IntType>(pc);
+    return ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
   }
 
   template <typename IntType>

@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-collection-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -13,7 +14,7 @@ BUILTIN(MapPrototypeClear) {
   HandleScope scope(isolate);
   const char* const kMethodName = "Map.prototype.clear";
   CHECK_RECEIVER(JSMap, map, kMethodName);
-  JSMap::Clear(map);
+  JSMap::Clear(isolate, map);
   return isolate->heap()->undefined_value();
 }
 
@@ -21,7 +22,7 @@ BUILTIN(SetPrototypeClear) {
   HandleScope scope(isolate);
   const char* const kMethodName = "Set.prototype.clear";
   CHECK_RECEIVER(JSSet, set, kMethodName);
-  JSSet::Clear(set);
+  JSSet::Clear(isolate, set);
   return isolate->heap()->undefined_value();
 }
 

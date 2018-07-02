@@ -176,19 +176,21 @@ TF_BUILTIN(ReturnReceiver, CodeStubAssembler) {
 
 TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   Label tailcall_to_shared(this);
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
   TNode<Int32T> arg_count =
-      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
-  TNode<JSFunction> function = CAST(LoadFromFrame(
-      StandardFrameConstants::kFunctionOffset, MachineType::TaggedPointer()));
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kJSTarget));
 
   // Check break-at-entry flag on the debug info.
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Object> maybe_debug_info =
-      LoadObjectField(shared, SharedFunctionInfo::kDebugInfoOffset);
-  GotoIf(TaggedIsSmi(maybe_debug_info), &tailcall_to_shared);
+  TNode<Object> maybe_heap_object_or_smi = LoadObjectField(
+      shared, SharedFunctionInfo::kFunctionIdentifierOrDebugInfoOffset);
+  TNode<HeapObject> maybe_debug_info =
+      TaggedToHeapObject(maybe_heap_object_or_smi, &tailcall_to_shared);
+  GotoIfNot(HasInstanceType(maybe_debug_info, InstanceType::DEBUG_INFO_TYPE),
+            &tailcall_to_shared);
 
   {
     TNode<DebugInfo> debug_info = CAST(maybe_debug_info);
@@ -204,11 +206,7 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   BIND(&tailcall_to_shared);
   // Tail call into code object on the SharedFunctionInfo.
   TNode<Code> code = GetSharedFunctionInfoCode(shared);
-  // Use the ConstructTrampolineDescriptor because it passes new.target too in
-  // case this is called during construct.
-  CSA_ASSERT(this, IsCode(code));
-  ConstructTrampolineDescriptor descriptor(isolate());
-  TailCallStub(descriptor, code, context, function, new_target, arg_count);
+  TailCallJSCode(code, context, function, new_target, arg_count);
 }
 
 class RecordWriteCodeStubAssembler : public CodeStubAssembler {
@@ -383,8 +381,8 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 
     BIND(&overflow);
     {
-      Node* function = ExternalConstant(
-          ExternalReference::store_buffer_overflow_function(this->isolate()));
+      Node* function =
+          ExternalConstant(ExternalReference::store_buffer_overflow_function());
       CallCFunction1WithCallerSavedRegistersMode(MachineType::Int32(),
                                                  MachineType::Pointer(),
                                                  function, isolate, mode, next);
@@ -467,8 +465,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     BIND(&call_incremental_wb);
     {
       Node* function = ExternalConstant(
-          ExternalReference::incremental_marking_record_write_function(
-              this->isolate()));
+          ExternalReference::incremental_marking_record_write_function());
       CallCFunction3WithCallerSavedRegistersMode(
           MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
           MachineType::Pointer(), function, object, slot, isolate, fp_mode,
@@ -485,22 +482,23 @@ class DeletePropertyBaseAssembler : public AccessorAssembler {
   explicit DeletePropertyBaseAssembler(compiler::CodeAssemblerState* state)
       : AccessorAssembler(state) {}
 
-  void DeleteDictionaryProperty(Node* receiver, Node* properties, Node* name,
-                                Node* context, Label* dont_delete,
-                                Label* notfound) {
-    VARIABLE(var_name_index, MachineType::PointerRepresentation());
+  void DeleteDictionaryProperty(TNode<Object> receiver,
+                                TNode<NameDictionary> properties,
+                                TNode<Name> name, TNode<Context> context,
+                                Label* dont_delete, Label* notfound) {
+    TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
     NameDictionaryLookup<NameDictionary>(properties, name, &dictionary_found,
                                          &var_name_index, notfound);
 
     BIND(&dictionary_found);
-    Node* key_index = var_name_index.value();
-    Node* details =
+    TNode<IntPtrT> key_index = var_name_index.value();
+    TNode<Uint32T> details =
         LoadDetailsByKeyIndex<NameDictionary>(properties, key_index);
     GotoIf(IsSetWord32(details, PropertyDetails::kAttributesDontDeleteMask),
            dont_delete);
     // Overwrite the entry itself (see NameDictionary::SetEntry).
-    Node* filler = TheHoleConstant();
+    TNode<HeapObject> filler = TheHoleConstant();
     DCHECK(Heap::RootIsImmortalImmovable(Heap::kTheHoleValueRootIndex));
     StoreFixedArrayElement(properties, key_index, filler, SKIP_WRITE_BARRIER);
     StoreValueByKeyIndex<NameDictionary>(properties, key_index, filler,
@@ -509,16 +507,17 @@ class DeletePropertyBaseAssembler : public AccessorAssembler {
                                            SmiConstant(0));
 
     // Update bookkeeping information (see NameDictionary::ElementRemoved).
-    Node* nof = GetNumberOfElements<NameDictionary>(properties);
-    Node* new_nof = SmiSub(nof, SmiConstant(1));
+    TNode<Smi> nof = GetNumberOfElements<NameDictionary>(properties);
+    TNode<Smi> new_nof = SmiSub(nof, SmiConstant(1));
     SetNumberOfElements<NameDictionary>(properties, new_nof);
-    Node* num_deleted = GetNumberOfDeletedElements<NameDictionary>(properties);
-    Node* new_deleted = SmiAdd(num_deleted, SmiConstant(1));
+    TNode<Smi> num_deleted =
+        GetNumberOfDeletedElements<NameDictionary>(properties);
+    TNode<Smi> new_deleted = SmiAdd(num_deleted, SmiConstant(1));
     SetNumberOfDeletedElements<NameDictionary>(properties, new_deleted);
 
     // Shrink the dictionary if necessary (see NameDictionary::Shrink).
     Label shrinking_done(this);
-    Node* capacity = GetCapacity<NameDictionary>(properties);
+    TNode<Smi> capacity = GetCapacity<NameDictionary>(properties);
     GotoIf(SmiGreaterThan(new_nof, SmiShr(capacity, 2)), &shrinking_done);
     GotoIf(SmiLessThan(new_nof, SmiConstant(16)), &shrinking_done);
     CallRuntime(Runtime::kShrinkPropertyDictionary, context, receiver);
@@ -530,10 +529,10 @@ class DeletePropertyBaseAssembler : public AccessorAssembler {
 };
 
 TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
-  Node* receiver = Parameter(Descriptor::kObject);
-  Node* key = Parameter(Descriptor::kKey);
-  Node* language_mode = Parameter(Descriptor::kLanguageMode);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kObject));
+  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
+  TNode<Smi> language_mode = CAST(Parameter(Descriptor::kLanguageMode));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   VARIABLE(var_index, MachineType::PointerRepresentation());
   VARIABLE(var_unique, MachineRepresentation::kTagged, key);
@@ -541,11 +540,9 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
       if_notfound(this), slow(this);
 
   GotoIf(TaggedIsSmi(receiver), &slow);
-  Node* receiver_map = LoadMap(receiver);
-  Node* instance_type = LoadMapInstanceType(receiver_map);
-  GotoIf(Int32LessThanOrEqual(instance_type,
-                              Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
-         &slow);
+  TNode<Map> receiver_map = LoadMap(CAST(receiver));
+  TNode<Int32T> instance_type = LoadMapInstanceType(receiver_map);
+  GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &slow);
   TryToName(key, &if_index, &var_index, &if_unique_name, &var_unique, &slow,
             &if_notunique);
 
@@ -558,7 +555,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
   BIND(&if_unique_name);
   {
     Comment("key is unique name");
-    Node* unique = var_unique.value();
+    TNode<Name> unique = CAST(var_unique.value());
     CheckForAssociatedProtector(unique, &slow);
 
     Label dictionary(this), dont_delete(this);
@@ -572,7 +569,8 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
     {
       InvalidateValidityCellIfPrototype(receiver_map);
 
-      Node* properties = LoadSlowProperties(receiver);
+      TNode<NameDictionary> properties =
+          CAST(LoadSlowProperties(CAST(receiver)));
       DeleteDictionaryProperty(receiver, properties, unique, context,
                                &dont_delete, &if_notfound);
     }
@@ -672,12 +670,12 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
                       SloppyTNode<HeapObject> promise_or_capability);
 
   TNode<Object> GetPendingException() {
-    auto ref = ExternalReference(kPendingExceptionAddress, isolate());
+    auto ref = ExternalReference::Create(kPendingExceptionAddress, isolate());
     return TNode<Object>::UncheckedCast(
         Load(MachineType::AnyTagged(), ExternalConstant(ref)));
   }
   void ClearPendingException() {
-    auto ref = ExternalReference(kPendingExceptionAddress, isolate());
+    auto ref = ExternalReference::Create(kPendingExceptionAddress, isolate());
     StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
                         TheHoleConstant());
   }
@@ -692,7 +690,60 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
     StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
                         TheHoleConstant());
   }
+
+  template <typename Descriptor>
+  void GenerateAdaptorWithExitFrameType(
+      Builtins::ExitFrameType exit_frame_type);
 };
+
+template <typename Descriptor>
+void InternalBuiltinsAssembler::GenerateAdaptorWithExitFrameType(
+    Builtins::ExitFrameType exit_frame_type) {
+  TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<WordT> c_function =
+      UncheckedCast<WordT>(Parameter(Descriptor::kCFunction));
+
+  // The logic contained here is mirrored for TurboFan inlining in
+  // JSTypedLowering::ReduceJSCall{Function,Construct}. Keep these in sync.
+
+  // Make sure we operate in the context of the called function (for example
+  // ConstructStubs implemented in C++ will be run in the context of the caller
+  // instead of the callee, due to the way that [[Construct]] is defined for
+  // ordinary functions).
+  TNode<Context> context =
+      CAST(LoadObjectField(target, JSFunction::kContextOffset));
+
+  // Update arguments count for CEntry to contain the number of arguments
+  // including the receiver and the extra arguments.
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  argc = Int32Add(
+      argc,
+      Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
+
+  TNode<Code> code = HeapConstant(
+      CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                          exit_frame_type == Builtins::BUILTIN_EXIT));
+
+  // Unconditionally push argc, target and new target as extra stack arguments.
+  // They will be used by stack frame iterators when constructing stack trace.
+  TailCallStub(CEntry1ArgvOnStackDescriptor{},  // descriptor
+               code, context,       // standard arguments for TailCallStub
+               argc, c_function,    // register arguments
+               TheHoleConstant(),   // additional stack argument 1 (padding)
+               SmiFromInt32(argc),  // additional stack argument 2
+               target,              // additional stack argument 3
+               new_target);         // additional stack argument 4
+}
+
+TF_BUILTIN(AdaptorWithExitFrame, InternalBuiltinsAssembler) {
+  GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::EXIT);
+}
+
+TF_BUILTIN(AdaptorWithBuiltinExitFrame, InternalBuiltinsAssembler) {
+  GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::BUILTIN_EXIT);
+}
 
 TNode<IntPtrT> InternalBuiltinsAssembler::GetPendingMicrotaskCount() {
   auto ref = ExternalReference::pending_microtask_count_address(isolate());
@@ -728,13 +779,13 @@ void InternalBuiltinsAssembler::SetMicrotaskQueue(TNode<FixedArray> queue) {
 }
 
 TNode<Context> InternalBuiltinsAssembler::GetCurrentContext() {
-  auto ref = ExternalReference(kContextAddress, isolate());
+  auto ref = ExternalReference::Create(kContextAddress, isolate());
   return TNode<Context>::UncheckedCast(
       Load(MachineType::AnyTagged(), ExternalConstant(ref)));
 }
 
 void InternalBuiltinsAssembler::SetCurrentContext(TNode<Context> context) {
-  auto ref = ExternalReference(kContextAddress, isolate());
+  auto ref = ExternalReference::Create(kContextAddress, isolate());
   StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
                       context);
 }
@@ -792,7 +843,8 @@ void InternalBuiltinsAssembler::RunPromiseHook(
     Runtime::FunctionId id, TNode<Context> context,
     SloppyTNode<HeapObject> promise_or_capability) {
   Label hook(this, Label::kDeferred), done_hook(this);
-  Branch(IsPromiseHookEnabledOrDebugIsActive(), &hook, &done_hook);
+  GotoIf(IsDebugActive(), &hook);
+  Branch(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &hook, &done_hook);
   BIND(&hook);
   {
     // Get to the underlying JSPromise instance.
@@ -838,7 +890,7 @@ TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
       // This is the likely case where the new queue fits into new space,
       // and thus we don't need any write barriers for initializing it.
       TNode<FixedArray> new_queue =
-          CAST(AllocateFixedArray(PACKED_ELEMENTS, new_queue_length));
+          AllocateFixedArray(PACKED_ELEMENTS, new_queue_length);
       CopyFixedArrayElements(PACKED_ELEMENTS, queue, new_queue, num_tasks,
                              SKIP_WRITE_BARRIER);
       StoreFixedArrayElement(new_queue, num_tasks, microtask,
@@ -852,9 +904,9 @@ TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
     BIND(&if_lospace);
     {
       // The fallback case where the new queue ends up in large object space.
-      TNode<FixedArray> new_queue = CAST(AllocateFixedArray(
+      TNode<FixedArray> new_queue = AllocateFixedArray(
           PACKED_ELEMENTS, new_queue_length, INTPTR_PARAMETERS,
-          AllocationFlag::kAllowLargeObjectAllocation));
+          AllocationFlag::kAllowLargeObjectAllocation);
       CopyFixedArrayElements(PACKED_ELEMENTS, queue, new_queue, num_tasks);
       StoreFixedArrayElement(new_queue, num_tasks, microtask);
       FillFixedArrayWithValue(PACKED_ELEMENTS, new_queue, new_num_tasks,
@@ -960,7 +1012,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             LoadObjectField(microtask, CallbackTask::kDataOffset);
 
         // If this turns out to become a bottleneck because of the calls
-        // to C++ via CEntryStub, we can choose to speed them up using a
+        // to C++ via CEntry, we can choose to speed them up using a
         // similar mechanism that we use for the CallApiFunction stub,
         // except that calling the MicrotaskCallback is even easier, since
         // it doesn't accept any tagged parameters, doesn't return a value
@@ -1091,10 +1143,165 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
   }
 }
 
+TF_BUILTIN(AllocateInNewSpace, CodeStubAssembler) {
+  TNode<Int32T> requested_size =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kRequestedSize));
+
+  TailCallRuntime(Runtime::kAllocateInNewSpace, NoContextConstant(),
+                  SmiFromInt32(requested_size));
+}
+
+TF_BUILTIN(AllocateInOldSpace, CodeStubAssembler) {
+  TNode<Int32T> requested_size =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kRequestedSize));
+
+  int flags = AllocateTargetSpace::encode(OLD_SPACE);
+  TailCallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
+                  SmiFromInt32(requested_size), SmiConstant(flags));
+}
+
+TF_BUILTIN(Abort, CodeStubAssembler) {
+  TNode<Smi> message_id = CAST(Parameter(Descriptor::kMessageOrMessageId));
+  TailCallRuntime(Runtime::kAbort, NoContextConstant(), message_id);
+}
+
 TF_BUILTIN(AbortJS, CodeStubAssembler) {
-  Node* message = Parameter(Descriptor::kObject);
-  Node* reason = SmiConstant(0);
-  TailCallRuntime(Runtime::kAbortJS, reason, message);
+  TNode<String> message = CAST(Parameter(Descriptor::kMessageOrMessageId));
+  TailCallRuntime(Runtime::kAbortJS, NoContextConstant(), message);
+}
+
+void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 1, kDontSaveFPRegs, kArgvOnStack, false);
+}
+
+void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 1, kDontSaveFPRegs, kArgvOnStack, true);
+}
+
+void Builtins::
+    Generate_CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit(
+        MacroAssembler* masm) {
+  Generate_CEntry(masm, 1, kDontSaveFPRegs, kArgvInRegister, false);
+}
+
+void Builtins::Generate_CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 1, kSaveFPRegs, kArgvOnStack, false);
+}
+
+void Builtins::Generate_CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 1, kSaveFPRegs, kArgvOnStack, true);
+}
+
+void Builtins::Generate_CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 2, kDontSaveFPRegs, kArgvOnStack, false);
+}
+
+void Builtins::Generate_CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 2, kDontSaveFPRegs, kArgvOnStack, true);
+}
+
+void Builtins::
+    Generate_CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit(
+        MacroAssembler* masm) {
+  Generate_CEntry(masm, 2, kDontSaveFPRegs, kArgvInRegister, false);
+}
+
+void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 2, kSaveFPRegs, kArgvOnStack, false);
+}
+
+void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit(
+    MacroAssembler* masm) {
+  Generate_CEntry(masm, 2, kSaveFPRegs, kArgvOnStack, true);
+}
+
+void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
+  // CallApiGetterStub only exists as a stub to avoid duplicating code between
+  // here and code-stubs-<arch>.cc. For example, see CallApiFunctionAndReturn.
+  // Here we abuse the instantiated stub to generate code.
+  CallApiGetterStub stub(masm->isolate());
+  stub.Generate(masm);
+}
+
+void Builtins::Generate_CallApiCallback_Argc0(MacroAssembler* masm) {
+  // The common variants of CallApiCallbackStub (i.e. all that are embedded into
+  // the snapshot) are generated as builtins. The rest remain available as code
+  // stubs. Here we abuse the instantiated stub to generate code and avoid
+  // duplication.
+  const int kArgc = 0;
+  CallApiCallbackStub stub(masm->isolate(), kArgc);
+  stub.Generate(masm);
+}
+
+void Builtins::Generate_CallApiCallback_Argc1(MacroAssembler* masm) {
+  // The common variants of CallApiCallbackStub (i.e. all that are embedded into
+  // the snapshot) are generated as builtins. The rest remain available as code
+  // stubs. Here we abuse the instantiated stub to generate code and avoid
+  // duplication.
+  const int kArgc = 1;
+  CallApiCallbackStub stub(masm->isolate(), kArgc);
+  stub.Generate(masm);
+}
+
+// ES6 [[Get]] operation.
+TF_BUILTIN(GetProperty, CodeStubAssembler) {
+  Label call_runtime(this, Label::kDeferred), return_undefined(this), end(this);
+
+  Node* object = Parameter(Descriptor::kObject);
+  Node* key = Parameter(Descriptor::kKey);
+  Node* context = Parameter(Descriptor::kContext);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+
+  CodeStubAssembler::LookupInHolder lookup_property_in_holder =
+      [=, &var_result, &end](Node* receiver, Node* holder, Node* holder_map,
+                             Node* holder_instance_type, Node* unique_name,
+                             Label* next_holder, Label* if_bailout) {
+        VARIABLE(var_value, MachineRepresentation::kTagged);
+        Label if_found(this);
+        TryGetOwnProperty(context, receiver, holder, holder_map,
+                          holder_instance_type, unique_name, &if_found,
+                          &var_value, next_holder, if_bailout);
+        BIND(&if_found);
+        {
+          var_result.Bind(var_value.value());
+          Goto(&end);
+        }
+      };
+
+  CodeStubAssembler::LookupInHolder lookup_element_in_holder =
+      [=](Node* receiver, Node* holder, Node* holder_map,
+          Node* holder_instance_type, Node* index, Label* next_holder,
+          Label* if_bailout) {
+        // Not supported yet.
+        Use(next_holder);
+        Goto(if_bailout);
+      };
+
+  TryPrototypeChainLookup(object, key, lookup_property_in_holder,
+                          lookup_element_in_holder, &return_undefined,
+                          &call_runtime);
+
+  BIND(&return_undefined);
+  {
+    var_result.Bind(UndefinedConstant());
+    Goto(&end);
+  }
+
+  BIND(&call_runtime);
+  {
+    var_result.Bind(CallRuntime(Runtime::kGetProperty, context, object, key));
+    Goto(&end);
+  }
+
+  BIND(&end);
+  Return(var_result.value());
 }
 
 }  // namespace internal

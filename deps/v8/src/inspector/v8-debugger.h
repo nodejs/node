@@ -35,7 +35,8 @@ using ScheduleStepIntoAsyncCallback =
 using TerminateExecutionCallback =
     protocol::Runtime::Backend::TerminateExecutionCallback;
 
-class V8Debugger : public v8::debug::DebugDelegate {
+class V8Debugger : public v8::debug::DebugDelegate,
+                   public v8::debug::AsyncEventDelegate {
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
   ~V8Debugger();
@@ -49,10 +50,11 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
   bool canBreakProgram();
   void breakProgram(int targetContextGroupId);
+  void interruptAndBreak(int targetContextGroupId);
   void continueProgram(int targetContextGroupId);
   void breakProgramOnAssert(int targetContextGroupId);
 
-  void setPauseOnNextStatement(bool, int targetContextGroupId);
+  void setPauseOnNextCall(bool, int targetContextGroupId);
   void stepIntoStatement(int targetContextGroupId, bool breakOnAsyncCall);
   void stepOverStatement(int targetContextGroupId);
   void stepOutOfFunction(int targetContextGroupId);
@@ -169,21 +171,22 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void asyncTaskCanceledForStepping(void* task);
 
   // v8::debug::DebugEventListener implementation.
-  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            bool isBlackboxed) override;
+  void AsyncEventOccurred(v8::debug::DebugAsyncActionType type, int id,
+                          bool isBlackboxed) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(
-      v8::Local<v8::Context> paused_context, v8::Local<v8::Object>,
+      v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& break_points_hit) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
-                       v8::Local<v8::Object>, v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> exception,
                        v8::Local<v8::Value> promise, bool is_uncaught) override;
   bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                             const v8::debug::Location& start,
                             const v8::debug::Location& end) override;
 
   int currentContextGroupId();
+  bool asyncStepOutOfFunction(int targetContextGroupId, bool onlyAtReturn);
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;

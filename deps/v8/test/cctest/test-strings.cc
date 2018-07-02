@@ -395,7 +395,8 @@ void VerifyConsString(Handle<String> root, ConsStringGenerationData* data) {
 
 static Handle<String> ConstructRandomString(ConsStringGenerationData* data,
                                             unsigned max_recursion) {
-  Factory* factory = CcTest::i_isolate()->factory();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
   // Compute termination characteristics.
   bool terminate = false;
   bool flat = data->rng_.next(data->empty_leaf_threshold_);
@@ -447,7 +448,7 @@ static Handle<String> ConstructRandomString(ConsStringGenerationData* data,
   // Special work needed for flat string.
   if (flat) {
     data->stats_.empty_leaves_++;
-    String::Flatten(root);
+    String::Flatten(isolate, root);
     CHECK(root->IsConsString() && root->IsFlat());
   }
   return root;
@@ -562,10 +563,11 @@ static void TraverseFirst(Handle<String> s1, Handle<String> s2, int chars) {
 TEST(Traverse) {
   printf("TestTraverse\n");
   CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
   ConsStringGenerationData data(false);
   Handle<String> flat = ConstructBalanced(&data);
-  String::Flatten(flat);
+  String::Flatten(isolate, flat);
   Handle<String> left_asymmetric = ConstructLeft(&data, DEEP_DEPTH);
   Handle<String> right_asymmetric = ConstructRight(&data, DEEP_DEPTH);
   Handle<String> symmetric = ConstructBalanced(&data);
@@ -585,19 +587,19 @@ TEST(Traverse) {
   printf("6\n");
   TraverseFirst(left_asymmetric, right_deep_asymmetric, 65536);
   printf("7\n");
-  String::Flatten(left_asymmetric);
+  String::Flatten(isolate, left_asymmetric);
   printf("10\n");
   Traverse(flat, left_asymmetric);
   printf("11\n");
-  String::Flatten(right_asymmetric);
+  String::Flatten(isolate, right_asymmetric);
   printf("12\n");
   Traverse(flat, right_asymmetric);
   printf("14\n");
-  String::Flatten(symmetric);
+  String::Flatten(isolate, symmetric);
   printf("15\n");
   Traverse(flat, symmetric);
   printf("16\n");
-  String::Flatten(left_deep_asymmetric);
+  String::Flatten(isolate, left_deep_asymmetric);
   printf("18\n");
 }
 
@@ -633,7 +635,7 @@ TEST(ConsStringWithEmptyFirstFlatten) {
 
   // Make sure Flatten doesn't alloc a new string.
   DisallowHeapAllocation no_alloc;
-  i::Handle<i::String> flat = i::String::Flatten(cons);
+  i::Handle<i::String> flat = i::String::Flatten(isolate, cons);
   CHECK(flat->IsFlat());
   CHECK_EQ(initial_length, flat->length());
 }
@@ -694,7 +696,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     ConsStringStats flat_string_stats;
     AccumulateStats(flat_string, &flat_string_stats);
     // Flatten string.
-    String::Flatten(flat_string);
+    String::Flatten(isolate, flat_string);
     // Build unflattened version of cons string to test.
     Handle<String> cons_string = build(i, &data);
     ConsStringStats cons_string_stats;
@@ -716,10 +718,10 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
 
 static const int kCharacterStreamNonRandomCases = 8;
 
-
-static Handle<String> BuildEdgeCaseConsString(
-    int test_case, ConsStringGenerationData* data) {
-  Factory* factory = CcTest::i_isolate()->factory();
+static Handle<String> BuildEdgeCaseConsString(int test_case,
+                                              ConsStringGenerationData* data) {
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
   data->Reset();
   switch (test_case) {
     case 0:
@@ -749,7 +751,7 @@ static Handle<String> BuildEdgeCaseConsString(
         Handle<String> string =
             factory->NewConsString(data->block(0), data->block(1))
                 .ToHandleChecked();
-        String::Flatten(string);
+        String::Flatten(isolate, string);
         return string;
       }
     case 7:
@@ -764,7 +766,7 @@ static Handle<String> BuildEdgeCaseConsString(
         Handle<String> left =
             factory->NewConsString(data->block(0), data->block(1))
                 .ToHandleChecked();
-        String::Flatten(left);
+        String::Flatten(isolate, left);
         return factory->NewConsString(left, data->block(2)).ToHandleChecked();
       }
     case 8:
@@ -781,11 +783,11 @@ static Handle<String> BuildEdgeCaseConsString(
         Handle<String> left =
             factory->NewConsString(data->block(0), data->block(1))
                 .ToHandleChecked();
-        String::Flatten(left);
+        String::Flatten(isolate, left);
         Handle<String> right =
             factory->NewConsString(data->block(2), data->block(2))
                 .ToHandleChecked();
-        String::Flatten(right);
+        String::Flatten(isolate, right);
         return factory->NewConsString(left, right).ToHandleChecked();
       }
   }
@@ -885,7 +887,8 @@ static const int kDeepOneByteDepth = 100000;
 
 TEST(DeepOneByte) {
   CcTest::InitializeVM();
-  Factory* factory = CcTest::i_isolate()->factory();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
   char* foo = NewArray<char>(kDeepOneByteDepth);
@@ -901,7 +904,7 @@ TEST(DeepOneByte) {
   }
   Handle<String> flat_string =
       factory->NewConsString(string, foo_string).ToHandleChecked();
-  String::Flatten(flat_string);
+  String::Flatten(isolate, flat_string);
 
   for (int i = 0; i < 500; i++) {
     TraverseFirst(flat_string, string, kDeepOneByteDepth);
@@ -1202,7 +1205,7 @@ TEST(InternalizeExternal) {
   Factory* factory = isolate->factory();
   // This won't leak; the external string mechanism will call Dispose() on it.
   OneByteVectorResource* resource =
-      new OneByteVectorResource(i::Vector<const char>("prop", 4));
+      new OneByteVectorResource(i::Vector<const char>("prop-1234", 9));
   {
     v8::HandleScope scope(CcTest::isolate());
     v8::Local<v8::String> ext_string =
@@ -1211,11 +1214,13 @@ TEST(InternalizeExternal) {
     Handle<String> string = v8::Utils::OpenHandle(*ext_string);
     CHECK(string->IsExternalString());
     CHECK(!string->IsInternalizedString());
-    CHECK(isolate->heap()->InNewSpace(*string));
+    CHECK(!isolate->heap()->InNewSpace(*string));
+    CHECK_EQ(
+        isolate->factory()->string_table()->LookupStringIfExists_NoAllocate(
+            *string),
+        Smi::FromInt(ResultSentinel::kNotFound));
     factory->InternalizeName(string);
-    CHECK(string->IsThinString());
-    CcTest::CollectGarbage(i::NEW_SPACE);
-    CcTest::CollectGarbage(i::NEW_SPACE);
+    CHECK(string->IsExternalString());
     CHECK(string->IsInternalizedString());
     CHECK(!isolate->heap()->InNewSpace(*string));
   }
@@ -1523,7 +1528,7 @@ TEST(FormatMessage) {
                                      arg0, arg1, arg2).ToHandleChecked();
   Handle<String> expected = isolate->factory()->NewStringFromAsciiChecked(
       "'arg0' returned for property 'arg1' of object 'arg2' is not a function");
-  CHECK(String::Equals(result, expected));
+  CHECK(String::Equals(isolate, result, expected));
 }
 
 TEST(Regress609831) {
@@ -1639,6 +1644,21 @@ GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
     "QQ\xF0\x9F\x98\x8D\xF0\x9F\x98\x8D")
 
 #undef GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING
+
+TEST(HashArrayIndexStrings) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(CcTest::isolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+
+  CHECK_EQ(StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */) >>
+               Name::kHashShift,
+           isolate->factory()->zero_string()->Hash());
+
+  CHECK_EQ(StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */) >>
+               Name::kHashShift,
+           isolate->factory()->one_string()->Hash());
+}
 
 }  // namespace test_strings
 }  // namespace internal

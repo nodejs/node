@@ -48,6 +48,7 @@ class SourcePosition final {
       OptimizedCompilationInfo* cinfo) const;
 
   void Print(std::ostream& out, Code* code) const;
+  void PrintJson(std::ostream& out) const;
 
   int ScriptOffset() const { return ScriptOffsetField::decode(value_) - 1; }
   int InliningId() const { return InliningIdField::decode(value_) - 1; }
@@ -105,7 +106,7 @@ struct SourcePositionInfo {
   SourcePositionInfo(SourcePosition pos, Handle<SharedFunctionInfo> f);
 
   SourcePosition position;
-  Handle<SharedFunctionInfo> function;
+  Handle<Script> script;
   int line = -1;
   int column = -1;
 };

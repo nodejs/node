@@ -163,7 +163,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // This only deserializes the scope chain, but doesn't connect the scopes to
   // their corresponding scope infos. Therefore, looking up variables in the
   // deserialized scopes is not possible.
-  void DeserializeScopeChain(ParseInfo* info,
+  void DeserializeScopeChain(Isolate* isolate, ParseInfo* info,
                              MaybeHandle<ScopeInfo> maybe_outer_scope_info);
 
   // Move statistics to Isolate
@@ -216,19 +216,21 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info,
                                  Handle<SharedFunctionInfo> shared_info);
-  FunctionLiteral* DoParseFunction(ParseInfo* info,
+  FunctionLiteral* DoParseFunction(Isolate* isolate, ParseInfo* info,
                                    const AstRawString* raw_name);
 
   // Called by ParseProgram after setting up the scanner.
-  FunctionLiteral* DoParseProgram(ParseInfo* info);
+  FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
 
   // Parse with the script as if the source is implicitly wrapped in a function.
   // We manually construct the AST and scopes for a top-level function and the
   // function wrapper.
-  void ParseWrapped(ParseInfo* info, ZoneList<Statement*>* body,
-                    DeclarationScope* scope, Zone* zone, bool* ok);
+  void ParseWrapped(Isolate* isolate, ParseInfo* info,
+                    ZoneList<Statement*>* body, DeclarationScope* scope,
+                    Zone* zone, bool* ok);
 
-  ZoneList<const AstRawString*>* PrepareWrappedArguments(ParseInfo* info,
+  ZoneList<const AstRawString*>* PrepareWrappedArguments(Isolate* isolate,
+                                                         ParseInfo* info,
                                                          Zone* zone);
 
   void StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate);
@@ -247,7 +249,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       SET_ALLOW(harmony_dynamic_import);
       SET_ALLOW(harmony_import_meta);
       SET_ALLOW(harmony_bigint);
-      SET_ALLOW(harmony_optional_catch_binding);
       SET_ALLOW(harmony_private_fields);
       SET_ALLOW(eval_cache);
 #undef SET_ALLOW
@@ -923,8 +924,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       // BuildParamerterInitializationBlock.
       scope->DeclareParameter(
           is_simple ? parameter->name : ast_value_factory()->empty_string(),
-          is_simple ? VAR : TEMPORARY, is_optional, parameter->is_rest,
-          has_duplicate, ast_value_factory(), parameter->position);
+          is_simple ? VariableMode::kVar : VariableMode::kTemporary,
+          is_optional, parameter->is_rest, has_duplicate, ast_value_factory(),
+          parameter->position);
     }
   }
 

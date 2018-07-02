@@ -137,11 +137,12 @@ class GlobalHandles {
 
   // Iterates over weak roots on the heap.
   void IterateWeakRootsForFinalizers(RootVisitor* v);
-  void IterateWeakRootsForPhantomHandles(WeakSlotCallback should_reset_handle);
+  void IterateWeakRootsForPhantomHandles(
+      WeakSlotCallbackWithHeap should_reset_handle);
 
   // Marks all handles that should be finalized based on the predicate
   // |should_reset_handle| as pending.
-  void IdentifyWeakHandles(WeakSlotCallback should_reset_handle);
+  void IdentifyWeakHandles(WeakSlotCallbackWithHeap should_reset_handle);
 
   // NOTE: Five ...NewSpace... functions below are used during
   // scavenge collections and iterate over sets of handles that are

@@ -540,8 +540,7 @@ static void StackCheck(Local<String> name,
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
     i::Code* code = frame->LookupCode();
     CHECK(code->IsCode());
-    i::Address pc = frame->pc();
-    CHECK(code->contains(pc));
+    CHECK(code->contains(frame->pc()));
     iter.Advance();
   }
 }

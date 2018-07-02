@@ -2567,7 +2567,9 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
       case 0x96:
       case 0x97: {
         int reg = (*data & 0x7) | (rex_b() ? 8 : 0);
-        if (reg == 0) {
+        if (group_1_prefix_ == 0xF3 && *data == 0x90) {
+          AppendToBuffer("pause");
+        } else if (reg == 0) {
           AppendToBuffer("nop");  // Common name for xchg rax,rax.
         } else {
           AppendToBuffer("xchg%c rax,%s",

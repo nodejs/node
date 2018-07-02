@@ -39,7 +39,7 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   __ LoadP(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ LeaveFrame(StackFrame::INTERNAL);
   __ LoadP(r2, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadP(
+  __ LoadLogicalHalfWordP(
       r2, FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
   __ LoadRR(r4, r2);
 

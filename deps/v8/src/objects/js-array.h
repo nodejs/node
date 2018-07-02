@@ -71,7 +71,7 @@ class JSArray : public JSObject {
   DECL_CAST(JSArray)
 
   // Dispatched behavior.
-  DECL_PRINTER(JSArray)
+  DECL_PRINTER_WITH_ISOLATE(JSArray)
   DECL_VERIFIER(JSArray)
 
   // Number of element slots to pre-allocate for an empty array.
@@ -105,7 +105,7 @@ Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
 // defined in ES section #sec-array-iterator-objects.
 class JSArrayIterator : public JSObject {
  public:
-  DECL_PRINTER(JSArrayIterator)
+  DECL_PRINTER_WITH_ISOLATE(JSArrayIterator)
   DECL_VERIFIER(JSArrayIterator)
 
   DECL_CAST(JSArrayIterator)
@@ -196,6 +196,10 @@ class JSArrayBuffer : public JSObject {
   // Sets whether the buffer is tracked by the WasmMemoryTracker.
   void set_is_wasm_memory(bool is_wasm_memory);
 
+  // Removes the backing store from the WasmMemoryTracker and sets
+  // |is_wasm_memory| to false.
+  void StopTrackingWasmMemory(Isolate* isolate);
+
   void FreeBackingStoreFromMainThread();
   static void FreeBackingStore(Isolate* isolate, Allocation allocation);
 
@@ -212,7 +216,7 @@ class JSArrayBuffer : public JSObject {
       SharedFlag shared = SharedFlag::kNotShared) V8_WARN_UNUSED_RESULT;
 
   // Dispatched behavior.
-  DECL_PRINTER(JSArrayBuffer)
+  DECL_PRINTER_WITH_ISOLATE(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)
 
   static const int kByteLengthOffset = JSObject::kHeaderSize;
@@ -304,7 +308,7 @@ class JSTypedArray : public JSArrayBufferView {
                                                    const char* method_name);
 
   // Dispatched behavior.
-  DECL_PRINTER(JSTypedArray)
+  DECL_PRINTER_WITH_ISOLATE(JSTypedArray)
   DECL_VERIFIER(JSTypedArray)
 
   static const int kLengthOffset = kViewSize;
@@ -328,7 +332,7 @@ class JSDataView : public JSArrayBufferView {
   DECL_CAST(JSDataView)
 
   // Dispatched behavior.
-  DECL_PRINTER(JSDataView)
+  DECL_PRINTER_WITH_ISOLATE(JSDataView)
   DECL_VERIFIER(JSDataView)
 
   static const int kSize = kViewSize;

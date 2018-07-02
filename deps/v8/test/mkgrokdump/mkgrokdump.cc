@@ -28,10 +28,7 @@ static const char* kHeader =
 // Non-snapshot builds allocate objects to different places.
 // Debug builds emit debug code, affecting code object sizes.
 // Embedded builtins cause objects to be allocated in different locations.
-// TODO(jgruber,v8:6666): Change the V8_EMBEDDED_BUILTINS condition when it
-// becomes the default.
-#if !defined(V8_EMBEDDED_BUILTINS) && defined(V8_USE_SNAPSHOT) && \
-    !defined(DEBUG)
+#if defined(V8_EMBEDDED_BUILTINS) && defined(V8_USE_SNAPSHOT) && !defined(DEBUG)
 static const char* kBuild = "shipping";
 #else
 static const char* kBuild = "non-shipping";
@@ -48,6 +45,8 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   if (n == NULL && o == space->heap()->name()) n = #camel_name;
 #define STRUCT_LIST_CASE(upper_name, camel_name, name) \
   if (n == NULL && o == space->heap()->name##_map()) n = #camel_name "Map";
+#define ALLOCATION_SITE_LIST_CASE(upper_name, camel_name, size, name) \
+  if (n == NULL && o == space->heap()->name##_map()) n = #camel_name "Map";
 static void DumpMaps(i::PagedSpace* space) {
   i::HeapObjectIterator it(space);
   for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
@@ -58,12 +57,14 @@ static void DumpMaps(i::PagedSpace* space) {
     int t = m->instance_type();
     ROOT_LIST(ROOT_LIST_CASE)
     STRUCT_LIST(STRUCT_LIST_CASE)
+    ALLOCATION_SITE_LIST(ALLOCATION_SITE_LIST_CASE)
     if (n == NULL) continue;
-    const char* sname = AllocationSpaceName(space->identity());
+    const char* sname = space->name();
     i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n", sname, p, t,
               n);
   }
 }
+#undef ALLOCATION_SITE_LIST_CASE
 #undef STRUCT_LIST_CASE
 #undef ROOT_LIST_CASE
 
@@ -108,7 +109,7 @@ static int DumpHeapConstants(const char* argv0) {
       // Code objects are generally platform-dependent.
       if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
         continue;
-      const char* sname = AllocationSpaceName(s->identity());
+      const char* sname = s->name();
       for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
         // Skip maps in RO_SPACE since they will be reported elsewhere.
         if (o->IsMap()) continue;

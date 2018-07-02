@@ -142,6 +142,11 @@ void IteratingStringHasher::VisitTwoByteString(const uint16_t* chars,
   AddCharacters(chars, length);
 }
 
+std::size_t SeededStringHasher::operator()(const char* name) const {
+  return StringHasher::HashSequentialString(
+      name, static_cast<int>(strlen(name)), hashseed_);
+}
+
 }  // namespace internal
 }  // namespace v8
 

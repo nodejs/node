@@ -14,6 +14,7 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/module-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -49,7 +50,7 @@ Object* DeclareGlobal(
     Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>(),
     FeedbackSlot slot = FeedbackSlot::Invalid()) {
   Handle<ScriptContextTable> script_contexts(
-      global->native_context()->script_context_table());
+      global->native_context()->script_context_table(), isolate);
   ScriptContextTable::LookupResult lookup;
   if (ScriptContextTable::Lookup(script_contexts, name, &lookup) &&
       IsLexicalVariableMode(lookup.mode)) {
@@ -134,7 +135,7 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
                        int flags, Handle<FeedbackVector> feedback_vector) {
   HandleScope scope(isolate);
   Handle<JSGlobalObject> global(isolate->global_object());
-  Handle<Context> context(isolate->context());
+  Handle<Context> context(isolate->context(), isolate);
 
   // Traverse the name/value pairs and set the properties.
   int length = declarations->length();
@@ -158,7 +159,8 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
       FeedbackSlot feedback_cells_slot(
           Smi::ToInt(*possibly_feedback_cell_slot));
       Handle<FeedbackCell> feedback_cell(
-          FeedbackCell::cast(feedback_vector->Get(feedback_cells_slot)),
+          FeedbackCell::cast(
+              feedback_vector->Get(feedback_cells_slot)->ToStrongHeapObject()),
           isolate);
       Handle<JSFunction> function =
           isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -215,7 +217,8 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
   DCHECK(context->IsFunctionContext() || context->IsNativeContext() ||
          context->IsScriptContext() || context->IsEvalContext() ||
-         (context->IsBlockContext() && context->has_extension()));
+         (context->IsBlockContext() &&
+          context->scope_info()->is_declaration_scope()));
 
   bool is_function = value->IsJSFunction();
   bool is_var = !is_function;
@@ -284,25 +287,18 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
     object = Handle<JSObject>::cast(holder);
 
   } else if (context->has_extension()) {
-    // Sloppy varblock contexts might not have an extension object yet,
-    // in which case their extension is a ScopeInfo.
-    if (context->extension()->IsScopeInfo()) {
-      DCHECK(context->IsBlockContext());
-      object = isolate->factory()->NewJSObject(
-          isolate->context_extension_function());
-      Handle<HeapObject> extension = isolate->factory()->NewContextExtension(
-          handle(context->scope_info()), object);
-      context->set_extension(*extension);
-    } else {
-      object = handle(context->extension_object(), isolate);
-    }
+    object = handle(context->extension_object(), isolate);
     DCHECK(object->IsJSContextExtensionObject() || object->IsJSGlobalObject());
   } else {
-    // Sloppy eval will never have an extension object, as vars are hoisted out,
-    // and lets are known statically.
-    DCHECK(context->IsFunctionContext());
+    // Sloppy varblock and function contexts might not have an extension object
+    // yet. Sloppy eval will never have an extension object, as vars are hoisted
+    // out, and lets are known statically.
+    DCHECK((context->IsBlockContext() &&
+            context->scope_info()->is_declaration_scope()) ||
+           context->IsFunctionContext());
     object =
         isolate->factory()->NewJSObject(isolate->context_extension_function());
+
     context->set_extension(*object);
   }
 
@@ -417,7 +413,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
 
       // Store the context and the arguments array at the beginning of the
       // parameter map.
-      Handle<Context> context(isolate->context());
+      Handle<Context> context(isolate->context(), isolate);
       Handle<FixedArray> arguments =
           isolate->factory()->NewFixedArray(argument_count, NOT_TENURED);
       parameter_map->set(0, *context);
@@ -432,43 +428,24 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
         --index;
       }
 
-      Handle<ScopeInfo> scope_info(callee->shared()->scope_info());
-      while (index >= 0) {
-        // Detect duplicate names to the right in the parameter list.
-        Handle<String> name(scope_info->ParameterName(index));
-        int context_local_count = scope_info->ContextLocalCount();
-        bool duplicate = false;
-        for (int j = index + 1; j < parameter_count; ++j) {
-          if (scope_info->ParameterName(j) == *name) {
-            duplicate = true;
-            break;
-          }
-        }
+      Handle<ScopeInfo> scope_info(callee->shared()->scope_info(), isolate);
 
-        if (duplicate) {
-          // This goes directly in the arguments array with a hole in the
-          // parameter map.
-          arguments->set(index, parameters[index]);
-          parameter_map->set_the_hole(index + 2);
-        } else {
-          // The context index goes in the parameter map with a hole in the
-          // arguments array.
-          int context_index = -1;
-          for (int j = 0; j < context_local_count; ++j) {
-            if (scope_info->ContextLocalName(j) == *name) {
-              context_index = j;
-              break;
-            }
-          }
+      // First mark all mappable slots as unmapped and copy the values into the
+      // arguments object.
+      for (int i = 0; i < mapped_count; i++) {
+        arguments->set(i, parameters[i]);
+        parameter_map->set_the_hole(i + 2);
+      }
 
-          DCHECK_GE(context_index, 0);
-          arguments->set_the_hole(index);
-          parameter_map->set(
-              index + 2,
-              Smi::FromInt(Context::MIN_CONTEXT_SLOTS + context_index));
-        }
-
-        --index;
+      // Walk all context slots to find context allocated parameters. Mark each
+      // found parameter as mapped.
+      for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
+        if (!scope_info->ContextLocalIsParameter(i)) continue;
+        int parameter = scope_info->ContextLocalParameterNumber(i);
+        if (parameter >= mapped_count) continue;
+        arguments->set_the_hole(parameter);
+        Smi* slot = Smi::FromInt(Context::MIN_CONTEXT_SLOTS + i);
+        parameter_map->set(parameter + 2, slot);
       }
     } else {
       // If there is no aliasing, the arguments object elements are not
@@ -649,12 +626,11 @@ RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   return *function;
 }
 
-static Object* FindNameClash(Handle<ScopeInfo> scope_info,
+static Object* FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
                              Handle<JSGlobalObject> global_object,
                              Handle<ScriptContextTable> script_context) {
-  Isolate* isolate = scope_info->GetIsolate();
   for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
-    Handle<String> name(scope_info->ContextLocalName(var));
+    Handle<String> name(scope_info->ContextLocalName(var), isolate);
     VariableMode mode = scope_info->ContextLocalMode(var);
     ScriptContextTable::LookupResult lookup;
     if (ScriptContextTable::Lookup(script_context, name, &lookup)) {
@@ -691,33 +667,25 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
 
 RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
-  Handle<JSGlobalObject> global_object(function->context()->global_object());
-  Handle<Context> native_context(global_object->native_context());
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 0);
+  Handle<Context> native_context(isolate->context(), isolate);
+  DCHECK(native_context->IsNativeContext());
+  Handle<JSGlobalObject> global_object(native_context->global_object(),
+                                       isolate);
   Handle<ScriptContextTable> script_context_table(
-      native_context->script_context_table());
+      native_context->script_context_table(), isolate);
 
   Object* name_clash_result =
-      FindNameClash(scope_info, global_object, script_context_table);
+      FindNameClash(isolate, scope_info, global_object, script_context_table);
   if (isolate->has_pending_exception()) return name_clash_result;
-
-  // Script contexts have a canonical empty function as their closure, not the
-  // anonymous closure containing the global code.  See
-  // FullCodeGenerator::PushFunctionArgumentForContextAllocation.
-  Handle<JSFunction> closure(function->shared()->IsUserJavaScript()
-                                 ? native_context->closure()
-                                 : *function);
 
   // We do not need script contexts here during bootstrap.
   DCHECK(!isolate->bootstrapper()->IsActive());
-  Handle<Context> result =
-      isolate->factory()->NewScriptContext(closure, scope_info);
 
-  DCHECK(function->context() == isolate->context());
-  DCHECK(*global_object == result->global_object());
+  Handle<Context> result =
+      isolate->factory()->NewScriptContext(native_context, scope_info);
 
   Handle<ScriptContextTable> new_script_context_table =
       ScriptContextTable::Extend(script_context_table, result);
@@ -727,54 +695,47 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
 
 RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  CONVERT_SMI_ARG_CHECKED(scope_type, 1);
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 0);
 
-  DCHECK(function->context() == isolate->context());
-  int length = function->shared()->scope_info()->ContextLength();
-  return *isolate->factory()->NewFunctionContext(
-      length, function, static_cast<ScopeType>(scope_type));
+  Handle<Context> outer(isolate->context(), isolate);
+  return *isolate->factory()->NewFunctionContext(outer, scope_info);
 }
 
 RUNTIME_FUNCTION(Runtime_PushWithContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, extension_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 2);
-  Handle<Context> current(isolate->context());
-  Handle<Context> context = isolate->factory()->NewWithContext(
-      function, current, scope_info, extension_object);
+  Handle<Context> current(isolate->context(), isolate);
+  Handle<Context> context =
+      isolate->factory()->NewWithContext(current, scope_info, extension_object);
   isolate->set_context(*context);
   return *context;
 }
 
 RUNTIME_FUNCTION(Runtime_PushModuleContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Module, module, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
-  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 2);
-  DCHECK(function->context() == isolate->context());
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
 
+  Handle<Context> outer(isolate->context(), isolate);
   Handle<Context> context =
-      isolate->factory()->NewModuleContext(module, function, scope_info);
+      isolate->factory()->NewModuleContext(module, outer, scope_info);
   isolate->set_context(*context);
   return *context;
 }
 
 RUNTIME_FUNCTION(Runtime_PushCatchContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, thrown_object, 1);
-  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 3);
-  Handle<Context> current(isolate->context());
-  Handle<Context> context = isolate->factory()->NewCatchContext(
-      function, current, scope_info, name, thrown_object);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, thrown_object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
+  Handle<Context> current(isolate->context(), isolate);
+  Handle<Context> context =
+      isolate->factory()->NewCatchContext(current, scope_info, thrown_object);
   isolate->set_context(*context);
   return *context;
 }
@@ -782,12 +743,11 @@ RUNTIME_FUNCTION(Runtime_PushCatchContext) {
 
 RUNTIME_FUNCTION(Runtime_PushBlockContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
-  Handle<Context> current(isolate->context());
+  Handle<Context> current(isolate->context(), isolate);
   Handle<Context> context =
-      isolate->factory()->NewBlockContext(function, current, scope_info);
+      isolate->factory()->NewBlockContext(current, scope_info);
   isolate->set_context(*context);
   return *context;
 }
@@ -830,11 +790,9 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 
 namespace {
 
-MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
+MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
                                    ShouldThrow should_throw,
                                    Handle<Object>* receiver_return = nullptr) {
-  Isolate* const isolate = name->GetIsolate();
-
   int index;
   PropertyAttributes attributes;
   InitializationFlag flag;
@@ -844,7 +802,7 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   if (!holder.is_null() && holder->IsModule()) {
-    return Module::LoadVariable(Handle<Module>::cast(holder), index);
+    return Module::LoadVariable(isolate, Handle<Module>::cast(holder), index);
   }
   if (index != Context::kNotFound) {
     DCHECK(holder->IsContext());
@@ -900,7 +858,8 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, kThrowOnError));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           LoadLookupSlot(isolate, name, kThrowOnError));
 }
 
 
@@ -908,7 +867,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, kDontThrow));
+  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(isolate, name, kDontThrow));
 }
 
 
@@ -920,7 +879,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   Handle<Object> value;
   Handle<Object> receiver;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, LoadLookupSlot(name, kThrowOnError, &receiver),
+      isolate, value, LoadLookupSlot(isolate, name, kThrowOnError, &receiver),
       MakePair(isolate->heap()->exception(), nullptr));
   return MakePair(*value, *receiver);
 }
@@ -929,9 +888,9 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
 namespace {
 
 MaybeHandle<Object> StoreLookupSlot(
-    Handle<String> name, Handle<Object> value, LanguageMode language_mode,
+    Isolate* isolate, Handle<String> name, Handle<Object> value,
+    LanguageMode language_mode,
     ContextLookupFlags context_lookup_flags = FOLLOW_CHAINS) {
-  Isolate* const isolate = name->GetIsolate();
   Handle<Context> context(isolate->context(), isolate);
 
   int index;
@@ -984,7 +943,7 @@ MaybeHandle<Object> StoreLookupSlot(
         isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
   } else {
     // If absent in sloppy mode: add the property to the global object.
-    object = Handle<JSReceiver>(context->global_object());
+    object = handle(context->global_object(), isolate);
   }
 
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -1001,8 +960,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           StoreLookupSlot(name, value, LanguageMode::kSloppy));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, StoreLookupSlot(isolate, name, value, LanguageMode::kSloppy));
 }
 
 // Store into a dynamic context for sloppy-mode block-scoped function hoisting
@@ -1016,8 +975,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
   const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
       FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      StoreLookupSlot(name, value, LanguageMode::kSloppy, lookup_flags));
+      isolate, StoreLookupSlot(isolate, name, value, LanguageMode::kSloppy,
+                               lookup_flags));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
@@ -1025,8 +984,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           StoreLookupSlot(name, value, LanguageMode::kStrict));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, StoreLookupSlot(isolate, name, value, LanguageMode::kStrict));
 }
 
 }  // namespace internal

@@ -67,6 +67,10 @@ class Module : public Struct {
   // The exception in the case {status} is kErrored.
   Object* GetException();
 
+  // The shared function info in case {status} is not kEvaluating, kEvaluated or
+  // kErrored.
+  SharedFunctionInfo* GetSharedFunctionInfo() const;
+
   // The namespace object (or undefined).
   DECL_ACCESSORS(module_namespace, HeapObject)
 
@@ -91,26 +95,29 @@ class Module : public Struct {
   // otherwise. (In the case where the callback throws an exception, that
   // exception is propagated.)
   static V8_WARN_UNUSED_RESULT bool Instantiate(
-      Handle<Module> module, v8::Local<v8::Context> context,
+      Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
       v8::Module::ResolveCallback callback);
 
   // Implementation of spec operation ModuleEvaluation.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
-      Handle<Module> module);
+      Isolate* isolate, Handle<Module> module);
 
   Cell* GetCell(int cell_index);
-  static Handle<Object> LoadVariable(Handle<Module> module, int cell_index);
+  static Handle<Object> LoadVariable(Isolate* isolate, Handle<Module> module,
+                                     int cell_index);
   static void StoreVariable(Handle<Module> module, int cell_index,
                             Handle<Object> value);
 
   // Get the namespace object for [module_request] of [module].  If it doesn't
   // exist yet, it is created.
-  static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module,
+  static Handle<JSModuleNamespace> GetModuleNamespace(Isolate* isolate,
+                                                      Handle<Module> module,
                                                       int module_request);
 
   // Get the namespace object for [module].  If it doesn't exist yet, it is
   // created.
-  static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module);
+  static Handle<JSModuleNamespace> GetModuleNamespace(Isolate* isolate,
+                                                      Handle<Module> module);
 
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
@@ -139,9 +146,10 @@ class Module : public Struct {
 
   // Helpers for Instantiate and Evaluate.
 
-  static void CreateExport(Handle<Module> module, int cell_index,
-                           Handle<FixedArray> names);
-  static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
+  static void CreateExport(Isolate* isolate, Handle<Module> module,
+                           int cell_index, Handle<FixedArray> names);
+  static void CreateIndirectExport(Isolate* isolate, Handle<Module> module,
+                                   Handle<String> name,
                                    Handle<ModuleInfoEntry> entry);
 
   // The [must_resolve] argument indicates whether or not an exception should be
@@ -154,46 +162,48 @@ class Module : public Struct {
   // exception (so check manually!).
   class ResolveSet;
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExport(
-      Handle<Module> module, Handle<String> module_specifier,
+      Isolate* isolate, Handle<Module> module, Handle<String> module_specifier,
       Handle<String> export_name, MessageLocation loc, bool must_resolve,
       ResolveSet* resolve_set);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveImport(
-      Handle<Module> module, Handle<String> name, int module_request,
-      MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
+      Isolate* isolate, Handle<Module> module, Handle<String> name,
+      int module_request, MessageLocation loc, bool must_resolve,
+      ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
-      Handle<Module> module, Handle<String> module_specifier,
+      Isolate* isolate, Handle<Module> module, Handle<String> module_specifier,
       Handle<String> export_name, MessageLocation loc, bool must_resolve,
       ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
-      Handle<Module> module, v8::Local<v8::Context> context,
+      Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
       v8::Module::ResolveCallback callback);
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
-      Handle<Module> module, ZoneForwardList<Handle<Module>>* stack,
-      unsigned* dfs_index, Zone* zone);
-  static void RunInitializationCode(Handle<Module> module);
+      Isolate* isolate, Handle<Module> module,
+      ZoneForwardList<Handle<Module>>* stack, unsigned* dfs_index, Zone* zone);
+  static V8_WARN_UNUSED_RESULT bool RunInitializationCode(
+      Isolate* isolate, Handle<Module> module);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
-      Handle<Module> module, ZoneForwardList<Handle<Module>>* stack,
-      unsigned* dfs_index);
+      Isolate* isolate, Handle<Module> module,
+      ZoneForwardList<Handle<Module>>* stack, unsigned* dfs_index);
 
-  static void MaybeTransitionComponent(Handle<Module> module,
-                                       ZoneForwardList<Handle<Module>>* stack,
-                                       Status new_status);
+  static V8_WARN_UNUSED_RESULT bool MaybeTransitionComponent(
+      Isolate* isolate, Handle<Module> module,
+      ZoneForwardList<Handle<Module>>* stack, Status new_status);
 
   // Set module's status back to kUninstantiated and reset other internal state.
   // This is used when instantiation fails.
-  static void Reset(Handle<Module> module);
-  static void ResetGraph(Handle<Module> module);
+  static void Reset(Isolate* isolate, Handle<Module> module);
+  static void ResetGraph(Isolate* isolate, Handle<Module> module);
 
   // To set status to kErrored, RecordError should be used.
-  void SetStatus(Status status);
-  void RecordError();
+  void SetStatus(Isolate* isolate, Status status);
+  void RecordError(Isolate* isolate);
 
 #ifdef DEBUG
   // For --trace-module-status.
-  void PrintStatusTransition(Status new_status);
+  void PrintStatusTransition(Isolate* isolate, Status new_status);
 #endif  // DEBUG
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Module);
@@ -205,7 +215,7 @@ class Module : public Struct {
 class JSModuleNamespace : public JSObject {
  public:
   DECL_CAST(JSModuleNamespace)
-  DECL_PRINTER(JSModuleNamespace)
+  DECL_PRINTER_WITH_ISOLATE(JSModuleNamespace)
   DECL_VERIFIER(JSModuleNamespace)
 
   // The actual module whose namespace is being represented.
@@ -214,7 +224,8 @@ class JSModuleNamespace : public JSObject {
   // Retrieve the value exported by [module] under the given [name]. If there is
   // no such export, return Just(undefined). If the export is uninitialized,
   // schedule an exception and return Nothing.
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetExport(Handle<String> name);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetExport(Isolate* isolate,
+                                                      Handle<String> name);
 
   // Return the (constant) property attributes for the referenced property,
   // which is assumed to correspond to an export. If the export is

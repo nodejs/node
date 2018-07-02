@@ -79,7 +79,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   v8::internal::Handle<v8::internal::Script> script =
       factory->NewScript(source.ToHandleChecked());
-  v8::internal::ParseInfo info(script);
+  v8::internal::ParseInfo info(i_isolate, script);
   if (!v8::internal::parsing::ParseProgram(&info, i_isolate)) {
     i_isolate->OptionalRescheduleException(true);
   }

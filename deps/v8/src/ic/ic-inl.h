@@ -26,7 +26,7 @@ Address IC::constant_pool() const {
   if (FLAG_enable_embedded_constant_pool) {
     return raw_constant_pool();
   } else {
-    return nullptr;
+    return kNullAddress;
   }
 }
 
@@ -35,14 +35,18 @@ Address IC::raw_constant_pool() const {
   if (FLAG_enable_embedded_constant_pool) {
     return *constant_pool_address_;
   } else {
-    return nullptr;
+    return kNullAddress;
   }
 }
 
-
-bool IC::IsHandler(Object* object) {
-  return (object->IsSmi() && (object != nullptr)) || object->IsDataHandler() ||
-         object->IsWeakCell() || object->IsCode();
+bool IC::IsHandler(MaybeObject* object) {
+  HeapObject* heap_object;
+  return (object->IsSmi() && (object != nullptr)) ||
+         (object->ToWeakHeapObject(&heap_object) &&
+          (heap_object->IsMap() || heap_object->IsPropertyCell())) ||
+         (object->ToStrongHeapObject(&heap_object) &&
+          (heap_object->IsDataHandler() ||
+           heap_object->IsCode()));
 }
 
 bool IC::AddressIsDeoptimizedCode() const {

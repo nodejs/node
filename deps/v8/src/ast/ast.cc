@@ -7,7 +7,6 @@
 #include <cmath>  // For isfinite.
 #include <vector>
 
-#include "src/ast/compile-time-value.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
 #include "src/base/hashmap.h"
@@ -112,6 +111,13 @@ bool Expression::IsNullLiteral() const {
 
 bool Expression::IsTheHoleLiteral() const {
   return IsLiteral() && AsLiteral()->type() == Literal::kTheHole;
+}
+
+bool Expression::IsCompileTimeValue() {
+  if (IsLiteral()) return true;
+  MaterializedLiteral* literal = AsMaterializedLiteral();
+  if (literal == nullptr) return false;
+  return literal->IsSimple();
 }
 
 bool Expression::IsUndefinedLiteral() const {
@@ -276,7 +282,9 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
     AllowHandleDereference allow_deref;
     return inferred_name_->ToCString();
   } else {
-    return std::unique_ptr<char[]>(new char{'\0'});
+    char* empty_str = new char[1];
+    empty_str[0] = 0;
+    return std::unique_ptr<char[]>(empty_str);
   }
 
   // TODO(rmcilroy): Deal with two-character strings.
@@ -332,8 +340,7 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
 
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
-      (kind_ == MATERIALIZED_LITERAL &&
-       CompileTimeValue::IsCompileTimeValue(value_));
+         (kind_ == MATERIALIZED_LITERAL && value_->IsCompileTimeValue());
 }
 
 
@@ -358,19 +365,37 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
     Literal* literal = property->key()->AsLiteral();
     DCHECK(!literal->IsNullLiteral());
 
-    // If there is an existing entry do not emit a store unless the previous
-    // entry was also an accessor.
     uint32_t hash = literal->Hash();
     ZoneHashMap::Entry* entry = table.LookupOrInsert(literal, hash, allocator);
-    if (entry->value != nullptr) {
-      auto previous_kind =
+    if (entry->value == nullptr) {
+      entry->value = property;
+    } else {
+      // We already have a later definition of this property, so we don't need
+      // to emit a store for the current one.
+      //
+      // There are two subtleties here.
+      //
+      // (1) Emitting a store might actually be incorrect. For example, in {get
+      // foo() {}, foo: 42}, the getter store would override the data property
+      // (which, being a non-computed compile-time valued property, is already
+      // part of the initial literal object.
+      //
+      // (2) If the later definition is an accessor (say, a getter), and the
+      // current definition is a complementary accessor (here, a setter), then
+      // we still must emit a store for the current definition.
+
+      auto later_kind =
           static_cast<ObjectLiteral::Property*>(entry->value)->kind();
-      if (!((property->kind() == GETTER && previous_kind == SETTER) ||
-            (property->kind() == SETTER && previous_kind == GETTER))) {
+      bool complementary_accessors =
+          (property->kind() == GETTER && later_kind == SETTER) ||
+          (property->kind() == SETTER && later_kind == GETTER);
+      if (!complementary_accessors) {
         property->set_emit_store(false);
+        if (later_kind == GETTER || later_kind == SETTER) {
+          entry->value = property;
+        }
       }
     }
-    entry->value = property;
   }
 }
 
@@ -425,7 +450,7 @@ int ObjectLiteral::InitDepthAndFlags() {
     Literal* key = property->key()->AsLiteral();
     Expression* value = property->value();
 
-    bool is_compile_time_value = CompileTimeValue::IsCompileTimeValue(value);
+    bool is_compile_time_value = value->IsCompileTimeValue();
     is_simple = is_simple && is_compile_time_value;
 
     // Keep track of the number of elements in the object literal and
@@ -548,7 +573,7 @@ int ArrayLiteral::InitDepthAndFlags() {
       if (subliteral_depth > depth_acc) depth_acc = subliteral_depth;
     }
 
-    if (!CompileTimeValue::IsCompileTimeValue(element)) {
+    if (!element->IsCompileTimeValue()) {
       is_simple = false;
     }
   }
@@ -613,7 +638,8 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     elements = isolate->factory()->NewFixedDoubleArray(constants_length);
     // We are copying from non-fast-double to fast-double.
     ElementsKind from_kind = TERMINAL_FAST_ELEMENTS_KIND;
-    accessor->CopyElements(fixed_array, from_kind, elements, constants_length);
+    accessor->CopyElements(isolate, fixed_array, from_kind, elements,
+                           constants_length);
   }
 
   // Remember both the literal's constant values as well as the ElementsKind.
@@ -641,8 +667,8 @@ Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
   if (expression->IsLiteral()) {
     return expression->AsLiteral()->BuildValue(isolate);
   }
-  if (CompileTimeValue::IsCompileTimeValue(expression)) {
-    return CompileTimeValue::GetValue(isolate, expression);
+  if (expression->IsCompileTimeValue()) {
+    return isolate->factory()->NewCompileTimeValue(expression);
   }
   return isolate->factory()->uninitialized_value();
 }
@@ -804,9 +830,10 @@ Call::CallType Call::GetCallType() const {
     if (proxy->var()->IsUnallocated()) {
       return GLOBAL_CALL;
     } else if (proxy->var()->IsLookupSlot()) {
-      // Calls going through 'with' always use DYNAMIC rather than DYNAMIC_LOCAL
-      // or DYNAMIC_GLOBAL.
-      return proxy->var()->mode() == DYNAMIC ? WITH_CALL : OTHER_CALL;
+      // Calls going through 'with' always use VariableMode::kDynamic rather
+      // than VariableMode::kDynamicLocal or VariableMode::kDynamicGlobal.
+      return proxy->var()->mode() == VariableMode::kDynamic ? WITH_CALL
+                                                            : OTHER_CALL;
     }
   }
 

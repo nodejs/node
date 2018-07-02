@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
 Debug = debug.Debug
 
@@ -33,35 +34,26 @@ unique_id = 1;
 function TestBase(name) {
   print("TestBase constructor: " + name);
 
-  this.ChooseAnimal = eval(
-      "/* " + unique_id + "*/\n" +
-      "(function ChooseAnimal(callback) {\n " +
-      "  callback();\n" +
-      "  return 'Cat';\n" +
-      "})\n"
-  );
+  const original_source = '/* ' + unique_id + '*/\n' +
+      '(function ChooseAnimal(callback) {\n ' +
+      '  callback();\n' +
+      '  return \'Cat\';\n' +
+      '})\n';
+  const updated_source = original_source.replace('\'Cat\'', '\'Capybara\'');
+
+  this.ChooseAnimal = eval(original_source);
   // Prevents eval script caching.
   unique_id++;
 
-  var script = Debug.findScript(this.ChooseAnimal);
-
-  var orig_animal = "'Cat'";
-  var patch_pos = script.source.indexOf(orig_animal);
-  var new_animal_patch = "'Capybara'";
+  const func = this.ChooseAnimal;
 
   var got_exception = false;
   var successfully_changed = false;
 
   // Should be called from Debug context.
-  this.ScriptChanger = function() {
+  this.ScriptChanger = () => {
     assertEquals(false, successfully_changed, "applying patch second time");
-    // Runs in debugger context.
-    var change_log = new Array();
-    try {
-      Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
-    } finally {
-      print("Change log: " + JSON.stringify(change_log) + "\n");
-    }
+    %LiveEditPatchScript(func, updated_source);
     successfully_changed = true;
   };
 }
@@ -74,7 +66,7 @@ function WrapInCatcher(f, holder) {
     try {
       f();
     } catch (e) {
-      if (e instanceof Debug.LiveEdit.Failure) {
+      if (e.startsWith('LiveEdit failed')) {
         holder[0] = e;
       } else {
         throw e;

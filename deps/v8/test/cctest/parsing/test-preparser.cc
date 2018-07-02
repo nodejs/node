@@ -730,7 +730,7 @@ TEST(PreParserScopeAnalysis) {
       v8::Local<v8::Value> v = CompileRun(program.start());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
+      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
 
       if (inners[inner_ix].bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
           !outers[outer_ix].strict_outer) {
@@ -740,13 +740,13 @@ TEST(PreParserScopeAnalysis) {
 
       CHECK(shared->HasPreParsedScopeData());
       i::Handle<i::PreParsedScopeData> produced_data_on_heap(
-          i::PreParsedScopeData::cast(shared->preparsed_scope_data()));
+          i::PreParsedScopeData::cast(shared->preparsed_scope_data()), isolate);
 
       // Parse the lazy function using the scope data.
-      i::ParseInfo using_scope_data(shared);
+      i::ParseInfo using_scope_data(isolate, shared);
       using_scope_data.set_lazy_compile();
       using_scope_data.consumed_preparsed_scope_data()->SetData(
-          produced_data_on_heap);
+          isolate, produced_data_on_heap);
       CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate));
 
       // Verify that we skipped at least one function inside that scope.
@@ -759,7 +759,7 @@ TEST(PreParserScopeAnalysis) {
       CHECK(i::DeclarationScope::Analyze(&using_scope_data));
 
       // Parse the lazy function again eagerly to produce baseline data.
-      i::ParseInfo not_using_scope_data(shared);
+      i::ParseInfo not_using_scope_data(isolate, shared);
       not_using_scope_data.set_lazy_compile();
       CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate));
 
@@ -799,7 +799,7 @@ TEST(Regress753896) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(
       "function lazy() { let v = 0; if (true) { var v = 0; } }");
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::ParseInfo info(script);
+  i::ParseInfo info(isolate, script);
 
   // We don't assert that parsing succeeded or that it failed; currently the
   // error is not detected inside lazy functions, but it might be in the future.

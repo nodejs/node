@@ -5,6 +5,10 @@
 #ifndef V8_ARM64_FRAME_CONSTANTS_ARM64_H_
 #define V8_ARM64_FRAME_CONSTANTS_ARM64_H_
 
+#include "src/base/macros.h"
+#include "src/frame-constants.h"
+#include "src/globals.h"
+
 namespace v8 {
 namespace internal {
 
@@ -44,6 +48,20 @@ class ExitFrameConstants : public TypedFrameConstants {
   static constexpr int kLastExitFrameField = kPaddingOffset;
 
   static constexpr int kConstantPoolOffset = 0;  // Not used
+};
+
+class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+ public:
+  static constexpr int kNumberOfSavedGpParamRegs = 8;
+  static constexpr int kNumberOfSavedFpParamRegs = 8;
+
+  // FP-relative.
+  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  static constexpr int kFixedFrameSizeFromFp =
+      // Header is padded to 16 byte (see {MacroAssembler::EnterFrame}).
+      RoundUp<16>(TypedFrameConstants::kFixedFrameSizeFromFp) +
+      kNumberOfSavedGpParamRegs * kPointerSize +
+      kNumberOfSavedFpParamRegs * kDoubleSize;
 };
 
 class JavaScriptFrameConstants : public AllStatic {

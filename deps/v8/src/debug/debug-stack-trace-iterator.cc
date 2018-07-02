@@ -84,7 +84,7 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     // So let's try to fetch it using same logic as is used to retrieve 'this'
     // during DebugEvaluate::Local.
     Handle<JSFunction> function = frame_inspector_->GetFunction();
-    Handle<Context> context(function->context());
+    Handle<Context> context(function->context(), isolate_);
     // Arrow function defined in top level function without references to
     // variables may have NativeContext as context.
     if (!context->IsFunctionContext()) return v8::MaybeLocal<v8::Value>();
@@ -95,7 +95,7 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     if (!scope_iterator.GetNonLocals()->Has(isolate_->factory()->this_string()))
       return v8::MaybeLocal<v8::Value>();
 
-    Handle<ScopeInfo> scope_info(context->scope_info());
+    Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);
     VariableMode mode;
     InitializationFlag flag;
     MaybeAssignedFlag maybe_assigned_flag;
@@ -125,7 +125,7 @@ v8::Local<v8::Value> DebugStackTraceIterator::GetReturnValue() const {
   return Utils::ToLocal(isolate_->debug()->return_value_handle());
 }
 
-v8::Local<v8::String> DebugStackTraceIterator::GetFunctionName() const {
+v8::Local<v8::String> DebugStackTraceIterator::GetFunctionDebugName() const {
   DCHECK(!Done());
   return Utils::ToLocal(frame_inspector_->GetFunctionName());
 }
@@ -172,6 +172,8 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
     v8::Local<v8::String> source, bool throw_on_side_effect) {
   DCHECK(!Done());
   Handle<Object> value;
+  i::SafeForInterruptsScope safe_for_interrupt_scope(
+      isolate_, i::StackGuard::TERMINATE_EXECUTION);
   if (!DebugEvaluate::Local(isolate_, iterator_.frame()->id(),
                             inlined_frame_index_, Utils::OpenHandle(*source),
                             throw_on_side_effect)

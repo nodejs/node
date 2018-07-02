@@ -52,7 +52,7 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
 
     Node* field_index_smi = SmiConstant(field_index);
     Node* function =
-        ExternalConstant(ExternalReference::get_date_field_function(isolate()));
+        ExternalConstant(ExternalReference::get_date_field_function());
     Node* result = CallCFunction2(
         MachineType::AnyTagged(), MachineType::AnyTagged(),
         MachineType::AnyTagged(), function, receiver, field_index_smi);

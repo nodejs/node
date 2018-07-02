@@ -74,8 +74,8 @@ MaybeHandle<String> StringReplaceOneCharWithString(
   recursion_limit--;
   if (subject->IsConsString()) {
     ConsString* cons = ConsString::cast(*subject);
-    Handle<String> first = Handle<String>(cons->first());
-    Handle<String> second = Handle<String>(cons->second());
+    Handle<String> first = handle(cons->first(), isolate);
+    Handle<String> second = handle(cons->second(), isolate);
     Handle<String> new_first;
     if (!StringReplaceOneCharWithString(isolate, first, search, replace, found,
                                         recursion_limit).ToHandle(&new_first)) {
@@ -125,7 +125,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   }
   if (isolate->has_pending_exception()) return isolate->heap()->exception();
 
-  subject = String::Flatten(subject);
+  subject = String::Flatten(isolate, subject);
   if (StringReplaceOneCharWithString(isolate, subject, search, replace, &found,
                                      kRecursionLimit).ToHandle(&result)) {
     return *result;
@@ -141,7 +141,7 @@ RUNTIME_FUNCTION(Runtime_StringTrim) {
   Handle<String> string = args.at<String>(0);
   CONVERT_SMI_ARG_CHECKED(mode, 1);
   String::TrimMode trim_mode = static_cast<String::TrimMode>(mode);
-  return *String::Trim(string, trim_mode);
+  return *String::Trim(isolate, string, trim_mode);
 }
 
 // ES6 #sec-string.prototype.includes
@@ -257,7 +257,7 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
-  subject = String::Flatten(subject);
+  subject = String::Flatten(isolate, subject);
 
   if (i >= static_cast<uint32_t>(subject->length())) {
     return isolate->heap()->nan_value();
@@ -350,7 +350,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   CHECK(array->HasObjectElements());
   CHECK_GE(array_length, 0);
 
-  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
+  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()), isolate);
   if (fixed_array->length() < array_length) {
     array_length = fixed_array->length();
   }
@@ -600,7 +600,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
 
-  s = String::Flatten(s);
+  s = String::Flatten(isolate, s);
   const int length = static_cast<int>(Min<uint32_t>(s->length(), limit));
 
   Handle<FixedArray> elements;
@@ -644,7 +644,7 @@ RUNTIME_FUNCTION(Runtime_StringLessThan) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  ComparisonResult result = String::Compare(x, y);
+  ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
       ComparisonResultToBool(Operation::kLessThan, result));
@@ -655,7 +655,7 @@ RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  ComparisonResult result = String::Compare(x, y);
+  ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
       ComparisonResultToBool(Operation::kLessThanOrEqual, result));
@@ -666,7 +666,7 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  ComparisonResult result = String::Compare(x, y);
+  ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
       ComparisonResultToBool(Operation::kGreaterThan, result));
@@ -677,7 +677,7 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  ComparisonResult result = String::Compare(x, y);
+  ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
       ComparisonResultToBool(Operation::kGreaterThanOrEqual, result));
@@ -688,7 +688,7 @@ RUNTIME_FUNCTION(Runtime_StringEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  return isolate->heap()->ToBoolean(String::Equals(x, y));
+  return isolate->heap()->ToBoolean(String::Equals(isolate, x, y));
 }
 
 RUNTIME_FUNCTION(Runtime_StringNotEqual) {
@@ -696,14 +696,14 @@ RUNTIME_FUNCTION(Runtime_StringNotEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  return isolate->heap()->ToBoolean(!String::Equals(x, y));
+  return isolate->heap()->ToBoolean(!String::Equals(isolate, x, y));
 }
 
 RUNTIME_FUNCTION(Runtime_FlattenString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
-  return *String::Flatten(str);
+  return *String::Flatten(isolate, str);
 }
 
 RUNTIME_FUNCTION(Runtime_StringCharFromCode) {

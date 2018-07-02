@@ -14,7 +14,7 @@ namespace internal {
 
 Handle<Code> AssembleCodeImpl(std::function<void(Assembler&)> assemble) {
   Isolate* isolate = CcTest::i_isolate();
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(Assembler::Options{}, nullptr, 0);
 
   assemble(assm);
   assm.bx(lr);
@@ -24,7 +24,7 @@ Handle<Code> AssembleCodeImpl(std::function<void(Assembler&)> assemble) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   if (FLAG_print_code) {
-    code->Print();
+    code->Print(isolate);
   }
   return code;
 }

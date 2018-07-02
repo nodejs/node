@@ -339,17 +339,15 @@ TEST(JSGraph_GetCachedNodes_number) {
 
 TEST(JSGraph_GetCachedNodes_external) {
   JSConstantCacheTester T;
-  Isolate* isolate = T.main_isolate();
 
-  ExternalReference constants[] = {
-      ExternalReference::address_of_min_int(isolate),
-      ExternalReference::address_of_min_int(isolate),
-      ExternalReference::address_of_min_int(isolate),
-      ExternalReference::address_of_one_half(isolate),
-      ExternalReference::address_of_one_half(isolate),
-      ExternalReference::address_of_min_int(isolate),
-      ExternalReference::address_of_the_hole_nan(isolate),
-      ExternalReference::address_of_one_half(isolate)};
+  ExternalReference constants[] = {ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_one_half(),
+                                   ExternalReference::address_of_one_half(),
+                                   ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_the_hole_nan(),
+                                   ExternalReference::address_of_one_half()};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
     size_t count_before = T.graph()->NodeCount();
@@ -368,7 +366,6 @@ TEST(JSGraph_GetCachedNodes_external) {
 
 TEST(JSGraph_GetCachedNodes_together) {
   JSConstantCacheTester T;
-  Isolate* isolate = T.main_isolate();
 
   Node* constants[] = {
       T.TrueConstant(),
@@ -388,7 +385,7 @@ TEST(JSGraph_GetCachedNodes_together) {
       T.Float64Constant(V8_INFINITY),
       T.Constant(0.99),
       T.Constant(1.11),
-      T.ExternalConstant(ExternalReference::address_of_one_half(isolate))};
+      T.ExternalConstant(ExternalReference::address_of_one_half())};
 
   NodeVector nodes(T.main_zone());
   T.GetCachedNodes(&nodes);

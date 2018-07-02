@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+class WeakArrayBodyDescriptor;
+
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
   V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
   V(BYTECODE_ARRAY_HANDLER_TABLE_SUB_TYPE)       \
@@ -125,14 +127,20 @@ class FixedArray : public FixedArrayBase {
 
   inline Object** GetFirstElementAddress();
   inline bool ContainsOnlySmisOrHoles();
+  // Returns true iff the elements are Numbers and sorted ascending.
+  bool ContainsSortedNumbers();
 
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();
 
   inline void FillWithHoles(int from, int to);
 
-  // Shrink length and insert filler objects.
-  void Shrink(int length);
+  // Shrink the array and insert filler objects. {new_length} must be > 0.
+  void Shrink(int new_length);
+  // If {new_length} is 0, return the canonical empty FixedArray. Otherwise
+  // like above.
+  static Handle<FixedArray> ShrinkOrEmpty(Handle<FixedArray> array,
+                                          int new_length);
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len) const;
@@ -254,6 +262,9 @@ class WeakFixedArray : public HeapObject {
   // Setter that uses write barrier.
   inline void Set(int index, MaybeObject* value);
 
+  // Setter with explicit barrier mode.
+  inline void Set(int index, MaybeObject* value, WriteBarrierMode mode);
+
   static constexpr int SizeFor(int length) {
     return kHeaderSize + length * kPointerSize;
   }
@@ -267,10 +278,14 @@ class WeakFixedArray : public HeapObject {
   // Gives access to raw memory which stores the array's data.
   inline MaybeObject** data_start();
 
+  inline MaybeObject** RawFieldOfElementAt(int index);
+
+  inline MaybeObject** GetFirstElementAddress();
+
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
 
-  class BodyDescriptor;
+  typedef WeakArrayBodyDescriptor BodyDescriptor;
   typedef BodyDescriptor BodyDescriptorWeak;
 
   static const int kLengthOffset = HeapObject::kHeaderSize;
@@ -279,16 +294,76 @@ class WeakFixedArray : public HeapObject {
   static const int kMaxLength =
       (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
 
- private:
+ protected:
   static int OffsetOfElementAt(int index) {
     return kHeaderSize + index * kPointerSize;
   }
 
+ private:
   friend class Heap;
 
   static const int kFirstIndex = 1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFixedArray);
+};
+
+// WeakArrayList is like a WeakFixedArray with static convenience methods for
+// adding more elements. length() returns the number of elements in the list and
+// capacity() returns the allocated size. The number of elements is stored at
+// kLengthOffset and is updated with every insertion. The array grows
+// dynamically with O(1) amortized insertion.
+class WeakArrayList : public HeapObject {
+ public:
+  DECL_CAST(WeakArrayList)
+  DECL_VERIFIER(WeakArrayList)
+  DECL_PRINTER(WeakArrayList)
+
+  static Handle<WeakArrayList> AddToEnd(Handle<WeakArrayList> array,
+                                        MaybeObjectHandle value);
+
+  inline MaybeObject* Get(int index) const;
+
+  // Set the element at index to obj. The underlying array must be large enough.
+  // If you need to grow the WeakArrayList, use the static AddToEnd() method
+  // instead.
+  inline void Set(int index, MaybeObject* value,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  static constexpr int SizeForCapacity(int capacity) {
+    return kHeaderSize + capacity * kPointerSize;
+  }
+
+  // Gives access to raw memory which stores the array's data.
+  inline MaybeObject** data_start();
+
+  bool IsFull();
+
+  DECL_INT_ACCESSORS(capacity)
+  DECL_INT_ACCESSORS(length)
+
+  // Get and set the capacity using acquire loads and release stores.
+  inline int synchronized_capacity() const;
+  inline void synchronized_set_capacity(int value);
+
+  typedef WeakArrayBodyDescriptor BodyDescriptor;
+  typedef BodyDescriptor BodyDescriptorWeak;
+
+  static const int kCapacityOffset = HeapObject::kHeaderSize;
+  static const int kLengthOffset = kCapacityOffset + kPointerSize;
+  static const int kHeaderSize = kLengthOffset + kPointerSize;
+
+  static const int kMaxCapacity =
+      (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
+
+ private:
+  static int OffsetOfElementAt(int index) {
+    return kHeaderSize + index * kPointerSize;
+  }
+
+  static Handle<WeakArrayList> EnsureSpace(Handle<WeakArrayList> array,
+                                           int length);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakArrayList);
 };
 
 // Deprecated. Use WeakFixedArray instead.
@@ -297,7 +372,8 @@ class FixedArrayOfWeakCells : public FixedArray {
   // If |maybe_array| is not a FixedArrayOfWeakCells, a fresh one will be
   // allocated. This function does not check if the value exists already,
   // callers must ensure this themselves if necessary.
-  static Handle<FixedArrayOfWeakCells> Add(Handle<Object> maybe_array,
+  static Handle<FixedArrayOfWeakCells> Add(Isolate* isolate,
+                                           Handle<Object> maybe_array,
                                            Handle<HeapObject> value,
                                            int* assigned_index = nullptr);
 
@@ -349,8 +425,8 @@ class FixedArrayOfWeakCells : public FixedArray {
       Isolate* isolate, int size,
       Handle<FixedArrayOfWeakCells> initialize_from);
 
-  static void Set(Handle<FixedArrayOfWeakCells> array, int index,
-                  Handle<HeapObject> value);
+  static void Set(Isolate* isolate, Handle<FixedArrayOfWeakCells> array,
+                  int index, Handle<HeapObject> value);
   inline void clear(int index);
 
   inline int last_used_index() const;
@@ -411,7 +487,7 @@ class ArrayList : public FixedArray {
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
 
 template <SearchMode search_mode, typename T>
-inline int Search(T* array, Name* name, int valid_entries = 0,
+inline int Search(Isolate* isolate, T* array, Name* name, int valid_entries = 0,
                   int* out_insertion_index = nullptr);
 
 // ByteArray represents fixed sized byte arrays.  Used for the relocation info
@@ -453,7 +529,7 @@ class ByteArray : public FixedArrayBase {
   }
 
   // Returns data start address.
-  inline Address GetDataStartAddress();
+  inline byte* GetDataStartAddress();
 
   inline int DataSize() const;
 

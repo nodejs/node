@@ -15,7 +15,7 @@ namespace internal {
 
 // Collects dependencies for this compilation, e.g. assumptions about
 // stable maps, constant globals, etc.
-class CompilationDependencies {
+class V8_EXPORT_PRIVATE CompilationDependencies {
  public:
   CompilationDependencies(Isolate* isolate, Zone* zone)
       : isolate_(isolate),
@@ -45,6 +45,12 @@ class CompilationDependencies {
     Insert(DependentCode::kAllocationSiteTenuringChangedGroup, site);
   }
   void AssumeTransitionStable(Handle<AllocationSite> site);
+
+  // Adds stability dependencies on all prototypes of every class in
+  // {receiver_type} up to (and including) the {holder}.
+  void AssumePrototypesStable(Handle<Context> native_context,
+                              std::vector<Handle<Map>> const& receiver_maps,
+                              Handle<JSObject> holder);
 
   void Commit(Handle<Code> code);
   void Rollback();

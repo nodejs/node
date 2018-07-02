@@ -18,7 +18,7 @@ BUILTIN(BooleanConstructor) {
   HandleScope scope(isolate);
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     Handle<Object> value = args.atOrUndefined(isolate, 1);
-    return isolate->heap()->ToBoolean(value->BooleanValue());
+    return isolate->heap()->ToBoolean(value->BooleanValue(isolate));
   } else {  // [[Construct]]
     HandleScope scope(isolate);
     Handle<Object> value = args.atOrUndefined(isolate, 1);
@@ -29,7 +29,7 @@ BUILTIN(BooleanConstructor) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                        JSObject::New(target, new_target));
     Handle<JSValue>::cast(result)->set_value(
-        isolate->heap()->ToBoolean(value->BooleanValue()));
+        isolate->heap()->ToBoolean(value->BooleanValue(isolate)));
     return *result;
   }
 }

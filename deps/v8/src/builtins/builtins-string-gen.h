@@ -74,12 +74,17 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void StringIndexOf(Node* const subject_string, Node* const search_string,
                      Node* const position, std::function<void(Node*)> f_return);
 
-  Node* IndexOfDollarChar(Node* const context, Node* const string);
+  TNode<Smi> IndexOfDollarChar(Node* const context, Node* const string);
+
+  TNode<JSArray> StringToArray(TNode<Context> context,
+                               TNode<String> subject_string,
+                               TNode<Smi> subject_length,
+                               TNode<Number> limit_number);
 
   void RequireObjectCoercible(Node* const context, Node* const value,
                               const char* method_name);
 
-  Node* SmiIsNegative(Node* const value) {
+  TNode<BoolT> SmiIsNegative(TNode<Smi> value) {
     return SmiLessThan(value, SmiConstant(0));
   }
 
@@ -102,6 +107,9 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                  Handle<Symbol> symbol,
                                  const NodeFunction0& regexp_call,
                                  const NodeFunction1& generic_call);
+
+  void Generate_StringAdd(StringAddFlags flags, PretenureFlag pretenure_flag,
+                          Node* context, Node* left, Node* right);
 };
 
 class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {
@@ -112,7 +120,8 @@ class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {
  protected:
   enum SearchVariant { kIncludes, kIndexOf };
 
-  void Generate(SearchVariant variant);
+  void Generate(SearchVariant variant, TNode<IntPtrT> argc,
+                TNode<Context> context);
 };
 
 class StringTrimAssembler : public StringBuiltinsAssembler {
@@ -124,7 +133,8 @@ class StringTrimAssembler : public StringBuiltinsAssembler {
                                            Label* const if_not_whitespace);
 
  protected:
-  void Generate(String::TrimMode mode, const char* method);
+  void Generate(String::TrimMode mode, const char* method, TNode<IntPtrT> argc,
+                TNode<Context> context);
 
   void ScanForNonWhiteSpaceOrLineTerminator(Node* const string_data,
                                             Node* const string_data_offset,

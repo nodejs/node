@@ -10,6 +10,7 @@
 #include "src/counters.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/string-builder.h"
 
 namespace v8 {
@@ -52,7 +53,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         Handle<String> param;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, param, Object::ToString(isolate, args.at(i)), Object);
-        param = String::Flatten(param);
+        param = String::Flatten(isolate, param);
         builder.AppendString(param);
         if (!FLAG_harmony_function_tostring) {
           // If the formal parameters string include ) - an illegal
@@ -134,7 +135,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         JSFunction::GetDerivedMap(isolate, target, new_target), Object);
 
     Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
-    Handle<Map> map = Map::AsLanguageMode(initial_map, shared_info);
+    Handle<Map> map = Map::AsLanguageMode(isolate, initial_map, shared_info);
 
     Handle<Context> context(function->context(), isolate);
     function = isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -172,7 +173,8 @@ BUILTIN(AsyncFunctionConstructor) {
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
   Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
-  Handle<Script> script = handle(Script::cast(func->shared()->script()));
+  Handle<Script> script =
+      handle(Script::cast(func->shared()->script()), isolate);
   int position = script->GetEvalPosition();
   USE(position);
 
@@ -190,7 +192,8 @@ BUILTIN(AsyncGeneratorFunctionConstructor) {
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
   Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
-  Handle<Script> script = handle(Script::cast(func->shared()->script()));
+  Handle<Script> script =
+      handle(Script::cast(func->shared()->script()), isolate);
   int position = script->GetEvalPosition();
   USE(position);
 

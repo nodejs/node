@@ -24,7 +24,8 @@ TEST_F(PreParserTest, LazyFunctionLength) {
 
   Handle<JSFunction> lazy_function = RunJS<JSFunction>(script_source);
 
-  Handle<SharedFunctionInfo> shared(lazy_function->shared());
+  Handle<SharedFunctionInfo> shared(lazy_function->shared(),
+                                    lazy_function->GetIsolate());
   CHECK_EQ(shared->length(), SharedFunctionInfo::kInvalidLength);
 
   Handle<Smi> length = RunJS<Smi>("lazy.length");

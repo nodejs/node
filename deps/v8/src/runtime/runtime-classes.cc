@@ -13,6 +13,7 @@
 #include "src/elements.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/runtime/runtime.h"
 
@@ -294,7 +295,7 @@ bool AddDescriptorsByTemplate(
   // Read values from |descriptors_template| and store possibly post-processed
   // values into "instantiated" |descriptors| array.
   for (int i = 0; i < nof_descriptors; i++) {
-    Object* value = descriptors_template->GetValue(i);
+    Object* value = descriptors_template->GetStrongValue(i);
     if (value->IsAccessorPair()) {
       Handle<AccessorPair> pair =
           AccessorPair::Copy(handle(AccessorPair::cast(value), isolate));
@@ -334,7 +335,7 @@ bool AddDescriptorsByTemplate(
       DCHECK(!details.representation().IsDouble());
     }
     DCHECK(value->FitsRepresentation(details.representation()));
-    descriptors->Set(i, name, value, details);
+    descriptors->Set(i, name, MaybeObject::FromObject(value), details);
   }
 
   map->InitializeDescriptors(*descriptors,
@@ -448,9 +449,9 @@ bool InitClassPrototype(Isolate* isolate,
                         Handle<Object> prototype_parent,
                         Handle<JSFunction> constructor, Arguments& args) {
   Handle<Map> map(prototype->map(), isolate);
-  map = Map::CopyDropDescriptors(map);
+  map = Map::CopyDropDescriptors(isolate, map);
   map->set_is_prototype_map(true);
-  Map::SetPrototype(map, prototype_parent);
+  Map::SetPrototype(isolate, map, prototype_parent);
   constructor->set_prototype_or_initial_map(*prototype);
   map->SetConstructor(*constructor);
   Handle<FixedArray> computed_properties(
@@ -461,7 +462,7 @@ bool InitClassPrototype(Isolate* isolate,
 
   Handle<Object> properties_template(
       class_boilerplate->instance_properties_template(), isolate);
-  if (properties_template->IsDictionary()) {
+  if (properties_template->IsNameDictionary()) {
     Handle<NameDictionary> properties_dictionary_template =
         Handle<NameDictionary>::cast(properties_template);
 
@@ -495,13 +496,13 @@ bool InitClassConstructor(Isolate* isolate,
                           Handle<Object> constructor_parent,
                           Handle<JSFunction> constructor, Arguments& args) {
   Handle<Map> map(constructor->map(), isolate);
-  map = Map::CopyDropDescriptors(map);
+  map = Map::CopyDropDescriptors(isolate, map);
   DCHECK(map->is_prototype_map());
 
   if (!constructor_parent.is_null()) {
     // Set map's prototype without enabling prototype setup mode for superclass
     // because it does not make sense.
-    Map::SetPrototype(map, constructor_parent, false);
+    Map::SetPrototype(isolate, map, constructor_parent, false);
   }
 
   Handle<NumberDictionary> elements_dictionary_template(
@@ -513,7 +514,7 @@ bool InitClassConstructor(Isolate* isolate,
   Handle<Object> properties_template(
       class_boilerplate->static_properties_template(), isolate);
 
-  if (properties_template->IsDictionary()) {
+  if (properties_template->IsNameDictionary()) {
     Handle<NameDictionary> properties_dictionary_template =
         Handle<NameDictionary>::cast(properties_template);
 
@@ -627,7 +628,7 @@ MaybeHandle<JSReceiver> GetSuperHolder(
     Isolate* isolate, Handle<Object> receiver, Handle<JSObject> home_object,
     SuperMode mode, MaybeHandle<Name> maybe_name, uint32_t index) {
   if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), home_object)) {
+      !isolate->MayAccess(handle(isolate->context(), isolate), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, JSReceiver);
   }

@@ -142,13 +142,13 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
   bool is_tagged = (value & layout_mask) == 0;
   if (!is_tagged) value = ~value;  // Count set bits instead of cleared bits.
   value = value & ~(layout_mask - 1);  // Clear bits we are not interested in.
-  int sequence_length =
-      base::bits::CountTrailingZeros(value) - layout_bit_index;
+  int sequence_length;
+  if (IsSlowLayout()) {
+    sequence_length = base::bits::CountTrailingZeros(value) - layout_bit_index;
 
-  if (layout_bit_index + sequence_length == kBitsPerLayoutWord) {
-    // This is a contiguous sequence till the end of current word, proceed
-    // counting in the subsequent words.
-    if (IsSlowLayout()) {
+    if (layout_bit_index + sequence_length == kBitsPerLayoutWord) {
+      // This is a contiguous sequence till the end of current word, proceed
+      // counting in the subsequent words.
       ++layout_word_index;
       int num_words = number_of_layout_words();
       for (; layout_word_index < num_words; layout_word_index++) {
@@ -161,7 +161,17 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
         if (sequence_length >= max_sequence_length) break;
         if (cur_sequence_length != kBitsPerLayoutWord) break;
       }
+      if (is_tagged && (field_index + sequence_length == capacity())) {
+        // The contiguous sequence of tagged fields lasts till the end of the
+        // layout descriptor which means that all the fields starting from
+        // field_index are tagged.
+        sequence_length = std::numeric_limits<int>::max();
+      }
     }
+  } else {  // Fast layout.
+    sequence_length = Min(base::bits::CountTrailingZeros(value),
+                          static_cast<unsigned>(kBitsInSmiLayout)) -
+                      layout_bit_index;
     if (is_tagged && (field_index + sequence_length == capacity())) {
       // The contiguous sequence of tagged fields lasts till the end of the
       // layout descriptor which means that all the fields starting from

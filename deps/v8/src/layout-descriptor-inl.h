@@ -6,6 +6,8 @@
 #define V8_LAYOUT_DESCRIPTOR_INL_H_
 
 #include "src/layout-descriptor.h"
+#include "src/objects-inl.h"
+#include "src/objects/descriptor-array.h"
 
 namespace v8 {
 namespace internal {
@@ -16,14 +18,15 @@ LayoutDescriptor* LayoutDescriptor::FromSmi(Smi* smi) {
 
 
 Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
-  if (length <= kSmiValueSize) {
+  if (length <= kBitsInSmiLayout) {
     // The whole bit vector fits into a smi.
     return handle(LayoutDescriptor::FromSmi(Smi::kZero), isolate);
   }
   int backing_store_length = GetSlowModeBackingStoreLength(length);
   Handle<LayoutDescriptor> result = Handle<LayoutDescriptor>::cast(
       isolate->factory()->NewByteArray(backing_store_length, TENURED));
-  memset(result->GetDataStartAddress(), 0, result->DataSize());
+  memset(reinterpret_cast<void*>(result->GetDataStartAddress()), 0,
+         result->DataSize());
   return result;
 }
 
@@ -127,7 +130,7 @@ bool LayoutDescriptor::IsSlowLayout() { return !IsSmi(); }
 
 
 int LayoutDescriptor::capacity() {
-  return IsSlowLayout() ? (length() * kBitsPerByte) : kSmiValueSize;
+  return IsSlowLayout() ? (length() * kBitsPerByte) : kBitsInSmiLayout;
 }
 
 
@@ -158,10 +161,10 @@ int LayoutDescriptor::CalculateCapacity(Map* map, DescriptorArray* descriptors,
   int layout_descriptor_length;
   const int kMaxWordsPerField = kDoubleSize / kPointerSize;
 
-  if (num_descriptors <= kSmiValueSize / kMaxWordsPerField) {
+  if (num_descriptors <= kBitsInSmiLayout / kMaxWordsPerField) {
     // Even in the "worst" case (all fields are doubles) it would fit into
     // a Smi, so no need to calculate length.
-    layout_descriptor_length = kSmiValueSize;
+    layout_descriptor_length = kBitsInSmiLayout;
 
   } else {
     layout_descriptor_length = 0;

@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 
+class CallHandlerInfo;
 class Isolate;
 
 class ExternalReferenceEncoder {
@@ -29,7 +30,6 @@ class ExternalReferenceEncoder {
 
     bool is_from_api() const { return IsFromAPI::decode(value_); }
     uint32_t index() const { return Index::decode(value_); }
-    uint32_t raw() const { return value_; }
 
    private:
     class Index : public BitField<uint32_t, 0, 31> {};
@@ -105,8 +105,12 @@ class SerializerDeserializer : public RootVisitor {
   // No reservation for large object space necessary.
   // We also handle map space differenly.
   STATIC_ASSERT(MAP_SPACE == CODE_SPACE + 1);
+
+  // We do not support young generation large objects.
+  STATIC_ASSERT(LAST_SPACE == NEW_LO_SPACE);
+  STATIC_ASSERT(LAST_SPACE - 1 == LO_SPACE);
   static const int kNumberOfPreallocatedSpaces = CODE_SPACE + 1;
-  static const int kNumberOfSpaces = LAST_SPACE + 1;
+  static const int kNumberOfSpaces = LO_SPACE + 1;
 
  protected:
   static bool CanBeDeferred(HeapObject* o);
@@ -319,11 +323,12 @@ class SerializedData {
 
  protected:
   void SetHeaderValue(uint32_t offset, uint32_t value) {
-    WriteLittleEndianValue(data_ + offset, value);
+    WriteLittleEndianValue(reinterpret_cast<Address>(data_) + offset, value);
   }
 
   uint32_t GetHeaderValue(uint32_t offset) const {
-    return ReadLittleEndianValue<uint32_t>(data_ + offset);
+    return ReadLittleEndianValue<uint32_t>(reinterpret_cast<Address>(data_) +
+                                           offset);
   }
 
   void AllocateData(uint32_t size);

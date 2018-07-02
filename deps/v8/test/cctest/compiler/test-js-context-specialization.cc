@@ -30,7 +30,9 @@ class ContextSpecializationTester : public HandleAndZoneScope {
         jsgraph_(main_isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_),
         reducer_(main_zone(), graph()),
-        spec_(&reducer_, jsgraph(), context, MaybeHandle<JSFunction>()) {}
+        js_heap_broker_(main_isolate()),
+        spec_(&reducer_, jsgraph(), &js_heap_broker_, context,
+              MaybeHandle<JSFunction>()) {}
 
   JSContextSpecialization* spec() { return &spec_; }
   Factory* factory() { return main_isolate()->factory(); }
@@ -55,6 +57,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
   SimplifiedOperatorBuilder simplified_;
   JSGraph jsgraph_;
   GraphReducer reducer_;
+  JSHeapBroker js_heap_broker_;
   JSContextSpecialization spec_;
 };
 
@@ -178,15 +181,15 @@ TEST(ReduceJSLoadContext1) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()), t.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Node* context0 = t.graph()->NewNode(t.common()->Parameter(0), start);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* load = t.graph()->NewNode(
@@ -248,9 +251,9 @@ TEST(ReduceJSLoadContext2) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()), t.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Handle<HeapObject> slot_value0 = t.factory()->InternalizeUtf8String("0");
   Handle<HeapObject> slot_value1 = t.factory()->InternalizeUtf8String("1");
@@ -262,10 +265,10 @@ TEST(ReduceJSLoadContext2) {
   context_object1->set(slot_index, *slot_value1);
 
   Node* context0 = t.jsgraph()->Constant(context_object1);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* load = t.graph()->NewNode(
@@ -339,15 +342,16 @@ TEST(ReduceJSLoadContext3) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(2));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()),
+                          handle_zone_scope.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Node* context0 = t.graph()->NewNode(t.common()->Parameter(0), start);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* load = t.graph()->NewNode(
@@ -465,15 +469,15 @@ TEST(ReduceJSStoreContext1) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()), t.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Node* context0 = t.graph()->NewNode(t.common()->Parameter(0), start);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* store =
@@ -509,9 +513,9 @@ TEST(ReduceJSStoreContext2) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()), t.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Handle<HeapObject> slot_value0 = t.factory()->InternalizeUtf8String("0");
   Handle<HeapObject> slot_value1 = t.factory()->InternalizeUtf8String("1");
@@ -523,10 +527,10 @@ TEST(ReduceJSStoreContext2) {
   context_object1->set(slot_index, *slot_value1);
 
   Node* context0 = t.jsgraph()->Constant(context_object1);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* store =
@@ -574,15 +578,16 @@ TEST(ReduceJSStoreContext3) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(2));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()),
+                          handle_zone_scope.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Node* context0 = t.graph()->NewNode(t.common()->Parameter(0), start);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* store =

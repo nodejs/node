@@ -43,4 +43,11 @@
   'tests/f64': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
+[ALWAYS, {
+  # TODO(v8:7846): These tests will pass when the wasm-spec-tests repo is updated.
+  'tests/linking': [SKIP],
+  'tests/exports': [SKIP],
+  'tests/globals': [SKIP],
+}],
+
 ]

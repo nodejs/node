@@ -195,7 +195,8 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   VariableProxy* proxy =
       factory()->NewVariableProxy(name, NORMAL_VARIABLE, pattern->position());
   Declaration* declaration;
-  if (descriptor_->mode == VAR && !descriptor_->scope->is_declaration_scope()) {
+  if (descriptor_->mode == VariableMode::kVar &&
+      !descriptor_->scope->is_declaration_scope()) {
     DCHECK(descriptor_->scope->is_block_scope() ||
            descriptor_->scope->is_with_scope());
     declaration = factory()->NewNestedVariableDeclaration(
@@ -261,7 +262,7 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // For 'let' and 'const' declared variables the initialization always
   // assigns to the declared variable.
   // But for var declarations we need to do a new lookup.
-  if (descriptor_->mode == VAR) {
+  if (descriptor_->mode == VariableMode::kVar) {
     proxy = var_init_scope->NewUnresolved(factory(), name);
   } else {
     DCHECK_NOT_NULL(proxy);

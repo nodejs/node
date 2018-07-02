@@ -301,7 +301,7 @@ uint32_t WasmModuleBuilder::AddImport(Vector<const char> name,
 
 uint32_t WasmModuleBuilder::AddGlobalImport(Vector<const char> name,
                                             ValueType type) {
-  global_imports_.push_back({name, WasmOpcodes::ValueTypeCodeFor(type)});
+  global_imports_.push_back({name, ValueTypes::ValueTypeCodeFor(type)});
   return static_cast<uint32_t>(global_imports_.size() - 1);
 }
 
@@ -346,11 +346,11 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
       buffer.write_u8(kWasmFunctionTypeCode);
       buffer.write_size(sig->parameter_count());
       for (auto param : sig->parameters()) {
-        buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(param));
+        buffer.write_u8(ValueTypes::ValueTypeCodeFor(param));
       }
       buffer.write_size(sig->return_count());
       for (auto ret : sig->returns()) {
-        buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(ret));
+        buffer.write_u8(ValueTypes::ValueTypeCodeFor(ret));
       }
     }
     FixupSection(buffer, start);
@@ -423,7 +423,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(globals_.size());
 
     for (auto global : globals_) {
-      buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(global.type));
+      buffer.write_u8(ValueTypes::ValueTypeCodeFor(global.type));
       buffer.write_u8(global.mutability ? 1 : 0);
       switch (global.init.kind) {
         case WasmInitExpr::kI32Const:

@@ -406,8 +406,7 @@ class HistogramTimerScope BASE_EMBEDDED {
   explicit HistogramTimerScope(HistogramTimer* timer,
                                bool allow_nesting = false)
 #ifdef DEBUG
-      : timer_(timer),
-        skipped_timer_start_(false) {
+      : timer_(timer), skipped_timer_start_(false) {
     if (timer_->timer()->IsStarted() && allow_nesting) {
       skipped_timer_start_ = true;
     } else {
@@ -434,6 +433,27 @@ class HistogramTimerScope BASE_EMBEDDED {
 #ifdef DEBUG
   bool skipped_timer_start_;
 #endif
+};
+
+enum class OptionalHistogramTimerScopeMode { TAKE_TIME, DONT_TAKE_TIME };
+
+// Helper class for scoping a HistogramTimer.
+// It will not take time if take_time is set to false.
+class OptionalHistogramTimerScope BASE_EMBEDDED {
+ public:
+  OptionalHistogramTimerScope(HistogramTimer* timer,
+                              OptionalHistogramTimerScopeMode mode)
+      : timer_(timer), mode_(mode) {
+    if (mode == OptionalHistogramTimerScopeMode::TAKE_TIME) timer_->Start();
+  }
+
+  ~OptionalHistogramTimerScope() {
+    if (mode_ == OptionalHistogramTimerScopeMode::TAKE_TIME) timer_->Stop();
+  }
+
+ private:
+  HistogramTimer* timer_;
+  OptionalHistogramTimerScopeMode mode_;
 };
 
 // A histogram timer that can aggregate events within a larger scope.
@@ -692,6 +712,7 @@ class RuntimeCallTimer final {
   V(ArrayBuffer_New)                                       \
   V(Array_CloneElementAt)                                  \
   V(Array_New)                                             \
+  V(BigInt_NewFromWords)                                   \
   V(BigInt64Array_New)                                     \
   V(BigUint64Array_New)                                    \
   V(BigIntObject_New)                                      \
@@ -1108,6 +1129,13 @@ class RuntimeCallTimerScope {
   HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)     \
   HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)       \
   HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                   \
+  HR(gc_finalize_clear, V8.GCFinalizeMC.Clear, 0, 10000, 101)                  \
+  HR(gc_finalize_epilogue, V8.GCFinalizeMC.Epilogue, 0, 10000, 101)            \
+  HR(gc_finalize_evacuate, V8.GCFinalizeMC.Evacuate, 0, 10000, 101)            \
+  HR(gc_finalize_finish, V8.GCFinalizeMC.Finish, 0, 10000, 101)                \
+  HR(gc_finalize_mark, V8.GCFinalizeMC.Mark, 0, 10000, 101)                    \
+  HR(gc_finalize_prologue, V8.GCFinalizeMC.Prologue, 0, 10000, 101)            \
+  HR(gc_finalize_sweep, V8.GCFinalizeMC.Sweep, 0, 10000, 101)                  \
   HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                          \
   HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
   /* Asm/Wasm. */                                                              \
@@ -1143,7 +1171,12 @@ class RuntimeCallTimerScope {
      20)                                                                       \
   HR(wasm_lazy_compilation_throughput, V8.WasmLazyCompilationThroughput, 1,    \
      10000, 50)                                                                \
-  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 19, 20)
+  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 19,   \
+     20)                                                                       \
+  HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
+  HR(wasm_address_space_usage_mb, V8.WasmAddressSpaceUsageMiB, 0, 1 << 20,     \
+     128)                                                                      \
+  HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 256, 64)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \

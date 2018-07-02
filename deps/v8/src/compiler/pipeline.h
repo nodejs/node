@@ -22,14 +22,18 @@ class JumpOptimizationInfo;
 
 namespace wasm {
 enum ModuleOrigin : uint8_t;
+struct FunctionBody;
+class NativeModule;
+struct WasmModule;
 }  // namespace wasm
 
 namespace compiler {
 
 class CallDescriptor;
-class JSGraph;
 class Graph;
 class InstructionSequence;
+class MachineGraph;
+class NodeOriginTable;
 class Schedule;
 class SourcePositionTable;
 class WasmCompilationData;
@@ -37,34 +41,37 @@ class WasmCompilationData;
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given function.
-  static OptimizedCompilationJob* NewCompilationJob(Handle<JSFunction> function,
+  static OptimizedCompilationJob* NewCompilationJob(Isolate* isolate,
+                                                    Handle<JSFunction> function,
                                                     bool has_script);
 
   // Returns a new compilation job for the WebAssembly compilation info.
   static OptimizedCompilationJob* NewWasmCompilationJob(
-      OptimizedCompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
+      OptimizedCompilationInfo* info, Isolate* isolate, MachineGraph* mcgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
-      WasmCompilationData* wasm_compilation_data,
+      NodeOriginTable* node_origins, WasmCompilationData* wasm_compilation_data,
+      wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
+      wasm::NativeModule* native_module, int function_index,
       wasm::ModuleOrigin wasm_origin);
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must
   // be valid, hence the given {graph} does not need to be schedulable.
-  static Handle<Code> GenerateCodeForCodeStub(
+  static MaybeHandle<Code> GenerateCodeForCodeStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
       Schedule* schedule, Code::Kind kind, const char* debug_name,
       uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
-      PoisoningMitigationLevel poisoning_enabled);
+      PoisoningMitigationLevel poisoning_level);
 
   // Run the entire pipeline and generate a handle to a code object suitable for
   // testing.
-  static Handle<Code> GenerateCodeForTesting(OptimizedCompilationInfo* info,
-                                             Isolate* isolate);
+  static MaybeHandle<Code> GenerateCodeForTesting(
+      OptimizedCompilationInfo* info, Isolate* isolate);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  static Handle<Code> GenerateCodeForTesting(OptimizedCompilationInfo* info,
-                                             Isolate* isolate, Graph* graph,
-                                             Schedule* schedule = nullptr);
+  static MaybeHandle<Code> GenerateCodeForTesting(
+      OptimizedCompilationInfo* info, Isolate* isolate, Graph* graph,
+      Schedule* schedule = nullptr);
 
   // Run just the register allocator phases.
   V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(
@@ -73,7 +80,7 @@ class Pipeline : public AllStatic {
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  V8_EXPORT_PRIVATE static Handle<Code> GenerateCodeForTesting(
+  V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate,
       CallDescriptor* call_descriptor, Graph* graph,
       Schedule* schedule = nullptr,

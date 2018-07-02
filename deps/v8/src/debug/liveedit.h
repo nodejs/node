@@ -29,9 +29,19 @@
 #include "src/ast/ast-traversal-visitor.h"
 
 namespace v8 {
+namespace debug {
+struct LiveEditResult;
+}
 namespace internal {
 
 class JavaScriptFrame;
+
+struct SourceChangeRange {
+  int start_position;
+  int end_position;
+  int new_start_position;
+  int new_end_position;
+};
 
 // This class collects some specific information on structure of functions
 // in a particular script.
@@ -71,18 +81,18 @@ class LiveEditFunctionTracker
   DISALLOW_COPY_AND_ASSIGN(LiveEditFunctionTracker);
 };
 
-
 class LiveEdit : AllStatic {
  public:
   static void InitializeThreadLocal(Debug* debug);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GatherCompileInfo(
-      Handle<Script> script, Handle<String> source);
+      Isolate* isolate, Handle<Script> script, Handle<String> source);
 
   static void ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
                                   Handle<JSArray> shared_info_array);
 
-  static void FixupScript(Handle<Script> script, int max_function_literal_id);
+  static void FixupScript(Isolate* isolate, Handle<Script> script,
+                          int max_function_literal_id);
 
   static void FunctionSourceUpdated(Handle<JSArray> shared_info_array,
                                     int new_function_literal_id);
@@ -97,19 +107,22 @@ class LiveEdit : AllStatic {
   // For a script updates its source field. If old_script_name is provided
   // (i.e. is a String), also creates a copy of the script with its original
   // source and sends notification to debugger.
-  static Handle<Object> ChangeScriptSource(Handle<Script> original_script,
+  static Handle<Object> ChangeScriptSource(Isolate* isolate,
+                                           Handle<Script> original_script,
                                            Handle<String> new_source,
                                            Handle<Object> old_script_name);
 
   // In a code of a parent function replaces original function as embedded
   // object with a substitution one.
-  static void ReplaceRefToNestedFunction(Handle<JSValue> parent_function_shared,
+  static void ReplaceRefToNestedFunction(Heap* heap,
+                                         Handle<JSValue> parent_function_shared,
                                          Handle<JSValue> orig_function_shared,
                                          Handle<JSValue> subst_function_shared);
 
   // Find open generator activations, and set corresponding "result" elements to
   // FUNCTION_BLOCKED_ACTIVE_GENERATOR.
-  static bool FindActiveGenerators(Handle<FixedArray> shared_info_array,
+  static bool FindActiveGenerators(Isolate* isolate,
+                                   Handle<FixedArray> shared_info_array,
                                    Handle<FixedArray> result, int len);
 
   // Checks listed functions on stack and return array with corresponding
@@ -122,8 +135,15 @@ class LiveEdit : AllStatic {
       bool do_drop);
 
   // Restarts the call frame and completely drops all frames above it.
-  // Return error message or nullptr.
-  static const char* RestartFrame(JavaScriptFrame* frame);
+  static bool RestartFrame(JavaScriptFrame* frame);
+
+  static void CompareStrings(Isolate* isolate, Handle<String> a,
+                             Handle<String> b,
+                             std::vector<SourceChangeRange>* changes);
+  static int TranslatePosition(const std::vector<SourceChangeRange>& changed,
+                               int position);
+  static void PatchScript(Handle<Script> script, Handle<String> source,
+                          debug::LiveEditResult* result);
 
   // A copy of this is in liveedit.js.
   enum FunctionPatchabilityStatus {
@@ -140,46 +160,12 @@ class LiveEdit : AllStatic {
   // Compares 2 strings line-by-line, then token-wise and returns diff in form
   // of array of triplets (pos1, pos1_end, pos2_end) describing list
   // of diff chunks.
-  static Handle<JSArray> CompareStrings(Handle<String> s1,
+  static Handle<JSArray> CompareStrings(Isolate* isolate, Handle<String> s1,
                                         Handle<String> s2);
 
   // Architecture-specific constant.
   static const bool kFrameDropperSupported;
 };
-
-
-// A general-purpose comparator between 2 arrays.
-class Comparator {
- public:
-  // Holds 2 arrays of some elements allowing to compare any pair of
-  // element from the first array and element from the second array.
-  class Input {
-   public:
-    virtual int GetLength1() = 0;
-    virtual int GetLength2() = 0;
-    virtual bool Equals(int index1, int index2) = 0;
-
-   protected:
-    virtual ~Input() {}
-  };
-
-  // Receives compare result as a series of chunks.
-  class Output {
-   public:
-    // Puts another chunk in result list. Note that technically speaking
-    // only 3 arguments actually needed with 4th being derivable.
-    virtual void AddChunk(int pos1, int pos2, int len1, int len2) = 0;
-
-   protected:
-    virtual ~Output() {}
-  };
-
-  // Finds the difference between 2 arrays of elements.
-  static void CalculateDifference(Input* input,
-                                  Output* result_writer);
-};
-
-
 
 // Simple helper class that creates more or less typed structures over
 // JSArray object. This is an adhoc method of passing structures from C++
@@ -195,7 +181,7 @@ class JSArrayBasedStruct {
 
   static S cast(Object* object) {
     JSArray* array = JSArray::cast(object);
-    Handle<JSArray> array_handle(array);
+    Handle<JSArray> array_handle(array, array->GetIsolate());
     return S(array_handle);
   }
 
@@ -253,7 +239,7 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
     this->SetField(kFunctionScopeInfoOffset_, scope_info_array);
   }
 
-  void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info);
+  void SetSharedFunctionInfo(Isolate* isolate, Handle<SharedFunctionInfo> info);
 
   Handle<SharedFunctionInfo> GetSharedFunctionInfo();
 

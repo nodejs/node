@@ -37,7 +37,7 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
   // explicitly when it's loaded.
   context_->set(Context::NEXT_CONTEXT_LINK,
                 isolate()->heap()->undefined_value());
-  DCHECK(!context_->global_object()->IsUndefined(context_->GetIsolate()));
+  DCHECK(!context_->global_object()->IsUndefined());
   // Reset math random cache to get fresh random numbers.
   context_->set_math_random_index(Smi::kZero);
   context_->set_math_random_cache(isolate()->heap()->undefined_value());
@@ -105,7 +105,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     // Unconditionally reset the JSFunction to its SFI's code, since we can't
     // serialize optimized code anyway.
     JSFunction* closure = JSFunction::cast(obj);
-    closure->set_code(closure->shared()->GetCode());
+    if (closure->is_compiled()) closure->set_code(closure->shared()->GetCode());
   }
 
   CheckRehashability(obj);

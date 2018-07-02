@@ -112,6 +112,8 @@ int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
       return PROT_NONE;
+    case OS::MemoryPermission::kRead:
+      return PROT_READ;
     case OS::MemoryPermission::kReadWrite:
       return PROT_READ | PROT_WRITE;
     case OS::MemoryPermission::kReadWriteExecute:
@@ -352,6 +354,18 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   if (ret == 0 && access == OS::MemoryPermission::kNoAccess) {
     ret = ReclaimInaccessibleMemory(address, size);
   }
+
+// For accounting purposes, we want to call MADV_FREE_REUSE on macOS after
+// changing permissions away from OS::MemoryPermission::kNoAccess. Since this
+// state is not kept at this layer, we always call this if access != kNoAccess.
+// The cost is a syscall that effectively no-ops.
+// TODO(erikchen): Fix this to only call MADV_FREE_REUSE when necessary.
+// https://crbug.com/823915
+#if defined(OS_MACOSX)
+  if (access != OS::MemoryPermission::kNoAccess)
+    madvise(address, size, MADV_FREE_REUSE);
+#endif
+
   return ret == 0;
 }
 

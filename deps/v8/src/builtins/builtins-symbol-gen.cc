@@ -11,6 +11,16 @@ namespace internal {
 
 // -----------------------------------------------------------------------------
 // ES6 #sec-symbol-objects
+// ES ##sec-symbol.prototype.description
+TF_BUILTIN(SymbolPrototypeDescriptionGetter, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+
+  Node* value = ToThisValue(context, receiver, PrimitiveType::kSymbol,
+                            "Symbol.prototype.description");
+  Node* result = LoadObjectField(value, Symbol::kNameOffset);
+  Return(result);
+}
 
 // ES6 #sec-symbol.prototype-@@toprimitive
 TF_BUILTIN(SymbolPrototypeToPrimitive, CodeStubAssembler) {

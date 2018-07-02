@@ -394,20 +394,21 @@ constexpr uint64_t kSmiShiftMask = (1UL << kSmiShift) - 1;
 class Operand BASE_EMBEDDED {
  public:
   // Immediate.
-  INLINE(explicit Operand(int64_t immediate,
-                          RelocInfo::Mode rmode = RelocInfo::NONE))
+  V8_INLINE explicit Operand(int64_t immediate,
+                             RelocInfo::Mode rmode = RelocInfo::NONE)
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
-  INLINE(explicit Operand(const ExternalReference& f))
+  V8_INLINE explicit Operand(const ExternalReference& f)
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
-    value_.immediate = reinterpret_cast<int64_t>(f.address());
+    value_.immediate = static_cast<int64_t>(f.address());
   }
-  INLINE(explicit Operand(const char* s));
-  INLINE(explicit Operand(Object** opp));
-  INLINE(explicit Operand(Context** cpp));
+  V8_INLINE explicit Operand(const char* s);
+  V8_INLINE explicit Operand(Object** opp);
+  V8_INLINE explicit Operand(Context** cpp);
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value)) : rm_(no_reg), rmode_(RelocInfo::NONE) {
+  V8_INLINE explicit Operand(Smi* value)
+      : rm_(no_reg), rmode_(RelocInfo::NONE) {
     value_.immediate = reinterpret_cast<intptr_t>(value);
   }
 
@@ -415,10 +416,10 @@ class Operand BASE_EMBEDDED {
   static Operand EmbeddedCode(CodeStub* stub);
 
   // Register.
-  INLINE(explicit Operand(Register rm)) : rm_(rm) {}
+  V8_INLINE explicit Operand(Register rm) : rm_(rm) {}
 
   // Return true if this is a register operand.
-  INLINE(bool is_reg() const);
+  V8_INLINE bool is_reg() const;
 
   inline int64_t immediate() const;
 
@@ -498,9 +499,7 @@ class Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size)
-      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
-  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
+  Assembler(const Options& options, void* buffer, int buffer_size);
   virtual ~Assembler() { }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -574,19 +573,19 @@ class Assembler : public AssemblerBase {
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_address_at(Address pc);
-  INLINE(static void set_target_address_at(
+  V8_INLINE static void set_target_address_at(
       Address pc, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
-    set_target_value_at(pc, reinterpret_cast<uint64_t>(target),
-                        icache_flush_mode);
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
+    set_target_value_at(pc, target, icache_flush_mode);
   }
   // On MIPS there is no Constant Pool so we skip that parameter.
-  INLINE(static Address target_address_at(Address pc, Address constant_pool)) {
+  V8_INLINE static Address target_address_at(Address pc,
+                                             Address constant_pool) {
     return target_address_at(pc);
   }
-  INLINE(static void set_target_address_at(
+  V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
     set_target_address_at(pc, target, icache_flush_mode);
   }
 
@@ -607,6 +606,10 @@ class Assembler : public AssemblerBase {
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
       Address instruction_payload, Code* code, Address target);
+
+  // Get the size of the special target encoded at 'instruction_payload'.
+  inline static int deserialization_special_target_size(
+      Address instruction_payload);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
@@ -1789,7 +1792,7 @@ class Assembler : public AssemblerBase {
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
                          int id);
 
-  static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
+  static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
                                        intptr_t pc_delta);
 
   // Writes a single byte or word of data in the code stream.  Used for
@@ -1815,8 +1818,8 @@ class Assembler : public AssemblerBase {
   }
 
   // Read/patch instructions.
-  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
-  static void instr_at_put(byte* pc, Instr instr) {
+  static Instr instr_at(Address pc) { return *reinterpret_cast<Instr*>(pc); }
+  static void instr_at_put(Address pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
@@ -2247,22 +2250,8 @@ class Assembler : public AssemblerBase {
 
   RegList scratch_register_list_;
 
-  // The following functions help with avoiding allocations of embedded heap
-  // objects during the code assembly phase. {RequestHeapObject} records the
-  // need for a future heap number allocation or code stub generation. After
-  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request). That is, for each request, it will patch the
-  // dummy heap object handle that we emitted during code assembly with the
-  // actual heap object handle.
- protected:
-  // TODO(neis): Make private if its use can be moved out of TurboAssembler.
-  void RequestHeapObject(HeapObjectRequest request);
-
  private:
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
-
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
 
   friend class RegExpMacroAssemblerMIPS;
   friend class RelocInfo;

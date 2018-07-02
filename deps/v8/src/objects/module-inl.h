@@ -6,6 +6,7 @@
 #define V8_OBJECTS_MODULE_INL_H_
 
 #include "src/objects/module.h"
+#include "src/objects/scope-info.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -29,19 +30,11 @@ SMI_ACCESSORS(Module, dfs_ancestor_index, kDfsAncestorIndexOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
 ModuleInfo* Module::info() const {
-  if (status() >= kEvaluating) {
-    return ModuleInfo::cast(code());
-  }
-  ScopeInfo* scope_info =
-      status() == kInstantiated
-          ? JSGeneratorObject::cast(code())->function()->shared()->scope_info()
-          : status() == kInstantiating
-                ? JSFunction::cast(code())->shared()->scope_info()
-                : SharedFunctionInfo::cast(code())->scope_info();
-  return scope_info->ModuleDescriptorInfo();
+  return (status() >= kEvaluating)
+             ? ModuleInfo::cast(code())
+             : GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
 }
 
-TYPE_CHECKER(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)
 CAST_ACCESSOR(JSModuleNamespace)
 ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
 
@@ -55,10 +48,6 @@ SMI_ACCESSORS(ModuleInfoEntry, beg_pos, kBegPosOffset)
 SMI_ACCESSORS(ModuleInfoEntry, end_pos, kEndPosOffset)
 
 CAST_ACCESSOR(ModuleInfo)
-
-bool HeapObject::IsModuleInfo() const {
-  return map() == GetHeap()->module_info_map();
-}
 
 }  // namespace internal
 }  // namespace v8

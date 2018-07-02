@@ -18,8 +18,9 @@ void Test(v8::Isolate* isolate, i::Handle<i::JSRegExp> regexp,
           i::Handle<i::String> subject,
           i::Handle<i::RegExpMatchInfo> results_array) {
   v8::TryCatch try_catch(isolate);
-  if (i::RegExpImpl::Exec(regexp, subject, 0, results_array).is_null()) {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i::RegExpImpl::Exec(i_isolate, regexp, subject, 0, results_array)
+          .is_null()) {
     i_isolate->OptionalRescheduleException(true);
   }
 }

@@ -302,6 +302,7 @@ class BytecodeGraphBuilder {
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   Zone* graph_zone() const { return graph()->zone(); }
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   JSOperatorBuilder* javascript() const { return jsgraph_->javascript(); }
   SimplifiedOperatorBuilder* simplified() const {
     return jsgraph_->simplified();

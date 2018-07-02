@@ -719,7 +719,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   // Call an arbitrary function taking an arbitrary number of arguments.
   template <typename Return, typename... Args>
-  Return Call(byte* entry, Args... args) {
+  Return Call(Address entry, Args... args) {
     // Convert all arguments to CallArgument.
     CallArgument call_args[] = {CallArgument(args)..., CallArgument::End()};
     CallImpl(entry, call_args);
@@ -2279,7 +2279,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
  private:
   void Init(FILE* stream);
 
-  V8_EXPORT_PRIVATE void CallImpl(byte* entry, CallArgument* args);
+  V8_EXPORT_PRIVATE void CallImpl(Address entry, CallArgument* args);
 
   // Read floating point return values.
   template <typename T>

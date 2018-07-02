@@ -505,7 +505,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
 
     {
       // Sort functions by start position, from outer to inner functions.
-      SharedFunctionInfo::ScriptIterator infos(script_handle);
+      SharedFunctionInfo::ScriptIterator infos(isolate, *script_handle);
       while (SharedFunctionInfo* info = infos.Next()) {
         sorted.push_back(info);
       }

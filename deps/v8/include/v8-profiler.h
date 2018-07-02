@@ -54,7 +54,11 @@ namespace v8 {
  */
 class V8_EXPORT TracingCpuProfiler {
  public:
-  static std::unique_ptr<TracingCpuProfiler> Create(Isolate*);
+  V8_DEPRECATED(
+      "The profiler is created automatically with the isolate.\n"
+      "No need to create it explicitly.",
+      static std::unique_ptr<TracingCpuProfiler> Create(Isolate*));
+
   virtual ~TracingCpuProfiler() = default;
 
  protected:
@@ -273,6 +277,16 @@ class V8_EXPORT CpuProfile {
   void Delete();
 };
 
+enum CpuProfilingMode {
+  // In the resulting CpuProfile tree, intermediate nodes in a stack trace
+  // (from the root to a leaf) will have line numbers that point to the start
+  // line of the function, rather than the line of the callsite of the child.
+  kLeafNodeLineNumbers,
+  // In the resulting CpuProfile tree, nodes are separated based on the line
+  // number of their callsite in their parent.
+  kCallerLineNumbers,
+};
+
 /**
  * Interface for controlling CPU profiling. Instance of the
  * profiler can be created using v8::CpuProfiler::New method.
@@ -315,6 +329,13 @@ class V8_EXPORT CpuProfiler {
    *
    * |record_samples| parameter controls whether individual samples should
    * be recorded in addition to the aggregated tree.
+   */
+  void StartProfiling(Local<String> title, CpuProfilingMode mode,
+                      bool record_samples = false);
+  /**
+   * The same as StartProfiling above, but the CpuProfilingMode defaults to
+   * kLeafNodeLineNumbers mode, which was the previous default behavior of the
+   * profiler.
    */
   void StartProfiling(Local<String> title, bool record_samples = false);
 
@@ -636,7 +657,7 @@ class V8_EXPORT AllocationProfile {
  * Usage:
  * 1) Define derived class of EmbedderGraph::Node for embedder objects.
  * 2) Set the build embedder graph callback on the heap profiler using
- *    HeapProfiler::SetBuildEmbedderGraphCallback.
+ *    HeapProfiler::AddBuildEmbedderGraphCallback.
  * 3) In the callback use graph->AddEdge(node1, node2) to add an edge from
  *    node1 to node2.
  * 4) To represent references from/to V8 object, construct V8 nodes using
@@ -736,7 +757,12 @@ class V8_EXPORT HeapProfiler {
    * The callback must not trigger garbage collection in V8.
    */
   typedef void (*BuildEmbedderGraphCallback)(v8::Isolate* isolate,
-                                             v8::EmbedderGraph* graph);
+                                             v8::EmbedderGraph* graph,
+                                             void* data);
+
+  /** TODO(addaleax): Remove */
+  typedef void (*LegacyBuildEmbedderGraphCallback)(v8::Isolate* isolate,
+                                                   v8::EmbedderGraph* graph);
 
   /** Returns the number of snapshots taken. */
   int GetSnapshotCount();
@@ -878,15 +904,22 @@ class V8_EXPORT HeapProfiler {
 
   /** Binds a callback to embedder's class ID. */
   V8_DEPRECATED(
-      "Use SetBuildEmbedderGraphCallback to provide info about embedder nodes",
+      "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
       void SetWrapperClassInfoProvider(uint16_t class_id,
                                        WrapperInfoCallback callback));
 
   V8_DEPRECATED(
-      "Use SetBuildEmbedderGraphCallback to provide info about embedder nodes",
+      "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
       void SetGetRetainerInfosCallback(GetRetainerInfosCallback callback));
 
-  void SetBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback);
+  V8_DEPRECATE_SOON(
+      "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
+      void SetBuildEmbedderGraphCallback(
+          LegacyBuildEmbedderGraphCallback callback));
+  void AddBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback,
+                                     void* data);
+  void RemoveBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback,
+                                        void* data);
 
   /**
    * Default value of persistent handle class ID. Must not be used to

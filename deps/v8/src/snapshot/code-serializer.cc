@@ -8,6 +8,7 @@
 
 #include "src/code-stubs.h"
 #include "src/counters.h"
+#include "src/debug/debug.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
@@ -53,9 +54,12 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   if (script->ContainsAsmModule()) return nullptr;
   if (isolate->debug()->is_loaded()) return nullptr;
 
+  isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
+
   // Serialize code object.
   Handle<String> source(String::cast(script->source()), isolate);
-  CodeSerializer cs(isolate, SerializedCodeData::SourceHash(source));
+  CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
+                                 source, script->origin_options()));
   DisallowHeapAllocation no_gc;
   cs.reference_map()->AddAttachedReference(*source);
   ScriptData* script_data = cs.SerializeSharedFunctionInfo(info);
@@ -189,16 +193,34 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
     // is context independent.
     DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
-    // Clear debug info.
-    Object* debug_info = sfi->debug_info();
-    sfi->set_debug_info(Smi::kZero);
+
+    DebugInfo* debug_info = nullptr;
+    BytecodeArray* debug_bytecode_array = nullptr;
+    if (sfi->HasDebugInfo()) {
+      // Clear debug info.
+      debug_info = sfi->GetDebugInfo();
+      if (debug_info->HasInstrumentedBytecodeArray()) {
+        debug_bytecode_array = debug_info->DebugBytecodeArray();
+        sfi->SetDebugBytecodeArray(debug_info->OriginalBytecodeArray());
+      }
+      sfi->set_function_identifier_or_debug_info(
+          debug_info->function_identifier());
+    }
+    DCHECK(!sfi->HasDebugInfo());
 
     // Mark SFI to indicate whether the code is cached.
     bool was_deserialized = sfi->deserialized();
     sfi->set_deserialized(sfi->is_compiled());
     SerializeGeneric(obj, how_to_code, where_to_point);
     sfi->set_deserialized(was_deserialized);
-    sfi->set_debug_info(debug_info);
+
+    // Restore debug info
+    if (debug_info != nullptr) {
+      sfi->set_function_identifier_or_debug_info(debug_info);
+      if (debug_bytecode_array != nullptr) {
+        sfi->SetDebugBytecodeArray(debug_bytecode_array);
+      }
+    }
     return;
   }
 
@@ -248,7 +270,8 @@ void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
 }
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
-    Isolate* isolate, ScriptData* cached_data, Handle<String> source) {
+    Isolate* isolate, ScriptData* cached_data, Handle<String> source,
+    ScriptOriginOptions origin_options) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -257,12 +280,13 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   SerializedCodeData::SanityCheckResult sanity_check_result =
       SerializedCodeData::CHECK_SUCCESS;
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
-      isolate, cached_data, SerializedCodeData::SourceHash(source),
+      isolate, cached_data,
+      SerializedCodeData::SourceHash(source, origin_options),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
     if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
     DCHECK(cached_data->rejected());
-    source->GetIsolate()->counters()->code_cache_reject_reason()->AddSample(
+    isolate->counters()->code_cache_reject_reason()->AddSample(
         sanity_check_result);
     return MaybeHandle<SharedFunctionInfo>();
   }
@@ -424,8 +448,15 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   return CHECK_SUCCESS;
 }
 
-uint32_t SerializedCodeData::SourceHash(Handle<String> source) {
-  return source->length();
+uint32_t SerializedCodeData::SourceHash(Handle<String> source,
+                                        ScriptOriginOptions origin_options) {
+  const uint32_t source_length = source->length();
+
+  static constexpr uint32_t kModuleFlagMask = (1 << 31);
+  const uint32_t is_module = origin_options.IsModule() ? kModuleFlagMask : 0;
+  DCHECK_EQ(0, source_length & kModuleFlagMask);
+
+  return source_length | is_module;
 }
 
 // Return ScriptData object and relinquish ownership over it to the caller.

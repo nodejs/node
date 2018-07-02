@@ -86,7 +86,7 @@ class JSRegExp : public JSObject {
   DECL_CAST(JSRegExp)
 
   // Dispatched behavior.
-  DECL_PRINTER(JSRegExp)
+  DECL_PRINTER_WITH_ISOLATE(JSRegExp)
   DECL_VERIFIER(JSRegExp)
 
   static const int kDataOffset = JSObject::kHeaderSize;

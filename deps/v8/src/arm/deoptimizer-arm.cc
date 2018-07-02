@@ -58,7 +58,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   {
     UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
-    __ mov(scratch, Operand(ExternalReference(
+    __ mov(scratch, Operand(ExternalReference::Create(
                         IsolateAddressId::kCEntryFPAddress, isolate())));
     __ str(fp, MemOperand(scratch));
   }
@@ -86,7 +86,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ JumpIfSmi(r1, &context_check);
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ mov(r1, Operand(type()));  // bailout type,
+  __ mov(r1, Operand(static_cast<int>(deopt_kind())));
   // r2: bailout id already loaded.
   // r3: code address or 0 already loaded.
   __ str(r4, MemOperand(sp, 0 * kPointerSize));  // Fp-to-sp delta.
@@ -95,7 +95,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Call Deoptimizer::New().
   {
     AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate()), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
   // Preserve "deoptimizer" object in register r0 and get the input
@@ -164,8 +164,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Call Deoptimizer::ComputeOutputFrames().
   {
     AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(
-        ExternalReference::compute_output_frames_function(isolate()), 1);
+    __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
   }
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
 

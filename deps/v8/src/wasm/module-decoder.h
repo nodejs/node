@@ -13,12 +13,9 @@
 
 namespace v8 {
 namespace internal {
-
-namespace compiler {
-struct ModuleEnv;
-}
-
 namespace wasm {
+
+struct ModuleEnv;
 
 inline bool IsValidSectionCode(uint8_t byte) {
   return kTypeSectionCode <= byte && byte <= kLastKnownModuleSection;
@@ -26,7 +23,7 @@ inline bool IsValidSectionCode(uint8_t byte) {
 
 const char* SectionName(SectionCode code);
 
-typedef Result<std::unique_ptr<WasmModule>> ModuleResult;
+typedef Result<std::shared_ptr<WasmModule>> ModuleResult;
 typedef Result<std::unique_ptr<WasmFunction>> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
@@ -82,10 +79,9 @@ V8_EXPORT_PRIVATE FunctionResult SyncDecodeWasmFunction(
     const WasmModule* module, const byte* function_start,
     const byte* function_end);
 
-V8_EXPORT_PRIVATE FunctionResult
-AsyncDecodeWasmFunction(Isolate* isolate, Zone* zone, compiler::ModuleEnv* env,
-                        const byte* function_start, const byte* function_end,
-                        const std::shared_ptr<Counters> async_counters);
+V8_EXPORT_PRIVATE FunctionResult AsyncDecodeWasmFunction(
+    Isolate* isolate, Zone* zone, ModuleEnv* env, const byte* function_start,
+    const byte* function_end, const std::shared_ptr<Counters> async_counters);
 
 V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
                                                             const byte* end);
@@ -142,7 +138,8 @@ class ModuleDecoder {
 
   ModuleResult FinishDecoding(bool verify_functions = true);
 
-  WasmModule* module() const;
+  const std::shared_ptr<WasmModule>& shared_module() const;
+  WasmModule* module() const { return shared_module().get(); }
 
   bool ok();
 

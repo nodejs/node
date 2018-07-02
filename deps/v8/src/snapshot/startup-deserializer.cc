@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/assembler-inl.h"
+#include "src/code-stubs.h"
 #include "src/heap/heap-inl.h"
 #include "src/snapshot/builtin-deserializer.h"
 #include "src/snapshot/snapshot.h"
@@ -95,7 +96,13 @@ void StartupDeserializer::PrintDisassembledCodeObjects() {
     for (HeapObject* obj = iterator.next(); obj != nullptr;
          obj = iterator.next()) {
       if (obj->IsCode()) {
-        Code::cast(obj)->Disassemble(nullptr, os);
+        Code* code = Code::cast(obj);
+        // Printing of builtins and bytecode handlers is handled during their
+        // deserialization.
+        if (code->kind() != Code::BUILTIN &&
+            code->kind() != Code::BYTECODE_HANDLER) {
+          code->PrintBuiltinCode(isolate(), nullptr);
+        }
       }
     }
   }

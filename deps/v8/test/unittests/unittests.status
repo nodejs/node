@@ -9,6 +9,8 @@
   'LiveRangeUnitTest*': [SKIP],
   'LoggingDeathTest*': [SKIP],
   'LoggingTest.CompareClassTypes': [SKIP],
+  'LoggingTest.CompareWithDifferentSignedness': [SKIP],
+  'LoggingTest.CompareWithReferenceType': [SKIP],
   'RandomNumberGenerator.NextSampleInvalidParam': [SKIP],
   'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
   'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],

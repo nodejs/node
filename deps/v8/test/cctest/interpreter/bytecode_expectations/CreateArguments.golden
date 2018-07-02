@@ -72,9 +72,9 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 17
+bytecode array length: 18
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
                 B(StaCurrentContextSlot), U8(4),
@@ -86,6 +86,7 @@ bytecodes: [
   /*   36 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -97,9 +98,9 @@ snippet: "
 "
 frame size: 2
 parameter count: 4
-bytecode array length: 21
+bytecode array length: 22
 bytecodes: [
-                B(CreateFunctionContext), U8(3),
+                B(CreateFunctionContext), U8(0), U8(3),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
                 B(StaCurrentContextSlot), U8(6),
@@ -113,6 +114,7 @@ bytecodes: [
   /*   39 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
 ]
 handlers: [
 ]

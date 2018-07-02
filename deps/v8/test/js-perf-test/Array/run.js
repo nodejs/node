@@ -24,13 +24,6 @@ function mc(name, generic = false) {
   return new Function(`result = array.${name}(func, this_arg);`);
 }
 
-function benchy(name, test, testSetup) {
-  new BenchmarkSuite(name, [1000],
-      [
-        new Benchmark(name, false, false, 0, test, testSetup, ()=>{})
-      ]);
-}
-
 function SmiSetup() {
   array = Array.from({ length: array_size }, (_, i) => i);
 }
@@ -63,7 +56,7 @@ function DefineHigherOrderTests(tests) {
        this_arg = undefined;
        setupFunc();
      };
-     benchy(name, testFunc, setupFuncWrapper);
+     createSuite(name, 1000, testFunc, setupFuncWrapper);
   }
 }
 
@@ -83,6 +76,7 @@ load('from.js');
 load('of.js');
 load('join.js');
 load('to-string.js');
+load('slice.js');
 
 var success = true;
 

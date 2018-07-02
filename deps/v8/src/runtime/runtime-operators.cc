@@ -23,7 +23,7 @@ RUNTIME_FUNCTION(Runtime_Equal) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
-  Maybe<bool> result = Object::Equals(x, y);
+  Maybe<bool> result = Object::Equals(isolate, x, y);
   if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
@@ -33,7 +33,7 @@ RUNTIME_FUNCTION(Runtime_NotEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
-  Maybe<bool> result = Object::Equals(x, y);
+  Maybe<bool> result = Object::Equals(isolate, x, y);
   if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(!result.FromJust());
 }
@@ -59,7 +59,7 @@ RUNTIME_FUNCTION(Runtime_LessThan) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
-  Maybe<bool> result = Object::LessThan(x, y);
+  Maybe<bool> result = Object::LessThan(isolate, x, y);
   if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
@@ -69,7 +69,7 @@ RUNTIME_FUNCTION(Runtime_GreaterThan) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
-  Maybe<bool> result = Object::GreaterThan(x, y);
+  Maybe<bool> result = Object::GreaterThan(isolate, x, y);
   if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
@@ -79,7 +79,7 @@ RUNTIME_FUNCTION(Runtime_LessThanOrEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
-  Maybe<bool> result = Object::LessThanOrEqual(x, y);
+  Maybe<bool> result = Object::LessThanOrEqual(isolate, x, y);
   if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
@@ -89,7 +89,7 @@ RUNTIME_FUNCTION(Runtime_GreaterThanOrEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
-  Maybe<bool> result = Object::GreaterThanOrEqual(x, y);
+  Maybe<bool> result = Object::GreaterThanOrEqual(isolate, x, y);
   if (result.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }

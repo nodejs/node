@@ -30,12 +30,10 @@ namespace internal {
   V(GroupEnd, groupEnd)             \
   V(Clear, clear)                   \
   V(Count, count)                   \
+  V(CountReset, countReset)         \
   V(Assert, assert)                 \
-  V(MarkTimeline, markTimeline)     \
   V(Profile, profile)               \
-  V(ProfileEnd, profileEnd)         \
-  V(Timeline, timeline)             \
-  V(TimelineEnd, timelineEnd)
+  V(ProfileEnd, profileEnd)
 
 namespace {
 void ConsoleCall(
@@ -107,10 +105,10 @@ BUILTIN(ConsoleTimeStamp) {
 }
 
 namespace {
-void InstallContextFunction(Handle<JSObject> target, const char* name,
-                            Builtins::Name builtin_id, int context_id,
-                            Handle<Object> context_name) {
-  Factory* const factory = target->GetIsolate()->factory();
+void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
+                            const char* name, Builtins::Name builtin_id,
+                            int context_id, Handle<Object> context_name) {
+  Factory* const factory = isolate->factory();
 
   Handle<String> name_string =
       Name::ToFunctionName(factory->InternalizeUtf8String(name))
@@ -123,14 +121,13 @@ void InstallContextFunction(Handle<JSObject> target, const char* name,
   fun->shared()->DontAdaptArguments();
   fun->shared()->set_length(1);
 
-  JSObject::AddProperty(fun, factory->console_context_id_symbol(),
-                        handle(Smi::FromInt(context_id), target->GetIsolate()),
-                        NONE);
+  JSObject::AddProperty(isolate, fun, factory->console_context_id_symbol(),
+                        handle(Smi::FromInt(context_id), isolate), NONE);
   if (context_name->IsString()) {
-    JSObject::AddProperty(fun, factory->console_context_name_symbol(),
+    JSObject::AddProperty(isolate, fun, factory->console_context_name_symbol(),
                           context_name, NONE);
   }
-  JSObject::AddProperty(target, name_string, fun, NONE);
+  JSObject::AddProperty(isolate, target, name_string, fun, NONE);
 }
 }  // namespace
 
@@ -151,17 +148,17 @@ BUILTIN(ConsoleContext) {
   int id = isolate->last_console_context_id() + 1;
   isolate->set_last_console_context_id(id);
 
-#define CONSOLE_BUILTIN_SETUP(call, name)                              \
-  InstallContextFunction(context, #name, Builtins::kConsole##call, id, \
-                         args.at(1));
+#define CONSOLE_BUILTIN_SETUP(call, name)                                   \
+  InstallContextFunction(isolate, context, #name, Builtins::kConsole##call, \
+                         id, args.at(1));
   CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_SETUP)
 #undef CONSOLE_BUILTIN_SETUP
-  InstallContextFunction(context, "time", Builtins::kConsoleTime, id,
+  InstallContextFunction(isolate, context, "time", Builtins::kConsoleTime, id,
                          args.at(1));
-  InstallContextFunction(context, "timeEnd", Builtins::kConsoleTimeEnd, id,
-                         args.at(1));
-  InstallContextFunction(context, "timeStamp", Builtins::kConsoleTimeStamp, id,
-                         args.at(1));
+  InstallContextFunction(isolate, context, "timeEnd", Builtins::kConsoleTimeEnd,
+                         id, args.at(1));
+  InstallContextFunction(isolate, context, "timeStamp",
+                         Builtins::kConsoleTimeStamp, id, args.at(1));
 
   return *context;
 }

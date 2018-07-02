@@ -39,17 +39,15 @@ Handle<Context> ScriptContextTable::GetContext(Handle<ScriptContextTable> table,
       FixedArray::get(*table, i + kFirstContextSlotIndex, table->GetIsolate()));
 }
 
-
 // static
 Context* Context::cast(Object* context) {
   DCHECK(context->IsContext());
   return reinterpret_cast<Context*>(context);
 }
 
-
-JSFunction* Context::closure() { return JSFunction::cast(get(CLOSURE_INDEX)); }
-void Context::set_closure(JSFunction* closure) { set(CLOSURE_INDEX, closure); }
-
+void Context::set_scope_info(ScopeInfo* scope_info) {
+  set(SCOPE_INFO_INDEX, scope_info);
+}
 
 Context* Context::previous() {
   Object* result = get(PREVIOUS_INDEX);
@@ -209,7 +207,7 @@ Map* Context::GetInitialJSArrayMap(ElementsKind kind) const {
   if (!IsFastElementsKind(kind)) return nullptr;
   DisallowHeapAllocation no_gc;
   Object* const initial_js_array_map = get(Context::ArrayMapIndex(kind));
-  DCHECK(!initial_js_array_map->IsUndefined(GetIsolate()));
+  DCHECK(!initial_js_array_map->IsUndefined());
   return Map::cast(initial_js_array_map);
 }
 

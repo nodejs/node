@@ -5,6 +5,4 @@
 var o = {};
 var proxy = new Proxy(() => {}, o);
 o.apply = proxy;
-assertThrows(
-  () => Function.prototype.call.call(proxy)
-);
+assertThrows(proxy);

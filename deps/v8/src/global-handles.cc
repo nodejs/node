@@ -641,10 +641,11 @@ void GlobalHandles::IterateWeakRootsForFinalizers(RootVisitor* v) {
 
 DISABLE_CFI_PERF
 void GlobalHandles::IterateWeakRootsForPhantomHandles(
-    WeakSlotCallback should_reset_handle) {
+    WeakSlotCallbackWithHeap should_reset_handle) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     Node* node = it.node();
-    if (node->IsWeakRetainer() && should_reset_handle(node->location())) {
+    if (node->IsWeakRetainer() &&
+        should_reset_handle(isolate()->heap(), node->location())) {
       if (node->IsPhantomResetHandle()) {
         node->MarkPending();
         node->ResetPhantomHandle();
@@ -658,10 +659,12 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
   }
 }
 
-void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback should_reset_handle) {
+void GlobalHandles::IdentifyWeakHandles(
+    WeakSlotCallbackWithHeap should_reset_handle) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     Node* node = it.node();
-    if (node->IsWeak() && should_reset_handle(node->location())) {
+    if (node->IsWeak() &&
+        should_reset_handle(isolate()->heap(), node->location())) {
       if (!node->IsPhantomCallback() && !node->IsPhantomResetHandle()) {
         node->MarkPending();
       }

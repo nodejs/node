@@ -149,7 +149,7 @@ function text(string) {
 }
 
 function delay(t) {
-  return new Promise(resolve = > setTimeout(resolve, t));
+  return new Promise(resolve => setTimeout(resolve, t));
 }
 
 function renderParseResults(parseProcessor) {
@@ -326,7 +326,7 @@ function createFunktionList(metric, time, funktions) {
   <h2>Data</h2>
   <form name="fileForm">
     <p>
-      <input id="uploadInput" type="file" name="files" onchange="loadFile();"> trace entries: <span id="count">0</span>
+      <input id="uploadInput" type="file" name="files" onchange="loadFile();" accept=".log"> trace entries: <span id="count">0</span>
     </p>
   </form>
 

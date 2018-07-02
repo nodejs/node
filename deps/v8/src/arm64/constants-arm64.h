@@ -140,6 +140,11 @@ const unsigned kFloat16MantissaBits = 10;
 const unsigned kFloat16ExponentBits = 5;
 const unsigned kFloat16ExponentBias = 15;
 
+// Actual value of root register is offset from the root array's start
+// to take advantage of negative displacement values.
+// TODO(sigurds): Choose best value.
+constexpr int kRootRegisterBias = 256;
+
 typedef uint16_t float16;
 
 #define INSTRUCTION_FIELDS_LIST(V_)                     \

@@ -44,12 +44,6 @@ class PropertyAccessBuilder {
   Node* BuildCheckValue(Node* receiver, Node** effect, Node* control,
                         Handle<HeapObject> value);
 
-  // Adds stability dependencies on all prototypes of every class in
-  // {receiver_type} up to (and including) the {holder}.
-  void AssumePrototypesStable(Handle<Context> native_context,
-                              std::vector<Handle<Map>> const& receiver_maps,
-                              Handle<JSObject> holder);
-
   // Builds the actual load for data-field and data-constant-field
   // properties (without heap-object or map checks).
   Node* BuildLoadDataField(Handle<Name> name,

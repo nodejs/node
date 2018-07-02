@@ -236,8 +236,8 @@ TEST(ExtractLane) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
-  code->Print(os);
+  StdoutStream os;
+  code->Print(isolate, os);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
   f.Call(&t, 0, 0, 0, 0);
@@ -368,8 +368,8 @@ TEST(ReplaceLane) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  OFStream os(stdout);
-  code->Print(os);
+  StdoutStream os;
+  code->Print(isolate, os);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
   f.Call(&t, 0, 0, 0, 0);

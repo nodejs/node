@@ -10,6 +10,7 @@
 #include "src/objects-body-descriptors.h"
 #include "src/objects.h"
 #include "src/objects/hash-table.h"
+#include "src/objects/ordered-hash-table.h"
 #include "src/objects/string.h"
 #include "src/visitors.h"
 
@@ -18,6 +19,7 @@ namespace internal {
 
 class BigInt;
 class BytecodeArray;
+class DataHandler;
 class JSArrayBuffer;
 class JSRegExp;
 class JSWeakCollection;
@@ -31,6 +33,8 @@ class JSWeakCollection;
   V(Code)                        \
   V(CodeDataContainer)           \
   V(ConsString)                  \
+  V(DataHandler)                 \
+  V(EphemeronHashTable)          \
   V(FeedbackCell)                \
   V(FeedbackVector)              \
   V(FixedArray)                  \
@@ -45,6 +49,7 @@ class JSWeakCollection;
   V(Oddball)                     \
   V(PropertyArray)               \
   V(PropertyCell)                \
+  V(PrototypeInfo)               \
   V(SeqOneByteString)            \
   V(SeqTwoByteString)            \
   V(SharedFunctionInfo)          \
@@ -55,8 +60,7 @@ class JSWeakCollection;
   V(ThinString)                  \
   V(TransitionArray)             \
   V(WasmInstanceObject)          \
-  V(WeakCell)                    \
-  V(WeakFixedArray)
+  V(WeakCell)
 
 // The base class for visitors that need to dispatch on object type. The default
 // behavior of all visit functions is to iterate body of the given object using
@@ -98,6 +102,7 @@ class HeapVisitor : public ObjectVisitor {
   V8_INLINE ResultType VisitJSApiObject(Map* map, JSObject* object);
   V8_INLINE ResultType VisitStruct(Map* map, HeapObject* object);
   V8_INLINE ResultType VisitFreeSpace(Map* map, FreeSpace* object);
+  V8_INLINE ResultType VisitWeakArray(Map* map, HeapObject* object);
 
   template <typename T>
   static V8_INLINE T* Cast(HeapObject* object);

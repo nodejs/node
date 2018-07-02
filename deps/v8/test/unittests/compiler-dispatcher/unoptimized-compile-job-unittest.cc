@@ -120,7 +120,8 @@ TEST_F(UnoptimizedCompileJobTest, CompileAndRun) {
       "g();";
   Handle<JSFunction> f = RunJS<JSFunction>(script);
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
+      isolate(), tracer(), handle(f->shared(), f->GetIsolate()),
+      FLAG_stack_size));
 
   job->PrepareOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());
@@ -249,7 +250,8 @@ TEST_F(UnoptimizedCompileJobTest, LazyInnerFunctions) {
   Handle<JSFunction> f = RunJS<JSFunction>(script);
 
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
+      isolate(), tracer(), handle(f->shared(), f->GetIsolate()),
+      FLAG_stack_size));
 
   job->PrepareOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());

@@ -46,18 +46,18 @@ class Label {
 #endif
 #endif
 
-  INLINE(~Label()) {
+  V8_INLINE ~Label() {
     DCHECK(!is_linked());
     DCHECK(!is_near_linked());
   }
 
-  INLINE(void Unuse()) { pos_ = 0; }
-  INLINE(void UnuseNear()) { near_link_pos_ = 0; }
+  V8_INLINE void Unuse() { pos_ = 0; }
+  V8_INLINE void UnuseNear() { near_link_pos_ = 0; }
 
-  INLINE(bool is_bound() const) { return pos_ < 0; }
-  INLINE(bool is_unused() const) { return pos_ == 0 && near_link_pos_ == 0; }
-  INLINE(bool is_linked() const) { return pos_ > 0; }
-  INLINE(bool is_near_linked() const) { return near_link_pos_ > 0; }
+  V8_INLINE bool is_bound() const { return pos_ < 0; }
+  V8_INLINE bool is_unused() const { return pos_ == 0 && near_link_pos_ == 0; }
+  V8_INLINE bool is_linked() const { return pos_ > 0; }
+  V8_INLINE bool is_near_linked() const { return near_link_pos_ > 0; }
 
   // Returns the position of bound or linked labels. Cannot be used
   // for unused labels.

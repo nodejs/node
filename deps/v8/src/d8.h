@@ -9,11 +9,12 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "src/allocation.h"
-#include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
+#include "src/string-hasher.h"
 #include "src/utils.h"
 
 #include "src/base/once.h"
@@ -56,41 +57,21 @@ class CounterCollection {
   Counter counters_[kMaxCounters];
 };
 
-
-class CounterMap {
- public:
-  CounterMap(): hash_map_(Match) { }
-  Counter* Lookup(const char* name) {
-    base::HashMap::Entry* answer =
-        hash_map_.Lookup(const_cast<char*>(name), Hash(name));
-    if (!answer) return nullptr;
-    return reinterpret_cast<Counter*>(answer->value);
+struct CStringHasher {
+  std::size_t operator()(const char* name) const {
+    size_t h = 0;
+    size_t c;
+    while ((c = *name++) != 0) {
+      h += h << 5;
+      h += c;
+    }
+    return h;
   }
-  void Set(const char* name, Counter* value) {
-    base::HashMap::Entry* answer =
-        hash_map_.LookupOrInsert(const_cast<char*>(name), Hash(name));
-    DCHECK_NOT_NULL(answer);
-    answer->value = value;
-  }
-  class Iterator {
-   public:
-    explicit Iterator(CounterMap* map)
-        : map_(&map->hash_map_), entry_(map_->Start()) { }
-    void Next() { entry_ = map_->Next(entry_); }
-    bool More() { return entry_ != nullptr; }
-    const char* CurrentKey() { return static_cast<const char*>(entry_->key); }
-    Counter* CurrentValue() { return static_cast<Counter*>(entry_->value); }
-   private:
-    base::CustomMatcherHashMap* map_;
-    base::CustomMatcherHashMap::Entry* entry_;
-  };
-
- private:
-  static int Hash(const char* name);
-  static bool Match(void* key1, void* key2);
-  base::CustomMatcherHashMap hash_map_;
 };
 
+typedef std::unordered_map<const char*, Counter*, CStringHasher,
+                           i::StringEquals>
+    CounterMap;
 
 class SourceGroup {
  public:
@@ -196,7 +177,10 @@ class SerializationData {
   shared_array_buffer_contents() {
     return shared_array_buffer_contents_;
   }
-
+  const std::vector<WasmCompiledModule::TransferrableModule>&
+  transferrable_modules() {
+    return transferrable_modules_;
+  }
 
  private:
   struct DataDeleter {
@@ -207,6 +191,7 @@ class SerializationData {
   size_t size_;
   std::vector<ArrayBuffer::Contents> array_buffer_contents_;
   std::vector<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
+  std::vector<WasmCompiledModule::TransferrableModule> transferrable_modules_;
 
  private:
   friend class Serializer;

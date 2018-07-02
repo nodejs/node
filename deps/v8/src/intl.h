@@ -23,6 +23,14 @@ class TimeZone;
 namespace v8 {
 namespace internal {
 
+enum class IcuService {
+  kBreakIterator,
+  kCollator,
+  kDateFormat,
+  kNumberFormat,
+  kPluralRules
+};
+
 const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
                                     std::unique_ptr<uc16[]>* dest,
                                     int32_t length);

@@ -37,7 +37,8 @@ String16 calculateHash(const String16& str) {
   size_t sizeInBytes = sizeof(UChar) * str.length();
   data = reinterpret_cast<const uint32_t*>(str.characters16());
   for (size_t i = 0; i < sizeInBytes / 4; ++i) {
-    uint32_t d = v8::internal::ReadUnalignedUInt32(data + i);
+    uint32_t d = v8::internal::ReadUnalignedUInt32(
+        reinterpret_cast<v8::internal::Address>(data + i));
 #if V8_TARGET_LITTLE_ENDIAN
     uint32_t v = d;
 #else
@@ -165,12 +166,12 @@ class ActualScript : public V8DebuggerScript {
   }
 
   void setSource(const String16& newSource, bool preview,
-                 bool* stackChanged) override {
+                 v8::debug::LiveEditResult* result) override {
     DCHECK(!isModule());
-    v8::HandleScope scope(m_isolate);
+    v8::EscapableHandleScope scope(m_isolate);
     v8::Local<v8::String> v8Source = toV8String(m_isolate, newSource);
-    if (!m_script.Get(m_isolate)->SetScriptSource(v8Source, preview,
-                                                  stackChanged)) {
+    if (!m_script.Get(m_isolate)->SetScriptSource(v8Source, preview, result)) {
+      result->message = scope.Escape(result->message);
       return;
     }
     if (preview) return;
@@ -289,7 +290,9 @@ class WasmVirtualScript : public V8DebuggerScript {
   bool isLiveEdit() const override { return false; }
   bool isModule() const override { return false; }
   void setSourceMappingURL(const String16&) override {}
-  void setSource(const String16&, bool, bool*) override { UNREACHABLE(); }
+  void setSource(const String16&, bool, v8::debug::LiveEditResult*) override {
+    UNREACHABLE();
+  }
   bool isSourceLoadedLazily() const override { return true; }
   const String16& source() const override {
     return m_wasmTranslation->GetSource(m_id, m_functionIndex);

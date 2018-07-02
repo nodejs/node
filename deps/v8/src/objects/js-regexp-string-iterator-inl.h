@@ -13,8 +13,6 @@
 namespace v8 {
 namespace internal {
 
-TYPE_CHECKER(JSRegExpStringIterator, JS_REGEXP_STRING_ITERATOR_TYPE)
-
 ACCESSORS(JSRegExpStringIterator, iterating_regexp, Object,
           kIteratingRegExpOffset)
 ACCESSORS(JSRegExpStringIterator, iterating_string, String,

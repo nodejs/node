@@ -208,9 +208,7 @@ tests.push(function TestFromTypedArraySpeciesNeutersBuffer(constr) {
     }
   });
 
-  var a2 = new constr(a1);
-
-  assertArrayEquals([], a2);
+  assertThrows(() => new constr(a1));
 });
 
 tests.push(function TestLengthIsMaxSmi(constr) {

@@ -3266,6 +3266,54 @@ TEST_F(InstructionSelectorTest, SpeculationFence) {
   EXPECT_EQ(kArmDsbIsb, s[0]->arch_opcode());
 }
 
+TEST_F(InstructionSelectorTest, StackCheck0) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
+  Node* const sp = m.LoadStackPointer();
+  Node* const stack_limit = m.Load(MachineType::Int32(), m.Parameter(0));
+  Node* const interrupt = m.UintPtrLessThan(sp, stack_limit);
+
+  RawMachineLabel if_true, if_false;
+  m.Branch(interrupt, &if_true, &if_false);
+
+  m.Bind(&if_true);
+  m.Return(m.Int32Constant(1));
+
+  m.Bind(&if_false);
+  m.Return(m.Int32Constant(0));
+
+  Stream s = m.Build();
+
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArmLdr, s[0]->arch_opcode());
+  EXPECT_EQ(kArmCmp, s[1]->arch_opcode());
+  EXPECT_EQ(4U, s[1]->InputCount());
+  EXPECT_EQ(0U, s[1]->OutputCount());
+}
+
+TEST_F(InstructionSelectorTest, StackCheck1) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
+  Node* const sp = m.LoadStackPointer();
+  Node* const stack_limit = m.Load(MachineType::Int32(), m.Parameter(0));
+  Node* const sp_within_limit = m.UintPtrLessThan(stack_limit, sp);
+
+  RawMachineLabel if_true, if_false;
+  m.Branch(sp_within_limit, &if_true, &if_false);
+
+  m.Bind(&if_true);
+  m.Return(m.Int32Constant(1));
+
+  m.Bind(&if_false);
+  m.Return(m.Int32Constant(0));
+
+  Stream s = m.Build();
+
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArmLdr, s[0]->arch_opcode());
+  EXPECT_EQ(kArmCmp, s[1]->arch_opcode());
+  EXPECT_EQ(4U, s[1]->InputCount());
+  EXPECT_EQ(0U, s[1]->OutputCount());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

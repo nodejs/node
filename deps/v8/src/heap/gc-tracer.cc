@@ -697,7 +697,8 @@ void GCTracer::PrintNVP() const {
           "mark.roots=%.1f "
           "mark.main=%.1f "
           "mark.weak_closure=%.1f "
-          "mark.weak_closure.ephemeral=%.1f "
+          "mark.weak_closure.ephemeron=%.1f "
+          "mark.weak_closure.ephemeron.marking=%.1f "
           "mark.weak_closure.weak_handles=%.1f "
           "mark.weak_closure.weak_roots=%.1f "
           "mark.weak_closure.harmony=%.1f "
@@ -791,7 +792,8 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_MARK_ROOTS],
           current_.scopes[Scope::MC_MARK_MAIN],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE],
-          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL],
+          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON],
+          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_HARMONY],
@@ -1097,6 +1099,28 @@ void GCTracer::AddBackgroundScopeSample(
   counter.total_duration_ms += duration;
   if (runtime_call_counter) {
     counter.runtime_call_counter.Add(runtime_call_counter);
+  }
+}
+
+void GCTracer::RecordMarkCompactHistograms(HistogramTimer* gc_timer) {
+  Counters* counters = heap_->isolate()->counters();
+  if (gc_timer == counters->gc_finalize()) {
+    DCHECK_EQ(Scope::FIRST_TOP_MC_SCOPE, Scope::MC_CLEAR);
+    counters->gc_finalize_clear()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_CLEAR]));
+    counters->gc_finalize_epilogue()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_EPILOGUE]));
+    counters->gc_finalize_evacuate()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_EVACUATE]));
+    counters->gc_finalize_finish()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_FINISH]));
+    counters->gc_finalize_mark()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_MARK]));
+    counters->gc_finalize_prologue()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_PROLOGUE]));
+    counters->gc_finalize_sweep()->AddSample(
+        static_cast<int>(current_.scopes[Scope::MC_SWEEP]));
+    DCHECK_EQ(Scope::LAST_TOP_MC_SCOPE, Scope::MC_SWEEP);
   }
 }
 

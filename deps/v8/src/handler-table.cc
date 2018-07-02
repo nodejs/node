@@ -25,7 +25,8 @@ HandlerTable::HandlerTable(ByteArray* byte_array)
 #ifdef DEBUG
       mode_(kRangeBasedEncoding),
 #endif
-      raw_encoded_data_(byte_array->GetDataStartAddress()) {
+      raw_encoded_data_(
+          reinterpret_cast<Address>(byte_array->GetDataStartAddress())) {
 }
 
 HandlerTable::HandlerTable(Address instruction_start,

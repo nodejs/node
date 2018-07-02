@@ -21,5 +21,5 @@ test = new B(1);
 test = new B(1);
 assertOptimized(B);
 // Check that hole checks are handled correctly in optimized code.
-assertThrowsEquals(() => {new B(0)}, ReferenceError());
+assertThrows(() => {new B(0)}, ReferenceError);
 assertOptimized(B);

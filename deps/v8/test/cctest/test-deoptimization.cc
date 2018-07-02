@@ -42,9 +42,7 @@ using ::v8::base::OS;
 using ::v8::internal::Deoptimizer;
 using ::v8::internal::EmbeddedVector;
 using ::v8::internal::Handle;
-using ::v8::internal::Isolate;
 using ::v8::internal::JSFunction;
-using ::v8::internal::Object;
 
 // Size of temp buffer for formatting small strings.
 #define SMALL_STRING_BUFFER_SIZE 80

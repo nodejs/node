@@ -47,8 +47,9 @@ class ScopeTestHelper {
               scope_local = scope->locals()->begin();
          baseline_local != baseline->locals()->end();
          ++baseline_local, ++scope_local) {
-      if (scope_local->mode() == VAR || scope_local->mode() == LET ||
-          scope_local->mode() == CONST) {
+      if (scope_local->mode() == VariableMode::kVar ||
+          scope_local->mode() == VariableMode::kLet ||
+          scope_local->mode() == VariableMode::kConst) {
         CompareVariables(*baseline_local, *scope_local, precise_maybe_assigned);
       }
     }

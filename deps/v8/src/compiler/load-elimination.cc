@@ -36,7 +36,7 @@ Node* ResolveRenames(Node* node) {
 
 bool MayAlias(Node* a, Node* b) {
   if (a == b) return true;
-  if (!NodeProperties::GetType(a)->Maybe(NodeProperties::GetType(b))) {
+  if (!NodeProperties::GetType(a).Maybe(NodeProperties::GetType(b))) {
     return false;
   }
   switch (b->opcode()) {
@@ -252,7 +252,7 @@ LoadElimination::AbstractElements::Kill(Node* object, Node* index,
         DCHECK_NOT_NULL(element.index);
         DCHECK_NOT_NULL(element.value);
         if (!MayAlias(object, element.object) ||
-            !NodeProperties::GetType(index)->Maybe(
+            !NodeProperties::GetType(index).Maybe(
                 NodeProperties::GetType(element.index))) {
           that->elements_[that->next_index_++] = element;
         }
@@ -445,12 +445,13 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
 }
 
 void LoadElimination::AbstractMaps::Print() const {
+  StdoutStream os;
   for (auto pair : info_for_node_) {
-    PrintF("    #%d:%s\n", pair.first->id(), pair.first->op()->mnemonic());
-    OFStream os(stdout);
+    os << "    #" << pair.first->id() << ":" << pair.first->op()->mnemonic()
+       << std::endl;
     ZoneHandleSet<Map> const& maps = pair.second;
     for (size_t i = 0; i < maps.size(); ++i) {
-      os << "     - " << Brief(*maps[i]) << "\n";
+      os << "     - " << Brief(*maps[i]) << std::endl;
     }
   }
 }
@@ -928,7 +929,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
         // TODO(tebbi): We should insert a {TypeGuard} for the intersection of
         // these two types here once we properly handle {Type::None} everywhere.
         if (!replacement->IsDead() && NodeProperties::GetType(replacement)
-                                          ->Is(NodeProperties::GetType(node))) {
+                                          .Is(NodeProperties::GetType(node))) {
           ReplaceWithValue(node, replacement, effect);
           return Replace(replacement);
         }
@@ -955,11 +956,11 @@ Reduction LoadElimination::ReduceStoreField(Node* node) {
     DCHECK(IsAnyTagged(access.machine_type.representation()));
     // Kill all potential knowledge about the {object}s map.
     state = state->KillMaps(object, zone());
-    Type* const new_value_type = NodeProperties::GetType(new_value);
-    if (new_value_type->IsHeapConstant()) {
+    Type const new_value_type = NodeProperties::GetType(new_value);
+    if (new_value_type.IsHeapConstant()) {
       // Record the new {object} map information.
       ZoneHandleSet<Map> object_maps(
-          bit_cast<Handle<Map>>(new_value_type->AsHeapConstant()->Value()));
+          bit_cast<Handle<Map>>(new_value_type.AsHeapConstant()->Value()));
       state = state->SetMaps(object, object_maps, zone());
     }
   } else {
@@ -1016,7 +1017,7 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
         // TODO(tebbi): We should insert a {TypeGuard} for the intersection of
         // these two types here once we properly handle {Type::None} everywhere.
         if (!replacement->IsDead() && NodeProperties::GetType(replacement)
-                                          ->Is(NodeProperties::GetType(node))) {
+                                          .Is(NodeProperties::GetType(node))) {
           ReplaceWithValue(node, replacement, effect);
           return Replace(replacement);
         }
@@ -1367,6 +1368,8 @@ CommonOperatorBuilder* LoadElimination::common() const {
 }
 
 Graph* LoadElimination::graph() const { return jsgraph()->graph(); }
+
+Isolate* LoadElimination::isolate() const { return jsgraph()->isolate(); }
 
 Factory* LoadElimination::factory() const { return jsgraph()->factory(); }
 

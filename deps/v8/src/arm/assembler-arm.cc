@@ -43,6 +43,7 @@
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 
@@ -338,34 +339,27 @@ bool RelocInfo::IsInConstantPool() {
   return Assembler::is_constant_pool_load(pc_);
 }
 
-Address RelocInfo::embedded_address() const {
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
-uint32_t RelocInfo::embedded_size() const {
-  return reinterpret_cast<uint32_t>(
-      Assembler::target_address_at(pc_, constant_pool_));
-}
-
-void RelocInfo::set_embedded_address(Address address,
-                                     ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(pc_, constant_pool_, address, flush_mode);
-}
-
-void RelocInfo::set_embedded_size(uint32_t size, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(pc_, constant_pool_,
-                                   reinterpret_cast<Address>(size), flush_mode);
+int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
+  DCHECK(IsRuntimeEntry(rmode_));
+  return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
 }
 
 void RelocInfo::set_js_to_wasm_address(Address address,
                                        ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  set_embedded_address(address, icache_flush_mode);
+  Assembler::set_target_address_at(pc_, constant_pool_, address,
+                                   icache_flush_mode);
 }
 
 Address RelocInfo::js_to_wasm_address() const {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return embedded_address();
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+uint32_t RelocInfo::wasm_call_tag() const {
+  DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
+  return static_cast<uint32_t>(
+      Assembler::target_address_at(pc_, constant_pool_));
 }
 
 // -----------------------------------------------------------------------------
@@ -374,7 +368,7 @@ Address RelocInfo::js_to_wasm_address() const {
 
 Operand::Operand(Handle<HeapObject> handle) {
   rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(handle.address());
+  value_.immediate = static_cast<intptr_t>(handle.address());
   rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
@@ -483,15 +477,15 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Handle<HeapObject> object;
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber(request.heap_number(),
-                                                   IMMUTABLE, TENURED);
+        object =
+            isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
         break;
       case HeapObjectRequest::kCodeStub:
         request.code_stub()->set_isolate(isolate);
         object = request.code_stub()->GetCode();
         break;
     }
-    Address pc = buffer_ + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     Memory::Address_at(constant_pool_entry_address(pc, 0 /* unused */)) =
         object.address();
   }
@@ -544,8 +538,8 @@ const Instr kLdrRegFpNegOffsetPattern =
 const Instr kStrRegFpNegOffsetPattern = al | B26 | NegOffset | fp.code() * B16;
 const Instr kLdrStrInstrTypeMask = 0xFFFF0000;
 
-Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size),
+Assembler::Assembler(const Options& options, void* buffer, int buffer_size)
+    : AssemblerBase(options, buffer, buffer_size),
       pending_32_bit_constants_(),
       pending_64_bit_constants_(),
       scratch_register_list_(ip.bit()) {
@@ -553,7 +547,6 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   pending_64_bit_constants_.reserve(kMinNumPendingConstants);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   next_buffer_check_ = 0;
-  code_target_sharing_blocked_nesting_ = 0;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   first_const_pool_32_use_ = -1;
@@ -576,7 +569,6 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
 
 Assembler::~Assembler() {
   DCHECK_EQ(const_pool_blocked_nesting_, 0);
-  DCHECK_EQ(code_target_sharing_blocked_nesting_, 0);
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
@@ -890,7 +882,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     if (is_uint8(target24)) {
       // If the target fits in a byte then only patch with a mov
       // instruction.
-      PatchingAssembler patcher(isolate_data(),
+      PatchingAssembler patcher(options(),
                                 reinterpret_cast<byte*>(buffer_ + pos), 1);
       patcher.mov(dst, Operand(target24));
     } else {
@@ -899,12 +891,12 @@ void Assembler::target_at_put(int pos, int target_pos) {
       if (CpuFeatures::IsSupported(ARMv7)) {
         // Patch with movw/movt.
         if (target16_1 == 0) {
-          PatchingAssembler patcher(isolate_data(),
+          PatchingAssembler patcher(options(),
                                     reinterpret_cast<byte*>(buffer_ + pos), 1);
           CpuFeatureScope scope(&patcher, ARMv7);
           patcher.movw(dst, target16_0);
         } else {
-          PatchingAssembler patcher(isolate_data(),
+          PatchingAssembler patcher(options(),
                                     reinterpret_cast<byte*>(buffer_ + pos), 2);
           CpuFeatureScope scope(&patcher, ARMv7);
           patcher.movw(dst, target16_0);
@@ -916,12 +908,12 @@ void Assembler::target_at_put(int pos, int target_pos) {
         uint8_t target8_1 = target16_0 >> 8;
         uint8_t target8_2 = target16_1 & kImm8Mask;
         if (target8_2 == 0) {
-          PatchingAssembler patcher(isolate_data(),
+          PatchingAssembler patcher(options(),
                                     reinterpret_cast<byte*>(buffer_ + pos), 2);
           patcher.mov(dst, Operand(target8_0));
           patcher.orr(dst, dst, Operand(target8_1 << 8));
         } else {
-          PatchingAssembler patcher(isolate_data(),
+          PatchingAssembler patcher(options(),
                                     reinterpret_cast<byte*>(buffer_ + pos), 3);
           patcher.mov(dst, Operand(target8_0));
           patcher.orr(dst, dst, Operand(target8_1 << 8));
@@ -1105,9 +1097,9 @@ bool FitsShifter(uint32_t imm32, uint32_t* rotate_imm, uint32_t* immed_8,
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
 bool MustOutputRelocInfo(RelocInfo::Mode rmode, const Assembler* assembler) {
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-    if (assembler != nullptr && assembler->predictable_code_size()) return true;
-    return assembler->serializer_enabled();
+  if (RelocInfo::IsOnlyForSerializer(rmode)) {
+    if (assembler->predictable_code_size()) return true;
+    return assembler->options().record_reloc_info_for_serialization;
   } else if (RelocInfo::IsNone(rmode)) {
     return false;
   }
@@ -1167,6 +1159,7 @@ int Operand::InstructionsRequired(const Assembler* assembler,
 void Assembler::Move32BitImmediate(Register rd, const Operand& x,
                                    Condition cond) {
   if (UseMovImmediateLoad(x, this)) {
+    CpuFeatureScope scope(this, ARMv7);
     // UseMovImmediateLoad should return false when we need to output
     // relocation info, since we prefer the constant pool for values that
     // can be patched.
@@ -1174,12 +1167,9 @@ void Assembler::Move32BitImmediate(Register rd, const Operand& x,
     UseScratchRegisterScope temps(this);
     // Re-use the destination register as a scratch if possible.
     Register target = rd != pc ? rd : temps.Acquire();
-    if (CpuFeatures::IsSupported(ARMv7)) {
-      uint32_t imm32 = static_cast<uint32_t>(x.immediate());
-      CpuFeatureScope scope(this, ARMv7);
-      movw(target, imm32 & 0xFFFF, cond);
-      movt(target, imm32 >> 16, cond);
-    }
+    uint32_t imm32 = static_cast<uint32_t>(x.immediate());
+    movw(target, imm32 & 0xFFFF, cond);
+    movt(target, imm32 >> 16, cond);
     if (target.code() != rd.code()) {
       mov(rd, target, LeaveCC, cond);
     }
@@ -5147,28 +5137,26 @@ void Assembler::dq(uint64_t value) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (RelocInfo::IsNone(rmode) ||
       // Don't record external references unless the heap will be serialized.
-      (rmode == RelocInfo::EXTERNAL_REFERENCE && !serializer_enabled() &&
-       !emit_debug_code())) {
+      (RelocInfo::IsOnlyForSerializer(rmode) &&
+       !options().record_reloc_info_for_serialization && !emit_debug_code())) {
     return;
   }
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
-  RelocInfo rinfo(pc_, rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   reloc_info_writer.Write(&rinfo);
 }
 
 void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                                      intptr_t value) {
   DCHECK(rmode != RelocInfo::COMMENT && rmode != RelocInfo::CONST_POOL);
-  bool sharing_ok = RelocInfo::IsNone(rmode) ||
-                    (rmode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE);
+  bool sharing_ok =
+      RelocInfo::IsNone(rmode) || RelocInfo::IsShareableRelocMode(rmode);
   DCHECK_LT(pending_32_bit_constants_.size(), kMaxNumPending32Constants);
   if (pending_32_bit_constants_.empty()) {
     first_const_pool_32_use_ = position;
   }
-  ConstantPoolEntry entry(position, value,
-                          sharing_ok || (rmode == RelocInfo::CODE_TARGET &&
-                                         IsCodeTargetSharingAllowed()),
-                          rmode);
+  ConstantPoolEntry entry(
+      position, value, sharing_ok || (rmode == RelocInfo::CODE_TARGET), rmode);
 
   bool shared = false;
   if (sharing_ok) {
@@ -5187,11 +5175,10 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
 
   // Share entries if allowed and possible.
   // Null-values are placeholders and must be ignored.
-  if (rmode == RelocInfo::CODE_TARGET && IsCodeTargetSharingAllowed() &&
-      value != 0) {
+  if (rmode == RelocInfo::CODE_TARGET && value != 0) {
     // Sharing entries here relies on canonicalized handles - without them, we
     // will miss the optimisation opportunity.
-    Address handle_address = reinterpret_cast<Address>(value);
+    Address handle_address = static_cast<Address>(value);
     auto existing = handle_to_index_map_.find(handle_address);
     if (existing != handle_to_index_map_.end()) {
       int index = existing->second;
@@ -5460,9 +5447,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   next_buffer_check_ = pc_offset() + kCheckPoolInterval;
 }
 
-PatchingAssembler::PatchingAssembler(IsolateData isolate_data, byte* address,
+PatchingAssembler::PatchingAssembler(const Options& options, byte* address,
                                      int instructions)
-    : Assembler(isolate_data, address, instructions * kInstrSize + kGap) {
+    : Assembler(options, address, instructions * kInstrSize + kGap) {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
 }
 
@@ -5476,9 +5463,7 @@ PatchingAssembler::~PatchingAssembler() {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
 }
 
-void PatchingAssembler::Emit(Address addr) {
-  emit(reinterpret_cast<Instr>(addr));
-}
+void PatchingAssembler::Emit(Address addr) { emit(static_cast<Instr>(addr)); }
 
 UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
     : assembler_(assembler),

@@ -27,7 +27,8 @@ include_rules = [
   "+src/trap-handler/trap-handler.h",
   "+testing/gtest/include/gtest/gtest_prod.h",
   "-src/libplatform",
-  "-include/libplatform"
+  "-include/libplatform",
+  "+torque-generated"
 ]
 
 specific_include_rules = {

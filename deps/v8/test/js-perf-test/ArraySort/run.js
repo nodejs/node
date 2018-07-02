@@ -3,14 +3,7 @@
 // found in the LICENSE file.
 
 load('../base.js');
-load('sort.js')
-
-function benchy(name, test, testSetup) {
-  new BenchmarkSuite(name, [1000],
-      [
-        new Benchmark(name, false, false, 0, test, testSetup)
-      ]);
-}
+load(arguments[0] + '.js')
 
 function PrintResult(name, result) {
   print(name + '-ArraySort(Score): ' + result);

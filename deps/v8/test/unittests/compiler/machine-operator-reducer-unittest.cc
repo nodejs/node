@@ -522,8 +522,7 @@ TEST_F(MachineOperatorReducerTest, RoundFloat64ToInt32WithConstant) {
     Reduction reduction = Reduce(
         graph()->NewNode(machine()->RoundFloat64ToInt32(), Float64Constant(x)));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(),
-                IsInt32Constant(static_cast<int32_t>(x)));
+    EXPECT_THAT(reduction.replacement(), IsInt32Constant(DoubleToInt32(x)));
   }
 }
 

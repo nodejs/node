@@ -25,16 +25,17 @@ std::ostream& operator<<(std::ostream& os,
 Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
                                  PropertyAttributes attributes,
                                  Representation representation) {
-  return DataField(key, field_index, attributes, kMutable, representation,
-                   FieldType::Any(key->GetIsolate()));
+  return DataField(key, field_index, attributes, PropertyConstness::kMutable,
+                   representation,
+                   MaybeObjectHandle(FieldType::Any(key->GetIsolate())));
 }
 
 Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
                                  PropertyAttributes attributes,
                                  PropertyConstness constness,
                                  Representation representation,
-                                 Handle<Object> wrapped_field_type) {
-  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakCell());
+                                 MaybeObjectHandle wrapped_field_type) {
+  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakHeapObject());
   PropertyDetails details(kData, attributes, kField, constness, representation,
                           field_index);
   return Descriptor(key, wrapped_field_type, details);
@@ -44,12 +45,13 @@ Descriptor Descriptor::DataConstant(Handle<Name> key, int field_index,
                                     Handle<Object> value,
                                     PropertyAttributes attributes) {
   if (FLAG_track_constant_fields) {
-    Handle<Object> any_type(FieldType::Any(), key->GetIsolate());
-    return DataField(key, field_index, attributes, kConst,
+    MaybeObjectHandle any_type(FieldType::Any(), key->GetIsolate());
+    return DataField(key, field_index, attributes, PropertyConstness::kConst,
                      Representation::Tagged(), any_type);
 
   } else {
-    return Descriptor(key, value, kData, attributes, kDescriptor, kConst,
+    return Descriptor(key, MaybeObjectHandle(value), kData, attributes,
+                      kDescriptor, PropertyConstness::kConst,
                       value->OptimalRepresentation(), field_index);
   }
 }
@@ -57,7 +59,7 @@ Descriptor Descriptor::DataConstant(Handle<Name> key, int field_index,
 // Outputs PropertyDetails as a dictionary details.
 void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
   os << "(";
-  if (constness() == kConst) os << "const ";
+  if (constness() == PropertyConstness::kConst) os << "const ";
   os << (kind() == kData ? "data" : "accessor");
   os << ", dict_index: " << dictionary_index();
   os << ", attrs: " << attributes() << ")";
@@ -66,7 +68,7 @@ void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
 // Outputs PropertyDetails as a descriptor array details.
 void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
   os << "(";
-  if (constness() == kConst) os << "const ";
+  if (constness() == PropertyConstness::kConst) os << "const ";
   os << (kind() == kData ? "data" : "accessor");
   if (location() == kField) {
     os << " field";
@@ -90,7 +92,7 @@ void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
 
 #ifdef OBJECT_PRINT
 void PropertyDetails::Print(bool dictionary_mode) {
-  OFStream os(stdout);
+  StdoutStream os;
   if (dictionary_mode) {
     PrintAsSlowTo(os);
   } else {

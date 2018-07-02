@@ -284,8 +284,8 @@ class DebugWrapper {
     }
 
     function setScopeVariableValue(name, value) {
-      const res = %SetScopeVariableValue(gen, null, null, index, name, value);
-      if (!res) throw new Error("Failed to set variable value");
+      const res = %SetGeneratorScopeVariableValue(gen, index, name, value);
+      if (!res) throw new Error("Failed to set variable '" + name + "' value");
     }
 
     const scopeObject =
@@ -309,11 +309,6 @@ class DebugWrapper {
       scopes.push(this.generatorScope(gen, i));
     }
     return scopes;
-  }
-
-  get LiveEdit() {
-    const debugContext = %GetDebugContext();
-    return debugContext.Debug.LiveEdit;
   }
 
   // --- Internal methods. -----------------------------------------------------
@@ -483,7 +478,7 @@ class DebugWrapper {
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
     if (reply.error) {
-      throw new Error("Failed to set variable value");
+      throw new Error("Failed to set variable '" + name + "' value");
     }
   }
 

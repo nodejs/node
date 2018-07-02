@@ -20,7 +20,6 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   CompactionSpace* compaction_space =
       new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
   EXPECT_TRUE(compaction_space != NULL);
-  EXPECT_TRUE(compaction_space->SetUp());
 
   for (Page* p : *old_space) {
     // Unlink free lists from the main space to avoid reusing the memory for

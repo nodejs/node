@@ -7,8 +7,10 @@
 #include "src/allocation-site-scopes.h"
 #include "src/arguments.h"
 #include "src/ast/ast.h"
-#include "src/ast/compile-time-value.h"
 #include "src/isolate-inl.h"
+#include "src/objects/hash-table-inl.h"
+#include "src/objects/js-regexp-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -29,9 +31,9 @@ void PreInitializeLiteralSite(Handle<FeedbackVector> vector,
   vector->Set(slot, Smi::FromInt(1));
 }
 
-Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
-                                      Handle<FixedArray> compile_time_value,
-                                      PretenureFlag pretenure_flag);
+Handle<Object> InnerCreateBoilerplate(
+    Isolate* isolate, Handle<CompileTimeValue> compile_time_value,
+    PretenureFlag pretenure_flag);
 
 enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
 
@@ -47,6 +49,11 @@ class JSObjectWalkVisitor {
  protected:
   V8_WARN_UNUSED_RESULT inline MaybeHandle<JSObject> VisitElementOrProperty(
       Handle<JSObject> object, Handle<JSObject> value) {
+    // Dont create allocation sites for nested object literals
+    if (!value->IsJSArray()) {
+      return StructureWalk(value);
+    }
+
     Handle<AllocationSite> current_site = site_context()->EnterNewScope();
     MaybeHandle<JSObject> copy_of_value = StructureWalk(value);
     site_context()->ExitScope(current_site, value);
@@ -104,7 +111,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   // Deep copy own properties. Arrays only have 1 property "length".
   if (!copy->IsJSArray()) {
     if (copy->HasFastProperties()) {
-      Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors());
+      Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors(),
+                                          isolate);
       int limit = copy->map()->NumberOfOwnDescriptors();
       for (int i = 0; i < limit; i++) {
         DCHECK_EQ(kField, descriptors->GetDetails(i).location());
@@ -119,14 +127,14 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (copying) copy->FastPropertyAtPut(index, *value);
         } else if (copying && raw->IsMutableHeapNumber()) {
           DCHECK(descriptors->GetDetails(i).representation().IsDouble());
-          uint64_t double_value = HeapNumber::cast(raw)->value_as_bits();
-          Handle<HeapNumber> value = isolate->factory()->NewHeapNumber(MUTABLE);
-          value->set_value_as_bits(double_value);
+          uint64_t double_value = MutableHeapNumber::cast(raw)->value_as_bits();
+          auto value =
+              isolate->factory()->NewMutableHeapNumberFromBits(double_value);
           copy->FastPropertyAtPut(index, *value);
         }
       }
     } else {
-      Handle<NameDictionary> dict(copy->property_dictionary());
+      Handle<NameDictionary> dict(copy->property_dictionary(), isolate);
       for (int i = 0; i < dict->Capacity(); i++) {
         Object* raw = dict->ValueAt(i);
         if (!raw->IsJSObject()) continue;
@@ -146,7 +154,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   switch (copy->GetElementsKind()) {
     case PACKED_ELEMENTS:
     case HOLEY_ELEMENTS: {
-      Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
+      Handle<FixedArray> elements(FixedArray::cast(copy->elements()), isolate);
       if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
@@ -166,7 +174,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<NumberDictionary> element_dictionary(copy->element_dictionary());
+      Handle<NumberDictionary> element_dictionary(copy->element_dictionary(),
+                                                  isolate);
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
         Object* raw = element_dictionary->ValueAt(i);
@@ -238,19 +247,22 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
     if (top().is_null()) {
       // We are creating the top level AllocationSite as opposed to a nested
       // AllocationSite.
-      InitializeTraversal(isolate()->factory()->NewAllocationSite());
+      InitializeTraversal(isolate()->factory()->NewAllocationSite(true));
       scope_site = Handle<AllocationSite>(*top(), isolate());
       if (FLAG_trace_creation_allocation_sites) {
-        PrintF("*** Creating top level AllocationSite %p\n",
+        PrintF("*** Creating top level %s AllocationSite %p\n", "Fat",
                static_cast<void*>(*scope_site));
       }
     } else {
       DCHECK(!current().is_null());
-      scope_site = isolate()->factory()->NewAllocationSite();
+      scope_site = isolate()->factory()->NewAllocationSite(false);
       if (FLAG_trace_creation_allocation_sites) {
-        PrintF("Creating nested site (top, current, new) (%p, %p, %p)\n",
-               static_cast<void*>(*top()), static_cast<void*>(*current()),
-               static_cast<void*>(*scope_site));
+        PrintF(
+            "*** Creating nested %s AllocationSite (top, current, new) (%p, "
+            "%p, "
+            "%p)\n",
+            "Slim", static_cast<void*>(*top()), static_cast<void*>(*current()),
+            static_cast<void*>(*scope_site));
       }
       current()->set_nested_site(*scope_site);
       update_current_site(*scope_site);
@@ -268,7 +280,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
         PrintF("*** Setting AllocationSite %p transition_info %p\n",
                static_cast<void*>(*scope_site), static_cast<void*>(*object));
       } else {
-        PrintF("Setting AllocationSite (%p, %p) transition_info %p\n",
+        PrintF("*** Setting AllocationSite (%p, %p) transition_info %p\n",
                static_cast<void*>(*top()), static_cast<void*>(*scope_site),
                static_cast<void*>(*object));
       }
@@ -345,10 +357,11 @@ struct ObjectBoilerplate {
     for (int index = 0; index < length; index++) {
       Handle<Object> key(boilerplate_description->name(index), isolate);
       Handle<Object> value(boilerplate_description->value(index), isolate);
-      if (value->IsFixedArray()) {
+      if (value->IsCompileTimeValue()) {
         // The value contains the CompileTimeValue with the boilerplate
         // properties of a simple object or array literal.
-        Handle<FixedArray> compile_time_value = Handle<FixedArray>::cast(value);
+        Handle<CompileTimeValue> compile_time_value =
+            Handle<CompileTimeValue>::cast(value);
         value =
             InnerCreateBoilerplate(isolate, compile_time_value, pretenure_flag);
       }
@@ -390,8 +403,8 @@ struct ArrayBoilerplate {
     ElementsKind constant_elements_kind =
         static_cast<ElementsKind>(elements->elements_kind());
 
-    Handle<FixedArrayBase> constant_elements_values(
-        elements->constant_values());
+    Handle<FixedArrayBase> constant_elements_values(elements->constant_values(),
+                                                    isolate);
     Handle<FixedArrayBase> copied_elements_values;
     if (IsDoubleElementsKind(constant_elements_kind)) {
       copied_elements_values = isolate->factory()->CopyFixedDoubleArray(
@@ -417,12 +430,13 @@ struct ArrayBoilerplate {
         copied_elements_values = fixed_array_values_copy;
         FOR_WITH_HANDLE_SCOPE(
             isolate, int, i = 0, i, i < fixed_array_values->length(), i++, {
-              if (fixed_array_values->get(i)->IsFixedArray()) {
+              if (fixed_array_values->get(i)->IsCompileTimeValue()) {
                 // The value contains the CompileTimeValue with the
                 // boilerplate description of a simple object or
                 // array literal.
-                Handle<FixedArray> compile_time_value(
-                    FixedArray::cast(fixed_array_values->get(i)));
+                Handle<CompileTimeValue> compile_time_value(
+                    CompileTimeValue::cast(fixed_array_values->get(i)),
+                    for_with_handle_isolate);
                 Handle<Object> result = InnerCreateBoilerplate(
                     isolate, compile_time_value, pretenure_flag);
                 fixed_array_values_copy->set(i, *result);
@@ -437,12 +451,12 @@ struct ArrayBoilerplate {
   }
 };
 
-Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
-                                      Handle<FixedArray> compile_time_value,
-                                      PretenureFlag pretenure_flag) {
-  Handle<HeapObject> elements =
-      CompileTimeValue::GetElements(compile_time_value);
-  int flags = CompileTimeValue::GetLiteralTypeFlags(compile_time_value);
+Handle<Object> InnerCreateBoilerplate(
+    Isolate* isolate, Handle<CompileTimeValue> compile_time_value,
+    PretenureFlag pretenure_flag) {
+  int flags = compile_time_value->literal_type_flag();
+  Handle<HeapObject> elements(
+      HeapObject::cast(compile_time_value->constant_elements()), isolate);
   if (flags == CompileTimeValue::kArrayLiteralFlag) {
     return ArrayBoilerplate::Create(isolate, elements, flags, pretenure_flag);
   }
@@ -456,7 +470,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
                                     Handle<HeapObject> description, int flags) {
   FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
   CHECK(literals_slot.ToInt() < vector->length());
-  Handle<Object> literal_site(vector->Get(literals_slot), isolate);
+  Handle<Object> literal_site(vector->Get(literals_slot)->ToObject(), isolate);
   DeepCopyHints copy_hints =
       (flags & AggregateLiteral::kIsShallow) ? kObjectIsShallow : kNoHints;
   if (FLAG_track_double_fields && !FLAG_unbox_double_fields) {
@@ -552,7 +566,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
 
   // Check if boilerplate exists. If not, create it first.
-  Handle<Object> literal_site(vector->Get(literal_slot), isolate);
+  Handle<Object> literal_site(vector->Get(literal_slot)->ToObject(), isolate);
   Handle<Object> boilerplate;
   if (!HasBoilerplate(isolate, literal_site)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

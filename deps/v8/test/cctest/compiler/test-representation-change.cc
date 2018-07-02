@@ -89,7 +89,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     return n;
   }
 
-  void CheckTypeError(MachineRepresentation from, Type* from_type,
+  void CheckTypeError(MachineRepresentation from, Type from_type,
                       MachineRepresentation to) {
     changer()->testing_type_errors_ = true;
     changer()->type_error_ = false;
@@ -101,7 +101,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     CHECK_EQ(n, c);
   }
 
-  void CheckNop(MachineRepresentation from, Type* from_type,
+  void CheckNop(MachineRepresentation from, Type from_type,
                 MachineRepresentation to) {
     Node* n = Parameter(0);
     Node* use = Return(n);
@@ -268,7 +268,7 @@ TEST(ToUint32_constant) {
 }
 
 static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
-                        Type* from_type, UseInfo use_info) {
+                        Type from_type, UseInfo use_info) {
   RepresentationChangerTester r;
 
   Node* n = r.Parameter();
@@ -282,7 +282,7 @@ static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
 
   if (expected == IrOpcode::kCheckedFloat64ToInt32) {
     CheckForMinusZeroMode mode =
-        from_type->Maybe(Type::MinusZero())
+        from_type.Maybe(Type::MinusZero())
             ? use_info.minus_zero_check()
             : CheckForMinusZeroMode::kDontCheckForMinusZero;
     CHECK_EQ(mode, CheckMinusZeroParametersOf(c->op()).mode());
@@ -290,13 +290,13 @@ static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
 }
 
 static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
-                        Type* from_type, MachineRepresentation to) {
+                        Type from_type, MachineRepresentation to) {
   CheckChange(expected, from, from_type, UseInfo(to, Truncation::None()));
 }
 
 static void CheckTwoChanges(IrOpcode::Value expected2,
                             IrOpcode::Value expected1,
-                            MachineRepresentation from, Type* from_type,
+                            MachineRepresentation from, Type from_type,
                             MachineRepresentation to) {
   RepresentationChangerTester r;
 
@@ -314,7 +314,7 @@ static void CheckTwoChanges(IrOpcode::Value expected2,
 }
 
 static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
-                        Type* from_type, MachineRepresentation to,
+                        Type from_type, MachineRepresentation to,
                         UseInfo use_info) {
   RepresentationChangerTester r;
 
@@ -441,7 +441,7 @@ TEST(SignednessInWord32) {
                   MachineRepresentation::kWord32);
 }
 
-static void TestMinusZeroCheck(IrOpcode::Value expected, Type* from_type) {
+static void TestMinusZeroCheck(IrOpcode::Value expected, Type from_type) {
   RepresentationChangerTester r;
 
   CheckChange(

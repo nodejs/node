@@ -111,6 +111,22 @@ Vector<const byte> VectorFromByteArray(ByteArray* byte_array) {
                             byte_array->length());
 }
 
+#ifdef ENABLE_SLOW_DCHECKS
+void CheckTableEquals(std::vector<PositionTableEntry>& raw_entries,
+                      SourcePositionTableIterator& encoded) {
+  // Brute force testing: Record all positions and decode
+  // the entire table to verify they are identical.
+  auto raw = raw_entries.begin();
+  for (; !encoded.done(); encoded.Advance(), raw++) {
+    DCHECK(raw != raw_entries.end());
+    DCHECK_EQ(encoded.code_offset(), raw->code_offset);
+    DCHECK_EQ(encoded.source_position().raw(), raw->source_position);
+    DCHECK_EQ(encoded.is_statement(), raw->is_statement);
+  }
+  DCHECK(raw == raw_entries.end());
+}
+#endif
+
 }  // namespace
 
 SourcePositionTableBuilder::SourcePositionTableBuilder(
@@ -143,21 +159,30 @@ Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
 
   Handle<ByteArray> table = isolate->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), TENURED);
-
-  MemCopy(table->GetDataStartAddress(), &*bytes_.begin(), bytes_.size());
+  MemCopy(table->GetDataStartAddress(), bytes_.data(), bytes_.size());
 
 #ifdef ENABLE_SLOW_DCHECKS
   // Brute force testing: Record all positions and decode
   // the entire table to verify they are identical.
-  auto raw = raw_entries_.begin();
-  for (SourcePositionTableIterator encoded(*table); !encoded.done();
-       encoded.Advance(), raw++) {
-    DCHECK(raw != raw_entries_.end());
-    DCHECK_EQ(encoded.code_offset(), raw->code_offset);
-    DCHECK_EQ(encoded.source_position().raw(), raw->source_position);
-    DCHECK_EQ(encoded.is_statement(), raw->is_statement);
-  }
-  DCHECK(raw == raw_entries_.end());
+  SourcePositionTableIterator it(*table);
+  CheckTableEquals(raw_entries_, it);
+  // No additional source positions after creating the table.
+  mode_ = OMIT_SOURCE_POSITIONS;
+#endif
+  return table;
+}
+
+OwnedVector<byte> SourcePositionTableBuilder::ToSourcePositionTableVector() {
+  if (bytes_.empty()) return OwnedVector<byte>();
+  DCHECK(!Omit());
+
+  OwnedVector<byte> table = OwnedVector<byte>::Of(bytes_);
+
+#ifdef ENABLE_SLOW_DCHECKS
+  // Brute force testing: Record all positions and decode
+  // the entire table to verify they are identical.
+  SourcePositionTableIterator it(table.as_vector());
+  CheckTableEquals(raw_entries_, it);
   // No additional source positions after creating the table.
   mode_ = OMIT_SOURCE_POSITIONS;
 #endif

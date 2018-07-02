@@ -10,6 +10,7 @@
 #include "src/counters.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
+#include "src/objects/templates.h"
 #include "src/prototype.h"
 #include "src/visitors.h"
 
@@ -63,7 +64,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
         ObjectTemplateInfo::cast(fun_data->instance_template()), isolate);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
-        ApiNatives::InstantiateObject(instance_template,
+        ApiNatives::InstantiateObject(isolate, instance_template,
                                       Handle<JSReceiver>::cast(new_target)),
         Object);
     args[0] = *js_receiver;
@@ -79,7 +80,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
       // Proxies never need access checks.
       DCHECK(js_receiver->IsJSObject());
       Handle<JSObject> js_obj_receiver = Handle<JSObject>::cast(js_receiver);
-      if (!isolate->MayAccess(handle(isolate->context()), js_obj_receiver)) {
+      if (!isolate->MayAccess(handle(isolate->context(), isolate),
+                              js_obj_receiver)) {
         isolate->ReportFailedAccessCheck(js_obj_receiver);
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
         return isolate->factory()->undefined_value();

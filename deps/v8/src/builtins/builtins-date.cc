@@ -80,7 +80,7 @@ double MakeDay(double year, double month, double date) {
                                           182, 213, 244, 274, 305, 335};
       day_from_year += kDayFromMonth[m];
     }
-    return static_cast<double>(day_from_year - 1) + date;
+    return static_cast<double>(day_from_year - 1) + DoubleToInteger(date);
   }
   return std::numeric_limits<double>::quiet_NaN();
 }
@@ -98,23 +98,14 @@ double MakeTime(double hour, double min, double sec, double ms) {
   return std::numeric_limits<double>::quiet_NaN();
 }
 
-// ES6 section 20.3.1.15 TimeClip (time)
-double TimeClip(double time) {
-  if (-DateCache::kMaxTimeInMs <= time && time <= DateCache::kMaxTimeInMs) {
-    return DoubleToInteger(time) + 0.0;
-  }
-  return std::numeric_limits<double>::quiet_NaN();
-}
-
 const char* kShortWeekDays[] = {"Sun", "Mon", "Tue", "Wed",
                                 "Thu", "Fri", "Sat"};
 const char* kShortMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
 // ES6 section 20.3.1.16 Date Time String Format
-double ParseDateTimeString(Handle<String> str) {
-  Isolate* const isolate = str->GetIsolate();
-  str = String::Flatten(str);
+double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
+  str = String::Flatten(isolate, str);
   // TODO(bmeurer): Change DateParser to not use the FixedArray.
   Handle<FixedArray> tmp =
       isolate->factory()->NewFixedArray(DateParser::OUTPUT_SIZE);
@@ -182,15 +173,15 @@ void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
   UNREACHABLE();
 }
 
-Object* SetLocalDateValue(Handle<JSDate> date, double time_val) {
+Object* SetLocalDateValue(Isolate* isolate, Handle<JSDate> date,
+                          double time_val) {
   if (time_val >= -DateCache::kMaxTimeBeforeUTCInMs &&
       time_val <= DateCache::kMaxTimeBeforeUTCInMs) {
-    Isolate* const isolate = date->GetIsolate();
     time_val = isolate->date_cache()->ToUTC(static_cast<int64_t>(time_val));
   } else {
     time_val = std::numeric_limits<double>::quiet_NaN();
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 }  // namespace
@@ -219,7 +210,7 @@ BUILTIN(DateConstructor) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                            Object::ToPrimitive(value));
         if (value->IsString()) {
-          time_val = ParseDateTimeString(Handle<String>::cast(value));
+          time_val = ParseDateTimeString(isolate, Handle<String>::cast(value));
         } else {
           ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                              Object::ToNumber(value));
@@ -298,7 +289,7 @@ BUILTIN(DateParse) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, string,
       Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
-  return *isolate->factory()->NewNumber(ParseDateTimeString(string));
+  return *isolate->factory()->NewNumber(ParseDateTimeString(isolate, string));
 }
 
 // ES6 section 20.3.3.4 Date.UTC (year,month,date,hours,minutes,seconds,ms)
@@ -356,7 +347,8 @@ BUILTIN(DateUTC) {
   }
   double const day = MakeDay(year, month, date);
   double const time = MakeTime(hours, minutes, seconds, ms);
-  return *isolate->factory()->NewNumber(TimeClip(MakeDate(day, time)));
+  return *isolate->factory()->NewNumber(
+      DateCache::TimeClip(MakeDate(day, time)));
 }
 
 // ES6 section 20.3.4.20 Date.prototype.setDate ( date )
@@ -375,7 +367,7 @@ BUILTIN(DatePrototypeSetDate) {
     isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
     time_val = MakeDate(MakeDay(year, month, value->Number()), time_within_day);
   }
-  return SetLocalDateValue(date, time_val);
+  return SetLocalDateValue(isolate, date, time_val);
 }
 
 // ES6 section 20.3.4.21 Date.prototype.setFullYear (year, month, date)
@@ -408,7 +400,7 @@ BUILTIN(DatePrototypeSetFullYear) {
     }
   }
   double time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
-  return SetLocalDateValue(date, time_val);
+  return SetLocalDateValue(isolate, date, time_val);
 }
 
 // ES6 section 20.3.4.22 Date.prototype.setHours(hour, min, sec, ms)
@@ -445,7 +437,7 @@ BUILTIN(DatePrototypeSetHours) {
     }
     time_val = MakeDate(day, MakeTime(h, m, s, milli));
   }
-  return SetLocalDateValue(date, time_val);
+  return SetLocalDateValue(isolate, date, time_val);
 }
 
 // ES6 section 20.3.4.23 Date.prototype.setMilliseconds(ms)
@@ -465,7 +457,7 @@ BUILTIN(DatePrototypeSetMilliseconds) {
     int s = (time_within_day / 1000) % 60;
     time_val = MakeDate(day, MakeTime(h, m, s, ms->Number()));
   }
-  return SetLocalDateValue(date, time_val);
+  return SetLocalDateValue(isolate, date, time_val);
 }
 
 // ES6 section 20.3.4.24 Date.prototype.setMinutes ( min, sec, ms )
@@ -497,7 +489,7 @@ BUILTIN(DatePrototypeSetMinutes) {
     }
     time_val = MakeDate(day, MakeTime(h, m, s, milli));
   }
-  return SetLocalDateValue(date, time_val);
+  return SetLocalDateValue(isolate, date, time_val);
 }
 
 // ES6 section 20.3.4.25 Date.prototype.setMonth ( month, date )
@@ -524,7 +516,7 @@ BUILTIN(DatePrototypeSetMonth) {
     }
     time_val = MakeDate(MakeDay(year, m, dt), time_within_day);
   }
-  return SetLocalDateValue(date, time_val);
+  return SetLocalDateValue(isolate, date, time_val);
 }
 
 // ES6 section 20.3.4.26 Date.prototype.setSeconds ( sec, ms )
@@ -551,7 +543,7 @@ BUILTIN(DatePrototypeSetSeconds) {
     }
     time_val = MakeDate(day, MakeTime(h, m, s, milli));
   }
-  return SetLocalDateValue(date, time_val);
+  return SetLocalDateValue(isolate, date, time_val);
 }
 
 // ES6 section 20.3.4.27 Date.prototype.setTime ( time )
@@ -560,7 +552,7 @@ BUILTIN(DatePrototypeSetTime) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setTime");
   Handle<Object> value = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(value));
-  return *JSDate::SetValue(date, TimeClip(value->Number()));
+  return *JSDate::SetValue(date, DateCache::TimeClip(value->Number()));
 }
 
 // ES6 section 20.3.4.28 Date.prototype.setUTCDate ( date )
@@ -577,7 +569,7 @@ BUILTIN(DatePrototypeSetUTCDate) {
   isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
   double const time_val =
       MakeDate(MakeDay(year, month, value->Number()), time_within_day);
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.29 Date.prototype.setUTCFullYear (year, month, date)
@@ -609,7 +601,7 @@ BUILTIN(DatePrototypeSetUTCFullYear) {
     }
   }
   double const time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.30 Date.prototype.setUTCHours(hour, min, sec, ms)
@@ -645,7 +637,7 @@ BUILTIN(DatePrototypeSetUTCHours) {
     }
     time_val = MakeDate(day, MakeTime(h, m, s, milli));
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.31 Date.prototype.setUTCMilliseconds(ms)
@@ -664,7 +656,7 @@ BUILTIN(DatePrototypeSetUTCMilliseconds) {
     int s = (time_within_day / 1000) % 60;
     time_val = MakeDate(day, MakeTime(h, m, s, ms->Number()));
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.32 Date.prototype.setUTCMinutes ( min, sec, ms )
@@ -695,7 +687,7 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
     }
     time_val = MakeDate(day, MakeTime(h, m, s, milli));
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.31 Date.prototype.setUTCMonth ( month, date )
@@ -721,7 +713,7 @@ BUILTIN(DatePrototypeSetUTCMonth) {
     }
     time_val = MakeDate(MakeDay(year, m, dt), time_within_day);
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.34 Date.prototype.setUTCSeconds ( sec, ms )
@@ -747,7 +739,7 @@ BUILTIN(DatePrototypeSetUTCSeconds) {
     }
     time_val = MakeDate(day, MakeTime(h, m, s, milli));
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.35 Date.prototype.toDateString ( )
@@ -865,7 +857,7 @@ BUILTIN(DatePrototypeSetYear) {
     dt = day;
   }
   double time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
-  return SetLocalDateValue(date, time_val);
+  return SetLocalDateValue(isolate, date, time_val);
 }
 
 // ES6 section 20.3.4.37 Date.prototype.toJSON ( key )

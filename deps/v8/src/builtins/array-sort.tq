@@ -1,0 +1,599 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module array {
+  // Naming convention from elements.cc. We have a similar intent but implement
+  // fastpaths using generics instead of using a class hierarchy for elements
+  // kinds specific implementations.
+  type GenericElementsAccessor;
+  type FastPackedSmiElements;
+  type FastSmiOrObjectElements;
+  type FastDoubleElements;
+  type DictionaryElements;
+
+  macro Load<ElementsAccessor : type>(
+      context: Context, receiver: Object, index: Smi): Object labels Bailout {
+    return GetProperty(context, receiver, index);
+  }
+
+  Load<FastPackedSmiElements>(
+      context: Context, elements: Object, index: Smi): Object labels Bailout {
+    let elems: FixedArray = unsafe_cast<FixedArray>(elements);
+    return elems[index];
+  }
+
+  Load<FastSmiOrObjectElements>(
+      context: Context, elements: Object, index: Smi): Object labels Bailout {
+    let elems: FixedArray = unsafe_cast<FixedArray>(elements);
+    let result: Object = elems[index];
+    if (IsTheHole(result)) goto Bailout;
+    return result;
+  }
+
+  Load<FastDoubleElements>(
+      context: Context, elements: Object, index: Smi): Object labels Bailout {
+    let elems: FixedDoubleArray = unsafe_cast<FixedDoubleArray>(elements);
+    let value: float64 =
+        LoadDoubleWithHoleCheck(elems, index) otherwise Bailout;
+    return AllocateHeapNumberWithValue(value);
+  }
+
+  Load<DictionaryElements>(
+      context: Context, elements: Object, index: Smi): Object labels Bailout {
+    let dictionary: NumberDictionary = unsafe_cast<NumberDictionary>(elements);
+    let intptr_index: intptr = convert<intptr>(index);
+    let value: Object =
+        BasicLoadNumberDictionaryElement(dictionary, intptr_index)
+    otherwise Bailout, Bailout;
+    return value;
+  }
+
+  macro Store<ElementsAccessor : type>(
+      context: Context, receiver: Object, index: Smi, value: Object)
+      labels Bailout {
+    SetProperty(context, receiver, index, value, kStrict);
+  }
+
+  Store<FastPackedSmiElements>(
+      context: Context, elements: Object, index: Smi, value: Object)
+      labels Bailout {
+    let elems: FixedArray = unsafe_cast<FixedArray>(elements);
+    elems[index] = value;
+  }
+
+  Store<FastSmiOrObjectElements>(
+      context: Context, elements: Object, index: Smi, value: Object)
+      labels Bailout {
+    let elems: FixedArray = unsafe_cast<FixedArray>(elements);
+    elems[index] = value;
+  }
+
+  Store<FastDoubleElements>(
+      context: Context, elements: Object, index: Smi, value: Object)
+      labels Bailout {
+    let elems: FixedDoubleArray = unsafe_cast<FixedDoubleArray>(elements);
+    let heap_val: HeapNumber = unsafe_cast<HeapNumber>(value);
+    // Make sure we do not store signalling NaNs into double arrays.
+    let val: float64 = Float64SilenceNaN(convert<float64>(heap_val));
+    StoreFixedDoubleArrayElementWithSmiIndex(elems, index, val);
+  }
+
+  type CompareBuiltinFn = builtin(Context, Object, Object, Object) => Number;
+  extern macro UnsafeCastObjectToCompareBuiltinFn(Object): CompareBuiltinFn;
+  unsafe_cast<CompareBuiltinFn>(o: Object): CompareBuiltinFn {
+    return UnsafeCastObjectToCompareBuiltinFn(o);
+  }
+
+  Store<DictionaryElements>(
+      context: Context, elements: Object, index: Smi, value: Object)
+      labels Bailout {
+    let dictionary: NumberDictionary = unsafe_cast<NumberDictionary>(elements);
+    let intptr_index: intptr = convert<intptr>(index);
+    BasicStoreNumberDictionaryElement(dictionary, intptr_index, value)
+    otherwise Bailout, Bailout;
+    return;
+  }
+
+  builtin SortCompareDefault(
+      context: Context, comparefn: Object, x: Object, y: Object): Number {
+    assert(comparefn == Undefined);
+
+    if (TaggedIsSmi(x) && TaggedIsSmi(y)) {
+      // TODO(szuend): Replace with a fast CallCFunction call.
+      return SmiLexicographicCompare(context, x, y);
+    }
+
+    // 5. Let xString be ? ToString(x).
+    let xString: String = ToString_Inline(context, x);
+
+    // 6. Let yString be ? ToString(y).
+    let yString: String = ToString_Inline(context, y);
+
+    // 7. Let xSmaller be the result of performing
+    //    Abstract Relational Comparison xString < yString.
+    // 8. If xSmaller is true, return -1.
+    if (StringLessThan(context, xString, yString) == True) return -1;
+
+    // 9. Let ySmaller be the result of performing
+    //    Abstract Relational Comparison yString < xString.
+    // 10. If ySmaller is true, return 1.
+    if (StringLessThan(context, yString, xString) == True) return 1;
+
+    // 11. Return +0.
+    return 0;
+  }
+
+  builtin SortCompareUserFn(
+      context: Context, comparefn: Object, x: Object, y: Object): Number {
+    assert(comparefn != Undefined);
+    let cmpfn: Callable = unsafe_cast<Callable>(comparefn);
+
+    // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
+    let v: Number =
+        ToNumber_Inline(context, Call(context, cmpfn, Undefined, x, y));
+
+    // b. If v is NaN, return +0.
+    if (NumberIsNaN(v)) return 0;
+
+    // c. return v.
+    return v;
+  }
+
+  macro CanUseSameAccessor<ElementsAccessor : type>(
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number): bool {
+    assert(IsJSArray(unsafe_cast<HeapObject>(receiver)));
+
+    let a: JSArray = unsafe_cast<JSArray>(receiver);
+    if (a.map != initialReceiverMap) return false;
+
+    let originalLength: Smi = unsafe_cast<Smi>(initialReceiverLength);
+    if (a.length_fast != originalLength) return false;
+
+    if (a.elements != elements) return false;
+
+    return true;
+  }
+
+  CanUseSameAccessor<GenericElementsAccessor>(
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number): bool {
+    // Do nothing. We are already on the slow path.
+    return true;
+  }
+
+  CanUseSameAccessor<DictionaryElements>(
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number): bool {
+    let obj: JSReceiver = unsafe_cast<JSReceiver>(receiver);
+    return obj.map == initialReceiverMap;
+  }
+
+  macro CallCompareFn<E : type>(
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number,
+      userCmpFn: Object, sortCompare: CompareBuiltinFn, x: Object,
+      y: Object): Number labels Bailout {
+    let result: Number = sortCompare(context, userCmpFn, x, y);
+    if (!CanUseSameAccessor<E>(
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength))
+      goto Bailout;
+    return result;
+  }
+
+  // InsertionSort is used for smaller arrays.
+  macro ArrayInsertionSort<E : type>(
+      context: Context, receiver: Object, elements: Object,
+      initialReceiverMap: Object, initialReceiverLength: Number, from: Smi,
+      to: Smi, userCmpFn: Object, sortCompare: CompareBuiltinFn)
+  labels Bailout {
+    for (let i: Smi = from + 1; i < to; ++i) {
+      assert(CanUseSameAccessor<E>(
+          context, receiver, elements, initialReceiverMap,
+          initialReceiverLength));
+
+      let element: Object = Load<E>(context, elements, i) otherwise Bailout;
+      let j: Smi = i - 1;
+      for (; j >= from; --j) {
+        assert(CanUseSameAccessor<E>(
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength));
+
+        let tmp: Object = Load<E>(context, elements, j) otherwise Bailout;
+        let order: Number = CallCompareFn<E>(
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength, userCmpFn, sortCompare, tmp, element)
+        otherwise Bailout;
+        if (order > 0) {
+          Store<E>(context, elements, j + 1, tmp) otherwise Bailout;
+        } else {
+          break;
+        }
+      }
+      Store<E>(context, elements, j + 1, element) otherwise Bailout;
+    }
+  }
+
+  // TODO(szuend): Replace these with constants when Torque has them.
+  macro kReceiverIdx(): constexpr int31 {
+    return 0;
+  }
+  macro kUserCmpFnIdx(): constexpr int31 {
+    return 1;
+  }
+  macro kSortComparePtrIdx(): constexpr int31 {
+    return 2;
+  }
+  macro kInitialReceiverMapIdx(): constexpr int31 {
+    return 3;
+  }
+  macro kInitialReceiverLengthIdx(): constexpr int31 {
+    return 4;
+  }
+  macro kElementsOrReceiverIdx(): constexpr int31 {
+    return 5;
+  }
+  macro kRandomStateIdx(): constexpr int31 {
+    return 6;
+  }
+  macro kSortStateSize(): intptr {
+    return IntPtrConstant(7);
+  }
+
+  macro kFailure(): Smi {
+    return SmiConstant(-1);
+  }
+  macro kSuccess(): Smi {
+    return SmiConstant(0);
+  }
+
+  // Returns a random positive Smi in the range of [0, range).
+  macro Rand(sortState: FixedArray, range: Smi): Smi {
+    assert(TaggedIsPositiveSmi(range));
+
+    let current_state_smi: Smi = unsafe_cast<Smi>(sortState[kRandomStateIdx()]);
+    let current_state: int32 = convert<int32>(current_state_smi);
+
+    let a: int32 = 1103515245;
+    let c: int32 = 12345;
+    let m: int32 = 0x3fffffff;  // 2^30 bitmask.
+
+    let new_state: int32 = ((current_state * a) + c) & m;
+    sortState[kRandomStateIdx()] = convert<Smi>(new_state);
+
+    let r: int32 = convert<int32>(range);
+    return convert<Smi>(new_state % r);
+  }
+
+  macro CalculatePivot<E : type>(
+      sortState: FixedArray, context: Context, receiver: Object,
+      elements: Object, initialReceiverMap: Object,
+      initialReceiverLength: Number, from: Smi, to: Smi, userCmpFn: Object,
+      sortCompare: CompareBuiltinFn): Object
+  labels Bailout {
+    let random: Smi = Rand(sortState, to - from - 2);
+    assert(TaggedIsPositiveSmi(random));
+
+    let third_index: Smi = from + 1 + random;
+    assert(third_index > from);
+    assert(third_index <= to - 1);
+
+    // Find a pivot as the median of first, last and a random middle element.
+    // Always using the middle element as the third index causes the quicksort
+    // to degrade to O(n^2) for certain data configurations.
+    // The previous solution was to sample larger arrays and use the median
+    // element of the sorted sample. This causes more overhead than just
+    // choosing a random middle element, which also mitigates the worst cases
+    // in all relevant benchmarks.
+    let v0: Object = Load<E>(context, elements, from) otherwise Bailout;
+    let v1: Object = Load<E>(context, elements, to - 1) otherwise Bailout;
+    let v2: Object = Load<E>(context, elements, third_index) otherwise Bailout;
+
+    let c01: Number = CallCompareFn<E>(
+        context, receiver, elements, initialReceiverMap, initialReceiverLength,
+        userCmpFn, sortCompare, v0, v1)
+    otherwise Bailout;
+    if (c01 > 0) {
+      // v0 > v1, so swap them.
+      let tmp: Object = v0;
+      v0 = v1;
+      v1 = tmp;
+    }
+    // Current state: v0 <= v1.
+    let c02: Number = CallCompareFn<E>(
+        context, receiver, elements, initialReceiverMap, initialReceiverLength,
+        userCmpFn, sortCompare, v0, v2)
+    otherwise Bailout;
+    if (c02 >= 0) {
+      // v0 <= v1 and v0 >= v2, hence swap to v2 <= v0 <= v1.
+      let tmp: Object = v0;
+      v0 = v2;
+      v2 = v1;
+      v1 = tmp;
+    } else {
+      // v0 <= v1 and v0 < v2.
+      let c12: Number = CallCompareFn<E>(
+          context, receiver, elements, initialReceiverMap,
+          initialReceiverLength, userCmpFn, sortCompare, v1, v2)
+      otherwise Bailout;
+      if (c12 > 0) {
+        // v0 <= v1 and v0 < v2 and v1 > v2, hence swap to v0 <= v2 < v1.
+        let tmp: Object = v1;
+        v1 = v2;
+        v2 = tmp;
+      }
+    }
+
+    // v0 <= v1 <= v2.
+    Store<E>(context, elements, from, v0) otherwise Bailout;
+    Store<E>(context, elements, to - 1, v2) otherwise Bailout;
+
+    // Move pivot element to a place on the left.
+    Swap<E>(context, elements, from + 1, third_index, v1) otherwise Bailout;
+    assert(CanUseSameAccessor<E>(
+        context, receiver, elements, initialReceiverMap,
+        initialReceiverLength));
+
+    return v1;
+  }
+
+  // elements[indexB] = elements[indexA].
+  // elements[indexA] = value.
+  macro Swap<E : type>(
+      context: Context, elements: Object, indexA: Smi, indexB: Smi,
+      value: Object)
+  labels Bailout {
+    let tmp: Object = Load<E>(context, elements, indexA) otherwise Bailout;
+    Store<E>(context, elements, indexB, tmp) otherwise Bailout;
+    Store<E>(context, elements, indexA, value) otherwise Bailout;
+  }
+
+  macro ArrayQuickSortImpl<E : type>(
+      context: Context, sortState: FixedArray, fromArg: Smi, toArg: Smi)
+  labels Bailout {
+    let from: Smi = fromArg;
+    let to: Smi = toArg;
+
+    let receiver: Object = sortState[kReceiverIdx()];
+    let userCmpFn: Object = sortState[kUserCmpFnIdx()];
+    let sortCompare: CompareBuiltinFn =
+        unsafe_cast<CompareBuiltinFn>(sortState[kSortComparePtrIdx()]);
+    let initialReceiverMap: Object = sortState[kInitialReceiverMapIdx()];
+    let initialReceiverLength: Number =
+        unsafe_cast<Number>(sortState[kInitialReceiverLengthIdx()]);
+    let elements: Object = sortState[kElementsOrReceiverIdx()];
+
+    while (to - from > 1) {
+      if (to - from <= 10) {
+        ArrayInsertionSort<E>(
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength, from, to, userCmpFn, sortCompare)
+        otherwise Bailout;
+        break;
+      }
+
+      let pivot: Object = CalculatePivot<E>(
+          sortState, context, receiver, elements, initialReceiverMap,
+          initialReceiverLength, from, to, userCmpFn, sortCompare)
+      otherwise Bailout;
+
+      let low_end: Smi = from + 1;   // Upper bound of elems lower than pivot.
+      let high_start: Smi = to - 1;  // Lower bound of elems greater than pivot.
+
+      // From low_end to idx are elements equal to pivot.
+      // From idx to high_start are elements that haven"t been compared yet.
+      for (let idx: Smi = low_end + 1; idx < high_start; idx++) {
+        assert(CanUseSameAccessor<E>(
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength));
+
+        let element: Object = Load<E>(context, elements, idx) otherwise Bailout;
+        let order: Number = CallCompareFn<E>(
+            context, receiver, elements, initialReceiverMap,
+            initialReceiverLength, userCmpFn, sortCompare, element, pivot)
+        otherwise Bailout;
+
+        if (order < 0) {
+          Swap<E>(context, elements, low_end, idx, element) otherwise Bailout;
+          low_end++;
+        } else if (order > 0) {
+          let break_for: bool = false;
+
+          // Start looking for high_start to find the first value that is
+          // smaller than pivot.
+          while (order > 0) {
+            assert(CanUseSameAccessor<E>(
+                context, receiver, elements, initialReceiverMap,
+                initialReceiverLength));
+
+            high_start--;
+            if (high_start == idx) {
+              break_for = true;
+              break;
+            }
+
+            let top_elem: Object =
+                Load<E>(context, elements, high_start) otherwise Bailout;
+            order = CallCompareFn<E>(
+                context, receiver, elements, initialReceiverMap,
+                initialReceiverLength, userCmpFn, sortCompare, top_elem, pivot)
+            otherwise Bailout;
+          }
+
+          if (break_for) {
+            break;
+          }
+
+          Swap<E>(context, elements, high_start, idx, element)
+          otherwise Bailout;
+
+          if (order < 0) {
+            element = Load<E>(context, elements, idx) otherwise Bailout;
+
+            Swap<E>(context, elements, low_end, idx, element) otherwise Bailout;
+            low_end++;
+          }
+        }
+      }
+
+      if ((to - high_start) < (low_end - from)) {
+        let bailed: Smi = ArrayQuickSort<E>(context, sortState, high_start, to);
+        if (bailed != kSuccess()) goto Bailout;
+
+        to = low_end;
+      } else {
+        let bailed: Smi = ArrayQuickSort<E>(context, sortState, from, low_end);
+        if (bailed != kSuccess()) goto Bailout;
+
+        from = high_start;
+      }
+    }
+  }
+
+  // Returns -1 iff we bailed to the slow path, 0 otherwise.
+  builtin ArrayQuickSort<ElementsAccessor : type>(
+      context: Context, sortState: FixedArray, from: Smi, to: Smi): Smi {
+    try {
+      ArrayQuickSortImpl<ElementsAccessor>(context, sortState, from, to)
+      otherwise Slow;
+    }
+    label Slow {
+      return kFailure();
+    }
+    return kSuccess();
+  }
+
+  // The specialization is needed since we would end up in an endless loop
+  // when the ElementsAccessor fails and bails to the ElementsAccessor again.
+  ArrayQuickSort<GenericElementsAccessor>(
+      context: Context, sortState: FixedArray, from: Smi, to: Smi): Smi {
+    try {
+      ArrayQuickSortImpl<GenericElementsAccessor>(context, sortState, from, to)
+      otherwise Error;
+    }
+    label Error {
+      // The generic baseline path must not fail.
+      unreachable;
+    }
+    return kSuccess();
+  }
+
+  macro TryFastArrayQuickSort<ElementsAccessor : type>(
+      context: Context, sortState: FixedArray, from: Smi, to: Smi) {
+    let bailed: Smi =
+        ArrayQuickSort<ElementsAccessor>(context, sortState, from, to);
+    if (bailed != 0) {
+      // Generic version uses Set- and GetProperty, replace elements with
+      // the receiver itself.
+      sortState[kElementsOrReceiverIdx()] = sortState[kReceiverIdx()];
+      ArrayQuickSort<GenericElementsAccessor>(context, sortState, from, to);
+    }
+  }
+
+  // For compatibility with JSC, we also sort elements inherited from
+  // the prototype chain on non-Array objects.
+  // We do this by copying them to this object and sorting only
+  // own elements. This is not very efficient, but sorting with
+  // inherited elements happens very, very rarely, if at all.
+  // The specification allows "implementation dependent" behavior
+  // if an element on the prototype chain has an element that
+  // might interact with sorting.
+  //
+  // We also move all non-undefined elements to the front of the
+  // array and move the undefineds after that. Holes are removed.
+  // This happens for Array as well as non-Array objects.
+  extern runtime PrepareElementsForSort(Context, Object, Number): Smi;
+
+  // https://tc39.github.io/ecma262/#sec-array.prototype.sort
+  javascript builtin ArrayPrototypeSort(
+      context: Context, receiver: Object, ...arguments): Object {
+    // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
+    //    throw a TypeError exception.
+    let comparefnObj: Object = arguments[0];
+    if (comparefnObj != Undefined && !TaggedIsCallable(comparefnObj)) {
+      ThrowTypeError(context, kBadSortComparisonFunction, comparefnObj);
+    }
+
+    // 2. Let obj be ? ToObject(this value).
+    let obj: JSReceiver = ToObject(context, receiver);
+    let map: Map = obj.map;
+
+    let sort_state: FixedArray =
+        AllocateFixedArray(PACKED_ELEMENTS, kSortStateSize());
+
+    sort_state[kReceiverIdx()] = obj;
+    sort_state[kUserCmpFnIdx()] = comparefnObj;
+    sort_state[kSortComparePtrIdx()] =
+        comparefnObj != Undefined ? SortCompareUserFn : SortCompareDefault;
+    sort_state[kInitialReceiverMapIdx()] = map;
+
+    // Initialize the remaining fields with Undefined.
+    // Needed for heap verification.
+    sort_state[kInitialReceiverLengthIdx()] = Undefined;
+    sort_state[kElementsOrReceiverIdx()] = Undefined;
+    sort_state[kRandomStateIdx()] = Undefined;
+
+    try {
+      let a: JSArray = cast<JSArray>(obj) otherwise slow;
+      let elementsKind: ElementsKind = map.elements_kind;
+      if (!IsFastElementsKind(elementsKind)) goto slow;
+
+      // 3. Let len be ? ToLength(? Get(obj, "length")).
+      let len: Smi = a.length_fast;
+      if (len < 2) return receiver;
+
+      // TODO(szuend): Investigate performance tradeoff of skipping this step
+      //               for PACKED_* and handling Undefineds during sorting.
+      let nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
+      assert(a.map == map);
+
+      sort_state[kInitialReceiverLengthIdx()] = len;
+      sort_state[kElementsOrReceiverIdx()] = a.elements;
+      sort_state[kRandomStateIdx()] = nofNonUndefined;
+
+      if (IsDoubleElementsKind(elementsKind)) {
+        TryFastArrayQuickSort<FastDoubleElements>(
+            context, sort_state, 0, nofNonUndefined);
+      } else {
+        if (elementsKind == PACKED_SMI_ELEMENTS) {
+          TryFastArrayQuickSort<FastPackedSmiElements>(
+              context, sort_state, 0, nofNonUndefined);
+        } else {
+          TryFastArrayQuickSort<FastSmiOrObjectElements>(
+              context, sort_state, 0, nofNonUndefined);
+        }
+      }
+    }
+    label slow {
+      // 3. Let len be ? ToLength(? Get(obj, "length")).
+      let len: Number = GetLengthProperty(context, obj);
+
+      if (len < 2) return receiver;
+      let nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
+
+      sort_state[kInitialReceiverLengthIdx()] = len;
+      sort_state[kRandomStateIdx()] = nofNonUndefined;
+
+      // Reload the map, PrepareElementsForSort might have changed the
+      // elements kind.
+      map = obj.map;
+
+      if (map.elements_kind == DICTIONARY_ELEMENTS && IsExtensibleMap(map) &&
+          !IsCustomElementsReceiverInstanceType(map.instance_type)) {
+        let jsobj: JSObject = unsafe_cast<JSObject>(obj);
+        sort_state[kElementsOrReceiverIdx()] = jsobj.elements;
+        TryFastArrayQuickSort<DictionaryElements>(
+            context, sort_state, 0, nofNonUndefined);
+        return receiver;
+      }
+
+      sort_state[kElementsOrReceiverIdx()] = obj;
+      ArrayQuickSort<GenericElementsAccessor>(
+          context, sort_state, 0, nofNonUndefined);
+    }
+
+    return receiver;
+  }
+}

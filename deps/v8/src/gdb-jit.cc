@@ -979,11 +979,11 @@ class CodeDescription BASE_EMBEDDED {
   }
 
   uintptr_t CodeStart() const {
-    return reinterpret_cast<uintptr_t>(code_->InstructionStart());
+    return static_cast<uintptr_t>(code_->InstructionStart());
   }
 
   uintptr_t CodeEnd() const {
-    return reinterpret_cast<uintptr_t>(code_->InstructionEnd());
+    return static_cast<uintptr_t>(code_->InstructionEnd());
   }
 
   uintptr_t CodeSize() const {
@@ -1171,17 +1171,19 @@ class DebugInfoSection : public DebugSection {
       fb_block_size.set(static_cast<uint32_t>(w->position() - fb_block_start));
 
       int params = scope->ParameterCount();
-      int slots = scope->StackLocalCount();
       int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
-      int locals = scope->StackLocalCount();
       int current_abbreviation = 4;
+
+      EmbeddedVector<char, 256> buffer;
+      StringBuilder builder(buffer.start(), buffer.length());
 
       for (int param = 0; param < params; ++param) {
         w->WriteULEB128(current_abbreviation++);
-        w->WriteString(
-            scope->ParameterName(param)->ToCString(DISALLOW_NULLS).get());
+        builder.Reset();
+        builder.AddFormatted("param%d", param);
+        w->WriteString(builder.Finalize());
         w->Write<uint32_t>(ty_offset);
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
@@ -1192,24 +1194,14 @@ class DebugInfoSection : public DebugSection {
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
 
-      EmbeddedVector<char, 256> buffer;
-      StringBuilder builder(buffer.start(), buffer.length());
-
-      for (int slot = 0; slot < slots; ++slot) {
-        w->WriteULEB128(current_abbreviation++);
-        builder.Reset();
-        builder.AddFormatted("slot%d", slot);
-        w->WriteString(builder.Finalize());
-      }
-
       // See contexts.h for more information.
       DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, 4);
-      DCHECK_EQ(Context::CLOSURE_INDEX, 0);
+      DCHECK_EQ(Context::SCOPE_INFO_INDEX, 0);
       DCHECK_EQ(Context::PREVIOUS_INDEX, 1);
       DCHECK_EQ(Context::EXTENSION_INDEX, 2);
       DCHECK_EQ(Context::NATIVE_CONTEXT_INDEX, 3);
       w->WriteULEB128(current_abbreviation++);
-      w->WriteString(".closure");
+      w->WriteString(".scope_info");
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".previous");
       w->WriteULEB128(current_abbreviation++);
@@ -1224,20 +1216,6 @@ class DebugInfoSection : public DebugSection {
         builder.Reset();
         builder.AddFormatted("context_slot%d", context_slot + internal_slots);
         w->WriteString(builder.Finalize());
-      }
-
-      for (int local = 0; local < locals; ++local) {
-        w->WriteULEB128(current_abbreviation++);
-        w->WriteString(
-            scope->StackLocalName(local)->ToCString(DISALLOW_NULLS).get());
-        w->Write<uint32_t>(ty_offset);
-        Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
-        uintptr_t block_start = w->position();
-        w->Write<uint8_t>(DW_OP_fbreg);
-        w->WriteSLEB128(
-          JavaScriptFrameConstants::kLocal0Offset -
-              kPointerSize * local);
-        block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
 
       {
@@ -1370,13 +1348,11 @@ class DebugAbbrevSection : public DebugSection {
     if (extra_info) {
       ScopeInfo* scope = desc_->scope_info();
       int params = scope->ParameterCount();
-      int slots = scope->StackLocalCount();
       int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
-      int locals = scope->StackLocalCount();
-      // Total children is params + slots + context_slots + internal_slots +
-      // locals + 2 (__function and __context).
+      // Total children is params + context_slots + internal_slots + 2
+      // (__function and __context).
 
       // The extra duplication below seems to be necessary to keep
       // gdb from getting upset on OSX.
@@ -1408,10 +1384,6 @@ class DebugAbbrevSection : public DebugSection {
         WriteVariableAbbreviation(w, current_abbreviation++, true, true);
       }
 
-      for (int slot = 0; slot < slots; ++slot) {
-        WriteVariableAbbreviation(w, current_abbreviation++, false, false);
-      }
-
       for (int internal_slot = 0;
            internal_slot < internal_slots;
            ++internal_slot) {
@@ -1422,10 +1394,6 @@ class DebugAbbrevSection : public DebugSection {
            context_slot < context_slots;
            ++context_slot) {
         WriteVariableAbbreviation(w, current_abbreviation++, false, false);
-      }
-
-      for (int local = 0; local < locals; ++local) {
-        WriteVariableAbbreviation(w, current_abbreviation++, true, false);
       }
 
       // The function.
@@ -1885,8 +1853,8 @@ extern "C" {
 
 #ifdef OBJECT_PRINT
   void __gdb_print_v8_object(Object* object) {
-    OFStream os(stdout);
-    object->Print(os);
+    StdoutStream os;
+    object->Print(Isolate::Current(), os);
     os << std::flush;
   }
 #endif
@@ -1900,7 +1868,8 @@ static JITCodeEntry* CreateCodeEntry(Address symfile_addr,
 
   entry->symfile_addr_ = reinterpret_cast<Address>(entry + 1);
   entry->symfile_size_ = symfile_size;
-  MemCopy(entry->symfile_addr_, symfile_addr, symfile_size);
+  MemCopy(reinterpret_cast<void*>(entry->symfile_addr_),
+          reinterpret_cast<void*>(symfile_addr), symfile_size);
 
   entry->prev_ = entry->next_ = nullptr;
 
@@ -1976,7 +1945,7 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
   elf.Write(&w);
 #endif
 
-  return CreateCodeEntry(w.buffer(), w.position());
+  return CreateCodeEntry(reinterpret_cast<Address>(w.buffer()), w.position());
 }
 
 
@@ -2010,8 +1979,7 @@ static CodeMap* GetCodeMap() {
 
 static uint32_t HashCodeAddress(Address addr) {
   static const uintptr_t kGoldenRatio = 2654435761u;
-  uintptr_t offset = OffsetFrom(addr);
-  return static_cast<uint32_t>((offset >> kCodeAlignmentBits) * kGoldenRatio);
+  return static_cast<uint32_t>((addr >> kCodeAlignmentBits) * kGoldenRatio);
 }
 
 static base::HashMap* GetLineMap() {
@@ -2025,15 +1993,16 @@ static base::HashMap* GetLineMap() {
 
 static void PutLineInfo(Address addr, LineInfo* info) {
   base::HashMap* line_map = GetLineMap();
-  base::HashMap::Entry* e =
-      line_map->LookupOrInsert(addr, HashCodeAddress(addr));
+  base::HashMap::Entry* e = line_map->LookupOrInsert(
+      reinterpret_cast<void*>(addr), HashCodeAddress(addr));
   if (e->value != nullptr) delete static_cast<LineInfo*>(e->value);
   e->value = info;
 }
 
 
 static LineInfo* GetLineInfo(Address addr) {
-  void* value = GetLineMap()->Remove(addr, HashCodeAddress(addr));
+  void* value = GetLineMap()->Remove(reinterpret_cast<void*>(addr),
+                                     HashCodeAddress(addr));
   return static_cast<LineInfo*>(value);
 }
 
@@ -2121,7 +2090,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
 
     SNPrintF(Vector<char>(file_name, kMaxFileNameSize), "/tmp/elfdump%s%d.o",
              (name_hint != nullptr) ? name_hint : "", file_num++);
-    WriteBytes(file_name, entry->symfile_addr_,
+    WriteBytes(file_name, reinterpret_cast<byte*>(entry->symfile_addr_),
                static_cast<int>(entry->symfile_size_));
   }
 #endif

@@ -74,6 +74,7 @@ const int kFastElementsKindPackedToHoley =
     HOLEY_SMI_ELEMENTS - PACKED_SMI_ELEMENTS;
 
 int ElementsKindToShiftSize(ElementsKind elements_kind);
+int ElementsKindToByteSize(ElementsKind elements_kind);
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind);
 const char* ElementsKindToString(ElementsKind kind);
 
@@ -264,6 +265,7 @@ inline bool IsTransitionableFastElementsKind(ElementsKind from_kind) {
          from_kind != TERMINAL_FAST_ELEMENTS_KIND;
 }
 
+inline bool ElementsKindEqual(ElementsKind a, ElementsKind b) { return a == b; }
 
 }  // namespace internal
 }  // namespace v8

@@ -37,7 +37,7 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
       isolate, thrower, module.ToHandleChecked(), {}, {});
 }
 
-std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
+std::shared_ptr<WasmModule> DecodeWasmModuleForTesting(
     Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin, bool verify_functions) {
   // Decode the module, but don't verify function bodies, since we'll
@@ -74,16 +74,16 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
   // Fill the parameters up with default values.
   for (size_t i = argc; i < param_count; ++i) {
     switch (signature->GetParam(i)) {
-      case MachineRepresentation::kWord32:
+      case kWasmI32:
         arguments[i] = WasmValue(int32_t{0});
         break;
-      case MachineRepresentation::kWord64:
+      case kWasmI64:
         arguments[i] = WasmValue(int64_t{0});
         break;
-      case MachineRepresentation::kFloat32:
+      case kWasmF32:
         arguments[i] = WasmValue(0.0f);
         break;
-      case MachineRepresentation::kFloat64:
+      case kWasmF64:
         arguments[i] = WasmValue(0.0);
         break;
       default:
@@ -201,7 +201,7 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
   Handle<JSObject> exports_object;
   Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
   exports_object = Handle<JSObject>::cast(
-      JSObject::GetProperty(instance, exports).ToHandleChecked());
+      JSObject::GetProperty(isolate, instance, exports).ToHandleChecked());
 
   Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked(name);
   PropertyDescriptor desc;

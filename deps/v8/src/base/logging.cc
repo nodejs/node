@@ -135,7 +135,7 @@ class FailureMessage {
 
   static const uintptr_t kStartMarker = 0xdecade10;
   static const uintptr_t kEndMarker = 0xdecade11;
-  static const int kMessageBufferSize = 1024;
+  static const int kMessageBufferSize = 512;
 
   uintptr_t start_marker_ = kStartMarker;
   char message_[kMessageBufferSize];
@@ -154,6 +154,7 @@ void V8_Fatal(const char* file, int line, const char* format, ...) {
 
   fflush(stdout);
   fflush(stderr);
+  // Print the formatted message to stdout without cropping the output.
   v8::base::OS::PrintError("\n\n#\n# Fatal error in %s, line %d\n# ", file,
                            line);
 

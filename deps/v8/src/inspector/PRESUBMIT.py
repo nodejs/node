@@ -61,6 +61,7 @@ def PostUploadHook(cl, change, output_api):
   return output_api.EnsureCQIncludeTrybotsAreAdded(
     cl,
     [
-      'master.tryserver.blink:linux_trusty_blink_rel'
+      'master.tryserver.blink:linux_trusty_blink_rel',
+      'luci.chromium.try:linux_chromium_headless_rel',
     ],
     'Automatically added layout test trybots to run tests on CQ.')

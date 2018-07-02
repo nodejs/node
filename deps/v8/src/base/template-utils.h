@@ -56,13 +56,6 @@ std::unique_ptr<T> make_unique(Args&&... args) {
   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
-// implicit_cast<A>(x) triggers an implicit cast from {x} to type {A}. This is
-// useful in situations where static_cast<A>(x) would do too much.
-template <class A>
-A implicit_cast(A x) {
-  return x;
-}
-
 // Helper to determine how to pass values: Pass scalars and arrays by value,
 // others by const reference (even if it was a non-const ref before; this is
 // disallowed by the style guide anyway).

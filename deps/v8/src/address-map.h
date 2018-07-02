@@ -34,12 +34,20 @@ class PointerToIndexHashMap
   }
 
  private:
-  static uintptr_t Key(Type value) {
-    return reinterpret_cast<uintptr_t>(value);
-  }
+  static inline uintptr_t Key(Type value);
 
   static uint32_t Hash(uintptr_t key) { return static_cast<uint32_t>(key); }
 };
+
+template <>
+inline uintptr_t PointerToIndexHashMap<Address>::Key(Address value) {
+  return static_cast<uintptr_t>(value);
+}
+
+template <typename Type>
+inline uintptr_t PointerToIndexHashMap<Type>::Key(Type value) {
+  return reinterpret_cast<uintptr_t>(value);
+}
 
 class AddressToIndexHashMap : public PointerToIndexHashMap<Address> {};
 class HeapObjectToIndexHashMap : public PointerToIndexHashMap<HeapObject*> {};

@@ -105,7 +105,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   inline void Emit(uint32_t bc, uint32_t arg);
   // Bytecode buffer.
   int length();
-  void Copy(Address a);
+  void Copy(byte* a);
 
   // The buffer into which code and relocation info are generated.
   Vector<byte> buffer_;

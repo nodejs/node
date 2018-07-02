@@ -64,7 +64,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
   if (function->IsJSFunction()) {
     Handle<SharedFunctionInfo> shared(
-        Handle<JSFunction>::cast(function)->shared());
+        Handle<JSFunction>::cast(function)->shared(), isolate);
     return *SharedFunctionInfo::GetSourceCode(shared);
   }
   return isolate->heap()->undefined_value();
@@ -80,13 +80,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   return Smi::FromInt(pos);
 }
 
-RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-
-  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  return fun->native_context()->debug_context_id();
-}
 
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
@@ -104,8 +97,8 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, source, 1);
 
-  Handle<SharedFunctionInfo> target_shared(target->shared());
-  Handle<SharedFunctionInfo> source_shared(source->shared());
+  Handle<SharedFunctionInfo> target_shared(target->shared(), isolate);
+  Handle<SharedFunctionInfo> source_shared(source->shared(), isolate);
 
   if (!source->is_compiled() &&
       !Compiler::Compile(source, Compiler::KEEP_EXCEPTION)) {
@@ -139,7 +132,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 
   // Set the code of the target function.
   target->set_code(source_shared->GetCode());
-  Handle<Context> context(source->context());
+  Handle<Context> context(source->context(), isolate);
   target->set_context(*context);
 
   // Make sure we get a fresh copy of the feedback vector to avoid cross
@@ -150,7 +143,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   if (isolate->logger()->is_listening_to_code_events() ||
       isolate->is_profiling()) {
     isolate->logger()->LogExistingFunction(
-        source_shared, Handle<AbstractCode>(source_shared->abstract_code()));
+        source_shared, handle(source_shared->abstract_code(), isolate));
   }
 
   return *target;
@@ -204,16 +197,6 @@ RUNTIME_FUNCTION(Runtime_IsFunction) {
   return isolate->heap()->ToBoolean(object->IsFunction());
 }
 
-
-RUNTIME_FUNCTION(Runtime_FunctionToString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
-  return function->IsJSBoundFunction()
-             ? *JSBoundFunction::ToString(
-                   Handle<JSBoundFunction>::cast(function))
-             : *JSFunction::ToString(Handle<JSFunction>::cast(function));
-}
 
 }  // namespace internal
 }  // namespace v8

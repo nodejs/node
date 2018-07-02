@@ -22,13 +22,13 @@ function readFile(fileName) {
 // confusion between the decimal and thousands separator is big (alternating
 // between comma "," vs dot "."). The Swiss formatting uses "'" as a thousands
 // separator, dropping most of that confusion.
-var numberFormat = new Intl.NumberFormat('de-CH', {
+const numberFormat = new Intl.NumberFormat('de-CH', {
   maximumFractionDigits: 2,
   minimumFractionDigits: 2,
 });
 
 function formatNumber(value) {
-  return formatNumber(value);
+  return numberFormat.format(value);
 }
 
 function BYTES(bytes, total) {
@@ -65,14 +65,18 @@ function timestampMin(list) {
 
 // ===========================================================================
 class Script {
-  constructor(file, id) {
-    this.file = file;
-    this.isNative = false;
-    this.id = id;
+  constructor(id) {
     if (id === void 0 || id <= 0) {
-      throw new Error(`Invalid id=${id} for script with file='${file}'`);
+      throw new Error(`Invalid id=${id} for script`);
     }
+    this.file = '';
+    this.id = id;
+
+    this.isNative = false;
     this.isEval = false;
+    this.isBackgroundCompiled = false;
+    this.isDeserialized = false;
+
     this.funktions = [];
     this.metrics = new Map();
     this.maxNestingLevel = 0;
@@ -87,11 +91,10 @@ class Script {
     this.compileTime = -0.0;
 
     this.width = 0;
-    this.bytesTotal = 0;
+    this.bytesTotal = -1;
     this.ownBytes = -1;
     this.finalized = false;
     this.summary = '';
-    this.setFile(file);
   }
 
   setFile(name) {
@@ -181,8 +184,13 @@ class Script {
 
   getOwnBytes() {
     if (this.ownBytes === -1) {
+      if (this.getBytes() === -1) {
+        if (this.isDeserialized || this.isEval) {
+          return this.ownBytes = 0;
+        }
+      }
       this.ownBytes = this.funktions.reduce(
-        (bytes, each) => bytes - each.parent == null ? each.getBytes() : 0,
+        (bytes, each) => bytes - (each.isToplevel() ? each.getBytes() : 0),
         this.getBytes());
       if (this.ownBytes < 0) throw "Own bytes must be positive";
     }
@@ -235,6 +243,9 @@ class Script {
     };
 
     log("  - file:         " + this.file);
+    log('  - details:      ' +
+        'isEval=' + this.isEval + ' deserialized=' + this.isDeserialized +
+        ' streamed=' + this.isBackgroundCompiled);
     info("scripts", this.getScripts());
     info("functions", all);
     info("toplevel fn", all.filter(each => each.isToplevel()));
@@ -687,25 +698,54 @@ function startOf(timestamp, time) {
 class ParseProcessor extends LogReader {
   constructor() {
     super();
-    let config = (processor) => {
-      // {script file},{script id},{start position},{end position},
-      // {time},{timestamp},{function name}
-      return {
-        parsers: [null, parseInt, parseInt, parseInt, parseFloat, parseInt, null],
-        processor: processor
+    this.dispatchTable_ = {
+      // Avoid accidental leaking of __proto__ properties and force this object
+      // to be in dictionary-mode.
+      __proto__: null,
+      // "function",{event type},
+      // {script id},{start position},{end position},{time},{timestamp},
+      // {function name}
+      'function': {
+        parsers: [
+          parseString, parseInt, parseInt, parseInt, parseFloat, parseInt,
+          parseString
+        ],
+        processor: this.processFunctionEvent
+      },
+      // "compilation-cache", "hit"|"put", {type}, {start position},
+      // {end position}
+      'compilation-cache': {
+        parsers: [parseString, parseString, parseInt, parseInt],
+        processor: this.processCompilationCacheEvent
+      },
+      'script': {
+        parsers: [parseString, parseInt],
+        processor: this.processScriptEvent
+      },
+      // "script-details", {script_id}, {file}, {line}, {column}, {size}
+      'script-details': {
+        parsers: [parseInt, parseString, parseInt, parseInt, parseInt],
+        processor: this.processScriptDetails
       }
     };
-
-    this.dispatchTable_ = {
-      'parse-full': config(this.processFull),
-      'parse-function': config(this.processFunction),
-      'parse-script': config(this.processScript),
-      'parse-eval': config(this.processEval),
-      'preparse-no-resolution': config(this.processPreparseNoResolution),
-      'preparse-resolution': config(this.processPreparseResolution),
-      'first-execution': config(this.processFirstExecution),
-      'compile-lazy': config(this.processCompileLazy),
-      'compile': config(this.processCompile)
+    this.functionEventDispatchTable_ = {
+      // Avoid accidental leaking of __proto__ properties and force this object
+      // to be in dictionary-mode.
+      __proto__: null,
+      'full-parse': this.processFull.bind(this),
+      'parse-function': this.processParseFunction.bind(this),
+      // TODO(cbruni): make sure arrow functions emit a normal parse-function
+      // event.
+      'parse': this.processParseFunction.bind(this),
+      'parse-script': this.processScript.bind(this),
+      'parse-eval': this.processEval.bind(this),
+      'preparse-no-resolution': this.processPreparseNoResolution.bind(this),
+      'preparse-resolution': this.processPreparseResolution.bind(this),
+      'first-execution': this.processFirstExecution.bind(this),
+      'compile-lazy': this.processCompileLazy.bind(this),
+      'compile': this.processCompile.bind(this),
+      'compile-eval': this.processCompileEval.bind(this),
+      'optimize-lazy': this.processOptimizeLazy.bind(this)
     };
 
     this.idToScript = new Map();
@@ -755,8 +795,10 @@ class ParseProcessor extends LogReader {
     this.scripts = Array.from(this.idToScript.values())
       .filter(each => !each.isNative);
 
-    this.scripts.forEach(script => script.finalize());
-    this.scripts.forEach(script => script.calculateMetrics(false));
+    this.scripts.forEach(script => {
+      script.finalize();
+      script.calculateMetrics(false)
+    });
 
     this.firstEvent =
       timestampMin(this.scripts.map(each => each.firstEvent));
@@ -767,42 +809,45 @@ class ParseProcessor extends LogReader {
 
     this.scripts.forEach(script => this.totalScript.addAllFunktions(script));
     this.totalScript.calculateMetrics(true);
-    const series = [
-      ['firstParseEvent', 'Any Parse Event'],
-      ['parse', 'Parsing'],
-      ['preparse', 'Preparsing'],
-      ['resolution', 'Preparsing with Var. Resolution'],
-      ['lazyCompile', 'Lazy Compilation'],
-      ['compile', 'Eager Compilation'],
-      ['execution', 'First Execution'],
-    ];
-    let metrics = series.map(each => each[0]);
+    const series = {
+      firstParseEvent: 'Any Parse Event',
+      parse: 'Parsing',
+      preparse: 'Preparsing',
+      resolution: 'Preparsing with Var. Resolution',
+      lazyCompile: 'Lazy Compilation',
+      compile: 'Eager Compilation',
+      execution: 'First Execution',
+    };
+    let metrics = Object.keys(series);
     this.totalScript.getAccumulatedTimeMetrics(metrics, 0, this.lastEvent, 10);
-  };
+  }
+
+  processFunctionEvent(
+      eventName, scriptId, startPosition, endPosition, duration, timestamp,
+      functionName) {
+    let handlerFn = this.functionEventDispatchTable_[eventName];
+    if (handlerFn === undefined) {
+      console.error('Couldn\'t find handler for function event:' + eventName);
+    }
+    handlerFn(
+        scriptId, startPosition, endPosition, duration, timestamp,
+        functionName);
+  }
 
   addEntry(entry) {
     this.entries.push(entry);
   }
 
-  lookupScript(file, id) {
-    // During preparsing we only have the temporary ranges and no script yet.
-    let script;
-    if (this.idToScript.has(id)) {
-      script = this.idToScript.get(id);
-    } else {
-      script = new Script(file, id);
-      this.idToScript.set(id, script);
-    }
-    if (file.length > 0 && script.file.length === 0) {
-      script.setFile(file);
-      this.fileToScript.set(file, script);
-    }
-    return script;
+  lookupScript(id) {
+    return this.idToScript.get(id);
   }
 
-  lookupFunktion(file, scriptId,
-    startPosition, endPosition, time, timestamp, functionName) {
-    let script = this.lookupScript(file, scriptId);
+  getOrCreateFunction(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    if (scriptId == -1) {
+      return this.lookupFunktionByRange(startPosition, endPosition);
+    }
+    let script = this.lookupScript(scriptId);
     let funktion = script.funktionAtPosition(startPosition);
     if (funktion === void 0) {
       funktion = new Funktion(functionName, startPosition, endPosition, script);
@@ -810,60 +855,103 @@ class ParseProcessor extends LogReader {
     return funktion;
   }
 
-  processEval(file, scriptId, startPosition,
-    endPosition, time, timestamp, functionName) {
-    let script = this.lookupScript(file, scriptId);
+  // Iterates over all functions and tries to find matching ones.
+  lookupFunktionsByRange(start, end) {
+    let results = [];
+    this.idToScript.forEach(script => {
+      script.forEach(funktion => {
+        if (funktion.startPostion == start && funktion.endPosition == end) {
+          results.push(funktion);
+        }
+      });
+    });
+    return results;
+  }
+  lookupFunktionByRange(start, end) {
+    let results = this.lookupFunktionsByRange(start, end);
+    if (results.length != 1) throw "Could not find unique function by range";
+    return results[0];
+  }
+
+  processScriptEvent(eventName, scriptId) {
+    if (['create', 'reserve-id', 'deserialize'].includes(eventName)) {
+      if (this.idToScript.has(scriptId)) return;
+      let script = new Script(scriptId);
+      this.idToScript.set(scriptId, script);
+      if (eventName == 'deserialize') script.isDeserialized = true;
+      return;
+    } else if (eventName === 'background-compile') {
+      this.idToScript.get(scriptId).isBackgroundCompiled = true;
+      return;
+    }
+    console.error('Unhandled script event: ' + eventName);
+  }
+
+  processScriptDetails(scriptId, file, startLine, startColumn, size) {
+    let script = this.lookupScript(scriptId);
+    script.setFile(file);
+  }
+
+  processEval(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let script = this.lookupScript(scriptId);
     script.isEval = true;
   }
 
-  processFull(file, scriptId, startPosition,
-    endPosition, time, timestamp, functionName) {
-    let funktion = this.lookupFunktion(...arguments);
+  processFull(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    if (startPosition == 0) {
+      // This should only happen for eval.
+      let script = this.lookupScript(scriptId);
+      script.isEval = true;
+      return;
+    }
+    let funktion = this.getOrCreateFunction(...arguments);
     // TODO(cbruni): this should never happen, emit differen event from the
     // parser.
     if (funktion.parseTimestamp > 0) return;
-    funktion.parseTimestamp = startOf(timestamp, time);
-    funktion.parseTime = time;
+    funktion.parseTimestamp = startOf(timestamp, duration);
+    funktion.parseTime = duration;
   }
 
-  processFunction(file, scriptId, startPosition,
-    endPosition, time, timestamp, functionName) {
-    let funktion = this.lookupFunktion(...arguments);
-    funktion.parseTimestamp = startOf(timestamp, time);
-    funktion.parseTime = time;
+  processParseFunction(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let funktion = this.getOrCreateFunction(...arguments);
+    funktion.parseTimestamp = startOf(timestamp, duration);
+    funktion.parseTime = duration;
   }
 
-  processScript(file, scriptId, startPosition,
-    endPosition, time, timestamp, functionName) {
-    // TODO timestamp and time
-    let script = this.lookupScript(file, scriptId);
-    let ts = startOf(timestamp, time);
+  processScript(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    // TODO timestamp and duration
+    let script = this.lookupScript(scriptId);
+    let ts = startOf(timestamp, duration);
     script.parseTimestamp = ts;
     script.firstEventTimestamp = ts;
     script.firstParseEventTimestamp = ts;
-    script.parseTime = time;
+    script.parseTime = duration;
   }
 
-  processPreparseResolution(file, scriptId,
-    startPosition, endPosition, time, timestamp, functionName) {
-    let funktion = this.lookupFunktion(...arguments);
+  processPreparseResolution(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let funktion = this.getOrCreateFunction(...arguments);
     // TODO(cbruni): this should never happen, emit different event from the
     // parser.
     if (funktion.resolutionTimestamp > 0) return;
-    funktion.resolutionTimestamp = startOf(timestamp, time);
-    funktion.resolutionTime = time;
+    funktion.resolutionTimestamp = startOf(timestamp, duration);
+    funktion.resolutionTime = duration;
   }
 
-  processPreparseNoResolution(file, scriptId,
-    startPosition, endPosition, time, timestamp, functionName) {
-    let funktion = this.lookupFunktion(...arguments);
-    funktion.preparseTimestamp = startOf(timestamp, time);
-    funktion.preparseTime = time;
+  processPreparseNoResolution(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let funktion = this.getOrCreateFunction(...arguments);
+    funktion.preparseTimestamp = startOf(timestamp, duration);
+    funktion.preparseTime = duration;
   }
 
-  processFirstExecution(file, scriptId,
-    startPosition, endPosition, time, timestamp, functionName) {
-    let script = this.lookupScript(file, scriptId);
+  processFirstExecution(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let script = this.lookupScript(scriptId);
     if (startPosition === 0) {
       // undefined = eval fn execution
       if (script) {
@@ -879,28 +967,43 @@ class ParseProcessor extends LogReader {
     }
   }
 
-  processCompileLazy(file, scriptId,
-    startPosition, endPosition, time, timestamp, functionName) {
-    let funktion = this.lookupFunktion(...arguments);
-    funktion.lazyCompileTimestamp = startOf(timestamp, time);
-    funktion.lazyCompileTime = time;
-    script.firstPar
+  processCompileLazy(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let funktion = this.getOrCreateFunction(...arguments);
+    funktion.lazyCompileTimestamp = startOf(timestamp, duration);
+    funktion.lazyCompileTime = duration;
   }
 
-  processCompile(file, scriptId,
-    startPosition, endPosition, time, timestamp, functionName) {
-
-    let script = this.lookupScript(file, scriptId);
+  processCompile(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+    let script = this.lookupScript(scriptId);
     if (startPosition === 0) {
-      script.compileTimestamp = startOf(timestamp, time);
-      script.compileTime = time;
+      script.compileTimestamp = startOf(timestamp, duration);
+      script.compileTime = duration;
       script.bytesTotal = endPosition;
     } else {
       let funktion = script.funktionAtPosition(startPosition);
-      funktion.compileTimestamp = startOf(timestamp, time);
-      funktion.compileTime = time;
+      if (funktion === undefined) {
+        // This should not happen since any funktion has to be parsed first.
+        console.log("processCompile funktion not found", ...arguments);
+      }
+      funktion.compileTimestamp = startOf(timestamp, duration);
+      funktion.compileTime = duration;
     }
   }
+
+  processCompileEval(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+  }
+
+  processOptimizeLazy(
+      scriptId, startPosition, endPosition, duration, timestamp, functionName) {
+  }
+
+  processCompilationCacheEvent(eventType, cacheType, startPosition,
+      endPosition) {
+  }
+
 }
 
 

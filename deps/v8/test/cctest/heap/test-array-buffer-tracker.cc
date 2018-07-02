@@ -338,30 +338,35 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
   isolate->Dispose();
 }
 
-TEST(ArrayBuffer_RetainedSizeIncreases) {
+TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
-  const size_t retained_before = ArrayBufferTracker::RetainedInNewSpace(heap);
+  const size_t backing_store_before =
+      heap->new_space()->ExternalBackingStoreBytes(type);
   {
     const size_t kArraybufferSize = 117;
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
     USE(ab);
-    const size_t retained_after = ArrayBufferTracker::RetainedInNewSpace(heap);
-    CHECK_EQ(kArraybufferSize, retained_after - retained_before);
+    const size_t backing_store_after =
+        heap->new_space()->ExternalBackingStoreBytes(type);
+    CHECK_EQ(kArraybufferSize, backing_store_after - backing_store_before);
   }
 }
 
-TEST(ArrayBuffer_RetainedSizeDecreases) {
+TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
-  const size_t retained_before = ArrayBufferTracker::RetainedInNewSpace(heap);
+  const size_t backing_store_before =
+      heap->new_space()->ExternalBackingStoreBytes(type);
   {
     const size_t kArraybufferSize = 117;
     v8::HandleScope handle_scope(isolate);
@@ -369,8 +374,50 @@ TEST(ArrayBuffer_RetainedSizeDecreases) {
     USE(ab);
   }
   heap::GcAndSweep(heap, OLD_SPACE);
-  const size_t retained_after = ArrayBufferTracker::RetainedInNewSpace(heap);
-  CHECK_EQ(0, retained_after - retained_before);
+  const size_t backing_store_after =
+      heap->new_space()->ExternalBackingStoreBytes(type);
+  CHECK_EQ(0, backing_store_after - backing_store_before);
+}
+
+TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
+  if (FLAG_never_compact) return;
+  ManualGCScope manual_gc_scope;
+  FLAG_manual_evacuation_candidates_selection = true;
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  heap::AbandonCurrentlyFreeMemory(heap->old_space());
+  ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
+
+  const size_t backing_store_before =
+      heap->old_space()->ExternalBackingStoreBytes(type);
+
+  const size_t kArraybufferSize = 117;
+  {
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab1 =
+        v8::ArrayBuffer::New(isolate, kArraybufferSize);
+    Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
+    CHECK(IsTracked(*buf1));
+    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::GcAndSweep(heap, NEW_SPACE);
+
+    Page* page_before_gc = Page::FromAddress(buf1->address());
+    heap::ForceEvacuationCandidate(page_before_gc);
+    CHECK(IsTracked(*buf1));
+
+    CcTest::CollectAllGarbage();
+
+    const size_t backing_store_after =
+        heap->old_space()->ExternalBackingStoreBytes(type);
+    CHECK_EQ(kArraybufferSize, backing_store_after - backing_store_before);
+  }
+
+  heap::GcAndSweep(heap, OLD_SPACE);
+  const size_t backing_store_after =
+      heap->old_space()->ExternalBackingStoreBytes(type);
+  CHECK_EQ(0, backing_store_after - backing_store_before);
 }
 
 }  // namespace heap

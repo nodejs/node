@@ -88,11 +88,6 @@ var array_script = Debug.findScript('native array.js');
 assertEquals('native array.js', array_script.name);
 assertEquals(Debug.ScriptType.Native, array_script.type);
 
-// Test a debugger script.
-var debug_delay_script = Debug.findScript('native debug.js');
-assertEquals('native debug.js', debug_delay_script.name);
-assertEquals(Debug.ScriptType.Native, debug_delay_script.type);
-
 // Test an extension script.
 var extension_gc_script = Debug.findScript('v8/gc');
 if (extension_gc_script) {

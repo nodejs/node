@@ -289,25 +289,26 @@ bool String::Equals(String* other) {
   return SlowEquals(other);
 }
 
-bool String::Equals(Handle<String> one, Handle<String> two) {
+bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
   if (one.is_identical_to(two)) return true;
   if (one->IsInternalizedString() && two->IsInternalizedString()) {
     return false;
   }
-  return SlowEquals(one, two);
+  return SlowEquals(isolate, one, two);
 }
 
-Handle<String> String::Flatten(Handle<String> string, PretenureFlag pretenure) {
+Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
+                               PretenureFlag pretenure) {
   if (string->IsConsString()) {
     Handle<ConsString> cons = Handle<ConsString>::cast(string);
     if (cons->IsFlat()) {
-      string = handle(cons->first());
+      string = handle(cons->first(), isolate);
     } else {
-      return SlowFlatten(cons, pretenure);
+      return SlowFlatten(isolate, cons, pretenure);
     }
   }
   if (string->IsThinString()) {
-    string = handle(Handle<ThinString>::cast(string)->actual());
+    string = handle(Handle<ThinString>::cast(string)->actual(), isolate);
     DCHECK(!string->IsConsString());
   }
   return string;
@@ -529,7 +530,7 @@ HeapObject* ThinString::unchecked_actual() const {
   return reinterpret_cast<HeapObject*>(READ_FIELD(this, kActualOffset));
 }
 
-bool ExternalString::is_short() {
+bool ExternalString::is_short() const {
   InstanceType type = map()->instance_type();
   return (type & kShortExternalStringMask) == kShortExternalStringTag;
 }
@@ -539,7 +540,7 @@ Address ExternalString::resource_as_address() {
 }
 
 void ExternalString::set_address_as_resource(Address address) {
-  DCHECK(IsAligned(reinterpret_cast<intptr_t>(address), kPointerSize));
+  DCHECK(IsAligned(address, kPointerSize));
   *reinterpret_cast<Address*>(FIELD_ADDR(this, kResourceOffset)) = address;
   if (IsExternalOneByteString()) {
     ExternalOneByteString::cast(this)->update_data_cache();

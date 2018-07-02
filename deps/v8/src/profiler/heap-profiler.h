@@ -71,11 +71,13 @@ class HeapProfiler : public HeapObjectAllocationTracker {
       v8::HeapProfiler::GetRetainerInfosCallback callback);
   v8::HeapProfiler::RetainerInfos GetRetainerInfos(Isolate* isolate);
 
-  void SetBuildEmbedderGraphCallback(
-      v8::HeapProfiler::BuildEmbedderGraphCallback callback);
+  void AddBuildEmbedderGraphCallback(
+      v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
+  void RemoveBuildEmbedderGraphCallback(
+      v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
   void BuildEmbedderGraph(Isolate* isolate, v8::EmbedderGraph* graph);
   bool HasBuildEmbedderGraphCallback() {
-    return build_embedder_graph_callback_ != nullptr;
+    return !build_embedder_graph_callbacks_.empty();
   }
 
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
@@ -103,8 +105,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
   v8::HeapProfiler::GetRetainerInfosCallback get_retainer_infos_callback_ =
       nullptr;
-  v8::HeapProfiler::BuildEmbedderGraphCallback build_embedder_graph_callback_ =
-      nullptr;
+  std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
+      build_embedder_graph_callbacks_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapProfiler);
 };

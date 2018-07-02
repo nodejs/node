@@ -94,7 +94,6 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
   if (!gap->IsUndefined(isolate_) && !InitializeGap(gap)) {
     return MaybeHandle<Object>();
   }
-  PostponeInterruptsScope no_debug_breaks(isolate_, StackGuard::DEBUGBREAK);
   Result result = SerializeObject(object);
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) return builder_.Finish();
@@ -134,10 +133,10 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
       if (key.is_null()) continue;
       // Object keys are internalized, so do it here.
       key = factory()->InternalizeString(key);
-      set = OrderedHashSet::Add(set, key);
+      set = OrderedHashSet::Add(isolate_, set, key);
     }
     property_list_ = OrderedHashSet::ConvertToKeysArray(
-        set, GetKeysConversion::kKeepNumbers);
+        isolate_, set, GetKeysConversion::kKeepNumbers);
     property_list_ = handle_scope.CloseAndEscape(property_list_);
   } else if (replacer->IsCallable()) {
     replacer_function_ = Handle<JSReceiver>::cast(replacer);
@@ -232,8 +231,8 @@ Handle<JSReceiver> JsonStringifier::CurrentHolder(
   if (length == 0) {
     Handle<JSObject> holder =
         factory()->NewJSObject(isolate_->object_function());
-    JSObject::AddProperty(holder, factory()->empty_string(), initial_holder,
-                          NONE);
+    JSObject::AddProperty(isolate_, holder, factory()->empty_string(),
+                          initial_holder, NONE);
     return holder;
   } else {
     FixedArray* elements = FixedArray::cast(stack_->elements());
@@ -521,7 +520,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
   if (stack_push != SUCCESS) return stack_push;
 
   if (property_list_.is_null() &&
-      object->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+      !object->map()->IsCustomElementsReceiverMap() &&
       object->HasFastProperties() &&
       Handle<JSObject>::cast(object)->elements()->length() == 0) {
     DCHECK(object->IsJSObject());
@@ -529,7 +528,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
     DCHECK(!js_obj->HasIndexedInterceptor());
     DCHECK(!js_obj->HasNamedInterceptor());
-    Handle<Map> map(js_obj->map());
+    Handle<Map> map(js_obj->map(), isolate_);
     builder_.AppendCharacter('{');
     Indent();
     bool comma = false;
@@ -705,7 +704,7 @@ void JsonStringifier::SerializeDeferredKey(bool deferred_comma,
 }
 
 void JsonStringifier::SerializeString(Handle<String> object) {
-  object = String::Flatten(object);
+  object = String::Flatten(isolate_, object);
   if (builder_.CurrentEncoding() == String::ONE_BYTE_ENCODING) {
     if (object->IsOneByteRepresentationUnderneath()) {
       SerializeString_<uint8_t, uint8_t>(object);

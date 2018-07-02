@@ -33,11 +33,12 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   JSCreateLowering(Editor* editor, CompilationDependencies* dependencies,
-                   JSGraph* jsgraph,
+                   JSGraph* jsgraph, const JSHeapBroker* js_heap_broker,
                    Handle<Context> native_context, Zone* zone)
       : AdvancedReducer(editor),
         dependencies_(dependencies),
         jsgraph_(jsgraph),
+        js_heap_broker_(js_heap_broker),
         native_context_(native_context),
         zone_(zone) {}
   ~JSCreateLowering() final {}
@@ -73,16 +74,18 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                            Handle<Map> initial_map, PretenureFlag pretenure);
   Reduction ReduceNewArray(Node* node, std::vector<Node*> values,
                            Handle<Map> initial_map, PretenureFlag pretenure);
+  Reduction ReduceJSCreateObject(Node* node);
 
   Node* AllocateArguments(Node* effect, Node* control, Node* frame_state);
   Node* AllocateRestArguments(Node* effect, Node* control, Node* frame_state,
                               int start_index);
   Node* AllocateAliasedArguments(Node* effect, Node* control, Node* frame_state,
-                                 Node* context, Handle<SharedFunctionInfo>,
+                                 Node* context,
+                                 const SharedFunctionInfoRef& shared,
                                  bool* has_aliased_arguments);
   Node* AllocateAliasedArguments(Node* effect, Node* control, Node* context,
                                  Node* arguments_frame, Node* arguments_length,
-                                 Handle<SharedFunctionInfo>,
+                                 const SharedFunctionInfoRef& shared,
                                  bool* has_aliased_arguments);
   Node* AllocateElements(Node* effect, Node* control,
                          ElementsKind elements_kind, int capacity,
@@ -94,14 +97,12 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                          std::vector<Node*> const& values,
                          PretenureFlag pretenure);
   Node* AllocateFastLiteral(Node* effect, Node* control,
-                            Handle<JSObject> boilerplate,
-                            AllocationSiteUsageContext* site_context);
+                            JSObjectRef boilerplate, PretenureFlag pretenure);
   Node* AllocateFastLiteralElements(Node* effect, Node* control,
-                                    Handle<JSObject> boilerplate,
-                                    PretenureFlag pretenure,
-                                    AllocationSiteUsageContext* site_context);
+                                    JSObjectRef boilerplate,
+                                    PretenureFlag pretenure);
   Node* AllocateLiteralRegExp(Node* effect, Node* control,
-                              Handle<JSRegExp> boilerplate);
+                              JSRegExpRef boilerplate);
 
   Reduction ReduceNewArrayToStubCall(Node* node, Handle<AllocationSite> site);
 
@@ -110,13 +111,16 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
   Handle<Context> native_context() const { return native_context_; }
+  NativeContextRef native_context_ref() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
   CompilationDependencies* dependencies() const { return dependencies_; }
+  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Zone* zone() const { return zone_; }
 
   CompilationDependencies* const dependencies_;
   JSGraph* const jsgraph_;
+  const JSHeapBroker* const js_heap_broker_;
   Handle<Context> const native_context_;
   Zone* const zone_;
 };

@@ -11,10 +11,10 @@ function make_join() {
   return new Function('result = array.join();');
 }
 
-benchy('SmiJoin', make_join(), SmiJoinSetup);
-benchy('StringJoin', make_join(), StringJoinSetup);
-benchy('SparseSmiJoin', make_join(), SparseSmiJoinSetup);
-benchy('SparseStringJoin', make_join(), SparseStringJoinSetup);
+createSuite('SmiJoin', 1000, make_join(), SmiJoinSetup);
+createSuite('StringJoin', 1000, make_join(), StringJoinSetup);
+createSuite('SparseSmiJoin', 1000, make_join(), SparseSmiJoinSetup);
+createSuite('SparseStringJoin', 1000, make_join(), SparseStringJoinSetup);
 
 function SmiJoinSetup() {
   array = new Array();

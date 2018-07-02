@@ -68,7 +68,7 @@ uint32_t BytecodeArrayAccessor::GetUnsignedOperand(
   DCHECK_EQ(operand_type,
             Bytecodes::GetOperandType(current_bytecode(), operand_index));
   DCHECK(Bytecodes::IsUnsignedOperandType(operand_type));
-  const uint8_t* operand_start =
+  Address operand_start =
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
@@ -84,7 +84,7 @@ int32_t BytecodeArrayAccessor::GetSignedOperand(
   DCHECK_EQ(operand_type,
             Bytecodes::GetOperandType(current_bytecode(), operand_index));
   DCHECK(!Bytecodes::IsUnsignedOperandType(operand_type));
-  const uint8_t* operand_start =
+  Address operand_start =
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
@@ -134,7 +134,7 @@ FeedbackSlot BytecodeArrayAccessor::GetSlotOperand(int operand_index) const {
 Register BytecodeArrayAccessor::GetRegisterOperand(int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
-  const uint8_t* operand_start =
+  Address operand_start =
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
@@ -184,12 +184,11 @@ Runtime::FunctionId BytecodeArrayAccessor::GetIntrinsicIdOperand(
       static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
 }
 
-Handle<Object> BytecodeArrayAccessor::GetConstantAtIndex(int index) const {
-  return FixedArray::get(bytecode_array()->constant_pool(), index,
-                         bytecode_array()->GetIsolate());
+Object* BytecodeArrayAccessor::GetConstantAtIndex(int index) const {
+  return bytecode_array()->constant_pool()->get(index);
 }
 
-Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
+Object* BytecodeArrayAccessor::GetConstantForIndexOperand(
     int operand_index) const {
   return GetConstantAtIndex(GetIndexOperand(operand_index));
 }
@@ -203,7 +202,7 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
     }
     return GetAbsoluteOffset(relative_offset);
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
-    Smi* smi = Smi::cast(*GetConstantForIndexOperand(0));
+    Smi* smi = Smi::cast(GetConstantForIndexOperand(0));
     return GetAbsoluteOffset(smi->value());
   } else {
     UNREACHABLE();
@@ -237,9 +236,10 @@ bool BytecodeArrayAccessor::OffsetWithinBytecode(int offset) const {
 }
 
 std::ostream& BytecodeArrayAccessor::PrintTo(std::ostream& os) const {
-  return BytecodeDecoder::Decode(
-      os, bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_,
-      bytecode_array()->parameter_count());
+  const uint8_t* bytecode_addr = reinterpret_cast<const uint8_t*>(
+      bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_);
+  return BytecodeDecoder::Decode(os, bytecode_addr,
+                                 bytecode_array()->parameter_count());
 }
 
 JumpTableTargetOffsets::JumpTableTargetOffsets(
@@ -272,6 +272,7 @@ JumpTableTargetOffsets::iterator::iterator(
     int case_value, int table_offset, int table_end,
     const BytecodeArrayAccessor* accessor)
     : accessor_(accessor),
+      current_(Smi::kZero),
       index_(case_value),
       table_offset_(table_offset),
       table_end_(table_end) {
@@ -280,8 +281,7 @@ JumpTableTargetOffsets::iterator::iterator(
 
 JumpTableTargetOffset JumpTableTargetOffsets::iterator::operator*() {
   DCHECK_LT(table_offset_, table_end_);
-  DCHECK(current_->IsSmi());
-  return {index_, accessor_->GetAbsoluteOffset(Smi::ToInt(*current_))};
+  return {index_, accessor_->GetAbsoluteOffset(Smi::ToInt(current_))};
 }
 
 JumpTableTargetOffsets::iterator& JumpTableTargetOffsets::iterator::
@@ -304,13 +304,17 @@ bool JumpTableTargetOffsets::iterator::operator!=(
 void JumpTableTargetOffsets::iterator::UpdateAndAdvanceToValid() {
   if (table_offset_ >= table_end_) return;
 
-  current_ = accessor_->GetConstantAtIndex(table_offset_);
-  Isolate* isolate = accessor_->bytecode_array()->GetIsolate();
-  while (current_->IsTheHole(isolate)) {
+  Object* current = accessor_->GetConstantAtIndex(table_offset_);
+  while (!current->IsSmi()) {
+    DCHECK(current->IsTheHole());
     ++table_offset_;
     ++index_;
     if (table_offset_ >= table_end_) break;
-    current_ = accessor_->GetConstantAtIndex(table_offset_);
+    current = accessor_->GetConstantAtIndex(table_offset_);
+  }
+  // Make sure we haven't reached the end of the table with a hole in current.
+  if (current->IsSmi()) {
+    current_ = Smi::cast(current);
   }
 }
 

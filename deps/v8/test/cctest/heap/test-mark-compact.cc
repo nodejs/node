@@ -137,7 +137,7 @@ HEAP_TEST(MarkCompactCollector) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<JSGlobalObject> global(isolate->context()->global_object());
+  Handle<JSGlobalObject> global(isolate->context()->global_object(), isolate);
 
   // call mark-compact when heap is empty
   CcTest::CollectGarbage(OLD_SPACE);

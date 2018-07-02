@@ -13,6 +13,8 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
+// TODO(wasm): Remove this include.
+#include "src/wasm/wasm-linkage.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -122,12 +124,6 @@ int Int64Lowering::GetParameterCountAfterLowering(
   // after lowering.
   return GetParameterIndexAfterLowering(
       signature, static_cast<int>(signature->parameter_count()));
-}
-
-// static
-bool Int64Lowering::IsI64AsTwoParameters(MachineOperatorBuilder* machine,
-                                         MachineRepresentation type) {
-  return machine->Is32() && type == MachineRepresentation::kWord64;
 }
 
 void Int64Lowering::GetIndexNodes(Node* index, Node*& index_low,
@@ -282,7 +278,7 @@ void Int64Lowering::LowerNode(Node* node) {
         int old_index = ParameterIndexOf(node->op());
         // TODO(wasm): Make this part not wasm specific.
         // Prevent special lowering of the instance parameter.
-        if (old_index == kWasmInstanceParameterIndex) {
+        if (old_index == wasm::kWasmInstanceParameterIndex) {
           DefaultLowering(node);
           break;
         }
@@ -595,6 +591,7 @@ void Int64Lowering::LowerNode(Node* node) {
                       machine()->Uint32LessThanOrEqual());
       break;
     }
+    case IrOpcode::kSignExtendWord32ToInt64:
     case IrOpcode::kChangeInt32ToInt64: {
       DCHECK_EQ(1, node->InputCount());
       Node* input = node->InputAt(0);
@@ -862,6 +859,40 @@ void Int64Lowering::LowerNode(Node* node) {
                                          GetReplacementHigh(input)),
                   graph()->NewNode(machine()->Word32ReverseBytes().op(),
                                    GetReplacementLow(input)));
+      break;
+    }
+    case IrOpcode::kSignExtendWord8ToInt64: {
+      DCHECK_EQ(1, node->InputCount());
+      Node* input = node->InputAt(0);
+      if (HasReplacementLow(input)) {
+        input = GetReplacementLow(input);
+      }
+      // Sign extend low node to Int32
+      input = graph()->NewNode(machine()->SignExtendWord8ToInt32(), input);
+
+      // We use SAR to preserve the sign in the high word.
+      ReplaceNode(
+          node, input,
+          graph()->NewNode(machine()->Word32Sar(), input,
+                           graph()->NewNode(common()->Int32Constant(31))));
+      node->NullAllInputs();
+      break;
+    }
+    case IrOpcode::kSignExtendWord16ToInt64: {
+      DCHECK_EQ(1, node->InputCount());
+      Node* input = node->InputAt(0);
+      if (HasReplacementLow(input)) {
+        input = GetReplacementLow(input);
+      }
+      // Sign extend low node to Int32
+      input = graph()->NewNode(machine()->SignExtendWord16ToInt32(), input);
+
+      // We use SAR to preserve the sign in the high word.
+      ReplaceNode(
+          node, input,
+          graph()->NewNode(machine()->Word32Sar(), input,
+                           graph()->NewNode(common()->Int32Constant(31))));
+      node->NullAllInputs();
       break;
     }
 

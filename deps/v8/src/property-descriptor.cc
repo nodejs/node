@@ -57,7 +57,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
   // TODO(jkummerow): support dictionary properties?
   if (map->is_dictionary_map()) return false;
   Handle<DescriptorArray> descs =
-      Handle<DescriptorArray>(map->instance_descriptors());
+      Handle<DescriptorArray>(map->instance_descriptors(), isolate);
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
     Name* key = descs->GetKey(i);
@@ -76,7 +76,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     } else {
       DCHECK_EQ(kDescriptor, details.location());
       if (details.kind() == kData) {
-        value = handle(descs->GetValue(i), isolate);
+        value = handle(descs->GetStrongValue(i), isolate);
       } else {
         DCHECK_EQ(kAccessor, details.kind());
         // Bail out to slow path.
@@ -85,13 +85,13 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     }
     Heap* heap = isolate->heap();
     if (key == heap->enumerable_string()) {
-      desc->set_enumerable(value->BooleanValue());
+      desc->set_enumerable(value->BooleanValue(isolate));
     } else if (key == heap->configurable_string()) {
-      desc->set_configurable(value->BooleanValue());
+      desc->set_configurable(value->BooleanValue(isolate));
     } else if (key == heap->value_string()) {
       desc->set_value(value);
     } else if (key == heap->writable_string()) {
-      desc->set_writable(value->BooleanValue());
+      desc->set_writable(value->BooleanValue(isolate));
     } else if (key == heap->get_string()) {
       // Bail out to slow path to throw an exception if necessary.
       if (!value->IsCallable()) return false;
@@ -212,7 +212,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
   // 6c. Set the [[Enumerable]] field of desc to enum.
   if (!enumerable.is_null()) {
-    desc->set_enumerable(enumerable->BooleanValue());
+    desc->set_enumerable(enumerable->BooleanValue(isolate));
   }
 
   // configurable?
@@ -224,7 +224,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
   // 9c. Set the [[Configurable]] field of desc to conf.
   if (!configurable.is_null()) {
-    desc->set_configurable(configurable->BooleanValue());
+    desc->set_configurable(configurable->BooleanValue(isolate));
   }
 
   // value?
@@ -245,7 +245,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
     return false;
   }
   // 15c. Set the [[Writable]] field of desc to writable.
-  if (!writable.is_null()) desc->set_writable(writable->BooleanValue());
+  if (!writable.is_null()) desc->set_writable(writable->BooleanValue(isolate));
 
   // getter?
   Handle<Object> getter;

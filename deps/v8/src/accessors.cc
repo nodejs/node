@@ -12,6 +12,8 @@
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/api-callbacks.h"
+#include "src/objects/module-inl.h"
 #include "src/property-details.h"
 #include "src/prototype.h"
 
@@ -37,18 +39,18 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_getter(*get);
   info->set_setter(*set);
   Address redirected = info->redirected_getter();
-  if (redirected != nullptr) {
+  if (redirected != kNullAddress) {
     Handle<Object> js_get = v8::FromCData(isolate, redirected);
     info->set_js_getter(*js_get);
   }
   return info;
 }
 
-static V8_INLINE bool CheckForName(Handle<Name> name,
+static V8_INLINE bool CheckForName(Isolate* isolate, Handle<Name> name,
                                    Handle<String> property_name, int offset,
                                    FieldIndex::Encoding encoding,
                                    FieldIndex* index) {
-  if (Name::Equals(name, property_name)) {
+  if (Name::Equals(isolate, name, property_name)) {
     *index = FieldIndex::ForInObjectOffset(offset, encoding);
     return true;
   }
@@ -58,17 +60,15 @@ static V8_INLINE bool CheckForName(Handle<Name> name,
 
 // Returns true for properties that are accessors to object fields.
 // If true, *object_offset contains offset of object field.
-bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
-                                        FieldIndex* index) {
-  Isolate* isolate = name->GetIsolate();
-
+bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
+                                        Handle<Name> name, FieldIndex* index) {
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
-      return CheckForName(name, isolate->factory()->length_string(),
+      return CheckForName(isolate, name, isolate->factory()->length_string(),
                           JSArray::kLengthOffset, FieldIndex::kTagged, index);
     default:
       if (map->instance_type() < FIRST_NONSTRING_TYPE) {
-        return CheckForName(name, isolate->factory()->length_string(),
+        return CheckForName(isolate, name, isolate->factory()->length_string(),
                             String::kLengthOffset, FieldIndex::kTagged, index);
       }
 
@@ -76,12 +76,12 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
   }
 }
 
-
-namespace {
-
-V8_WARN_UNUSED_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
-    Isolate* isolate, Handle<Object> receiver, Handle<JSObject> holder,
-    Handle<Name> name, Handle<Object> value) {
+V8_WARN_UNUSED_RESULT MaybeHandle<Object>
+Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
+                                           Handle<Object> receiver,
+                                           Handle<JSObject> holder,
+                                           Handle<Name> name,
+                                           Handle<Object> value) {
   LookupIterator it(receiver, name, holder,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
@@ -96,7 +96,6 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
   return value;
 }
 
-}  // namespace
 
 //
 // Accessors::ReconfigureToDataProperty
@@ -113,8 +112,8 @@ void Accessors::ReconfigureToDataProperty(
       Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Name> name = Utils::OpenHandle(*key);
   Handle<Object> value = Utils::OpenHandle(*val);
-  MaybeHandle<Object> result =
-      ReplaceAccessorWithDataProperty(isolate, receiver, holder, name, value);
+  MaybeHandle<Object> result = Accessors::ReplaceAccessorWithDataProperty(
+      isolate, receiver, holder, name, value);
   if (result.is_null()) {
     isolate->OptionalRescheduleException(false);
   } else {
@@ -122,17 +121,6 @@ void Accessors::ReconfigureToDataProperty(
   }
 }
 
-void Accessors::ReconfigureToDataPropertyGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  UNREACHABLE();
-}
-
-Handle<AccessorInfo> Accessors::MakeReconfigureToDataPropertyInfo(
-    Isolate* isolate) {
-  Handle<Name> name = isolate->factory()->ReconfigureToDataProperty_string();
-  return MakeAccessor(isolate, name, &ReconfigureToDataPropertyGetter,
-                      &ReconfigureToDataProperty);
-}
 
 //
 // Accessors::ArgumentsIterator
@@ -248,7 +236,8 @@ void Accessors::ModuleNamespaceEntryGetter(
   JSModuleNamespace* holder =
       JSModuleNamespace::cast(*Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
-  if (!holder->GetExport(Handle<String>::cast(Utils::OpenHandle(*name)))
+  if (!holder
+           ->GetExport(isolate, Handle<String>::cast(Utils::OpenHandle(*name)))
            .ToHandle(&result)) {
     isolate->OptionalRescheduleException(false);
   } else {
@@ -565,9 +554,11 @@ void Accessors::ScriptEvalFromScriptGetter(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Handle<Object> result = isolate->factory()->undefined_value();
   if (script->has_eval_from_shared()) {
-    Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared());
+    Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared(),
+                                                isolate);
     if (eval_from_shared->script()->IsScript()) {
-      Handle<Script> eval_from_script(Script::cast(eval_from_shared->script()));
+      Handle<Script> eval_from_script(Script::cast(eval_from_shared->script()),
+                                      isolate);
       result = Script::GetWrapper(eval_from_script);
     }
   }
@@ -626,7 +617,7 @@ void Accessors::ScriptEvalFromFunctionNameGetter(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Handle<Object> result = isolate->factory()->undefined_value();
   if (script->has_eval_from_shared()) {
-    Handle<SharedFunctionInfo> shared(script->eval_from_shared());
+    Handle<SharedFunctionInfo> shared(script->eval_from_shared(), isolate);
     // Find the name of the function calling eval.
     result = Handle<Object>(shared->Name(), isolate);
   }
@@ -1163,7 +1154,7 @@ void Accessors::ErrorStackGetter(
   Handle<Object> stack_trace;
   Handle<Symbol> stack_trace_symbol = isolate->factory()->stack_trace_symbol();
   MaybeHandle<Object> maybe_stack_trace =
-      JSObject::GetProperty(holder, stack_trace_symbol);
+      JSObject::GetProperty(isolate, holder, stack_trace_symbol);
   if (!maybe_stack_trace.ToHandle(&stack_trace) ||
       stack_trace->IsUndefined(isolate)) {
     Handle<Object> result = isolate->factory()->undefined_value();
@@ -1194,15 +1185,16 @@ void Accessors::ErrorStackGetter(
       Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
   Handle<Name> name = Utils::OpenHandle(*key);
   if (IsAccessor(receiver, name, holder)) {
-    result = ReplaceAccessorWithDataProperty(isolate, receiver, holder, name,
-                                             formatted_stack_trace);
+    result = Accessors::ReplaceAccessorWithDataProperty(
+        isolate, receiver, holder, name, formatted_stack_trace);
     if (result.is_null()) {
       isolate->OptionalRescheduleException(false);
       return;
     }
   } else {
     // The stack property has been modified in the meantime.
-    if (!JSObject::GetProperty(holder, name).ToHandle(&formatted_stack_trace)) {
+    if (!JSObject::GetProperty(isolate, holder, name)
+             .ToHandle(&formatted_stack_trace)) {
       isolate->OptionalRescheduleException(false);
       return;
     }

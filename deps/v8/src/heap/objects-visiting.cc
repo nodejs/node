@@ -53,7 +53,8 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
           HeapObject* slot_holder = WeakListVisitor<T>::WeakNextHolder(tail);
           int slot_offset = WeakListVisitor<T>::WeakNextOffset();
           Object** slot = HeapObject::RawField(slot_holder, slot_offset);
-          MarkCompactCollector::RecordSlot(slot_holder, slot, retained);
+          MarkCompactCollector::RecordSlot(slot_holder, slot,
+                                           HeapObject::cast(retained));
         }
       }
       // Retained object is new tail.
@@ -135,7 +136,8 @@ struct WeakListVisitor<Context> {
       for (int idx = Context::FIRST_WEAK_SLOT;
            idx < Context::NATIVE_CONTEXT_SLOTS; ++idx) {
         Object** slot = Context::cast(context)->RawFieldOfElementAt(idx);
-        MarkCompactCollector::RecordSlot(context, slot, *slot);
+        MarkCompactCollector::RecordSlot(context, slot,
+                                         HeapObject::cast(*slot));
       }
       // Code objects are always allocated in Code space, we do not have to
       // visit them during scavenges.
@@ -157,7 +159,8 @@ struct WeakListVisitor<Context> {
       // Record the updated slot if necessary.
       Object** head_slot =
           HeapObject::RawField(context, FixedArray::SizeFor(index));
-      heap->mark_compact_collector()->RecordSlot(context, head_slot, list_head);
+      heap->mark_compact_collector()->RecordSlot(context, head_slot,
+                                                 HeapObject::cast(list_head));
     }
   }
 

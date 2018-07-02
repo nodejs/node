@@ -63,7 +63,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
 
   // Prepares for |bytecode|.
   template <Bytecode bytecode, AccumulatorUse accumulator_use>
-  INLINE(void PrepareForBytecode()) {
+  V8_INLINE void PrepareForBytecode() {
     if (Bytecodes::IsJump(bytecode) || Bytecodes::IsSwitch(bytecode) ||
         bytecode == Bytecode::kDebugger ||
         bytecode == Bytecode::kSuspendGenerator ||

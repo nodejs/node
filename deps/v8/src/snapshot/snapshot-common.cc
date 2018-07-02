@@ -7,6 +7,7 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/callable.h"
 #include "src/interface-descriptors.h"
@@ -327,6 +328,42 @@ bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code* code) {
 
   return false;
 }
+
+void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
+  static const int kRelocMask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    if (!Builtins::IsIsolateIndependent(i)) continue;
+
+    Code* code = isolate->builtins()->builtin(i);
+    RelocIterator on_heap_it(code, kRelocMask);
+    RelocIterator off_heap_it(blob, code, kRelocMask);
+
+#ifdef V8_TARGET_ARCH_X64
+    while (!on_heap_it.done()) {
+      DCHECK(!off_heap_it.done());
+
+      RelocInfo* rinfo = on_heap_it.rinfo();
+      DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
+      Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+      CHECK(Builtins::IsIsolateIndependentBuiltin(target));
+
+      off_heap_it.rinfo()->set_target_address(
+          blob->InstructionStartOfBuiltin(target->builtin_index()));
+
+      on_heap_it.next();
+      off_heap_it.next();
+    }
+    DCHECK(off_heap_it.done());
+#else
+    // Architectures other than x64 do not use pc-relative calls and thus must
+    // not contain embedded code targets. Instead, we use an indirection through
+    // the root register.
+    CHECK(on_heap_it.done());
+    CHECK(off_heap_it.done());
+#endif  // V8_TARGET_ARCH_X64
+  }
+}
 }  // namespace
 
 // static
@@ -345,11 +382,11 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     if (Builtins::IsIsolateIndependent(i)) {
       DCHECK(!Builtins::IsLazy(i));
 
-      // Sanity-check that the given builtin is process-independent and does not
+      // Sanity-check that the given builtin is isolate-independent and does not
       // use the trampoline register in its calling convention.
-      if (!code->IsProcessIndependent()) {
+      if (!code->IsIsolateIndependent(isolate)) {
         saw_unsafe_builtin = true;
-        fprintf(stderr, "%s is not process-independent.\n", Builtins::name(i));
+        fprintf(stderr, "%s is not isolate-independent.\n", Builtins::name(i));
       }
       if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
         saw_unsafe_builtin = true;
@@ -370,7 +407,11 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       lengths[i] = 0;
     }
   }
-  CHECK(!saw_unsafe_builtin);
+  CHECK_WITH_MSG(
+      !saw_unsafe_builtin,
+      "One or more builtins marked as isolate-independent either contains "
+      "isolate-dependent code or aliases the off-heap trampoline register. "
+      "If in doubt, ask jgruber@");
 
   const uint32_t blob_size = RawDataOffset() + raw_data_size;
   uint8_t* blob = new uint8_t[blob_size];
@@ -391,11 +432,24 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     uint8_t* dst = blob + RawDataOffset() + offset;
     DCHECK_LE(RawDataOffset() + offset + code->raw_instruction_size(),
               blob_size);
-    std::memcpy(dst, code->raw_instruction_start(),
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code->raw_instruction_start()),
                 code->raw_instruction_size());
   }
 
-  return {blob, blob_size};
+  EmbeddedData d(blob, blob_size);
+
+  // Fix up call targets that point to other embedded builtins.
+  FinalizeEmbeddedCodeTargets(isolate, &d);
+
+  // Hash the blob and store the result.
+  STATIC_ASSERT(HashSize() == kSizetSize);
+  const size_t hash = d.CreateHash();
+  std::memcpy(blob + HashOffset(), &hash, HashSize());
+
+  DCHECK_EQ(hash, d.CreateHash());
+  DCHECK_EQ(hash, d.Hash());
+
+  return d;
 }
 
 EmbeddedData EmbeddedData::FromBlob() {
@@ -406,19 +460,25 @@ EmbeddedData EmbeddedData::FromBlob() {
   return {data, size};
 }
 
-const uint8_t* EmbeddedData::InstructionStartOfBuiltin(int i) const {
+Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
-
   const uint32_t* offsets = Offsets();
   const uint8_t* result = RawData() + offsets[i];
-  DCHECK_LT(result, data_ + size_);
-  return result;
+  DCHECK_LE(result, data_ + size_);
+  DCHECK_IMPLIES(result == data_ + size_, InstructionSizeOfBuiltin(i) == 0);
+  return reinterpret_cast<Address>(result);
 }
 
 uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
   const uint32_t* lengths = Lengths();
   return lengths[i];
+}
+
+size_t EmbeddedData::CreateHash() const {
+  STATIC_ASSERT(HashOffset() == 0);
+  STATIC_ASSERT(HashSize() == kSizetSize);
+  return base::hash_range(data_ + HashSize(), data_ + size_);
 }
 #endif
 

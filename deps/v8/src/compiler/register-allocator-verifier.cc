@@ -312,7 +312,7 @@ void BlockAssessments::DropRegisters() {
 }
 
 void BlockAssessments::Print() const {
-  OFStream os(stdout);
+  StdoutStream os;
   for (const auto pair : map()) {
     const InstructionOperand op = pair.first;
     const Assessment* assessment = pair.second;

@@ -25,22 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
 Debug = debug.Debug;
 Debug.setListener(listener);
 
 SlimFunction = eval(
-    "(function() {\n " +
-    "  return 'Cat';\n" +
-    "})\n"
-);
+    '(function f() {\n ' +
+    '  return \'Cat\';\n' +
+    '})\n');
 
 var script = Debug.findScript(SlimFunction);
-
 Debug.setScriptBreakPointById(script.id, 1, 0);
 
 var orig_animal = "'Cat'";
-var patch_pos = script.source.indexOf(orig_animal);
 var new_animal_patch = "'Capybara'";
 
 debugger_handler = (function() {
@@ -50,14 +48,8 @@ debugger_handler = (function() {
       return;
     }
     already_called = true;
-
-    var change_log = new Array();
-    try {
-      Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos,
-          orig_animal.length, new_animal_patch, change_log);
-    } finally {
-      print("Change log: " + JSON.stringify(change_log) + "\n");
-    }
+    %LiveEditPatchScript(
+        SlimFunction, script.source.replace(orig_animal, new_animal_patch));
   };
 })();
 

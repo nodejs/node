@@ -220,7 +220,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
       bool in_place = true;
       Handle<FixedArray> current = root_array;
       while (current->get(0) != heap->undefined_value()) {
-        current = Handle<FixedArray>(FixedArray::cast(current->get(0)));
+        current =
+            Handle<FixedArray>(FixedArray::cast(current->get(0)), isolate);
         CHECK(current->IsFixedArray());
         if (Page::FromAddress(current->address()) != to_be_aborted_page) {
           in_place = false;
@@ -314,7 +315,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
       bool in_place = true;
       Handle<FixedArray> current = root_array;
       while (current->get(0) != heap->undefined_value()) {
-        current = Handle<FixedArray>(FixedArray::cast(current->get(0)));
+        current =
+            Handle<FixedArray>(FixedArray::cast(current->get(0)), isolate);
         CHECK(!heap->InNewSpace(*current));
         CHECK(current->IsFixedArray());
         if (Page::FromAddress(current->address()) != to_be_aborted_page) {

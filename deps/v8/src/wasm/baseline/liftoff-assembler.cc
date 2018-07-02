@@ -4,10 +4,11 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
+#include <sstream>
+
 #include "src/assembler-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/counters.h"
 #include "src/macro-assembler-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -337,8 +338,13 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
 
 // TODO(clemensh): Provide a reasonably sized buffer, based on wasm function
 // size.
+// TODO(mstarzinger): The Isolate is not passed to the base class constructor
+// and only used to derive the default options. Remove the Isolate entirely.
 LiftoffAssembler::LiftoffAssembler(Isolate* isolate)
-    : TurboAssembler(isolate, nullptr, 0, CodeObjectRequired::kNo) {}
+    : TurboAssembler(nullptr, Assembler::DefaultOptions(isolate), nullptr, 0,
+                     CodeObjectRequired::kNo) {
+  set_trap_on_abort(true);  // Avoid calls to Abort.
+}
 
 LiftoffAssembler::~LiftoffAssembler() {
   if (num_locals_ > kInlineLocalTypes) {
@@ -452,6 +458,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
     slot.MakeStack();
   }
 
+  LiftoffStackSlots stack_slots(this);
   StackTransferRecipe stack_transfers(this);
   LiftoffRegList param_regs;
 
@@ -480,7 +487,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
     const int num_lowered_params = is_pair ? 2 : 1;
     const uint32_t stack_idx = param_base + param;
     const VarState& slot = cache_state_.stack_state[stack_idx];
-    // Process both halfs of register pair separately, because they are passed
+    // Process both halfs of a register pair separately, because they are passed
     // as separate parameters. One or both of them could end up on the stack.
     for (int lowered_idx = 0; lowered_idx < num_lowered_params; ++lowered_idx) {
       const RegPairHalf half =
@@ -500,7 +507,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
         }
       } else {
         DCHECK(loc.IsCallerFrameSlot());
-        PushCallerFrameSlot(slot, stack_idx, half);
+        stack_slots.Add(slot, stack_idx, half);
       }
     }
   }
@@ -518,11 +525,14 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
                                    kWasmIntPtr);
       *target = new_target.gp();
     } else {
-      PushCallerFrameSlot(LiftoffRegister(*target), kWasmIntPtr);
+      stack_slots.Add(LiftoffAssembler::VarState(LiftoffAssembler::kWasmIntPtr,
+                                                 LiftoffRegister(*target)));
       *target = no_reg;
     }
   }
 
+  // Create all the slots.
+  stack_slots.Construct();
   // Execute the stack transfers before filling the instance register.
   stack_transfers.Execute();
 
@@ -586,6 +596,34 @@ void LiftoffAssembler::ParallelRegisterMove(
   }
 }
 
+bool LiftoffAssembler::ValidateCacheState() const {
+  uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
+  LiftoffRegList used_regs;
+  for (const VarState& var : cache_state_.stack_state) {
+    if (!var.is_reg()) continue;
+    LiftoffRegister reg = var.reg();
+    if (kNeedI64RegPair && reg.is_pair()) {
+      ++register_use_count[reg.low().liftoff_code()];
+      ++register_use_count[reg.high().liftoff_code()];
+    } else {
+      ++register_use_count[reg.liftoff_code()];
+    }
+    used_regs.set(reg);
+  }
+  bool valid = memcmp(register_use_count, cache_state_.register_use_count,
+                      sizeof(register_use_count)) == 0 &&
+               used_regs == cache_state_.used_registers;
+  if (valid) return true;
+  std::ostringstream os;
+  os << "Error in LiftoffAssembler::ValidateCacheState().\n";
+  os << "expected: used_regs " << used_regs << ", counts "
+     << PrintCollection(register_use_count) << "\n";
+  os << "found:    used_regs " << cache_state_.used_registers << ", counts "
+     << PrintCollection(cache_state_.register_use_count) << "\n";
+  os << "Use --trace-liftoff to debug.";
+  FATAL("%s", os.str().c_str());
+}
+
 LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
                                                    LiftoffRegList pinned) {
   // Spill one cached value to free a register.
@@ -625,7 +663,7 @@ void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
 }
 
 std::ostream& operator<<(std::ostream& os, VarState slot) {
-  os << WasmOpcodes::TypeName(slot.type()) << ":";
+  os << ValueTypes::TypeName(slot.type()) << ":";
   switch (slot.loc()) {
     case VarState::kStack:
       return os << "s";

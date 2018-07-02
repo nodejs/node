@@ -6,8 +6,11 @@
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 
 #include "src/heap/heap-inl.h"
+#include "src/objects/debug-objects-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/templates.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -24,7 +27,6 @@ ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
 ACCESSORS(InterpreterData, interpreter_trampoline, Code,
           kInterpreterTrampolineOffset)
 
-TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
 CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
@@ -32,9 +34,8 @@ ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
 ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
-ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
-ACCESSORS(SharedFunctionInfo, function_identifier, Object,
-          kFunctionIdentifierOffset)
+ACCESSORS(SharedFunctionInfo, function_identifier_or_debug_info, Object,
+          kFunctionIdentifierOrDebugInfoOffset)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, raw_start_position_and_type,
                     is_named_expression,
@@ -46,9 +47,9 @@ INT_ACCESSORS(SharedFunctionInfo, function_literal_id, kFunctionLiteralIdOffset)
 #if V8_SFI_HAS_UNIQUE_ID
 INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
 #endif
-INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
-INT_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
-              kFormalParameterCountOffset)
+UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
+UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
+                 kFormalParameterCountOffset)
 INT_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
 INT_ACCESSORS(SharedFunctionInfo, raw_end_position, kEndPositionOffset)
@@ -114,6 +115,15 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_asm_wasm_broken,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     requires_instance_fields_initializer,
                     SharedFunctionInfo::RequiresInstanceFieldsInitializer)
+
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, name_should_print_as_anonymous,
+                    SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_anonymous_expression,
+                    SharedFunctionInfo::IsAnonymousExpressionBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, deserialized,
+                    SharedFunctionInfo::IsDeserializedBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, has_reported_binary_coverage,
+                    SharedFunctionInfo::HasReportedBinaryCoverageBit)
 
 bool SharedFunctionInfo::optimization_disabled() const {
   return disable_optimization_reason() != BailoutReason::kNoReason;
@@ -201,7 +211,8 @@ void SharedFunctionInfo::set_function_map_index(int index) {
 }
 
 void SharedFunctionInfo::clear_padding() {
-  memset(this->address() + kSize, 0, kAlignedSize - kSize);
+  memset(reinterpret_cast<void*>(this->address() + kSize), 0,
+         kAlignedSize - kSize);
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
@@ -210,35 +221,9 @@ void SharedFunctionInfo::UpdateFunctionMapIndex() {
   set_function_map_index(map_index);
 }
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
-                    name_should_print_as_anonymous,
-                    SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, is_anonymous_expression,
-                    SharedFunctionInfo::IsAnonymousExpressionBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, deserialized,
-                    SharedFunctionInfo::IsDeserializedBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, has_no_side_effect,
-                    SharedFunctionInfo::HasNoSideEffectBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
-                    requires_runtime_side_effect_checks,
-                    SharedFunctionInfo::RequiresRuntimeSideEffectChecksBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
-                    computed_has_no_side_effect,
-                    SharedFunctionInfo::ComputedHasNoSideEffectBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, debug_is_blackboxed,
-                    SharedFunctionInfo::DebugIsBlackboxedBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
-                    computed_debug_is_blackboxed,
-                    SharedFunctionInfo::ComputedDebugIsBlackboxedBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
-                    has_reported_binary_coverage,
-                    SharedFunctionInfo::HasReportedBinaryCoverageBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, debugging_id,
-                    SharedFunctionInfo::DebuggingIdBits)
-
 void SharedFunctionInfo::DontAdaptArguments() {
   // TODO(leszeks): Revise this DCHECK now that the code field is gone.
-  DCHECK(!HasCodeObject());
+  DCHECK(!HasWasmExportedFunctionData());
   set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
@@ -292,10 +277,10 @@ Code* SharedFunctionInfo::GetCode() const {
     // Having a function template info means we are an API function.
     DCHECK(IsApiFunction());
     return isolate->builtins()->builtin(Builtins::kHandleApiCall);
-  } else if (data->IsCode()) {
-    // Having a code object means we should run it.
-    DCHECK(HasCodeObject());
-    return Code::cast(data);
+  } else if (data->IsWasmExportedFunctionData()) {
+    // Having a WasmExportedFunctionData means the code is in there.
+    DCHECK(HasWasmExportedFunctionData());
+    return wasm_exported_function_data()->wrapper_code();
   } else if (data->IsInterpreterData()) {
     Code* code = InterpreterTrampoline();
     DCHECK(code->IsCode());
@@ -369,8 +354,8 @@ ScopeInfo* SharedFunctionInfo::GetOuterScopeInfo() const {
 void SharedFunctionInfo::set_outer_scope_info(HeapObject* value,
                                               WriteBarrierMode mode) {
   DCHECK(!is_compiled());
-  DCHECK(raw_outer_scope_info_or_feedback_metadata()->IsTheHole(GetIsolate()));
-  DCHECK(value->IsScopeInfo() || value->IsTheHole(GetIsolate()));
+  DCHECK(raw_outer_scope_info_or_feedback_metadata()->IsTheHole());
+  DCHECK(value->IsScopeInfo() || value->IsTheHole());
   return set_raw_outer_scope_info_or_feedback_metadata(value, mode);
 }
 
@@ -396,25 +381,18 @@ bool SharedFunctionInfo::is_compiled() const {
          !data->IsPreParsedScopeData();
 }
 
-int SharedFunctionInfo::GetLength() const {
+uint16_t SharedFunctionInfo::GetLength() const {
   DCHECK(is_compiled());
   DCHECK(HasLength());
   return length();
 }
 
 bool SharedFunctionInfo::HasLength() const {
-  DCHECK_IMPLIES(length() < 0, length() == kInvalidLength);
   return length() != kInvalidLength;
 }
 
 bool SharedFunctionInfo::has_simple_parameters() {
   return scope_info()->HasSimpleParameters();
-}
-
-bool SharedFunctionInfo::HasDebugInfo() const {
-  bool has_debug_info = !debug_info()->IsSmi();
-  DCHECK_EQ(debug_info()->IsStruct(), has_debug_info);
-  return has_debug_info;
 }
 
 bool SharedFunctionInfo::IsApiFunction() const {
@@ -433,6 +411,19 @@ bool SharedFunctionInfo::HasBytecodeArray() const {
 
 BytecodeArray* SharedFunctionInfo::GetBytecodeArray() const {
   DCHECK(HasBytecodeArray());
+  if (HasDebugInfo() && GetDebugInfo()->HasInstrumentedBytecodeArray()) {
+    return GetDebugInfo()->OriginalBytecodeArray();
+  } else if (function_data()->IsBytecodeArray()) {
+    return BytecodeArray::cast(function_data());
+  } else {
+    DCHECK(function_data()->IsInterpreterData());
+    return InterpreterData::cast(function_data())->bytecode_array();
+  }
+}
+
+BytecodeArray* SharedFunctionInfo::GetDebugBytecodeArray() const {
+  DCHECK(HasBytecodeArray());
+  DCHECK(HasDebugInfo() && GetDebugInfo()->HasInstrumentedBytecodeArray());
   if (function_data()->IsBytecodeArray()) {
     return BytecodeArray::cast(function_data());
   } else {
@@ -441,7 +432,17 @@ BytecodeArray* SharedFunctionInfo::GetBytecodeArray() const {
   }
 }
 
-void SharedFunctionInfo::set_bytecode_array(class BytecodeArray* bytecode) {
+void SharedFunctionInfo::SetDebugBytecodeArray(BytecodeArray* bytecode) {
+  DCHECK(HasBytecodeArray());
+  if (function_data()->IsBytecodeArray()) {
+    set_function_data(bytecode);
+  } else {
+    DCHECK(function_data()->IsInterpreterData());
+    interpreter_data()->set_bytecode_array(bytecode);
+  }
+}
+
+void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
   set_function_data(bytecode);
 }
@@ -519,8 +520,41 @@ void SharedFunctionInfo::ClearPreParsedScopeData() {
   set_builtin_id(Builtins::kCompileLazy);
 }
 
-bool SharedFunctionInfo::HasCodeObject() const {
-  return function_data()->IsCode();
+bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
+  return function_data()->IsWasmExportedFunctionData();
+}
+
+WasmExportedFunctionData* SharedFunctionInfo::wasm_exported_function_data()
+    const {
+  DCHECK(HasWasmExportedFunctionData());
+  return WasmExportedFunctionData::cast(function_data());
+}
+
+bool SharedFunctionInfo::HasDebugInfo() const {
+  return function_identifier_or_debug_info()->IsDebugInfo();
+}
+
+DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
+  DCHECK(HasDebugInfo());
+  return DebugInfo::cast(function_identifier_or_debug_info());
+}
+
+Object* SharedFunctionInfo::function_identifier() const {
+  Object* result;
+  if (HasDebugInfo()) {
+    result = GetDebugInfo()->function_identifier();
+  } else {
+    result = function_identifier_or_debug_info();
+  }
+  DCHECK(result->IsSmi() || result->IsString() || result->IsUndefined());
+  return result;
+}
+
+void SharedFunctionInfo::SetDebugInfo(DebugInfo* debug_info) {
+  DCHECK(!HasDebugInfo());
+  DCHECK_EQ(debug_info->function_identifier(),
+            function_identifier_or_debug_info());
+  set_function_identifier_or_debug_info(debug_info);
 }
 
 bool SharedFunctionInfo::HasBuiltinFunctionId() {
@@ -533,7 +567,8 @@ BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
 }
 
 void SharedFunctionInfo::set_builtin_function_id(BuiltinFunctionId id) {
-  set_function_identifier(Smi::FromInt(id));
+  DCHECK(!HasDebugInfo());
+  set_function_identifier_or_debug_info(Smi::FromInt(id));
 }
 
 bool SharedFunctionInfo::HasInferredName() {
@@ -544,14 +579,18 @@ String* SharedFunctionInfo::inferred_name() {
   if (HasInferredName()) {
     return String::cast(function_identifier());
   }
-  DCHECK(function_identifier()->IsUndefined(GetIsolate()) ||
-         HasBuiltinFunctionId());
+  DCHECK(function_identifier()->IsUndefined() || HasBuiltinFunctionId());
   return GetHeap()->empty_string();
 }
 
 void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
-  DCHECK(function_identifier()->IsUndefined(GetIsolate()) || HasInferredName());
-  set_function_identifier(inferred_name);
+  DCHECK(function_identifier_or_debug_info()->IsUndefined() ||
+         HasInferredName() || HasDebugInfo());
+  if (HasDebugInfo()) {
+    GetDebugInfo()->set_function_identifier(inferred_name);
+  } else {
+    set_function_identifier_or_debug_info(inferred_name);
+  }
 }
 
 bool SharedFunctionInfo::IsUserJavaScript() {
@@ -576,20 +615,19 @@ void SharedFunctionInfo::FlushCompiled() {
 
   DCHECK(CanFlushCompiled());
 
-  Oddball* the_hole = GetIsolate()->heap()->the_hole_value();
-
   if (is_compiled()) {
-    HeapObject* outer_scope_info = the_hole;
-    if (!is_toplevel()) {
-      if (scope_info()->HasOuterScopeInfo()) {
-        outer_scope_info = scope_info()->OuterScopeInfo();
-      }
+    HeapObject* outer_scope_info;
+    if (scope_info()->HasOuterScopeInfo()) {
+      outer_scope_info = scope_info()->OuterScopeInfo();
+    } else {
+      outer_scope_info = GetIsolate()->heap()->the_hole_value();
     }
     // Raw setter to avoid validity checks, since we're performing the unusual
     // task of decompiling.
     set_raw_outer_scope_info_or_feedback_metadata(outer_scope_info);
   } else {
-    DCHECK(outer_scope_info()->IsScopeInfo() || is_toplevel());
+    DCHECK(outer_scope_info()->IsScopeInfo() ||
+           outer_scope_info()->IsTheHole());
   }
 
   set_builtin_id(Builtins::kCompileLazy);

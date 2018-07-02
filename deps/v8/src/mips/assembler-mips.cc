@@ -39,6 +39,7 @@
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/deoptimizer.h"
 #include "src/mips/assembler-mips-inl.h"
 
 namespace v8 {
@@ -198,34 +199,27 @@ bool RelocInfo::IsInConstantPool() {
   return false;
 }
 
-Address RelocInfo::embedded_address() const {
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
-uint32_t RelocInfo::embedded_size() const {
-  return reinterpret_cast<uint32_t>(
-      Assembler::target_address_at(pc_, constant_pool_));
-}
-
-void RelocInfo::set_embedded_address(Address address,
-                                     ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(pc_, constant_pool_, address, flush_mode);
-}
-
-void RelocInfo::set_embedded_size(uint32_t size, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(pc_, constant_pool_,
-                                   reinterpret_cast<Address>(size), flush_mode);
+int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
+  DCHECK(IsRuntimeEntry(rmode_));
+  return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
 }
 
 void RelocInfo::set_js_to_wasm_address(Address address,
                                        ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  set_embedded_address(address, icache_flush_mode);
+  Assembler::set_target_address_at(pc_, constant_pool_, address,
+                                   icache_flush_mode);
 }
 
 Address RelocInfo::js_to_wasm_address() const {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return embedded_address();
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+uint32_t RelocInfo::wasm_call_tag() const {
+  DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
+  return static_cast<uint32_t>(
+      Assembler::target_address_at(pc_, constant_pool_));
 }
 
 // -----------------------------------------------------------------------------
@@ -234,7 +228,7 @@ Address RelocInfo::js_to_wasm_address() const {
 
 Operand::Operand(Handle<HeapObject> handle)
     : rm_(no_reg), rmode_(RelocInfo::EMBEDDED_OBJECT) {
-  value_.immediate = reinterpret_cast<intptr_t>(handle.address());
+  value_.immediate = static_cast<intptr_t>(handle.address());
 }
 
 Operand Operand::EmbeddedNumber(double value) {
@@ -268,15 +262,15 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Handle<HeapObject> object;
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber(request.heap_number(),
-                                                   IMMUTABLE, TENURED);
+        object =
+            isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
         break;
       case HeapObjectRequest::kCodeStub:
         request.code_stub()->set_isolate(isolate);
         object = request.code_stub()->GetCode();
         break;
     }
-    Address pc = buffer_ + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     set_target_value_at(pc, reinterpret_cast<uint32_t>(object.location()));
   }
 }
@@ -318,8 +312,8 @@ const Instr kLwSwInstrTypeMask = 0xFFE00000;
 const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
-Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size),
+Assembler::Assembler(const Options& options, void* buffer, int buffer_size)
+    : AssemblerBase(options, buffer, buffer_size),
       scratch_register_list_(at.bit()) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
@@ -3035,15 +3029,19 @@ void Assembler::cmp_d(FPUCondition cond, FPURegister fd, FPURegister fs,
 
 void Assembler::bc1eqz(int16_t offset, FPURegister ft) {
   DCHECK(IsMipsArchVariant(kMips32r6));
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   Instr instr = COP1 | BC1EQZ | ft.code() << kFtShift | (offset & kImm16Mask);
-  emit(instr, CompactBranchType::COMPACT_BRANCH);
+  emit(instr);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 
 void Assembler::bc1nez(int16_t offset, FPURegister ft) {
   DCHECK(IsMipsArchVariant(kMips32r6));
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   Instr instr = COP1 | BC1NEZ | ft.code() << kFtShift | (offset & kImm16Mask);
-  emit(instr, CompactBranchType::COMPACT_BRANCH);
+  emit(instr);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 
@@ -3602,7 +3600,7 @@ MSA_BIT_LIST(MSA_BIT)
 #undef MSA_BIT_FORMAT
 #undef MSA_BIT_LIST
 
-int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
+int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
                                          intptr_t pc_delta) {
   Instr instr = instr_at(pc);
 
@@ -3698,8 +3696,7 @@ void Assembler::GrowBuffer() {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
     if (rmode == RelocInfo::INTERNAL_REFERENCE_ENCODED ||
         rmode == RelocInfo::INTERNAL_REFERENCE) {
-      byte* p = reinterpret_cast<byte*>(it.rinfo()->pc());
-      RelocateInternalReference(rmode, p, pc_delta);
+      RelocateInternalReference(rmode, it.rinfo()->pc(), pc_delta);
     }
   }
   DCHECK(!overflow());
@@ -3741,18 +3738,16 @@ void Assembler::dd(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(pc_, rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   if (!RelocInfo::IsNone(rinfo.rmode())) {
-    // Don't record external references unless the heap will be serialized.
-    if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
-        !serializer_enabled() && !emit_debug_code()) {
+    if (RelocInfo::IsOnlyForSerializer(rmode) &&
+        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
       return;
     }
     DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
     reloc_info_writer.Write(&rinfo);
   }
 }
-
 
 void Assembler::BlockTrampolinePoolFor(int instructions) {
   CheckTrampolinePoolQuick(instructions);
@@ -3857,11 +3852,11 @@ Address Assembler::target_address_at(Address pc) {
   if (IsLui(instr1)) {
     if (IsOri(instr2)) {
       // Assemble the 32 bit value.
-      return reinterpret_cast<Address>((GetImmediate16(instr1) << kLuiShift) |
-                                       GetImmediate16(instr2));
+      return static_cast<Address>((GetImmediate16(instr1) << kLuiShift) |
+                                  GetImmediate16(instr2));
     } else if (IsJicOrJialc(instr2)) {
       // Assemble the 32 bit value.
-      return reinterpret_cast<Address>(CreateTargetAddress(instr1, instr2));
+      return static_cast<Address>(CreateTargetAddress(instr1, instr2));
     }
   }
 

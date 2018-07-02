@@ -338,10 +338,10 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
   Handle<HeapNumber> uses_bitset(
-      HeapNumber::cast(wasm_data->get(kWasmDataUsesBitSet)));
+      HeapNumber::cast(wasm_data->get(kWasmDataUsesBitSet)), isolate);
   Handle<WasmModuleObject> module(
-      WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)));
-  Handle<Script> script(Script::cast(shared->script()));
+      WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)), isolate);
+  Handle<Script> script(Script::cast(shared->script()), isolate);
   // TODO(mstarzinger): The position currently points to the module definition
   // but should instead point to the instantiation site (more intuitive).
   int position = shared->StartPosition();

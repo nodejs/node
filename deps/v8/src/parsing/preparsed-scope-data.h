@@ -225,7 +225,7 @@ class ConsumedPreParsedScopeData {
   ConsumedPreParsedScopeData();
   ~ConsumedPreParsedScopeData();
 
-  void SetData(Handle<PreParsedScopeData> data);
+  void SetData(Isolate* isolate, Handle<PreParsedScopeData> data);
 
   bool HasData() const { return !data_.is_null(); }
 
@@ -243,6 +243,7 @@ class ConsumedPreParsedScopeData {
   void RestoreDataForVariable(Variable* var);
   void RestoreDataForInnerScopes(Scope* scope);
 
+  Isolate* isolate_;
   Handle<PreParsedScopeData> data_;
   std::unique_ptr<ByteData> scope_data_;
   // When consuming the data, these indexes point to the data we're going to

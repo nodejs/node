@@ -82,11 +82,20 @@ const uint32_t kMipsSdlOffset = 0;
 #error Unknown endianness
 #endif
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+const uint32_t kLeastSignificantByteInInt32Offset = 0;
+const uint32_t kLessSignificantWordInDoublewordOffset = 0;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+const uint32_t kLeastSignificantByteInInt32Offset = 3;
+const uint32_t kLessSignificantWordInDoublewordOffset = 4;
+#else
+#error Unknown endianness
+#endif
+
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
 #include <inttypes.h>
-
 
 // Defines constants and accessor classes to assemble, disassemble and
 // simulate MIPS32 instructions.
@@ -131,8 +140,8 @@ const int kMSALanesDword = kMSARegSize / 64;
 // FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
 const int kFCSRRegister = 31;
 const int kInvalidFPUControlRegister = -1;
-const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1 << 31) - 1;
-const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1 << 31);
+const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1u << 31) - 1;
+const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1u << 31);
 const uint64_t kFPU64InvalidResult =
     static_cast<uint64_t>(static_cast<uint64_t>(1) << 63) - 1;
 const int64_t kFPU64InvalidResultNegative =
@@ -171,6 +180,11 @@ const int32_t kPrefHintLoadRetained = 6;
 const int32_t kPrefHintStoreRetained = 7;
 const int32_t kPrefHintWritebackInvalidate = 25;
 const int32_t kPrefHintPrepareForStore = 30;
+
+// Actual value of root register is offset from the root array's start
+// to take advantage of negative displacement values.
+// TODO(sigurds): Choose best value.
+constexpr int kRootRegisterBias = 256;
 
 // Helper functions for converting between register numbers and names.
 class Registers {

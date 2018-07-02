@@ -9,8 +9,6 @@
 
 #include "src/base/bits.h"
 #include "src/globals.h"
-#include "src/signature.h"
-#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -53,6 +51,8 @@ enum class MachineSemantic : uint8_t {
 };
 
 V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep);
+
+V8_EXPORT_PRIVATE inline int ElementSizeInBytes(MachineRepresentation rep);
 
 class MachineType {
  public:
@@ -294,7 +294,9 @@ V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
   UNREACHABLE();
 }
 
-typedef Signature<MachineType> MachineSignature;
+V8_EXPORT_PRIVATE inline int ElementSizeInBytes(MachineRepresentation rep) {
+  return 1 << ElementSizeLog2Of(rep);
+}
 
 }  // namespace internal
 }  // namespace v8

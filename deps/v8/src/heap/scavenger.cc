@@ -52,7 +52,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
         reinterpret_cast<HeapObjectReference**>(slot_address);
     scavenger_->PageMemoryFence(reinterpret_cast<MaybeObject*>(target));
 
-    if (heap_->InFromSpace(target)) {
+    if (Heap::InFromSpace(target)) {
       scavenger_->ScavengeObject(slot, target);
       bool success = (*slot)->ToStrongOrWeakHeapObject(&target);
       USE(success);
@@ -61,7 +61,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
       if (heap_->InNewSpace(target)) {
         SLOW_DCHECK(target->IsHeapObject());
-        SLOW_DCHECK(heap_->InToSpace(target));
+        SLOW_DCHECK(Heap::InToSpace(target));
         RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot_address),
                                           slot_address);
       }
@@ -125,7 +125,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   RememberedSet<OLD_TO_NEW>::IterateTyped(
       page, [this](SlotType type, Address host_addr, Address addr) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
-            heap_->isolate(), type, addr, [this](MaybeObject** addr) {
+            heap_, type, addr, [this](MaybeObject** addr) {
               return CheckAndScavengeObject(heap(),
                                             reinterpret_cast<Address>(addr));
             });

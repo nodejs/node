@@ -23,6 +23,8 @@ namespace interpreter {
 
 #define UNIQUE_VAR() "var a" STR(__COUNTER__) " = 0;\n"
 
+#define LOAD_UNIQUE_PROPERTY() "  b.name" STR(__COUNTER__) ";\n"
+
 #define REPEAT_2(...) __VA_ARGS__ __VA_ARGS__
 #define REPEAT_4(...) REPEAT_2(__VA_ARGS__) REPEAT_2(__VA_ARGS__)
 #define REPEAT_8(...) REPEAT_4(__VA_ARGS__) REPEAT_4(__VA_ARGS__)
@@ -65,6 +67,21 @@ namespace interpreter {
   REPEAT_8_UNIQUE_VARS()         \
   UNIQUE_VAR()                   \
   UNIQUE_VAR()
+
+#define REPEAT_2_LOAD_UNIQUE_PROPERTY() \
+  LOAD_UNIQUE_PROPERTY() LOAD_UNIQUE_PROPERTY()
+#define REPEAT_4_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_2_LOAD_UNIQUE_PROPERTY() REPEAT_2_LOAD_UNIQUE_PROPERTY()
+#define REPEAT_8_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_4_LOAD_UNIQUE_PROPERTY() REPEAT_4_LOAD_UNIQUE_PROPERTY()
+#define REPEAT_16_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_8_LOAD_UNIQUE_PROPERTY() REPEAT_8_LOAD_UNIQUE_PROPERTY()
+#define REPEAT_32_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_16_LOAD_UNIQUE_PROPERTY() REPEAT_16_LOAD_UNIQUE_PROPERTY()
+#define REPEAT_64_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_32_LOAD_UNIQUE_PROPERTY() REPEAT_32_LOAD_UNIQUE_PROPERTY()
+#define REPEAT_128_LOAD_UNIQUE_PROPERTY() \
+  REPEAT_64_LOAD_UNIQUE_PROPERTY() REPEAT_64_LOAD_UNIQUE_PROPERTY()
 
 static const char* kGoldenFileDirectory =
     "test/cctest/interpreter/bytecode_expectations/";
@@ -375,9 +392,8 @@ TEST(PropertyLoads) {
     "f({\"-124\" : \"test\", name : 123 })",
 
     "function f(a) {\n"
-    "  var b;\n"
-    "  b = a.name;\n"
-    REPEAT_127("  b = a.name;\n")
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  return a.name;\n"
     "}\n"
     "f({name : \"test\"})\n",
@@ -425,7 +441,8 @@ TEST(PropertyStores) {
 
     "function f(a) {\n"
     "  a.name = 1;\n"
-    REPEAT_127("  a.name = 1;\n")
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  a.name = 2;\n"
     "}\n"
     "f({name : \"test\"})\n",
@@ -433,7 +450,8 @@ TEST(PropertyStores) {
     "function f(a) {\n"
     " 'use strict';\n"
     "  a.name = 1;\n"
-    REPEAT_127("  a.name = 1;\n")
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  a.name = 2;\n"
     "}\n"
     "f({name : \"test\"})\n",
@@ -477,9 +495,10 @@ TEST(PropertyCall) {
       "f(" FUNC_ARG ", 1)",
 
       "function f(a) {\n"
-      " a.func;\n"              //
-      REPEAT_127(" a.func;\n")  //
-      " return a.func(); }\n"
+      "  var b = {};\n"
+      REPEAT_128_LOAD_UNIQUE_PROPERTY()
+      "  a.func;\n"              //
+      "  return a.func(); }\n"
       "f(" FUNC_ARG ")",
 
       "function f(a) { return a.func(1).func(2).func(3); }\n"
@@ -510,9 +529,9 @@ TEST(LoadGlobal) {
     "f()",
 
     "a = 1;\n"
-    "function f(b) {\n"
-    "  b.name;\n"
-    REPEAT_127("  b.name;\n")
+    "function f(c) {\n"
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  return a;\n"
     "}\n"
     "f({name: 1});\n",
@@ -545,18 +564,18 @@ TEST(StoreGlobal) {
     "f();\n",
 
     "a = 1;\n"
-    "function f(b) {\n"
-    "  b.name;\n"
-    REPEAT_127("  b.name;\n")
+    "function f(c) {\n"
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  a = 2;\n"
     "}\n"
     "f({name: 1});\n",
 
     "a = 1;\n"
-    "function f(b) {\n"
+    "function f(c) {\n"
     "  'use strict';\n"
-    "  b.name;\n"
-    REPEAT_127("  b.name;\n")
+    "  var b = {};\n"
+    REPEAT_128_LOAD_UNIQUE_PROPERTY()
     "  a = 2;\n"
     "}\n"
     "f({name: 1});\n",
@@ -2803,6 +2822,14 @@ TEST(TemplateLiterals) {
 #undef REPEAT_64_UNIQUE_VARS
 #undef REPEAT_128_UNIQUE_VARS
 #undef REPEAT_250_UNIQUE_VARS
+#undef LOAD_UNIQUE_PROPERTY
+#undef REPEAT_2_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_4_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_8_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_16_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_32_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_64_LOAD_UNIQUE_PROPERTY
+#undef REPEAT_128_LOAD_UNIQUE_PROPERTY
 #undef FUNC_ARG
 
 }  // namespace interpreter

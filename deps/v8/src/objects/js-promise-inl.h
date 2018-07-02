@@ -14,7 +14,6 @@
 namespace v8 {
 namespace internal {
 
-TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
 CAST_ACCESSOR(JSPromise)
 
 ACCESSORS(JSPromise, reactions_or_result, Object, kReactionsOrResultOffset)

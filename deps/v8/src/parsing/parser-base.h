@@ -282,7 +282,6 @@ class ParserBase {
         allow_harmony_static_fields_(false),
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
-        allow_harmony_optional_catch_binding_(false),
         allow_harmony_private_fields_(false),
         allow_eval_cache_(true) {}
 
@@ -296,7 +295,6 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_static_fields);
   ALLOW_ACCESSORS(harmony_dynamic_import);
   ALLOW_ACCESSORS(harmony_import_meta);
-  ALLOW_ACCESSORS(harmony_optional_catch_binding);
   ALLOW_ACCESSORS(eval_cache);
 
 #undef ALLOW_ACCESSORS
@@ -407,6 +405,7 @@ class ParserBase {
 
     void AddSuspend() { suspend_count_++; }
     int suspend_count() const { return suspend_count_; }
+    bool CanSuspend() const { return suspend_count_ > 0; }
 
     FunctionKind kind() const { return scope()->function_kind(); }
 
@@ -684,7 +683,7 @@ class ParserBase {
   int script_id() { return script_id_; }
   void set_script_id(int id) { script_id_ = id; }
 
-  INLINE(Token::Value peek()) {
+  V8_INLINE Token::Value peek() {
     if (stack_overflow()) return Token::ILLEGAL;
     return scanner()->peek();
   }
@@ -696,12 +695,12 @@ class ParserBase {
                                         : scanner_->location().end_pos;
   }
 
-  INLINE(Token::Value PeekAhead()) {
+  V8_INLINE Token::Value PeekAhead() {
     if (stack_overflow()) return Token::ILLEGAL;
     return scanner()->PeekAhead();
   }
 
-  INLINE(Token::Value Next()) {
+  V8_INLINE Token::Value Next() {
     if (stack_overflow()) return Token::ILLEGAL;
     {
       if (GetCurrentStackPosition() < stack_limit_) {
@@ -1561,7 +1560,6 @@ class ParserBase {
   bool allow_harmony_static_fields_;
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_import_meta_;
-  bool allow_harmony_optional_catch_binding_;
   bool allow_harmony_private_fields_;
   bool allow_eval_cache_;
 
@@ -2944,7 +2942,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     }
     expression = ParseArrowFunctionLiteral(accept_IN, parameters,
                                            rewritable_length, CHECK_OK);
-    DiscardExpressionClassifier();
+    Accumulate(ExpressionClassifier::AsyncArrowFormalParametersProduction);
     classifier()->RecordPatternError(arrow_loc,
                                      MessageTemplate::kUnexpectedToken,
                                      Token::String(Token::ARROW));
@@ -3424,22 +3422,10 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
         Call::PossiblyEval is_possibly_eval =
             CheckPossibleEvalCall(result, scope());
 
-        bool is_super_call = result->IsSuperCallReference();
         if (spread_pos.IsValid()) {
           result = impl()->SpreadCall(result, args, pos, is_possibly_eval);
         } else {
           result = factory()->NewCall(result, args, pos, is_possibly_eval);
-        }
-
-        // Explicit calls to the super constructor using super() perform an
-        // implicit binding assignment to the 'this' variable.
-        if (is_super_call) {
-          classifier()->RecordAssignmentPatternError(
-              Scanner::Location(pos, scanner()->location().end_pos),
-              MessageTemplate::kInvalidDestructuringTarget);
-          ExpressionT this_expr = impl()->ThisExpression(pos);
-          result =
-              factory()->NewAssignment(Token::INIT, this_expr, result, pos);
         }
 
         if (fni_ != nullptr) fni_->RemoveLastFunction();
@@ -3883,18 +3869,18 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
 
   switch (peek()) {
     case Token::VAR:
-      parsing_result->descriptor.mode = VAR;
+      parsing_result->descriptor.mode = VariableMode::kVar;
       Consume(Token::VAR);
       break;
     case Token::CONST:
       Consume(Token::CONST);
       DCHECK_NE(var_context, kStatement);
-      parsing_result->descriptor.mode = CONST;
+      parsing_result->descriptor.mode = VariableMode::kConst;
       break;
     case Token::LET:
       Consume(Token::LET);
       DCHECK_NE(var_context, kStatement);
-      parsing_result->descriptor.mode = LET;
+      parsing_result->descriptor.mode = VariableMode::kLet;
       break;
     default:
       UNREACHABLE();  // by current callers
@@ -3959,7 +3945,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
     } else {
       if (var_context != kForStatement || !PeekInOrOf()) {
         // ES6 'const' and binding patterns require initializers.
-        if (parsing_result->descriptor.mode == CONST ||
+        if (parsing_result->descriptor.mode == VariableMode::kConst ||
             !impl()->IsIdentifier(pattern)) {
           impl()->ReportMessageAt(
               Scanner::Location(decl_pos, scanner()->location().end_pos),
@@ -3969,7 +3955,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
           return impl()->NullStatement();
         }
         // 'let x' initializes 'x' to undefined.
-        if (parsing_result->descriptor.mode == LET) {
+        if (parsing_result->descriptor.mode == VariableMode::kLet) {
           value = factory()->NewUndefinedLiteral(position());
         }
       }
@@ -4085,8 +4071,9 @@ ParserBase<Impl>::ParseHoistableDeclaration(
   // In ES6, a function behaves as a lexical binding, except in
   // a script scope, or the initial scope of eval or another function.
   VariableMode mode =
-      (!scope()->is_declaration_scope() || scope()->is_module_scope()) ? LET
-                                                                       : VAR;
+      (!scope()->is_declaration_scope() || scope()->is_module_scope())
+          ? VariableMode::kLet
+          : VariableMode::kVar;
   // Async functions don't undergo sloppy mode block scoped hoisting, and don't
   // allow duplicates in a block. Both are represented by the
   // sloppy_block_function_map. Don't add them to the map for async functions.
@@ -4492,9 +4479,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     const char* event_name =
         is_lazy_top_level_function ? "preparse-no-resolution" : "parse";
     const char* name = "arrow function";
-    logger_->FunctionEvent(event_name, nullptr, script_id(), ms,
-                           scope->start_position(), scope->end_position(), name,
-                           strlen(name));
+    logger_->FunctionEvent(event_name, script_id(), ms, scope->start_position(),
+                           scope->end_position(), name, strlen(name));
   }
 
   return function_literal;
@@ -5623,12 +5609,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
     SourceRangeScope catch_range_scope(scanner(), &catch_range);
     if (Check(Token::CATCH)) {
       bool has_binding;
-      if (allow_harmony_optional_catch_binding()) {
-        has_binding = Check(Token::LPAREN);
-      } else {
-        has_binding = true;
-        Expect(Token::LPAREN, CHECK_OK);
-      }
+      has_binding = Check(Token::LPAREN);
 
       if (has_binding) {
         catch_info.scope = NewScope(CATCH_SCOPE);
@@ -5756,7 +5737,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   if (peek() == Token::VAR) {
     ParseVariableDeclarations(kForStatement, &for_info.parsing_result, nullptr,
                               CHECK_OK);
-    DCHECK_EQ(for_info.parsing_result.descriptor.mode, VAR);
+    DCHECK_EQ(for_info.parsing_result.descriptor.mode, VariableMode::kVar);
     for_info.position = scanner()->location().beg_pos;
 
     if (CheckInOrOf(&for_info.mode)) {

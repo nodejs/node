@@ -126,25 +126,30 @@ class ScopedLoggerInitializer {
 
   v8::Isolate* isolate() { return isolate_; }
 
+  i::Isolate* i_isolate() { return reinterpret_cast<i::Isolate*>(isolate()); }
+
   Logger* logger() { return logger_; }
 
-  void PrintLog(int nofLines = 0) {
-    if (nofLines <= 0) {
+  void PrintLog(int requested_nof_lines = 0, const char* start = nullptr) {
+    if (requested_nof_lines <= 0) {
       printf("%s", log_.start());
       return;
     }
-    // Try to print the last {nofLines} of the log.
-    const char* start = log_.start();
+    // Try to print the last {requested_nof_lines} of the log.
+    if (start == nullptr) start = log_.start();
     const char* current = log_.end();
-    while (current > start && nofLines > 0) {
+    int nof_lines = requested_nof_lines;
+    while (current > start && nof_lines > 0) {
       current--;
-      if (*current == '\n') nofLines--;
+      if (*current == '\n') nof_lines--;
     }
     printf(
         "======================================================\n"
-        "Last log lines:\n...%s\n"
+        "Last %i log lines:\n"
+        "======================================================\n"
+        "...\n%s\n"
         "======================================================\n",
-        current);
+        requested_nof_lines, current);
   }
 
   v8::Local<v8::String> GetLogString() {
@@ -159,12 +164,14 @@ class ScopedLoggerInitializer {
     CHECK(exists);
   }
 
+  const char* GetEndPosition() { return log_.start() + log_.length(); }
+
   const char* FindLine(const char* prefix, const char* suffix = nullptr,
                        const char* start = nullptr) {
     // Make sure that StopLogging() has been called before.
     CHECK(log_.size());
     if (start == nullptr) start = log_.start();
-    const char* end = log_.start() + log_.length();
+    const char* end = GetEndPosition();
     return FindLogLine(start, end, prefix, suffix);
   }
 
@@ -176,7 +183,7 @@ class ScopedLoggerInitializer {
     const char* suffix = pairs[0][1];
     const char* last_position = FindLine(prefix, suffix, start);
     if (last_position == nullptr) {
-      PrintLog(50);
+      PrintLog(100, start);
       V8_Fatal(__FILE__, __LINE__, "Could not find log line: %s ... %s", prefix,
                suffix);
     }
@@ -186,13 +193,13 @@ class ScopedLoggerInitializer {
       suffix = pairs[i][1];
       const char* position = FindLine(prefix, suffix, start);
       if (position == nullptr) {
-        PrintLog(50);
+        PrintLog(100, start);
         V8_Fatal(__FILE__, __LINE__, "Could not find log line: %s ... %s",
                  prefix, suffix);
       }
       // Check that all string positions are in order.
       if (position <= last_position) {
-        PrintLog(50);
+        PrintLog(100, start);
         V8_Fatal(__FILE__, __LINE__,
                  "Log statements not in expected order (prev=%p, current=%p): "
                  "%s ... %s",
@@ -522,7 +529,8 @@ TEST(Issue23768) {
   CHECK(!evil_script.IsEmpty());
   CHECK(!evil_script->Run(env).IsEmpty());
   i::Handle<i::ExternalTwoByteString> i_source(
-      i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)));
+      i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)),
+      CcTest::i_isolate());
   // This situation can happen if source was an external string disposed
   // by its owner.
   i_source->set_resource(nullptr);
@@ -570,8 +578,7 @@ TEST(LogCallbacks) {
     ObjMethod1_entry = *FUNCTION_ENTRYPOINT_ADDRESS(ObjMethod1_entry);
 #endif
     i::EmbeddedVector<char, 100> ref_data;
-    i::SNPrintF(ref_data, ",0x%" V8PRIxPTR ",1,method1",
-                reinterpret_cast<intptr_t>(ObjMethod1_entry));
+    i::SNPrintF(ref_data, ",0x%" V8PRIxPTR ",1,method1", ObjMethod1_entry);
     CHECK(logger.FindLine("code-creation,Callback,-2,", ref_data.start()));
   }
   isolate->Dispose();
@@ -617,7 +624,7 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop1_getter_record;
     i::SNPrintF(prop1_getter_record, ",0x%" V8PRIxPTR ",1,get prop1",
-                reinterpret_cast<intptr_t>(Prop1Getter_entry));
+                Prop1Getter_entry);
     CHECK(logger.FindLine("code-creation,Callback,-2,",
                           prop1_getter_record.start()));
 
@@ -627,7 +634,7 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop1_setter_record;
     i::SNPrintF(prop1_setter_record, ",0x%" V8PRIxPTR ",1,set prop1",
-                reinterpret_cast<intptr_t>(Prop1Setter_entry));
+                Prop1Setter_entry);
     CHECK(logger.FindLine("code-creation,Callback,-2,",
                           prop1_setter_record.start()));
 
@@ -637,7 +644,7 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop2_getter_record;
     i::SNPrintF(prop2_getter_record, ",0x%" V8PRIxPTR ",1,get prop2",
-                reinterpret_cast<intptr_t>(Prop2Getter_entry));
+                Prop2Getter_entry);
     CHECK(logger.FindLine("code-creation,Callback,-2,",
                           prop2_getter_record.start()));
   }
@@ -756,7 +763,7 @@ TEST(Issue539892) {
 
   {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
-    logger.logger()->addCodeEventListener(&code_event_logger);
+    logger.logger()->AddCodeEventListener(&code_event_logger);
 
     // Function with a really large name.
     const char* source_text =
@@ -1000,7 +1007,7 @@ TEST(LogMaps) {
       uintptr_t address = reinterpret_cast<uintptr_t>(obj);
       if (map_addresses.find(address) != map_addresses.end()) continue;
       logger.PrintLog(200);
-      i::Map::cast(obj)->Print();
+      i::Map::cast(obj)->Print(heap->isolate());
       V8_Fatal(__FILE__, __LINE__,
                "Map (%p, #%zu) was not logged during startup with --trace-maps!"
                "\n# Expected Log Line: map_details, ... %p"
@@ -1055,8 +1062,19 @@ TEST(LogFunctionEvents) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
+
   {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+
+    // Run some warmup code to help ignoring existing log entries.
+    CompileRun(
+        "function warmUp(a) {"
+        " let b = () => 1;"
+        " return function(c) { return a+b+c; };"
+        "};"
+        "warmUp(1)(2);"
+        "(function warmUpEndMarkerFunction(){})();");
+
     const char* source_text =
         "function lazyNotExecutedFunction() { return 'lazy' };"
         "function lazyFunction() { "
@@ -1072,13 +1090,14 @@ TEST(LogFunctionEvents) {
 
     logger.StopLogging();
 
-    // TODO(cbruni): Extend with first-execution log statements.
-    CHECK_NULL(
-        logger.FindLine("function,compile-lazy,", ",lazyNotExecutedFunction"));
-    // Only consider the log starting from the first preparse statement on.
+    // Ignore all the log entries that happened before warmup
     const char* start =
-        logger.FindLine("function,preparse-", ",lazyNotExecutedFunction");
+        logger.FindLine("function,first-execution", "warmUpEndMarkerFunction");
+    CHECK_NOT_NULL(start);
     const char* pairs[][2] = {
+        // Create a new script
+        {"script,create", nullptr},
+        {"script-details", nullptr},
         // Step 1: parsing top-level script, preparsing functions
         {"function,preparse-", ",lazyNotExecutedFunction"},
         // Missing name for preparsing lazyInnerFunction
@@ -1093,7 +1112,7 @@ TEST(LogFunctionEvents) {
 
         // Step 2: compiling top-level script and eager functions
         // - Compiling script without name.
-        {"function,compile,,", nullptr},
+        {"function,compile,", nullptr},
         {"function,compile,", ",eagerFunction"},
 
         // Step 3: start executing script

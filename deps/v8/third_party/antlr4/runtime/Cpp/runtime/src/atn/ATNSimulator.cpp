@@ -15,7 +15,8 @@ using namespace antlr4;
 using namespace antlr4::dfa;
 using namespace antlr4::atn;
 
-const Ref<DFAState> ATNSimulator::ERROR = std::make_shared<DFAState>(INT32_MAX);
+const Ref<DFAState> ATNSimulator::ERROR_STATE =
+    std::make_shared<DFAState>(INT32_MAX);
 antlrcpp::SingleWriteMultipleReadLock ATNSimulator::_stateLock;
 antlrcpp::SingleWriteMultipleReadLock ATNSimulator::_edgeLock;
 

@@ -1,0 +1,26 @@
+{
+    "name": "vscode-torque",
+    "displayName": "Torque syntax support",
+    "description": "Basic Torque syntax highlighting support",
+    "version": "0.0.1",
+    "publisher": "szuend",
+    "engines": {
+        "vscode": "^1.22.0"
+    },
+    "categories": [
+        "Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "torque",
+            "aliases": ["Torque", "torque"],
+            "extensions": [".tq"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "torque",
+            "scopeName": "source.torque",
+            "path": "./syntaxes/torque.tmLanguage.json"
+        }]
+    }
+}

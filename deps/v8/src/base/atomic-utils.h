@@ -14,6 +14,7 @@
 namespace v8 {
 namespace base {
 
+// Deprecated. Use std::atomic<T> for new code.
 template <class T>
 class AtomicNumber {
  public:

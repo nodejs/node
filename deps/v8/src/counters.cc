@@ -508,7 +508,7 @@ bool RuntimeCallStats::IsCalledOnTheSameThread() {
 }
 
 void RuntimeCallStats::Print() {
-  OFStream os(stdout);
+  StdoutStream os;
   Print(os);
 }
 

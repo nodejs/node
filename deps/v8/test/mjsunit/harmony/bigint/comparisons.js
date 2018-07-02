@@ -429,8 +429,8 @@ const six = BigInt(6);
   assertFalse(%Equal("-0x1", minus_one));
 
   const unsafe = "9007199254740993";  // 2**53 + 1
-  assertTrue(%GreaterThan(eval(unsafe + "n"), unsafe));
-  assertTrue(%LessThan(unsafe, eval(unsafe + "n")));
+  assertFalse(%GreaterThan(eval(unsafe + "n"), unsafe));
+  assertFalse(%LessThan(unsafe, eval(unsafe + "n")));
 
   assertThrows(() => %LessThan(six, Symbol(6)), TypeError);
   assertThrows(() => %LessThan(Symbol(6), six), TypeError);
@@ -509,8 +509,8 @@ const six = BigInt(6);
 
   const unsafe = "9007199254740993";  // 2**53 + 1
   assertFalse(eval(unsafe + "n") < unsafe);
-  assertFalse(eval(unsafe + "n") <= unsafe);
-  assertTrue(unsafe < eval(unsafe + "n"));
+  assertTrue(eval(unsafe + "n") <= unsafe);
+  assertFalse(unsafe < eval(unsafe + "n"));
   assertTrue(unsafe <= eval(unsafe + "n"));
 
   assertThrows(() => six < Symbol(6), TypeError);

@@ -848,10 +848,10 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
       Format(instr, "llghr\t'r5,'r6");
       break;
     case LOCR:
-      Format(instr, "locr\t'm1,'r5,'r6");
+      Format(instr, "locr\t'r5,'r6,'m2");
       break;
     case LOCGR:
-      Format(instr, "locgr\t'm1,'r5,'r6");
+      Format(instr, "locgr\t'r5,'r6,'m2");
       break;
     case LNGR:
       Format(instr, "lngr\t'r5,'r6");
@@ -1068,6 +1068,9 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
       break;
     case LPGFR:
       Format(instr, "lpgfr\t'r5,'r6");
+      break;
+    case BRXH:
+      Format(instr, "brxh\t'r1,'r2,'i4");
       break;
     default:
       return false;
@@ -1480,6 +1483,9 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
       break;
     case PFD:
       Format(instr, "pfd\t'm1,'d2('r2d,'r3)");
+      break;
+    case BRXHG:
+      Format(instr, "brxhg\t'r1,'r2,'i4");
       break;
     default:
       return false;

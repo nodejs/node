@@ -29,7 +29,8 @@ class Name : public HeapObject {
 
   // Equality operations.
   inline bool Equals(Name* other);
-  inline static bool Equals(Handle<Name> one, Handle<Name> two);
+  inline static bool Equals(Isolate* isolate, Handle<Name> one,
+                            Handle<Name> two);
 
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
@@ -62,8 +63,8 @@ class Name : public HeapObject {
   DECL_CAST(Name)
 
   DECL_PRINTER(Name)
-  void NameShortPrint();
-  int NameShortPrint(Vector<char> str);
+  void NameShortPrint(Isolate* isolate);
+  int NameShortPrint(Isolate* isolate, Vector<char> str);
 
   // Layout description.
   static const int kHashFieldSlot = HeapObject::kHeaderSize;
@@ -176,7 +177,7 @@ class Symbol : public Name {
   DECL_CAST(Symbol)
 
   // Dispatched behavior.
-  DECL_PRINTER(Symbol)
+  DECL_PRINTER_WITH_ISOLATE(Symbol)
   DECL_VERIFIER(Symbol)
 
   // Layout description.
@@ -198,7 +199,7 @@ class Symbol : public Name {
   void SymbolShortPrint(std::ostream& os);
 
  private:
-  const char* PrivateSymbolToName() const;
+  const char* PrivateSymbolToName(Isolate* isolate) const;
 
   // TODO(cbruni): remove once the new maptracer is in place.
   friend class Name;  // For PrivateSymbolToName.

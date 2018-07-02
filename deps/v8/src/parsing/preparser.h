@@ -1100,7 +1100,8 @@ class PreParser : public ParserBase<PreParser> {
 
       if (catch_info->pattern.variables_ != nullptr) {
         for (auto variable : *catch_info->pattern.variables_) {
-          scope()->DeclareVariableName(variable->raw_name(), LET);
+          scope()->DeclareVariableName(variable->raw_name(),
+                                       VariableMode::kLet);
         }
       }
     }
@@ -1183,7 +1184,7 @@ class PreParser : public ParserBase<PreParser> {
     DCHECK_NULL(names);
     if (variable_name.string_ != nullptr) {
       DCHECK(track_unresolved_variables_);
-      scope()->DeclareVariableName(variable_name.string_, LET);
+      scope()->DeclareVariableName(variable_name.string_, VariableMode::kLet);
     }
     return PreParserStatement::Default();
   }
@@ -1192,7 +1193,7 @@ class PreParser : public ParserBase<PreParser> {
                                       int class_token_pos, bool* ok) {
     if (name.string_ != nullptr) {
       DCHECK(track_unresolved_variables_);
-      scope()->DeclareVariableName(name.string_, CONST);
+      scope()->DeclareVariableName(name.string_, VariableMode::kConst);
     }
   }
   V8_INLINE void DeclareClassProperty(const PreParserIdentifier& class_name,
@@ -1206,13 +1207,13 @@ class PreParser : public ParserBase<PreParser> {
       scope()->DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
-          CONST);
+          VariableMode::kConst);
     }
 
     if (kind == ClassLiteralProperty::PRIVATE_FIELD &&
         property_name.string_ != nullptr) {
       DCHECK(track_unresolved_variables_);
-      scope()->DeclareVariableName(property_name.string_, CONST);
+      scope()->DeclareVariableName(property_name.string_, VariableMode::kConst);
     }
   }
 
@@ -1416,7 +1417,7 @@ class PreParser : public ParserBase<PreParser> {
       DCHECK_EQ(1, for_info->parsing_result.declarations.size());
       bool is_for_var_of =
           for_info->mode == ForEachStatement::ITERATE &&
-          for_info->parsing_result.descriptor.mode == VariableMode::VAR;
+          for_info->parsing_result.descriptor.mode == VariableMode::kVar;
       bool collect_names =
           IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
           is_for_var_of;
@@ -1433,7 +1434,7 @@ class PreParser : public ParserBase<PreParser> {
     if (track_unresolved_variables_) {
       if (IsLexicalVariableMode(for_info.parsing_result.descriptor.mode)) {
         for (auto name : for_info.bound_names) {
-          scope()->DeclareVariableName(name, LET);
+          scope()->DeclareVariableName(name, VariableMode::kLet);
         }
         return PreParserStatement::Default();
       }
@@ -1703,7 +1704,8 @@ class PreParser : public ParserBase<PreParser> {
       DCHECK(FLAG_lazy_inner_functions);
       if (params.variables_ != nullptr) {
         for (auto variable : *params.variables_) {
-          parameters->scope->DeclareVariableName(variable->raw_name(), VAR);
+          parameters->scope->DeclareVariableName(variable->raw_name(),
+                                                 VariableMode::kVar);
         }
       }
     }

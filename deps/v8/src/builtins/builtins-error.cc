@@ -9,6 +9,7 @@
 #include "src/counters.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/property-descriptor.h"
 #include "src/string-builder.h"
 

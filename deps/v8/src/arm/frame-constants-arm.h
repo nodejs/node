@@ -5,6 +5,9 @@
 #ifndef V8_ARM_FRAME_CONSTANTS_ARM_H_
 #define V8_ARM_FRAME_CONSTANTS_ARM_H_
 
+#include "src/base/macros.h"
+#include "src/frame-constants.h"
+
 namespace v8 {
 namespace internal {
 
@@ -28,6 +31,19 @@ class ExitFrameConstants : public TypedFrameConstants {
   // FP-relative displacement of the caller's SP.  It points just
   // below the saved PC.
   static constexpr int kCallerSPDisplacement = 2 * kPointerSize;
+};
+
+class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+ public:
+  static constexpr int kNumberOfSavedGpParamRegs = 4;
+  static constexpr int kNumberOfSavedFpParamRegs = 8;
+
+  // FP-relative.
+  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kFixedFrameSizeFromFp =
+      TypedFrameConstants::kFixedFrameSizeFromFp +
+      kNumberOfSavedGpParamRegs * kPointerSize +
+      kNumberOfSavedFpParamRegs * kDoubleSize;
 };
 
 class JavaScriptFrameConstants : public AllStatic {

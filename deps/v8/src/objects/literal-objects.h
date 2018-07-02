@@ -60,6 +60,31 @@ class ConstantElementsPair : public Tuple2 {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantElementsPair);
 };
 
+// Support for handling complex values (array and object literals) that
+// can be fully handled at compile time.
+class CompileTimeValue : public Tuple2 {
+ public:
+  // This is a special marker used to encode array literals. The value has to be
+  // different from any value possibly returned by
+  // ObjectLiteral::EncodeLiteralType.
+  static const int kArrayLiteralFlag = -1;
+
+  // Get the encoded literal type. This can either be kArrayLiteralFlag or
+  // encoded properties of an ObjectLiteral returned by
+  // ObjectLiteral::EncodeLiteralType.
+  DECL_INT_ACCESSORS(literal_type_flag);
+  // For objects literals a FixedArray is stored whereas for array literals
+  // ConstantElementPair is stored.
+  DECL_ACCESSORS(constant_elements, HeapObject)
+
+  DECL_CAST(CompileTimeValue)
+
+  static const int kLiteralTypeFlagOffset = kValue1Offset;
+  static const int kConstantElementsOffset = kValue2Offset;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);
+};
 class ClassBoilerplate : public FixedArray {
  public:
   enum ValueKind { kData, kGetter, kSetter };

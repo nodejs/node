@@ -121,7 +121,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   if (length <= 1) return *array;
 
   Handle<FixedTypedArrayBase> elements(
-      FixedTypedArrayBase::cast(array->elements()));
+      FixedTypedArrayBase::cast(array->elements()), isolate);
   switch (array->type()) {
 #define TYPED_ARRAY_SORT(Type, type, TYPE, ctype, size)     \
   case kExternal##Type##Array: {                            \

@@ -39,13 +39,13 @@ class V8_EXPORT_PRIVATE StringHasher {
   static const int kZeroHash = 27;
 
   // Reusable parts of the hashing algorithm.
-  INLINE(static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c));
-  INLINE(static uint32_t GetHashCore(uint32_t running_hash));
-  INLINE(static uint32_t ComputeRunningHash(uint32_t running_hash,
-                                            const uc16* chars, int length));
-  INLINE(static uint32_t ComputeRunningHashOneByte(uint32_t running_hash,
-                                                   const char* chars,
-                                                   int length));
+  V8_INLINE static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c);
+  V8_INLINE static uint32_t GetHashCore(uint32_t running_hash);
+  V8_INLINE static uint32_t ComputeRunningHash(uint32_t running_hash,
+                                               const uc16* chars, int length);
+  V8_INLINE static uint32_t ComputeRunningHashOneByte(uint32_t running_hash,
+                                                      const char* chars,
+                                                      int length);
 
  protected:
   // Returns the value to store in the hash field of a string with
@@ -82,6 +82,21 @@ class IteratingStringHasher : public StringHasher {
   inline IteratingStringHasher(int len, uint32_t seed);
   void VisitConsString(ConsString* cons_string);
   DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
+};
+
+// Useful for std containers that require something ()'able.
+struct SeededStringHasher {
+  explicit SeededStringHasher(uint32_t hashseed) : hashseed_(hashseed) {}
+  inline std::size_t operator()(const char* name) const;
+
+  uint32_t hashseed_;
+};
+
+// Useful for std containers that require something ()'able.
+struct StringEquals {
+  bool operator()(const char* name1, const char* name2) const {
+    return strcmp(name1, name2) == 0;
+  }
 };
 
 }  // namespace internal

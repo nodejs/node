@@ -3323,7 +3323,7 @@ DUMP_FILE_RE = re.compile(r"[-_0-9a-zA-Z][-\._0-9a-zA-Z]*\.dmp$")
 class InspectionWebServer(BaseHTTPServer.HTTPServer):
   def __init__(self, port_number, switches, minidump_name):
     BaseHTTPServer.HTTPServer.__init__(
-        self, ('', port_number), InspectionWebHandler)
+        self, ('localhost', port_number), InspectionWebHandler)
     splitpath = os.path.split(minidump_name)
     self.dumppath = splitpath[0]
     self.dumpfilename = splitpath[1]

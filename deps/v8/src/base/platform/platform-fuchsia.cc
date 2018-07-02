@@ -19,6 +19,8 @@ uint32_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
       return 0;  // no permissions
+    case OS::MemoryPermission::kRead:
+      return ZX_VM_FLAG_PERM_READ;
     case OS::MemoryPermission::kReadWrite:
       return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE;
     case OS::MemoryPermission::kReadWriteExecute:

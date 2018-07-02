@@ -99,6 +99,7 @@ class V8_EXPORT V8ContextInfo {
 
 class V8_EXPORT V8StackTrace {
  public:
+  virtual StringView firstNonEmptySourceURL() const = 0;
   virtual bool isEmpty() const = 0;
   virtual StringView topSourceURL() const = 0;
   virtual int topLineNumber() const = 0;

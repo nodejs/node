@@ -62,7 +62,11 @@ function workerScript(script) {
 
         sleep(s) { Atomics.wait(i32a, ${SLEEP_LOC}, 0, s); },
 
-        leaving() {}
+        leaving() {},
+
+        monotonicNow() {
+          return performance.now();
+        }
       }
     };`;
 }
@@ -103,7 +107,11 @@ var agent = {
     return pendingReports.shift() || null;
   },
 
-  sleep(s) { Atomics.wait(i32a, SLEEP_LOC, 0, s); }
+  sleep(s) { Atomics.wait(i32a, SLEEP_LOC, 0, s); },
+
+  monotonicNow() {
+    return performance.now();
+  }
 };
 return agent;
 

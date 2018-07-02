@@ -10,6 +10,7 @@
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-promise-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -111,6 +112,23 @@ RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_AwaitPromisesInit) {
+  DCHECK_EQ(3, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, wrapped_value, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, outer_promise, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, throwaway, 2);
+  isolate->RunPromiseHook(PromiseHookType::kInit, wrapped_value, outer_promise);
+  isolate->RunPromiseHook(PromiseHookType::kInit, throwaway, wrapped_value);
+  // On inspector side we capture async stack trace and store it by
+  // outer_promise->async_task_id when async function is suspended first time.
+  // To use captured stack trace later throwaway promise should have the same
+  // async_task_id as outer_promise since we generate WillHandle and DidHandle
+  // events using throwaway promise.
+  throwaway->set_async_task_id(outer_promise->async_task_id());
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -145,7 +163,8 @@ RUNTIME_FUNCTION(Runtime_RejectPromise) {
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, reason, 1);
   CONVERT_ARG_HANDLE_CHECKED(Oddball, debug_event, 2);
-  return *JSPromise::Reject(promise, reason, debug_event->BooleanValue());
+  return *JSPromise::Reject(promise, reason,
+                            debug_event->BooleanValue(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_ResolvePromise) {

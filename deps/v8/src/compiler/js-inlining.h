@@ -47,6 +47,7 @@ class JSInliner final : public AdvancedReducer {
   SimplifiedOperatorBuilder* simplified() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   Handle<Context> native_context() const;
 
   Zone* const local_zone_;

@@ -71,6 +71,7 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   // We use kMaxUInt32 as sentinel value, so check that we don't hit that.
   DCHECK_NE(kMaxUInt32, pc_offset);
   unsigned len = length();
+  CHECK_GT(len, 0);
   // If pc == kMaxUInt32, then this entry covers all call sites in the function.
   if (len == 1 && GetPcOffset(0) == kMaxUInt32) return GetEntry(0);
   for (unsigned i = 0; i < len; i++) {

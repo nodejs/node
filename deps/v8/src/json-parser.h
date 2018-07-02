@@ -40,7 +40,6 @@ class JsonParser BASE_EMBEDDED {
  public:
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Parse(
       Isolate* isolate, Handle<String> source, Handle<Object> reviver) {
-    PostponeInterruptsScope no_debug_breaks(isolate, StackGuard::DEBUGBREAK);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                                JsonParser(isolate, source).ParseJson(), Object);
@@ -58,19 +57,19 @@ class JsonParser BASE_EMBEDDED {
   // Parse a string containing a single JSON value.
   MaybeHandle<Object> ParseJson();
 
-  INLINE(void Advance());
+  V8_INLINE void Advance();
 
   // The JSON lexical grammar is specified in the ECMAScript 5 standard,
   // section 15.12.1.1. The only allowed whitespace characters between tokens
   // are tab, carriage-return, newline and space.
 
-  INLINE(void AdvanceSkipWhitespace());
-  INLINE(void SkipWhitespace());
-  INLINE(uc32 AdvanceGetChar());
+  V8_INLINE void AdvanceSkipWhitespace();
+  V8_INLINE void SkipWhitespace();
+  V8_INLINE uc32 AdvanceGetChar();
 
   // Checks that current charater is c.
   // If so, then consume c and skip whitespace.
-  INLINE(bool MatchSkipWhiteSpace(uc32 c));
+  V8_INLINE bool MatchSkipWhiteSpace(uc32 c);
 
   // A JSON string (production JSONString) is subset of valid JavaScript string
   // literals. The string must only be double-quoted (not single-quoted), and

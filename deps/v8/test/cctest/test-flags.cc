@@ -42,7 +42,6 @@ TEST(Default) {
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "Hello, world!"));
 }
 
-
 static void SetFlagsToDefault() {
   FlagList::ResetAllFlags();
   TestDefault();

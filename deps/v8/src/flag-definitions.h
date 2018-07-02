@@ -208,46 +208,38 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 // Update bootstrapper.cc whenever adding a new feature flag.
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                         \
-  V(harmony_array_prototype_values, "harmony Array.prototype.values") \
+#define HARMONY_INPROGRESS_BASE(V)                                    \
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_class_fields, "harmony fields in class literals")         \
   V(harmony_static_fields, "harmony static fields in class literals") \
-  V(harmony_array_flatten, "harmony Array.prototype.flat{ten,Map}")   \
-  V(harmony_string_matchall, "harmony String.prototype.matchAll")
-
-// Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                                               \
-  V(harmony_restrict_constructor_return,                                \
-    "harmony disallow non undefined primitive return value from class " \
-    "constructor")                                                      \
-  V(harmony_public_fields, "harmony public fields in class literals")   \
-  V(harmony_private_fields, "harmony private fields in class literals") \
-  V(harmony_numeric_separator, "harmony numeric separator between digits")
-
-// Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                              \
-  V(harmony_subsume_json, "harmony subsume JSON")                             \
-  V(harmony_string_trimming, "harmony String.prototype.trim{Start,End}")      \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                   \
-  V(harmony_regexp_named_captures, "harmony regexp named captures")           \
-  V(harmony_regexp_property, "harmony Unicode regexp property classes")       \
-  V(harmony_function_tostring, "harmony Function.prototype.toString")         \
-  V(harmony_promise_finally, "harmony Promise.prototype.finally")             \
-  V(harmony_optional_catch_binding, "allow omitting binding in catch blocks") \
-  V(harmony_import_meta, "harmony import.meta property")                      \
-  V(harmony_bigint, "harmony arbitrary precision integers")                   \
-  V(harmony_dynamic_import, "harmony dynamic import")
+  V(harmony_await_optimization, "harmony await taking 1 tick")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                      \
-  HARMONY_SHIPPING_BASE(V)                       \
-  V(harmony_number_format_to_parts,              \
-    "Intl.NumberFormat.prototype.formatToParts") \
-  V(harmony_plural_rules, "Intl.PluralRules")
+#define HARMONY_INPROGRESS(V) \
+  HARMONY_INPROGRESS_BASE(V)  \
+  V(harmony_locale, "Intl.Locale")
 #else
-#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
+#define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif
+
+// Features that are complete (but still behind --harmony/es-staging flag).
+#define HARMONY_STAGED(V)                                                  \
+  V(harmony_public_fields, "harmony public fields in class literals")      \
+  V(harmony_private_fields, "harmony private fields in class literals")    \
+  V(harmony_numeric_separator, "harmony numeric separator between digits") \
+  V(harmony_string_matchall, "harmony String.prototype.matchAll")          \
+  V(harmony_symbol_description, "harmony Symbol.prototype.description")
+
+// Features that are shipping (turned on by default, but internal flag remains).
+#define HARMONY_SHIPPING(V)                                                   \
+  V(harmony_string_trimming, "harmony String.prototype.trim{Start,End}")      \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                   \
+  V(harmony_function_tostring, "harmony Function.prototype.toString")         \
+  V(harmony_import_meta, "harmony import.meta property")                      \
+  V(harmony_bigint, "harmony arbitrary precision integers")                   \
+  V(harmony_dynamic_import, "harmony dynamic import")                         \
+  V(harmony_array_prototype_values, "harmony Array.prototype.values")         \
+  V(harmony_array_flat, "harmony Array.prototype.{flat,flatMap}")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
@@ -344,6 +336,9 @@ DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
 DEFINE_BOOL(ignition_reo, true, "use ignition register equivalence optimizer")
 DEFINE_BOOL(ignition_filter_expression_positions, true,
             "filter expression positions before the bytecode pipeline")
+DEFINE_BOOL(ignition_share_named_property_feedback, true,
+            "share feedback slots when loading the same named property from "
+            "the same object")
 DEFINE_BOOL(print_bytecode, false,
             "print bytecode generated by ignition interpreter")
 DEFINE_STRING(print_bytecode_filter, "*",
@@ -397,6 +392,10 @@ DEFINE_BOOL(turbo_preprocess_ranges, true,
             "run pre-register allocation heuristics")
 DEFINE_STRING(turbo_filter, "*", "optimization filter for TurboFan compiler")
 DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
+DEFINE_STRING(trace_turbo_path, nullptr,
+              "directory to dump generated TurboFan IR to")
+DEFINE_STRING(trace_turbo_filter, "*",
+              "filter for tracing turbofan compilation")
 DEFINE_BOOL(trace_turbo_graph, false, "trace generated TurboFan graphs")
 DEFINE_BOOL(trace_turbo_scheduled, false, "trace TurboFan IR with schedule")
 DEFINE_IMPLICATION(trace_turbo_scheduled, trace_turbo_graph)
@@ -489,7 +488,7 @@ DEFINE_BOOL(turbo_store_elimination, true,
 DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
 DEFINE_BOOL(turbo_rewrite_far_jumps, true,
             "rewrite far to near jumps (ia32,x64)")
-DEFINE_BOOL(experimental_inline_promise_constructor, false,
+DEFINE_BOOL(experimental_inline_promise_constructor, true,
             "inline the Promise constructor in TurboFan")
 
 #ifdef DISABLE_UNTRUSTED_CODE_MITIGATIONS
@@ -500,10 +499,6 @@ DEFINE_BOOL(experimental_inline_promise_constructor, false,
 DEFINE_BOOL(untrusted_code_mitigations, V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS,
             "Enable mitigations for executing untrusted code")
 #undef V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS
-
-DEFINE_BOOL(turbo_disable_switch_jump_table, false,
-            "do not emit jump-tables in Turbofan")
-DEFINE_IMPLICATION(untrusted_code_mitigations, turbo_disable_switch_jump_table)
 
 DEFINE_BOOL(branch_load_poisoning, false, "Mask loads with branch conditions.")
 DEFINE_IMPLICATION(future, branch_load_poisoning)
@@ -531,12 +526,8 @@ DEFINE_BOOL(wasm_trace_serialization, false,
             "trace serialization/deserialization")
 DEFINE_BOOL(wasm_async_compilation, true,
             "enable actual asynchronous compilation for WebAssembly.compile")
-DEFINE_BOOL(wasm_stream_compilation, true,
-            "enable streaming compilation for WebAssembly")
-DEFINE_IMPLICATION(wasm_stream_compilation, wasm_async_compilation)
 DEFINE_BOOL(wasm_test_streaming, false,
             "use streaming compilation instead of async compilation for tests")
-DEFINE_IMPLICATION(wasm_test_streaming, wasm_stream_compilation)
 // Parallel compilation confuses turbo_stats, force single threaded.
 DEFINE_VALUE_IMPLICATION(turbo_stats, wasm_num_compilation_tasks, 0)
 DEFINE_UINT(wasm_max_mem_pages, v8::internal::wasm::kV8MaxWasmMemoryPages,
@@ -545,6 +536,7 @@ DEFINE_UINT(wasm_max_table_size, v8::internal::wasm::kV8MaxWasmTableSize,
             "maximum table size of a wasm instance")
 DEFINE_BOOL(wasm_tier_up, false,
             "enable basic tiering up to the optimizing compiler")
+DEFINE_IMPLICATION(future, wasm_tier_up)
 DEFINE_IMPLICATION(wasm_tier_up, liftoff)
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_decode_time, false,
@@ -561,7 +553,6 @@ DEFINE_BOOL(liftoff, false,
             "enable liftoff, the experimental wasm baseline compiler")
 DEFINE_DEBUG_BOOL(trace_liftoff, false,
                   "trace liftoff, the wasm baseline compiler")
-DEFINE_UINT(skip_compiling_wasm_funcs, 0, "start compiling at function N")
 DEFINE_DEBUG_BOOL(wasm_break_on_decoder_error, false,
                   "debug break when wasm decoder encounters an error")
 DEFINE_BOOL(wasm_trace_memory, false,
@@ -590,11 +581,11 @@ DEFINE_BOOL(experimental_wasm_threads, false,
             "enable prototype threads for wasm")
 DEFINE_BOOL(experimental_wasm_sat_f2i_conversions, false,
             "enable non-trapping float-to-int conversions for wasm")
-DEFINE_BOOL(experimental_wasm_se, false,
+DEFINE_BOOL(experimental_wasm_se, true,
             "enable prototype sign extension opcodes for wasm")
 DEFINE_BOOL(experimental_wasm_anyref, false,
             "enable prototype anyref support for wasm")
-DEFINE_BOOL(experimental_wasm_mut_global, false,
+DEFINE_BOOL(experimental_wasm_mut_global, true,
             "enable prototype import/export mutable global support for wasm")
 
 DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
@@ -603,9 +594,11 @@ DEFINE_BOOL(wasm_no_bounds_checks, false,
 DEFINE_BOOL(wasm_no_stack_checks, false,
             "disable stack checks (performance testing only)")
 
-DEFINE_BOOL(wasm_trap_handler, false,
+DEFINE_BOOL(wasm_trap_handler, true,
             "use signal handlers to catch out of bounds memory access in wasm"
-            " (experimental, currently Linux x86_64 only)")
+            " (currently Linux x86_64 only)")
+DEFINE_BOOL(wasm_trap_handler_fallback, false,
+            "Use bounds checks if guarded memory is not available")
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,
             "Generate a test case when running a wasm fuzzer")
 DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)
@@ -697,6 +690,11 @@ DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
             "use concurrent marking")
 DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
 DEFINE_IMPLICATION(parallel_marking, concurrent_marking)
+DEFINE_BOOL(parallel_ephemeron_visiting, true,
+            "use parallel visiting of ephemerons in atomic pause")
+DEFINE_BOOL(
+    parallel_ephemeron_marking, true,
+    "use parallel marking of objects after visiting ephemerons in atomic pause")
 DEFINE_BOOL(trace_concurrent_marking, false, "trace concurrent marking")
 DEFINE_BOOL(black_allocation, true, "use black allocation")
 DEFINE_BOOL(concurrent_store_buffer, true,
@@ -781,6 +779,17 @@ DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "candidates pages (requires --stress_compaction).")
 DEFINE_BOOL(fast_promotion_new_space, false,
             "fast promote new space on high survival rates")
+
+DEFINE_BOOL(optimize_ephemerons, true,
+            "use optimized handling of ephemerons in the GC")
+DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_marking)
+DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_visiting)
+
+DEFINE_BOOL(clear_free_memory, true, "initialize free memory with 0")
+
+DEFINE_BOOL(young_generation_large_objects, false,
+            "allocates large objects by default in the young generation large "
+            "object space")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
@@ -908,7 +917,6 @@ DEFINE_IMPLICATION(trace_array_abuse, trace_js_array_abuse)
 DEFINE_IMPLICATION(trace_array_abuse, trace_external_array_abuse)
 
 // debugger
-DEFINE_BOOL(enable_liveedit, true, "enable liveedit experimental feature")
 DEFINE_BOOL(
     trace_side_effect_free_debug_evaluate, false,
     "print debug messages for side-effect-free debug-evaluate for testing")
@@ -1139,7 +1147,7 @@ DEFINE_NEG_IMPLICATION(gdbjit, compact_code_space)
 
 // checks.cc
 #ifdef ENABLE_SLOW_DCHECKS
-DEFINE_BOOL(enable_slow_asserts, false,
+DEFINE_BOOL(enable_slow_asserts, true,
             "enable asserts that are slow to execute")
 #endif
 
@@ -1306,6 +1314,8 @@ DEFINE_BOOL(print_opt_code, false, "print optimized code")
 DEFINE_STRING(print_opt_code_filter, "*", "filter for printing optimized code")
 DEFINE_BOOL(print_code_verbose, false, "print more information for code")
 DEFINE_BOOL(print_builtin_code, false, "print generated code for builtins")
+DEFINE_STRING(print_builtin_code_filter, "*",
+              "filter for printing builtin code")
 DEFINE_BOOL(print_builtin_size, false, "print code size for builtins")
 
 #ifdef ENABLE_DISASSEMBLER
@@ -1359,6 +1369,8 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_compaction)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_marking)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_pointer_update)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_scavenge)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_ephemeron_marking)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_ephemeron_visiting)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_store_buffer)
 #ifdef ENABLE_MINOR_MC
 DEFINE_NEG_IMPLICATION(single_threaded_gc, minor_mc_parallel_marking)

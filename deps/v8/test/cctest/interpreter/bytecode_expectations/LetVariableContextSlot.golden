@@ -11,13 +11,13 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 21
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(0), U8(2),
+                B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(10),
@@ -26,6 +26,7 @@ bytecodes: [
   /*   72 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -37,13 +38,13 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 22
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(0), U8(2),
+                B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(10),
@@ -52,6 +53,7 @@ bytecodes: [
   /*   81 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -63,19 +65,19 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 31
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(0), U8(2),
+                B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(20),
                 B(Star), R(2),
                 B(LdaCurrentContextSlot), U8(4),
-  /*   45 E> */ B(ThrowReferenceErrorIfHole), U8(1),
+  /*   45 E> */ B(ThrowReferenceErrorIfHole), U8(2),
                 B(Ldar), R(2),
                 B(StaCurrentContextSlot), U8(4),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
@@ -83,6 +85,7 @@ bytecodes: [
   /*   78 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
@@ -95,13 +98,13 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 25
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(0), U8(2),
+                B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(10),
@@ -112,6 +115,7 @@ bytecodes: [
   /*   80 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [

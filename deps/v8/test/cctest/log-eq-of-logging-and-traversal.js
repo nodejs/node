@@ -39,17 +39,17 @@ function parseState(s) {
 function LogProcessor() {
   LogReader.call(this, {
       'code-creation': {
-          parsers: [null, parseInt, parseInt, parseInt, parseInt,
-                    null, 'var-args'],
+          parsers: [parseString, parseInt, parseInt, parseInt, parseInt,
+                    parseString, parseVarArgs],
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },
-      'code-delete': null,
+      'code-delete': parseString,
       'sfi-move': { parsers: [parseInt, parseInt],
           processor: this.processFunctionMove },
-      'shared-library': null,
-      'profiler': null,
-      'tick': null });
+      'shared-library': parseString,
+      'profiler': parseString,
+      'tick': parseString });
   this.profile = new Profile();
 
 }

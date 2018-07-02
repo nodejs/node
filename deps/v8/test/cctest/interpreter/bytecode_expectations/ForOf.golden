@@ -11,7 +11,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 248
+bytecode array length: 245
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -46,10 +46,9 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(5),
                 B(JumpLoop), U8(44), I8(0),
-                B(Jump), U8(36),
+                B(Jump), U8(33),
                 B(Star), R(13),
-                B(Ldar), R(closure),
-                B(CreateCatchContext), R(13), U8(5), U8(6),
+                B(CreateCatchContext), R(13), U8(5),
                 B(PushContext), R(13),
                 B(Star), R(12),
                 B(LdaSmi), I8(2),
@@ -74,7 +73,7 @@ bytecodes: [
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(14),
                 B(JumpIfTrue), U8(90),
-                B(LdaNamedProperty), R(2), U8(7), U8(15),
+                B(LdaNamedProperty), R(2), U8(6), U8(15),
                 B(Star), R(7),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
@@ -88,7 +87,7 @@ bytecodes: [
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), I16(147),
                 B(Star), R(12),
-                B(LdaConstant), U8(8),
+                B(LdaConstant), U8(7),
                 B(Star), R(13),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(12), U8(2),
                 B(Throw),
@@ -112,7 +111,7 @@ bytecodes: [
                 B(Ldar), R(11),
                 B(SetPendingMessage),
                 B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(9),
+                B(TestReferenceEqual), R(9),
                 B(JumpIfFalse), U8(5),
                 B(Ldar), R(10),
                 B(ReThrow),
@@ -125,15 +124,14 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE [".catch"],
   SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [7, 124, 132],
+  [7, 121, 129],
   [10, 88, 90],
-  [192, 202, 204],
+  [189, 199, 201],
 ]
 
 ---
@@ -143,7 +141,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 258
+bytecode array length: 255
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -179,11 +177,10 @@ bytecodes: [
   /*   73 S> */ B(LdaZero),
                 B(Star), R(10),
                 B(Mov), R(7), R(11),
-                B(Jump), U8(52),
-                B(Jump), U8(36),
+                B(Jump), U8(49),
+                B(Jump), U8(33),
                 B(Star), R(14),
-                B(Ldar), R(closure),
-                B(CreateCatchContext), R(14), U8(5), U8(6),
+                B(CreateCatchContext), R(14), U8(5),
                 B(PushContext), R(14),
                 B(Star), R(13),
                 B(LdaSmi), I8(2),
@@ -208,7 +205,7 @@ bytecodes: [
                 B(LdaZero),
                 B(TestEqualStrict), R(6), U8(13),
                 B(JumpIfTrue), U8(90),
-                B(LdaNamedProperty), R(3), U8(7), U8(14),
+                B(LdaNamedProperty), R(3), U8(6), U8(14),
                 B(Star), R(8),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
@@ -222,7 +219,7 @@ bytecodes: [
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), I16(147),
                 B(Star), R(13),
-                B(LdaConstant), U8(8),
+                B(LdaConstant), U8(7),
                 B(Star), R(14),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(13), U8(2),
                 B(Throw),
@@ -246,7 +243,7 @@ bytecodes: [
                 B(Ldar), R(12),
                 B(SetPendingMessage),
                 B(Ldar), R(10),
-                B(SwitchOnSmiNoFeedback), U8(9), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(8), U8(2), I8(0),
                 B(Jump), U8(8),
                 B(Ldar), R(11),
   /*   85 S> */ B(Return),
@@ -261,7 +258,6 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE [".catch"],
   SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
@@ -269,9 +265,9 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [11, 127, 135],
+  [11, 124, 132],
   [14, 91, 93],
-  [196, 206, 208],
+  [193, 203, 205],
 ]
 
 ---
@@ -283,7 +279,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 266
+bytecode array length: 263
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -326,10 +322,9 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(5),
                 B(JumpLoop), U8(62), I8(0),
-                B(Jump), U8(36),
+                B(Jump), U8(33),
                 B(Star), R(13),
-                B(Ldar), R(closure),
-                B(CreateCatchContext), R(13), U8(5), U8(6),
+                B(CreateCatchContext), R(13), U8(5),
                 B(PushContext), R(13),
                 B(Star), R(12),
                 B(LdaSmi), I8(2),
@@ -354,7 +349,7 @@ bytecodes: [
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(16),
                 B(JumpIfTrue), U8(90),
-                B(LdaNamedProperty), R(2), U8(7), U8(17),
+                B(LdaNamedProperty), R(2), U8(6), U8(17),
                 B(Star), R(7),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
@@ -368,7 +363,7 @@ bytecodes: [
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), I16(147),
                 B(Star), R(12),
-                B(LdaConstant), U8(8),
+                B(LdaConstant), U8(7),
                 B(Star), R(13),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(12), U8(2),
                 B(Throw),
@@ -392,7 +387,7 @@ bytecodes: [
                 B(Ldar), R(11),
                 B(SetPendingMessage),
                 B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(9),
+                B(TestReferenceEqual), R(9),
                 B(JumpIfFalse), U8(5),
                 B(Ldar), R(10),
                 B(ReThrow),
@@ -405,15 +400,14 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE [".catch"],
   SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [7, 142, 150],
+  [7, 139, 147],
   [10, 106, 108],
-  [210, 220, 222],
+  [207, 217, 219],
 ]
 
 ---
@@ -423,7 +417,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 268
+bytecode array length: 265
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(8),
@@ -461,11 +455,10 @@ bytecodes: [
                 B(Star), R(9),
                 B(LdaZero),
                 B(Star), R(8),
-                B(Jump), U8(52),
-                B(Jump), U8(36),
+                B(Jump), U8(49),
+                B(Jump), U8(33),
                 B(Star), R(12),
-                B(Ldar), R(closure),
-                B(CreateCatchContext), R(12), U8(7), U8(8),
+                B(CreateCatchContext), R(12), U8(7),
                 B(PushContext), R(12),
                 B(Star), R(11),
                 B(LdaSmi), I8(2),
@@ -490,7 +483,7 @@ bytecodes: [
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(19),
                 B(JumpIfTrue), U8(90),
-                B(LdaNamedProperty), R(1), U8(9), U8(20),
+                B(LdaNamedProperty), R(1), U8(8), U8(20),
                 B(Star), R(6),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
@@ -504,7 +497,7 @@ bytecodes: [
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), I16(147),
                 B(Star), R(11),
-                B(LdaConstant), U8(10),
+                B(LdaConstant), U8(9),
                 B(Star), R(12),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(11), U8(2),
                 B(Throw),
@@ -528,7 +521,7 @@ bytecodes: [
                 B(Ldar), R(10),
                 B(SetPendingMessage),
                 B(Ldar), R(8),
-                B(SwitchOnSmiNoFeedback), U8(11), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(10), U8(2), I8(0),
                 B(Jump), U8(8),
                 B(Ldar), R(9),
   /*  105 S> */ B(Return),
@@ -545,7 +538,6 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE [".catch"],
   SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
@@ -553,8 +545,8 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [15, 137, 145],
+  [15, 134, 142],
   [18, 101, 103],
-  [206, 216, 218],
+  [203, 213, 215],
 ]
 

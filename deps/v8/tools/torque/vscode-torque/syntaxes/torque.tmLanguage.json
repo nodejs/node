@@ -1,0 +1,88 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Torque",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"name": "comment.line.double-slash.torque",
+			"begin": "//",
+			"end": "$"
+		},
+		{
+			"name": "comment.block.torque",
+			"begin": "/\\*",
+			"end": "\\*/"
+		},
+		{
+			"name": "string.quoted.single.torque",
+			"begin": "'",
+			"end": "'",
+			"patterns": [
+				{
+					"name": "constant.character.escape.torque",
+					"match": "\\\\."
+				}]
+		},
+		{
+			"name": "support.function.torque",
+			"match": "\\b(min|max|assert|check|debug|unreachable)\\b"
+		},
+    {
+      "name": "support.variable.torque",
+      "match": "\\b(true|True|false|False|Undefined|Hole|Null)\\b"
+    },
+    {
+      "begin": "<(?=[A-Za-z][0-9A-Za-z_]*>)",
+      "end": ">",
+      "patterns": [
+        {
+          "name": "support.type.torque",
+          "match": "([A-Za-z][0-9A-Za-z_]*)"
+        }
+      ]
+    },
+    {
+      "begin": ":(\\s*)?",
+      "end": "(?=[^0-9A-Za-z_])",
+      "patterns": [
+        {
+          "name": "support.type.torque",
+          "match": "([A-Za-z][0-9A-Za-z_]*)"
+        }
+      ]
+    }
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [{
+				"name": "keyword.control.torque",
+				"match": "\\b(if|else|while|for|return|continue|break|goto|otherwise|try|catch)\\b"
+			},
+			{
+				"name": "keyword.other.torque",
+				"match": "\\b(constexpr|module|macro|builtin|runtime|javascript|implicit|deferred|cast|convert|label|labels|tail|isnt|is|let|generates|type|extends|extern|const)\\b"
+			},
+			{
+				"name": "keyword.operator.torque",
+				"match": "\\b(=|\\*=)\\b"
+			}]
+		},
+		"strings": {
+			"name": "string.quoted.double.torque",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.torque",
+					"match": "\\\\."
+				}
+			]
+		}
+	},
+	"scopeName": "source.torque"
+}

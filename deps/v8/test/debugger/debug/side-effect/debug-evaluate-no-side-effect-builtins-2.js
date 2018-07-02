@@ -12,6 +12,10 @@ var weak_key = [];
 var weak_map = new WeakMap().set(weak_key, "a").set({}, "b");
 var weak_set = new WeakSet([weak_key, {}]);
 var add = function (a, b) { return a + b; };
+var number_value = 13;
+function get_number() {
+  return typeof(number_value);
+};
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
@@ -67,6 +71,8 @@ function listener(event, exec_state, event_data, data) {
     success("abc", `unescape("abc")`);
     success(true, `isFinite(0)`);
     success(true, `isNaN(0/0)`);
+    success("object", `typeof date`);
+    success("number", `get_number()`);
 
     // Test Map functions.
     success(undefined, `new Map()`);
@@ -79,7 +85,7 @@ function listener(event, exec_state, event_data, data) {
     success(undefined, `map.forEach(()=>1)`);
     success(true, `map.has("c")`);
     success(2, `map.size`);
-    fail(`new Map([[1, 2]])`);
+    success(undefined, `new Map([[1, 2]])`);
     fail(`map.delete("a")`);
     fail(`map.clear()`);
     fail(`map.set("x", "y")`);
@@ -93,7 +99,7 @@ function listener(event, exec_state, event_data, data) {
     success(undefined, `set.forEach(()=>1)`);
     success(true, `set.has(1)`);
     success(2, `set.size`);
-    fail(`new Set([1])`);
+    success(1, `new Set([1]).size`);
     fail(`set.add(2)`);
     fail(`set.delete(1)`);
     fail(`set.clear()`);

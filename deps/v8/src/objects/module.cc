@@ -11,6 +11,8 @@
 #include "src/api.h"
 #include "src/ast/modules.h"
 #include "src/objects-inl.h"
+#include "src/objects/hash-table-inl.h"
+#include "src/objects/module-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -119,20 +121,18 @@ int ImportIndex(int cell_index) {
 
 }  // anonymous namespace
 
-void Module::CreateIndirectExport(Handle<Module> module, Handle<String> name,
+void Module::CreateIndirectExport(Isolate* isolate, Handle<Module> module,
+                                  Handle<String> name,
                                   Handle<ModuleInfoEntry> entry) {
-  Isolate* isolate = module->GetIsolate();
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   DCHECK(exports->Lookup(name)->IsTheHole(isolate));
   exports = ObjectHashTable::Put(exports, name, entry);
   module->set_exports(*exports);
 }
 
-void Module::CreateExport(Handle<Module> module, int cell_index,
-                          Handle<FixedArray> names) {
+void Module::CreateExport(Isolate* isolate, Handle<Module> module,
+                          int cell_index, Handle<FixedArray> names) {
   DCHECK_LT(0, names->length());
-  Isolate* isolate = module->GetIsolate();
-
   Handle<Cell> cell =
       isolate->factory()->NewCell(isolate->factory()->undefined_value());
   module->regular_exports()->set(ExportIndex(cell_index), *cell);
@@ -163,8 +163,8 @@ Cell* Module::GetCell(int cell_index) {
   return Cell::cast(cell);
 }
 
-Handle<Object> Module::LoadVariable(Handle<Module> module, int cell_index) {
-  Isolate* isolate = module->GetIsolate();
+Handle<Object> Module::LoadVariable(Isolate* isolate, Handle<Module> module,
+                                    int cell_index) {
   return handle(module->GetCell(cell_index)->value(), isolate);
 }
 
@@ -176,12 +176,12 @@ void Module::StoreVariable(Handle<Module> module, int cell_index,
 }
 
 #ifdef DEBUG
-void Module::PrintStatusTransition(Status new_status) {
+void Module::PrintStatusTransition(Isolate* isolate, Status new_status) {
   if (FLAG_trace_module_status) {
-    OFStream os(stdout);
+    StdoutStream os;
     os << "Changing module status from " << status() << " to " << new_status
        << " for ";
-    script()->GetNameOrSourceURL()->Print(os);
+    script()->GetNameOrSourceURL()->Print(isolate, os);
 #ifndef OBJECT_PRINT
     os << "\n";
 #endif  // OBJECT_PRINT
@@ -189,35 +189,33 @@ void Module::PrintStatusTransition(Status new_status) {
 }
 #endif  // DEBUG
 
-void Module::SetStatus(Status new_status) {
+void Module::SetStatus(Isolate* isolate, Status new_status) {
   DisallowHeapAllocation no_alloc;
   DCHECK_LE(status(), new_status);
   DCHECK_NE(new_status, Module::kErrored);
 #ifdef DEBUG
-  PrintStatusTransition(new_status);
+  PrintStatusTransition(isolate, new_status);
 #endif  // DEBUG
   set_status(new_status);
 }
 
-void Module::ResetGraph(Handle<Module> module) {
+void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
   DCHECK_NE(module->status(), kInstantiating);
   DCHECK_NE(module->status(), kEvaluating);
   if (module->status() != kPreInstantiating) return;
-  Isolate* isolate = module->GetIsolate();
   Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
-  Reset(module);
+  Reset(isolate, module);
   for (int i = 0; i < requested_modules->length(); ++i) {
     Handle<Object> descendant(requested_modules->get(i), isolate);
     if (descendant->IsModule()) {
-      ResetGraph(Handle<Module>::cast(descendant));
+      ResetGraph(isolate, Handle<Module>::cast(descendant));
     } else {
       DCHECK(descendant->IsUndefined(isolate));
     }
   }
 }
 
-void Module::Reset(Handle<Module> module) {
-  Isolate* isolate = module->GetIsolate();
+void Module::Reset(Isolate* isolate, Handle<Module> module) {
   Factory* factory = isolate->factory();
 
   DCHECK(module->status() == kPreInstantiating ||
@@ -242,7 +240,7 @@ void Module::Reset(Handle<Module> module) {
     module->set_code(JSFunction::cast(module->code())->shared());
   }
 #ifdef DEBUG
-  module->PrintStatusTransition(kUninstantiated);
+  module->PrintStatusTransition(isolate, kUninstantiated);
 #endif  // DEBUG
   module->set_status(kUninstantiated);
   module->set_exports(*exports);
@@ -253,17 +251,15 @@ void Module::Reset(Handle<Module> module) {
   module->set_dfs_ancestor_index(-1);
 }
 
-void Module::RecordError() {
+void Module::RecordError(Isolate* isolate) {
   DisallowHeapAllocation no_alloc;
-  Isolate* isolate = GetIsolate();
-
   DCHECK(exception()->IsTheHole(isolate));
   Object* the_exception = isolate->pending_exception();
   DCHECK(!the_exception->IsTheHole(isolate));
 
   set_code(info());
 #ifdef DEBUG
-  PrintStatusTransition(Module::kErrored);
+  PrintStatusTransition(isolate, Module::kErrored);
 #endif  // DEBUG
   set_status(Module::kErrored);
   set_exception(the_exception);
@@ -272,35 +268,57 @@ void Module::RecordError() {
 Object* Module::GetException() {
   DisallowHeapAllocation no_alloc;
   DCHECK_EQ(status(), Module::kErrored);
-  DCHECK(!exception()->IsTheHole(GetIsolate()));
+  DCHECK(!exception()->IsTheHole());
   return exception();
 }
 
-MaybeHandle<Cell> Module::ResolveImport(Handle<Module> module,
+SharedFunctionInfo* Module::GetSharedFunctionInfo() const {
+  DisallowHeapAllocation no_alloc;
+  DCHECK_NE(status(), Module::kEvaluating);
+  DCHECK_NE(status(), Module::kEvaluated);
+  switch (status()) {
+    case kUninstantiated:
+    case kPreInstantiating:
+      DCHECK(code()->IsSharedFunctionInfo());
+      return SharedFunctionInfo::cast(code());
+    case kInstantiating:
+      DCHECK(code()->IsJSFunction());
+      return JSFunction::cast(code())->shared();
+    case kInstantiated:
+      DCHECK(code()->IsJSGeneratorObject());
+      return JSGeneratorObject::cast(code())->function()->shared();
+    case kEvaluating:
+    case kEvaluated:
+    case kErrored:
+      UNREACHABLE();
+  }
+
+  UNREACHABLE();
+}
+
+MaybeHandle<Cell> Module::ResolveImport(Isolate* isolate, Handle<Module> module,
                                         Handle<String> name, int module_request,
                                         MessageLocation loc, bool must_resolve,
                                         Module::ResolveSet* resolve_set) {
-  Isolate* isolate = module->GetIsolate();
   Handle<Module> requested_module(
       Module::cast(module->requested_modules()->get(module_request)), isolate);
   Handle<String> specifier(
       String::cast(module->info()->module_requests()->get(module_request)),
       isolate);
-  MaybeHandle<Cell> result = Module::ResolveExport(
-      requested_module, specifier, name, loc, must_resolve, resolve_set);
+  MaybeHandle<Cell> result =
+      Module::ResolveExport(isolate, requested_module, specifier, name, loc,
+                            must_resolve, resolve_set);
   DCHECK_IMPLIES(isolate->has_pending_exception(), result.is_null());
   return result;
 }
 
-MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
+MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
                                         Handle<String> module_specifier,
                                         Handle<String> export_name,
                                         MessageLocation loc, bool must_resolve,
                                         Module::ResolveSet* resolve_set) {
   DCHECK_GE(module->status(), kPreInstantiating);
   DCHECK_NE(module->status(), kEvaluating);
-
-  Isolate* isolate = module->GetIsolate();
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
   if (object->IsCell()) {
     // Already resolved (e.g. because it's a local export).
@@ -339,8 +357,8 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
     MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
     Handle<Cell> cell;
-    if (!ResolveImport(module, import_name, entry->module_request(), new_loc,
-                       true, resolve_set)
+    if (!ResolveImport(isolate, module, import_name, entry->module_request(),
+                       new_loc, true, resolve_set)
              .ToHandle(&cell)) {
       DCHECK(isolate->has_pending_exception());
       return MaybeHandle<Cell>();
@@ -357,15 +375,15 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
   }
 
   DCHECK(object->IsTheHole(isolate));
-  return Module::ResolveExportUsingStarExports(
-      module, module_specifier, export_name, loc, must_resolve, resolve_set);
+  return Module::ResolveExportUsingStarExports(isolate, module,
+                                               module_specifier, export_name,
+                                               loc, must_resolve, resolve_set);
 }
 
 MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
-    Handle<Module> module, Handle<String> module_specifier,
+    Isolate* isolate, Handle<Module> module, Handle<String> module_specifier,
     Handle<String> export_name, MessageLocation loc, bool must_resolve,
     Module::ResolveSet* resolve_set) {
-  Isolate* isolate = module->GetIsolate();
   if (!export_name->Equals(isolate->heap()->default_string())) {
     // Go through all star exports looking for the given name.  If multiple star
     // exports provide the name, make sure they all map it to the same cell.
@@ -383,8 +401,8 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
       MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
       Handle<Cell> cell;
-      if (ResolveImport(module, export_name, entry->module_request(), new_loc,
-                        false, resolve_set)
+      if (ResolveImport(isolate, module, export_name, entry->module_request(),
+                        new_loc, false, resolve_set)
               .ToHandle(&cell)) {
         if (unique_cell.is_null()) unique_cell = cell;
         if (*unique_cell != *cell) {
@@ -418,31 +436,30 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
   return MaybeHandle<Cell>();
 }
 
-bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
+bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
+                         v8::Local<v8::Context> context,
                          v8::Module::ResolveCallback callback) {
 #ifdef DEBUG
   if (FLAG_trace_module_status) {
-    OFStream os(stdout);
+    StdoutStream os;
     os << "Instantiating module ";
-    module->script()->GetNameOrSourceURL()->Print(os);
+    module->script()->GetNameOrSourceURL()->Print(isolate, os);
 #ifndef OBJECT_PRINT
     os << "\n";
 #endif  // OBJECT_PRINT
   }
 #endif  // DEBUG
 
-  if (!PrepareInstantiate(module, context, callback)) {
-    ResetGraph(module);
+  if (!PrepareInstantiate(isolate, module, context, callback)) {
+    ResetGraph(isolate, module);
     return false;
   }
-
-  Isolate* isolate = module->GetIsolate();
   Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneForwardList<Handle<Module>> stack(&zone);
   unsigned dfs_index = 0;
-  if (!FinishInstantiate(module, &stack, &dfs_index, &zone)) {
+  if (!FinishInstantiate(isolate, module, &stack, &dfs_index, &zone)) {
     for (auto& descendant : stack) {
-      Reset(descendant);
+      Reset(isolate, descendant);
     }
     DCHECK_EQ(module->status(), kUninstantiated);
     return false;
@@ -453,16 +470,16 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
   return true;
 }
 
-bool Module::PrepareInstantiate(Handle<Module> module,
+bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
                                 v8::Local<v8::Context> context,
                                 v8::Module::ResolveCallback callback) {
   DCHECK_NE(module->status(), kEvaluating);
   DCHECK_NE(module->status(), kInstantiating);
   if (module->status() >= kPreInstantiating) return true;
-  module->SetStatus(kPreInstantiating);
+  module->SetStatus(isolate, kPreInstantiating);
+  STACK_CHECK(isolate, false);
 
   // Obtain requested modules.
-  Isolate* isolate = module->GetIsolate();
   Handle<ModuleInfo> module_info(module->info(), isolate);
   Handle<FixedArray> module_requests(module_info->module_requests(), isolate);
   Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
@@ -483,7 +500,7 @@ bool Module::PrepareInstantiate(Handle<Module> module,
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
     Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
                                     isolate);
-    if (!PrepareInstantiate(requested_module, context, callback)) {
+    if (!PrepareInstantiate(isolate, requested_module, context, callback)) {
       return false;
     }
   }
@@ -494,7 +511,7 @@ bool Module::PrepareInstantiate(Handle<Module> module,
     int cell_index = module_info->RegularExportCellIndex(i);
     Handle<FixedArray> export_names(module_info->RegularExportExportNames(i),
                                     isolate);
-    CreateExport(module, cell_index, export_names);
+    CreateExport(isolate, module, cell_index, export_names);
   }
 
   // Partially set up indirect exports.
@@ -508,28 +525,33 @@ bool Module::PrepareInstantiate(Handle<Module> module,
         ModuleInfoEntry::cast(special_exports->get(i)), isolate);
     Handle<Object> export_name(entry->export_name(), isolate);
     if (export_name->IsUndefined(isolate)) continue;  // Star export.
-    CreateIndirectExport(module, Handle<String>::cast(export_name), entry);
+    CreateIndirectExport(isolate, module, Handle<String>::cast(export_name),
+                         entry);
   }
 
   DCHECK_EQ(module->status(), kPreInstantiating);
   return true;
 }
 
-void Module::RunInitializationCode(Handle<Module> module) {
+bool Module::RunInitializationCode(Isolate* isolate, Handle<Module> module) {
   DCHECK_EQ(module->status(), kInstantiating);
-  Isolate* isolate = module->GetIsolate();
   Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
   DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
   Handle<Object> receiver = isolate->factory()->undefined_value();
   Handle<Object> argv[] = {module};
-  Handle<Object> generator =
-      Execution::Call(isolate, function, receiver, arraysize(argv), argv)
-          .ToHandleChecked();
+  MaybeHandle<Object> maybe_generator =
+      Execution::Call(isolate, function, receiver, arraysize(argv), argv);
+  Handle<Object> generator;
+  if (!maybe_generator.ToHandle(&generator)) {
+    DCHECK(isolate->has_pending_exception());
+    return false;
+  }
   DCHECK_EQ(*function, Handle<JSGeneratorObject>::cast(generator)->function());
   module->set_code(*generator);
+  return true;
 }
 
-void Module::MaybeTransitionComponent(Handle<Module> module,
+bool Module::MaybeTransitionComponent(Isolate* isolate, Handle<Module> module,
                                       ZoneForwardList<Handle<Module>>* stack,
                                       Status new_status) {
   DCHECK(new_status == kInstantiated || new_status == kEvaluated);
@@ -546,29 +568,32 @@ void Module::MaybeTransitionComponent(Handle<Module> module,
       stack->pop_front();
       DCHECK_EQ(ancestor->status(),
                 new_status == kInstantiated ? kInstantiating : kEvaluating);
-      if (new_status == kInstantiated) RunInitializationCode(ancestor);
-      ancestor->SetStatus(new_status);
+      if (new_status == kInstantiated) {
+        if (!RunInitializationCode(isolate, ancestor)) return false;
+      }
+      ancestor->SetStatus(isolate, new_status);
     } while (*ancestor != *module);
   }
+  return true;
 }
 
-bool Module::FinishInstantiate(Handle<Module> module,
+bool Module::FinishInstantiate(Isolate* isolate, Handle<Module> module,
                                ZoneForwardList<Handle<Module>>* stack,
                                unsigned* dfs_index, Zone* zone) {
   DCHECK_NE(module->status(), kEvaluating);
   if (module->status() >= kInstantiating) return true;
   DCHECK_EQ(module->status(), kPreInstantiating);
+  STACK_CHECK(isolate, false);
 
   // Instantiate SharedFunctionInfo and mark module as instantiating for
   // the recursion.
-  Isolate* isolate = module->GetIsolate();
   Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(module->code()),
                                     isolate);
   Handle<JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared, isolate->native_context());
   module->set_code(*function);
-  module->SetStatus(kInstantiating);
+  module->SetStatus(isolate, kInstantiating);
   module->set_dfs_index(*dfs_index);
   module->set_dfs_ancestor_index(*dfs_index);
   stack->push_front(module);
@@ -579,7 +604,7 @@ bool Module::FinishInstantiate(Handle<Module> module,
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
     Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
                                     isolate);
-    if (!FinishInstantiate(requested_module, stack, dfs_index, zone)) {
+    if (!FinishInstantiate(isolate, requested_module, stack, dfs_index, zone)) {
       return false;
     }
 
@@ -611,8 +636,8 @@ bool Module::FinishInstantiate(Handle<Module> module,
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
     Handle<Cell> cell;
-    if (!ResolveImport(module, name, entry->module_request(), loc, true,
-                       &resolve_set)
+    if (!ResolveImport(isolate, module, name, entry->module_request(), loc,
+                       true, &resolve_set)
              .ToHandle(&cell)) {
       return false;
     }
@@ -628,30 +653,27 @@ bool Module::FinishInstantiate(Handle<Module> module,
     if (name->IsUndefined(isolate)) continue;  // Star export.
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
-    if (ResolveExport(module, Handle<String>(), Handle<String>::cast(name), loc,
-                      true, &resolve_set)
+    if (ResolveExport(isolate, module, Handle<String>(),
+                      Handle<String>::cast(name), loc, true, &resolve_set)
             .is_null()) {
       return false;
     }
   }
 
-  MaybeTransitionComponent(module, stack, kInstantiated);
-  return true;
+  return MaybeTransitionComponent(isolate, module, stack, kInstantiated);
 }
 
-MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
+MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
 #ifdef DEBUG
   if (FLAG_trace_module_status) {
-    OFStream os(stdout);
+    StdoutStream os;
     os << "Evaluating module ";
-    module->script()->GetNameOrSourceURL()->Print(os);
+    module->script()->GetNameOrSourceURL()->Print(isolate, os);
 #ifndef OBJECT_PRINT
     os << "\n";
 #endif  // OBJECT_PRINT
   }
 #endif  // DEBUG
-
-  Isolate* isolate = module->GetIsolate();
   if (module->status() == kErrored) {
     isolate->Throw(module->GetException());
     return MaybeHandle<Object>();
@@ -663,10 +685,10 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
   ZoneForwardList<Handle<Module>> stack(&zone);
   unsigned dfs_index = 0;
   Handle<Object> result;
-  if (!Evaluate(module, &stack, &dfs_index).ToHandle(&result)) {
+  if (!Evaluate(isolate, module, &stack, &dfs_index).ToHandle(&result)) {
     for (auto& descendant : stack) {
       DCHECK_EQ(descendant->status(), kEvaluating);
-      descendant->RecordError();
+      descendant->RecordError(isolate);
     }
     DCHECK_EQ(module->GetException(), isolate->pending_exception());
     return MaybeHandle<Object>();
@@ -676,10 +698,9 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
   return result;
 }
 
-MaybeHandle<Object> Module::Evaluate(Handle<Module> module,
+MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module,
                                      ZoneForwardList<Handle<Module>>* stack,
                                      unsigned* dfs_index) {
-  Isolate* isolate = module->GetIsolate();
   if (module->status() == kErrored) {
     isolate->Throw(module->GetException());
     return MaybeHandle<Object>();
@@ -688,12 +709,13 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module,
     return isolate->factory()->undefined_value();
   }
   DCHECK_EQ(module->status(), kInstantiated);
+  STACK_CHECK(isolate, MaybeHandle<Object>());
 
   Handle<JSGeneratorObject> generator(JSGeneratorObject::cast(module->code()),
                                       isolate);
   module->set_code(
       generator->function()->shared()->scope_info()->ModuleDescriptorInfo());
-  module->SetStatus(kEvaluating);
+  module->SetStatus(isolate, kEvaluating);
   module->set_dfs_index(*dfs_index);
   module->set_dfs_ancestor_index(*dfs_index);
   stack->push_front(module);
@@ -704,8 +726,8 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module,
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
     Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
                                     isolate);
-    RETURN_ON_EXCEPTION(isolate, Evaluate(requested_module, stack, dfs_index),
-                        Object);
+    RETURN_ON_EXCEPTION(
+        isolate, Evaluate(isolate, requested_module, stack, dfs_index), Object);
 
     DCHECK_GE(requested_module->status(), kEvaluating);
     DCHECK_NE(requested_module->status(), kErrored);
@@ -732,9 +754,9 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module,
       Object);
   DCHECK(static_cast<JSIteratorResult*>(JSObject::cast(*result))
              ->done()
-             ->BooleanValue());
+             ->BooleanValue(isolate));
 
-  MaybeTransitionComponent(module, stack, kEvaluated);
+  CHECK(MaybeTransitionComponent(isolate, module, stack, kEvaluated));
   return handle(
       static_cast<JSIteratorResult*>(JSObject::cast(*result))->value(),
       isolate);
@@ -742,7 +764,7 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module,
 
 namespace {
 
-void FetchStarExports(Handle<Module> module, Zone* zone,
+void FetchStarExports(Isolate* isolate, Handle<Module> module, Zone* zone,
                       UnorderedModuleSet* visited) {
   DCHECK_GE(module->status(), Module::kInstantiating);
 
@@ -750,8 +772,6 @@ void FetchStarExports(Handle<Module> module, Zone* zone,
 
   bool cycle = !visited->insert(module).second;
   if (cycle) return;
-
-  Isolate* isolate = module->GetIsolate();
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   UnorderedStringMap more_exports(zone);
 
@@ -772,7 +792,7 @@ void FetchStarExports(Handle<Module> module, Zone* zone,
         isolate);
 
     // Recurse.
-    FetchStarExports(requested_module, zone, visited);
+    FetchStarExports(isolate, requested_module, zone, visited);
 
     // Collect all of [requested_module]'s exports that must be added to
     // [module]'s exports (i.e. to [exports]).  We record these in
@@ -817,17 +837,16 @@ void FetchStarExports(Handle<Module> module, Zone* zone,
 
 }  // anonymous namespace
 
-Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module,
+Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
+                                                     Handle<Module> module,
                                                      int module_request) {
-  Isolate* isolate = module->GetIsolate();
   Handle<Module> requested_module(
       Module::cast(module->requested_modules()->get(module_request)), isolate);
-  return Module::GetModuleNamespace(requested_module);
+  return Module::GetModuleNamespace(isolate, requested_module);
 }
 
-Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
-  Isolate* isolate = module->GetIsolate();
-
+Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
+                                                     Handle<Module> module) {
   Handle<HeapObject> object(module->module_namespace(), isolate);
   if (!object->IsUndefined(isolate)) {
     // Namespace object already exists.
@@ -837,7 +856,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
   // Collect the export names.
   Zone zone(isolate->allocator(), ZONE_NAME);
   UnorderedModuleSet visited(&zone);
-  FetchStarExports(module, &zone, &visited);
+  FetchStarExports(isolate, module, &zone, &visited);
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   ZoneVector<Handle<String>> names(&zone);
   names.reserve(exports->NumberOfElements());
@@ -849,12 +868,11 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
   DCHECK_EQ(static_cast<int>(names.size()), exports->NumberOfElements());
 
   // Sort them alphabetically.
-  struct {
-    bool operator()(Handle<String> a, Handle<String> b) {
-      return String::Compare(a, b) == ComparisonResult::kLessThan;
-    }
-  } StringLess;
-  std::sort(names.begin(), names.end(), StringLess);
+  std::sort(names.begin(), names.end(),
+            [&isolate](Handle<String> a, Handle<String> b) {
+              return String::Compare(isolate, a, b) ==
+                     ComparisonResult::kLessThan;
+            });
 
   // Create the namespace object (initially empty).
   Handle<JSModuleNamespace> ns = isolate->factory()->NewJSModuleNamespace();
@@ -883,9 +901,8 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
   return ns;
 }
 
-MaybeHandle<Object> JSModuleNamespace::GetExport(Handle<String> name) {
-  Isolate* isolate = name->GetIsolate();
-
+MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
+                                                 Handle<String> name) {
   Handle<Object> object(module()->exports()->Lookup(name), isolate);
   if (object->IsTheHole(isolate)) {
     return isolate->factory()->undefined_value();
@@ -906,7 +923,7 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
   Handle<String> name = Handle<String>::cast(it->GetName());
   DCHECK_EQ(it->state(), LookupIterator::ACCESSOR);
 
-  Isolate* isolate = name->GetIsolate();
+  Isolate* isolate = it->isolate();
 
   Handle<Object> lookup(object->module()->exports()->Lookup(name), isolate);
   if (lookup->IsTheHole(isolate)) {

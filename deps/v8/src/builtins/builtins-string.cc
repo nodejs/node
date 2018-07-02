@@ -148,8 +148,8 @@ BUILTIN(StringPrototypeEndsWith) {
   int start = end - search_string->length();
   if (start < 0) return isolate->heap()->false_value();
 
-  str = String::Flatten(str);
-  search_string = String::Flatten(search_string);
+  str = String::Flatten(isolate, str);
+  search_string = String::Flatten(isolate, search_string);
 
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
   String::FlatContent str_content = str->GetFlatContent();
@@ -219,8 +219,8 @@ BUILTIN(StringPrototypeLocaleCompare) {
   int d = str1->Get(0) - str2->Get(0);
   if (d != 0) return Smi::FromInt(d);
 
-  str1 = String::Flatten(str1);
-  str2 = String::Flatten(str2);
+  str1 = String::Flatten(isolate, str1);
+  str2 = String::Flatten(isolate, str2);
 
   DisallowHeapAllocation no_gc;
   String::FlatContent flat1 = str1->GetFlatContent();
@@ -252,13 +252,13 @@ BUILTIN(StringPrototypeNormalize) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
                                      Object::ToString(isolate, form_input));
 
-  if (!(String::Equals(form,
+  if (!(String::Equals(isolate, form,
                        isolate->factory()->NewStringFromStaticChars("NFC")) ||
-        String::Equals(form,
+        String::Equals(isolate, form,
                        isolate->factory()->NewStringFromStaticChars("NFD")) ||
-        String::Equals(form,
+        String::Equals(isolate, form,
                        isolate->factory()->NewStringFromStaticChars("NFKC")) ||
-        String::Equals(form,
+        String::Equals(isolate, form,
                        isolate->factory()->NewStringFromStaticChars("NFKD")))) {
     Handle<String> valid_forms =
         isolate->factory()->NewStringFromStaticChars("NFC, NFD, NFKC, NFKD");
@@ -307,8 +307,9 @@ BUILTIN(StringPrototypeStartsWith) {
     return isolate->heap()->false_value();
   }
 
-  FlatStringReader str_reader(isolate, String::Flatten(str));
-  FlatStringReader search_reader(isolate, String::Flatten(search_string));
+  FlatStringReader str_reader(isolate, String::Flatten(isolate, str));
+  FlatStringReader search_reader(isolate,
+                                 String::Flatten(isolate, search_string));
 
   for (int i = 0; i < search_string->length(); i++) {
     if (str_reader.Get(start + i) != search_reader.Get(i)) {
@@ -430,7 +431,7 @@ template <class Converter>
 V8_WARN_UNUSED_RESULT static Object* ConvertCase(
     Handle<String> s, Isolate* isolate,
     unibrow::Mapping<Converter, 128>* mapping) {
-  s = String::Flatten(s);
+  s = String::Flatten(isolate, s);
   int length = s->length();
   // Assume that the string is not empty; we need this assumption later
   if (length == 0) return *s;

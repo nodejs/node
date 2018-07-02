@@ -1014,8 +1014,8 @@
   'ecma_3/RegExp/regress-85721': [SKIP],
 }],  # tsan
 
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ]

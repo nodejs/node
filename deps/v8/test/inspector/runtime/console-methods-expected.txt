@@ -821,3 +821,131 @@ Checks console methods
         type : count
     }
 }
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 35
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 37
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 39
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Count for 'countReset' does not exist
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 40
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : warning
+    }
+}

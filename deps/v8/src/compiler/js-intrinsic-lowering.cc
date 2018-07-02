@@ -55,10 +55,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
     case Runtime::kInlineIsJSProxy:
       return ReduceIsInstanceType(node, JS_PROXY_TYPE);
-    case Runtime::kInlineIsJSMap:
-      return ReduceIsInstanceType(node, JS_MAP_TYPE);
-    case Runtime::kInlineIsJSSet:
-      return ReduceIsInstanceType(node, JS_SET_TYPE);
     case Runtime::kInlineIsJSWeakMap:
       return ReduceIsInstanceType(node, JS_WEAK_MAP_TYPE);
     case Runtime::kInlineIsJSWeakSet:
@@ -424,7 +420,7 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
 Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
                                       int stack_parameter_count) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), stack_parameter_count,
+      graph()->zone(), callable.descriptor(), stack_parameter_count,
       CallDescriptor::kNeedsFrameState, node->op()->properties());
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(callable.code()));

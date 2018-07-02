@@ -53,9 +53,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       v8::internal::CodeObjectRequired::kYes);
 
-  DoubleToIStub stub(isolate, destination_reg);
-
-  byte* start = stub.GetCode()->raw_instruction_start();
+  Handle<Code> code = BUILTIN_CODE(isolate, DoubleToI);
+  Address start = code->InstructionStart();
 
   __ PushCalleeSavedRegisters();
 
@@ -78,7 +77,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   queue.PushQueued();
 
   // Call through to the actual stub.
-  __ Call(start, RelocInfo::EXTERNAL_REFERENCE);
+  __ IndirectCall(start, RelocInfo::CODE_TARGET);
+  __ Peek(destination_reg, 0);
 
   __ Drop(2, kDoubleSize);
 

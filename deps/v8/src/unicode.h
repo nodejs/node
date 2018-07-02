@@ -94,22 +94,20 @@ class UnicodeData {
 
 class Utf16 {
  public:
+  static const int kNoPreviousCharacter = -1;
   static inline bool IsSurrogatePair(int lead, int trail) {
     return IsLeadSurrogate(lead) && IsTrailSurrogate(trail);
   }
   static inline bool IsLeadSurrogate(int code) {
-    if (code == kNoPreviousCharacter) return false;
     return (code & 0xfc00) == 0xd800;
   }
   static inline bool IsTrailSurrogate(int code) {
-    if (code == kNoPreviousCharacter) return false;
     return (code & 0xfc00) == 0xdc00;
   }
 
   static inline int CombineSurrogatePair(uchar lead, uchar trail) {
     return 0x10000 + ((lead & 0x3ff) << 10) + (trail & 0x3ff);
   }
-  static const int kNoPreviousCharacter = -1;
   static const uchar kMaxNonSurrogateCharCode = 0xffff;
   // Encoding a single UTF-16 code unit will produce 1, 2 or 3 bytes
   // of UTF-8 data.  The special case where the unit is a surrogate

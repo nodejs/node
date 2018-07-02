@@ -57,6 +57,57 @@ class GlobalTimeline extends HTMLElement {
     }
   }
 
+  getFieldData() {
+    const labels = [
+      {type: 'number', label: 'Time'},
+      {type: 'number', label: 'Ptr compression benefit'},
+      {type: 'string', role: 'tooltip'},
+      {type: 'number', label: 'Embedder fields'},
+      {type: 'number', label: 'Tagged fields'},
+      {type: 'number', label: 'Other raw fields'},
+      {type: 'number', label: 'Unboxed doubles'}
+    ];
+    const chart_data = [labels];
+    const isolate_data = this.data[this.selection.isolate];
+    let sum_total = 0;
+    let sum_ptr_compr_benefit_perc = 0;
+    let count = 0;
+    Object.keys(isolate_data.gcs).forEach(gc_key => {
+      const gc_data = isolate_data.gcs[gc_key];
+      const data_set = gc_data[this.selection.data_set].field_data;
+      const data = [];
+      data.push(gc_data.time * kMillis2Seconds);
+      const total = data_set.tagged_fields +
+                    data_set.embedder_fields +
+                    data_set.other_raw_fields +
+                    data_set.unboxed_double_fields;
+      const ptr_compr_benefit = data_set.tagged_fields / 2;
+      const ptr_compr_benefit_perc = ptr_compr_benefit / total * 100;
+      sum_total += total;
+      sum_ptr_compr_benefit_perc += ptr_compr_benefit_perc;
+      count++;
+      const tooltip = "Ptr compression benefit: " +
+                      (ptr_compr_benefit / KB).toFixed(2) + "KB " +
+                      " (" + ptr_compr_benefit_perc.toFixed(2) + "%)";
+      data.push(ptr_compr_benefit / KB);
+      data.push(tooltip);
+      data.push(data_set.embedder_fields / KB);
+      data.push(data_set.tagged_fields / KB);
+      data.push(data_set.other_raw_fields / KB);
+      data.push(data_set.unboxed_double_fields / KB);
+      chart_data.push(data);
+    });
+    const avg_ptr_compr_benefit_perc =
+        count ? sum_ptr_compr_benefit_perc / count : 0;
+    console.log("==================================================");
+    console.log("= Average ptr compression benefit is " +
+                avg_ptr_compr_benefit_perc.toFixed(2) + "%");
+    console.log("= Average V8 heap size " +
+                (sum_total / count / KB).toFixed(2) + " KB");
+    console.log("==================================================");
+    return chart_data;
+  }
+
   getCategoryData() {
     const categories = Object.keys(this.selection.categories)
                            .map(k => this.selection.category_names.get(k));
@@ -102,14 +153,19 @@ class GlobalTimeline extends HTMLElement {
     return chart_data;
   }
 
-  drawChart() {
-    console.assert(this.data, 'invalid data');
-    console.assert(this.selection, 'invalid selection');
+  getChartData() {
+    switch (this.selection.data_view) {
+      case VIEW_BY_FIELD_TYPE:
+        return this.getFieldData();
+      case VIEW_BY_INSTANCE_CATEGORY:
+        return this.getCategoryData();
+      case VIEW_BY_INSTANCE_TYPE:
+      default:
+        return this.getInstanceTypeData();
+    }
+  }
 
-    const chart_data = (this.selection.merge_categories) ?
-        this.getCategoryData() :
-        this.getInstanceTypeData();
-    const data = google.visualization.arrayToDataTable(chart_data);
+  getChartOptions() {
     const options = {
       isStacked: true,
       hAxis: {
@@ -126,6 +182,27 @@ class GlobalTimeline extends HTMLElement {
       pointSize: 5,
       explorer: {},
     };
+    switch (this.selection.data_view) {
+      case VIEW_BY_FIELD_TYPE:
+        // Overlay pointer compression benefit on top of the graph
+        return Object.assign(options, {
+          series: {0: {type: 'line', lineDashStyle: [13, 13]}},
+        });
+      case VIEW_BY_INSTANCE_CATEGORY:
+      case VIEW_BY_INSTANCE_TYPE:
+      default:
+        return options;
+    }
+  }
+
+  drawChart() {
+    console.assert(this.data, 'invalid data');
+    console.assert(this.selection, 'invalid selection');
+
+    const chart_data = this.getChartData();
+
+    const data = google.visualization.arrayToDataTable(chart_data);
+    const options = this.getChartOptions();
     const chart = new google.visualization.AreaChart(this.$('#chart'));
     this.show();
     chart.draw(data, google.charts.Line.convertOptions(options));

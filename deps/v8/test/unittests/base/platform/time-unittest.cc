@@ -392,6 +392,15 @@ TEST(ThreadTicks, MAYBE_ThreadNow) {
     // Make sure that ThreadNow value is non-zero.
     EXPECT_GT(begin_thread, ThreadTicks());
     int iterations_count = 0;
+
+    // Some systems have low resolution thread timers, this code makes sure
+    // that thread time has progressed by at least one tick.
+    // Limit waiting to 10ms to prevent infinite loops.
+    while (ThreadTicks::Now() == begin_thread &&
+           ((TimeTicks::Now() - begin).InMicroseconds() < 10000)) {
+    }
+    EXPECT_GT(ThreadTicks::Now(), begin_thread);
+
     do {
       // Sleep for 10 milliseconds to get the thread de-scheduled.
       OS::Sleep(base::TimeDelta::FromMilliseconds(10));

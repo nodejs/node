@@ -129,7 +129,7 @@ void CompilationDependencies::AssumePrototypeMapsStable(
   for (PrototypeIterator i(map); !i.IsAtEnd(); i.Advance()) {
     Handle<JSReceiver> const current =
         PrototypeIterator::GetCurrent<JSReceiver>(i);
-    AssumeMapStable(handle(current->map()));
+    AssumeMapStable(handle(current->map(), isolate_));
     Handle<JSReceiver> last;
     if (prototype.ToHandle(&last) && last.is_identical_to(current)) {
       break;
@@ -137,6 +137,21 @@ void CompilationDependencies::AssumePrototypeMapsStable(
   }
 }
 
+void CompilationDependencies::AssumePrototypesStable(
+    Handle<Context> native_context,
+    std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder) {
+  // Determine actual holder and perform prototype chain checks.
+  for (auto map : receiver_maps) {
+    // Perform the implicit ToObject for primitives here.
+    // Implemented according to ES6 section 7.3.2 GetV (V, P).
+    Handle<JSFunction> constructor;
+    if (Map::GetConstructorFunction(map, native_context)
+            .ToHandle(&constructor)) {
+      map = handle(constructor->initial_map(), holder->GetIsolate());
+    }
+    AssumePrototypeMapsStable(map, holder);
+  }
+}
 
 void CompilationDependencies::AssumeTransitionStable(
     Handle<AllocationSite> site) {

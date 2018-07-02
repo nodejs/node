@@ -103,12 +103,35 @@ function AbortUnreachable() {
 // ----------------------------------------------------------------------------
 // Do not install `AsyncGeneratorFunction` constructor on global object
 assertEquals(undefined, this.AsyncGeneratorFunction);
-let AsyncGeneratorFunction = (async function*() {}).constructor;
+
+// ----------------------------------------------------------------------------
+let AsyncGenerator = Object.getPrototypeOf(async function*() {});
+let AsyncGeneratorPrototype = AsyncGenerator.prototype;
+
+// %AsyncGenerator% and %AsyncGeneratorPrototype% are both ordinary objects
+assertEquals("object", typeof AsyncGenerator);
+assertEquals("object", typeof AsyncGeneratorPrototype);
+
+// %AsyncGenerator% <---> %AsyncGeneratorPrototype% circular reference
+assertEquals(AsyncGenerator, AsyncGeneratorPrototype.constructor);
+assertEquals(AsyncGeneratorPrototype, AsyncGenerator.prototype);
+
+let protoDesc = Object.getOwnPropertyDescriptor(AsyncGenerator, 'prototype');
+assertFalse(protoDesc.enumerable);
+assertFalse(protoDesc.writable);
+assertTrue(protoDesc.configurable);
+
+let ctorDesc =
+    Object.getOwnPropertyDescriptor(AsyncGeneratorPrototype, 'constructor');
+assertFalse(ctorDesc.enumerable);
+assertFalse(ctorDesc.writable);
+assertTrue(ctorDesc.configurable);
 
 // ----------------------------------------------------------------------------
 // The AsyncGeneratorFunction Constructor is the %AsyncGeneratorFunction%
 // intrinsic object and is a subclass of Function.
 // (proposal-async-iteration/#sec-asyncgeneratorfunction-constructor)
+let AsyncGeneratorFunction = AsyncGenerator.constructor;
 assertEquals(Object.getPrototypeOf(AsyncGeneratorFunction), Function);
 assertEquals(Object.getPrototypeOf(AsyncGeneratorFunction.prototype),
              Function.prototype);

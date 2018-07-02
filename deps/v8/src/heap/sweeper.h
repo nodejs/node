@@ -186,7 +186,7 @@ class Sweeper {
   bool sweeping_in_progress_;
   // Counter is actively maintained by the concurrent tasks to avoid querying
   // the semaphore for maintaining a task counter on the main thread.
-  base::AtomicNumber<intptr_t> num_sweeping_tasks_;
+  std::atomic<intptr_t> num_sweeping_tasks_;
   // Used by PauseOrCompleteScope to signal early bailout to tasks.
   base::AtomicValue<bool> stop_sweeper_tasks_;
 

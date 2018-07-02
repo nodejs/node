@@ -8,8 +8,13 @@ source code, Turbofan IR graphs, scheduled IR nodes and generated assembly code.
 Turbolizer consumes .json files that are generated per-function by d8 by passing
 the '--trace-turbo' command-line flag.
 
-Host the turbolizer locally by starting a web server that serves the contents of
-the turbolizer directory, e.g.:
+Turbolizer is build using npm:
+
+  npm i
+  npm run-script build
+
+Afterwards, turbolizer can be hosted locally by starting a web server that serve
+the contents of the turbolizer directory, e.g.:
 
     cd src/tools/turbolizer
     python -m SimpleHTTPServer 8000
@@ -60,3 +65,11 @@ script command must be piped to a file for uploading to turbolizer.
 There are many options that can be added to the first command, for example '-e'
 can be used to specify the counting of specific events (default: cycles), as
 well as '--cpu' to specify which CPU to sample.
+
+Turbolizer build process
+------------------------
+
+Turbolizer is currently migrating to TypeScript. The typescript sources reside in
+tools/turbolizer/src, and the typescript compiler will put the JavaScript output
+into tools/turbolizer/build/. The index.html file is set up to load the JavaScript
+from that directory.

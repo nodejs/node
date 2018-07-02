@@ -126,6 +126,16 @@ class TraceFileReader extends HTMLElement {
     }
   }
 
+  addFieldTypeData(data, isolate, gc_id, data_set, tagged_fields,
+                   embedder_fields, unboxed_double_fields, other_raw_fields) {
+    data[isolate].gcs[gc_id][data_set].field_data = {
+      tagged_fields,
+      embedder_fields,
+      unboxed_double_fields,
+      other_raw_fields
+    };
+  }
+
   addInstanceTypeData(data, isolate, gc_id, data_set, instance_type, entry) {
     data[isolate].gcs[gc_id][data_set].instance_type_data[instance_type] = {
       overall: entry.overall,
@@ -194,6 +204,13 @@ class TraceFileReader extends HTMLElement {
                 const time = entry.time;
                 const gc_id = entry.id;
                 data[isolate].gcs[gc_id].time = time;
+
+                const field_data = entry.field_data;
+                this.addFieldTypeData(data, isolate, gc_id, data_set,
+                  field_data.tagged_fields, field_data.embedder_fields,
+                  field_data.unboxed_double_fields,
+                  field_data.other_raw_fields);
+
                 data[isolate].gcs[gc_id][data_set].bucket_sizes =
                     entry.bucket_sizes;
                 for (let [instance_type, value] of Object.entries(
@@ -251,6 +268,12 @@ class TraceFileReader extends HTMLElement {
         data[entry.isolate].gcs[entry.id].time = entry.time;
         if ('zone' in entry)
           data[entry.isolate].gcs[entry.id].malloced = entry.zone;
+      } else if (entry.type === 'field_data') {
+        this.createOrUpdateEntryIfNeeded(data, entry);
+        this.createDatasetIfNeeded(data, entry, entry.key);
+        this.addFieldTypeData(data, entry.isolate, entry.id, entry.key,
+          entry.tagged_fields, entry.embedder_fields,
+          entry.unboxed_double_fields, entry.other_raw_fields);
       } else if (entry.type === 'instance_type_data') {
         if (entry.id in data[entry.isolate].gcs) {
           this.createOrUpdateEntryIfNeeded(data, entry);

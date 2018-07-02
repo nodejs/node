@@ -7,15 +7,17 @@
 #endif  // V8_INTL_SUPPORT
 
 #include "src/objects/intl-objects.h"
+#include "src/objects/intl-objects-inl.h"
 
 #include <memory>
 
 #include "src/api.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
+#include "src/intl.h"
 #include "src/isolate.h"
-#include "src/managed.h"
 #include "src/objects-inl.h"
+#include "src/objects/managed.h"
 #include "src/property-descriptor.h"
 #include "unicode/brkiter.h"
 #include "unicode/bytestream.h"
@@ -56,7 +58,7 @@ bool ExtractStringSetting(Isolate* isolate, Handle<JSObject> options,
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object =
-      JSReceiver::GetProperty(options, str).ToHandleChecked();
+      JSReceiver::GetProperty(isolate, options, str).ToHandleChecked();
   if (object->IsString()) {
     v8::String::Utf8Value utf8_string(
         v8_isolate, v8::Utils::ToLocal(Handle<String>::cast(object)));
@@ -70,10 +72,9 @@ bool ExtractIntegerSetting(Isolate* isolate, Handle<JSObject> options,
                            const char* key, int32_t* value) {
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object =
-      JSReceiver::GetProperty(options, str).ToHandleChecked();
+      JSReceiver::GetProperty(isolate, options, str).ToHandleChecked();
   if (object->IsNumber()) {
-    object->ToInt32(value);
-    return true;
+    return object->ToInt32(value);
   }
   return false;
 }
@@ -82,9 +83,9 @@ bool ExtractBooleanSetting(Isolate* isolate, Handle<JSObject> options,
                            const char* key, bool* value) {
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object =
-      JSReceiver::GetProperty(options, str).ToHandleChecked();
+      JSReceiver::GetProperty(isolate, options, str).ToHandleChecked();
   if (object->IsBoolean()) {
-    *value = object->BooleanValue();
+    *value = object->BooleanValue(isolate);
     return true;
   }
   return false;
@@ -727,7 +728,8 @@ bool SetResolvedPluralRulesSettings(Isolate* isolate,
 
   Handle<JSObject> pluralCategories = Handle<JSObject>::cast(
       JSObject::GetProperty(
-          resolved, factory->NewStringFromStaticChars("pluralCategories"))
+          isolate, resolved,
+          factory->NewStringFromStaticChars("pluralCategories"))
           .ToHandleChecked());
 
   UErrorCode status = U_ZERO_ERROR;
@@ -953,7 +955,7 @@ bool Collator::InitializeCollator(Isolate* isolate,
   }
 
   Handle<Managed<icu::Collator>> managed =
-      Managed<icu::Collator>::From(isolate, collator);
+      Managed<icu::Collator>::FromRawPtr(isolate, 0, collator);
   collator_holder->SetEmbedderField(0, *managed);
 
   return true;
@@ -961,7 +963,7 @@ bool Collator::InitializeCollator(Isolate* isolate,
 
 icu::Collator* Collator::UnpackCollator(Isolate* isolate,
                                         Handle<JSObject> obj) {
-  return Managed<icu::Collator>::cast(obj->GetEmbedderField(0))->get();
+  return Managed<icu::Collator>::cast(obj->GetEmbedderField(0))->raw();
 }
 
 bool PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,
@@ -1076,6 +1078,92 @@ void V8BreakIterator::DeleteBreakIterator(
   delete reinterpret_cast<icu::BreakIterator*>(data.GetInternalField(0));
   delete reinterpret_cast<icu::UnicodeString*>(data.GetInternalField(1));
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
+}
+
+// Build the shortened locale; eg, convert xx_Yyyy_ZZ  to xx_ZZ.
+bool Intl::RemoveLocaleScriptTag(const std::string& icu_locale,
+                                 std::string* locale_less_script) {
+  icu::Locale new_locale = icu::Locale::createCanonical(icu_locale.c_str());
+  const char* icu_script = new_locale.getScript();
+  if (icu_script == NULL || strlen(icu_script) == 0) {
+    *locale_less_script = std::string();
+    return false;
+  }
+
+  const char* icu_language = new_locale.getLanguage();
+  const char* icu_country = new_locale.getCountry();
+  icu::Locale short_locale = icu::Locale(icu_language, icu_country);
+  const char* icu_name = short_locale.getName();
+  *locale_less_script = std::string(icu_name);
+  return true;
+}
+
+std::set<std::string> Intl::GetAvailableLocales(const IcuService& service) {
+  const icu::Locale* icu_available_locales = nullptr;
+  int32_t count = 0;
+
+  switch (service) {
+    case IcuService::kBreakIterator:
+      icu_available_locales = icu::BreakIterator::getAvailableLocales(count);
+      break;
+    case IcuService::kCollator:
+      icu_available_locales = icu::Collator::getAvailableLocales(count);
+      break;
+    case IcuService::kDateFormat:
+      icu_available_locales = icu::DateFormat::getAvailableLocales(count);
+      break;
+    case IcuService::kNumberFormat:
+      icu_available_locales = icu::NumberFormat::getAvailableLocales(count);
+      break;
+    case IcuService::kPluralRules:
+      // TODO(littledan): For PluralRules, filter out locales that
+      // don't support PluralRules.
+      // PluralRules is missing an appropriate getAvailableLocales method,
+      // so we should filter from all locales, but it's not clear how; see
+      // https://ssl.icu-project.org/trac/ticket/12756
+      icu_available_locales = icu::Locale::getAvailableLocales(count);
+      break;
+  }
+
+  UErrorCode error = U_ZERO_ERROR;
+  char result[ULOC_FULLNAME_CAPACITY];
+
+  std::set<std::string> locales;
+  for (int32_t i = 0; i < count; ++i) {
+    const char* icu_name = icu_available_locales[i].getName();
+
+    error = U_ZERO_ERROR;
+    // No need to force strict BCP47 rules.
+    uloc_toLanguageTag(icu_name, result, ULOC_FULLNAME_CAPACITY, FALSE, &error);
+    if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
+      // This shouldn't happen, but lets not break the user.
+      continue;
+    }
+    std::string locale(result);
+    locales.insert(locale);
+
+    std::string shortened_locale;
+    if (Intl::RemoveLocaleScriptTag(icu_name, &shortened_locale)) {
+      std::replace(shortened_locale.begin(), shortened_locale.end(), '_', '-');
+      locales.insert(shortened_locale);
+    }
+  }
+
+  return locales;
+}
+
+bool Intl::IsObjectOfType(Isolate* isolate, Handle<Object> input,
+                          Intl::Type expected_type) {
+  if (!input->IsJSObject()) return false;
+  Handle<JSObject> obj = Handle<JSObject>::cast(input);
+
+  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
+  Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
+
+  if (!tag->IsSmi()) return false;
+
+  Intl::Type type = Intl::TypeFromSmi(Smi::cast(*tag));
+  return type == expected_type;
 }
 
 }  // namespace internal

@@ -26,7 +26,7 @@ class ApiNatives {
       MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> InstantiateObject(
-      Handle<ObjectTemplateInfo> data,
+      Isolate* isolate, Handle<ObjectTemplateInfo> data,
       Handle<JSReceiver> new_target = Handle<JSReceiver>());
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> InstantiateRemoteObject(

@@ -153,9 +153,7 @@ class Simulator : public SimulatorBase {
   void set_pc(intptr_t value);
   intptr_t get_pc() const;
 
-  Address get_sp() const {
-    return reinterpret_cast<Address>(static_cast<intptr_t>(get_register(sp)));
-  }
+  Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
   // Accessor to the internal simulator stack area.
   uintptr_t StackLimit(uintptr_t c_limit) const;
@@ -164,14 +162,14 @@ class Simulator : public SimulatorBase {
   void Execute();
 
   template <typename Return, typename... Args>
-  Return Call(byte* entry, Args... args) {
+  Return Call(Address entry, Args... args) {
     return VariadicCall<Return>(this, &Simulator::CallImpl, entry, args...);
   }
 
   // Alternative: call a 2-argument double function.
-  void CallFP(byte* entry, double d0, double d1);
-  int32_t CallFPReturnsInt(byte* entry, double d0, double d1);
-  double CallFPReturnsDouble(byte* entry, double d0, double d1);
+  void CallFP(Address entry, double d0, double d1);
+  int32_t CallFPReturnsInt(Address entry, double d0, double d1);
+  double CallFPReturnsDouble(Address entry, double d0, double d1);
 
   // Push an address onto the JS stack.
   uintptr_t PushAddress(uintptr_t address);
@@ -207,7 +205,8 @@ class Simulator : public SimulatorBase {
     end_sim_pc = -2
   };
 
-  intptr_t CallImpl(byte* entry, int argument_count, const intptr_t* arguments);
+  intptr_t CallImpl(Address entry, int argument_count,
+                    const intptr_t* arguments);
 
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
@@ -404,7 +403,7 @@ class Simulator : public SimulatorBase {
   void SetFpResult(const double& result);
   void TrashCallerSaveRegisters();
 
-  void CallInternal(byte* entry, int reg_arg_count = 3);
+  void CallInternal(Address entry, int reg_arg_count = 3);
 
   // Architecture state.
   // On z9 and higher and supported Linux on z Systems platforms, all registers

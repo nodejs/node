@@ -42,6 +42,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
                    bool is_statement);
 
   Handle<ByteArray> ToSourcePositionTable(Isolate* isolate);
+  OwnedVector<byte> ToSourcePositionTableVector();
 
  private:
   void AddEntry(const PositionTableEntry& entry);

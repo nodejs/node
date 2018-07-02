@@ -183,7 +183,7 @@ TEST(TracingInEphemerons) {
         ConstructTraceableJSApiObject(context, first_field, nullptr);
     CHECK(!api_object.IsEmpty());
     Handle<JSObject> js_key =
-        handle(JSObject::cast(*v8::Utils::OpenHandle(*key)));
+        handle(JSObject::cast(*v8::Utils::OpenHandle(*key)), i_isolate);
     Handle<JSReceiver> js_api_object = v8::Utils::OpenHandle(*api_object);
     int32_t hash = js_key->GetOrCreateHash(i_isolate)->value();
     JSWeakCollection::Set(weak_map, js_key, js_api_object, hash);

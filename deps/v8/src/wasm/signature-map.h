@@ -7,12 +7,17 @@
 
 #include <map>
 
-#include "src/signature.h"
-#include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Signature;
+
 namespace wasm {
+
+using FunctionSig = Signature<ValueType>;
 
 // A signature map canonicalizes signatures into a range of indices so that
 // two different {FunctionSig} instances with the same contents map to the

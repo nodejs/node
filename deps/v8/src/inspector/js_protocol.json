@@ -391,6 +391,13 @@
                             "description": "Whether to throw an exception if side effect cannot be ruled out during evaluation.",
                             "optional": true,
                             "type": "boolean"
+                        },
+                        {
+                            "name": "timeout",
+                            "description": "Terminate execution after timing out (number of milliseconds).",
+                            "experimental": true,
+                            "optional": true,
+                            "$ref": "Runtime.TimeDelta"
                         }
                     ],
                     "returns": [
@@ -708,6 +715,31 @@
                             "items": {
                                 "$ref": "Location"
                             }
+                        }
+                    ]
+                },
+                {
+                    "name": "setBreakpointOnFunctionCall",
+                    "description": "Sets JavaScript breakpoint before each call to the given function.\nIf another function was created from the same source as a given one,\ncalling it will also trigger the breakpoint.",
+                    "experimental": true,
+                    "parameters": [
+                        {
+                            "name": "objectId",
+                            "description": "Function object id.",
+                            "$ref": "Runtime.RemoteObjectId"
+                        },
+                        {
+                            "name": "condition",
+                            "description": "Expression to use as a breakpoint condition. When specified, debugger will\nstop on the breakpoint if this expression evaluates to true.",
+                            "optional": true,
+                            "type": "string"
+                        }
+                    ],
+                    "returns": [
+                        {
+                            "name": "breakpointId",
+                            "description": "Id of the created breakpoint for further reference.",
+                            "$ref": "BreakpointId"
                         }
                     ]
                 },
@@ -2252,6 +2284,11 @@
                     "type": "number"
                 },
                 {
+                    "id": "TimeDelta",
+                    "description": "Number of milliseconds.",
+                    "type": "number"
+                },
+                {
                     "id": "CallFrame",
                     "description": "Stack entry for runtime errors and assertions.",
                     "type": "object",
@@ -2577,6 +2614,13 @@
                             "experimental": true,
                             "optional": true,
                             "type": "boolean"
+                        },
+                        {
+                            "name": "timeout",
+                            "description": "Terminate execution after timing out (number of milliseconds).",
+                            "experimental": true,
+                            "optional": true,
+                            "$ref": "TimeDelta"
                         }
                     ],
                     "returns": [
@@ -2815,6 +2859,18 @@
                     ]
                 },
                 {
+                    "name": "setAsyncCallStackDepth",
+                    "description": "Enables or disables async call stacks tracking.",
+                    "redirect": "Debugger",
+                    "parameters": [
+                        {
+                            "name": "maxDepth",
+                            "description": "Maximum depth of async call stacks. Setting to `0` will effectively disable collecting async\ncall stacks (default).",
+                            "type": "integer"
+                        }
+                    ]
+                },
+                {
                     "name": "setCustomObjectFormatterEnabled",
                     "experimental": true,
                     "parameters": [
@@ -2825,12 +2881,69 @@
                     ]
                 },
                 {
+                    "name": "setMaxCallStackSizeToCapture",
+                    "experimental": true,
+                    "parameters": [
+                        {
+                            "name": "size",
+                            "type": "integer"
+                        }
+                    ]
+                },
+                {
                     "name": "terminateExecution",
                     "description": "Terminate current or next JavaScript execution.\nWill cancel the termination when the outer-most script execution ends.",
                     "experimental": true
+                },
+                {
+                    "name": "addBinding",
+                    "description": "If executionContextId is empty, adds binding with the given name on the\nglobal objects of all inspected contexts, including those created later,\nbindings survive reloads.\nIf executionContextId is specified, adds binding only on global object of\ngiven execution context.\nBinding function takes exactly one argument, this argument should be string,\nin case of any other input, function throws an exception.\nEach binding function call produces Runtime.bindingCalled notification.",
+                    "experimental": true,
+                    "parameters": [
+                        {
+                            "name": "name",
+                            "type": "string"
+                        },
+                        {
+                            "name": "executionContextId",
+                            "optional": true,
+                            "$ref": "ExecutionContextId"
+                        }
+                    ]
+                },
+                {
+                    "name": "removeBinding",
+                    "description": "This method does not remove binding function from global object but\nunsubscribes current runtime agent from Runtime.bindingCalled notifications.",
+                    "experimental": true,
+                    "parameters": [
+                        {
+                            "name": "name",
+                            "type": "string"
+                        }
+                    ]
                 }
             ],
             "events": [
+                {
+                    "name": "bindingCalled",
+                    "description": "Notification is issued every time when binding is called.",
+                    "experimental": true,
+                    "parameters": [
+                        {
+                            "name": "name",
+                            "type": "string"
+                        },
+                        {
+                            "name": "payload",
+                            "type": "string"
+                        },
+                        {
+                            "name": "executionContextId",
+                            "description": "Identifier of the context where the call was made.",
+                            "$ref": "ExecutionContextId"
+                        }
+                    ]
+                },
                 {
                     "name": "consoleAPICalled",
                     "description": "Issued when console API was called.",

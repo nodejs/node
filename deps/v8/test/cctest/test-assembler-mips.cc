@@ -543,7 +543,7 @@ TEST(MIPS6) {
   } T;
   T t;
 
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(Assembler::Options{}, nullptr, 0);
   Label L, C;
 
   // Basic word load/store.
@@ -909,7 +909,7 @@ TEST(MIPS11) {
   } T;
   T t;
 
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(Assembler::Options{}, nullptr, 0);
 
   // Test all combinations of LWL and vAddr.
   __ lw(t0, MemOperand(a0, offsetof(T, reg_init)) );
@@ -1334,7 +1334,7 @@ TEST(MIPS15) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(Assembler::Options{}, nullptr, 0);
 
   Label target;
   __ beq(v0, v1, &target);
@@ -3151,7 +3151,7 @@ TEST(jump_tables1) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(Assembler::Options{}, nullptr, 0);
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -3202,7 +3202,7 @@ TEST(jump_tables1) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -3218,7 +3218,7 @@ TEST(jump_tables2) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(Assembler::Options{}, nullptr, 0);
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -3271,7 +3271,7 @@ TEST(jump_tables2) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -3287,13 +3287,13 @@ TEST(jump_tables3) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(Assembler::Options{}, nullptr, 0);
 
   const int kNumCases = 256;
   Handle<Object> values[kNumCases];
   for (int i = 0; i < kNumCases; ++i) {
     double value = isolate->random_number_generator()->NextDouble();
-    values[i] = isolate->factory()->NewHeapNumber(value, IMMUTABLE, TENURED);
+    values[i] = isolate->factory()->NewHeapNumber(value, TENURED);
   }
   Label labels[kNumCases];
   Object* obj;
@@ -3347,14 +3347,14 @@ TEST(jump_tables3) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kNumCases; ++i) {
     Handle<Object> result(f.Call(i, 0, 0, 0, 0), isolate);
 #ifdef OBJECT_PRINT
     ::printf("f(%d) = ", i);
-    result->Print(std::cout);
+    result->Print(isolate, std::cout);
     ::printf("\n");
 #endif
     CHECK(values[i].is_identical_to(result));
@@ -3377,7 +3377,7 @@ TEST(BITSWAP) {
     } T;
     T t;
 
-    Assembler assm(isolate, nullptr, 0);
+    Assembler assm(Assembler::Options{}, nullptr, 0);
 
     __ lw(a2, MemOperand(a0, offsetof(T, r1)));
     __ nop();
@@ -5013,7 +5013,7 @@ void run_bz_bnz(TestCaseMsaBranch* input, Branch GenerateBranch,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -5830,7 +5830,7 @@ TEST(MSA_fill_copy) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -5899,7 +5899,7 @@ TEST(MSA_fill_copy_2) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F4>::FromCode(*code);
 
@@ -5957,7 +5957,7 @@ TEST(MSA_fill_copy_3) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F4>::FromCode(*code);
 
@@ -6003,7 +6003,7 @@ void run_msa_insert(int32_t rs_value, int n, msa_reg_t* w) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -6104,7 +6104,7 @@ TEST(MSA_move_v) {
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-    code->Print(std::cout);
+    code->Print(isolate, std::cout);
 #endif
     auto f = GeneratedCode<F3>::FromCode(*code);
     (f.Call(&t[i].wd_lo, 0, 0, 0, 0));
@@ -6150,7 +6150,7 @@ void run_msa_sldi(OperFunc GenerateOperation,
     Handle<Code> code =
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-    code->Print(std::cout);
+    code->Print(isolate, std::cout);
 #endif
     auto f = GeneratedCode<F3>::FromCode(*code);
     (f.Call(&res[0], 0, 0, 0, 0));
@@ -6236,7 +6236,7 @@ void run_msa_ctc_cfc(uint32_t value) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -6347,7 +6347,7 @@ void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -6640,7 +6640,7 @@ void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -7061,7 +7061,7 @@ void run_msa_2r(const struct TestCaseMsa2R* input,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -8112,7 +8112,7 @@ void run_msa_vector(struct TestCaseMsaVector* input,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -8201,7 +8201,7 @@ void run_msa_bit(struct TestCaseMsaBit* input, InstFunc GenerateInstructionFunc,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -8675,7 +8675,7 @@ void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -8754,7 +8754,7 @@ void run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F4>::FromCode(*code);
 
@@ -8834,7 +8834,7 @@ void run_msa_3r(struct TestCaseMsa3R* input, InstFunc GenerateI5InstructionFunc,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -9840,7 +9840,7 @@ void run_msa_3rf(const struct TestCaseMsa3RF* input,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  code->Print(isolate, std::cout);
 #endif
   auto f = GeneratedCode<F3>::FromCode(*code);
 

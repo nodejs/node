@@ -7,6 +7,7 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/regexp/jsregexp.h"
 
 namespace v8 {
@@ -29,7 +30,7 @@ Handle<String> RegExpUtils::GenericCaptureGetter(
   }
 
   if (ok != nullptr) *ok = true;
-  Handle<String> last_subject(match_info->LastSubject());
+  Handle<String> last_subject(match_info->LastSubject(), isolate);
   return isolate->factory()->NewSubString(last_subject, match_start, match_end);
 }
 
@@ -123,10 +124,11 @@ Maybe<bool> RegExpUtils::IsRegExp(Isolate* isolate, Handle<Object> object) {
   Handle<Object> match;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, match,
-      JSObject::GetProperty(receiver, isolate->factory()->match_symbol()),
+      JSObject::GetProperty(isolate, receiver,
+                            isolate->factory()->match_symbol()),
       Nothing<bool>());
 
-  if (!match->IsUndefined(isolate)) return Just(match->BooleanValue());
+  if (!match->IsUndefined(isolate)) return Just(match->BooleanValue(isolate));
   return Just(object->IsJSRegExp());
 }
 

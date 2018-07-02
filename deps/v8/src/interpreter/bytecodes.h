@@ -226,7 +226,7 @@ namespace interpreter {
     OperandType::kIdx)                                                         \
   V(TestGreaterThanOrEqual, AccumulatorUse::kReadWrite, OperandType::kReg,     \
     OperandType::kIdx)                                                         \
-  V(TestEqualStrictNoFeedback, AccumulatorUse::kReadWrite, OperandType::kReg)  \
+  V(TestReferenceEqual, AccumulatorUse::kReadWrite, OperandType::kReg)         \
   V(TestInstanceOf, AccumulatorUse::kReadWrite, OperandType::kReg,             \
     OperandType::kIdx)                                                         \
   V(TestIn, AccumulatorUse::kReadWrite, OperandType::kReg)                     \
@@ -261,12 +261,14 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kFlag8)                                    \
                                                                                \
   /* Context allocation */                                                     \
-  V(CreateBlockContext, AccumulatorUse::kReadWrite, OperandType::kIdx)         \
-  V(CreateCatchContext, AccumulatorUse::kReadWrite, OperandType::kReg,         \
-    OperandType::kIdx, OperandType::kIdx)                                      \
-  V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kUImm)         \
-  V(CreateEvalContext, AccumulatorUse::kWrite, OperandType::kUImm)             \
-  V(CreateWithContext, AccumulatorUse::kReadWrite, OperandType::kReg,          \
+  V(CreateBlockContext, AccumulatorUse::kWrite, OperandType::kIdx)             \
+  V(CreateCatchContext, AccumulatorUse::kWrite, OperandType::kReg,             \
+    OperandType::kIdx)                                                         \
+  V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kIdx,          \
+    OperandType::kUImm)                                                        \
+  V(CreateEvalContext, AccumulatorUse::kWrite, OperandType::kIdx,              \
+    OperandType::kUImm)                                                        \
+  V(CreateWithContext, AccumulatorUse::kWrite, OperandType::kReg,              \
     OperandType::kIdx)                                                         \
                                                                                \
   /* Arguments allocation */                                                   \
@@ -691,11 +693,6 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
 #define OR_BYTECODE(NAME) || bytecode == Bytecode::k##NAME
     return false RETURN_BYTECODE_LIST(OR_BYTECODE);
 #undef OR_BYTECODE
-  }
-
-  // Returns the number of values which |bytecode| returns.
-  static constexpr size_t ReturnCount(Bytecode bytecode) {
-    return Returns(bytecode) ? 1 : 0;
   }
 
   // Returns the number of operands expected by |bytecode|.

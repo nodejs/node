@@ -26,6 +26,9 @@ int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size);
 void InterpretAndExecuteModule(Isolate* isolate,
                                Handle<WasmModuleObject> module_object);
 
+void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
+                      bool compiles);
+
 class WasmExecutionFuzzer {
  public:
   virtual ~WasmExecutionFuzzer() {}

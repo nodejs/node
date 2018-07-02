@@ -395,7 +395,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       return;
   }
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
-    CHECK_EQ(poisoning_enabled_, PoisoningMitigationLevel::kOn);
+    CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
     opcode |= MiscField::encode(kMemoryAccessPoisoned);
   }
 
@@ -2171,8 +2171,8 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
     }
   }
 
-  // Generate a sequence of conditional jumps.
-  return EmitLookupSwitch(sw, value_operand);
+  // Generate a tree of conditional jumps.
+  return EmitBinarySearchSwitch(sw, value_operand);
 }
 
 
@@ -2515,7 +2515,7 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   Emit(code, 1, outputs, input_count, inputs, 3, temp);
 }
 
-void InstructionSelector::VisitAtomicBinaryOperation(
+void InstructionSelector::VisitWord32AtomicBinaryOperation(
     Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
   Mips64OperandGenerator g(this);
@@ -2558,7 +2558,7 @@ void InstructionSelector::VisitAtomicBinaryOperation(
 
 #define VISIT_ATOMIC_BINOP(op)                                   \
   void InstructionSelector::VisitWord32Atomic##op(Node* node) {  \
-    VisitAtomicBinaryOperation(                                  \
+    VisitWord32AtomicBinaryOperation(                            \
         node, kWord32Atomic##op##Int8, kWord32Atomic##op##Uint8, \
         kWord32Atomic##op##Int16, kWord32Atomic##op##Uint16,     \
         kWord32Atomic##op##Word32);                              \
@@ -2802,7 +2802,9 @@ static const ShuffleEntry arch_shuffles[] = {
      kMips64S8x2Reverse}};
 
 bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
-                         size_t num_entries, uint8_t mask, ArchOpcode* opcode) {
+                         size_t num_entries, bool is_swizzle,
+                         ArchOpcode* opcode) {
+  uint8_t mask = is_swizzle ? kSimd128Size - 1 : 2 * kSimd128Size - 1;
   for (size_t i = 0; i < num_entries; ++i) {
     const ShuffleEntry& entry = table[i];
     int j = 0;
@@ -2822,35 +2824,35 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
 }  // namespace
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {
-  const uint8_t* shuffle = OpParameter<uint8_t*>(node->op());
-  uint8_t mask = CanonicalizeShuffle(node);
+  uint8_t shuffle[kSimd128Size];
+  bool is_swizzle;
+  CanonicalizeShuffle(node, shuffle, &is_swizzle);
   uint8_t shuffle32x4[4];
   ArchOpcode opcode;
   if (TryMatchArchShuffle(shuffle, arch_shuffles, arraysize(arch_shuffles),
-                          mask, &opcode)) {
+                          is_swizzle, &opcode)) {
     VisitRRR(this, opcode, node);
     return;
   }
+  Node* input0 = node->InputAt(0);
+  Node* input1 = node->InputAt(1);
   uint8_t offset;
   Mips64OperandGenerator g(this);
-  if (TryMatchConcat(shuffle, mask, &offset)) {
-    Emit(kMips64S8x16Concat, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)),
-         g.UseImmediate(offset));
+  if (TryMatchConcat(shuffle, &offset)) {
+    Emit(kMips64S8x16Concat, g.DefineSameAsFirst(node), g.UseRegister(input0),
+         g.UseRegister(input1), g.UseImmediate(offset));
     return;
   }
   if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
-    Emit(kMips64S32x4Shuffle, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-         g.UseImmediate(Pack4Lanes(shuffle32x4, mask)));
+    Emit(kMips64S32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1), g.UseImmediate(Pack4Lanes(shuffle32x4)));
     return;
   }
-  Emit(kMips64S8x16Shuffle, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-       g.UseImmediate(Pack4Lanes(shuffle, mask)),
-       g.UseImmediate(Pack4Lanes(shuffle + 4, mask)),
-       g.UseImmediate(Pack4Lanes(shuffle + 8, mask)),
-       g.UseImmediate(Pack4Lanes(shuffle + 12, mask)));
+  Emit(kMips64S8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+       g.UseRegister(input1), g.UseImmediate(Pack4Lanes(shuffle)),
+       g.UseImmediate(Pack4Lanes(shuffle + 4)),
+       g.UseImmediate(Pack4Lanes(shuffle + 8)),
+       g.UseImmediate(Pack4Lanes(shuffle + 12)));
 }
 
 void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {

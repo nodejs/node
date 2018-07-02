@@ -82,6 +82,11 @@ class InstructionTester : public HandleAndZoneScope {
     return code->AddInstruction(instr);
   }
 
+  int NewNop() {
+    TestInstr* instr = TestInstr::New(zone(), kArchNop);
+    return code->AddInstruction(instr);
+  }
+
   UnallocatedOperand Unallocated(int vreg) {
     return UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT, vreg);
   }
@@ -163,6 +168,7 @@ TEST(InstructionGetBasicBlock) {
   int i8 = R.NewInstr();
   R.code->EndBlock(R.RpoFor(b2));
   R.code->StartBlock(R.RpoFor(b3));
+  R.NewNop();
   R.code->EndBlock(R.RpoFor(b3));
 
   CHECK_EQ(b0, R.GetBasicBlock(i0));

@@ -55,6 +55,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::unique_ptr<protocol::Debugger::Location>,
       Maybe<String16> optionalCondition, String16*,
       std::unique_ptr<protocol::Debugger::Location>* actualLocation) override;
+  Response setBreakpointOnFunctionCall(const String16& functionObjectId,
+                                       Maybe<String16> optionalCondition,
+                                       String16* outBreakpointId) override;
   Response removeBreakpoint(const String16& breakpointId) override;
   Response continueToLocation(std::unique_ptr<protocol::Debugger::Location>,
                               Maybe<String16> targetCallFrames) override;
@@ -102,6 +105,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       Maybe<String16> objectGroup, Maybe<bool> includeCommandLineAPI,
       Maybe<bool> silent, Maybe<bool> returnByValue,
       Maybe<bool> generatePreview, Maybe<bool> throwOnSideEffect,
+      Maybe<double> timeout,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result,
       Maybe<protocol::Runtime::ExceptionDetails>*) override;
   Response setVariableValue(

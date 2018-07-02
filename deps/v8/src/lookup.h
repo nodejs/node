@@ -56,7 +56,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Handle<JSReceiver> holder,
                  Configuration configuration = DEFAULT)
-      : LookupIterator(name->GetIsolate(), receiver, name, holder,
+      : LookupIterator(holder->GetIsolate(), receiver, name, holder,
                        configuration) {}
 
   LookupIterator(Isolate* isolate, Handle<Object> receiver, Handle<Name> name,

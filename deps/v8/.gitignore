@@ -105,5 +105,7 @@ turbo*.dot
 turbo*.json
 v8.ignition_dispatches_table.json
 /Default/
+node_modules
+tools/turbolizer/build
 !/third_party/jinja2
 !/third_party/markupsafe

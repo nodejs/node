@@ -90,7 +90,7 @@ class EmbeddedData final {
 
   void Dispose() { delete[] data_; }
 
-  const uint8_t* InstructionStartOfBuiltin(int i) const;
+  Address InstructionStartOfBuiltin(int i) const;
   uint32_t InstructionSizeOfBuiltin(int i) const;
 
   bool ContainsBuiltin(int i) const { return InstructionSizeOfBuiltin(i) > 0; }
@@ -100,16 +100,26 @@ class EmbeddedData final {
     return RoundUp<kCodeAlignment>(InstructionSizeOfBuiltin(i));
   }
 
+  size_t CreateHash() const;
+  size_t Hash() const {
+    return *reinterpret_cast<const size_t*>(data_ + HashOffset());
+  }
+
   // The layout of the blob is as follows:
   //
-  // [0] offset of instruction stream 0
-  // ... offsets
-  // [N] length of instruction stream 0
-  // ... lengths
-  // ... instruction streams
+  // [0]     hash of the remaining blob
+  // [1]     offset of instruction stream 0
+  // ...     offsets
+  // [N + 1] length of instruction stream 0
+  // ...     lengths
+  // ...     instruction streams
 
   static constexpr uint32_t kTableSize = Builtins::builtin_count;
-  static constexpr uint32_t OffsetsOffset() { return 0; }
+  static constexpr uint32_t HashOffset() { return 0; }
+  static constexpr uint32_t HashSize() { return kSizetSize; }
+  static constexpr uint32_t OffsetsOffset() {
+    return HashOffset() + HashSize();
+  }
   static constexpr uint32_t OffsetsSize() { return kUInt32Size * kTableSize; }
   static constexpr uint32_t LengthsOffset() {
     return OffsetsOffset() + OffsetsSize();
@@ -194,10 +204,11 @@ class Snapshot : public AllStatic {
                                                uint32_t index);
 
   static uint32_t GetHeaderValue(const v8::StartupData* data, uint32_t offset) {
-    return ReadLittleEndianValue<uint32_t>(data->data + offset);
+    return ReadLittleEndianValue<uint32_t>(
+        reinterpret_cast<Address>(data->data) + offset);
   }
   static void SetHeaderValue(char* data, uint32_t offset, uint32_t value) {
-    WriteLittleEndianValue(data + offset, value);
+    WriteLittleEndianValue(reinterpret_cast<Address>(data) + offset, value);
   }
 
   static void CheckVersion(const v8::StartupData* data);

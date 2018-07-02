@@ -177,6 +177,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildArrayLiteralSpread(Spread* spread, Register array, Register index,
                                FeedbackSlot index_slot,
                                FeedbackSlot element_slot);
+  void BuildArrayLiteralElementsInsertion(Register array,
+                                          int first_spread_index,
+                                          ZoneList<Expression*>* elements,
+                                          bool skip_constants);
 
   void AllocateTopLevelRegisters();
   void VisitArgumentsObject(Variable* variable);
@@ -189,7 +193,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                         Register instance);
   void BuildGeneratorObjectVariableInitialization();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
-  void VisitFunctionClosureForContext();
   void VisitSetHomeObject(Register value, Register home_object,
                           LiteralProperty* property);
   void VisitObjectLiteralAccessor(Register home_object,
@@ -244,7 +247,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   TypeHint VisitForAccumulatorValue(Expression* expr);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
   V8_WARN_UNUSED_RESULT Register VisitForRegisterValue(Expression* expr);
-  INLINE(void VisitForRegisterValue(Expression* expr, Register destination));
+  V8_INLINE void VisitForRegisterValue(Expression* expr, Register destination);
   void VisitAndPushIntoRegisterList(Expression* expr, RegisterList* reg_list);
   void VisitForEffect(Expression* expr);
   void VisitForTest(Expression* expr, BytecodeLabels* then_labels,
@@ -266,6 +269,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   FeedbackSlot GetCachedStoreGlobalICSlot(LanguageMode language_mode,
                                           Variable* variable);
   FeedbackSlot GetCachedCreateClosureSlot(FunctionLiteral* literal);
+  FeedbackSlot GetCachedLoadICSlot(const Expression* expr,
+                                   const AstRawString* name);
+  FeedbackSlot GetCachedStoreICSlot(const Expression* expr,
+                                    const AstRawString* name);
+  FeedbackSlot GetDummyCompareICSlot();
 
   void AddToEagerLiteralsIfEager(FunctionLiteral* literal);
 
@@ -351,6 +359,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ExpressionResultScope* execution_result_;
 
   Register incoming_new_target_or_generator_;
+
+  // Dummy feedback slot for compare operations, where we don't care about
+  // feedback
+  FeedbackSlot dummy_feedback_slot_;
 
   BytecodeJumpTable* generator_jump_table_;
   int suspend_count_;

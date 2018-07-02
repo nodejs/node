@@ -2592,7 +2592,7 @@ int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
 
 // Disassemble the instruction at *instr_ptr into the output buffer.
 int Decoder::InstructionDecode(byte* instr_ptr) {
-  Instruction* instr = Instruction::At(instr_ptr);
+  Instruction* instr = Instruction::At(reinterpret_cast<Address>(instr_ptr));
   // Print raw instruction bytes.
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                               "%08x       ",

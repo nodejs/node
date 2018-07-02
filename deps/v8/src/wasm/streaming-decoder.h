@@ -44,8 +44,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // Report the end of the stream. If the stream was successful, all
   // received bytes are passed by parameter. If there has been an error, an
   // empty array is passed.
-  virtual void OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
-                                size_t length) = 0;
+  virtual void OnFinishedStream(OwnedVector<uint8_t> bytes) = 0;
   // Report an error detected in the StreamingDecoder.
   virtual void OnError(DecodeResult result) = 0;
   // Report the abortion of the stream.

@@ -38,7 +38,7 @@ declare_args() {
   v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64")
 
   # Enable several snapshots side-by-side (e.g. default and for trusted code).
-  v8_use_multi_snapshots = ""
+  v8_use_multi_snapshots = false
 
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
@@ -61,7 +61,10 @@ if (v8_use_external_startup_data == "") {
   v8_use_external_startup_data = v8_use_snapshot && !is_ios
 }
 
-if (v8_use_multi_snapshots == "") {
+if (v8_use_multi_snapshots) {
+  # Silently disable multi snapshots if they're incompatible with the current
+  # build configuration. This allows us to set v8_use_multi_snapshots=true on
+  # all bots, and e.g. no-snapshot bots will automatically do the right thing.
   v8_use_multi_snapshots =
       v8_use_external_startup_data && !build_with_chromium && !use_jumbo_build
 }
@@ -96,7 +99,7 @@ if (is_debug && !v8_optimized_debug) {
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
-  if (is_posix && !is_android && !using_sanitizer) {
+  if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
     v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     v8_add_configs += [ "//build/config/compiler:optimize_max" ]
@@ -110,7 +113,7 @@ if (v8_code_coverage && !is_clang) {
   ]
 }
 
-if (is_posix && (v8_enable_backtrace || v8_monolithic)) {
+if ((is_posix || is_fuchsia) && (v8_enable_backtrace || v8_monolithic)) {
   v8_remove_configs += [ "//build/config/gcc:symbol_visibility_hidden" ]
   v8_add_configs += [ "//build/config/gcc:symbol_visibility_default" ]
 }

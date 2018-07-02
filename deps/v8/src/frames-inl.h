@@ -209,6 +209,10 @@ inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
 inline CWasmEntryFrame::CWasmEntryFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
+inline WasmCompileLazyFrame::WasmCompileLazyFrame(
+    StackFrameIteratorBase* iterator)
+    : StandardFrame(iterator) {}
+
 inline InternalFrame::InternalFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
 }

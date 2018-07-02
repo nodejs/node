@@ -59,19 +59,15 @@ void SimulatorBase::GlobalTearDown() {
 }
 
 // static
-void SimulatorBase::Initialize(Isolate* isolate) {
-  ExternalReference::set_redirector(isolate, &RedirectExternalReference);
-}
-
-// static
-void* SimulatorBase::RedirectExternalReference(void* external_function,
-                                               ExternalReference::Type type) {
+Address SimulatorBase::RedirectExternalReference(Address external_function,
+                                                 ExternalReference::Type type) {
   base::LockGuard<base::Mutex> lock_guard(Simulator::redirection_mutex());
   Redirection* redirection = Redirection::Get(external_function, type);
   return redirection->address_of_instruction();
 }
 
-Redirection::Redirection(void* external_function, ExternalReference::Type type)
+Redirection::Redirection(Address external_function,
+                         ExternalReference::Type type)
     : external_function_(external_function), type_(type), next_(nullptr) {
   next_ = Simulator::redirection();
   base::LockGuard<base::Mutex> lock_guard(Simulator::i_cache_mutex());
@@ -89,7 +85,7 @@ Redirection::Redirection(void* external_function, ExternalReference::Type type)
 }
 
 // static
-Redirection* Redirection::Get(void* external_function,
+Redirection* Redirection::Get(Address external_function,
                               ExternalReference::Type type) {
   Redirection* current = Simulator::redirection();
   for (; current != nullptr; current = current->next_) {

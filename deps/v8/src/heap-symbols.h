@@ -256,8 +256,6 @@
   V(sealed_symbol)                     \
   V(stack_trace_symbol)                \
   V(strict_function_transition_symbol) \
-  V(wasm_function_index_symbol)        \
-  V(wasm_instance_symbol)              \
   V(uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST(V)                    \
@@ -294,6 +292,15 @@
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
   F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)
 
+#define TOP_MC_SCOPES(F) \
+  F(MC_CLEAR)            \
+  F(MC_EPILOGUE)         \
+  F(MC_EVACUATE)         \
+  F(MC_FINISH)           \
+  F(MC_MARK)             \
+  F(MC_PROLOGUE)         \
+  F(MC_SWEEP)
+
 #define TRACER_SCOPES(F)                             \
   INCREMENTAL_SCOPES(F)                              \
   F(HEAP_EPILOGUE)                                   \
@@ -302,7 +309,7 @@
   F(HEAP_EXTERNAL_PROLOGUE)                          \
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
   F(HEAP_PROLOGUE)                                   \
-  F(MC_CLEAR)                                        \
+  TOP_MC_SCOPES(F)                                   \
   F(MC_CLEAR_DEPENDENT_CODE)                         \
   F(MC_CLEAR_MAPS)                                   \
   F(MC_CLEAR_SLOTS_BUFFER)                           \
@@ -312,8 +319,6 @@
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
   F(MC_CLEAR_WEAK_LISTS)                             \
   F(MC_CLEAR_WEAK_REFERENCES)                        \
-  F(MC_EPILOGUE)                                     \
-  F(MC_EVACUATE)                                     \
   F(MC_EVACUATE_CANDIDATES)                          \
   F(MC_EVACUATE_CLEAN_UP)                            \
   F(MC_EVACUATE_COPY)                                \
@@ -325,21 +330,18 @@
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
-  F(MC_FINISH)                                       \
-  F(MC_MARK)                                         \
   F(MC_MARK_FINISH_INCREMENTAL)                      \
   F(MC_MARK_MAIN)                                    \
   F(MC_MARK_ROOTS)                                   \
   F(MC_MARK_WEAK_CLOSURE)                            \
-  F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)                  \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON)                  \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)          \
   F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)               \
   F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)                 \
   F(MC_MARK_WEAK_CLOSURE_HARMONY)                    \
   F(MC_MARK_WRAPPER_EPILOGUE)                        \
   F(MC_MARK_WRAPPER_PROLOGUE)                        \
   F(MC_MARK_WRAPPER_TRACING)                         \
-  F(MC_PROLOGUE)                                     \
-  F(MC_SWEEP)                                        \
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_OLD)                                    \

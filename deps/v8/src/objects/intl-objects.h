@@ -9,6 +9,10 @@
 #ifndef V8_OBJECTS_INTL_OBJECTS_H_
 #define V8_OBJECTS_INTL_OBJECTS_H_
 
+#include <set>
+#include <string>
+
+#include "src/intl.h"
 #include "src/objects.h"
 #include "unicode/uversion.h"
 
@@ -157,6 +161,42 @@ class V8BreakIterator {
 
  private:
   V8BreakIterator();
+};
+
+class Intl {
+ public:
+  enum Type {
+    kNumberFormat = 0,
+    kCollator,
+    kDateTimeFormat,
+    kPluralRules,
+    kBreakIterator,
+    kLocale,
+
+    kTypeCount
+  };
+
+  inline static Intl::Type TypeFromInt(int type);
+  inline static Intl::Type TypeFromSmi(Smi* type);
+
+  // Checks if the given object has the expected_type based by looking
+  // up a private symbol on the object.
+  //
+  // TODO(gsathya): This should just be an instance type check once we
+  // move all the Intl objects to C++.
+  static bool IsObjectOfType(Isolate* isolate, Handle<Object> object,
+                             Intl::Type expected_type);
+
+  // Gets the ICU locales for a given service. If there is a locale with a
+  // script tag then the locales also include a locale without the script; eg,
+  // pa_Guru_IN (language=Panjabi, script=Gurmukhi, country-India) would include
+  // pa_IN.
+  static std::set<std::string> GetAvailableLocales(const IcuService& service);
+
+  // If locale has a script tag then return true and the locale without the
+  // script else return false and an empty string
+  static bool RemoveLocaleScriptTag(const std::string& icu_locale,
+                                    std::string* locale_less_script);
 };
 
 }  // namespace internal

@@ -117,6 +117,32 @@ TEST(ConcurrentMarkingMarkedBytes) {
   CHECK_GE(heap->concurrent_marking()->TotalMarkedBytes(), root->Size());
 }
 
+UNINITIALIZED_TEST(ConcurrentMarkingStoppedOnTeardown) {
+  if (!i::FLAG_concurrent_marking) return;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+    Factory* factory = i_isolate->factory();
+
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::New(isolate)->Enter();
+
+    for (int i = 0; i < 10000; i++) {
+      factory->NewJSWeakMap();
+    }
+
+    Heap* heap = i_isolate->heap();
+    heap::SimulateIncrementalMarking(heap, false);
+  }
+
+  isolate->Dispose();
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

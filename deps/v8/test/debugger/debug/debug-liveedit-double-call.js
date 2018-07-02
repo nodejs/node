@@ -92,8 +92,7 @@ function TestCase(test_scenario, expected_output) {
       }
       script_text_generator.change(change_var);
       try {
-        Debug.LiveEdit.SetScriptSource(script, script_text_generator.get(),
-            false, []);
+        %LiveEditPatchScript(test_fun, script_text_generator.get())
       } catch (e) {
         print("LiveEdit exception: " + e);
         throw e;

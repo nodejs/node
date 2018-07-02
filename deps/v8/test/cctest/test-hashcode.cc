@@ -21,7 +21,7 @@ int AddToSetAndGetHash(Isolate* isolate, Handle<JSObject> obj,
   CHECK_EQ(has_fast_properties, obj->HasFastProperties());
   CHECK_EQ(isolate->heap()->undefined_value(), obj->GetHash());
   Handle<OrderedHashSet> set = isolate->factory()->NewOrderedHashSet();
-  OrderedHashSet::Add(set, obj);
+  OrderedHashSet::Add(isolate, set, obj);
   CHECK_EQ(has_fast_properties, obj->HasFastProperties());
   return Smi::ToInt(obj->GetHash());
 }

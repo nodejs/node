@@ -31,7 +31,8 @@ BUILTIN(RegExpPrototypeToString) {
     Handle<Object> source;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, source,
-        JSReceiver::GetProperty(recv, isolate->factory()->source_string()));
+        JSReceiver::GetProperty(isolate, recv,
+                                isolate->factory()->source_string()));
     Handle<String> source_str;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, source_str,
                                        Object::ToString(isolate, source));
@@ -43,7 +44,8 @@ BUILTIN(RegExpPrototypeToString) {
     Handle<Object> flags;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, flags,
-        JSReceiver::GetProperty(recv, isolate->factory()->flags_string()));
+        JSReceiver::GetProperty(isolate, recv,
+                                isolate->factory()->flags_string()));
     Handle<String> flags_str;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, flags_str,
                                        Object::ToString(isolate, flags));
@@ -123,7 +125,7 @@ BUILTIN(RegExpLeftContextGetter) {
   HandleScope scope(isolate);
   Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
   const int start_index = match_info->Capture(0);
-  Handle<String> last_subject(match_info->LastSubject());
+  Handle<String> last_subject(match_info->LastSubject(), isolate);
   return *isolate->factory()->NewSubString(last_subject, 0, start_index);
 }
 
@@ -131,7 +133,7 @@ BUILTIN(RegExpRightContextGetter) {
   HandleScope scope(isolate);
   Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
   const int start_index = match_info->Capture(1);
-  Handle<String> last_subject(match_info->LastSubject());
+  Handle<String> last_subject(match_info->LastSubject(), isolate);
   const int len = last_subject->length();
   return *isolate->factory()->NewSubString(last_subject, start_index, len);
 }

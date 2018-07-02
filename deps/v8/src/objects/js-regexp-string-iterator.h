@@ -33,7 +33,7 @@ class JSRegExpStringIterator : public JSObject {
   DECL_BOOLEAN_ACCESSORS(unicode)
 
   DECL_CAST(JSRegExpStringIterator)
-  DECL_PRINTER(JSRegExpStringIterator)
+  DECL_PRINTER_WITH_ISOLATE(JSRegExpStringIterator)
   DECL_VERIFIER(JSRegExpStringIterator)
 
   static const int kIteratingRegExpOffset = JSObject::kHeaderSize;

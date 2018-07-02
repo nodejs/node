@@ -5,19 +5,15 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_INL_H_
 #define V8_OBJECTS_FIXED_ARRAY_INL_H_
 
-#include "src/objects.h"
+#include "src/objects/fixed-array.h"
+
+#include "src/objects/bigint.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
-
-TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
-TYPE_CHECKER(FixedArrayExact, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
-TYPE_CHECKER(FixedArrayOfWeakCells, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(WeakFixedArray, WEAK_FIXED_ARRAY_TYPE)
 
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(ByteArray)
@@ -28,11 +24,16 @@ CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(TemplateList)
 CAST_ACCESSOR(FixedArrayOfWeakCells)
 CAST_ACCESSOR(WeakFixedArray)
+CAST_ACCESSOR(WeakArrayList)
 
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
+
+SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
+SYNCHRONIZED_SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
+SMI_ACCESSORS(WeakArrayList, length, kLengthOffset)
 
 Object* FixedArrayBase::unchecked_synchronized_length() const {
   return ACQUIRE_READ_FIELD(this, kLengthOffset);
@@ -55,7 +56,7 @@ bool FixedArray::ContainsOnlySmisOrHoles() {
 }
 
 Object* FixedArray::get(int index) const {
-  SLOW_DCHECK(index >= 0 && index < this->length());
+  DCHECK(index >= 0 && index < this->length());
   return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
 
@@ -220,7 +221,7 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 MaybeObject* WeakFixedArray::Get(int index) const {
-  SLOW_DCHECK(index >= 0 && index < this->length());
+  DCHECK(index >= 0 && index < this->length());
   return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
 }
 
@@ -232,7 +233,41 @@ void WeakFixedArray::Set(int index, MaybeObject* value) {
   WEAK_WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
+void WeakFixedArray::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, length());
+  int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+}
+
 MaybeObject** WeakFixedArray::data_start() {
+  return HeapObject::RawMaybeWeakField(this, kHeaderSize);
+}
+
+MaybeObject** WeakFixedArray::RawFieldOfElementAt(int index) {
+  return HeapObject::RawMaybeWeakField(this, OffsetOfElementAt(index));
+}
+
+MaybeObject** WeakFixedArray::GetFirstElementAddress() {
+  return reinterpret_cast<MaybeObject**>(
+      FIELD_ADDR(this, OffsetOfElementAt(0)));
+}
+
+MaybeObject* WeakArrayList::Get(int index) const {
+  DCHECK(index >= 0 && index < this->capacity());
+  return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
+}
+
+void WeakArrayList::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->capacity());
+  int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+}
+
+MaybeObject** WeakArrayList::data_start() {
   return HeapObject::RawMaybeWeakField(this, kHeaderSize);
 }
 
@@ -300,7 +335,7 @@ void ArrayList::Set(int index, Object* obj, WriteBarrierMode mode) {
 }
 
 void ArrayList::Clear(int index, Object* undefined) {
-  DCHECK(undefined->IsUndefined(GetIsolate()));
+  DCHECK(undefined->IsUndefined());
   FixedArray::cast(this)->set(kFirstIndex + index, undefined,
                               SKIP_WRITE_BARRIER);
 }
@@ -320,15 +355,15 @@ void ByteArray::set(int index, byte value) {
 void ByteArray::copy_in(int index, const byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
-  byte* dst_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
-  memcpy(dst_addr, buffer, length);
+  Address dst_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
+  memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
 }
 
 void ByteArray::copy_out(int index, byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
-  const byte* src_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
-  memcpy(buffer, src_addr, length);
+  Address src_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
+  memcpy(buffer, reinterpret_cast<void*>(src_addr), length);
 }
 
 int ByteArray::get_int(int index) const {
@@ -353,7 +388,7 @@ void ByteArray::set_uint32(int index, uint32_t value) {
 
 void ByteArray::clear_padding() {
   int data_size = length() + kHeaderSize;
-  memset(address() + data_size, 0, Size() - data_size);
+  memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);
 }
 
 ByteArray* ByteArray::FromDataStartAddress(Address address) {
@@ -365,18 +400,18 @@ int ByteArray::DataSize() const { return RoundUp(length(), kPointerSize); }
 
 int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
 
-Address ByteArray::GetDataStartAddress() {
-  return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
+byte* ByteArray::GetDataStartAddress() {
+  return reinterpret_cast<byte*>(address() + kHeaderSize);
 }
 
 template <class T>
 PodArray<T>* PodArray<T>::cast(Object* object) {
-  SLOW_DCHECK(object->IsByteArray());
+  DCHECK(object->IsByteArray());
   return reinterpret_cast<PodArray<T>*>(object);
 }
 template <class T>
 const PodArray<T>* PodArray<T>::cast(const Object* object) {
-  SLOW_DCHECK(object->IsByteArray());
+  DCHECK(object->IsByteArray());
   return reinterpret_cast<const PodArray<T>*>(object);
 }
 
@@ -655,7 +690,7 @@ void FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
   } else {
     // Clamp undefined to the default value. All other types have been
     // converted to a number type further up in the call chain.
-    DCHECK(value->IsUndefined(GetIsolate()));
+    DCHECK(value->IsUndefined());
   }
   set(index, cast_value);
 }
@@ -727,18 +762,18 @@ STATIC_CONST_MEMBER_DEFINITION const InstanceType
 
 template <class Traits>
 FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
-  SLOW_DCHECK(object->IsHeapObject() &&
-              HeapObject::cast(object)->map()->instance_type() ==
-                  Traits::kInstanceType);
+  DCHECK(object->IsHeapObject() &&
+         HeapObject::cast(object)->map()->instance_type() ==
+             Traits::kInstanceType);
   return reinterpret_cast<FixedTypedArray<Traits>*>(object);
 }
 
 template <class Traits>
 const FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(
     const Object* object) {
-  SLOW_DCHECK(object->IsHeapObject() &&
-              HeapObject::cast(object)->map()->instance_type() ==
-                  Traits::kInstanceType);
+  DCHECK(object->IsHeapObject() &&
+         HeapObject::cast(object)->map()->instance_type() ==
+             Traits::kInstanceType);
   return reinterpret_cast<FixedTypedArray<Traits>*>(object);
 }
 

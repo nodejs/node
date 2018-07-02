@@ -22,7 +22,7 @@ namespace trap_handler {
 // protected memory access instructions and an offset to a landing pad to handle
 // faults on that instruction.
 struct CodeProtectionInfo {
-  void* base;
+  Address base;
   size_t size;
   size_t num_protected_instructions;
   ProtectedInstructionData instructions[1];

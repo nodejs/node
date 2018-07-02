@@ -5,6 +5,9 @@
 #ifndef V8_MIPS_FRAME_CONSTANTS_MIPS_H_
 #define V8_MIPS_FRAME_CONSTANTS_MIPS_H_
 
+#include "src/base/macros.h"
+#include "src/frame-constants.h"
+
 namespace v8 {
 namespace internal {
 
@@ -32,6 +35,19 @@ class ExitFrameConstants : public TypedFrameConstants {
   static constexpr int kCallerSPDisplacement = +2 * kPointerSize;
 
   static constexpr int kConstantPoolOffset = 0;  // Not used.
+};
+
+class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+ public:
+  static constexpr int kNumberOfSavedGpParamRegs = 4;
+  static constexpr int kNumberOfSavedFpParamRegs = 7;
+
+  // FP-relative.
+  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
+  static constexpr int kFixedFrameSizeFromFp =
+      TypedFrameConstants::kFixedFrameSizeFromFp +
+      kNumberOfSavedGpParamRegs * kPointerSize +
+      kNumberOfSavedFpParamRegs * kDoubleSize;
 };
 
 class JavaScriptFrameConstants : public AllStatic {

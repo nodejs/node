@@ -44,11 +44,7 @@
   assertEquals("abcde", f("de"));
   assertEquals("abcde", f("de"));
   %OptimizeFunctionOnNextCall(f);
-  var s = "x".repeat((1 << 28) - 16);
-  try {
-    s = "x".repeat((1 << 30) - 1 - 24);
-  } catch (e) {
-  }
+  var s = "x".repeat(%StringMaxLength());
   assertThrows(() => f(s), RangeError);
 })();
 
@@ -93,10 +89,6 @@
   assertEquals("abcde", f("de"));
   assertEquals("abcde", f("de"));
   %OptimizeFunctionOnNextCall(f);
-  var s = "x".repeat((1 << 28) - 16);
-  try {
-    s = "x".repeat((1 << 30) - 1 - 24);
-  } catch (e) {
-  }
+  var s = "x".repeat(%StringMaxLength());
   assertThrows(() => f(s), RangeError);
 })();

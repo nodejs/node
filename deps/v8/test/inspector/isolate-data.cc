@@ -63,6 +63,7 @@ IsolateData::IsolateData(TaskRunner* task_runner,
   params.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   params.snapshot_blob = startup_data;
+  params.only_terminate_in_safe_scope = true;
   isolate_.reset(v8::Isolate::New(params));
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
   if (with_inspector) {

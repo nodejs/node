@@ -65,7 +65,7 @@ class Interpreter {
   void IterateDispatchTable(RootVisitor* v);
 
   // Disassembler support (only useful with ENABLE_DISASSEMBLER defined).
-  const char* LookupNameOfBytecodeHandler(Code* code);
+  const char* LookupNameOfBytecodeHandler(const Code* code);
 
   V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
 

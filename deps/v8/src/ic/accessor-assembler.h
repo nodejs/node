@@ -30,7 +30,6 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadIC();
   void GenerateLoadIC_Noninlined();
   void GenerateLoadIC_Uninitialized();
-  void GenerateLoadField();
   void GenerateLoadICTrampoline();
   void GenerateKeyedLoadIC();
   void GenerateKeyedLoadICTrampoline();
@@ -50,7 +49,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreInArrayLiteralIC();
 
   void TryProbeStubCache(StubCache* stub_cache, Node* receiver, Node* name,
-                         Label* if_handler, Variable* var_handler,
+                         Label* if_handler, TVariable<MaybeObject>* var_handler,
                          Label* if_miss);
 
   Node* StubCachePrimaryOffsetForTesting(Node* name, Node* map) {
@@ -89,25 +88,26 @@ class AccessorAssembler : public CodeStubAssembler {
   void LoadIC_BytecodeHandler(const LoadICParameters* p, ExitPoint* exit_point);
 
   // Loads dataX field from the DataHandler object.
-  TNode<Object> LoadHandlerDataField(SloppyTNode<DataHandler> handler,
-                                     int data_index);
+  TNode<MaybeObject> LoadHandlerDataField(SloppyTNode<DataHandler> handler,
+                                          int data_index);
 
  protected:
   struct StoreICParameters : public LoadICParameters {
-    StoreICParameters(Node* context, Node* receiver, Node* name, Node* value,
-                      Node* slot, Node* vector)
+    StoreICParameters(Node* context, Node* receiver, Node* name,
+                      SloppyTNode<Object> value, Node* slot, Node* vector)
         : LoadICParameters(context, receiver, name, slot, vector),
           value(value) {}
-    Node* value;
+    SloppyTNode<Object> value;
   };
 
   enum class ICMode { kNonGlobalIC, kGlobalIC };
   enum ElementSupport { kOnlyProperties, kSupportElements };
   void HandleStoreICHandlerCase(
-      const StoreICParameters* p, Node* handler, Label* miss, ICMode ic_mode,
-      ElementSupport support_elements = kOnlyProperties);
+      const StoreICParameters* p, TNode<MaybeObject> handler, Label* miss,
+      ICMode ic_mode, ElementSupport support_elements = kOnlyProperties);
   void HandleStoreICTransitionMapHandlerCase(const StoreICParameters* p,
-                                             Node* transition_map, Label* miss,
+                                             TNode<Map> transition_map,
+                                             Label* miss,
                                              bool validate_transition_handler);
 
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
@@ -123,8 +123,8 @@ class AccessorAssembler : public CodeStubAssembler {
                                          Label* slow,
                                          bool do_transitioning_store);
 
-  void CheckFieldType(Node* descriptors, Node* name_index, Node* representation,
-                      Node* value, Label* bailout);
+  void CheckFieldType(TNode<DescriptorArray> descriptors, Node* name_index,
+                      Node* representation, Node* value, Label* bailout);
 
  private:
   // Stub generation entry points.
@@ -133,10 +133,13 @@ class AccessorAssembler : public CodeStubAssembler {
   // logic not inlined into Ignition bytecode handlers.
   void LoadIC(const LoadICParameters* p);
   void LoadIC_Noninlined(const LoadICParameters* p, Node* receiver_map,
-                         Node* feedback, Variable* var_handler,
-                         Label* if_handler, Label* miss, ExitPoint* exit_point);
+                         TNode<HeapObject> feedback,
+                         TVariable<MaybeObject>* var_handler, Label* if_handler,
+                         Label* miss, ExitPoint* exit_point);
 
-  Node* LoadDescriptorValue(Node* map, Node* descriptor);
+  TNode<Object> LoadDescriptorValue(Node* map, Node* descriptor);
+  TNode<MaybeObject> LoadDescriptorValueOrFieldType(Node* map,
+                                                    Node* descriptor);
 
   void LoadIC_Uninitialized(const LoadICParameters* p);
 
@@ -153,17 +156,19 @@ class AccessorAssembler : public CodeStubAssembler {
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  Node* TryMonomorphicCase(Node* slot, Node* vector, Node* receiver_map,
-                           Label* if_handler, Variable* var_handler,
-                           Label* if_miss);
-  void HandlePolymorphicCase(Node* receiver_map, Node* feedback,
-                             Label* if_handler, Variable* var_handler,
+  TNode<MaybeObject> TryMonomorphicCase(Node* slot, Node* vector,
+                                        Node* receiver_map, Label* if_handler,
+                                        TVariable<MaybeObject>* var_handler,
+                                        Label* if_miss);
+  void HandlePolymorphicCase(Node* receiver_map, TNode<WeakFixedArray> feedback,
+                             Label* if_handler,
+                             TVariable<MaybeObject>* var_handler,
                              Label* if_miss, int min_feedback_capacity);
 
   // LoadIC implementation.
   enum class OnNonExistent { kThrowReferenceError, kReturnUndefined };
   void HandleLoadICHandlerCase(
-      const LoadICParameters* p, Node* handler, Label* miss,
+      const LoadICParameters* p, TNode<Object> handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
       OnNonExistent on_nonexistent = OnNonExistent::kReturnUndefined,
       ElementSupport support_elements = kOnlyProperties);
@@ -203,8 +208,9 @@ class AccessorAssembler : public CodeStubAssembler {
 
   // StoreIC implementation.
 
-  void HandleStoreICProtoHandler(const StoreICParameters* p, Node* handler,
-                                 Label* miss, ICMode ic_mode,
+  void HandleStoreICProtoHandler(const StoreICParameters* p,
+                                 TNode<StoreHandler> handler, Label* miss,
+                                 ICMode ic_mode,
                                  ElementSupport support_elements);
   void HandleStoreICSmiHandlerCase(Node* handler_word, Node* holder,
                                    Node* value, Label* miss);
@@ -225,12 +231,13 @@ class AccessorAssembler : public CodeStubAssembler {
   // KeyedLoadIC_Generic implementation.
 
   void GenericElementLoad(Node* receiver, Node* receiver_map,
-                          Node* instance_type, Node* index, Label* slow);
+                          SloppyTNode<Int32T> instance_type, Node* index,
+                          Label* slow);
 
   enum UseStubCache { kUseStubCache, kDontUseStubCache };
   void GenericPropertyLoad(Node* receiver, Node* receiver_map,
-                           Node* instance_type, const LoadICParameters* p,
-                           Label* slow,
+                           SloppyTNode<Int32T> instance_type,
+                           const LoadICParameters* p, Label* slow,
                            UseStubCache use_stub_cache = kUseStubCache);
 
   // Low-level helpers.
@@ -263,11 +270,13 @@ class AccessorAssembler : public CodeStubAssembler {
                                    Node* intptr_index,
                                    Node* is_jsarray_condition, Label* miss);
   void EmitElementLoad(Node* object, Node* elements, Node* elements_kind,
-                       Node* key, Node* is_jsarray_condition, Label* if_hole,
-                       Label* rebox_double, Variable* var_double_value,
+                       SloppyTNode<IntPtrT> key, Node* is_jsarray_condition,
+                       Label* if_hole, Label* rebox_double,
+                       Variable* var_double_value,
                        Label* unimplemented_elements_kind, Label* out_of_bounds,
                        Label* miss, ExitPoint* exit_point);
-  void NameDictionaryNegativeLookup(Node* object, Node* name, Label* miss);
+  void NameDictionaryNegativeLookup(Node* object, SloppyTNode<Name> name,
+                                    Label* miss);
 
   // Stub cache access helpers.
 
@@ -280,7 +289,8 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
                               Node* entry_offset, Node* name, Node* map,
-                              Label* if_handler, Variable* var_handler,
+                              Label* if_handler,
+                              TVariable<MaybeObject>* var_handler,
                               Label* if_miss);
 };
 

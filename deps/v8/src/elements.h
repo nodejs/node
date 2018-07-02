@@ -106,8 +106,9 @@ class ElementsAccessor {
   inline MaybeHandle<FixedArray> PrependElementIndices(
       Handle<JSObject> object, Handle<FixedArray> keys,
       GetKeysConversion convert, PropertyFilter filter = ALL_PROPERTIES) {
-    return PrependElementIndices(object, handle(object->elements()), keys,
-                                 convert, filter);
+    return PrependElementIndices(
+        object, handle(object->elements(), object->GetIsolate()), keys, convert,
+        filter);
   }
 
   virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
@@ -180,7 +181,7 @@ class ElementsAccessor {
 
   virtual void Reverse(JSObject* receiver) = 0;
 
-  virtual void CopyElements(Handle<FixedArrayBase> source,
+  virtual void CopyElements(Isolate* isolate, Handle<FixedArrayBase> source,
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;
 

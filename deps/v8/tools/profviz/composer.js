@@ -176,7 +176,9 @@ function PlotScriptComposer(kResX, kResY, error_output) {
   }
 
   function MergeRanges(ranges) {
-    ranges.sort(function(a, b) { return a.start - b.start; });
+    ranges.sort(function(a, b) {
+      return (a.start == b.start) ? a.end - b.end : a.start - b.start;
+    });
     var result = [];
     var j = 0;
     for (var i = 0; i < ranges.length; i = j) {
@@ -306,13 +308,14 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     };
     // Collect data from log.
     var logreader = new LogReader(
-      { 'timer-event-start': { parsers: [null, parseTimeStamp],
+      { 'timer-event-start': { parsers: [parseString, parseTimeStamp],
                                processor: processTimerEventStart },
-        'timer-event-end':   { parsers: [null, parseTimeStamp],
+        'timer-event-end':   { parsers: [parseString, parseTimeStamp],
                                processor: processTimerEventEnd },
-        'shared-library': { parsers: [null, parseInt, parseInt],
+        'shared-library': { parsers: [parseString, parseInt, parseInt],
                             processor: processSharedLibrary },
-        'code-creation':  { parsers: [null, parseInt, parseInt, parseInt, null],
+        'code-creation':  { parsers: [parseString, parseInt, parseInt,
+                                parseInt, parseString],
                             processor: processCodeCreateEvent },
         'code-move':      { parsers: [parseInt, parseInt],
                             processor: processCodeMoveEvent },
@@ -322,8 +325,8 @@ function PlotScriptComposer(kResX, kResY, error_output) {
                             processor: processCodeDeoptEvent },
         'current-time':   { parsers: [parseTimeStamp],
                             processor: processCurrentTimeEvent },
-        'tick':           { parsers: [parseInt, parseTimeStamp,
-                                      null, null, parseInt, 'var-args'],
+        'tick':           { parsers: [parseInt, parseTimeStamp, parseString,
+                                parseString, parseInt, parseVarArgs],
                             processor: processTickEvent }
       });
 
@@ -516,8 +519,13 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     // Label the longest pauses.
     execution_pauses =
         RestrictRangesTo(execution_pauses, range_start, range_end);
-    execution_pauses.sort(
-        function(a, b) { return b.duration() - a.duration(); });
+    execution_pauses.sort(function(a, b) {
+      if (a.duration() == b.duration() && b.end == a.end)
+        return b.start - a.start;
+
+      return (a.duration() == b.duration())
+          ? b.end - a.end : b.duration() - a.duration();
+    });
 
     var max_pause_time = execution_pauses.length > 0
         ? execution_pauses[0].duration() : 0;

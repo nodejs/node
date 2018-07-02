@@ -15,8 +15,6 @@
 namespace v8 {
 namespace internal {
 
-TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
-
 CAST_ACCESSOR(JSRegExp)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)

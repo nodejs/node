@@ -1,0 +1,99 @@
+Test for Runtime.addBinding.
+
+Running test: testBasic
+
+Add binding inside session1..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Add binding inside session2..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+binding called in session2
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Disable agent inside session1..
+Call binding..
+binding called in session2
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Disable agent inside session2..
+Call binding..
+
+Enable agent inside session1..
+Call binding..
+
+Running test: testReconnect
+
+Add binding inside session..
+Reconnect..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Running test: testBindingOverrides
+
+Add send function on global object..
+Add binding inside session..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+
+Running test: testRemoveBinding
+
+Add binding inside session..
+Call binding..
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : send
+        payload : payload
+    }
+}
+Remove binding inside session..
+Call binding..

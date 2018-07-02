@@ -15,8 +15,8 @@ TEST(ArrayList) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Handle<ArrayList> array(
-      ArrayList::cast(isolate->heap()->empty_fixed_array()));
+  Handle<ArrayList> array(ArrayList::cast(isolate->heap()->empty_fixed_array()),
+                          isolate);
   CHECK_EQ(0, array->Length());
   array = ArrayList::Add(array, handle(Smi::FromInt(100), isolate));
   CHECK_EQ(1, array->Length());

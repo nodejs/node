@@ -30,12 +30,6 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_IsScriptWrapper) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(args[0]->IsScriptWrapper());
-}
-
 RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -55,13 +49,13 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
   CHECK(array->HasFastElements());
   CHECK(isolate->bootstrapper()->IsActive());
   Handle<Context> native_context = isolate->native_context();
-  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
+  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()), isolate);
   int length = Smi::ToInt(array->length());
   for (int i = 0; i < length; i += 2) {
     CHECK(fixed_array->get(i)->IsString());
-    Handle<String> name(String::cast(fixed_array->get(i)));
+    Handle<String> name(String::cast(fixed_array->get(i)), isolate);
     CHECK(fixed_array->get(i + 1)->IsJSObject());
-    Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)));
+    Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)), isolate);
     int index = Context::ImportedFieldIndexForName(name);
     if (index == Context::kNotFound) {
       index = Context::IntrinsicIndexForName(name);
@@ -336,7 +330,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     std::vector<FrameSummary> frames;
     it.frame()->Summarize(&frames);
     auto& summary = frames.back().AsJavaScript();
-    Handle<SharedFunctionInfo> shared(summary.function()->shared());
+    Handle<SharedFunctionInfo> shared(summary.function()->shared(), isolate);
     Handle<Object> script(shared->script(), isolate);
     int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
     if (script->IsScript() &&
@@ -353,7 +347,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
                               CallPrinter::ErrorHint* hint) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
-    ParseInfo info(location.shared());
+    ParseInfo info(isolate, location.shared());
     if (parsing::ParseAny(&info, location.shared(), isolate)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
@@ -430,11 +424,6 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
 RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  if (FLAG_harmony_restrict_constructor_return) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kClassConstructorReturnedNonObject));
-  }
 
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
@@ -482,15 +471,6 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(counter, 0);
   isolate->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(counter));
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(
-    Runtime_IncrementUseCounterConstructorReturnNonUndefinedPrimitive) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kConstructorNonUndefinedPrimitiveReturn);
   return isolate->heap()->undefined_value();
 }
 
@@ -590,7 +570,7 @@ RUNTIME_FUNCTION(Runtime_CreateTemplateObject) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(TemplateObjectDescription, description, 0);
 
-  return *TemplateObjectDescription::CreateTemplateObject(description);
+  return *TemplateObjectDescription::CreateTemplateObject(isolate, description);
 }
 
 RUNTIME_FUNCTION(Runtime_ReportMessage) {

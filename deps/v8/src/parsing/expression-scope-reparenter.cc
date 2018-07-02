@@ -74,7 +74,7 @@ void Reparenter::VisitVariableProxy(VariableProxy* proxy) {
     }
   } else {
     // Ensure that temporaries we find are already in the correct scope.
-    DCHECK(proxy->var()->mode() != TEMPORARY ||
+    DCHECK(proxy->var()->mode() != VariableMode::kTemporary ||
            proxy->var()->scope() == scope_->GetClosureScope());
   }
 }

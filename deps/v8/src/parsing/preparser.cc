@@ -366,7 +366,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       name_byte_length = string->byte_length();
     }
     logger_->FunctionEvent(
-        event_name, nullptr, script_id(), ms, function_scope->start_position(),
+        event_name, script_id(), ms, function_scope->start_position(),
         function_scope->end_position(), name, name_byte_length);
   }
 

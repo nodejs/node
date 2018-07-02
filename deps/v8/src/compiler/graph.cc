@@ -73,10 +73,7 @@ NodeId Graph::NextNodeId() {
   return id;
 }
 
-void Graph::Print() const {
-  OFStream os(stdout);
-  os << AsRPO(*this);
-}
+void Graph::Print() const { StdoutStream{} << AsRPO(*this); }
 
 }  // namespace compiler
 }  // namespace internal

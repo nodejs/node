@@ -19,8 +19,6 @@ CAST_ACCESSOR(SloppyArgumentsElements)
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
 
-TYPE_CHECKER(JSArgumentsObject, JS_ARGUMENTS_TYPE)
-
 Context* SloppyArgumentsElements::context() {
   return Context::cast(get(kContextIndex));
 }

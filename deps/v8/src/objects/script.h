@@ -97,9 +97,9 @@ class Script : public Struct {
   // [source_mapping_url]: sourceMappingURL magic comment
   DECL_ACCESSORS(source_mapping_url, Object)
 
-  // [wasm_compiled_module]: the compiled wasm module this script belongs to.
+  // [wasm_module_object]: the wasm module object this script belongs to.
   // This must only be called if the type of this script is TYPE_WASM.
-  DECL_ACCESSORS(wasm_compiled_module, Object)
+  DECL_ACCESSORS(wasm_module_object, Object)
 
   // [host_defined_options]: Options defined by the embedder.
   DECL_ACCESSORS(host_defined_options, FixedArray)

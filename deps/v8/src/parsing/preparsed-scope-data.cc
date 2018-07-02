@@ -481,12 +481,15 @@ uint8_t ConsumedPreParsedScopeData::ByteData::ReadQuarter() {
 }
 
 ConsumedPreParsedScopeData::ConsumedPreParsedScopeData()
-    : scope_data_(new ByteData()), child_index_(0) {}
+    : isolate_(nullptr), scope_data_(new ByteData()), child_index_(0) {}
 
 ConsumedPreParsedScopeData::~ConsumedPreParsedScopeData() {}
 
-void ConsumedPreParsedScopeData::SetData(Handle<PreParsedScopeData> data) {
+void ConsumedPreParsedScopeData::SetData(Isolate* isolate,
+                                         Handle<PreParsedScopeData> data) {
+  DCHECK_NOT_NULL(isolate);
   DCHECK(data->IsPreParsedScopeData());
+  isolate_ = isolate;
   data_ = data;
 #ifdef DEBUG
   ByteData::ReadingScope reading_scope(this);
@@ -529,7 +532,7 @@ ConsumedPreParsedScopeData::GetDataForSkippableFunction(
     return nullptr;
   }
   Handle<PreParsedScopeData> child_data_handle(
-      PreParsedScopeData::cast(child_data));
+      PreParsedScopeData::cast(child_data), isolate_);
   return new (zone) ProducedPreParsedScopeData(child_data_handle, zone);
 }
 
@@ -613,8 +616,13 @@ void ConsumedPreParsedScopeData::RestoreDataForVariable(Variable* var) {
     // It's possible that "name" is a two-byte representation of the string
     // stored in the data.
     for (int i = 0; i < 2 * name->length(); i += 2) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
       DCHECK_EQ(scope_data_->ReadUint8(), name->raw_data()[i]);
       DCHECK_EQ(0, name->raw_data()[i + 1]);
+#else
+      DCHECK_EQ(scope_data_->ReadUint8(), name->raw_data()[i + 1]);
+      DCHECK_EQ(0, name->raw_data()[i]);
+#endif  // V8_TARGET_LITTLE_ENDIAN
     }
   } else {
     for (int i = 0; i < name->length(); ++i) {

@@ -7,6 +7,7 @@
 
 #include "src/api-arguments.h"
 
+#include "src/objects/api-callbacks.h"
 #include "src/tracing/trace-event.h"
 #include "src/vm-state-inl.h"
 
@@ -84,7 +85,8 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo* handler) {
   v8::FunctionCallback f =
       v8::ToCData<v8::FunctionCallback>(handler->callback());
   if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
-      !isolate->debug()->PerformSideEffectCheckForCallback(handle(handler))) {
+      !isolate->debug()->PerformSideEffectCheckForCallback(
+          handle(handler, isolate))) {
     return Handle<Object>();
   }
   VMState<EXTERNAL> state(isolate);

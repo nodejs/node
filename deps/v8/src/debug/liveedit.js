@@ -26,13 +26,17 @@
   // -------------------------------------------------------------------
   // Imports
 
-  var FindScriptSourcePosition = global.Debug.findScriptSourcePosition;
   var GlobalArray = global.Array;
   var MathFloor = global.Math.floor;
   var MathMax = global.Math.max;
   var SyntaxError = global.SyntaxError;
 
   // -------------------------------------------------------------------
+
+  function FindScriptSourcePosition(script, opt_line, opt_column) {
+    var location = %ScriptLocationFromLine(script, opt_line, opt_column, 0);
+    return location ? location.position : null;
+  };
 
   // Forward declaration for minifier.
   var FunctionStatus;
@@ -1052,7 +1056,8 @@
   utils.InstallConstants(utils, [
     "SetScriptSource", LiveEdit.SetScriptSource,
   ]);
-
+  utils.InstallConstants(global, [
+    "Debug", {},
+  ]);
   global.Debug.LiveEdit = LiveEdit;
-
 })

@@ -31,7 +31,8 @@ class CommonOperatorReducerTest : public GraphTest {
       MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags) {
     MachineOperatorBuilder machine(zone(), MachineType::PointerRepresentation(),
                                    flags);
-    CommonOperatorReducer reducer(editor, graph(), common(), &machine, zone());
+    CommonOperatorReducer reducer(isolate(), editor, graph(), common(),
+                                  &machine, zone());
     return reducer.Reduce(node);
   }
 

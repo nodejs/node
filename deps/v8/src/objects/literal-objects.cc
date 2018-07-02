@@ -9,6 +9,7 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
 
 namespace v8 {
@@ -98,7 +99,7 @@ void AddToDescriptorArrayTemplate(
     } else {
       DCHECK(value_kind == ClassBoilerplate::kGetter ||
              value_kind == ClassBoilerplate::kSetter);
-      Object* raw_accessor = descriptor_array_template->GetValue(entry);
+      Object* raw_accessor = descriptor_array_template->GetStrongValue(entry);
       AccessorPair* pair;
       if (raw_accessor->IsAccessorPair()) {
         pair = AccessorPair::cast(raw_accessor);
@@ -259,8 +260,8 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
       } else {
         Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
         pair->set(component, value);
-        PropertyDetails details(kAccessor, DONT_ENUM,
-                                PropertyCellType::kNoCell);
+        PropertyDetails details(kAccessor, DONT_ENUM, PropertyCellType::kNoCell,
+                                enum_order);
         dictionary->DetailsAtPut(entry, details);
         dictionary->ValueAtPut(entry, *pair);
       }
@@ -383,12 +384,10 @@ class ObjectDescriptor {
     if (HasDictionaryProperties()) {
       properties_dictionary_template_->SetNextEnumerationIndex(
           next_enumeration_index_);
-
-      isolate->heap()->RightTrimFixedArray(
-          *computed_properties_,
-          computed_properties_->length() - current_computed_index_);
+      computed_properties_ = FixedArray::ShrinkOrEmpty(computed_properties_,
+                                                       current_computed_index_);
     } else {
-      DCHECK(descriptor_array_template_->IsSortedNoDuplicates());
+      DCHECK(descriptor_array_template_->IsSortedNoDuplicates(isolate));
     }
   }
 

@@ -9,8 +9,10 @@
 
 #include "src/field-type.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/templates-inl.h"
 #include "src/property.h"
 #include "src/transitions.h"
 
@@ -68,8 +70,6 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
 BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
                     Map::ConstructionCounterBits)
 
-TYPE_CHECKER(Map, MAP_TYPE)
-
 InterceptorInfo* Map::GetNamedInterceptor() {
   DCHECK(has_named_interceptor());
   FunctionTemplateInfo* info = GetFunctionTemplateInfo();
@@ -86,8 +86,9 @@ bool Map::IsInplaceGeneralizableField(PropertyConstness constness,
                                       Representation representation,
                                       FieldType* field_type) {
   if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
-      (constness == kConst)) {
-    // kConst -> kMutable field generalization may happen in-place.
+      (constness == PropertyConstness::kConst)) {
+    // VariableMode::kConst -> PropertyConstness::kMutable field generalization
+    // may happen in-place.
     return true;
   }
   if (representation.IsHeapObject() && !field_type->IsAny()) {
@@ -117,9 +118,9 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
     // do not have fields that can be generalized in-place (without creation
     // of a new map).
     if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
-      // The constness is either already kMutable or should become kMutable if
-      // it was kConst.
-      *constness = kMutable;
+      // The constness is either already PropertyConstness::kMutable or should
+      // become PropertyConstness::kMutable if it was VariableMode::kConst.
+      *constness = PropertyConstness::kMutable;
     }
     if (representation->IsHeapObject()) {
       // The field type is either already Any or should become Any if it was
@@ -266,9 +267,11 @@ int Map::GetInObjectPropertyOffset(int index) const {
 }
 
 Handle<Map> Map::AddMissingTransitionsForTesting(
-    Handle<Map> split_map, Handle<DescriptorArray> descriptors,
+    Isolate* isolate, Handle<Map> split_map,
+    Handle<DescriptorArray> descriptors,
     Handle<LayoutDescriptor> full_layout_descriptor) {
-  return AddMissingTransitions(split_map, descriptors, full_layout_descriptor);
+  return AddMissingTransitions(isolate, split_map, descriptors,
+                               full_layout_descriptor);
 }
 
 InstanceType Map::instance_type() const {
@@ -486,25 +489,25 @@ void Map::NotifyLeafMapLayoutChange() {
   }
 }
 
+bool Map::IsJSObject(InstanceType type) {
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
+  return type >= FIRST_JS_OBJECT_TYPE;
+}
+
 bool Map::CanTransition() const {
   // Only JSObject and subtypes have map transitions and back pointers.
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
-  return instance_type() >= FIRST_JS_OBJECT_TYPE;
+  return IsJSObject(instance_type());
 }
 
 bool Map::IsBooleanMap() const { return this == GetHeap()->boolean_map(); }
 bool Map::IsPrimitiveMap() const {
-  STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }
 bool Map::IsJSReceiverMap() const {
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   return instance_type() >= FIRST_JS_RECEIVER_TYPE;
 }
-bool Map::IsJSObjectMap() const {
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  return instance_type() >= FIRST_JS_OBJECT_TYPE;
-}
+bool Map::IsJSObjectMap() const { return IsJSObject(instance_type()); }
 bool Map::IsJSPromiseMap() const { return instance_type() == JS_PROMISE_TYPE; }
 bool Map::IsJSArrayMap() const { return instance_type() == JS_ARRAY_TYPE; }
 bool Map::IsJSFunctionMap() const {
@@ -528,7 +531,7 @@ bool Map::IsJSDataViewMap() const {
 Object* Map::prototype() const { return READ_FIELD(this, kPrototypeOffset); }
 
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
-  DCHECK(value->IsNull(GetIsolate()) || value->IsJSReceiver());
+  DCHECK(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, value, mode);
 }
@@ -635,7 +638,7 @@ Object* Map::GetBackPointer() const {
 
 Map* Map::ElementsTransitionMap() {
   DisallowHeapAllocation no_gc;
-  return TransitionsAccessor(this, &no_gc)
+  return TransitionsAccessor(GetIsolate(), this, &no_gc)
       .SearchSpecial(GetHeap()->elements_transition_symbol());
 }
 
@@ -699,8 +702,9 @@ void Map::SetConstructor(Object* constructor, WriteBarrierMode mode) {
   set_constructor_or_backpointer(constructor, mode);
 }
 
-Handle<Map> Map::CopyInitialMap(Handle<Map> map) {
-  return CopyInitialMap(map, map->instance_size(), map->GetInObjectProperties(),
+Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map) {
+  return CopyInitialMap(isolate, map, map->instance_size(),
+                        map->GetInObjectProperties(),
                         map->UnusedPropertyFields());
 }
 
@@ -708,14 +712,14 @@ bool Map::IsInobjectSlackTrackingInProgress() const {
   return construction_counter() != Map::kNoSlackTracking;
 }
 
-void Map::InobjectSlackTrackingStep() {
+void Map::InobjectSlackTrackingStep(Isolate* isolate) {
   // Slack tracking should only be performed on an initial map.
-  DCHECK(GetBackPointer()->IsUndefined(GetIsolate()));
+  DCHECK(GetBackPointer()->IsUndefined());
   if (!IsInobjectSlackTrackingInProgress()) return;
   int counter = construction_counter();
   set_construction_counter(counter - 1);
   if (counter == kSlackTrackingCounterEnd) {
-    CompleteInobjectSlackTracking();
+    CompleteInobjectSlackTracking(isolate);
   }
 }
 
@@ -733,7 +737,8 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
 }
 
-bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
+bool NormalizedMapCache::IsNormalizedMapCache(Isolate* isolate,
+                                              const HeapObject* obj) {
   if (!obj->IsFixedArray()) return false;
   if (FixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
     return false;
@@ -741,7 +746,7 @@ bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     reinterpret_cast<NormalizedMapCache*>(const_cast<HeapObject*>(obj))
-        ->NormalizedMapCacheVerify();
+        ->NormalizedMapCacheVerify(isolate);
   }
 #endif
   return true;
