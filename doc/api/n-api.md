@@ -1485,40 +1485,6 @@ structure, in most cases using a `TypedArray` will suffice.
 
 For Node.js >=4 `Buffers` are `Uint8Array`s.
 
-#### napi_create_function
-<!-- YAML
-added: v8.0.0
-napiVersion: 1
--->
-```C
-napi_status napi_create_function(napi_env env,
-                                 const char* utf8name,
-                                 size_t length,
-                                 napi_callback cb,
-                                 void* data,
-                                 napi_value* result)
-```
-
-- `[in] env`: The environment that the API is invoked under.
-- `[in] utf8name`: A string representing the name of the function encoded as
-UTF8.
-- `[in] length`: The length of the `utf8name` in bytes, or
-`NAPI_AUTO_LENGTH` if it is null-terminated.
-- `[in] cb`: A function pointer to the native function to be invoked when the
-created function is invoked from JavaScript.
-- `[in] data`: Optional arbitrary context data to be passed into the native
-function when it is invoked.
-- `[out] result`: A `napi_value` representing a JavaScript function.
-
-Returns `napi_ok` if the API succeeded.
-
-This API returns an N-API value corresponding to a JavaScript `Function` object.
-It's used to wrap native functions so that they can be invoked from JavaScript.
-
-JavaScript `Function`s are described in
-[Section 19.2](https://tc39.github.io/ecma262/#sec-function-objects)
-of the ECMAScript Language Specification.
-
 #### napi_create_object
 <!-- YAML
 added: v8.0.0
@@ -3153,6 +3119,7 @@ napiVersion: 1
 ```C
 napi_status napi_create_function(napi_env env,
                                  const char* utf8name,
+                                 size_t length,
                                  napi_callback cb,
                                  void* data,
                                  napi_value* result);
@@ -3161,6 +3128,8 @@ napi_status napi_create_function(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] utf8Name`: The name of the function encoded as UTF8. This is visible
 within JavaScript as the new function object's `name` property.
+- `[in] length`: The length of the `utf8name` in bytes, or
+`NAPI_AUTO_LENGTH` if it is null-terminated.
 - `[in] cb`: The native function which should be called when this function
 object is invoked.
 - `[in] data`: User-provided data context. This will be passed back into the
@@ -3209,9 +3178,12 @@ const myaddon = require('./addon');
 myaddon.sayHello();
 ```
 
-The string passed to require is not necessarily the name passed into
-`NAPI_MODULE` in the earlier snippet but the name of the target in `binding.gyp`
+The string passed to `require()` is the name of the target in `binding.gyp`
 responsible for creating the `.node` file.
+
+JavaScript `Function`s are described in
+[Section 19.2](https://tc39.github.io/ecma262/#sec-function-objects)
+of the ECMAScript Language Specification.
 
 ### napi_get_cb_info
 <!-- YAML
