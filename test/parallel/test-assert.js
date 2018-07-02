@@ -457,7 +457,7 @@ assert.throws(
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
       message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert.ok(typeof 123 === 'string')\n"
+               "assert.ok(\n    typeof 123 === 'string'\n  )\n"
     }
   );
   Error.stackTraceLimit = tmpLimit;
@@ -661,7 +661,7 @@ common.expectsError(
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
       message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert(Buffer.from('test') instanceof Error)\n"
+               "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
     }
   );
   common.expectsError(
@@ -670,7 +670,7 @@ common.expectsError(
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
       message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert(Buffer.from('test') instanceof Error)\n"
+               "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
     }
   );
   fs.close = tmp;
@@ -690,11 +690,13 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     message: 'The expression evaluated to a falsy value:\n\n' +
-             '  assert((() => \'string\')()\n' +
+             '  a(\n' +
+             '    (() => \'string\')()\n' +
              '    // eslint-disable-next-line\n' +
              '    ===\n' +
              '    123 instanceof\n' +
-             '        Buffer)\n'
+             '        Buffer\n' +
+             '  )\n'
   }
 );
 
@@ -712,11 +714,13 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     message: 'The expression evaluated to a falsy value:\n\n' +
-             '  assert((() => \'string\')()\n' +
+             '  a(\n' +
+             '    (() => \'string\')()\n' +
              '    // eslint-disable-next-line\n' +
              '    ===\n' +
              '  123 instanceof\n' +
-             '        Buffer)\n'
+             '        Buffer\n' +
+             '  )\n'
   }
 );
 
@@ -731,16 +735,19 @@ Buffer
   code: 'ERR_ASSERTION',
   type: assert.AssertionError,
   message: 'The expression evaluated to a falsy value:\n\n' +
-           '  assert((\n' +
+           '  a((\n' +
            '    () => \'string\')() ===\n' +
            '  123 instanceof\n' +
-           '  Buffer)\n'
+           '  Buffer\n' +
+           '  )\n'
   }
 );
 /* eslint-enable indent */
 
 common.expectsError(
-  () => assert(null, undefined),
+  () => {
+    assert(true); assert(null, undefined);
+  },
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
@@ -750,11 +757,38 @@ common.expectsError(
 );
 
 common.expectsError(
-  () => assert.ok.apply(null, [0]),
+  () => {
+    assert
+     .ok(null, undefined);
+  },
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: '0 == true'
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'ok(null, undefined)\n'
+  }
+);
+
+common.expectsError(
+  // eslint-disable-next-line dot-notation, quotes
+  () => assert['ok']["apply"](null, [0]),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert[\'ok\']["apply"](null, [0])\n'
+  }
+);
+
+common.expectsError(
+  () => {
+    const wrapper = (fn, value) => fn(value);
+    wrapper(assert, false);
+  },
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: 'The expression evaluated to a falsy value:\n\n  fn(value)\n'
   }
 );
 
@@ -763,7 +797,8 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: '0 == true',
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert.ok.call(null, 0)\n',
     generatedMessage: true
   }
 );
@@ -778,7 +813,7 @@ common.expectsError(
   }
 );
 
-// works in eval
+// Works in eval.
 common.expectsError(
   () => new Function('assert', 'assert(1 === 2);')(assert),
   {
