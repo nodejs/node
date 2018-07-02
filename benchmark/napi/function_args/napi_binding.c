@@ -135,6 +135,7 @@ static napi_value CallWithTypedarray(napi_env env, napi_callback_info info) {
     status = napi_get_typedarray_info(env, args[0], &type, &length,
         NULL, &input_buffer, &byte_offset);
     assert(status == napi_ok);
+    assert(length > 0);
 
     void* data = NULL;
     size_t byte_length = 0;
@@ -142,7 +143,8 @@ static napi_value CallWithTypedarray(napi_env env, napi_callback_info info) {
         input_buffer, &data, &byte_length);
     assert(status == napi_ok);
 
-    uint32_t* input_integers = (uint32_t*)((data) + byte_offset);
+    uint32_t* input_integers = (uint32_t*)((uint8_t*)(data) + byte_offset);
+    assert(input_integers);
   }
 
   return NULL;

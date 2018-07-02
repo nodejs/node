@@ -32,7 +32,8 @@ void CallWithArray(const FunctionCallbackInfo<Value>& args) {
     const Local<Array> array = args[0].As<Array>();
     uint32_t length = array->Length();
     for (uint32_t i = 0; i < length; ++ i) {
-      Local<Value> v = array->Get(i);
+      Local<Value> v;
+      v = array->Get(i);
     }
   }
 }
@@ -40,7 +41,7 @@ void CallWithArray(const FunctionCallbackInfo<Value>& args) {
 void CallWithNumber(const FunctionCallbackInfo<Value>& args) {
   assert(args.Length() == 1 && args[0]->IsNumber());
   if (args.Length() == 1 && args[0]->IsNumber()) {
-    double value = args[0].As<Number>()->Value();
+    args[0].As<Number>()->Value();
   }
 }
 
@@ -58,7 +59,8 @@ void CallWithObject(const FunctionCallbackInfo<Value>& args) {
     MaybeLocal<Value> map_maybe = obj->Get(context,
         map_key.ToLocalChecked());
     assert(!map_maybe.IsEmpty());
-    Local<Value> map = map_maybe.ToLocalChecked();
+    Local<Value> map;
+    map = map_maybe.ToLocalChecked();
 
     MaybeLocal<String> operand_key = String::NewFromUtf8(isolate,
         "operand", v8::NewStringType::kNormal);
@@ -66,7 +68,8 @@ void CallWithObject(const FunctionCallbackInfo<Value>& args) {
     MaybeLocal<Value> operand_maybe = obj->Get(context,
         operand_key.ToLocalChecked());
     assert(!operand_maybe.IsEmpty());
-    Local<Value> operand = operand_maybe.ToLocalChecked();
+    Local<Value> operand;
+    operand = operand_maybe.ToLocalChecked();
 
     MaybeLocal<String> data_key = String::NewFromUtf8(isolate,
         "data", v8::NewStringType::kNormal);
@@ -74,7 +77,8 @@ void CallWithObject(const FunctionCallbackInfo<Value>& args) {
     MaybeLocal<Value> data_maybe = obj->Get(context,
         data_key.ToLocalChecked());
     assert(!data_maybe.IsEmpty());
-    Local<Value> data = data_maybe.ToLocalChecked();
+    Local<Value> data;
+    data = data_maybe.ToLocalChecked();
 
     MaybeLocal<String> reduce_key = String::NewFromUtf8(isolate,
         "reduce", v8::NewStringType::kNormal);
@@ -82,7 +86,8 @@ void CallWithObject(const FunctionCallbackInfo<Value>& args) {
     MaybeLocal<Value> reduce_maybe = obj->Get(context,
         reduce_key.ToLocalChecked());
     assert(!reduce_maybe.IsEmpty());
-    Local<Value> reduce = reduce_maybe.ToLocalChecked();
+    Local<Value> reduce;
+    reduce = reduce_maybe.ToLocalChecked();
   }
 }
 
@@ -91,23 +96,28 @@ void CallWithTypedarray(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() == 1 && args[0]->IsArrayBufferView()) {
     assert(args[0]->IsArrayBufferView());
     Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
-    size_t byte_offset = view->ByteOffset();
-    size_t byte_length = view->ByteLength();
+    const size_t byte_offset = view->ByteOffset();
+    const size_t byte_length = view->ByteLength();
+    assert(byte_length > 0);
     assert(view->HasBuffer());
-    Local<ArrayBuffer> buffer = view->Buffer();
-    ArrayBuffer::Contents contents = buffer->GetContents();
-    uint32_t* data = static_cast<uint32_t*>(contents.Data() + byte_offset);
+    Local<ArrayBuffer> buffer;
+    buffer = view->Buffer();
+    ArrayBuffer::Contents contents;
+    contents = buffer->GetContents();
+    const uint32_t* data = reinterpret_cast<uint32_t*>(
+        static_cast<uint8_t*>(contents.Data()) + byte_offset);
+    assert(data);
   }
 }
 
 void CallWithArguments(const FunctionCallbackInfo<Value>& args) {
   assert(args.Length() > 1 && args[0]->IsNumber());
   if (args.Length() > 1 && args[0]->IsNumber()) {
-    uint32_t loop = args[0].As<v8::Uint32>()->Value();
-    for (uint32_t i = 1; i < loop; ++i) {
+    int32_t loop = args[0].As<v8::Uint32>()->Value();
+    for (int32_t i = 1; i < loop; ++i) {
       assert(i < args.Length());
       assert(args[i]->IsUint32());
-      uint32_t value = args[i].As<v8::Uint32>()->Value();
+      args[i].As<v8::Uint32>()->Value();
     }
   }
 }
