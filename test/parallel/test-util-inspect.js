@@ -1424,3 +1424,13 @@ util.inspect(process);
   assert(longList.includes('[Object: Inspection interrupted ' +
     'prematurely. Maximum call stack size exceeded.]'));
 }
+
+// Do not escape single quotes if no double quote or backtick is present.
+assert.strictEqual(
+  util.inspect("'"),
+  '"\'"'
+);
+assert.strictEqual(
+  util.inspect('"\''),
+  '`"\'`'
+);
