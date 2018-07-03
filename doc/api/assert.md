@@ -108,15 +108,15 @@ Example error diff:
 const assert = require('assert').strict;
 
 assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
-// AssertionError: Input A expected to strictly deep-equal input B:
-// + expected - actual ... Lines skipped
+// AssertionError: Expected inputs to be strictly deep-equal:
+// + actual - expected ... Lines skipped
 //
 //   [
 //     [
 // ...
 //       2,
-// -     3
-// +     '3'
+// +     3
+// -     '3'
 //     ],
 // ...
 //     5
@@ -315,11 +315,12 @@ const assert = require('assert').strict;
 
 // This fails because 1 !== '1'.
 assert.deepStrictEqual({ a: 1 }, { a: '1' });
-// AssertionError: Input A expected to strictly deep-equal input B:
-// + expected - actual
+// AssertionError: Expected inputs to be strictly deep-equal:
+// + actual - expected
+//
 //   {
-// -   a: 1
-// +   a: '1'
+// +   a: 1
+// -   a: '1'
 //   }
 
 // The following objects don't have own properties
@@ -330,27 +331,30 @@ Object.setPrototypeOf(fakeDate, Date.prototype);
 
 // Different [[Prototype]]:
 assert.deepStrictEqual(object, fakeDate);
-// AssertionError: Input A expected to strictly deep-equal input B:
-// + expected - actual
-// - {}
-// + Date {}
+// AssertionError: Expected inputs to be strictly deep-equal:
+// + actual - expected
+//
+// + {}
+// - Date {}
 
 // Different type tags:
 assert.deepStrictEqual(date, fakeDate);
-// AssertionError: Input A expected to strictly deep-equal input B:
-// + expected - actual
-// - 2018-04-26T00:49:08.604Z
-// + Date {}
+// AssertionError: Expected inputs to be strictly deep-equal:
+// + actual - expected
+//
+// + 2018-04-26T00:49:08.604Z
+// - Date {}
 
 assert.deepStrictEqual(NaN, NaN);
 // OK, because of the SameValue comparison
 
 // Different unwrapped numbers:
 assert.deepStrictEqual(new Number(1), new Number(2));
-// AssertionError: Input A expected to strictly deep-equal input B:
-// + expected - actual
-// - [Number: 1]
-// + [Number: 2]
+// AssertionError: Expected inputs to be strictly deep-equal:
+// + actual - expected
+//
+// + [Number: 1]
+// - [Number: 2]
 
 assert.deepStrictEqual(new String('foo'), Object('foo'));
 // OK because the object and the string are identical when unwrapped.
@@ -360,17 +364,20 @@ assert.deepStrictEqual(-0, -0);
 
 // Different zeros using the SameValue Comparison:
 assert.deepStrictEqual(0, -0);
-// AssertionError: Input A expected to strictly deep-equal input B:
-// + expected - actual
-// - 0
-// + -0
+// AssertionError: Expected inputs to be strictly deep-equal:
+// + actual - expected
+//
+// + 0
+// - -0
 
 const symbol1 = Symbol();
 const symbol2 = Symbol();
 assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol1]: 1 });
 // OK, because it is the same symbol on both objects.
+
 assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol2]: 1 });
-// AssertionError [ERR_ASSERTION]: Input objects not identical:
+// AssertionError [ERR_ASSERTION]: Inputs identical but not reference equal:
+//
 // {
 //   [Symbol()]: 1
 // }
@@ -385,12 +392,13 @@ assert.deepStrictEqual(weakMap1, weakMap2);
 
 // Fails because weakMap3 has a property that weakMap1 does not contain:
 assert.deepStrictEqual(weakMap1, weakMap3);
-// AssertionError: Input A expected to strictly deep-equal input B:
-// + expected - actual
+// AssertionError: Expected inputs to be strictly deep-equal:
+// + actual - expected
+//
 //   WeakMap {
-// -   [items unknown]
-// +   [items unknown],
-// +   unequal: true
+// +   [items unknown]
+// -   [items unknown],
+// -   unequal: true
 //   }
 ```
 
@@ -875,7 +883,9 @@ assert.notStrictEqual(1, 2);
 // OK
 
 assert.notStrictEqual(1, 1);
-// AssertionError [ERR_ASSERTION]: Identical input passed to notStrictEqual: 1
+// AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+//
+// 1
 
 assert.notStrictEqual(1, '1');
 // OK
@@ -1031,19 +1041,20 @@ determined by the [SameValue Comparison][].
 const assert = require('assert').strict;
 
 assert.strictEqual(1, 2);
-// AssertionError [ERR_ASSERTION]: Input A expected to strictly equal input B:
-// + expected - actual
-// - 1
-// + 2
+// AssertionError [ERR_ASSERTION]: Expected inputs to be strictly equal:
+//
+// 1 !== 2
 
 assert.strictEqual(1, 1);
 // OK
 
-assert.strictEqual(1, '1');
-// AssertionError [ERR_ASSERTION]: Input A expected to strictly equal input B:
-// + expected - actual
-// - 1
-// + '1'
+assert.strictEqual('Hello foobar', 'Hello World!');
+// AssertionError [ERR_ASSERTION]: Expected inputs to be strictly equal:
+// + actual - expected
+//
+// + 'Hello foobar'
+// - 'Hello World!'
+//          ^
 ```
 
 If the values are not strictly equal, an `AssertionError` is thrown with a
@@ -1211,9 +1222,8 @@ function notThrowing() {}
 assert.throws(throwingFirst, 'Second');
 // In the next example the message has no benefit over the message from the
 // error and since it is not clear if the user intended to actually match
-// against the error message, Node.js thrown an `ERR_AMBIGUOUS_ARGUMENT` error.
+// against the error message, Node.js throws an `ERR_AMBIGUOUS_ARGUMENT` error.
 assert.throws(throwingSecond, 'Second');
-// Throws an error:
 // TypeError [ERR_AMBIGUOUS_ARGUMENT]
 
 // The string is only used (as message) in case the function does not throw:
@@ -1221,10 +1231,12 @@ assert.throws(notThrowing, 'Second');
 // AssertionError [ERR_ASSERTION]: Missing expected exception: Second
 
 // If it was intended to match for the error message do this instead:
+// It does not throw because the error messages match.
 assert.throws(throwingSecond, /Second$/);
-// Does not throw because the error messages match.
+
+// If the error message does not match, the error from within the function is
+// not caught.
 assert.throws(throwingFirst, /Second$/);
-// Throws an error:
 // Error: First
 //     at throwingFirst (repl:2:9)
 ```

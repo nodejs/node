@@ -26,15 +26,15 @@ if (process.stdout.isTTY)
   assert.throws(
     () => assert.deepStrictEqual(date, fake),
     {
-      message: 'Input A expected to strictly deep-equal input B:\n' +
-               '+ expected - actual\n\n- 2016-01-01T00:00:00.000Z\n+ Date {}'
+      message: 'Expected inputs to be strictly deep-equal:\n' +
+               '+ actual - expected\n\n+ 2016-01-01T00:00:00.000Z\n- Date {}'
     }
   );
   assert.throws(
     () => assert.deepStrictEqual(fake, date),
     {
-      message: 'Input A expected to strictly deep-equal input B:\n' +
-               '+ expected - actual\n\n- Date {}\n+ 2016-01-01T00:00:00.000Z'
+      message: 'Expected inputs to be strictly deep-equal:\n' +
+               '+ actual - expected\n\n+ Date {}\n- 2016-01-01T00:00:00.000Z'
     }
   );
 }
