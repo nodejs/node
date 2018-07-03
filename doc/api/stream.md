@@ -637,7 +637,7 @@ state, attaching a listener for the `'data'` event, calling the
 `readable.readableFlowing` to `true`, causing the `Readable` to begin
 actively emitting events as data is generated.
 
-Calling `readable.pause()`, `readable.unpipe()`, or receiving "back pressure"
+Calling `readable.pause()`, `readable.unpipe()`, or receiving backpressure
 will cause the `readable.readableFlowing` to be set as `false`,
 temporarily halting the flowing of events but *not* halting the generation of
 data. While in this state, attaching a listener for the `'data'` event
