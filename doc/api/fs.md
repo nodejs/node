@@ -45,9 +45,9 @@ try {
 }
 ```
 
-Note that there is no guaranteed ordering when using asynchronous methods.
-So the following is prone to error because the `fs.stat()` operation may
-complete before the `fs.rename()` operation.
+There is no guaranteed ordering when using asynchronous methods. So the
+following is prone to error because the `fs.stat()` operation may complete
+before the `fs.rename()` operation:
 
 ```js
 fs.rename('/tmp/hello', '/tmp/world', (err) => {
@@ -150,8 +150,8 @@ fs.open(Buffer.from('/open/some/file.txt'), 'r', (err, fd) => {
 });
 ```
 
-*Note:* On Windows Node.js follows the concept of per-drive working directory.
-This behavior can be observed when using a drive path without a backslash. For
+On Windows, Node.js follows the concept of per-drive working directory. This
+behavior can be observed when using a drive path without a backslash. For
 example `fs.readdirSync('c:\\')` can potentially return a different result than
 `fs.readdirSync('c:')`. For more information, see
 [this MSDN page][MSDN-Rel-Path].
@@ -278,9 +278,9 @@ eventually cause an application to crash.
 
 ## Threadpool Usage
 
-Note that all file system APIs except `fs.FSWatcher()` and those that are
-explicitly synchronous use libuv's threadpool, which can have surprising and
-negative performance implications for some applications, see the
+All file system APIs except `fs.FSWatcher()` and those that are explicitly
+synchronous use libuv's threadpool, which can have surprising and negative
+performance implications for some applications. See the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
 ## Class: fs.FSWatcher
@@ -689,15 +689,13 @@ The times in the stat object have the following semantics:
 * `birthtime` "Birth Time" - Time of file creation. Set once when the
   file is created. On filesystems where birthtime is not available,
   this field may instead hold either the `ctime` or
-  `1970-01-01T00:00Z` (ie, unix epoch timestamp `0`). Note that this
-  value may be greater than `atime` or `mtime` in this case. On Darwin
-  and other FreeBSD variants, also set if the `atime` is explicitly
-  set to an earlier value than the current `birthtime` using the
-  utimes(2) system call.
+  `1970-01-01T00:00Z` (ie, unix epoch timestamp `0`). This value may be greater
+  than `atime` or `mtime` in this case. On Darwin and other FreeBSD variants,
+  also set if the `atime` is explicitly set to an earlier value than the current
+  `birthtime` using the utimes(2) system call.
 
-Prior to Node.js v0.12, the `ctime` held the `birthtime` on Windows
-systems. Note that as of v0.12, `ctime` is not "creation time", and
-on Unix systems, it never was.
+Prior to Node.js 0.12, the `ctime` held the `birthtime` on Windows systems. As
+of 0.12, `ctime` is not "creation time", and on Unix systems, it never was.
 
 ## Class: fs.WriteStream
 <!-- YAML
@@ -1117,11 +1115,10 @@ For example, the octal value `0o765` means:
 * The group may read and write the file.
 * Others may read and execute the file.
 
-Note: When using raw numbers where file modes are expected,
-any value larger than `0o777` may result in platform-specific
-behaviors that are not supported to work consistently.
-Therefore constants like `S_ISVTX`, `S_ISGID` or `S_ISUID` are
-not exposed in `fs.constants`.
+When using raw numbers where file modes are expected, any value larger than
+`0o777` may result in platform-specific behaviors that are not supported to work
+consistently. Therefore constants like `S_ISVTX`, `S_ISGID` or `S_ISUID` are not
+exposed in `fs.constants`.
 
 Caveats: on Windows only the write permission can be changed, and the
 distinction among the permissions of group, owner or others is not
@@ -1378,8 +1375,8 @@ The `encoding` can be any one of those accepted by [`Buffer`][].
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
 the specified file descriptor. This means that no `'open'` event will be
-emitted. Note that `fd` should be blocking; non-blocking `fd`s should be passed
-to [`net.Socket`][].
+emitted. `fd` should be blocking; non-blocking `fd`s should be passed to
+[`net.Socket`][].
 
 If `autoClose` is false, then the file descriptor won't be closed, even if
 there's an error. It is the application's responsibility to close it and make
@@ -1442,8 +1439,8 @@ file descriptor leak.
 
 Like [`ReadStream`][], if `fd` is specified, [`WriteStream`][] will ignore the
 `path` argument and will use the specified file descriptor. This means that no
-`'open'` event will be emitted. Note that `fd` should be blocking; non-blocking
-`fd`s should be passed to [`net.Socket`][].
+`'open'` event will be emitted. `fd` should be blocking; non-blocking `fd`s
+should be passed to [`net.Socket`][].
 
 If `options` is a string, then it specifies the encoding.
 
@@ -1473,11 +1470,11 @@ fs.exists('/etc/passwd', (exists) => {
 });
 ```
 
-**Note that the parameter to this callback is not consistent with other
-Node.js callbacks.** Normally, the first parameter to a Node.js callback is
-an `err` parameter, optionally followed by other parameters. The
-`fs.exists()` callback has only one boolean parameter. This is one reason
-`fs.access()` is recommended instead of `fs.exists()`.
+**The parameters for this callback are not consistent with other Node.js
+callbacks.** Normally, the first parameter to a Node.js callback is an `err`
+parameter, optionally followed by other parameters. The `fs.exists()` callback
+has only one boolean parameter. This is one reason `fs.access()` is recommended
+instead of `fs.exists()`.
 
 Using `fs.exists()` to check for the existence of a file before calling
 `fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended. Doing
@@ -1573,10 +1570,9 @@ changes:
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the path exists, `false` otherwise.
 
-Note that `fs.exists()` is deprecated, but `fs.existsSync()` is not.
-(The `callback` parameter to `fs.exists()` accepts parameters that are
-inconsistent with other Node.js callbacks. `fs.existsSync()` does not use
-a callback.)
+`fs.exists()` is deprecated, but `fs.existsSync()` is not. The `callback`
+parameter to `fs.exists()` accepts parameters that are inconsistent with other
+Node.js callbacks. `fs.existsSync()` does not use a callback.
 
 ## fs.fchmod(fd, mode, callback)
 <!-- YAML
@@ -2149,9 +2145,8 @@ fs.mkdtemp(tmpDir, (err, folder) => {
   if (err) throw err;
   console.log(folder);
   // Will print something similar to `/tmpabc123`.
-  // Note that a new temporary directory is created
-  // at the file system root rather than *within*
-  // the /tmp directory.
+  // A new temporary directory is created at the file system root
+  // rather than *within* the /tmp directory.
 });
 
 // This method is *CORRECT*:
@@ -2204,8 +2199,8 @@ changes:
 Asynchronous file open. See open(2).
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
-created. Note that on Windows only the write permission can be manipulated,
-see [`fs.chmod()`][].
+created. On Windows, only the write permission can be manipulated; see
+[`fs.chmod()`][].
 
 The callback gets two arguments `(err, fd)`.
 
@@ -2843,9 +2838,9 @@ changes:
 Asynchronous symlink(2). No arguments other than a possible exception are given
 to the completion callback. The `type` argument can be set to `'dir'`,
 `'file'`, or `'junction'` and is only available on
-Windows (ignored on other platforms). Note that Windows junction points require
-the destination path to be absolute. When using `'junction'`, the `target`
-argument will automatically be normalized to absolute path.
+Windows (ignored on other platforms). Windows junction points require the
+destination path to be absolute. When using `'junction'`, the `target` argument
+will automatically be normalized to absolute path.
 
 Here is an example below:
 
@@ -3086,10 +3081,10 @@ The listener callback gets two arguments `(eventType, filename)`. `eventType`
 is either `'rename'` or `'change'`, and `filename` is the name of the file
 which triggered the event.
 
-Note that on most platforms, `'rename'` is emitted whenever a filename appears
-or disappears in the directory.
+On most platforms, `'rename'` is emitted whenever a filename appears or
+disappears in the directory.
 
-Also note the listener callback is attached to the `'change'` event fired by
+The listener callback is attached to the `'change'` event fired by
 [`fs.FSWatcher`][], but it is not the same thing as the `'change'` value of
 `eventType`.
 
@@ -3266,9 +3261,8 @@ The callback will be given three arguments `(err, bytesWritten, buffer)` where
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `bytesWritten` and `buffer` properties.
 
-Note that it is unsafe to use `fs.write` multiple times on the same file
-without waiting for the callback. For this scenario,
-`fs.createWriteStream` is strongly recommended.
+It is unsafe to use `fs.write()` multiple times on the same file without waiting
+for the callback. For this scenario, `fs.createWriteStream()` is recommended.
 
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
@@ -3310,12 +3304,12 @@ the current position. See pwrite(2).
 `encoding` is the expected string encoding.
 
 The callback will receive the arguments `(err, written, string)` where `written`
-specifies how many _bytes_ the passed string required to be written. Note that
-bytes written is not the same as string characters. See [`Buffer.byteLength`][].
+specifies how many _bytes_ the passed string required to be written. Bytes
+written is not necessarily the same as string characters written. See
+[`Buffer.byteLength`][].
 
-Note that it is unsafe to use `fs.write` multiple times on the same file
-without waiting for the callback. For this scenario,
-`fs.createWriteStream` is strongly recommended.
+It is unsafe to use `fs.write()` multiple times on the same file without waiting
+for the callback. For this scenario, `fs.createWriteStream()` is recommended.
 
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
@@ -3372,9 +3366,9 @@ fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
 
 Any specified file descriptor has to support writing.
 
-Note that it is unsafe to use `fs.writeFile` multiple times on the same file
-without waiting for the callback. For this scenario,
-`fs.createWriteStream` is strongly recommended.
+It is unsafe to use `fs.writeFile()` multiple times on the same file without
+waiting for the callback. For this scenario, `fs.createWriteStream()` is
+recommended.
 
 If a file descriptor is specified as the `file`, it will not be closed
 automatically.
@@ -4161,9 +4155,9 @@ Creates a symbolic link then resolves the `Promise` with no arguments upon
 success.
 
 The `type` argument is only used on Windows platforms and can be one of `'dir'`,
-`'file'`, or `'junction'`. Note that Windows junction
-points require the destination path to be absolute. When using `'junction'`,
-the `target` argument will automatically be normalized to absolute path.
+`'file'`, or `'junction'`. Windows junction points require the destination path
+to be absolute. When using `'junction'`, the `target` argument will
+automatically be normalized to absolute path.
 
 ### fsPromises.truncate(path[, len])
 <!-- YAML
@@ -4525,9 +4519,9 @@ string:
   skipping the potentially stale local cache. It has a very real impact on
   I/O performance so using this flag is not recommended unless it is needed.
 
-  Note that this doesn't turn `fs.open()` or `fsPromises.open()` into a
-  synchronous blocking call. If synchronous operation is desired, something
-  like `fs.openSync()` should be used.
+  This doesn't turn `fs.open()` or `fsPromises.open()` into a synchronous
+  blocking call. If synchronous operation is desired, something like
+  `fs.openSync()` should be used.
 
 * `'w'` - Open file for writing.
   The file is created (if it does not exist) or truncated (if it exists).
