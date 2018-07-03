@@ -579,6 +579,28 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
  */
 #define NODE_MODULE_DECL /* nothing */
 
+#define NODE_MODULE_INITIALIZER_BASE node_register_module_v
+
+#define NODE_MODULE_INITIALIZER_X(base, version)                      \
+    NODE_MODULE_INITIALIZER_X_HELPER(base, version)
+
+#define NODE_MODULE_INITIALIZER_X_HELPER(base, version) base##version
+
+#define NODE_MODULE_INITIALIZER                                       \
+  NODE_MODULE_INITIALIZER_X(NODE_MODULE_INITIALIZER_BASE,             \
+      NODE_MODULE_VERSION)
+
+#define NODE_MODULE_INIT()                                            \
+  extern "C" NODE_MODULE_EXPORT void                                  \
+  NODE_MODULE_INITIALIZER(v8::Local<v8::Object> exports,              \
+                          v8::Local<v8::Value> module,                \
+                          v8::Local<v8::Context> context);            \
+  NODE_MODULE_CONTEXT_AWARE(NODE_GYP_MODULE_NAME,                     \
+                            NODE_MODULE_INITIALIZER)                  \
+  void NODE_MODULE_INITIALIZER(v8::Local<v8::Object> exports,         \
+                               v8::Local<v8::Value> module,           \
+                               v8::Local<v8::Context> context)
+
 /* Called after the event loop exits but before the VM is disposed.
  * Callbacks are run in reverse order of registration, i.e. newest first.
  */
