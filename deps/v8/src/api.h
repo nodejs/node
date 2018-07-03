@@ -127,6 +127,7 @@ class RegisteredExtension {
   V(Promise, JSPromise)                        \
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \
+  V(BigInt, BigInt)                            \
   V(ScriptOrModule, Script)
 
 class Utils {

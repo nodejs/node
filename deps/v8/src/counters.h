@@ -692,6 +692,7 @@ class RuntimeCallTimer final {
   V(ArrayBuffer_New)                                       \
   V(Array_CloneElementAt)                                  \
   V(Array_New)                                             \
+  V(BigInt_NewFromWords)                                   \
   V(BigInt64Array_New)                                     \
   V(BigUint64Array_New)                                    \
   V(BigIntObject_New)                                      \
