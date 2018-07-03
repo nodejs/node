@@ -755,9 +755,13 @@ added: v8.0.0
 * {symbol} that can be used to declare custom promisified variants of functions,
 see [Custom promisified functions][].
 
-## Class: util.TextDecoder
+## Class: TextDecoder
 <!-- YAML
 added: v8.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20662
+    description: The class is now available on the global object.
 -->
 
 An implementation of the [WHATWG Encoding Standard][] `TextDecoder` API.
@@ -892,9 +896,13 @@ thrown.
 The value will be `true` if the decoding result will include the byte order
 mark.
 
-## Class: util.TextEncoder
+## Class: TextEncoder
 <!-- YAML
 added: v8.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20662
+    description: The class is now available on the global object.
 -->
 
 An implementation of the [WHATWG Encoding Standard][] `TextEncoder` API. All
