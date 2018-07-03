@@ -11,7 +11,6 @@ try {
 const assert = require('assert');
 const { readFile } = require('fs');
 const fixtures = require('../common/fixtures');
-const processIncludes = require('../../tools/doc/preprocess.js');
 const toHTML = require('../../tools/doc/html.js');
 
 // Test data is a list of objects with two properties.
@@ -65,15 +64,6 @@ const testData = [
       '<p>Describe <code>Something</code> in more detail here. </p>'
   },
   {
-    file: fixtures.path('doc_with_includes.md'),
-    html: '<!-- [start-include:doc_inc_1.md] -->' +
-    '<p>Look <a href="doc_inc_2.html#doc_inc_2_foobar">here</a>!</p>' +
-    '<!-- [end-include:doc_inc_1.md] --><!-- [start-include:doc_inc_2.md] -->' +
-    '<h1>foobar<span><a class="mark" href="#doc_inc_2_foobar" ' +
-    'id="doc_inc_2_foobar">#</a></span></h1>' +
-    '<p>I exist and am being linked to.</p><!-- [end-include:doc_inc_2.md] -->'
-  },
-  {
     file: fixtures.path('sample_document.md'),
     html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
       '<li>Bluefish</li></ol>',
@@ -90,36 +80,34 @@ testData.forEach(({ file, html, analyticsId }) => {
 
   readFile(file, 'utf8', common.mustCall((err, input) => {
     assert.ifError(err);
-    processIncludes(file, input, common.mustCall((err, preprocessed) => {
-      assert.ifError(err);
 
-      toHTML(
-        {
-          input: preprocessed,
-          filename: 'foo',
-          nodeVersion: process.version,
-          analytics: analyticsId,
-        },
-        common.mustCall((err, output) => {
-          assert.ifError(err);
+    toHTML(
+      {
+        input: input,
+        filename: 'foo',
+        nodeVersion: process.version,
+        analytics: analyticsId,
+      },
+      common.mustCall((err, output) => {
+        assert.ifError(err);
 
-          const actual = output.replace(spaces, '');
-          // Assert that the input stripped of all whitespace contains the
-          // expected markup.
-          assert(actual.includes(expected));
+        const actual = output.replace(spaces, '');
+        // Assert that the input stripped of all whitespace contains the
+        // expected markup.
+        assert(actual.includes(expected));
 
-          // Testing the insertion of Google Analytics script when
-          // an analytics id is provided. Should not be present by default.
-          const scriptDomain = 'google-analytics.com';
-          if (includeAnalytics) {
-            assert(actual.includes(scriptDomain),
-                   `Google Analytics script was not present in "${actual}"`);
-          } else {
-            assert.strictEqual(actual.includes(scriptDomain), false,
-                               'Google Analytics script was present in ' +
-                               `"${actual}"`);
-          }
-        }));
-    }));
+        // Testing the insertion of Google Analytics script when
+        // an analytics id is provided. Should not be present by default.
+        const scriptDomain = 'google-analytics.com';
+        if (includeAnalytics) {
+          assert(actual.includes(scriptDomain),
+                 `Google Analytics script was not present in "${actual}"`);
+        } else {
+          assert.strictEqual(actual.includes(scriptDomain), false,
+                             'Google Analytics script was present in ' +
+                             `"${actual}"`);
+        }
+      })
+    );
   }));
 });
