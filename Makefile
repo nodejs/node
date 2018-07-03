@@ -615,7 +615,7 @@ doc-only: $(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the 
 	if [ ! -d doc/api/assets ]; then \
 		$(MAKE) tools/doc/node_modules/js-yaml/package.json; \
 	fi;
-	@$(MAKE) $(apidocs_html) $(apidocs_json)
+	@$(MAKE) out/doc/api/all.html out/doc/api/all.json
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only
@@ -665,9 +665,11 @@ out/doc/api/%.json: doc/api/%.md tools/doc/generate.js tools/doc/json.js
 out/doc/api/%.html: doc/api/%.md tools/doc/generate.js tools/doc/html.js
 	$(call available-node, $(gen-html))
 
-out/doc/api/all.html: $(filter-out out/doc/api/all.html, $(apidocs_html)) \
-	tools/doc/allhtml.js
+out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js
 	$(call available-node, tools/doc/allhtml.js)
+
+out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js
+	$(call available-node, tools/doc/alljson.js)
 
 .PHONY: docopen
 docopen: $(apidocs_html)
