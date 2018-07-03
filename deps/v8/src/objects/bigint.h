@@ -144,8 +144,13 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
 
   static Handle<BigInt> FromInt64(Isolate* isolate, int64_t n);
   static Handle<BigInt> FromUint64(Isolate* isolate, uint64_t n);
+  static MaybeHandle<BigInt> FromWords64(Isolate* isolate, int sign_bit,
+                                         int words64_count,
+                                         const uint64_t* words);
   int64_t AsInt64(bool* lossless = nullptr);
   uint64_t AsUint64(bool* lossless = nullptr);
+  int Words64Count();
+  void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);
 
   DECL_CAST(BigInt)
   DECL_VERIFIER(BigInt)
