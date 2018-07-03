@@ -70,9 +70,9 @@ class NodeTestFixture : public ::testing::Test {
     tracing_controller.reset(new v8::TracingController());
     node::tracing::TraceEventHelper::SetTracingController(
         tracing_controller.get());
-    platform.reset(new node::NodePlatform(4, nullptr));
     CHECK_EQ(0, uv_loop_init(&current_loop));
-    v8::V8::InitializePlatform(platform.get());
+    platform.reset(static_cast<node::NodePlatform*>(
+          node::InitializeV8Platform(4)));
     v8::V8::Initialize();
   }
 
@@ -88,10 +88,8 @@ class NodeTestFixture : public ::testing::Test {
   virtual void SetUp() {
     allocator = ArrayBufferUniquePtr(node::CreateArrayBufferAllocator(),
                                      &node::FreeArrayBufferAllocator);
-    isolate_ = NewIsolate(allocator.get());
+    isolate_ = NewIsolate(allocator.get(), &current_loop);
     CHECK_NE(isolate_, nullptr);
-    platform->RegisterIsolate(isolate_, &current_loop);
-    v8::Isolate::Initialize(isolate_, params);
   }
 
   virtual void TearDown() {

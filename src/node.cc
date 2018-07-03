@@ -2990,6 +2990,12 @@ MultiIsolatePlatform* CreatePlatform(
 }
 
 
+MultiIsolatePlatform* InitializeV8Platform(int thread_pool_size) {
+  v8_platform.Initialize(thread_pool_size);
+  return v8_platform.Platform();
+}
+
+
 void FreePlatform(MultiIsolatePlatform* platform) {
   delete platform;
 }
@@ -3209,8 +3215,7 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif  // HAVE_OPENSSL
 
-  v8_platform.Initialize(
-      per_process_opts->v8_thread_pool_size);
+  InitializeV8Platform(per_process_opts->v8_thread_pool_size);
   V8::Initialize();
   performance::performance_v8_start = PERFORMANCE_NOW();
   v8_initialized = true;
