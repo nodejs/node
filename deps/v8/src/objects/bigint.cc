@@ -2205,6 +2205,70 @@ Handle<BigInt> BigInt::FromUint64(Isolate* isolate, uint64_t n) {
   return MutableBigInt::MakeImmutable(result);
 }
 
+MaybeHandle<BigInt> BigInt::FromWords64(Isolate* isolate, int sign_bit,
+                                        int words64_count,
+                                        const uint64_t* words) {
+  if (words64_count < 0 || words64_count > kMaxLength / (64 / kDigitBits)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
+                    BigInt);
+  }
+  if (words64_count == 0) return MutableBigInt::Zero(isolate);
+  STATIC_ASSERT(kDigitBits == 64 || kDigitBits == 32);
+  int length = (64 / kDigitBits) * words64_count;
+  DCHECK_GT(length, 0);
+  if (kDigitBits == 32 && words[words64_count - 1] <= (1ULL << 32)) length--;
+
+  Handle<MutableBigInt> result;
+  if (!MutableBigInt::New(isolate, length).ToHandle(&result)) {
+    return MaybeHandle<BigInt>();
+  }
+
+  result->set_sign(sign_bit);
+  if (kDigitBits == 64) {
+    for (int i = 0; i < length; ++i) {
+      result->set_digit(i, static_cast<digit_t>(words[i]));
+    }
+  } else {
+    for (int i = 0; i < length; i += 2) {
+      digit_t lo = static_cast<digit_t>(words[i / 2]);
+      digit_t hi = static_cast<digit_t>(words[i / 2] >> 32);
+      result->set_digit(i, lo);
+      if (i + 1 < length) result->set_digit(i + 1, hi);
+    }
+  }
+
+  return MutableBigInt::MakeImmutable(result);
+}
+
+int BigInt::Words64Count() {
+  STATIC_ASSERT(kDigitBits == 64 || kDigitBits == 32);
+  return length() / (64 / kDigitBits) +
+         (kDigitBits == 32 && length() % 2 == 1 ? 1 : 0);
+}
+
+void BigInt::ToWordsArray64(int* sign_bit, int* words64_count,
+                            uint64_t* words) {
+  DCHECK_NE(sign_bit, nullptr);
+  DCHECK_NE(words64_count, nullptr);
+  *sign_bit = sign();
+  int available_words = *words64_count;
+  *words64_count = Words64Count();
+  if (available_words == 0) return;
+  DCHECK_NE(words, nullptr);
+
+  int len = length();
+  if (kDigitBits == 64) {
+    for (int i = 0; i < len && i < available_words; ++i) words[i] = digit(i);
+  } else {
+    for (int i = 0; i < len && available_words > 0; i += 2) {
+      uint64_t lo = digit(i);
+      uint64_t hi = (i + 1) < len ? digit(i + 1) : 0;
+      words[i / 2] = lo | (hi << 32);
+      available_words--;
+    }
+  }
+}
+
 uint64_t MutableBigInt::GetRawBits(BigIntBase* x, bool* lossless) {
   if (lossless != nullptr) *lossless = true;
   if (x->is_zero()) return 0;
