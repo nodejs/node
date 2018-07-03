@@ -4045,7 +4045,7 @@ prevent the event loop from exiting. The APIs `napi_ref_threadsafe_function` and
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 ```C
 NAPI_EXTERN napi_status
@@ -4088,7 +4088,7 @@ parameters and with `undefined` as its `this` value.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 ```C
 NAPI_EXTERN napi_status
@@ -4106,7 +4106,7 @@ This API may be called from any thread which makes use of `func`.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 ```C
 NAPI_EXTERN napi_status
@@ -4134,7 +4134,7 @@ This API may be called from any thread which makes use of `func`.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 ```C
 NAPI_EXTERN napi_status
@@ -4156,7 +4156,7 @@ This API may be called from any thread which will start making use of `func`.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 ```C
 NAPI_EXTERN napi_status
@@ -4184,7 +4184,7 @@ This API may be called from any thread which will stop making use of `func`.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 ```C
 NAPI_EXTERN napi_status
@@ -4205,7 +4205,7 @@ This API may only be called from the main thread.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 ```C
 NAPI_EXTERN napi_status

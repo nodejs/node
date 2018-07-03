@@ -411,7 +411,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/4777
     description: The `cachedData` and `produceCachedData` options are
                  supported now.
-  - version: REPLACEME
+  - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/20300
     description: The `produceCachedData` is deprecated in favour of
                  `script.createCachedData()`
@@ -443,7 +443,7 @@ any global object; rather, it is bound before each run, just for that run.
 
 ### script.createCachedData()
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 
 * Returns: {Buffer}

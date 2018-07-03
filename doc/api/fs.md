@@ -1909,7 +1909,7 @@ Synchronous lchmod(2). Returns `undefined`.
 ## fs.lchown(path, uid, gid, callback)
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/21498
     description: This API is no longer deprecated.
   - version: v10.0.0
@@ -1934,7 +1934,7 @@ to the completion callback.
 ## fs.lchownSync(path, uid, gid)
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/21498
     description: This API is no longer deprecated.
 -->
@@ -3911,7 +3911,7 @@ no arguments upon success. This method is only implemented on macOS.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/21498
     description: This API is no longer deprecated.
 -->
