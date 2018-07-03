@@ -360,8 +360,8 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+  - version: v10.6.0
+    pr-url: https://github.com/nodejs/node/pull/20725
     description: Inspecting linked lists and similar objects is now possible
                  up to the maximum call stack size.
   - version: v10.0.0

@@ -585,7 +585,7 @@ via `require('dns').promises`.
 
 ### Class: dnsPromises.Resolver
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 
 An independent resolver for DNS requests.
@@ -631,7 +631,7 @@ The following methods from the `dnsPromises` API are available:
 
 ### dnsPromises.getServers()
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 
 * Returns: {string[]}
@@ -652,7 +652,7 @@ section if a custom port is used.
 
 ### dnsPromises.lookup(hostname[, options])
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string}
 - `options` {integer | Object}
@@ -715,7 +715,7 @@ dnsPromises.lookup('example.com', options).then((result) => {
 
 ### dnsPromises.lookupService(address, port)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `address` {string}
 - `port` {number}
@@ -740,7 +740,7 @@ dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
 
 ### dnsPromises.resolve(hostname[, rrtype])
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string} Hostname to resolve.
 - `rrtype` {string} Resource record type. **Default:** `'A'`.
@@ -769,7 +769,7 @@ is one of the [DNS error codes](#dns_error_codes).
 
 ### dnsPromises.resolve4(hostname[, options])
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string} Hostname to resolve.
 - `options` {Object}
@@ -784,7 +784,7 @@ addresses (e.g. `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
 ### dnsPromises.resolve6(hostname[, options])
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string} Hostname to resolve.
 - `options` {Object}
@@ -799,7 +799,7 @@ addresses.
 
 ### dnsPromises.resolveAny(hostname)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string}
 
@@ -843,7 +843,7 @@ Here is an example of the result object:
 
 ### dnsPromises.resolveCname(hostname)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string}
 
@@ -853,7 +853,7 @@ the `hostname` (e.g. `['bar.example.com']`).
 
 ### dnsPromises.resolveMx(hostname)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string}
 
@@ -864,7 +864,7 @@ containing both a `priority` and `exchange` property (e.g.
 
 ### dnsPromises.resolveNaptr(hostname)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string}
 
@@ -893,7 +893,7 @@ of objects with the following properties:
 
 ### dnsPromises.resolveNs(hostname)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string}
 
@@ -904,7 +904,7 @@ records available for `hostname` (e.g.
 
 ### dnsPromises.resolvePtr(hostname)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string}
 
@@ -914,7 +914,7 @@ containing the reply records.
 
 ### dnsPromises.resolveSoa(hostname)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string}
 
@@ -945,7 +945,7 @@ following properties:
 
 ### dnsPromises.resolveSrv(hostname)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string}
 
@@ -970,7 +970,7 @@ the following properties:
 
 ### dnsPromises.resolveTxt(hostname)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `hostname` {string}
 
@@ -983,7 +983,7 @@ treated separately.
 
 ### dnsPromises.reverse(ip)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `ip` {string}
 
@@ -995,7 +995,7 @@ is one of the [DNS error codes](#dns_error_codes).
 
 ### dnsPromises.setServers(servers)
 <!-- YAML
-added: REPLACEME
+added: v10.6.0
 -->
 - `servers` {string[]} array of [rfc5952][] formatted addresses
 
