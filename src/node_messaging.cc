@@ -144,6 +144,21 @@ void Message::AddMessagePort(std::unique_ptr<MessagePortData>&& data) {
 
 namespace {
 
+void ThrowDataCloneException(Environment* env, Local<String> message) {
+  Local<Value> argv[] = {
+    message,
+    FIXED_ONE_BYTE_STRING(env->isolate(), "DataCloneError")
+  };
+  Local<Value> exception;
+  Local<Function> domexception_ctor = env->domexception_function();
+  CHECK(!domexception_ctor.IsEmpty());
+  if (!domexception_ctor->NewInstance(env->context(), arraysize(argv), argv)
+          .ToLocal(&exception)) {
+    return;
+  }
+  env->isolate()->ThrowException(exception);
+}
+
 // This tells V8 how to serialize objects that it does not understand
 // (e.g. C++ objects) into the output buffer, in a way that our own
 // DeserializerDelegate understands how to unpack.
@@ -153,7 +168,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       : env_(env), context_(context), msg_(m) {}
 
   void ThrowDataCloneError(Local<String> message) override {
-    env_->isolate()->ThrowException(Exception::Error(message));
+    ThrowDataCloneException(env_, message);
   }
 
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
@@ -224,7 +239,8 @@ class SerializerDelegate : public ValueSerializer::Delegate {
 Maybe<bool> Message::Serialize(Environment* env,
                                Local<Context> context,
                                Local<Value> input,
-                               Local<Value> transfer_list_v) {
+                               Local<Value> transfer_list_v,
+                               Local<Object> source_port) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(context);
 
@@ -258,8 +274,23 @@ Maybe<bool> Message::Serialize(Environment* env,
         continue;
       } else if (env->message_port_constructor_template()
                     ->HasInstance(entry)) {
+        // Check if the source MessagePort is being transferred.
+        if (!source_port.IsEmpty() && entry == source_port) {
+          ThrowDataCloneException(
+              env,
+              FIXED_ONE_BYTE_STRING(env->isolate(),
+                                    "Transfer list contains source port"));
+          return Nothing<bool>();
+        }
         MessagePort* port = Unwrap<MessagePort>(entry.As<Object>());
-        CHECK_NE(port, nullptr);
+        if (port == nullptr || port->IsDetached()) {
+          ThrowDataCloneException(
+              env,
+              FIXED_ONE_BYTE_STRING(
+                  env->isolate(),
+                  "MessagePort in transfer list is already detached"));
+          return Nothing<bool>();
+        }
         delegate.ports_.push_back(port);
         continue;
       }
@@ -393,6 +424,10 @@ void MessagePort::AddToIncomingQueue(Message&& message) {
 
 uv_async_t* MessagePort::async() {
   return reinterpret_cast<uv_async_t*>(GetHandle());
+}
+
+bool MessagePort::IsDetached() const {
+  return data_ == nullptr || IsHandleClosing();
 }
 
 void MessagePort::TriggerAsync() {
@@ -537,36 +572,69 @@ std::unique_ptr<MessagePortData> MessagePort::Detach() {
 }
 
 
-void MessagePort::Send(Message&& message) {
-  Mutex::ScopedLock lock(*data_->sibling_mutex_);
-  if (data_->sibling_ == nullptr)
-    return;
-  data_->sibling_->AddToIncomingQueue(std::move(message));
-}
+Maybe<bool> MessagePort::PostMessage(Environment* env,
+                                     Local<Value> message_v,
+                                     Local<Value> transfer_v) {
+  Isolate* isolate = env->isolate();
+  Local<Object> obj = object(isolate);
+  Local<Context> context = obj->CreationContext();
 
-void MessagePort::Send(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = object(env->isolate())->CreationContext();
   Message msg;
-  if (msg.Serialize(env, context, args[0], args[1])
-          .IsNothing()) {
-    return;
+
+  // Per spec, we need to both check if transfer list has the source port, and
+  // serialize the input message, even if the MessagePort is closed or detached.
+
+  Maybe<bool> serialization_maybe =
+      msg.Serialize(env, context, message_v, transfer_v, obj);
+  if (data_ == nullptr) {
+    return serialization_maybe;
   }
-  Send(std::move(msg));
+  if (serialization_maybe.IsNothing()) {
+    return Nothing<bool>();
+  }
+
+  Mutex::ScopedLock lock(*data_->sibling_mutex_);
+  bool doomed = false;
+
+  // Check if the target port is posted to itself.
+  if (data_->sibling_ != nullptr) {
+    for (const auto& port_data : msg.message_ports()) {
+      if (data_->sibling_ == port_data.get()) {
+        doomed = true;
+        ProcessEmitWarning(env, "The target port was posted to itself, and "
+                                "the communication channel was lost");
+        break;
+      }
+    }
+  }
+
+  if (data_->sibling_ == nullptr || doomed)
+    return Just(true);
+
+  data_->sibling_->AddToIncomingQueue(std::move(msg));
+  return Just(true);
 }
 
 void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  MessagePort* port;
-  ASSIGN_OR_RETURN_UNWRAP(&port, args.This());
-  if (!port->data_) {
-    return THROW_ERR_CLOSED_MESSAGE_PORT(env);
-  }
   if (args.Length() == 0) {
     return THROW_ERR_MISSING_ARGS(env, "Not enough arguments to "
                                        "MessagePort.postMessage");
   }
-  port->Send(args);
+
+  MessagePort* port = Unwrap<MessagePort>(args.This());
+  // Even if the backing MessagePort object has already been deleted, we still
+  // want to serialize the message to ensure spec-compliant behavior w.r.t.
+  // transfers.
+  if (port == nullptr) {
+    Message msg;
+    Local<Object> obj = args.This();
+    Local<Context> context = obj->CreationContext();
+    USE(msg.Serialize(env, context, args[0], args[1], obj));
+    return;
+  }
+
+  port->PostMessage(env, args[0], args[1]);
 }
 
 void MessagePort::Start() {
@@ -688,6 +756,13 @@ static void MessageChannel(const FunctionCallbackInfo<Value>& args) {
       .FromJust();
 }
 
+static void RegisterDOMException(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsFunction());
+  env->set_domexception_function(args[0].As<Function>());
+}
+
 static void InitMessaging(Local<Object> target,
                           Local<Value> unused,
                           Local<Context> context,
@@ -708,6 +783,8 @@ static void InitMessaging(Local<Object> target,
               env->message_port_constructor_string(),
               GetMessagePortConstructor(env, context).ToLocalChecked())
                   .FromJust();
+
+  env->SetMethod(target, "registerDOMException", RegisterDOMException);
 }
 
 }  // anonymous namespace
