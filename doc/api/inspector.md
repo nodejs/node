@@ -28,6 +28,17 @@ started.
 If wait is `true`, will block until a client has connected to the inspect port
 and flow control has been passed to the debugger client.
 
+### inspector.console
+
+An object to send messages to the remote inspector console.
+
+```js
+require('inspector').console.log('a message');
+```
+
+The inspector console does not have API parity with Node.js
+console.
+
 ### inspector.close()
 
 Deactivate the inspector. Blocks until there are no active connections.
