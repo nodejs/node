@@ -1426,11 +1426,7 @@ util.inspect(process);
 }
 
 // Do not escape single quotes if no double quote or backtick is present.
-assert.strictEqual(
-  util.inspect("'"),
-  '"\'"'
-);
-assert.strictEqual(
-  util.inspect('"\''),
-  '`"\'`'
-);
+assert.strictEqual(util.inspect("'"), '"\'"');
+assert.strictEqual(util.inspect('"\''), '`"\'`');
+// eslint-disable-next-line no-template-curly-in-string
+assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
