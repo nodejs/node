@@ -189,39 +189,39 @@ static napi_value CallWithArguments(napi_env env, napi_callback_info info) {
 }
 
 
-#define EXPORT_FUNC(name, func)                                       \
+#define EXPORT_FUNC(env, exports, name, func)                         \
   do {                                                                \
-    napi_value func ## _v;                                            \
-    status = napi_create_function(env,                                \
-                                  name,                               \
+    napi_status status;                                               \
+    napi_value js_func;                                               \
+    status = napi_create_function((env),                              \
+                                  (name),                             \
                                   NAPI_AUTO_LENGTH,                   \
-                                  func,                               \
+                                  (func),                             \
                                   NULL,                               \
-                                  &func ## _v);                       \
+                                  &js_func);                          \
     assert(status == napi_ok);                                        \
-    status = napi_set_named_property(env, exports, name, func ## _v); \
+    status = napi_set_named_property((env),                           \
+        (exports), (name), js_func);                                  \
     assert(status == napi_ok);                                        \
   } while (0);
 
 
 NAPI_MODULE_INIT() {
-  napi_status status;
+  EXPORT_FUNC(env, exports, "callWithString", CallWithString);
+  EXPORT_FUNC(env, exports, "callWithLongString", CallWithString);
 
-  EXPORT_FUNC("callWithString", CallWithString);
-  EXPORT_FUNC("callWithLongString", CallWithString);
+  EXPORT_FUNC(env, exports, "callWithArray", CallWithArray);
+  EXPORT_FUNC(env, exports, "callWithLargeArray", CallWithArray);
+  EXPORT_FUNC(env, exports, "callWithHugeArray", CallWithArray);
 
-  EXPORT_FUNC("callWithArray", CallWithArray);
-  EXPORT_FUNC("callWithLargeArray", CallWithArray);
-  EXPORT_FUNC("callWithHugeArray", CallWithArray);
+  EXPORT_FUNC(env, exports, "callWithNumber", CallWithNumber);
 
-  EXPORT_FUNC("callWithNumber", CallWithNumber);
+  EXPORT_FUNC(env, exports, "callWithObject", CallWithObject);
+  EXPORT_FUNC(env, exports, "callWithTypedarray", CallWithTypedarray);
 
-  EXPORT_FUNC("callWithObject", CallWithObject);
-  EXPORT_FUNC("callWithTypedarray", CallWithTypedarray);
-
-  EXPORT_FUNC("callWith10Numbers", CallWithArguments);
-  EXPORT_FUNC("callWith100Numbers", CallWithArguments);
-  EXPORT_FUNC("callWith1000Numbers", CallWithArguments);
+  EXPORT_FUNC(env, exports, "callWith10Numbers", CallWithArguments);
+  EXPORT_FUNC(env, exports, "callWith100Numbers", CallWithArguments);
+  EXPORT_FUNC(env, exports, "callWith1000Numbers", CallWithArguments);
 
   return exports;
 }
