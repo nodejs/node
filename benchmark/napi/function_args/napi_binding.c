@@ -189,18 +189,18 @@ static napi_value CallWithArguments(napi_env env, napi_callback_info info) {
 }
 
 
-#define EXPORT_FUNC(name, func) \
-  do { \
-    napi_value func ## _v; \
-    status = napi_create_function(env, \
-                                  name, \
-                                  NAPI_AUTO_LENGTH, \
-                                  func, \
-                                  NULL, \
-                                  &func ## _v); \
-    assert(status == napi_ok); \
+#define EXPORT_FUNC(name, func)                                       \
+  do {                                                                \
+    napi_value func ## _v;                                            \
+    status = napi_create_function(env,                                \
+                                  name,                               \
+                                  NAPI_AUTO_LENGTH,                   \
+                                  func,                               \
+                                  NULL,                               \
+                                  &func ## _v);                       \
+    assert(status == napi_ok);                                        \
     status = napi_set_named_property(env, exports, name, func ## _v); \
-    assert(status == napi_ok); \
+    assert(status == napi_ok);                                        \
   } while (0);
 
 
