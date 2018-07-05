@@ -2145,9 +2145,8 @@ fs.mkdtemp(tmpDir, (err, folder) => {
   if (err) throw err;
   console.log(folder);
   // Will print something similar to `/tmpabc123`.
-  // A new temporary directory is created
-  // at the file system root rather than *within*
-  // the /tmp directory.
+  // A new temporary directory is created at the file system root
+  // rather than *within* the /tmp directory.
 });
 
 // This method is *CORRECT*:
