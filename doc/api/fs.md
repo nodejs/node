@@ -1570,9 +1570,9 @@ changes:
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the path exists, `false` otherwise.
 
-`fs.exists()` is deprecated, but `fs.existsSync()` is not. (The `callback`
+`fs.exists()` is deprecated, but `fs.existsSync()` is not. The `callback`
 parameter to `fs.exists()` accepts parameters that are inconsistent with other
-Node.js callbacks. `fs.existsSync()` does not use a callback.)
+Node.js callbacks. `fs.existsSync()` does not use a callback.
 
 ## fs.fchmod(fd, mode, callback)
 <!-- YAML
