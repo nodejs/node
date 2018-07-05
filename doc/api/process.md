@@ -1644,7 +1644,7 @@ This feature is not available in [`Worker`][] threads.
 
 ## process.nice(inc)
 <!-- YAML
-added: v10.?.?
+added: REPLACEME
 -->
 
 * `inc` {integer} The new nice value for the process.
