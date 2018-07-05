@@ -114,7 +114,7 @@ The externally maintained libraries used by Node.js are:
     IN THE SOFTWARE.
   """
 
-- ICU, located at deps/icu-small, is licensed as follows:
+- ICU, located at deps/icu, is licensed as follows:
   """
     COPYRIGHT AND PERMISSION NOTICE (ICU 58 and later)
 

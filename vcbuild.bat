@@ -150,7 +150,7 @@ if defined build_release (
   set msi=1
   set licensertf=1
   set download_arg="--download=all"
-  set i18n_arg=small-icu
+  set i18n_arg=full-icu
   set projgen=1
   set ltcg=1
 )
@@ -178,10 +178,15 @@ if defined config_flags     set configure_flags=%configure_flags% %config_flags%
 if defined target_arch      set configure_flags=%configure_flags% --dest-cpu=%target_arch%
 if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
 
-if not exist "%~dp0deps\icu" goto no-depsicu
-if "%target%"=="Clean" echo deleting %~dp0deps\icu
-if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
+if not exist "%~dp0deps\icu-tmp" goto no-depsicu
+if "%target%"=="Clean" echo deleting %~dp0deps\icu-tmp
+if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu-tmp
 :no-depsicu
+
+if not exist "%~dp0deps\download-tmp" goto no-depsdltmp
+if "%target%"=="Clean" echo deleting %~dp0deps\icu-download-tmp
+if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu-download-tmp
+:no-depsdltmp
 
 call tools\msvs\find_python.cmd
 if errorlevel 1 goto :exit
@@ -660,7 +665,7 @@ del .used_configure_flags
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [ltcg] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [ltcg] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

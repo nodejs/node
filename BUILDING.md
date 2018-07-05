@@ -312,32 +312,7 @@ $ make
 ### `Intl` (ECMA-402) support:
 
 [Intl](https://github.com/nodejs/node/blob/master/doc/api/intl.md) support is
-enabled by default, with English data only.
-
-#### Default: `small-icu` (English only) support
-
-By default, only English data is included, but
-the full `Intl` (ECMA-402) APIs.  It does not need to download
-any dependencies to function. You can add full
-data at runtime.
-
-#### Build with full ICU support (all locales supported by ICU):
-
-With the `--download=all`, this may download ICU if you don't have an
-ICU in `deps/icu`. (The embedded `small-icu` included in the default
-Node.js source does not include all locales.)
-
-##### Unix/macOS:
-
-```console
-$ ./configure --with-intl=full-icu --download=all
-```
-
-##### Windows:
-
-```console
-> .\vcbuild full-icu download-all
-```
+enabled by default. The previously used `small-icu` option has been removed.
 
 #### Building without Intl support
 
@@ -372,16 +347,19 @@ You can find other ICU releases at
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
 
+Building with a specific ICU allows you to customize/update the data included
+therein, see ICU’s documentation for more details.
+
 ##### Unix/macOS
 
 From an already-unpacked ICU:
 ```console
-$ ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu
+$ ./configure --with-intl=full-icu --with-icu-source=/path/to/icu
 ```
 
 From a local ICU tarball:
 ```console
-$ ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu.tgz
+$ ./configure --with-intl=full-icu --with-icu-source=/path/to/icu.tgz
 ```
 
 From a tarball URL:

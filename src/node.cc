@@ -3322,7 +3322,7 @@ void Init(int* argc,
   if (icu_data_dir.empty())
     SafeGetenv("NODE_ICU_DATA", &icu_data_dir);
   // Initialize ICU.
-  // If icu_data_dir is empty here, it will load the 'minimal' data.
+  // If icu_data_dir is empty here, it will be ignored.
   if (!i18n::InitializeICUDirectory(icu_data_dir)) {
     fprintf(stderr,
             "%s: could not initialize ICU "

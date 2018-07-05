@@ -79,7 +79,6 @@ ipch/
 /test/addons/??_*/
 email.md
 deps/v8-*
-deps/icu
 deps/icu*.zip
 deps/icu*.tgz
 deps/icu-tmp

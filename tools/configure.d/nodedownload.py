@@ -69,15 +69,25 @@ def unpack(packedfile, parent_path):
         raise Exception('Error: Don\'t know how to unpack %s with extension %s' % (packedfile, packedsuffix))
 
 # List of possible "--download=" types.
-download_types = set(['icu'])
+# If this is empty, no autodownloads will happen.
+download_types = set()
+
+# List of all valid options
+download_options = set(['none','all'])
 
 # Default options for --download.
 download_default = "none"
 
+if len(download_types) == 0:
+  download_postmsg = " (This option is currently ignored.)"
+else:
+  download_postmsg = ""
+
 def help():
   """This function calculates the '--help' text for '--download'."""
   return """Select which packages may be auto-downloaded.
-valid values are: none, all, %s. (default is "%s").""" % (", ".join(download_types), download_default)
+valid values are: %s. (default is "%s").%s""" % (", ".join(download_types | download_options), download_default,
+    download_postmsg)
 
 def set2dict(keys, value=None):
   """Convert some keys (iterable) to a dict."""

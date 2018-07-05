@@ -74,7 +74,7 @@ valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
-valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
+valid_intl_modes = ('none', 'full-icu', 'system-icu', 'small-icu')
 
 # create option groups
 shared_optgroup = optparse.OptionGroup(parser, "Shared libraries",
@@ -398,7 +398,7 @@ parser.add_option('--with-etw',
 intl_optgroup.add_option('--with-intl',
     action='store',
     dest='with_intl',
-    default='small-icu',
+    default='full-icu',
     choices=valid_intl_modes,
     help='Intl mode (valid choices: {0}) [default: %default]'.format(
         ', '.join(valid_intl_modes)))
@@ -413,15 +413,6 @@ intl_optgroup.add_option('--with-icu-path',
     action='store',
     dest='with_icu_path',
     help='Path to icu.gyp (ICU i18n, Chromium version only.)')
-
-icu_default_locales='root,en'
-
-intl_optgroup.add_option('--with-icu-locales',
-    action='store',
-    dest='with_icu_locales',
-    default=icu_default_locales,
-    help='Comma-separated list of locales for "small-icu". "root" is assumed. '
-        '[default: %default]')
 
 intl_optgroup.add_option('--with-icu-source',
     action='store',
@@ -1183,52 +1174,19 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
   return list
 
 def configure_intl(o):
-  icus = [
-    {
-      'url': 'https://sourceforge.net/projects/icu/files/ICU4C/62.1/icu4c-62_1-src.zip',
-      'md5': '408854f7b9b58311b68fab4b4dfc80be',
-    },
-  ]
-  def icu_download(path):
-    # download ICU, if needed
-    if not os.access(options.download_path, os.W_OK):
-      error('''Cannot write to desired download path.
-        Either create it or verify permissions.''')
-    for icu in icus:
-      url = icu['url']
-      md5 = icu['md5']
-      local = url.split('/')[-1]
-      targetfile = os.path.join(options.download_path, local)
-      if not os.path.isfile(targetfile):
-        if nodedownload.candownload(auto_downloads, "icu"):
-          nodedownload.retrievefile(url, targetfile)
-      else:
-        print('Re-using existing %s' % targetfile)
-      if os.path.isfile(targetfile):
-        print('Checking file integrity with MD5:\r')
-        gotmd5 = nodedownload.md5sum(targetfile)
-        print('MD5:      %s  %s' % (gotmd5, targetfile))
-        if (md5 == gotmd5):
-          return targetfile
-        else:
-          print('Expected: %s      *MISMATCH*' % md5)
-          print('\n ** Corrupted ZIP? Delete %s to retry download.\n' % targetfile)
-    return None
   icu_config = {
     'variables': {}
   }
   icu_config_name = 'icu_config.gypi'
-  def write_config(data, name):
-    return
 
   # write an empty file to start with
   write(icu_config_name, do_not_edit +
         pprint.pformat(icu_config, indent=2) + '\n')
 
-  # always set icu_small, node.gyp depends on it being defined.
-  o['variables']['icu_small'] = b(False)
-
   with_intl = options.with_intl
+  if with_intl == 'small-icu':
+    print 'Warning: small-icu has been removed, using full-icu instead.'
+    with_intl = 'full-icu'
   with_icu_source = options.with_icu_source
   have_icu_path = bool(options.with_icu_path)
   if have_icu_path and with_intl != 'none':
@@ -1244,14 +1202,6 @@ def configure_intl(o):
   if with_intl in (None, 'none'):
     o['variables']['v8_enable_i18n_support'] = 0
     return  # no Intl
-  elif with_intl == 'small-icu':
-    # small ICU (English only)
-    o['variables']['v8_enable_i18n_support'] = 1
-    o['variables']['icu_small'] = b(True)
-    locs = set(options.with_icu_locales.split(','))
-    locs.add('root')  # must have root
-    o['variables']['icu_locales'] = string.join(locs,',')
-    # We will check a bit later if we can use the canned deps/icu-small
   elif with_intl == 'full-icu':
     # full ICU
     o['variables']['v8_enable_i18n_support'] = 1
@@ -1274,52 +1224,43 @@ def configure_intl(o):
     o['variables']['icu_gyp_path'] = 'tools/icu/icu-system.gyp'
     return
 
+  # This will get the path that ICU is built from: deps/icu or deps/icu-tmp
+  icu_full_path = None
+
   # this is just the 'deps' dir. Used for unpacking.
   icu_parent_path = 'deps'
 
-  # The full path to the ICU source directory. Should not include './'.
-  icu_full_path = 'deps/icu'
+  # The working path to the ICU source tree.
+  tmp_icu_dir = 'deps/icu-tmp'
 
-  # icu-tmp is used to download and unpack the ICU tarball.
-  icu_tmp_path = os.path.join(icu_parent_path, 'icu-tmp')
+  # a temporary download area
+  icu_tmpdownload_path = 'deps/icu-download-tmp'
 
-  # canned ICU. see tools/icu/README.md to update.
-  canned_icu_dir = 'deps/icu-small'
+  # The ICU checked into the node repo.
+  # see tools/icu/README.md to update.
+  canned_icu_dir = 'deps/icu'
 
-  # We can use 'deps/icu-small' - pre-canned ICU *iff*
-  # - with_intl == small-icu (the default!)
-  # - with_icu_locales == 'root,en' (the default!)
-  # - deps/icu-small exists!
-  # - with_icu_source is unset (i.e. no other ICU was specified)
-  # (Note that this is the *DEFAULT CASE*.)
-  #
-  # This is *roughly* equivalent to
-  # $ configure --with-intl=small-icu --with-icu-source=deps/icu-small
-  # .. Except that we avoid copying icu-small over to deps/icu.
-  # In this default case, deps/icu is ignored, although make clean will
-  # still harmlessly remove deps/icu.
-
-  # are we using default locales?
-  using_default_locales = ( options.with_icu_locales == icu_default_locales )
-
-  # make sure the canned ICU really exists
-  canned_icu_available = os.path.isdir(canned_icu_dir)
-
-  if (o['variables']['icu_small'] == b(True)) and using_default_locales and (not with_icu_source) and canned_icu_available:
-    # OK- we can use the canned ICU.
-    icu_config['variables']['icu_small_canned'] = 1
-    icu_full_path = canned_icu_dir
-
-  # --with-icu-source processing
-  # now, check that they didn't pass --with-icu-source=deps/icu
-  elif with_icu_source and os.path.abspath(icu_full_path) == os.path.abspath(with_icu_source):
-    print('Ignoring redundant --with-icu-source=%s' % with_icu_source)
-    with_icu_source = None
-  # if with_icu_source is still set, try to use it.
+  # Ignore --with-icu-source=deps/icu or deps/icu-tmp
   if with_icu_source:
-    if os.path.isdir(icu_full_path):
-      print('Deleting old ICU source: %s' % icu_full_path)
-      shutil.rmtree(icu_full_path)
+    with_icu_abspath = os.path.abspath(with_icu_source)
+    if (os.path.abspath(tmp_icu_dir) == with_icu_abspath
+      or os.path.abspath(canned_icu_dir) == with_icu_abspath):
+      print('Ignoring redundant --with-icu-source=%s' % with_icu_source)
+      with_icu_source = None
+
+  # Can we use the canned ICU from the repo? (default)
+  if os.path.isdir(canned_icu_dir) and (not with_icu_source):
+    # build from canned location deps/icu
+    icu_full_path = canned_icu_dir
+    icu_config['variables']['icu_full_canned'] = 1
+  elif with_icu_source:
+    # build from temporary location
+    icu_full_path = tmp_icu_dir
+    if os.path.isdir(tmp_icu_dir):
+      print('Removing old source at %s' % tmp_icu_dir)
+      shutil.rmtree(tmp_icu_dir)
+    os.mkdir(tmp_icu_dir)
+
     # now, what path was given?
     if os.path.isdir(with_icu_source):
       # it's a path. Copy it.
@@ -1328,42 +1269,42 @@ def configure_intl(o):
     else:
       # could be file or URL.
       # Set up temporary area
-      if os.path.isdir(icu_tmp_path):
-        shutil.rmtree(icu_tmp_path)
-      os.mkdir(icu_tmp_path)
       icu_tarball = None
       if os.path.isfile(with_icu_source):
         # it's a file. Try to unpack it.
         icu_tarball = with_icu_source
       else:
         # Can we download it?
-        local = os.path.join(icu_tmp_path, with_icu_source.split('/')[-1])  # local part
-        icu_tarball = nodedownload.retrievefile(with_icu_source, local)
+        local = os.path.join(options.download_path, with_icu_source.split('/')[-1])  # local part
+        if os.path.isfile(local):
+          print 'Using existing ICU tarball %s' % local
+          icu_tarball = local
+        else:
+          icu_tarball = nodedownload.retrievefile(with_icu_source, local)
       # continue with "icu_tarball"
-      nodedownload.unpack(icu_tarball, icu_tmp_path)
+      if os.path.isdir(icu_tmpdownload_path):
+        shutil.rmtree(icu_tmpdownload_path)
+      os.mkdir(icu_tmpdownload_path)
+      print ' md5 sum: %s' % nodedownload.md5sum(icu_tarball)
+      nodedownload.unpack(icu_tarball, icu_tmpdownload_path)
       # Did it unpack correctly? Should contain 'icu'
-      tmp_icu = os.path.join(icu_tmp_path, 'icu')
-      if os.path.isdir(tmp_icu):
-        os.rename(tmp_icu, icu_full_path)
-        shutil.rmtree(icu_tmp_path)
-      else:
-        shutil.rmtree(icu_tmp_path)
+      new_icu_path = os.path.join(icu_tmpdownload_path, 'icu')
+      if not os.path.isdir(new_icu_path):
+        shutil.rmtree(local) # delete tarball
+        shutil.rmtree(icu_tmpdownload_path) # delete temporary path
         error('--with-icu-source=%s did not result in an "icu" dir.' % \
                with_icu_source)
+      print('Moving %s -> %s' % (new_icu_path, icu_full_path))
+      os.rename(new_icu_path, icu_full_path)
+      shutil.rmtree(icu_tmpdownload_path) # delete temporary path
 
   # ICU mode. (icu-generic.gyp)
   o['variables']['icu_gyp_path'] = 'tools/icu/icu-generic.gyp'
   # ICU source dir relative to tools/icu (for .gyp file)
   o['variables']['icu_path'] = icu_full_path
   if not os.path.isdir(icu_full_path):
-    print('* ECMA-402 (Intl) support didn\'t find ICU in %s..' % icu_full_path)
-    # can we download (or find) a zipfile?
-    localzip = icu_download(icu_full_path)
-    if localzip:
-      nodedownload.unpack(localzip, icu_parent_path)
-  if not os.path.isdir(icu_full_path):
     error('''Cannot build Intl without ICU in %s.
-       Fix, or disable with "--with-intl=none"''' % icu_full_path)
+       Your sources may be incomplete. (Disable ICU with "--with-intl=none")''' % icu_full_path)
   else:
     print('* Using ICU in %s' % icu_full_path)
   # Now, what version of ICU is it? We just need the "major", such as 54.

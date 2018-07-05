@@ -8,13 +8,7 @@ using node::url::URL_FLAGS_FAILED;
 
 class URLTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-#if defined(NODE_HAVE_I18N_SUPPORT)
-    std::string icu_data_dir;
-    node::i18n::InitializeICUDirectory(icu_data_dir);
-#endif
-  }
-
+  void SetUp() override {}
   void TearDown() override {}
 };
 

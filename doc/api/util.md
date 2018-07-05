@@ -779,29 +779,24 @@ Per the [WHATWG Encoding Standard][], the encodings supported by the
 one or more aliases may be used.
 
 Different Node.js build configurations support different sets of encodings.
-While a very basic set of encodings is supported even on Node.js builds without
-ICU enabled, support for some encodings is provided only when Node.js is built
-with ICU and using the full ICU data (see [Internationalization][]).
+By default, ICU is enabled, and a full set is supported (below). Disabling
+ICU (or customizing the ICU build to remove encodings) will change the
+available WHATWG Supported Encodings (see [Internationalization][]).
 
 #### Encodings Supported Without ICU
 
-| Encoding     | Aliases                           |
-| -----------  | --------------------------------- |
-| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'`   |
-| `'utf-16le'` | `'utf-16'`                        |
+| Encoding           | Aliases                          |
+| -----------        | -------------------------------- |
+| `'utf-8'`          | `'unicode-1-1-utf-8'`, `'utf8'`  |
+| `'utf-16le'`       | `'utf-16'`                       |
 
-#### Encodings Supported by Default (With ICU)
-
-| Encoding     | Aliases                           |
-| -----------  | --------------------------------- |
-| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'`   |
-| `'utf-16le'` | `'utf-16'`                        |
-| `'utf-16be'` |                                   |
-
-#### Encodings Requiring Full ICU Data
+#### Encodings Supported With ICU
 
 | Encoding           | Aliases                          |
-| -----------------  | -------------------------------- |
+| -----------        | -------------------------------- |
+| `'utf-8'`          | `'unicode-1-1-utf-8'`, `'utf8'`  |
+| `'utf-16le'`       | `'utf-16'`                       |
+| `'utf-16be'`       |                                  |
 | `'ibm866'`         | `'866'`, `'cp866'`, `'csibm866'` |
 | `'iso-8859-2'`     | `'csisolatin2'`, `'iso-ir-101'`, `'iso8859-2'`, `'iso88592'`, `'iso_8859-2'`, `'iso_8859-2:1987'`, `'l2'`, `'latin2'`  |
 | `'iso-8859-3'`     | `'csisolatin3'`, `'iso-ir-109'`, `'iso8859-3'`, `'iso88593'`, `'iso_8859-3'`, `'iso_8859-3:1988'`, `'l3'`, `'latin3'`  |

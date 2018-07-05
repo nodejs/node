@@ -50,7 +50,7 @@ NPM ?= ./deps/npm/bin/npm-cli.js
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
-BUILD_INTL_FLAGS ?= --with-intl=small-icu
+BUILD_INTL_FLAGS ?= --with-intl=full-icu
 BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 
 # Default to verbose builds.
@@ -135,7 +135,8 @@ clean: ## Remove build artifacts.
 		out/$(BUILDTYPE)/node.exp
 	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs $(RM) -r; fi
 	$(RM) -r node_modules
-	@if [ -d deps/icu ]; then echo deleting deps/icu; $(RM) -r deps/icu; fi
+	@if [ -d deps/icu-tmp ]; then echo deleting deps/icu-tmp; $(RM) -r deps/icu-tmp; fi
+	$(RM) -r deps/icu-download-tmp
 	$(RM) test.tap
 	# Next one is legacy remove this at some point
 	$(RM) -r test/tmp*
@@ -149,8 +150,7 @@ distclean:
 	$(RM) config.mk
 	$(RM) -r $(NODE_EXE) $(NODE_G_EXE)
 	$(RM) -r node_modules
-	$(RM) -r deps/icu
-	$(RM) -r deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
+	$(RM) -r deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp deps/icu-download-tmp
 	$(RM) $(BINARYTAR).* $(TARBALL).*
 
 .PHONY: check
