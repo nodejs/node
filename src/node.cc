@@ -101,7 +101,7 @@ typedef int mode_t;
 #else
 #include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
-#include <unistd.h>  // setuid, getuid
+#include <unistd.h>  // setuid, getuid, nice
 #endif
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)

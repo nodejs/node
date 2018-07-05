@@ -953,6 +953,7 @@ void SetGid(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SetEGid(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SetUid(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SetEUid(const v8::FunctionCallbackInfo<v8::Value>& args);
+void Nice(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SetGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
 void InitGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
 void GetUid(const v8::FunctionCallbackInfo<v8::Value>& args);

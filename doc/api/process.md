@@ -1642,6 +1642,40 @@ This function is only available on POSIX platforms (i.e. not Windows or
 Android).
 This feature is not available in [`Worker`][] threads.
 
+## process.nice(inc)
+<!-- YAML
+added: v10.?.?
+-->
+
+* `inc` {integer} The new nice value for the process.
+
+The `process.nice()` method sets or gets the nice value of the process.
+(See nice(2).) The `inc` is supposed to be an integer, consisting of the
+_difference_ you want to add to the current nice value.
+The higher the nice value of the process, the nicer the process and the less
+time is given by the scheduler.
+
+You can get the current nice value by passing 0 or nothing to the method.
+
+Unless you have super user permissions, you can only increase your nice value.
+Though, it is also possible to increase the priority if a limit (RLIMIT_NICE)
+is set. (See getrlimit(2).)
+
+**NOTE**: Once you incremented your niceness, you can no longer reduce it!
+
+```js
+if (process.nice) {
+  const currentNice = process.nice();
+  console.log(currentNice); // Prints the current nice value
+
+  process.nice(1); // Increases nice value - giving it less priority.
+}
+```
+
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
+This feature is not available in [`Worker`][] threads.
+
 ## process.setgid(id)
 <!-- YAML
 added: v0.1.31

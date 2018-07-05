@@ -434,6 +434,30 @@ void SetEUid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void Nice(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->is_main_thread());
+
+  CHECK_EQ(args.Length(), 1);
+
+  int inc = 0;
+  // ..only check type if argument is int32
+  if (!args[0]->IsUndefined()) {
+    CHECK(args[0]->IsInt32());
+    inc = args[0]->Int32Value();
+  }
+
+  errno = 0;
+  int nice_result = nice(inc);
+
+  if (errno != 0) {
+    env->ThrowErrnoException(errno, "nice");
+  } else {
+    args.GetReturnValue().Set(nice_result);
+  }
+}
+
+
 void GetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 

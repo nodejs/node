@@ -118,6 +118,7 @@ void SetupBootstrapObject(Environment* env,
     BOOTSTRAP_METHOD(_initgroups, InitGroups);
     BOOTSTRAP_METHOD(_setegid, SetEGid);
     BOOTSTRAP_METHOD(_seteuid, SetEUid);
+    BOOTSTRAP_METHOD(_nice, Nice);
     BOOTSTRAP_METHOD(_setgid, SetGid);
     BOOTSTRAP_METHOD(_setuid, SetUid);
     BOOTSTRAP_METHOD(_setgroups, SetGroups);
