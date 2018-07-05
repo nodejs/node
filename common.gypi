@@ -176,6 +176,17 @@
           ['OS!="mac" and OS!="win"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
+          ['OS=="linux"', {
+            'variables': {
+              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
+            },
+            'conditions': [
+              ['enable_lto=="true"', {
+                'cflags': ['<(lto)'],
+                'ldflags': ['<(lto)'],
+              },],
+            ],
+          },],
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]

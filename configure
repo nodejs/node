@@ -157,6 +157,11 @@ parser.add_option("--enable-vtune-profiling",
          "JavaScript code executed in nodejs. This feature is only available "
          "for x32, x86, and x64 architectures.")
 
+parser.add_option("--enable-lto",
+    action="store_true",
+    dest="enable_lto",
+    help="Enable compiling with lto of a binary. This feature is only available "
+         "on linux with gcc and g++.")
 
 parser.add_option("--link-module",
     action="append",
@@ -931,6 +936,23 @@ def configure_node(o):
        'architectures.')
   else:
     o['variables']['node_enable_v8_vtunejit'] = 'false'
+
+  if flavor != 'linux' and (options.enable_lto):
+    raise Exception(
+      'The lto option is supported only on linux.')
+
+  if flavor == 'linux':
+    if options.enable_lto:
+      version_checked = '5.4.1'
+      for compiler in [(CC, 'c'), (CXX, 'c++')]:
+        ok, is_clang, clang_version, compiler_version = \
+          try_check_compiler(compiler[0], compiler[1])
+        if is_clang or compiler_version < version_checked:
+          raise Exception(
+            'The option --enable-lto is supported for '
+            'gcc and gxx 5.4.1 or newer only.')
+
+  o['variables']['enable_lto'] = b(options.enable_lto)
 
   if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
     use_dtrace = not options.without_dtrace
