@@ -123,6 +123,6 @@ process.on('exit', function() {
   assert.strictEqual(interval_count, 3);
   assert.strictEqual(count4, 11);
 
-  // clearTimeout cleared too many timeouts
+  // Check that the correct number of timers ran.
   assert.strictEqual(expectedTimeouts, 0);
 });
