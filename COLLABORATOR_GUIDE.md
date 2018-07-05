@@ -199,9 +199,9 @@ status indicator.
 
 Do not land any Pull Requests without passing (green or yellow) CI runs. If you
 believe any failed (red or grey) CI sub-tasks are unrelated to the change in the
-Pull Request, use "Resume Build" in the left navigation of the
-node-test-pull-request job. It will create a new node-test-pull-request run that
-preserves all the green results from the current run but re-runs everything
+Pull Request, use "Resume Build" in the left navigation of the relevant
+`node-test-pull-request` job. It will create a new `node-test-pull-request` run
+that preserves all the green results from the current job but re-runs everything
 else.
 
 #### Useful CI Jobs
