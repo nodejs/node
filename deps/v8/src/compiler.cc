@@ -84,8 +84,9 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
-  if (!isolate->logger()->is_logging_code_events() &&
-      !isolate->is_profiling() && !FLAG_log_function_events) {
+  if (!isolate->logger()->is_listening_to_code_events() &&
+      !isolate->is_profiling() && !FLAG_log_function_events &&
+      !isolate->code_event_dispatcher()->IsListeningToCodeEvents()) {
     return;
   }
 
