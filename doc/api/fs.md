@@ -3261,7 +3261,7 @@ The callback will be given three arguments `(err, bytesWritten, buffer)` where
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `bytesWritten` and `buffer` properties.
 
-It is unsafe to use `fs.write` multiple times on the same file without waiting
+It is unsafe to use `fs.write()` multiple times on the same file without waiting
 for the callback. For this scenario, `fs.createWriteStream()` is recommended.
 
 On Linux, positional writes don't work when the file is opened in append mode.
@@ -3308,7 +3308,7 @@ specifies how many _bytes_ the passed string required to be written. Bytes
 written is not necessarily the same as string characters written. See
 [`Buffer.byteLength`][].
 
-It is unsafe to use `fs.write` multiple times on the same file without waiting
+It is unsafe to use `fs.write()` multiple times on the same file without waiting
 for the callback. For this scenario, `fs.createWriteStream()` is recommended.
 
 On Linux, positional writes don't work when the file is opened in append mode.
