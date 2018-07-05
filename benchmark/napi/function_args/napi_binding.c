@@ -201,7 +201,7 @@ static napi_value CallWithArguments(napi_env env, napi_callback_info info) {
                                   &js_func);                          \
     assert(status == napi_ok);                                        \
     status = napi_set_named_property((env),                           \
-        (exports), (name), js_func);                                  \
+                                     (exports), (name), js_func);     \
     assert(status == napi_ok);                                        \
   } while (0);
 
