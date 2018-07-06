@@ -1025,11 +1025,11 @@ napi_status napi_create_function(napi_env env,
 
   RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
 
-  v8::Local<v8::FunctionTemplate> tpl = v8::FunctionTemplate::New(
-      isolate, v8impl::FunctionCallbackWrapper::Invoke, cbdata);
-
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::MaybeLocal<v8::Function> maybe_function = tpl->GetFunction(context);
+  v8::MaybeLocal<v8::Function> maybe_function =
+      v8::Function::New(context,
+                        v8impl::FunctionCallbackWrapper::Invoke,
+                        cbdata);
   CHECK_MAYBE_EMPTY(env, maybe_function, napi_generic_failure);
 
   return_value = scope.Escape(maybe_function.ToLocalChecked());
@@ -1491,13 +1491,17 @@ napi_status napi_define_properties(napi_env env,
       v8::Local<v8::Value> cbdata =
           v8impl::CreateFunctionCallbackData(env, p->method, p->data);
 
-      RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
+      CHECK_MAYBE_EMPTY(env, cbdata, napi_generic_failure);
 
-      v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(
-          isolate, v8impl::FunctionCallbackWrapper::Invoke, cbdata);
+      v8::MaybeLocal<v8::Function> maybe_fn =
+          v8::Function::New(context,
+                            v8impl::FunctionCallbackWrapper::Invoke,
+                            cbdata);
+
+      CHECK_MAYBE_EMPTY(env, maybe_fn, napi_generic_failure);
 
       auto define_maybe = obj->DefineOwnProperty(
-        context, property_name, t->GetFunction(), attributes);
+        context, property_name, maybe_fn.ToLocalChecked(), attributes);
 
       if (!define_maybe.FromMaybe(false)) {
         return napi_set_last_error(env, napi_generic_failure);
