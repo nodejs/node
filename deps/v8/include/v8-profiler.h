@@ -54,11 +54,7 @@ namespace v8 {
  */
 class V8_EXPORT TracingCpuProfiler {
  public:
-  V8_DEPRECATE_SOON(
-      "The profiler is created automatically with the isolate.\n"
-      "No need to create it explicitly.",
-      static std::unique_ptr<TracingCpuProfiler> Create(Isolate*));
-
+  static std::unique_ptr<TracingCpuProfiler> Create(Isolate*);
   virtual ~TracingCpuProfiler() = default;
 
  protected:
