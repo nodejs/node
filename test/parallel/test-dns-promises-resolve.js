@@ -27,7 +27,8 @@ common.crashOnUnhandledRejection();
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: `The "rrtype" argument must be of type string. Received type ${typeof rrtype}`
+      message: 'The "rrtype" argument must be of type string. ' +
+               `Received type ${typeof rrtype}`
     }
   );
 }
@@ -36,7 +37,7 @@ common.crashOnUnhandledRejection();
 {
   (async function() {
     const rrtype = undefined;
-    const result = await dnsPromises.resolve('example.org');
+    const result = await dnsPromises.resolve('example.org', rrtype);
     assert.ok(result !== undefined);
     assert.ok(result.length > 0);
   })();
