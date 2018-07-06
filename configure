@@ -943,14 +943,16 @@ def configure_node(o):
 
   if flavor == 'linux':
     if options.enable_lto:
-      version_checked = '5.4.1'
+      version_checked = (5, 4, 1)
       for compiler in [(CC, 'c'), (CXX, 'c++')]:
         ok, is_clang, clang_version, compiler_version = \
           try_check_compiler(compiler[0], compiler[1])
-        if is_clang or compiler_version < version_checked:
+        compiler_version_num = tuple(map(int, compiler_version))
+        if is_clang or compiler_version_num < version_checked:
+          version_checked_str = ".".join(map(str, version_checked))
           raise Exception(
-            'The option --enable-lto is supported for '
-            'gcc and gxx 5.4.1 or newer only.')
+            'The option --enable-lto is supported for gcc and gxx %s'
+            ' or newer only.' % (version_checked_str))
 
   o['variables']['enable_lto'] = b(options.enable_lto)
 
