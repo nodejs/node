@@ -246,6 +246,16 @@ class PageAllocator {
  */
 class Platform {
  public:
+  /**
+   * This enum is used to indicate whether a task is potentially long running,
+   * or causes a long wait. The embedder might want to use this hint to decide
+   * whether to execute the task on a dedicated thread.
+   */
+  enum ExpectedRuntime {
+    kShortRunningTask,
+    kLongRunningTask
+  };
+
   virtual ~Platform() = default;
 
   /**
@@ -280,25 +290,101 @@ class Platform {
   virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
 
   /**
-   * Gets the number of worker threads used by
-   * Call(BlockingTask)OnWorkerThread(). This can be used to estimate the number
-   * of tasks a work package should be split into. A return value of 0 means
-   * that there are no worker threads available. Note that a value of 0 won't
-   * prohibit V8 from posting tasks using |CallOnWorkerThread|.
+   * Gets the number of worker threads used by GetWorkerThreadsTaskRunner() and
+   * CallOnWorkerThread(). This can be used to estimate the number of tasks a
+   * work package should be split into. A return value of 0 means that there are
+   * no worker threads available. Note that a value of 0 won't prohibit V8 from
+   * posting tasks using |CallOnWorkerThread|.
    */
-  virtual int NumberOfWorkerThreads() = 0;
+  virtual int NumberOfWorkerThreads() {
+    return static_cast<int>(NumberOfAvailableBackgroundThreads());
+  }
+
+  /**
+   * Deprecated. Use NumberOfWorkerThreads() instead.
+   * TODO(gab): Remove this when all embedders override
+   * NumberOfWorkerThreads() instead.
+   */
+  V8_DEPRECATE_SOON(
+      "NumberOfAvailableBackgroundThreads() is deprecated, use "
+      "NumberOfAvailableBackgroundThreads() instead.",
+      virtual size_t NumberOfAvailableBackgroundThreads()) {
+    return 0;
+  }
 
   /**
    * Returns a TaskRunner which can be used to post a task on the foreground.
    * This function should only be called from a foreground thread.
    */
   virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      Isolate* isolate) = 0;
+      Isolate* isolate) {
+    // TODO(ahaas): Make this function abstract after it got implemented on all
+    // platforms.
+    return {};
+  }
+
+  /**
+   * Returns a TaskRunner which can be used to post a task on a background.
+   * This function should only be called from a foreground thread.
+   */
+  V8_DEPRECATE_SOON(
+      "GetBackgroundTaskRunner() is deprecated, use "
+      "GetWorkerThreadsTaskRunner() "
+      "instead.",
+      virtual std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
+          Isolate* isolate)) {
+    // TODO(gab): Remove this method when all embedders have moved to
+    // GetWorkerThreadsTaskRunner().
+
+    // An implementation needs to be provided here because this is called by the
+    // default GetWorkerThreadsTaskRunner() implementation below. In practice
+    // however, all code either:
+    //  - Overrides GetWorkerThreadsTaskRunner() (thus not making this call) --
+    //    i.e. all v8 code.
+    //  - Overrides this method (thus not making this call) -- i.e. all
+    //    unadapted embedders.
+    abort();
+  }
+
+  /**
+   * Returns a TaskRunner which can be used to post async tasks on a worker.
+   * This function should only be called from a foreground thread.
+   */
+  virtual std::shared_ptr<v8::TaskRunner> GetWorkerThreadsTaskRunner(
+      Isolate* isolate) {
+    // TODO(gab): Make this function abstract after it got implemented on all
+    // platforms.
+    return GetBackgroundTaskRunner(isolate);
+  }
+
+  /**
+   * Schedules a task to be invoked on a background thread. |expected_runtime|
+   * indicates that the task will run a long time. The Platform implementation
+   * takes ownership of |task|. There is no guarantee about order of execution
+   * of tasks wrt order of scheduling, nor is there a guarantee about the
+   * thread the task will be run on.
+   */
+  V8_DEPRECATE_SOON(
+      "ExpectedRuntime is deprecated, use CallOnWorkerThread() instead.",
+      virtual void CallOnBackgroundThread(Task* task,
+                                          ExpectedRuntime expected_runtime)) {
+    // An implementation needs to be provided here because this is called by the
+    // default implementation below. In practice however, all code either:
+    //  - Overrides the new method (thus not making this call) -- i.e. all v8
+    //    code.
+    //  - Overrides this method (thus not making this call) -- i.e. all
+    //    unadapted embedders.
+    abort();
+  }
 
   /**
    * Schedules a task to be invoked on a worker thread.
+   * TODO(gab): Make pure virtual when all embedders override this instead of
+   * CallOnBackgroundThread().
    */
-  virtual void CallOnWorkerThread(std::unique_ptr<Task> task) = 0;
+  virtual void CallOnWorkerThread(std::unique_ptr<Task> task) {
+    CallOnBackgroundThread(task.release(), kShortRunningTask);
+  }
 
   /**
    * Schedules a task that blocks the main thread to be invoked with
@@ -309,13 +395,6 @@ class Platform {
     // priority pool.
     CallOnWorkerThread(std::move(task));
   }
-
-  /**
-   * Schedules a task to be invoked on a worker thread after |delay_in_seconds|
-   * expires.
-   */
-  virtual void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                         double delay_in_seconds) = 0;
 
   /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
@@ -342,14 +421,14 @@ class Platform {
    * The definition of "foreground" is opaque to V8.
    */
   virtual void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) {
-    // This must be overriden if |IdleTasksEnabled()|.
-    abort();
+    // TODO(ulan): Make this function abstract after V8 roll in Chromium.
   }
 
   /**
    * Returns true if idle tasks are enabled for the given |isolate|.
    */
   virtual bool IdleTasksEnabled(Isolate* isolate) {
+    // TODO(ulan): Make this function abstract after V8 roll in Chromium.
     return false;
   }
 

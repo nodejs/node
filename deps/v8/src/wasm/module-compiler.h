@@ -160,6 +160,7 @@ class AsyncCompileJob {
   Handle<Code> centry_stub_;
 
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+  std::shared_ptr<v8::TaskRunner> background_task_runner_;
 
   // For async compilation the AsyncCompileJob is the only finisher. For
   // streaming compilation also the AsyncStreamingProcessor has to finish before
