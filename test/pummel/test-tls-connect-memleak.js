@@ -44,9 +44,7 @@ tls.createServer({
 
 {
   // 2**26 == 64M entries
-  let junk = [0];
-
-  for (let i = 0; i < 26; ++i) junk = junk.concat(junk);
+  const junk = new Array(2 ** 26).fill(0);
 
   const options = { rejectUnauthorized: false };
   tls.connect(common.PORT, '127.0.0.1', options, function() {
