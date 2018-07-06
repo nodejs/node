@@ -40,6 +40,11 @@ module.exports = {
       ],
       parserOptions: { sourceType: 'module' },
     },
+    {
+      files: ['**/*.md'],
+      parserOptions: { ecmaFeatures: { impliedStrict: true } },
+      rules: { strict: 'off' },
+    },
   ],
   rules: {
     // ESLint built-in rules
