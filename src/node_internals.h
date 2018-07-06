@@ -948,12 +948,15 @@ void StopProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Umask(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Uptime(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+#if defined(__POSIX__) && !defined(__CloudABI__)
+void Nice(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif  // __POSIX__ && !defined(__CloudABI__)
+
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 void SetGid(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SetEGid(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SetUid(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SetEUid(const v8::FunctionCallbackInfo<v8::Value>& args);
-void Nice(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SetGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
 void InitGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
 void GetUid(const v8::FunctionCallbackInfo<v8::Value>& args);

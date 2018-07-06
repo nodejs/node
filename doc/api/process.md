@@ -1647,21 +1647,22 @@ This feature is not available in [`Worker`][] threads.
 added: REPLACEME
 -->
 
-* `inc` {integer} The new nice value for the process.
+* `inc` {integer} The nice value which is added to the current nice value.
+
+Returns the new nice value of the process.
 
 The `process.nice()` method sets or gets the nice value of the process.
 (See nice(2).) The `inc` is supposed to be an integer, consisting of the
-_difference_ you want to add to the current nice value.
+_difference_ the user wants to add to the current nice value.
 The higher the nice value of the process, the nicer the process and the less
-time is given by the scheduler.
+time is given by the scheduler (effectively lowering the priority).
 
-You can get the current nice value by passing 0 or nothing to the method.
+It is possible to get the current nice value by passing 0 or `undefined`
+to the method.
 
-Unless you have super user permissions, you can only increase your nice value.
-Though, it is also possible to increase the priority if a limit (RLIMIT_NICE)
-is set. (See getrlimit(2).)
-
-**NOTE**: Once you incremented your niceness, you can no longer reduce it!
+In a common environment, it is only possible to increase the nice value.
+A decrease of the value at a later time might not be possible (unless
+the specified permissions are set) (See getrlimit(2).)
 
 ```js
 if (process.nice) {
@@ -1672,8 +1673,7 @@ if (process.nice) {
 }
 ```
 
-This function is only available on POSIX platforms (i.e. not Windows or
-Android).
+This function is only available on POSIX platforms (i.e. not Windows).
 This feature is not available in [`Worker`][] threads.
 
 ## process.setgid(id)
