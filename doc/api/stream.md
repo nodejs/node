@@ -773,6 +773,12 @@ changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18994
     description: Using `'readable'` requires calling `.read()`.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21696
+    description: >
+      When using both `'readable'` and [`'data'`][] the stream will try to
+      flow once last `'readable'` was removed and there are still [`'data'`][]
+      listeners.
 -->
 
 The `'readable'` event is emitted when there is data available to be read from
@@ -825,7 +831,33 @@ result in increased throughput.
 
 If both `'readable'` and [`'data'`][]  are used at the same time, `'readable'`
 takes precedence in controlling the flow, i.e. `'data'` will be emitted
-only when [`stream.read()`][stream-read] is called.
+only when [`stream.read()`][stream-read] is called. But when last `'readable'`
+was removed the stream will try to [`stream.resume()`][stream-resume] to fulfill
+`'data'` listeners.
+
+```js
+const fs = require('fs');
+const rr = fs.createReadStream('bar.txt', { encoding: 'utf8' });
+rr.once('readable', () => {
+  console.log('readable');
+});
+rr.on('data', (chunk) => {
+  console.log(chunk);
+});
+rr.on('end', () => {
+  console.log('end');
+});
+```
+
+The output of running this script is:
+
+```txt
+$ node test.js
+readable
+abc
+
+end
+```
 
 ##### readable.destroy([error])
 <!-- YAML
