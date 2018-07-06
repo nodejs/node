@@ -37,8 +37,7 @@ let before = 0;
 {
   // 2**26 == 64M entries
   global.gc();
-  let junk = [0];
-  for (let i = 0; i < 26; ++i) junk = junk.concat(junk);
+  const junk = new Array(2 ** 26).fill(0);
   before = process.memoryUsage().rss;
 
   net.createConnection(common.PORT, '127.0.0.1', function() {
