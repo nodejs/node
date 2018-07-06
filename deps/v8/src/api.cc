@@ -1726,7 +1726,7 @@ static void TemplateSetAccessor(
     Template* template_obj, v8::Local<Name> name, Getter getter, Setter setter,
     Data data, AccessControl settings, PropertyAttribute attribute,
     v8::Local<AccessorSignature> signature, bool is_special_data_property,
-    bool replace_on_access, SideEffectType getter_side_effect_type) {
+    bool replace_on_access) {
   auto info = Utils::OpenHandle(template_obj);
   auto isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
@@ -1736,8 +1736,6 @@ static void TemplateSetAccessor(
                        is_special_data_property, replace_on_access);
   accessor_info->set_initial_property_attributes(
       static_cast<i::PropertyAttributes>(attribute));
-  accessor_info->set_has_no_side_effect(getter_side_effect_type ==
-                                        SideEffectType::kHasNoSideEffect);
   i::ApiNatives::AddNativeDataProperty(isolate, info, accessor_info);
 }
 
@@ -1745,29 +1743,27 @@ void Template::SetNativeDataProperty(
     v8::Local<String> name, AccessorGetterCallback getter,
     AccessorSetterCallback setter, v8::Local<Value> data,
     PropertyAttribute attribute, v8::Local<AccessorSignature> signature,
-    AccessControl settings, SideEffectType getter_side_effect_type) {
+    AccessControl settings) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, true, false, getter_side_effect_type);
+                      signature, true, false);
 }
 
 void Template::SetNativeDataProperty(
     v8::Local<Name> name, AccessorNameGetterCallback getter,
     AccessorNameSetterCallback setter, v8::Local<Value> data,
     PropertyAttribute attribute, v8::Local<AccessorSignature> signature,
-    AccessControl settings, SideEffectType getter_side_effect_type) {
+    AccessControl settings) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, true, false, getter_side_effect_type);
+                      signature, true, false);
 }
 
 void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    AccessorNameGetterCallback getter,
                                    v8::Local<Value> data,
-                                   PropertyAttribute attribute,
-                                   SideEffectType getter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter,
-                      static_cast<AccessorNameSetterCallback>(nullptr), data,
-                      DEFAULT, attribute, Local<AccessorSignature>(), true,
-                      true, getter_side_effect_type);
+                                   PropertyAttribute attribute) {
+  TemplateSetAccessor(
+      this, name, getter, static_cast<AccessorNameSetterCallback>(nullptr),
+      data, DEFAULT, attribute, Local<AccessorSignature>(), true, true);
 }
 
 void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
@@ -1786,11 +1782,9 @@ void ObjectTemplate::SetAccessor(v8::Local<String> name,
                                  AccessorSetterCallback setter,
                                  v8::Local<Value> data, AccessControl settings,
                                  PropertyAttribute attribute,
-                                 v8::Local<AccessorSignature> signature,
-                                 SideEffectType getter_side_effect_type) {
+                                 v8::Local<AccessorSignature> signature) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, i::FLAG_disable_old_api_accessors, false,
-                      getter_side_effect_type);
+                      signature, i::FLAG_disable_old_api_accessors, false);
 }
 
 void ObjectTemplate::SetAccessor(v8::Local<Name> name,
@@ -1798,11 +1792,9 @@ void ObjectTemplate::SetAccessor(v8::Local<Name> name,
                                  AccessorNameSetterCallback setter,
                                  v8::Local<Value> data, AccessControl settings,
                                  PropertyAttribute attribute,
-                                 v8::Local<AccessorSignature> signature,
-                                 SideEffectType getter_side_effect_type) {
+                                 v8::Local<AccessorSignature> signature) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, i::FLAG_disable_old_api_accessors, false,
-                      getter_side_effect_type);
+                      signature, i::FLAG_disable_old_api_accessors, false);
 }
 
 template <typename Getter, typename Setter, typename Query, typename Descriptor,
@@ -6079,8 +6071,7 @@ HeapObjectStatistics::HeapObjectStatistics()
 
 HeapCodeStatistics::HeapCodeStatistics()
     : code_and_metadata_size_(0),
-      bytecode_and_metadata_size_(0),
-      external_script_source_size_(0) {}
+      bytecode_and_metadata_size_(0) {}
 
 bool v8::V8::InitializeICU(const char* icu_data_file) {
   return i::InitializeICU(icu_data_file);
@@ -8310,8 +8301,7 @@ void Isolate::Initialize(Isolate* isolate,
       i::PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);
     }
   }
-  i_isolate->set_only_terminate_in_safe_scope(
-      params.only_terminate_in_safe_scope);
+  i_isolate->set_only_terminate_in_safe_scope(false);
 }
 
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
@@ -8530,8 +8520,6 @@ bool Isolate::GetHeapCodeAndMetadataStatistics(
   code_statistics->code_and_metadata_size_ = isolate->code_and_metadata_size();
   code_statistics->bytecode_and_metadata_size_ =
       isolate->bytecode_and_metadata_size();
-  code_statistics->external_script_source_size_ =
-      isolate->external_script_source_size();
   return true;
 }
 

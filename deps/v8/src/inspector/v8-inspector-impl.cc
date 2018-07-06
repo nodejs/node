@@ -418,8 +418,13 @@ protocol::Response V8InspectorImpl::EvaluateScope::setTimeout(double timeout) {
   if (m_isolate->IsExecutionTerminating()) {
     return protocol::Response::Error("Execution was terminated");
   }
+  std::shared_ptr<v8::TaskRunner> taskRunner =
+      v8::debug::GetCurrentPlatform()->GetWorkerThreadsTaskRunner(m_isolate);
+  if (!taskRunner) {
+    return protocol::Response::Error("Timeout is not supported by embedder");
+  }
   m_cancelToken.reset(new CancelToken());
-  v8::debug::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+  taskRunner->PostDelayedTask(
       v8::base::make_unique<TerminateTask>(m_isolate, m_cancelToken), timeout);
   return protocol::Response::OK();
 }

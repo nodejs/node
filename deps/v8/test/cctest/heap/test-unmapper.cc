@@ -46,6 +46,10 @@ class MockPlatformForUnmapper : public TestPlatform {
     return old_platform_->NumberOfWorkerThreads();
   }
 
+  size_t NumberOfAvailableBackgroundThreads() override {
+    return old_platform_->NumberOfAvailableBackgroundThreads();
+  }
+
  private:
   Task* task_;
   std::vector<std::unique_ptr<Task>> worker_tasks_;

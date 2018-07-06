@@ -154,9 +154,9 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 };
 
-// Predictable v8::Platform implementation. Worker threads are disabled, idle
-// tasks are disallowed, and the time reported by {MonotonicallyIncreasingTime}
-// is deterministic.
+// Predictable v8::Platform implementation. Background tasks and idle tasks are
+// disallowed, and the time reported by {MonotonicallyIncreasingTime} is
+// deterministic.
 class PredictablePlatform : public Platform {
  public:
   explicit PredictablePlatform(std::unique_ptr<Platform> platform)
@@ -181,17 +181,17 @@ class PredictablePlatform : public Platform {
     return platform_->GetForegroundTaskRunner(isolate);
   }
 
-  int NumberOfWorkerThreads() override { return 0; }
+  std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
+      v8::Isolate* isolate) override {
+    // Return the foreground task runner here, so that all tasks get executed
+    // sequentially in a predictable order.
+    return platform_->GetForegroundTaskRunner(isolate);
+  }
 
   void CallOnWorkerThread(std::unique_ptr<Task> task) override {
     // It's not defined when background tasks are being executed, so we can just
     // execute them right away.
     task->Run();
-  }
-
-  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                 double delay_in_seconds) override {
-    // Never run delayed tasks.
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {

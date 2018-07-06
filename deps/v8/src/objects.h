@@ -1686,8 +1686,9 @@ class Smi: public Object {
   DECL_VERIFIER(Smi)
 
   static constexpr Smi* const kZero = nullptr;
-  static const int kMinValue = kSmiMinValue;
-  static const int kMaxValue = kSmiMaxValue;
+  static const int kMinValue =
+      (static_cast<unsigned int>(-1)) << (kSmiValueSize - 1);
+  static const int kMaxValue = -(kMinValue + 1);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Smi);
