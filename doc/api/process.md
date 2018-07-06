@@ -1653,7 +1653,7 @@ Returns the new nice value of the process.
 
 The `process.nice()` method sets or gets the nice value of the process.
 (See nice(2).) The `inc` is supposed to be an integer, consisting of the
-_difference_ the user wants to add to the current nice value.
+_difference_ to be added to the current nice value of the process.
 The higher the nice value of the process, the nicer the process and the less
 time is given by the scheduler (effectively lowering the priority).
 
