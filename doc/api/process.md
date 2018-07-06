@@ -1447,6 +1447,40 @@ The next tick queue is completely drained on each pass of the event loop
 `nextTick()` callbacks will block any I/O from happening, just like a
 `while(true);` loop.
 
+## process.nice([inc])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `inc` {integer} The nice value which is added to the current nice value.
+* Returns: {integer} The new nice value for the process.
+
+The `process.nice()` method sets or gets the nice value of the process.
+(See nice(2).) The `inc` is supposed to be an integer, consisting of the
+_difference_ to be added to the current nice value of the process.
+The higher the nice value of the process, the nicer the process and the less
+time is given by the scheduler (effectively lowering the priority).
+
+It is possible to get the current nice value by passing `0` or `undefined`
+to the method.
+
+In a common environment, it is only possible to increase the nice value.
+A decrease of the value at a later time might not be possible (unless
+the specified permissions are set). (See getrlimit(2).)
+
+```js
+if (process.platform !== 'win32') {
+  const currentNice = process.nice();
+  console.log(currentNice); // Prints the current nice value.
+
+  process.nice(1); // Increases nice value - giving it less priority.
+}
+```
+
+This function works only on POSIX platforms and throws not implemented errors
+on other platforms.
+This feature is not available in [`Worker`][] threads.
+
 ## process.noDeprecation
 <!-- YAML
 added: v0.8.0
@@ -1640,40 +1674,6 @@ if (process.geteuid && process.seteuid) {
 
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
-This feature is not available in [`Worker`][] threads.
-
-## process.nice(inc)
-<!-- YAML
-added: REPLACEME
--->
-
-* `inc` {integer} The nice value which is added to the current nice value.
-
-Returns the new nice value of the process.
-
-The `process.nice()` method sets or gets the nice value of the process.
-(See nice(2).) The `inc` is supposed to be an integer, consisting of the
-_difference_ to be added to the current nice value of the process.
-The higher the nice value of the process, the nicer the process and the less
-time is given by the scheduler (effectively lowering the priority).
-
-It is possible to get the current nice value by passing 0 or `undefined`
-to the method.
-
-In a common environment, it is only possible to increase the nice value.
-A decrease of the value at a later time might not be possible (unless
-the specified permissions are set) (See getrlimit(2).)
-
-```js
-if (process.nice) {
-  const currentNice = process.nice();
-  console.log(currentNice); // Prints the current nice value
-
-  process.nice(1); // Increases nice value - giving it less priority.
-}
-```
-
-This function is only available on POSIX platforms (i.e. not Windows).
 This feature is not available in [`Worker`][] threads.
 
 ## process.setgid(id)
