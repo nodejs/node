@@ -106,6 +106,9 @@ deps/npm/node_modules/.bin/
 /*.pkg
 /SHASUMS*.txt*
 
+# api docs artifacts
+tools/doc/node_modules
+
 # test artifacts
 tools/remark-cli/node_modules
 tools/remark-preset-lint-node/node_modules
