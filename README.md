@@ -345,6 +345,8 @@ For more information about the governance of the Node.js project, see
 **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
+* [codebytere](https://github.com/codebytere) -
+**Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
 * [DavidCai1993](https://github.com/DavidCai1993) -
