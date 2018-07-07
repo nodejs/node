@@ -127,12 +127,11 @@ exactly how errors raised by those methods are propagated.
 <!--type=misc-->
 
 Most asynchronous methods exposed by the Node.js core API follow an idiomatic
-pattern referred to as an _error-first callback_ (sometimes referred to as
-a _Node.js style callback_). With this pattern, a callback function is passed
-to the method as an argument. When the operation either completes or an error
-is raised, the callback function is called with
-the `Error` object (if any) passed as the first argument. If no error was
-raised, the first argument will be passed as `null`.
+pattern referred to as an _error-first callback_. With this pattern, a callback
+function is passed to the method as an argument. When the operation either
+completes or an error is raised, the callback function is called with the
+`Error` object (if any) passed as the first argument. If no error was raised,
+the first argument will be passed as `null`.
 
 ```js
 const fs = require('fs');
