@@ -200,7 +200,10 @@ function preprocessElements({ filename }) {
         node.value = parseYAML(node.value);
 
       } else if (node.type === 'blockquote') {
-        const text = find(node, { type: 'text' });
+        const paragraph = node.children[0].type === 'paragraph' &&
+          node.children[0];
+        const text = paragraph && paragraph.children[0].type === 'text' &&
+          paragraph.children[0];
         if (text && text.value.includes('Stability:')) {
           const [, prefix, number, explication] =
             text.value.match(STABILITY_RE);
@@ -218,13 +221,27 @@ function preprocessElements({ filename }) {
           // Do not link to the section we are already in.
           const noLinking = filename === 'documentation' &&
             heading !== null && heading.value === 'Stability Index';
-          node.type = 'html';
-          node.value = `<div class="api_stability api_stability_${number}">` +
-            (noLinking ? '' :
-              '<a href="documentation.html#documentation_stability_index">') +
-            `${prefix} ${number}${noLinking ? '' : '</a>'}${explication}</div>`
-            .replace(/\n/g, ' ');
-          delete node.children;
+
+          // collapse blockquote and paragraph into a single node
+          node.type = 'paragraph';
+          node.children.shift();
+          node.children.unshift(...paragraph.children);
+
+          // insert div with prefix and number
+          node.children.unshift({
+            type: 'html',
+            value: `<div class="api_stability api_stability_${number}">` +
+              (noLinking ? '' :
+                '<a href="documentation.html#documentation_stability_index">') +
+              `${prefix} ${number}${noLinking ? '' : '</a>'}`
+                .replace(/\n/g, ' ')
+          });
+
+          // remove prefix and number from text
+          text.value = explication;
+
+          // close div
+          node.children.push({ type: 'html', value: '</div>' });
         }
       }
     });
