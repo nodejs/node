@@ -486,7 +486,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
                     write_js_callback, dictionary, dictionary_len);
     if (!ret) goto end;
 
-    SetDictionary(ctx);
+    ctx->SetDictionary();
 
    end:
     return args.GetReturnValue().Set(ret);
@@ -496,14 +496,14 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     CHECK(args.Length() == 2 && "params(level, strategy)");
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
-    Params(ctx, args[0]->Int32Value(), args[1]->Int32Value());
+    ctx->Params(args[0]->Int32Value(), args[1]->Int32Value());
   }
 
   static void Reset(const FunctionCallbackInfo<Value> &args) {
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     ctx->Reset();
-    SetDictionary(ctx);
+    ctx->SetDictionary();
   }
 
   static bool Init(ZCtx* ctx, int level, int windowBits, int memLevel,
@@ -577,51 +577,47 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     return true;
   }
 
-  static void SetDictionary(ZCtx* ctx) {
-    if (ctx->dictionary_ == nullptr)
+  void SetDictionary() {
+    if (dictionary_ == nullptr)
       return;
 
-    ctx->err_ = Z_OK;
+    err_ = Z_OK;
 
-    switch (ctx->mode_) {
+    switch (mode_) {
       case DEFLATE:
       case DEFLATERAW:
-        ctx->err_ = deflateSetDictionary(&ctx->strm_,
-                                         ctx->dictionary_,
-                                         ctx->dictionary_len_);
+        err_ = deflateSetDictionary(&strm_, dictionary_, dictionary_len_);
         break;
       case INFLATERAW:
         // The other inflate cases will have the dictionary set when inflate()
         // returns Z_NEED_DICT in Process()
-        ctx->err_ = inflateSetDictionary(&ctx->strm_,
-                                         ctx->dictionary_,
-                                         ctx->dictionary_len_);
+        err_ = inflateSetDictionary(&strm_, dictionary_, dictionary_len_);
         break;
       default:
         break;
     }
 
-    if (ctx->err_ != Z_OK) {
-      ctx->Error("Failed to set dictionary");
+    if (err_ != Z_OK) {
+      Error("Failed to set dictionary");
     }
   }
 
-  static void Params(ZCtx* ctx, int level, int strategy) {
-    AllocScope alloc_scope(ctx);
+  void Params(int level, int strategy) {
+    AllocScope alloc_scope(this);
 
-    ctx->err_ = Z_OK;
+    err_ = Z_OK;
 
-    switch (ctx->mode_) {
+    switch (mode_) {
       case DEFLATE:
       case DEFLATERAW:
-        ctx->err_ = deflateParams(&ctx->strm_, level, strategy);
+        err_ = deflateParams(&strm_, level, strategy);
         break;
       default:
         break;
     }
 
-    if (ctx->err_ != Z_OK && ctx->err_ != Z_BUF_ERROR) {
-      ctx->Error("Failed to set parameters");
+    if (err_ != Z_OK && err_ != Z_BUF_ERROR) {
+      Error("Failed to set parameters");
     }
   }
 
