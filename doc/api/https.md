@@ -123,7 +123,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `url` {string | URL}
+* `url` {string | URL}
 * `options` {Object | string | URL} Accepts the same `options` as
   [`https.request()`][], with the `method` always set to `GET`.
 * `callback` {Function}
@@ -174,7 +174,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `url` {string | URL}
+* `url` {string | URL}
 * `options` {Object | string | URL} Accepts all `options` from
   [`http.request()`][], with some differences in default values:
   - `protocol` **Default:** `'https:'`

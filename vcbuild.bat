@@ -459,8 +459,7 @@ robocopy /e doc\api %config%\doc\api
 robocopy /e doc\api_assets %config%\doc\api\assets
 
 for %%F in (%config%\doc\api\*.md) do (
-  %node_exe% tools\doc\generate.js --format=json %%F > %%~dF%%~pF%%~nF.json
-  %node_exe% tools\doc\generate.js --node-version=v%FULLVERSION% --format=html --analytics=%DOCS_ANALYTICS% %%F > %%~dF%%~pF%%~nF.html
+  %node_exe% tools\doc\generate.js --node-version=v%FULLVERSION% --analytics=%DOCS_ANALYTICS% %%F --output-dir=%%~dF%%~pF
 )
 
 :run

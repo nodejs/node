@@ -11,7 +11,34 @@ try {
 const assert = require('assert');
 const { readFile } = require('fs');
 const fixtures = require('../common/fixtures');
-const toHTML = require('../../tools/doc/html.js');
+const html = require('../../tools/doc/html.js');
+const path = require('path');
+
+module.paths.unshift(
+  path.join(__dirname, '..', '..', 'tools', 'doc', 'node_modules'));
+const unified = require('unified');
+const markdown = require('remark-parse');
+const remark2rehype = require('remark-rehype');
+const raw = require('rehype-raw');
+const htmlStringify = require('rehype-stringify');
+
+function toHTML({ input, filename, nodeVersion, analytics }, cb) {
+  const content = unified()
+    .use(markdown)
+    .use(html.firstHeader)
+    .use(html.preprocessText)
+    .use(html.preprocessElements, { filename })
+    .use(html.buildToc, { filename })
+    .use(remark2rehype, { allowDangerousHTML: true })
+    .use(raw)
+    .use(htmlStringify)
+    .processSync(input);
+
+  html.toHTML(
+    { input, content, filename, nodeVersion, analytics },
+    cb
+  );
+}
 
 // Test data is a list of objects with two properties.
 // The file property is the file path.
@@ -80,7 +107,6 @@ testData.forEach(({ file, html, analyticsId }) => {
 
   readFile(file, 'utf8', common.mustCall((err, input) => {
     assert.ifError(err);
-
     toHTML(
       {
         input: input,
