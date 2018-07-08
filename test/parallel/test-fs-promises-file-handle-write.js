@@ -3,7 +3,7 @@
 const common = require('../common');
 
 // The following tests validate base functionality for the fs.promises
-// FileHandle.read method.
+// FileHandle.write method.
 
 const fs = require('fs');
 const { open } = fs.promises;
