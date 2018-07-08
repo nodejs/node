@@ -45,8 +45,22 @@ async function validateNonUint8ArrayWrite() {
   assert.deepStrictEqual(Buffer.from(buffer, 'utf8'), readFileData);
 }
 
+async function validateNonStringValuesWrite() {
+  const filePathForHandle = path.resolve(tmpDir, 'tmp-non-string-write.txt');
+  const fileHandle = await open(filePathForHandle, 'w+');
+  const nonStringValues = [123, {}, new Map()];
+  for (const nonStringValue of nonStringValues) {
+    await fileHandle.write(nonStringValue);
+  }
+
+  const readFileData = fs.readFileSync(filePathForHandle);
+  const expected = ['123', '[object Object]', '[object Map]'].join('');
+  assert.deepStrictEqual(Buffer.from(expected, 'utf8'), readFileData);
+}
+
 Promise.all([
   validateWrite(),
   validateEmptyWrite(),
-  validateNonUint8ArrayWrite()
+  validateNonUint8ArrayWrite(),
+  validateNonStringValuesWrite()
 ]).then(common.mustCall());
