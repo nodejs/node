@@ -12,6 +12,10 @@ if (!process.env.HAS_STARTED_WORKER) {
   w.on('error', common.mustCall((err) => {
     assert(/^Error: foo$/.test(err));
   }));
+  w.on('exit', common.mustCall((code) => {
+    // uncaughtException is code 1
+    assert.strictEqual(code, 1);
+  }));
 } else {
   throw new Error('foo');
 }
