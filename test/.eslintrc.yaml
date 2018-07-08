@@ -18,6 +18,7 @@ rules:
   node-core/number-isnan: error
   ## common module is mandatory in tests
   node-core/required-modules: [error, common]
+  node-core/no-duplicate-requires: off
 
   no-restricted-syntax:
     # Config copied from .eslintrc.js
