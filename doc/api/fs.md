@@ -1137,8 +1137,6 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer}
 
-Returns `undefined`.
-
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.chmod()`][].
 
@@ -4625,8 +4623,8 @@ the file contents.
 [`fs.chown()`]: #fs_fs_chown_path_uid_gid_callback
 [`fs.copyFile()`]: #fs_fs_copyfile_src_dest_flags_callback
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
-[`fs.ftruncate()`]: #fs_fs_ftruncate_fd_len_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_options_callback
+[`fs.ftruncate()`]: #fs_fs_ftruncate_fd_len_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.lstat()`]: #fs_fs_lstat_path_options_callback
 [`fs.mkdir()`]: #fs_fs_mkdir_path_mode_callback
