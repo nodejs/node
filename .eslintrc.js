@@ -98,6 +98,7 @@ module.exports = {
     'no-dupe-class-members': 'error',
     'no-dupe-keys': 'error',
     'no-duplicate-case': 'error',
+    'no-duplicate-imports': 'error',
     'no-empty-character-class': 'error',
     'no-ex-assign': 'error',
     'no-extra-boolean-cast': 'error',
@@ -246,6 +247,7 @@ module.exports = {
 
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
+    'node-core/no-duplicate-requires': 'error',
   },
   globals: {
     Atomics: false,

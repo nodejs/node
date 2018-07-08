@@ -286,7 +286,7 @@ For example:
 ```js
 const assert = require('assert');
 const {
-  Worker, MessageChannel, MessagePort, isMainThread
+  Worker, MessageChannel, MessagePort, isMainThread, parentPort
 } = require('worker_threads');
 if (isMainThread) {
   const worker = new Worker(__filename);
@@ -296,7 +296,7 @@ if (isMainThread) {
     console.log('received:', value);
   });
 } else {
-  require('worker_threads').once('message', (value) => {
+  parentPort.once('message', (value) => {
     assert(value.hereIsYourPort instanceof MessagePort);
     value.hereIsYourPort.postMessage('the worker is sending this');
     value.hereIsYourPort.close();
