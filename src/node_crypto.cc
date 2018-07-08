@@ -359,6 +359,19 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyIVIndex"),
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyIVIndex));
 
+  Local<FunctionTemplate> ctx_getter_templ =
+      FunctionTemplate::New(env->isolate(),
+                            CtxGetter,
+                            env->as_external(),
+                            Signature::New(env->isolate(), t));
+
+
+  t->PrototypeTemplate()->SetAccessorProperty(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
+      ctx_getter_templ,
+      Local<FunctionTemplate>(),
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
+
   target->Set(secureContextString,
               t->GetFunction(env->context()).ToLocalChecked());
   env->set_secure_context_constructor_template(t);
@@ -1328,6 +1341,14 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
     return -1;
   }
   return 1;
+}
+
+
+void SecureContext::CtxGetter(const FunctionCallbackInfo<Value>& info) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, info.This());
+  Local<External> ext = External::New(info.GetIsolate(), sc->ctx_.get());
+  info.GetReturnValue().Set(ext);
 }
 
 
