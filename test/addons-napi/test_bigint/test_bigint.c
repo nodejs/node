@@ -86,11 +86,26 @@ static napi_value TestWords(napi_env env, napi_callback_info info) {
   return output;
 }
 
+// throws RangeError
+static napi_value CreateTooBigBigInt(napi_env env, napi_callback_info info) {
+  int sign_bit = 0;
+  size_t word_count = SIZE_MAX;
+  uint64_t words[word_count];
+
+  napi_value output;
+
+  NAPI_CALL(env, napi_create_bigint_words(
+        env, sign_bit, word_count, words, &output));
+
+  return output;
+}
+
 static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("TestInt64", TestInt64),
     DECLARE_NAPI_PROPERTY("TestUint64", TestUint64),
     DECLARE_NAPI_PROPERTY("TestWords", TestWords),
+    DECLARE_NAPI_PROPERTY("CreateTooBigBigInt", CreateTooBigBigInt),
   };
 
   NAPI_CALL(env, napi_define_properties(

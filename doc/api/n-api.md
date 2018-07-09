@@ -2133,7 +2133,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API converts a single `BigInt` value into a sign bit, 64-bit little-endian
 array, and the number of elements in the array. `sign_bit` and `words` may be
-omitted together, in order to get only `word_count`.
+both set to `NULL`, in order to get only `word_count`.
 
 #### napi_get_value_external
 <!-- YAML

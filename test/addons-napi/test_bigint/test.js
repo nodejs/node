@@ -5,6 +5,7 @@ const {
   TestInt64,
   TestUint64,
   TestWords,
+  CreateTooBigBigInt,
 } = require(`./build/${common.buildType}/test_bigint`);
 
 [
@@ -27,4 +28,9 @@ const {
     assert.strictEqual(num, TestUint64(num));
   }
   assert.strictEqual(num, TestWords(num));
+});
+
+assert.throws(CreateTooBigBigInt, {
+  name: 'RangeError',
+  message: 'Maximum BigInt size exceeded',
 });

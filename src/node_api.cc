@@ -2307,13 +2307,17 @@ napi_status napi_get_value_bigint_words(napi_env env,
 
   v8::Local<v8::BigInt> big = val.As<v8::BigInt>();
 
+  int word_count_int = *word_count;
+
   if (sign_bit == nullptr && words == nullptr) {
-    *word_count = static_cast<size_t>(big->WordCount());
+    word_count_int = big->WordCount();
   } else {
     CHECK_ARG(env, sign_bit);
     CHECK_ARG(env, words);
-    big->ToWordsArray(sign_bit, reinterpret_cast<int*>(word_count), words);
+    big->ToWordsArray(sign_bit, &word_count_int, words);
   }
+
+  *word_count = word_count_int;
 
   return napi_clear_last_error(env);
 }
