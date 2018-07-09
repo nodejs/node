@@ -734,9 +734,4 @@ void Environment::stop_sub_worker_contexts() {
   }
 }
 
-bool Environment::is_stopping_worker() const {
-  CHECK(!is_main_thread());
-  return worker_context_->is_stopped();
-}
-
 }  // namespace node
