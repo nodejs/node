@@ -90,7 +90,7 @@ static napi_value TestWords(napi_env env, napi_callback_info info) {
 static napi_value CreateTooBigBigInt(napi_env env, napi_callback_info info) {
   int sign_bit = 0;
   size_t word_count = SIZE_MAX;
-  uint64_t words[word_count];
+  uint64_t words[10];
 
   napi_value output;
 
