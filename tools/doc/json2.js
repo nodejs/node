@@ -45,7 +45,9 @@ function doJSON(input, fileName, cb) {
 // Unified processor: input is https://github.com/syntax-tree/mdast,
 // output is: https://gist.github.com/1777387.
 function jsonAPI({ fileName }) {
-  return (tree) => {
+  return (tree, file) => {
+
+    const exampleHeading = /^example/i;
     const metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
     const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/;
 
@@ -53,7 +55,8 @@ function jsonAPI({ fileName }) {
     const sections = [];
     let section = null;
     tree.children.forEach((node, i) => {
-      if (node.type === 'heading') {
+      if (node.type === 'heading' && 
+          !exampleHeading.test(textJoin(node.children))) {
         if (section) section.stop = i - 1;
         section = { start: i, stop: tree.children.length, depth: node.depth };
         sections.push(section);
@@ -69,20 +72,34 @@ function jsonAPI({ fileName }) {
 
     // Process a single section (recursively, including subsections).
     function doSection(section, parent) {
+      if (section.depth - parent.depth > 1) {
+        throw new Error('Inappropriate heading level\n' +
+                        JSON.stringify(section));
+      }
+
       const current = newSection(tree.children[section.start]);
       let nodes = tree.children.slice(section.start + 1, section.stop + 1);
+
+      // Sometimes we have two headings with a single blob of description.
+      // Treat as a clone.
+      if (
+        nodes.length === 0 && sections.length > 0 && 
+        section.depth == sections[0].depth
+      ) {
+        nodes = tree.children.slice(sections[0].start + 1,
+                                    sections[0].stop + 1);
+      }
 
       // Extract (and remove) metadata that is not directly inferable
       // from the markdown itself.
       nodes.forEach((node, i) => {
         // Input: <!-- name=module -->; output: {name: module}
         if (node.type === 'html') {
-          let text = node.value.replace(metaExpr, (_0, key, value) => {
+          node.value = node.value.replace(metaExpr, (_0, key, value) => {
             current[key.trim()] = value.trim();
             return '';
           });
-          text = text.trim();
-          if (!text) delete nodes[i];
+          if (!node.value.trim()) delete nodes[i];
         }
 
         // Process metadata:
@@ -91,6 +108,7 @@ function jsonAPI({ fileName }) {
         // -->
         if (node.type === 'html' && common.isYAMLBlock(node.value)) {
           current.meta = common.extractAndParseYAML(node.value);
+          delete nodes[i];
         }
 
         // Stablility marker: > Stability: ...
@@ -101,8 +119,12 @@ function jsonAPI({ fileName }) {
           const text = textJoin(node.children[0].children);
           const stability = text.match(stabilityExpr);
           if (stability) {
-            current.stability = parseInt(stability[1], 10);
-            current.stabilityText = stability[2].trim();
+            // only record the metadata if this indicator is in the
+            // metadata section (i.e., preceeded *ONLY* by metadata).
+            if (nodes.slice(0, i).filter((n) => true).length === 0) {
+              current.stability = parseInt(stability[1], 10);
+              current.stabilityText = stability[2].trim();
+             }
             delete nodes[i];
           }
         }
@@ -110,10 +132,10 @@ function jsonAPI({ fileName }) {
 
       // Extract first list, compressing the node array.
       let list = { children: [] };
-      nodes = nodes.filter((node) => {
+      nodes = nodes.filter((node, index) => {
         if (node.type === 'list' && !list.type) {
           list = node;
-          return false;
+          return true;
         } else {
           return true;
         }
@@ -135,7 +157,7 @@ function jsonAPI({ fileName }) {
       // Now figure out what this list actually means.
       // Depending on the section type, the list could be different things.
 
-      const values = list.children.map((child) => parseListItem(child));
+      const values = list.children.map((child) => parseListItem(child, file));
       switch (current.type) {
         case 'ctor':
         case 'classMethod':
@@ -143,7 +165,6 @@ function jsonAPI({ fileName }) {
           // Each item is an argument, unless the name is 'return',
           // in which case it's the return value.
           const sig = {};
-          current.signatures = [sig];
           sig.params = values.filter((value) => {
             if (value.name === 'return') {
               sig.return = value;
@@ -152,6 +173,7 @@ function jsonAPI({ fileName }) {
             return true;
           });
           parseSignature(current.textRaw, sig);
+          current.signatures = [sig];
           break;
 
         case 'property':
@@ -164,18 +186,16 @@ function jsonAPI({ fileName }) {
             // since they are always just going to be the value etc.
             signature.textRaw = `\`${current.name}\` ${signature.textRaw}`;
 
-            if (signature.type) {
-              current.typeof = signature.type;
-              delete signature.type;
-            }
-
-            if (signature.desc) {
-              current.shortDesc = signature.desc;
-              delete signature.desc;
-            }
-
             for (const key in signature) {
-              if (signature[key]) current[key] = signature[key];
+              if (signature[key]) {
+                if (key == 'type') {
+                  current.typeof = signature.type;
+                } else if (key == 'desc' && current.desc) {
+                  current.shortDesc = signature.desc;
+                } else {
+                  current[key] = signature[key];
+                }
+              }
             }
           }
           break;
@@ -333,12 +353,14 @@ const typeExpr = /^\{([^}]+)\}\s*/;
 const leadingHyphen = /^-\s*/;
 const defaultExpr = /\s*\*\*Default:\*\*\s*([^]+)$/i;
 
-function parseListItem(item) {
+function parseListItem(item, file) {
   const current = {};
 
-  current.textRaw = textJoin(item.children.filter(
-    (node) => node.type !== 'list'
-  )).replace(/\s/g, ' ');
+  current.textRaw = item.children.filter((node) => node.type !== 'list')
+    .map((node) => (
+      file.contents.slice(node.position.start.offset,node.position.end.offset))
+    )
+    .join('').replace(/\s+/g, ' ');
   let text = current.textRaw;
 
   if (!text) {
@@ -377,7 +399,9 @@ function parseListItem(item) {
 
   const options = item.children.find((child) => child.type === 'list');
   if (options) {
-    current.options = options.children.map((child) => parseListItem(child));
+    current.options = options.children.map((child) => (
+      parseListItem(child, file)
+    ));
   }
 
   return current;
