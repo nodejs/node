@@ -400,14 +400,6 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     static MeasureUnit *createMilePerGallonImperial(UErrorCode &status);
 
-    /*
-     * The following were draft ICU 58, but have been withdrawn:
-     * static MeasureUnit *createEast(UErrorCode &status);
-     * static MeasureUnit *createNorth(UErrorCode &status);
-     * static MeasureUnit *createSouth(UErrorCode &status);
-     * static MeasureUnit *createWest(UErrorCode &status);
-     */
-
     /**
      * Returns unit of digital: bit.
      * Caller owns returned value and must free it.

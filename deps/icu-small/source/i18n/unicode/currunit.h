@@ -44,8 +44,9 @@ class U_I18N_API CurrencyUnit: public MeasureUnit {
 
     /**
      * Construct an object with the given ISO currency code.
-     * @param isoCode the 3-letter ISO 4217 currency code; must not be
-     * NULL and must have length 3
+     * @param isoCode the 3-letter ISO 4217 currency code; must have
+     * length 3 and need not be NUL-terminated. If NULL, the currency
+     * is initialized to the unknown currency XXX.
      * @param ec input-output error code. If the isoCode is invalid,
      * then this will be set to a failing value.
      * @stable ICU 3.0
