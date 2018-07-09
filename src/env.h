@@ -723,9 +723,6 @@ class Environment {
   inline bool can_call_into_js() const;
   inline void set_can_call_into_js(bool can_call_into_js);
 
-  // TODO(addaleax): This should be inline.
-  bool is_stopping_worker() const;
-
   inline bool is_main_thread() const;
   inline uint64_t thread_id() const;
   inline void set_thread_id(uint64_t id);
@@ -734,6 +731,7 @@ class Environment {
   inline void add_sub_worker_context(worker::Worker* context);
   inline void remove_sub_worker_context(worker::Worker* context);
   void stop_sub_worker_contexts();
+  inline bool is_stopping_worker() const;
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
