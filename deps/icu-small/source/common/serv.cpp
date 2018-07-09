@@ -547,16 +547,15 @@ outerEnd:
             if (putInCache && cacheResult) {
                 serviceCache->put(result->actualDescriptor, result, status);
                 if (U_FAILURE(status)) {
-                    delete result;
                     return NULL;
                 }
 
                 if (cacheDescriptorList._obj != NULL) {
                     for (int32_t i = cacheDescriptorList._obj->size(); --i >= 0;) {
                         UnicodeString* desc = (UnicodeString*)cacheDescriptorList._obj->elementAt(i);
+
                         serviceCache->put(*desc, result, status);
                         if (U_FAILURE(status)) {
-                            delete result;
                             return NULL;
                         }
 

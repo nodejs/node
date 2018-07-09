@@ -22,7 +22,6 @@
 #include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
-#include "digitlst.h"
 #include "hash.h"
 #include "locutil.h"
 #include "mutex.h"
@@ -35,12 +34,14 @@
 #include "uvectr32.h"
 #include "sharedpluralrules.h"
 #include "unifiedcache.h"
-#include "digitinterval.h"
-#include "visibledigits.h"
+#include "number_decimalquantity.h"
 
 #if !UCONFIG_NO_FORMATTING
 
 U_NAMESPACE_BEGIN
+
+using namespace icu::pluralimpl;
+using icu::number::impl::DecimalQuantity;
 
 static const UChar PLURAL_KEYWORD_OTHER[]={LOW_O,LOW_T,LOW_H,LOW_E,LOW_R,0};
 static const UChar PLURAL_DEFAULT_RULE[]={LOW_O,LOW_T,LOW_H,LOW_E,LOW_R,COLON,SPACE,LOW_N,0};
@@ -248,26 +249,6 @@ PluralRules::select(double number) const {
 }
 
 UnicodeString
-PluralRules::select(const Formattable& obj, const NumberFormat& fmt, UErrorCode& status) const {
-    if (U_SUCCESS(status)) {
-        const DecimalFormat *decFmt = dynamic_cast<const DecimalFormat *>(&fmt);
-        if (decFmt != NULL) {
-            VisibleDigitsWithExponent digits;
-            decFmt->initVisibleDigitsWithExponent(obj, digits, status);
-            if (U_SUCCESS(status)) {
-                return select(digits);
-            }
-        } else {
-            double number = obj.getDouble(status);
-            if (U_SUCCESS(status)) {
-                return select(number);
-            }
-        }
-    }
-    return UnicodeString();
-}
-
-UnicodeString
 PluralRules::select(const IFixedDecimal &number) const {
     if (mRules == NULL) {
         return UnicodeString(TRUE, PLURAL_DEFAULT_RULE, -1);
@@ -275,14 +256,6 @@ PluralRules::select(const IFixedDecimal &number) const {
     else {
         return mRules->select(number);
     }
-}
-
-UnicodeString
-PluralRules::select(const VisibleDigitsWithExponent &number) const {
-    if (number.getExponent() != NULL) {
-        return UnicodeString(TRUE, PLURAL_DEFAULT_RULE, -1);
-    }
-    return select(FixedDecimal(number.getMantissa()));
 }
 
 
@@ -1425,18 +1398,6 @@ PluralOperand tokenTypeToPluralOperand(tokenType tt) {
     }
 }
 
-IFixedDecimal::~IFixedDecimal() = default;
-
-FixedDecimal::FixedDecimal(const VisibleDigits &digits) {
-    digits.getFixedDecimal(
-            source, intValue, decimalDigits,
-            decimalDigitsWithoutTrailingZeros,
-            visibleDecimalDigitCount, hasIntegerValue);
-    isNegative = digits.isNegative();
-    _isNaN = digits.isNaN();
-    _isInfinite = digits.isInfinite();
-}
-
 FixedDecimal::FixedDecimal(double n, int32_t v, int64_t f) {
     init(n, v, f);
     // check values. TODO make into unit test.
@@ -1474,14 +1435,14 @@ FixedDecimal::FixedDecimal() {
 FixedDecimal::FixedDecimal(const UnicodeString &num, UErrorCode &status) {
     CharString cs;
     cs.appendInvariantChars(num, status);
-    DigitList dl;
-    dl.set(cs.toStringPiece(), status);
+    DecimalQuantity dl;
+    dl.setToDecNumber(cs.toStringPiece(), status);
     if (U_FAILURE(status)) {
         init(0, 0, 0);
         return;
     }
     int32_t decimalPoint = num.indexOf(DOT);
-    double n = dl.getDouble();
+    double n = dl.toDouble();
     if (decimalPoint == -1) {
         init(n, 0, 0);
     } else {
@@ -1497,7 +1458,7 @@ FixedDecimal::FixedDecimal(const FixedDecimal &other) {
     decimalDigits = other.decimalDigits;
     decimalDigitsWithoutTrailingZeros = other.decimalDigitsWithoutTrailingZeros;
     intValue = other.intValue;
-    hasIntegerValue = other.hasIntegerValue;
+    _hasIntegerValue = other._hasIntegerValue;
     isNegative = other.isNegative;
     _isNaN = other._isNaN;
     _isInfinite = other._isInfinite;
@@ -1521,10 +1482,10 @@ void FixedDecimal::init(double n, int32_t v, int64_t f) {
         v = 0;
         f = 0;
         intValue = 0;
-        hasIntegerValue = FALSE;
+        _hasIntegerValue = FALSE;
     } else {
         intValue = (int64_t)source;
-        hasIntegerValue = (source == intValue);
+        _hasIntegerValue = (source == intValue);
     }
 
     visibleDecimalDigitCount = v;
@@ -1656,6 +1617,10 @@ bool FixedDecimal::isNaN() const {
 
 bool FixedDecimal::isInfinite() const {
     return _isInfinite;
+}
+
+bool FixedDecimal::hasIntegerValue() const {
+    return _hasIntegerValue;
 }
 
 bool FixedDecimal::isNanOrInfinity() const {

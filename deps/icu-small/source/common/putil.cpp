@@ -533,6 +533,28 @@ uprv_fmin(double x, double y)
     return (x > y ? y : x);
 }
 
+U_CAPI UBool U_EXPORT2
+uprv_add32_overflow(int32_t a, int32_t b, int32_t* res) {
+    // NOTE: Some compilers (GCC, Clang) have primitives available, like __builtin_add_overflow.
+    // This function could be optimized by calling one of those primitives.
+    auto a64 = static_cast<int64_t>(a);
+    auto b64 = static_cast<int64_t>(b);
+    int64_t res64 = a64 + b64;
+    *res = static_cast<int32_t>(res64);
+    return res64 != *res;
+}
+
+U_CAPI UBool U_EXPORT2
+uprv_mul32_overflow(int32_t a, int32_t b, int32_t* res) {
+    // NOTE: Some compilers (GCC, Clang) have primitives available, like __builtin_mul_overflow.
+    // This function could be optimized by calling one of those primitives.
+    auto a64 = static_cast<int64_t>(a);
+    auto b64 = static_cast<int64_t>(b);
+    int64_t res64 = a64 * b64;
+    *res = static_cast<int32_t>(res64);
+    return res64 != *res;
+}
+
 /**
  * Truncates the given double.
  * trunc(3.3) = 3.0, trunc (-3.3) = -3.0
