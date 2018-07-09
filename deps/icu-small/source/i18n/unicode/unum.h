@@ -29,12 +29,13 @@
 
 /**
  * \file
- * \brief C API: NumberFormat
+ * \brief C API: Compatibility APIs for number formatting.
  *
  * <h2> Number Format C API </h2>
  *
- * <p><strong>IMPORTANT:</strong> New users with C++ capabilities are
- * strongly encouraged to see if numberformatter.h fits their use case.
+ * <p><strong>IMPORTANT:</strong> New users with are strongly encouraged to
+ * see if unumberformatter.h fits their use case.  Although not deprecated,
+ * this header is provided for backwards compatibility only.
  *
  * Number Format C API  Provides functions for
  * formatting and parsing a number.  Also provides methods for
@@ -399,6 +400,10 @@ typedef enum UNumberFormatFields {
  * number format is opened using the given pattern, which must conform
  * to the syntax described in DecimalFormat or RuleBasedNumberFormat,
  * respectively.
+ *
+ * <p><strong>NOTE::</strong> New users with are strongly encouraged to
+ * use unumf_openWithSkeletonAndLocale instead of unum_open.
+ *
  * @param pattern A pattern specifying the format to use.
  * This parameter is ignored unless the style is
  * UNUM_PATTERN_DECIMAL or UNUM_PATTERN_RULEBASED.
@@ -1013,6 +1018,8 @@ typedef enum UNumberFormatAttribute {
     * <p>Example: setting the scale to 3, 123 formats as "123,000"
     * <p>Example: setting the scale to -4, 123 formats as "0.0123"
     *
+    * This setting is analogous to getMultiplierScale() and setMultiplierScale() in decimfmt.h.
+    *
    * @stable ICU 51 */
   UNUM_SCALE = 21,
 #ifndef U_HIDE_INTERNAL_API
@@ -1052,7 +1059,7 @@ typedef enum UNumberFormatAttribute {
    * Default: 0 (unset)
    * @stable ICU 50
    */
-  UNUM_PARSE_NO_EXPONENT,
+  UNUM_PARSE_NO_EXPONENT = 0x1001,
 
   /**
    * if this attribute is set to 1, specifies that, if the pattern contains a
@@ -1067,7 +1074,21 @@ typedef enum UNumberFormatAttribute {
   /* The following cannot be #ifndef U_HIDE_INTERNAL_API, needed in .h file variable declararions */
   /** Limit of boolean attributes.
    * @internal */
-  UNUM_LIMIT_BOOLEAN_ATTRIBUTE = 0x1003
+  UNUM_LIMIT_BOOLEAN_ATTRIBUTE = 0x1003,
+
+  /**
+   * Whether parsing is sensitive to case (lowercase/uppercase).
+   * TODO: Add to the test suite.
+   * @internal This API is a technical preview. It may change in an upcoming release.
+   */
+  UNUM_PARSE_CASE_SENSITIVE = 0x1004,
+
+  /**
+   * Formatting: whether to show the plus sign on non-negative numbers.
+   * TODO: Add to the test suite.
+   * @internal This API is a technical preview. It may change in an upcoming release.
+   */
+  UNUM_SIGN_ALWAYS_SHOWN = 0x1005,
 } UNumberFormatAttribute;
 
 /**

@@ -3,7 +3,7 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 
 #include "unicode/simpleformatter.h"
 #include "unicode/ures.h"
@@ -11,6 +11,7 @@
 #include "charstr.h"
 #include "uresimp.h"
 #include "number_longnames.h"
+#include "number_microprops.h"
 #include <algorithm>
 #include "cstring.h"
 
@@ -260,8 +261,8 @@ void LongNameHandler::processQuantity(DecimalQuantity &quantity, MicroProps &mic
     parent->processQuantity(quantity, micros, status);
     // TODO: Avoid the copy here?
     DecimalQuantity copy(quantity);
-    micros.rounding.apply(copy, status);
-    micros.modOuter = &fModifiers[copy.getStandardPlural(rules)];
+    micros.rounder.apply(copy, status);
+    micros.modOuter = &fModifiers[utils::getStandardPlural(rules, copy)];
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

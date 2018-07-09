@@ -3,7 +3,7 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 
 #include "unicode/numberformatter.h"
 #include "number_types.h"
@@ -34,6 +34,19 @@ ScientificNotation Notation::engineering() {
     NotationUnion union_;
     union_.scientific = settings;
     return {NTN_SCIENTIFIC, union_};
+}
+
+ScientificNotation::ScientificNotation(int8_t fEngineeringInterval, bool fRequireMinInt,
+                                       impl::digits_t fMinExponentDigits,
+                                       UNumberSignDisplay fExponentSignDisplay) {
+    ScientificSettings settings;
+    settings.fEngineeringInterval = fEngineeringInterval;
+    settings.fRequireMinInt = fRequireMinInt;
+    settings.fMinExponentDigits = fMinExponentDigits;
+    settings.fExponentSignDisplay = fExponentSignDisplay;
+    NotationUnion union_;
+    union_.scientific = settings;
+    *this = {NTN_SCIENTIFIC, union_};
 }
 
 Notation Notation::compactShort() {

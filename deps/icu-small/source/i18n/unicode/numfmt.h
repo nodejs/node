@@ -555,16 +555,18 @@ public:
                                   UnicodeString& appendTo,
                                   FieldPositionIterator* posIter,
                                   UErrorCode& status) const;
-public:
+
+// Can't use #ifndef U_HIDE_INTERNAL_API because these are virtual methods
+
     /**
      * Format a decimal number.
-     * The number is a DigitList wrapper onto a floating point decimal number.
+     * The number is a DecimalQuantity wrapper onto a floating point decimal number.
      * The default implementation in NumberFormat converts the decimal number
      * to a double and formats that.  Subclasses of NumberFormat that want
      * to specifically handle big decimal numbers must override this method.
      * class DecimalFormat does so.
      *
-     * @param number    The number, a DigitList format Decimal Floating Point.
+     * @param number    The number, a DecimalQuantity format Decimal Floating Point.
      * @param appendTo  Output parameter to receive result.
      *                  Result is appended to existing contents.
      * @param posIter   On return, can be used to iterate over positions
@@ -573,20 +575,20 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @internal
      */
-    virtual UnicodeString& format(const DigitList &number,
+    virtual UnicodeString& format(const number::impl::DecimalQuantity &number,
                                   UnicodeString& appendTo,
                                   FieldPositionIterator* posIter,
                                   UErrorCode& status) const;
 
     /**
      * Format a decimal number.
-     * The number is a DigitList wrapper onto a floating point decimal number.
+     * The number is a DecimalQuantity wrapper onto a floating point decimal number.
      * The default implementation in NumberFormat converts the decimal number
      * to a double and formats that.  Subclasses of NumberFormat that want
      * to specifically handle big decimal numbers must override this method.
      * class DecimalFormat does so.
      *
-     * @param number    The number, a DigitList format Decimal Floating Point.
+     * @param number    The number, a DecimalQuantity format Decimal Floating Point.
      * @param appendTo  Output parameter to receive result.
      *                  Result is appended to existing contents.
      * @param pos       On input: an alignment field, if desired.
@@ -595,12 +597,10 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @internal
      */
-    virtual UnicodeString& format(const DigitList &number,
+    virtual UnicodeString& format(const number::impl::DecimalQuantity &number,
                                   UnicodeString& appendTo,
                                   FieldPosition& pos,
                                   UErrorCode& status) const;
-
-public:
 
    /**
     * Return a long if possible (e.g. within range LONG_MAX,

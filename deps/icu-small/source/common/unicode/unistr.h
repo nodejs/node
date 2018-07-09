@@ -1892,7 +1892,7 @@ public:
   UnicodeString &fastCopyFrom(const UnicodeString &src);
 
   /**
-   * Move assignment operator, might leave src in bogus state.
+   * Move assignment operator; might leave src in bogus state.
    * This string will have the same contents and state that the source string had.
    * The behavior is undefined if *this and src are the same object.
    * @param src source string
@@ -1905,7 +1905,7 @@ public:
 
   // do not use #ifndef U_HIDE_DRAFT_API for moveFrom, needed by non-draft API
   /**
-   * Move assignment, might leave src in bogus state.
+   * Move assignment; might leave src in bogus state.
    * This string will have the same contents and state that the source string had.
    * The behavior is undefined if *this and src are the same object.
    *
@@ -3314,7 +3314,7 @@ public:
   UnicodeString(const UnicodeString& that);
 
   /**
-   * Move constructor, might leave src in bogus state.
+   * Move constructor; might leave src in bogus state.
    * This string will have the same contents and state that the source string had.
    * @param src source string
    * @stable ICU 56
