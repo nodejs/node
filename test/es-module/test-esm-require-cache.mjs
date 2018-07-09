@@ -1,5 +1,6 @@
 // Flags: --experimental-modules
-import '../common';
+/* eslint-disable node-core/required-modules */
+import '../common/index.mjs';
 import '../fixtures/es-module-require-cache/preload.js';
 import '../fixtures/es-module-require-cache/counter.js';
 import assert from 'assert';
