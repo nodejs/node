@@ -254,7 +254,7 @@
                        KeyPath="yes"/>
         <util:InternetShortcut Id="WebsiteShortcut"
                                Name="Node.js website"
-                               Target="http://nodejs.org"
+                               Target="https://nodejs.org/"
                                Type="url"/>
         <util:InternetShortcut Id="DocsShortcut"
                                Name="Node.js documentation"
