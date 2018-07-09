@@ -33,6 +33,7 @@
 #include "node_perf_common.h"
 #include "node_context_data.h"
 #include "tracing/agent.h"
+#include "node_worker.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -621,6 +622,11 @@ inline void Environment::add_sub_worker_context(worker::Worker* context) {
 
 inline void Environment::remove_sub_worker_context(worker::Worker* context) {
   sub_worker_contexts_.erase(context);
+}
+
+inline bool Environment::is_stopping_worker() const {
+  CHECK(!is_main_thread());
+  return worker_context_->is_stopped();
 }
 
 inline performance::performance_state* Environment::performance_state() {
