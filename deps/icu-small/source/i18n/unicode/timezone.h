@@ -284,6 +284,8 @@ public:
      * and may return a different TimeZone from the one returned by
      * TimeZone::createDefault().
      *
+     * <p>This function is not thread safe.</p>
+     *
      * @return  A new instance of TimeZone detected from the current host system
      *          configuration.
      * @stable ICU 55

@@ -3,7 +3,7 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 #ifndef __NUMBER_UTILS_H__
 #define __NUMBER_UTILS_H__
 
@@ -13,116 +13,80 @@
 #include "number_scientific.h"
 #include "number_patternstring.h"
 #include "number_modifiers.h"
+#include "number_multiplier.h"
+#include "number_roundingutils.h"
+#include "decNumber.h"
+#include "charstr.h"
 
-U_NAMESPACE_BEGIN namespace number {
+U_NAMESPACE_BEGIN
+
+namespace number {
 namespace impl {
 
-class UnicodeStringCharSequence : public CharSequence {
-  public:
-    explicit UnicodeStringCharSequence(const UnicodeString &other) {
-        fStr = other;
-    }
-
-    ~UnicodeStringCharSequence() U_OVERRIDE = default;
-
-    int32_t length() const U_OVERRIDE {
-        return fStr.length();
-    }
-
-    char16_t charAt(int32_t index) const U_OVERRIDE {
-        return fStr.charAt(index);
-    }
-
-    UChar32 codePointAt(int32_t index) const U_OVERRIDE {
-        return fStr.char32At(index);
-    }
-
-    UnicodeString toUnicodeString() const U_OVERRIDE {
-        // Allocate a UnicodeString of the correct length
-        UnicodeString output(length(), 0, -1);
-        for (int32_t i = 0; i < length(); i++) {
-            output.append(charAt(i));
-        }
-        return output;
-    }
-
-  private:
-    UnicodeString fStr;
+enum CldrPatternStyle {
+    CLDR_PATTERN_STYLE_DECIMAL,
+    CLDR_PATTERN_STYLE_CURRENCY,
+    CLDR_PATTERN_STYLE_ACCOUNTING,
+    CLDR_PATTERN_STYLE_PERCENT,
+    CLDR_PATTERN_STYLE_SCIENTIFIC,
+    CLDR_PATTERN_STYLE_COUNT,
 };
 
-struct MicroProps : public MicroPropsGenerator {
+// Namespace for naked functions
+namespace utils {
 
-    // NOTE: All of these fields are properly initialized in NumberFormatterImpl.
-    Rounder rounding;
-    Grouper grouping;
-    Padder padding;
-    IntegerWidth integerWidth;
-    UNumberSignDisplay sign;
-    UNumberDecimalSeparatorDisplay decimal;
-    bool useCurrency;
-
-    // Note: This struct has no direct ownership of the following pointers.
-    const DecimalFormatSymbols *symbols;
-    const Modifier *modOuter;
-    const Modifier *modMiddle;
-    const Modifier *modInner;
-
-    // The following "helper" fields may optionally be used during the MicroPropsGenerator.
-    // They live here to retain memory.
-    struct {
-        ScientificModifier scientificModifier;
-        EmptyModifier emptyWeakModifier{false};
-        EmptyModifier emptyStrongModifier{true};
-    } helpers;
-
-
-    MicroProps() = default;
-
-    MicroProps(const MicroProps &other) = default;
-
-    MicroProps &operator=(const MicroProps &other) = default;
-
-    void processQuantity(DecimalQuantity &, MicroProps &micros, UErrorCode &status) const U_OVERRIDE {
-        (void)status;
-        if (this == &micros) {
-            // Unsafe path: no need to perform a copy.
-            U_ASSERT(!exhausted);
-            micros.exhausted = true;
-            U_ASSERT(exhausted);
-        } else {
-            // Safe path: copy self into the output micros.
-            micros = *this;
-        }
+inline int32_t insertDigitFromSymbols(NumberStringBuilder& output, int32_t index, int8_t digit,
+                                      const DecimalFormatSymbols& symbols, Field field,
+                                      UErrorCode& status) {
+    if (symbols.getCodePointZero() != -1) {
+        return output.insertCodePoint(index, symbols.getCodePointZero() + digit, field, status);
     }
+    return output.insert(index, symbols.getConstDigitSymbol(digit), field, status);
+}
 
-  private:
-    // Internal fields:
-    bool exhausted = false;
-};
+inline bool unitIsCurrency(const MeasureUnit& unit) {
+    return uprv_strcmp("currency", unit.getType()) == 0;
+}
+
+inline bool unitIsNoUnit(const MeasureUnit& unit) {
+    return uprv_strcmp("none", unit.getType()) == 0;
+}
+
+inline bool unitIsPercent(const MeasureUnit& unit) {
+    return uprv_strcmp("percent", unit.getSubtype()) == 0;
+}
+
+inline bool unitIsPermille(const MeasureUnit& unit) {
+    return uprv_strcmp("permille", unit.getSubtype()) == 0;
+}
+
+// NOTE: In Java, this method is in NumberFormat.java
+const char16_t*
+getPatternForStyle(const Locale& locale, const char* nsName, CldrPatternStyle style, UErrorCode& status);
 
 /**
- * This struct provides the result of the number formatting pipeline to FormattedNumber.
+ * Computes the plural form for this number based on the specified set of rules.
  *
- * The DecimalQuantity is not currently being used by FormattedNumber, but at some point it could be used
- * to add a toDecNumber() or similar method.
+ * @param rules A {@link PluralRules} object representing the set of rules.
+ * @return The {@link StandardPlural} according to the PluralRules. If the plural form is not in
+ *     the set of standard plurals, {@link StandardPlural#OTHER} is returned instead.
  */
-struct NumberFormatterResults : public UMemory {
-    DecimalQuantity quantity;
-    NumberStringBuilder string;
-};
-
-inline const UnicodeString getDigitFromSymbols(int8_t digit, const DecimalFormatSymbols &symbols) {
-    // TODO: Implement DecimalFormatSymbols.getCodePointZero()?
-    if (digit == 0) {
-        return symbols.getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kZeroDigitSymbol);
+inline StandardPlural::Form getStandardPlural(const PluralRules *rules,
+                                              const IFixedDecimal &fdec) {
+    if (rules == nullptr) {
+        // Fail gracefully if the user didn't provide a PluralRules
+        return StandardPlural::Form::OTHER;
     } else {
-        return symbols.getSymbol(static_cast<DecimalFormatSymbols::ENumberFormatSymbol>(
-                                         DecimalFormatSymbols::ENumberFormatSymbol::kOneDigitSymbol + digit - 1));
+        UnicodeString ruleString = rules->select(fdec);
+        return StandardPlural::orOtherFromString(ruleString);
     }
 }
 
+} // namespace utils
+
 } // namespace impl
 } // namespace number
+
 U_NAMESPACE_END
 
 #endif //__NUMBER_UTILS_H__

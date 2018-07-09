@@ -38,13 +38,14 @@
 #include <math.h>
 
 // ICU PATCH: Customize header file paths for ICU.
-// The files fixed-dtoa.h and strtod.h are not needed.
+// The file fixed-dtoa.h is not needed.
 
 #include "double-conversion.h"
 
 #include "double-conversion-bignum-dtoa.h"
 #include "double-conversion-fast-dtoa.h"
 #include "double-conversion-ieee.h"
+#include "double-conversion-strtod.h"
 #include "double-conversion-utils.h"
 
 // ICU PATCH: Wrap in ICU namespace
@@ -431,7 +432,6 @@ void DoubleToStringConverter::DoubleToAscii(double v,
 }
 
 
-#if 0 // not needed for ICU
 // Consumes the given substring from the iterator.
 // Returns false, if the substring does not match.
 template <class Iterator>
@@ -467,6 +467,7 @@ static const uc16 kWhitespaceTable16[] = {
   8196, 8197, 8198, 8199, 8200, 8201, 8202, 8239, 8287, 12288, 65279
 };
 static const int kWhitespaceTable16Length = ARRAY_SIZE(kWhitespaceTable16);
+
 
 
 static bool isWhitespace(int x) {
@@ -646,7 +647,6 @@ static double RadixStringToIeee(Iterator* current,
   ASSERT(number != 0);
   return Double(DiyFp(number, exponent)).value();
 }
-
 
 template <class Iterator>
 double StringToDoubleConverter::StringToIeee(
@@ -996,7 +996,6 @@ float StringToDoubleConverter::StringToFloat(
   return static_cast<float>(StringToIeee(buffer, length, false,
                                          processed_characters_count));
 }
-#endif // not needed for ICU
 
 }  // namespace double_conversion
 

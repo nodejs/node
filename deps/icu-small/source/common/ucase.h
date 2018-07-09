@@ -354,8 +354,8 @@ enum {
 #define UCASE_IS_UPPER_OR_TITLE(props) ((props)&2)
 
 #define UCASE_IGNORABLE         4
-#define UCASE_SENSITIVE         8
-#define UCASE_EXCEPTION         0x10
+#define UCASE_EXCEPTION         8
+#define UCASE_SENSITIVE         0x10
 
 #define UCASE_HAS_EXCEPTION(props) ((props)&UCASE_EXCEPTION)
 
@@ -379,9 +379,9 @@ enum {
 #   define UCASE_GET_DELTA(props) (int16_t)(((props)&0x8000) ? (((props)>>UCASE_DELTA_SHIFT)|0xfe00) : ((uint16_t)(props)>>UCASE_DELTA_SHIFT))
 #endif
 
-/* exception: bits 15..5 are an unsigned 11-bit index into the exceptions array */
-#define UCASE_EXC_SHIFT     5
-#define UCASE_EXC_MASK      0xffe0
+/* exception: bits 15..4 are an unsigned 12-bit index into the exceptions array */
+#define UCASE_EXC_SHIFT     4
+#define UCASE_EXC_MASK      0xfff0
 #define UCASE_MAX_EXCEPTIONS ((UCASE_EXC_MASK>>UCASE_EXC_SHIFT)+1)
 
 /* definitions for 16-bit main exceptions word ------------------------------ */
@@ -392,7 +392,7 @@ enum {
     UCASE_EXC_FOLD,
     UCASE_EXC_UPPER,
     UCASE_EXC_TITLE,
-    UCASE_EXC_4,            /* reserved */
+    UCASE_EXC_DELTA,
     UCASE_EXC_5,            /* reserved */
     UCASE_EXC_CLOSURE,
     UCASE_EXC_FULL_MAPPINGS,
@@ -402,7 +402,11 @@ enum {
 /* each slot is 2 uint16_t instead of 1 */
 #define UCASE_EXC_DOUBLE_SLOTS      0x100
 
-/* reserved: exception bits 11..9 */
+enum {
+    UCASE_EXC_NO_SIMPLE_CASE_FOLDING=0x200,
+    UCASE_EXC_DELTA_IS_NEGATIVE=0x400,
+    UCASE_EXC_SENSITIVE=0x800
+};
 
 /* UCASE_EXC_DOT_MASK=UCASE_DOT_MASK<<UCASE_EXC_DOT_SHIFT */
 #define UCASE_EXC_DOT_SHIFT     7

@@ -10,21 +10,11 @@
 #ifndef FMTABLEIMP_H
 #define FMTABLEIMP_H
 
-#include "digitlst.h"
+#include "number_decimalquantity.h"
 
 #if !UCONFIG_NO_FORMATTING
 
 U_NAMESPACE_BEGIN
-
-/**
- * @internal
- */
-struct FmtStackData {
-  DigitList stackDecimalNum;   // 128
-  //CharString stackDecimalStr;  // 64
-  //                         -----
-  //                         192 total
-};
 
 /**
  * Maximum int64_t value that can be stored in a double without chancing losing precision.
