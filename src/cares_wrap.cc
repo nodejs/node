@@ -596,9 +596,10 @@ void ChannelWrap::EnsureServers() {
 
 class QueryWrap : public AsyncWrap {
  public:
-  QueryWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
+  QueryWrap(ChannelWrap* channel, Local<Object> req_wrap_obj, const char* name)
       : AsyncWrap(channel->env(), req_wrap_obj, AsyncWrap::PROVIDER_QUERYWRAP),
-        channel_(channel) {
+        channel_(channel),
+        trace_name_(name) {
     // Make sure the channel object stays alive during the query lifetime.
     req_wrap_obj->Set(env()->context(),
                       env()->channel_string(),
@@ -625,6 +626,9 @@ class QueryWrap : public AsyncWrap {
                  int dnsclass,
                  int type) {
     channel_->EnsureServers();
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
+      TRACING_CATEGORY_NODE2(dns, native), trace_name_, this,
+      "name", TRACE_STR_COPY(name));
     ares_query(channel_->cares_channel(), name, dnsclass, type, Callback,
                static_cast<void*>(this));
   }
@@ -721,6 +725,9 @@ class QueryWrap : public AsyncWrap {
       extra
     };
     const int argc = arraysize(argv) - extra.IsEmpty();
+    TRACE_EVENT_NESTABLE_ASYNC_END0(
+        TRACING_CATEGORY_NODE2(dns, native), trace_name_, this);
+
     MakeCallback(env()->oncomplete_string(), argc, argv);
   }
 
@@ -730,6 +737,9 @@ class QueryWrap : public AsyncWrap {
     Context::Scope context_scope(env()->context());
     const char* code = ToErrorCodeString(status);
     Local<Value> arg = OneByteString(env()->isolate(), code);
+    TRACE_EVENT_NESTABLE_ASYNC_END1(
+        TRACING_CATEGORY_NODE2(dns, native), trace_name_, this,
+        "error", status);
     MakeCallback(env()->oncomplete_string(), 1, &arg);
   }
 
@@ -743,6 +753,9 @@ class QueryWrap : public AsyncWrap {
   }
 
   ChannelWrap* channel_;
+
+ private:
+  const char* trace_name_;
 };
 
 
@@ -1173,7 +1186,7 @@ int ParseSoaReply(Environment* env,
 class QueryAnyWrap: public QueryWrap {
  public:
   QueryAnyWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-    : QueryWrap(channel, req_wrap_obj) {
+    : QueryWrap(channel, req_wrap_obj, "resolveAny") {
   }
 
   int Send(const char* name) override {
@@ -1354,7 +1367,7 @@ class QueryAnyWrap: public QueryWrap {
 class QueryAWrap: public QueryWrap {
  public:
   QueryAWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "resolve4") {
   }
 
   int Send(const char* name) override {
@@ -1402,7 +1415,7 @@ class QueryAWrap: public QueryWrap {
 class QueryAaaaWrap: public QueryWrap {
  public:
   QueryAaaaWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "resolve6") {
   }
 
   int Send(const char* name) override {
@@ -1450,7 +1463,7 @@ class QueryAaaaWrap: public QueryWrap {
 class QueryCnameWrap: public QueryWrap {
  public:
   QueryCnameWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "resolveCname") {
   }
 
   int Send(const char* name) override {
@@ -1485,7 +1498,7 @@ class QueryCnameWrap: public QueryWrap {
 class QueryMxWrap: public QueryWrap {
  public:
   QueryMxWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "resolveMx") {
   }
 
   int Send(const char* name) override {
@@ -1520,7 +1533,7 @@ class QueryMxWrap: public QueryWrap {
 class QueryNsWrap: public QueryWrap {
  public:
   QueryNsWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "resolveNs") {
   }
 
   int Send(const char* name) override {
@@ -1555,7 +1568,7 @@ class QueryNsWrap: public QueryWrap {
 class QueryTxtWrap: public QueryWrap {
  public:
   QueryTxtWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "resolveTxt") {
   }
 
   int Send(const char* name) override {
@@ -1589,7 +1602,7 @@ class QueryTxtWrap: public QueryWrap {
 class QuerySrvWrap: public QueryWrap {
  public:
   explicit QuerySrvWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "resolveSrv") {
   }
 
   int Send(const char* name) override {
@@ -1622,7 +1635,7 @@ class QuerySrvWrap: public QueryWrap {
 class QueryPtrWrap: public QueryWrap {
  public:
   explicit QueryPtrWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "resolvePtr") {
   }
 
   int Send(const char* name) override {
@@ -1657,7 +1670,7 @@ class QueryPtrWrap: public QueryWrap {
 class QueryNaptrWrap: public QueryWrap {
  public:
   explicit QueryNaptrWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "resolveNaptr") {
   }
 
   int Send(const char* name) override {
@@ -1691,7 +1704,7 @@ class QueryNaptrWrap: public QueryWrap {
 class QuerySoaWrap: public QueryWrap {
  public:
   QuerySoaWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "resolveSoa") {
   }
 
   int Send(const char* name) override {
@@ -1756,7 +1769,7 @@ class QuerySoaWrap: public QueryWrap {
 class GetHostByAddrWrap: public QueryWrap {
  public:
   explicit GetHostByAddrWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
+      : QueryWrap(channel, req_wrap_obj, "reverse") {
   }
 
   int Send(const char* name) override {
@@ -1772,6 +1785,11 @@ class GetHostByAddrWrap: public QueryWrap {
     } else {
       return UV_EINVAL;  // So errnoException() reports a proper error.
     }
+
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
+        TRACING_CATEGORY_NODE2(dns, native), "reverse", this,
+        "name", TRACE_STR_COPY(name),
+        "family", family == AF_INET ? "ipv4" : "ipv6");
 
     ares_gethostbyaddr(channel_->cares_channel(),
                        address_buffer,
@@ -1835,8 +1853,10 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     Null(env->isolate())
   };
 
+  uint64_t n = 0;
+  const bool verbatim = req_wrap->verbatim();
+
   if (status == 0) {
-    int n = 0;
     Local<Array> results = Array::New(env->isolate());
 
     auto add = [&] (bool want_ipv4, bool want_ipv6) {
@@ -1864,7 +1884,6 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       }
     };
 
-    const bool verbatim = req_wrap->verbatim();
     add(true, verbatim);
     if (verbatim == false)
       add(false, true);
@@ -1878,6 +1897,10 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   }
 
   uv_freeaddrinfo(res);
+
+  TRACE_EVENT_NESTABLE_ASYNC_END2(
+      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap,
+      "count", n, "verbatim", verbatim);
 
   // Make the callback into JavaScript
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
@@ -1909,6 +1932,11 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
     argv[1] = js_hostname;
     argv[2] = js_service;
   }
+
+  TRACE_EVENT_NESTABLE_ASYNC_END2(
+      TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap,
+      "hostname", TRACE_STR_COPY(hostname),
+      "service", TRACE_STR_COPY(service));
 
   // Make the callback into JavaScript
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
@@ -1986,6 +2014,12 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = flags;
 
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
+      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap,
+      "hostname", TRACE_STR_COPY(*hostname),
+      "family",
+      family == AF_INET ? "ipv4" : family == AF_INET6 ? "ipv6" : "unspec");
+
   int err = req_wrap->Dispatch(uv_getaddrinfo,
                                AfterGetAddrInfo,
                                *hostname,
@@ -2013,6 +2047,10 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
         uv_ip6_addr(*ip, port, reinterpret_cast<sockaddr_in6*>(&addr)) == 0);
 
   GetNameInfoReqWrap* req_wrap = new GetNameInfoReqWrap(env, req_wrap_obj);
+
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
+      TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap,
+      "ip", TRACE_STR_COPY(*ip), "port", port);
 
   int err = req_wrap->Dispatch(uv_getnameinfo,
                                AfterGetNameInfo,
@@ -2144,6 +2182,9 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
 void Cancel(const FunctionCallbackInfo<Value>& args) {
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+
+  TRACE_EVENT_INSTANT0(TRACING_CATEGORY_NODE2(dns, native),
+      "cancel", TRACE_EVENT_SCOPE_THREAD);
 
   ares_cancel(channel->cares_channel());
 }
