@@ -92,9 +92,9 @@ Data types
             UV_FS_READLINK,
             UV_FS_CHOWN,
             UV_FS_FCHOWN,
-            UV_FS_LCHOWN,
             UV_FS_REALPATH,
-            UV_FS_COPYFILE
+            UV_FS_COPYFILE,
+            UV_FS_LCHOWN
         } uv_fs_type;
 
 .. c:type:: uv_dirent_t

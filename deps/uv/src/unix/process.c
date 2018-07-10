@@ -239,9 +239,9 @@ static int uv__process_open_stream(uv_stdio_container_t* container,
 
   flags = 0;
   if (container->flags & UV_WRITABLE_PIPE)
-    flags |= UV_STREAM_READABLE;
+    flags |= UV_HANDLE_READABLE;
   if (container->flags & UV_READABLE_PIPE)
-    flags |= UV_STREAM_WRITABLE;
+    flags |= UV_HANDLE_WRITABLE;
 
   return uv__stream_open(container->data.stream, pipefds[0], flags);
 }

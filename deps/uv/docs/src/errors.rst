@@ -335,10 +335,24 @@ API
     Returns the error message for the given error code.  Leaks a few bytes
     of memory when you call it with an unknown error code.
 
+.. c:function:: char* uv_strerror_r(int err, char* buf, size_t buflen)
+
+    Returns the error message for the given error code. The zero-terminated
+    message is stored in the user-supplied buffer `buf` of at most `buflen` bytes.
+
+    .. versionadded:: 1.22.0
+
 .. c:function:: const char* uv_err_name(int err)
 
     Returns the error name for the given error code.  Leaks a few bytes
     of memory when you call it with an unknown error code.
+
+.. c:function:: char* uv_err_name_r(int err, char* buf, size_t buflen)
+
+    Returns the error name for the given error code. The zero-terminated
+    name is stored in the user-supplied buffer `buf` of at most `buflen` bytes.
+
+    .. versionadded:: 1.22.0
 
 .. c:function:: int uv_translate_sys_error(int sys_errno)
 
