@@ -1,3 +1,36 @@
+2018.07.11, Version 1.22.0 (Stable), 8568f78a777d79d35eb7d6994617267b9fb33967
+
+Changes since version 1.21.0:
+
+* unix: remove checksparse.sh (Ben Noordhuis)
+
+* win: fix mingw build error (Ben Noordhuis)
+
+* win: fix -Wunused-function warnings in thread.c (Ben Noordhuis)
+
+* unix,win: merge timers implementation (Ben Noordhuis)
+
+* win: fix pointer type in pipe.c (Ben Noordhuis)
+
+* win: fixing build for older MSVC compilers (Michael Fero)
+
+* zos: clear poll events on every iteration (jBarz)
+
+* zos: write-protect message queue (jBarz)
+
+* zos: use correct pointer type in strnlen (jBarz)
+
+* unix,win: merge handle flags (Ben Noordhuis)
+
+* doc: update Imran Iqbal's GitHub handle (cjihrig)
+
+* src: add new error apis to prevent memory leaks (Shelley Vohr)
+
+* test: make test-condvar call uv_cond_wait (Jamie Davis)
+
+* fs: change position of uv_fs_lchown (Ujjwal Sharma)
+
+
 2018.06.23, Version 1.21.0 (Stable), e4983a9b0c152932f7553ff4a9ff189d2314cdcb
 
 Changes since version 1.20.3:

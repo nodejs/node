@@ -37,6 +37,8 @@
  * See https://github.com/joyent/libuv/issues/210
  */
 TEST_IMPL(error_message) {
+  char buf[32];
+
   /* Cop out. Can't do proper checks on systems with
    * i18n-ized error messages...
    */
@@ -48,6 +50,10 @@ TEST_IMPL(error_message) {
   ASSERT(strstr(uv_strerror(UV_EINVAL), "Success") == NULL);
   ASSERT(strcmp(uv_strerror(1337), "Unknown error") == 0);
   ASSERT(strcmp(uv_strerror(-1337), "Unknown error") == 0);
+
+  ASSERT(strstr(uv_strerror_r(UV_EINVAL, buf, sizeof(buf)), "Success") == NULL);
+  ASSERT(strstr(uv_strerror_r(1337, buf, sizeof(buf)), "1337") != NULL);
+  ASSERT(strstr(uv_strerror_r(-1337, buf, sizeof(buf)), "-1337") != NULL);
 
   return 0;
 }

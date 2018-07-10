@@ -216,7 +216,7 @@ int uv__tcp_connect(uv_connect_t* req,
 
   err = maybe_new_socket(handle,
                          addr->sa_family,
-                         UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+                         UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   if (err)
     return err;
 
@@ -272,7 +272,7 @@ int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
 
   return uv__stream_open((uv_stream_t*)handle,
                          sock,
-                         UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+                         UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
 }
 
 
@@ -334,7 +334,7 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   }
 
   if (single_accept)
-    tcp->flags |= UV_TCP_SINGLE_ACCEPT;
+    tcp->flags |= UV_HANDLE_TCP_SINGLE_ACCEPT;
 
   flags = 0;
 #if defined(__MVS__)
@@ -401,9 +401,9 @@ int uv_tcp_nodelay(uv_tcp_t* handle, int on) {
   }
 
   if (on)
-    handle->flags |= UV_TCP_NODELAY;
+    handle->flags |= UV_HANDLE_TCP_NODELAY;
   else
-    handle->flags &= ~UV_TCP_NODELAY;
+    handle->flags &= ~UV_HANDLE_TCP_NODELAY;
 
   return 0;
 }
@@ -419,9 +419,9 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
   }
 
   if (on)
-    handle->flags |= UV_TCP_KEEPALIVE;
+    handle->flags |= UV_HANDLE_TCP_KEEPALIVE;
   else
-    handle->flags &= ~UV_TCP_KEEPALIVE;
+    handle->flags &= ~UV_HANDLE_TCP_KEEPALIVE;
 
   /* TODO Store delay if uv__stream_fd(handle) == -1 but don't want to enlarge
    *      uv_tcp_t with an int that's almost never used...
@@ -433,9 +433,9 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
 
 int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
   if (enable)
-    handle->flags &= ~UV_TCP_SINGLE_ACCEPT;
+    handle->flags &= ~UV_HANDLE_TCP_SINGLE_ACCEPT;
   else
-    handle->flags |= UV_TCP_SINGLE_ACCEPT;
+    handle->flags |= UV_HANDLE_TCP_SINGLE_ACCEPT;
   return 0;
 }
 
