@@ -1438,7 +1438,16 @@ void FatalException(Isolate* isolate,
       exit(7);
     } else if (caught->IsFalse()) {
       ReportException(env, error, message);
-      exit(1);
+
+      // fatal_exception_function call before may have set a new exit code ->
+      // read it again, otherwise use default for uncaughtException 1
+      Local<String> exit_code = env->exit_code_string();
+      Local<Value> code;
+      if (!process_object->Get(env->context(), exit_code).ToLocal(&code) ||
+          !code->IsInt32()) {
+        exit(1);
+      }
+      exit(code.As<v8::Int32>()->Value());
     }
   }
 }
