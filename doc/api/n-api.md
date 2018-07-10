@@ -2074,7 +2074,7 @@ Returns `napi_ok` if the API succeeded. If a non-`BigInt` is passed in it
 returns `napi_bigint_expected`.
 
 This API returns the C `int64_t` primitive equivalent of the given JavaScript
-`BigInt`. If needed it will truncate the value, setting `lossless` to `false`.
+`BigInt`. If needed it will truncate the value, setting `lossless` to `true`.
 
 
 #### napi_get_value_bigint_uint64
@@ -2127,7 +2127,7 @@ napi_status napi_get_value_bigint_words(napi_env env,
 - `[in/out] word_count`: Must be initialized to the length of the `words`
    array. Upon return, it will be set to the actual number of words that
    would be needed to store this `BigInt`.
-- `[out] words`: Pointer to 64-bit word array.
+- `[out] words`: Pointer to a pre-allocated 64-bit word array.
 
 Returns `napi_ok` if the API succeeded.
 
