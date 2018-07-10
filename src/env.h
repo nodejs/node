@@ -859,6 +859,10 @@ class Environment {
   inline void RemoveCleanupHook(void (*fn)(void*), void* arg);
   void RunCleanup();
 
+  static void BuildEmbedderGraph(v8::Isolate* isolate,
+                                 v8::EmbedderGraph* graph,
+                                 void* data);
+
  private:
   inline void CreateImmediate(native_immediate_callback cb,
                               void* data,

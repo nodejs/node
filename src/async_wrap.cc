@@ -32,7 +32,6 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
-using v8::HeapProfiler;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -43,7 +42,6 @@ using v8::ObjectTemplate;
 using v8::Promise;
 using v8::PromiseHookType;
 using v8::PropertyCallbackInfo;
-using v8::RetainedObjectInfo;
 using v8::String;
 using v8::Uint32;
 using v8::Undefined;
@@ -59,87 +57,6 @@ static const char* const provider_names[] = {
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
 };
-
-
-// Report correct information in a heapdump.
-
-class RetainedAsyncInfo: public RetainedObjectInfo {
- public:
-  explicit RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap);
-
-  void Dispose() override;
-  bool IsEquivalent(RetainedObjectInfo* other) override;
-  intptr_t GetHash() override;
-  const char* GetLabel() override;
-  intptr_t GetSizeInBytes() override;
-
- private:
-  const char* label_;
-  const AsyncWrap* wrap_;
-  const size_t length_;
-};
-
-
-static int OwnMemory(AsyncWrap* async_wrap) {
-  MemoryTracker tracker;
-  tracker.set_track_only_self(true);
-  tracker.Track(async_wrap);
-  return tracker.accumulated_size();
-}
-
-
-RetainedAsyncInfo::RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap)
-    : label_(provider_names[class_id - NODE_ASYNC_ID_OFFSET]),
-      wrap_(wrap),
-      length_(OwnMemory(wrap)) {
-}
-
-
-void RetainedAsyncInfo::Dispose() {
-  delete this;
-}
-
-
-bool RetainedAsyncInfo::IsEquivalent(RetainedObjectInfo* other) {
-  return label_ == other->GetLabel() &&
-          wrap_ == static_cast<RetainedAsyncInfo*>(other)->wrap_;
-}
-
-
-intptr_t RetainedAsyncInfo::GetHash() {
-  return reinterpret_cast<intptr_t>(wrap_);
-}
-
-
-const char* RetainedAsyncInfo::GetLabel() {
-  return label_;
-}
-
-
-intptr_t RetainedAsyncInfo::GetSizeInBytes() {
-  return length_;
-}
-
-
-RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
-  // No class_id should be the provider type of NONE.
-  CHECK_GT(class_id, NODE_ASYNC_ID_OFFSET);
-  // And make sure the class_id doesn't extend past the last provider.
-  CHECK_LE(class_id - NODE_ASYNC_ID_OFFSET, AsyncWrap::PROVIDERS_LENGTH);
-  CHECK(wrapper->IsObject());
-  CHECK(!wrapper.IsEmpty());
-
-  Local<Object> object = wrapper.As<Object>();
-  CHECK_GT(object->InternalFieldCount(), 0);
-
-  AsyncWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, object, nullptr);
-
-  return new RetainedAsyncInfo(class_id, wrap);
-}
-
-
-// end RetainedAsyncInfo
 
 
 struct AsyncWrapObject : public AsyncWrap {
@@ -616,16 +533,6 @@ void AsyncWrap::Initialize(Local<Object> target,
 }
 
 
-void LoadAsyncWrapperInfo(Environment* env) {
-  HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
-#define V(PROVIDER)                                                           \
-  heap_profiler->SetWrapperClassInfoProvider(                                 \
-      (NODE_ASYNC_ID_OFFSET + AsyncWrap::PROVIDER_ ## PROVIDER), WrapperInfo);
-  NODE_ASYNC_PROVIDER_TYPES(V)
-#undef V
-}
-
-
 AsyncWrap::AsyncWrap(Environment* env,
                      Local<Object> object,
                      ProviderType provider,
@@ -814,9 +721,12 @@ void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
       Environment::GetCurrent(isolate), asyncContext.async_id);
 }
 
+std::string AsyncWrap::MemoryInfoName() const {
+  return provider_names[provider_type()];
+}
+
 std::string AsyncWrap::diagnostic_name() const {
-  return std::string(provider_names[provider_type()]) +
-      " (" + std::to_string(env()->thread_id()) + ":" +
+  return MemoryInfoName() + " (" + std::to_string(env()->thread_id()) + ":" +
       std::to_string(static_cast<int64_t>(async_id_)) + ")";
 }
 

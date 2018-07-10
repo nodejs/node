@@ -175,6 +175,7 @@ class AsyncWrap : public BaseObject {
       v8::Local<v8::Value>* argv);
 
   virtual std::string diagnostic_name() const;
+  std::string MemoryInfoName() const override;
 
   static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam> &info);
 
@@ -204,8 +205,6 @@ class AsyncWrap : public BaseObject {
   double async_id_;
   double trigger_async_id_;
 };
-
-void LoadAsyncWrapperInfo(Environment* env);
 
 }  // namespace node
 
