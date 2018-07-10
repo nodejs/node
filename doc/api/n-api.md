@@ -2074,7 +2074,7 @@ Returns `napi_ok` if the API succeeded. If a non-`BigInt` is passed in it
 returns `napi_bigint_expected`.
 
 This API returns the C `int64_t` primitive equivalent of the given JavaScript
-`BigInt`. If needed it will truncate the value, setting `lossless` to `true`.
+`BigInt`. If needed it will truncate the value, setting `lossless` to `false`.
 
 
 #### napi_get_value_bigint_uint64
@@ -2102,7 +2102,7 @@ Returns `napi_ok` if the API succeeded. If a non-`BigInt` is passed in it
 returns `napi_bigint_expected`.
 
 This API returns the C `uint64_t` primitive equivalent of the given JavaScript
-`BigInt`. If needed it will truncate the value, setting `lossless` to `true`.
+`BigInt`. If needed it will truncate the value, setting `lossless` to `false`.
 
 
 #### napi_get_value_bigint_words
