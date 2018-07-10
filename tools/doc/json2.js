@@ -24,6 +24,7 @@
 const unified = require('unified');
 const common = require('./common.js');
 const html = require('remark-html');
+const select = require('unist-util-select');
 
 module.exports = doJSON;
 
@@ -51,11 +52,14 @@ function jsonAPI({ fileName }) {
     const metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
     const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/;
 
+    // extract definitions
+    const definitions = select(tree, 'definition');
+
     // Determine the start, stop, and depth of each section.
     const sections = [];
     let section = null;
     tree.children.forEach((node, i) => {
-      if (node.type === 'heading' && 
+      if (node.type === 'heading' &&
           !exampleHeading.test(textJoin(node.children))) {
         if (section) section.stop = i - 1;
         section = { start: i, stop: tree.children.length, depth: node.depth };
@@ -83,8 +87,8 @@ function jsonAPI({ fileName }) {
       // Sometimes we have two headings with a single blob of description.
       // Treat as a clone.
       if (
-        nodes.length === 0 && sections.length > 0 && 
-        section.depth == sections[0].depth
+        nodes.length === 0 && sections.length > 0 &&
+        section.depth === sections[0].depth
       ) {
         nodes = tree.children.slice(sections[0].start + 1,
                                     sections[0].stop + 1);
@@ -114,32 +118,83 @@ function jsonAPI({ fileName }) {
         // Stablility marker: > Stability: ...
         if (
           node.type === 'blockquote' && node.children.length === 1 &&
-          node.children[0].type === 'paragraph'
+          node.children[0].type === 'paragraph' &&
+          nodes.slice(0, i).filter(() => true).length === 0
         ) {
           const text = textJoin(node.children[0].children);
           const stability = text.match(stabilityExpr);
           if (stability) {
-            // only record the metadata if this indicator is in the
-            // metadata section (i.e., preceeded *ONLY* by metadata).
-            if (nodes.slice(0, i).filter((n) => true).length === 0) {
-              current.stability = parseInt(stability[1], 10);
-              current.stabilityText = stability[2].trim();
-             }
+            current.stability = parseInt(stability[1], 10);
+            current.stabilityText = stability[2].trim();
             delete nodes[i];
           }
         }
       });
 
-      // Extract first list, compressing the node array.
-      let list = { children: [] };
-      nodes = nodes.filter((node, index) => {
-        if (node.type === 'list' && !list.type) {
-          list = node;
-          return true;
-        } else {
-          return true;
+      // Compress the node array.
+      nodes = nodes.filter(() => true);
+
+      // If the first node is a list, extract it.
+      const list = nodes[0] && nodes[0].type === 'list' ?
+        nodes.shift() : null;
+
+      // Now figure out what this list actually means.
+      // Depending on the section type, the list could be different things.
+      if (list) {
+        const values = list.children.map((child) => parseListItem(child, file));
+
+        switch (current.type) {
+          case 'ctor':
+          case 'classMethod':
+          case 'method':
+            // Each item is an argument, unless the name is 'return',
+            // in which case it's the return value.
+            const sig = {};
+            sig.params = values.filter((value) => {
+              if (value.name === 'return') {
+                sig.return = value;
+                return false;
+              }
+              return true;
+            });
+            parseSignature(current.textRaw, sig);
+            current.signatures = [sig];
+            break;
+
+          case 'property':
+            // There should be only one item, which is the value.
+            // Copy the data up to the section.
+            if (values.length) {
+              const signature = values[0];
+
+              // Shove the name in there for properties,
+              // since they are always just going to be the value etc.
+              signature.textRaw = `\`${current.name}\` ${signature.textRaw}`;
+
+              for (const key in signature) {
+                if (signature[key]) {
+                  if (key === 'type') {
+                    current.typeof = signature.type;
+                  } else if (key === 'desc' && current.desc) {
+                    current.shortDesc = signature.desc;
+                  } else {
+                    current[key] = signature[key];
+                  }
+                }
+              }
+            }
+            break;
+
+          case 'event':
+            // Event: each item is an argument.
+            current.params = values;
+            break;
+
+          default:
+            // If list wasn't consumed, put it back in the nodes list.
+            nodes.unshift(list);
         }
-      });
+      }
 
       // Convert remaining nodes to a 'desc'.
       // Unified expects to process a string; but we ignore that as we
@@ -147,63 +202,13 @@ function jsonAPI({ fileName }) {
       if (nodes.length) {
         current.desc = unified()
           .use(function() {
-            this.Parser = () => ({ type: 'root', children: nodes });
+            this.Parser = () => (
+              { type: 'root', children: nodes.concat(definitions) }
+            );
           })
           .use(html)
           .processSync('').toString().trim();
         if (!current.desc) delete current.desc;
-      }
-
-      // Now figure out what this list actually means.
-      // Depending on the section type, the list could be different things.
-
-      const values = list.children.map((child) => parseListItem(child, file));
-      switch (current.type) {
-        case 'ctor':
-        case 'classMethod':
-        case 'method':
-          // Each item is an argument, unless the name is 'return',
-          // in which case it's the return value.
-          const sig = {};
-          sig.params = values.filter((value) => {
-            if (value.name === 'return') {
-              sig.return = value;
-              return false;
-            }
-            return true;
-          });
-          parseSignature(current.textRaw, sig);
-          current.signatures = [sig];
-          break;
-
-        case 'property':
-          // There should be only one item, which is the value.
-          // Copy the data up to the section.
-          if (values.length) {
-            const signature = values[0];
-
-            // Shove the name in there for properties,
-            // since they are always just going to be the value etc.
-            signature.textRaw = `\`${current.name}\` ${signature.textRaw}`;
-
-            for (const key in signature) {
-              if (signature[key]) {
-                if (key == 'type') {
-                  current.typeof = signature.type;
-                } else if (key == 'desc' && current.desc) {
-                  current.shortDesc = signature.desc;
-                } else {
-                  current[key] = signature[key];
-                }
-              }
-            }
-          }
-          break;
-
-        case 'event':
-          // Event: each item is an argument.
-          current.params = values;
-          break;
       }
 
       // Process subsections.
@@ -283,8 +288,14 @@ function jsonAPI({ fileName }) {
         });
       }
 
-      // Add this section to the parent.
+      // Add this section to the parent.  Sometimes we have two headings with a
+      // single blob of description.  If the preceding entry at this level
+      // shares a name and is lacking a description, copy it backwards.
       if (!parent[plur]) parent[plur] = [];
+      const prev = parent[plur].slice(-1)[0];
+      if (prev && prev.name === current.name && !prev.desc) {
+        prev.desc = current.desc;
+      }
       parent[plur].push(current);
     }
   };
@@ -358,7 +369,7 @@ function parseListItem(item, file) {
 
   current.textRaw = item.children.filter((node) => node.type !== 'list')
     .map((node) => (
-      file.contents.slice(node.position.start.offset,node.position.end.offset))
+      file.contents.slice(node.position.start.offset, node.position.end.offset))
     )
     .join('').replace(/\s+/g, ' ');
   let text = current.textRaw;

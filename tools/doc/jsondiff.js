@@ -12,32 +12,46 @@ let dump = null;
 const Entities = require('html-entities').AllHtmlEntities;
 const entities = new Entities();
 
-for (let i = process.argv.length-1; i >= 2; i--) {
+for (let i = process.argv.length - 1; i >= 2; i--) {
   const arg = process.argv[i];
 
   if (arg.startsWith('--depth=')) {
-    depth = parseInt(arg.replace('--depth=', ''))
+    depth = parseInt(arg.replace('--depth=', ''));
     process.argv.splice(i, 1);
   } else if (arg.startsWith('--dump=')) {
     const os = require('os');
     dump = arg.replace('--dump=', '').replace(/^~\//, `${os.homedir}/`);
     process.argv.splice(i, 1);
   }
-};
+}
 
+class Diff extends Error {
+  constructor(data) {
+    super('Differences found');
+    this.data = data;
+  }
+}
+
+let before = null;
 process.argv.slice(2).forEach((filename) => {
-  let contents = {};
-
   try {
     if (filename.match(/\b(all|_toc)\.md$/)) return;
 
+    if (filename.startsWith('--depth=')) {
+      depth = parseInt(filename.replace('--depth=', ''));
+      return;
+    } else if (filename.startsWith('--dump=')) {
+      const os = require('os');
+      dump = filename.replace('--dump=', '').replace(/^~\//, `${os.homedir}/`);
+      return;
+    }
+
     if (filename.endsWith('.json')) {
-      if (contents.before) {
-	contents.after = JSON.parse(fs.readFileSync(filename, 'utf8'));
-	diff(contents.before, contents.after);
-	contents.before = null;
+      if (before) {
+        diff(before, JSON.parse(fs.readFileSync(filename, 'utf8')));
+        before = null;
       } else {
-	contents.before = JSON.parse(fs.readFileSync(filename, 'utf8'));
+        before = JSON.parse(fs.readFileSync(filename, 'utf8'));
       }
       return;
     }
@@ -49,45 +63,45 @@ process.argv.slice(2).forEach((filename) => {
     require('./json.js')(input, filename, (err, before) => {
       if (err) throw err;
       require('./json2.js')(input, filename, (err, after) => {
-	if (err) throw err;
-	after = after.contents;
-	delete after.type;
+        if (err) throw err;
+        after = after.contents;
+        delete after.type;
 
-        contents = { before, after };
-	diff(before, after);
+        diff(before, after);
       });
     });
 
   } catch (error) {
 
-    if (!error.before) throw error;
-    console.dir(error, {depth: depth});
+    if (!(error instanceof Diff)) throw error;
+    const data = error.data;
+    console.dir(data, { depth });
 
-    if (error.prop) {
-      const before = error.before[error.prop];
-      const after = error.after[error.prop];
+    if (data.prop) {
+      const before = data.before[data.prop];
+      const after = data.after[data.prop];
       if (typeof before === 'string' && typeof after === 'string' &&
           before.includes('\n') && after.includes('\n')) {
 
-        process.env.before = h2t(before);
-        process.env.after = h2t(after);
+        process.env.before = h2t(before, false);
+        process.env.after = h2t(after, false);
 
         const { spawnSync } = require('child_process');
 
         console.log('');
         spawnSync(
           'diff -u <(echo "$before" ) <(echo "$after")',
-          {stdio: 'inherit', shell: '/bin/bash'}
+          { stdio: 'inherit', shell: '/bin/bash' }
         );
       }
     }
 
     if (dump) {
       fs.writeFileSync(`${dump}/after.json`,
-                       JSON.stringify(contents.after, null, 2));
+                       JSON.stringify(data.after, null, 2));
 
       fs.writeFileSync(`${dump}/before.json`,
-                       JSON.stringify(contents.before, null, 2));
+                       JSON.stringify(data.before, null, 2));
 
       if (filename.endsWith('.md')) {
         const unified = require('unified');
@@ -99,7 +113,7 @@ process.argv.slice(2).forEach((filename) => {
             this.Compiler = (tree) => {
               fs.writeFileSync(`${dump}/input.json`,
                                JSON.stringify(tree, null, 2));
-            }
+            };
           })
           .processSync(fs.readFileSync(filename, 'utf8'));
       }
@@ -110,27 +124,26 @@ process.argv.slice(2).forEach((filename) => {
 });
 
 
-function h2t(string) {
-  return entities.decode(string)
-    .replace(/<.*?>/g, '')
-    .replace(/\n+/g, '\n')
-    .trim();
+// HTML to text: remove elements, convert entites to strings
+function h2t(string, collapse = true) {
+  const stripped = entities.decode(string).replace(/<.*?>/g, '');
+
+  if (collapse) {
+    return stripped.replace(/\s*/g, ' ').trim();
+  } else {
+    return stripped.replace(/\n+/g, '\n').trim();
+  }
 }
-h2t.x = 'hi'
 
 function diff(before, after) {
   for (const prop in after) {
-    if (prop === 'desc') continue;
-    if (prop === 'textRaw') continue;
-    if (prop === 'shortDesc') continue;
-
     if (after[prop] === undefined) continue;
 
     // TODO: shouldn't events have params?
     if (prop === 'params' && before.type === 'event') continue;
 
     if (before[prop] === undefined) {
-      throw { prop, before, after };
+      throw new Diff({ prop, before, after });
     } else if (Array.isArray(after[prop])) {
       // TODO: why do methods have an inconsistent number of redundant and
       // incomplete (only names and optional indicator) signatures?
@@ -140,7 +153,7 @@ function diff(before, after) {
       //   buf.readDoubleBE has 2.
       if (prop === 'signatures') {
         // ignore incomplete signatures
-        const first = before.signatures.shift()
+        const first = before.signatures.shift();
         before.signatures = before.signatures.filter((sig) => (
           sig.return || sig.params.some((param) => param.type)
         ));
@@ -148,13 +161,11 @@ function diff(before, after) {
       }
 
       if (before[prop].length !== after[prop].length) {
-        throw { prop, before, after };
-        process.exit(1);
+        throw new Diff({ prop, before, after });
       } else {
         for (const i in after[prop]) {
           if (!before[prop][i]) {
-            throw { prop, i, before, after, value: after[prop][i] };
-            process.exit(1);
+            throw new Diff({ prop, i, before, after, value: after[prop][i] });
           } else {
             diff(before[prop][i], after[prop][i]);
           }
@@ -164,15 +175,15 @@ function diff(before, after) {
       // allow
     } else if (prop === 'textRaw' && before[prop].trim() === after[prop]) {
       // allow
+    } else if (prop === 'textRaw' &&
+      before[prop].replace(/\s/g, '') === after[prop].replace(/\s/g, '')) {
+      // allow - TODO fix
     } else if (prop === 'default' &&
       before[prop].replace(/\s/g, '') === after[prop].replace(/\s/g, '')) {
       // allow - TODO fix
-    } else if (prop === 'desc') {
-      // allow - TODO fix
     } else if (typeof before[prop] === 'string') {
       if (before[prop] !== after[prop]) {
-        throw { prop, before, after };
-        process.exit(1);
+        throw new Diff({ prop, before, after });
       }
     } else {
       diff(before[prop], after[prop]);
@@ -185,9 +196,16 @@ function diff(before, after) {
     // TODO: can numbers have signatures?
     if (prop === 'signatures' && before.type === 'number') continue;
 
+    if (prop === 'signatures') {
+      // ignore incomplete signatures
+      before.signatures = before.signatures.filter((sig) => (
+        sig.return || sig.params.some((param) => param.type)
+      ));
+      if (before.signatures.length === 0) continue;
+    }
+
     if (after[prop] === undefined) {
-      throw { prop, before, after, value: before[prop] };
-      process.exit(1);
+      throw new Diff({ prop, before, after, value: before[prop] });
     }
   }
 }
