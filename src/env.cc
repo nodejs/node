@@ -144,9 +144,15 @@ Environment::Environment(IsolateData* isolate_data,
   std::string debug_cats;
   SafeGetenv("NODE_DEBUG_NATIVE", &debug_cats);
   set_debug_categories(debug_cats, true);
+
+  isolate()->GetHeapProfiler()->AddBuildEmbedderGraphCallback(
+      BuildEmbedderGraph, this);
 }
 
 Environment::~Environment() {
+  isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
+      BuildEmbedderGraph, this);
+
   // Make sure there are no re-used libuv wrapper objects.
   // CleanupHandles() should have removed all of them.
   CHECK(file_handle_read_wrap_freelist_.empty());
@@ -217,7 +223,6 @@ void Environment::Start(int argc,
   set_process_object(process_object);
 
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
-  LoadAsyncWrapperInfo(this);
 
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitThreadLocalOnce);
@@ -733,6 +738,16 @@ void Environment::stop_sub_worker_contexts() {
     w->JoinThread();
   }
 }
+
+void Environment::BuildEmbedderGraph(v8::Isolate* isolate,
+                                     v8::EmbedderGraph* graph,
+                                     void* data) {
+  MemoryTracker tracker(isolate, graph);
+  static_cast<Environment*>(data)->ForEachBaseObject([&](BaseObject* obj) {
+    tracker.Track(obj);
+  });
+}
+
 
 // Not really any better place than env.cc at this moment.
 void BaseObject::DeleteMe(void* data) {

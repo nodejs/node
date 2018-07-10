@@ -3,15 +3,19 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <unordered_set>
+#include <unordered_map>
 #include <queue>
+#include <stack>
+#include <string>
 #include <limits>
 #include <uv.h>
-#include <aliased_buffer.h>
+#include "aliased_buffer.h"
+#include "v8-profiler.h"
 
 namespace node {
 
 class MemoryTracker;
+class MemoryRetainerNode;
 
 namespace crypto {
 class NodeBIO;
@@ -29,6 +33,8 @@ class MemoryRetainer {
   }
 
   virtual bool IsRootNode() const { return false; }
+
+  virtual std::string MemoryInfoName() const { return std::string(); }
 };
 
 class MemoryTracker {
@@ -67,17 +73,32 @@ class MemoryTracker {
   inline void TrackField(const char* name,
                          const AliasedBuffer<NativeT, V8T>& value);
 
-  inline void Track(const MemoryRetainer* value);
-  inline size_t accumulated_size() const { return accumulated_size_; }
+  inline void Track(const MemoryRetainer* value, const char* name = nullptr);
 
   inline void set_track_only_self(bool value) { track_only_self_ = value; }
+  inline v8::EmbedderGraph* graph() { return graph_; }
+  inline v8::Isolate* isolate() { return isolate_; }
 
-  inline MemoryTracker() {}
+  inline explicit MemoryTracker(v8::Isolate* isolate,
+                                v8::EmbedderGraph* graph)
+    : isolate_(isolate), graph_(graph) {}
 
  private:
+  typedef std::unordered_map<const MemoryRetainer*, MemoryRetainerNode*>
+      NodeMap;
+
+  inline MemoryRetainerNode* CurrentNode() const;
+  inline MemoryRetainerNode* AddNode(const char* name,
+                                     const MemoryRetainer* retainer = nullptr);
+  inline MemoryRetainerNode* PushNode(const char* name,
+                                      const MemoryRetainer* retainer = nullptr);
+  inline void PopNode();
+
   bool track_only_self_ = false;
-  size_t accumulated_size_ = 0;
-  std::unordered_set<const MemoryRetainer*> seen_;
+  v8::Isolate* isolate_;
+  v8::EmbedderGraph* graph_;
+  std::stack<MemoryRetainerNode*> node_stack_;
+  NodeMap seen_;
 };
 
 }  // namespace node
