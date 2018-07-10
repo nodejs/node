@@ -56,7 +56,7 @@ void MemoryTracker::TrackField(const char* name, const std::queue<T>& value) {
 template <typename T, typename test_for_number, typename dummy>
 void MemoryTracker::TrackField(const char* name, const T& value) {
   // For numbers, creating new nodes is not worth the overhead.
-  CurrentNode()->size_ += sizeof(T);
+  TrackFieldWithSize(name, sizeof(T));
 }
 
 template <typename T, typename U>
@@ -97,7 +97,6 @@ void MemoryTracker::TrackField(const char* name,
 }
 
 void MemoryTracker::Track(const MemoryRetainer* value) {
-  v8::HandleScope handle_scope(isolate_);
   value->MemoryInfo(this);
 }
 
