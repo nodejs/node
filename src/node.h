@@ -683,6 +683,10 @@ class InternalCallbackScope;
  *
  * This object should be stack-allocated to ensure that it is contained in a
  * valid HandleScope.
+ *
+ * Exceptions happening within this scope will be treated like uncaught
+ * exceptions. If this behaviour is undesirable, a new `v8::TryCatch` scope
+ * needs to be created inside of this scope.
  */
 class NODE_EXTERN CallbackScope {
  public:
