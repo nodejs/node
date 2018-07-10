@@ -35,6 +35,10 @@ if (!process.env.HAS_STARTED_WORKER) {
         return child6();
       case 'child7':
         return child7();
+      case 'child8':
+        return child8();
+      case 'child9':
+        return child9();
       default:
         throw new Error('invalid');
     }
@@ -105,6 +109,24 @@ function child7() {
   throw new Error('ok');
 }
 
+function child8() {
+  process.on('exit', (code) => {
+    assert.strictEqual(process.exitCode, 1);
+    assert.strictEqual(code, 1);
+    process.exitCode = 98;
+  });
+  throw new Error('ok');
+}
+
+function child9() {
+  process.on('exit', function(code) {
+    assert.strictEqual(process.exitCode, 1);
+    assert.strictEqual(code, 1);
+    process.exitCode = 0;
+  });
+  throw new Error('ok');
+}
+
 function parent() {
   const test = (arg, exit, error = null) => {
     const w = new Worker(__filename);
@@ -116,7 +138,9 @@ function parent() {
     }));
     if (error) {
       w.on('error', common.mustCall((err) => {
-        assert(error.test(err));
+        console.log(err);
+        assert(error.test(err),
+               `wrong error for ${arg}\nexpected:${error} but got:${err}`);
       }));
     }
     w.postMessage(arg);
@@ -129,4 +153,6 @@ function parent() {
   test('child5', 99);
   test('child6', 0);
   test('child7', 97);
+  test('child8', 98, /^Error: ok$/);
+  test('child9', 0, /^Error: ok$/);
 }
