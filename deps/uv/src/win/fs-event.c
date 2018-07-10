@@ -419,7 +419,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
    * - We are not active, just ignore the callback
    */
   if (!uv__is_active(handle)) {
-    if (handle->flags & UV__HANDLE_CLOSING) {
+    if (handle->flags & UV_HANDLE_CLOSING) {
       uv_want_endgame(loop, (uv_handle_t*) handle);
     }
     return;
@@ -543,7 +543,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
         }
 
         offset = file_info->NextEntryOffset;
-      } while (offset && !(handle->flags & UV__HANDLE_CLOSING));
+      } while (offset && !(handle->flags & UV_HANDLE_CLOSING));
     } else {
       handle->cb(handle, NULL, UV_CHANGE, 0);
     }
@@ -552,7 +552,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
     handle->cb(handle, NULL, 0, uv_translate_sys_error(err));
   }
 
-  if (!(handle->flags & UV__HANDLE_CLOSING)) {
+  if (!(handle->flags & UV_HANDLE_CLOSING)) {
     uv_fs_event_queue_readdirchanges(loop, handle);
   } else {
     uv_want_endgame(loop, (uv_handle_t*)handle);
@@ -573,7 +573,7 @@ void uv_fs_event_close(uv_loop_t* loop, uv_fs_event_t* handle) {
 
 
 void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle) {
-  if ((handle->flags & UV__HANDLE_CLOSING) && !handle->req_pending) {
+  if ((handle->flags & UV_HANDLE_CLOSING) && !handle->req_pending) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
 
     if (handle->buffer) {

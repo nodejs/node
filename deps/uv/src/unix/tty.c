@@ -135,7 +135,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
     if (r < 0) {
       /* fallback to using blocking writes */
       if (!readable)
-        flags |= UV_STREAM_BLOCKING;
+        flags |= UV_HANDLE_BLOCKING_WRITES;
       goto skip;
     }
 
@@ -177,7 +177,7 @@ skip:
    * the handle queue, since it was added by uv__handle_init in uv_stream_init.
    */
 
-  if (!(flags & UV_STREAM_BLOCKING))
+  if (!(flags & UV_HANDLE_BLOCKING_WRITES))
     uv__nonblock(fd, 1);
 
 #if defined(__APPLE__)
@@ -195,9 +195,9 @@ skip:
 #endif
 
   if (readable)
-    flags |= UV_STREAM_READABLE;
+    flags |= UV_HANDLE_READABLE;
   else
-    flags |= UV_STREAM_WRITABLE;
+    flags |= UV_HANDLE_WRITABLE;
 
   uv__stream_open((uv_stream_t*) tty, fd, flags);
   tty->mode = UV_TTY_MODE_NORMAL;

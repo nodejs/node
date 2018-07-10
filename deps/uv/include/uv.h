@@ -370,7 +370,10 @@ typedef enum {
 UV_EXTERN int uv_translate_sys_error(int sys_errno);
 
 UV_EXTERN const char* uv_strerror(int err);
+UV_EXTERN char* uv_strerror_r(int err, char* buf, size_t buflen);
+
 UV_EXTERN const char* uv_err_name(int err);
+UV_EXTERN char* uv_err_name_r(int err, char* buf, size_t buflen);
 
 
 #define UV_REQ_FIELDS                                                         \
@@ -1141,9 +1144,9 @@ typedef enum {
   UV_FS_READLINK,
   UV_FS_CHOWN,
   UV_FS_FCHOWN,
-  UV_FS_LCHOWN,
   UV_FS_REALPATH,
-  UV_FS_COPYFILE
+  UV_FS_COPYFILE,
+  UV_FS_LCHOWN
 } uv_fs_type;
 
 /* uv_fs_t is a subclass of uv_req_t. */

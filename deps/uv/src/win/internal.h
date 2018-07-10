@@ -58,69 +58,6 @@ extern UV_THREAD_LOCAL int uv__crt_assert_enabled;
 #endif
 
 /*
- * Handles
- * (also see handle-inl.h)
- */
-
-/* Used by all handles. */
-#define UV_HANDLE_CLOSED                        0x00000002
-#define UV_HANDLE_ENDGAME_QUEUED                0x00000008
-
-/* uv-common.h: #define UV__HANDLE_CLOSING      0x00000001 */
-/* uv-common.h: #define UV__HANDLE_ACTIVE       0x00000040 */
-/* uv-common.h: #define UV__HANDLE_REF          0x00000020 */
-/* uv-common.h: #define UV_HANDLE_INTERNAL      0x00000080 */
-
-/* Used by streams and UDP handles. */
-#define UV_HANDLE_READING                       0x00000100
-#define UV_HANDLE_BOUND                         0x00000200
-#define UV_HANDLE_LISTENING                     0x00000800
-#define UV_HANDLE_CONNECTION                    0x00001000
-#define UV_HANDLE_READABLE                      0x00008000
-#define UV_HANDLE_WRITABLE                      0x00010000
-#define UV_HANDLE_READ_PENDING                  0x00020000
-#define UV_HANDLE_SYNC_BYPASS_IOCP              0x00040000
-#define UV_HANDLE_ZERO_READ                     0x00080000
-#define UV_HANDLE_EMULATE_IOCP                  0x00100000
-#define UV_HANDLE_BLOCKING_WRITES               0x00200000
-#define UV_HANDLE_CANCELLATION_PENDING          0x00400000
-
-/* Used by uv_tcp_t and uv_udp_t handles */
-#define UV_HANDLE_IPV6                          0x01000000
-
-/* Only used by uv_tcp_t handles. */
-#define UV_HANDLE_TCP_NODELAY                   0x02000000
-#define UV_HANDLE_TCP_KEEPALIVE                 0x04000000
-#define UV_HANDLE_TCP_SINGLE_ACCEPT             0x08000000
-#define UV_HANDLE_TCP_ACCEPT_STATE_CHANGING     0x10000000
-#define UV_HANDLE_TCP_SOCKET_CLOSED             0x20000000
-#define UV_HANDLE_SHARED_TCP_SOCKET             0x40000000
-
-/* Only used by uv_pipe_t handles. */
-#define UV_HANDLE_NON_OVERLAPPED_PIPE           0x01000000
-#define UV_HANDLE_PIPESERVER                    0x02000000
-
-/* Only used by uv_tty_t handles. */
-#define UV_HANDLE_TTY_READABLE                  0x01000000
-#define UV_HANDLE_TTY_RAW                       0x02000000
-#define UV_HANDLE_TTY_SAVED_POSITION            0x04000000
-#define UV_HANDLE_TTY_SAVED_ATTRIBUTES          0x08000000
-
-/* Only used by uv_poll_t handles. */
-#define UV_HANDLE_POLL_SLOW                     0x02000000
-
-
-/*
- * Requests: see req-inl.h
- */
-
-
-/*
- * Streams: see stream-inl.h
- */
-
-
-/*
  * TCP
  */
 
@@ -244,15 +181,6 @@ void uv_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
 
 int uv_poll_close(uv_loop_t* loop, uv_poll_t* handle);
 void uv_poll_endgame(uv_loop_t* loop, uv_poll_t* handle);
-
-
-/*
- * Timers
- */
-void uv_timer_endgame(uv_loop_t* loop, uv_timer_t* handle);
-
-DWORD uv__next_timeout(const uv_loop_t* loop);
-void uv_process_timers(uv_loop_t* loop);
 
 
 /*

@@ -836,7 +836,7 @@ int uv__fsevents_init(uv_fs_event_t* handle) {
 
   handle->cf_cb->data = handle;
   uv_async_init(handle->loop, handle->cf_cb, uv__fsevents_cb);
-  handle->cf_cb->flags |= UV__HANDLE_INTERNAL;
+  handle->cf_cb->flags |= UV_HANDLE_INTERNAL;
   uv_unref((uv_handle_t*) handle->cf_cb);
 
   err = uv_mutex_init(&handle->cf_mutex);
