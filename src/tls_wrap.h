@@ -143,8 +143,8 @@ class TLSWrap : public AsyncWrap,
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 
   crypto::SecureContext* sc_;
-  BIO* enc_in_;
-  BIO* enc_out_;
+  BIO* enc_in_ = nullptr;
+  BIO* enc_out_ = nullptr;
   std::vector<uv_buf_t> pending_cleartext_input_;
   size_t write_size_;
   WriteWrap* current_write_ = nullptr;
