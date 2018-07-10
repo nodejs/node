@@ -2208,7 +2208,7 @@ void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
 
     /* TTY shutdown is really just a no-op */
     if (handle->stream.conn.shutdown_req->cb) {
-      if (handle->flags & UV__HANDLE_CLOSING) {
+      if (handle->flags & UV_HANDLE_CLOSING) {
         handle->stream.conn.shutdown_req->cb(handle->stream.conn.shutdown_req, UV_ECANCELED);
       } else {
         handle->stream.conn.shutdown_req->cb(handle->stream.conn.shutdown_req, 0);
@@ -2221,7 +2221,7 @@ void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
     return;
   }
 
-  if (handle->flags & UV__HANDLE_CLOSING &&
+  if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     /* The wait handle used for raw reading should be unregistered when the
      * wait callback runs. */

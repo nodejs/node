@@ -21,7 +21,6 @@
 
 #include <assert.h>
 #include <io.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -347,7 +346,7 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
     /* Clear the shutdown_req field so we don't go here again. */
     handle->stream.conn.shutdown_req = NULL;
 
-    if (handle->flags & UV__HANDLE_CLOSING) {
+    if (handle->flags & UV_HANDLE_CLOSING) {
       UNREGISTER_HANDLE_REQ(loop, handle, req);
 
       /* Already closing. Cancel the shutdown. */
@@ -408,7 +407,7 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
     }
   }
 
-  if (handle->flags & UV__HANDLE_CLOSING &&
+  if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
 
@@ -907,7 +906,7 @@ int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
     req->next_pending = NULL;
     req->pipeHandle = INVALID_HANDLE_VALUE;
 
-    if (!(server->flags & UV__HANDLE_CLOSING)) {
+    if (!(server->flags & UV_HANDLE_CLOSING)) {
       uv_pipe_queue_accept(loop, server, req, FALSE);
     }
   }
@@ -1294,7 +1293,7 @@ static int uv__pipe_write_data(uv_loop_t* loop,
                                size_t nbufs,
                                uv_stream_t* send_handle,
                                uv_write_cb cb,
-                               bool copy_always) {
+                               int copy_always) {
   int err;
   int result;
   uv_buf_t write_buf;
@@ -1536,7 +1535,7 @@ int uv__pipe_write_ipc(uv_loop_t* loop,
   /* Write buffers. We set the `always_copy` flag, so it is not a problem that
    * some of the written data lives on the stack. */
   err = uv__pipe_write_data(
-      loop, req, handle, bufs, buf_count, send_handle, cb, true);
+      loop, req, handle, bufs, buf_count, send_handle, cb, 1);
 
   /* If we had to heap-allocate the bufs array, free it now. */
   if (bufs != stack_bufs) {
@@ -1561,7 +1560,7 @@ int uv__pipe_write(uv_loop_t* loop,
     /* Non-IPC pipe write: put data on the wire directly. */
     assert(send_handle == NULL);
     return uv__pipe_write_data(
-        loop, req, handle, bufs, nbufs, NULL, cb, false);
+        loop, req, handle, bufs, nbufs, NULL, cb, 0);
   }
 }
 
@@ -1675,7 +1674,7 @@ static DWORD uv__pipe_read_data(uv_loop_t* loop,
 
 
 static DWORD uv__pipe_read_ipc(uv_loop_t* loop, uv_pipe_t* handle) {
-  DWORD* data_remaining = &handle->pipe.conn.ipc_data_frame.payload_remaining;
+  uint32_t* data_remaining = &handle->pipe.conn.ipc_data_frame.payload_remaining;
   int err;
 
   if (*data_remaining > 0) {
@@ -1856,7 +1855,7 @@ void uv_process_pipe_accept_req(uv_loop_t* loop, uv_pipe_t* handle,
 
   assert(handle->type == UV_NAMED_PIPE);
 
-  if (handle->flags & UV__HANDLE_CLOSING) {
+  if (handle->flags & UV_HANDLE_CLOSING) {
     /* The req->pipeHandle should be freed already in uv_pipe_cleanup(). */
     assert(req->pipeHandle == INVALID_HANDLE_VALUE);
     DECREASE_PENDING_REQ_COUNT(handle);
@@ -1876,7 +1875,7 @@ void uv_process_pipe_accept_req(uv_loop_t* loop, uv_pipe_t* handle,
       CloseHandle(req->pipeHandle);
       req->pipeHandle = INVALID_HANDLE_VALUE;
     }
-    if (!(handle->flags & UV__HANDLE_CLOSING)) {
+    if (!(handle->flags & UV_HANDLE_CLOSING)) {
       uv_pipe_queue_accept(loop, handle, req, FALSE);
     }
   }

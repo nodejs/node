@@ -15,6 +15,7 @@ set(uv_sources
     src/fs-poll.c
     src/inet.c
     src/threadpool.c
+    src/timer.c
     src/uv-common.c
     src/uv-data-getter-setters.c
     src/version.c)
@@ -197,7 +198,6 @@ if(WIN32)
        src/win/stream.c
        src/win/tcp.c
        src/win/tty.c
-       src/win/timer.c
        src/win/udp.c
        src/win/util.c
        src/win/winapi.c
@@ -223,7 +223,6 @@ else()
        src/unix/stream.c
        src/unix/tcp.c
        src/unix/thread.c
-       src/unix/timer.c
        src/unix/tty.c
        src/unix/udp.c)
   list(APPEND uv_test_sources test/runner-unix.c)
