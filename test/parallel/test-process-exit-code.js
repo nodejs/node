@@ -34,6 +34,14 @@ switch (process.argv[2]) {
     return child4();
   case 'child5':
     return child5();
+  case 'child6':
+    return child6();
+  case 'child7':
+    return child7();
+  case 'child8':
+    return child8();
+  case 'child9':
+    return child9();
   case undefined:
     return parent();
   default:
@@ -43,6 +51,7 @@ switch (process.argv[2]) {
 function child1() {
   process.exitCode = 42;
   process.on('exit', function(code) {
+    assert.strictEqual(process.exitCode, 42);
     assert.strictEqual(code, 42);
   });
 }
@@ -50,6 +59,7 @@ function child1() {
 function child2() {
   process.exitCode = 99;
   process.on('exit', function(code) {
+    assert.strictEqual(process.exitCode, 42);
     assert.strictEqual(code, 42);
   });
   process.exit(42);
@@ -58,6 +68,7 @@ function child2() {
 function child3() {
   process.exitCode = 99;
   process.on('exit', function(code) {
+    assert.strictEqual(process.exitCode, 0);
     assert.strictEqual(code, 0);
   });
   process.exit(0);
@@ -66,7 +77,7 @@ function child3() {
 function child4() {
   process.exitCode = 99;
   process.on('exit', function(code) {
-    if (code !== 1) {
+    if (code !== 1 || process.exitCode !== 1) {
       console.log('wrong code! expected 1 for uncaughtException');
       process.exit(99);
     }
@@ -77,9 +88,48 @@ function child4() {
 function child5() {
   process.exitCode = 95;
   process.on('exit', function(code) {
+    assert.strictEqual(process.exitCode, 95);
     assert.strictEqual(code, 95);
     process.exitCode = 99;
   });
+}
+
+function child6() {
+  process.on('exit', function(code) {
+    assert.strictEqual(process.exitCode, 0);
+    assert.strictEqual(code, 0);
+  });
+  process.on('uncaughtException', () => {});
+  throw new Error('ok');
+}
+
+function child7() {
+  process.on('exit', function(code) {
+    assert.strictEqual(process.exitCode, 97);
+    assert.strictEqual(code, 97);
+  });
+  process.on('uncaughtException', () => {
+    process.exitCode = 97;
+  });
+  throw new Error('ok');
+}
+
+function child8() {
+  process.on('exit', function(code) {
+    assert.strictEqual(process.exitCode, 1);
+    assert.strictEqual(code, 1);
+    process.exitCode = 98;
+  });
+  throw new Error('ok');
+}
+
+function child9() {
+  process.on('exit', function(code) {
+    assert.strictEqual(process.exitCode, 1);
+    assert.strictEqual(code, 1);
+    process.exitCode = 0;
+  });
+  throw new Error('ok');
 }
 
 function parent() {
@@ -102,4 +152,8 @@ function parent() {
   test('child3', 0);
   test('child4', 1);
   test('child5', 99);
+  test('child6', 0);
+  test('child7', 97);
+  test('child8', 98);
+  test('child9', 0);
 }

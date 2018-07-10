@@ -151,9 +151,13 @@ added: v0.1.18
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
-handles such exceptions by printing the stack trace to `stderr` and exiting.
+handles such exceptions by printing the stack trace to `stderr` and exiting
+with code 1, overriding any previously set [`process.exitCode`][].
 Adding a handler for the `'uncaughtException'` event overrides this default
-behavior.
+behavior. You may also change the [`process.exitCode`][] in
+`'uncaughtException'` handler which will result in process exiting with
+provided exit code, otherwise in the presence of such handler the process will
+exit with 0.
 
 The listener function is called with the `Error` object passed as the only
 argument.
