@@ -196,6 +196,9 @@ function diff(before, after) {
     // TODO: can numbers have signatures?
     if (prop === 'signatures' && before.type === 'number') continue;
 
+    // TODO: shouldn't events have params?
+    if (prop === 'params' && before.type === 'event') continue;
+
     if (prop === 'signatures') {
       // ignore incomplete signatures
       before.signatures = before.signatures.filter((sig) => (

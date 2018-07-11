@@ -50,7 +50,7 @@ function jsonAPI({ fileName }) {
 
     const exampleHeading = /^example/i;
     const metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
-    const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/;
+    const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/s;
 
     // extract definitions
     const definitions = select(tree, 'definition');
@@ -119,7 +119,7 @@ function jsonAPI({ fileName }) {
         if (
           node.type === 'blockquote' && node.children.length === 1 &&
           node.children[0].type === 'paragraph' &&
-          nodes.slice(0, i).filter(() => true).length === 0
+          nodes.slice(0, i).every((node) => node.type === 'list')
         ) {
           const text = textJoin(node.children[0].children);
           const stability = text.match(stabilityExpr);
@@ -175,8 +175,6 @@ function jsonAPI({ fileName }) {
                 if (signature[key]) {
                   if (key === 'type') {
                     current.typeof = signature.type;
-                  } else if (key === 'desc' && current.desc) {
-                    current.shortDesc = signature.desc;
                   } else {
                     current[key] = signature[key];
                   }
@@ -200,6 +198,8 @@ function jsonAPI({ fileName }) {
       // Unified expects to process a string; but we ignore that as we
       // already have pre-parsed input that we can inject.
       if (nodes.length) {
+        if (current.desc) current.shortDesc = current.desc;
+
         current.desc = unified()
           .use(function() {
             this.Parser = () => (

@@ -44,7 +44,7 @@ function doJSON(input, filename, cb) {
 
   const exampleHeading = /^example/i;
   const metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
-  const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/;
+  const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/s;
 
   const lexed = marked.lexer(input);
   lexed.forEach((tok) => {
