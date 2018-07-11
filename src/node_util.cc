@@ -78,6 +78,29 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(pairs);
 }
 
+static void GetOwnNonIndicesProperties(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+
+  v8::Local<v8::Object> object = args[0].As<v8::Object>();
+  v8::PropertyFilter filter;
+  // Return only non-enumerable properties by default.
+  if (args.Length() == 1) {
+    filter = static_cast<v8::PropertyFilter>(
+      v8::ONLY_ENUMERABLE | v8::SKIP_SYMBOLS);
+  } else {
+    filter = v8::SKIP_SYMBOLS;
+  }
+
+  v8::Local<v8::Array> properties = object
+    ->GetPropertyNames(context, v8::KeyCollectionMode::kOwnOnly,
+                       filter,
+                       v8::IndexFilter::kSkipIndices)
+      .ToLocalChecked();
+  args.GetReturnValue().Set(properties);
+}
+
 // Side effect-free stringification that will never throw exceptions.
 static void SafeToString(const FunctionCallbackInfo<Value>& args) {
   auto context = args.GetIsolate()->GetCurrentContext();
@@ -218,6 +241,8 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getProxyDetails", GetProxyDetails);
   env->SetMethodNoSideEffect(target, "safeToString", SafeToString);
   env->SetMethodNoSideEffect(target, "previewEntries", PreviewEntries);
+  env->SetMethodNoSideEffect(target, "getOwnNonIndicesProperties",
+                                     GetOwnNonIndicesProperties);
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
