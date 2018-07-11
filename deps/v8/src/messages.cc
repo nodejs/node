@@ -114,6 +114,9 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
       }
 
       if (!maybe_stringified.ToHandle(&stringified)) {
+        DCHECK(isolate->has_pending_exception());
+        isolate->clear_pending_exception();
+        isolate->set_external_caught_exception(false);
         stringified =
             isolate->factory()->NewStringFromAsciiChecked("exception");
       }
