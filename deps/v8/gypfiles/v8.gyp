@@ -1844,10 +1844,20 @@
             'gyp_generators': '<!(echo $GYP_GENERATORS)',
           },
           'msvs_disabled_warnings': [4351, 4355, 4800],
-          # When building Official, the .lib is too large and exceeds the 2G
-          # limit. This breaks it into multiple pieces to avoid the limit.
-          # See http://crbug.com/485155.
-          'msvs_shard': 4,
+          'conditions': [
+            ['node_use_pch!="true"', {
+              # When building Official, the .lib is too large and exceeds the 2G
+              # limit. This breaks it into multiple pieces to avoid the limit.
+              # See http://crbug.com/485155.
+              'msvs_shard': 4,
+            }, {
+              'msvs_precompiled_header': 'tools/msvs/pch/pch_v8_base.h',
+              'msvs_precompiled_source': '../../../tools/msvs/pch/pch_v8_base.cc',
+              'sources': [
+                '../../../tools/msvs/pch/pch_v8_base.cc',
+              ],
+            }],
+          ],
           # This will prevent V8's .cc files conflicting with the inspector's
           # .cpp files in the same shard.
           'msvs_settings': {
