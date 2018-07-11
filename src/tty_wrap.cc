@@ -54,12 +54,7 @@ void TTYWrap::Initialize(Local<Object> target,
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   AsyncWrap::AddWrapMethods(env, t);
-
-  env->SetProtoMethod(t, "close", HandleWrap::Close);
-  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
-  env->SetProtoMethod(t, "ref", HandleWrap::Ref);
-  env->SetProtoMethodNoSideEffect(t, "hasRef", HandleWrap::HasRef);
-
+  HandleWrap::AddWrapMethods(env, t);
   LibuvStreamWrap::AddMethods(env, t);
 
   env->SetProtoMethodNoSideEffect(t, "getWindowSize", TTYWrap::GetWindowSize);
