@@ -718,15 +718,12 @@ MaybeLocal<Function> GetMessagePortConstructor(
     m->InstanceTemplate()->SetInternalFieldCount(1);
 
     AsyncWrap::AddWrapMethods(env, m);
+    HandleWrap::AddWrapMethods(env, m);
 
     env->SetProtoMethod(m, "postMessage", MessagePort::PostMessage);
     env->SetProtoMethod(m, "start", MessagePort::Start);
     env->SetProtoMethod(m, "stop", MessagePort::Stop);
     env->SetProtoMethod(m, "drain", MessagePort::Drain);
-    env->SetProtoMethod(m, "close", HandleWrap::Close);
-    env->SetProtoMethod(m, "unref", HandleWrap::Unref);
-    env->SetProtoMethod(m, "ref", HandleWrap::Ref);
-    env->SetProtoMethod(m, "hasRef", HandleWrap::HasRef);
 
     env->set_message_port_constructor_template(m);
   }

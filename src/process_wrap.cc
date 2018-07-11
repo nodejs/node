@@ -58,15 +58,10 @@ class ProcessWrap : public HandleWrap {
     constructor->SetClassName(processString);
 
     AsyncWrap::AddWrapMethods(env, constructor);
-
-    env->SetProtoMethod(constructor, "close", HandleWrap::Close);
+    HandleWrap::AddWrapMethods(env, constructor);
 
     env->SetProtoMethod(constructor, "spawn", Spawn);
     env->SetProtoMethod(constructor, "kill", Kill);
-
-    env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
-    env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
-    env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
 
     target->Set(processString, constructor->GetFunction());
   }

@@ -86,13 +86,7 @@ void TCPWrap::Initialize(Local<Object> target,
   t->InstanceTemplate()->Set(env->onconnection_string(), Null(env->isolate()));
 
   AsyncWrap::AddWrapMethods(env, t, AsyncWrap::kFlagHasReset);
-
-  env->SetProtoMethod(t, "close", HandleWrap::Close);
-
-  env->SetProtoMethod(t, "ref", HandleWrap::Ref);
-  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
-  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
-
+  HandleWrap::AddWrapMethods(env, t);
   LibuvStreamWrap::AddMethods(env, t);
 
   env->SetProtoMethod(t, "open", Open);
