@@ -5,11 +5,11 @@ been released. Once the "next" version has been promoted to "latest"
 the PR should be updated as necessary.
 
 Two weeks after the "latest" release has been promoted it can land on master
-assuming no major regressions are found. There is no additional constraints
+assuming no major regressions are found. There are no additional constraints
 for Semver-Major releases.
 
-The Node.js release streams the new version will land into are at the
-discretion of the release and LTS teams.
+The specific Node.js release stream the new version will be able to land into
+are at the discretion of the release and LTS teams.
 
 This process only covers full updates to new versions of npm. Cherry-picked
 changes can be reviewed and landed via the normal consensus seeking process.
