@@ -1210,7 +1210,7 @@ def configure_v8(o):
         os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN', ''))
     o['variables']['build_v8_with_gn_bundled_win_toolchain_root'] = (
         os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN_ROOT', ''))
-    o['variables']['build_v8_with_gn_depot_tools'] = depot_tools
+    o['variables']['build_v8_with_gn_depot_tools'] = b(depot_tools)
   o['variables']['build_v8_with_gn'] = b(options.build_v8_with_gn)
 
 
