@@ -32,7 +32,7 @@ std::string EscapeString(const char* value) {
   int32_t len = strlen(value);
   int32_t p = 0;
   int32_t i = 0;
-  for (;i < len; p = i) {
+  for (; i < len; p = i) {
     UChar32 c;
     U8_NEXT_OR_FFFD(value, i, len, c);
     switch (c) {
