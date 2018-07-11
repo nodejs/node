@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <string>
 
+#include <unicode/utf8.h>
+#include <unicode/utypes.h>
+
 #if defined(_STLP_VENDOR_CSTD)
 // STLPort doesn't import fpclassify into the std namespace.
 #define FPCLASSIFY_NAMESPACE
@@ -21,36 +24,64 @@ namespace tracing {
 
 namespace {
 
-void EscapeAndAppendString(const char* value, std::string* result) {
-  *result += '"';
+std::string EscapeString(const char* value) {
+  std::string result;
+  result += '"';
   char number_buffer[10];
+#if defined(NODE_HAVE_I18N_SUPPORT)
+  int32_t len = strlen(value);
+  int32_t p = 0;
+  int32_t i = 0;
+  for (;i < len; p = i) {
+    UChar32 c;
+    U8_NEXT_OR_FFFD(value, i, len, c);
+    switch (c) {
+      case '\b': result += "\\b"; break;
+      case '\f': result += "\\f"; break;
+      case '\n': result += "\\n"; break;
+      case '\r': result += "\\r"; break;
+      case '\t': result += "\\t"; break;
+      case '\\': result += "\\\\"; break;
+      case '"': result += "\\\""; break;
+      default:
+        if (c < 32 || c > 126) {
+          snprintf(
+              number_buffer, arraysize(number_buffer), "\\u%04X",
+              static_cast<uint16_t>(static_cast<uint16_t>(c)));
+          result += number_buffer;
+        } else {
+          result.append(value + p, i - p);
+        }
+    }
+  }
+#else
+  // If we do not have ICU, use a modified version of the non-UTF8 aware
+  // code from V8's own TracedValue implementation. Note, however, This
+  // will not produce correctly serialized results for UTF8 values.
   while (*value) {
     char c = *value++;
     switch (c) {
-      case '\t':
-        *result += "\\t";
-        break;
-      case '\n':
-        *result += "\\n";
-        break;
-      case '\"':
-        *result += "\\\"";
-        break;
-      case '\\':
-        *result += "\\\\";
-        break;
+      case '\b': result += "\\b"; break;
+      case '\f': result += "\\f"; break;
+      case '\n': result += "\\n"; break;
+      case '\r': result += "\\r"; break;
+      case '\t': result += "\\t"; break;
+      case '\\': result += "\\\\"; break;
+      case '"': result += "\\\""; break;
       default:
         if (c < '\x20') {
           snprintf(
               number_buffer, arraysize(number_buffer), "\\u%04X",
               static_cast<unsigned>(static_cast<unsigned char>(c)));
-          *result += number_buffer;
+          result += number_buffer;
         } else {
-          *result += c;
+          result += c;
         }
     }
   }
-  *result += '"';
+#endif  // defined(NODE_HAVE_I18N_SUPPORT)
+  result += '"';
+  return result;
 }
 
 std::string DoubleToCString(double v) {
@@ -104,7 +135,7 @@ void TracedValue::SetNull(const char* name) {
 
 void TracedValue::SetString(const char* name, const char* value) {
   WriteName(name);
-  EscapeAndAppendString(value, &data_);
+  data_ += EscapeString(value);
 }
 
 void TracedValue::BeginDictionary(const char* name) {
@@ -141,7 +172,7 @@ void TracedValue::AppendNull() {
 
 void TracedValue::AppendString(const char* value) {
   WriteComma();
-  EscapeAndAppendString(value, &data_);
+  data_ += EscapeString(value);
 }
 
 void TracedValue::BeginDictionary() {

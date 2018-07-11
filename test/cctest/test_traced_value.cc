@@ -32,7 +32,7 @@ TEST(TracedValue, Object) {
                              "1.23e+07,\"h\":false,\"i\":true,\"j\":null,\"k\":"
                              "{\"l\":\"m\"}}";
 
-  EXPECT_EQ(string, check);
+  EXPECT_EQ(check, string);
 }
 
 TEST(TracedValue, Array) {
@@ -59,5 +59,43 @@ TEST(TracedValue, Array) {
                              "\"-Infinity\",1.23e+07,false,true,null,"
                              "{\"foo\":[]}]";
 
-  EXPECT_EQ(string, check);
+  EXPECT_EQ(check, string);
+}
+
+TEST(TracedValue, EscapingObject) {
+  // Verify that special characters in the value are escaped properly
+  auto traced_value = TracedValue::Create();
+  traced_value->SetString("a", "1\u20ac23\"\u0001\b\f\n\r\t\\");
+
+  std::string string;
+  traced_value->AppendAsTraceFormat(&string);
+
+#if defined(NODE_HAVE_I18N_SUPPORT)
+  static const char* check =
+      "{\"a\":\"1\\u20AC23\\\"\\u0001\\b\\f\\n\\r\\t\\\\\"}";
+#else
+  static const char* check =
+      "{\"a\":\"1\\u00E2\\u0082\\u00AC23\\\"\\u0001\\b\\f\\n\\r\\t\\\\\"}";
+#endif
+
+  EXPECT_EQ(check, string);
+}
+
+TEST(TracedValue, EscapingArray) {
+  // Verify that special characters in the value are escaped properly
+  auto traced_value = TracedValue::CreateArray();
+  traced_value->AppendString("1\u20ac23\"\u0001\b\f\n\r\t\\");
+
+  std::string string;
+  traced_value->AppendAsTraceFormat(&string);
+
+#if defined(NODE_HAVE_I18N_SUPPORT)
+  static const char* check =
+      "[\"1\\u20AC23\\\"\\u0001\\b\\f\\n\\r\\t\\\\\"]";
+#else
+  static const char* check =
+      "[\"1\\u00E2\\u0082\\u00AC23\\\"\\u0001\\b\\f\\n\\r\\t\\\\\"]";
+#endif
+
+  EXPECT_EQ(check, string);
 }
