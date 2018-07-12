@@ -503,6 +503,7 @@ console.profileEnd('MyLabel');
 <!-- YAML
 added: v8.0.0
 -->
+* `label` {string}
 
 This method does not display anything unless used in the inspector. Stops the
 current JavaScript CPU profiling session if one has been started and prints

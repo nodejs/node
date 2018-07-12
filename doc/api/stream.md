@@ -363,6 +363,7 @@ See also: [`writable.uncork()`][].
 added: v8.0.0
 -->
 
+* `error` {Error}
 * Returns: {this}
 
 Destroy the stream, and emit the passed `'error'` and a `'close'` event.
@@ -1285,6 +1286,7 @@ Examples of `Transform` streams include:
 <!-- YAML
 added: v8.0.0
 -->
+* `error` {Error}
 
 Destroy the stream, and emit `'error'`. After this call, the
 transform stream would release any internal resources.
