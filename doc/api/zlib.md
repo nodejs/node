@@ -480,7 +480,7 @@ Provides an object enumerating Zlib-related constants.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+* `options` {Object}
 
 Creates and returns a new [`Deflate`][] object.
 
@@ -489,7 +489,7 @@ Creates and returns a new [`Deflate`][] object.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+* `options` {Object}
 
 Creates and returns a new [`DeflateRaw`][] object.
 
@@ -505,7 +505,7 @@ that effectively uses an 8-bit window only.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+* `options` {Object}
 
 Creates and returns a new [`Gunzip`][] object.
 
@@ -514,7 +514,7 @@ Creates and returns a new [`Gunzip`][] object.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+* `options` {Object}
 
 Creates and returns a new [`Gzip`][] object.
 
@@ -523,7 +523,7 @@ Creates and returns a new [`Gzip`][] object.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+* `options` {Object}
 
 Creates and returns a new [`Inflate`][] object.
 
@@ -532,7 +532,7 @@ Creates and returns a new [`Inflate`][] object.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+* `options` {Object}
 
 Creates and returns a new [`InflateRaw`][] object.
 
@@ -541,7 +541,7 @@ Creates and returns a new [`InflateRaw`][] object.
 added: v0.5.8
 -->
 
-* `options` {zlib options}
+* `options` {Object}
 
 Creates and returns a new [`Unzip`][] object.
 
@@ -572,7 +572,7 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 * `callback` {Function}
 
 ### zlib.deflateSync(buffer[, options])
@@ -591,7 +591,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 
 Compress a chunk of data with [`Deflate`][].
 
@@ -608,7 +608,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 * `callback` {Function}
 
 ### zlib.deflateRawSync(buffer[, options])
@@ -627,7 +627,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 
 Compress a chunk of data with [`DeflateRaw`][].
 
@@ -647,7 +647,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 * `callback` {Function}
 
 ### zlib.gunzipSync(buffer[, options])
@@ -666,7 +666,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 
 Decompress a chunk of data with [`Gunzip`][].
 
@@ -686,7 +686,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 * `callback` {Function}
 
 ### zlib.gzipSync(buffer[, options])
@@ -705,7 +705,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 
 Compress a chunk of data with [`Gzip`][].
 
@@ -725,7 +725,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 * `callback` {Function}
 
 ### zlib.inflateSync(buffer[, options])
@@ -744,7 +744,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 
 Decompress a chunk of data with [`Inflate`][].
 
@@ -764,7 +764,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 * `callback` {Function}
 
 ### zlib.inflateRawSync(buffer[, options])
@@ -783,7 +783,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 
 Decompress a chunk of data with [`InflateRaw`][].
 
@@ -803,7 +803,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 * `callback` {Function}
 
 ### zlib.unzipSync(buffer[, options])
@@ -822,7 +822,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {zlib options}
+* `options` {Object}
 
 Decompress a chunk of data with [`Unzip`][].
 
