@@ -1421,10 +1421,10 @@ on the type of stream being created, as detailed in the chart below:
 
 | Use-case | Class | Method(s) to implement |
 | -------- | ----- | ---------------------- |
-| Reading only |[`Readable`](#stream_class_stream_readable) |[_read][stream-_read]</code> |
-|Writing only |[`Writable`](#stream_class_stream_writable) | <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>, <code>[_final][stream-_final]</code> |
-| Reading and writing |[`Duplex`](#stream_class_stream_duplex) | <code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>, <code>[_final][stream-_final]</code> |
-| Operate on written data, then read the result |[`Transform`](#stream_class_stream_transform) | <code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code>, <code>[_final][stream-_final]</code> |
+| Reading only | [`Readable`](#stream_class_stream_readable) | <code>[_read][stream-_read]</code> |
+| Writing only | [`Writable`](#stream_class_stream_writable) | <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>, <code>[_final][stream-_final]</code> |
+| Reading and writing | [`Duplex`](#stream_class_stream_duplex) | <code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>, <code>[_final][stream-_final]</code> |
+| Operate on written data, then read the result | [`Transform`](#stream_class_stream_transform) | <code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code>, <code>[_final][stream-_final]</code> |
 
 The implementation code for a stream should *never* call the "public" methods
 of a stream that are intended for use by consumers (as described in the
