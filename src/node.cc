@@ -2147,8 +2147,6 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(release, "name",
                     OneByteString(env->isolate(), NODE_RELEASE));
 
-  auto traced_release = tracing::TracedValue::Create();
-
 #if NODE_VERSION_IS_LTS
   READONLY_PROPERTY(release, "lts",
                     OneByteString(env->isolate(), NODE_VERSION_LTS_CODENAME));
