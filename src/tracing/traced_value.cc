@@ -9,8 +9,10 @@
 #include <stdio.h>
 #include <string>
 
+#if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/utf8.h>
 #include <unicode/utypes.h>
+#endif
 
 #if defined(_STLP_VENDOR_CSTD)
 // STLPort doesn't import fpclassify into the std namespace.
