@@ -135,9 +135,12 @@ console.timeEnd('constructor');
 console.time('hasOwnProperty');
 console.timeEnd('hasOwnProperty');
 
-// verify that values are coerced to strings
+// Verify that values are coerced to strings.
 console.time([]);
 console.timeEnd([]);
+console.time({});
+console.timeEnd({});
+// Repeat the object call to verify that everything really worked.
 console.time({});
 console.timeEnd({});
 console.time(null);
@@ -223,6 +226,7 @@ assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
 // verify that console.time() coerces label values to strings as expected
 assert.ok(/^: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^null: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
