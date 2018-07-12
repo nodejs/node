@@ -132,7 +132,7 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
 
 
 void HandleWrap::AddWrapMethods(Environment* env,
-                               Local<FunctionTemplate> t) {
+                                Local<FunctionTemplate> t) {
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethodNoSideEffect(t, "hasRef", HandleWrap::HasRef);
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
