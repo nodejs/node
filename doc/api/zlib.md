@@ -428,7 +428,7 @@ as appropriate for the derived class).
 added: v0.9.4
 -->
 
-- `callback` {function}
+* `callback` {function}
 
 Close the underlying handle.
 
@@ -571,9 +571,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
-- `callback` {function}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
+* `callback` {function}
 
 ### zlib.deflateSync(buffer[, options])
 <!-- YAML
@@ -590,8 +590,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
 
 Compress a chunk of data with [`Deflate`][].
 
@@ -607,9 +607,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
-- `callback` {function}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
+* `callback` {function}
 
 ### zlib.deflateRawSync(buffer[, options])
 <!-- YAML
@@ -626,8 +626,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
 
 Compress a chunk of data with [`DeflateRaw`][].
 
@@ -646,9 +646,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
-- `callback` {function}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
+* `callback` {function}
 
 ### zlib.gunzipSync(buffer[, options])
 <!-- YAML
@@ -665,8 +665,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
 
 Decompress a chunk of data with [`Gunzip`][].
 
@@ -685,9 +685,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
-- `callback` {function}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
+* `callback` {function}
 
 ### zlib.gzipSync(buffer[, options])
 <!-- YAML
@@ -704,8 +704,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
 
 Compress a chunk of data with [`Gzip`][].
 
@@ -724,9 +724,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
-- `callback` {function}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
+* `callback` {function}
 
 ### zlib.inflateSync(buffer[, options])
 <!-- YAML
@@ -743,8 +743,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
 
 Decompress a chunk of data with [`Inflate`][].
 
@@ -763,9 +763,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
-- `callback` {function}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
+* `callback` {function}
 
 ### zlib.inflateRawSync(buffer[, options])
 <!-- YAML
@@ -782,8 +782,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
 
 Decompress a chunk of data with [`InflateRaw`][].
 
@@ -802,9 +802,9 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
-- `callback` {function}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
+* `callback` {function}
 
 ### zlib.unzipSync(buffer[, options])
 <!-- YAML
@@ -821,8 +821,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {object}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {object}
 
 Decompress a chunk of data with [`Unzip`][].
 
