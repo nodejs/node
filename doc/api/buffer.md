@@ -206,8 +206,8 @@ changes:
 `Buffer` instances are also [`Uint8Array`] instances. However, there are subtle
 incompatibilities with [`TypedArray`]. For example, while
 [`ArrayBuffer#slice()`] creates a copy of the slice, the implementation of
-[`Buffer#slice()`][`buf.slice()`] creates a view over the existing `Buffer`
-without copying, making [`Buffer#slice()`][`buf.slice()`] far more efficient.
+[`Buffer#slice()`] creates a view over the existing `Buffer`
+without copying, making [`Buffer#slice()`] far more efficient.
 
 It is also possible to create new [`TypedArray`] instances from a `Buffer` with
 the following caveats:
@@ -2603,6 +2603,7 @@ This value may depend on the JS engine that is being used.
 
 [`ArrayBuffer#slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/slice
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`Buffer#slice()`]: #buffer_buf_slice_start_end
 [`Buffer.alloc()`]: #buffer_class_method_buffer_alloc_size_fill_encoding
 [`Buffer.allocUnsafe()`]: #buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow()`]: #buffer_class_method_buffer_allocunsafeslow_size

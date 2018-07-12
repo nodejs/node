@@ -214,8 +214,6 @@ function preprocessElements(lexed, filename) {
             '<a href="documentation.html#documentation_stability_index">') +
           `${prefix} ${number}${noLinking ? '' : '</a>'}${explication}</div>`
           .replace(/\n/g, ' ');
-
-        lexed[index] = { type: 'html', text: token.text };
       } else if (state === 'MAYBE_STABILITY_BQ') {
         state = null;
         lexed[index - 1] = { type: 'blockquote_start' };
