@@ -428,6 +428,8 @@ as appropriate for the derived class).
 added: v0.9.4
 -->
 
+- `callback` {function}
+
 Close the underlying handle.
 
 ### zlib.flush([kind], callback)
@@ -436,6 +438,7 @@ added: v0.5.8
 -->
 
 * `kind` **Default:** `zlib.constants.Z_FULL_FLUSH`
+* `callback` {function}
 
 Flush pending data. Don't call this frivolously, premature flushes negatively
 impact the effectiveness of the compression algorithm.
@@ -449,6 +452,10 @@ writes and will only produce output when data is being read from the stream.
 <!-- YAML
 added: v0.11.4
 -->
+
+* `level` {integer}
+* `strategy` {integer}
+* `callback` {function}
 
 Dynamically update the compression level and compression strategy.
 Only applicable to deflate algorithm.
@@ -473,12 +480,16 @@ Provides an object enumerating Zlib-related constants.
 added: v0.5.8
 -->
 
+* `options` {object}
+
 Creates and returns a new [`Deflate`][] object with the given [`options`][].
 
 ## zlib.createDeflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
+
+* `options` {object}
 
 Creates and returns a new [`DeflateRaw`][] object with the given [`options`][].
 
@@ -494,12 +505,16 @@ that effectively uses an 8-bit window only.
 added: v0.5.8
 -->
 
+* `options` {object}
+
 Creates and returns a new [`Gunzip`][] object with the given [`options`][].
 
 ## zlib.createGzip([options])
 <!-- YAML
 added: v0.5.8
 -->
+
+* `options` {object}
 
 Creates and returns a new [`Gzip`][] object with the given [`options`][].
 
@@ -508,6 +523,8 @@ Creates and returns a new [`Gzip`][] object with the given [`options`][].
 added: v0.5.8
 -->
 
+* `options` {object}
+
 Creates and returns a new [`Inflate`][] object with the given [`options`][].
 
 ## zlib.createInflateRaw([options])
@@ -515,12 +532,16 @@ Creates and returns a new [`Inflate`][] object with the given [`options`][].
 added: v0.5.8
 -->
 
+* `options` {object}
+
 Creates and returns a new [`InflateRaw`][] object with the given [`options`][].
 
 ## zlib.createUnzip([options])
 <!-- YAML
 added: v0.5.8
 -->
+
+* `options` {object}
 
 Creates and returns a new [`Unzip`][] object with the given [`options`][].
 
@@ -550,6 +571,10 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
+- `callback` {function}
+
 ### zlib.deflateSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
@@ -566,6 +591,7 @@ changes:
 -->
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
 
 Compress a chunk of data with [`Deflate`][].
 
@@ -580,6 +606,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
+
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
+- `callback` {function}
+
 ### zlib.deflateRawSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
@@ -596,6 +627,7 @@ changes:
 -->
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
 
 Compress a chunk of data with [`DeflateRaw`][].
 
@@ -613,6 +645,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
+
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
+- `callback` {function}
+
 ### zlib.gunzipSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
@@ -629,6 +666,7 @@ changes:
 -->
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
 
 Decompress a chunk of data with [`Gunzip`][].
 
@@ -646,6 +684,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
+
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
+- `callback` {function}
+
 ### zlib.gzipSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
@@ -662,6 +705,7 @@ changes:
 -->
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
 
 Compress a chunk of data with [`Gzip`][].
 
@@ -679,6 +723,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
+
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
+- `callback` {function}
+
 ### zlib.inflateSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
@@ -695,6 +744,7 @@ changes:
 -->
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
 
 Decompress a chunk of data with [`Inflate`][].
 
@@ -712,6 +762,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
+
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
+- `callback` {function}
+
 ### zlib.inflateRawSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
@@ -728,6 +783,7 @@ changes:
 -->
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
 
 Decompress a chunk of data with [`InflateRaw`][].
 
@@ -745,6 +801,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
+
+- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
+- `callback` {function}
+
 ### zlib.unzipSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
@@ -761,6 +822,7 @@ changes:
 -->
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {object}
 
 Decompress a chunk of data with [`Unzip`][].
 

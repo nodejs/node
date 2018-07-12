@@ -1790,7 +1790,7 @@ changes:
     `ServerResponse`.
 - `requestListener` {Function}
 
-* Returns: {http.Server}
+- Returns: {http.Server}
 
 Returns a new instance of [`http.Server`][].
 
