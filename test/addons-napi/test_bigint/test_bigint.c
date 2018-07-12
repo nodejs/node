@@ -5,6 +5,30 @@
 #include <node_api.h>
 #include "../common.h"
 
+static napi_value IsLossless(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value args[2];
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &args, NULL, NULL));
+
+  bool is_signed;
+  NAPI_CALL(env, napi_get_value_bool(env, args[1], &is_signed));
+
+  bool lossless;
+
+  if (is_signed) {
+    int64_t input;
+    NAPI_CALL(env, napi_get_value_bigint_int64(env, args[0], &input, &lossless));
+  } else {
+    uint64_t input;
+    NAPI_CALL(env, napi_get_value_bigint_uint64(env, args[0], &input, &lossless));
+  }
+
+  napi_value output;
+  NAPI_CALL(env, napi_get_boolean(env, lossless, &output));
+
+  return output;
+}
+
 static napi_value TestInt64(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
@@ -102,6 +126,7 @@ static napi_value CreateTooBigBigInt(napi_env env, napi_callback_info info) {
 
 static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
+    DECLARE_NAPI_PROPERTY("IsLossless", IsLossless),
     DECLARE_NAPI_PROPERTY("TestInt64", TestInt64),
     DECLARE_NAPI_PROPERTY("TestUint64", TestUint64),
     DECLARE_NAPI_PROPERTY("TestWords", TestWords),

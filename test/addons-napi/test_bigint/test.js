@@ -2,6 +2,7 @@
 const common = require('../../common');
 const assert = require('assert');
 const {
+  IsLossless,
   TestInt64,
   TestUint64,
   TestWords,
@@ -22,11 +23,19 @@ const {
   -4350987086545760976737453646576078997096876957864353245245769809n,
 ].forEach((num) => {
   if (num > -(2n ** 63n) && num < 2n ** 63n) {
-    assert.strictEqual(num, TestInt64(num));
+    assert.strictEqual(TestInt64(num), num);
+    assert.strictEqual(IsLossless(num, true), true);
+  } else {
+    assert.strictEqual(IsLossless(num, true), false);
   }
+
   if (num >= 0 && num < 2n ** 64n) {
-    assert.strictEqual(num, TestUint64(num));
+    assert.strictEqual(TestUint64(num), num);
+    assert.strictEqual(IsLossless(num, false), true);
+  } else {
+    assert.strictEqual(IsLossless(num, false), false);
   }
+
   assert.strictEqual(num, TestWords(num));
 });
 
