@@ -228,6 +228,8 @@ The `'removeListener'` event is emitted *after* the `listener` is removed.
 added: v0.9.12
 deprecated: v4.0.0
 -->
+* `emitter` {EventEmitter} The emitter to query
+* `eventName` {string|symbol} The event name
 
 > Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
 
@@ -286,8 +288,8 @@ Its `name` property is set to `'MaxListenersExceededWarning'`.
 <!-- YAML
 added: v0.1.26
 -->
-- `eventName` {string|symbol}
-- `listener` {Function}
+* `eventName` {string|symbol}
+* `listener` {Function}
 
 Alias for `emitter.on(eventName, listener)`.
 
@@ -295,9 +297,9 @@ Alias for `emitter.on(eventName, listener)`.
 <!-- YAML
 added: v0.1.26
 -->
-- `eventName` {string|symbol}
+* `eventName` {string|symbol}
 - `...args` {any}
-- Returns: {boolean}
+* Returns: {boolean}
 
 Synchronously calls each of the listeners registered for the event named
 `eventName`, in the order they were registered, passing the supplied arguments
@@ -310,7 +312,7 @@ Returns `true` if the event had listeners, `false` otherwise.
 added: v6.0.0
 -->
 
-- Returns: {Array}
+* Returns: {Array}
 
 Returns an array listing the events for which the emitter has registered
 listeners. The values in the array will be strings or `Symbol`s.
@@ -333,7 +335,7 @@ console.log(myEE.eventNames());
 added: v1.0.0
 -->
 
-- Returns: {integer}
+* Returns: {integer}
 
 Returns the current max listener value for the `EventEmitter` which is either
 set by [`emitter.setMaxListeners(n)`][] or defaults to
@@ -358,8 +360,8 @@ changes:
     description: For listeners attached using `.once()` this returns the
                  original listeners instead of wrapper functions now.
 -->
-- `eventName` {string|symbol}
-- Returns: {Function[]}
+* `eventName` {string|symbol}
+* Returns: {Function[]}
 
 Returns a copy of the array of listeners for the event named `eventName`.
 
@@ -501,8 +503,8 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 <!-- YAML
 added: v0.1.26
 -->
-- `eventName` {string|symbol}
-- Returns: {EventEmitter}
+* `eventName` {string|symbol}
+* Returns: {EventEmitter}
 
 Removes all listeners, or those of the specified `eventName`.
 
@@ -516,9 +518,9 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 <!-- YAML
 added: v0.1.26
 -->
-- `eventName` {string|symbol}
-- `listener` {Function}
-- Returns: {EventEmitter}
+* `eventName` {string|symbol}
+* `listener` {Function}
+* Returns: {EventEmitter}
 
 Removes the specified `listener` from the listener array for the event named
 `eventName`.
@@ -585,8 +587,8 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 <!-- YAML
 added: v0.3.5
 -->
-- `n` {integer}
-- Returns: {EventEmitter}
+* `n` {integer}
+* Returns: {EventEmitter}
 
 By default `EventEmitter`s will print a warning if more than `10` listeners are
 added for a particular event. This is a useful default that helps finding
@@ -601,8 +603,8 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 <!-- YAML
 added: v9.4.0
 -->
-- `eventName` {string|symbol}
-- Returns: {Function[]}
+* `eventName` {string|symbol}
+* Returns: {Function[]}
 
 Returns a copy of the array of listeners for the event named `eventName`,
 including any wrappers (such as those created by `.once()`).

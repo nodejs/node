@@ -1695,6 +1695,7 @@ This feature is not available in [`Worker`][] threads.
 <!-- YAML
 added: v0.1.28
 -->
+* `id` {integer | string}
 
 The `process.setuid(id)` method sets the user identity of the process. (See
 setuid(2).) The `id` can be passed as either a numeric ID or a username string.
