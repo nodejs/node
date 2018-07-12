@@ -135,9 +135,12 @@ console.timeEnd('constructor');
 console.time('hasOwnProperty');
 console.timeEnd('hasOwnProperty');
 
-// verify that values are coerced to strings
+// Verify that values are coerced to strings.
 console.time([]);
 console.timeEnd([]);
+console.time({});
+console.timeEnd({});
+// Repeat the object call to verify that everything really worked.
 console.time({});
 console.timeEnd({});
 console.time(null);
