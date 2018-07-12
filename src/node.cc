@@ -1966,11 +1966,14 @@ void SetupProcessObject(Environment* env,
       v8::None,
       SideEffectType::kHasNoSideEffect).FromJust());
 
+  auto trace_process = tracing::TracedValue::Create();
+
   // process.version
   READONLY_PROPERTY(process,
                     "version",
                     FIXED_ONE_BYTE_STRING(env->isolate(), NODE_VERSION));
 
+  trace_process->BeginDictionary("versions");
   // process.versions
   Local<Object> versions = Object::New(env->isolate());
   READONLY_PROPERTY(process, "versions", versions);
@@ -1983,39 +1986,52 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(versions,
                     "http_parser",
                     FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
+  trace_process->SetString("http_parser", http_parser_version);
 
   // +1 to get rid of the leading 'v'
   READONLY_PROPERTY(versions,
                     "node",
                     OneByteString(env->isolate(), NODE_VERSION + 1));
+  trace_process->SetString("node", NODE_VERSION_STRING);
+
   READONLY_PROPERTY(versions,
                     "v8",
                     OneByteString(env->isolate(), V8::GetVersion()));
+  trace_process->SetString("v8", V8::GetVersion());
+
   READONLY_PROPERTY(versions,
                     "uv",
                     OneByteString(env->isolate(), uv_version_string()));
+  trace_process->SetString("uv", uv_version_string());
+
   READONLY_PROPERTY(versions,
                     "zlib",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
+  trace_process->SetString("zlib", ZLIB_VERSION);
+
   READONLY_PROPERTY(versions,
                     "ares",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
+  trace_process->SetString("ares", ARES_VERSION_STR);
 
   const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
   READONLY_PROPERTY(
       versions,
       "modules",
       FIXED_ONE_BYTE_STRING(env->isolate(), node_modules_version));
+  trace_process->SetString("modules", node_modules_version);
 
   READONLY_PROPERTY(versions,
                     "nghttp2",
                     FIXED_ONE_BYTE_STRING(env->isolate(), NGHTTP2_VERSION));
+  trace_process->SetString("nghttp2", NGHTTP2_VERSION);
 
   const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
   READONLY_PROPERTY(
       versions,
       "napi",
       FIXED_ONE_BYTE_STRING(env->isolate(), node_napi_version));
+  trace_process->SetString("napi", node_napi_version);
 
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
@@ -2037,16 +2053,21 @@ void SetupProcessObject(Environment* env,
         versions,
         "openssl",
         OneByteString(env->isolate(), &OPENSSL_VERSION_TEXT[i], j - i));
+    trace_process->SetString("openssl",
+                             std::string(&OPENSSL_VERSION_TEXT[i], j - i));
   }
 #endif
+  trace_process->EndDictionary();
 
   // process.arch
   READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), NODE_ARCH));
+  trace_process->SetString("arch", NODE_ARCH);
 
   // process.platform
   READONLY_PROPERTY(process,
                     "platform",
                     OneByteString(env->isolate(), NODE_PLATFORM));
+  trace_process->SetString("platform", NODE_PLATFORM);
 
   // process.release
   Local<Object> release = Object::New(env->isolate());
@@ -2054,10 +2075,16 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(release, "name",
                     OneByteString(env->isolate(), NODE_RELEASE));
 
+  trace_process->BeginDictionary("release");
+  auto traced_release = tracing::TracedValue::Create();
+  trace_process->SetString("name", NODE_RELEASE);
+
 #if NODE_VERSION_IS_LTS
   READONLY_PROPERTY(release, "lts",
                     OneByteString(env->isolate(), NODE_VERSION_LTS_CODENAME));
+  trace_process->SetString("lts", NODE_VERSION_LTS_CODENAME);
 #endif
+  trace_process->EndDictionary();
 
 // if this is a release build and no explicit base has been set
 // substitute the standard release download URL
@@ -2092,18 +2119,27 @@ void SetupProcessObject(Environment* env,
 
   // process.argv
   Local<Array> arguments = Array::New(env->isolate(), argc);
+  trace_process->BeginArray("argv");
   for (int i = 0; i < argc; ++i) {
     arguments->Set(i, String::NewFromUtf8(env->isolate(), argv[i]));
+    trace_process->AppendString(argv[i]);
   }
+  trace_process->EndArray();
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "argv"), arguments);
 
   // process.execArgv
   Local<Array> exec_arguments = Array::New(env->isolate(), exec_argc);
+  trace_process->BeginArray("execArgv");
   for (int i = 0; i < exec_argc; ++i) {
     exec_arguments->Set(i, String::NewFromUtf8(env->isolate(), exec_argv[i]));
+    trace_process->AppendString(exec_argv[i]);
   }
+  trace_process->EndArray();
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execArgv"),
                exec_arguments);
+
+  TRACE_EVENT_METADATA1("__metadata", "node",
+                        "process", std::move(trace_process));
 
   // create process.env
   Local<ObjectTemplate> process_env_template =
