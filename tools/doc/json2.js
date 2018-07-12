@@ -60,7 +60,7 @@ function jsonAPI({ fileName }) {
     let section = null;
     tree.children.forEach((node, i) => {
       if (node.type === 'heading' &&
-          !exampleHeading.test(textJoin(node.children))) {
+          !exampleHeading.test(textJoin(node.children, file))) {
         if (section) section.stop = i - 1;
         section = { start: i, stop: tree.children.length, depth: node.depth };
         sections.push(section);
@@ -81,7 +81,7 @@ function jsonAPI({ fileName }) {
                         JSON.stringify(section));
       }
 
-      const current = newSection(tree.children[section.start]);
+      const current = newSection(tree.children[section.start], file);
       let nodes = tree.children.slice(section.start + 1, section.stop + 1);
 
       // Sometimes we have two headings with a single blob of description.
@@ -121,7 +121,7 @@ function jsonAPI({ fileName }) {
           node.children[0].type === 'paragraph' &&
           nodes.slice(0, i).every((node) => node.type === 'list')
         ) {
-          const text = textJoin(node.children[0].children);
+          const text = textJoin(node.children[0].children, file);
           const stability = text.match(stabilityExpr);
           if (stability) {
             current.stability = parseInt(stability[1], 10);
@@ -140,58 +140,57 @@ function jsonAPI({ fileName }) {
 
       // Now figure out what this list actually means.
       // Depending on the section type, the list could be different things.
-      if (list) {
-        const values = list.children.map((child) => parseListItem(child, file));
+      const values = list ?
+        list.children.map((child) => parseListItem(child, file)) : [];
 
-        switch (current.type) {
-          case 'ctor':
-          case 'classMethod':
-          case 'method':
-            // Each item is an argument, unless the name is 'return',
-            // in which case it's the return value.
-            const sig = {};
-            sig.params = values.filter((value) => {
-              if (value.name === 'return') {
-                sig.return = value;
-                return false;
-              }
-              return true;
-            });
-            parseSignature(current.textRaw, sig);
-            current.signatures = [sig];
-            break;
+      switch (current.type) {
+        case 'ctor':
+        case 'classMethod':
+        case 'method':
+          // Each item is an argument, unless the name is 'return',
+          // in which case it's the return value.
+          const sig = {};
+          sig.params = values.filter((value) => {
+            if (value.name === 'return') {
+              sig.return = value;
+              return false;
+            }
+            return true;
+          });
+          parseSignature(current.textRaw, sig);
+          current.signatures = [sig];
+          break;
 
-          case 'property':
-            // There should be only one item, which is the value.
-            // Copy the data up to the section.
-            if (values.length) {
-              const signature = values[0];
+        case 'property':
+          // There should be only one item, which is the value.
+          // Copy the data up to the section.
+          if (values.length) {
+            const signature = values[0];
 
-              // Shove the name in there for properties,
-              // since they are always just going to be the value etc.
-              signature.textRaw = `\`${current.name}\` ${signature.textRaw}`;
+            // Shove the name in there for properties,
+            // since they are always just going to be the value etc.
+            signature.textRaw = `\`${current.name}\` ${signature.textRaw}`;
 
-              for (const key in signature) {
-                if (signature[key]) {
-                  if (key === 'type') {
-                    current.typeof = signature.type;
-                  } else {
-                    current[key] = signature[key];
-                  }
+            for (const key in signature) {
+              if (signature[key]) {
+                if (key === 'type') {
+                  current.typeof = signature.type;
+                } else {
+                  current[key] = signature[key];
                 }
               }
             }
-            break;
+          }
+          break;
 
-          case 'event':
-            // Event: each item is an argument.
-            current.params = values;
-            break;
+        case 'event':
+          // Event: each item is an argument.
+          current.params = values;
+          break;
 
-          default:
-            // If list wasn't consumed, put it back in the nodes list.
-            nodes.unshift(list);
-        }
+        default:
+          // If list wasn't consumed, put it back in the nodes list.
+          if (list) nodes.unshift(list);
       }
 
       // Convert remaining nodes to a 'desc'.
@@ -306,6 +305,8 @@ const paramExpr = /\((.+)\);?$/;
 
 // text: "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
+  const list = [];
+
   let [, sigParams] = text.match(paramExpr) || [];
   if (!sigParams) return;
   sigParams = sigParams.split(',');
@@ -341,20 +342,45 @@ function parseSignature(text, sig) {
       defaultValue = sigParam.substr(eq + 1);
       sigParam = sigParam.substr(0, eq);
     }
-    if (!listParam) {
-      listParam = sig.params[i] = { name: sigParam };
+
+    // At this point, the name should match.  If it doesn't find one that does.
+    // Example: shared signatures for:
+    //   ### new Console(stdout[, stderr][, ignoreErrors])
+    //   ### new Console(options)
+    if (!listParam || sigParam !== listParam.name) {
+      listParam = null;
+      for (const param of sig.params) {
+        if (param.name === sigParam) {
+          listParam = param;
+        } else if (param.options) {
+          for (const option of param.options) {
+            if (option.name === sigParam) {
+              listParam = Object.assign({}, option);
+            }
+          }
+        }
+      }
+
+      if (!listParam) {
+        if (sigParam.startsWith('...')) {
+          listParam = { name: sigParam };
+        } else {
+          throw new Error(
+            `Invalid param "${sigParam}"\n` +
+            ` > ${JSON.stringify(listParam)}\n` +
+            ` > ${text}`
+          );
+        }
+      }
     }
-    // At this point, the name should match.
-    if (sigParam !== listParam.name) {
-      throw new Error(
-        `Warning: invalid param "${sigParam}"\n` +
-        ` > ${JSON.stringify(listParam)}\n` +
-        ` > ${text}`
-      );
-    }
+
     if (optional) listParam.optional = true;
     if (defaultValue !== undefined) listParam.default = defaultValue.trim();
+
+    list.push(listParam);
   });
+
+  sig.params = list;
 }
 
 
@@ -371,7 +397,7 @@ function parseListItem(item, file) {
     .map((node) => (
       file.contents.slice(node.position.start.offset, node.position.end.offset))
     )
-    .join('').replace(/\s+/g, ' ');
+    .join('').replace(/\s+/g, ' ').replace(/<!--.*?-->/sg, '');
   let text = current.textRaw;
 
   if (!text) {
@@ -468,8 +494,8 @@ const headingExpressions = [
     `^${maybeClassPropertyPrefix}${ancestors}(${id})${noCallOrProp}$`, 'i') },
 ];
 
-function newSection(header) {
-  const text = textJoin(header.children);
+function newSection(header, file) {
+  const text = textJoin(header.children, file);
 
   // Infer the type from the text.
   for (const { type, re } of headingExpressions) {
@@ -481,20 +507,19 @@ function newSection(header) {
   return { textRaw: text, name: text };
 }
 
-function textJoin(nodes) {
+function textJoin(nodes, file) {
   return nodes.map((node) => {
     if (node.type === 'linkReference') {
-      return `[${textJoin(node.children)}]` +
-        (node.referenceType === 'full' ? `[${node.identifier}]` : '') +
-        (node.referenceType === 'collapsed' ? '[]' : '');
+      return file.contents.slice(node.position.start.offset,
+                                 node.position.end.offset);
     } else if (node.type === 'inlineCode') {
       return `\`${node.value}\``;
     } else if (node.type === 'strong') {
-      return `**${textJoin(node.children)}**`;
+      return `**${textJoin(node.children, file)}**`;
     } else if (node.type === 'emphasis') {
-      return `_${textJoin(node.children)}_`;
+      return `_${textJoin(node.children, file)}_`;
     } else if (node.children) {
-      return textJoin(node.children);
+      return textJoin(node.children, file);
     } else {
       return node.value;
     }

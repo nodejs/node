@@ -136,11 +136,36 @@ function h2t(string, collapse = true) {
 }
 
 function diff(before, after) {
+  // missing params, difference in escaping for textRaw and name
+  if (after.name === '<inspector-protocol-method>') return;
+
   for (const prop in after) {
     if (after[prop] === undefined) continue;
 
     // TODO: shouldn't events have params?
     if (prop === 'params' && before.type === 'event') continue;
+
+    // TODO: new Console() overloads
+    if (prop === 'params' && before.params.length === 1 &&
+        after.params.length === 3 && before.params[0].name === 'options' &&
+        after.params[0].name === 'stdout') continue;
+
+    // TODO: crypto.constants
+    if (before.name === 'constants' && after.name === 'return') continue;
+
+    // TODO: readabileHighWaterMark is missing all sorts of stuff
+    if (before.name === 'readableHighWaterMark') continue;
+    if (before.name === 'readableLength') continue;
+    if (before.name === 'authorized') continue;
+
+    // difference in escaping
+    if (after.name === '[Symbol.asyncIterator]') continue;
+    if (after.name === '[Symbol.iterator]') continue;
+
+    // difference in ordered list rendering
+    if (prop === 'desc' && before.name &&
+      before.name.startsWith('working_with_javascript_values'))
+      after.desc = after.desc.replace(/^\d\. /mg, '');
 
     if (before[prop] === undefined) {
       throw new Diff({ prop, before, after });
@@ -159,6 +184,15 @@ function diff(before, after) {
         ));
         before.signatures.unshift(first);
       }
+
+      // TODO: debugger/command reference is missing 'Information'
+      if (before.name === 'command_reference' && prop === 'modules') continue;
+
+      // TODO: globals require() is missing a signature
+      if (before.name === 'require' && prop === 'signatures') continue;
+
+      // TODO: dgram.Socket is missing 'getRecvBufferSize'
+      if (before.name === 'dgram.Socket' && prop === 'methods') continue;
 
       if (before[prop].length !== after[prop].length) {
         throw new Diff({ prop, before, after });
@@ -199,10 +233,33 @@ function diff(before, after) {
     // TODO: shouldn't events have params?
     if (prop === 'params' && before.type === 'event') continue;
 
+    // TODO: various values obtained from the wrong section
+    if (prop === 'desc' && before.name === 'getFips') continue;
+    if (prop === 'desc' && before.name === 'getPrivateKey') continue;
+    if (prop === 'default' && before.name === 'listening') continue;
+    if (before.textRaw === 'domain.create()') continue;
+    if (before.name === 'destroyed' && before.type === 'boolean') continue;
+    if (prop === 'desc' && before.params && before.params.length === 2 &&
+      before.params[0].name === 'filename' &&
+      before.params[1].name === 'options')
+      continue;
+    if (prop === 'desc' && before.name === 'deflate') continue;
+    if (prop === 'desc' && before.name === 'deflateRaw') continue;
+    if (prop === 'desc' && before.name === 'gunzip') continue;
+    if (prop === 'desc' && before.name === 'gzip') continue;
+    if (prop === 'desc' && before.name === 'inflate') continue;
+    if (prop === 'desc' && before.name === 'inflateRaw') continue;
+    if (prop === 'desc' && before.name === 'unzip') continue;
+
+    // TODO: readabileHighWaterMark is missing all sorts of stuff
+    if (before.name === 'readableHighWaterMark') continue;
+    if (before.name === 'readableLength') continue;
+    if (before.name === 'authorized') continue;
+
     if (prop === 'signatures') {
       // ignore incomplete signatures
       before.signatures = before.signatures.filter((sig) => (
-        sig.return || sig.params.some((param) => param.type)
+        sig && (sig.return || sig.params.some((param) => param.type))
       ));
       if (before.signatures.length === 0) continue;
     }
