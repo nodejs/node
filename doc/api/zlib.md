@@ -428,7 +428,7 @@ as appropriate for the derived class).
 added: v0.9.4
 -->
 
-* `callback` {function}
+* `callback` {Function}
 
 Close the underlying handle.
 
@@ -438,7 +438,7 @@ added: v0.5.8
 -->
 
 * `kind` **Default:** `zlib.constants.Z_FULL_FLUSH`
-* `callback` {function}
+* `callback` {Function}
 
 Flush pending data. Don't call this frivolously, premature flushes negatively
 impact the effectiveness of the compression algorithm.
@@ -455,7 +455,7 @@ added: v0.11.4
 
 * `level` {integer}
 * `strategy` {integer}
-* `callback` {function}
+* `callback` {Function}
 
 Dynamically update the compression level and compression strategy.
 Only applicable to deflate algorithm.
@@ -480,7 +480,7 @@ Provides an object enumerating Zlib-related constants.
 added: v0.5.8
 -->
 
-* `options` {object}
+* `options` {Object}
 
 Creates and returns a new [`Deflate`][] object with the given [`options`][].
 
@@ -489,7 +489,7 @@ Creates and returns a new [`Deflate`][] object with the given [`options`][].
 added: v0.5.8
 -->
 
-* `options` {object}
+* `options` {Object}
 
 Creates and returns a new [`DeflateRaw`][] object with the given [`options`][].
 
@@ -505,7 +505,7 @@ that effectively uses an 8-bit window only.
 added: v0.5.8
 -->
 
-* `options` {object}
+* `options` {Object}
 
 Creates and returns a new [`Gunzip`][] object with the given [`options`][].
 
@@ -514,7 +514,7 @@ Creates and returns a new [`Gunzip`][] object with the given [`options`][].
 added: v0.5.8
 -->
 
-* `options` {object}
+* `options` {Object}
 
 Creates and returns a new [`Gzip`][] object with the given [`options`][].
 
@@ -523,7 +523,7 @@ Creates and returns a new [`Gzip`][] object with the given [`options`][].
 added: v0.5.8
 -->
 
-* `options` {object}
+* `options` {Object}
 
 Creates and returns a new [`Inflate`][] object with the given [`options`][].
 
@@ -532,7 +532,7 @@ Creates and returns a new [`Inflate`][] object with the given [`options`][].
 added: v0.5.8
 -->
 
-* `options` {object}
+* `options` {Object}
 
 Creates and returns a new [`InflateRaw`][] object with the given [`options`][].
 
@@ -541,7 +541,7 @@ Creates and returns a new [`InflateRaw`][] object with the given [`options`][].
 added: v0.5.8
 -->
 
-* `options` {object}
+* `options` {Object}
 
 Creates and returns a new [`Unzip`][] object with the given [`options`][].
 
@@ -572,8 +572,8 @@ changes:
     description: The `buffer` parameter can be an `Uint8Array` now.
 -->
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
-* `callback` {function}
+* `options` {Object}
+* `callback` {Function}
 
 ### zlib.deflateSync(buffer[, options])
 <!-- YAML
@@ -591,7 +591,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
+* `options` {Object}
 
 Compress a chunk of data with [`Deflate`][].
 
@@ -608,8 +608,8 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
-* `callback` {function}
+* `options` {Object}
+* `callback` {Function}
 
 ### zlib.deflateRawSync(buffer[, options])
 <!-- YAML
@@ -627,7 +627,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
+* `options` {Object}
 
 Compress a chunk of data with [`DeflateRaw`][].
 
@@ -647,8 +647,8 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
-* `callback` {function}
+* `options` {Object}
+* `callback` {Function}
 
 ### zlib.gunzipSync(buffer[, options])
 <!-- YAML
@@ -666,7 +666,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
+* `options` {Object}
 
 Decompress a chunk of data with [`Gunzip`][].
 
@@ -686,8 +686,8 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
-* `callback` {function}
+* `options` {Object}
+* `callback` {Function}
 
 ### zlib.gzipSync(buffer[, options])
 <!-- YAML
@@ -705,7 +705,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
+* `options` {Object}
 
 Compress a chunk of data with [`Gzip`][].
 
@@ -725,8 +725,8 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
-* `callback` {function}
+* `options` {Object}
+* `callback` {Function}
 
 ### zlib.inflateSync(buffer[, options])
 <!-- YAML
@@ -744,7 +744,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
+* `options` {Object}
 
 Decompress a chunk of data with [`Inflate`][].
 
@@ -764,8 +764,8 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
-* `callback` {function}
+* `options` {Object}
+* `callback` {Function}
 
 ### zlib.inflateRawSync(buffer[, options])
 <!-- YAML
@@ -783,7 +783,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
+* `options` {Object}
 
 Decompress a chunk of data with [`InflateRaw`][].
 
@@ -803,8 +803,8 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
-* `callback` {function}
+* `options` {Object}
+* `callback` {Function}
 
 ### zlib.unzipSync(buffer[, options])
 <!-- YAML
@@ -822,7 +822,7 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-* `options` {object}
+* `options` {Object}
 
 Decompress a chunk of data with [`Unzip`][].
 

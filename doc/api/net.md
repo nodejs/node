@@ -671,7 +671,7 @@ callback.
 added: v0.1.90
 -->
 
-* `exception` {object}
+* `exception` {Object}
 * Returns: {net.Socket}
 
 Ensures that no more I/O activity happens on this socket. Only necessary in
@@ -812,7 +812,7 @@ added: v0.1.90
 -->
 
 * `timeout` {number}
-* `callback` {function}
+* `callback` {Function}
 * Returns: {net.Socket} The socket itself.
 
 Sets the socket to timeout after `timeout` milliseconds of inactivity on
@@ -886,8 +886,8 @@ Possible signatures:
 <!-- YAML
 added: v0.7.0
 -->
-* `options` {object}
-* `connectListener` {function}
+* `options` {Object}
+* `connectListener` {Function}
 Alias to
 [`net.createConnection(options[, connectListener])`][`net.createConnection(options)`].
 
@@ -896,7 +896,7 @@ Alias to
 added: v0.1.90
 -->
 * `path` {string}
-* `connectListener` {function}
+* `connectListener` {Function}
 
 Alias to
 [`net.createConnection(path[, connectListener])`][`net.createConnection(path)`].
@@ -907,7 +907,7 @@ added: v0.1.90
 -->
 * `port` {number}
 * `host` {string}
-* `connectListener` {function}
+* `connectListener` {Function}
 
 Alias to
 [`net.createConnection(port[, host][, connectListener])`][`net.createConnection(port, host)`].
@@ -1030,8 +1030,8 @@ then returns the `net.Socket` that starts the connection.
 <!-- YAML
 added: v0.5.0
 -->
-* `options` {object}
-* `connectionListener` {function}
+* `options` {Object}
+* `connectionListener` {Function}
 
 Creates a new TCP or [IPC][] server.
 
