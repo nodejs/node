@@ -4378,8 +4378,8 @@ The following constants are meant for use with `fs.open()`.
   <tr>
   <td><code>O_NOATIME</code></td>
     <td>Flag indicating reading accesses to the file system will no longer
-    result in an update to the `atime` information associated with the file.
-    This flag is available on Linux operating systems only.</td>
+    result in an update to the <code>atime</code> information associated with
+    the file.  This flag is available on Linux operating systems only.</td>
   </tr>
   <tr>
     <td><code>O_NOFOLLOW</code></td>
