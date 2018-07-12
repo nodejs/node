@@ -3,8 +3,8 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-// test providing both a url and options, with the options partially
-// replacing address and port portions of the URL provided
+// Test providing both a url and options, with the options partially
+// replacing address and port portions of the URL provided.
 {
   const server = http.createServer(
     common.mustCall((req, res) => {
