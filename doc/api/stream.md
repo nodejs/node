@@ -1419,77 +1419,12 @@ class MyWritable extends Writable {
 The new stream class must then implement one or more specific methods, depending
 on the type of stream being created, as detailed in the chart below:
 
-<table>
-  <thead>
-    <tr>
-      <th>
-        <p>Use-case</p>
-      </th>
-      <th>
-        <p>Class</p>
-      </th>
-      <th>
-        <p>Method(s) to implement</p>
-      </th>
-    </tr>
-  </thead>
-  <tr>
-    <td>
-      <p>Reading only</p>
-    </td>
-    <td>
-      <p>[`Readable`](#stream_class_stream_readable)</p>
-    </td>
-    <td>
-      <p><code>[_read][stream-_read]</code></p>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <p>Writing only</p>
-    </td>
-    <td>
-      <p>[`Writable`](#stream_class_stream_writable)</p>
-    </td>
-    <td>
-      <p>
-        <code>[_write][stream-_write]</code>,
-        <code>[_writev][stream-_writev]</code>,
-        <code>[_final][stream-_final]</code>
-      </p>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <p>Reading and writing</p>
-    </td>
-    <td>
-      <p>[`Duplex`](#stream_class_stream_duplex)</p>
-    </td>
-    <td>
-      <p>
-        <code>[_read][stream-_read]</code>,
-        <code>[_write][stream-_write]</code>,
-        <code>[_writev][stream-_writev]</code>,
-        <code>[_final][stream-_final]</code></p>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <p>Operate on written data, then read the result</p>
-    </td>
-    <td>
-      <p>[`Transform`](#stream_class_stream_transform)</p>
-    </td>
-    <td>
-      <p>
-        <code>[_transform][stream-_transform]</code>,
-        <code>[_flush][stream-_flush]</code>,
-        <code>[_final][stream-_final]</code>
-      </p>
-    </td>
-  </tr>
-</table>
+| Use-case | Class | Method(s) to implement |
+| -------- | ----- | ---------------------- |
+| Reading only |[`Readable`](#stream_class_stream_readable) |[_read][stream-_read]</code> |
+|Writing only |[`Writable`](#stream_class_stream_writable) | <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>, <code>[_final][stream-_final]</code> |
+| Reading and writing |[`Duplex`](#stream_class_stream_duplex) | <code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>, <code>[_final][stream-_final]</code> |
+| Operate on written data, then read the result |[`Transform`](#stream_class_stream_transform) | <code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code>, <code>[_final][stream-_final]</code> |
 
 The implementation code for a stream should *never* call the "public" methods
 of a stream that are intended for use by consumers (as described in the

@@ -1900,9 +1900,9 @@ changes:
     Authorization header.
   * `agent` {http.Agent | boolean} Controls [`Agent`][] behavior. Possible
     values:
-   * `undefined` (default): use [`http.globalAgent`][] for this host and port.
-   * `Agent` object: explicitly use the passed in `Agent`.
-   * `false`: causes a new `Agent` with default values to be used.
+    * `undefined` (default): use [`http.globalAgent`][] for this host and port.
+    * `Agent` object: explicitly use the passed in `Agent`.
+    * `false`: causes a new `Agent` with default values to be used.
   * `createConnection` {Function} A function that produces a socket/stream to
     use for the request when the `agent` option is not used. This can be used to
     avoid creating a custom `Agent` class just to override the default
