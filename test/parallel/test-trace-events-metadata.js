@@ -62,9 +62,7 @@ proc.once('exit', common.mustCall(() => {
         trace.args.process.platform === process.platform &&
         trace.args.process.release.name === process.release.name &&
         (!process.release.lts ||
-          trace.args.process.release.lts === process.release.lts) &&
-        Array.isArray(trace.args.process.argv) &&
-        Array.isArray(trace.args.process.execArgv)));
+          trace.args.process.release.lts === process.release.lts)));
 
     if (!common.isSunOS) {
       // Changing process.title is currently unsupported on SunOS/SmartOS

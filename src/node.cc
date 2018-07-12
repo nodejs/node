@@ -30,6 +30,7 @@
 #include "node_debug_options.h"
 #include "node_perf.h"
 #include "node_context_data.h"
+#include "tracing/traced_value.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -289,11 +290,106 @@ static v8::Isolate* node_isolate;
 
 DebugOptions debug_options;
 
+// Ensures that __metadata trace events are only emitted
+// when tracing is enabled.
+class NodeTraceStateObserver :
+    public v8::TracingController::TraceStateObserver {
+ public:
+  void OnTraceEnabled() override {
+    char name_buffer[512];
+    if (uv_get_process_title(name_buffer, sizeof(name_buffer)) == 0) {
+      // Only emit the metadata event if the title can be retrieved
+      // successfully. Ignore it otherwise.
+      TRACE_EVENT_METADATA1("__metadata", "process_name",
+                            "name", TRACE_STR_COPY(name_buffer));
+    }
+    TRACE_EVENT_METADATA1("__metadata", "version",
+                          "node", NODE_VERSION_STRING);
+    TRACE_EVENT_METADATA1("__metadata", "thread_name",
+                          "name", "JavaScriptMainThread");
+
+    auto trace_process = tracing::TracedValue::Create();
+    trace_process->BeginDictionary("versions");
+
+    const char http_parser_version[] =
+        NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
+        "."
+        NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
+        "."
+        NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+
+    const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
+    const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
+
+    trace_process->SetString("http_parser", http_parser_version);
+    trace_process->SetString("node", NODE_VERSION_STRING);
+    trace_process->SetString("v8", V8::GetVersion());
+    trace_process->SetString("uv", uv_version_string());
+    trace_process->SetString("zlib", ZLIB_VERSION);
+    trace_process->SetString("ares", ARES_VERSION_STR);
+    trace_process->SetString("modules", node_modules_version);
+    trace_process->SetString("nghttp2", NGHTTP2_VERSION);
+    trace_process->SetString("napi", node_napi_version);
+
+#if HAVE_OPENSSL
+    // Stupid code to slice out the version string.
+    {  // NOLINT(whitespace/braces)
+      size_t i, j, k;
+      int c;
+      for (i = j = 0, k = sizeof(OPENSSL_VERSION_TEXT) - 1; i < k; ++i) {
+        c = OPENSSL_VERSION_TEXT[i];
+        if ('0' <= c && c <= '9') {
+          for (j = i + 1; j < k; ++j) {
+            c = OPENSSL_VERSION_TEXT[j];
+            if (c == ' ')
+              break;
+          }
+          break;
+        }
+      }
+      trace_process->SetString("openssl",
+                              std::string(&OPENSSL_VERSION_TEXT[i], j - i));
+    }
+#endif
+    trace_process->EndDictionary();
+
+    trace_process->SetString("arch", NODE_ARCH);
+    trace_process->SetString("platform", NODE_PLATFORM);
+
+    trace_process->BeginDictionary("release");
+    trace_process->SetString("name", NODE_RELEASE);
+#if NODE_VERSION_IS_LTS
+    trace_process->SetString("lts", NODE_VERSION_LTS_CODENAME);
+#endif
+    trace_process->EndDictionary();
+    TRACE_EVENT_METADATA1("__metadata", "node",
+                          "process", std::move(trace_process));
+
+    // This only runs the first time tracing is enabled
+    controller_->RemoveTraceStateObserver(this);
+    delete this;
+  }
+
+  void OnTraceDisabled() override {
+    // Do nothing here. This should never be called because the
+    // observer removes itself when OnTraceEnabled() is called.
+    UNREACHABLE();
+  }
+
+  explicit NodeTraceStateObserver(v8::TracingController* controller) :
+      controller_(controller) {}
+  ~NodeTraceStateObserver() override {}
+
+ private:
+  v8::TracingController* controller_;
+};
+
 static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
     tracing_agent_.reset(new tracing::Agent(trace_file_pattern));
     auto controller = tracing_agent_->GetTracingController();
+    controller->AddTraceStateObserver(new NodeTraceStateObserver(controller));
     tracing::TraceEventHelper::SetTracingController(controller);
     StartTracingAgent();
     platform_ = new NodePlatform(thread_pool_size, controller);
@@ -1966,14 +2062,11 @@ void SetupProcessObject(Environment* env,
       v8::None,
       SideEffectType::kHasNoSideEffect).FromJust());
 
-  auto trace_process = tracing::TracedValue::Create();
-
   // process.version
   READONLY_PROPERTY(process,
                     "version",
                     FIXED_ONE_BYTE_STRING(env->isolate(), NODE_VERSION));
 
-  trace_process->BeginDictionary("versions");
   // process.versions
   Local<Object> versions = Object::New(env->isolate());
   READONLY_PROPERTY(process, "versions", versions);
@@ -1986,52 +2079,36 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(versions,
                     "http_parser",
                     FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
-  trace_process->SetString("http_parser", http_parser_version);
-
   // +1 to get rid of the leading 'v'
   READONLY_PROPERTY(versions,
                     "node",
                     OneByteString(env->isolate(), NODE_VERSION + 1));
-  trace_process->SetString("node", NODE_VERSION_STRING);
-
   READONLY_PROPERTY(versions,
                     "v8",
                     OneByteString(env->isolate(), V8::GetVersion()));
-  trace_process->SetString("v8", V8::GetVersion());
-
   READONLY_PROPERTY(versions,
                     "uv",
                     OneByteString(env->isolate(), uv_version_string()));
-  trace_process->SetString("uv", uv_version_string());
-
   READONLY_PROPERTY(versions,
                     "zlib",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
-  trace_process->SetString("zlib", ZLIB_VERSION);
-
   READONLY_PROPERTY(versions,
                     "ares",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
-  trace_process->SetString("ares", ARES_VERSION_STR);
 
   const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
   READONLY_PROPERTY(
       versions,
       "modules",
       FIXED_ONE_BYTE_STRING(env->isolate(), node_modules_version));
-  trace_process->SetString("modules", node_modules_version);
-
   READONLY_PROPERTY(versions,
                     "nghttp2",
                     FIXED_ONE_BYTE_STRING(env->isolate(), NGHTTP2_VERSION));
-  trace_process->SetString("nghttp2", NGHTTP2_VERSION);
-
   const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
   READONLY_PROPERTY(
       versions,
       "napi",
       FIXED_ONE_BYTE_STRING(env->isolate(), node_napi_version));
-  trace_process->SetString("napi", node_napi_version);
 
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
@@ -2053,21 +2130,16 @@ void SetupProcessObject(Environment* env,
         versions,
         "openssl",
         OneByteString(env->isolate(), &OPENSSL_VERSION_TEXT[i], j - i));
-    trace_process->SetString("openssl",
-                             std::string(&OPENSSL_VERSION_TEXT[i], j - i));
   }
 #endif
-  trace_process->EndDictionary();
 
   // process.arch
   READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), NODE_ARCH));
-  trace_process->SetString("arch", NODE_ARCH);
 
   // process.platform
   READONLY_PROPERTY(process,
                     "platform",
                     OneByteString(env->isolate(), NODE_PLATFORM));
-  trace_process->SetString("platform", NODE_PLATFORM);
 
   // process.release
   Local<Object> release = Object::New(env->isolate());
@@ -2075,16 +2147,12 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(release, "name",
                     OneByteString(env->isolate(), NODE_RELEASE));
 
-  trace_process->BeginDictionary("release");
   auto traced_release = tracing::TracedValue::Create();
-  trace_process->SetString("name", NODE_RELEASE);
 
 #if NODE_VERSION_IS_LTS
   READONLY_PROPERTY(release, "lts",
                     OneByteString(env->isolate(), NODE_VERSION_LTS_CODENAME));
-  trace_process->SetString("lts", NODE_VERSION_LTS_CODENAME);
 #endif
-  trace_process->EndDictionary();
 
 // if this is a release build and no explicit base has been set
 // substitute the standard release download URL
@@ -2119,27 +2187,18 @@ void SetupProcessObject(Environment* env,
 
   // process.argv
   Local<Array> arguments = Array::New(env->isolate(), argc);
-  trace_process->BeginArray("argv");
   for (int i = 0; i < argc; ++i) {
     arguments->Set(i, String::NewFromUtf8(env->isolate(), argv[i]));
-    trace_process->AppendString(argv[i]);
   }
-  trace_process->EndArray();
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "argv"), arguments);
 
   // process.execArgv
   Local<Array> exec_arguments = Array::New(env->isolate(), exec_argc);
-  trace_process->BeginArray("execArgv");
   for (int i = 0; i < exec_argc; ++i) {
     exec_arguments->Set(i, String::NewFromUtf8(env->isolate(), exec_argv[i]));
-    trace_process->AppendString(exec_argv[i]);
   }
-  trace_process->EndArray();
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execArgv"),
                exec_arguments);
-
-  TRACE_EVENT_METADATA1("__metadata", "node",
-                        "process", std::move(trace_process));
 
   // create process.env
   Local<ObjectTemplate> process_env_template =
@@ -3572,17 +3631,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Context::Scope context_scope(context);
   Environment env(isolate_data, context, v8_platform.GetTracingAgent());
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
-
-  char name_buffer[512];
-  if (uv_get_process_title(name_buffer, sizeof(name_buffer)) == 0) {
-    // Only emit the metadata event if the title can be retrieved successfully.
-    // Ignore it otherwise.
-    TRACE_EVENT_METADATA1("__metadata", "process_name", "name",
-                          TRACE_STR_COPY(name_buffer));
-  }
-  TRACE_EVENT_METADATA1("__metadata", "version", "node", NODE_VERSION_STRING);
-  TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
-                        "JavaScriptMainThread");
 
   const char* path = argc > 1 ? argv[1] : nullptr;
   StartInspector(&env, path, debug_options);
