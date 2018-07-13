@@ -5747,23 +5747,55 @@ TEST(CustomErrorMessage) {
 
 static void check_custom_rethrowing_message(v8::Local<v8::Message> message,
                                             v8::Local<v8::Value> data) {
+  CHECK(data->IsExternal());
+  int* callcount = static_cast<int*>(data.As<v8::External>()->Value());
+  ++*callcount;
+
   const char* uncaught_error = "Uncaught exception";
   CHECK(message->Get()
             ->Equals(CcTest::isolate()->GetCurrentContext(),
                      v8_str(uncaught_error))
             .FromJust());
+  // Test that compiling code inside a message handler works.
+  CHECK(CompileRunChecked(CcTest::isolate(), "(function(a) { return a; })(42)")
+            ->Equals(CcTest::isolate()->GetCurrentContext(),
+                     v8::Integer::NewFromUnsigned(CcTest::isolate(), 42))
+            .FromJust());
 }
 
 
 TEST(CustomErrorRethrowsOnToString) {
+  int callcount = 0;
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  context->GetIsolate()->AddMessageListener(check_custom_rethrowing_message);
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  context->GetIsolate()->AddMessageListener(
+      check_custom_rethrowing_message, v8::External::New(isolate, &callcount));
 
   CompileRun(
       "var e = { toString: function() { throw e; } };"
       "try { throw e; } finally {}");
 
+  CHECK_EQ(callcount, 1);
+  context->GetIsolate()->RemoveMessageListeners(
+      check_custom_rethrowing_message);
+}
+
+TEST(CustomErrorRethrowsOnToStringInsideVerboseTryCatch) {
+  int callcount = 0;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  context->GetIsolate()->AddMessageListener(
+      check_custom_rethrowing_message, v8::External::New(isolate, &callcount));
+
+  CompileRun(
+      "var e = { toString: function() { throw e; } };"
+      "try { throw e; } finally {}");
+
+  CHECK_EQ(callcount, 1);
   context->GetIsolate()->RemoveMessageListeners(
       check_custom_rethrowing_message);
 }
