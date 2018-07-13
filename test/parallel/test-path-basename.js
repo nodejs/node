@@ -41,6 +41,7 @@ assert.strictEqual(path.win32.basename('aaa\\bbb', '\\bbb'), 'bbb');
 assert.strictEqual(path.win32.basename('aaa\\bbb', 'a\\bbb'), 'bbb');
 assert.strictEqual(path.win32.basename('aaa\\bbb', 'bbb'), 'bbb');
 assert.strictEqual(path.win32.basename('aaa\\bbb\\\\\\\\', 'bbb'), 'bbb');
+assert.strictEqual(path.win32.basename('aaa\\bbb\r\v\f\v\n\\', 'bbb'), 'bbb');
 assert.strictEqual(path.win32.basename('aaa\\bbb', 'bb'), 'b');
 assert.strictEqual(path.win32.basename('aaa\\bbb', 'b'), 'bb');
 assert.strictEqual(path.win32.basename('C:'), '');

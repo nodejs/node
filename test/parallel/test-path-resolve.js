@@ -18,6 +18,7 @@ const resolveTests = [
      [['d:/ignore', 'd:some/dir//'], 'd:\\ignore\\some\\dir'],
      [['.'], process.cwd()],
      [['//server/share', '..', 'relative\\'], '\\\\server\\share\\relative'],
+     [['c\n:\r/\v\f', '//'], 'c:\\'],
      [['c:/', '//'], 'c:\\'],
      [['c:/', '//dir'], 'c:\\dir'],
      [['c:/', '//server/share'], '\\\\server\\share\\'],

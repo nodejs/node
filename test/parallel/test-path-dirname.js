@@ -17,7 +17,9 @@ assert.strictEqual(path.posix.dirname('foo'), '.');
 
 assert.strictEqual(path.win32.dirname('c:\\'), 'c:\\');
 assert.strictEqual(path.win32.dirname('c:\\foo'), 'c:\\');
+assert.strictEqual(path.win32.dirname('c:\\foo\f\r\v\n'), 'c:\\');
 assert.strictEqual(path.win32.dirname('c:\\foo\\'), 'c:\\');
+assert.strictEqual(path.win32.dirname('c:\\fo\n\fo\v\r '), 'c:\\');
 assert.strictEqual(path.win32.dirname('c:\\foo\\bar'), 'c:\\foo');
 assert.strictEqual(path.win32.dirname('c:\\foo\\bar\\'), 'c:\\foo');
 assert.strictEqual(path.win32.dirname('c:\\foo\\bar\\baz'), 'c:\\foo\\bar');
@@ -32,6 +34,7 @@ assert.strictEqual(path.win32.dirname('c:foo'), 'c:');
 assert.strictEqual(path.win32.dirname('c:foo\\'), 'c:');
 assert.strictEqual(path.win32.dirname('c:foo\\bar'), 'c:foo');
 assert.strictEqual(path.win32.dirname('c:foo\\bar\\'), 'c:foo');
+assert.strictEqual(path.win32.dirname('c:\vf\fo\n\ro\\bar\\'), 'c:foo');
 assert.strictEqual(path.win32.dirname('c:foo\\bar\\baz'), 'c:foo\\bar');
 assert.strictEqual(path.win32.dirname('file:stream'), '.');
 assert.strictEqual(path.win32.dirname('dir\\file:stream'), 'dir');

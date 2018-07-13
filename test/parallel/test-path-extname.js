@@ -85,7 +85,9 @@ assert.strictEqual(path.win32.extname('file.ext\\'), '.ext');
 assert.strictEqual(path.win32.extname('file.ext\\\\'), '.ext');
 assert.strictEqual(path.win32.extname('file\\'), '');
 assert.strictEqual(path.win32.extname('file\\\\'), '');
-assert.strictEqual(path.win32.extname('file.\\'), '.');
+assert.strictEqual(path.win32.extname('file\v\f\r\n'), '');
+assert.strictEqual(path.posix.extname('file.\\'), '.\\');
+assert.strictEqual(path.win32.extname('f\ri\nle.\v\f'), '.');
 assert.strictEqual(path.win32.extname('file.\\\\'), '.');
 
 // On *nix, backslash is a valid name component like any other character.
@@ -95,5 +97,7 @@ assert.strictEqual(path.posix.extname('file.ext\\'), '.ext\\');
 assert.strictEqual(path.posix.extname('file.ext\\\\'), '.ext\\\\');
 assert.strictEqual(path.posix.extname('file\\'), '');
 assert.strictEqual(path.posix.extname('file\\\\'), '');
+assert.strictEqual(path.posix.extname('file\v\f\r\n'), '');
 assert.strictEqual(path.posix.extname('file.\\'), '.\\');
+assert.strictEqual(path.posix.extname('f\ri\nle.\v\f'), '.\v\f');
 assert.strictEqual(path.posix.extname('file.\\\\'), '.\\\\');

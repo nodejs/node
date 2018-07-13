@@ -10,6 +10,7 @@ const relativeTests = [
     // arguments                     result
     [['c:/blah\\blah', 'd:/games', 'd:\\games'],
      ['c:/aaaa/bbbb', 'c:/aaaa', '..'],
+     ['c:/a\ra\faa/\vbb\nbb', 'c:/aaaa', '..'],
      ['c:/aaaa/bbbb', 'c:/cccc', '..\\..\\cccc'],
      ['c:/aaaa/bbbb', 'c:/aaaa/bbbb', ''],
      ['c:/aaaa/bbbb', 'c:/aaaa/cccc', '..\\cccc'],
@@ -23,6 +24,7 @@ const relativeTests = [
      ['C:\\foo\\bar\\baz-quux', 'C:\\foo\\bar\\baz', '..\\baz'],
      ['C:\\foo\\bar\\baz', 'C:\\foo\\bar\\baz-quux', '..\\baz-quux'],
      ['\\\\foo\\bar', '\\\\foo\\bar\\baz', 'baz'],
+     ['\n\v\\\\\f\rfoo\\bar', '\\\\foo\\bar\\baz', 'baz'],
      ['\\\\foo\\bar\\baz', '\\\\foo\\bar', '..'],
      ['\\\\foo\\bar\\baz-quux', '\\\\foo\\bar\\baz', '..\\baz'],
      ['\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz-quux', '..\\baz-quux'],
