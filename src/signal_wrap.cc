@@ -52,10 +52,8 @@ class SignalWrap : public HandleWrap {
     constructor->SetClassName(signalString);
 
     AsyncWrap::AddWrapMethods(env, constructor);
-    env->SetProtoMethod(constructor, "close", HandleWrap::Close);
-    env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
-    env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
-    env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
+    HandleWrap::AddWrapMethods(env, constructor);
+
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
 
