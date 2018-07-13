@@ -138,6 +138,14 @@ const trailingTests = [
         ext: '.baz',
         name: 'bar'
       }
+     ],
+     ['D:\\foo\r\v\n\f\\\\\\bar.baz',
+      { root: 'D:\\',
+        dir: 'D:\\foo\\\\',
+        base: 'bar.baz',
+        ext: '.baz',
+        name: 'bar'
+      }
      ]
     ]
   ],

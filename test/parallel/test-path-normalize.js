@@ -5,6 +5,16 @@ const path = require('path');
 
 assert.strictEqual(path.win32.normalize('./fixtures///b/../b/c.js'),
                    'fixtures\\b\\c.js');
+assert.strictEqual(path.win32.normalize(''), '.');
+assert.strictEqual(path.win32.normalize(' '), ' ');
+assert.strictEqual(path.win32.normalize('.'), '.');
+assert.strictEqual(path.win32.normalize('\r\n \t\v\f'), ' ');
+assert.strictEqual(path.win32.normalize('C\0:\\\v\f\t\n'), 'C:\\');
+assert.strictEqual(path.win32.normalize('C:\\Documents And Settings\\'),
+                   'C:\\Documents And Settings\\');
+assert.strictEqual(path.win32.normalize(
+  'C:\\Documents \v\f\r\nAnd \r\nSettings\\'),
+                   'C:\\Documents And Settings\\');
 assert.strictEqual(path.win32.normalize('/foo/../../../bar'), '\\bar');
 assert.strictEqual(path.win32.normalize('a//b//../b'), 'a\\b');
 assert.strictEqual(path.win32.normalize('a//b//./c'), 'a\\b\\c');
