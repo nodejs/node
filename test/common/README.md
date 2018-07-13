@@ -326,6 +326,21 @@ See `common.expectWarning()` for usage.
 
 Indicates whether 'opensslCli' is supported.
 
+### onGC(target, listener)
+* `target` [&lt;Object>]
+* `listener` [&lt;Object>]
+  * `listener.ongc` [&lt;Function>]
+
+Installs a GC listener for the collection of `target`.
+
+This uses `async_hooks` for GC tracking. This means that it enables
+`async_hooks` tracking, which may affect the test functionality. It also
+means that between a `global.gc()` call and the listener being invoked
+a full `setImmediate()` invocation passes.
+
+`listener` is an object to make it easier to use a closure; the target object
+should not be in scope when `listener.ongc` is created.
+
 ### platformTimeout(ms)
 * `ms` [&lt;number>]
 * return [&lt;number>]
