@@ -46,6 +46,7 @@ typedef enum {
   napi_object,
   napi_function,
   napi_external,
+  napi_bigint,
 } napi_valuetype;
 
 typedef enum {
@@ -58,6 +59,8 @@ typedef enum {
   napi_uint32_array,
   napi_float32_array,
   napi_float64_array,
+  napi_bigint64_array,
+  napi_biguint64_array,
 } napi_typedarray_type;
 
 typedef enum {
@@ -78,6 +81,7 @@ typedef enum {
   napi_callback_scope_mismatch,
   napi_queue_full,
   napi_closing,
+  napi_bigint_expected,
 } napi_status;
 
 #ifdef NAPI_EXPERIMENTAL

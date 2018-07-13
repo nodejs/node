@@ -35,14 +35,16 @@ if (common.isMainThread) {
 common.expectWarning(
   'Warning',
   [
-    ['No such label \'nolabel\' for console.timeEnd()', common.noWarnCode],
-    ['No such label \'nolabel\' for console.timeLog()', common.noWarnCode],
+    ['Count for \'noLabel\' does not exist', common.noWarnCode],
+    ['No such label \'noLabel\' for console.timeLog()', common.noWarnCode],
+    ['No such label \'noLabel\' for console.timeEnd()', common.noWarnCode],
     ['Label \'test\' already exists for console.time()', common.noWarnCode]
   ]
 );
 
-console.timeEnd('nolabel');
-console.timeLog('nolabel');
+console.countReset('noLabel');
+console.timeLog('noLabel');
+console.timeEnd('noLabel');
 
 console.time('label');
 console.timeEnd('label');
@@ -245,6 +247,6 @@ common.hijackStderr(common.mustCall(function(data) {
 
   // stderr.write will catch sync error, so use `process.nextTick` here
   process.nextTick(function() {
-    assert.strictEqual(data.includes('nolabel'), true);
+    assert.strictEqual(data.includes('noLabel'), true);
   });
 }));
