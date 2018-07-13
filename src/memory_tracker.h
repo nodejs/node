@@ -49,7 +49,8 @@ class MemoryTracker {
   template <typename T>
   inline void TrackField(const char* name, const std::basic_string<T>& value);
   template <typename T, typename test_for_number =
-      char[std::numeric_limits<T>::is_specialized * 2 - 1],
+      typename std::enable_if<
+          std::numeric_limits<T>::is_specialized, bool>::type,
       typename dummy = bool>
   inline void TrackField(const char* name, const T& value);
   template <typename T, typename U>
