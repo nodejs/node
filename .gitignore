@@ -4,6 +4,7 @@
 !test/fixtures/**/.*
 !tools/node_modules/**/.*
 !tools/doc/node_modules/**/.*
+!.clang-format
 !.editorconfig
 !.eslintignore
 !.eslintrc.js
