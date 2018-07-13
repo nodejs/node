@@ -32,7 +32,6 @@ const common = require('../common');
 // stopped it from getting emitted.
 // https://github.com/nodejs/node-v0.x-archive/issues/4027
 
-const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
@@ -43,9 +42,7 @@ const filename = path.join(tmpdir.path, 'watched');
 fs.writeFileSync(filename, 'quis custodiet ipsos custodes');
 
 fs.watchFile(filename, { interval: 50 }, common.mustCall(function(curr, prev) {
-  assert.strictEqual(prev.nlink, 1);
-  assert.strictEqual(curr.nlink, 0);
   fs.unwatchFile(filename);
 }));
 
-setTimeout(fs.unlinkSync, common.platformTimeout(300), filename);
+fs.unlinkSync(filename);
