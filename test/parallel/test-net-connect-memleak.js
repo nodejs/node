@@ -26,32 +26,32 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-console.log('Run this test with --expose-gc');
-assert.strictEqual(
-  typeof global.gc,
-  'function'
-);
-net.createServer(function() {}).listen(common.PORT);
+// Test that the implicit listener for an 'connect' event on net.Sockets is
+// added using `once()`, i.e. can be gc'ed once that event has occurred.
 
-let before = 0;
+const server = net.createServer(common.mustCall()).listen(0);
+
+let collected = false;
+const gcListener = { ongc() { collected = true; } };
+
 {
-  // 2**26 == 64M entries
-  global.gc();
-  const junk = new Array(2 ** 26).fill(0);
-  before = process.memoryUsage().rss;
+  const gcObject = {};
+  common.onGC(gcObject, gcListener);
 
-  net.createConnection(common.PORT, '127.0.0.1', function() {
-    assert.notStrictEqual(junk.length, 0);  // keep reference alive
-    setTimeout(done, 10);
-    global.gc();
-  });
+  const sock = net.createConnection(
+    server.address().port,
+    common.mustCall(() => {
+      assert.strictEqual(gcObject, gcObject); // keep reference alive
+      assert.strictEqual(collected, false);
+      setImmediate(done, sock);
+    }));
 }
 
-function done() {
+function done(sock) {
   global.gc();
-  const after = process.memoryUsage().rss;
-  const reclaimed = (before - after) / 1024;
-  console.log('%d kB reclaimed', reclaimed);
-  assert(reclaimed > 128 * 1024);  // It's around 256 MB on x64.
-  process.exit();
+  setImmediate(() => {
+    assert.strictEqual(collected, true);
+    sock.end();
+    server.close();
+  });
 }
