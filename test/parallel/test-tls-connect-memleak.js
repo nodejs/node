@@ -30,36 +30,36 @@ const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
-assert.strictEqual(
-  typeof global.gc,
-  'function',
-  `Type of global.gc is not a function. Type: ${typeof global.gc}.` +
-    ' Run this test with --expose-gc'
-);
+// Test that the implicit listener for an 'connect' event on tls.Sockets is
+// added using `once()`, i.e. can be gc'ed once that event has occurred.
 
-tls.createServer({
+const server = tls.createServer({
   cert: fixtures.readSync('test_cert.pem'),
   key: fixtures.readSync('test_key.pem')
-}).listen(common.PORT);
+}).listen(0);
+
+let collected = false;
+const gcListener = { ongc() { collected = true; } };
 
 {
-  // 2**26 == 64M entries
-  const junk = new Array(2 ** 26).fill(0);
+  const gcObject = {};
+  common.onGC(gcObject, gcListener);
 
-  const options = { rejectUnauthorized: false };
-  tls.connect(common.PORT, '127.0.0.1', options, function() {
-    assert.notStrictEqual(junk.length, 0);  // keep reference alive
-    setTimeout(done, 10);
-    global.gc();
-  });
+  const sock = tls.connect(
+    server.address().port,
+    { rejectUnauthorized: false },
+    common.mustCall(() => {
+      assert.strictEqual(gcObject, gcObject); // keep reference alive
+      assert.strictEqual(collected, false);
+      setImmediate(done, sock);
+    }));
 }
 
-function done() {
-  const before = process.memoryUsage().rss;
+function done(sock) {
   global.gc();
-  const after = process.memoryUsage().rss;
-  const reclaimed = (before - after) / 1024;
-  console.log('%d kB reclaimed', reclaimed);
-  assert(reclaimed > 256 * 1024);  // it's more like 512M on x64
-  process.exit();
+  setImmediate(() => {
+    assert.strictEqual(collected, true);
+    sock.end();
+    server.close();
+  });
 }
