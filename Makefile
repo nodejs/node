@@ -141,6 +141,7 @@ clean: ## Remove build artifacts.
 	$(RM) -r test/tmp*
 	$(RM) -r test/.tmp*
 	$(MAKE) test-addons-clean
+	$(MAKE) bench-addons-clean
 
 .PHONY: distclean
 distclean:
@@ -1045,12 +1046,22 @@ ifeq ($(XZ), 0)
 endif
 
 .PHONY: bench-all
-bench-all:
+bench-all: bench-addons-build
 	@echo "Please use benchmark/run.js or benchmark/compare.js to run the benchmarks."
 
 .PHONY: bench
-bench:
+bench: bench-addons-build
 	@echo "Please use benchmark/run.js or benchmark/compare.js to run the benchmarks."
+
+# Build required addons for benchmark before running it.
+.PHONY: bench-addons-build
+bench-addons-build: benchmark/napi/function_call/build/Release/binding.node \
+	benchmark/napi/function_args/build/Release/binding.node
+
+.PHONY: bench-addons-clean
+bench-addons-clean:
+	$(RM) -r benchmark/napi/function_call/build
+	$(RM) -r benchmark/napi/function_args/build
 
 .PHONY: lint-md-clean
 lint-md-clean:
