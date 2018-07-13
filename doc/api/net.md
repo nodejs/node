@@ -64,7 +64,8 @@ This class is used to create a TCP or [IPC][] server.
 
 ### new net.Server([options][, connectionListener])
 
-* `options` {Object} See [`net.createServer([options][, connectionListener])`][`net.createServer()`].
+* `options` {Object} See 
+  [`net.createServer([options][, connectionListener])`][`net.createServer()`].
 * `connectionListener` {Function} Automatically set as a listener for the
   [`'connection'`][] event.
 * Returns: {net.Server}
