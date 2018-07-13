@@ -46,8 +46,9 @@ property:
 
 * `url` {string} The absolute `file:` URL of the module.
 * `require` {Function} To require CommonJS modules. This function enables
-  interoperability between CJS and ESM. See [`require()`]. None of the properties
-  generally exposed on require are available via `import.meta.require`.
+  interoperability between CJS and ESM. See [`require()`]. None of the
+  properties generally exposed on require are available via
+  `import.meta.require`.
 
 ### Unsupported
 
