@@ -27,5 +27,9 @@ if (!process.env.HAS_STARTED_WORKER) {
       assert.fail('Exit callback called twice in worker');
     }
   });
+
+  setTimeout(() => assert.fail('Timeout executed after uncaughtException'),
+             2000);
+
   throw new Error('foo');
 }
