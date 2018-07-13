@@ -651,6 +651,7 @@ available-node = \
 	fi;
 
 run-npm-install = $(PWD)/$(NPM) install --production --no-package-lock
+run-npm-ci = $(PWD)/$(NPM) ci
 
 tools/doc/node_modules/js-yaml/package.json:
 	cd tools/doc && $(call available-node,$(run-npm-install))
@@ -1060,12 +1061,12 @@ lint-md-clean:
 
 tools/remark-cli/node_modules: tools/remark-cli/package.json
 	@echo "Markdown linter: installing remark-cli into tools/"
-	@cd tools/remark-cli && $(call available-node,$(run-npm-install))
+	@cd tools/remark-cli && $(call available-node,$(run-npm-ci))
 
 tools/remark-preset-lint-node/node_modules: \
 	tools/remark-preset-lint-node/package.json
 	@echo "Markdown linter: installing remark-preset-lint-node into tools/"
-	@cd tools/remark-preset-lint-node && $(call available-node,$(run-npm-install))
+	@cd tools/remark-preset-lint-node && $(call available-node,$(run-npm-ci))
 
 .PHONY: lint-md-build
 lint-md-build: tools/remark-cli/node_modules \
