@@ -173,11 +173,8 @@ class SocketSession {
   InspectorSocket* ws_socket() {
     return ws_socket_.get();
   }
-  void set_ws_key(const std::string& ws_key) {
-    ws_key_ = ws_key;
-  }
-  void Accept() {
-    ws_socket_->AcceptUpgrade(ws_key_);
+  void Accept(const std::string& ws_key) {
+    ws_socket_->AcceptUpgrade(ws_key);
   }
   void Decline() {
     ws_socket_->CancelHandshake();
@@ -208,7 +205,6 @@ class SocketSession {
   const int id_;
   InspectorSocket::Pointer ws_socket_;
   const int server_port_;
-  std::string ws_key_;
 };
 
 class ServerSocket {
@@ -260,11 +256,11 @@ void InspectorSocketServer::SessionStarted(int session_id,
                                            const std::string& ws_key) {
   SocketSession* session = Session(session_id);
   if (!TargetExists(id)) {
-    Session(session_id)->Decline();
+    session->Decline();
     return;
   }
   connected_sessions_[session_id].first = id;
-  session->set_ws_key(ws_key);
+  session->Accept(ws_key);
   delegate_->StartSession(session_id, id);
 }
 
@@ -404,6 +400,8 @@ bool InspectorSocketServer::Start() {
 }
 
 void InspectorSocketServer::Stop() {
+  if (state_ == ServerState::kStopped)
+    return;
   CHECK_EQ(state_, ServerState::kRunning);
   state_ = ServerState::kStopped;
   server_sockets_.clear();
@@ -443,23 +441,6 @@ void InspectorSocketServer::Accept(int server_port,
   if (inspector) {
     session->Own(std::move(inspector));
     connected_sessions_[session->id()].second = std::move(session);
-  }
-}
-
-void InspectorSocketServer::AcceptSession(int session_id) {
-  SocketSession* session = Session(session_id);
-  if (session == nullptr) {
-    delegate_->EndSession(session_id);
-  } else {
-    session->Accept();
-  }
-}
-
-void InspectorSocketServer::DeclineSession(int session_id) {
-  auto it = connected_sessions_.find(session_id);
-  if (it != connected_sessions_.end()) {
-    it->second.first.clear();
-    it->second.second->Decline();
   }
 }
 
