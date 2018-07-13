@@ -691,7 +691,7 @@ added: v0.1.90
 -->
 
 * `data` {string|Buffer|Uint8Array}
-* `encoding` {string} Only used when data is `string`. **Default:** `utf8`.
+* `encoding` {string} Only used when data is `string`. **Default:** `'utf8'`.
 * Returns: {net.Socket} The socket itself.
 
 Half-closes the socket. i.e., it sends a FIN packet. It is possible the

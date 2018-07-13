@@ -939,7 +939,7 @@ useful for addon developers who prefer to do type checking in JavaScript.
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`ArrayBuffer`][] or
@@ -960,7 +960,7 @@ util.types.isAnyArrayBuffer(new SharedArrayBuffer());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is an `arguments` object.
@@ -979,7 +979,7 @@ function foo() {
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`ArrayBuffer`][] instance.
@@ -998,7 +998,7 @@ util.types.isArrayBuffer(new SharedArrayBuffer());  // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is an [async function][].
@@ -1018,7 +1018,7 @@ util.types.isAsyncFunction(async function foo() {});  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a `BigInt64Array` instance. The
@@ -1038,7 +1038,7 @@ util.types.isBigInt64Array(new BigUint64Array());  // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a `BigUint64Array` instance. The
@@ -1058,7 +1058,7 @@ util.types.isBigUint64Array(new BigUint64Array());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a boolean object, e.g. created
@@ -1080,7 +1080,7 @@ util.types.isBooleanObject(Boolean(true)); // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`DataView`][] instance.
@@ -1100,7 +1100,7 @@ See also [`ArrayBuffer.isView()`][].
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Date`][] instance.
@@ -1116,7 +1116,7 @@ util.types.isDate(new Date());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a native `External` value.
@@ -1126,7 +1126,7 @@ Returns `true` if the value is a native `External` value.
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Float32Array`][] instance.
@@ -1144,7 +1144,7 @@ util.types.isFloat32Array(new Float64Array());  // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Float64Array`][] instance.
@@ -1162,7 +1162,7 @@ util.types.isFloat64Array(new Float64Array());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a generator function.
@@ -1182,7 +1182,7 @@ util.types.isGeneratorFunction(function* foo() {});  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a generator object as returned from a
@@ -1204,7 +1204,7 @@ util.types.isGeneratorObject(generator);  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Int8Array`][] instance.
@@ -1222,7 +1222,7 @@ util.types.isInt8Array(new Float64Array());  // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Int16Array`][] instance.
@@ -1240,7 +1240,7 @@ util.types.isInt16Array(new Float64Array());  // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Int32Array`][] instance.
@@ -1258,7 +1258,7 @@ util.types.isInt32Array(new Float64Array());  // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Map`][] instance.
@@ -1274,7 +1274,7 @@ util.types.isMap(new Map());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is an iterator returned for a built-in
@@ -1295,7 +1295,7 @@ util.types.isMapIterator(map[Symbol.iterator]());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is an instance of a [Module Namespace Object][].
@@ -1314,7 +1314,7 @@ util.types.isModuleNamespaceObject(ns);  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is an instance of a built-in [`Error`][] type.
@@ -1332,7 +1332,7 @@ util.types.isNativeError(new RangeError());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a number object, e.g. created
@@ -1350,7 +1350,7 @@ util.types.isNumberObject(new Number(0));   // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Promise`][].
@@ -1366,7 +1366,7 @@ util.types.isPromise(Promise.resolve(42));  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a [`Proxy`][] instance.
@@ -1385,7 +1385,7 @@ util.types.isProxy(proxy);  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a regular expression object.
@@ -1402,7 +1402,7 @@ util.types.isRegExp(new RegExp('abc'));  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Set`][] instance.
@@ -1418,7 +1418,7 @@ util.types.isSet(new Set());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is an iterator returned for a built-in
@@ -1439,7 +1439,7 @@ util.types.isSetIterator(set[Symbol.iterator]());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`SharedArrayBuffer`][] instance.
@@ -1458,7 +1458,7 @@ util.types.isSharedArrayBuffer(new SharedArrayBuffer());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a string object, e.g. created
@@ -1476,7 +1476,7 @@ util.types.isStringObject(new String('foo'));   // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a symbol object, created
@@ -1495,7 +1495,7 @@ util.types.isSymbolObject(Object(symbol));   // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`TypedArray`][] instance.
@@ -1515,7 +1515,7 @@ See also [`ArrayBuffer.isView()`][].
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Uint8Array`][] instance.
@@ -1533,7 +1533,7 @@ util.types.isUint8Array(new Float64Array());  // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Uint8ClampedArray`][] instance.
@@ -1551,7 +1551,7 @@ util.types.isUint8ClampedArray(new Float64Array());  // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Uint16Array`][] instance.
@@ -1569,7 +1569,7 @@ util.types.isUint16Array(new Float64Array());  // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Uint32Array`][] instance.
@@ -1587,7 +1587,7 @@ util.types.isUint32Array(new Float64Array());  // Returns false
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`WeakMap`][] instance.
@@ -1603,7 +1603,7 @@ util.types.isWeakMap(new WeakMap());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`WeakSet`][] instance.
@@ -1619,7 +1619,7 @@ util.types.isWeakSet(new WeakSet());  // Returns true
 added: v10.0.0
 -->
 
-* `value` {Object}
+* `value` {any}
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`WebAssembly.Module`][] instance.
