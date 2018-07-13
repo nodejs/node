@@ -32,7 +32,7 @@
 namespace node {
 namespace crypto {
 
-class NodeBIO {
+class NodeBIO : public MemoryRetainer {
  public:
   NodeBIO() : env_(nullptr),
               initial_(kInitialBufferLength),
@@ -109,6 +109,11 @@ class NodeBIO {
   }
 
   static NodeBIO* FromBIO(BIO* bio);
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackFieldWithSize("buffer", length_);
+  }
 
  private:
   static int New(BIO* bio);

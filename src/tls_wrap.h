@@ -76,7 +76,7 @@ class TLSWrap : public AsyncWrap,
 
   void NewSessionDoneCb();
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override;
 
  protected:
   inline StreamBase* underlying_stream() {
