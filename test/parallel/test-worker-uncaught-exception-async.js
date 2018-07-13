@@ -10,6 +10,7 @@ if (!process.env.HAS_STARTED_WORKER) {
   const w = new Worker(__filename);
   w.on('message', common.mustNotCall());
   w.on('error', common.mustCall((err) => {
+    console.log(err.message);
     assert(/^Error: foo$/.test(err));
   }));
   w.on('exit', common.mustCall((code) => {
@@ -17,6 +18,19 @@ if (!process.env.HAS_STARTED_WORKER) {
     assert.strictEqual(code, 1);
   }));
 } else {
+  // cannot use common.mustCall as it cannot catch this
+  let called = false;
+  process.on('exit', (code) => {
+    if (!called) {
+      called = true;
+    } else {
+      assert.fail('Exit callback called twice in worker');
+    }
+  });
+
+  setTimeout(() => assert.fail('Timeout executed after uncaughtException'),
+             2000);
+
   setImmediate(() => {
     throw new Error('foo');
   });
