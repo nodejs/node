@@ -7,9 +7,11 @@ const common = require('../common');
 
 const assert = require('assert');
 const worker = require('worker_threads');
-const { Worker, isMainThread, parentPort } = worker;
+const { Worker, parentPort } = worker;
 
-if (isMainThread) {
+// Do not use isMainThread so that this test itself can be run inside a Worker.
+if (!process.env.HAS_STARTED_WORKER) {
+  process.env.HAS_STARTED_WORKER = 1;
   parent();
 } else {
   if (!parentPort) {
