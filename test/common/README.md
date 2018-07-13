@@ -321,15 +321,10 @@ otherwise.
 ### noWarnCode
 See `common.expectWarning()` for usage.
 
-### opensslCli
-* [&lt;boolean>]
-
-Indicates whether 'opensslCli' is supported.
-
 ### onGC(target, listener)
 * `target` [&lt;Object>]
 * `listener` [&lt;Object>]
-  * `listener.ongc` [&lt;Function>]
+  * `ongc` [&lt;Function>]
 
 Installs a GC listener for the collection of `target`.
 
@@ -339,7 +334,12 @@ means that between a `global.gc()` call and the listener being invoked
 a full `setImmediate()` invocation passes.
 
 `listener` is an object to make it easier to use a closure; the target object
-should not be in scope when `listener.ongc` is created.
+should not be in scope when `listener.ongc()` is created.
+
+### opensslCli
+* [&lt;boolean>]
+
+Indicates whether 'opensslCli' is supported.
 
 ### platformTimeout(ms)
 * `ms` [&lt;number>]
