@@ -1415,25 +1415,6 @@ something has to be unpredictable and unique, but does not have to be secret;
 it is important to remember that an attacker must not be able to predict ahead
 of time what a given IV will be.
 
-### crypto.createCredentials(details)
-<!-- YAML
-added: v0.1.92
-deprecated: v0.11.13
--->
-
-> Stability: 0 - Deprecated: Use [`tls.createSecureContext()`][] instead.
-
-- `details` {Object} Identical to [`tls.createSecureContext()`][].
-- Returns: {tls.SecureContext}
-
-The `crypto.createCredentials()` method is a deprecated function for creating
-and returning a `tls.SecureContext`. It should not be used. Replace it with
-[`tls.createSecureContext()`][] which has the exact same arguments and return
-value.
-
-Returns a `tls.SecureContext`, as-if [`tls.createSecureContext()`][] had been
-called.
-
 ### crypto.createDecipher(algorithm, password[, options])
 <!-- YAML
 added: v0.1.94
@@ -2750,7 +2731,6 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`sign.update()`]: #crypto_sign_update_data_inputencoding
 [`stream.transform` options]: stream.html#stream_new_stream_transform_options
 [`stream.Writable` options]: stream.html#stream_constructor_new_stream_writable_options
-[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureformat
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
