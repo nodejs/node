@@ -8,7 +8,7 @@
 static napi_value IsLossless(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &args, NULL, NULL));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
 
   bool is_signed;
   NAPI_CALL(env, napi_get_value_bool(env, args[1], &is_signed));
@@ -98,7 +98,7 @@ static napi_value TestWords(napi_env env, napi_callback_info info) {
   uint64_t words[10];
 
   NAPI_CALL(env, napi_get_value_bigint_words(
-        env, args[0], &sign_bit, &word_count, &words));
+        env, args[0], &sign_bit, &word_count, words));
 
   NAPI_ASSERT(env, word_count == expected_word_count,
       "word counts do not match");
