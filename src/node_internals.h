@@ -428,6 +428,8 @@ void Hrtime(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Kill(const v8::FunctionCallbackInfo<v8::Value>& args);
 void MemoryUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
 void RawDebug(const v8::FunctionCallbackInfo<v8::Value>& args);
+void StartProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
+void StopProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Umask(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Uptime(const v8::FunctionCallbackInfo<v8::Value>& args);
 
