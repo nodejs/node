@@ -44,9 +44,14 @@ using v8::platform::tracing::TraceWriter;
 using std::string;
 
 Agent::Agent(const std::string& log_file_pattern)
-    : log_file_pattern_(log_file_pattern), file_writer_(EmptyClientHandle()) {
+    : log_file_pattern_(log_file_pattern),
+      handle_(std::make_shared<AgentHandle>(this)) {
   tracing_controller_ = new TracingController();
   tracing_controller_->Initialize(nullptr);
+}
+
+Agent::~Agent() {
+  handle_->Reset();
 }
 
 void Agent::Start() {
@@ -54,9 +59,8 @@ void Agent::Start() {
     return;
 
   CHECK_EQ(uv_loop_init(&tracing_loop_), 0);
-
   NodeTraceBuffer* trace_buffer_ = new NodeTraceBuffer(
-      NodeTraceBuffer::kBufferChunks, this, &tracing_loop_);
+      NodeTraceBuffer::kBufferChunks, handle_, &tracing_loop_);
   tracing_controller_->Initialize(trace_buffer_);
 
   // This thread should be created *after* async handles are created
@@ -66,16 +70,15 @@ void Agent::Start() {
   started_ = true;
 }
 
-Agent::ClientHandle Agent::AddClient(const std::set<std::string>& categories,
-                                     std::unique_ptr<AsyncTraceWriter> writer) {
+std::unique_ptr<ClientHandle> Agent::AddClient(
+    const std::set<std::string>& categories,
+    std::unique_ptr<AsyncTraceWriter> writer) {
   Start();
   ScopedSuspendTracing suspend(tracing_controller_, this);
   int id = next_writer_id_++;
   writers_[id] = std::move(writer);
   categories_[id] = categories;
-
-  auto client_id = new std::pair<Agent*, int>(this, id);
-  return ClientHandle(client_id, &DisconnectClient);
+  return std::unique_ptr<ClientHandle>(new ClientHandle(handle_, id));
 }
 
 void Agent::Stop() {
@@ -138,7 +141,7 @@ void Agent::Enable(const std::set<std::string>& categories) {
     file_writer_ = AddClient(full_list, std::move(writer));
   } else {
     ScopedSuspendTracing suspend(tracing_controller_, this);
-    categories_[file_writer_->second] = full_list;
+    categories_[file_writer_->id()] = full_list;
   }
 }
 
@@ -151,8 +154,8 @@ void Agent::Disable(const std::set<std::string>& categories) {
   if (!file_writer_)
     return;
   ScopedSuspendTracing suspend(tracing_controller_, this);
-  categories_[file_writer_->second] = { file_writer_categories_.begin(),
-                                        file_writer_categories_.end() };
+  categories_[file_writer_->id()] = { file_writer_categories_.begin(),
+                                      file_writer_categories_.end() };
 }
 
 TraceConfig* Agent::CreateTraceConfig() {
@@ -184,5 +187,37 @@ void Agent::Flush(bool blocking) {
   for (const auto& id_writer : writers_)
     id_writer.second->Flush(blocking);
 }
+
+ClientHandle::~ClientHandle() {
+  agent_->Disconnect(id_);
+}
+
+AgentHandle::AgentHandle(Agent* agent) : agent_(agent) {}
+
+void AgentHandle::Reset() {
+  Mutex::ScopedLock scoped_lock(mutex_);
+  agent_ = nullptr;
+}
+
+void AgentHandle::AppendTraceEvent(TraceObject* trace_event) {
+  Mutex::ScopedLock scoped_lock(mutex_);
+  if (agent_ != nullptr) {
+    agent_->AppendTraceEvent(trace_event);
+  }
+}
+
+void AgentHandle::Flush(bool blocking) {
+  Mutex::ScopedLock scoped_lock(mutex_);
+  if (agent_ != nullptr) {
+    agent_->Flush(blocking);
+  }
+}
+
+void AgentHandle::Disconnect(int client) {
+  // This is only called from a main thread, same as Reset
+  if (agent_ != nullptr)
+    agent_->Disconnect(client);
+}
+
 }  // namespace tracing
 }  // namespace node

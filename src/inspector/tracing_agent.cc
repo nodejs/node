@@ -45,10 +45,7 @@ class InspectorTraceWriter : public node::tracing::AsyncTraceWriter {
 };
 }  // namespace
 
-TracingAgent::TracingAgent(Environment* env)
-                           : env_(env),
-                             trace_writer_(
-                                  tracing::Agent::EmptyClientHandle()) {
+TracingAgent::TracingAgent(Environment* env) : env_(env) {
 }
 
 TracingAgent::~TracingAgent() {
