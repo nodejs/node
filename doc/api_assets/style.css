@@ -505,8 +505,6 @@ th > *:last-child, td > *:last-child {
 }
 
 .github_icon {
-  height: 17px;
-  width: 16px;
   vertical-align: middle;
   margin: -2px 3px 0 0;
 }
