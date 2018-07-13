@@ -381,5 +381,5 @@ function altDocs(filename, docCreated) {
 }
 
 function editOnGitHub(filename) {
-  return `<li><a href="https://github.com/nodejs/node/edit/master/doc/api/${filename}.md"><img src="assets/github_icon.svg" alt="" class="github_icon">Edit on GitHub</a></li>`;
+  return `<li class="edit-on-github"><a href="https://github.com/nodejs/node/edit/master/doc/api/${filename}.md"><img src="assets/github_icon.svg" alt="" class="github_icon">Edit on GitHub</a></li>`;
 }
