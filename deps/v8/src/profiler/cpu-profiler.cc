@@ -4,6 +4,12 @@
 
 #include "src/profiler/cpu-profiler.h"
 
+#include <unordered_map>
+#include <utility>
+
+#include "src/base/lazy-instance.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/template-utils.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
@@ -275,20 +281,19 @@ void CpuProfiler::set_sampling_interval(base::TimeDelta value) {
 void CpuProfiler::ResetProfiles() {
   profiles_.reset(new CpuProfilesCollection(isolate_));
   profiles_->set_cpu_profiler(this);
+  profiler_listener_.reset();
+  generator_.reset();
 }
 
 void CpuProfiler::CreateEntriesForRuntimeCallStats() {
-  static_entries_.clear();
   RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
   CodeMap* code_map = generator_->code_map();
   for (int i = 0; i < RuntimeCallStats::counters_count; ++i) {
     RuntimeCallCounter* counter = &(rcs->*(RuntimeCallStats::counters[i]));
     DCHECK(counter->name());
-    std::unique_ptr<CodeEntry> entry(
-        new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
-                      CodeEntry::kEmptyNamePrefix, "native V8Runtime"));
-    code_map->AddCode(reinterpret_cast<Address>(counter), entry.get(), 1);
-    static_entries_.push_back(std::move(entry));
+    auto entry = new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
+                               "native V8Runtime");
+    code_map->AddCode(reinterpret_cast<Address>(counter), entry, 1);
   }
 }
 
@@ -321,13 +326,17 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   // Disable logging when using the new implementation.
   saved_is_logging_ = logger->is_logging_;
   logger->is_logging_ = false;
-  generator_.reset(new ProfileGenerator(profiles_.get()));
+  if (!generator_) {
+    generator_.reset(new ProfileGenerator(profiles_.get()));
+    CreateEntriesForRuntimeCallStats();
+  }
   processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
-  CreateEntriesForRuntimeCallStats();
-  logger->SetUpProfilerListener();
-  ProfilerListener* profiler_listener = logger->profiler_listener();
-  profiler_listener->AddObserver(this);
+  if (!profiler_listener_) {
+    profiler_listener_.reset(new ProfilerListener(isolate_, this));
+  }
+  logger->addCodeEventListener(profiler_listener_.get());
+
   is_profiling_ = true;
   isolate_->set_is_profiling(true);
   // Enumerate stuff we already have in the heap.
@@ -362,12 +371,9 @@ void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();
   is_profiling_ = false;
   isolate_->set_is_profiling(false);
-  ProfilerListener* profiler_listener = logger->profiler_listener();
-  profiler_listener->RemoveObserver(this);
+  logger->removeCodeEventListener(profiler_listener_.get());
   processor_->StopSynchronously();
-  logger->TearDownProfilerListener();
   processor_.reset();
-  generator_.reset();
   logger->is_logging_ = saved_is_logging_;
 }
 
