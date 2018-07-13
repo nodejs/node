@@ -227,6 +227,7 @@ assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 // verify that console.time() coerces label values to strings as expected
 assert.ok(/^: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^null: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
