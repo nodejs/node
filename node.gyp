@@ -265,6 +265,7 @@
 
       'sources': [
         'src/async_wrap.cc',
+        'src/bootstrapper.cc',
         'src/cares_wrap.cc',
         'src/connection_wrap.cc',
         'src/connect_wrap.cc',

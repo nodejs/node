@@ -157,7 +157,6 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
 using v8::PromiseHookType;
-using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
@@ -264,7 +263,7 @@ bool v8_initialized = false;
 bool linux_at_secure = false;
 
 // process-relative uptime base, initialized at start-up
-static double prog_start_time;
+double prog_start_time;
 
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
@@ -367,7 +366,7 @@ static struct {
 static const unsigned kMaxSignal = 32;
 #endif
 
-static void PrintErrorString(const char* format, ...) {
+void PrintErrorString(const char* format, ...) {
   va_list ap;
   va_start(ap, format);
 #ifdef _WIN32
@@ -1277,6 +1276,8 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   env->set_domains_stack_array(args[1].As<Array>());
 
   // Do a little housekeeping.
+  // TODO(jasnell): This should be moved to bootstrapper.cc and the bootstrap
+  // object at some point, but doing so requires a bit more refactoring.
   env->process_object()->Delete(
       env->context(),
       FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupDomainUse")).FromJust();
@@ -1290,81 +1291,6 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   env->AddPromiseHook(DomainPromiseHook, static_cast<void*>(env));
 
   args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
-}
-
-
-void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
-  args.GetIsolate()->RunMicrotasks();
-}
-
-
-void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsFunction());
-
-  env->set_push_values_to_array_function(args[0].As<Function>());
-  env->process_object()->Delete(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_setupProcessObject")).FromJust();
-}
-
-
-void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsObject());
-
-  env->set_tick_callback_function(args[0].As<Function>());
-
-  env->SetMethod(args[1].As<Object>(), "runMicrotasks", RunMicrotasks);
-
-  // Do a little housekeeping.
-  env->process_object()->Delete(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupNextTick")).FromJust();
-
-  // Values use to cross communicate with processNextTick.
-  uint32_t* const fields = env->tick_info()->fields();
-  uint32_t const fields_count = env->tick_info()->fields_count();
-
-  Local<ArrayBuffer> array_buffer =
-      ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
-
-  args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
-}
-
-void PromiseRejectCallback(PromiseRejectMessage message) {
-  Local<Promise> promise = message.GetPromise();
-  Isolate* isolate = promise->GetIsolate();
-  Local<Value> value = message.GetValue();
-  Local<Integer> event = Integer::New(isolate, message.GetEvent());
-
-  Environment* env = Environment::GetCurrent(isolate);
-  Local<Function> callback = env->promise_reject_function();
-
-  if (value.IsEmpty())
-    value = Undefined(isolate);
-
-  Local<Value> args[] = { event, promise, value };
-  Local<Object> process = env->process_object();
-
-  callback->Call(process, arraysize(args), args);
-}
-
-void SetupPromises(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
-  CHECK(args[0]->IsFunction());
-
-  isolate->SetPromiseRejectCallback(PromiseRejectCallback);
-  env->set_promise_reject_function(args[0].As<Function>());
-
-  env->process_object()->Delete(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(isolate, "_setupPromises")).FromJust();
 }
 
 }  // anonymous namespace
@@ -2058,12 +1984,12 @@ NO_RETURN void Assert(const char* const (*args)[4]) {
 }
 
 
-static void Abort(const FunctionCallbackInfo<Value>& args) {
+void Abort(const FunctionCallbackInfo<Value>& args) {
   Abort();
 }
 
 
-static void Chdir(const FunctionCallbackInfo<Value>& args) {
+void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 1 || !args[0]->IsString()) {
@@ -2078,7 +2004,7 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Cwd(const FunctionCallbackInfo<Value>& args) {
+void Cwd(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 #ifdef _WIN32
   /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
@@ -2101,7 +2027,7 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Umask(const FunctionCallbackInfo<Value>& args) {
+void Umask(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uint32_t old;
 
@@ -2238,31 +2164,31 @@ static gid_t gid_by_name(Isolate* isolate, Local<Value> value) {
   }
 }
 
-static void GetUid(const FunctionCallbackInfo<Value>& args) {
+void GetUid(const FunctionCallbackInfo<Value>& args) {
   // uid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(getuid()));
 }
 
 
-static void GetGid(const FunctionCallbackInfo<Value>& args) {
+void GetGid(const FunctionCallbackInfo<Value>& args) {
   // gid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(getgid()));
 }
 
 
-static void GetEUid(const FunctionCallbackInfo<Value>& args) {
+void GetEUid(const FunctionCallbackInfo<Value>& args) {
   // uid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(geteuid()));
 }
 
 
-static void GetEGid(const FunctionCallbackInfo<Value>& args) {
+void GetEGid(const FunctionCallbackInfo<Value>& args) {
   // gid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(getegid()));
 }
 
 
-static void SetGid(const FunctionCallbackInfo<Value>& args) {
+void SetGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
@@ -2281,7 +2207,7 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetEGid(const FunctionCallbackInfo<Value>& args) {
+void SetEGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
@@ -2300,7 +2226,7 @@ static void SetEGid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetUid(const FunctionCallbackInfo<Value>& args) {
+void SetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
@@ -2319,7 +2245,7 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetEUid(const FunctionCallbackInfo<Value>& args) {
+void SetEUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
@@ -2338,7 +2264,7 @@ static void SetEUid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void GetGroups(const FunctionCallbackInfo<Value>& args) {
+void GetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   int ngroups = getgroups(0, nullptr);
@@ -2376,7 +2302,7 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetGroups(const FunctionCallbackInfo<Value>& args) {
+void SetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsArray()) {
@@ -2407,7 +2333,7 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void InitGroups(const FunctionCallbackInfo<Value>& args) {
+void InitGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
@@ -2487,7 +2413,7 @@ static void Exit(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Uptime(const FunctionCallbackInfo<Value>& args) {
+void Uptime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   double uptime;
 
@@ -2498,7 +2424,7 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
+void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   size_t rss;
@@ -2526,7 +2452,7 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Kill(const FunctionCallbackInfo<Value>& args) {
+void Kill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 2) {
@@ -2550,7 +2476,7 @@ static void Kill(const FunctionCallbackInfo<Value>& args) {
 // broken into the upper/lower 32 bits to be converted back in JS,
 // because there is no Uint64Array in JS.
 // The third entry contains the remaining nanosecond part of the value.
-static void Hrtime(const FunctionCallbackInfo<Value>& args) {
+void Hrtime(const FunctionCallbackInfo<Value>& args) {
   uint64_t t = uv_hrtime();
 
   Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
@@ -2569,7 +2495,7 @@ static void Hrtime(const FunctionCallbackInfo<Value>& args) {
 // which are uv_timeval_t structs (long tv_sec, long tv_usec).
 // Returns those values as Float64 microseconds in the elements of the array
 // passed to the function.
-static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
+void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   uv_rusage_t rusage;
 
   // Call libuv to get the values we'll return.
@@ -3687,22 +3613,14 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_debugPause", DebugPause);
   env->SetMethod(process, "_debugEnd", DebugEnd);
 
-  env->SetMethod(process, "hrtime", Hrtime);
-
-  env->SetMethod(process, "cpuUsage", CPUUsage);
-
   env->SetMethod(process, "dlopen", DLOpen);
 
   env->SetMethod(process, "uptime", Uptime);
-  env->SetMethod(process, "memoryUsage", MemoryUsage);
 
   env->SetMethod(process, "binding", Binding);
   env->SetMethod(process, "_linkedBinding", LinkedBinding);
   env->SetMethod(process, "_internalBinding", InternalBinding);
 
-  env->SetMethod(process, "_setupProcessObject", SetupProcessObject);
-  env->SetMethod(process, "_setupNextTick", SetupNextTick);
-  env->SetMethod(process, "_setupPromises", SetupPromises);
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
 
   // pre-set _events object for faster emit checks
@@ -3736,7 +3654,7 @@ void SignalExit(int signo) {
 // to the process.stderr stream.  However, in some cases, such as
 // when debugging the stream.Writable class or the process.nextTick
 // function, it is useful to bypass JavaScript entirely.
-static void RawDebug(const FunctionCallbackInfo<Value>& args) {
+void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
   node::Utf8Value message(args.GetIsolate(), args[0]);
@@ -3792,8 +3710,6 @@ void LoadEnvironment(Environment* env) {
   // thrown during process startup.
   try_catch.SetVerbose(true);
 
-  env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
-
   // Expose the global object as a property on itself
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
   global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
@@ -3805,9 +3721,15 @@ void LoadEnvironment(Environment* env) {
   // We start the process this way in order to be more modular. Developers
   // who do not like how bootstrap_node.js sets up the module system but do
   // like Node's I/O bindings may want to replace 'f' with their own function.
-  Local<Value> arg = env->process_object();
-
-  auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
+  Local<Object> bootstrapper = Object::New(env->isolate());
+  SetupBootstrapObject(env, bootstrapper);
+  Local<Value> args[] = {
+    env->process_object(),
+    bootstrapper
+  };
+  auto ret = f->Call(env->context(),
+                     Null(env->isolate()),
+                     arraysize(args), args);
   // If there was an error during bootstrap then it was either handled by the
   // FatalException handler or it's unrecoverable (e.g. max call stack
   // exceeded). Either way, clear the stack so that the AsyncCallbackScope
