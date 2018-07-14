@@ -1,5 +1,6 @@
+/* eslint-disable node-core/required-modules */
 'use strict';
-const common = require('../common');
+const common = require('../common/globals');
 const assert = require('assert');
 const cp = require('child_process');
 
