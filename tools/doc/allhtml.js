@@ -52,7 +52,8 @@ let all = toc.replace(/index\.html/g, 'all.html')
   .replace('<a href="all.html" name="toc">', '<a href="index.html" name="toc">')
   .replace('index.json', 'all.json')
   .replace('api-section-index', 'api-section-all')
-  .replace('data-id="index"', 'data-id="all"');
+  .replace('data-id="index"', 'data-id="all"')
+  .replace(/<li class="edit_on_github">.*?<\/li>/, '');
 
 // Clean up the title.
 all = all.replace(/<title>.*?\| /, '<title>');
