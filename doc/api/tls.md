@@ -1402,6 +1402,6 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [Stream]: stream.html#stream_stream
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
-[asn1.js]: https://npmjs.org/package/asn1.js
+[asn1.js]: https://www.npmjs.com/package/asn1.js
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html

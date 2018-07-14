@@ -2080,7 +2080,7 @@ cases:
 [Cluster]: cluster.html
 [debugger]: debugger.html
 [Duplex]: stream.html#stream_duplex_and_transform_streams
-[LTS]: https://github.com/nodejs/LTS/
+[LTS]: https://github.com/nodejs/Release
 [note on process I/O]: process.html#process_a_note_on_process_i_o
 [process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning
