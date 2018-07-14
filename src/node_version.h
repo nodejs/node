@@ -114,6 +114,6 @@
 #define NODE_MODULE_VERSION 64
 
 // the NAPI_VERSION provided by this version of the runtime
-#define NAPI_VERSION  3
+#define NAPI_VERSION 4
 
 #endif  // SRC_NODE_VERSION_H_
