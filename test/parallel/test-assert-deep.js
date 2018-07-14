@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 const { AssertionError } = assert;
-const defaultMsgStart = 'Expected input to be strictly deep-equal:\n';
+const defaultMsgStart = 'Expected inputs to be strictly deep-equal:\n';
 const defaultMsgStartFull = `${defaultMsgStart}+ actual - expected`;
 
 // Disable colored output to prevent color codes from breaking assertion

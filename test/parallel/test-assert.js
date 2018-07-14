@@ -34,7 +34,8 @@ const a = assert;
 if (process.stdout.isTTY)
   process.env.NODE_DISABLE_COLORS = '1';
 
-const start = 'Expected input to be strictly deep-equal:';
+const strictEqualMessageStart = 'Expected inputs to be strictly equal:\n';
+const start = 'Expected inputs to be strictly deep-equal:';
 const actExp = '+ actual - expected';
 
 assert.ok(a.AssertionError.prototype instanceof Error,
@@ -260,7 +261,7 @@ function testAssertionMessage(actual, expected, msg) {
   } catch (e) {
     assert.strictEqual(
       e.message,
-      msg || 'Expected input to be strictly equal:\n' +
+      msg || strictEqualMessageStart +
              `+ actual - expected\n\n+ ${expected}\n- ''`
     );
     assert.ok(e.generatedMessage, 'Message not marked as generated');
@@ -268,8 +269,8 @@ function testAssertionMessage(actual, expected, msg) {
 }
 
 function testShortAssertionMessage(actual, expected) {
-  testAssertionMessage(actual, expected, 'Expected input to be strictly equal' +
-                                         `:\n\n${inspect(actual)} !== ''\n`);
+  testAssertionMessage(actual, expected, strictEqualMessageStart +
+                                         `\n${inspect(actual)} !== ''\n`);
 }
 
 testShortAssertionMessage(null, 'null');
@@ -303,7 +304,7 @@ try {
 } catch (e) {
   assert.strictEqual(
     e.message,
-    'Expected input to be strictly equal:\n\n1 !== 2\n'
+    `${strictEqualMessageStart}\n1 !== 2\n`
   );
   assert.ok(e.generatedMessage, 'Message not marked as generated');
 }
@@ -389,7 +390,7 @@ assert.throws(() => {
   assert.strictEqual('A'.repeat(1000), '');
 }, {
   code: 'ERR_ASSERTION',
-  message: 'Expected input to be strictly equal:\n+ actual - expected\n\n' +
+  message: `${strictEqualMessageStart}+ actual - expected\n\n` +
            `+ '${'A'.repeat(1000)}'\n- ''`
 });
 
@@ -413,7 +414,7 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: 'Expected input to be strictly equal:\n' +
+    message: strictEqualMessageStart +
              '+ actual - expected\n\n+ [Error: foo]\n- [Error: foobar]'
   }
 );
@@ -994,7 +995,7 @@ assert.throws(() => { throw null; }, 'foo');
 assert.throws(
   () => assert.strictEqual([], []),
   {
-    message: 'Input identical but not reference equal:\n\n[]\n'
+    message: 'Inputs identical but not reference equal:\n\n[]\n'
   }
 );
 
@@ -1003,8 +1004,8 @@ assert.throws(
   assert.throws(
     () => assert.strictEqual(args, { 0: 'a' }),
     {
-      message: 'Expected input to be strictly equal:\n+ actual' +
-               " - expected\n\n+ [Arguments] {\n- {\n    '0': 'a'\n  }"
+      message: `${strictEqualMessageStart}+ actual - expected\n\n` +
+               "+ [Arguments] {\n- {\n    '0': 'a'\n  }"
     }
   );
 }
