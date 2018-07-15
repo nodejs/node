@@ -605,8 +605,8 @@ Maybe<URL> ResolveMain(Environment* env, const URL& search) {
   Maybe<URL> file = ResolveExtensions<TRY_EXACT_NAME>(resolved);
   if (!file.IsNothing())
     return file;
-  if (specifier.back() != '/') {
-    resolved = URL(specifier + "/", search);
+  if (resolved.back() != '/') {
+    resolved = URL(resolved + "/", search);
   }
   return ResolveIndex(resolved);
 }
@@ -619,7 +619,7 @@ Maybe<URL> ResolveModule(Environment* env,
   do {
     dir = parent;
     Maybe<URL> check =
-        Resolve(env, "./node_modules/" + specifier, dir, CheckMain);
+        Resolve(env, "./node_modules/" + specifier, dir);
     if (!check.IsNothing()) {
       const size_t limit = specifier.find('/');
       const size_t spec_len =
