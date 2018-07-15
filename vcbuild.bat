@@ -430,7 +430,7 @@ if errorlevel 1 goto exit
 
 :install-doctools
 if not defined doc (
-  if x%test_args:doctool=%==x%test_args% goto skip-install-doctools
+  if "%test_args:doctool=%"=="%test_args%" goto skip-install-doctools
 )
 if exist "tools\doc\node_modules\js-yaml\package.json" goto skip-install-doctools
 SETLOCAL
