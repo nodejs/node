@@ -1609,7 +1609,7 @@ a given number of milliseconds set using `http2server.setTimeout()`.
 <!-- YAML
 added: v8.4.0
 -->
-- `callback` {Function}
+* `callback` {Function}
 
 Stops the server from accepting new connections.  See [`net.Server.close()`][].
 
@@ -1728,7 +1728,7 @@ the connection is terminated. See the [Compatibility API][].
 <!-- YAML
 added: v8.4.0
 -->
-- `callback` {Function}
+* `callback` {Function}
 
 Stops the server from accepting new connections.  See [`tls.Server.close()`][].
 
@@ -3139,6 +3139,8 @@ will result in a [`TypeError`][] being thrown.
 <!-- YAML
 added: v8.4.0
 -->
+* `headers` {HTTP/2 Headers Object} An object describing the headers
+* `callback` {Function}
 
 Call [`http2stream.pushStream()`][] with the given headers, and wraps the
 given newly created [`Http2Stream`] on `Http2ServerResponse`.

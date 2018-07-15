@@ -27,7 +27,7 @@ This class is a subclass of `tls.Server` and emits events same as
 <!-- YAML
 added: v0.1.90
 -->
-- `callback` {Function}
+* `callback` {Function}
 
 See [`server.close()`][`http.close()`] from the HTTP module for details.
 
@@ -47,8 +47,8 @@ See [`http.Server#maxHeadersCount`][].
 <!-- YAML
 added: v0.11.2
 -->
-- `msecs` {number} **Default:** `120000` (2 minutes)
-- `callback` {Function}
+* `msecs` {number} **Default:** `120000` (2 minutes)
+* `callback` {Function}
 
 See [`http.Server#setTimeout()`][].
 
@@ -72,9 +72,9 @@ See [`http.Server#keepAliveTimeout`][].
 <!-- YAML
 added: v0.3.4
 -->
-- `options` {Object} Accepts `options` from [`tls.createServer()`][],
+* `options` {Object} Accepts `options` from [`tls.createServer()`][],
  [`tls.createSecureContext()`][] and [`http.createServer()`][].
-- `requestListener` {Function} A listener to be added to the `'request'` event.
+* `requestListener` {Function} A listener to be added to the `'request'` event.
 
 Example:
 
@@ -124,9 +124,9 @@ changes:
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 - `url` {string | URL}
-- `options` {Object} Accepts the same `options` as
+* `options` {Object | string | URL} Accepts the same `options` as
   [`https.request()`][], with the `method` always set to `GET`.
-- `callback` {Function}
+* `callback` {Function}
 
 Like [`http.get()`][] but for HTTPS.
 
@@ -175,12 +175,12 @@ changes:
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 - `url` {string | URL}
-- `options` {Object} Accepts all `options` from
+* `options` {Object | string | URL} Accepts all `options` from
   [`http.request()`][], with some differences in default values:
   - `protocol` **Default:** `'https:'`
   - `port` **Default:** `443`
   - `agent` **Default:** `https.globalAgent`
-- `callback` {Function}
+* `callback` {Function}
 
 Makes a request to a secure web server.
 
