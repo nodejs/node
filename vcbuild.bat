@@ -255,7 +255,7 @@ goto exit
 
 :wix-not-found
 echo Build skipped. To generate installer, you need to install Wix.
-goto build-doc
+goto install-doctools
 
 :msbuild-found
 
@@ -385,7 +385,7 @@ exit /b 1
 
 :msi
 @rem Skip msi generation if not requested
-if not defined msi goto build-doc
+if not defined msi goto install-doctools
 
 :msibuild
 echo Building node-v%FULLVERSION%-%target_arch%.msi
@@ -400,7 +400,7 @@ if errorlevel 1 echo Failed to sign msi&goto exit
 
 :upload
 @rem Skip upload if not requested
-if not defined upload goto build-doc
+if not defined upload goto install-doctools
 
 if not defined SSHCONFIG (
   echo SSHCONFIG is not set for upload
@@ -428,6 +428,19 @@ ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/no
 if errorlevel 1 goto exit
 
 
+:install-doctools
+if not defined doc (
+  if x%test_args:doctool=%==x%test_args% goto skip-install-doctools
+)
+if exist "tools\doc\node_modules\js-yaml\package.json" goto skip-install-doctools
+SETLOCAL
+cd tools\doc
+%npm_exe% install
+cd ..\..
+if errorlevel 1 goto exit
+ENDLOCAL
+:skip-install-doctools
+
 :build-doc
 @rem Build documentation if requested
 if not defined doc goto run
@@ -439,14 +452,6 @@ mkdir %config%\doc
 robocopy /e doc\api %config%\doc\api
 robocopy /e doc\api_assets %config%\doc\api\assets
 
-if exist "tools\doc\node_modules\js-yaml\package.json" goto doc-skip-js-yaml
-SETLOCAL
-cd tools\doc
-%npm_exe% install
-cd ..\..
-if errorlevel 1 goto exit
-ENDLOCAL
-:doc-skip-js-yaml
 for %%F in (%config%\doc\api\*.md) do (
   %node_exe% tools\doc\generate.js --format=json %%F > %%~dF%%~pF%%~nF.json
   %node_exe% tools\doc\generate.js --node-version=v%FULLVERSION% --format=html --analytics=%DOCS_ANALYTICS% %%F > %%~dF%%~pF%%~nF.html
