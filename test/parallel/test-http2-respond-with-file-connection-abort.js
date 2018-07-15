@@ -28,3 +28,10 @@ server.listen(0, common.mustCall(() => {
   }));
   req.end();
 }));
+
+// TODO(addaleax): This is a *hack*. HTTP/2 needs to have a proper way of
+// dealing with this kind of issue.
+process.once('uncaughtException', (err) => {
+  if (err.code === 'ECONNRESET') return;
+  throw err;
+});
