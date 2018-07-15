@@ -83,10 +83,6 @@ which simply wrap a syscall,
 like [`fs.open()`][], will document that. The docs link to the corresponding man
 pages (short for manual pages) which describe how the syscalls work.
 
-Some syscalls, like lchown(2), are BSD-specific. That means, for
-example, that [`fs.lchown()`][] only works on macOS and other BSD-derived
-systems, and is not available on Linux.
-
 Most Unix syscalls have Windows equivalents, but behavior may differ on Windows
 relative to Linux and macOS. For an example of the subtle ways in which it's
 sometimes impossible to replace Unix syscall semantics on Windows, see [Node
@@ -95,6 +91,5 @@ issue 4760](https://github.com/nodejs/node/issues/4760).
 [`'warning'`]: process.html#process_event_warning
 [`stderr`]: process.html#process_process_stderr
 [`fs.open()`]: fs.html#fs_fs_open_path_flags_mode_callback
-[`fs.lchown()`]: fs.html#fs_fs_lchown_path_uid_gid_callback
 [submit an issue]: https://github.com/nodejs/node/issues/new
 [the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md

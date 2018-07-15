@@ -322,6 +322,7 @@ struct PackageConfig {
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(domain_callback, v8::Function)                                            \
+  V(domexception_function, v8::Function)                                      \
   V(fdclose_constructor_template, v8::ObjectTemplate)                         \
   V(fd_constructor_template, v8::ObjectTemplate)                              \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                          \
@@ -722,9 +723,6 @@ class Environment {
   inline bool can_call_into_js() const;
   inline void set_can_call_into_js(bool can_call_into_js);
 
-  // TODO(addaleax): This should be inline.
-  bool is_stopping_worker() const;
-
   inline bool is_main_thread() const;
   inline uint64_t thread_id() const;
   inline void set_thread_id(uint64_t id);
@@ -733,6 +731,7 @@ class Environment {
   inline void add_sub_worker_context(worker::Worker* context);
   inline void remove_sub_worker_context(worker::Worker* context);
   void stop_sub_worker_contexts();
+  inline bool is_stopping_worker() const;
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -862,6 +861,10 @@ class Environment {
   inline void RemoveCleanupHook(void (*fn)(void*), void* arg);
   void RunCleanup();
 
+  static void BuildEmbedderGraph(v8::Isolate* isolate,
+                                 v8::EmbedderGraph* graph,
+                                 void* data);
+
  private:
   inline void CreateImmediate(native_immediate_callback cb,
                               void* data,
@@ -984,6 +987,8 @@ class Environment {
       inline bool operator()(const CleanupHookCallback& a,
                              const CleanupHookCallback& b) const;
     };
+
+    inline BaseObject* GetBaseObject() const;
   };
 
   // Use an unordered_set, so that we have efficient insertion and removal.
@@ -995,6 +1000,9 @@ class Environment {
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,
                              v8::Local<v8::Value> parent);
+
+  template <typename T>
+  void ForEachBaseObject(T&& iterator);
 
 #define V(PropertyName, TypeName) Persistent<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)

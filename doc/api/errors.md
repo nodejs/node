@@ -127,12 +127,11 @@ exactly how errors raised by those methods are propagated.
 <!--type=misc-->
 
 Most asynchronous methods exposed by the Node.js core API follow an idiomatic
-pattern referred to as an _error-first callback_ (sometimes referred to as
-a _Node.js style callback_). With this pattern, a callback function is passed
-to the method as an argument. When the operation either completes or an error
-is raised, the callback function is called with
-the `Error` object (if any) passed as the first argument. If no error was
-raised, the first argument will be passed as `null`.
+pattern referred to as an _error-first callback_. With this pattern, a callback
+function is passed to the method as an argument. When the operation either
+completes or an error is raised, the callback function is called with the
+`Error` object (if any) passed as the first argument. If no error was raised,
+the first argument will be passed as `null`.
 
 ```js
 const fs = require('fs');
@@ -457,7 +456,7 @@ added properties.
 
 ### Class: SystemError
 
-### error.info
+#### error.info
 
 `SystemError` instances may have an additional `info` property whose
 value is an object with additional details about the error conditions.
@@ -1015,6 +1014,11 @@ provided.
 
 The `Http2Session` closed with a non-zero error code.
 
+<a id="ERR_HTTP2_SETTINGS_CANCEL"></a>
+### ERR_HTTP2_SETTINGS_CANCEL
+
+The `Http2Session` settings canceled.
+
 <a id="ERR_HTTP2_SOCKET_BOUND"></a>
 ### ERR_HTTP2_SOCKET_BOUND
 
@@ -1209,10 +1213,23 @@ An invalid `options.protocol` was passed.
 Both `breakEvalOnSigint` and `eval` options were set in the REPL config, which
 is not supported.
 
+<a id="ERR_INVALID_RETURN_PROPERTY"></a>
+### ERR_INVALID_RETURN_PROPERTY
+
+Thrown in case a function option does not provide a valid value for one of its
+returned object properties on execution.
+
+<a id="ERR_INVALID_RETURN_PROPERTY_VALUE"></a>
+### ERR_INVALID_RETURN_PROPERTY_VALUE
+
+Thrown in case a function option does not provide an expected value
+type for one of its returned object properties on execution.
+
 <a id="ERR_INVALID_RETURN_VALUE"></a>
 ### ERR_INVALID_RETURN_VALUE
 
-Thrown in case a function option does not return an expected value on execution.
+Thrown in case a function option does not return an expected value
+type on execution.
 For example when a function is expected to return a promise.
 
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
@@ -1317,6 +1334,14 @@ strict compliance with the API specification (which in some cases may accept
 `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK"></a>
+### ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK
+
+> Stability: 1 - Experimental
+
+An [ES6 module][] loader hook specified `format: 'dynamic'` but did not provide
+a `dynamicInstantiate` hook.
+
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 ### ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST
 
@@ -1375,6 +1400,31 @@ multiple of the element size.
 
 While calling `napi_create_typedarray()`, `(length * size_of_element) +
 byte_offset` was larger than the length of given `buffer`.
+
+<a id="ERR_NAPI_TSFN_CALL_JS"></a>
+### ERR_NAPI_TSFN_CALL_JS
+
+An error occurred while invoking the JavaScript portion of the thread-safe
+function.
+
+<a id="ERR_NAPI_TSFN_GET_UNDEFINED"></a>
+### ERR_NAPI_TSFN_GET_UNDEFINED
+
+An error occurred while attempting to retrieve the JavaScript `undefined`
+value.
+
+<a id="ERR_NAPI_TSFN_START_IDLE_LOOP"></a>
+### ERR_NAPI_TSFN_START_IDLE_LOOP
+
+On the main thread, values are removed from the queue associated with the
+thread-safe function in an idle loop. This error indicates that an error
+has occurred when attempting to start the loop.
+
+<a id="ERR_NAPI_TSFN_STOP_IDLE_LOOP"></a>
+### ERR_NAPI_TSFN_STOP_IDLE_LOOP
+
+Once no more items are left in the queue, the idle loop must be suspended. This
+error indicates that the idle loop has failed to stop.
 
 <a id="ERR_NO_CRYPTO"></a>
 ### ERR_NO_CRYPTO
@@ -1579,6 +1629,11 @@ recommended to use 2048 bits or larger for stronger security.
 A TLS/SSL handshake timed out. In this case, the server must also abort the
 connection.
 
+<a id="ERR_TLS_RENEGOTIATE"></a>
+### ERR_TLS_RENEGOTIATE
+
+An attempt to renegotiate the TLS session failed.
+
 <a id="ERR_TLS_RENEGOTIATION_DISABLED"></a>
 ### ERR_TLS_RENEGOTIATION_DISABLED
 
@@ -1754,10 +1809,11 @@ The fulfilled value of a linking promise is not a `vm.Module` object.
 The current module's status does not allow for this operation. The specific
 meaning of the error depends on the specific function.
 
-<a id="ERR_WORKER_NEED_ABSOLUTE_PATH"></a>
-### ERR_WORKER_NEED_ABSOLUTE_PATH
+<a id="ERR_WORKER_PATH"></a>
+### ERR_WORKER_PATH
 
-The path for the main script of a worker is not an absolute path.
+The path for the main script of a worker is neither an absolute path
+nor a relative path starting with `./` or `../`.
 
 <a id="ERR_WORKER_UNSERIALIZABLE_ERROR"></a>
 ### ERR_WORKER_UNSERIALIZABLE_ERROR
@@ -1781,7 +1837,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
 [`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
-[`crypto.scryptSync()`]: crypto.html#crypto_crypto_scryptSync_password_salt_keylen_options
+[`crypto.scryptSync()`]: crypto.html#crypto_crypto_scryptsync_password_salt_keylen_options
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE

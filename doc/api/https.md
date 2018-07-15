@@ -27,7 +27,7 @@ This class is a subclass of `tls.Server` and emits events same as
 <!-- YAML
 added: v0.1.90
 -->
-- `callback` {Function}
+* `callback` {Function}
 
 See [`server.close()`][`http.close()`] from the HTTP module for details.
 
@@ -47,8 +47,8 @@ See [`http.Server#maxHeadersCount`][].
 <!-- YAML
 added: v0.11.2
 -->
-- `msecs` {number} **Default:** `120000` (2 minutes)
-- `callback` {Function}
+* `msecs` {number} **Default:** `120000` (2 minutes)
+* `callback` {Function}
 
 See [`http.Server#setTimeout()`][].
 
@@ -72,9 +72,9 @@ See [`http.Server#keepAliveTimeout`][].
 <!-- YAML
 added: v0.3.4
 -->
-- `options` {Object} Accepts `options` from [`tls.createServer()`][],
+* `options` {Object} Accepts `options` from [`tls.createServer()`][],
  [`tls.createSecureContext()`][] and [`http.createServer()`][].
-- `requestListener` {Function} A listener to be added to the `'request'` event.
+* `requestListener` {Function} A listener to be added to the `'request'` event.
 
 Example:
 
@@ -112,16 +112,21 @@ https.createServer(options, (req, res) => {
 ```
 
 ## https.get(options[, callback])
+## https.get(url[, options][, callback])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21616
+    description: allow both url and options to be passed to `https.get()`
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `options` {Object | string | URL} Accepts the same `options` as
+- `url` {string | URL}
+* `options` {Object | string | URL} Accepts the same `options` as
   [`https.request()`][], with the `method` always set to `GET`.
-- `callback` {Function}
+* `callback` {Function}
 
 Like [`http.get()`][] but for HTTPS.
 
@@ -155,9 +160,13 @@ added: v0.5.9
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
 ## https.request(options[, callback])
+## https.request(url[, options][, callback])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21616
+    description: allow both url and options to be passed to `https.request()`
   - version: v9.3.0
     pr-url: https://github.com/nodejs/node/pull/14903
     description: The `options` parameter can now include `clientCertEngine`.
@@ -165,12 +174,13 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `options` {Object | string | URL} Accepts all `options` from
+- `url` {string | URL}
+* `options` {Object | string | URL} Accepts all `options` from
   [`http.request()`][], with some differences in default values:
   - `protocol` **Default:** `'https:'`
   - `port` **Default:** `443`
   - `agent` **Default:** `https.globalAgent`
-- `callback` {Function}
+* `callback` {Function}
 
 Makes a request to a secure web server.
 

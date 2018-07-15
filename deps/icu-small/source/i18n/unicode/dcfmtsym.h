@@ -406,8 +406,11 @@ public:
      * returning a const reference to one of the symbol strings.
      * The returned reference becomes invalid when the symbol is changed
      * or when the DecimalFormatSymbols are destroyed.
-     * ### TODO markus 2002oct11: Consider proposing getConstSymbol() to be really public.
      * Note: moved #ifndef U_HIDE_INTERNAL_API after this, since this is needed for inline in DecimalFormat
+     *
+     * This is not currently stable API, but if you think it should be stable,
+     * post a comment on the following ticket and the ICU team will take a look:
+     * http://bugs.icu-project.org/trac/ticket/13580
      *
      * @param symbol Constant to indicate a number format symbol.
      * @return the format symbol by the param 'symbol'
@@ -421,6 +424,10 @@ public:
      * corresponding to the digit with the given value.  This is equivalent
      * to accessing the symbol from getConstSymbol with the corresponding
      * key, such as kZeroDigitSymbol or kOneDigitSymbol.
+     *
+     * This is not currently stable API, but if you think it should be stable,
+     * post a comment on the following ticket and the ICU team will take a look:
+     * http://bugs.icu-project.org/trac/ticket/13580
      *
      * @param digit The digit, an integer between 0 and 9 inclusive.
      *              If outside the range 0 to 9, the zero digit is returned.

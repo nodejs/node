@@ -83,7 +83,7 @@ int uv_fs_poll_start(uv_fs_poll_t* handle,
   if (err < 0)
     goto error;
 
-  ctx->timer_handle.flags |= UV__HANDLE_INTERNAL;
+  ctx->timer_handle.flags |= UV_HANDLE_INTERNAL;
   uv__handle_unref(&ctx->timer_handle);
 
   err = uv_fs_stat(loop, &ctx->fs_req, ctx->path, poll_cb);
@@ -248,7 +248,7 @@ static int statbuf_eq(const uv_stat_t* a, const uv_stat_t* b) {
 #include "win/handle-inl.h"
 
 void uv__fs_poll_endgame(uv_loop_t* loop, uv_fs_poll_t* handle) {
-  assert(handle->flags & UV__HANDLE_CLOSING);
+  assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
   uv__handle_close(handle);
 }

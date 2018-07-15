@@ -217,7 +217,7 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
     UNREGISTER_HANDLE_REQ(loop, handle, handle->stream.conn.shutdown_req);
 
     err = 0;
-    if (handle->flags & UV__HANDLE_CLOSING) {
+    if (handle->flags & UV_HANDLE_CLOSING) {
       err = ERROR_OPERATION_ABORTED;
     } else if (shutdown(handle->socket, SD_SEND) == SOCKET_ERROR) {
       err = WSAGetLastError();
@@ -233,7 +233,7 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
     return;
   }
 
-  if (handle->flags & UV__HANDLE_CLOSING &&
+  if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
 
@@ -680,7 +680,7 @@ int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
   req->next_pending = NULL;
   req->accept_socket = INVALID_SOCKET;
 
-  if (!(server->flags & UV__HANDLE_CLOSING)) {
+  if (!(server->flags & UV_HANDLE_CLOSING)) {
     /* Check if we're in a middle of changing the number of pending accepts. */
     if (!(server->flags & UV_HANDLE_TCP_ACCEPT_STATE_CHANGING)) {
       uv_tcp_queue_accept(server, req);
@@ -1166,7 +1166,7 @@ void uv_process_tcp_connect_req(uv_loop_t* loop, uv_tcp_t* handle,
 
   err = 0;
   if (REQ_SUCCESS(req)) {
-    if (handle->flags & UV__HANDLE_CLOSING) {
+    if (handle->flags & UV_HANDLE_CLOSING) {
       /* use UV_ECANCELED for consistency with Unix */
       err = ERROR_OPERATION_ABORTED;
     } else if (setsockopt(handle->socket,

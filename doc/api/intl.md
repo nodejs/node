@@ -209,7 +209,7 @@ to be helpful:
 [BUILDING.md#full-icu]: https://github.com/nodejs/node/blob/master/BUILDING.md#build-with-full-icu-support-all-locales-supported-by-icu
 [ECMA-262]: https://tc39.github.io/ecma262/
 [ECMA-402]: https://tc39.github.io/ecma402/
-[ICU]: http://icu-project.org/
+[ICU]: http://site.icu-project.org/
 [REPL]: repl.html#repl_repl
 [Test262]: https://github.com/tc39/test262/tree/master/test/intl402
 [WHATWG URL parser]: url.html#url_the_whatwg_url_api

@@ -94,10 +94,12 @@ public:
     UChar32  getFirstChar(int32_t  val) const;
     UBool    sawBOF() const;                 // Indicate whether any references to the {bof} pseudo
                                              //   character were encountered.
-    /** merge two character categories that have been identified as having equivalent behavior.
-     *  The ranges belonging to the right category (table column) will be added to the left.
+    /**
+     * Merge two character categories that have been identified as having equivalent behavior.
+     * The ranges belonging to the second category (table column) will be added to the first.
+     * @param categories the pair of categories to be merged.
      */
-    void     mergeCategories(int32_t left, int32_t right);
+    void     mergeCategories(IntPair categories);
 
     static constexpr int32_t DICT_BIT = 0x4000;
 

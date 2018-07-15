@@ -151,9 +151,13 @@ added: v0.1.18
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
-handles such exceptions by printing the stack trace to `stderr` and exiting.
+handles such exceptions by printing the stack trace to `stderr` and exiting
+with code 1, overriding any previously set [`process.exitCode`][].
 Adding a handler for the `'uncaughtException'` event overrides this default
-behavior.
+behavior. You may also change the [`process.exitCode`][] in
+`'uncaughtException'` handler which will result in process exiting with
+provided exit code, otherwise in the presence of such handler the process will
+exit with 0.
 
 The listener function is called with the `Error` object passed as the only
 argument.
@@ -1691,6 +1695,7 @@ This feature is not available in [`Worker`][] threads.
 <!-- YAML
 added: v0.1.28
 -->
+* `id` {integer | string}
 
 The `process.setuid(id)` method sets the user identity of the process. (See
 setuid(2).) The `id` can be passed as either a numeric ID or a username string.
@@ -1720,18 +1725,19 @@ added: v9.3.0
 
 * `fn` {Function|null}
 
-The `process.setUncaughtExceptionCapture` function sets a function that will
-be invoked when an uncaught exception occurs, which will receive the exception
-value itself as its first argument.
+The `process.setUncaughtExceptionCaptureCallback()` function sets a function
+that will be invoked when an uncaught exception occurs, which will receive the
+exception value itself as its first argument.
 
 If such a function is set, the [`'uncaughtException'`][] event will
 not be emitted. If `--abort-on-uncaught-exception` was passed from the
 command line or set through [`v8.setFlagsFromString()`][], the process will
 not abort.
 
-To unset the capture function, `process.setUncaughtExceptionCapture(null)`
-may be used. Calling this method with a non-`null` argument while another
-capture function is set will throw an error.
+To unset the capture function,
+`process.setUncaughtExceptionCaptureCallback(null)` may be used. Calling this
+method with a non-`null` argument while another capture function is set will
+throw an error.
 
 Using this function is mutually exclusive with using the deprecated
 [`domain`][] built-in module.
@@ -2075,7 +2081,7 @@ cases:
 [Cluster]: cluster.html
 [debugger]: debugger.html
 [Duplex]: stream.html#stream_duplex_and_transform_streams
-[LTS]: https://github.com/nodejs/LTS/
+[LTS]: https://github.com/nodejs/Release
 [note on process I/O]: process.html#process_a_note_on_process_i_o
 [process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning

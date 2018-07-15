@@ -52,17 +52,17 @@ class SignalWrap : public HandleWrap {
     constructor->SetClassName(signalString);
 
     AsyncWrap::AddWrapMethods(env, constructor);
-    env->SetProtoMethod(constructor, "close", HandleWrap::Close);
-    env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
-    env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
-    env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
+    HandleWrap::AddWrapMethods(env, constructor);
+
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
 
     target->Set(signalString, constructor->GetFunction());
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  private:
   static void New(const FunctionCallbackInfo<Value>& args) {
@@ -90,7 +90,7 @@ class SignalWrap : public HandleWrap {
 #if defined(__POSIX__) && HAVE_INSPECTOR
     if (signum == SIGPROF) {
       Environment* env = Environment::GetCurrent(args);
-      if (env->inspector_agent()->IsStarted()) {
+      if (env->inspector_agent()->IsListening()) {
         ProcessEmitWarning(env,
                            "process.on(SIGPROF) is reserved while debugging");
         return;

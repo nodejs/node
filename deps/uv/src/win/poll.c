@@ -218,7 +218,7 @@ static void uv__fast_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
   if ((handle->events & ~(handle->submitted_events_1 |
       handle->submitted_events_2)) != 0) {
     uv__fast_poll_submit_poll_req(loop, handle);
-  } else if ((handle->flags & UV__HANDLE_CLOSING) &&
+  } else if ((handle->flags & UV_HANDLE_CLOSING) &&
              handle->submitted_events_1 == 0 &&
              handle->submitted_events_2 == 0) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
@@ -228,7 +228,7 @@ static void uv__fast_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
 
 static int uv__fast_poll_set(uv_loop_t* loop, uv_poll_t* handle, int events) {
   assert(handle->type == UV_POLL);
-  assert(!(handle->flags & UV__HANDLE_CLOSING));
+  assert(!(handle->flags & UV_HANDLE_CLOSING));
   assert((events & ~(UV_READABLE | UV_WRITABLE | UV_DISCONNECT)) == 0);
 
   handle->events = events;
@@ -461,7 +461,7 @@ static void uv__slow_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
   if ((handle->events & ~(handle->submitted_events_1 |
       handle->submitted_events_2)) != 0) {
     uv__slow_poll_submit_poll_req(loop, handle);
-  } else if ((handle->flags & UV__HANDLE_CLOSING) &&
+  } else if ((handle->flags & UV_HANDLE_CLOSING) &&
              handle->submitted_events_1 == 0 &&
              handle->submitted_events_2 == 0) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
@@ -471,7 +471,7 @@ static void uv__slow_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
 
 static int uv__slow_poll_set(uv_loop_t* loop, uv_poll_t* handle, int events) {
   assert(handle->type == UV_POLL);
-  assert(!(handle->flags & UV__HANDLE_CLOSING));
+  assert(!(handle->flags & UV_HANDLE_CLOSING));
   assert((events & ~(UV_READABLE | UV_WRITABLE)) == 0);
 
   handle->events = events;
@@ -633,7 +633,7 @@ int uv_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
 
 
 void uv_poll_endgame(uv_loop_t* loop, uv_poll_t* handle) {
-  assert(handle->flags & UV__HANDLE_CLOSING);
+  assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
 
   assert(handle->submitted_events_1 == 0);

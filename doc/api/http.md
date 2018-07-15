@@ -126,6 +126,8 @@ added: v0.3.4
   * `maxFreeSockets` {number} Maximum number of sockets to leave open
     in a free state. Only relevant if `keepAlive` is set to `true`.
     **Default:** `256`.
+  * `timeout` {number} Socket timeout in milliseconds.
+    This will set the timeout after the socket is connected.
 
 The default [`http.globalAgent`][] that is used by [`http.request()`][] has all
 of these values set to their respective defaults.
@@ -1031,8 +1033,6 @@ emitted when the last segment of the response headers and body have been
 handed off to the operating system for transmission over the network. It
 does not imply that the client has received anything yet.
 
-After this event, no more events will be emitted on the response object.
-
 ### response.addTrailers(headers)
 <!-- YAML
 added: v0.3.0
@@ -1781,14 +1781,14 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/15752
     description: The `options` argument is supported now.
 -->
-- `options` {Object}
+* `options` {Object}
   * `IncomingMessage` {http.IncomingMessage} Specifies the `IncomingMessage`
     class to be used. Useful for extending the original `IncomingMessage`.
     **Default:** `IncomingMessage`.
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
-- `requestListener` {Function}
+* `requestListener` {Function}
 
 * Returns: {http.Server}
 
@@ -1798,15 +1798,20 @@ The `requestListener` is a function which is automatically
 added to the [`'request'`][] event.
 
 ## http.get(options[, callback])
+## http.get(url[, options][, callback])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21616
+    description: allow both url and options to be passed to `http.get()`
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
-* `options` {Object | string | URL} Accepts the same `options` as
+* `url` {string | URL}
+* `options` {Object} Accepts the same `options` as
   [`http.request()`][], with the `method` always set to `GET`.
   Properties that are inherited from the prototype are ignored.
 * `callback` {Function}
@@ -1870,15 +1875,20 @@ Global instance of `Agent` which is used as the default for all HTTP client
 requests.
 
 ## http.request(options[, callback])
+## http.request(url[, options][, callback])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21616
+    description: allow both url and options to be passed to `http.request()`
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
-* `options` {Object | string | URL}
+* `url` {string | URL}
+* `options` {Object}
   * `protocol` {string} Protocol to use. **Default:** `'http:'`.
   * `host` {string} A domain name or IP address of the server to issue the
     request to. **Default:** `'localhost'`.
@@ -1902,9 +1912,9 @@ changes:
     Authorization header.
   * `agent` {http.Agent | boolean} Controls [`Agent`][] behavior. Possible
     values:
-   * `undefined` (default): use [`http.globalAgent`][] for this host and port.
-   * `Agent` object: explicitly use the passed in `Agent`.
-   * `false`: causes a new `Agent` with default values to be used.
+    * `undefined` (default): use [`http.globalAgent`][] for this host and port.
+    * `Agent` object: explicitly use the passed in `Agent`.
+    * `false`: causes a new `Agent` with default values to be used.
   * `createConnection` {Function} A function that produces a socket/stream to
     use for the request when the `agent` option is not used. This can be used to
     avoid creating a custom `Agent` class just to override the default
@@ -1920,9 +1930,12 @@ changes:
 Node.js maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.
 
-`options` can be an object, a string, or a [`URL`][] object. If `options` is a
+`url` can be a string or a [`URL`][] object. If `url` is a
 string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
+
+If both `url` and `options` are specified, the objects are merged, with the
+`options` properties taking precedence.
 
 The optional `callback` parameter will be added as a one-time listener for
 the [`'response'`][] event.

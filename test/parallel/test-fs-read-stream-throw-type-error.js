@@ -65,3 +65,12 @@ fs.createReadStream(example, { start: 1, end: 5 });
 
 // Case 6: Should throw RangeError if start is greater than end
 createReadStreamErr(example, { start: 5, end: 1 }, rangeError);
+
+// Case 7: Should throw RangeError if start or end is not safe integer
+const NOT_SAFE_INTEGER = 2 ** 53;
+[
+  { start: NOT_SAFE_INTEGER, end: Infinity },
+  { start: 0, end: NOT_SAFE_INTEGER }
+].forEach((opts) =>
+  createReadStreamErr(example, opts, rangeError)
+);

@@ -116,7 +116,7 @@ uint64_t uv_hrtime(void) {
 void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
   assert(!uv__is_closing(handle));
 
-  handle->flags |= UV_CLOSING;
+  handle->flags |= UV_HANDLE_CLOSING;
   handle->close_cb = close_cb;
 
   switch (handle->type) {
@@ -214,8 +214,8 @@ int uv__socket_sockopt(uv_handle_t* handle, int optname, int* value) {
 }
 
 void uv__make_close_pending(uv_handle_t* handle) {
-  assert(handle->flags & UV_CLOSING);
-  assert(!(handle->flags & UV_CLOSED));
+  assert(handle->flags & UV_HANDLE_CLOSING);
+  assert(!(handle->flags & UV_HANDLE_CLOSED));
   handle->next_closing = handle->loop->closing_handles;
   handle->loop->closing_handles = handle;
 }
@@ -241,15 +241,17 @@ int uv__getiovmax(void) {
 
 
 static void uv__finish_close(uv_handle_t* handle) {
-  /* Note: while the handle is in the UV_CLOSING state now, it's still possible
-   * for it to be active in the sense that uv__is_active() returns true.
+  /* Note: while the handle is in the UV_HANDLE_CLOSING state now, it's still
+   * possible for it to be active in the sense that uv__is_active() returns
+   * true.
+   *
    * A good example is when the user calls uv_shutdown(), immediately followed
    * by uv_close(). The handle is considered active at this point because the
    * completion of the shutdown req is still pending.
    */
-  assert(handle->flags & UV_CLOSING);
-  assert(!(handle->flags & UV_CLOSED));
-  handle->flags |= UV_CLOSED;
+  assert(handle->flags & UV_HANDLE_CLOSING);
+  assert(!(handle->flags & UV_HANDLE_CLOSED));
+  handle->flags |= UV_HANDLE_CLOSED;
 
   switch (handle->type) {
     case UV_PREPARE:

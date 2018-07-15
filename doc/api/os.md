@@ -442,7 +442,7 @@ The following signal constants are exported by `os.constants.signals`:
   <tr>
     <td><code>SIGINT</code></td>
     <td>Sent to indicate when a user wishes to interrupt a process
-    (`(Ctrl+C)`).</td>
+    (<code>(Ctrl+C)</code>).</td>
   </tr>
   <tr>
     <td><code>SIGQUIT</code></td>
@@ -855,9 +855,9 @@ The following error constants are exported by `os.constants.errno`:
   </tr>
   <tr>
     <td><code>EOPNOTSUPP</code></td>
-    <td>Indicates that an operation is not supported on the socket.
-    Note that while `ENOTSUP` and `EOPNOTSUPP` have the same value on Linux,
-    according to POSIX.1 these error values should be distinct.)</td>
+    <td>Indicates that an operation is not supported on the socket.  Note that
+    while <code>ENOTSUP</code> and <code>EOPNOTSUPP</code> have the same value
+    on Linux, according to POSIX.1 these error values should be distinct.)</td>
   </tr>
   <tr>
     <td><code>EOVERFLOW</code></td>
@@ -1114,7 +1114,8 @@ The following error codes are specific to the Windows operating system:
   </tr>
   <tr>
     <td><code>WSAVERNOTSUPPORTED</code></td>
-    <td>Indicates that the `winsock.dll` version is out of range.</td>
+    <td>Indicates that the <code>winsock.dll</code> version is out of
+    range.</td>
   </tr>
   <tr>
     <td><code>WSANOTINITIALISED</code></td>
@@ -1197,8 +1198,8 @@ information.
   </tr>
   <tr>
     <td><code>RTLD_LOCAL</code></td>
-    <td>The converse of `RTLD_GLOBAL`. This is the default behavior if neither
-    flag is specified.</td>
+    <td>The converse of <code>RTLD_GLOBAL</code>. This is the default behavior
+    if neither flag is specified.</td>
   </tr>
   <tr>
     <td><code>RTLD_DEEPBIND</code></td>

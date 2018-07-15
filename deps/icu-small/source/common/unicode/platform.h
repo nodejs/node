@@ -197,20 +197,6 @@
 #endif
 
 /**
- * \def UPRV_INCOMPLETE_CPP11_SUPPORT
- * This switch turns off ICU 60 NumberFormatter code.
- * By default, this switch is enabled on AIX and z/OS,
- * which have poor C++11 support.
- *
- * NOTE: This switch is intended to be temporary; see #13393.
- *
- * @internal
- */
-#ifndef UPRV_INCOMPLETE_CPP11_SUPPORT
-#   define UPRV_INCOMPLETE_CPP11_SUPPORT (U_PLATFORM == U_PF_AIX || U_PLATFORM == U_PF_OS390 || U_PLATFORM == U_PF_SOLARIS )
-#endif
-
-/**
  * \def CYGWINMSVC
  * Defined if this is Windows with Cygwin, but using MSVC rather than gcc.
  * Otherwise undefined.

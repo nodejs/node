@@ -199,14 +199,10 @@ status indicator.
 
 Do not land any Pull Requests without passing (green or yellow) CI runs. If you
 believe any failed (red or grey) CI sub-tasks are unrelated to the change in the
-Pull Request, you may re-run the sub-task to try to see if it passes (just open
-the failed sub-task page and press the "Rebuild" button; be sure you are still
-logged in for this action). If re-runs of all failed sub-tasks pass (do not
-forget to provide the links for successfully rerun sub-tasks), it is permissible
-to land the Pull Request but only if the initial failures are believed in good
-faith to be unrelated to the changes in the Pull Request. Otherwise, reasonable
-steps must be taken to confirm that the changes are not resulting in an
-unreliable test.
+Pull Request, use "Resume Build" in the left navigation of the relevant
+`node-test-pull-request` job. It will create a new `node-test-pull-request` run
+that preserves all the green results from the current job but re-runs everything
+else.
 
 #### Useful CI Jobs
 

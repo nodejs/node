@@ -14,7 +14,6 @@ static const char CLIENT_CLOSE_FRAME[] = "\x88\x80\x2D\x0E\x1E\xFA";
 static const char SERVER_CLOSE_FRAME[] = "\x88\x00";
 
 static const char MAIN_TARGET_ID[] = "main-target";
-static const char UNCONNECTABLE_TARGET_ID[] = "unconnectable-target";
 
 static const char WS_HANDSHAKE_RESPONSE[] =
     "HTTP/1.1 101 Switching Protocols\r\n"
@@ -258,10 +257,6 @@ class ServerHolder {
     return server_->done();
   }
 
-  void Connected() {
-    connected++;
-  }
-
   void Disconnected() {
     disconnected++;
   }
@@ -270,9 +265,10 @@ class ServerHolder {
     delegate_done = true;
   }
 
-  void PrepareSession(int id) {
+  void Connected(int id) {
     buffer_.clear();
     session_id_ = id;
+    connected++;
   }
 
   void Received(const std::string& message) {
@@ -319,15 +315,9 @@ class TestSocketServerDelegate : public SocketServerDelegate {
 
   void StartSession(int session_id, const std::string& target_id) override {
     session_id_ = session_id;
-    harness_->PrepareSession(session_id_);
     CHECK_NE(targets_.end(),
              std::find(targets_.begin(), targets_.end(), target_id));
-    if (target_id == UNCONNECTABLE_TARGET_ID) {
-      server_->DeclineSession(session_id);
-      return;
-    }
-    harness_->Connected();
-    server_->AcceptSession(session_id);
+    harness_->Connected(session_id_);
   }
 
   void MessageReceived(int session_id, const std::string& message) override {
@@ -363,7 +353,7 @@ ServerHolder::ServerHolder(bool has_targets, uv_loop_t* loop,
                            const std::string host, int port, FILE* out) {
   std::vector<std::string> targets;
   if (has_targets)
-    targets = { MAIN_TARGET_ID, UNCONNECTABLE_TARGET_ID };
+    targets = { MAIN_TARGET_ID };
   std::unique_ptr<TestSocketServerDelegate> delegate(
       new TestSocketServerDelegate(this, targets));
   server_.reset(
@@ -413,15 +403,6 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   EXPECT_EQ(1, server.disconnected);
 
   well_behaved_socket.Close();
-
-  // Declined connection
-  SocketWrapper declined_target_socket(&loop);
-  declined_target_socket.Connect(HOST, server.port());
-  declined_target_socket.Write(WsHandshakeRequest(UNCONNECTABLE_TARGET_ID));
-  declined_target_socket.Expect("HTTP/1.0 400 Bad Request");
-  declined_target_socket.ExpectEOF();
-  EXPECT_EQ(1, server.connected);
-  EXPECT_EQ(1, server.disconnected);
 
   // Bogus target - start session callback should not even be invoked
   SocketWrapper bogus_target_socket(&loop);
@@ -491,7 +472,7 @@ TEST_F(InspectorSocketServerTest, ServerWithoutTargets) {
   // Declined connection
   SocketWrapper socket(&loop);
   socket.Connect(HOST, server.port());
-  socket.Write(WsHandshakeRequest(UNCONNECTABLE_TARGET_ID));
+  socket.Write(WsHandshakeRequest("any target id"));
   socket.Expect("HTTP/1.0 400 Bad Request");
   socket.ExpectEOF();
   server->Stop();

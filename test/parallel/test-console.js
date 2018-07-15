@@ -31,11 +31,20 @@ if (common.isMainThread) {
   assert.strictEqual(typeof process.stdout.fd, 'number');
   assert.strictEqual(typeof process.stderr.fd, 'number');
 }
-process.once('warning', common.mustCall((warning) => {
-  assert(/no such label/.test(warning.message));
-}));
 
-console.timeEnd('no such label');
+common.expectWarning(
+  'Warning',
+  [
+    ['Count for \'noLabel\' does not exist', common.noWarnCode],
+    ['No such label \'noLabel\' for console.timeLog()', common.noWarnCode],
+    ['No such label \'noLabel\' for console.timeEnd()', common.noWarnCode],
+    ['Label \'test\' already exists for console.time()', common.noWarnCode]
+  ]
+);
+
+console.countReset('noLabel');
+console.timeLog('noLabel');
+console.timeEnd('noLabel');
 
 console.time('label');
 console.timeEnd('label');
@@ -144,15 +153,16 @@ console.timeEnd(NaN);
 console.time('test');
 const time = console._times.get('test');
 setTimeout(() => {
-  common.expectWarning(
-    'Warning',
-    'Label \'test\' already exists for console.time()',
-    common.noWarnCode);
   console.time('test');
   assert.deepStrictEqual(console._times.get('test'), time);
   console.timeEnd('test');
 }, 1);
 
+console.time('log1');
+console.timeLog('log1');
+console.timeLog('log1', 'test');
+console.timeLog('log1', {}, [1, 2, 3]);
+console.timeEnd('log1');
 
 console.assert(false, '%s should', 'console.assert', 'not throw');
 assert.strictEqual(errStrings[errStrings.length - 1],
@@ -219,6 +229,14 @@ assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^NaN: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
+assert.ok(/^log1: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^log1: \d+\.\d{3}ms test$/.test(strings.shift().trim()));
+assert.ok(/^log1: \d+\.\d{3}ms {} \[ 1, 2, 3 ]$/.test(strings.shift().trim()));
+assert.ok(/^log1: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+
+// Make sure that we checked all strings
+assert.strictEqual(strings.length, 0);
+
 assert.strictEqual(errStrings.shift().split('\n').shift(),
                    'Trace: This is a {"formatted":"trace"} 10 foo');
 
@@ -229,6 +247,6 @@ common.hijackStderr(common.mustCall(function(data) {
 
   // stderr.write will catch sync error, so use `process.nextTick` here
   process.nextTick(function() {
-    assert.strictEqual(data.includes('no such label'), true);
+    assert.strictEqual(data.includes('noLabel'), true);
   });
 }));

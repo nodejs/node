@@ -91,6 +91,22 @@ $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 
+CODE_CACHE_DIR ?= out/$(BUILDTYPE)/obj/gen
+CODE_CACHE_FILE ?= $(CODE_CACHE_DIR)/node_code_cache.cc
+
+.PHONY: with-code-cache
+with-code-cache:
+	$(PYTHON) ./configure
+	$(MAKE)
+	mkdir -p $(CODE_CACHE_DIR)
+	out/$(BUILDTYPE)/$(NODE_EXE) --expose-internals tools/generate_code_cache.js $(CODE_CACHE_FILE)
+	$(PYTHON) ./configure --code-cache-path $(CODE_CACHE_FILE)
+	$(MAKE)
+
+.PHONY: test-code-cache
+test-code-cache: with-code-cache
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) code-cache
+
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
               deps/zlib/zlib.gyp deps/v8/gypfiles/toolchain.gypi \
               deps/v8/gypfiles/features.gypi deps/v8/gypfiles/v8.gyp node.gyp \
@@ -98,7 +114,12 @@ out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
 	$(PYTHON) tools/gyp_node.py -f make
 
 config.gypi: configure
-	$(error Missing or stale $@, please run ./$<)
+	@if [ -x config.status ]; then \
+		./config.status; \
+	else \
+		echo Missing or stale $@, please run ./$<; \
+		exit 1; \
+	fi
 
 .PHONY: install
 install: all ## Installs node into $PREFIX (default=/usr/local).
@@ -282,6 +303,15 @@ benchmark/napi/function_call/build/Release/binding.node: all \
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--python="$(PYTHON)" \
 		--directory="$(shell pwd)/benchmark/napi/function_call" \
+		--nodedir="$(shell pwd)"
+
+benchmark/napi/function_args/build/Release/binding.node: all \
+		benchmark/napi/function_args/napi_binding.c \
+		benchmark/napi/function_args/binding.cc \
+		benchmark/napi/function_args/binding.gyp
+	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+		--python="$(PYTHON)" \
+		--directory="$(shell pwd)/benchmark/napi/function_args" \
 		--nodedir="$(shell pwd)"
 
 # Implicitly depends on $(NODE_EXE).  We don't depend on it explicitly because
@@ -585,7 +615,7 @@ doc-only: $(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the 
 	if [ ! -d doc/api/assets ]; then \
 		$(MAKE) tools/doc/node_modules/js-yaml/package.json; \
 	fi;
-	@$(MAKE) $(apidocs_html) $(apidocs_json)
+	@$(MAKE) out/doc/api/all.html out/doc/api/all.json
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only
@@ -629,11 +659,17 @@ gen-json = tools/doc/generate.js --format=json $< > $@
 gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html \
 			--analytics=$(DOCS_ANALYTICS) $< > $@
 
-out/doc/api/%.json: doc/api/%.md
+out/doc/api/%.json: doc/api/%.md tools/doc/generate.js tools/doc/json.js
 	$(call available-node, $(gen-json))
 
-out/doc/api/%.html: doc/api/%.md
+out/doc/api/%.html: doc/api/%.md tools/doc/generate.js tools/doc/html.js
 	$(call available-node, $(gen-html))
+
+out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js
+	$(call available-node, tools/doc/allhtml.js)
+
+out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js
+	$(call available-node, tools/doc/alljson.js)
 
 .PHONY: docopen
 docopen: $(apidocs_html)

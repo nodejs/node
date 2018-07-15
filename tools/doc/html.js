@@ -36,8 +36,8 @@ marked.setOptions({ renderer });
 
 const docPath = path.resolve(__dirname, '..', '..', 'doc');
 
-const gtocPath = path.join(docPath, 'api', '_toc.md');
-const gtocMD = fs.readFileSync(gtocPath, 'utf8').replace(/^@\/\/.*$/gm, '');
+const gtocPath = path.join(docPath, 'api', 'index.md');
+const gtocMD = fs.readFileSync(gtocPath, 'utf8').replace(/^<!--.*?-->/gms, '');
 const gtocHTML = marked(gtocMD).replace(
   /<a href="(.*?)"/g,
   (all, href) => `<a class="nav-${href.replace('.html', '')
@@ -95,6 +95,8 @@ function toHTML({ input, filename, nodeVersion, analytics }, cb) {
     console.error(`Failed to add alternative version links to ${filename}`);
     HTML = HTML.replace('__ALTDOCS__', '');
   }
+
+  HTML = HTML.replace('__EDIT_ON_GITHUB__', editOnGitHub(filename));
 
   // Content insertion has to be the last thing we do with the lexed tokens,
   // because it's destructive.
@@ -261,6 +263,10 @@ function parseYAML(text) {
     html += `${added.description}${deprecated.description}\n`;
   }
 
+  if (meta.napiVersion) {
+    html += `<span>N-API version: ${meta.napiVersion.join(', ')}</span>\n`;
+  }
+
   html += '</div>';
   return html;
 }
@@ -372,4 +378,10 @@ function altDocs(filename, docCreated) {
       <ol class="version-picker">${list}</ol>
     </li>
   ` : '';
+}
+
+// eslint-disable-next-line max-len
+const githubLogo = '<span class="github_icon"><svg height="16" width="16" viewBox="0 0 16.1 16.1" fill="currentColor"><path d="M8 0a8 8 0 0 0-2.5 15.6c.4 0 .5-.2.5-.4v-1.5c-2 .4-2.5-.5-2.7-1 0-.1-.5-.9-.8-1-.3-.2-.7-.6 0-.6.6 0 1 .6 1.2.8.7 1.2 1.9 1 2.4.7 0-.5.2-.9.5-1-1.8-.3-3.7-1-3.7-4 0-.9.3-1.6.8-2.2 0-.2-.3-1 .1-2 0 0 .7-.3 2.2.7a7.4 7.4 0 0 1 4 0c1.5-1 2.2-.8 2.2-.8.5 1.1.2 2 .1 2.1.5.6.8 1.3.8 2.2 0 3-1.9 3.7-3.6 4 .3.2.5.7.5 1.4v2.2c0 .2.1.5.5.4A8 8 0 0 0 16 8a8 8 0 0 0-8-8z"/></svg></span>';
+function editOnGitHub(filename) {
+  return `<li class="edit_on_github"><a href="https://github.com/nodejs/node/edit/master/doc/api/${filename}.md">${githubLogo}Edit on GitHub</a></li>`;
 }

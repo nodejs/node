@@ -81,6 +81,13 @@ added: v9.6.0
 
 Enable experimental ES Module support in the `vm` module.
 
+### `--experimental-worker`
+<!-- YAML
+added: v10.5.0
+-->
+
+Enable experimental worker threads using the `worker_threads` module.
+
 ### `--force-fips`
 <!-- YAML
 added: v6.0.0
@@ -270,6 +277,13 @@ added: v0.11.14
 -->
 
 Throw errors for deprecations.
+
+### `--title=title`
+<!-- YAML
+added: REPLACEME
+-->
+
+Set `process.title` on startup.
 
 ### `--tls-cipher-list=list`
 <!-- YAML
@@ -532,6 +546,7 @@ Node options that are allowed are:
 - `--redirect-warnings`
 - `--require`, `-r`
 - `--throw-deprecation`
+- `--title`
 - `--tls-cipher-list`
 - `--trace-deprecation`
 - `--trace-event-categories`

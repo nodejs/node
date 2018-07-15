@@ -91,6 +91,9 @@ keyword support in REPL.
 .It Fl -experimental-vm-modules
 Enable experimental ES module support in VM module.
 .
+.It Fl -experimental-worker
+Enable experimental worker threads using worker_threads module.
+.
 .It Fl -force-fips
 Force FIPS-compliant crypto on startup
 (Cannot be disabled from script code).
@@ -163,6 +166,9 @@ instead of printing to stderr.
 .
 .It Fl -throw-deprecation
 Throw errors for deprecations.
+.
+.It Fl -title Ns = Ns Ar title
+Specify process.title on startup.
 .
 .It Fl -tls-cipher-list Ns = Ns Ar list
 Specify an alternative default TLS cipher list.

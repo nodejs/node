@@ -693,7 +693,7 @@ added: v0.1.16
 
 * {module[]}
 
-The module objects required by this one.
+The module objects required for the first time by this one.
 
 ### module.exports
 <!-- YAML

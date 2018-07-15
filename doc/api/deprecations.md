@@ -142,17 +142,17 @@ undefined `digest` will throw a `TypeError`.
 <a id="DEP0010"></a>
 ### DEP0010: crypto.createCredentials
 
-Type: Runtime
+Type: End-of-Life
 
-The [`crypto.createCredentials()`][] API is deprecated. Please use
+The `crypto.createCredentials()` API was removed. Please use
 [`tls.createSecureContext()`][] instead.
 
 <a id="DEP0011"></a>
 ### DEP0011: crypto.Credentials
 
-Type: Runtime
+Type: End-of-Life
 
-The `crypto.Credentials` class is deprecated. Please use [`tls.SecureContext`][]
+The `crypto.Credentials` class was removed. Please use [`tls.SecureContext`][]
 instead.
 
 <a id="DEP0012"></a>
@@ -350,20 +350,6 @@ The [`fs.lchmod(path, mode, callback)`][] API is deprecated.
 Type: Documentation-only
 
 The [`fs.lchmodSync(path, mode)`][] API is deprecated.
-
-<a id="DEP0037"></a>
-### DEP0037: fs.lchown(path, uid, gid, callback)
-
-Type: Documentation-only
-
-The [`fs.lchown(path, uid, gid, callback)`][] API is deprecated.
-
-<a id="DEP0038"></a>
-### DEP0038: fs.lchownSync(path, uid, gid)
-
-Type: Documentation-only
-
-The [`fs.lchownSync(path, uid, gid)`][] API is deprecated.
 
 <a id="DEP0039"></a>
 ### DEP0039: require.extensions
@@ -1005,6 +991,14 @@ accepted by the legacy `url.parse()` API. The mentioned APIs now use the WHATWG
 URL parser that requires strictly valid URLs. Passing an invalid URL is
 deprecated and support will be removed in the future.
 
+<a id="DEP0110"></a>
+### DEP0110: vm.Script cached data
+
+Type: Documentation-only
+
+The option `produceCachedData` has been deprecated. Use
+[`script.createCachedData()`][] instead.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -1026,7 +1020,6 @@ deprecated and support will be removed in the future.
 [`console.log()`]: console.html#console_console_log_data_args
 [`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password_options
 [`crypto.createCipheriv()`]: crypto.html#crypto_crypto_createcipheriv_algorithm_key_iv_options
-[`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
 [`crypto.createDecipher()`]: crypto.html#crypto_crypto_createdecipher_algorithm_password_options
 [`crypto.createDecipheriv()`]: crypto.html#crypto_crypto_createdecipheriv_algorithm_key_iv_options
 [`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
@@ -1041,11 +1034,9 @@ deprecated and support will be removed in the future.
 [`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
 [`fs.lchmod(path, mode, callback)`]: fs.html#fs_fs_lchmod_path_mode_callback
 [`fs.lchmodSync(path, mode)`]: fs.html#fs_fs_lchmodsync_path_mode
-[`fs.lchown(path, uid, gid, callback)`]: fs.html#fs_fs_lchown_path_uid_gid_callback
-[`fs.lchownSync(path, uid, gid)`]: fs.html#fs_fs_lchownsync_path_uid_gid
 [`fs.read()`]: fs.html#fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readSync()`]: fs.html#fs_fs_readsync_fd_buffer_offset_length_position
-[`fs.stat()`]: fs.html#fs_fs_stat_path_callback
+[`fs.stat()`]: fs.html#fs_fs_stat_path_options_callback
 [`http.get()`]: http.html#http_http_get_options_callback
 [`http.request()`]: http.html#http_http_request_options_callback
 [`https.get()`]: https.html#https_https_get_options_callback
@@ -1055,6 +1046,7 @@ deprecated and support will be removed in the future.
 [`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
+[`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream
@@ -1094,5 +1086,5 @@ deprecated and support will be removed in the future.
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
-[NIST SP 800-38D]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
+[NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand

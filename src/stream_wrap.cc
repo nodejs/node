@@ -97,8 +97,7 @@ LibuvStreamWrap::LibuvStreamWrap(Environment* env,
 
 
 void LibuvStreamWrap::AddMethods(Environment* env,
-                                 v8::Local<v8::FunctionTemplate> target,
-                                 int flags) {
+                                 v8::Local<v8::FunctionTemplate> target) {
   Local<FunctionTemplate> get_write_queue_size =
       FunctionTemplate::New(env->isolate(),
                             GetWriteQueueSize,
@@ -110,7 +109,7 @@ void LibuvStreamWrap::AddMethods(Environment* env,
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete));
   env->SetProtoMethod(target, "setBlocking", SetBlocking);
-  StreamBase::AddMethods<LibuvStreamWrap>(env, target, flags);
+  StreamBase::AddMethods<LibuvStreamWrap>(env, target);
 }
 
 
@@ -371,11 +370,6 @@ void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);
-}
-
-void LibuvStreamWrap::Close(v8::Local<v8::Value> close_callback) {
-  ReadStop();
-  HandleWrap::Close(close_callback);
 }
 
 }  // namespace node

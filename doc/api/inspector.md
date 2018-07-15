@@ -12,6 +12,21 @@ It can be accessed using:
 const inspector = require('inspector');
 ```
 
+## inspector.close()
+
+Deactivate the inspector. Blocks until there are no active connections.
+
+## inspector.console
+
+* {Object} An object to send messages to the remote inspector console.
+
+```js
+require('inspector').console.log('a message');
+```
+
+The inspector console does not have API parity with Node.js
+console.
+
 ## inspector.open([port[, host[, wait]]])
 
 * `port` {number} Port to listen on for inspector connections. Optional.
@@ -28,11 +43,7 @@ started.
 If wait is `true`, will block until a client has connected to the inspect port
 and flow control has been passed to the debugger client.
 
-### inspector.close()
-
-Deactivate the inspector. Blocks until there are no active connections.
-
-### inspector.url()
+## inspector.url()
 
 * Returns: {string|undefined}
 
@@ -101,6 +112,16 @@ Connects a session to the inspector back-end. An exception will be thrown
 if there is already a connected session established either through the API or by
 a front-end connected to the Inspector WebSocket port.
 
+### session.disconnect()
+<!-- YAML
+added: v8.0.0
+-->
+
+Immediately close the session. All pending message callbacks will be called
+with an error. [`session.connect()`] will need to be called to be able to send
+messages again. Reconnected session will lose all inspector state, such as
+enabled agents or configured breakpoints.
+
 ### session.post(method[, params][, callback])
 <!-- YAML
 added: v8.0.0
@@ -127,16 +148,6 @@ Node inspector supports all the Chrome DevTools Protocol domains declared
 by V8. Chrome DevTools Protocol domain provides an interface for interacting
 with one of the runtime agents used to inspect the application state and listen
 to the run-time events.
-
-### session.disconnect()
-<!-- YAML
-added: v8.0.0
--->
-
-Immediately close the session. All pending message callbacks will be called
-with an error. [`session.connect()`] will need to be called to be able to send
-messages again. Reconnected session will lose all inspector state, such as
-enabled agents or configured breakpoints.
 
 ## Example usage
 

@@ -332,7 +332,7 @@ For more information about the governance of the Node.js project, see
 * [brendanashworth](https://github.com/brendanashworth) -
 **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt;
 * [BridgeAR](https://github.com/BridgeAR) -
-**Ruben Bridgewater** &lt;ruben@bridgewater.de&gt;
+**Ruben Bridgewater** &lt;ruben@bridgewater.de&gt; (he/him)
 * [bzoz](https://github.com/bzoz) -
 **Bartosz Sosnowski** &lt;bartosz@janeasystems.com&gt;
 * [calvinmetcalf](https://github.com/calvinmetcalf) -
@@ -345,6 +345,8 @@ For more information about the governance of the Node.js project, see
 **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
+* [codebytere](https://github.com/codebytere) -
+**Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
 * [DavidCai1993](https://github.com/DavidCai1993) -
@@ -420,7 +422,7 @@ For more information about the governance of the Node.js project, see
 * [kunalspathak](https://github.com/kunalspathak) -
 **Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lance](https://github.com/lance) -
-**Lance Ball** &lt;lball@redhat.com&gt;
+**Lance Ball** &lt;lball@redhat.com&gt; (he/him)
 * [Leko](https://github.com/Leko) -
 **Shingo Inoue** &lt;leko.noor@gmail.com&gt; (he/him)
 * [lpinca](https://github.com/lpinca) -

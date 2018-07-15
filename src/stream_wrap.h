@@ -76,8 +76,6 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   ShutdownWrap* CreateShutdownWrap(v8::Local<v8::Object> object) override;
   WriteWrap* CreateWriteWrap(v8::Local<v8::Object> object) override;
 
-  void Close(v8::Local<v8::Value> close_callback) override;
-
  protected:
   LibuvStreamWrap(Environment* env,
                   v8::Local<v8::Object> object,
@@ -87,8 +85,7 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   AsyncWrap* GetAsyncWrap() override;
 
   static void AddMethods(Environment* env,
-                         v8::Local<v8::FunctionTemplate> target,
-                         int flags = StreamBase::kFlagNone);
+                         v8::Local<v8::FunctionTemplate> target);
 
  protected:
   inline void set_fd(int fd) {

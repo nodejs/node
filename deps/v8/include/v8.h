@@ -3048,6 +3048,48 @@ class V8_EXPORT Uint32 : public Integer {
 class V8_EXPORT BigInt : public Primitive {
  public:
   static Local<BigInt> New(Isolate* isolate, int64_t value);
+  static Local<BigInt> NewFromUnsigned(Isolate* isolate, uint64_t value);
+  /**
+   * Creates a new BigInt object using a specified sign bit and a
+   * specified list of digits/words.
+   * The resulting number is calculated as:
+   *
+   * (-1)^sign_bit * (words[0] * (2^64)^0 + words[1] * (2^64)^1 + ...)
+   */
+  static MaybeLocal<BigInt> NewFromWords(Local<Context> context, int sign_bit,
+                                         int word_count, const uint64_t* words);
+
+  /**
+   * Returns the value of this BigInt as an unsigned 64-bit integer.
+   * If `lossless` is provided, it will reflect whether the return value was
+   * truncated or wrapped around. In particular, it is set to `false` if this
+   * BigInt is negative.
+   */
+  uint64_t Uint64Value(bool* lossless = nullptr) const;
+
+  /**
+   * Returns the value of this BigInt as a signed 64-bit integer.
+   * If `lossless` is provided, it will reflect whether this BigInt was
+   * truncated or not.
+   */
+  int64_t Int64Value(bool* lossless = nullptr) const;
+
+  /**
+   * Returns the number of 64-bit words needed to store the result of
+   * ToWordsArray().
+   */
+  int WordCount() const;
+
+  /**
+   * Writes the contents of this BigInt to a specified memory location.
+   * `sign_bit` must be provided and will be set to 1 if this BigInt is
+   * negative.
+   * `*word_count` has to be initialized to the length of the `words` array.
+   * Upon return, it will be set to the actual number of words that would
+   * be needed to store this BigInt (i.e. the return value of `WordCount()`).
+   */
+  void ToWordsArray(int* sign_bit, int* word_count, uint64_t* words) const;
+
   V8_INLINE static BigInt* Cast(v8::Value* obj);
 
  private:

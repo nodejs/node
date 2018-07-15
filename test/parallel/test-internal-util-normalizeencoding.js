@@ -18,10 +18,16 @@ const tests = [
   ['utF-8', 'utf8'],
   ['ucs2', 'utf16le'],
   ['UCS2', 'utf16le'],
+  ['ucs-2', 'utf16le'],
+  ['UCS-2', 'utf16le'],
+  ['UcS-2', 'utf16le'],
   ['utf16le', 'utf16le'],
   ['utf-16le', 'utf16le'],
   ['UTF-16LE', 'utf16le'],
   ['UTF16LE', 'utf16le'],
+  ['usc-2', 'utf16le'],
+  ['USC-2', 'utf16le'],
+  ['uSc-2', 'utf16le'],
   ['binary', 'latin1'],
   ['BINARY', 'latin1'],
   ['latin1', 'latin1'],
@@ -36,6 +42,7 @@ const tests = [
   [NaN, undefined],
   [0, undefined],
   [[], undefined],
+  [{}, undefined]
 ];
 
 tests.forEach((e, i) => {
