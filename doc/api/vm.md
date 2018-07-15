@@ -758,7 +758,7 @@ console.log(util.inspect(sandbox));
 // { globalVar: 1024 }
 ```
 
-## vm.runInNewContext(code[, sandbox][, options])
+## vm.runInNewContext(code[, sandbox[, options]])
 <!-- YAML
 added: v0.3.1
 -->
