@@ -20,7 +20,10 @@ npm install --no-bin-links --production --no-package-lock eslint-plugin-markdown
 cd ../..
 
 # Use dmn to remove some unneeded files.
-npx dmn -f clean
+npx dmn@1.0.10 -f clean
+# Use removeNPMAbsolutePaths to remove unused data in package.json.
+# This avoids churn as absolute paths can change from one dev to another.
+npx removeNPMAbsolutePaths@1.0.4 .
 
 cd ..
 mv eslint-tmp/node_modules/eslint node_modules/eslint
