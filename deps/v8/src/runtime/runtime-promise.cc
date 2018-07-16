@@ -38,6 +38,26 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_PromiseRejectAfterResolved) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, reason, 1);
+  isolate->ReportPromiseReject(promise, reason,
+                               v8::kPromiseRejectAfterResolved);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseResolveAfterResolved) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, resolution, 1);
+  isolate->ReportPromiseReject(promise, resolution,
+                               v8::kPromiseResolveAfterResolved);
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
