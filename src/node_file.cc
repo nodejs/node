@@ -172,13 +172,11 @@ inline void FileHandle::Close() {
   // to notify that the file descriptor was gc'd. We want to be noisy about
   // this because not explicitly closing the FileHandle is a bug.
   env()->SetUnrefImmediate([](Environment* env, void* data) {
-    char msg[70];
     err_detail* detail = static_cast<err_detail*>(data);
-    snprintf(msg, arraysize(msg),
-            "Closing file descriptor %d on garbage collection",
-            detail->fd);
+    ProcessEmitWarning(env,
+                       "Closing file descriptor %d on garbage collection",
+                       detail->fd);
     delete detail;
-    ProcessEmitWarning(env, msg);
   }, detail);
 }
 
