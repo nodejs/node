@@ -3875,10 +3875,9 @@ void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
 void Isolate::ReportPromiseReject(Handle<JSPromise> promise,
                                   Handle<Object> value,
                                   v8::PromiseRejectEvent event) {
-  DCHECK_EQ(v8::Promise::kRejected, promise->status());
   if (promise_reject_callback_ == nullptr) return;
   Handle<FixedArray> stack_trace;
-  if (event == v8::kPromiseRejectWithNoHandler && value->IsJSObject()) {
+  if (event != v8::kPromiseHandlerAddedAfterReject && value->IsJSObject()) {
     stack_trace = GetDetailedStackTrace(Handle<JSObject>::cast(value));
   }
   promise_reject_callback_(v8::PromiseRejectMessage(

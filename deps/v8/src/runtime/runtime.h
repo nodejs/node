@@ -433,7 +433,9 @@ namespace internal {
   F(PromiseRevokeReject, 1, 1)         \
   F(PromiseStatus, 1, 1)               \
   F(RejectPromise, 3, 1)               \
-  F(ResolvePromise, 2, 1)
+  F(ResolvePromise, 2, 1)              \
+  F(PromiseRejectAfterResolved, 2, 1)  \
+  F(PromiseResolveAfterResolved, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F)   \
   F(CheckProxyGetSetTrapResult, 2, 1) \
