@@ -57,9 +57,11 @@ void StreamPipe::Unpipe() {
   if (is_closed_)
     return;
 
-  // Note that we cannot use virtual methods on `source` and `sink` here,
-  // because this function can be called from their destructors via
+  // Note that we possibly cannot use virtual methods on `source` and `sink`
+  // here, because this function can be called from their destructors via
   // `OnStreamDestroy()`.
+  if (!source_destroyed_)
+    source()->ReadStop();
 
   is_closed_ = true;
   is_reading_ = false;
@@ -144,7 +146,8 @@ void StreamPipe::ProcessData(size_t nread, const uv_buf_t& buf) {
     is_writing_ = true;
     is_reading_ = false;
     res.wrap->SetAllocatedStorage(buf.base, buf.len);
-    source()->ReadStop();
+    if (source() != nullptr)
+      source()->ReadStop();
   }
 }
 
@@ -183,6 +186,7 @@ void StreamPipe::WritableListener::OnStreamAfterShutdown(ShutdownWrap* w,
 
 void StreamPipe::ReadableListener::OnStreamDestroy() {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
+  pipe->source_destroyed_ = true;
   if (!pipe->is_eof_) {
     OnStreamRead(UV_EPIPE, uv_buf_init(nullptr, 0));
   }
@@ -190,6 +194,7 @@ void StreamPipe::ReadableListener::OnStreamDestroy() {
 
 void StreamPipe::WritableListener::OnStreamDestroy() {
   StreamPipe* pipe = ContainerOf(&StreamPipe::writable_listener_, this);
+  pipe->sink_destroyed_ = true;
   pipe->is_eof_ = true;
   pipe->Unpipe();
 }

@@ -23,16 +23,18 @@ class StreamPipe : public AsyncWrap {
   }
 
  private:
-  StreamBase* source();
-  StreamBase* sink();
+  inline StreamBase* source();
+  inline StreamBase* sink();
 
-  void ShutdownWritable();
-  void FlushToWritable();
+  inline void ShutdownWritable();
+  inline void FlushToWritable();
 
   bool is_reading_ = false;
   bool is_writing_ = false;
   bool is_eof_ = false;
   bool is_closed_ = true;
+  bool sink_destroyed_ = false;
+  bool source_destroyed_ = false;
 
   // Set a default value so that when we’re coming from Start(), we know
   // that we don’t want to read just yet.
