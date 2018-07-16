@@ -4,6 +4,7 @@
 #include "libplatform/v8-tracing.h"
 #include "uv.h"
 #include "v8.h"
+#include "util.h"
 
 #include <set>
 #include <string>
@@ -14,6 +15,8 @@ namespace tracing {
 
 using v8::platform::tracing::TraceConfig;
 using v8::platform::tracing::TraceObject;
+
+class Agent;
 
 class AsyncTraceWriter {
  public:
@@ -31,42 +34,58 @@ class TracingController : public v8::platform::tracing::TracingController {
   }
 };
 
+class AgentWriterHandle {
+ public:
+  inline AgentWriterHandle() {}
+  inline ~AgentWriterHandle() { reset(); }
+
+  inline AgentWriterHandle(AgentWriterHandle&& other);
+  inline AgentWriterHandle& operator=(AgentWriterHandle&& other);
+  inline bool empty() const { return agent_ == nullptr; }
+  inline void reset();
+
+ private:
+  inline AgentWriterHandle(Agent* agent, int id) : agent_(agent), id_(id) {}
+
+  AgentWriterHandle(const AgentWriterHandle& other) = delete;
+  AgentWriterHandle& operator=(const AgentWriterHandle& other) = delete;
+
+  Agent* agent_ = nullptr;
+  int id_;
+
+  friend class Agent;
+};
 
 class Agent {
  public:
-  // Resetting the pointer disconnects client
-  using ClientHandle = std::unique_ptr<std::pair<Agent*, int>,
-                                       void (*)(std::pair<Agent*, int>*)>;
-
-  static ClientHandle EmptyClientHandle() {
-    return ClientHandle(nullptr, DisconnectClient);
-  }
   explicit Agent(const std::string& log_file_pattern);
   void Stop();
 
   TracingController* GetTracingController() { return tracing_controller_; }
 
   // Destroying the handle disconnects the client
-  ClientHandle AddClient(const std::set<std::string>& categories,
-                         std::unique_ptr<AsyncTraceWriter> writer);
+  AgentWriterHandle AddClient(const std::set<std::string>& categories,
+                              std::unique_ptr<AsyncTraceWriter> writer);
 
   // These 3 methods operate on a "default" client, e.g. the file writer
   void Enable(const std::string& categories);
   void Enable(const std::set<std::string>& categories);
   void Disable(const std::set<std::string>& categories);
-  std::string GetEnabledCategories();
 
+  // Returns a comma-separated list of enabled categories.
+  std::string GetEnabledCategories() const;
+
+  // Writes to all writers registered through AddClient().
   void AppendTraceEvent(TraceObject* trace_event);
+  // Flushes all writers registered through AddClient().
   void Flush(bool blocking);
 
-  TraceConfig* CreateTraceConfig();
+  TraceConfig* CreateTraceConfig() const;
 
  private:
+  friend class AgentWriterHandle;
+
   static void ThreadCb(void* arg);
-  static void DisconnectClient(std::pair<Agent*, int>* id_agent) {
-    id_agent->first->Disconnect(id_agent->second);
-    delete id_agent;
-  }
 
   void Start();
   void StopTracing();
@@ -77,13 +96,33 @@ class Agent {
   uv_loop_t tracing_loop_;
   bool started_ = false;
 
-  std::unordered_map<int, std::set<std::string>> categories_;
-  TracingController* tracing_controller_ = nullptr;
-  ClientHandle file_writer_;
+  // Each individual Writer has one id.
   int next_writer_id_ = 1;
+  // These maps store the original arguments to AddClient(), by id.
+  std::unordered_map<int, std::set<std::string>> categories_;
   std::unordered_map<int, std::unique_ptr<AsyncTraceWriter>> writers_;
+  TracingController* tracing_controller_ = nullptr;
+  AgentWriterHandle file_writer_;
   std::multiset<std::string> file_writer_categories_;
 };
+
+void AgentWriterHandle::reset() {
+  if (agent_ != nullptr)
+    agent_->Disconnect(id_);
+  agent_ = nullptr;
+}
+
+AgentWriterHandle& AgentWriterHandle::operator=(AgentWriterHandle&& other) {
+  reset();
+  agent_ = other.agent_;
+  id_ = other.id_;
+  other.agent_ = nullptr;
+  return *this;
+}
+
+AgentWriterHandle::AgentWriterHandle(AgentWriterHandle&& other) {
+  *this = std::move(other);
+}
 
 }  // namespace tracing
 }  // namespace node

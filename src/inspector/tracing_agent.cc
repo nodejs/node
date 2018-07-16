@@ -46,9 +46,7 @@ class InspectorTraceWriter : public node::tracing::AsyncTraceWriter {
 }  // namespace
 
 TracingAgent::TracingAgent(Environment* env)
-                           : env_(env),
-                             trace_writer_(
-                                  tracing::Agent::EmptyClientHandle()) {
+                           : env_(env) {
 }
 
 TracingAgent::~TracingAgent() {
@@ -62,7 +60,7 @@ void TracingAgent::Wire(UberDispatcher* dispatcher) {
 
 DispatchResponse TracingAgent::start(
     std::unique_ptr<protocol::NodeTracing::TraceConfig> traceConfig) {
-  if (trace_writer_ != nullptr) {
+  if (!trace_writer_.empty()) {
     return DispatchResponse::Error(
         "Call NodeTracing::end to stop tracing before updating the config");
   }
