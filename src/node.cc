@@ -387,7 +387,7 @@ class NodeTraceStateObserver :
 static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
-    tracing_agent_.reset(new tracing::Agent(trace_file_pattern));
+    tracing_agent_.reset(new tracing::Agent());
     auto controller = tracing_agent_->GetTracingController();
     controller->AddTraceStateObserver(new NodeTraceStateObserver(controller));
     tracing::TraceEventHelper::SetTracingController(controller);
@@ -427,12 +427,13 @@ static struct {
 #endif  // HAVE_INSPECTOR
 
   void StartTracingAgent() {
-    tracing_agent_->Enable(trace_enabled_categories);
+    tracing_file_writer_ = tracing_agent_->AddClient(
+        trace_enabled_categories,
+        new tracing::NodeTraceWriter(trace_file_pattern));
   }
 
   void StopTracingAgent() {
-    if (tracing_agent_)
-      tracing_agent_->Stop();
+    tracing_file_writer_.reset();
   }
 
   tracing::Agent* GetTracingAgent() const {
@@ -444,6 +445,7 @@ static struct {
   }
 
   std::unique_ptr<tracing::Agent> tracing_agent_;
+  tracing::AgentWriterHandle tracing_file_writer_;
   NodePlatform* platform_;
 #else  // !NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {}
