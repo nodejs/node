@@ -44,7 +44,7 @@ using v8::platform::tracing::TraceWriter;
 using std::string;
 
 Agent::Agent(const std::string& log_file_pattern)
-    : log_file_pattern_(log_file_pattern), file_writer_(EmptyClientHandle()) {
+    : log_file_pattern_(log_file_pattern) {
   tracing_controller_ = new TracingController();
   tracing_controller_->Initialize(nullptr);
 }
@@ -62,20 +62,23 @@ void Agent::Start() {
   // This thread should be created *after* async handles are created
   // (within NodeTraceWriter and NodeTraceBuffer constructors).
   // Otherwise the thread could shut down prematurely.
-  CHECK_EQ(0, uv_thread_create(&thread_, ThreadCb, this));
+  CHECK_EQ(0, uv_thread_create(&thread_, [](void* arg) {
+    Agent* agent = static_cast<Agent*>(arg);
+    uv_run(&agent->tracing_loop_, UV_RUN_DEFAULT);
+  }, this));
   started_ = true;
 }
 
-Agent::ClientHandle Agent::AddClient(const std::set<std::string>& categories,
-                                     std::unique_ptr<AsyncTraceWriter> writer) {
+AgentWriterHandle Agent::AddClient(
+    const std::set<std::string>& categories,
+    std::unique_ptr<AsyncTraceWriter> writer) {
   Start();
   ScopedSuspendTracing suspend(tracing_controller_, this);
   int id = next_writer_id_++;
   writers_[id] = std::move(writer);
   categories_[id] = categories;
 
-  auto client_id = new std::pair<Agent*, int>(this, id);
-  return ClientHandle(client_id, &DisconnectClient);
+  return AgentWriterHandle(this, id);
 }
 
 void Agent::Stop() {
@@ -101,36 +104,27 @@ void Agent::Disconnect(int client) {
   categories_.erase(client);
 }
 
-// static
-void Agent::ThreadCb(void* arg) {
-  Agent* agent = static_cast<Agent*>(arg);
-  uv_run(&agent->tracing_loop_, UV_RUN_DEFAULT);
-}
-
 void Agent::Enable(const std::string& categories) {
   if (categories.empty())
     return;
   std::set<std::string> categories_set;
-  std::stringstream category_list(categories);
+  std::istringstream category_list(categories);
   while (category_list.good()) {
     std::string category;
     getline(category_list, category, ',');
-    categories_set.insert(category);
+    categories_set.emplace(std::move(category));
   }
   Enable(categories_set);
 }
 
 void Agent::Enable(const std::set<std::string>& categories) {
-  std::string cats;
-  for (const std::string cat : categories)
-    cats += cat + ", ";
   if (categories.empty())
     return;
 
   file_writer_categories_.insert(categories.begin(), categories.end());
   std::set<std::string> full_list(file_writer_categories_.begin(),
                                   file_writer_categories_.end());
-  if (!file_writer_) {
+  if (file_writer_.empty()) {
     // Ensure background thread is running
     Start();
     std::unique_ptr<NodeTraceWriter> writer(
@@ -138,24 +132,24 @@ void Agent::Enable(const std::set<std::string>& categories) {
     file_writer_ = AddClient(full_list, std::move(writer));
   } else {
     ScopedSuspendTracing suspend(tracing_controller_, this);
-    categories_[file_writer_->second] = full_list;
+    categories_[file_writer_.id_] = full_list;
   }
 }
 
 void Agent::Disable(const std::set<std::string>& categories) {
-  for (auto category : categories) {
+  for (const std::string& category : categories) {
     auto it = file_writer_categories_.find(category);
     if (it != file_writer_categories_.end())
       file_writer_categories_.erase(it);
   }
-  if (!file_writer_)
+  if (file_writer_.empty())
     return;
   ScopedSuspendTracing suspend(tracing_controller_, this);
-  categories_[file_writer_->second] = { file_writer_categories_.begin(),
-                                        file_writer_categories_.end() };
+  categories_[file_writer_.id_] = { file_writer_categories_.begin(),
+                                    file_writer_categories_.end() };
 }
 
-TraceConfig* Agent::CreateTraceConfig() {
+TraceConfig* Agent::CreateTraceConfig() const {
   if (categories_.empty())
     return nullptr;
   TraceConfig* trace_config = new TraceConfig();
@@ -165,9 +159,9 @@ TraceConfig* Agent::CreateTraceConfig() {
   return trace_config;
 }
 
-std::string Agent::GetEnabledCategories() {
+std::string Agent::GetEnabledCategories() const {
   std::string categories;
-  for (const auto& category : flatten(categories_)) {
+  for (const std::string& category : flatten(categories_)) {
     if (!categories.empty())
       categories += ',';
     categories += category;
