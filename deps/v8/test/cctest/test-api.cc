@@ -17625,6 +17625,8 @@ TEST(RethrowBogusErrorStackTrace) {
 v8::PromiseRejectEvent reject_event = v8::kPromiseRejectWithNoHandler;
 int promise_reject_counter = 0;
 int promise_revoke_counter = 0;
+int promise_reject_after_resolved_counter = 0;
+int promise_resolve_after_resolved_counter = 0;
 int promise_reject_msg_line_number = -1;
 int promise_reject_msg_column_number = -1;
 int promise_reject_line_number = -1;
@@ -17634,40 +17636,56 @@ int promise_reject_frame_count = -1;
 void PromiseRejectCallback(v8::PromiseRejectMessage reject_message) {
   v8::Local<v8::Object> global = CcTest::global();
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  CHECK_EQ(v8::Promise::PromiseState::kRejected,
+  CHECK_NE(v8::Promise::PromiseState::kPending,
            reject_message.GetPromise()->State());
-  if (reject_message.GetEvent() == v8::kPromiseRejectWithNoHandler) {
-    promise_reject_counter++;
-    global->Set(context, v8_str("rejected"), reject_message.GetPromise())
-        .FromJust();
-    global->Set(context, v8_str("value"), reject_message.GetValue()).FromJust();
-    v8::Local<v8::Message> message = v8::Exception::CreateMessage(
-        CcTest::isolate(), reject_message.GetValue());
-    v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
+  switch (reject_message.GetEvent()) {
+    case v8::kPromiseRejectWithNoHandler: {
+      promise_reject_counter++;
+      global->Set(context, v8_str("rejected"), reject_message.GetPromise())
+          .FromJust();
+      global->Set(context, v8_str("value"), reject_message.GetValue())
+          .FromJust();
+      v8::Local<v8::Message> message = v8::Exception::CreateMessage(
+          CcTest::isolate(), reject_message.GetValue());
+      v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
 
-    promise_reject_msg_line_number = message->GetLineNumber(context).FromJust();
-    promise_reject_msg_column_number =
-        message->GetStartColumn(context).FromJust() + 1;
+      promise_reject_msg_line_number =
+          message->GetLineNumber(context).FromJust();
+      promise_reject_msg_column_number =
+          message->GetStartColumn(context).FromJust() + 1;
 
-    if (!stack_trace.IsEmpty()) {
-      promise_reject_frame_count = stack_trace->GetFrameCount();
-      if (promise_reject_frame_count > 0) {
-        CHECK(stack_trace->GetFrame(0)
-                  ->GetScriptName()
-                  ->Equals(context, v8_str("pro"))
-                  .FromJust());
-        promise_reject_line_number = stack_trace->GetFrame(0)->GetLineNumber();
-        promise_reject_column_number = stack_trace->GetFrame(0)->GetColumn();
-      } else {
-        promise_reject_line_number = -1;
-        promise_reject_column_number = -1;
+      if (!stack_trace.IsEmpty()) {
+        promise_reject_frame_count = stack_trace->GetFrameCount();
+        if (promise_reject_frame_count > 0) {
+          CHECK(stack_trace->GetFrame(0)
+                    ->GetScriptName()
+                    ->Equals(context, v8_str("pro"))
+                    .FromJust());
+          promise_reject_line_number =
+              stack_trace->GetFrame(0)->GetLineNumber();
+          promise_reject_column_number = stack_trace->GetFrame(0)->GetColumn();
+        } else {
+          promise_reject_line_number = -1;
+          promise_reject_column_number = -1;
+        }
       }
+      break;
     }
-  } else {
-    promise_revoke_counter++;
-    global->Set(context, v8_str("revoked"), reject_message.GetPromise())
-        .FromJust();
-    CHECK(reject_message.GetValue().IsEmpty());
+    case v8::kPromiseHandlerAddedAfterReject: {
+      promise_revoke_counter++;
+      global->Set(context, v8_str("revoked"), reject_message.GetPromise())
+          .FromJust();
+      CHECK(reject_message.GetValue().IsEmpty());
+      break;
+    }
+    case v8::kPromiseRejectAfterResolved: {
+      promise_reject_after_resolved_counter++;
+      break;
+    }
+    case v8::kPromiseResolveAfterResolved: {
+      promise_resolve_after_resolved_counter++;
+      break;
+    }
   }
 }
 
@@ -17690,6 +17708,8 @@ v8::Local<v8::Value> RejectValue() {
 void ResetPromiseStates() {
   promise_reject_counter = 0;
   promise_revoke_counter = 0;
+  promise_reject_after_resolved_counter = 0;
+  promise_resolve_after_resolved_counter = 0;
   promise_reject_msg_line_number = -1;
   promise_reject_msg_column_number = -1;
   promise_reject_line_number = -1;
@@ -17914,6 +17934,40 @@ TEST(PromiseRejectCallback) {
   CHECK_EQ(3, promise_reject_counter);
   CHECK_EQ(0, promise_revoke_counter);
   CHECK(RejectValue()->Equals(env.local(), v8_str("sss")).FromJust());
+
+  ResetPromiseStates();
+
+  // Swallowed exceptions in the Promise constructor.
+  CompileRun(
+      "var v0 = new Promise(\n"
+      "  function(res, rej) {\n"
+      "    res(1);\n"
+      "    throw new Error();\n"
+      "  }\n"
+      ");\n");
+  CHECK(!GetPromise("v0")->HasHandler());
+  CHECK_EQ(0, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+  CHECK_EQ(1, promise_reject_after_resolved_counter);
+  CHECK_EQ(0, promise_resolve_after_resolved_counter);
+
+  ResetPromiseStates();
+
+  // Duplication resolve.
+  CompileRun(
+      "var r;\n"
+      "var y0 = new Promise(\n"
+      "  function(res, rej) {\n"
+      "    r = res;\n"
+      "    throw new Error();\n"
+      "  }\n"
+      ");\n"
+      "r(1);\n");
+  CHECK(!GetPromise("y0")->HasHandler());
+  CHECK_EQ(1, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+  CHECK_EQ(0, promise_reject_after_resolved_counter);
+  CHECK_EQ(1, promise_resolve_after_resolved_counter);
 
   // Test stack frames.
   env->GetIsolate()->SetCaptureStackTraceForUncaughtExceptions(true);
