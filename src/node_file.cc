@@ -223,7 +223,7 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
     closing_ = true;
     CloseReq* req = new CloseReq(env(), promise, object());
     auto AfterClose = uv_fs_callback_t{[](uv_fs_t* req) {
-      CloseReq* close = static_cast<CloseReq*>(req->data);
+      CloseReq* close = CloseReq::from_req(req);
       CHECK_NOT_NULL(close);
       close->file_handle()->AfterClose();
       Isolate* isolate = close->env()->isolate();
@@ -477,7 +477,7 @@ bool FSReqAfterScope::Proceed() {
 }
 
 void AfterNoArgs(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed())
@@ -485,7 +485,7 @@ void AfterNoArgs(uv_fs_t* req) {
 }
 
 void AfterStat(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
@@ -494,7 +494,7 @@ void AfterStat(uv_fs_t* req) {
 }
 
 void AfterInteger(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed())
@@ -502,7 +502,7 @@ void AfterInteger(uv_fs_t* req) {
 }
 
 void AfterOpenFileHandle(uv_fs_t* req) {
-  FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
@@ -512,7 +512,7 @@ void AfterOpenFileHandle(uv_fs_t* req) {
 }
 
 void AfterStringPath(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   MaybeLocal<Value> link;
@@ -531,7 +531,7 @@ void AfterStringPath(uv_fs_t* req) {
 }
 
 void AfterStringPtr(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   MaybeLocal<Value> link;
@@ -550,7 +550,7 @@ void AfterStringPtr(uv_fs_t* req) {
 }
 
 void AfterScanDir(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
