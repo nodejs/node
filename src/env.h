@@ -35,7 +35,6 @@
 #include "v8.h"
 #include "node.h"
 #include "node_http2_state.h"
-#include "tracing/agent.h"
 
 #include <list>
 #include <stdint.h>
@@ -53,6 +52,10 @@ class FileHandleReadWrap;
 
 namespace performance {
 class performance_state;
+}
+
+namespace tracing {
+class Agent;
 }
 
 namespace worker {

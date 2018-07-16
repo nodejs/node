@@ -32,7 +32,6 @@
 #include "v8.h"
 #include "node_perf_common.h"
 #include "node_context_data.h"
-#include "tracing/agent.h"
 #include "node_worker.h"
 
 #include <stddef.h>
