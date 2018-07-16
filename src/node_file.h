@@ -68,6 +68,10 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
 
   bool use_bigint() const { return use_bigint_; }
 
+  static FSReqBase* from_req(uv_fs_t* req) {
+    return static_cast<FSReqBase*>(ReqWrap::from_req(req));
+  }
+
  private:
   enum encoding encoding_ = UTF8;
   bool has_data_ = false;
@@ -283,6 +287,10 @@ class FileHandle : public AsyncWrap, public StreamBase {
     void Resolve();
 
     void Reject(Local<Value> reason);
+
+    static CloseReq* from_req(uv_fs_t* req) {
+      return static_cast<CloseReq*>(ReqWrap::from_req(req));
+    }
 
    private:
     Persistent<Promise> promise_;
