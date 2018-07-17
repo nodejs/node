@@ -415,7 +415,7 @@ console.timeEnd('100-elements');
 
 ### console.timeLog([label][, ...data])
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 * `label` {string} **Default:** `'default'`
 * `...data` {any}
