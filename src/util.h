@@ -36,6 +36,7 @@
 
 #include <string>
 #include <functional>  // std::function
+#include <set>
 
 namespace node {
 
@@ -475,6 +476,8 @@ struct FunctionDeleter {
 
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
+
+std::set<std::string> ParseCommaSeparatedSet(const std::string& in);
 
 }  // namespace node
 
