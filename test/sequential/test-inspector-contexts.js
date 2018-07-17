@@ -151,5 +151,4 @@ async function testBreakpointHit() {
   await pausedPromise;
 }
 
-common.crashOnUnhandledRejection();
 testContextCreatedAndDestroyed().then(testBreakpointHit);

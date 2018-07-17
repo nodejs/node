@@ -4,8 +4,6 @@ const assert = require('assert');
 
 const dnsPromises = require('dns').promises;
 
-common.crashOnUnhandledRejection();
-
 // Error when rrtype is invalid.
 {
   const rrtype = 'DUMMY';

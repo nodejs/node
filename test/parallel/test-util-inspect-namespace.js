@@ -2,10 +2,8 @@
 
 // Flags: --experimental-vm-modules
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
-
-common.crashOnUnhandledRejection();
 
 const { Module } = require('vm');
 const { inspect } = require('util');

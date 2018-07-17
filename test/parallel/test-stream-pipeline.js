@@ -9,8 +9,6 @@ const http = require('http');
 const http2 = require('http2');
 const { promisify } = require('util');
 
-common.crashOnUnhandledRejection();
-
 {
   let finished = false;
   const processed = [];

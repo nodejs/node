@@ -4,8 +4,6 @@ const assert = require('assert');
 const child_process = require('child_process');
 const { promisify } = require('util');
 
-common.crashOnUnhandledRejection();
-
 const exec = promisify(child_process.exec);
 const execFile = promisify(child_process.execFile);
 

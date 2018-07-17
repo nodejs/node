@@ -54,8 +54,6 @@ async function test() {
   console.log('Sessions were disconnected');
 }
 
-common.crashOnUnhandledRejection();
-
 const interval = setInterval(() => {}, 1000);
 test().then(() => {
   clearInterval(interval);

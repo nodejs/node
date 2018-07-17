@@ -4,8 +4,6 @@ const common = require('../common');
 const { Readable } = require('stream');
 const assert = require('assert');
 
-common.crashOnUnhandledRejection();
-
 async function tests() {
   await (async function() {
     console.log('read without for..await');

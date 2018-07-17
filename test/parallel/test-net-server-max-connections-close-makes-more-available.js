@@ -1,9 +1,8 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const net = require('net');
-common.crashOnUnhandledRejection();
 
 // Sets the server's maxConnections property to 1.
 // Open 2 connections (connection 0 and connection 1).
@@ -83,9 +82,4 @@ process.on('exit', function() {
   assert.deepStrictEqual(sent, ['0', '1', '2', '3']);
   // ...but that only connections 0 and 2 were successful.
   assert.deepStrictEqual(received, ['0', '2']);
-});
-
-process.on('unhandledRejection', function() {
-  console.error('promise rejected');
-  assert.fail('A promise in the chain rejected');
 });
