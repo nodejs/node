@@ -612,7 +612,6 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     memcpy(ts_obj_data + start, *str, MIN(str_length, fill_length));
 
   } else {
-    str_length = str_obj->Length();
     // Write initial String to Buffer, then use that memory to copy remainder
     // of string. Correct the string length for cases like HEX where less than
     // the total string length is written.
