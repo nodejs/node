@@ -3,6 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const http2 = require('http2');
 const net = require('net');
 
@@ -12,6 +13,7 @@ const {
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
+  stream.on('error', (err) => assert.strictEqual(err.code, 'ECONNRESET'));
   stream.respondWithFile(process.execPath, {
     [HTTP2_HEADER_CONTENT_TYPE]: 'application/octet-stream'
   });
@@ -22,16 +24,9 @@ server.listen(0, common.mustCall(() => {
   const req = client.request();
 
   req.on('response', common.mustCall(() => {}));
-  req.on('data', common.mustCall(() => {
+  req.on('data', common.mustCallAtLeast(() => {
     net.Socket.prototype.destroy.call(client.socket);
     server.close();
   }));
   req.end();
 }));
-
-// TODO(addaleax): This is a *hack*. HTTP/2 needs to have a proper way of
-// dealing with this kind of issue.
-process.once('uncaughtException', (err) => {
-  if (err.code === 'ECONNRESET') return;
-  throw err;
-});
