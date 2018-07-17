@@ -1695,7 +1695,7 @@ The JavaScript `Number` type is described in
 
 #### napi_create_bigint_int64
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -1716,7 +1716,7 @@ This API converts the C `int64_t` type to the JavaScript `BigInt` type.
 
 #### napi_create_bigint_uint64
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -1737,7 +1737,7 @@ This API converts the C `uint64_t` type to the JavaScript `BigInt` type.
 
 #### napi_create_bigint_words
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -2051,7 +2051,7 @@ This API returns the C double primitive equivalent of the given JavaScript
 
 #### napi_get_value_bigint_int64
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -2079,7 +2079,7 @@ This API returns the C `int64_t` primitive equivalent of the given JavaScript
 
 #### napi_get_value_bigint_uint64
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -2107,7 +2107,7 @@ This API returns the C `uint64_t` primitive equivalent of the given JavaScript
 
 #### napi_get_value_bigint_words
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 
 > Stability: 1 - Experimental

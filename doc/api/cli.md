@@ -280,7 +280,7 @@ Throw errors for deprecations.
 
 ### `--title=title`
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 
 Set `process.title` on startup.

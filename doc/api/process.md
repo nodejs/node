@@ -1196,7 +1196,7 @@ setTimeout(() => {
 
 ## process.hrtime.bigint()
 <!-- YAML
-added: REPLACEME
+added: v10.7.0
 -->
 
 * Returns: {bigint}
