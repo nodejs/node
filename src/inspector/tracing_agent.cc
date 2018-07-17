@@ -74,10 +74,11 @@ DispatchResponse TracingAgent::start(
   if (categories_set.empty())
     return DispatchResponse::Error("At least one category should be enabled");
 
-  trace_writer_ = env_->tracing_agent()->AddClient(
+  trace_writer_ = env_->tracing_agent_writer()->agent()->AddClient(
       categories_set,
       std::unique_ptr<InspectorTraceWriter>(
-          new InspectorTraceWriter(frontend_.get())));
+          new InspectorTraceWriter(frontend_.get())),
+      tracing::Agent::kIgnoreDefaultCategories);
   return DispatchResponse::OK();
 }
 
