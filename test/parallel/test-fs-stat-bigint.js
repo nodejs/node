@@ -8,7 +8,6 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const { isDate } = require('util').types;
 
-common.crashOnUnhandledRejection();
 tmpdir.refresh();
 
 const fn = path.join(tmpdir.path, 'test-file');

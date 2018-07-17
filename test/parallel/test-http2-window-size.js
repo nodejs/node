@@ -10,7 +10,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
-common.crashOnUnhandledRejection();
 
 // Given a list of buffers and an initial window size, have a server write
 // each buffer to the HTTP2 Writable stream, and let the client verify that

@@ -9,6 +9,7 @@ const { strictEqual } = require('assert');
 const eyecatcher = 'nou, houdoe he?';
 
 if (process.argv[2] === 'child') {
+  common.disableCrashOnUnhandledRejection();
   const { Session } = require('inspector');
   const { promisify } = require('util');
   const { registerAsyncHook } = process.binding('inspector');

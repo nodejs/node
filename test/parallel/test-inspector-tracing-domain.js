@@ -65,6 +65,4 @@ async function test() {
   console.log('Success');
 }
 
-common.crashOnUnhandledRejection();
-
 test();

@@ -23,8 +23,6 @@
 const common = require('../common');
 const assert = require('assert');
 
-common.crashOnUnhandledRejection();
-
 const dns = require('dns');
 const dnsPromises = dns.promises;
 

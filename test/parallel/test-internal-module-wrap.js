@@ -2,8 +2,7 @@
 
 // Flags: --expose-internals
 
-const common = require('../common');
-common.crashOnUnhandledRejection();
+require('../common');
 const assert = require('assert');
 
 const { ModuleWrap } = require('internal/test/binding');

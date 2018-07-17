@@ -24,7 +24,6 @@ const common = require('../common');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const http = require('http');
-common.crashOnUnhandledRejection();
 
 const N = 4;
 const M = 4;

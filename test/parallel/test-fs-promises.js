@@ -32,16 +32,13 @@ const {
 
 const tmpDir = tmpdir.path;
 
-common.crashOnUnhandledRejection();
-
 // fs.promises should not be enumerable as long as it causes a warning to be
 // emitted.
 assert.strictEqual(Object.keys(fs).includes('promises'), false);
 
 {
   access(__filename, 'r')
-    .then(common.mustCall())
-    .catch(common.mustNotCall());
+    .then(common.mustCall());
 
   access('this file does not exist', 'r')
     .then(common.mustNotCall())

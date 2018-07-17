@@ -815,9 +815,10 @@ exports.getBufferSources = function getBufferSources(buf) {
 };
 
 // Crash the process on unhandled rejections.
-exports.crashOnUnhandledRejection = function() {
-  process.on('unhandledRejection',
-             (err) => process.nextTick(() => { throw err; }));
+const crashOnUnhandledRejection = (err) => { throw err; };
+process.on('unhandledRejection', crashOnUnhandledRejection);
+exports.disableCrashOnUnhandledRejection = function() {
+  process.removeListener('unhandledRejection', crashOnUnhandledRejection);
 };
 
 exports.getTTYfd = function getTTYfd() {

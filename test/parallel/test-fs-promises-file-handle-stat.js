@@ -11,7 +11,6 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 
 tmpdir.refresh();
-common.crashOnUnhandledRejection();
 
 async function validateStat() {
   const filePath = path.resolve(tmpdir.path, 'tmp-read-file.txt');

@@ -30,8 +30,6 @@ const isIPv6 = net.isIPv6;
 const util = require('util');
 const dnsPromises = dns.promises;
 
-common.crashOnUnhandledRejection();
-
 let expected = 0;
 let completed = 0;
 let running = false;

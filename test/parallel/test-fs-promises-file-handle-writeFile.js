@@ -13,7 +13,6 @@ const assert = require('assert');
 const tmpDir = tmpdir.path;
 
 tmpdir.refresh();
-common.crashOnUnhandledRejection();
 
 async function validateWriteFile() {
   const filePathForHandle = path.resolve(tmpDir, 'tmp-write-file2.txt');

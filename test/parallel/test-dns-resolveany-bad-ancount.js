@@ -6,8 +6,6 @@ const assert = require('assert');
 const dgram = require('dgram');
 const dnsPromises = dns.promises;
 
-common.crashOnUnhandledRejection();
-
 const server = dgram.createSocket('udp4');
 
 server.on('message', common.mustCall((msg, { address, port }) => {
