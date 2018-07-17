@@ -6,8 +6,6 @@ const async_hooks = require('async_hooks');
 if (!common.isMainThread)
   common.skip('Worker bootstrapping works differently -> different async IDs');
 
-common.crashOnUnhandledRejection();
-
 const promiseAsyncIds = [];
 
 async_hooks.createHook({

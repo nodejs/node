@@ -7,8 +7,6 @@ const net = require('net');
 const util = require('util');
 const isIPv4 = net.isIPv4;
 
-common.crashOnUnhandledRejection();
-
 const dnsPromises = dns.promises;
 let running = false;
 const queue = [];

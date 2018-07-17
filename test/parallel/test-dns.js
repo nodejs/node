@@ -26,8 +26,6 @@ const assert = require('assert');
 const dns = require('dns');
 const dnsPromises = dns.promises;
 
-common.crashOnUnhandledRejection();
-
 const existing = dns.getServers();
 assert(existing.length > 0);
 

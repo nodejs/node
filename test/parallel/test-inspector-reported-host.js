@@ -7,8 +7,6 @@ common.skipIfInspectorDisabled();
 const assert = require('assert');
 const { NodeInstance } = require('../common/inspector-helper.js');
 
-common.crashOnUnhandledRejection();
-
 async function test() {
   const madeUpHost = '111.111.111.111:11111';
   const child = new NodeInstance(undefined, 'var a = 1');

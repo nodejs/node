@@ -6,8 +6,6 @@ const assert = require('assert');
 const dgram = require('dgram');
 const dnsPromises = dns.promises;
 
-common.crashOnUnhandledRejection();
-
 const answers = [
   { type: 'A', address: '1.2.3.4', ttl: 123 },
   { type: 'AAAA', address: '::42', ttl: 123 },

@@ -5,8 +5,6 @@ const cares = process.binding('cares_wrap');
 const dns = require('dns');
 const dnsPromises = dns.promises;
 
-common.crashOnUnhandledRejection();
-
 // Stub `getaddrinfo` to *always* error.
 cares.getaddrinfo = () => process.binding('uv').UV_ENOENT;
 

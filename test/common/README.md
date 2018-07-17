@@ -55,12 +55,13 @@ symlinks
 ([SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
 On non-Windows platforms, this always returns `true`.
 
-### crashOnUnhandledRejection()
+### disableCrashOnUnhandledRejection()
 
-Installs a `process.on('unhandledRejection')` handler that crashes the process
-after a tick. This is useful for tests that use Promises and need to make sure
-no unexpected rejections occur, because currently they result in silent
-failures.
+Removes the `process.on('unhandledRejection')` handler that crashes the process
+after a tick. The handler is useful for tests that use Promises and need to make
+sure no unexpected rejections occur, because currently they result in silent
+failures. However, it is useful in some rare cases to disable it, for example if
+the `unhandledRejection` hook is directly used by the test.
 
 ### ddCommand(filename, kilobytes)
 * return [&lt;Object>]

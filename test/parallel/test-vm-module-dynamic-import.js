@@ -3,7 +3,6 @@
 // Flags: --experimental-vm-modules --experimental-modules --harmony-dynamic-import
 
 const common = require('../common');
-common.crashOnUnhandledRejection();
 
 const assert = require('assert');
 const { Module, createContext } = require('vm');

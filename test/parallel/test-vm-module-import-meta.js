@@ -6,8 +6,6 @@ const common = require('../common');
 const assert = require('assert');
 const { Module } = require('vm');
 
-common.crashOnUnhandledRejection();
-
 async function testBasic() {
   const m = new Module('import.meta;', {
     initializeImportMeta: common.mustCall((meta, module) => {

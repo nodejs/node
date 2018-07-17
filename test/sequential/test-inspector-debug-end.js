@@ -42,6 +42,4 @@ async function runTest() {
   await testSessionNoCrash();
 }
 
-common.crashOnUnhandledRejection();
-
 runTest();

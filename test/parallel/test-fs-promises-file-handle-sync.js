@@ -1,13 +1,11 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 
 const { access, copyFile, open } = require('fs').promises;
 const path = require('path');
-
-common.crashOnUnhandledRejection();
 
 async function validateSync() {
   tmpdir.refresh();

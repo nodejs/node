@@ -1,13 +1,11 @@
 // Flags: --harmony-bigint --experimental-vm-modules
 'use strict';
-const common = require('../common');
+require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { types, inspect } = require('util');
 const vm = require('vm');
 const { JSStream } = process.binding('js_stream');
-
-common.crashOnUnhandledRejection();
 
 const external = (new JSStream())._externalStream;
 const wasmBuffer = fixtures.readSync('test.wasm');

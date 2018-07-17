@@ -26,8 +26,6 @@ const assert = require('assert');
 const net = require('net');
 const repl = require('repl');
 
-common.crashOnUnhandledRejection();
-
 const message = 'Read, Eval, Print Loop';
 const prompt_unix = 'node via Unix socket> ';
 const prompt_tcp = 'node via TCP socket> ';

@@ -7,7 +7,6 @@ const { open, readFile } = require('fs').promises;
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
-common.crashOnUnhandledRejection();
 
 async function validateTruncate() {
   const text = 'Hello world';

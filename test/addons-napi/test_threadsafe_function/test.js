@@ -12,8 +12,6 @@ const expectedArray = (function(arrayLength) {
   return result;
 })(binding.ARRAY_LENGTH);
 
-common.crashOnUnhandledRejection();
-
 // Handle the rapid teardown test case as the child process. We unref the
 // thread-safe function after we have received two values. This causes the
 // process to exit and the environment cleanup handler to be invoked.
