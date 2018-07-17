@@ -77,8 +77,13 @@ void NodeTraceWriter::OpenNewFileForStreaming() {
 
   fd_ = uv_fs_open(tracing_loop_, &req, filepath.c_str(),
       O_CREAT | O_WRONLY | O_TRUNC, 0644, nullptr);
-  CHECK_NE(fd_, -1);
   uv_fs_req_cleanup(&req);
+  if (fd_ < 0) {
+    fprintf(stderr, "Could not open trace file %s: %s\n",
+                    filepath.c_str(),
+                    uv_strerror(fd_));
+    fd_ = -1;
+  }
 }
 
 void NodeTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
@@ -145,6 +150,7 @@ void NodeTraceWriter::Flush(bool blocking) {
 }
 
 void NodeTraceWriter::WriteToFile(std::string&& str, int highest_request_id) {
+  if (fd_ == -1) return;
   WriteRequest* write_req = new WriteRequest();
   write_req->str = std::move(str);
   write_req->writer = this;
