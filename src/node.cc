@@ -61,6 +61,7 @@
 #include "req_wrap-inl.h"
 #include "string_bytes.h"
 #include "tracing/agent.h"
+#include "tracing/node_trace_writer.h"
 #include "util.h"
 #include "uv.h"
 #if NODE_USE_V8_PLATFORM
@@ -427,17 +428,24 @@ static struct {
 #endif  // HAVE_INSPECTOR
 
   void StartTracingAgent() {
-    tracing_file_writer_ = tracing_agent_->AddClient(
-        trace_enabled_categories,
-        new tracing::NodeTraceWriter(trace_file_pattern));
+    if (trace_enabled_categories.empty()) {
+      tracing_file_writer_ = tracing_agent_->DefaultHandle();
+    } else {
+      tracing_file_writer_ = tracing_agent_->AddClient(
+          ParseCommaSeparatedSet(trace_enabled_categories),
+          std::unique_ptr<tracing::AsyncTraceWriter>(
+              new tracing::NodeTraceWriter(trace_file_pattern,
+                                           tracing_agent_->loop())),
+          tracing::Agent::kUseDefaultCategories);
+    }
   }
 
   void StopTracingAgent() {
     tracing_file_writer_.reset();
   }
 
-  tracing::Agent* GetTracingAgent() const {
-    return tracing_agent_.get();
+  tracing::AgentWriterHandle* GetTracingAgentWriter() {
+    return &tracing_file_writer_;
   }
 
   NodePlatform* Platform() {
@@ -466,7 +474,9 @@ static struct {
   }
   void StopTracingAgent() {}
 
-  tracing::Agent* GetTracingAgent() const { return nullptr; }
+  tracing::AgentWriterHandle* GetTracingAgentWriter() {
+    return nullptr;
+  }
 
   NodePlatform* Platform() {
     return nullptr;
@@ -3590,7 +3600,7 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
   auto env = new Environment(isolate_data, context,
-                             v8_platform.GetTracingAgent());
+                             v8_platform.GetTracingAgentWriter());
   env->Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
   return env;
 }
@@ -3649,7 +3659,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   HandleScope handle_scope(isolate);
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
-  Environment env(isolate_data, context, v8_platform.GetTracingAgent());
+  Environment env(isolate_data, context, v8_platform.GetTracingAgentWriter());
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
   const char* path = argc > 1 ? argv[1] : nullptr;

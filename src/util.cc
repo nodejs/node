@@ -24,6 +24,7 @@
 #include "node_internals.h"
 #include "uv.h"
 #include <stdio.h>
+#include <sstream>
 
 namespace node {
 
@@ -116,6 +117,19 @@ void GetHumanReadableProcessName(char (*name)[1024]) {
   char title[1024] = "Node.js";
   uv_get_process_title(title, sizeof(title));
   snprintf(*name, sizeof(*name), "%s[%d]", title, uv_os_getpid());
+}
+
+std::set<std::string> ParseCommaSeparatedSet(const std::string& in) {
+  std::set<std::string> out;
+  if (in.empty())
+    return out;
+  std::istringstream in_stream(in);
+  while (in_stream.good()) {
+    std::string item;
+    getline(in_stream, item, ',');
+    out.emplace(std::move(item));
+  }
+  return out;
 }
 
 }  // namespace node

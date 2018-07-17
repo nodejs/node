@@ -44,6 +44,11 @@ class AgentWriterHandle {
   inline bool empty() const { return agent_ == nullptr; }
   inline void reset();
 
+  inline void Enable(const std::set<std::string>& categories);
+  inline void Disable(const std::set<std::string>& categories);
+
+  inline Agent* agent() { return agent_; }
+
  private:
   inline AgentWriterHandle(Agent* agent, int id) : agent_(agent), id_(id) {}
 
@@ -58,19 +63,23 @@ class AgentWriterHandle {
 
 class Agent {
  public:
-  explicit Agent(const std::string& log_file_pattern);
-  void Stop();
+  Agent();
 
   TracingController* GetTracingController() { return tracing_controller_; }
 
+  enum UseDefaultCategoryMode {
+    kUseDefaultCategories,
+    kIgnoreDefaultCategories
+  };
+
   // Destroying the handle disconnects the client
   AgentWriterHandle AddClient(const std::set<std::string>& categories,
-                              std::unique_ptr<AsyncTraceWriter> writer);
-
-  // These 3 methods operate on a "default" client, e.g. the file writer
-  void Enable(const std::string& categories);
-  void Enable(const std::set<std::string>& categories);
-  void Disable(const std::set<std::string>& categories);
+                              std::unique_ptr<AsyncTraceWriter> writer,
+                              enum UseDefaultCategoryMode mode);
+  // A handle that is only used for managing the default categories
+  // (which can then implicitly be used through using `USE_DEFAULT_CATEGORIES`
+  // when adding a client later).
+  AgentWriterHandle DefaultHandle();
 
   // Returns a comma-separated list of enabled categories.
   std::string GetEnabledCategories() const;
@@ -82,6 +91,9 @@ class Agent {
 
   TraceConfig* CreateTraceConfig() const;
 
+  // TODO(addaleax): This design is broken and inherently thread-unsafe.
+  inline uv_loop_t* loop() { return &tracing_loop_; }
+
  private:
   friend class AgentWriterHandle;
 
@@ -91,19 +103,22 @@ class Agent {
   void StopTracing();
   void Disconnect(int client);
 
-  const std::string& log_file_pattern_;
+  void Enable(int id, const std::set<std::string>& categories);
+  void Disable(int id, const std::set<std::string>& categories);
+
   uv_thread_t thread_;
   uv_loop_t tracing_loop_;
+
   bool started_ = false;
+  class ScopedSuspendTracing;
 
   // Each individual Writer has one id.
   int next_writer_id_ = 1;
+  enum { kDefaultHandleId = -1 };
   // These maps store the original arguments to AddClient(), by id.
-  std::unordered_map<int, std::set<std::string>> categories_;
+  std::unordered_map<int, std::multiset<std::string>> categories_;
   std::unordered_map<int, std::unique_ptr<AsyncTraceWriter>> writers_;
   TracingController* tracing_controller_ = nullptr;
-  AgentWriterHandle file_writer_;
-  std::multiset<std::string> file_writer_categories_;
 };
 
 void AgentWriterHandle::reset() {
@@ -122,6 +137,14 @@ AgentWriterHandle& AgentWriterHandle::operator=(AgentWriterHandle&& other) {
 
 AgentWriterHandle::AgentWriterHandle(AgentWriterHandle&& other) {
   *this = std::move(other);
+}
+
+void AgentWriterHandle::Enable(const std::set<std::string>& categories) {
+  if (agent_ != nullptr) agent_->Enable(id_, categories);
+}
+
+void AgentWriterHandle::Disable(const std::set<std::string>& categories) {
+  if (agent_ != nullptr) agent_->Disable(id_, categories);
 }
 
 }  // namespace tracing
