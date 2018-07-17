@@ -2,6 +2,8 @@
 
 #include <string>
 #include "tracing/node_trace_buffer.h"
+#include "debug_utils.h"
+#include "env-inl.h"
 
 namespace node {
 namespace tracing {
@@ -51,6 +53,10 @@ Agent::Agent() {
   tracing_controller_->Initialize(nullptr);
 
   CHECK_EQ(uv_loop_init(&tracing_loop_), 0);
+}
+
+Agent::~Agent() {
+  CheckedUvLoopClose(&tracing_loop_);
 }
 
 void Agent::Start() {
