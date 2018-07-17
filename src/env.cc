@@ -405,21 +405,22 @@ void Environment::AtExit(void (*cb)(void* arg), void* arg) {
   at_exit_functions_.push_back(ExitCallback{cb, arg});
 }
 
-void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
+bool Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
   auto it = std::find_if(
       promise_hooks_.begin(), promise_hooks_.end(),
       [&](const PromiseHookCallback& hook) {
         return hook.cb_ == fn && hook.arg_ == arg;
       });
   if (it != promise_hooks_.end()) {
-    it->enable_count_++;
-    return;
+    return false;
   }
-  promise_hooks_.push_back(PromiseHookCallback{fn, arg, 1});
+  promise_hooks_.push_back(PromiseHookCallback{fn, arg});
 
   if (promise_hooks_.size() == 1) {
     isolate_->SetPromiseHook(EnvPromiseHook);
   }
+
+  return true;
 }
 
 bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
@@ -431,9 +432,8 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
 
   if (it == promise_hooks_.end()) return false;
 
-  if (--it->enable_count_ > 0) return true;
-
   promise_hooks_.erase(it);
+
   if (promise_hooks_.empty()) {
     isolate_->SetPromiseHook(nullptr);
   }
@@ -441,7 +441,39 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
   return true;
 }
 
-void Environment::EnvPromiseHook(v8::PromiseHookType type,
+bool Environment::AddPromiseRejectHook(promise_hook_func fn, void* arg) {
+  auto it = std::find_if(promise_reject_hooks_.begin(),
+                         promise_reject_hooks_.end(),
+                          [&](const PromiseHookCallback& hook) {
+                            return hook.cb_ == fn && hook.arg_ == arg;
+                          });
+  if (it != promise_reject_hooks_.end()) {
+    return false;
+  }
+  promise_reject_hooks_.push_back(PromiseHookCallback{fn, arg});
+  if (promise_reject_hooks_.size() == 1) {
+    isolate_->SetPromiseRejectCallback(EnvPromiseRejectCallback);
+  }
+  return true;
+}
+
+bool Environment::RemovePromiseRejectHook(promise_hook_func fn, void* arg) {
+  auto it = std::find_if(promise_reject_hooks_.begin(),
+                         promise_reject_hooks_.end(),
+                         [&](const PromiseHookCallback& hook) {
+                           return hook.cb_ == fn && hook.arg_ == arg;
+                         });
+  if (it == promise_reject_hooks_.end()) {
+    return false;
+  }
+  promise_reject_hooks_.erase(it);
+  if (promise_reject_hooks_.empty()) {
+    isolate_->SetPromiseRejectCallback(nullptr);
+  }
+  return true;
+}
+
+void Environment::EnvPromiseHook(v8::PromiseHookType v8type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
   Local<v8::Context> context = promise->CreationContext();
@@ -458,8 +490,62 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
   }
 
   Environment* env = Environment::GetCurrent(context);
+
+  node::PromiseHookType type;
+  if (v8type == v8::PromiseHookType::kInit) {
+    type = node::PromiseHookType::kInit;
+  } else if (v8type == v8::PromiseHookType::kResolve) {
+    type = node::PromiseHookType::kResolve;
+  } else if (v8type == v8::PromiseHookType::kBefore) {
+    type = node::PromiseHookType::kBefore;
+  } else if (v8type == v8::PromiseHookType::kAfter) {
+    type = node::PromiseHookType::kAfter;
+  } else {
+    return;
+  }
+
   for (const PromiseHookCallback& hook : env->promise_hooks_) {
     hook.cb_(type, promise, parent, hook.arg_);
+  }
+}
+
+void Environment::EnvPromiseRejectCallback(v8::PromiseRejectMessage message) {
+  v8::Local<v8::Promise> promise = message.GetPromise();
+  Local<Context> context = promise->CreationContext();
+
+  // Grow the embedder data if necessary to make sure we are not out of bounds
+  // when reading the magic number.
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kContextTagBoundary, nullptr);
+  int* magicNumberPtr = reinterpret_cast<int*>(
+      context->GetAlignedPointerFromEmbedderData(
+          ContextEmbedderIndex::kContextTag));
+  if (magicNumberPtr != Environment::kNodeContextTagPtr) {
+    return;
+  }
+
+  v8::PromiseRejectEvent event = message.GetEvent();
+
+  node::PromiseHookType type;
+  if (event == v8::PromiseRejectEvent::kPromiseRejectWithNoHandler) {
+    type = node::PromiseHookType::kRejectWithNoHandler;
+  } else if (event == v8::PromiseRejectEvent::kPromiseHandlerAddedAfterReject) {
+    type = node::PromiseHookType::kHandlerAddedAfterReject;
+  } else if (event == v8::PromiseRejectEvent::kPromiseRejectAfterResolved) {
+    type = node::PromiseHookType::kRejectAfterResolved;
+  } else if (event == v8::PromiseRejectEvent::kPromiseResolveAfterResolved) {
+    type = node::PromiseHookType::kResolveAfterResolved;
+  } else {
+    return;
+  }
+
+  v8::Isolate* isolate = promise->GetIsolate();
+  Local<Value> value = message.GetValue();
+
+  Environment* env = Environment::GetCurrent(isolate);
+
+  for (const PromiseHookCallback& hook : env->promise_reject_hooks_) {
+    hook.cb_(type, promise, message.GetValue(), hook.arg_);
   }
 }
 

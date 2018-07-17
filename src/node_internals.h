@@ -139,6 +139,7 @@ struct sockaddr;
     V(udp_wrap)                                                               \
     V(url)                                                                    \
     V(util)                                                                   \
+    V(safe_util)                                                              \
     V(uv)                                                                     \
     V(v8)                                                                     \
     V(worker)                                                                 \
@@ -150,7 +151,7 @@ struct sockaddr;
   NODE_BUILTIN_ICU_MODULES(V)
 
 #define NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)          \
-  static node::node_module _module = {                                        \
+  static node::node_module _module_##modname = {                              \
     NODE_MODULE_VERSION,                                                      \
     flags,                                                                    \
     nullptr,                                                                  \
@@ -162,7 +163,7 @@ struct sockaddr;
     nullptr                                                                   \
   };                                                                          \
   void _register_ ## modname() {                                              \
-    node_module_register(&_module);                                           \
+    node_module_register(&_module_##modname);                                 \
   }
 
 

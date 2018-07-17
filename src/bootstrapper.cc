@@ -16,8 +16,6 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::Promise;
-using v8::PromiseRejectEvent;
-using v8::PromiseRejectMessage;
 using v8::String;
 using v8::Value;
 
@@ -52,30 +50,21 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-void PromiseRejectCallback(PromiseRejectMessage message) {
+void PromiseRejectCallback(PromiseHookType type,
+                           Local<Promise> promise,
+                           Local<Value> value,
+                           void* arg) {
   static std::atomic<uint64_t> unhandledRejections{0};
   static std::atomic<uint64_t> rejectionsHandledAfter{0};
 
-  Local<Promise> promise = message.GetPromise();
-  Isolate* isolate = promise->GetIsolate();
-  PromiseRejectEvent event = message.GetEvent();
-
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = static_cast<Environment*>(arg);
   Local<Function> callback;
-  Local<Value> value;
 
-  if (event == v8::kPromiseRejectWithNoHandler) {
+  if (type == PromiseHookType::kRejectWithNoHandler) {
     callback = env->promise_reject_unhandled_function();
-    value = message.GetValue();
-
-    if (value.IsEmpty())
-      value = Undefined(isolate);
-
     unhandledRejections++;
-  } else if (event == v8::kPromiseHandlerAddedAfterReject) {
+  } else if (type == PromiseHookType::kHandlerAddedAfterReject) {
     callback = env->promise_reject_handled_function();
-    value = Undefined(isolate);
-
     rejectionsHandledAfter++;
   } else {
     return;
@@ -86,10 +75,13 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
                  "unhandled", unhandledRejections,
                  "handledAfter", rejectionsHandledAfter);
 
+  if (value.IsEmpty()) {
+    value = Undefined(env->isolate());
+  }
 
   Local<Value> args[] = { promise, value };
   MaybeLocal<Value> ret = callback->Call(env->context(),
-                                         Undefined(isolate),
+                                         Undefined(env->isolate()),
                                          arraysize(args),
                                          args);
 
@@ -99,14 +91,14 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 
 void SetupPromises(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
 
   CHECK(args[0]->IsFunction());
   CHECK(args[1]->IsFunction());
 
-  isolate->SetPromiseRejectCallback(PromiseRejectCallback);
   env->set_promise_reject_unhandled_function(args[0].As<Function>());
   env->set_promise_reject_handled_function(args[1].As<Function>());
+
+  env->AddPromiseRejectHook(PromiseRejectCallback, env);
 }
 
 #define BOOTSTRAP_METHOD(name, fn) env->SetMethod(bootstrapper, #name, fn)

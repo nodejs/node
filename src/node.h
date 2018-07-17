@@ -616,9 +616,20 @@ NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = 0);
  */
 NODE_EXTERN void AtExit(Environment* env, void (*cb)(void* arg), void* arg = 0);
 
-typedef void (*promise_hook_func) (v8::PromiseHookType type,
+typedef enum {
+  kInit,
+  kResolve,
+  kBefore,
+  kAfter,
+  kRejectWithNoHandler,
+  kHandlerAddedAfterReject,
+  kRejectAfterResolved,
+  kResolveAfterResolved,
+} PromiseHookType;
+
+typedef void (*promise_hook_func) (PromiseHookType type,
                                    v8::Local<v8::Promise> promise,
-                                   v8::Local<v8::Value> parent,
+                                   v8::Local<v8::Value> value,
                                    void* arg);
 
 typedef double async_id;

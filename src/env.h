@@ -346,6 +346,7 @@ struct PackageConfig {
   V(tls_wrap_constructor_function, v8::Function)                              \
   V(tty_constructor_template, v8::FunctionTemplate)                           \
   V(udp_constructor_function, v8::Function)                                   \
+  V(util_promise_hook_callback, v8::Function)                                 \
   V(url_constructor_function, v8::Function)                                   \
   V(write_wrap_template, v8::ObjectTemplate)
 
@@ -808,8 +809,10 @@ class Environment {
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
 
-  void AddPromiseHook(promise_hook_func fn, void* arg);
+  bool AddPromiseHook(promise_hook_func fn, void* arg);
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
+  bool AddPromiseRejectHook(promise_hook_func fn, void* arg);
+  bool RemovePromiseRejectHook(promise_hook_func fn, void* arg);
   inline bool EmitProcessEnvWarning() {
     bool current_value = emit_env_nonstring_warning_;
     emit_env_nonstring_warning_ = false;
@@ -945,9 +948,9 @@ class Environment {
   struct PromiseHookCallback {
     promise_hook_func cb_;
     void* arg_;
-    size_t enable_count_;
   };
   std::vector<PromiseHookCallback> promise_hooks_;
+  std::vector<PromiseHookCallback> promise_reject_hooks_;
 
   struct NativeImmediateCallback {
     native_immediate_callback cb_;
@@ -990,6 +993,7 @@ class Environment {
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,
                              v8::Local<v8::Value> parent);
+  static void EnvPromiseRejectCallback(v8::PromiseRejectMessage message);
 
   template <typename T>
   void ForEachBaseObject(T&& iterator);
