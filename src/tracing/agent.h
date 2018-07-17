@@ -64,6 +64,7 @@ class AgentWriterHandle {
 class Agent {
  public:
   Agent();
+  ~Agent();
 
   TracingController* GetTracingController() { return tracing_controller_; }
 
