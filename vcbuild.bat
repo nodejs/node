@@ -432,7 +432,7 @@ if errorlevel 1 goto exit
 if not defined doc (
   if "%test_args:doctool=%"=="%test_args%" goto skip-install-doctools
 )
-if exist "tools\doc\node_modules\js-yaml\package.json" goto skip-install-doctools
+if exist "tools\doc\node_modules\unified\package.json" goto skip-install-doctools
 SETLOCAL
 cd tools\doc
 %npm_exe% install
