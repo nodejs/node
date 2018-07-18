@@ -316,7 +316,8 @@ test run if the release contains changes to `deps/v8`.
 Perform some smoke-testing. There is the
 **[`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)** CI job for this
 purpose. Run it once with the base `vx.x` branch as a reference and with the
-proposal branch to check new regressions could be introduced in the ecosystem.
+proposal branch to check if new regressions could be introduced in the
+ecosystem.
 
 ### 8. Produce a Nightly Build _(optional)_
 
