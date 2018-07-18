@@ -13,8 +13,7 @@
 <h2 id="synopsis">SYNOPSIS</h2>
 <pre><code>npm token list [--json|--parseable]
 npm token create [--read-only] [--cidr=1.1.1.1/24,2.2.2.2/16]
-npm token revoke &lt;id|token&gt;
-</code></pre><h2 id="description">DESCRIPTION</h2>
+npm token revoke &lt;id|token&gt;</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This list you list, create and revoke authentication tokens.</p>
 <ul>
 <li><p><code>npm token list</code>:
@@ -36,8 +35,7 @@ JSON with <code>--json</code> or tab-separated values with <code>--parseable</co
 | 68c2fe | 127e51… | 2017-09-23 | no       |                |
 +--------+---------+------------+----------+----------------+
 | 6334e1 | 1dadd1… | 2017-09-23 | no       |                |
-+--------+---------+------------+----------+----------------+
-</code></pre></li>
++--------+---------+------------+----------+----------------+</code></pre></li>
 <li><p><code>npm token create [--read-only] [--cidr=&lt;cidr-ranges&gt;]</code>:
 Create a new authentication token. It can be <code>--read-only</code> or accept a list of
 <a href="https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing">CIDR</a> ranges to
@@ -53,8 +51,7 @@ two-factor authentication enabled, an otp.</p>
 | readonly       | false                                |
 +----------------+--------------------------------------+
 | created        | 2017-10-02T07:52:24.838Z             |
-+----------------+--------------------------------------+
-</code></pre><ul>
++----------------+--------------------------------------+</code></pre><ul>
 <li><code>npm token revoke &lt;token|id&gt;</code>:
 This removes an authentication token, making it immediately unusable. This can accept
 both complete tokens (as you get back from <code>npm token create</code> and will
@@ -73,4 +70,4 @@ This will NOT accept the truncated token found in <code>npm token list</code> ou
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-token &mdash; npm@6.1.0</p>
+<p id="footer">npm-token &mdash; npm@6.2.0</p>

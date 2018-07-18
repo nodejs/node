@@ -53,10 +53,10 @@ See `npm-folders(5)` to learn about where npm puts stuff.
 
 In particular, npm has two modes of operation:
 
-* global mode:  
+* global mode:
   npm installs packages into the install prefix at
   `prefix/lib/node_modules` and bins are installed in `prefix/bin`.
-* local mode:  
+* local mode:
   npm installs packages into the current project directory, which
   defaults to the current working directory.  Packages are installed to
   `./node_modules`, and bins are installed to `./node_modules/.bin`.
@@ -90,24 +90,24 @@ following help topics:
 npm is extremely configurable.  It reads its configuration options from
 5 places.
 
-* Command line switches:  
+* Command line switches:
   Set a config with `--key val`.  All keys take a value, even if they
   are booleans (the config parser doesn't know what the options are at
   the time of parsing).  If no value is provided, then the option is set
   to boolean `true`.
-* Environment Variables:  
+* Environment Variables:
   Set any config by prefixing the name in an environment variable with
   `npm_config_`.  For example, `export npm_config_key=val`.
-* User Configs:  
+* User Configs:
   The file at $HOME/.npmrc is an ini-formatted list of configs.  If
   present, it is parsed.  If the `userconfig` option is set in the cli
   or env, then that will be used instead.
-* Global Configs:  
+* Global Configs:
   The file found at ../etc/npmrc (from the node executable, by default
   this resolves to /usr/local/etc/npmrc) will be parsed if it is found.
   If the `globalconfig` option is set in the cli, env, or user config,
   then that file is parsed instead.
-* Defaults:  
+* Defaults:
   npm's default configuration options are defined in
   lib/utils/config-defs.js.  These must not be changed.
 
@@ -117,34 +117,24 @@ See `npm-config(7)` for much much more information.
 
 Patches welcome!
 
-* code:
-  Read through `npm-coding-style(7)` if you plan to submit code.
-  You don't have to agree with it, but you do have to follow it.
-* docs:
-  If you find an error in the documentation, edit the appropriate markdown
-  file in the "doc" folder.  (Don't worry about generating the man page.)
-
-Contributors are listed in npm's `package.json` file.  You can view them
-easily by doing `npm view npm contributors`.
-
 If you would like to contribute, but don't know what to work on, read
 the contributing guidelines and check the issues list.
 
-* https://github.com/npm/npm/wiki/Contributing-Guidelines
-* <https://github.com/npm/npm/issues>
+* [CONTRIBUTING.md](https://github.com/npm/cli/blob/latest/CONTRIBUTING.md)
+* [Bug tracker](https://npm.community/c/bugs)
+* [Support tracker](https://npm.community/c/support)
 
 ## BUGS
 
 When you find issues, please report them:
 
 * web:
-  <https://github.com/npm/npm/issues>
+  <https://npm.community/c/bugs>
 
-Be sure to include *all* of the output from the npm command that didn't work
-as expected.  The `npm-debug.log` file is also helpful to provide.
-
-You can also look for isaacs in #node.js on irc://irc.freenode.net.  He
-will no doubt tell you to put the output in a gist or email.
+Be sure to follow the template and bug reporting guidelines. You can also ask
+for help in the [support forum](https://npm.community/c/support) if you're
+unsure if it's actually a bug or are having trouble coming up with a detailed
+reproduction to report.
 
 ## AUTHOR
 

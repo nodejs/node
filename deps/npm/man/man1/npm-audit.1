@@ -1,11 +1,11 @@
-.TH "NPM\-AUDIT" "1" "May 2018" "" ""
+.TH "NPM\-AUDIT" "1" "July 2018" "" ""
 .SH "NAME"
 \fBnpm-audit\fR \- Run a security audit
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm audit [\-\-json]
+npm audit [\-\-json|\-\-parseable]
 npm audit fix [\-\-force|\-\-package\-lock\-only|\-\-dry\-run|\-\-production|\-\-only=dev]
 .fi
 .RE
@@ -69,6 +69,24 @@ Get the detailed audit report in JSON format:
 .RS 2
 .nf
 $ npm audit \-\-json
+.fi
+.RE
+.P
+Get the detailed audit report in plain text result, separated by tab characters, allowing for
+future reuse in scripting or command line post processing, like for example, selecting
+some of the columns printed:
+.P
+.RS 2
+.nf
+$ npm audit \-\-parseable
+.fi
+.RE
+.P
+To parse columns, you can use for example \fBawk\fP, and just print some of them:
+.P
+.RS 2
+.nf
+$ npm audit \-\-parseable | awk \-F $'\\t' '{print $1,$4}'
 .fi
 .RE
 .SH DESCRIPTION

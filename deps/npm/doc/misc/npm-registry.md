@@ -41,8 +41,8 @@ about your environment:
   This is used to gather better metrics on how npm is used by humans, versus
   build farms.
 
-The npm registry does not to correlate the information in these headers with
-any authenticated accounts that may be used in the same requests.
+The npm registry does not try to correlate the information in these headers
+with any authenticated accounts that may be used in the same requests.
 
 ## Can I run my own private registry?
 

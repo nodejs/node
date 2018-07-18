@@ -1,3 +1,9 @@
+# v3.0.2 (2018-06-07)
+
+- Allow newer make-fetch-happen.
+- Report 500s from weblogin end point as unsupported.
+- EAUTHUNKNOWN errors were incorrectly reported as EAUTHIP.
+
 # v3.0.1 (2018-02-18)
 
 - Log `npm-notice` headers

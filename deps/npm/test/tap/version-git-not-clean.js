@@ -59,6 +59,7 @@ test('npm version <semver> --force with working directory not clean', function (
   common.npm(
     [
       '--force',
+      '--no-sign-git-commit',
       '--no-sign-git-tag',
       '--registry', common.registry,
       '--prefix', pkg,

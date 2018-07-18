@@ -14,23 +14,15 @@
 <pre><code>npm hook ls [pkg]
 npm hook add &lt;entity&gt; &lt;url&gt; &lt;secret&gt;
 npm hook update &lt;id&gt; &lt;url&gt; [secret]
-npm hook rm &lt;id&gt;
-</code></pre><h2 id="example">EXAMPLE</h2>
+npm hook rm &lt;id&gt;</code></pre><h2 id="example">EXAMPLE</h2>
 <p>Add a hook to watch a package for changes:</p>
-<pre><code>$ npm hook add lodash https://example.com/ my-shared-secret
-</code></pre><p>Add a hook to watch packages belonging to the user <code>substack</code>:</p>
-<pre><code>$ npm hook add ~substack https://example.com/ my-shared-secret
-</code></pre><p>Add a hook to watch packages in the scope <code>@npm</code></p>
-<pre><code>$ npm hook add @npm https://example.com/ my-shared-secret
-</code></pre><p>List all your active hooks:</p>
-<pre><code>$ npm hook ls
-</code></pre><p>List your active hooks for the <code>lodash</code> package:</p>
-<pre><code>$ npm hook ls lodash
-</code></pre><p>Update an existing hook&#39;s url:</p>
-<pre><code>$ npm hook update id-deadbeef https://my-new-website.here/
-</code></pre><p>Remove a hook:</p>
-<pre><code>$ npm hook rm id-deadbeef
-</code></pre><h2 id="description">DESCRIPTION</h2>
+<pre><code>$ npm hook add lodash https://example.com/ my-shared-secret</code></pre><p>Add a hook to watch packages belonging to the user <code>substack</code>:</p>
+<pre><code>$ npm hook add ~substack https://example.com/ my-shared-secret</code></pre><p>Add a hook to watch packages in the scope <code>@npm</code></p>
+<pre><code>$ npm hook add @npm https://example.com/ my-shared-secret</code></pre><p>List all your active hooks:</p>
+<pre><code>$ npm hook ls</code></pre><p>List your active hooks for the <code>lodash</code> package:</p>
+<pre><code>$ npm hook ls lodash</code></pre><p>Update an existing hook&#39;s url:</p>
+<pre><code>$ npm hook update id-deadbeef https://my-new-website.here/</code></pre><p>Remove a hook:</p>
+<pre><code>$ npm hook rm id-deadbeef</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Allows you to manage <a href="http://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm">npm
 hooks</a>,
 including adding, removing, listing, and updating.</p>
@@ -60,4 +52,4 @@ request came from your own configured hook.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-hook &mdash; npm@6.1.0</p>
+<p id="footer">npm-hook &mdash; npm@6.2.0</p>

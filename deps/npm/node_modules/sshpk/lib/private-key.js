@@ -3,6 +3,7 @@
 module.exports = PrivateKey;
 
 var assert = require('assert-plus');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('./algs');
 var crypto = require('crypto');
 var Fingerprint = require('./fingerprint');
@@ -97,7 +98,7 @@ PrivateKey.prototype.derive = function (newType) {
 			priv = priv.slice(1);
 
 		pair = nacl.box.keyPair.fromSecretKey(new Uint8Array(priv));
-		pub = new Buffer(pair.publicKey);
+		pub = Buffer.from(pair.publicKey);
 
 		return (new PrivateKey({
 			type: 'curve25519',
@@ -115,7 +116,7 @@ PrivateKey.prototype.derive = function (newType) {
 			priv = priv.slice(1);
 
 		pair = nacl.sign.keyPair.fromSeed(new Uint8Array(priv));
-		pub = new Buffer(pair.publicKey);
+		pub = Buffer.from(pair.publicKey);
 
 		return (new PrivateKey({
 			type: 'ed25519',
@@ -166,7 +167,7 @@ PrivateKey.prototype.createSign = function (hashAlgo) {
 	v.sign = function () {
 		var sig = oldSign(key);
 		if (typeof (sig) === 'string')
-			sig = new Buffer(sig, 'binary');
+			sig = Buffer.from(sig, 'binary');
 		sig = Signature.parse(sig, type, 'asn1');
 		sig.hashAlgorithm = hashAlgo;
 		sig.curve = curve;

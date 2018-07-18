@@ -4,6 +4,7 @@ exports.generateFromInstall = generateFromInstall
 exports.submitForInstallReport = submitForInstallReport
 exports.submitForFullReport = submitForFullReport
 exports.printInstallReport = printInstallReport
+exports.printParseableReport = printParseableReport
 exports.printFullReport = printFullReport
 
 const Bluebird = require('bluebird')
@@ -107,6 +108,15 @@ function printFullReport (auditResult) {
   return auditReport(auditResult, {
     log: output,
     reporter: npm.config.get('json') ? 'json' : 'detail',
+    withColor: npm.color,
+    withUnicode: npm.config.get('unicode')
+  }).then(result => output(result.report))
+}
+
+function printParseableReport (auditResult) {
+  return auditReport(auditResult, {
+    log: output,
+    reporter: 'parseable',
     withColor: npm.color,
     withUnicode: npm.config.get('unicode')
   }).then(result => output(result.report))

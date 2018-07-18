@@ -1,4 +1,4 @@
-.TH "NPM\-LINK" "1" "May 2018" "" ""
+.TH "NPM\-LINK" "1" "July 2018" "" ""
 .SH "NAME"
 \fBnpm-link\fR \- Symlink a package folder
 .SH SYNOPSIS
@@ -66,12 +66,15 @@ The second line is the equivalent of doing:
 .RS 2
 .nf
 (cd \.\./node\-redis; npm link)
-npm link node\-redis
+npm link redis
 .fi
 .RE
 .P
 That is, it first creates a global link, and then links the global
 installation target into your project's \fBnode_modules\fP folder\.
+.P
+Note that in this case, you are referring to the directory name, \fBnode\-redis\fP,
+rather than the package name \fBredis\fP\|\.
 .P
 If your linked package is scoped (see npm help 7 \fBnpm\-scope\fP) your link command must
 include that scope, e\.g\.
