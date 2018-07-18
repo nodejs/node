@@ -1034,6 +1034,17 @@ will also prevent _writing_ `npm-shrinkwrap.json` if `save` is true.
 
 This option is an alias for `--package-lock`.
 
+### sign-git-commit
+
+* Default: false
+* Type: Boolean
+
+If set to true, then the `npm version` command will commit the new package
+version using `-S` to add a signature.
+
+Note that git requires you to have set up GPG keys in your git configs
+for this to work properly.
+
 ### sign-git-tag
 
 * Default: false
@@ -1129,6 +1140,14 @@ false, it uses ascii characters to draw trees.
 Set to true to suppress the UID/GID switching when running package
 scripts.  If set explicitly to false, then installing as a non-root user
 will fail.
+
+### update-notifier
+
+* Default: true
+* Type: Boolean
+
+Set to false to suppress the update notification when using an older
+version of npm than the latest.
 
 ### usage
 

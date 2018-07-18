@@ -184,7 +184,7 @@ function npmUsage (valid, cb) {
   ].join('\n'))
 
   if (npm.argv.length > 1) {
-    didYouMean(npm.argv[1], commands)
+    output(didYouMean(npm.argv[1], commands))
   }
 
   cb(valid)

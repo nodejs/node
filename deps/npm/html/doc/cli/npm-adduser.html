@@ -13,8 +13,7 @@
 <h2 id="synopsis">SYNOPSIS</h2>
 <pre><code>npm adduser [--registry=url] [--scope=@orgname] [--always-auth] [--auth-type=legacy]
 
-aliases: login, add-user
-</code></pre><h2 id="description">DESCRIPTION</h2>
+aliases: login, add-user</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Create or verify a user named <code>&lt;username&gt;</code> in the specified registry, and
 save the credentials to the <code>.npmrc</code> file. If no registry is specified,
 the default registry will be used (see <code><a href="../misc/npm-config.html">npm-config(7)</a></code>).</p>
@@ -37,16 +36,14 @@ to the scope of the project directory you&#39;re currently in, if any. See <code
 <p>If specified, the user and login credentials given will be associated
 with the specified scope. See <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>. You can use both at the same time,
 e.g.</p>
-<pre><code>npm adduser --registry=http://myregistry.example.com --scope=@myco
-</code></pre><p>This will set a registry for the given scope and login or create a user for
+<pre><code>npm adduser --registry=http://myregistry.example.com --scope=@myco</code></pre><p>This will set a registry for the given scope and login or create a user for
 that registry at the same time.</p>
 <h3 id="always-auth">always-auth</h3>
 <p>Default: false</p>
 <p>If specified, save configuration indicating that all requests to the given
 registry should include authorization information. Useful for private
 registries. Can be used with <code>--registry</code> and / or <code>--scope</code>, e.g.</p>
-<pre><code>npm adduser --registry=http://private-registry.example.com --always-auth
-</code></pre><p>This will ensure that all requests to that registry (including for tarballs)
+<pre><code>npm adduser --registry=http://private-registry.example.com --always-auth</code></pre><p>This will ensure that all requests to that registry (including for tarballs)
 include an authorization header. This setting may be necessary for use with
 private registries where metadata and package tarballs are stored on hosts with
 different hostnames. See <code>always-auth</code> in <code><a href="../misc/npm-config.html">npm-config(7)</a></code> for more details on
@@ -81,5 +78,5 @@ username/password entry in legacy npm.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-adduser &mdash; npm@6.1.0</p>
+<p id="footer">npm-adduser &mdash; npm@6.2.0</p>
 

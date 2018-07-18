@@ -1,22 +1,22 @@
 # strip-ansi [![Build Status](https://travis-ci.org/chalk/strip-ansi.svg?branch=master)](https://travis-ci.org/chalk/strip-ansi)
 
-> Strip [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code)
+> Strip [ANSI escape codes](http://en.wikipedia.org/wiki/ANSI_escape_code)
 
 
 ## Install
 
 ```
-$ npm install strip-ansi
+$ npm install --save strip-ansi
 ```
 
 
 ## Usage
 
 ```js
-const stripAnsi = require('strip-ansi');
+var stripAnsi = require('strip-ansi');
 
-stripAnsi('\u001B[4mUnicorn\u001B[0m');
-//=> 'Unicorn'
+stripAnsi('\u001b[4mcake\u001b[0m');
+//=> 'cake'
 ```
 
 
@@ -28,12 +28,6 @@ stripAnsi('\u001B[4mUnicorn\u001B[0m');
 - [chalk](https://github.com/chalk/chalk) - Terminal string styling done right
 
 
-## Maintainers
-
-- [Sindre Sorhus](https://github.com/sindresorhus)
-- [Josh Junon](https://github.com/qix-)
-
-
 ## License
 
-MIT
+MIT © [Sindre Sorhus](http://sindresorhus.com)

@@ -121,8 +121,7 @@ highest level possible, below the localized &quot;target&quot; folder.</p>
 |   `-- asdf@*
 `-- baz@1.2.3
     `-- quux@3.x
-        `-- bar
-</code></pre><p>In this case, we might expect a folder structure like this:</p>
+        `-- bar</code></pre><p>In this case, we might expect a folder structure like this:</p>
 <pre><code>foo
 +-- node_modules
     +-- blerg (1.2.5) &lt;---[A]
@@ -134,15 +133,14 @@ highest level possible, below the localized &quot;target&quot; folder.</p>
     |       `-- asdf (2.3.4)
     `-- baz (1.2.3) &lt;---[D]
         `-- node_modules
-            `-- quux (3.2.0) &lt;---[E]
-</code></pre><p>Since foo depends directly on <a href="mailto:`bar@1.2.3">`bar@1.2.3</a><code>and</code><a href="mailto:baz@1.2.3">baz@1.2.3</a><code>, those are
+            `-- quux (3.2.0) &lt;---[E]</code></pre><p>Since foo depends directly on <a href="mailto:%60bar@1.2.3">`bar@1.2.3</a><code>and</code><a href="mailto:baz@1.2.3">baz@1.2.3</a><code>, those are
 installed in foo&#39;s</code>node_modules` folder.</p>
 <p>Even though the latest copy of blerg is 1.3.7, foo has a specific
 dependency on version 1.2.5.  So, that gets installed at [A].  Since the
-parent installation of blerg satisfies bar&#39;s dependency on <a href="mailto:`blerg@1.x">`blerg@1.x</a>`,
+parent installation of blerg satisfies bar&#39;s dependency on <a href="mailto:%60blerg@1.x">`blerg@1.x</a>`,
 it does not install another copy under [B].</p>
 <p>Bar [B] also has dependencies on baz and asdf, so those are installed in
-bar&#39;s <code>node_modules</code> folder.  Because it depends on <a href="mailto:`baz@2.x">`baz@2.x</a><code>, it cannot
+bar&#39;s <code>node_modules</code> folder.  Because it depends on <a href="mailto:%60baz@2.x">`baz@2.x</a><code>, it cannot
 re-use the</code><a href="mailto:baz@1.2.3">baz@1.2.3</a><code>installed in the parent</code>node_modules` folder [D],
 and must install its own copy [C].</p>
 <p>Underneath bar, the <code>baz -&gt; quux -&gt; bar</code> dependency creates a cycle.
@@ -181,5 +179,5 @@ cannot be found elsewhere.  See <code><a href="../files/package.json.html">packa
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-folders &mdash; npm@6.1.0</p>
+<p id="footer">npm-folders &mdash; npm@6.2.0</p>
 

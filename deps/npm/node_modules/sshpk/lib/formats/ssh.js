@@ -6,6 +6,7 @@ module.exports = {
 };
 
 var assert = require('assert-plus');
+var Buffer = require('safer-buffer').Buffer;
 var rfc4253 = require('./rfc4253');
 var utils = require('../utils');
 var Key = require('../key');
@@ -31,7 +32,7 @@ function read(buf, options) {
 	assert.ok(m, 'key must match regex');
 
 	var type = rfc4253.algToKeyType(m[1]);
-	var kbuf = new Buffer(m[2], 'base64');
+	var kbuf = Buffer.from(m[2], 'base64');
 
 	/*
 	 * This is a bit tricky. If we managed to parse the key and locate the
@@ -50,7 +51,7 @@ function read(buf, options) {
 		} catch (e) {
 			m = trimmed.match(SSHKEY_RE2);
 			assert.ok(m, 'key must match regex');
-			kbuf = new Buffer(m[2], 'base64');
+			kbuf = Buffer.from(m[2], 'base64');
 			key = rfc4253.readInternal(ret, 'public', kbuf);
 		}
 	} else {
@@ -110,5 +111,5 @@ function write(key, options) {
 	if (key.comment)
 		parts.push(key.comment);
 
-	return (new Buffer(parts.join(' ')));
+	return (Buffer.from(parts.join(' ')));
 }

@@ -6,6 +6,7 @@ module.exports = {
 };
 
 var assert = require('assert-plus');
+var Buffer = require('safer-buffer').Buffer;
 var Key = require('../key');
 var PrivateKey = require('../private-key');
 var utils = require('../utils');
@@ -66,7 +67,7 @@ function readRFC3110(keyString) {
 	if (!supportedAlgosById[algorithm])
 		throw (new Error('Unsupported algorithm: ' + algorithm));
 	var base64key = elems.slice(6, elems.length).join();
-	var keyBuffer = new Buffer(base64key, 'base64');
+	var keyBuffer = Buffer.from(base64key, 'base64');
 	if (supportedAlgosById[algorithm].match(/^RSA-/)) {
 		// join the rest of the body into a single base64-blob
 		var publicExponentLen = keyBuffer.readUInt8(0);
@@ -101,7 +102,7 @@ function readRFC3110(keyString) {
 			curve: curve,
 			size: size,
 			parts: [
-				{name: 'curve', data: new Buffer(curve) },
+				{name: 'curve', data: Buffer.from(curve) },
 				{name: 'Q', data: utils.ecNormalize(keyBuffer) }
 			]
 		};
@@ -112,7 +113,7 @@ function readRFC3110(keyString) {
 }
 
 function elementToBuf(e) {
-	return (new Buffer(e.split(' ')[1], 'base64'));
+	return (Buffer.from(e.split(' ')[1], 'base64'));
 }
 
 function readDNSSECRSAPrivateKey(elements) {
@@ -161,7 +162,7 @@ function readDNSSECPrivateKey(alg, elements) {
 	}
 	if (supportedAlgosById[alg] === 'ECDSA-P384-SHA384' ||
 	    supportedAlgosById[alg] === 'ECDSA-P256-SHA256') {
-		var d = new Buffer(elements[0].split(' ')[1], 'base64');
+		var d = Buffer.from(elements[0].split(' ')[1], 'base64');
 		var curve = 'nistp384';
 		var size = 384;
 		if (supportedAlgosById[alg] === 'ECDSA-P256-SHA256') {
@@ -176,7 +177,7 @@ function readDNSSECPrivateKey(alg, elements) {
 			curve: curve,
 			size: size,
 			parts: [
-				{name: 'curve', data: new Buffer(curve) },
+				{name: 'curve', data: Buffer.from(curve) },
 				{name: 'd', data: d },
 				{name: 'Q', data: Q }
 			]
@@ -237,7 +238,7 @@ function writeRSA(key, options) {
 	out += 'Created: ' + dnssecTimestamp(timestamp) + '\n';
 	out += 'Publish: ' + dnssecTimestamp(timestamp) + '\n';
 	out += 'Activate: ' + dnssecTimestamp(timestamp) + '\n';
-	return (new Buffer(out, 'ascii'));
+	return (Buffer.from(out, 'ascii'));
 }
 
 function writeECDSA(key, options) {
@@ -260,7 +261,7 @@ function writeECDSA(key, options) {
 	out += 'Publish: ' + dnssecTimestamp(timestamp) + '\n';
 	out += 'Activate: ' + dnssecTimestamp(timestamp) + '\n';
 
-	return (new Buffer(out, 'ascii'));
+	return (Buffer.from(out, 'ascii'));
 }
 
 function write(key, options) {

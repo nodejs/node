@@ -11,9 +11,8 @@
 
 <h1><a href="../cli/npm.html">npm</a></h1> <p>javascript package manager</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm &lt;command&gt; [args]
-</code></pre><h2 id="version">VERSION</h2>
-<p>6.1.0</p>
+<pre><code>npm &lt;command&gt; [args]</code></pre><h2 id="version">VERSION</h2>
+<p>6.2.0</p>
 <h2 id="description">DESCRIPTION</h2>
 <p>npm is the package manager for the Node JavaScript platform.  It puts
 modules in place so that node can find them, and manages dependency
@@ -45,9 +44,11 @@ the <a href="https://github.com/TooTallNate/node-gyp/wiki">node-gyp Wiki</a>.</p
 <p>See <code><a href="../files/npm-folders.html">npm-folders(5)</a></code> to learn about where npm puts stuff.</p>
 <p>In particular, npm has two modes of operation:</p>
 <ul>
-<li>global mode:<br>npm installs packages into the install prefix at
+<li>global mode:
+npm installs packages into the install prefix at
 <code>prefix/lib/node_modules</code> and bins are installed in <code>prefix/bin</code>.</li>
-<li>local mode:<br>npm installs packages into the current project directory, which
+<li>local mode:
+npm installs packages into the current project directory, which
 defaults to the current working directory.  Packages are installed to
 <code>./node_modules</code>, and bins are installed to <code>./node_modules/.bin</code>.</li>
 </ul>
@@ -77,56 +78,52 @@ Use the <code>npm publish</code> command to upload your code to the registry.</l
 <p>npm is extremely configurable.  It reads its configuration options from
 5 places.</p>
 <ul>
-<li>Command line switches:<br>Set a config with <code>--key val</code>.  All keys take a value, even if they
+<li>Command line switches:
+Set a config with <code>--key val</code>.  All keys take a value, even if they
 are booleans (the config parser doesn&#39;t know what the options are at
 the time of parsing).  If no value is provided, then the option is set
 to boolean <code>true</code>.</li>
-<li>Environment Variables:<br>Set any config by prefixing the name in an environment variable with
+<li>Environment Variables:
+Set any config by prefixing the name in an environment variable with
 <code>npm_config_</code>.  For example, <code>export npm_config_key=val</code>.</li>
-<li>User Configs:<br>The file at $HOME/.npmrc is an ini-formatted list of configs.  If
+<li>User Configs:
+The file at $HOME/.npmrc is an ini-formatted list of configs.  If
 present, it is parsed.  If the <code>userconfig</code> option is set in the cli
 or env, then that will be used instead.</li>
-<li>Global Configs:<br>The file found at ../etc/npmrc (from the node executable, by default
+<li>Global Configs:
+The file found at ../etc/npmrc (from the node executable, by default
 this resolves to /usr/local/etc/npmrc) will be parsed if it is found.
 If the <code>globalconfig</code> option is set in the cli, env, or user config,
 then that file is parsed instead.</li>
-<li>Defaults:<br>npm&#39;s default configuration options are defined in
+<li>Defaults:
+npm&#39;s default configuration options are defined in
 lib/utils/config-defs.js.  These must not be changed.</li>
 </ul>
 <p>See <code><a href="../misc/npm-config.html">npm-config(7)</a></code> for much much more information.</p>
 <h2 id="contributions">CONTRIBUTIONS</h2>
 <p>Patches welcome!</p>
-<ul>
-<li>code:
-Read through <code><a href="../misc/npm-coding-style.html">npm-coding-style(7)</a></code> if you plan to submit code.
-You don&#39;t have to agree with it, but you do have to follow it.</li>
-<li>docs:
-If you find an error in the documentation, edit the appropriate markdown
-file in the &quot;doc&quot; folder.  (Don&#39;t worry about generating the man page.)</li>
-</ul>
-<p>Contributors are listed in npm&#39;s <code>package.json</code> file.  You can view them
-easily by doing <code>npm view npm contributors</code>.</p>
 <p>If you would like to contribute, but don&#39;t know what to work on, read
 the contributing guidelines and check the issues list.</p>
 <ul>
-<li><a href="https://github.com/npm/npm/wiki/Contributing-Guidelines">https://github.com/npm/npm/wiki/Contributing-Guidelines</a></li>
-<li><a href="https://github.com/npm/npm/issues">https://github.com/npm/npm/issues</a></li>
+<li><a href="https://github.com/npm/cli/blob/latest/CONTRIBUTING.md">CONTRIBUTING.md</a></li>
+<li><a href="https://npm.community/c/bugs">Bug tracker</a></li>
+<li><a href="https://npm.community/c/support">Support tracker</a></li>
 </ul>
 <h2 id="bugs">BUGS</h2>
 <p>When you find issues, please report them:</p>
 <ul>
 <li>web:
-<a href="https://github.com/npm/npm/issues">https://github.com/npm/npm/issues</a></li>
+<a href="https://npm.community/c/bugs">https://npm.community/c/bugs</a></li>
 </ul>
-<p>Be sure to include <em>all</em> of the output from the npm command that didn&#39;t work
-as expected.  The <code>npm-debug.log</code> file is also helpful to provide.</p>
-<p>You can also look for isaacs in #node.js on irc://irc.freenode.net.  He
-will no doubt tell you to put the output in a gist or email.</p>
+<p>Be sure to follow the template and bug reporting guidelines. You can also ask
+for help in the <a href="https://npm.community/c/support">support forum</a> if you&#39;re
+unsure if it&#39;s actually a bug or are having trouble coming up with a detailed
+reproduction to report.</p>
 <h2 id="author">AUTHOR</h2>
 <p><a href="http://blog.izs.me/">Isaac Z. Schlueter</a> ::
 <a href="https://github.com/isaacs/">isaacs</a> ::
 <a href="http://twitter.com/izs">@izs</a> ::
-<a href="mailto:&#x69;&#x40;&#105;&#122;&#115;&#46;&#109;&#x65;">&#x69;&#x40;&#105;&#122;&#115;&#46;&#109;&#x65;</a></p>
+<a href="mailto:&#105;&#x40;&#x69;&#x7a;&#x73;&#x2e;&#109;&#x65;">&#105;&#x40;&#x69;&#x7a;&#x73;&#x2e;&#109;&#x65;</a></p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-help.html">npm-help(1)</a></li>
@@ -150,5 +147,5 @@ will no doubt tell you to put the output in a gist or email.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm &mdash; npm@6.1.0</p>
+<p id="footer">npm &mdash; npm@6.2.0</p>
 

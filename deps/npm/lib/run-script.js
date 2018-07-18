@@ -8,6 +8,8 @@ var log = require('npmlog')
 var chain = require('slide').chain
 var usage = require('./utils/usage')
 var output = require('./utils/output.js')
+var didYouMean = require('./utils/did-you-mean')
+var isWindowsShell = require('./utils/is-windows-shell.js')
 
 runScript.usage = usage(
   'run-script',
@@ -138,7 +140,7 @@ function run (pkg, wd, cmd, args, cb) {
       if (cmd === 'test') {
         pkg.scripts.test = 'echo \'Error: no test specified\''
       } else if (cmd === 'env') {
-        if (process.platform === 'win32') {
+        if (isWindowsShell) {
           log.verbose('run-script using default platform env: SET (Windows)')
           pkg.scripts[cmd] = 'SET'
         } else {
@@ -148,7 +150,9 @@ function run (pkg, wd, cmd, args, cb) {
       } else if (npm.config.get('if-present')) {
         return cb(null)
       } else {
-        return cb(new Error('missing script: ' + cmd))
+        let suggestions = didYouMean(cmd, Object.keys(pkg.scripts))
+        suggestions = suggestions ? '\n' + suggestions : ''
+        return cb(new Error('missing script: ' + cmd + suggestions))
       }
     }
     cmds = [cmd]

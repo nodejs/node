@@ -19,6 +19,10 @@ var path = require('path')
 
 var port = exports.port = 1337
 exports.registry = 'http://localhost:' + port
+
+var fakeRegistry = require('./fake-registry.js')
+exports.fakeRegistry = fakeRegistry
+
 const ourenv = {}
 ourenv.npm_config_loglevel = 'error'
 ourenv.npm_config_progress = 'false'
@@ -145,18 +149,8 @@ exports.pendIfWindows = function (why) {
   process.exit(0)
 }
 
-let mr
 exports.withServer = cb => {
-  if (!mr) { mr = Bluebird.promisify(require('npm-registry-mock')) }
-  return mr({port: port++, throwOnUnmatched: true})
-    .tap(server => {
-      server.registry = exports.registry.replace(exports.port, server.port)
-      return cb(server)
-    })
-    .then((server) => {
-      server.done()
-      return server.close()
-    })
+  return fakeRegistry.compat().tap(cb).then(server => server.close())
 }
 
 exports.newEnv = function () {

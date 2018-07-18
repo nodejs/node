@@ -11,12 +11,11 @@
 
 <h1><a href="../misc/semver.html">semver</a></h1> <p>The semantic versioner for npm</p>
 <h2 id="install">Install</h2>
-<pre><code class="lang-bash">npm install --save semver
-`
-</code></pre>
+<pre><code class="language-bash">npm install --save semver
+`</code></pre>
 <h2 id="usage">Usage</h2>
 <p>As a node module:</p>
-<pre><code class="lang-js">const semver = require(&#39;semver&#39;)
+<pre><code class="language-js">const semver = require(&#39;semver&#39;)
 
 semver.valid(&#39;1.2.3&#39;) // &#39;1.2.3&#39;
 semver.valid(&#39;a.b.c&#39;) // null
@@ -25,8 +24,7 @@ semver.satisfies(&#39;1.2.3&#39;, &#39;1.x || &gt;=2.5.0 || 5.0.0 - 7.2.3&#39;) 
 semver.gt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // false
 semver.lt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // true
 semver.valid(semver.coerce(&#39;v2&#39;)) // &#39;2.0.0&#39;
-semver.valid(semver.coerce(&#39;42.6.7.9.3-alpha&#39;)) // &#39;42.6.7&#39;
-</code></pre>
+semver.valid(semver.coerce(&#39;42.6.7.9.3-alpha&#39;)) // &#39;42.6.7&#39;</code></pre>
 <p>As a command-line utility:</p>
 <pre><code>$ semver -h
 
@@ -65,8 +63,7 @@ all supplied ranges, and prints all satisfying versions.
 If no satisfying versions are found, then exits failure.
 
 Versions are printed in ascending order, so supplying
-multiple versions to the utility will just sort them.
-</code></pre><h2 id="versions">Versions</h2>
+multiple versions to the utility will just sort them.</code></pre><h2 id="versions">Versions</h2>
 <p>A &quot;version&quot; is described by the <code>v2.0.0</code> specification found at
 <a href="http://semver.org/">http://semver.org/</a>.</p>
 <p>A leading <code>&quot;=&quot;</code> or <code>&quot;v&quot;</code> character is stripped off and ignored.</p>
@@ -123,17 +120,14 @@ similar risk on the <em>next</em> set of prerelease versions.</p>
 <h4 id="prerelease-identifiers">Prerelease Identifiers</h4>
 <p>The method <code>.inc</code> takes an additional <code>identifier</code> string argument that
 will append the value of the string as a prerelease identifier:</p>
-<pre><code class="lang-javascript">semver.inc(&#39;1.2.3&#39;, &#39;prerelease&#39;, &#39;beta&#39;)
-// &#39;1.2.4-beta.0&#39;
-</code></pre>
+<pre><code class="language-javascript">semver.inc(&#39;1.2.3&#39;, &#39;prerelease&#39;, &#39;beta&#39;)
+// &#39;1.2.4-beta.0&#39;</code></pre>
 <p>command-line example:</p>
-<pre><code class="lang-bash">$ semver 1.2.3 -i prerelease --preid beta
-1.2.4-beta.0
-</code></pre>
+<pre><code class="language-bash">$ semver 1.2.3 -i prerelease --preid beta
+1.2.4-beta.0</code></pre>
 <p>Which then can be used to increment further:</p>
-<pre><code class="lang-bash">$ semver 1.2.4-beta.0 -i prerelease
-1.2.4-beta.1
-</code></pre>
+<pre><code class="language-bash">$ semver 1.2.4-beta.0 -i prerelease
+1.2.4-beta.1</code></pre>
 <h3 id="advanced-range-syntax">Advanced Range Syntax</h3>
 <p>Advanced range syntax desugars to primitive comparators in
 deterministic ways.</p>
@@ -231,7 +225,7 @@ zero.</p>
 <h3 id="range-grammar">Range Grammar</h3>
 <p>Putting all this together, here is a Backus-Naur grammar for ranges,
 for the benefit of parser authors:</p>
-<pre><code class="lang-bnf">range-set  ::= range ( logical-or range ) *
+<pre><code class="language-bnf">range-set  ::= range ( logical-or range ) *
 logical-or ::= ( &#39; &#39; ) * &#39;||&#39; ( &#39; &#39; ) *
 range      ::= hyphen | simple ( &#39; &#39; simple ) * | &#39;&#39;
 hyphen     ::= partial &#39; - &#39; partial
@@ -246,8 +240,7 @@ qualifier  ::= ( &#39;-&#39; pre )? ( &#39;+&#39; build )?
 pre        ::= parts
 build      ::= parts
 parts      ::= part ( &#39;.&#39; part ) *
-part       ::= nr | [-0-9A-Za-z]+
-</code></pre>
+part       ::= nr | [-0-9A-Za-z]+</code></pre>
 <h2 id="functions">Functions</h2>
 <p>All methods and classes take a final <code>loose</code> boolean argument that, if
 true, will be more forgiving about not-quite-valid semver strings.
@@ -357,5 +350,5 @@ higher value components are invalid (<code>9999999999999999.4.7.4</code> is like
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">semver &mdash; npm@6.1.0</p>
+<p id="footer">semver &mdash; npm@6.2.0</p>
 

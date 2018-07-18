@@ -15,8 +15,7 @@
 follows the usual rules for package names (URL-safe characters, no leading dots
 or underscores). When used in package names, scopes are preceded by an <code>@</code> symbol
 and followed by a slash, e.g.</p>
-<pre><code>@somescope/somepackagename
-</code></pre><p>Scopes are a way of grouping related packages together, and also affect a few
+<pre><code>@somescope/somepackagename</code></pre><p>Scopes are a way of grouping related packages together, and also affect a few
 things about the way npm treats the package.</p>
 <p>Each npm user/organization has their own scope, and only you can add packages
 in your scope. This means you don&#39;t have to worry about someone taking your
@@ -34,18 +33,15 @@ folder (<code>@myorg</code>) is simply the name of the scope preceded by an <cod
 contain any number of scoped packages.</p>
 <p>A scoped package is installed by referencing it by name, preceded by an
 <code>@</code> symbol, in <code>npm install</code>:</p>
-<pre><code>npm install @myorg/mypackage
-</code></pre><p>Or in <code>package.json</code>:</p>
+<pre><code>npm install @myorg/mypackage</code></pre><p>Or in <code>package.json</code>:</p>
 <pre><code>&quot;dependencies&quot;: {
   &quot;@myorg/mypackage&quot;: &quot;^1.3.0&quot;
-}
-</code></pre><p>Note that if the <code>@</code> symbol is omitted, in either case, npm will instead attempt to
+}</code></pre><p>Note that if the <code>@</code> symbol is omitted, in either case, npm will instead attempt to
 install from GitHub; see <code><a href="../cli/npm-install.html">npm-install(1)</a></code>.</p>
 <h2 id="requiring-scoped-packages">Requiring scoped packages</h2>
 <p>Because scoped packages are installed into a scope folder, you have to
 include the name of the scope when requiring them in your code, e.g.</p>
-<pre><code>require(&#39;@myorg/mypackage&#39;)
-</code></pre><p>There is nothing special about the way Node treats scope folders. This
+<pre><code>require(&#39;@myorg/mypackage&#39;)</code></pre><p>There is nothing special about the way Node treats scope folders. This
 simply requires the <code>mypackage</code> module in the folder named <code>@myorg</code>.</p>
 <h2 id="publishing-scoped-packages">Publishing scoped packages</h2>
 <p>Scoped packages can be published from the CLI as of <code>npm@2</code> and can be
@@ -71,12 +67,10 @@ desired, with <code>npm access</code> or on the npmjs.com website.</p>
 seamlessly use a mix of packages from the primary npm registry and one or more
 private registries, such as npm Enterprise.</p>
 <p>You can associate a scope with a registry at login, e.g.</p>
-<pre><code>npm login --registry=http://reg.example.com --scope=@myco
-</code></pre><p>Scopes have a many-to-one relationship with registries: one registry can
+<pre><code>npm login --registry=http://reg.example.com --scope=@myco</code></pre><p>Scopes have a many-to-one relationship with registries: one registry can
 host multiple scopes, but a scope only ever points to one registry.</p>
 <p>You can also associate a scope with a registry using <code>npm config</code>:</p>
-<pre><code>npm config set @myco:registry http://reg.example.com
-</code></pre><p>Once a scope is associated with a registry, any <code>npm install</code> for a package
+<pre><code>npm config set @myco:registry http://reg.example.com</code></pre><p>Once a scope is associated with a registry, any <code>npm install</code> for a package
 with that scope will request packages from that registry instead. Any
 <code>npm publish</code> for a package name that contains the scope will be published to
 that registry instead.</p>
@@ -99,5 +93,5 @@ that registry instead.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scope &mdash; npm@6.1.0</p>
+<p id="footer">npm-scope &mdash; npm@6.2.0</p>
 

@@ -1,6 +1,11 @@
 # Changes
 
 
+## 1.3.1
+
+* update deps
+* update travis
+
 ## v1.3.0
 
 * Add nothrow option to which.sync

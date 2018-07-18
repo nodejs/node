@@ -69,7 +69,7 @@ function clean (args) {
   }
   const cachePath = path.join(npm.cache, '_cacache')
   if (!npm.config.get('force')) {
-    return BB.reject(new Error("As of npm@5, the npm cache self-heals from corruption issues and data extracted from the cache is guaranteed to be valid. If you want to make sure everything is consistent, use 'npm cache verify' instead.\n\nIf you're sure you want to delete the entire cache, rerun this command with --force."))
+    return BB.reject(new Error("As of npm@5, the npm cache self-heals from corruption issues and data extracted from the cache is guaranteed to be valid. If you want to make sure everything is consistent, use 'npm cache verify' instead. On the other hand, if you're debugging an issue with the installer, you can use `npm install --cache /tmp/empty-cache` to use a temporary cache instead of nuking the actual one.\n\nIf you're sure you want to delete the entire cache, rerun this command with --force."))
   }
   // TODO - remove specific packages or package versions
   return rm(cachePath)

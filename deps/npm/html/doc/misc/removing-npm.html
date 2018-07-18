@@ -12,10 +12,8 @@
 <h1><a href="../cli/npm-removal.html">npm-removal</a></h1> <p>Cleaning the Slate</p>
 <h2 id="synopsis">SYNOPSIS</h2>
 <p>So sad to see you go.</p>
-<pre><code>sudo npm uninstall npm -g
-</code></pre><p>Or, if that fails, get the npm source code, and do:</p>
-<pre><code>sudo make uninstall
-</code></pre><h2 id="more-severe-uninstalling">More Severe Uninstalling</h2>
+<pre><code>sudo npm uninstall npm -g</code></pre><p>Or, if that fails, get the npm source code, and do:</p>
+<pre><code>sudo make uninstall</code></pre><h2 id="more-severe-uninstalling">More Severe Uninstalling</h2>
 <p>Usually, the above instructions are sufficient.  That will remove
 npm, but leave behind anything you&#39;ve installed.</p>
 <p>If that doesn&#39;t work, or if you require more drastic measures,
@@ -29,16 +27,13 @@ you configured node with a different <code>--prefix</code>, or installed npm wit
 different prefix setting, then adjust the paths accordingly, replacing
 <code>/usr/local</code> with your install prefix.</p>
 <p>To remove everything npm-related manually:</p>
-<pre><code>rm -rf /usr/local/{lib/node{,/.npm,_modules},bin,share/man}/npm*
-</code></pre><p>If you installed things <em>with</em> npm, then your best bet is to uninstall
+<pre><code>rm -rf /usr/local/{lib/node{,/.npm,_modules},bin,share/man}/npm*</code></pre><p>If you installed things <em>with</em> npm, then your best bet is to uninstall
 them with npm first, and then install them again once you have a
 proper install.  This can help find any symlinks that are lying
 around:</p>
-<pre><code>ls -laF /usr/local/{lib/node{,/.npm},bin,share/man} | grep npm
-</code></pre><p>Prior to version 0.3, npm used shim files for executables and node
+<pre><code>ls -laF /usr/local/{lib/node{,/.npm},bin,share/man} | grep npm</code></pre><p>Prior to version 0.3, npm used shim files for executables and node
 modules.  To track those down, you can do the following:</p>
-<pre><code>find /usr/local/{lib/node,bin} -exec grep -l npm \{\} \; ;
-</code></pre><p>(This is also in the <a href="../../doc/README.html">README</a> file.)</p>
+<pre><code>find /usr/local/{lib/node,bin} -exec grep -l npm \{\} \; ;</code></pre><p>(This is also in the <a href="../../doc/README.html">README</a> file.)</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../../doc/README.html">README</a></li>
@@ -57,5 +52,5 @@ modules.  To track those down, you can do the following:</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">removing-npm &mdash; npm@6.1.0</p>
+<p id="footer">removing-npm &mdash; npm@6.2.0</p>
 

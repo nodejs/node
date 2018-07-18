@@ -60,11 +60,11 @@ Run by the <code>npm shrinkwrap</code> command.</li>
 <p>Additionally, arbitrary scripts can be executed by running <code>npm
 run-script &lt;stage&gt;</code>. <em>Pre</em> and <em>post</em> commands with matching
 names will be run for those as well (e.g. <code>premyscript</code>, <code>myscript</code>,
-<code>postmyscript</code>). Scripts from dependencies can be run with `npm explore</p>
-<p><pkg> -- npm run <stage>`.</p>
+<code>postmyscript</code>). Scripts from dependencies can be run with <code>npm explore
+&lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
 <h2 id="prepublish-and-prepare">PREPUBLISH AND PREPARE</h2>
 <h3 id="deprecation-note">DEPRECATION NOTE</h3>
-<p>Since <a href="mailto:`npm@1.1.71">`npm@1.1.71</a><code>, the npm CLI has run the</code>prepublish<code>script for both</code>npm
+<p>Since <a href="mailto:%60npm@1.1.71">`npm@1.1.71</a><code>, the npm CLI has run the</code>prepublish<code>script for both</code>npm
 publish<code>and</code>npm install<code>, because it&#39;s a convenient way to prepare a package
 for use (some common use cases are described in the section below).  It has
 also turned out to be, in practice, [very
@@ -125,8 +125,7 @@ suites, then those executables will be added to the <code>PATH</code> for
 executing the scripts.  So, if your package.json has this:</p>
 <pre><code>{ &quot;name&quot; : &quot;foo&quot;
 , &quot;dependencies&quot; : { &quot;bar&quot; : &quot;0.1.x&quot; }
-, &quot;scripts&quot;: { &quot;start&quot; : &quot;bar ./test&quot; } }
-</code></pre><p>then you could run <code>npm start</code> to execute the <code>bar</code> script, which is
+, &quot;scripts&quot;: { &quot;start&quot; : &quot;bar ./test&quot; } }</code></pre><p>then you could run <code>npm start</code> to execute the <code>bar</code> script, which is
 exported into the <code>node_modules/.bin</code> directory on <code>npm install</code>.</p>
 <h3 id="package-json-vars">package.json vars</h3>
 <p>The package.json fields are tacked onto the <code>npm_package_</code> prefix. So,
@@ -144,12 +143,9 @@ there is a config param of <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</cod
 if the package.json has this:</p>
 <pre><code>{ &quot;name&quot; : &quot;foo&quot;
 , &quot;config&quot; : { &quot;port&quot; : &quot;8080&quot; }
-, &quot;scripts&quot; : { &quot;start&quot; : &quot;node server.js&quot; } }
-</code></pre><p>and the server.js is this:</p>
-<pre><code>http.createServer(...).listen(process.env.npm_package_config_port)
-</code></pre><p>then the user could change the behavior by doing:</p>
-<pre><code>npm config set foo:port 80
-</code></pre><h3 id="current-lifecycle-event">current lifecycle event</h3>
+, &quot;scripts&quot; : { &quot;start&quot; : &quot;node server.js&quot; } }</code></pre><p>and the server.js is this:</p>
+<pre><code>http.createServer(...).listen(process.env.npm_package_config_port)</code></pre><p>then the user could change the behavior by doing:</p>
+<pre><code>npm config set foo:port 80</code></pre><h3 id="current-lifecycle-event">current lifecycle event</h3>
 <p>Lastly, the <code>npm_lifecycle_event</code> environment variable is set to
 whichever stage of the cycle is being executed. So, you could have a
 single script used for different parts of the process which switches
@@ -157,16 +153,14 @@ based on what&#39;s currently happening.</p>
 <p>Objects are flattened following this format, so if you had
 <code>{&quot;scripts&quot;:{&quot;install&quot;:&quot;foo.js&quot;}}</code> in your package.json, then you&#39;d
 see this in the script:</p>
-<pre><code>process.env.npm_package_scripts_install === &quot;foo.js&quot;
-</code></pre><h2 id="examples">EXAMPLES</h2>
+<pre><code>process.env.npm_package_scripts_install === &quot;foo.js&quot;</code></pre><h2 id="examples">EXAMPLES</h2>
 <p>For example, if your package.json contains this:</p>
 <pre><code>{ &quot;scripts&quot; :
   { &quot;install&quot; : &quot;scripts/install.js&quot;
   , &quot;postinstall&quot; : &quot;scripts/install.js&quot;
   , &quot;uninstall&quot; : &quot;scripts/uninstall.js&quot;
   }
-}
-</code></pre><p>then <code>scripts/install.js</code> will be called for the install
+}</code></pre><p>then <code>scripts/install.js</code> will be called for the install
 and post-install stages of the lifecycle, and <code>scripts/uninstall.js</code>
 will be called when the package is uninstalled.  Since
 <code>scripts/install.js</code> is running for two different phases, it would
@@ -179,8 +173,7 @@ fine:</p>
   , &quot;install&quot; : &quot;make &amp;&amp; make install&quot;
   , &quot;test&quot; : &quot;make test&quot;
   }
-}
-</code></pre><h2 id="exiting">EXITING</h2>
+}</code></pre><h2 id="exiting">EXITING</h2>
 <p>Scripts are run by passing the line as a script argument to <code>sh</code>.</p>
 <p>If the script exits with a code other than 0, then this will abort the
 process.</p>
@@ -239,5 +232,5 @@ scripts is for compilation which must be done on the target architecture.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@6.1.0</p>
+<p id="footer">npm-scripts &mdash; npm@6.2.0</p>
 
