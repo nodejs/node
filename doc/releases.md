@@ -111,14 +111,14 @@ $ git reset --hard upstream/v1.x-staging
 
 If the staging branch is not up to date relative to `master`, bring the
 appropriate commits into it. To determine the relevant commits, use
-[`branch-diff`](https://github.com/rvagg/branch-diff). The tool is available on
+[`branch-diff`](https://github.com/nodejs/branch-diff). The tool is available on
 npm and should be installed globally or run with `npx`. It depends on our commit
 metadata, as well as the GitHub labels such as `semver-minor` and
 `semver-major`. One drawback is that when the `PR-URL` metadata is accidentally
 omitted from a commit, the commit will show up because it's unsure if it's a
 duplicate or not.
 
-For a list of commits that could be landed in a patch release on v10.x:
+For a list of commits that could be landed in a patch release on v1.x:
 
 ```console
 $ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x --filter-release --format=simple
