@@ -63,7 +63,7 @@ class NodeTraceWriter : public AsyncTraceWriter {
   int file_num_ = 0;
   const std::string& log_file_pattern_;
   std::ostringstream stream_;
-  TraceWriter* json_trace_writer_ = nullptr;
+  std::unique_ptr<TraceWriter> json_trace_writer_;
   bool exited_ = false;
 };
 
