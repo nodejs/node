@@ -9,6 +9,7 @@
 #include "../common.h"
 
 #define ARRAY_LENGTH 10
+#define MAX_QUEUE_SIZE 2
 
 static uv_thread_t uv_threads[2];
 static napi_threadsafe_function ts_fn;
@@ -18,6 +19,7 @@ typedef struct {
   napi_threadsafe_function_release_mode abort;
   bool start_secondary;
   napi_ref js_finalize_cb;
+  uint32_t max_queue_size;
 } ts_fn_hint;
 
 static ts_fn_hint ts_info;
@@ -71,6 +73,12 @@ static void data_source_thread(void* data) {
   for (index = ARRAY_LENGTH - 1; index > -1 && !queue_was_closing; index--) {
     status = napi_call_threadsafe_function(ts_fn, &ints[index],
         ts_fn_info->block_on_full);
+    if (ts_fn_info->max_queue_size == 0) {
+      // Let's make this thread really busy for 200 ms to give the main thread a
+      // chance to abort.
+      uint64_t start = uv_hrtime();
+      for (; uv_hrtime() - start < 200000000;);
+    }
     switch (status) {
       case napi_queue_full:
         queue_was_full = true;
@@ -167,8 +175,8 @@ static napi_value StartThreadInternal(napi_env env,
                                       napi_callback_info info,
                                       napi_threadsafe_function_call_js cb,
                                       bool block_on_full) {
-  size_t argc = 3;
-  napi_value argv[3];
+  size_t argc = 4;
+  napi_value argv[4];
 
   ts_info.block_on_full =
       (block_on_full ? napi_tsfn_blocking : napi_tsfn_nonblocking);
@@ -178,8 +186,18 @@ static napi_value StartThreadInternal(napi_env env,
   napi_value async_name;
   NAPI_CALL(env, napi_create_string_utf8(env, "N-API Thread-safe Function Test",
       NAPI_AUTO_LENGTH, &async_name));
-  NAPI_CALL(env, napi_create_threadsafe_function(env, argv[0], NULL, async_name,
-      2, 2, uv_threads, join_the_threads, &ts_info, cb, &ts_fn));
+  NAPI_CALL(env, napi_get_value_uint32(env, argv[3], &ts_info.max_queue_size));
+  NAPI_CALL(env, napi_create_threadsafe_function(env,
+                                                 argv[0],
+                                                 NULL,
+                                                 async_name,
+                                                 ts_info.max_queue_size,
+                                                 2,
+                                                 uv_threads,
+                                                 join_the_threads,
+                                                 &ts_info,
+                                                 cb,
+                                                 &ts_fn));
   bool abort;
   NAPI_CALL(env, napi_get_value_bool(env, argv[1], &abort));
   ts_info.abort = abort ? napi_tsfn_abort : napi_tsfn_release;
@@ -224,8 +242,9 @@ static napi_value Init(napi_env env, napi_value exports) {
   for (index = 0; index < ARRAY_LENGTH; index++) {
     ints[index] = index;
   }
-  napi_value js_array_length;
+  napi_value js_array_length, js_max_queue_size;
   napi_create_uint32(env, ARRAY_LENGTH, &js_array_length);
+  napi_create_uint32(env, MAX_QUEUE_SIZE, &js_max_queue_size);
 
   napi_property_descriptor properties[] = {
     {
@@ -235,6 +254,16 @@ static napi_value Init(napi_env env, napi_value exports) {
       NULL,
       NULL,
       js_array_length,
+      napi_enumerable,
+      NULL
+    },
+    {
+      "MAX_QUEUE_SIZE",
+      NULL,
+      NULL,
+      NULL,
+      NULL,
+      js_max_queue_size,
       napi_enumerable,
       NULL
     },
