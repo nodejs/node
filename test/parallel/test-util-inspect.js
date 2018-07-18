@@ -868,6 +868,14 @@ assert.strictEqual(util.inspect(new Number(13.37)), '[Number: 13.37]');
   const num = new Number(13.37);
   num.foo = 'bar';
   assert.strictEqual(util.inspect(num), "{ [Number: 13.37] foo: 'bar' }");
+
+  const sym = Object(Symbol('foo'));
+  sym.foo = 'bar';
+  assert.strictEqual(util.inspect(sym), "{ [Symbol: Symbol(foo)] foo: 'bar' }");
+
+  const big = Object(BigInt(55));
+  big.foo = 'bar';
+  assert.strictEqual(util.inspect(big), "{ [BigInt: 55n] foo: 'bar' }");
 }
 
 // Test es6 Symbol.
@@ -1489,3 +1497,78 @@ util.inspect(process);
   assert(longList.includes('[Object: Inspection interrupted ' +
     'prematurely. Maximum call stack size exceeded.]'));
 }
+
+// Manipulating the Symbol.iterator should still produce nice results.
+[
+  [[1, 2], '[ 1, 2 ]'],
+  [[, , 5, , , , ], '[ <2 empty items>, 5, <3 empty items> ]'],
+  [new Set([1, 2]), 'Set { 1, 2 }'],
+  [new Map([[1, 2]]), 'Map { 1 => 2 }'],
+  [new Uint8Array(2), 'Uint8Array [ 0, 0 ]'],
+  // It seems like the following can not be fully restored :(
+  [new Set([1, 2]).entries(), 'Object [Set Iterator] {}'],
+  [new Map([[1, 2]]).keys(), 'Object [Map Iterator] {}'],
+].forEach(([value, expected]) => {
+  // "Remove the Symbol.iterator"
+  Object.defineProperty(value, Symbol.iterator, {
+    value: false
+  });
+  assert.strictEqual(util.inspect(value), expected);
+});
+
+// Verify the output in case the value has no prototype.
+// Sadly, these cases can not be fully inspected :(
+[
+  [/a/, '/undefined/undefined'],
+  [new DataView(new ArrayBuffer(2)),
+   'DataView {\n  byteLength: undefined,\n  byteOffset: undefined,\n  ' +
+     'buffer: undefined }'],
+  [new SharedArrayBuffer(2), 'SharedArrayBuffer { byteLength: undefined }']
+].forEach(([value, expected]) => {
+  assert.strictEqual(
+    util.inspect(Object.setPrototypeOf(value, null)),
+    expected
+  );
+});
+
+// Verify that throwing in valueOf and having no prototype still produces nice
+// results.
+[
+  [new String(55), "[String: '55']"],
+  [new Boolean(true), '[Boolean: true]'],
+  [new Number(55), '[Number: 55]'],
+  [Object(BigInt(55)), '[BigInt: 55n]'],
+  [Object(Symbol('foo')), '[Symbol: Symbol(foo)]'],
+  [function() {}, '[Function]'],
+  [() => {}, '[Function]'],
+  [[1, 2], '[ 1, 2 ]'],
+  [[, , 5, , , , ], '[ <2 empty items>, 5, <3 empty items> ]'],
+  [{ a: 5 }, '{ a: 5 }'],
+  [new Set([1, 2]), 'Set { 1, 2 }'],
+  [new Map([[1, 2]]), 'Map { 1 => 2 }'],
+  [new Set([1, 2]).entries(), '[Set Iterator] { 1, 2 }'],
+  [new Map([[1, 2]]).keys(), '[Map Iterator] { 1 }'],
+  [new Date(2000), '1970-01-01T00:00:02.000Z'],
+  [new Uint8Array(2), 'Uint8Array [ 0, 0 ]'],
+  [new Promise((resolve) => setTimeout(resolve, 10)), 'Promise { <pending> }'],
+  [new WeakSet(), 'WeakSet { [items unknown] }'],
+  [new WeakMap(), 'WeakMap { [items unknown] }'],
+].forEach(([value, expected]) => {
+  Object.defineProperty(value, 'valueOf', {
+    get() {
+      throw new Error('valueOf');
+    }
+  });
+  Object.defineProperty(value, 'toString', {
+    get() {
+      throw new Error('toString');
+    }
+  });
+  assert.strictEqual(util.inspect(value), expected);
+  assert.strictEqual(
+    util.inspect(Object.setPrototypeOf(value, null)),
+    expected
+  );
+  value.foo = 'bar';
+  assert.notStrictEqual(util.inspect(value), expected);
+});
