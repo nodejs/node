@@ -53,7 +53,7 @@ NodeTraceWriter::~NodeTraceWriter() {
   uv_fs_t req;
   int err;
   if (fd_ != -1) {
-    err = uv_fs_close(tracing_loop_, &req, fd_, nullptr);
+    err = uv_fs_close(nullptr, &req, fd_, nullptr);
     CHECK_EQ(err, 0);
     uv_fs_req_cleanup(&req);
   }
@@ -84,7 +84,12 @@ void NodeTraceWriter::OpenNewFileForStreaming() {
   replace_substring(&filepath, "${pid}", std::to_string(uv_os_getpid()));
   replace_substring(&filepath, "${rotation}", std::to_string(file_num_));
 
-  fd_ = uv_fs_open(tracing_loop_, &req, filepath.c_str(),
+  if (fd_ != -1) {
+    CHECK_EQ(uv_fs_close(nullptr, &req, fd_, nullptr), 0);
+    uv_fs_req_cleanup(&req);
+  }
+
+  fd_ = uv_fs_open(nullptr, &req, filepath.c_str(),
       O_CREAT | O_WRONLY | O_TRUNC, 0644, nullptr);
   uv_fs_req_cleanup(&req);
   if (fd_ < 0) {
