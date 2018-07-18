@@ -57,6 +57,9 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   Local<Array> entries;
   if (!args[0].As<Object>()->PreviewEntries(&is_key_value).ToLocal(&entries))
     return;
+  // Fast path for WeakMap, WeakSet and Set iterators.
+  if (args.Length() == 1)
+    return args.GetReturnValue().Set(entries);
   Local<Array> ret = Array::New(env->isolate(), 2);
   ret->Set(env->context(), 0, entries).FromJust();
   ret->Set(env->context(), 1, v8::Boolean::New(env->isolate(), is_key_value))
