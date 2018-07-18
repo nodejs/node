@@ -29,21 +29,17 @@ statements onto multiple lines.</p>
 <p>Curly braces belong on the same line as the thing that necessitates them.</p>
 <p>Bad:</p>
 <pre><code>function ()
-{
-</code></pre><p>Good:</p>
-<pre><code>function () {
-</code></pre><p>If a block needs to wrap to the next line, use a curly brace.  Don&#39;t
+{</code></pre><p>Good:</p>
+<pre><code>function () {</code></pre><p>If a block needs to wrap to the next line, use a curly brace.  Don&#39;t
 use it if it doesn&#39;t.</p>
 <p>Bad:</p>
 <pre><code>if (foo) { bar() }
 while (foo)
-  bar()
-</code></pre><p>Good:</p>
+  bar()</code></pre><p>Good:</p>
 <pre><code>if (foo) bar()
 while (foo) {
   bar()
-}
-</code></pre><h2 id="semicolons">Semicolons</h2>
+}</code></pre><h2 id="semicolons">Semicolons</h2>
 <p>Don&#39;t use them except in four situations:</p>
 <ul>
 <li><code>for (;;)</code> loops.  They&#39;re actually required.</li>
@@ -64,8 +60,7 @@ for (var i = 0; i &lt; 10; i ++) {
     default: throw new Error(&#39;unknown state&#39;)
   }
   end()
-}
-</code></pre><p>Note that starting lines with <code>-</code> and <code>+</code> also should be prefixed
+}</code></pre><p>Note that starting lines with <code>-</code> and <code>+</code> also should be prefixed
 with a semicolon, but this is much less common.</p>
 <h2 id="comma-first">Comma First</h2>
 <p>If there is a list of things separated by commas, and it wraps
@@ -82,15 +77,12 @@ final token in the list on a line by itself.  For example:</p>
   , a = 1
   , b = &#39;abc&#39;
   , etc
-  , somethingElse
-</code></pre><h2 id="quotes">Quotes</h2>
+  , somethingElse</code></pre><h2 id="quotes">Quotes</h2>
 <p>Use single quotes for strings except to avoid escaping.</p>
 <p>Bad:</p>
-<pre><code>var notOk = &quot;Just double quotes&quot;
-</code></pre><p>Good:</p>
+<pre><code>var notOk = &quot;Just double quotes&quot;</code></pre><p>Good:</p>
 <pre><code>var ok = &#39;String contains &quot;double&quot; quotes&#39;
-var alsoOk = &quot;String contains &#39;single&#39; quotes or apostrophe&quot;
-</code></pre><h2 id="whitespace">Whitespace</h2>
+var alsoOk = &quot;String contains &#39;single&#39; quotes or apostrophe&quot;</code></pre><h2 id="whitespace">Whitespace</h2>
 <p>Put a single space in front of <code>(</code> for anything other than a function call.
 Also use a single space wherever it makes things more readable.</p>
 <p>Don&#39;t leave trailing whitespace at the end of lines.  Don&#39;t indent empty
@@ -153,5 +145,5 @@ set to anything.&quot;</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-coding-style &mdash; npm@6.1.0</p>
+<p id="footer">npm-coding-style &mdash; npm@6.2.0</p>
 

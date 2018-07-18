@@ -9,7 +9,7 @@ const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const pudding = require('figgy-pudding')
 const relativeDate = require('tiny-relative-date')
-const Table = require('cli-table2')
+const Table = require('cli-table3')
 const usage = require('./utils/usage.js')
 const validate = require('aproba')
 

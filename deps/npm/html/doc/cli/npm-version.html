@@ -15,8 +15,7 @@
 
 &#39;npm [-v | --version]&#39; to print npm version
 &#39;npm view &lt;pkg&gt; version&#39; to view a package&#39;s published version
-&#39;npm ls&#39; to inspect current package/dependency versions
-</code></pre><h2 id="description">DESCRIPTION</h2>
+&#39;npm ls&#39; to inspect current package/dependency versions</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Run this in a package directory to bump the version and write the new
 data back to <code>package.json</code>, <code>package-lock.json</code>, and, if present, <code>npm-shrinkwrap.json</code>.</p>
 <p>The <code>newversion</code> argument should be a valid semver string, a
@@ -33,8 +32,7 @@ It will fail if the working directory is not clean, unless the <code>-f</code> o
 use it as a commit message when creating a version commit.  If the
 <code>message</code> config contains <code>%s</code> then that will be replaced with the
 resulting version number.  For example:</p>
-<pre><code>npm version patch -m &quot;Upgrade to %s for reasons&quot;
-</code></pre><p>If the <code>sign-git-tag</code> config is set, then the tag will be signed using
+<pre><code>npm version patch -m &quot;Upgrade to %s for reasons&quot;</code></pre><p>If the <code>sign-git-tag</code> config is set, then the tag will be signed using
 the <code>-s</code> flag to git.  Note that you must have a default GPG key set up
 in your git config for this to work properly.  For example:</p>
 <pre><code>$ npm config set sign-git-tag true
@@ -44,8 +42,7 @@ You need a passphrase to unlock the secret key for
 user: &quot;isaacs (http://blog.izs.me/) &lt;i@izs.me&gt;&quot;
 2048-bit RSA key, ID 6C481CF6, created 2010-08-31
 
-Enter passphrase:
-</code></pre><p>If <code>preversion</code>, <code>version</code>, or <code>postversion</code> are in the <code>scripts</code> property of
+Enter passphrase:</code></pre><p>If <code>preversion</code>, <code>version</code>, or <code>postversion</code> are in the <code>scripts</code> property of
 the package.json, they will be executed as part of running <code>npm version</code>.</p>
 <p>The exact order of execution is as follows:</p>
 <ol>
@@ -68,8 +65,7 @@ the commit and/or tag.</li>
   &quot;preversion&quot;: &quot;npm test&quot;,
   &quot;version&quot;: &quot;npm run build &amp;&amp; git add -A dist&quot;,
   &quot;postversion&quot;: &quot;git push &amp;&amp; git push --tags &amp;&amp; rm -rf build/temp&quot;
-}
-</code></pre><p>This runs all your tests, and proceeds only if they pass. Then runs your <code>build</code> script, and
+}</code></pre><p>This runs all your tests, and proceeds only if they pass. Then runs your <code>build</code> script, and
 adds everything in the <code>dist</code> directory to the commit. After the commit, it pushes the new commit
 and tag up to the server, and deletes the <code>build/temp</code> directory.</p>
 <h2 id="configuration">CONFIGURATION</h2>
@@ -120,5 +116,5 @@ to the same value as the current version.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-version &mdash; npm@6.1.0</p>
+<p id="footer">npm-version &mdash; npm@6.2.0</p>
 

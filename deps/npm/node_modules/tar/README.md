@@ -534,7 +534,6 @@ The following options are supported:
 - `mtime` Set to a `Date` object to force a specific `mtime` for
   everything added to the archive.  Overridden by `noMtime`.
 
-
 #### add(path)
 
 Adds an entry to the archive.  Returns the Pack stream.
@@ -784,6 +783,9 @@ The following options are supported:
 - `noMtime` Set to true to omit writing `mtime` values for entries.
   Note that this prevents using other mtime-based features like
   `tar.update` or the `keepNewer` option with the resulting tar archive.
+- `umask` Set to restrict the modes on the entries in the archive,
+  somewhat like how umask works on file creation.  Defaults to
+  `process.umask()` on unix systems, or `0o22` on Windows.
 
 #### warn(message, data)
 

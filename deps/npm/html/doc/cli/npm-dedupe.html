@@ -14,8 +14,7 @@
 <pre><code>npm dedupe
 npm ddp
 
-aliases: find-dupes, ddp
-</code></pre><h2 id="description">DESCRIPTION</h2>
+aliases: find-dupes, ddp</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Searches the local package tree and attempts to simplify the overall
 structure by moving dependencies further up the tree, where they can
 be more effectively shared by multiple dependent packages.</p>
@@ -24,13 +23,11 @@ be more effectively shared by multiple dependent packages.</p>
 +-- b &lt;-- depends on c@1.0.x
 |   `-- c@1.0.3
 `-- d &lt;-- depends on c@~1.0.9
-    `-- c@1.0.10
-</code></pre><p>In this case, <code><a href="../cli/npm-dedupe.html">npm-dedupe(1)</a></code> will transform the tree to:</p>
+    `-- c@1.0.10</code></pre><p>In this case, <code><a href="../cli/npm-dedupe.html">npm-dedupe(1)</a></code> will transform the tree to:</p>
 <pre><code>a
 +-- b
 +-- d
-`-- c@1.0.10
-</code></pre><p>Because of the hierarchical nature of node&#39;s module lookup, b and d
+`-- c@1.0.10</code></pre><p>Because of the hierarchical nature of node&#39;s module lookup, b and d
 will both get their dependency met by the single c package at the root
 level of the tree.</p>
 <p>The deduplication algorithm walks the tree, moving each dependency as far
@@ -61,5 +58,5 @@ result in new modules being installed.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-dedupe &mdash; npm@6.1.0</p>
+<p id="footer">npm-dedupe &mdash; npm@6.2.0</p>
 

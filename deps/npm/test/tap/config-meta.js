@@ -9,6 +9,7 @@ var fs = require('fs')
 var path = require('path')
 var root = path.resolve(__dirname, '..', '..')
 var lib = path.resolve(root, 'lib')
+var bin = path.resolve(root, 'bin')
 var nm = path.resolve(root, 'node_modules')
 var doc = path.resolve(root, 'doc/misc/npm-config.md')
 var FILES = []
@@ -31,6 +32,7 @@ var exceptions = [
 test('get files', function (t) {
   walk(nm)
   walk(lib)
+  walk(bin)
   t.pass('got files')
   t.end()
 
