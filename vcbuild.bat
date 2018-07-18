@@ -432,7 +432,7 @@ if errorlevel 1 goto exit
 REM only install if building doc OR testing doctool
 if not defined doc (
   echo.%test_args% | findstr doctool 1>nul
-  if ERRORLEVEL 1 goto :skip-install-doctools
+  if errorlevel 1 goto :skip-install-doctools
 )
 if exist "tools\doc\node_modules\unified\package.json" goto skip-install-doctools
 SETLOCAL
@@ -442,6 +442,8 @@ cd ..\..
 if errorlevel 1 goto exit
 ENDLOCAL
 :skip-install-doctools
+@rem Clear errorlevel from echo.%test_args% | findstr doctool 1>nul
+cd .
 
 :build-doc
 @rem Build documentation if requested
