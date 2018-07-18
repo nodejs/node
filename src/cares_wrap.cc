@@ -856,23 +856,20 @@ int ParseMxReply(Environment* env,
     return status;
   }
 
-  Local<String> exchange_symbol = env->exchange_string();
-  Local<String> priority_symbol = env->priority_string();
-  Local<String> type_symbol = env->type_string();
-  Local<String> mx_symbol = env->dns_mx_string();
-
   uint32_t offset = ret->Length();
   ares_mx_reply* current = mx_start;
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
     Local<Object> mx_record = Object::New(env->isolate());
     mx_record->Set(context,
-                   exchange_symbol,
+                   env->exchange_string(),
                    OneByteString(env->isolate(), current->host)).FromJust();
     mx_record->Set(context,
-                   priority_symbol,
+                   env->priority_string(),
                    Integer::New(env->isolate(), current->priority)).FromJust();
     if (need_type)
-      mx_record->Set(context, type_symbol, mx_symbol).FromJust();
+      mx_record->Set(context,
+                     env->type_string(),
+                     env->dns_mx_string()).FromJust();
 
     ret->Set(context, i + offset, mx_record).FromJust();
   }
@@ -959,31 +956,26 @@ int ParseSrvReply(Environment* env,
     return status;
   }
 
-  Local<String> name_symbol = env->name_string();
-  Local<String> port_symbol = env->port_string();
-  Local<String> priority_symbol = env->priority_string();
-  Local<String> weight_symbol = env->weight_string();
-  Local<String> type_symbol = env->type_string();
-  Local<String> srv_symbol = env->dns_srv_string();
-
   ares_srv_reply* current = srv_start;
   int offset = ret->Length();
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
     Local<Object> srv_record = Object::New(env->isolate());
     srv_record->Set(context,
-                    name_symbol,
+                    env->name_string(),
                     OneByteString(env->isolate(), current->host)).FromJust();
     srv_record->Set(context,
-                    port_symbol,
+                    env->port_string(),
                     Integer::New(env->isolate(), current->port)).FromJust();
     srv_record->Set(context,
-                    priority_symbol,
+                    env->priority_string(),
                     Integer::New(env->isolate(), current->priority)).FromJust();
     srv_record->Set(context,
-                    weight_symbol,
+                    env->weight_string(),
                     Integer::New(env->isolate(), current->weight)).FromJust();
     if (need_type)
-      srv_record->Set(context, type_symbol, srv_symbol).FromJust();
+      srv_record->Set(context,
+                      env->type_string(),
+                      env->dns_srv_string()).FromJust();
 
     ret->Set(context, i + offset, srv_record).FromJust();
   }
@@ -1008,43 +1000,36 @@ int ParseNaptrReply(Environment* env,
     return status;
   }
 
-  Local<String> flags_symbol = env->flags_string();
-  Local<String> service_symbol = env->service_string();
-  Local<String> regexp_symbol = env->regexp_string();
-  Local<String> replacement_symbol = env->replacement_string();
-  Local<String> order_symbol = env->order_string();
-  Local<String> preference_symbol = env->preference_string();
-  Local<String> type_symbol = env->type_string();
-  Local<String> naptr_symbol = env->dns_naptr_string();
-
   ares_naptr_reply* current = naptr_start;
   int offset = ret->Length();
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
     Local<Object> naptr_record = Object::New(env->isolate());
     naptr_record->Set(context,
-                      flags_symbol,
+                      env->flags_string(),
                       OneByteString(env->isolate(), current->flags)).FromJust();
     naptr_record->Set(context,
-                      service_symbol,
+                      env->service_string(),
                       OneByteString(env->isolate(),
                                     current->service)).FromJust();
     naptr_record->Set(context,
-                      regexp_symbol,
+                      env->regexp_string(),
                       OneByteString(env->isolate(),
                                     current->regexp)).FromJust();
     naptr_record->Set(context,
-                      replacement_symbol,
+                      env->replacement_string(),
                       OneByteString(env->isolate(),
                                     current->replacement)).FromJust();
     naptr_record->Set(context,
-                      order_symbol,
+                      env->order_string(),
                       Integer::New(env->isolate(), current->order)).FromJust();
     naptr_record->Set(context,
-                      preference_symbol,
+                      env->preference_string(),
                       Integer::New(env->isolate(),
                                    current->preference)).FromJust();
     if (need_type)
-      naptr_record->Set(context, type_symbol, naptr_symbol).FromJust();
+      naptr_record->Set(context,
+                        env->type_string(),
+                        env->dns_naptr_string()).FromJust();
 
     ret->Set(context, i + offset, naptr_record).FromJust();
   }
