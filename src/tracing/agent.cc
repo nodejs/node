@@ -53,9 +53,27 @@ Agent::Agent() {
   tracing_controller_->Initialize(nullptr);
 
   CHECK_EQ(uv_loop_init(&tracing_loop_), 0);
+  CHECK_EQ(uv_async_init(&tracing_loop_,
+                         &initialize_writer_async_,
+                         [](uv_async_t* async) {
+    Agent* agent = ContainerOf(&Agent::initialize_writer_async_, async);
+    agent->InitializeWritersOnThread();
+  }), 0);
+}
+
+void Agent::InitializeWritersOnThread() {
+  Mutex::ScopedLock lock(initialize_writer_mutex_);
+  while (!to_be_initialized_.empty()) {
+    AsyncTraceWriter* head = *to_be_initialized_.begin();
+    head->InitializeOnThread(&tracing_loop_);
+    to_be_initialized_.erase(head);
+  }
+  initialize_writer_condvar_.Broadcast(lock);
 }
 
 Agent::~Agent() {
+  uv_close(reinterpret_cast<uv_handle_t*>(&initialize_writer_async_), nullptr);
+  uv_run(&tracing_loop_, UV_RUN_ONCE);
   CheckedUvLoopClose(&tracing_loop_);
 }
 
@@ -95,8 +113,17 @@ AgentWriterHandle Agent::AddClient(
 
   ScopedSuspendTracing suspend(tracing_controller_, this);
   int id = next_writer_id_++;
+  AsyncTraceWriter* raw = writer.get();
   writers_[id] = std::move(writer);
   categories_[id] = { use_categories->begin(), use_categories->end() };
+
+  {
+    Mutex::ScopedLock lock(initialize_writer_mutex_);
+    to_be_initialized_.insert(raw);
+    uv_async_send(&initialize_writer_async_);
+    while (to_be_initialized_.count(raw) > 0)
+      initialize_writer_condvar_.Wait(lock);
+  }
 
   return AgentWriterHandle(this, id);
 }
@@ -120,6 +147,10 @@ void Agent::StopTracing() {
 
 void Agent::Disconnect(int client) {
   if (client == kDefaultHandleId) return;
+  {
+    Mutex::ScopedLock lock(initialize_writer_mutex_);
+    to_be_initialized_.erase(writers_[client].get());
+  }
   ScopedSuspendTracing suspend(tracing_controller_, this);
   writers_.erase(client);
   categories_.erase(client);

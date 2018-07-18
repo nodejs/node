@@ -5,6 +5,7 @@
 #include "uv.h"
 #include "v8.h"
 #include "util.h"
+#include "node_mutex.h"
 
 #include <set>
 #include <string>
@@ -23,6 +24,7 @@ class AsyncTraceWriter {
   virtual ~AsyncTraceWriter() {}
   virtual void AppendTraceEvent(TraceObject* trace_event) = 0;
   virtual void Flush(bool blocking) = 0;
+  virtual void InitializeOnThread(uv_loop_t* loop) {}
 };
 
 class TracingController : public v8::platform::tracing::TracingController {
@@ -92,13 +94,11 @@ class Agent {
 
   TraceConfig* CreateTraceConfig() const;
 
-  // TODO(addaleax): This design is broken and inherently thread-unsafe.
-  inline uv_loop_t* loop() { return &tracing_loop_; }
-
  private:
   friend class AgentWriterHandle;
 
   static void ThreadCb(void* arg);
+  void InitializeWritersOnThread();
 
   void Start();
   void StopTracing();
@@ -120,6 +120,13 @@ class Agent {
   std::unordered_map<int, std::multiset<std::string>> categories_;
   std::unordered_map<int, std::unique_ptr<AsyncTraceWriter>> writers_;
   TracingController* tracing_controller_ = nullptr;
+
+  // Variables related to initializing per-event-loop properties of individual
+  // writers, such as libuv handles.
+  Mutex initialize_writer_mutex_;
+  ConditionVariable initialize_writer_condvar_;
+  uv_async_t initialize_writer_async_;
+  std::set<AsyncTraceWriter*> to_be_initialized_;
 };
 
 void AgentWriterHandle::reset() {

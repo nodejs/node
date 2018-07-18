@@ -4,7 +4,6 @@
 #include <sstream>
 #include <queue>
 
-#include "node_mutex.h"
 #include "libplatform/v8-tracing.h"
 #include "tracing/agent.h"
 #include "uv.h"
@@ -17,10 +16,10 @@ using v8::platform::tracing::TraceWriter;
 
 class NodeTraceWriter : public AsyncTraceWriter {
  public:
-  explicit NodeTraceWriter(const std::string& log_file_pattern,
-                           uv_loop_t* tracing_loop);
+  explicit NodeTraceWriter(const std::string& log_file_pattern);
   ~NodeTraceWriter();
 
+  void InitializeOnThread(uv_loop_t* loop) override;
   void AppendTraceEvent(TraceObject* trace_event) override;
   void Flush(bool blocking) override;
 
@@ -38,11 +37,10 @@ class NodeTraceWriter : public AsyncTraceWriter {
   void OpenNewFileForStreaming();
   void WriteToFile(std::string&& str, int highest_request_id);
   void WriteSuffix();
-  static void FlushSignalCb(uv_async_t* signal);
   void FlushPrivate();
   static void ExitSignalCb(uv_async_t* signal);
 
-  uv_loop_t* tracing_loop_;
+  uv_loop_t* tracing_loop_ = nullptr;
   // Triggers callback to initiate writing the contents of stream_ to disk.
   uv_async_t flush_signal_;
   // Triggers callback to close async objects, ending the tracing thread.
