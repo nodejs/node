@@ -434,8 +434,7 @@ static struct {
       tracing_file_writer_ = tracing_agent_->AddClient(
           ParseCommaSeparatedSet(trace_enabled_categories),
           std::unique_ptr<tracing::AsyncTraceWriter>(
-              new tracing::NodeTraceWriter(trace_file_pattern,
-                                           tracing_agent_->loop())),
+              new tracing::NodeTraceWriter(trace_file_pattern)),
           tracing::Agent::kUseDefaultCategories);
     }
   }

@@ -3,16 +3,25 @@
 #include <string.h>
 #include <fcntl.h>
 
-#include "util.h"
+#include "util-inl.h"
 
 namespace node {
 namespace tracing {
 
-NodeTraceWriter::NodeTraceWriter(const std::string& log_file_pattern,
-                                 uv_loop_t* tracing_loop)
-    : tracing_loop_(tracing_loop), log_file_pattern_(log_file_pattern) {
+NodeTraceWriter::NodeTraceWriter(const std::string& log_file_pattern)
+    : log_file_pattern_(log_file_pattern) {}
+
+void NodeTraceWriter::InitializeOnThread(uv_loop_t* loop) {
+  CHECK_NULL(tracing_loop_);
+  tracing_loop_ = loop;
+
   flush_signal_.data = this;
-  int err = uv_async_init(tracing_loop_, &flush_signal_, FlushSignalCb);
+  int err = uv_async_init(tracing_loop_, &flush_signal_,
+                          [](uv_async_t* signal) {
+    NodeTraceWriter* trace_writer =
+        ContainerOf(&NodeTraceWriter::flush_signal_, signal);
+    trace_writer->FlushPrivate();
+  });
   CHECK_EQ(err, 0);
 
   exit_signal_.data = this;
@@ -126,11 +135,6 @@ void NodeTraceWriter::FlushPrivate() {
   WriteToFile(std::move(str), highest_request_id);
 }
 
-void NodeTraceWriter::FlushSignalCb(uv_async_t* signal) {
-  NodeTraceWriter* trace_writer = static_cast<NodeTraceWriter*>(signal->data);
-  trace_writer->FlushPrivate();
-}
-
 void NodeTraceWriter::Flush(bool blocking) {
   Mutex::ScopedLock scoped_lock(request_mutex_);
   if (!json_trace_writer_) {
@@ -170,7 +174,7 @@ void NodeTraceWriter::WriteToFile(std::string&& str, int highest_request_id) {
 }
 
 void NodeTraceWriter::WriteCb(uv_fs_t* req) {
-  WriteRequest* write_req = reinterpret_cast<WriteRequest*>(req);
+  WriteRequest* write_req = ContainerOf(&WriteRequest::req, req);
   CHECK_GE(write_req->req.result, 0);
 
   NodeTraceWriter* writer = write_req->writer;
@@ -187,13 +191,15 @@ void NodeTraceWriter::WriteCb(uv_fs_t* req) {
 
 // static
 void NodeTraceWriter::ExitSignalCb(uv_async_t* signal) {
-  NodeTraceWriter* trace_writer = static_cast<NodeTraceWriter*>(signal->data);
+  NodeTraceWriter* trace_writer =
+      ContainerOf(&NodeTraceWriter::exit_signal_, signal);
   uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->flush_signal_),
            nullptr);
   uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->exit_signal_),
            [](uv_handle_t* signal) {
       NodeTraceWriter* trace_writer =
-          static_cast<NodeTraceWriter*>(signal->data);
+          ContainerOf(&NodeTraceWriter::exit_signal_,
+                      reinterpret_cast<uv_async_t*>(signal));
       Mutex::ScopedLock scoped_lock(trace_writer->request_mutex_);
       trace_writer->exited_ = true;
       trace_writer->exit_cond_.Signal(scoped_lock);
