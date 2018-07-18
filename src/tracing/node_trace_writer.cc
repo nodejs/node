@@ -158,38 +158,57 @@ void NodeTraceWriter::Flush(bool blocking) {
 
 void NodeTraceWriter::WriteToFile(std::string&& str, int highest_request_id) {
   if (fd_ == -1) return;
-  WriteRequest* write_req = new WriteRequest();
-  write_req->str = std::move(str);
-  write_req->writer = this;
-  write_req->highest_request_id = highest_request_id;
-  uv_buf_t uv_buf = uv_buf_init(const_cast<char*>(write_req->str.c_str()),
-      write_req->str.length());
-  request_mutex_.Lock();
-  // Manage a queue of WriteRequest objects because the behavior of uv_write is
-  // undefined if the same WriteRequest object is used more than once
-  // between WriteCb calls. In addition, this allows us to keep track of the id
-  // of the latest write request that actually been completed.
-  write_req_queue_.push(write_req);
-  request_mutex_.Unlock();
-  int err = uv_fs_write(tracing_loop_, reinterpret_cast<uv_fs_t*>(write_req),
-      fd_, &uv_buf, 1, -1, WriteCb);
+
+  uv_buf_t buf = uv_buf_init(nullptr, 0);
+  {
+    Mutex::ScopedLock lock(request_mutex_);
+    write_req_queue_.emplace(WriteRequest {
+      std::move(str), highest_request_id
+    });
+    if (write_req_queue_.size() == 1) {
+      buf = uv_buf_init(
+          const_cast<char*>(write_req_queue_.front().str.c_str()),
+          write_req_queue_.front().str.length());
+    }
+  }
+  // Only one write request for the same file descriptor should be active at
+  // a time.
+  if (buf.base != nullptr && fd_ != -1) {
+    StartWrite(buf);
+  }
+}
+
+void NodeTraceWriter::StartWrite(uv_buf_t buf) {
+  int err = uv_fs_write(
+      tracing_loop_, &write_req_, fd_, &buf, 1, -1,
+      [](uv_fs_t* req) {
+        NodeTraceWriter* writer =
+            ContainerOf(&NodeTraceWriter::write_req_, req);
+        writer->AfterWrite();
+      });
   CHECK_EQ(err, 0);
 }
 
-void NodeTraceWriter::WriteCb(uv_fs_t* req) {
-  WriteRequest* write_req = ContainerOf(&WriteRequest::req, req);
-  CHECK_GE(write_req->req.result, 0);
+void NodeTraceWriter::AfterWrite() {
+  CHECK_GE(write_req_.result, 0);
+  uv_fs_req_cleanup(&write_req_);
 
-  NodeTraceWriter* writer = write_req->writer;
-  int highest_request_id = write_req->highest_request_id;
+  uv_buf_t buf = uv_buf_init(nullptr, 0);
   {
-    Mutex::ScopedLock scoped_lock(writer->request_mutex_);
-    CHECK_EQ(write_req, writer->write_req_queue_.front());
-    writer->write_req_queue_.pop();
-    writer->highest_request_id_completed_ = highest_request_id;
-    writer->request_cond_.Broadcast(scoped_lock);
+    Mutex::ScopedLock scoped_lock(request_mutex_);
+    int highest_request_id = write_req_queue_.front().highest_request_id;
+    write_req_queue_.pop();
+    highest_request_id_completed_ = highest_request_id;
+    request_cond_.Broadcast(scoped_lock);
+    if (!write_req_queue_.empty()) {
+      buf = uv_buf_init(
+          const_cast<char*>(write_req_queue_.front().str.c_str()),
+          write_req_queue_.front().str.length());
+    }
   }
-  delete write_req;
+  if (buf.base != nullptr && fd_ != -1) {
+    StartWrite(buf);
+  }
 }
 
 // static

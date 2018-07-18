@@ -27,13 +27,12 @@ class NodeTraceWriter : public AsyncTraceWriter {
 
  private:
   struct WriteRequest {
-    uv_fs_t req;
-    NodeTraceWriter* writer;
     std::string str;
     int highest_request_id;
   };
 
-  static void WriteCb(uv_fs_t* req);
+  void AfterWrite();
+  void StartWrite(uv_buf_t buf);
   void OpenNewFileForStreaming();
   void WriteToFile(std::string&& str, int highest_request_id);
   void WriteSuffix();
@@ -56,7 +55,8 @@ class NodeTraceWriter : public AsyncTraceWriter {
   // Used to wait until async handles have been closed.
   ConditionVariable exit_cond_;
   int fd_ = -1;
-  std::queue<WriteRequest*> write_req_queue_;
+  uv_fs_t write_req_;
+  std::queue<WriteRequest> write_req_queue_;
   int num_write_requests_ = 0;
   int highest_request_id_completed_ = 0;
   int total_traces_ = 0;
