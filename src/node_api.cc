@@ -3683,7 +3683,7 @@ class TsFn: public node::AsyncResource {
     if (thread_count == 0 || mode == napi_tsfn_abort) {
       if (!is_closing) {
         is_closing = (mode == napi_tsfn_abort);
-        if (is_closing) {
+        if (is_closing && max_queue_size > 0) {
           cond->Signal(lock);
         }
         if (uv_async_send(&async) != 0) {
@@ -3772,7 +3772,9 @@ class TsFn: public node::AsyncResource {
         if (size == 0) {
           if (thread_count == 0) {
             is_closing = true;
-            cond->Signal(lock);
+            if (max_queue_size > 0) {
+              cond->Signal(lock);
+            }
             CloseHandlesAndMaybeDelete();
           } else {
             if (uv_idle_stop(&idle) != 0) {
@@ -3839,7 +3841,9 @@ class TsFn: public node::AsyncResource {
     if (set_closing) {
       node::Mutex::ScopedLock lock(this->mutex);
       is_closing = true;
-      cond->Signal(lock);
+      if (max_queue_size > 0) {
+        cond->Signal(lock);
+      }
     }
     if (handles_closing) {
       return;
