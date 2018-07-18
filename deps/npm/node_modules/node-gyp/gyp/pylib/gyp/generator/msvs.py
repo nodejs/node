@@ -2118,7 +2118,7 @@ def _MapFileToMsBuildSourceType(source, rule_dependencies,
   if ext in extension_to_rule_name:
     group = 'rule'
     element = extension_to_rule_name[ext]
-  elif ext in ['.cc', '.cpp', '.c', '.cxx']:
+  elif ext in ['.cc', '.cpp', '.c', '.cxx', '.mm']:
     group = 'compile'
     element = 'ClCompile'
   elif ext in ['.h', '.hxx']:

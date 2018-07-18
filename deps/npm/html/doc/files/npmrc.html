@@ -27,21 +27,18 @@ of the user and global npmrc files.</p>
 <p>All npm config files are an ini-formatted list of <code>key = value</code>
 parameters.  Environment variables can be replaced using
 <code>${VARIABLE_NAME}</code>. For example:</p>
-<pre><code>prefix = ${HOME}/.npm-packages
-</code></pre><p>Each of these files is loaded, and config options are resolved in
+<pre><code>prefix = ${HOME}/.npm-packages</code></pre><p>Each of these files is loaded, and config options are resolved in
 priority order.  For example, a setting in the userconfig file would
 override the setting in the globalconfig file.</p>
 <p>Array values are specified by adding &quot;[]&quot; after the key name. For
 example:</p>
 <pre><code>key[] = &quot;first value&quot;
-key[] = &quot;second value&quot;
-</code></pre><h4 id="comments">Comments</h4>
+key[] = &quot;second value&quot;</code></pre><h4 id="comments">Comments</h4>
 <p>Lines in <code>.npmrc</code> files are interpreted as comments when they begin with a <code>;</code> or <code>#</code> character. <code>.npmrc</code> files are parsed by <a href="https://github.com/npm/ini">npm/ini</a>, which specifies this comment syntax.</p>
 <p>For example:</p>
 <pre><code># last modified: 01 Jan 2016
 ; Set a new registry for a scoped package
-@myscope:registry=https://mycustomregistry.example.org
-</code></pre><h3 id="per-project-config-file">Per-project config file</h3>
+@myscope:registry=https://mycustomregistry.example.org</code></pre><h3 id="per-project-config-file">Per-project config file</h3>
 <p>When working locally in a project, a <code>.npmrc</code> file in the root of the
 project (ie, a sibling of <code>node_modules</code> and <code>package.json</code>) will set
 config values specific to this project.</p>
@@ -85,5 +82,5 @@ manner.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npmrc &mdash; npm@6.1.0</p>
+<p id="footer">npmrc &mdash; npm@6.2.0</p>
 

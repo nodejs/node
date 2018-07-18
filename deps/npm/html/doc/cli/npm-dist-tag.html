@@ -15,13 +15,12 @@
 npm dist-tag rm &lt;pkg&gt; &lt;tag&gt;
 npm dist-tag ls [&lt;pkg&gt;]
 
-aliases: dist-tags
-</code></pre><h2 id="description">DESCRIPTION</h2>
+aliases: dist-tags</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Add, remove, and enumerate distribution tags on a package:</p>
 <ul>
 <li><p>add:
 Tags the specified version of the package with the specified tag, or the
-<code>--tag</code> config if not specified. The tag you&#39;re adding is <code>latest</code> and you
+<code>--tag</code> config if not specified. If the tag you&#39;re adding is <code>latest</code> and you
 have two-factor authentication on auth-and-writes then you&#39;ll need to include
 an otp on the command line with <code>--otp</code>.</p>
 </li>
@@ -35,10 +34,8 @@ the current prefix.</p>
 </ul>
 <p>A tag can be used when installing packages as a reference to a version instead
 of using a specific version number:</p>
-<pre><code>npm install &lt;name&gt;@&lt;tag&gt;
-</code></pre><p>When installing dependencies, a preferred tagged version may be specified:</p>
-<pre><code>npm install --tag &lt;tag&gt;
-</code></pre><p>This also applies to <code>npm dedupe</code>.</p>
+<pre><code>npm install &lt;name&gt;@&lt;tag&gt;</code></pre><p>When installing dependencies, a preferred tagged version may be specified:</p>
+<pre><code>npm install --tag &lt;tag&gt;</code></pre><p>This also applies to <code>npm dedupe</code>.</p>
 <p>Publishing a package sets the <code>latest</code> tag to the published version unless the
 <code>--tag</code> option is used. For example, <code>npm publish --tag=beta</code>.</p>
 <p>By default, <code>npm install &lt;pkg&gt;</code> (without any <code>@&lt;version&gt;</code> or <code>@&lt;tag&gt;</code>
@@ -88,5 +85,5 @@ begin with a number or the letter <code>v</code>.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-dist-tag &mdash; npm@6.1.0</p>
+<p id="footer">npm-dist-tag &mdash; npm@6.2.0</p>
 

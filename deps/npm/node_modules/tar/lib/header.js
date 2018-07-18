@@ -6,7 +6,7 @@
 
 const Buffer = require('./buffer.js')
 const types = require('./types.js')
-const pathModule = require('path')
+const pathModule = require('path').posix
 const large = require('./large-numbers.js')
 
 const TYPE = Symbol('type')

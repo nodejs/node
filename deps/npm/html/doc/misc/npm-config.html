@@ -82,27 +82,22 @@ configuration parameter, then it is expanded to that configuration
 parameter.  For example:</p>
 <pre><code>npm ls --par
 # same as:
-npm ls --parseable
-</code></pre><p>If multiple single-character shorthands are strung together, and the
+npm ls --parseable</code></pre><p>If multiple single-character shorthands are strung together, and the
 resulting combination is unambiguously not some other configuration
 param, then it is expanded to its various component pieces.  For
 example:</p>
 <pre><code>npm ls -gpld
 # same as:
-npm ls --global --parseable --long --loglevel info
-</code></pre><h2 id="per-package-config-settings">Per-Package Config Settings</h2>
+npm ls --global --parseable --long --loglevel info</code></pre><h2 id="per-package-config-settings">Per-Package Config Settings</h2>
 <p>When running scripts (see <code><a href="../misc/npm-scripts.html">npm-scripts(7)</a></code>) the package.json &quot;config&quot;
 keys are overwritten in the environment if there is a config param of
 <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example, if the package.json has
 this:</p>
 <pre><code>{ &quot;name&quot; : &quot;foo&quot;
 , &quot;config&quot; : { &quot;port&quot; : &quot;8080&quot; }
-, &quot;scripts&quot; : { &quot;start&quot; : &quot;node server.js&quot; } }
-</code></pre><p>and the server.js is this:</p>
-<pre><code>http.createServer(...).listen(process.env.npm_package_config_port)
-</code></pre><p>then the user could change the behavior by doing:</p>
-<pre><code>npm config set foo:port 80
-</code></pre><p>See <a href="../files/package.json.html">package.json(5)</a> for more information.</p>
+, &quot;scripts&quot; : { &quot;start&quot; : &quot;node server.js&quot; } }</code></pre><p>and the server.js is this:</p>
+<pre><code>http.createServer(...).listen(process.env.npm_package_config_port)</code></pre><p>then the user could change the behavior by doing:</p>
+<pre><code>npm config set foo:port 80</code></pre><p>See <a href="../files/package.json.html">package.json(5)</a> for more information.</p>
 <h2 id="config-settings">Config Settings</h2>
 <h3 id="access">access</h3>
 <ul>
@@ -172,13 +167,11 @@ ostensibly Unix systems.</p>
 <p>The Certificate Authority signing certificate that is trusted for SSL
 connections to the registry. Values should be in PEM format (Windows calls it &quot;Base-64 encoded X.509 (.CER)&quot;) with newlines
 replaced by the string &quot;\n&quot;. For example:</p>
-<pre><code>ca=&quot;-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----&quot;
-</code></pre><p>Set to <code>null</code> to only allow &quot;known&quot; registrars, or to a specific CA cert
+<pre><code>ca=&quot;-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----&quot;</code></pre><p>Set to <code>null</code> to only allow &quot;known&quot; registrars, or to a specific CA cert
 to trust only that specific signing authority.</p>
 <p>Multiple CAs can be trusted by specifying an array of certificates:</p>
 <pre><code>ca[]=&quot;...&quot;
-ca[]=&quot;...&quot;
-</code></pre><p>See also the <code>strict-ssl</code> config.</p>
+ca[]=&quot;...&quot;</code></pre><p>See also the <code>strict-ssl</code> config.</p>
 <h3 id="cafile">cafile</h3>
 <ul>
 <li>Default: <code>null</code></li>
@@ -232,8 +225,7 @@ well as for the CA information to be stored in a file on disk.</p>
 </ul>
 <p>A client certificate to pass when accessing the registry.  Values should be in
 PEM format (Windows calls it &quot;Base-64 encoded X.509 (.CER)&quot;) with newlines replaced by the string &quot;\n&quot;. For example:</p>
-<pre><code>cert=&quot;-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----&quot;
-</code></pre><p>It is <em>not</em> the path to a certificate file (and there is no &quot;certfile&quot; option).</p>
+<pre><code>cert=&quot;-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----&quot;</code></pre><p>It is <em>not</em> the path to a certificate file (and there is no &quot;certfile&quot; option).</p>
 <h3 id="cidr">cidr</h3>
 <ul>
 <li>Default: <code>null</code></li>
@@ -487,8 +479,7 @@ output from <code>npm ls --json</code> and <code>npm search --json</code> are cu
 </ul>
 <p>A client key to pass when accessing the registry.  Values should be in PEM
 format with newlines replaced by the string &quot;\n&quot;. For example:</p>
-<pre><code>key=&quot;-----BEGIN PRIVATE KEY-----\nXXXX\nXXXX\n-----END PRIVATE KEY-----&quot;
-</code></pre><p>It is <em>not</em> the path to a key file (and there is no &quot;keyfile&quot; option).</p>
+<pre><code>key=&quot;-----BEGIN PRIVATE KEY-----\nXXXX\nXXXX\n-----END PRIVATE KEY-----&quot;</code></pre><p>It is <em>not</em> the path to a key file (and there is no &quot;keyfile&quot; option).</p>
 <h3 id="legacy-bundling">legacy-bundling</h3>
 <ul>
 <li>Default: false</li>
@@ -884,6 +875,15 @@ Windows</li>
 <p>If set to false, then ignore <code>npm-shrinkwrap.json</code> files when installing. This
 will also prevent <em>writing</em> <code>npm-shrinkwrap.json</code> if <code>save</code> is true.</p>
 <p>This option is an alias for <code>--package-lock</code>.</p>
+<h3 id="sign-git-commit">sign-git-commit</h3>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, then the <code>npm version</code> command will commit the new package
+version using <code>-S</code> to add a signature.</p>
+<p>Note that git requires you to have set up GPG keys in your git configs
+for this to work properly.</p>
 <h3 id="sign-git-tag">sign-git-tag</h3>
 <ul>
 <li>Default: false</li>
@@ -966,6 +966,13 @@ false, it uses ascii characters to draw trees.</p>
 <p>Set to true to suppress the UID/GID switching when running package
 scripts.  If set explicitly to false, then installing as a non-root user
 will fail.</p>
+<h3 id="update-notifier">update-notifier</h3>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Set to false to suppress the update notification when using an older
+version of npm than the latest.</p>
 <h3 id="usage">usage</h3>
 <ul>
 <li>Default: false</li>
@@ -1043,5 +1050,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@6.1.0</p>
+<p id="footer">npm-config &mdash; npm@6.2.0</p>
 

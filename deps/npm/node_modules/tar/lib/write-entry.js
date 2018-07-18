@@ -23,8 +23,11 @@ const ONREADLINK = Symbol('onreadlink')
 const OPENFILE = Symbol('openfile')
 const ONOPENFILE = Symbol('onopenfile')
 const CLOSE = Symbol('close')
+const MODE = Symbol('mode')
 const warner = require('./warn-mixin.js')
 const winchars = require('./winchars.js')
+
+const modeFix = require('./mode-fix.js')
 
 const WriteEntry = warner(class WriteEntry extends MiniPass {
   constructor (p, opt) {
@@ -104,6 +107,10 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
     }
   }
 
+  [MODE] (mode) {
+    return modeFix(mode, this.type === 'Directory')
+  }
+
   [HEADER] () {
     if (this.type === 'Directory' && this.portable)
       this.noMtime = true
@@ -113,7 +120,7 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
       linkpath: this.linkpath,
       // only the permissions and setuid/setgid/sticky bitflags
       // not the higher-order bits that specify file type
-      mode: this.stat.mode & 0o7777,
+      mode: this[MODE](this.stat.mode),
       uid: this.portable ? null : this.stat.uid,
       gid: this.portable ? null : this.stat.gid,
       size: this.stat.size,
@@ -312,9 +319,7 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
       this.noMtime = true
 
     this.path = readEntry.path
-    this.mode = readEntry.mode
-    if (this.mode)
-      this.mode = this.mode & 0o7777
+    this.mode = this[MODE](readEntry.mode)
     this.uid = this.portable ? null : readEntry.uid
     this.gid = this.portable ? null : readEntry.gid
     this.uname = this.portable ? null : readEntry.uname
@@ -374,6 +379,10 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
 
     super.write(this.header.block)
     readEntry.pipe(this)
+  }
+
+  [MODE] (mode) {
+    return modeFix(mode, this.type === 'Directory')
   }
 
   write (data) {

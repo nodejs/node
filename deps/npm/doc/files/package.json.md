@@ -368,7 +368,7 @@ Do it like this:
 
     "repository" :
       { "type" : "git"
-      , "url" : "https://github.com/npm/npm.git"
+      , "url" : "https://github.com/npm/cli.git"
       }
 
     "repository" :
@@ -490,10 +490,10 @@ specified, then `master` is used.
 
 Examples:
 
-    git+ssh://git@github.com:npm/npm.git#v1.0.27
-    git+ssh://git@github.com:npm/npm#semver:^5.0
-    git+https://isaacs@github.com/npm/npm.git
-    git://github.com/npm/npm.git#v1.0.27
+    git+ssh://git@github.com:npm/cli.git#v1.0.27
+    git+ssh://git@github.com:npm/cli#semver:^5.0
+    git+https://isaacs@github.com/npm/cli.git
+    git://github.com/npm/cli.git#v1.0.27
 
 ### GitHub URLs
 

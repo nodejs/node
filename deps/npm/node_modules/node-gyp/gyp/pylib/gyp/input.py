@@ -233,7 +233,12 @@ def LoadOneBuildFile(build_file_path, data, aux_data, includes,
     # Open the build file for read ('r') with universal-newlines mode ('U')
     # to make sure platform specific newlines ('\r\n' or '\r') are converted to '\n'
     # which otherwise will fail eval()
-    build_file_contents = open(build_file_path, 'rU').read()
+    if sys.platform == 'zos':
+      # On z/OS, universal-newlines mode treats the file as an ascii file. But since
+      # node-gyp produces ebcdic files, do not use that mode.
+      build_file_contents = open(build_file_path, 'r').read()
+    else:
+      build_file_contents = open(build_file_path, 'rU').read()
   else:
     raise GypError("%s not found (cwd: %s)" % (build_file_path, os.getcwd()))
 
@@ -2033,7 +2038,7 @@ def MakePathRelative(to_file, fro_file, item):
         gyp.common.RelativePath(os.path.dirname(fro_file),
                                 os.path.dirname(to_file)),
                                 item)).replace('\\', '/')
-    if item[-1] == '/':
+    if item[-1:] == '/':
       ret += '/'
     return ret
 

@@ -3,6 +3,7 @@
 module.exports = Fingerprint;
 
 var assert = require('assert-plus');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('./algs');
 var crypto = require('crypto');
 var errs = require('./errors');
@@ -90,7 +91,7 @@ Fingerprint.parse = function (fp, options) {
 		if (!base64RE.test(parts[1]))
 			throw (new FingerprintFormatError(fp));
 		try {
-			hash = new Buffer(parts[1], 'base64');
+			hash = Buffer.from(parts[1], 'base64');
 		} catch (e) {
 			throw (new FingerprintFormatError(fp));
 		}
@@ -104,7 +105,7 @@ Fingerprint.parse = function (fp, options) {
 		if (!md5RE.test(parts))
 			throw (new FingerprintFormatError(fp));
 		try {
-			hash = new Buffer(parts, 'hex');
+			hash = Buffer.from(parts, 'hex');
 		} catch (e) {
 			throw (new FingerprintFormatError(fp));
 		}

@@ -6,6 +6,7 @@ module.exports = {
 };
 
 var assert = require('assert-plus');
+var Buffer = require('safer-buffer').Buffer;
 var utils = require('../utils');
 var Key = require('../key');
 var PrivateKey = require('../private-key');
@@ -27,7 +28,7 @@ function read(buf, options) {
 			return (ssh.read(buf, options));
 		if (findDNSSECHeader(buf))
 			return (dnssec.read(buf, options));
-		buf = new Buffer(buf, 'binary');
+		buf = Buffer.from(buf, 'binary');
 	} else {
 		assert.buffer(buf);
 		if (findPEMHeader(buf))
