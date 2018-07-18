@@ -29,46 +29,37 @@
 <ul>
 <li>Check who you’ve added to your org:</li>
 </ul>
-<pre><code>npm team ls &lt;org&gt;:developers
-</code></pre><ul>
+<pre><code>npm team ls &lt;org&gt;:developers</code></pre><ul>
 <li><p>Each org is automatically given a <code>developers</code> team, so you can see the whole list of team members in your org. This team automatically gets read-write access to all packages, but you can change that with the <code>access</code> command.</p>
 </li>
 <li><p>Create a new team:</p>
 </li>
 </ul>
-<pre><code>npm team create &lt;org:team&gt;
-</code></pre><ul>
+<pre><code>npm team create &lt;org:team&gt;</code></pre><ul>
 <li>Add members to that team:</li>
 </ul>
-<pre><code>npm team add &lt;org:team&gt; &lt;user&gt;
-</code></pre><h2 id="publish-a-package-and-adjust-package-access">Publish a package and adjust package access</h2>
+<pre><code>npm team add &lt;org:team&gt; &lt;user&gt;</code></pre><h2 id="publish-a-package-and-adjust-package-access">Publish a package and adjust package access</h2>
 <ul>
 <li>In package directory, run</li>
 </ul>
-<pre><code>npm init --scope=&lt;org&gt;
-</code></pre><p>to scope it for your org &amp; publish as usual</p>
+<pre><code>npm init --scope=&lt;org&gt;</code></pre><p>to scope it for your org &amp; publish as usual</p>
 <ul>
 <li>Grant access:  </li>
 </ul>
-<pre><code>npm access grant &lt;read-only|read-write&gt; &lt;org:team&gt; [&lt;package&gt;]
-</code></pre><ul>
+<pre><code>npm access grant &lt;read-only|read-write&gt; &lt;org:team&gt; [&lt;package&gt;]</code></pre><ul>
 <li>Revoke access:</li>
 </ul>
-<pre><code>npm access revoke &lt;org:team&gt; [&lt;package&gt;]
-</code></pre><h2 id="monitor-your-package-access">Monitor your package access</h2>
+<pre><code>npm access revoke &lt;org:team&gt; [&lt;package&gt;]</code></pre><h2 id="monitor-your-package-access">Monitor your package access</h2>
 <ul>
 <li>See what org packages a team member can access:</li>
 </ul>
-<pre><code>npm access ls-packages &lt;org&gt; &lt;user&gt;
-</code></pre><ul>
+<pre><code>npm access ls-packages &lt;org&gt; &lt;user&gt;</code></pre><ul>
 <li>See packages available to a specific team:</li>
 </ul>
-<pre><code>npm access ls-packages &lt;org:team&gt;
-</code></pre><ul>
+<pre><code>npm access ls-packages &lt;org:team&gt;</code></pre><ul>
 <li>Check which teams are collaborating on a package:</li>
 </ul>
-<pre><code>npm access ls-collaborators &lt;pkg&gt;
-</code></pre><h2 id="see-also">SEE ALSO</h2>
+<pre><code>npm access ls-collaborators &lt;pkg&gt;</code></pre><h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-team.html">npm-team(1)</a></li>
 <li><a href="../cli/npm-access.html">npm-access(1)</a></li>
@@ -86,5 +77,5 @@
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-orgs &mdash; npm@6.1.0</p>
+<p id="footer">npm-orgs &mdash; npm@6.2.0</p>
 

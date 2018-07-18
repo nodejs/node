@@ -11,6 +11,7 @@ var errs = require('./errors');
 var util = require('util');
 var utils = require('./utils');
 var asn1 = require('asn1');
+var Buffer = require('safer-buffer').Buffer;
 
 /*JSSTYLED*/
 var DNS_NAME_RE = /^([*]|[a-z0-9][a-z0-9\-]{0,62})(?:\.([*]|[a-z0-9][a-z0-9\-]{0,62}))*$/i;
@@ -143,7 +144,7 @@ Identity.prototype.toAsn1 = function (der, tag) {
 		 */
 		if (c.asn1type === asn1.Ber.Utf8String ||
 		    c.value.match(NOT_IA5)) {
-			var v = new Buffer(c.value, 'utf8');
+			var v = Buffer.from(c.value, 'utf8');
 			der.writeBuffer(v, asn1.Ber.Utf8String);
 
 		} else if (c.asn1type === asn1.Ber.IA5String ||

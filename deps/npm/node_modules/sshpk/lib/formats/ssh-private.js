@@ -8,6 +8,7 @@ module.exports = {
 
 var assert = require('assert-plus');
 var asn1 = require('asn1');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('../algs');
 var utils = require('../utils');
 var crypto = require('crypto');
@@ -70,7 +71,7 @@ function readSSHPrivate(type, buf, options) {
 		}
 
 		if (typeof (options.passphrase) === 'string') {
-			options.passphrase = new Buffer(options.passphrase,
+			options.passphrase = Buffer.from(options.passphrase,
 			    'utf-8');
 		}
 		if (!Buffer.isBuffer(options.passphrase)) {
@@ -88,7 +89,7 @@ function readSSHPrivate(type, buf, options) {
 			throw (new Error('bcrypt_pbkdf function returned ' +
 			    'failure, parameters invalid'));
 		}
-		out = new Buffer(out);
+		out = Buffer.from(out);
 		var ckey = out.slice(0, cinf.keySize);
 		var iv = out.slice(cinf.keySize, cinf.keySize + cinf.blockSize);
 		var cipherStream = crypto.createDecipheriv(cinf.opensslName,
@@ -142,13 +143,13 @@ function write(key, options) {
 
 	var cipher = 'none';
 	var kdf = 'none';
-	var kdfopts = new Buffer(0);
+	var kdfopts = Buffer.alloc(0);
 	var cinf = { blockSize: 8 };
 	var passphrase;
 	if (options !== undefined) {
 		passphrase = options.passphrase;
 		if (typeof (passphrase) === 'string')
-			passphrase = new Buffer(passphrase, 'utf-8');
+			passphrase = Buffer.from(passphrase, 'utf-8');
 		if (passphrase !== undefined) {
 			assert.buffer(passphrase, 'options.passphrase');
 			assert.optionalString(options.cipher, 'options.cipher');
@@ -199,7 +200,7 @@ function write(key, options) {
 			throw (new Error('bcrypt_pbkdf function returned ' +
 			    'failure, parameters invalid'));
 		}
-		out = new Buffer(out);
+		out = Buffer.from(out);
 		var ckey = out.slice(0, cinf.keySize);
 		var iv = out.slice(cinf.keySize, cinf.keySize + cinf.blockSize);
 
@@ -244,7 +245,7 @@ function write(key, options) {
 	var tmp = buf.toString('base64');
 	var len = tmp.length + (tmp.length / 70) +
 	    18 + 16 + header.length*2 + 10;
-	buf = new Buffer(len);
+	buf = Buffer.alloc(len);
 	var o = 0;
 	o += buf.write('-----BEGIN ' + header + '-----\n', o);
 	for (var i = 0; i < tmp.length; ) {

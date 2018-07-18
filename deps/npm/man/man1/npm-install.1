@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "May 2018" "" ""
+.TH "NPM\-INSTALL" "1" "July 2018" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -77,14 +77,24 @@ NOTE: The \fB\-\-production\fP flag has no particular meaning when adding a
 \fBnpm install <tarball file>\fP:
   Install a package that is sitting on the filesystem\.  Note: if you just want
   to link a dev directory into your npm root, you can do this more easily by
-  using \fBnpm link\fP\|\. The filename \fImust\fR use \fB\|\.tar\fP, \fB\|\.tar\.gz\fP, or \fB\|\.tgz\fP as
-  the extension\.
-  Example:
+  using \fBnpm link\fP\|\.
+  Tarball requirements:
+.RS 0
+.IP \(bu 2
+The filename \fImust\fR use \fB\|\.tar\fP, \fB\|\.tar\.gz\fP, or \fB\|\.tgz\fP as
+the extension\.
+.IP \(bu 2
+The package contents should reside in a subfolder inside the tarball (usually it is called \fBpackage/\fP)\. npm strips one directory layer when installing the package (an equivalent of \fBtar x \-\-strip\-components=1\fP is run)\.
+.IP \(bu 2
+The package must contain a \fBpackage\.json\fP file with \fBname\fP and \fBversion\fP properties\.
+Example:
 .P
 .RS 2
 .nf
-    npm install \./package\.tgz
+npm install \./package\.tgz
 .fi
+.RE
+
 .RE
 .IP \(bu 2
 \fBnpm install <tarball url>\fP:
@@ -254,11 +264,11 @@ Examples:
 .P
 .RS 2
 .nf
-npm install git+ssh://git@github\.com:npm/npm\.git#v1\.0\.27
-npm install git+ssh://git@github\.com:npm/npm#semver:^5\.0
-npm install git+https://isaacs@github\.com/npm/npm\.git
-npm install git://github\.com/npm/npm\.git#v1\.0\.27
-GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\.com:npm/npm\.git
+npm install git+ssh://git@github\.com:npm/cli\.git#v1\.0\.27
+npm install git+ssh://git@github\.com:npm/cli#semver:^5\.0
+npm install git+https://isaacs@github\.com/npm/cli\.git
+npm install git://github\.com/npm/cli\.git#v1\.0\.27
+GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\.com:npm/cli\.git
 .fi
 .RE
 

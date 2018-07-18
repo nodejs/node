@@ -63,16 +63,14 @@ discover your package as it&#39;s listed in <code>npm search</code>.</p>
 <h2 id="homepage">homepage</h2>
 <p>The url to the project homepage.</p>
 <p>Example:</p>
-<pre><code>&quot;homepage&quot;: &quot;https://github.com/owner/project#readme&quot;
-</code></pre><h2 id="bugs">bugs</h2>
+<pre><code>&quot;homepage&quot;: &quot;https://github.com/owner/project#readme&quot;</code></pre><h2 id="bugs">bugs</h2>
 <p>The url to your project&#39;s issue tracker and / or the email address to which
 issues should be reported. These are helpful for people who encounter issues
 with your package.</p>
 <p>It should look like this:</p>
 <pre><code>{ &quot;url&quot; : &quot;https://github.com/owner/project/issues&quot;
 , &quot;email&quot; : &quot;project@hostname.com&quot;
-}
-</code></pre><p>You can specify either one or both values. If you want to provide only a url,
+}</code></pre><p>You can specify either one or both values. If you want to provide only a url,
 you can specify the value for &quot;bugs&quot; as a simple string instead of an object.</p>
 <p>If a url is provided, it will be used by the <code>npm bugs</code> command.</p>
 <h2 id="license">license</h2>
@@ -80,17 +78,14 @@ you can specify the value for &quot;bugs&quot; as a simple string instead of an 
 permitted to use it, and any restrictions you&#39;re placing on it.</p>
 <p>If you&#39;re using a common license such as BSD-2-Clause or MIT, add a
 current SPDX license identifier for the license you&#39;re using, like this:</p>
-<pre><code>{ &quot;license&quot; : &quot;BSD-3-Clause&quot; }
-</code></pre><p>You can check <a href="https://spdx.org/licenses/">the full list of SPDX license IDs</a>.
+<pre><code>{ &quot;license&quot; : &quot;BSD-3-Clause&quot; }</code></pre><p>You can check <a href="https://spdx.org/licenses/">the full list of SPDX license IDs</a>.
 Ideally you should pick one that is
 <a href="https://opensource.org/licenses/alphabetical">OSI</a> approved.</p>
 <p>If your package is licensed under multiple common licenses, use an <a href="https://npmjs.com/package/spdx">SPDX license
 expression syntax version 2.0 string</a>, like this:</p>
-<pre><code>{ &quot;license&quot; : &quot;(ISC OR GPL-3.0)&quot; }
-</code></pre><p>If you are using a license that hasn&#39;t been assigned an SPDX identifier, or if
+<pre><code>{ &quot;license&quot; : &quot;(ISC OR GPL-3.0)&quot; }</code></pre><p>If you are using a license that hasn&#39;t been assigned an SPDX identifier, or if
 you are using a custom license, use a string value like this one:</p>
-<pre><code>{ &quot;license&quot; : &quot;SEE LICENSE IN &lt;filename&gt;&quot; }
-</code></pre><p>Then include a file named <code>&lt;filename&gt;</code> at the top level of the package.</p>
+<pre><code>{ &quot;license&quot; : &quot;SEE LICENSE IN &lt;filename&gt;&quot; }</code></pre><p>Then include a file named <code>&lt;filename&gt;</code> at the top level of the package.</p>
 <p>Some old packages used license objects or a &quot;licenses&quot; property containing an
 array of license objects:</p>
 <pre><code>// Not valid metadata
@@ -110,25 +105,20 @@ array of license objects:</p>
     , &quot;url&quot;: &quot;https://opensource.org/licenses/apache2.0.php&quot;
     }
   ]
-}
-</code></pre><p>Those styles are now deprecated. Instead, use SPDX expressions, like this:</p>
+}</code></pre><p>Those styles are now deprecated. Instead, use SPDX expressions, like this:</p>
 <pre><code>{ &quot;license&quot;: &quot;ISC&quot; }
 
-{ &quot;license&quot;: &quot;(MIT OR Apache-2.0)&quot; }
-</code></pre><p>Finally, if you do not wish to grant others the right to use a private or
+{ &quot;license&quot;: &quot;(MIT OR Apache-2.0)&quot; }</code></pre><p>Finally, if you do not wish to grant others the right to use a private or
 unpublished package under any terms:</p>
-<pre><code>{ &quot;license&quot;: &quot;UNLICENSED&quot; }
-</code></pre><p>Consider also setting <code>&quot;private&quot;: true</code> to prevent accidental publication.</p>
+<pre><code>{ &quot;license&quot;: &quot;UNLICENSED&quot; }</code></pre><p>Consider also setting <code>&quot;private&quot;: true</code> to prevent accidental publication.</p>
 <h2 id="people-fields-author-contributors">people fields: author, contributors</h2>
 <p>The &quot;author&quot; is one person.  &quot;contributors&quot; is an array of people.  A &quot;person&quot;
 is an object with a &quot;name&quot; field and optionally &quot;url&quot; and &quot;email&quot;, like this:</p>
 <pre><code>{ &quot;name&quot; : &quot;Barney Rubble&quot;
 , &quot;email&quot; : &quot;b@rubble.com&quot;
 , &quot;url&quot; : &quot;http://barnyrubble.tumblr.com/&quot;
-}
-</code></pre><p>Or you can shorten that all into a single string, and npm will parse it for you:</p>
-<pre><code>&quot;Barney Rubble &lt;b@rubble.com&gt; (http://barnyrubble.tumblr.com/)&quot;
-</code></pre><p>Both email and url are optional either way.</p>
+}</code></pre><p>Or you can shorten that all into a single string, and npm will parse it for you:</p>
+<pre><code>&quot;Barney Rubble &lt;b@rubble.com&gt; (http://barnyrubble.tumblr.com/)&quot;</code></pre><p>Both email and url are optional either way.</p>
 <p>npm also sets a top-level &quot;maintainers&quot; field with your npm user info.</p>
 <h2 id="files">files</h2>
 <p>The optional <code>files</code> field is an array of file patterns that describes
@@ -195,19 +185,16 @@ command name to local file name. On install, npm will symlink that file into
 <code>prefix/bin</code> for global installs, or <code>./node_modules/.bin/</code> for local
 installs.</p>
 <p>For example, myapp could have this:</p>
-<pre><code>{ &quot;bin&quot; : { &quot;myapp&quot; : &quot;./cli.js&quot; } }
-</code></pre><p>So, when you install myapp, it&#39;ll create a symlink from the <code>cli.js</code> script to
+<pre><code>{ &quot;bin&quot; : { &quot;myapp&quot; : &quot;./cli.js&quot; } }</code></pre><p>So, when you install myapp, it&#39;ll create a symlink from the <code>cli.js</code> script to
 <code>/usr/local/bin/myapp</code>.</p>
 <p>If you have a single executable, and its name should be the name
 of the package, then you can just supply it as a string.  For example:</p>
 <pre><code>{ &quot;name&quot;: &quot;my-program&quot;
 , &quot;version&quot;: &quot;1.2.5&quot;
-, &quot;bin&quot;: &quot;./path/to/program&quot; }
-</code></pre><p>would be the same as this:</p>
+, &quot;bin&quot;: &quot;./path/to/program&quot; }</code></pre><p>would be the same as this:</p>
 <pre><code>{ &quot;name&quot;: &quot;my-program&quot;
 , &quot;version&quot;: &quot;1.2.5&quot;
-, &quot;bin&quot; : { &quot;my-program&quot; : &quot;./path/to/program&quot; } }
-</code></pre><p>Please make sure that your file(s) referenced in <code>bin</code> starts with
+, &quot;bin&quot; : { &quot;my-program&quot; : &quot;./path/to/program&quot; } }</code></pre><p>Please make sure that your file(s) referenced in <code>bin</code> starts with
 <code>#!/usr/bin/env node</code>, otherwise the scripts are started without the node
 executable!</p>
 <h2 id="man">man</h2>
@@ -220,8 +207,7 @@ result from <code>man &lt;pkgname&gt;</code>, regardless of its actual filename.
 , &quot;description&quot; : &quot;A packaged foo fooer for fooing foos&quot;
 , &quot;main&quot; : &quot;foo.js&quot;
 , &quot;man&quot; : &quot;./man/doc.1&quot;
-}
-</code></pre><p>would link the <code>./man/doc.1</code> file in such that it is the target for <code>man foo</code></p>
+}</code></pre><p>would link the <code>./man/doc.1</code> file in such that it is the target for <code>man foo</code></p>
 <p>If the filename doesn&#39;t start with the package name, then it&#39;s prefixed.
 So, this:</p>
 <pre><code>{ &quot;name&quot; : &quot;foo&quot;
@@ -229,8 +215,7 @@ So, this:</p>
 , &quot;description&quot; : &quot;A packaged foo fooer for fooing foos&quot;
 , &quot;main&quot; : &quot;foo.js&quot;
 , &quot;man&quot; : [ &quot;./man/foo.1&quot;, &quot;./man/bar.1&quot; ]
-}
-</code></pre><p>will create files to do <code>man foo</code> and <code>man foo-bar</code>.</p>
+}</code></pre><p>will create files to do <code>man foo</code> and <code>man foo-bar</code>.</p>
 <p>Man files must end with a number, and optionally a <code>.gz</code> suffix if they are
 compressed.  The number dictates which man section the file is installed into.</p>
 <pre><code>{ &quot;name&quot; : &quot;foo&quot;
@@ -238,8 +223,7 @@ compressed.  The number dictates which man section the file is installed into.</
 , &quot;description&quot; : &quot;A packaged foo fooer for fooing foos&quot;
 , &quot;main&quot; : &quot;foo.js&quot;
 , &quot;man&quot; : [ &quot;./man/foo.1&quot;, &quot;./man/foo.2&quot; ]
-}
-</code></pre><p>will create entries for <code>man foo</code> and <code>man 2 foo</code></p>
+}</code></pre><p>will create entries for <code>man foo</code> and <code>man 2 foo</code></p>
 <h2 id="directories">directories</h2>
 <p>The CommonJS <a href="http://wiki.commonjs.org/wiki/Packages/1.0">Packages</a> spec details a
 few ways that you can indicate the structure of your package using a <code>directories</code>
@@ -274,14 +258,13 @@ command will be able to find you.</p>
 <p>Do it like this:</p>
 <pre><code>&quot;repository&quot; :
   { &quot;type&quot; : &quot;git&quot;
-  , &quot;url&quot; : &quot;https://github.com/npm/npm.git&quot;
+  , &quot;url&quot; : &quot;https://github.com/npm/cli.git&quot;
   }
 
 &quot;repository&quot; :
   { &quot;type&quot; : &quot;svn&quot;
   , &quot;url&quot; : &quot;https://v8.googlecode.com/svn/trunk/&quot;
-  }
-</code></pre><p>The URL should be a publicly available (perhaps read-only) url that can be handed
+  }</code></pre><p>The URL should be a publicly available (perhaps read-only) url that can be handed
 directly to a VCS program without any modification.  It should not be a url to an
 html project page that you put in your browser.  It&#39;s for computers.</p>
 <p>For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the same
@@ -294,8 +277,7 @@ shortcut syntax you use for <code>npm install</code>:</p>
 
 &quot;repository&quot;: &quot;bitbucket:user/repo&quot;
 
-&quot;repository&quot;: &quot;gitlab:user/repo&quot;
-</code></pre><h2 id="scripts">scripts</h2>
+&quot;repository&quot;: &quot;gitlab:user/repo&quot;</code></pre><h2 id="scripts">scripts</h2>
 <p>The &quot;scripts&quot; property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package.  The key is the lifecycle
 event, and the value is the command to run at that point.</p>
@@ -305,8 +287,7 @@ event, and the value is the command to run at that point.</p>
 scripts that persist across upgrades.  For instance, if a package had the
 following:</p>
 <pre><code>{ &quot;name&quot; : &quot;foo&quot;
-, &quot;config&quot; : { &quot;port&quot; : &quot;8080&quot; } }
-</code></pre><p>and then had a &quot;start&quot; command that then referenced the
+, &quot;config&quot; : { &quot;port&quot; : &quot;8080&quot; } }</code></pre><p>and then had a &quot;start&quot; command that then referenced the
 <code>npm_package_config_port</code> environment variable, then the user could
 override that by doing <code>npm config set foo:port 8001</code>.</p>
 <p>See <code><a href="../misc/npm-config.html">npm-config(7)</a></code> and <code><a href="../misc/npm-scripts.html">npm-scripts(7)</a></code> for more on package
@@ -353,15 +334,13 @@ tarball or git URL.</p>
   , &quot;lat&quot; : &quot;latest&quot;
   , &quot;dyl&quot; : &quot;file:../dyl&quot;
   }
-}
-</code></pre><h3 id="urls-as-dependencies">URLs as Dependencies</h3>
+}</code></pre><h3 id="urls-as-dependencies">URLs as Dependencies</h3>
 <p>You may specify a tarball URL in place of a version range.</p>
 <p>This tarball will be downloaded and installed locally to your package at
 install time.</p>
 <h3 id="git-urls-as-dependencies">Git URLs as Dependencies</h3>
 <p>Git urls are of the form:</p>
-<pre><code>&lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:][/]&lt;path&gt;[#&lt;commit-ish&gt; | #semver:&lt;semver&gt;]
-</code></pre><p><code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, <code>git+https</code>, or
+<pre><code>&lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:][/]&lt;path&gt;[#&lt;commit-ish&gt; | #semver:&lt;semver&gt;]</code></pre><p><code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, <code>git+https</code>, or
 <code>git+file</code>.</p>
 <p>If <code>#&lt;commit-ish&gt;</code> is provided, it will be used to clone exactly that
 commit. If the commit-ish has the format <code>#semver:&lt;semver&gt;</code>, <code>&lt;semver&gt;</code> can
@@ -370,11 +349,10 @@ or refs matching that range in the remote repository, much as it would for a
 registry dependency. If neither <code>#&lt;commit-ish&gt;</code> or <code>#semver:&lt;semver&gt;</code> is
 specified, then <code>master</code> is used.</p>
 <p>Examples:</p>
-<pre><code>git+ssh://git@github.com:npm/npm.git#v1.0.27
-git+ssh://git@github.com:npm/npm#semver:^5.0
-git+https://isaacs@github.com/npm/npm.git
-git://github.com/npm/npm.git#v1.0.27
-</code></pre><h3 id="github-urls">GitHub URLs</h3>
+<pre><code>git+ssh://git@github.com:npm/cli.git#v1.0.27
+git+ssh://git@github.com:npm/cli#semver:^5.0
+git+https://isaacs@github.com/npm/cli.git
+git://github.com/npm/cli.git#v1.0.27</code></pre><h3 id="github-urls">GitHub URLs</h3>
 <p>As of version 1.1.65, you can refer to GitHub urls as just &quot;foo&quot;:
 &quot;user/foo-project&quot;.  Just as with git URLs, a <code>commit-ish</code> suffix can be
 included.  For example:</p>
@@ -386,24 +364,21 @@ included.  For example:</p>
     &quot;mocha&quot;: &quot;mochajs/mocha#4727d357ea&quot;,
     &quot;module&quot;: &quot;user/repo#feature\/branch&quot;
   }
-}
-</code></pre><h3 id="local-paths">Local Paths</h3>
+}</code></pre><h3 id="local-paths">Local Paths</h3>
 <p>As of version 2.0.0 you can provide a path to a local directory that contains a
 package. Local paths can be saved using <code>npm install -S</code> or
 <code>npm install --save</code>, using any of these forms:</p>
 <pre><code>../foo/bar
 ~/foo/bar
 ./foo/bar
-/foo/bar
-</code></pre><p>in which case they will be normalized to a relative path and added to your
+/foo/bar</code></pre><p>in which case they will be normalized to a relative path and added to your
 <code>package.json</code>. For example:</p>
 <pre><code>{
   &quot;name&quot;: &quot;baz&quot;,
   &quot;dependencies&quot;: {
     &quot;bar&quot;: &quot;file:../foo/bar&quot;
   }
-}
-</code></pre><p>This feature is helpful for local offline development and creating
+}</code></pre><p>This feature is helpful for local offline development and creating
 tests that require npm installing where you don&#39;t want to hit an
 external server, but should not be used when publishing packages
 to the public registry.</p>
@@ -430,8 +405,7 @@ script to do this, and make the required package a devDependency.</p>
     &quot;prepare&quot;: &quot;coffee -o lib/ -c src/waza.coffee&quot;
   },
   &quot;main&quot;: &quot;lib/waza.js&quot;
-}
-</code></pre><p>The <code>prepare</code> script will be run before publishing, so that users
+}</code></pre><p>The <code>prepare</code> script will be run before publishing, so that users
 can consume the functionality without requiring them to compile it
 themselves.  In dev mode (ie, locally running <code>npm install</code>), it&#39;ll
 run this script as well, so that you can test it easily.</p>
@@ -447,13 +421,11 @@ a specific interface, expected and specified by the host documentation.</p>
   &quot;peerDependencies&quot;: {
     &quot;tea&quot;: &quot;2.x&quot;
   }
-}
-</code></pre><p>This ensures your package <code>tea-latte</code> can be installed <em>along</em> with the second
+}</code></pre><p>This ensures your package <code>tea-latte</code> can be installed <em>along</em> with the second
 major version of the host package <code>tea</code> only. <code>npm install tea-latte</code> could
 possibly yield the following dependency graph:</p>
 <pre><code>├── tea-latte@1.3.5
-└── tea@2.2.0
-</code></pre><p><strong>NOTE: npm versions 1 and 2 will automatically install <code>peerDependencies</code> if
+└── tea@2.2.0</code></pre><p><strong>NOTE: npm versions 1 and 2 will automatically install <code>peerDependencies</code> if
 they are not explicitly depended upon higher in the dependency tree. In the
 next major version of npm (npm@3), this will no longer be the case. You will
 receive a warning that the peerDependency is not installed instead.</strong> The
@@ -481,8 +453,7 @@ array and executing <code>npm pack</code>.</p>
   &quot;bundledDependencies&quot;: [
     &quot;renderized&quot;, &quot;super-streams&quot;
   ]
-}
-</code></pre><p>we can obtain <code>awesome-web-framework-1.0.0.tgz</code> file by running <code>npm pack</code>.
+}</code></pre><p>we can obtain <code>awesome-web-framework-1.0.0.tgz</code> file by running <code>npm pack</code>.
 This file contains the dependencies <code>renderized</code> and <code>super-streams</code> which
 can be installed in a new project by executing <code>npm install
 awesome-web-framework-1.0.0.tgz</code>.</p>
@@ -509,21 +480,18 @@ if ( notGoodFooVersion(fooVersion) ) {
 
 if (foo) {
   foo.doFooThings()
-}
-</code></pre><p>Entries in <code>optionalDependencies</code> will override entries of the same name in
+}</code></pre><p>Entries in <code>optionalDependencies</code> will override entries of the same name in
 <code>dependencies</code>, so it&#39;s usually best to only put in one place.</p>
 <h2 id="engines">engines</h2>
 <p>You can specify the version of node that your stuff works on:</p>
-<pre><code>{ &quot;engines&quot; : { &quot;node&quot; : &quot;&gt;=0.10.3 &lt;0.12&quot; } }
-</code></pre><p>And, like with dependencies, if you don&#39;t specify the version (or if you
+<pre><code>{ &quot;engines&quot; : { &quot;node&quot; : &quot;&gt;=0.10.3 &lt;0.12&quot; } }</code></pre><p>And, like with dependencies, if you don&#39;t specify the version (or if you
 specify &quot;*&quot; as the version), then any version of node will do.</p>
 <p>If you specify an &quot;engines&quot; field, then npm will require that &quot;node&quot; be
 somewhere on that list. If &quot;engines&quot; is omitted, then npm will just assume
 that it works on node.</p>
 <p>You can also use the &quot;engines&quot; field to specify which versions of npm
 are capable of properly installing your program.  For example:</p>
-<pre><code>{ &quot;engines&quot; : { &quot;npm&quot; : &quot;~1.0.20&quot; } }
-</code></pre><p>Unless the user has set the <code>engine-strict</code> config flag, this
+<pre><code>{ &quot;engines&quot; : { &quot;npm&quot; : &quot;~1.0.20&quot; } }</code></pre><p>Unless the user has set the <code>engine-strict</code> config flag, this
 field is advisory only and will only produce warnings when your package is installed as a dependency.</p>
 <h2 id="enginestrict">engineStrict</h2>
 <p><strong>This feature was removed in npm 3.0.0</strong></p>
@@ -532,20 +500,16 @@ user had set <code>engine-strict</code>. It is no longer used.</p>
 <h2 id="os">os</h2>
 <p>You can specify which operating systems your
 module will run on:</p>
-<pre><code>&quot;os&quot; : [ &quot;darwin&quot;, &quot;linux&quot; ]
-</code></pre><p>You can also blacklist instead of whitelist operating systems,
+<pre><code>&quot;os&quot; : [ &quot;darwin&quot;, &quot;linux&quot; ]</code></pre><p>You can also blacklist instead of whitelist operating systems,
 just prepend the blacklisted os with a &#39;!&#39;:</p>
-<pre><code>&quot;os&quot; : [ &quot;!win32&quot; ]
-</code></pre><p>The host operating system is determined by <code>process.platform</code></p>
+<pre><code>&quot;os&quot; : [ &quot;!win32&quot; ]</code></pre><p>The host operating system is determined by <code>process.platform</code></p>
 <p>It is allowed to both blacklist, and whitelist, although there isn&#39;t any
 good reason to do this.</p>
 <h2 id="cpu">cpu</h2>
 <p>If your code only runs on certain cpu architectures,
 you can specify which ones.</p>
-<pre><code>&quot;cpu&quot; : [ &quot;x64&quot;, &quot;ia32&quot; ]
-</code></pre><p>Like the <code>os</code> option, you can also blacklist architectures:</p>
-<pre><code>&quot;cpu&quot; : [ &quot;!arm&quot;, &quot;!mips&quot; ]
-</code></pre><p>The host architecture is determined by <code>process.arch</code></p>
+<pre><code>&quot;cpu&quot; : [ &quot;x64&quot;, &quot;ia32&quot; ]</code></pre><p>Like the <code>os</code> option, you can also blacklist architectures:</p>
+<pre><code>&quot;cpu&quot; : [ &quot;!arm&quot;, &quot;!mips&quot; ]</code></pre><p>The host architecture is determined by <code>process.arch</code></p>
 <h2 id="preferglobal">preferGlobal</h2>
 <p><strong>DEPRECATED</strong></p>
 <p>This option used to trigger an npm warning, but it will no longer warn. It is
@@ -610,5 +574,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@6.1.0</p>
+<p id="footer">package.json &mdash; npm@6.2.0</p>
 

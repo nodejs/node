@@ -1,3 +1,9 @@
+v3.6.3 2018-06-08
+=================
+
+* [[`90cd2e8da9`](https://github.com/nodejs/node-gyp/commit/90cd2e8da9)] - **gyp**: fix regex to match multi-digit versions (Jonas Hermsmeier) [#1455](https://github.com/nodejs/node-gyp/pull/1455)
+* [[`7900122337`](https://github.com/nodejs/node-gyp/commit/7900122337)] - deps: pin `request` version range (Refael Ackerman) [#1300](https://github.com/nodejs/node-gyp/pull/1300)
+
 v3.6.2 2017-06-01
 =================
 

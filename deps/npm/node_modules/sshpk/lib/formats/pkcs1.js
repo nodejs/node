@@ -9,6 +9,7 @@ module.exports = {
 
 var assert = require('assert-plus');
 var asn1 = require('asn1');
+var Buffer = require('safer-buffer').Buffer;
 var algs = require('../algs');
 var utils = require('../utils');
 
@@ -209,7 +210,7 @@ function readPkcs1ECDSAPublic(der) {
 	var key = {
 		type: 'ecdsa',
 		parts: [
-			{ name: 'curve', data: new Buffer(curve) },
+			{ name: 'curve', data: Buffer.from(curve) },
 			{ name: 'Q', data: Q }
 		]
 	};
@@ -235,7 +236,7 @@ function readPkcs1ECDSAPrivate(der) {
 	var key = {
 		type: 'ecdsa',
 		parts: [
-			{ name: 'curve', data: new Buffer(curve) },
+			{ name: 'curve', data: Buffer.from(curve) },
 			{ name: 'Q', data: Q },
 			{ name: 'd', data: d }
 		]
@@ -285,8 +286,7 @@ function writePkcs1RSAPublic(der, key) {
 }
 
 function writePkcs1RSAPrivate(der, key) {
-	var ver = new Buffer(1);
-	ver[0] = 0;
+	var ver = Buffer.from([0]);
 	der.writeBuffer(ver, asn1.Ber.Integer);
 
 	der.writeBuffer(key.part.n.data, asn1.Ber.Integer);
@@ -302,8 +302,7 @@ function writePkcs1RSAPrivate(der, key) {
 }
 
 function writePkcs1DSAPrivate(der, key) {
-	var ver = new Buffer(1);
-	ver[0] = 0;
+	var ver = Buffer.from([0]);
 	der.writeBuffer(ver, asn1.Ber.Integer);
 
 	der.writeBuffer(key.part.p.data, asn1.Ber.Integer);
@@ -336,8 +335,7 @@ function writePkcs1ECDSAPublic(der, key) {
 }
 
 function writePkcs1ECDSAPrivate(der, key) {
-	var ver = new Buffer(1);
-	ver[0] = 1;
+	var ver = Buffer.from([1]);
 	der.writeBuffer(ver, asn1.Ber.Integer);
 
 	der.writeBuffer(key.part.d.data, asn1.Ber.OctetString);
@@ -356,8 +354,7 @@ function writePkcs1ECDSAPrivate(der, key) {
 }
 
 function writePkcs1EdDSAPrivate(der, key) {
-	var ver = new Buffer(1);
-	ver[0] = 1;
+	var ver = Buffer.from([1]);
 	der.writeBuffer(ver, asn1.Ber.Integer);
 
 	der.writeBuffer(key.part.k.data, asn1.Ber.OctetString);

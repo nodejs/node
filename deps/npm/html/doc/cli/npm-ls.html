@@ -13,18 +13,16 @@
 <h2 id="synopsis">SYNOPSIS</h2>
 <pre><code>npm ls [[&lt;@scope&gt;/]&lt;pkg&gt; ...]
 
-aliases: list, la, ll
-</code></pre><h2 id="description">DESCRIPTION</h2>
+aliases: list, la, ll</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This command will print to stdout all the versions of packages that are
 installed, as well as their dependencies, in a tree-structure.</p>
 <p>Positional arguments are <code>name@version-range</code> identifiers, which will
 limit the results to only the paths to the packages named.  Note that
 nested packages will <em>also</em> show the paths to the specified packages.
 For example, running <code>npm ls promzard</code> in npm&#39;s source tree will show:</p>
-<pre><code>npm@6.1.0 /path/to/npm
+<pre><code>npm@6.2.0 /path/to/npm
 └─┬ init-package-json@0.0.4
-  └── promzard@0.1.5
-</code></pre><p>It will print out extraneous, missing, and invalid packages.</p>
+  └── promzard@0.1.5</code></pre><p>It will print out extraneous, missing, and invalid packages.</p>
 <p>If a project specifies git urls for dependencies these are shown
 in parentheses after the name@version to make it easier for users to
 recognize potential forks of a project.</p>
@@ -110,5 +108,5 @@ project.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-ls &mdash; npm@6.1.0</p>
+<p id="footer">npm-ls &mdash; npm@6.2.0</p>
 
