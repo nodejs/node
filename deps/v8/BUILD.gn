@@ -1420,6 +1420,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-sharedarraybuffer.cc",
     "src/builtins/builtins-string.cc",
     "src/builtins/builtins-symbol.cc",
+    "src/builtins/builtins-trace.cc",
     "src/builtins/builtins-typedarray.cc",
     "src/builtins/builtins-utils.h",
     "src/builtins/builtins.cc",

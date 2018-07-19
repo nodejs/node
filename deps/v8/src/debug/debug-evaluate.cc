@@ -621,6 +621,9 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kArrayMap:
     case Builtins::kArrayReduce:
     case Builtins::kArrayReduceRight:
+    // Trace builtins
+    case Builtins::kIsTraceCategoryEnabled:
+    case Builtins::kTrace:
     // TypedArray builtins.
     case Builtins::kTypedArrayConstructor:
     case Builtins::kTypedArrayPrototypeBuffer:
