@@ -73,3 +73,16 @@ all = all.slice(0, apiStart.index + apiStart[0].length) +
 
 // Write results.
 fs.writeFileSync(source + '/all.html', all, 'utf8');
+
+// Validate all hrefs have a target.
+const ids = new Set();
+const idRe = / id="(\w+)"/g;
+let match;
+while (match = idRe.exec(all)) {
+  ids.add(match[1]);
+}
+
+const hrefRe = / href="#(\w+)"/g;
+while (match = hrefRe.exec(all)) {
+  if (!ids.has(match[1])) throw new Error(`link not found: ${match[1]}`);
+}
