@@ -1892,4 +1892,4 @@ A module file could not be resolved while attempting a [`require`][] or
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
 [WHATWG Supported Encodings]: util.html#util_whatwg_supported_encodings
-[`require`]: modules.html#require
+[`require`]: modules.html#modules_require
