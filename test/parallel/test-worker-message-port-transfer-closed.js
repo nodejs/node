@@ -50,5 +50,9 @@ testSingle(port1, port2);
 port2.close(common.mustCall(testBothClosed));
 testBothClosed();
 
-setTimeout(common.mustNotCall('The communication channel is still open'),
-           common.platformTimeout(1000)).unref();
+function tickUnref(n, fn) {
+  if (n === 0) return fn();
+  setImmediate(tickUnref, n - 1, fn).unref();
+}
+
+tickUnref(10, common.mustNotCall('The communication channel is still open'));
