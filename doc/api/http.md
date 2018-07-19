@@ -1015,7 +1015,8 @@ interface. This is an [`EventEmitter`][] with the following events:
 added: v0.6.7
 -->
 
-Indicates that the underlying connection was terminated.
+Indicates that the underlying connection was terminated before
+[`response.end()`][] was called or able to flush.
 
 ### Event: 'finish'
 <!-- YAML
@@ -1505,6 +1506,7 @@ added: v0.4.2
 -->
 
 Indicates that the underlying connection was closed.
+Just like `'end'`, this event occurs only once per response.
 
 ### message.aborted
 <!-- YAML
