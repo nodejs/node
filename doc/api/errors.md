@@ -1831,6 +1831,12 @@ unknown file extension.
 
 Creation of a [`zlib`][] object failed due to incorrect configuration.
 
+<a id="MODULE_NOT_FOUND"></a>
+### MODULE_NOT_FOUND
+
+A module file could not be resolved while attempting a [`require`][] or 
+`import` operation.
+
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--force-fips`]: cli.html#cli_force_fips
 [`child_process`]: child_process.html
@@ -1886,3 +1892,4 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
 [WHATWG Supported Encodings]: util.html#util_whatwg_supported_encodings
+[`require`]: modules.html#require
