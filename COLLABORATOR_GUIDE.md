@@ -20,6 +20,7 @@
     - [Breaking Changes to Internal Elements](#breaking-changes-to-internal-elements)
     - [When Breaking Changes Actually Break Things](#when-breaking-changes-actually-break-things)
       - [Reverting commits](#reverting-commits)
+  - [Additions to the Cryptography and Security APIs](#additions-to-the-cryptography-and-security-apis)
   - [Introducing New Modules](#introducing-new-modules)
   - [Deprecations](#deprecations)
   - [Involving the TSC](#involving-the-tsc)
@@ -377,6 +378,16 @@ Commits are reverted with `git revert <HASH>`, or `git revert <FROM>..<TO>` for
 multiple commits. Commit metadata and the reason for the revert should be
 appended. Commit message rules about line length and subsystem can be ignored.
 A Pull Request should be raised and approved like any other change.
+
+### Additions to the Cryptography and Security APIs
+
+Semver-minor commits that add or change cryptograpy/security APIs should be
+treated with extra care. Due to the potential impact, it is important that
+these APIs be constructed to reduce the potential for incorrect
+usage.
+
+These commits must have an approval from at least one member from the 
+[security working group](https://github.com/nodejs/security-wg).
 
 ### Introducing New Modules
 
