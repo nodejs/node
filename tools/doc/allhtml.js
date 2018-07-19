@@ -75,11 +75,11 @@ all = all.slice(0, apiStart.index + apiStart[0].length) +
 fs.writeFileSync(source + '/all.html', all, 'utf8');
 
 // Validate all hrefs have a target
-const ids = {};
+const ids = new Set();
 all.replace(/ id="(\w+)"/g, (_text, id) => {
-  ids[id] = true;
+  ids.add(id);
 });
 
 all.replace(/ href="#(\w+)"/g, (_text, href) => {
-  if (!ids[href]) throw new Error(`link not found: ${href}`);
+  if (!ids.has(href)) throw new Error(`link not found: ${href}`);
 });
