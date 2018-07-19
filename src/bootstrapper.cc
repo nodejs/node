@@ -69,7 +69,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
     callback = env->promise_reject_handled_function();
     value = Undefined(isolate);
   } else {
-    UNREACHABLE();
+    return;
   }
 
   Local<Value> args[] = { promise, value };
