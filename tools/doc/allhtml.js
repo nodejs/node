@@ -74,7 +74,7 @@ all = all.slice(0, apiStart.index + apiStart[0].length) +
 // Write results.
 fs.writeFileSync(source + '/all.html', all, 'utf8');
 
-// Validate all hrefs have a target
+// Validate all hrefs have a target.
 const ids = new Set();
 all.replace(/ id="(\w+)"/g, (_text, id) => {
   ids.add(id);
