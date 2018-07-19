@@ -1183,6 +1183,10 @@ This macro includes `NAPI_MODULE`, and declares an `Init` function with a
 special name and with visibility beyond the addon. This will allow Node.js to
 initialize the module even if it is loaded multiple times.
 
+There are a few design considerations when declaring a module that may be loaded
+multiple times. The documentation of [context-aware addons][] provides more
+details.
+
 The variables `env` and `exports` will be available inside the function body
 following the macro invocation.
 
@@ -4581,3 +4585,4 @@ This API may only be called from the main thread.
 [`process.release`]: process.html#process_process_release
 [`init` hooks]: async_hooks.html#async_hooks_init_asyncid_type_triggerasyncid_resource
 [async_hooks `type`]: async_hooks.html#async_hooks_type
+[context-aware addons]: addons.html#addons_context_aware_addons
