@@ -76,10 +76,13 @@ fs.writeFileSync(source + '/all.html', all, 'utf8');
 
 // Validate all hrefs have a target.
 const ids = new Set();
-all.replace(/ id="(\w+)"/g, (_text, id) => {
-  ids.add(id);
-});
+const id_re = / id="(\w+)"/g;
+let match;
+while (match = id_re.exec(all)) {
+  ids.add(match[1]);
+}
 
-all.replace(/ href="#(\w+)"/g, (_text, href) => {
-  if (!ids.has(href)) throw new Error(`link not found: ${href}`);
-});
+const href_re = / href="#(\w+)"/g;
+while (match = href_re.exec(all)) {
+  if (!ids.has(match[1])) throw new Error(`link not found: ${match[1]}`);
+}
