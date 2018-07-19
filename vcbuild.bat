@@ -614,12 +614,12 @@ if not defined lint_md_build goto lint-md
 SETLOCAL
 echo Markdown linter: installing remark-cli into tools\
 cd tools\remark-cli
-%npm_exe% install
+%npm_exe% ci
 cd ..\..
 if errorlevel 1 goto lint-md-build-failed
 echo Markdown linter: installing remark-preset-lint-node into tools\
 cd tools\remark-preset-lint-node
-%npm_exe% install
+%npm_exe% ci
 cd ..\..
 if errorlevel 1 goto lint-md-build-failed
 ENDLOCAL
