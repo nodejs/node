@@ -14,7 +14,7 @@ N-API API.
       datatypes or opaque handles.
     * **Must** be a necessary API and not a nice to have. Convenience APIs
       belong in node-addon-api.
-    * **Must** not change the signature of an existing N-API API  or break
+    * **Must** not change the signature of an existing N-API API or break
       ABI compatibility with other versions of Node.js.
 * New API **should** be agnostic towards the underlying JavaScript VM.
 * New API PRs **must** have a corresponding documentation update.
@@ -22,15 +22,15 @@ N-API API.
 * There **must** be at least one test case showing how to use the API.
 * There **should** be at least one test case per interesting use of the API.
 * There **should** be a sample provided that operates in a realistic way
-    (operating how a real addon would be written).
+  (operating how a real addon would be written).
 * A new API **should** be discussed at the N-API working group meeting.
 * A new API addition **must** be signed off by at least two members of
-    the N-API WG.
+  the N-API WG.
 * A new API addition **should** be simultaneously implemented in at least
-    one other VM implementation of Node.js.
+  one other VM implementation of Node.js.
 * A new API **must** be considered experimental for at least one minor
-    version release of Node.js before it can be considered for promotion out
-    of experimental.
+  version release of Node.js before it can be considered for promotion out
+  of experimental.
     * Experimental APIs **must** be documented as such.
     * Experimental APIs **must** require an explicit compile-time flag
       (`#define`) to be set to opt-in.
