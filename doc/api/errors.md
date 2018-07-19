@@ -1831,8 +1831,14 @@ unknown file extension.
 
 Creation of a [`zlib`][] object failed due to incorrect configuration.
 
-[`'uncaughtException'`]: process.html#process_event_uncaughtexception
+<a id="MODULE_NOT_FOUND"></a>
+### MODULE_NOT_FOUND
+
+A module file could not be resolved while attempting a [`require()`][] or
+`import` operation.
+
 [`--force-fips`]: cli.html#cli_force_fips
+[`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`child_process`]: child_process.html
 [`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
@@ -1842,24 +1848,14 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`fs`]: fs.html
+[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
+[`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
 [`fs.symlink()`]: fs.html#fs_fs_symlink_target_path_type_callback
 [`fs.symlinkSync()`]: fs.html#fs_fs_symlinksync_target_path_type
+[`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
 [`hash.digest()`]: crypto.html#crypto_hash_digest_encoding
 [`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
-[`readable._read()`]: stream.html#stream_readable_read_size_1
-[`server.close()`]: net.html#net_server_close_callback
-[`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputformat
-[`stream.pipe()`]: stream.html#stream_readable_pipe_destination_options
-[`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
-[`stream.unshift()`]: stream.html#stream_readable_unshift_chunk
-[`stream.write()`]: stream.html#stream_writable_write_chunk_encoding_callback
-[`Writable`]: stream.html#stream_class_stream_writable
-[`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
-[`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
-[`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
-[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
-[`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
-[`fs`]: fs.html
 [`http`]: http.html
 [`https`]: https.html
 [`libuv Error handling`]: http://docs.libuv.org/en/v1.x/errors.html
@@ -1868,8 +1864,19 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
+[`readable._read()`]: stream.html#stream_readable_read_size_1
+[`require()`]: modules.html#modules_require
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
 [`server.listen()`]: net.html#net_server_listen
+[`server.close()`]: net.html#net_server_close_callback
+[`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputformat
+[`stream.pipe()`]: stream.html#stream_readable_pipe_destination_options
+[`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
+[`stream.unshift()`]: stream.html#stream_readable_unshift_chunk
+[`stream.write()`]: stream.html#stream_writable_write_chunk_encoding_callback
+[`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
+[`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
+[`Writable`]: stream.html#stream_class_stream_writable
 [`zlib`]: zlib.html
 [ES6 module]: esm.html
 [Node.js Error Codes]: #nodejs-error-codes
