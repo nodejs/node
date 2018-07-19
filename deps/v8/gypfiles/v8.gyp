@@ -642,6 +642,7 @@
         '../src/builtins/builtins-intl.cc',
         '../src/builtins/builtins-intl.h',
         '../src/builtins/builtins-symbol.cc',
+        '../src/builtins/builtins-trace.cc',
         '../src/builtins/builtins-typed-array.cc',
         '../src/builtins/builtins-utils.h',
         '../src/builtins/builtins.cc',

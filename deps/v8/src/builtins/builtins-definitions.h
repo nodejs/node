@@ -1269,7 +1269,11 @@ namespace internal {
   /* Miscellaneous */                                                          \
   ASM(DoubleToI)                                                               \
   TFC(GetProperty, GetProperty, 1)                                             \
-  ASM(MathPowInternal)
+  ASM(MathPowInternal)                                                         \
+                                                                               \
+  /* Trace */                                                                  \
+  CPP(IsTraceCategoryEnabled)                                                  \
+  CPP(Trace)
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)          \
