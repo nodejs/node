@@ -54,7 +54,7 @@ for (const expectedDoc of expectedDocs) {
 // and that they are not empty files.
 for (const actualDoc of actualDocs) {
   assert.ok(
-    expectedDocs.includes(actualDoc), `${actualDoc} does not not match TOC`);
+    expectedDocs.includes(actualDoc), `${actualDoc} does not match TOC`);
 
   assert.ok(
     fs.statSync(path.join(apiPath, actualDoc)).size !== 0,
