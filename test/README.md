@@ -16,9 +16,13 @@ GitHub with the `autocrlf` git config flag set to true.
 |Directory          |Runs on CI     |Purpose        |
 |-------------------|---------------|---------------|
 |abort              |Yes            |Tests for when the  ``` --abort-on-uncaught-exception ``` flag is used.|
-|addons             |Yes            |Tests for [addon](https://nodejs.org/api/addons.html) functionality along with some tests that require an addon to function  properly.|
-|cctest             |Yes            |C++ test that is run as part of the build process.|
+|addons             |Yes            |Tests for [addon](https://nodejs.org/api/addons.html) functionality along with some tests that require an addon to function properly.|
+|addons-napi        |Yes            |Tests for [n-api](https://nodejs.org/api/n-api.html) functionality.|
+|async-hooks        |Yes            |Tests for [async_hooks](https://nodejs.org/api/async_hooks.html) functionality.|
+|cctest             |Yes            |C++ tests that are run as part of the build process.|
+|code-cache         |No             |Tests for a Node.js binary compiled with V8 code cache.|
 |common             |               |Common modules shared among many tests. [Documentation](./common/README.md)|
+|doctool            |Yes            |Tests for the documentation generator.|
 |es-module          |Yes            |Test ESM module loading.|
 |fixtures           |               |Test fixtures used in various tests throughout the test suite.|
 |gc                 |No             |Tests for garbage collection related functionality.|
@@ -31,7 +35,7 @@ GitHub with the `autocrlf` git config flag set to true.
 |sequential         |Yes            |Various tests that are run sequentially.|
 |testpy             |               |Test configuration utility used by various test suites.|
 |tick-processor     |No             |Tests for the V8 tick processor integration. The tests are for the logic in ```lib/internal/v8_prof_processor.js``` and  ```lib/internal/v8_prof_polyfill.js```. The tests confirm that the profile processor packages the correct set of scripts from V8 and introduces the correct platform specific logic.|
-|timers             |No             |Tests for [timing utilities](https://nodejs.org/api/timers.html) (```setTimeout``` and ```setInterval```).|
+|v8-updates         |No             |Tests for V8 performance integration.|
 
 _When a new test directory is added, make sure to update the `CI_JS_SUITES`
 variable in the `Makefile` and the `js_test_suites` variable in
