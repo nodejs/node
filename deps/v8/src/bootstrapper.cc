@@ -4954,6 +4954,14 @@ bool Genesis::InstallExtraNatives() {
     if (!Bootstrapper::CompileExtraBuiltin(isolate(), i)) return false;
   }
 
+  // binding.isTraceCategoryEnabled(category)
+  SimpleInstallFunction(extras_binding,
+                        "isTraceCategoryEnabled",
+                        Builtins::kIsTraceCategoryEnabled, 1, true);
+
+  // binding.trace(phase, category, name, id, data)
+  SimpleInstallFunction(extras_binding, "trace", Builtins::kTrace, 5, true);
+
   return true;
 }
 

@@ -62,8 +62,13 @@ std::unique_ptr<TracedValue> TracedValue::Create() {
   return std::unique_ptr<TracedValue>(new TracedValue());
 }
 
-TracedValue::TracedValue() : first_item_(true) {
-  DEBUG_PUSH_CONTAINER(kStackTypeDict);
+std::unique_ptr<TracedValue> TracedValue::CreateArray() {
+  return std::unique_ptr<TracedValue>(new TracedValue(true));
+}
+
+TracedValue::TracedValue(bool root_is_array) : first_item_(true),
+                                               root_is_array_(root_is_array) {
+  DEBUG_PUSH_CONTAINER(root_is_array ? kStackTypeDict : kStackTypeArray);
 }
 
 TracedValue::~TracedValue() {
@@ -95,6 +100,12 @@ void TracedValue::SetString(const char* name, const char* value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
   WriteName(name);
   EscapeAndAppendString(value, &data_);
+}
+
+void TracedValue::SetNull(const char* name) {
+  DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
+  WriteName(name);
+  data_ += "null";
 }
 
 void TracedValue::BeginDictionary(const char* name) {
@@ -136,6 +147,12 @@ void TracedValue::AppendString(const char* value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
   WriteComma();
   EscapeAndAppendString(value, &data_);
+}
+
+void TracedValue::AppendNull() {
+  DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
+  WriteComma();
+  data_ += "null";
 }
 
 void TracedValue::BeginDictionary() {
@@ -184,9 +201,9 @@ void TracedValue::WriteName(const char* name) {
 }
 
 void TracedValue::AppendAsTraceFormat(std::string* out) const {
-  *out += '{';
+  *out += root_is_array_ ? '[' : '{';
   *out += data_;
-  *out += '}';
+  *out += root_is_array_ ? ']' : '}';
 }
 
 }  // namespace tracing
