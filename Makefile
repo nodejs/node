@@ -266,7 +266,6 @@ test: all ## Runs default tests, linters, and builds docs.
 	# can be displayed together
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-addons-napi
-	$(MAKE) -s test-doc
 	$(MAKE) -s cctest
 	$(MAKE) -s jstest
 
@@ -611,7 +610,8 @@ apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
 .PHONY: doc-only
-doc-only: $(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the global Node.js binary.
+doc-only: tools/doc/node_modules \
+	$(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the global Node.js binary.
 # If it's a source tarball, assets are already in doc/api/assets,
 # no need to install anything, we have already copied the docs over
 	if [ ! -d doc/api/assets ]; then \
@@ -1082,7 +1082,12 @@ tools/remark-preset-lint-node/node_modules: \
 
 .PHONY: lint-md-build
 lint-md-build: tools/remark-cli/node_modules \
+	tools/doc/node_modules \
 	tools/remark-preset-lint-node/node_modules
+
+.PHONY: tools/doc/node_modules
+tools/doc/node_modules:
+	@cd tools/doc && $(call available-node,$(run-npm-install))
 
 .PHONY: lint-md
 ifneq ("","$(wildcard tools/remark-cli/node_modules/)")

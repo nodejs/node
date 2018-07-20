@@ -84,7 +84,9 @@ addlicense "gtest" "deps/gtest" "$(cat ${rootdir}/deps/gtest/LICENSE)"
 # nghttp2
 addlicense "nghttp2" "deps/nghttp2" "$(cat ${rootdir}/deps/nghttp2/COPYING)"
 
-# remark-cli
+# remark
+addlicense "unified" "deps/unified" "$(cat ${rootdir}/tools/doc/node_modules/unified/LICENSE)"
+addlicense "remark-rehype" "deps/remark-rehype" "$(cat ${rootdir}/tools/doc/node_modules/remark-rehype/LICENSE)"
 addlicense "remark-cli" "tools/remark-cli" "$(cat ${rootdir}/tools/remark-cli/LICENSE)"
 
 # node-inspect
