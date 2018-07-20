@@ -198,7 +198,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
     });
   // Since module has no dependencies, the linker function will never be called.
   await module.link(() => {});
-  module.initialize();
+  module.instantiate();
   await module.evaluate();
 
   // Now, Object.prototype.secret will be equal to 42.
