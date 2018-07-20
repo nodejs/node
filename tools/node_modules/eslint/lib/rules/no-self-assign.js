@@ -187,8 +187,7 @@ module.exports = {
 
     create(context) {
         const sourceCode = context.getSourceCode();
-        const options = context.options[0];
-        const props = Boolean(options && options.props);
+        const [{ props = true } = {}] = context.options;
 
         /**
          * Reports a given node as self assignments.

@@ -140,7 +140,7 @@ module.exports = {
                         fix: fixer => {
                             let nodeAlternate = astUtils.getParenthesisedText(sourceCode, node.alternate);
 
-                            if (node.alternate.type === "ConditionalExpression") {
+                            if (node.alternate.type === "ConditionalExpression" || node.alternate.type === "YieldExpression") {
                                 const isAlternateParenthesised = astUtils.isParenthesised(sourceCode, node.alternate);
 
                                 nodeAlternate = isAlternateParenthesised ? nodeAlternate : `(${nodeAlternate})`;

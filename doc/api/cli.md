@@ -81,6 +81,13 @@ added: v9.6.0
 
 Enable experimental ES Module support in the `vm` module.
 
+### `--experimental-worker`
+<!-- YAML
+added: v10.5.0
+-->
+
+Enable experimental worker threads using the `worker_threads` module.
+
 ### `--force-fips`
 <!-- YAML
 added: v6.0.0
@@ -270,6 +277,13 @@ added: v0.11.14
 -->
 
 Throw errors for deprecations.
+
+### `--title=title`
+<!-- YAML
+added: v10.7.0
+-->
+
+Set `process.title` on startup.
 
 ### `--tls-cipher-list=list`
 <!-- YAML
@@ -513,25 +527,26 @@ that is not allowed in the environment is used, such as `-p` or a script file.
 
 Node options that are allowed are:
 - `--enable-fips`
-  `--experimental-modules`
-  `--experimental-repl-await`
-  `--experimental-vm-modules`
-  `--experimental-worker`
+- `--experimental-modules`
+- `--experimental-repl-await`
+- `--experimental-vm-modules`
+- `--experimental-worker`
 - `--force-fips`
 - `--icu-data-dir`
 - `--inspect`
 - `--inspect-brk`
 - `--inspect-port`
-  `--loader`
-  `--napi-modules`
+- `--loader`
+- `--napi-modules`
 - `--no-deprecation`
-  `--no-force-async-hooks-checks`
+- `--no-force-async-hooks-checks`
 - `--no-warnings`
 - `--openssl-config`
-  `--pending-deprecation`
+- `--pending-deprecation`
 - `--redirect-warnings`
 - `--require`, `-r`
 - `--throw-deprecation`
+- `--title`
 - `--tls-cipher-list`
 - `--trace-deprecation`
 - `--trace-event-categories`

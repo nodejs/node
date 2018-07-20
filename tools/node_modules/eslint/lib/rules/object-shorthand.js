@@ -233,6 +233,10 @@ module.exports = {
             const keyText = sourceCode.text.slice(firstKeyToken.range[0], lastKeyToken.range[1]);
             let keyPrefix = "";
 
+            if (sourceCode.commentsExistBetween(lastKeyToken, node.value)) {
+                return null;
+            }
+
             if (node.value.async) {
                 keyPrefix += "async ";
             }

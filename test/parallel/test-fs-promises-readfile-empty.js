@@ -1,13 +1,11 @@
 'use strict';
-const common = require('../common');
+require('../common');
 
 const assert = require('assert');
 const { promises: fs } = require('fs');
 const fixtures = require('../common/fixtures');
 
 const fn = fixtures.path('empty.txt');
-
-common.crashOnUnhandledRejection();
 
 fs.readFile(fn)
   .then(assert.ok);

@@ -134,6 +134,9 @@ void uv__pipe_close(uv_pipe_t* handle) {
 int uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
   int err;
 
+  if (uv__fd_exists(handle->loop, fd))
+    return UV_EEXIST;
+
   err = uv__nonblock(fd, 1);
   if (err)
     return err;
@@ -146,7 +149,7 @@ int uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
 
   return uv__stream_open((uv_stream_t*)handle,
                          fd,
-                         UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+                         UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
 }
 
 
@@ -196,7 +199,7 @@ void uv_pipe_connect(uv_connect_t* req,
   if (new_sock) {
     err = uv__stream_open((uv_stream_t*)handle,
                           uv__stream_fd(handle),
-                          UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+                          UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   }
 
   if (err == 0)

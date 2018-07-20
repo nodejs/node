@@ -5,6 +5,8 @@
 
 "use strict";
 
+const astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
@@ -56,6 +58,54 @@ function canBecomeVariableDeclaration(identifier) {
 }
 
 /**
+ * Checks if an property or element is from outer scope or function parameters
+ * in destructing pattern.
+ *
+ * @param {string} name - A variable name to be checked.
+ * @param {eslint-scope.Scope} initScope - A scope to start find.
+ * @returns {boolean} Indicates if the variable is from outer scope or function parameters.
+ */
+function isOuterVariableInDestructing(name, initScope) {
+    if (initScope.through.find(ref => ref.resolved && ref.resolved.name === name)) {
+        return true;
+    }
+
+    const variable = astUtils.getVariableByName(initScope, name);
+
+    if (variable !== null) {
+        return variable.defs.some(def => def.type === "Parameter");
+    }
+
+    return false;
+}
+
+/**
+ * Gets the VariableDeclarator/AssignmentExpression node that a given reference
+ * belongs to.
+ * This is used to detect a mix of reassigned and never reassigned in a
+ * destructuring.
+ *
+ * @param {eslint-scope.Reference} reference - A reference to get.
+ * @returns {ASTNode|null} A VariableDeclarator/AssignmentExpression node or
+ *      null.
+ */
+function getDestructuringHost(reference) {
+    if (!reference.isWrite()) {
+        return null;
+    }
+    let node = reference.identifier.parent;
+
+    while (PATTERN_TYPE.test(node.type)) {
+        node = node.parent;
+    }
+
+    if (!DESTRUCTURING_HOST_TYPE.test(node.type)) {
+        return null;
+    }
+    return node;
+}
+
+/**
  * Gets an identifier node of a given variable.
  *
  * If the initialization exists or one or more reading references exist before
@@ -102,6 +152,32 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
             if (isReassigned) {
                 return null;
             }
+
+            const destructuringHost = getDestructuringHost(reference);
+
+            if (destructuringHost !== null && destructuringHost.left !== void 0) {
+                const leftNode = destructuringHost.left;
+                let hasOuterVariables = false;
+
+                if (leftNode.type === "ObjectPattern") {
+                    const properties = leftNode.properties;
+
+                    hasOuterVariables = properties
+                        .filter(prop => prop.value)
+                        .map(prop => prop.value.name)
+                        .some(name => isOuterVariableInDestructing(name, variable.scope));
+                } else if (leftNode.type === "ArrayPattern") {
+                    const elements = leftNode.elements;
+
+                    hasOuterVariables = elements
+                        .map(element => element.name)
+                        .some(name => isOuterVariableInDestructing(name, variable.scope));
+                }
+                if (hasOuterVariables) {
+                    return null;
+                }
+            }
+
             writer = reference;
 
         } else if (reference.isRead() && writer === null) {
@@ -129,32 +205,6 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
         return variable.defs[0].name;
     }
     return writer.identifier;
-}
-
-/**
- * Gets the VariableDeclarator/AssignmentExpression node that a given reference
- * belongs to.
- * This is used to detect a mix of reassigned and never reassigned in a
- * destructuring.
- *
- * @param {eslint-scope.Reference} reference - A reference to get.
- * @returns {ASTNode|null} A VariableDeclarator/AssignmentExpression node or
- *      null.
- */
-function getDestructuringHost(reference) {
-    if (!reference.isWrite()) {
-        return null;
-    }
-    let node = reference.identifier.parent;
-
-    while (PATTERN_TYPE.test(node.type)) {
-        node = node.parent;
-    }
-
-    if (!DESTRUCTURING_HOST_TYPE.test(node.type)) {
-        return null;
-    }
-    return node;
 }
 
 /**
@@ -290,7 +340,7 @@ module.exports = {
                     (varDeclParent.parent.type === "ForInStatement" || varDeclParent.parent.type === "ForOfStatement" || varDeclParent.declarations[0].init) &&
 
                     /*
-                     * If options.destucturing is "all", then this warning will not occur unless
+                     * If options.destructuring is "all", then this warning will not occur unless
                      * every assignment in the destructuring should be const. In that case, it's safe
                      * to apply the fix.
                      */

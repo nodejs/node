@@ -29,7 +29,6 @@ const os = require('os');
 const { exec, execSync, spawn, spawnSync } = require('child_process');
 const stream = require('stream');
 const util = require('util');
-const Timer = process.binding('timer_wrap').Timer;
 const { hasTracing } = process.binding('config');
 const { fixturesDir } = require('./fixtures');
 const tmpdir = require('./tmpdir');
@@ -600,9 +599,9 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
 };
 
 exports.busyLoop = function busyLoop(time) {
-  const startTime = Timer.now();
+  const startTime = Date.now();
   const stopTime = startTime + time;
-  while (Timer.now() < stopTime) {}
+  while (Date.now() < stopTime) {}
 };
 
 exports.isAlive = function isAlive(pid) {
@@ -815,9 +814,10 @@ exports.getBufferSources = function getBufferSources(buf) {
 };
 
 // Crash the process on unhandled rejections.
-exports.crashOnUnhandledRejection = function() {
-  process.on('unhandledRejection',
-             (err) => process.nextTick(() => { throw err; }));
+const crashOnUnhandledRejection = (err) => { throw err; };
+process.on('unhandledRejection', crashOnUnhandledRejection);
+exports.disableCrashOnUnhandledRejection = function() {
+  process.removeListener('unhandledRejection', crashOnUnhandledRejection);
 };
 
 exports.getTTYfd = function getTTYfd() {
@@ -883,3 +883,30 @@ exports.isCPPSymbolsNotMapped = exports.isWindows ||
                                 exports.isAIX ||
                                 exports.isLinuxPPCBE ||
                                 exports.isFreeBSD;
+
+const gcTrackerMap = new WeakMap();
+const gcTrackerTag = 'NODE_TEST_COMMON_GC_TRACKER';
+
+exports.onGC = function(obj, gcListener) {
+  const async_hooks = require('async_hooks');
+
+  const onGcAsyncHook = async_hooks.createHook({
+    init: exports.mustCallAtLeast(function(id, type, trigger, resource) {
+      if (this.trackedId === undefined) {
+        assert.strictEqual(type, gcTrackerTag);
+        this.trackedId = id;
+      }
+    }),
+    destroy(id) {
+      assert.notStrictEqual(this.trackedId, -1);
+      if (id === this.trackedId) {
+        this.gcListener.ongc();
+        onGcAsyncHook.disable();
+      }
+    }
+  }).enable();
+  onGcAsyncHook.gcListener = gcListener;
+
+  gcTrackerMap.set(obj, new async_hooks.AsyncResource(gcTrackerTag));
+  obj = null;
+};

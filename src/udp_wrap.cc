@@ -55,7 +55,11 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
   SendWrap(Environment* env, Local<Object> req_wrap_obj, bool have_callback);
   inline bool have_callback() const;
   size_t msg_size;
-  size_t self_size() const override { return sizeof(*this); }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
  private:
   const bool have_callback_;
 };
@@ -115,7 +119,6 @@ void UDPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "send", Send);
   env->SetProtoMethod(t, "bind6", Bind6);
   env->SetProtoMethod(t, "send6", Send6);
-  env->SetProtoMethod(t, "close", Close);
   env->SetProtoMethod(t, "recvStart", RecvStart);
   env->SetProtoMethod(t, "recvStop", RecvStop);
   env->SetProtoMethod(t, "getsockname",
@@ -129,11 +132,8 @@ void UDPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setTTL", SetTTL);
   env->SetProtoMethod(t, "bufferSize", BufferSize);
 
-  env->SetProtoMethod(t, "ref", HandleWrap::Ref);
-  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
-  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
-
   AsyncWrap::AddWrapMethods(env, t);
+  HandleWrap::AddWrapMethods(env, t);
 
   target->Set(udpString, t->GetFunction());
   env->set_udp_constructor_function(t->GetFunction());

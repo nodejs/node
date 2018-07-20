@@ -59,9 +59,7 @@ class ModuleResolver {
          * subsequent calls to this function. Then, move the extraLookupPath to the
          * top of the lookup paths list so it will be searched first.
          */
-        const lookupPaths = this.options.lookupPaths.concat();
-
-        lookupPaths.unshift(extraLookupPath);
+        const lookupPaths = [extraLookupPath, ...this.options.lookupPaths];
 
         /**
          * Module._findPath is an internal method to Node.js, then one they use to

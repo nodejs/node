@@ -1,0 +1,1 @@
+{"version":3,"file":"isArrayLike.js","sourceRoot":"","sources":["../../src/util/isArrayLike.ts"],"names":[],"mappings":";AAAa,mBAAW,GAAG,CAAC,UAAI,CAAM,IAAwB,OAAA,CAAC,IAAI,OAAO,CAAC,CAAC,MAAM,KAAK,QAAQ,EAAjC,CAAiC,CAAC,CAAC","sourcesContent":["export const isArrayLike = (<T>(x: any): x is ArrayLike<T> => x && typeof x.length === 'number');"]}

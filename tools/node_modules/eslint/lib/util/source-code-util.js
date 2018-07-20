@@ -78,14 +78,13 @@ function getSourceCodeOfFiles(patterns, providedOptions, providedCallback) {
         callback = providedCallback;
     }
     debug("constructed options:", options);
-    const resolvedPatterns = globUtil.resolveFileGlobPatterns(globPatternsList, options);
 
-    const filenames = globUtil.listFilesToProcess(resolvedPatterns, options)
+    const filenames = globUtil.listFilesToProcess(globPatternsList, options)
         .filter(fileInfo => !fileInfo.ignored)
         .reduce((files, fileInfo) => files.concat(fileInfo.filename), []);
 
     if (filenames.length === 0) {
-        debug(`Did not find any files matching pattern(s): ${resolvedPatterns}`);
+        debug(`Did not find any files matching pattern(s): ${globPatternsList}`);
     }
     filenames.forEach(filename => {
         const sourceCode = getSourceCodeOfFile(filename, options);

@@ -387,15 +387,13 @@ class SourceCode extends TokenStore {
      * @public
      */
     getNodeByRangeIndex(index) {
-        let result = null,
-            resultParent = null;
+        let result = null;
 
         Traverser.traverse(this.ast, {
             visitorKeys: this.visitorKeys,
-            enter(node, parent) {
+            enter(node) {
                 if (node.range[0] <= index && index < node.range[1]) {
                     result = node;
-                    resultParent = parent;
                 } else {
                     this.skip();
                 }
@@ -407,7 +405,7 @@ class SourceCode extends TokenStore {
             }
         });
 
-        return result ? Object.assign({ parent: resultParent }, result) : null;
+        return result;
     }
 
     /**

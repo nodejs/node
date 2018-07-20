@@ -1050,6 +1050,8 @@ changes:
     certificate, and the handshake will fail.
   * `ciphers` {string} Optional cipher suite specification, replacing the
     default. For more information, see [modifying the default cipher suite][].
+    Permitted ciphers can be obtained via [`tls.getCiphers()`][]. Cipher names
+    must be uppercased in order for OpenSSL to accept them.
   * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
     provide the client certificate.
   * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
@@ -1386,6 +1388,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`tls.createSecureContext()`]: #tls_tls_createsecurecontext_options
 [`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
+[`tls.getCiphers()`]: #tls_tls_getciphers
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
@@ -1399,6 +1402,6 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [Stream]: stream.html#stream_stream
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
-[asn1.js]: https://npmjs.org/package/asn1.js
+[asn1.js]: https://www.npmjs.com/package/asn1.js
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html

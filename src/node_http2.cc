@@ -451,6 +451,92 @@ Http2Session::Callbacks::~Callbacks() {
   nghttp2_session_callbacks_del(callbacks);
 }
 
+// Track memory allocated by nghttp2 using a custom allocator.
+class Http2Session::MemoryAllocatorInfo {
+ public:
+  explicit MemoryAllocatorInfo(Http2Session* session)
+      : info({ session, H2Malloc, H2Free, H2Calloc, H2Realloc }) {}
+
+  static void* H2Malloc(size_t size, void* user_data) {
+    return H2Realloc(nullptr, size, user_data);
+  }
+
+  static void* H2Calloc(size_t nmemb, size_t size, void* user_data) {
+    size_t real_size = MultiplyWithOverflowCheck(nmemb, size);
+    void* mem = H2Malloc(real_size, user_data);
+    if (mem != nullptr)
+      memset(mem, 0, real_size);
+    return mem;
+  }
+
+  static void H2Free(void* ptr, void* user_data) {
+    if (ptr == nullptr) return;  // free(null); happens quite often.
+    void* result = H2Realloc(ptr, 0, user_data);
+    CHECK_EQ(result, nullptr);
+  }
+
+  static void* H2Realloc(void* ptr, size_t size, void* user_data) {
+    Http2Session* session = static_cast<Http2Session*>(user_data);
+    size_t previous_size = 0;
+    char* original_ptr = nullptr;
+
+    // We prepend each allocated buffer with a size_t containing the full
+    // size of the allocation.
+    if (size > 0) size += sizeof(size_t);
+
+    if (ptr != nullptr) {
+      // We are free()ing or re-allocating.
+      original_ptr = static_cast<char*>(ptr) - sizeof(size_t);
+      previous_size = *reinterpret_cast<size_t*>(original_ptr);
+      // This means we called StopTracking() on this pointer before.
+      if (previous_size == 0) {
+        // Fall back to the standard Realloc() function.
+        char* ret = UncheckedRealloc(original_ptr, size);
+        if (ret != nullptr)
+          ret += sizeof(size_t);
+        return ret;
+      }
+    }
+    CHECK_GE(session->current_nghttp2_memory_, previous_size);
+
+    // TODO(addaleax): Add the following, and handle NGHTTP2_ERR_NOMEM properly
+    // everywhere:
+    //
+    // if (size > previous_size &&
+    //     !session->IsAvailableSessionMemory(size - previous_size)) {
+    //  return nullptr;
+    //}
+
+    char* mem = UncheckedRealloc(original_ptr, size);
+
+    if (mem != nullptr) {
+      // Adjust the memory info counter.
+      session->current_nghttp2_memory_ += size - previous_size;
+      *reinterpret_cast<size_t*>(mem) = size;
+      mem += sizeof(size_t);
+    } else if (size == 0) {
+      session->current_nghttp2_memory_ -= previous_size;
+    }
+
+    return mem;
+  }
+
+  static void StopTracking(Http2Session* session, void* ptr) {
+    size_t* original_ptr = reinterpret_cast<size_t*>(
+        static_cast<char*>(ptr) - sizeof(size_t));
+    session->current_nghttp2_memory_ -= *original_ptr;
+    *original_ptr = 0;
+  }
+
+  inline nghttp2_mem* operator*() { return &info; }
+
+  nghttp2_mem info;
+};
+
+void Http2Session::StopTrackingRcbuf(nghttp2_rcbuf* buf) {
+  MemoryAllocatorInfo::StopTracking(this, buf);
+}
+
 Http2Session::Http2Session(Environment* env,
                            Local<Object> wrap,
                            nghttp2_session_type type)
@@ -482,15 +568,17 @@ Http2Session::Http2Session(Environment* env,
       = callback_struct_saved[hasGetPaddingCallback ? 1 : 0].callbacks;
 
   auto fn = type == NGHTTP2_SESSION_SERVER ?
-      nghttp2_session_server_new2 :
-      nghttp2_session_client_new2;
+      nghttp2_session_server_new3 :
+      nghttp2_session_client_new3;
+
+  MemoryAllocatorInfo allocator_info(this);
 
   // This should fail only if the system is out of memory, which
   // is going to cause lots of other problems anyway, or if any
   // of the options are out of acceptable range, which we should
   // be catching before it gets this far. Either way, crash if this
   // fails.
-  CHECK_EQ(fn(&session_, callbacks, this, *opts), 0);
+  CHECK_EQ(fn(&session_, callbacks, this, *opts, *allocator_info), 0);
 
   outgoing_storage_.reserve(4096);
   outgoing_buffers_.reserve(32);
@@ -502,6 +590,7 @@ Http2Session::~Http2Session() {
   for (const auto& iter : streams_)
     iter.second->session_ = nullptr;
   nghttp2_session_del(session_);
+  CHECK_EQ(current_nghttp2_memory_, 0);
 }
 
 std::string Http2Session::diagnostic_name() const {
@@ -648,7 +737,7 @@ inline void Http2Session::AddStream(Http2Stream* stream) {
   size_t size = streams_.size();
   if (size > statistics_.max_concurrent_streams)
     statistics_.max_concurrent_streams = size;
-  IncrementCurrentSessionMemory(stream->self_size());
+  IncrementCurrentSessionMemory(sizeof(*stream));
 }
 
 
@@ -656,7 +745,7 @@ inline void Http2Session::RemoveStream(Http2Stream* stream) {
   if (streams_.empty() || stream == nullptr)
     return;  // Nothing to remove, item was never added?
   streams_.erase(stream->id());
-  DecrementCurrentSessionMemory(stream->self_size());
+  DecrementCurrentSessionMemory(sizeof(*stream));
 }
 
 // Used as one of the Padding Strategy functions. Will attempt to ensure
@@ -1150,9 +1239,9 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
       nghttp2_header item = headers[n++];
       // The header name and value are passed as external one-byte strings
       name_str =
-          ExternalHeader::New<true>(env(), item.name).ToLocalChecked();
+          ExternalHeader::New<true>(this, item.name).ToLocalChecked();
       value_str =
-          ExternalHeader::New<false>(env(), item.value).ToLocalChecked();
+          ExternalHeader::New<false>(this, item.value).ToLocalChecked();
       argv[j * 2] = name_str;
       argv[j * 2 + 1] = value_str;
       j++;
@@ -1971,10 +2060,9 @@ int Http2Stream::DoWrite(WriteWrap* req_wrap,
                          uv_buf_t* bufs,
                          size_t nbufs,
                          uv_stream_t* send_handle) {
-  CHECK(!this->IsDestroyed());
   CHECK_NULL(send_handle);
   Http2Scope h2scope(this);
-  if (!IsWritable()) {
+  if (!IsWritable() || IsDestroyed()) {
     req_wrap->Done(UV_EOF);
     return 0;
   }
@@ -2605,7 +2693,7 @@ Http2Session::Http2Ping* Http2Session::PopPing() {
   if (!outstanding_pings_.empty()) {
     ping = outstanding_pings_.front();
     outstanding_pings_.pop();
-    DecrementCurrentSessionMemory(ping->self_size());
+    DecrementCurrentSessionMemory(sizeof(*ping));
   }
   return ping;
 }
@@ -2614,7 +2702,7 @@ bool Http2Session::AddPing(Http2Session::Http2Ping* ping) {
   if (outstanding_pings_.size() == max_outstanding_pings_)
     return false;
   outstanding_pings_.push(ping);
-  IncrementCurrentSessionMemory(ping->self_size());
+  IncrementCurrentSessionMemory(sizeof(*ping));
   return true;
 }
 
@@ -2623,7 +2711,7 @@ Http2Session::Http2Settings* Http2Session::PopSettings() {
   if (!outstanding_settings_.empty()) {
     settings = outstanding_settings_.front();
     outstanding_settings_.pop();
-    DecrementCurrentSessionMemory(settings->self_size());
+    DecrementCurrentSessionMemory(sizeof(*settings));
   }
   return settings;
 }
@@ -2632,7 +2720,7 @@ bool Http2Session::AddSettings(Http2Session::Http2Settings* settings) {
   if (outstanding_settings_.size() == max_outstanding_settings_)
     return false;
   outstanding_settings_.push(settings);
-  IncrementCurrentSessionMemory(settings->self_size());
+  IncrementCurrentSessionMemory(sizeof(*settings));
   return true;
 }
 
@@ -2674,6 +2762,21 @@ void Http2Session::Http2Ping::Done(bool ack, const uint8_t* payload) {
   };
   MakeCallback(env()->ondone_string(), arraysize(argv), argv);
   delete this;
+}
+
+
+void nghttp2_stream_write::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackThis(this);
+  if (req_wrap != nullptr)
+    tracker->TrackField("req_wrap", req_wrap->GetAsyncWrap());
+  tracker->TrackField("buf", buf);
+}
+
+
+void nghttp2_header::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackThis(this);
+  tracker->TrackFieldWithSize("name", nghttp2_rcbuf_get_buf(name).len);
+  tracker->TrackFieldWithSize("value", nghttp2_rcbuf_get_buf(value).len);
 }
 
 
@@ -2751,7 +2854,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(stream, "rstStream", Http2Stream::RstStream);
   env->SetProtoMethod(stream, "refreshState", Http2Stream::RefreshState);
   AsyncWrap::AddWrapMethods(env, stream);
-  StreamBase::AddMethods<Http2Stream>(env, stream, StreamBase::kFlagHasWritev);
+  StreamBase::AddMethods<Http2Stream>(env, stream);
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
   streamt->SetInternalFieldCount(1);
   env->set_http2stream_constructor_template(streamt);

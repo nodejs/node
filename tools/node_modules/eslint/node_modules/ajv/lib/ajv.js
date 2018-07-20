@@ -7,10 +7,8 @@ var compileSchema = require('./compile')
   , stableStringify = require('fast-json-stable-stringify')
   , formats = require('./compile/formats')
   , rules = require('./compile/rules')
-  , $dataMetaSchema = require('./$data')
-  , patternGroups = require('./patternGroups')
-  , util = require('./compile/util')
-  , co = require('co');
+  , $dataMetaSchema = require('./data')
+  , util = require('./compile/util');
 
 module.exports = Ajv;
 
@@ -38,7 +36,7 @@ Ajv.ValidationError = errorClasses.Validation;
 Ajv.MissingRefError = errorClasses.MissingRef;
 Ajv.$dataMetaSchema = $dataMetaSchema;
 
-var META_SCHEMA_ID = 'http://json-schema.org/draft-06/schema';
+var META_SCHEMA_ID = 'http://json-schema.org/draft-07/schema';
 
 var META_IGNORE_OPTIONS = [ 'removeAdditional', 'useDefaults', 'coerceTypes' ];
 var META_SUPPORT_DATA = ['/properties'];
@@ -75,7 +73,6 @@ function Ajv(opts) {
   addDraft6MetaSchema(this);
   if (typeof opts.meta == 'object') this.addMetaSchema(opts.meta);
   addInitialSchemas(this);
-  if (opts.patternGroups) patternGroups(this);
 }
 
 
@@ -99,9 +96,7 @@ function validate(schemaKeyRef, data) {
   }
 
   var valid = v(data);
-  if (v.$async === true)
-    return this._opts.async == '*' ? co(valid) : valid;
-  this.errors = v.errors;
+  if (v.$async !== true) this.errors = v.errors;
   return valid;
 }
 
@@ -356,6 +351,10 @@ function _compile(schemaObj, root) {
 
   var v;
   try { v = compileSchema.call(this, schemaObj.schema, root, schemaObj.localRefs); }
+  catch(e) {
+    delete schemaObj.validate;
+    throw e;
+  }
   finally {
     schemaObj.compiling = false;
     if (schemaObj.meta) this._opts = currentOpts;
@@ -368,9 +367,11 @@ function _compile(schemaObj, root) {
   return v;
 
 
+  /* @this   {*} - custom context, see passContext option */
   function callValidate() {
+    /* jshint validthis: true */
     var _validate = schemaObj.validate;
-    var result = _validate.apply(null, arguments);
+    var result = _validate.apply(this, arguments);
     callValidate.errors = _validate.errors;
     return result;
   }
@@ -379,9 +380,9 @@ function _compile(schemaObj, root) {
 
 function chooseGetId(opts) {
   switch (opts.schemaId) {
-    case '$id': return _get$Id;
+    case 'auto': return _get$IdOrId;
     case 'id': return _getId;
-    default: return _get$IdOrId;
+    default: return _get$Id;
   }
 }
 
@@ -445,11 +446,11 @@ function addFormat(name, format) {
 function addDraft6MetaSchema(self) {
   var $dataSchema;
   if (self._opts.$data) {
-    $dataSchema = require('./refs/$data.json');
+    $dataSchema = require('./refs/data.json');
     self.addMetaSchema($dataSchema, $dataSchema.$id, true);
   }
   if (self._opts.meta === false) return;
-  var metaSchema = require('./refs/json-schema-draft-06.json');
+  var metaSchema = require('./refs/json-schema-draft-07.json');
   if (self._opts.$data) metaSchema = $dataMetaSchema(metaSchema, META_SUPPORT_DATA);
   self.addMetaSchema(metaSchema, META_SCHEMA_ID, true);
   self._refs['http://json-schema.org/schema'] = META_SCHEMA_ID;

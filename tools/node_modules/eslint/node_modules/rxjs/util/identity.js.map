@@ -1,0 +1,1 @@
+{"version":3,"file":"identity.js","sourceRoot":"","sources":["../../src/util/identity.ts"],"names":[],"mappings":";AAAA,kBAA4B,CAAI;IAC9B,MAAM,CAAC,CAAC,CAAC;AACX,CAAC;AAFe,gBAAQ,WAEvB,CAAA","sourcesContent":["export function identity<T>(x: T): T {\n  return x;\n}\n"]}

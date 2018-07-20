@@ -54,10 +54,6 @@ class InspectorSocketServer {
   void Send(int session_id, const std::string& message);
   //   kKill
   void TerminateConnections();
-  //   kAcceptSession
-  void AcceptSession(int session_id);
-  //   kDeclineSession
-  void DeclineSession(int session_id);
   int Port() const;
 
   // Session connection lifecycle
@@ -81,6 +77,8 @@ class InspectorSocketServer {
 
   void SendListResponse(InspectorSocket* socket, const std::string& host,
                         SocketSession* session);
+  std::string GetFrontendURL(bool is_compat,
+                             const std::string &formatted_address);
   bool TargetExists(const std::string& id);
 
   enum class ServerState {kNew, kRunning, kStopping, kStopped};

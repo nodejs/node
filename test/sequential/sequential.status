@@ -16,7 +16,6 @@ test-inspector-bindings                  : PASS, FLAKY
 test-inspector-debug-end                 : PASS, FLAKY
 
 [$system==linux]
-test-inspector-port-zero-cluster         :  PASS, FLAKY
 
 [$system==macos]
 

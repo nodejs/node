@@ -77,17 +77,8 @@ void PipeWrap::Initialize(Local<Object> target,
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
   AsyncWrap::AddWrapMethods(env, t);
-
-  env->SetProtoMethod(t, "close", HandleWrap::Close);
-  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
-  env->SetProtoMethod(t, "ref", HandleWrap::Ref);
-  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
-
-#ifdef _WIN32
+  HandleWrap::AddWrapMethods(env, t);
   LibuvStreamWrap::AddMethods(env, t);
-#else
-  LibuvStreamWrap::AddMethods(env, t, StreamBase::kFlagHasWritev);
-#endif
 
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "listen", Listen);

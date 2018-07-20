@@ -13,7 +13,6 @@ const assert = require('assert');
 const tmpDir = tmpdir.path;
 
 tmpdir.refresh();
-common.crashOnUnhandledRejection();
 
 async function validateFilePermission() {
   const filePath = path.resolve(tmpDir, 'tmp-chmod.txt');

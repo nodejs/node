@@ -13,12 +13,12 @@ npm install is-hexadecimal
 ## Usage
 
 ```javascript
-var hexadecimal = require('is-hexadecimal');
+var hexadecimal = require('is-hexadecimal')
 
-hexadecimal('a'); //=> true
-hexadecimal('0'); //=> true
-hexadecimal('G'); //=> false
-hexadecimal('💩'); //=> false
+hexadecimal('a') // => true
+hexadecimal('0') // => true
+hexadecimal('G') // => false
+hexadecimal('💩') // => false
 ```
 
 ## API

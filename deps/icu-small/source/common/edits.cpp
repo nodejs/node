@@ -4,10 +4,12 @@
 // edits.cpp
 // created: 2017feb08 Markus W. Scherer
 
-#include "unicode/utypes.h"
 #include "unicode/edits.h"
+#include "unicode/unistr.h"
+#include "unicode/utypes.h"
 #include "cmemory.h"
 #include "uassert.h"
+#include "util.h"
 
 U_NAMESPACE_BEGIN
 
@@ -771,6 +773,31 @@ int32_t Edits::Iterator::sourceIndexFromDestinationIndex(int32_t i, UErrorCode &
         // In an unchanged span, offset within it.
         return srcIndex + (i - destIndex);
     }
+}
+
+UnicodeString& Edits::Iterator::toString(UnicodeString& sb) const {
+    sb.append(u"{ src[", -1);
+    ICU_Utility::appendNumber(sb, srcIndex);
+    sb.append(u"..", -1);
+    ICU_Utility::appendNumber(sb, srcIndex + oldLength_);
+    if (changed) {
+        sb.append(u"] ⇝ dest[", -1);
+    } else {
+        sb.append(u"] ≡ dest[", -1);
+    }
+    ICU_Utility::appendNumber(sb, destIndex);
+    sb.append(u"..", -1);
+    ICU_Utility::appendNumber(sb, destIndex + newLength_);
+    if (changed) {
+        sb.append(u"], repl[", -1);
+        ICU_Utility::appendNumber(sb, replIndex);
+        sb.append(u"..", -1);
+        ICU_Utility::appendNumber(sb, replIndex + newLength_);
+        sb.append(u"] }", -1);
+    } else {
+        sb.append(u"] (no-change) }", -1);
+    }
+    return sb;
 }
 
 U_NAMESPACE_END

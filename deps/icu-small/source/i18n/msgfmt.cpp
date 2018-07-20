@@ -31,6 +31,7 @@
 #include "unicode/decimfmt.h"
 #include "unicode/localpointer.h"
 #include "unicode/msgfmt.h"
+#include "unicode/numberformatter.h"
 #include "unicode/plurfmt.h"
 #include "unicode/rbnf.h"
 #include "unicode/selfmt.h"
@@ -48,7 +49,7 @@
 #include "ustrfmt.h"
 #include "util.h"
 #include "uvector.h"
-#include "visibledigits.h"
+#include "number_decimalquantity.h"
 
 // *****************************************************************************
 // class MessageFormat
@@ -1700,12 +1701,21 @@ Format* MessageFormat::createAppropriateFormat(UnicodeString& type, UnicodeStrin
             formattableType = Formattable::kLong;
             fmt = createIntegerFormat(fLocale, ec);
             break;
-        default: // pattern
-            fmt = NumberFormat::createInstance(fLocale, ec);
-            if (fmt) {
-                DecimalFormat* decfmt = dynamic_cast<DecimalFormat*>(fmt);
-                if (decfmt != NULL) {
-                    decfmt->applyPattern(style,parseError,ec);
+        default: // pattern or skeleton
+            int32_t i = 0;
+            for (; PatternProps::isWhiteSpace(style.charAt(i)); i++);
+            if (style.compare(i, 2, u"::", 0, 2) == 0) {
+                // Skeleton
+                UnicodeString skeleton = style.tempSubString(i + 2);
+                fmt = number::NumberFormatter::forSkeleton(skeleton, ec).locale(fLocale).toFormat(ec);
+            } else {
+                // Pattern
+                fmt = NumberFormat::createInstance(fLocale, ec);
+                if (fmt) {
+                    auto* decfmt = dynamic_cast<DecimalFormat*>(fmt);
+                    if (decfmt != nullptr) {
+                        decfmt->applyPattern(style, parseError, ec);
+                    }
                 }
             }
             break;
@@ -1959,14 +1969,14 @@ UnicodeString MessageFormat::PluralSelectorProvider::select(void *ctx, double nu
         return UnicodeString(FALSE, OTHER_STRING, 5);
     }
     context.formatter->format(context.number, context.numberString, ec);
-    const DecimalFormat *decFmt = dynamic_cast<const DecimalFormat *>(context.formatter);
+    auto* decFmt = dynamic_cast<const DecimalFormat *>(context.formatter);
     if(decFmt != NULL) {
-        VisibleDigitsWithExponent digits;
-        decFmt->initVisibleDigitsWithExponent(context.number, digits, ec);
+        number::impl::DecimalQuantity dq;
+        decFmt->formatToDecimalQuantity(context.number, dq, ec);
         if (U_FAILURE(ec)) {
             return UnicodeString(FALSE, OTHER_STRING, 5);
         }
-        return rules->select(digits);
+        return rules->select(dq);
     } else {
         return rules->select(number);
     }

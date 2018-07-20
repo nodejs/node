@@ -13,9 +13,11 @@ npm install character-reference-invalid
 ## Usage
 
 ```js
-console.log(characterReferenceInvalid[0x80]); //=> '€'
-console.log(characterReferenceInvalid[0x89]); //=> '‰'
-console.log(characterReferenceInvalid[0x99]); //=> '™'
+var characterReferenceInvalid = require('character-reference-invalid')
+
+console.log(characterReferenceInvalid[0x80]) // => '€'
+console.log(characterReferenceInvalid[0x89]) // => '‰'
+console.log(characterReferenceInvalid[0x99]) // => '™'
 ```
 
 ## API

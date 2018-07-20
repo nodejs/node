@@ -26,7 +26,7 @@
 #include <string.h>
 
 #ifdef __APPLE__
-# define NUM_ITERATIONS 20
+# define NUM_ITERATIONS 10
 #else
 # define NUM_ITERATIONS 50
 #endif

@@ -13,12 +13,12 @@ npm install is-alphabetical
 ## Usage
 
 ```javascript
-var alphabetical = require('is-alphabetical');
+var alphabetical = require('is-alphabetical')
 
-alphabetical('a'); // true
-alphabetical('B'); // true
-alphabetical('0'); // false
-alphabetical('💩'); // false
+alphabetical('a') // => true
+alphabetical('B') // => true
+alphabetical('0') // => false
+alphabetical('💩') // => false
 ```
 
 ## API

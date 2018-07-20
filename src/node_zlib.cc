@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <atomic>
 
 namespace node {
 
@@ -90,12 +91,15 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
         refs_(0),
         gzip_id_bytes_read_(0),
         write_result_(nullptr) {
+    MakeWeak();
   }
 
 
   ~ZCtx() override {
     CHECK_EQ(false, write_in_progress_ && "write in progress");
     Close();
+    CHECK_EQ(zlib_memory_, 0);
+    CHECK_EQ(unreported_allocations_, 0);
   }
 
   void Close() {
@@ -108,17 +112,15 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     CHECK(init_done_ && "close before init");
     CHECK_LE(mode_, UNZIP);
 
+    AllocScope alloc_scope(this);
     int status = Z_OK;
     if (mode_ == DEFLATE || mode_ == GZIP || mode_ == DEFLATERAW) {
       status = deflateEnd(&strm_);
-      int64_t change_in_bytes = -static_cast<int64_t>(kDeflateContextSize);
-      env()->isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
     } else if (mode_ == INFLATE || mode_ == GUNZIP || mode_ == INFLATERAW ||
                mode_ == UNZIP) {
       status = inflateEnd(&strm_);
-      int64_t change_in_bytes = -static_cast<int64_t>(kInflateContextSize);
-      env()->isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
     }
+
     CHECK(status == Z_OK || status == Z_DATA_ERROR);
     mode_ = NONE;
 
@@ -163,6 +165,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
         flush != Z_BLOCK) {
       CHECK(0 && "Invalid flush value");
     }
+
+    AllocScope alloc_scope(ctx);
 
     Bytef* in;
     Bytef* out;
@@ -354,6 +358,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
   // v8 land!
   void AfterThreadPoolWork(int status) override {
+    AllocScope alloc_scope(this);
+
     write_in_progress_ = false;
 
     if (status == UV_ECANCELED) {
@@ -480,7 +486,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
                     write_js_callback, dictionary, dictionary_len);
     if (!ret) goto end;
 
-    SetDictionary(ctx);
+    ctx->SetDictionary();
 
    end:
     return args.GetReturnValue().Set(ret);
@@ -490,28 +496,29 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     CHECK(args.Length() == 2 && "params(level, strategy)");
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
-    Params(ctx, args[0]->Int32Value(), args[1]->Int32Value());
+    ctx->Params(args[0]->Int32Value(), args[1]->Int32Value());
   }
 
   static void Reset(const FunctionCallbackInfo<Value> &args) {
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     ctx->Reset();
-    SetDictionary(ctx);
+    ctx->SetDictionary();
   }
 
   static bool Init(ZCtx* ctx, int level, int windowBits, int memLevel,
                    int strategy, uint32_t* write_result,
                    Local<Function> write_js_callback, char* dictionary,
                    size_t dictionary_len) {
+    AllocScope alloc_scope(ctx);
     ctx->level_ = level;
     ctx->windowBits_ = windowBits;
     ctx->memLevel_ = memLevel;
     ctx->strategy_ = strategy;
 
-    ctx->strm_.zalloc = Z_NULL;
-    ctx->strm_.zfree = Z_NULL;
-    ctx->strm_.opaque = Z_NULL;
+    ctx->strm_.zalloc = AllocForZlib;
+    ctx->strm_.zfree = FreeForZlib;
+    ctx->strm_.opaque = static_cast<void*>(ctx);
 
     ctx->flush_ = Z_NO_FLUSH;
 
@@ -539,16 +546,12 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
                                  ctx->windowBits_,
                                  ctx->memLevel_,
                                  ctx->strategy_);
-        ctx->env()->isolate()
-            ->AdjustAmountOfExternalAllocatedMemory(kDeflateContextSize);
         break;
       case INFLATE:
       case GUNZIP:
       case INFLATERAW:
       case UNZIP:
         ctx->err_ = inflateInit2(&ctx->strm_, ctx->windowBits_);
-        ctx->env()->isolate()
-            ->AdjustAmountOfExternalAllocatedMemory(kInflateContextSize);
         break;
       default:
         UNREACHABLE();
@@ -574,53 +577,53 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     return true;
   }
 
-  static void SetDictionary(ZCtx* ctx) {
-    if (ctx->dictionary_ == nullptr)
+  void SetDictionary() {
+    if (dictionary_ == nullptr)
       return;
 
-    ctx->err_ = Z_OK;
+    err_ = Z_OK;
 
-    switch (ctx->mode_) {
+    switch (mode_) {
       case DEFLATE:
       case DEFLATERAW:
-        ctx->err_ = deflateSetDictionary(&ctx->strm_,
-                                         ctx->dictionary_,
-                                         ctx->dictionary_len_);
+        err_ = deflateSetDictionary(&strm_, dictionary_, dictionary_len_);
         break;
       case INFLATERAW:
         // The other inflate cases will have the dictionary set when inflate()
         // returns Z_NEED_DICT in Process()
-        ctx->err_ = inflateSetDictionary(&ctx->strm_,
-                                         ctx->dictionary_,
-                                         ctx->dictionary_len_);
+        err_ = inflateSetDictionary(&strm_, dictionary_, dictionary_len_);
         break;
       default:
         break;
     }
 
-    if (ctx->err_ != Z_OK) {
-      ctx->Error("Failed to set dictionary");
+    if (err_ != Z_OK) {
+      Error("Failed to set dictionary");
     }
   }
 
-  static void Params(ZCtx* ctx, int level, int strategy) {
-    ctx->err_ = Z_OK;
+  void Params(int level, int strategy) {
+    AllocScope alloc_scope(this);
 
-    switch (ctx->mode_) {
+    err_ = Z_OK;
+
+    switch (mode_) {
       case DEFLATE:
       case DEFLATERAW:
-        ctx->err_ = deflateParams(&ctx->strm_, level, strategy);
+        err_ = deflateParams(&strm_, level, strategy);
         break;
       default:
         break;
     }
 
-    if (ctx->err_ != Z_OK && ctx->err_ != Z_BUF_ERROR) {
-      ctx->Error("Failed to set parameters");
+    if (err_ != Z_OK && err_ != Z_BUF_ERROR) {
+      Error("Failed to set parameters");
     }
   }
 
   void Reset() {
+    AllocScope alloc_scope(this);
+
     err_ = Z_OK;
 
     switch (mode_) {
@@ -643,7 +646,12 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     }
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackFieldWithSize("dictionary", dictionary_len_);
+    tracker->TrackFieldWithSize("zlib memory",
+        zlib_memory_ + unreported_allocations_);
+  }
 
  private:
   void Ref() {
@@ -659,8 +667,51 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     }
   }
 
-  static const int kDeflateContextSize = 16384;  // approximate
-  static const int kInflateContextSize = 10240;  // approximate
+  // Allocation functions provided to zlib itself. We store the real size of
+  // the allocated memory chunk just before the "payload" memory we return
+  // to zlib.
+  // Because we use zlib off the thread pool, we can not report memory directly
+  // to V8; rather, we first store it as "unreported" memory in a separate
+  // field and later report it back from the main thread.
+  static void* AllocForZlib(void* data, uInt items, uInt size) {
+    ZCtx* ctx = static_cast<ZCtx*>(data);
+    size_t real_size =
+        MultiplyWithOverflowCheck(static_cast<size_t>(items),
+                                  static_cast<size_t>(size)) + sizeof(size_t);
+    char* memory = UncheckedMalloc(real_size);
+    if (UNLIKELY(memory == nullptr)) return nullptr;
+    *reinterpret_cast<size_t*>(memory) = real_size;
+    ctx->unreported_allocations_.fetch_add(real_size,
+                                           std::memory_order_relaxed);
+    return memory + sizeof(size_t);
+  }
+
+  static void FreeForZlib(void* data, void* pointer) {
+    if (UNLIKELY(pointer == nullptr)) return;
+    ZCtx* ctx = static_cast<ZCtx*>(data);
+    char* real_pointer = static_cast<char*>(pointer) - sizeof(size_t);
+    size_t real_size = *reinterpret_cast<size_t*>(real_pointer);
+    ctx->unreported_allocations_.fetch_sub(real_size,
+                                           std::memory_order_relaxed);
+    free(real_pointer);
+  }
+
+  // This is called on the main thread after zlib may have allocated something
+  // in order to report it back to V8.
+  void AdjustAmountOfExternalAllocatedMemory() {
+    ssize_t report =
+        unreported_allocations_.exchange(0, std::memory_order_relaxed);
+    if (report == 0) return;
+    CHECK_IMPLIES(report < 0, zlib_memory_ >= static_cast<size_t>(-report));
+    zlib_memory_ += report;
+    env()->isolate()->AdjustAmountOfExternalAllocatedMemory(report);
+  }
+
+  struct AllocScope {
+    explicit AllocScope(ZCtx* ctx) : ctx(ctx) {}
+    ~AllocScope() { ctx->AdjustAmountOfExternalAllocatedMemory(); }
+    ZCtx* ctx;
+  };
 
   Bytef* dictionary_;
   size_t dictionary_len_;
@@ -679,6 +730,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   unsigned int gzip_id_bytes_read_;
   uint32_t* write_result_;
   Persistent<Function> write_js_callback_;
+  std::atomic<ssize_t> unreported_allocations_{0};
+  size_t zlib_memory_ = 0;
 };
 
 

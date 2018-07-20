@@ -124,6 +124,8 @@ module.exports = {
                         messageId = "unexpectedEmptyBlock";
                     } else if (blockBody.length > 1) {
                         messageId = "unexpectedOtherBlock";
+                    } else if (blockBody[0].argument === null) {
+                        messageId = "unexpectedSingleBlock";
                     } else if (astUtils.isOpeningBraceToken(sourceCode.getFirstToken(blockBody[0], { skip: 1 }))) {
                         messageId = "unexpectedObjectBlock";
                     } else {

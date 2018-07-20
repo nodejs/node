@@ -122,7 +122,8 @@ void Initialize(Local<Object> target,
                 Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  env->SetMethod(target, "cachedDataVersionTag", CachedDataVersionTag);
+  env->SetMethodNoSideEffect(target, "cachedDataVersionTag",
+                             CachedDataVersionTag);
 
   env->SetMethod(target,
                  "updateHeapStatisticsArrayBuffer",

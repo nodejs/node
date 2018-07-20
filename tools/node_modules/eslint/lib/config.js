@@ -209,7 +209,7 @@ class Config {
             const localConfigHierarchyCache = this.configCache.getHierarchyLocalConfigs(localConfigDirectory);
 
             if (localConfigHierarchyCache) {
-                const localConfigHierarchy = localConfigHierarchyCache.concat(configs.reverse());
+                const localConfigHierarchy = localConfigHierarchyCache.concat(configs);
 
                 this.configCache.setHierarchyLocalConfigs(searched, localConfigHierarchy);
                 return localConfigHierarchy;
@@ -232,7 +232,7 @@ class Config {
             }
 
             debug(`Using ${localConfigFile}`);
-            configs.push(localConfig);
+            configs.unshift(localConfig);
             searched.push(localConfigDirectory);
 
             // Stop traversing if a config is found with the root flag set
@@ -248,7 +248,7 @@ class Config {
             const personalConfig = this.getPersonalConfig();
 
             if (personalConfig) {
-                configs.push(personalConfig);
+                configs.unshift(personalConfig);
             } else if (!hasRules(this.options) && !this.options.baseConfig) {
 
                 // No config file, no manual configuration, and no rules, so error.
@@ -265,7 +265,7 @@ class Config {
         }
 
         // Set the caches for the parent directories
-        this.configCache.setHierarchyLocalConfigs(searched, configs.reverse());
+        this.configCache.setHierarchyLocalConfigs(searched, configs);
 
         return configs;
     }

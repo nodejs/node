@@ -5,8 +5,6 @@ const assert = require('assert');
 const { stripVTControlCharacters } = require('internal/readline');
 const repl = require('repl');
 
-common.crashOnUnhandledRejection();
-
 // Flags: --expose-internals --experimental-repl-await
 
 const PROMPT = 'await repl > ';

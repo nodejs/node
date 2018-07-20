@@ -67,6 +67,9 @@ inline char* Calloc(size_t n);
 inline char* UncheckedMalloc(size_t n);
 inline char* UncheckedCalloc(size_t n);
 
+template <typename T>
+inline T MultiplyWithOverflowCheck(T a, T b);
+
 // Used by the allocation functions when allocation fails.
 // Thin wrapper around v8::Isolate::LowMemoryNotification() that checks
 // whether V8 is initialized.

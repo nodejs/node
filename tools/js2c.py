@@ -189,6 +189,10 @@ namespace {{
 
 }}  // anonymous namespace
 
+v8::Local<v8::String> NodePerContextSource(v8::Isolate* isolate) {{
+  return internal_per_context_value.ToStringChecked(isolate);
+}}
+
 v8::Local<v8::String> LoadersBootstrapperSource(Environment* env) {{
   return internal_bootstrap_loaders_value.ToStringChecked(env->isolate());
 }}

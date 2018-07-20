@@ -29,8 +29,6 @@ const common = require('../common');
 const dns = require('dns');
 const dnsPromises = dns.promises;
 
-common.crashOnUnhandledRejection();
-
 common.expectsError(
   () => dnsPromises.resolveNs([]), // bad name
   {

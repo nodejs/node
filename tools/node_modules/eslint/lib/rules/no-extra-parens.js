@@ -86,7 +86,7 @@ module.exports = {
          * @private
          */
         function ruleApplies(node) {
-            if (node.type === "JSXElement") {
+            if (node.type === "JSXElement" || node.type === "JSXFragment") {
                 const isSingleLine = node.loc.start.line === node.loc.end.line;
 
                 switch (IGNORE_JSX) {

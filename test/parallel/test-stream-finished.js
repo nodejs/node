@@ -6,8 +6,6 @@ const assert = require('assert');
 const fs = require('fs');
 const { promisify } = require('util');
 
-common.crashOnUnhandledRejection();
-
 {
   const rs = new Readable({
     read() {}

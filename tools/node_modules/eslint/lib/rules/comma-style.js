@@ -185,13 +185,7 @@ module.exports = {
                 items.forEach(item => {
                     const commaToken = item ? sourceCode.getTokenBefore(item) : previousItemToken,
                         currentItemToken = item ? sourceCode.getFirstToken(item) : sourceCode.getTokenAfter(commaToken),
-                        reportItem = item || currentItemToken,
-                        tokenBeforeComma = sourceCode.getTokenBefore(commaToken);
-
-                    // Check if previous token is wrapped in parentheses
-                    if (tokenBeforeComma && astUtils.isClosingParenToken(tokenBeforeComma)) {
-                        previousItemToken = tokenBeforeComma;
-                    }
+                        reportItem = item || currentItemToken;
 
                     /*
                      * This works by comparing three token locations:

@@ -1,3 +1,4 @@
+#include "debug_utils.h"
 #include "node_messaging.h"
 #include "node_internals.h"
 #include "node_buffer.h"
@@ -143,6 +144,21 @@ void Message::AddMessagePort(std::unique_ptr<MessagePortData>&& data) {
 
 namespace {
 
+void ThrowDataCloneException(Environment* env, Local<String> message) {
+  Local<Value> argv[] = {
+    message,
+    FIXED_ONE_BYTE_STRING(env->isolate(), "DataCloneError")
+  };
+  Local<Value> exception;
+  Local<Function> domexception_ctor = env->domexception_function();
+  CHECK(!domexception_ctor.IsEmpty());
+  if (!domexception_ctor->NewInstance(env->context(), arraysize(argv), argv)
+          .ToLocal(&exception)) {
+    return;
+  }
+  env->isolate()->ThrowException(exception);
+}
+
 // This tells V8 how to serialize objects that it does not understand
 // (e.g. C++ objects) into the output buffer, in a way that our own
 // DeserializerDelegate understands how to unpack.
@@ -152,7 +168,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       : env_(env), context_(context), msg_(m) {}
 
   void ThrowDataCloneError(Local<String> message) override {
-    env_->isolate()->ThrowException(Exception::Error(message));
+    ThrowDataCloneException(env_, message);
   }
 
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
@@ -223,7 +239,8 @@ class SerializerDelegate : public ValueSerializer::Delegate {
 Maybe<bool> Message::Serialize(Environment* env,
                                Local<Context> context,
                                Local<Value> input,
-                               Local<Value> transfer_list_v) {
+                               Local<Value> transfer_list_v,
+                               Local<Object> source_port) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(context);
 
@@ -257,8 +274,23 @@ Maybe<bool> Message::Serialize(Environment* env,
         continue;
       } else if (env->message_port_constructor_template()
                     ->HasInstance(entry)) {
+        // Check if the source MessagePort is being transferred.
+        if (!source_port.IsEmpty() && entry == source_port) {
+          ThrowDataCloneException(
+              env,
+              FIXED_ONE_BYTE_STRING(env->isolate(),
+                                    "Transfer list contains source port"));
+          return Nothing<bool>();
+        }
         MessagePort* port = Unwrap<MessagePort>(entry.As<Object>());
-        CHECK_NE(port, nullptr);
+        if (port == nullptr || port->IsDetached()) {
+          ThrowDataCloneException(
+              env,
+              FIXED_ONE_BYTE_STRING(
+                  env->isolate(),
+                  "MessagePort in transfer list is already detached"));
+          return Nothing<bool>();
+        }
         delegate.ports_.push_back(port);
         continue;
       }
@@ -293,6 +325,14 @@ Maybe<bool> Message::Serialize(Environment* env,
   return Just(true);
 }
 
+void Message::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackThis(this);
+  tracker->TrackField("array_buffer_contents", array_buffer_contents_);
+  tracker->TrackFieldWithSize("shared_array_buffers",
+      shared_array_buffers_.size() * sizeof(shared_array_buffers_[0]));
+  tracker->TrackField("message_ports", message_ports_);
+}
+
 MessagePortData::MessagePortData(MessagePort* owner) : owner_(owner) { }
 
 MessagePortData::~MessagePortData() {
@@ -300,13 +340,21 @@ MessagePortData::~MessagePortData() {
   Disentangle();
 }
 
+void MessagePortData::MemoryInfo(MemoryTracker* tracker) const {
+  Mutex::ScopedLock lock(mutex_);
+  tracker->TrackThis(this);
+  tracker->TrackField("incoming_messages", incoming_messages_);
+}
+
 void MessagePortData::AddToIncomingQueue(Message&& message) {
   // This function will be called by other threads.
   Mutex::ScopedLock lock(mutex_);
   incoming_messages_.emplace_back(std::move(message));
 
-  if (owner_ != nullptr)
+  if (owner_ != nullptr) {
+    Debug(owner_, "Adding message to incoming queue");
     owner_->TriggerAsync();
+  }
 }
 
 bool MessagePortData::IsSiblingClosed() const {
@@ -380,6 +428,8 @@ MessagePort::MessagePort(Environment* env,
     Local<Function> init = fn.As<Function>();
     USE(init->Call(context, wrap, 0, nullptr));
   }
+
+  Debug(this, "Created message port");
 }
 
 void MessagePort::AddToIncomingQueue(Message&& message) {
@@ -390,12 +440,18 @@ uv_async_t* MessagePort::async() {
   return reinterpret_cast<uv_async_t*>(GetHandle());
 }
 
+bool MessagePort::IsDetached() const {
+  return data_ == nullptr || IsHandleClosing();
+}
+
 void MessagePort::TriggerAsync() {
   if (IsHandleClosing()) return;
   CHECK_EQ(uv_async_send(async()), 0);
 }
 
 void MessagePort::Close(v8::Local<v8::Value> close_callback) {
+  Debug(this, "Closing message port, data set = %d", static_cast<int>(!!data_));
+
   if (data_) {
     // Wrap this call with accessing the mutex, so that TriggerAsync()
     // can check IsHandleClosing() without race conditions.
@@ -447,6 +503,7 @@ MessagePort* MessagePort::New(
 }
 
 void MessagePort::OnMessage() {
+  Debug(this, "Running MessagePort::OnMessage()");
   HandleScope handle_scope(env()->isolate());
   Local<Context> context = object(env()->isolate())->CreationContext();
 
@@ -461,10 +518,14 @@ void MessagePort::OnMessage() {
       Mutex::ScopedLock lock(data_->mutex_);
 
       if (stop_event_loop_) {
+        Debug(this, "MessagePort stops loop as requested");
         CHECK(!data_->receiving_messages_);
         uv_stop(env()->event_loop());
         break;
       }
+
+      Debug(this, "MessagePort has message, receiving = %d",
+            static_cast<int>(data_->receiving_messages_));
 
       if (!data_->receiving_messages_)
         break;
@@ -475,6 +536,7 @@ void MessagePort::OnMessage() {
     }
 
     if (!env()->can_call_into_js()) {
+      Debug(this, "MessagePort drains queue because !can_call_into_js()");
       // In this case there is nothing to do but to drain the current queue.
       continue;
     }
@@ -508,6 +570,7 @@ bool MessagePort::IsSiblingClosed() const {
 }
 
 void MessagePort::OnClose() {
+  Debug(this, "MessagePort::OnClose()");
   if (data_) {
     data_->owner_ = nullptr;
     data_->Disentangle();
@@ -523,40 +586,74 @@ std::unique_ptr<MessagePortData> MessagePort::Detach() {
 }
 
 
-void MessagePort::Send(Message&& message) {
-  Mutex::ScopedLock lock(*data_->sibling_mutex_);
-  if (data_->sibling_ == nullptr)
-    return;
-  data_->sibling_->AddToIncomingQueue(std::move(message));
-}
+Maybe<bool> MessagePort::PostMessage(Environment* env,
+                                     Local<Value> message_v,
+                                     Local<Value> transfer_v) {
+  Isolate* isolate = env->isolate();
+  Local<Object> obj = object(isolate);
+  Local<Context> context = obj->CreationContext();
 
-void MessagePort::Send(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = object(env->isolate())->CreationContext();
   Message msg;
-  if (msg.Serialize(env, context, args[0], args[1])
-          .IsNothing()) {
-    return;
+
+  // Per spec, we need to both check if transfer list has the source port, and
+  // serialize the input message, even if the MessagePort is closed or detached.
+
+  Maybe<bool> serialization_maybe =
+      msg.Serialize(env, context, message_v, transfer_v, obj);
+  if (data_ == nullptr) {
+    return serialization_maybe;
   }
-  Send(std::move(msg));
+  if (serialization_maybe.IsNothing()) {
+    return Nothing<bool>();
+  }
+
+  Mutex::ScopedLock lock(*data_->sibling_mutex_);
+  bool doomed = false;
+
+  // Check if the target port is posted to itself.
+  if (data_->sibling_ != nullptr) {
+    for (const auto& port_data : msg.message_ports()) {
+      if (data_->sibling_ == port_data.get()) {
+        doomed = true;
+        ProcessEmitWarning(env, "The target port was posted to itself, and "
+                                "the communication channel was lost");
+        break;
+      }
+    }
+  }
+
+  if (data_->sibling_ == nullptr || doomed)
+    return Just(true);
+
+  data_->sibling_->AddToIncomingQueue(std::move(msg));
+  return Just(true);
 }
 
 void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  MessagePort* port;
-  ASSIGN_OR_RETURN_UNWRAP(&port, args.This());
-  if (!port->data_) {
-    return THROW_ERR_CLOSED_MESSAGE_PORT(env);
-  }
   if (args.Length() == 0) {
     return THROW_ERR_MISSING_ARGS(env, "Not enough arguments to "
                                        "MessagePort.postMessage");
   }
-  port->Send(args);
+
+  MessagePort* port = Unwrap<MessagePort>(args.This());
+  // Even if the backing MessagePort object has already been deleted, we still
+  // want to serialize the message to ensure spec-compliant behavior w.r.t.
+  // transfers.
+  if (port == nullptr) {
+    Message msg;
+    Local<Object> obj = args.This();
+    Local<Context> context = obj->CreationContext();
+    USE(msg.Serialize(env, context, args[0], args[1], obj));
+    return;
+  }
+
+  port->PostMessage(env, args[0], args[1]);
 }
 
 void MessagePort::Start() {
   Mutex::ScopedLock lock(data_->mutex_);
+  Debug(this, "Start receiving messages");
   data_->receiving_messages_ = true;
   if (!data_->incoming_messages_.empty())
     TriggerAsync();
@@ -564,6 +661,7 @@ void MessagePort::Start() {
 
 void MessagePort::Stop() {
   Mutex::ScopedLock lock(data_->mutex_);
+  Debug(this, "Stop receiving messages");
   data_->receiving_messages_ = false;
 }
 
@@ -572,6 +670,7 @@ void MessagePort::StopEventLoop() {
   data_->receiving_messages_ = false;
   stop_event_loop_ = true;
 
+  Debug(this, "Received StopEventLoop request");
   TriggerAsync();
 }
 
@@ -603,14 +702,6 @@ void MessagePort::Drain(const FunctionCallbackInfo<Value>& args) {
   port->OnMessage();
 }
 
-size_t MessagePort::self_size() const {
-  Mutex::ScopedLock lock(data_->mutex_);
-  size_t sz = sizeof(*this) + sizeof(*data_);
-  for (const Message& msg : data_->incoming_messages_)
-    sz += sizeof(msg) + msg.main_message_buf_.size;
-  return sz;
-}
-
 void MessagePort::Entangle(MessagePort* a, MessagePort* b) {
   Entangle(a, b->data_.get());
 }
@@ -633,15 +724,12 @@ MaybeLocal<Function> GetMessagePortConstructor(
     m->InstanceTemplate()->SetInternalFieldCount(1);
 
     AsyncWrap::AddWrapMethods(env, m);
+    HandleWrap::AddWrapMethods(env, m);
 
     env->SetProtoMethod(m, "postMessage", MessagePort::PostMessage);
     env->SetProtoMethod(m, "start", MessagePort::Start);
     env->SetProtoMethod(m, "stop", MessagePort::Stop);
     env->SetProtoMethod(m, "drain", MessagePort::Drain);
-    env->SetProtoMethod(m, "close", HandleWrap::Close);
-    env->SetProtoMethod(m, "unref", HandleWrap::Unref);
-    env->SetProtoMethod(m, "ref", HandleWrap::Ref);
-    env->SetProtoMethod(m, "hasRef", HandleWrap::HasRef);
 
     env->set_message_port_constructor_template(m);
   }
@@ -671,6 +759,13 @@ static void MessageChannel(const FunctionCallbackInfo<Value>& args) {
       .FromJust();
 }
 
+static void RegisterDOMException(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsFunction());
+  env->set_domexception_function(args[0].As<Function>());
+}
+
 static void InitMessaging(Local<Object> target,
                           Local<Value> unused,
                           Local<Context> context,
@@ -691,6 +786,8 @@ static void InitMessaging(Local<Object> target,
               env->message_port_constructor_string(),
               GetMessagePortConstructor(env, context).ToLocalChecked())
                   .FromJust();
+
+  env->SetMethod(target, "registerDOMException", RegisterDOMException);
 }
 
 }  // anonymous namespace

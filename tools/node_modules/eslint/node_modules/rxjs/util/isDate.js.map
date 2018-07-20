@@ -1,0 +1,1 @@
+{"version":3,"file":"isDate.js","sourceRoot":"","sources":["../../src/util/isDate.ts"],"names":[],"mappings":";AAAA,gBAAuB,KAAU;IAC/B,MAAM,CAAC,KAAK,YAAY,IAAI,IAAI,CAAC,KAAK,CAAC,CAAC,KAAK,CAAC,CAAC;AACjD,CAAC;AAFe,cAAM,SAErB,CAAA","sourcesContent":["export function isDate(value: any): value is Date {\n  return value instanceof Date && !isNaN(+value);\n}\n"]}

@@ -16,7 +16,9 @@ class ConnectWrap : public ReqWrap<uv_connect_t> {
               v8::Local<v8::Object> req_wrap_obj,
               AsyncWrap::ProviderType provider);
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 };
 
 }  // namespace node

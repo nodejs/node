@@ -39,7 +39,6 @@
 
 #include <errno.h>
 #include <limits.h>  // INT_MAX
-#include <math.h>
 #include <string.h>
 
 #include <algorithm>
@@ -63,6 +62,7 @@ namespace crypto {
 
 using v8::Array;
 using v8::Boolean;
+using v8::ConstructorBehavior;
 using v8::Context;
 using v8::DontDelete;
 using v8::EscapableHandleScope;
@@ -84,6 +84,7 @@ using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
+using v8::SideEffectType;
 using v8::Signature;
 using v8::String;
 using v8::Uint32;
@@ -346,12 +347,12 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
 #ifndef OPENSSL_NO_ENGINE
   env->SetProtoMethod(t, "setClientCertEngine", SetClientCertEngine);
 #endif  // !OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "getTicketKeys", GetTicketKeys);
+  env->SetProtoMethodNoSideEffect(t, "getTicketKeys", GetTicketKeys);
   env->SetProtoMethod(t, "setTicketKeys", SetTicketKeys);
   env->SetProtoMethod(t, "setFreeListLength", SetFreeListLength);
   env->SetProtoMethod(t, "enableTicketKeyCallback", EnableTicketKeyCallback);
-  env->SetProtoMethod(t, "getCertificate", GetCertificate<true>);
-  env->SetProtoMethod(t, "getIssuer", GetCertificate<false>);
+  env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate<true>);
+  env->SetProtoMethodNoSideEffect(t, "getIssuer", GetCertificate<false>);
 
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyReturnIndex"),
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyReturnIndex));
@@ -903,7 +904,13 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Ciphers");
 
   const node::Utf8Value ciphers(args.GetIsolate(), args[0]);
-  SSL_CTX_set_cipher_list(sc->ctx_.get(), *ciphers);
+  if (!SSL_CTX_set_cipher_list(sc->ctx_.get(), *ciphers)) {
+    unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+    if (!err) {
+      return env->ThrowError("Failed to set ciphers");
+    }
+    return ThrowCryptoError(env, err);
+  }
 }
 
 
@@ -1367,32 +1374,34 @@ template <class Base>
 void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
-  env->SetProtoMethod(t, "getPeerCertificate", GetPeerCertificate);
-  env->SetProtoMethod(t, "getFinished", GetFinished);
-  env->SetProtoMethod(t, "getPeerFinished", GetPeerFinished);
-  env->SetProtoMethod(t, "getSession", GetSession);
+  env->SetProtoMethodNoSideEffect(t, "getPeerCertificate", GetPeerCertificate);
+  env->SetProtoMethodNoSideEffect(t, "getFinished", GetFinished);
+  env->SetProtoMethodNoSideEffect(t, "getPeerFinished", GetPeerFinished);
+  env->SetProtoMethodNoSideEffect(t, "getSession", GetSession);
   env->SetProtoMethod(t, "setSession", SetSession);
   env->SetProtoMethod(t, "loadSession", LoadSession);
-  env->SetProtoMethod(t, "isSessionReused", IsSessionReused);
-  env->SetProtoMethod(t, "isInitFinished", IsInitFinished);
-  env->SetProtoMethod(t, "verifyError", VerifyError);
-  env->SetProtoMethod(t, "getCurrentCipher", GetCurrentCipher);
+  env->SetProtoMethodNoSideEffect(t, "isSessionReused", IsSessionReused);
+  env->SetProtoMethodNoSideEffect(t, "isInitFinished", IsInitFinished);
+  env->SetProtoMethodNoSideEffect(t, "verifyError", VerifyError);
+  env->SetProtoMethodNoSideEffect(t, "getCurrentCipher", GetCurrentCipher);
   env->SetProtoMethod(t, "endParser", EndParser);
   env->SetProtoMethod(t, "certCbDone", CertCbDone);
   env->SetProtoMethod(t, "renegotiate", Renegotiate);
   env->SetProtoMethod(t, "shutdownSSL", Shutdown);
-  env->SetProtoMethod(t, "getTLSTicket", GetTLSTicket);
+  env->SetProtoMethodNoSideEffect(t, "getTLSTicket", GetTLSTicket);
   env->SetProtoMethod(t, "newSessionDone", NewSessionDone);
   env->SetProtoMethod(t, "setOCSPResponse", SetOCSPResponse);
   env->SetProtoMethod(t, "requestOCSP", RequestOCSP);
-  env->SetProtoMethod(t, "getEphemeralKeyInfo", GetEphemeralKeyInfo);
-  env->SetProtoMethod(t, "getProtocol", GetProtocol);
+  env->SetProtoMethodNoSideEffect(t, "getEphemeralKeyInfo",
+                                  GetEphemeralKeyInfo);
+  env->SetProtoMethodNoSideEffect(t, "getProtocol", GetProtocol);
 
 #ifdef SSL_set_max_send_fragment
   env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
 #endif  // SSL_set_max_send_fragment
 
-  env->SetProtoMethod(t, "getALPNNegotiatedProtocol", GetALPNNegotiatedProto);
+  env->SetProtoMethodNoSideEffect(t, "getALPNNegotiatedProtocol",
+                                  GetALPNNegotiatedProto);
   env->SetProtoMethod(t, "setALPNProtocols", SetALPNProtocols);
 }
 
@@ -2154,9 +2163,6 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   if (x509_verify_error == X509_V_OK)
     return args.GetReturnValue().SetNull();
 
-  // XXX(bnoordhuis) X509_verify_cert_error_string() is not actually thread-safe
-  // in the presence of invalid error codes.  Probably academical but something
-  // to keep in mind if/when node ever grows multi-isolate capabilities.
   const char* reason = X509_verify_cert_error_string(x509_verify_error);
   const char* code = reason;
 #define CASE_X509_ERR(CODE) case X509_V_ERR_##CODE: code = #CODE; break;
@@ -2563,7 +2569,7 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "update", Update);
   env->SetProtoMethod(t, "final", Final);
   env->SetProtoMethod(t, "setAutoPadding", SetAutoPadding);
-  env->SetProtoMethod(t, "getAuthTag", GetAuthTag);
+  env->SetProtoMethodNoSideEffect(t, "getAuthTag", GetAuthTag);
   env->SetProtoMethod(t, "setAuthTag", SetAuthTag);
   env->SetProtoMethod(t, "setAAD", SetAAD);
 
@@ -2585,6 +2591,7 @@ void CipherBase::Init(const char* cipher_type,
                       int key_buf_len,
                       unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
 #ifdef NODE_FIPS_MODE
   if (FIPS_mode()) {
@@ -2609,6 +2616,7 @@ void CipherBase::Init(const char* cipher_type,
                                1,
                                key,
                                iv);
+  CHECK_NE(key_len, 0);
 
   ctx_.reset(EVP_CIPHER_CTX_new());
 
@@ -2617,7 +2625,11 @@ void CipherBase::Init(const char* cipher_type,
     EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
   const bool encrypt = (kind_ == kCipher);
-  EVP_CipherInit_ex(ctx_.get(), cipher, nullptr, nullptr, nullptr, encrypt);
+  if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
+                             nullptr, nullptr, encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 
   if (encrypt && (mode == EVP_CIPH_CTR_MODE || mode == EVP_CIPH_GCM_MODE ||
       mode == EVP_CIPH_CCM_MODE)) {
@@ -2636,12 +2648,15 @@ void CipherBase::Init(const char* cipher_type,
 
   CHECK_EQ(1, EVP_CIPHER_CTX_set_key_length(ctx_.get(), key_len));
 
-  EVP_CipherInit_ex(ctx_.get(),
-                    nullptr,
-                    nullptr,
-                    reinterpret_cast<unsigned char*>(key),
-                    reinterpret_cast<unsigned char*>(iv),
-                    encrypt);
+  if (1 != EVP_CipherInit_ex(ctx_.get(),
+                             nullptr,
+                             nullptr,
+                             reinterpret_cast<unsigned char*>(key),
+                             reinterpret_cast<unsigned char*>(iv),
+                             encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 }
 
 
@@ -2668,6 +2683,11 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   cipher->Init(*cipher_type, key_buf, key_buf_len, auth_tag_len);
 }
 
+static bool IsSupportedAuthenticatedMode(int mode) {
+  return mode == EVP_CIPH_CCM_MODE ||
+         mode == EVP_CIPH_GCM_MODE ||
+         mode == EVP_CIPH_OCB_MODE;
+}
 
 void CipherBase::InitIv(const char* cipher_type,
                         const char* key,
@@ -2676,6 +2696,7 @@ void CipherBase::InitIv(const char* cipher_type,
                         int iv_len,
                         unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
   if (cipher == nullptr) {
@@ -2684,8 +2705,7 @@ void CipherBase::InitIv(const char* cipher_type,
 
   const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
   const int mode = EVP_CIPHER_mode(cipher);
-  const bool is_gcm_mode = (EVP_CIPH_GCM_MODE == mode);
-  const bool is_ccm_mode = (EVP_CIPH_CCM_MODE == mode);
+  const bool is_authenticated_mode = IsSupportedAuthenticatedMode(mode);
   const bool has_iv = iv_len >= 0;
 
   // Throw if no IV was passed and the cipher requires an IV
@@ -2696,7 +2716,7 @@ void CipherBase::InitIv(const char* cipher_type,
   }
 
   // Throw if an IV was passed which does not match the cipher's fixed IV length
-  if (!is_gcm_mode && !is_ccm_mode && has_iv && iv_len != expected_iv_len) {
+  if (!is_authenticated_mode && has_iv && iv_len != expected_iv_len) {
     return env()->ThrowError("Invalid IV length");
   }
 
@@ -2706,9 +2726,13 @@ void CipherBase::InitIv(const char* cipher_type,
     EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
   const bool encrypt = (kind_ == kCipher);
-  EVP_CipherInit_ex(ctx_.get(), cipher, nullptr, nullptr, nullptr, encrypt);
+  if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
+                             nullptr, nullptr, encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 
-  if (IsAuthenticatedMode()) {
+  if (is_authenticated_mode) {
     CHECK(has_iv);
     if (!InitAuthenticated(cipher_type, iv_len, auth_tag_len))
       return;
@@ -2719,12 +2743,15 @@ void CipherBase::InitIv(const char* cipher_type,
     return env()->ThrowError("Invalid key length");
   }
 
-  EVP_CipherInit_ex(ctx_.get(),
-                    nullptr,
-                    nullptr,
-                    reinterpret_cast<const unsigned char*>(key),
-                    reinterpret_cast<const unsigned char*>(iv),
-                    encrypt);
+  if (1 != EVP_CipherInit_ex(ctx_.get(),
+                             nullptr,
+                             nullptr,
+                             reinterpret_cast<const unsigned char*>(key),
+                             reinterpret_cast<const unsigned char*>(iv),
+                             encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 }
 
 
@@ -2769,6 +2796,7 @@ static bool IsValidGCMTagLength(unsigned int tag_len) {
 bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
                                    unsigned int auth_tag_len) {
   CHECK(IsAuthenticatedMode());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   if (!EVP_CIPHER_CTX_ctrl(ctx_.get(),
                            EVP_CTRL_AEAD_SET_IVLEN,
@@ -2779,7 +2807,7 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
   }
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
-  if (mode == EVP_CIPH_CCM_MODE) {
+  if (mode == EVP_CIPH_CCM_MODE || mode == EVP_CIPH_OCB_MODE) {
     if (auth_tag_len == kNoAuthTagLength) {
       char msg[128];
       snprintf(msg, sizeof(msg), "authTagLength required for %s", cipher_type);
@@ -2789,26 +2817,28 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
 
 #ifdef NODE_FIPS_MODE
     // TODO(tniessen) Support CCM decryption in FIPS mode
-    if (kind_ == kDecipher && FIPS_mode()) {
+    if (mode == EVP_CIPH_CCM_MODE && kind_ == kDecipher && FIPS_mode()) {
       env()->ThrowError("CCM decryption not supported in FIPS mode");
       return false;
     }
 #endif
 
-    if (!EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_CCM_SET_TAG, auth_tag_len,
+    // Tell OpenSSL about the desired length.
+    if (!EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_SET_TAG, auth_tag_len,
                              nullptr)) {
       env()->ThrowError("Invalid authentication tag length");
       return false;
     }
 
+    // Remember the given authentication tag length for later.
     auth_tag_len_ = auth_tag_len;
 
-    // The message length is restricted to 2 ^ (8 * (15 - iv_len)) - 1 bytes.
-    CHECK(iv_len >= 7 && iv_len <= 13);
-    if (iv_len >= static_cast<int>(15.5 - log2(INT_MAX + 1.) / 8)) {
-      max_message_size_ = (1 << (8 * (15 - iv_len))) - 1;
-    } else {
+    if (mode == EVP_CIPH_CCM_MODE) {
+      // Restrict the message length to min(INT_MAX, 2^(8*(15-iv_len))-1) bytes.
+      CHECK(iv_len >= 7 && iv_len <= 13);
       max_message_size_ = INT_MAX;
+      if (iv_len == 12) max_message_size_ = 16777215;
+      if (iv_len == 13) max_message_size_ = 65535;
     }
   } else {
     CHECK_EQ(mode, EVP_CIPH_GCM_MODE);
@@ -2848,7 +2878,7 @@ bool CipherBase::IsAuthenticatedMode() const {
   // Check if this cipher operates in an AEAD mode that we support.
   CHECK(ctx_);
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
-  return mode == EVP_CIPH_GCM_MODE || mode == EVP_CIPH_CCM_MODE;
+  return IsSupportedAuthenticatedMode(mode);
 }
 
 
@@ -2881,16 +2911,18 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(false);
   }
 
-  // Restrict GCM tag lengths according to NIST 800-38d, page 9.
   unsigned int tag_len = Buffer::Length(args[0]);
   const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_.get());
   bool is_valid;
   if (mode == EVP_CIPH_GCM_MODE) {
+    // Restrict GCM tag lengths according to NIST 800-38d, page 9.
     is_valid = (cipher->auth_tag_len_ == kNoAuthTagLength ||
                 cipher->auth_tag_len_ == tag_len) &&
                IsValidGCMTagLength(tag_len);
   } else {
-    CHECK_EQ(mode, EVP_CIPH_CCM_MODE);
+    // At this point, the tag length is already known and must match the
+    // length of the given authentication tag.
+    CHECK(mode == EVP_CIPH_CCM_MODE || mode == EVP_CIPH_OCB_MODE);
     CHECK_NE(cipher->auth_tag_len_, kNoAuthTagLength);
     is_valid = cipher->auth_tag_len_ == tag_len;
   }
@@ -2913,6 +2945,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 bool CipherBase::SetAAD(const char* data, unsigned int len, int plaintext_len) {
   if (!ctx_ || !IsAuthenticatedMode())
     return false;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int outlen;
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
@@ -2972,6 +3005,7 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
                                             int* out_len) {
   if (!ctx_)
     return kErrorState;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
 
@@ -2983,10 +3017,10 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
   // on first update:
   if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_len_ > 0 &&
       auth_tag_len_ != kNoAuthTagLength && !auth_tag_set_) {
-    EVP_CIPHER_CTX_ctrl(ctx_.get(),
-                        EVP_CTRL_GCM_SET_TAG,
-                        auth_tag_len_,
-                        reinterpret_cast<unsigned char*>(auth_tag_));
+    CHECK(EVP_CIPHER_CTX_ctrl(ctx_.get(),
+                              EVP_CTRL_AEAD_SET_TAG,
+                              auth_tag_len_,
+                              reinterpret_cast<unsigned char*>(auth_tag_)));
     auth_tag_set_ = true;
   }
 
@@ -3064,6 +3098,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
 bool CipherBase::SetAutoPadding(bool auto_padding) {
   if (!ctx_)
     return false;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   return EVP_CIPHER_CTX_set_padding(ctx_.get(), auto_padding);
 }
 
@@ -3096,10 +3131,12 @@ bool CipherBase::Final(unsigned char** out, int* out_len) {
 
     if (ok && kind_ == kCipher && IsAuthenticatedMode()) {
       // In GCM mode, the authentication tag length can be specified in advance,
-      // but defaults to 16 bytes when encrypting. In CCM mode, it must always
-      // be given by the user.
-      if (mode == EVP_CIPH_GCM_MODE && auth_tag_len_ == kNoAuthTagLength)
+      // but defaults to 16 bytes when encrypting. In CCM and OCB mode, it must
+      // always be given by the user.
+      if (auth_tag_len_ == kNoAuthTagLength) {
+        CHECK(mode == EVP_CIPH_GCM_MODE);
         auth_tag_len_ = sizeof(auth_tag_);
+      }
       CHECK_EQ(1, EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_GET_TAG,
                       auth_tag_len_,
                       reinterpret_cast<unsigned char*>(auth_tag_)));
@@ -3898,10 +3935,10 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
 
   env->SetProtoMethod(t, "generateKeys", GenerateKeys);
   env->SetProtoMethod(t, "computeSecret", ComputeSecret);
-  env->SetProtoMethod(t, "getPrime", GetPrime);
-  env->SetProtoMethod(t, "getGenerator", GetGenerator);
-  env->SetProtoMethod(t, "getPublicKey", GetPublicKey);
-  env->SetProtoMethod(t, "getPrivateKey", GetPrivateKey);
+  env->SetProtoMethodNoSideEffect(t, "getPrime", GetPrime);
+  env->SetProtoMethodNoSideEffect(t, "getGenerator", GetGenerator);
+  env->SetProtoMethodNoSideEffect(t, "getPublicKey", GetPublicKey);
+  env->SetProtoMethodNoSideEffect(t, "getPrivateKey", GetPrivateKey);
   env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
@@ -3909,7 +3946,11 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
       FunctionTemplate::New(env->isolate(),
                             DiffieHellman::VerifyErrorGetter,
                             env->as_external(),
-                            Signature::New(env->isolate(), t));
+                            Signature::New(env->isolate(), t),
+                            /* length */ 0,
+                            // TODO(TimothyGu): should be deny
+                            ConstructorBehavior::kAllow,
+                            SideEffectType::kHasNoSideEffect);
 
   t->InstanceTemplate()->SetAccessorProperty(
       env->verify_error_string(),
@@ -3925,16 +3966,20 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
 
   env->SetProtoMethod(t2, "generateKeys", GenerateKeys);
   env->SetProtoMethod(t2, "computeSecret", ComputeSecret);
-  env->SetProtoMethod(t2, "getPrime", GetPrime);
-  env->SetProtoMethod(t2, "getGenerator", GetGenerator);
-  env->SetProtoMethod(t2, "getPublicKey", GetPublicKey);
-  env->SetProtoMethod(t2, "getPrivateKey", GetPrivateKey);
+  env->SetProtoMethodNoSideEffect(t2, "getPrime", GetPrime);
+  env->SetProtoMethodNoSideEffect(t2, "getGenerator", GetGenerator);
+  env->SetProtoMethodNoSideEffect(t2, "getPublicKey", GetPublicKey);
+  env->SetProtoMethodNoSideEffect(t2, "getPrivateKey", GetPrivateKey);
 
   Local<FunctionTemplate> verify_error_getter_templ2 =
       FunctionTemplate::New(env->isolate(),
                             DiffieHellman::VerifyErrorGetter,
                             env->as_external(),
-                            Signature::New(env->isolate(), t2));
+                            Signature::New(env->isolate(), t2),
+                            /* length */ 0,
+                            // TODO(TimothyGu): should be deny
+                            ConstructorBehavior::kAllow,
+                            SideEffectType::kHasNoSideEffect);
 
   t2->InstanceTemplate()->SetAccessorProperty(
       env->verify_error_string(),
@@ -4286,8 +4331,8 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
 
   env->SetProtoMethod(t, "generateKeys", GenerateKeys);
   env->SetProtoMethod(t, "computeSecret", ComputeSecret);
-  env->SetProtoMethod(t, "getPublicKey", GetPublicKey);
-  env->SetProtoMethod(t, "getPrivateKey", GetPrivateKey);
+  env->SetProtoMethodNoSideEffect(t, "getPublicKey", GetPublicKey);
+  env->SetProtoMethodNoSideEffect(t, "getPrivateKey", GetPrivateKey);
   env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
@@ -4549,6 +4594,8 @@ bool ECDH::IsKeyPairValid() {
 }
 
 
+// TODO(addaleax): If there is an `AsyncWrap`, it currently has no access to
+// this object. This makes proper reporting of memory usage impossible.
 struct CryptoJob : public ThreadPoolWork {
   Environment* const env;
   std::unique_ptr<AsyncWrap> async_wrap;
@@ -5178,27 +5225,27 @@ void Initialize(Local<Object> target,
   Sign::Initialize(env, target);
   Verify::Initialize(env, target);
 
-  env->SetMethod(target, "certVerifySpkac", VerifySpkac);
-  env->SetMethod(target, "certExportPublicKey", ExportPublicKey);
-  env->SetMethod(target, "certExportChallenge", ExportChallenge);
+  env->SetMethodNoSideEffect(target, "certVerifySpkac", VerifySpkac);
+  env->SetMethodNoSideEffect(target, "certExportPublicKey", ExportPublicKey);
+  env->SetMethodNoSideEffect(target, "certExportChallenge", ExportChallenge);
 
-  env->SetMethod(target, "ECDHConvertKey", ConvertKey);
+  env->SetMethodNoSideEffect(target, "ECDHConvertKey", ConvertKey);
 #ifndef OPENSSL_NO_ENGINE
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
 
 #ifdef NODE_FIPS_MODE
-  env->SetMethod(target, "getFipsCrypto", GetFipsCrypto);
+  env->SetMethodNoSideEffect(target, "getFipsCrypto", GetFipsCrypto);
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
 #endif
 
   env->SetMethod(target, "pbkdf2", PBKDF2);
   env->SetMethod(target, "randomBytes", RandomBytes);
-  env->SetMethod(target, "timingSafeEqual", TimingSafeEqual);
-  env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
-  env->SetMethod(target, "getCiphers", GetCiphers);
-  env->SetMethod(target, "getHashes", GetHashes);
-  env->SetMethod(target, "getCurves", GetCurves);
+  env->SetMethodNoSideEffect(target, "timingSafeEqual", TimingSafeEqual);
+  env->SetMethodNoSideEffect(target, "getSSLCiphers", GetSSLCiphers);
+  env->SetMethodNoSideEffect(target, "getCiphers", GetCiphers);
+  env->SetMethodNoSideEffect(target, "getHashes", GetHashes);
+  env->SetMethodNoSideEffect(target, "getCurves", GetCurves);
   env->SetMethod(target, "publicEncrypt",
                  PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_encrypt_init,

@@ -21,7 +21,6 @@
 
 'use strict';
 
-const processIncludes = require('./preprocess.js');
 const fs = require('fs');
 
 // Parse the args.
@@ -53,12 +52,6 @@ if (!filename) {
 
 fs.readFile(filename, 'utf8', (er, input) => {
   if (er) throw er;
-  // Process the input for @include lines.
-  processIncludes(filename, input, next);
-});
-
-function next(er, input) {
-  if (er) throw er;
   switch (format) {
     case 'json':
       require('./json.js')(input, filename, (er, obj) => {
@@ -78,4 +71,4 @@ function next(er, input) {
     default:
       throw new Error(`Invalid format: ${format}`);
   }
-}
+});

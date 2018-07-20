@@ -6,7 +6,7 @@
 
 The `worker` module provides a way to create multiple environments running
 on independent threads, and to create message channels between them. It
-can be accessed using:
+can be accessed using the `--experimental-worker` flag and:
 
 ```js
 const worker = require('worker_threads');
@@ -286,7 +286,7 @@ For example:
 ```js
 const assert = require('assert');
 const {
-  Worker, MessageChannel, MessagePort, isMainThread
+  Worker, MessageChannel, MessagePort, isMainThread, parentPort
 } = require('worker_threads');
 if (isMainThread) {
   const worker = new Worker(__filename);
@@ -296,7 +296,7 @@ if (isMainThread) {
     console.log('received:', value);
   });
 } else {
-  require('worker_threads').once('workerMessage', (value) => {
+  parentPort.once('message', (value) => {
     assert(value.hereIsYourPort instanceof MessagePort);
     value.hereIsYourPort.postMessage('the worker is sending this');
     value.hereIsYourPort.close();
@@ -304,9 +304,11 @@ if (isMainThread) {
 }
 ```
 
-### new Worker(filename, options)
+### new Worker(filename[, options])
 
-* `filename` {string} The absolute path to the Worker’s main script.
+* `filename` {string} The path to the Worker’s main script. Must be
+  either an absolute path or a relative path (i.e. relative to the
+  current working directory) starting with `./` or `../`.
   If `options.eval` is true, this is a string containing JavaScript code rather
   than a path.
 * `options` {Object}
@@ -375,7 +377,7 @@ added: v10.5.0
 * `transferList` {Object[]}
 
 Send a message to the worker that will be received via
-[`require('worker_threads').on('workerMessage')`][].
+[`require('worker_threads').parentPort.on('message')`][].
 See [`port.postMessage()`][] for more details.
 
 ### worker.ref()
@@ -465,7 +467,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`port.postMessage()`]: #worker_threads_port_postmessage_value_transferlist
 [`Worker`]: #worker_threads_class_worker
 [`worker.terminate()`]: #worker_threads_worker_terminate_callback
-[`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist_1
+[`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`worker.on('message')`]: #worker_threads_event_message_1
 [`worker.threadId`]: #worker_threads_worker_threadid_1
 [`port.on('message')`]: #worker_threads_event_message
@@ -478,7 +480,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`process.stdout`]: process.html#process_process_stdout
 [`process.title`]: process.html#process_process_title
 [`require('worker_threads').workerData`]: #worker_threads_worker_workerdata
-[`require('worker_threads').on('workerMessage')`]: #worker_threads_event_workermessage
+[`require('worker_threads').parentPort.on('message')`]: #worker_threads_event_message
 [`require('worker_threads').postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`require('worker_threads').isMainThread`]: #worker_threads_worker_ismainthread
 [`require('worker_threads').parentPort`]: #worker_threads_worker_parentport

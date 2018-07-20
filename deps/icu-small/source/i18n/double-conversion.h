@@ -391,6 +391,7 @@ class DoubleToStringConverter {
   const int decimal_in_shortest_high_;
   const int max_leading_padding_zeroes_in_precision_mode_;
   const int max_trailing_padding_zeroes_in_precision_mode_;
+#endif // not needed for ICU
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(DoubleToStringConverter);
 };
@@ -554,7 +555,6 @@ class StringToDoubleConverter {
                       int* processed_characters_count) const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringToDoubleConverter);
-#endif // not needed for ICU
 };
 
 }  // namespace double_conversion

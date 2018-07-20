@@ -56,13 +56,13 @@ void InitializeTypes(Local<Object> target,
                      Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-#define V(type) env->SetMethod(target,     \
-                               "is" #type, \
-                               Is##type);
+#define V(type) env->SetMethodNoSideEffect(target,     \
+                                           "is" #type, \
+                                           Is##type);
   VALUE_METHOD_MAP(V)
 #undef V
 
-  env->SetMethod(target, "isAnyArrayBuffer", IsAnyArrayBuffer);
+  env->SetMethodNoSideEffect(target, "isAnyArrayBuffer", IsAnyArrayBuffer);
 }
 
 }  // anonymous namespace

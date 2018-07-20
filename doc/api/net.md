@@ -64,9 +64,11 @@ This class is used to create a TCP or [IPC][] server.
 
 ### new net.Server([options][, connectionListener])
 
+* `options` {Object} See
+  [`net.createServer([options][, connectionListener])`][`net.createServer()`].
+* `connectionListener` {Function} Automatically set as a listener for the
+  [`'connection'`][] event.
 * Returns: {net.Server}
-
-See [`net.createServer([options][, connectionListener])`][`net.createServer()`].
 
 `net.Server` is an [`EventEmitter`][] with the following events:
 
@@ -145,6 +147,7 @@ Don't call `server.address()` until the `'listening'` event has been emitted.
 added: v0.1.90
 -->
 
+* `callback` {Function} Called when the server is closed
 * Returns: {net.Server}
 
 Stops the server from accepting new connections and keeps existing
@@ -173,6 +176,7 @@ connections use asynchronous [`server.getConnections()`][] instead.
 added: v0.9.7
 -->
 
+* `callback` {Function}
 * Returns: {net.Server}
 
 Asynchronously get the number of concurrent connections on the server. Works
@@ -394,8 +398,6 @@ it to interact with the client.
 added: v0.3.4
 -->
 
-Creates a new socket object.
-
 * `options` {Object} Available options are:
   * `fd` {number} If specified, wrap around an existing socket with
     the given file descriptor, otherwise a new socket will be created.
@@ -407,6 +409,8 @@ Creates a new socket object.
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
 * Returns: {net.Socket}
+
+Creates a new socket object.
 
 The newly created socket can be either a TCP socket or a streaming [IPC][]
 endpoint, depending on what it [`connect()`][`socket.connect()`] to.
@@ -668,6 +672,7 @@ callback.
 added: v0.1.90
 -->
 
+* `exception` {Object}
 * Returns: {net.Socket}
 
 Ensures that no more I/O activity happens on this socket. Only necessary in
@@ -686,6 +691,8 @@ listeners for that event will receive `exception` as an argument.
 added: v0.1.90
 -->
 
+* `data` {string|Buffer|Uint8Array}
+* `encoding` {string} Only used when data is `string`. **Default:** `'utf8'`.
 * Returns: {net.Socket} The socket itself.
 
 Half-closes the socket. i.e., it sends a FIN packet. It is possible the
@@ -765,6 +772,7 @@ Resumes reading after a call to [`socket.pause()`][].
 added: v0.1.90
 -->
 
+* `encoding` {string}
 * Returns: {net.Socket} The socket itself.
 
 Set the encoding for the socket as a [Readable Stream][]. See
@@ -804,6 +812,8 @@ algorithm, they buffer data before sending it off. Setting `true` for
 added: v0.1.90
 -->
 
+* `timeout` {number}
+* `callback` {Function}
 * Returns: {net.Socket} The socket itself.
 
 Sets the socket to timeout after `timeout` milliseconds of inactivity on
@@ -877,6 +887,8 @@ Possible signatures:
 <!-- YAML
 added: v0.7.0
 -->
+* `options` {Object}
+* `connectListener` {Function}
 Alias to
 [`net.createConnection(options[, connectListener])`][`net.createConnection(options)`].
 
@@ -884,6 +896,8 @@ Alias to
 <!-- YAML
 added: v0.1.90
 -->
+* `path` {string}
+* `connectListener` {Function}
 
 Alias to
 [`net.createConnection(path[, connectListener])`][`net.createConnection(path)`].
@@ -892,6 +906,9 @@ Alias to
 <!-- YAML
 added: v0.1.90
 -->
+* `port` {number}
+* `host` {string}
+* `connectListener` {Function}
 
 Alias to
 [`net.createConnection(port[, host][, connectListener])`][`net.createConnection(port, host)`].
@@ -1014,6 +1031,8 @@ then returns the `net.Socket` that starts the connection.
 <!-- YAML
 added: v0.5.0
 -->
+* `options` {Object}
+* `connectionListener` {Function}
 
 Creates a new TCP or [IPC][] server.
 
@@ -1089,6 +1108,7 @@ $ nc -U /tmp/echo.sock
 added: v0.3.0
 -->
 
+* `input` {string}
 * Returns: {integer}
 
 Tests if input is an IP address. Returns `0` for invalid strings,
@@ -1100,6 +1120,7 @@ addresses.
 added: v0.3.0
 -->
 
+* `input` {string}
 * Returns: {boolean}
 
 Returns `true` if input is a version 4 IP address, otherwise returns `false`.
@@ -1109,6 +1130,7 @@ Returns `true` if input is a version 4 IP address, otherwise returns `false`.
 added: v0.3.0
 -->
 
+* `input` {string}
 * Returns: {boolean}
 
 Returns `true` if input is a version 6 IP address, otherwise returns `false`.

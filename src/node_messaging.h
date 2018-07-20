@@ -15,7 +15,7 @@ class MessagePortData;
 class MessagePort;
 
 // Represents a single communication message.
-class Message {
+class Message : public MemoryRetainer {
  public:
   explicit Message(MallocedBuffer<char>&& payload = MallocedBuffer<char>());
 
@@ -32,10 +32,14 @@ class Message {
   // Serialize a JS value, and optionally transfer objects, into this message.
   // The Message object retains ownership of all transferred objects until
   // deserialization.
+  // The source_port parameter, if provided, will make Serialize() throw a
+  // "DataCloneError" DOMException if source_port is found in transfer_list.
   v8::Maybe<bool> Serialize(Environment* env,
                             v8::Local<v8::Context> context,
                             v8::Local<v8::Value> input,
-                            v8::Local<v8::Value> transfer_list);
+                            v8::Local<v8::Value> transfer_list,
+                            v8::Local<v8::Object> source_port =
+                                v8::Local<v8::Object>());
 
   // Internal method of Message that is called when a new SharedArrayBuffer
   // object is encountered in the incoming value's structure.
@@ -43,6 +47,15 @@ class Message {
   // Internal method of Message that is called once serialization finishes
   // and that transfers ownership of `data` to this message.
   void AddMessagePort(std::unique_ptr<MessagePortData>&& data);
+
+  // The MessagePorts that will be transferred, as recorded by Serialize().
+  // Used for warning user about posting the target MessagePort to itself,
+  // which will as a side effect destroy the communication channel.
+  const std::vector<std::unique_ptr<MessagePortData>>& message_ports() const {
+    return message_ports_;
+  }
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
 
  private:
   MallocedBuffer<char> main_message_buf_;
@@ -55,7 +68,7 @@ class Message {
 
 // This contains all data for a `MessagePort` instance that is not tied to
 // a specific Environment/Isolate/event loop, for easier transfer between those.
-class MessagePortData {
+class MessagePortData : public MemoryRetainer {
  public:
   explicit MessagePortData(MessagePort* owner);
   ~MessagePortData();
@@ -82,6 +95,8 @@ class MessagePortData {
   // the corresponding JS handle handle wants to close
   // which can happen on either side of a worker.
   void Disentangle();
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
 
  private:
   // After disentangling this message port, the owner handle (if any)
@@ -122,10 +137,11 @@ class MessagePort : public HandleWrap {
                           std::unique_ptr<MessagePortData> data = nullptr);
 
   // Send a message, i.e. deliver it into the sibling's incoming queue.
-  // If there is no sibling, i.e. this port is closed,
-  // this message is silently discarded.
-  void Send(Message&& message);
-  void Send(const v8::FunctionCallbackInfo<v8::Value>& args);
+  // If this port is closed, or if there is no sibling, this message is
+  // serialized with transfers, then silently discarded.
+  v8::Maybe<bool> PostMessage(Environment* env,
+                              v8::Local<v8::Value> message,
+                              v8::Local<v8::Value> transfer);
   // Deliver a single message into this port's incoming queue.
   void AddToIncomingQueue(Message&& message);
 
@@ -157,7 +173,19 @@ class MessagePort : public HandleWrap {
   void Close(
       v8::Local<v8::Value> close_callback = v8::Local<v8::Value>()) override;
 
-  size_t self_size() const override;
+  // Returns true if either data_ has been freed, or if the handle is being
+  // closed. Equivalent to the [[Detached]] internal slot in the HTML Standard.
+  //
+  // If checking if a JavaScript MessagePort object is detached, this method
+  // alone is often not enough, since the backing C++ MessagePort object may
+  // have been deleted already. For all intents and purposes, an object with a
+  // NULL pointer to the C++ MessagePort object is also detached.
+  inline bool IsDetached() const;
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("data", data_);
+  }
 
  private:
   void OnClose() override;

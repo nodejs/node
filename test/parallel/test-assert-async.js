@@ -5,8 +5,6 @@ const assert = require('assert');
 // Test assert.rejects() and assert.doesNotReject() by checking their
 // expected output and by verifying that they do not work sync
 
-common.crashOnUnhandledRejection();
-
 // Run all tests in parallel and check their outcome at the end.
 const promises = [];
 

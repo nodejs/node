@@ -6,4 +6,4 @@ ReferenceError: undefined_reference_error_maker is not defined
     at ontimeout (timers.js:*:*)
     at tryOnTimeout (timers.js:*:*)
     at listOnTimeout (timers.js:*:*)
-    at Timer.processTimers (timers.js:*:*)
+    at processTimers (timers.js:*:*)

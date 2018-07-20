@@ -60,6 +60,9 @@ tests['fs.sync.futimes'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                            'const fd = fs.openSync("fs.txt", "r+");' +
                            'fs.futimesSync(fd,1,1);' +
                            'fs.unlinkSync("fs.txt")';
+tests['fs.sync.lchown'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
+                          'fs.lchownSync("fs.txt",' + uid + ',' + gid + ');' +
+                          'fs.unlinkSync("fs.txt")';
 tests['fs.sync.link'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                         'fs.linkSync("fs.txt", "linkx");' +
                         'fs.unlinkSync("linkx");' +

@@ -451,6 +451,21 @@ typedef enum UScriptCode {
       /** @stable ICU 60 */
       USCRIPT_ZANABAZAR_SQUARE              = 177,/* Zanb */
 
+      /** @stable ICU 62 */
+      USCRIPT_DOGRA                         = 178,/* Dogr */
+      /** @stable ICU 62 */
+      USCRIPT_GUNJALA_GONDI                 = 179,/* Gong */
+      /** @stable ICU 62 */
+      USCRIPT_MAKASAR                       = 180,/* Maka */
+      /** @stable ICU 62 */
+      USCRIPT_MEDEFAIDRIN                   = 181,/* Medf */
+      /** @stable ICU 62 */
+      USCRIPT_HANIFI_ROHINGYA               = 182,/* Rohg */
+      /** @stable ICU 62 */
+      USCRIPT_SOGDIAN                       = 183,/* Sogd */
+      /** @stable ICU 62 */
+      USCRIPT_OLD_SOGDIAN                   = 184,/* Sogo */
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UScriptCode value.
@@ -458,7 +473,7 @@ typedef enum UScriptCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    USCRIPT_CODE_LIMIT    = 178
+    USCRIPT_CODE_LIMIT    = 185
 #endif  // U_HIDE_DEPRECATED_API
 } UScriptCode;
 

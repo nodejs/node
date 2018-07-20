@@ -16,32 +16,32 @@ npm install trough
 ## Usage
 
 ```js
-var fs = require('fs');
-var path = require('path');
-var trough = require('trough');
+var fs = require('fs')
+var path = require('path')
+var trough = require('trough')
 
 var pipeline = trough()
-  .use(function (fileName) {
-    console.log('Checking... ' + fileName);
+  .use(function(fileName) {
+    console.log('Checking... ' + fileName)
   })
-  .use(function (fileName) {
-    return path.join(process.cwd(), fileName);
+  .use(function(fileName) {
+    return path.join(process.cwd(), fileName)
   })
-  .use(function (filePath, next) {
-    fs.stat(filePath, function (err, stats) {
-      next(err, {filePath: filePath, stats: stats});
-    });
+  .use(function(filePath, next) {
+    fs.stat(filePath, function(err, stats) {
+      next(err, {filePath, stats})
+    })
   })
-  .use(function (ctx, next) {
+  .use(function(ctx, next) {
     if (ctx.stats.isFile()) {
-      fs.readFile(ctx.filePath, next);
+      fs.readFile(ctx.filePath, next)
     } else {
-      next(new Error('Expected file'));
+      next(new Error('Expected file'))
     }
-  });
+  })
 
-pipeline.run('readme.md', console.log);
-pipeline.run('node_modules', console.log);
+pipeline.run('readme.md', console.log)
+pipeline.run('node_modules', console.log)
 ```
 
 Yields:
@@ -106,13 +106,13 @@ is passed through).
 The following example shows how returning an error stops the pipeline:
 
 ```js
-var trough = require('trough');
+var trough = require('trough')
 
 trough()
-  .use(function (val) {
-    return new Error('Got: ' + val);
+  .use(function(val) {
+    return new Error('Got: ' + val)
   })
-  .run('some value', console.log);
+  .run('some value', console.log)
 ```
 
 Yields:
@@ -126,13 +126,13 @@ Error: Got: some value
 The following example shows how throwing an error stops the pipeline:
 
 ```js
-var trough = require('trough');
+var trough = require('trough')
 
 trough()
-  .use(function (val) {
-    throw new Error('Got: ' + val);
+  .use(function(val) {
+    throw new Error('Got: ' + val)
   })
-  .run('more value', console.log);
+  .run('more value', console.log)
 ```
 
 Yields:
@@ -146,13 +146,13 @@ Error: Got: more value
 The following example shows how the first output can be modified:
 
 ```js
-var trough = require('trough');
+var trough = require('trough')
 
 trough()
-  .use(function (val) {
-    return 'even ' + val;
+  .use(function(val) {
+    return 'even ' + val
   })
-  .run('more value', 'untouched', console.log);
+  .run('more value', 'untouched', console.log)
 ```
 
 Yields:
@@ -175,15 +175,15 @@ is set to that value (all other `input` is passed through).
 The following example shows how rejecting a promise stops the pipeline:
 
 ```js
-var trough = require('trough');
+var trough = require('trough')
 
 trough()
-  .use(function (val) {
-    return new Promise(function (resolve, reject) {
-      reject('Got: ' + val);
-    });
+  .use(function(val) {
+    return new Promise(function(resolve, reject) {
+      reject('Got: ' + val)
+    })
   })
-  .run('val', console.log);
+  .run('val', console.log)
 ```
 
 Yields:
@@ -196,17 +196,17 @@ The following example shows how the input isn’t touched by resolving
 to `null`.
 
 ```js
-var trough = require('trough');
+var trough = require('trough')
 
 trough()
-  .use(function () {
-    return new Promise(function (resolve) {
-      setTimeout(function () {
-        resolve(null);
-      }, 100);
-    });
+  .use(function() {
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        resolve(null)
+      }, 100)
+    })
   })
-  .run('Input', console.log);
+  .run('Input', console.log)
 ```
 
 Yields:
@@ -234,13 +234,13 @@ The following example shows how passing a first argument stops the
 pipeline:
 
 ```js
-var trough = require('trough');
+var trough = require('trough')
 
 trough()
-  .use(function (val, next) {
-    next(new Error('Got: ' + val));
+  .use(function(val, next) {
+    next(new Error('Got: ' + val))
   })
-  .run('val', console.log);
+  .run('val', console.log)
 ```
 
 Yields:
@@ -253,15 +253,15 @@ Error: Got: val
 The following example shows how more values than the input are passed.
 
 ```js
-var trough = require('trough');
+var trough = require('trough')
 
 trough()
-  .use(function (val, next) {
-    setTimeout(function () {
-      next(null, null, 'values');
-    }, 100);
+  .use(function(val, next) {
+    setTimeout(function() {
+      next(null, null, 'values')
+    }, 100)
   })
-  .run('some', console.log);
+  .run('some', console.log)
 ```
 
 Yields:

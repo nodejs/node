@@ -10,6 +10,7 @@ This directory contains modules used to test the Node.js implementation.
 * [DNS module](#dns-module)
 * [Duplex pair helper](#duplex-pair-helper)
 * [Fixtures module](#fixtures-module)
+* [Heap dump checker module](#heap-dump-checker-module)
 * [HTTP2 module](#http2-module)
 * [Internet module](#internet-module)
 * [tmpdir module](#tmpdir-module)
@@ -54,17 +55,18 @@ symlinks
 ([SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
 On non-Windows platforms, this always returns `true`.
 
-### crashOnUnhandledRejection()
-
-Installs a `process.on('unhandledRejection')` handler that crashes the process
-after a tick. This is useful for tests that use Promises and need to make sure
-no unexpected rejections occur, because currently they result in silent
-failures.
-
 ### ddCommand(filename, kilobytes)
 * return [&lt;Object>]
 
 Platform normalizes the `dd` command
+
+### disableCrashOnUnhandledRejection()
+
+Removes the `process.on('unhandledRejection')` handler that crashes the process
+after a tick. The handler is useful for tests that use Promises and need to make
+sure no unexpected rejections occur, because currently they result in silent
+failures. However, it is useful in some rare cases to disable it, for example if
+the `unhandledRejection` hook is directly used by the test.
 
 ### enoughTestMem
 * [&lt;boolean>]
@@ -321,6 +323,21 @@ otherwise.
 ### noWarnCode
 See `common.expectWarning()` for usage.
 
+### onGC(target, listener)
+* `target` [&lt;Object>]
+* `listener` [&lt;Object>]
+  * `ongc` [&lt;Function>]
+
+Installs a GC listener for the collection of `target`.
+
+This uses `async_hooks` for GC tracking. This means that it enables
+`async_hooks` tracking, which may affect the test functionality. It also
+means that between a `global.gc()` call and the listener being invoked
+a full `setImmediate()` invocation passes.
+
+`listener` is an object to make it easier to use a closure; the target object
+should not be in scope when `listener.ongc()` is created.
+
 ### opensslCli
 * [&lt;boolean>]
 
@@ -537,6 +554,42 @@ Returns the result of
 
 Returns the result of
 `fs.readFileSync(path.join(fixtures.fixturesDir, 'keys', arg), 'enc')`.
+
+## Heap dump checker module
+
+This provides utilities for checking the validity of heap dumps.
+This requires the usage of `--expose-internals`.
+
+### heap.recordState()
+
+Create a heap dump and an embedder graph copy for inspection.
+The returned object has a `validateSnapshotNodes` function similar to the
+one listed below. (`heap.validateSnapshotNodes(...)` is a shortcut for
+`heap.recordState().validateSnapshotNodes(...)`.)
+
+### heap.validateSnapshotNodes(name, expected, options)
+
+* `name` [&lt;string>] Look for this string as the name of heap dump nodes.
+* `expected` [&lt;Array>] A list of objects, possibly with an `children`
+  property that points to expected other adjacent nodes.
+* `options` [&lt;Array>]
+  * `loose` [&lt;boolean>] Do not expect an exact listing of occurrences
+    of nodes with name `name` in `expected`.
+
+Create a heap dump and an embedder graph copy and validate occurrences.
+
+<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+```js
+validateSnapshotNodes('TLSWRAP', [
+  {
+    children: [
+      { name: 'enc_out' },
+      { name: 'enc_in' },
+      { name: 'TLSWrap' }
+    ]
+  }
+]);
+```
 
 ## HTTP/2 Module
 

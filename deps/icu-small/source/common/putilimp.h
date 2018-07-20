@@ -391,6 +391,32 @@ U_INTERNAL double  U_EXPORT2 uprv_log(double d);
  */
 U_INTERNAL double  U_EXPORT2 uprv_round(double x);
 
+/**
+ * Adds the signed integers a and b, storing the result in res.
+ * Checks for signed integer overflow.
+ * Similar to the GCC/Clang extension __builtin_add_overflow
+ *
+ * @param a The first operand.
+ * @param b The second operand.
+ * @param res a + b
+ * @return true if overflow occurred; false if no overflow occurred.
+ * @internal
+ */
+U_INTERNAL UBool U_EXPORT2 uprv_add32_overflow(int32_t a, int32_t b, int32_t* res);
+
+/**
+ * Multiplies the signed integers a and b, storing the result in res.
+ * Checks for signed integer overflow.
+ * Similar to the GCC/Clang extension __builtin_mul_overflow
+ *
+ * @param a The first multiplicand.
+ * @param b The second multiplicand.
+ * @param res a * b
+ * @return true if overflow occurred; false if no overflow occurred.
+ * @internal
+ */
+U_INTERNAL UBool U_EXPORT2 uprv_mul32_overflow(int32_t a, int32_t b, int32_t* res);
+
 #if 0
 /**
  * Returns the number of digits after the decimal point in a double number x.

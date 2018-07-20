@@ -1,0 +1,1 @@
+{"version":3,"file":"ajax.js","sourceRoot":"","sources":["../../../src/observable/dom/ajax.ts"],"names":[],"mappings":";AAAA,+BAAqD,kBAAkB,CAAC,CAAA;AAE3D,YAAI,GAAuB,+BAAc,CAAC,MAAM,CAAC","sourcesContent":["import {  AjaxObservable, AjaxCreationMethod  } from './AjaxObservable';\n\nexport const ajax: AjaxCreationMethod = AjaxObservable.create;"]}

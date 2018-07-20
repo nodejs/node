@@ -256,8 +256,8 @@ int uv_ntstatus_to_winsock_error(NTSTATUS status) {
     default:
       if ((status & (FACILITY_NTWIN32 << 16)) == (FACILITY_NTWIN32 << 16) &&
           (status & (ERROR_SEVERITY_ERROR | ERROR_SEVERITY_WARNING))) {
-        /* It's a windows error that has been previously mapped to an */
-        /* ntstatus code. */
+        /* It's a windows error that has been previously mapped to an ntstatus
+         * code. */
         return (DWORD) (status & 0xffff);
       } else {
         /* The default fallback for unmappable ntstatus codes. */
@@ -519,8 +519,8 @@ int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info_in,
                                   sizeof *info_out);
 
   if (overlapped == NULL) {
-    /* If this is a blocking operation, wait for the event to become */
-    /* signaled, and then grab the real status from the io status block. */
+    /* If this is a blocking operation, wait for the event to become signaled,
+     * and then grab the real status from the io status block. */
     if (status == STATUS_PENDING) {
       DWORD r = WaitForSingleObject(event, INFINITE);
 

@@ -1609,7 +1609,7 @@ a given number of milliseconds set using `http2server.setTimeout()`.
 <!-- YAML
 added: v8.4.0
 -->
-- `callback` {Function}
+* `callback` {Function}
 
 Stops the server from accepting new connections.  See [`net.Server.close()`][].
 
@@ -1728,7 +1728,7 @@ the connection is terminated. See the [Compatibility API][].
 <!-- YAML
 added: v8.4.0
 -->
-- `callback` {Function}
+* `callback` {Function}
 
 Stops the server from accepting new connections.  See [`tls.Server.close()`][].
 
@@ -1921,6 +1921,7 @@ instances.
 
 ```js
 const http2 = require('http2');
+const fs = require('fs');
 
 const options = {
   key: fs.readFileSync('server-key.pem'),
@@ -2117,6 +2118,22 @@ Header objects passed to callback functions will have a `null` prototype. This
 means that normal JavaScript object methods such as
 `Object.prototype.toString()` and `Object.prototype.hasOwnProperty()` will
 not work.
+
+For incoming headers:
+* The `:status` header is converted to `number`.
+* Duplicates of `:status`, `:method`, `:authority`, `:scheme`, `:path`,
+`age`, `authorization`, `access-control-allow-credentials`,
+`access-control-max-age`, `access-control-request-method`, `content-encoding`,
+`content-language`, `content-length`, `content-location`, `content-md5`,
+`content-range`, `content-type`, `date`, `dnt`, `etag`, `expires`, `from`,
+`if-match`, `if-modified-since`, `if-none-match`, `if-range`,
+`if-unmodified-since`, `last-modified`, `location`, `max-forwards`,
+`proxy-authorization`, `range`, `referer`,`retry-after`, `tk`,
+`upgrade-insecure-requests`, `user-agent` or `x-content-type-options` are
+discarded.
+* `set-cookie` is always an array. Duplicates are added to the array.
+* `cookie`: the values are joined together with '; '.
+* For all other headers, the values are joined together with ', '.
 
 ```js
 const http2 = require('http2');
@@ -3123,11 +3140,13 @@ will result in a [`TypeError`][] being thrown.
 <!-- YAML
 added: v8.4.0
 -->
+* `headers` {HTTP/2 Headers Object} An object describing the headers
+* `callback` {Function}
 
 Call [`http2stream.pushStream()`][] with the given headers, and wraps the
 given newly created [`Http2Stream`] on `Http2ServerResponse`.
 
-The callback will be called with an error with code `ERR_HTTP2_STREAM_CLOSED`
+The callback will be called with an error with code `ERR_HTTP2_INVALID_STREAM`
 if the stream is closed.
 
 ## Collecting HTTP/2 Performance Metrics

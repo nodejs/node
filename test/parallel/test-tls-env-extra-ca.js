@@ -39,6 +39,7 @@ const server = tls.createServer(options, common.mustCall(function(s) {
   });
 
   fork(__filename, { env }).on('exit', common.mustCall(function(status) {
-    assert.strictEqual(status, 0, 'client did not succeed in connecting');
+    // client did not succeed in connecting
+    assert.strictEqual(status, 0);
   }));
 }));

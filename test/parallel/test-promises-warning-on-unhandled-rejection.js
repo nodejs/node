@@ -7,6 +7,8 @@
 const common = require('../common');
 const assert = require('assert');
 
+common.disableCrashOnUnhandledRejection();
+
 let b = 0;
 
 process.on('warning', common.mustCall((warning) => {

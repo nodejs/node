@@ -1,0 +1,1 @@
+{"version":3,"file":"bindCallback.js","sourceRoot":"","sources":["../../src/observable/bindCallback.ts"],"names":[],"mappings":";AAAA,wCAA0C,2BAA2B,CAAC,CAAA;AAEzD,oBAAY,GAAG,iDAAuB,CAAC,MAAM,CAAC","sourcesContent":["import {  BoundCallbackObservable  } from './BoundCallbackObservable';\n\nexport const bindCallback = BoundCallbackObservable.create;"]}

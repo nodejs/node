@@ -25,8 +25,5 @@ module.exports = {
     globalReturn: false,
 
     // allow implied strict mode
-    impliedStrict: false,
-
-    // allow experimental object rest/spread
-    experimentalObjectRestSpread: false
+    impliedStrict: false
 };

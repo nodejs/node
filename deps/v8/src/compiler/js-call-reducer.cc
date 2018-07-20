@@ -3519,10 +3519,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceAsyncFunctionPromiseCreate(node);
     case Builtins::kAsyncFunctionPromiseRelease:
       return ReduceAsyncFunctionPromiseRelease(node);
-    case Builtins::kPromiseCapabilityDefaultReject:
-      return ReducePromiseCapabilityDefaultReject(node);
-    case Builtins::kPromiseCapabilityDefaultResolve:
-      return ReducePromiseCapabilityDefaultResolve(node);
     case Builtins::kPromiseInternalConstructor:
       return ReducePromiseInternalConstructor(node);
     case Builtins::kPromiseInternalReject:
@@ -5252,120 +5248,6 @@ Reduction JSCallReducer::ReduceAsyncFunctionPromiseRelease(Node* node) {
   return Replace(value);
 }
 
-// ES section #sec-promise-reject-functions
-Reduction JSCallReducer::ReducePromiseCapabilityDefaultReject(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* resolution = node->op()->ValueInputCount() > 2
-                         ? NodeProperties::GetValueInput(node, 2)
-                         : jsgraph()->UndefinedConstant();
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // We need to execute in the {target}s context.
-  Node* context = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
-      effect, control);
-
-  // Grab the promise closed over by {target}.
-  Node* promise = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForContextSlot(
-                           PromiseBuiltinsAssembler::kPromiseSlot)),
-                       context, effect, control);
-
-  // Check if the {promise} is still pending or already settled.
-  Node* check = graph()->NewNode(simplified()->ReferenceEqual(), promise,
-                                 jsgraph()->UndefinedConstant());
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* etrue = effect;
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = effect;
-  {
-    // Mark the {promise} as settled.
-    efalse = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForContextSlot(
-            PromiseBuiltinsAssembler::kPromiseSlot)),
-        context, jsgraph()->UndefinedConstant(), efalse, if_false);
-
-    // Check if we should emit a debug event.
-    Node* debug_event = efalse =
-        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForContextSlot(
-                             PromiseBuiltinsAssembler::kDebugEventSlot)),
-                         context, efalse, if_false);
-
-    // Actually reject the {promise}.
-    efalse =
-        graph()->NewNode(javascript()->RejectPromise(), promise, resolution,
-                         debug_event, context, frame_state, efalse, if_false);
-  }
-
-  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-
-  Node* value = jsgraph()->UndefinedConstant();
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
-}
-
-// ES section #sec-promise-resolve-functions
-Reduction JSCallReducer::ReducePromiseCapabilityDefaultResolve(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* resolution = node->op()->ValueInputCount() > 2
-                         ? NodeProperties::GetValueInput(node, 2)
-                         : jsgraph()->UndefinedConstant();
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // We need to execute in the {target}s context.
-  Node* context = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
-      effect, control);
-
-  // Grab the promise closed over by {target}.
-  Node* promise = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForContextSlot(
-                           PromiseBuiltinsAssembler::kPromiseSlot)),
-                       context, effect, control);
-
-  // Check if the {promise} is still pending or already settled.
-  Node* check = graph()->NewNode(simplified()->ReferenceEqual(), promise,
-                                 jsgraph()->UndefinedConstant());
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* etrue = effect;
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = effect;
-  {
-    // Mark the {promise} as settled.
-    efalse = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForContextSlot(
-            PromiseBuiltinsAssembler::kPromiseSlot)),
-        context, jsgraph()->UndefinedConstant(), efalse, if_false);
-
-    // Actually resolve the {promise}.
-    efalse =
-        graph()->NewNode(javascript()->ResolvePromise(), promise, resolution,
-                         context, frame_state, efalse, if_false);
-  }
-
-  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-
-  Node* value = jsgraph()->UndefinedConstant();
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
-}
-
 Node* JSCallReducer::CreateArtificialFrameState(
     Node* node, Node* outer_frame_state, int parameter_count,
     BailoutId bailout_id, FrameStateType frame_state_type,
@@ -5463,6 +5345,10 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
       graph()->NewNode(simplified()->StoreField(AccessBuilder::ForContextSlot(
                            PromiseBuiltinsAssembler::kPromiseSlot)),
                        promise_context, promise, effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForContextSlot(
+          PromiseBuiltinsAssembler::kAlreadyResolvedSlot)),
+      promise_context, jsgraph()->FalseConstant(), effect, control);
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForContextSlot(
           PromiseBuiltinsAssembler::kDebugEventSlot)),

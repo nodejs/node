@@ -37,8 +37,8 @@ code += '(function(){return this})().b;\n';
 
 const res = vm.runInContext(code, o, 'test');
 
-assert.strictEqual(typeof res, 'function', 'result should be function');
-assert.strictEqual(res.name, 'b', 'res should be named b');
-assert.strictEqual(typeof o.a, 'function', 'a should be function');
-assert.strictEqual(typeof o.b, 'function', 'b should be function');
-assert.strictEqual(res, o.b, 'result should be global b function');
+assert.strictEqual(typeof res, 'function');
+assert.strictEqual(res.name, 'b');
+assert.strictEqual(typeof o.a, 'function');
+assert.strictEqual(typeof o.b, 'function');
+assert.strictEqual(res, o.b);

@@ -121,10 +121,12 @@ inline const char* ToErrorCodeString(int status) {
 
 class ChannelWrap;
 
-struct node_ares_task {
+struct node_ares_task : public MemoryRetainer {
   ChannelWrap* channel;
   ares_socket_t sock;
   uv_poll_t poll_watcher;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
 };
 
 struct TaskHash {
@@ -167,7 +169,12 @@ class ChannelWrap : public AsyncWrap {
   inline int active_query_count() { return active_query_count_; }
   inline node_ares_task_list* task_list() { return &task_list_; }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    if (timer_handle_ != nullptr)
+      tracker->TrackFieldWithSize("timer handle", sizeof(*timer_handle_));
+    tracker->TrackField("task list", task_list_);
+  }
 
   static void AresTimeout(uv_timer_t* handle);
 
@@ -180,6 +187,11 @@ class ChannelWrap : public AsyncWrap {
   int active_query_count_;
   node_ares_task_list task_list_;
 };
+
+void node_ares_task::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackThis(this);
+  tracker->TrackField("channel", channel);
+}
 
 ChannelWrap::ChannelWrap(Environment* env,
                          Local<Object> object)
@@ -209,7 +221,10 @@ class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
                      Local<Object> req_wrap_obj,
                      bool verbatim);
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
   bool verbatim() const { return verbatim_; }
 
  private:
@@ -228,7 +243,9 @@ class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
  public:
   GetNameInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 };
 
 GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
@@ -270,13 +287,13 @@ void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
 
 void ares_poll_close_cb(uv_poll_t* watcher) {
   node_ares_task* task = ContainerOf(&node_ares_task::poll_watcher, watcher);
-  free(task);
+  delete task;
 }
 
 
 /* Allocates and returns a new node_ares_task */
 node_ares_task* ares_task_create(ChannelWrap* channel, ares_socket_t sock) {
-  auto task = node::UncheckedMalloc<node_ares_task>(1);
+  auto task = new node_ares_task();
 
   if (task == nullptr) {
     /* Out of memory. */
@@ -1172,7 +1189,9 @@ class QueryAnyWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1349,7 +1368,9 @@ class QueryAWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1393,7 +1414,9 @@ class QueryAaaaWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1437,7 +1460,9 @@ class QueryCnameWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1468,7 +1493,9 @@ class QueryMxWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1499,7 +1526,9 @@ class QueryNsWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1530,7 +1559,9 @@ class QueryTxtWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1560,7 +1591,9 @@ class QuerySrvWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1589,7 +1622,9 @@ class QueryPtrWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1620,7 +1655,9 @@ class QueryNaptrWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1650,7 +1687,9 @@ class QuerySoaWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1729,7 +1768,9 @@ class GetHostByAddrWrap: public QueryWrap {
     return 0;
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void Parse(struct hostent* host) override {
@@ -2107,8 +2148,8 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "getaddrinfo", GetAddrInfo);
   env->SetMethod(target, "getnameinfo", GetNameInfo);
-  env->SetMethod(target, "isIPv6", IsIPv6);
-  env->SetMethod(target, "canonicalizeIP", CanonicalizeIP);
+  env->SetMethodNoSideEffect(target, "isIPv6", IsIPv6);
+  env->SetMethodNoSideEffect(target, "canonicalizeIP", CanonicalizeIP);
 
   env->SetMethod(target, "strerror", StrError);
 
@@ -2165,7 +2206,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(channel_wrap, "querySoa", Query<QuerySoaWrap>);
   env->SetProtoMethod(channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
 
-  env->SetProtoMethod(channel_wrap, "getServers", GetServers);
+  env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
   env->SetProtoMethod(channel_wrap, "setServers", SetServers);
   env->SetProtoMethod(channel_wrap, "cancel", Cancel);
 

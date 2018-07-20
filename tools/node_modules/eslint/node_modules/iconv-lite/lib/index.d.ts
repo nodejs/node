@@ -6,9 +6,9 @@
  *--------------------------------------------------------------------------------------------*/
 
 declare module 'iconv-lite' {
-	export function decode(buffer: NodeBuffer, encoding: string, options?: Options): string;
+	export function decode(buffer: Buffer, encoding: string, options?: Options): string;
 
-	export function encode(content: string, encoding: string, options?: Options): NodeBuffer;
+	export function encode(content: string, encoding: string, options?: Options): Buffer;
 
 	export function encodingExists(encoding: string): boolean;
 

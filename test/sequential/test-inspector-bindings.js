@@ -115,8 +115,6 @@ async function testNoCrashConsoleLogBeforeThrow() {
   session.disconnect();
 }
 
-common.crashOnUnhandledRejection();
-
 async function doTests() {
   await testNoCrashWithExceptionInCallback();
   testSampleDebugSession();

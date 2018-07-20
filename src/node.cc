@@ -22,6 +22,7 @@
 #include "node_buffer.h"
 #include "node_constants.h"
 #include "node_javascript.h"
+#include "node_code_cache.h"
 #include "node_platform.h"
 #include "node_version.h"
 #include "node_internals.h"
@@ -29,6 +30,7 @@
 #include "node_debug_options.h"
 #include "node_perf.h"
 #include "node_context_data.h"
+#include "tracing/traced_value.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -159,6 +161,7 @@ using v8::Promise;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
+using v8::SideEffectType;
 using v8::String;
 using v8::TryCatch;
 using v8::Undefined;
@@ -273,6 +276,8 @@ std::string config_warning_file;  // NOLINT(runtime/string)
 // that is used by lib/internal/bootstrap/node.js
 bool config_expose_internals = false;
 
+std::string config_process_title;  // NOLINT(runtime/string)
+
 bool v8_initialized = false;
 
 bool linux_at_secure = false;
@@ -285,11 +290,106 @@ static v8::Isolate* node_isolate;
 
 DebugOptions debug_options;
 
+// Ensures that __metadata trace events are only emitted
+// when tracing is enabled.
+class NodeTraceStateObserver :
+    public v8::TracingController::TraceStateObserver {
+ public:
+  void OnTraceEnabled() override {
+    char name_buffer[512];
+    if (uv_get_process_title(name_buffer, sizeof(name_buffer)) == 0) {
+      // Only emit the metadata event if the title can be retrieved
+      // successfully. Ignore it otherwise.
+      TRACE_EVENT_METADATA1("__metadata", "process_name",
+                            "name", TRACE_STR_COPY(name_buffer));
+    }
+    TRACE_EVENT_METADATA1("__metadata", "version",
+                          "node", NODE_VERSION_STRING);
+    TRACE_EVENT_METADATA1("__metadata", "thread_name",
+                          "name", "JavaScriptMainThread");
+
+    auto trace_process = tracing::TracedValue::Create();
+    trace_process->BeginDictionary("versions");
+
+    const char http_parser_version[] =
+        NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
+        "."
+        NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
+        "."
+        NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+
+    const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
+    const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
+
+    trace_process->SetString("http_parser", http_parser_version);
+    trace_process->SetString("node", NODE_VERSION_STRING);
+    trace_process->SetString("v8", V8::GetVersion());
+    trace_process->SetString("uv", uv_version_string());
+    trace_process->SetString("zlib", ZLIB_VERSION);
+    trace_process->SetString("ares", ARES_VERSION_STR);
+    trace_process->SetString("modules", node_modules_version);
+    trace_process->SetString("nghttp2", NGHTTP2_VERSION);
+    trace_process->SetString("napi", node_napi_version);
+
+#if HAVE_OPENSSL
+    // Stupid code to slice out the version string.
+    {  // NOLINT(whitespace/braces)
+      size_t i, j, k;
+      int c;
+      for (i = j = 0, k = sizeof(OPENSSL_VERSION_TEXT) - 1; i < k; ++i) {
+        c = OPENSSL_VERSION_TEXT[i];
+        if ('0' <= c && c <= '9') {
+          for (j = i + 1; j < k; ++j) {
+            c = OPENSSL_VERSION_TEXT[j];
+            if (c == ' ')
+              break;
+          }
+          break;
+        }
+      }
+      trace_process->SetString("openssl",
+                              std::string(&OPENSSL_VERSION_TEXT[i], j - i));
+    }
+#endif
+    trace_process->EndDictionary();
+
+    trace_process->SetString("arch", NODE_ARCH);
+    trace_process->SetString("platform", NODE_PLATFORM);
+
+    trace_process->BeginDictionary("release");
+    trace_process->SetString("name", NODE_RELEASE);
+#if NODE_VERSION_IS_LTS
+    trace_process->SetString("lts", NODE_VERSION_LTS_CODENAME);
+#endif
+    trace_process->EndDictionary();
+    TRACE_EVENT_METADATA1("__metadata", "node",
+                          "process", std::move(trace_process));
+
+    // This only runs the first time tracing is enabled
+    controller_->RemoveTraceStateObserver(this);
+    delete this;
+  }
+
+  void OnTraceDisabled() override {
+    // Do nothing here. This should never be called because the
+    // observer removes itself when OnTraceEnabled() is called.
+    UNREACHABLE();
+  }
+
+  explicit NodeTraceStateObserver(v8::TracingController* controller) :
+      controller_(controller) {}
+  ~NodeTraceStateObserver() override {}
+
+ private:
+  v8::TracingController* controller_;
+};
+
 static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
     tracing_agent_.reset(new tracing::Agent(trace_file_pattern));
     auto controller = tracing_agent_->GetTracingController();
+    controller->AddTraceStateObserver(new NodeTraceStateObserver(controller));
     tracing::TraceEventHelper::SetTracingController(controller);
     StartTracingAgent();
     platform_ = new NodePlatform(thread_pool_size, controller);
@@ -317,11 +417,12 @@ static struct {
     // Inspector agent can't fail to start, but if it was configured to listen
     // right away on the websocket port and fails to bind/etc, this will return
     // false.
-    return env->inspector_agent()->Start(script_path, options);
+    return env->inspector_agent()->Start(
+        script_path == nullptr ? "" : script_path, options);
   }
 
   bool InspectorStarted(Environment* env) {
-    return env->inspector_agent()->IsStarted();
+    return env->inspector_agent()->IsListening();
   }
 #endif  // HAVE_INSPECTOR
 
@@ -1100,7 +1201,7 @@ NO_RETURN void Assert(const char* const (*args)[4]) {
 
 static void WaitForInspectorDisconnect(Environment* env) {
 #if HAVE_INSPECTOR
-  if (env->inspector_agent()->HasConnectedSessions()) {
+  if (env->inspector_agent()->IsActive()) {
     // Restore signal dispositions, the app is done and is no longer
     // capable of handling signals.
 #if defined(__POSIX__) && !defined(NODE_SHARED_MODE)
@@ -1434,7 +1535,16 @@ void FatalException(Isolate* isolate,
       exit(7);
     } else if (caught->IsFalse()) {
       ReportException(env, error, message);
-      exit(1);
+
+      // fatal_exception_function call before may have set a new exit code ->
+      // read it again, otherwise use default for uncaughtException 1
+      Local<String> exit_code = env->exit_code_string();
+      Local<Value> code;
+      if (!process_object->Get(env->context(), exit_code).ToLocal(&code) ||
+          !code->IsInt32()) {
+        exit(1);
+      }
+      exit(code.As<v8::Int32>()->Value());
     }
   }
 }
@@ -1595,10 +1705,18 @@ static void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> module = args[0].As<String>();
   node::Utf8Value module_v(env->isolate(), module);
+  Local<Object> exports;
 
   node_module* mod = get_internal_module(*module_v);
-  if (mod == nullptr) return ThrowIfNoSuchModule(env, *module_v);
-  Local<Object> exports = InitModule(env, mod, module);
+  if (mod != nullptr) {
+    exports = InitModule(env, mod, module);
+  } else if (!strcmp(*module_v, "code_cache")) {
+    // internalBinding('code_cache')
+    exports = Object::New(env->isolate());
+    DefineCodeCache(env, exports);
+  } else {
+    return ThrowIfNoSuchModule(env, *module_v);
+  }
 
   args.GetReturnValue().Set(exports);
 }
@@ -1655,6 +1773,8 @@ static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
+  TRACE_EVENT_METADATA1("__metadata", "process_name", "name",
+                        TRACE_STR_COPY(*title));
   uv_set_process_title(*title);
 }
 
@@ -1947,7 +2067,10 @@ void SetupProcessObject(Environment* env,
       title_string,
       ProcessTitleGetter,
       env->is_main_thread() ? ProcessTitleSetter : nullptr,
-      env->as_external()).FromJust());
+      env->as_external(),
+      v8::DEFAULT,
+      v8::None,
+      SideEffectType::kHasNoSideEffect).FromJust());
 
   // process.version
   READONLY_PROPERTY(process,
@@ -1966,7 +2089,6 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(versions,
                     "http_parser",
                     FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
-
   // +1 to get rid of the leading 'v'
   READONLY_PROPERTY(versions,
                     "node",
@@ -1989,11 +2111,9 @@ void SetupProcessObject(Environment* env,
       versions,
       "modules",
       FIXED_ONE_BYTE_STRING(env->isolate(), node_modules_version));
-
   READONLY_PROPERTY(versions,
                     "nghttp2",
                     FIXED_ONE_BYTE_STRING(env->isolate(), NGHTTP2_VERSION));
-
   const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
   READONLY_PROPERTY(
       versions,
@@ -2257,17 +2377,17 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
   env->SetMethod(process, "_kill", Kill);
 
-  env->SetMethod(process, "cwd", Cwd);
+  env->SetMethodNoSideEffect(process, "cwd", Cwd);
   env->SetMethod(process, "dlopen", DLOpen);
   env->SetMethod(process, "reallyExit", Exit);
-  env->SetMethod(process, "uptime", Uptime);
+  env->SetMethodNoSideEffect(process, "uptime", Uptime);
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-  env->SetMethod(process, "getuid", GetUid);
-  env->SetMethod(process, "geteuid", GetEUid);
-  env->SetMethod(process, "getgid", GetGid);
-  env->SetMethod(process, "getegid", GetEGid);
-  env->SetMethod(process, "getgroups", GetGroups);
+  env->SetMethodNoSideEffect(process, "getuid", GetUid);
+  env->SetMethodNoSideEffect(process, "geteuid", GetEUid);
+  env->SetMethodNoSideEffect(process, "getgid", GetGid);
+  env->SetMethodNoSideEffect(process, "getegid", GetEGid);
+  env->SetMethodNoSideEffect(process, "getgroups", GetGroups);
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 }
 
@@ -2506,6 +2626,7 @@ static void PrintHelp() {
          "                             write warnings to file instead of\n"
          "                             stderr\n"
          "  --throw-deprecation        throw an exception on deprecations\n"
+         "  --title=title              the process title to use on start up\n"
 #if HAVE_OPENSSL
          "  --tls-cipher-list=val      use an alternative default TLS cipher "
          "list\n"
@@ -2643,6 +2764,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--redirect-warnings",
     "--require",
     "--throw-deprecation",
+    "--title",
     "--tls-cipher-list",
     "--trace-deprecation",
     "--trace-event-categories",
@@ -2813,6 +2935,8 @@ static void ParseArgs(int* argc,
     } else if (strncmp(arg, "--security-revert=", 18) == 0) {
       const char* cve = arg + 18;
       Revert(cve);
+    } else if (strncmp(arg, "--title=", 8) == 0) {
+      config_process_title = arg + 8;
     } else if (strcmp(arg, "--preserve-symlinks") == 0) {
       config_preserve_symlinks = true;
     } else if (strcmp(arg, "--preserve-symlinks-main") == 0) {
@@ -2947,7 +3071,7 @@ static void ParseArgs(int* argc,
 static void StartInspector(Environment* env, const char* path,
                            DebugOptions debug_options) {
 #if HAVE_INSPECTOR
-  CHECK(!env->inspector_agent()->IsStarted());
+  CHECK(!env->inspector_agent()->IsListening());
   v8_platform.StartInspector(env, path, debug_options);
 #endif  // HAVE_INSPECTOR
 }
@@ -3090,7 +3214,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 #if HAVE_INSPECTOR
   Environment* env = Environment::GetCurrent(args);
-  if (env->inspector_agent()->IsStarted()) {
+  if (env->inspector_agent()->IsListening()) {
     env->inspector_agent()->Stop();
   }
 #endif
@@ -3304,6 +3428,10 @@ void Init(int* argc,
 
   ProcessArgv(argc, argv, exec_argc, exec_argv);
 
+  // Set the process.title immediately after processing argv if --title is set.
+  if (!config_process_title.empty())
+    uv_set_process_title(config_process_title.c_str());
+
 #if defined(NODE_HAVE_I18N_SUPPORT)
   // If the parameter isn't given, use the env variable.
   if (icu_data_dir.empty())
@@ -3484,35 +3612,19 @@ Local<Context> NewContext(Isolate* isolate,
   auto context = Context::New(isolate, nullptr, object_template);
   if (context.IsEmpty()) return context;
   HandleScope handle_scope(isolate);
+
   context->SetEmbedderData(
       ContextEmbedderIndex::kAllowWasmCodeGeneration, True(isolate));
 
-  auto intl_key = FIXED_ONE_BYTE_STRING(isolate, "Intl");
-  auto break_iter_key = FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
-  Local<Value> intl_v;
-  if (context->Global()->Get(context, intl_key).ToLocal(&intl_v) &&
-      intl_v->IsObject()) {
-    Local<Object> intl = intl_v.As<Object>();
-    intl->Delete(context, break_iter_key).FromJust();
-  }
-
-  // https://github.com/nodejs/node/issues/21219
-  // TODO(devsnek): remove when v8 supports Atomics.notify
-  auto atomics_key = FIXED_ONE_BYTE_STRING(isolate, "Atomics");
-  Local<Value> atomics_v;
-  if (context->Global()->Get(context, atomics_key).ToLocal(&atomics_v) &&
-      atomics_v->IsObject()) {
-    Local<Object> atomics = atomics_v.As<Object>();
-    auto wake_key = FIXED_ONE_BYTE_STRING(isolate, "wake");
-
-    Local<Value> wake = atomics->Get(context, wake_key).ToLocalChecked();
-    auto notify_key = FIXED_ONE_BYTE_STRING(isolate, "notify");
-
-    v8::PropertyDescriptor desc(wake, true);
-    desc.set_enumerable(false);
-    desc.set_configurable(true);
-
-    atomics->DefineProperty(context, notify_key, desc).ToChecked();
+  {
+    // Run lib/internal/per_context.js
+    Context::Scope context_scope(context);
+    Local<String> per_context = NodePerContextSource(isolate);
+    v8::ScriptCompiler::Source per_context_src(per_context, nullptr);
+    Local<v8::Script> s = v8::ScriptCompiler::Compile(
+        context,
+        &per_context_src).ToLocalChecked();
+    s->Run(context).ToLocalChecked();
   }
 
   return context;
@@ -3527,10 +3639,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Context::Scope context_scope(context);
   Environment env(isolate_data, context, v8_platform.GetTracingAgent());
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
-
-  TRACE_EVENT_METADATA1("__metadata", "version", "node", NODE_VERSION_STRING);
-  TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
-                        "JavaScriptMainThread");
 
   const char* path = argc > 1 ? argv[1] : nullptr;
   StartInspector(&env, path, debug_options);

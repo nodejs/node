@@ -1,6 +1,9 @@
 'use strict';
 const x = module.exports;
 const ESC = '\u001B[';
+const OSC = '\u001B]';
+const BEL = '\u0007';
+const SEP = ';';
 const isTerminalApp = process.env.TERM_PROGRAM === 'Apple_Terminal';
 
 x.cursorTo = (x, y) => {
@@ -75,12 +78,29 @@ x.scrollUp = ESC + 'S';
 x.scrollDown = ESC + 'T';
 
 x.clearScreen = '\u001Bc';
-x.beep = '\u0007';
+x.beep = BEL;
+
+x.link = (text, url) => {
+	return [
+		OSC,
+		'8',
+		SEP,
+		SEP,
+		url,
+		BEL,
+		text,
+		OSC,
+		'8',
+		SEP,
+		SEP,
+		BEL
+	].join('');
+};
 
 x.image = (buf, opts) => {
 	opts = opts || {};
 
-	let ret = '\u001B]1337;File=inline=1';
+	let ret = OSC + '1337;File=inline=1';
 
 	if (opts.width) {
 		ret += `;width=${opts.width}`;
@@ -94,9 +114,9 @@ x.image = (buf, opts) => {
 		ret += ';preserveAspectRatio=0';
 	}
 
-	return ret + ':' + buf.toString('base64') + '\u0007';
+	return ret + ':' + buf.toString('base64') + BEL;
 };
 
 x.iTerm = {};
 
-x.iTerm.setCwd = cwd => '\u001B]50;CurrentDir=' + (cwd || process.cwd()) + '\u0007';
+x.iTerm.setCwd = cwd => OSC + '50;CurrentDir=' + (cwd || process.cwd()) + BEL;

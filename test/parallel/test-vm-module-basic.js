@@ -6,8 +6,6 @@ const common = require('../common');
 const assert = require('assert');
 const { Module, createContext } = require('vm');
 
-common.crashOnUnhandledRejection();
-
 (async function test1() {
   const context = createContext({
     foo: 'bar',

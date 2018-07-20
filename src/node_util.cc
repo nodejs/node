@@ -9,7 +9,6 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
-using v8::Maybe;
 using v8::Object;
 using v8::Private;
 using v8::Promise;
@@ -53,29 +52,19 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject())
     return;
 
+  Environment* env = Environment::GetCurrent(args);
   bool is_key_value;
   Local<Array> entries;
   if (!args[0].As<Object>()->PreviewEntries(&is_key_value).ToLocal(&entries))
     return;
-  if (!is_key_value)
+  // Fast path for WeakMap, WeakSet and Set iterators.
+  if (args.Length() == 1)
     return args.GetReturnValue().Set(entries);
-
-  uint32_t length = entries->Length();
-  CHECK_EQ(length % 2, 0);
-
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-
-  Local<Array> pairs = Array::New(env->isolate(), length / 2);
-  for (uint32_t i = 0; i < length / 2; i++) {
-    Local<Array> pair = Array::New(env->isolate(), 2);
-    pair->Set(context, 0, entries->Get(context, i * 2).ToLocalChecked())
-        .FromJust();
-    pair->Set(context, 1, entries->Get(context, i * 2 + 1).ToLocalChecked())
-        .FromJust();
-    pairs->Set(context, i, pair).FromJust();
-  }
-  args.GetReturnValue().Set(pairs);
+  Local<Array> ret = Array::New(env->isolate(), 2);
+  ret->Set(env->context(), 0, entries).FromJust();
+  ret->Set(env->context(), 1, v8::Boolean::New(env->isolate(), is_key_value))
+      .FromJust();
+  return args.GetReturnValue().Set(ret);
 }
 
 // Side effect-free stringification that will never throw exceptions.
@@ -140,36 +129,6 @@ void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-
-void CreatePromise(const FunctionCallbackInfo<Value>& args) {
-  Local<Context> context = args.GetIsolate()->GetCurrentContext();
-  auto maybe_resolver = Promise::Resolver::New(context);
-  if (!maybe_resolver.IsEmpty())
-    args.GetReturnValue().Set(maybe_resolver.ToLocalChecked());
-}
-
-
-void PromiseResolve(const FunctionCallbackInfo<Value>& args) {
-  Local<Context> context = args.GetIsolate()->GetCurrentContext();
-  Local<Value> promise = args[0];
-  CHECK(promise->IsPromise());
-  if (promise.As<Promise>()->State() != Promise::kPending) return;
-  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();  // sic
-  Maybe<bool> ret = resolver->Resolve(context, args[1]);
-  args.GetReturnValue().Set(ret.FromMaybe(false));
-}
-
-
-void PromiseReject(const FunctionCallbackInfo<Value>& args) {
-  Local<Context> context = args.GetIsolate()->GetCurrentContext();
-  Local<Value> promise = args[0];
-  CHECK(promise->IsPromise());
-  if (promise.As<Promise>()->State() != Promise::kPending) return;
-  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();  // sic
-  Maybe<bool> ret = resolver->Reject(context, args[1]);
-  args.GetReturnValue().Set(ret.FromMaybe(false));
-}
-
 void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Utf8Value strenvtag(args.GetIsolate(), args[0]);
@@ -212,20 +171,17 @@ void Initialize(Local<Object> target,
   V(kRejected);
 #undef V
 
-  env->SetMethod(target, "getHiddenValue", GetHiddenValue);
+  env->SetMethodNoSideEffect(target, "getHiddenValue", GetHiddenValue);
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
-  env->SetMethod(target, "getPromiseDetails", GetPromiseDetails);
-  env->SetMethod(target, "getProxyDetails", GetProxyDetails);
-  env->SetMethod(target, "safeToString", SafeToString);
-  env->SetMethod(target, "previewEntries", PreviewEntries);
+  env->SetMethodNoSideEffect(target, "getPromiseDetails", GetPromiseDetails);
+  env->SetMethodNoSideEffect(target, "getProxyDetails", GetProxyDetails);
+  env->SetMethodNoSideEffect(target, "safeToString", SafeToString);
+  env->SetMethodNoSideEffect(target, "previewEntries", PreviewEntries);
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
-  env->SetMethod(target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
-
-  env->SetMethod(target, "createPromise", CreatePromise);
-  env->SetMethod(target, "promiseResolve", PromiseResolve);
-  env->SetMethod(target, "promiseReject", PromiseReject);
+  env->SetMethodNoSideEffect(target, "watchdogHasPendingSigint",
+                             WatchdogHasPendingSigint);
 
   env->SetMethod(target, "safeGetenv", SafeGetenv);
 }

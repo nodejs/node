@@ -360,8 +360,8 @@ static WCHAR* search_path(const WCHAR *file,
     return NULL;
   }
 
-  /* Find the start of the filename so we can split the directory from the */
-  /* name. */
+  /* Find the start of the filename so we can split the directory from the
+   * name. */
   for (file_name_start = (WCHAR*)file + file_len;
        file_name_start > file
            && file_name_start[-1] != L'\\'
@@ -556,8 +556,8 @@ int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr) {
     arg_count++;
   }
 
-  /* Adjust for potential quotes. Also assume the worst-case scenario */
-  /* that every character needs escaping, so we need twice as much space. */
+  /* Adjust for potential quotes. Also assume the worst-case scenario that
+   * every character needs escaping, so we need twice as much space. */
   dst_len = dst_len * 2 + arg_count * 2;
 
   /* Allocate buffer for the final command line. */
@@ -831,8 +831,13 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
  */
 static WCHAR* find_path(WCHAR *env) {
   for (; env != NULL && *env != 0; env += wcslen(env) + 1) {
-    if (wcsncmp(env, L"PATH=", 5) == 0)
+    if ((env[0] == L'P' || env[0] == L'p') &&
+        (env[1] == L'A' || env[1] == L'a') &&
+        (env[2] == L'T' || env[2] == L't') &&
+        (env[3] == L'H' || env[3] == L'h') &&
+        (env[4] == L'=')) {
       return &env[5];
+    }
   }
 
   return NULL;
@@ -865,9 +870,9 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
   assert(handle->exit_cb_pending);
   handle->exit_cb_pending = 0;
 
-  /* If we're closing, don't call the exit callback. Just schedule a close */
-  /* callback now. */
-  if (handle->flags & UV__HANDLE_CLOSING) {
+  /* If we're closing, don't call the exit callback. Just schedule a close
+   * callback now. */
+  if (handle->flags & UV_HANDLE_CLOSING) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
     return;
   }
@@ -878,14 +883,14 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
     handle->wait_handle = INVALID_HANDLE_VALUE;
   }
 
-  /* Set the handle to inactive: no callbacks will be made after the exit */
-  /* callback.*/
+  /* Set the handle to inactive: no callbacks will be made after the exit
+   * callback. */
   uv__handle_stop(handle);
 
   if (GetExitCodeProcess(handle->process_handle, &status)) {
     exit_code = status;
   } else {
-    /* Unable to to obtain the exit code. This should never happen. */
+    /* Unable to obtain the exit code. This should never happen. */
     exit_code = uv_translate_sys_error(GetLastError());
   }
 
@@ -900,8 +905,8 @@ void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
   uv__handle_closing(handle);
 
   if (handle->wait_handle != INVALID_HANDLE_VALUE) {
-    /* This blocks until either the wait was cancelled, or the callback has */
-    /* completed. */
+    /* This blocks until either the wait was cancelled, or the callback has
+     * completed. */
     BOOL r = UnregisterWaitEx(handle->wait_handle, INVALID_HANDLE_VALUE);
     if (!r) {
       /* This should never happen, and if it happens, we can't recover... */
@@ -919,7 +924,7 @@ void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
 
 void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle) {
   assert(!handle->exit_cb_pending);
-  assert(handle->flags & UV__HANDLE_CLOSING);
+  assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
 
   /* Clean-up the process handle. */
@@ -1104,14 +1109,13 @@ int uv_spawn(uv_loop_t* loop,
     goto done;
   }
 
-  /* Spawn succeeded */
-  /* Beyond this point, failure is reported asynchronously. */
+  /* Spawn succeeded. Beyond this point, failure is reported asynchronously. */
 
   process->process_handle = info.hProcess;
   process->pid = info.dwProcessId;
 
-  /* If the process isn't spawned as detached, assign to the global job */
-  /* object so windows will kill it when the parent process dies. */
+  /* If the process isn't spawned as detached, assign to the global job object
+   * so windows will kill it when the parent process dies. */
   if (!(options->flags & UV_PROCESS_DETACHED)) {
     uv_once(&uv_global_job_handle_init_guard_, uv__init_global_job_handle);
 
@@ -1138,7 +1142,8 @@ int uv_spawn(uv_loop_t* loop,
     if (fdopt->flags & UV_CREATE_PIPE &&
         fdopt->data.stream->type == UV_NAMED_PIPE &&
         ((uv_pipe_t*) fdopt->data.stream)->ipc) {
-      ((uv_pipe_t*) fdopt->data.stream)->pipe.conn.ipc_pid = info.dwProcessId;
+      ((uv_pipe_t*) fdopt->data.stream)->pipe.conn.ipc_remote_pid =
+          info.dwProcessId;
     }
   }
 
@@ -1154,8 +1159,8 @@ int uv_spawn(uv_loop_t* loop,
 
   assert(!err);
 
-  /* Make the handle active. It will remain active until the exit callback */
-  /* is made or the handle is closed, whichever happens first. */
+  /* Make the handle active. It will remain active until the exit callback is
+   * made or the handle is closed, whichever happens first. */
   uv__handle_start(process);
 
   /* Cleanup, whether we succeeded or failed. */
@@ -1186,16 +1191,16 @@ static int uv__kill(HANDLE process_handle, int signum) {
     case SIGTERM:
     case SIGKILL:
     case SIGINT: {
-      /* Unconditionally terminate the process. On Windows, killed processes */
-      /* normally return 1. */
+      /* Unconditionally terminate the process. On Windows, killed processes
+       * normally return 1. */
       DWORD status;
       int err;
 
       if (TerminateProcess(process_handle, 1))
         return 0;
 
-      /* If the process already exited before TerminateProcess was called, */
-      /* TerminateProcess will fail with ERROR_ACCESS_DENIED. */
+      /* If the process already exited before TerminateProcess was called,.
+       * TerminateProcess will fail with ERROR_ACCESS_DENIED. */
       err = GetLastError();
       if (err == ERROR_ACCESS_DENIED &&
           GetExitCodeProcess(process_handle, &status) &&

@@ -6,8 +6,6 @@ const { promisify } = require('util');
 
 /* eslint-disable no-restricted-syntax */
 
-common.crashOnUnhandledRejection();
-
 const setTimeout = promisify(timers.setTimeout);
 const setImmediate = promisify(timers.setImmediate);
 

@@ -139,7 +139,8 @@ module.exports = {
             DoWhileStatement: testForAssign,
             ForStatement: testForAssign,
             IfStatement: testForAssign,
-            WhileStatement: testForAssign
+            WhileStatement: testForAssign,
+            ConditionalExpression: testForAssign
         };
 
     }

@@ -5,8 +5,6 @@ const assert = require('assert');
 const { URL } = require('url');
 const vm = require('vm');
 
-common.crashOnUnhandledRejection();
-
 const relativePath = '../fixtures/es-modules/test-esm-ok.mjs';
 const absolutePath = require.resolve('../fixtures/es-modules/test-esm-ok.mjs');
 const targetURL = new URL('file:///');

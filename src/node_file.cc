@@ -172,13 +172,11 @@ inline void FileHandle::Close() {
   // to notify that the file descriptor was gc'd. We want to be noisy about
   // this because not explicitly closing the FileHandle is a bug.
   env()->SetUnrefImmediate([](Environment* env, void* data) {
-    char msg[70];
     err_detail* detail = static_cast<err_detail*>(data);
-    snprintf(msg, arraysize(msg),
-            "Closing file descriptor %d on garbage collection",
-            detail->fd);
+    ProcessEmitWarning(env,
+                       "Closing file descriptor %d on garbage collection",
+                       detail->fd);
     delete detail;
-    ProcessEmitWarning(env, msg);
   }, detail);
 }
 
@@ -223,7 +221,7 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
     closing_ = true;
     CloseReq* req = new CloseReq(env(), promise, object());
     auto AfterClose = uv_fs_callback_t{[](uv_fs_t* req) {
-      CloseReq* close = static_cast<CloseReq*>(req->data);
+      CloseReq* close = CloseReq::from_req(req);
       CHECK_NOT_NULL(close);
       close->file_handle()->AfterClose();
       Isolate* isolate = close->env()->isolate();
@@ -477,7 +475,7 @@ bool FSReqAfterScope::Proceed() {
 }
 
 void AfterNoArgs(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed())
@@ -485,7 +483,7 @@ void AfterNoArgs(uv_fs_t* req) {
 }
 
 void AfterStat(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
@@ -494,7 +492,7 @@ void AfterStat(uv_fs_t* req) {
 }
 
 void AfterInteger(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed())
@@ -502,7 +500,7 @@ void AfterInteger(uv_fs_t* req) {
 }
 
 void AfterOpenFileHandle(uv_fs_t* req) {
-  FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
@@ -512,7 +510,7 @@ void AfterOpenFileHandle(uv_fs_t* req) {
 }
 
 void AfterStringPath(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   MaybeLocal<Value> link;
@@ -531,7 +529,7 @@ void AfterStringPath(uv_fs_t* req) {
 }
 
 void AfterStringPtr(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   MaybeLocal<Value> link;
@@ -550,7 +548,7 @@ void AfterStringPtr(uv_fs_t* req) {
 }
 
 void AfterScanDir(uv_fs_t* req) {
-  FSReqBase* req_wrap = static_cast<FSReqBase*>(req->data);
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
@@ -1771,6 +1769,36 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void LChown(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+
+  CHECK(args[1]->IsUint32());
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Uint32>()->Value());
+
+  CHECK(args[2]->IsUint32());
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Uint32>()->Value());
+
+  FSReqBase* req_wrap_async = GetReqWrap(env, args[3]);
+  if (req_wrap_async != nullptr) {  // lchown(path, uid, gid, req)
+    AsyncCall(env, req_wrap_async, args, "lchown", UTF8, AfterNoArgs,
+              uv_fs_lchown, *path, uid, gid);
+  } else {  // lchown(path, uid, gid, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(lchown);
+    SyncCall(env, args[4], &req_wrap_sync, "lchown",
+             uv_fs_lchown, *path, uid, gid);
+    FS_SYNC_TRACE_END(lchown);
+  }
+}
+
+
 static void UTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1904,7 +1932,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "chown", Chown);
   env->SetMethod(target, "fchown", FChown);
-  // env->SetMethod(target, "lchown", LChown);
+  env->SetMethod(target, "lchown", LChown);
 
   env->SetMethod(target, "utimes", UTimes);
   env->SetMethod(target, "futimes", FUTimes);
@@ -1967,7 +1995,7 @@ void Initialize(Local<Object> target,
   Local<String> handleString =
        FIXED_ONE_BYTE_STRING(env->isolate(), "FileHandle");
   fd->SetClassName(handleString);
-  StreamBase::AddMethods<FileHandle>(env, fd, StreamBase::kFlagNone);
+  StreamBase::AddMethods<FileHandle>(env, fd);
   target->Set(context, handleString, fd->GetFunction()).FromJust();
   env->set_fd_constructor_template(fdt);
 

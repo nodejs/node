@@ -27,6 +27,11 @@ class NodeCategorySet : public BaseObject {
 
   const std::set<std::string>& GetCategories() { return categories_; }
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("categories", categories_);
+  }
+
  private:
   NodeCategorySet(Environment* env,
                   Local<Object> wrap,
@@ -95,9 +100,8 @@ static std::unordered_set<std::string> categoryGroups;
 // Gets a pointer to the category-enabled flags for a tracing category group,
 // if tracing is enabled for it.
 static const uint8_t* GetCategoryGroupEnabled(const char* category_group) {
-    if (category_group == nullptr) return nullptr;
-
-    return TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(category_group);
+  CHECK_NOT_NULL(category_group);
+  return TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(category_group);
 }
 
 static const char* GetCategoryGroup(Environment* env,

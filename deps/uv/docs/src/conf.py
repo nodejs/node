@@ -18,7 +18,7 @@ import sys
 
 
 def get_libuv_version():
-    with open('../../include/uv-version.h') as f:
+    with open('../../include/uv/version.h') as f:
         data = f.read()
     try:
         m = re.search(r"""^#define UV_VERSION_MAJOR (\d+)$""", data, re.MULTILINE)

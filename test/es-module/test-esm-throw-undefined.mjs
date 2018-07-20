@@ -1,6 +1,5 @@
 // Flags: --experimental-modules
-/* eslint-disable node-core/required-modules */
-import common from '../common/index.js';
+import '../common';
 import assert from 'assert';
 
 async function doTest() {
@@ -12,5 +11,4 @@ async function doTest() {
   );
 }
 
-common.crashOnUnhandledRejection();
 doTest();

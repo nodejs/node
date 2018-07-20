@@ -15,8 +15,10 @@ cd %~dp0
 set config=Release
 set target=Build
 set target_arch=x64
+set ltcg=
 set target_env=
 set noprojgen=
+set projgen=
 set nobuild=
 set sign=
 set nosnapshot=
@@ -60,19 +62,21 @@ set doc=
 :next-arg
 if "%1"=="" goto args-done
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
-if /i "%1"=="release"       set config=Release&goto arg-ok
+if /i "%1"=="release"       set config=Release&set ltcg=1&goto arg-ok
 if /i "%1"=="clean"         set target=Clean&goto arg-ok
 if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="vs2017"        set target_env=vs2017&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
+if /i "%1"=="projgen"       set projgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by default. "nosign" is redundant.&goto arg-ok
 if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
+if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% -J %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %common_test_suites%&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&goto arg-ok
@@ -147,6 +151,8 @@ if defined build_release (
   set licensertf=1
   set download_arg="--download=all"
   set i18n_arg=small-icu
+  set projgen=1
+  set ltcg=1
 )
 
 :: assign path to node_exe
@@ -159,6 +165,7 @@ if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
 if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
 if defined noetw            set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr        set configure_flags=%configure_flags% --without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
+if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg     set configure_flags=%configure_flags% %download_arg%
 if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
@@ -203,6 +210,8 @@ if _%PROCESSOR_ARCHITEW6432%_==_AMD64_ set msvs_host_arch=amd64
 set vcvarsall_arg=%msvs_host_arch%_%target_arch%
 @rem unless both host and target are x64
 if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
+@rem also if both are x86
+if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
 
 @rem Look for Visual Studio 2017
 :vs-set-2017
@@ -250,16 +259,36 @@ goto build-doc
 
 :msbuild-found
 
+set project_generated=
 :project-gen
 @rem Skip project generation if requested.
 if defined noprojgen goto msbuild
+if defined projgen goto run-configure
+if not exist node.sln goto run-configure
+if not exist .gyp_configure_stamp goto run-configure
+echo %configure_flags% > .tmp_gyp_configure_stamp
+where /R . /T *.gyp? >> .tmp_gyp_configure_stamp
+fc .gyp_configure_stamp .tmp_gyp_configure_stamp >NUL 2>&1
+if errorlevel 1 goto run-configure
 
+:skip-configure
+del .tmp_gyp_configure_stamp
+echo Reusing solution generated with %configure_flags%
+goto msbuild
+
+:run-configure
+del .tmp_gyp_configure_stamp
+del .gyp_configure_stamp
 @rem Generate the VS project.
 echo configure %configure_flags%
+echo %configure_flags%> .used_configure_flags
 python configure %configure_flags%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
+set project_generated=1
 echo Project files generated.
+echo %configure_flags% > .gyp_configure_stamp
+where /R . /T *.gyp? >> .gyp_configure_stamp
 
 :msbuild
 @rem Skip build if requested.
@@ -272,7 +301,10 @@ set "msbplatform=Win32"
 if "%target_arch%"=="x64" set "msbplatform=x64"
 if "%target%"=="Build" if defined no_cctest set target=node
 msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
-if errorlevel 1 goto exit
+if errorlevel 1 (
+  if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
+  goto exit
+)
 if "%target%" == "Clean" goto exit
 
 :sign
@@ -448,13 +480,11 @@ for /d %%F in (test\addons\??_*) do (
 "%node_exe%" tools\doc\addon-verify.js
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
-setlocal EnableDelayedExpansion
-for /d %%F in (test\addons\*) do (
-  %node_gyp_exe% rebuild ^
-    --directory="%%F" ^
-    --nodedir="%cd%"
-  if !errorlevel! neq 0 exit /b !errorlevel!
-)
+setlocal
+set npm_config_nodedir=%~dp0
+"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons"
+if errorlevel 1 exit /b 1
+endlocal
 
 :build-addons-napi
 if not defined build_addons_napi goto run-tests
@@ -584,12 +614,12 @@ if not defined lint_md_build goto lint-md
 SETLOCAL
 echo Markdown linter: installing remark-cli into tools\
 cd tools\remark-cli
-%npm_exe% install
+%npm_exe% ci
 cd ..\..
 if errorlevel 1 goto lint-md-build-failed
 echo Markdown linter: installing remark-preset-lint-node into tools\
 cd tools\remark-preset-lint-node
-%npm_exe% install
+%npm_exe% ci
 cd ..\..
 if errorlevel 1 goto lint-md-build-failed
 ENDLOCAL
@@ -626,10 +656,11 @@ goto exit
 
 :create-msvs-files-failed
 echo Failed to create vc project files.
+del .used_configure_flags
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [ltcg] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
