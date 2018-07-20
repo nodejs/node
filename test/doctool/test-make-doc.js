@@ -12,6 +12,8 @@ const fs = require('fs');
 const path = require('path');
 
 const apiPath = path.resolve(__dirname, '..', '..', 'out', 'doc', 'api');
+const mdPath = path.resolve(__dirname, '..', '..', 'doc', 'api');
+const allMD = fs.readdirSync(mdPath);
 const allDocs = fs.readdirSync(apiPath);
 assert.ok(allDocs.includes('index.html'));
 
@@ -21,6 +23,15 @@ const actualDocs = allDocs.filter(
     return extension === '.html' || extension === '.json';
   }
 );
+
+for (const name of actualDocs) {
+  if (name.startsWith('all.')) continue;
+
+  assert.ok(
+    allMD.includes(name.replace(/\.\w+$/, '.md')),
+    `Unexpected output: out/doc/api/${name}, remove and rerun.`
+  );
+}
 
 const toc = fs.readFileSync(path.resolve(apiPath, 'index.html'), 'utf8');
 const re = /href="([^/]+\.html)"/;
