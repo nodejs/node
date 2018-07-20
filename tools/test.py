@@ -1540,9 +1540,7 @@ IGNORED_SUITES = [
   'doctool',
   'internet',
   'pummel',
-  'test-known-issues',
   'tick-processor',
-  'timers',
   'v8-updates'
 ]
 
