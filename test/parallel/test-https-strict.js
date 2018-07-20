@@ -28,6 +28,14 @@ if (!common.hasCrypto)
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
+common.expectWarning(
+  'Warning',
+  'Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to \'0\' ' +
+  'makes TLS connections and HTTPS requests insecure by disabling ' +
+  'certificate verification.',
+  common.noWarnCode
+);
+
 const assert = require('assert');
 const https = require('https');
 
