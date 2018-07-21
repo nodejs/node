@@ -2351,11 +2351,11 @@ void SetupProcessObject(Environment* env,
   if (uv_exepath(exec_path, &exec_path_len) == 0) {
     exec_path_value = String::NewFromUtf8(env->isolate(),
                                           exec_path,
-                                          v8::NewStringType::kNormal,
+                                          v8::NewStringType::kInternalized,
                                           exec_path_len).ToLocalChecked();
   } else {
     exec_path_value = String::NewFromUtf8(env->isolate(), argv[0],
-        v8::NewStringType::kNormal).ToLocalChecked();
+        v8::NewStringType::kInternalized).ToLocalChecked();
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execPath"),
                exec_path_value);
