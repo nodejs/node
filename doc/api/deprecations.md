@@ -1009,6 +1009,18 @@ Type: Documentation-only
 The `process.binding()` API is intended for use by Node.js internal code
 only. Use of `process.binding()` by userland code is unsupported.
 
+<a id="DEP0112"></a>
+### DEP0112: dgram private APIs
+
+Type: Runtime
+
+The `dgram` module previously contained several APIs that were never meant to
+accessed outside of Node.js core: `Socket.prototype._handle`,
+`Socket.prototype._receiving`, `Socket.prototype._bindState`,
+`Socket.prototype._queue`, `Socket.prototype._reuseAddr`,
+`Socket.prototype._healthCheck()`, `Socket.prototype._stopReceiving()`, and
+`dgram._createSocketHandle()`.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
