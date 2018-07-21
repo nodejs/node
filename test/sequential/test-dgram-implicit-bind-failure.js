@@ -1,8 +1,10 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 const dns = require('dns');
+const { kStateSymbol } = require('internal/dgram');
 
 // Monkey patch dns.lookup() so that it always fails.
 dns.lookup = function(address, family, callback) {
@@ -25,8 +27,8 @@ socket.on('error', (err) => {
     // should also be two listeners - this function and the dgram internal one
     // time error handler.
     dnsFailures++;
-    assert(Array.isArray(socket._queue));
-    assert.strictEqual(socket._queue.length, 1);
+    assert(Array.isArray(socket[kStateSymbol].queue));
+    assert.strictEqual(socket[kStateSymbol].queue.length, 1);
     assert.strictEqual(socket.listenerCount('error'), 2);
     return;
   }
@@ -35,7 +37,7 @@ socket.on('error', (err) => {
     // On error, the queue should be destroyed and this function should be
     // the only listener.
     sendFailures++;
-    assert.strictEqual(socket._queue, undefined);
+    assert.strictEqual(socket[kStateSymbol].queue, undefined);
     assert.strictEqual(socket.listenerCount('error'), 1);
     return;
   }
