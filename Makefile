@@ -329,7 +329,7 @@ ifeq ($(OSTYPE),aix)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
-test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS)
+test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 	$(RM) -r test/addons/??_*/
 	[ -x $(NODE) ] && $(NODE) $< || node $<
 	touch $@
