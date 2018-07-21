@@ -24,7 +24,7 @@ server.listen(0, common.mustCall(() => {
   const req = client.request();
 
   req.on('response', common.mustCall(() => {}));
-  req.on('data', common.mustCallAtLeast(() => {
+  req.once('data', common.mustCall(() => {
     net.Socket.prototype.destroy.call(client.socket);
     server.close();
   }));
