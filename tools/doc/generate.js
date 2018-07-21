@@ -23,12 +23,19 @@
 
 const fs = require('fs');
 const path = require('path');
+const unified = require('unified');
+const markdown = require('remark-parse');
+const remark2rehype = require('remark-rehype');
+const raw = require('rehype-raw');
+const htmlStringify = require('rehype-stringify');
+
+const html = require('./html');
+const json = require('./json');
 
 // Parse the args.
 // Don't use nopt or whatever for this. It's simple enough.
 
 const args = process.argv.slice(2);
-let format = 'json';
 let filename = null;
 let nodeVersion = null;
 let analytics = null;
@@ -37,8 +44,6 @@ let outputDir = null;
 args.forEach(function(arg) {
   if (!arg.startsWith('--')) {
     filename = arg;
-  } else if (arg.startsWith('--format=')) {
-    format = arg.replace(/^--format=/, '');
   } else if (arg.startsWith('--node-version=')) {
     nodeVersion = arg.replace(/^--node-version=/, '');
   } else if (arg.startsWith('--analytics=')) {
@@ -56,21 +61,27 @@ if (!filename) {
   throw new Error('No output directory specified');
 }
 
-const basename = path.basename(filename);
 
 fs.readFile(filename, 'utf8', (er, input) => {
   if (er) throw er;
 
-  require('./json.js')(input, filename, (er, obj) => {
-    if (er) throw er;
-    const target = path.join(outputDir, basename.replace(/\.\w+$/, '.json'));
-    fs.writeFileSync(target, JSON.stringify(obj, null, 2));
-  });
+  const content = unified()
+    .use(markdown)
+    .use(json.jsonAPI, { filename, outputDir })
+    .use(html.firstHeader)
+    .use(html.preprocessText)
+    .use(html.preprocessElements, { filename })
+    .use(html.buildToc, { filename })
+    .use(remark2rehype, { allowDangerousHTML: true })
+    .use(raw)
+    .use(htmlStringify)
+    .processSync(input);
 
-  require('./html')(
-    { input, filename, nodeVersion, analytics },
+  html.toHTML(
+    { input, content, filename, nodeVersion, analytics },
     (err, html) => {
-      const target = path.join(outputDir, basename.replace(/\.\w+$/, '.html'));
+      const basename = path.basename(filename, '.md');
+      const target = path.join(outputDir, `${basename}.html`);
       if (err) throw err;
       fs.writeFileSync(target, html);
     }
