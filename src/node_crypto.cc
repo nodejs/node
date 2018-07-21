@@ -1563,8 +1563,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     BIO_get_mem_ptr(bio.get(), &mem);
     info->Set(context, env->subject_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
-                                  String::kNormalString,
-                                  mem->length)).FromJust();
+                                  NewStringType::kNormal,
+                                  mem->length).ToLocalChecked()).FromJust();
   }
   USE(BIO_reset(bio.get()));
 
@@ -1573,8 +1573,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     BIO_get_mem_ptr(bio.get(), &mem);
     info->Set(context, env->issuer_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
-                                  String::kNormalString,
-                                  mem->length)).FromJust();
+                                  NewStringType::kNormal,
+                                  mem->length).ToLocalChecked()).FromJust();
   }
   USE(BIO_reset(bio.get()));
 
@@ -1601,8 +1601,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     BIO_get_mem_ptr(bio.get(), &mem);
     info->Set(context, keys[i],
               String::NewFromUtf8(env->isolate(), mem->data,
-                                  String::kNormalString,
-                                  mem->length)).FromJust();
+                                  NewStringType::kNormal,
+                                  mem->length).ToLocalChecked()).FromJust();
 
     USE(BIO_reset(bio.get()));
   }
@@ -1620,8 +1620,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     BIO_get_mem_ptr(bio.get(), &mem);
     info->Set(context, env->modulus_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
-                                  String::kNormalString,
-                                  mem->length)).FromJust();
+                                  NewStringType::kNormal,
+                                  mem->length).ToLocalChecked()).FromJust();
     USE(BIO_reset(bio.get()));
 
     uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(e));
@@ -1635,8 +1635,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     BIO_get_mem_ptr(bio.get(), &mem);
     info->Set(context, env->exponent_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
-                                  String::kNormalString,
-                                  mem->length)).FromJust();
+                                  NewStringType::kNormal,
+                                  mem->length).ToLocalChecked()).FromJust();
     USE(BIO_reset(bio.get()));
 
     int size = i2d_RSA_PUBKEY(rsa.get(), nullptr);
@@ -1655,16 +1655,16 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   BIO_get_mem_ptr(bio.get(), &mem);
   info->Set(context, env->valid_from_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
-                                String::kNormalString,
-                                mem->length)).FromJust();
+                                NewStringType::kNormal,
+                                mem->length).ToLocalChecked()).FromJust();
   USE(BIO_reset(bio.get()));
 
   ASN1_TIME_print(bio.get(), X509_get_notAfter(cert));
   BIO_get_mem_ptr(bio.get(), &mem);
   info->Set(context, env->valid_to_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
-                                String::kNormalString,
-                                mem->length)).FromJust();
+                                NewStringType::kNormal,
+                                mem->length).ToLocalChecked()).FromJust();
   bio.reset();
 
   unsigned char md[EVP_MAX_MD_SIZE];
