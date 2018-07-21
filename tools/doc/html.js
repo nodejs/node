@@ -340,8 +340,10 @@ function buildToc({ filename }) {
 
       depth = node.depth;
       const realFilename = path.basename(realFilenames[0], '.md');
-      const headingText = node.children.map((child) => child.value)
-        .join().trim();
+      const headingText = node.children.map((child) =>
+        file.contents.slice(child.position.start.offset,
+                            child.position.end.offset)
+      ).join('').trim();
       const id = getId(`${realFilename}_${headingText}`, idCounters);
 
       const hasStability = node.stability !== undefined;
