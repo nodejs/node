@@ -650,15 +650,15 @@ available-node = \
 run-npm-install = $(PWD)/$(NPM) install --production --no-package-lock
 run-npm-ci = $(PWD)/$(NPM) ci
 
-gen-json = tools/doc/generate.js --format=json $< > $@
-gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html \
-			--analytics=$(DOCS_ANALYTICS) $< > $@
+tools/doc/node_modules/js-yaml/package.json:
+	cd tools/doc && $(call available-node,$(run-npm-install))
 
-out/doc/api/%.json: doc/api/%.md tools/doc/generate.js tools/doc/json.js
-	$(call available-node, $(gen-json))
+gen-api = tools/doc/generate.js --node-version=$(FULLVERSION) \
+		--analytics=$(DOCS_ANALYTICS) $< --output-directory=out/doc/api
 
-out/doc/api/%.html: doc/api/%.md tools/doc/generate.js tools/doc/html.js
-	$(call available-node, $(gen-html))
+out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.js \
+	tools/doc/html.js tools/doc/json.js
+	$(call available-node, $(gen-api))
 
 out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js
 	$(call available-node, tools/doc/allhtml.js)

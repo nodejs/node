@@ -22,6 +22,7 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
 
 // Parse the args.
 // Don't use nopt or whatever for this. It's simple enough.
@@ -31,6 +32,7 @@ let format = 'json';
 let filename = null;
 let nodeVersion = null;
 let analytics = null;
+let outputDir = null;
 
 args.forEach(function(arg) {
   if (!arg.startsWith('--')) {
@@ -41,6 +43,8 @@ args.forEach(function(arg) {
     nodeVersion = arg.replace(/^--node-version=/, '');
   } else if (arg.startsWith('--analytics=')) {
     analytics = arg.replace(/^--analytics=/, '');
+  } else if (arg.startsWith('--output-directory=')) {
+    outputDir = arg.replace(/^--output-directory=/, '');
   }
 });
 
@@ -48,27 +52,27 @@ nodeVersion = nodeVersion || process.version;
 
 if (!filename) {
   throw new Error('No input file specified');
+} else if (!outputDir) {
+  throw new Error('No output directory specified');
 }
+
+const basename = path.basename(filename);
 
 fs.readFile(filename, 'utf8', (er, input) => {
   if (er) throw er;
-  switch (format) {
-    case 'json':
-      require('./json.js')(input, filename, (er, obj) => {
-        if (er) throw er;
-        console.log(JSON.stringify(obj, null, 2));
-      });
-      break;
 
-    case 'html':
-      require('./html')({ input, filename, nodeVersion, analytics },
-                        (err, html) => {
-                          if (err) throw err;
-                          console.log(html);
-                        });
-      break;
+  require('./json.js')(input, filename, (er, obj) => {
+    if (er) throw er;
+    const target = path.join(outputDir, basename.replace(/\.\w+$/, '.json'));
+    fs.writeFileSync(target, JSON.stringify(obj, null, 2));
+  });
 
-    default:
-      throw new Error(`Invalid format: ${format}`);
-  }
+  require('./html')(
+    { input, filename, nodeVersion, analytics },
+    (err, html) => {
+      const target = path.join(outputDir, basename.replace(/\.\w+$/, '.html'));
+      if (err) throw err;
+      fs.writeFileSync(target, html);
+    }
+  );
 });
