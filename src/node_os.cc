@@ -261,7 +261,8 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     // contain non-ASCII characters.  On UNIX, it's just a binary string with
     // no particular encoding but we treat it as a one-byte Latin-1 string.
 #ifdef _WIN32
-    name = String::NewFromUtf8(env->isolate(), raw_name);
+    name = String::NewFromUtf8(env->isolate(), raw_name,
+        v8::NewStringType::kNormal).ToLocalChecked();
 #else
     name = OneByteString(env->isolate(), raw_name);
 #endif
@@ -335,8 +336,8 @@ static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> home = String::NewFromUtf8(env->isolate(),
                                            buf,
-                                           String::kNormalString,
-                                           len);
+                                           v8::NewStringType::kNormal,
+                                           len).ToLocalChecked();
   args.GetReturnValue().Set(home);
 }
 
