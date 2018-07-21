@@ -114,8 +114,8 @@ void Cwd(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> cwd = String::NewFromUtf8(env->isolate(),
                                           buf,
-                                          String::kNormalString,
-                                          cwd_len);
+                                          v8::NewStringType::kNormal,
+                                          cwd_len).ToLocalChecked();
   args.GetReturnValue().Set(cwd);
 }
 

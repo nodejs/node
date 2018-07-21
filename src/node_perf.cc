@@ -75,14 +75,18 @@ inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
                          env->name_string(),
                          String::NewFromUtf8(isolate,
                                              entry.name().c_str(),
-                                             String::kNormalString),
-                         attr).FromJust();
+                                             v8::NewStringType::kNormal)
+                             .ToLocalChecked(),
+                         attr)
+      .FromJust();
   obj->DefineOwnProperty(context,
                          FIXED_ONE_BYTE_STRING(isolate, "entryType"),
                          String::NewFromUtf8(isolate,
                                              entry.type().c_str(),
-                                             String::kNormalString),
-                         attr).FromJust();
+                                             v8::NewStringType::kNormal)
+                             .ToLocalChecked(),
+                         attr)
+      .FromJust();
   obj->DefineOwnProperty(context,
                          FIXED_ONE_BYTE_STRING(isolate, "startTime"),
                          Number::New(isolate, entry.startTime()),
