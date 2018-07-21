@@ -107,7 +107,7 @@ deps/npm/node_modules/.bin/
 /SHASUMS*.txt*
 
 # api docs artifacts
-tools/node_modules
+tools/doc/node_modules
 
 # test artifacts
 tools/remark-cli/node_modules
