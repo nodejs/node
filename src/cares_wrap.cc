@@ -1926,7 +1926,9 @@ void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   char canonical_ip[INET6_ADDRSTRLEN];
   const int af = (rc == 4 ? AF_INET : AF_INET6);
   CHECK_EQ(0, uv_inet_ntop(af, &result, canonical_ip, sizeof(canonical_ip)));
-  args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
+  v8::NewStringType type = v8::NewStringType::kNormal;
+  v8::MaybeLocal<String> val = String::NewFromUtf8(isolate, canonical_ip, type);
+  args.GetReturnValue().Set(val.ToLocalChecked());
 }
 
 void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {

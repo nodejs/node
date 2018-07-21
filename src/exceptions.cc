@@ -39,7 +39,8 @@ Local<Value> ErrnoException(Isolate* isolate,
   Local<String> path_string;
   if (path != nullptr) {
     // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
-    path_string = String::NewFromUtf8(env->isolate(), path);
+    path_string = String::NewFromUtf8(
+        env->isolate(), path, v8::NewStringType::kNormal).ToLocalChecked();
   }
 
   if (path_string.IsEmpty() == false) {
@@ -67,6 +68,7 @@ Local<Value> ErrnoException(Isolate* isolate,
 static Local<String> StringFromPath(Isolate* isolate, const char* path) {
 #ifdef _WIN32
   if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
+    v8::NewStringType type = v8::NewStringType::kNormal;
     return String::Concat(FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
                           String::NewFromUtf8(isolate, path + 8));
   } else if (strncmp(path, "\\\\?\\", 4) == 0) {
@@ -74,7 +76,7 @@ static Local<String> StringFromPath(Isolate* isolate, const char* path) {
   }
 #endif
 
-  return String::NewFromUtf8(isolate, path);
+  return String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal).ToLocalChecked();
 }
 
 
