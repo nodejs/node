@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -25,22 +26,25 @@ const strictEqual = require('assert').strictEqual;
 
 
 const dgram = require('dgram');
+const { kStateSymbol } = require('internal/dgram');
 
 // dgram ipv4
 {
   const sock4 = dgram.createSocket('udp4');
-  strictEqual(Object.getPrototypeOf(sock4._handle).hasOwnProperty('hasRef'),
+  const handle = sock4[kStateSymbol].handle;
+
+  strictEqual(Object.getPrototypeOf(handle).hasOwnProperty('hasRef'),
               true, 'udp_wrap: ipv4: hasRef() missing');
-  strictEqual(sock4._handle.hasRef(),
+  strictEqual(handle.hasRef(),
               true, 'udp_wrap: ipv4: not initially refed');
   sock4.unref();
-  strictEqual(sock4._handle.hasRef(),
+  strictEqual(handle.hasRef(),
               false, 'udp_wrap: ipv4: unref() ineffective');
   sock4.ref();
-  strictEqual(sock4._handle.hasRef(),
+  strictEqual(handle.hasRef(),
               true, 'udp_wrap: ipv4: ref() ineffective');
-  sock4._handle.close(common.mustCall(() =>
-    strictEqual(sock4._handle.hasRef(),
+  handle.close(common.mustCall(() =>
+    strictEqual(handle.hasRef(),
                 false, 'udp_wrap: ipv4: not unrefed on close')));
 }
 
@@ -48,18 +52,20 @@ const dgram = require('dgram');
 // dgram ipv6
 {
   const sock6 = dgram.createSocket('udp6');
-  strictEqual(Object.getPrototypeOf(sock6._handle).hasOwnProperty('hasRef'),
+  const handle = sock6[kStateSymbol].handle;
+
+  strictEqual(Object.getPrototypeOf(handle).hasOwnProperty('hasRef'),
               true, 'udp_wrap: ipv6: hasRef() missing');
-  strictEqual(sock6._handle.hasRef(),
+  strictEqual(handle.hasRef(),
               true, 'udp_wrap: ipv6: not initially refed');
   sock6.unref();
-  strictEqual(sock6._handle.hasRef(),
+  strictEqual(handle.hasRef(),
               false, 'udp_wrap: ipv6: unref() ineffective');
   sock6.ref();
-  strictEqual(sock6._handle.hasRef(),
+  strictEqual(handle.hasRef(),
               true, 'udp_wrap: ipv6: ref() ineffective');
-  sock6._handle.close(common.mustCall(() =>
-    strictEqual(sock6._handle.hasRef(),
+  handle.close(common.mustCall(() =>
+    strictEqual(handle.hasRef(),
                 false, 'udp_wrap: ipv6: not unrefed on close')));
 }
 
