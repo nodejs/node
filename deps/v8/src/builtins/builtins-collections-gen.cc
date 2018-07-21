@@ -1474,14 +1474,17 @@ TF_BUILTIN(MapPrototypeDelete, CollectionsBuiltinsAssembler) {
       LoadFixedArrayElement(table, OrderedHashMap::kNumberOfBucketsIndex);
 
   // If there fewer elements than #buckets / 2, shrink the table.
-  Label shrink(this);
-  GotoIf(SmiLessThan(SmiAdd(number_of_elements, number_of_elements),
-                     number_of_buckets),
-         &shrink);
-  Return(TrueConstant());
+  Label dont_shrink(this);
+  GotoIf(SmiGreaterThanOrEqual(SmiAdd(number_of_elements, number_of_elements),
+                               number_of_buckets),
+         &dont_shrink);
+  // If #buckets is less than 8 then don't shrink the table
+  GotoIf(SmiLessThan(number_of_buckets, SmiConstant(8)),
+         &dont_shrink);
 
-  BIND(&shrink);
   CallRuntime(Runtime::kMapShrink, context, receiver);
+
+  BIND(&dont_shrink);
   Return(TrueConstant());
 }
 
