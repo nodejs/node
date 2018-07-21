@@ -229,6 +229,13 @@ is designed to allow validation of changes to the copy of V8 in the Node.js
 tree by running the standard V8 tests. It should be run whenever the
 level of V8 within Node.js is updated or new patches are floated on V8.
 
+* [`node-test-commit-custom-suites`](https://ci.nodejs.org/job/node-test-commit-custom-suites/)
+can be used to customize what tests are run and with what parameters. For
+example, it can be used to execute tests which are not executed in a typical
+`node-test-commit` run (such as tests in the `internet` or `pummel`
+directories). It can also be used to make sure tests pass when provided with a
+flag not typically used in other CI test runs (such as `--worker`).
+
 ### Internal vs. Public API
 
 Due to the nature of the JavaScript language, it can often be difficult to
