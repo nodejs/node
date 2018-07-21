@@ -72,9 +72,11 @@ struct sockaddr;
   do {                                                                        \
     v8::Isolate* isolate = target->GetIsolate();                              \
     v8::Local<v8::String> constant_name =                                     \
-        v8::String::NewFromUtf8(isolate, name);                               \
+        v8::String::NewFromUtf8(isolate, name, v8::NewStringType::kNormal)    \
+            .ToLocalChecked();                                                \
     v8::Local<v8::String> constant_value =                                    \
-        v8::String::NewFromUtf8(isolate, constant);                           \
+        v8::String::NewFromUtf8(isolate, constant, v8::NewStringType::kNormal)\
+            .ToLocalChecked();                                                \
     v8::PropertyAttribute constant_attributes =                               \
         static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);    \
     target->DefineOwnProperty(isolate->GetCurrentContext(),                   \

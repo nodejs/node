@@ -39,7 +39,8 @@ Local<Value> ErrnoException(Isolate* isolate,
   Local<String> path_string;
   if (path != nullptr) {
     // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
-    path_string = String::NewFromUtf8(env->isolate(), path);
+    path_string = String::NewFromUtf8(env->isolate(), path,
+        v8::NewStringType::kNormal).ToLocalChecked();
   }
 
   if (path_string.IsEmpty() == false) {
@@ -68,13 +69,17 @@ static Local<String> StringFromPath(Isolate* isolate, const char* path) {
 #ifdef _WIN32
   if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
     return String::Concat(FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
-                          String::NewFromUtf8(isolate, path + 8));
+                          String::NewFromUtf8(isolate, path + 8,
+                                              v8::NewStringType::kNormal)
+                              .ToLocalChecked());
   } else if (strncmp(path, "\\\\?\\", 4) == 0) {
-    return String::NewFromUtf8(isolate, path + 4);
+    return String::NewFromUtf8(isolate, path + 4, v8::NewStringType::kNormal)
+        .ToLocalChecked();
   }
 #endif
 
-  return String::NewFromUtf8(isolate, path);
+  return String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
+      .ToLocalChecked();
 }
 
 
@@ -183,7 +188,9 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
     Local<String> cons1 =
         String::Concat(message, FIXED_ONE_BYTE_STRING(isolate, " '"));
     Local<String> cons2 =
-        String::Concat(cons1, String::NewFromUtf8(isolate, path));
+        String::Concat(cons1,
+            String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
+                .ToLocalChecked());
     Local<String> cons3 =
         String::Concat(cons2, FIXED_ONE_BYTE_STRING(isolate, "'"));
     e = Exception::Error(cons3);
@@ -195,7 +202,9 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
   obj->Set(env->errno_string(), Integer::New(isolate, errorno));
 
   if (path != nullptr) {
-    obj->Set(env->path_string(), String::NewFromUtf8(isolate, path));
+    obj->Set(env->path_string(),
+             String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
+                 .ToLocalChecked());
   }
 
   if (syscall != nullptr) {

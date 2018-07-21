@@ -552,7 +552,7 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
             TYPE_ICU ","
             TYPE_UNICODE ","
             TYPE_CLDR ","
-            TYPE_TZ));
+            TYPE_TZ, v8::NewStringType::kNormal).ToLocalChecked());
   } else {
     CHECK_GE(args.Length(), 1);
     CHECK(args[0]->IsString());
@@ -565,7 +565,7 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
       // Success.
       args.GetReturnValue().Set(
           String::NewFromUtf8(env->isolate(),
-          versionString));
+          versionString, v8::NewStringType::kNormal).ToLocalChecked());
     }
   }
 }
