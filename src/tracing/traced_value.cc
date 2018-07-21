@@ -4,7 +4,7 @@
 
 #include "tracing/traced_value.h"
 
-#include <math.h>
+#include <cmath>
 #include <sstream>
 #include <stdio.h>
 #include <string>
