@@ -187,8 +187,6 @@ static int StartDebugSignalHandler() {
 #endif  // _WIN32
 
 
-// Used in NodeInspectorClient::currentTimeMS() below.
-const int NANOS_PER_MSEC = 1000000;
 const int CONTEXT_GROUP_ID = 1;
 
 class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
@@ -593,7 +591,7 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   double currentTimeMS() override {
-    return uv_hrtime() * 1.0 / NANOS_PER_MSEC;
+    return env_->isolate_data()->platform()->CurrentClockTimeMillis();
   }
 
   node::Environment* env_;
