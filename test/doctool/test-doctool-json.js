@@ -10,8 +10,26 @@ try {
 
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const fixtures = require('../common/fixtures');
 const json = require('../../tools/doc/json.js');
+
+module.paths.unshift(
+  path.join(__dirname, '..', '..', 'tools', 'doc', 'node_modules'));
+const unified = require('unified');
+const markdown = require('remark-parse');
+
+function toJSON(input, filename, cb) {
+  function nullCompiler() {
+    this.Compiler = (tree) => tree;
+  }
+
+  unified()
+    .use(markdown)
+    .use(json.jsonAPI, { filename })
+    .use(nullCompiler)
+    .process(input, cb);
+}
 
 // Outputs valid json with the expected fields when given simple markdown
 // Test data is a list of objects with two properties.
@@ -21,6 +39,7 @@ const testData = [
   {
     file: fixtures.path('sample_document.md'),
     json: {
+      type: 'module',
       source: 'foo',
       modules: [{
         textRaw: 'Sample Markdown',
@@ -28,8 +47,8 @@ const testData = [
         modules: [{
           textRaw: 'Seussian Rhymes',
           name: 'seussian_rhymes',
-          desc: '<ol>\n<li>fish</li>\n<li><p>fish</p>\n</li>\n<li>' +
-                  '<p>Red fish</p>\n</li>\n<li>Blue fish</li>\n</ol>\n',
+          desc: '<ol>\n<li>fish</li>\n<li>fish</li>\n</ol>\n' +
+                  '<ul>\n<li>Red fish</li>\n<li>Blue fish</li>\n</ul>',
           type: 'module',
           displayName: 'Seussian Rhymes'
         }],
@@ -41,6 +60,7 @@ const testData = [
   {
     file: fixtures.path('order_of_end_tags_5873.md'),
     json: {
+      type: 'module',
       source: 'foo',
       modules: [{
         textRaw: 'Title',
@@ -55,14 +75,9 @@ const testData = [
             signatures: [
               {
                 params: [{
-                  textRaw: '`array` {Array} ',
+                  textRaw: '`array` {Array}',
                   name: 'array',
                   type: 'Array'
-                }]
-              },
-              {
-                params: [{
-                  name: 'array'
                 }]
               }
             ]
@@ -78,6 +93,7 @@ const testData = [
   {
     file: fixtures.path('doc_with_yaml.md'),
     json: {
+      type: 'module',
       source: 'foo',
       modules: [
         {
@@ -92,7 +108,7 @@ const testData = [
                 changes: []
               },
               desc: '<p>Describe <code>Foobar</code> in more detail ' +
-                'here.</p>\n',
+                'here.</p>',
               type: 'module',
               displayName: 'Foobar'
             },
@@ -110,7 +126,7 @@ const testData = [
                 ]
               },
               desc: '<p>Describe <code>Foobar II</code> in more detail ' +
-                'here. fg(1)</p>\n',
+                'here. fg(1)</p>',
               type: 'module',
               displayName: 'Foobar II'
             },
@@ -123,7 +139,7 @@ const testData = [
                 changes: []
               },
               desc: '<p>Describe <code>Deprecated thingy</code> in more ' +
-                'detail here. fg(1p)</p>\n',
+                'detail here. fg(1p)</p>',
               type: 'module',
               displayName: 'Deprecated thingy'
             },
@@ -131,7 +147,7 @@ const testData = [
               textRaw: 'Something',
               name: 'something',
               desc: '<!-- This is not a metadata comment -->\n<p>' +
-                'Describe <code>Something</code> in more detail here.</p>\n',
+                'Describe <code>Something</code> in more detail here.</p>',
               type: 'module',
               displayName: 'Something'
             }
@@ -147,9 +163,9 @@ const testData = [
 testData.forEach((item) => {
   fs.readFile(item.file, 'utf8', common.mustCall((err, input) => {
     assert.ifError(err);
-    json(input, 'foo', common.mustCall((err, output) => {
+    toJSON(input, 'foo', common.mustCall((err, output) => {
       assert.ifError(err);
-      assert.deepStrictEqual(output, item.json);
+      assert.deepStrictEqual(output.json, item.json);
     }));
   }));
 });

@@ -25,14 +25,12 @@ const unified = require('unified');
 const common = require('./common.js');
 const html = require('remark-html');
 const select = require('unist-util-select');
-const path = require('path');
-const fs = require('fs');
 
 module.exports = { jsonAPI };
 
 // Unified processor: input is https://github.com/syntax-tree/mdast,
 // output is: https://gist.github.com/1777387.
-function jsonAPI({ filename, outputDir }) {
+function jsonAPI({ filename }) {
   return (tree, file) => {
 
     const exampleHeading = /^example/i;
@@ -54,14 +52,12 @@ function jsonAPI({ filename, outputDir }) {
       }
     });
 
-    // Collect and output results.
+    // Collect and capture results.
     const result = { type: 'module', source: filename };
     while (sections.length > 0) {
       doSection(sections.shift(), result);
     }
-    const basename = path.basename(filename, '.md');
-    const target = path.join(outputDir, `${basename}.json`);
-    fs.writeFileSync(target, JSON.stringify(result, null, 2));
+    file.json = result;
 
     // Process a single section (recursively, including subsections).
     function doSection(section, parent) {

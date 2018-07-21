@@ -67,7 +67,7 @@ fs.readFile(filename, 'utf8', (er, input) => {
 
   const content = unified()
     .use(markdown)
-    .use(json.jsonAPI, { filename, outputDir })
+    .use(json.jsonAPI, { filename })
     .use(html.firstHeader)
     .use(html.preprocessText)
     .use(html.preprocessElements, { filename })
@@ -77,13 +77,17 @@ fs.readFile(filename, 'utf8', (er, input) => {
     .use(htmlStringify)
     .processSync(input);
 
+  const basename = path.basename(filename, '.md');
+
   html.toHTML(
     { input, content, filename, nodeVersion, analytics },
     (err, html) => {
-      const basename = path.basename(filename, '.md');
       const target = path.join(outputDir, `${basename}.html`);
       if (err) throw err;
       fs.writeFileSync(target, html);
     }
   );
+
+  const target = path.join(outputDir, `${basename}.json`);
+  fs.writeFileSync(target, JSON.stringify(content.json, null, 2));
 });
