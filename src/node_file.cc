@@ -794,8 +794,8 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     Local<String> chars_string =
         String::NewFromUtf8(env->isolate(),
                             &chars[start],
-                            String::kNormalString,
-                            size);
+                            v8::NewStringType::kNormal,
+                            size).ToLocalChecked();
     args.GetReturnValue().Set(chars_string);
   }
 }
