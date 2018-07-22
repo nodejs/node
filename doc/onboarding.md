@@ -213,7 +213,7 @@ needs to be pointed out separately during the onboarding.
 * Optionally, include your personal pronouns.
 * Label your pull request with the `doc` and `notable-change` labels.
 * Run CI on the PR. Because the PR does not affect any code, use the
-  `node-test-pull-request-lite` CI task. Alternatively, use the usual
+  `node-test-pull-request-lite-pipeline` CI task. Alternatively, use the usual
   `node-test-pull-request` CI task and cancel it after the linter and one other
   subtask have passed.
 * After one or two approvals, land the PR (PRs of this type do not need to wait
