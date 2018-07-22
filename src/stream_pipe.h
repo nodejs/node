@@ -22,6 +22,8 @@ class StreamPipe : public AsyncWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(StreamPipe)
+
  private:
   inline StreamBase* source();
   inline StreamBase* sink();

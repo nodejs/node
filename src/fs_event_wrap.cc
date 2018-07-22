@@ -61,6 +61,8 @@ class FSEventWrap: public HandleWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(FSEventWrap)
+
  private:
   static const encoding kDefaultEncoding = UTF8;
 

@@ -48,6 +48,8 @@ class StatWatcher : public HandleWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(StatWatcher)
+
  private:
   static void Callback(uv_fs_poll_t* handle,
                        int status,

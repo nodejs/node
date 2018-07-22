@@ -57,6 +57,8 @@ class SerializerContext : public BaseObject,
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(SerializerContext)
+
  private:
   ValueSerializer serializer_;
 };
@@ -85,6 +87,8 @@ class DeserializerContext : public BaseObject,
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(DeserializerContext)
 
  private:
   const uint8_t* data_;

@@ -51,6 +51,8 @@ class SABLifetimePartner : public BaseObject {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(SABLifetimePartner)
+
   SharedArrayBufferMetadataReference reference;
 };
 

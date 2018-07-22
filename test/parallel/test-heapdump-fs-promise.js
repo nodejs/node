@@ -4,9 +4,9 @@ require('../common');
 const { validateSnapshotNodes } = require('../common/heap');
 const fs = require('fs').promises;
 
-validateSnapshotNodes('FSREQPROMISE', []);
+validateSnapshotNodes('FSReqPromise', []);
 fs.stat(__filename);
-validateSnapshotNodes('FSREQPROMISE', [
+validateSnapshotNodes('FSReqPromise', [
   {
     children: [
       { name: 'FSReqPromise' },

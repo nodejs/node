@@ -57,6 +57,8 @@ class Message : public MemoryRetainer {
 
   void MemoryInfo(MemoryTracker* tracker) const override;
 
+  ADD_MEMORY_INFO_NAME(Message)
+
  private:
   MallocedBuffer<char> main_message_buf_;
   std::vector<MallocedBuffer<char>> array_buffer_contents_;
@@ -97,6 +99,8 @@ class MessagePortData : public MemoryRetainer {
   void Disentangle();
 
   void MemoryInfo(MemoryTracker* tracker) const override;
+
+  ADD_MEMORY_INFO_NAME(MessagePortData)
 
  private:
   // After disentangling this message port, the owner handle (if any)
@@ -186,6 +190,8 @@ class MessagePort : public HandleWrap {
     tracker->TrackThis(this);
     tracker->TrackField("data", data_);
   }
+
+  ADD_MEMORY_INFO_NAME(MessagePort)
 
  private:
   void OnClose() override;

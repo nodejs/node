@@ -48,6 +48,17 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
     tracker->TrackThis(this);
   }
 
+  std::string MemoryInfoName() const override {
+    switch (provider_type()) {
+      case ProviderType::PROVIDER_TCPWRAP:
+        return "TCPSocketWrap";
+      case ProviderType::PROVIDER_TCPSERVERWRAP:
+        return "TCPServerWrap";
+      default:
+        UNREACHABLE();
+    }
+  }
+
  private:
   typedef uv_tcp_t HandleType;
 

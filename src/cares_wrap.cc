@@ -127,6 +127,7 @@ struct node_ares_task : public MemoryRetainer {
   uv_poll_t poll_watcher;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
+  ADD_MEMORY_INFO_NAME(node_ares_task)
 };
 
 struct TaskHash {
@@ -173,8 +174,10 @@ class ChannelWrap : public AsyncWrap {
     tracker->TrackThis(this);
     if (timer_handle_ != nullptr)
       tracker->TrackFieldWithSize("timer handle", sizeof(*timer_handle_));
-    tracker->TrackField("task list", task_list_);
+    tracker->TrackField("node_ares_task_list", task_list_);
   }
+
+  ADD_MEMORY_INFO_NAME(ChannelWrap)
 
   static void AresTimeout(uv_timer_t* handle);
 
@@ -225,6 +228,8 @@ class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(GetAddrInfoReqWrap)
+
   bool verbatim() const { return verbatim_; }
 
  private:
@@ -246,6 +251,8 @@ class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(GetNameInfoReqWrap)
 };
 
 GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
@@ -1193,6 +1200,8 @@ class QueryAnyWrap: public QueryWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(QueryAnyWrap)
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -1372,6 +1381,8 @@ class QueryAWrap: public QueryWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(QueryAWrap)
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -1417,6 +1428,8 @@ class QueryAaaaWrap: public QueryWrap {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(QueryAaaaWrap)
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1464,6 +1477,8 @@ class QueryCnameWrap: public QueryWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(QueryCnameWrap)
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -1496,6 +1511,8 @@ class QueryMxWrap: public QueryWrap {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(QueryMxWrap)
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1530,6 +1547,8 @@ class QueryNsWrap: public QueryWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(QueryNsWrap)
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -1563,6 +1582,8 @@ class QueryTxtWrap: public QueryWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(QueryTxtWrap)
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -1595,6 +1616,8 @@ class QuerySrvWrap: public QueryWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(QuerySrvWrap)
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -1625,6 +1648,8 @@ class QueryPtrWrap: public QueryWrap {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(QueryPtrWrap)
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1659,6 +1684,8 @@ class QueryNaptrWrap: public QueryWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(QueryNaptrWrap)
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -1690,6 +1717,8 @@ class QuerySoaWrap: public QueryWrap {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(QuerySoaWrap)
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -1771,6 +1800,8 @@ class GetHostByAddrWrap: public QueryWrap {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(GetHostByAddrWrap)
 
  protected:
   void Parse(struct hostent* host) override {

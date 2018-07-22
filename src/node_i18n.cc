@@ -254,6 +254,8 @@ class ConverterObject : public BaseObject, Converter {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(ConverterObject)
+
  protected:
   ConverterObject(Environment* env,
                   v8::Local<v8::Object> wrap,

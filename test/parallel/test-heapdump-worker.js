@@ -4,22 +4,22 @@ require('../common');
 const { validateSnapshotNodes } = require('../common/heap');
 const { Worker } = require('worker_threads');
 
-validateSnapshotNodes('WORKER', []);
+validateSnapshotNodes('Worker', []);
 const worker = new Worker('setInterval(() => {}, 100);', { eval: true });
-validateSnapshotNodes('WORKER', [
+validateSnapshotNodes('Worker', [
   {
     children: [
       { name: 'thread_exit_async' },
       { name: 'env' },
-      { name: 'MESSAGEPORT' },
+      { name: 'MessagePort' },
       { name: 'Worker' }
     ]
   }
 ]);
-validateSnapshotNodes('MESSAGEPORT', [
+validateSnapshotNodes('MessagePort', [
   {
     children: [
-      { name: 'data' },
+      { name: 'MessagePortData' },
       { name: 'MessagePort' }
     ]
   }

@@ -70,6 +70,8 @@ class ProcessWrap : public HandleWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(ProcessWrap)
+
  private:
   static void New(const FunctionCallbackInfo<Value>& args) {
     // This constructor should not be exposed to public javascript.

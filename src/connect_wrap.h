@@ -19,6 +19,8 @@ class ConnectWrap : public ReqWrap<uv_connect_t> {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(ConnectWrap)
 };
 
 }  // namespace node
