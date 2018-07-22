@@ -49,6 +49,8 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(PipeWrap)
+
  private:
   PipeWrap(Environment* env,
            v8::Local<v8::Object> object,

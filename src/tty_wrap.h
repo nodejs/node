@@ -42,6 +42,8 @@ class TTYWrap : public LibuvStreamWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(TTYWrap)
+
  private:
   TTYWrap(Environment* env,
           v8::Local<v8::Object> object,

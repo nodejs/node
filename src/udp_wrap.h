@@ -68,6 +68,8 @@ class UDPWrap: public HandleWrap {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(UDPWrap)
+
  private:
   typedef uv_udp_t HandleType;
 

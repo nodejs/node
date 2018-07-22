@@ -31,6 +31,8 @@ class JSStream : public AsyncWrap, public StreamBase {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(JSStream)
+
  protected:
   JSStream(Environment* env, v8::Local<v8::Object> obj);
 

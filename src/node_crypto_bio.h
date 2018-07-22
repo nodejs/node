@@ -115,6 +115,8 @@ class NodeBIO : public MemoryRetainer {
     tracker->TrackFieldWithSize("buffer", length_);
   }
 
+  ADD_MEMORY_INFO_NAME(NodeBIO)
+
  private:
   static int New(BIO* bio);
   static int Free(BIO* bio);

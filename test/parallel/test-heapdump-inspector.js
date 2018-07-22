@@ -8,9 +8,9 @@ const { validateSnapshotNodes } = require('../common/heap');
 const inspector = require('inspector');
 
 const session = new inspector.Session();
-validateSnapshotNodes('INSPECTORJSBINDING', []);
+validateSnapshotNodes('JSBindingsConnection', []);
 session.connect();
-validateSnapshotNodes('INSPECTORJSBINDING', [
+validateSnapshotNodes('JSBindingsConnection', [
   {
     children: [
       { name: 'session' },

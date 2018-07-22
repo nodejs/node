@@ -60,6 +60,8 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(SendWrap)
+
  private:
   const bool have_callback_;
 };

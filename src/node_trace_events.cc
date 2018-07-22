@@ -32,6 +32,8 @@ class NodeCategorySet : public BaseObject {
     tracker->TrackField("categories", categories_);
   }
 
+  ADD_MEMORY_INFO_NAME(NodeCategorySet)
+
  private:
   NodeCategorySet(Environment* env,
                   Local<Object> wrap,

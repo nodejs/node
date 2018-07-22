@@ -109,6 +109,8 @@ class JSBindingsConnection : public AsyncWrap {
     tracker->TrackFieldWithSize("session", sizeof(*session_));
   }
 
+  ADD_MEMORY_INFO_NAME(JSBindingsConnection)
+
  private:
   std::unique_ptr<InspectorSession> session_;
   Persistent<Function> callback_;

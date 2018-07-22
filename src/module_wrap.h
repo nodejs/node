@@ -39,6 +39,8 @@ class ModuleWrap : public BaseObject {
     tracker->TrackField("resolve_cache", resolve_cache_);
   }
 
+  ADD_MEMORY_INFO_NAME(ModuleWrap)
+
  private:
   ModuleWrap(Environment* env,
              v8::Local<v8::Object> object,
