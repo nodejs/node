@@ -210,7 +210,7 @@ is the standard CI run we do to check Pull Requests. It triggers
 `node-test-commit`, which runs the `build-ci` and `test-ci` targets on all
 supported platforms.
 
-* [`node-test-pull-request-lite`](https://ci.nodejs.org/job/node-test-pull-request-lite/)
+* [`node-test-pull-request-lite-pipeline`](https://ci.nodejs.org/job/node-test-pull-request-lite-pipeline/)
 only runs the linter job, as well as the tests on LinuxONE, which is very fast.
 This is useful for changes that only affect comments or documentation.
 
