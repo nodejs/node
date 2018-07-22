@@ -184,9 +184,9 @@ function linkJsTypeDocs(text) {
   return parts.join('`');
 }
 
-// Preprocess stability blockquotes and YAML blocks
+// Preprocess headers, stability blockquotes, and YAML blocks.
 function preprocessElements({ filename }) {
-  return (tree) => {
+  return (tree, file) => {
     const STABILITY_RE = /(.*:)\s*(\d)([\s\S]*)/;
     let headingIndex = -1;
     let heading = null;
@@ -195,6 +195,22 @@ function preprocessElements({ filename }) {
       if (node.type === 'heading') {
         headingIndex = index;
         heading = node;
+
+        // Ensure optional API parameters are not treated as links by
+        // collapsing all of heading into a single text node.
+        if (heading.children.length > 1) {
+          const position = {
+            start: heading.children[0].position.start,
+            end: heading.position.end
+          };
+
+          heading.children = [{
+            type: 'text',
+            value: file.contents.slice(
+              position.start.offset, position.end.offset),
+            position
+          }];
+        }
 
       } else if (node.type === 'html' && common.isYAMLBlock(node.value)) {
         node.value = parseYAML(node.value);
@@ -340,10 +356,9 @@ function buildToc({ filename }) {
 
       depth = node.depth;
       const realFilename = path.basename(realFilenames[0], '.md');
-      const headingText = node.children.map((child) =>
-        file.contents.slice(child.position.start.offset,
-                            child.position.end.offset)
-      ).join('').trim();
+      const headingText = file.contents.slice(
+        node.children[0].position.start.offset,
+        node.position.end.offset).trim();
       const id = getId(`${realFilename}_${headingText}`, idCounters);
 
       const hasStability = node.stability !== undefined;
