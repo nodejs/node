@@ -33,6 +33,9 @@ class Worker : public AsyncWrap {
     tracker->TrackField("parent_port", parent_port_);
   }
 
+
+  ADD_MEMORY_INFO_NAME(Worker)
+
   bool is_stopped() const;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

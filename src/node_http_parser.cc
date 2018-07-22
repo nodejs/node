@@ -160,6 +160,7 @@ class Parser : public AsyncWrap, public StreamListener {
     tracker->TrackField("current_buffer", current_buffer_);
   }
 
+  ADD_MEMORY_INFO_NAME(Parser)
 
   int on_message_begin() {
     num_fields_ = num_values_ = 0;

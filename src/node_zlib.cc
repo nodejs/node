@@ -653,6 +653,9 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
         zlib_memory_ + unreported_allocations_);
   }
 
+
+  ADD_MEMORY_INFO_NAME(ZCtx)
+
  private:
   void Ref() {
     if (++refs_ == 1) {

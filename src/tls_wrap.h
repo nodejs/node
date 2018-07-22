@@ -78,6 +78,8 @@ class TLSWrap : public AsyncWrap,
 
   void MemoryInfo(MemoryTracker* tracker) const override;
 
+  ADD_MEMORY_INFO_NAME(TLSWrap)
+
  protected:
   inline StreamBase* underlying_stream() {
     return static_cast<StreamBase*>(stream_);

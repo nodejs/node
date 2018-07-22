@@ -575,6 +575,8 @@ class Http2Stream : public AsyncWrap,
     tracker->TrackField("queue", queue_);
   }
 
+  ADD_MEMORY_INFO_NAME(Http2Stream)
+
   std::string diagnostic_name() const override;
 
   // JavaScript API
@@ -760,6 +762,8 @@ class Http2Session : public AsyncWrap, public StreamListener {
     tracker->TrackFieldWithSize("pending_rst_streams",
                                 pending_rst_streams_.size() * sizeof(int32_t));
   }
+
+  ADD_MEMORY_INFO_NAME(Http2Session)
 
   std::string diagnostic_name() const override;
 
@@ -1081,6 +1085,8 @@ class Http2Session::Http2Ping : public AsyncWrap {
     tracker->TrackField("session", session_);
   }
 
+  ADD_MEMORY_INFO_NAME(Http2Ping)
+
   void Send(uint8_t* payload);
   void Done(bool ack, const uint8_t* payload = nullptr);
 
@@ -1103,6 +1109,8 @@ class Http2Session::Http2Settings : public AsyncWrap {
     tracker->TrackThis(this);
     tracker->TrackField("session", session_);
   }
+
+  ADD_MEMORY_INFO_NAME(Http2Settings)
 
   void Send();
   void Done(bool ack);

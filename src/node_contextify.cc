@@ -591,6 +591,8 @@ class ContextifyScript : public BaseObject {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(ContextifyScript)
+
  public:
   static void Init(Environment* env, Local<Object> target) {
     HandleScope scope(env->isolate());

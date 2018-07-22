@@ -99,6 +99,8 @@ class FSReqWrap : public FSReqBase {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(FSReqWrap)
+
  private:
   DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
 };
@@ -162,6 +164,8 @@ class FSReqPromise : public FSReqBase {
     tracker->TrackField("stats_field_array", stats_field_array_);
   }
 
+  ADD_MEMORY_INFO_NAME(FSReqPromise)
+
  private:
   bool finished_ = false;
   AliasedBuffer<NativeT, V8T> stats_field_array_;
@@ -200,6 +204,8 @@ class FileHandleReadWrap : public ReqWrap<uv_fs_t> {
     tracker->TrackThis(this);
     tracker->TrackField("buffer", buffer_);
   }
+
+  ADD_MEMORY_INFO_NAME(FileHandleReadWrap)
 
  private:
   FileHandle* file_handle_;
@@ -252,6 +258,8 @@ class FileHandle : public AsyncWrap, public StreamBase {
     tracker->TrackField("current_read", current_read_);
   }
 
+  ADD_MEMORY_INFO_NAME(FileHandle)
+
  private:
   // Synchronous close that emits a warning
   void Close();
@@ -283,6 +291,8 @@ class FileHandle : public AsyncWrap, public StreamBase {
       tracker->TrackField("promise", promise_);
       tracker->TrackField("ref", ref_);
     }
+
+    ADD_MEMORY_INFO_NAME(CloseReq)
 
     void Resolve();
 

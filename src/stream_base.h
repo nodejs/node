@@ -350,6 +350,8 @@ class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(SimpleShutdownWrap)
 };
 
 template <typename OtherBase>
@@ -364,6 +366,9 @@ class SimpleWriteWrap : public WriteWrap, public OtherBase {
     tracker->TrackThis(this);
     tracker->TrackFieldWithSize("storage", StorageSize());
   }
+
+
+  ADD_MEMORY_INFO_NAME(SimpleWriteWrap)
 };
 
 }  // namespace node

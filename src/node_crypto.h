@@ -109,6 +109,8 @@ class SecureContext : public BaseObject {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(SecureContext)
+
   SSLCtxPointer ctx_;
   X509Pointer cert_;
   X509Pointer issuer_;
@@ -345,6 +347,8 @@ class CipherBase : public BaseObject {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(CipherBase)
+
  protected:
   enum CipherKind {
     kCipher,
@@ -419,6 +423,8 @@ class Hmac : public BaseObject {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(Hmac)
+
  protected:
   void HmacInit(const char* hash_type, const char* key, int key_len);
   bool HmacUpdate(const char* data, int len);
@@ -445,6 +451,8 @@ class Hash : public BaseObject {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(Hash)
 
   bool HashInit(const char* hash_type);
   bool HashUpdate(const char* data, int len);
@@ -488,6 +496,8 @@ class SignBase : public BaseObject {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(SignBase)
 
  protected:
   void CheckThrow(Error error);
@@ -605,6 +615,8 @@ class DiffieHellman : public BaseObject {
     tracker->TrackThis(this);
   }
 
+  ADD_MEMORY_INFO_NAME(DiffieHellman)
+
  private:
   static void GetField(const v8::FunctionCallbackInfo<v8::Value>& args,
                        const BIGNUM* (*get_field)(const DH*),
@@ -633,6 +645,8 @@ class ECDH : public BaseObject {
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
   }
+
+  ADD_MEMORY_INFO_NAME(ECDH)
 
  protected:
   ECDH(Environment* env, v8::Local<v8::Object> wrap, ECKeyPointer&& key)
