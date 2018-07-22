@@ -234,71 +234,6 @@ exception due to possible ambiguity with `throw undefined;`.
 Corresponds to the `[[EvaluationError]]` field of [Source Text Module Record][]s
 in the ECMAScript specification.
 
-### module.linkingStatus
-
-* {string}
-
-The current linking status of `module`. It will be one of the following values:
-
-- `'unlinked'`: `module.link()` has not yet been called.
-- `'linking'`: `module.link()` has been called, but not all Promises returned by
-  the linker function have been resolved yet.
-- `'linked'`: `module.link()` has been called, and all its dependencies have
-  been successfully linked.
-- `'errored'`: `module.link()` has been called, but at least one of its
-  dependencies failed to link, either because the callback returned a `Promise`
-  that is rejected, or because the `Module` the callback returned is invalid.
-
-### module.namespace
-
-* {Object}
-
-The namespace object of the module. This is only available after instantiation
-(`module.instantiate()`) has completed.
-
-Corresponds to the [GetModuleNamespace][] abstract operation in the ECMAScript
-specification.
-
-### module.status
-
-* {string}
-
-The current status of the module. Will be one of:
-
-- `'uninstantiated'`: The module is not instantiated. It may because of any of
-  the following reasons:
-
-  - The module was just created.
-  - `module.instantiate()` has been called on this module, but it failed for
-    some reason.
-
-  This status does not convey any information regarding if `module.link()` has
-  been called. See `module.linkingStatus` for that.
-
-- `'instantiating'`: The module is currently being instantiated through a
-  `module.instantiate()` call on itself or a parent module.
-
-- `'instantiated'`: The module has been instantiated successfully, but
-  `module.evaluate()` has not yet been called.
-
-- `'evaluating'`: The module is being evaluated through a `module.evaluate()` on
-  itself or a parent module.
-
-- `'evaluated'`: The module has been successfully evaluated.
-
-- `'errored'`: The module has been evaluated, but an exception was thrown.
-
-Other than `'errored'`, this status string corresponds to the specification's
-[Source Text Module Record][]'s `[[Status]]` field. `'errored'` corresponds to
-`'evaluated'` in the specification, but with `[[EvaluationError]]` set to a
-value that is not `undefined`.
-
-### module.url
-
-* {string}
-
-The URL of the current module, as set in the constructor.
-
 ### module.evaluate([options])
 
 * `options` {Object}
@@ -394,6 +329,71 @@ instantiation is one that returns the modules linked during linking. Since at
 that point all modules would have been fully linked already, the
 [HostResolveImportedModule][] implementation is fully synchronous per
 specification.
+
+### module.linkingStatus
+
+* {string}
+
+The current linking status of `module`. It will be one of the following values:
+
+- `'unlinked'`: `module.link()` has not yet been called.
+- `'linking'`: `module.link()` has been called, but not all Promises returned by
+  the linker function have been resolved yet.
+- `'linked'`: `module.link()` has been called, and all its dependencies have
+  been successfully linked.
+- `'errored'`: `module.link()` has been called, but at least one of its
+  dependencies failed to link, either because the callback returned a `Promise`
+  that is rejected, or because the `Module` the callback returned is invalid.
+
+### module.namespace
+
+* {Object}
+
+The namespace object of the module. This is only available after instantiation
+(`module.instantiate()`) has completed.
+
+Corresponds to the [GetModuleNamespace][] abstract operation in the ECMAScript
+specification.
+
+### module.status
+
+* {string}
+
+The current status of the module. Will be one of:
+
+- `'uninstantiated'`: The module is not instantiated. It may because of any of
+  the following reasons:
+
+  - The module was just created.
+  - `module.instantiate()` has been called on this module, but it failed for
+    some reason.
+
+  This status does not convey any information regarding if `module.link()` has
+  been called. See `module.linkingStatus` for that.
+
+- `'instantiating'`: The module is currently being instantiated through a
+  `module.instantiate()` call on itself or a parent module.
+
+- `'instantiated'`: The module has been instantiated successfully, but
+  `module.evaluate()` has not yet been called.
+
+- `'evaluating'`: The module is being evaluated through a `module.evaluate()` on
+  itself or a parent module.
+
+- `'evaluated'`: The module has been successfully evaluated.
+
+- `'errored'`: The module has been evaluated, but an exception was thrown.
+
+Other than `'errored'`, this status string corresponds to the specification's
+[Source Text Module Record][]'s `[[Status]]` field. `'errored'` corresponds to
+`'evaluated'` in the specification, but with `[[EvaluationError]]` set to a
+value that is not `undefined`.
+
+### module.url
+
+* {string}
+
+The URL of the current module, as set in the constructor.
 
 ## Class: vm.Script
 <!-- YAML
