@@ -1669,6 +1669,13 @@ category.
 The `trace_events` module could not be loaded because Node.js was compiled with
 the `--without-v8-platform` flag.
 
+<a id="ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER"></a>
+### ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER
+
+A SharedArrayBuffer object was transfered but we do not see a lifetime partner 
+object and it was not us who externalized it - we are not sure how to serialize
+it because it's unclear how the memory is actually owned.
+
 <a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
 ### ERR_TRANSFORM_ALREADY_TRANSFORMING
 
