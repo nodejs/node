@@ -18,12 +18,6 @@ function getFilename() {
   return filename;
 }
 
-function linkToFile(filename) {
-  const link = path.join(tmpdir.path, `symbolic-link-${testIndex}`);
-  fs.symlinkSync(filename, link);
-  return link;
-}
-
 function verifyStats(bigintStats, numStats) {
   for (const key of Object.keys(numStats)) {
     const val = numStats[key];
@@ -87,7 +81,8 @@ function verifyStats(bigintStats, numStats) {
 
 if (!common.isWindows) {
   const filename = getFilename();
-  const link = linkToFile(filename);
+  const link = `${filename}-link`;
+  fs.symlinkSync(filename, link);
   const bigintStats = fs.lstatSync(link, { bigint: true });
   const numStats = fs.lstatSync(link);
   verifyStats(bigintStats, numStats);
@@ -113,7 +108,8 @@ if (!common.isWindows) {
 
 if (!common.isWindows) {
   const filename = getFilename();
-  const link = linkToFile(filename);
+  const link = `${filename}-link`;
+  fs.symlinkSync(filename, link);
   fs.lstat(link, { bigint: true }, (err, bigintStats) => {
     fs.lstat(link, (err, numStats) => {
       verifyStats(bigintStats, numStats);
@@ -142,7 +138,8 @@ if (!common.isWindows) {
 if (!common.isWindows) {
   (async function() {
     const filename = getFilename();
-    const link = linkToFile(filename);
+    const link = `${filename}-link`;
+    fs.symlinkSync(filename, link);
     const bigintStats = await promiseFs.lstat(link, { bigint: true });
     const numStats = await promiseFs.lstat(link);
     verifyStats(bigintStats, numStats);
