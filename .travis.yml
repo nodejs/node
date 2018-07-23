@@ -1,23 +1,37 @@
-language: cpp
-compiler:
-  - clang
-sudo: false
-cache: ccache
+group: travis_latest
+dist: xenial  # required for Python 3.7
+sudo: true    # required for Python 3.7
+language: python
+cache: pip
+python:
+  - 2.7
+  - 3.7
 matrix:
-  include:
-    - os: linux
-      node_js: "latest"
-      install:
-        - NODE=$(which node) make lint-md-build
-      script:
-        - NODE=$(which node) make lint-ci
-    - os: linux
-      install:
-        - ./configure
-        - make -j2 V=
-      script:
-        - make -j2 test-ci
-before_install:
-  - export CXX="ccache clang++ -Qunused-arguments"
-  - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
-  - export JOBS=2
+  allow_failures:
+    - python: 2.7
+env:
+  - REPO=nodejs/node
+  - REPO=nodejs/node-gyp
+  - REPO=nodejs/node-auto-test
+  - REPO=nodejs/node-chakracore
+  - REPO=nodejs/node-v8
+  - REPO=nodejs/build
+  - REPO=nodejs/ffi
+  - REPO=nodejs/nan
+  - REPO=nodejs/testing
+install:
+  - pip install flake8
+before_script:
+  - URL=https://github.com/${REPO}
+  - echo ; echo -n "flake8 testing of ${URL} on " ; python -V
+  - git clone --depth=50 ${URL} ~/${REPO}  # --branch=master
+  - cd ~/${REPO}
+script:
+  - echo stop the build if there are Python syntax errors or undefined names
+  - echo ; echo -n "flake8 testing of ${URL} on " ; python -V
+  - time flake8 . --count --select=E901,E999,F821,F822,F823 --show-source --statistics
+  - echo exit-zero treats all errors as warnings.  The GitHub editor is 127 chars wide
+  - time flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+notifications:
+  on_success: change
+  on_failure: change  # `always` will be the setting once code changes slow down
