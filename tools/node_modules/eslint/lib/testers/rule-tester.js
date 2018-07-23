@@ -396,9 +396,7 @@ class RuleTester {
          * @private
          */
         function assertASTDidntChange(beforeAST, afterAST) {
-
-            // Feature detect the Node.js implementation and use that if available.
-            if ((util.isDeepStrictEqual && !util.isDeepStrictEqual(beforeAST, afterAST)) || !lodash.isEqual(beforeAST, afterAST)) {
+            if (!lodash.isEqual(beforeAST, afterAST)) {
                 assert.fail(null, null, "Rule should not modify AST.");
             }
         }

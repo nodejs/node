@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to flag variable leak in CatchClauses in IE 8 and earlier
  * @author Ian Christian Myers
+ * @deprecated in ESLint v5.1.0
  */
 
 "use strict";
@@ -21,8 +22,10 @@ module.exports = {
             description: "disallow `catch` clause parameters from shadowing variables in the outer scope",
             category: "Variables",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-catch-shadow"
+            url: "https://eslint.org/docs/rules/no-catch-shadow",
+            replacedBy: ["no-shadow"]
         },
+        deprecated: true,
 
         schema: [],
 

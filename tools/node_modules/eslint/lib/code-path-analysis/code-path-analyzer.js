@@ -60,7 +60,7 @@ function isForkingByTrueOrFalse(node) {
             return parent.test === node;
 
         case "LogicalExpression":
-            return true;
+            return isHandledLogicalOperator(parent.operator);
 
         default:
             return false;

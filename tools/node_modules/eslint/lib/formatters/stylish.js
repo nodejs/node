@@ -89,7 +89,7 @@ module.exports = function(results) {
 
         if (fixableErrorCount > 0 || fixableWarningCount > 0) {
             output += chalk[summaryColor].bold([
-                "  ", fixableErrorCount, pluralize(" error", fixableErrorCount), ", ",
+                "  ", fixableErrorCount, pluralize(" error", fixableErrorCount), " and ",
                 fixableWarningCount, pluralize(" warning", fixableWarningCount),
                 " potentially fixable with the `--fix` option.\n"
             ].join(""));

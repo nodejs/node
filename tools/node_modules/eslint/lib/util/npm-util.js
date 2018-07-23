@@ -12,7 +12,7 @@
 const fs = require("fs"),
     spawn = require("cross-spawn"),
     path = require("path"),
-    log = require("../logging");
+    log = require("./logging");
 
 //------------------------------------------------------------------------------
 // Helpers

@@ -33,9 +33,13 @@ interface Ignore {
   ignores(pathname: string): boolean
 }
 
+interface Options {
+  ignorecase?: boolean
+}
+
 /**
  * Creates new ignore manager.
  */
-declare function ignore(): Ignore
+declare function ignore(options?: Options): Ignore
 
 export default ignore
