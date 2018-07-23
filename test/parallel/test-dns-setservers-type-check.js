@@ -51,7 +51,6 @@ const promiseResolver = new dns.promises.Resolver();
     [null],
     [undefined],
     [Number(addresses.DNS4_SERVER)],
-    [addresses.DNS4_SERVER],
     [
       {
         address: addresses.DNS4_SERVER
