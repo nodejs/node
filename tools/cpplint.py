@@ -53,6 +53,11 @@ import string
 import sys
 import unicodedata
 
+try:
+  xrange
+except NameError:
+  xrange = range
+
 
 logger = logging.getLogger('testrunner')
 
