@@ -61,7 +61,7 @@ const promiseResolver = new dns.promises.Resolver();
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-      message: 'The "servers[0]" argument must be of type string.' +
+      message: 'The "servers[0]" argument must be of type string. ' +
                `Received type ${typeof val[0]}`
     };
     assert.throws(
