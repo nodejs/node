@@ -20,7 +20,7 @@ const util = require("util"),
     ModuleResolver = require("../util/module-resolver"),
     npmUtil = require("../util/npm-util"),
     recConfig = require("../../conf/eslint-recommended"),
-    log = require("../logging");
+    log = require("../util/logging");
 
 const debug = require("debug")("eslint:config-initializer");
 

@@ -6,21 +6,15 @@
 
 "use strict";
 
-const matchAll = require("string.prototype.matchall");
+const { CALL, ReferenceTracker } = require("eslint-utils");
+const {
+    isCommaToken,
+    isOpeningParenToken,
+    isClosingParenToken,
+    isParenthesised
+} = require("../ast-utils");
 
-/**
- * Helper that checks if the node is an Object.assign call
- * @param {ASTNode} node - The node that the rule warns on
- * @returns {boolean} - Returns true if the node is an Object.assign call
- */
-function isObjectAssign(node) {
-    return (
-        node.callee &&
-        node.callee.type === "MemberExpression" &&
-        node.callee.object.name === "Object" &&
-        node.callee.property.name === "assign"
-    );
-}
+const ANY_SPACE = /\s/;
 
 /**
  * Helper that checks if the Object.assign call has array spread
@@ -35,14 +29,11 @@ function hasArraySpread(node) {
  * Helper that checks if the node needs parentheses to be valid JS.
  * The default is to wrap the node in parentheses to avoid parsing errors.
  * @param {ASTNode} node - The node that the rule warns on
+ * @param {Object} sourceCode - in context sourcecode object
  * @returns {boolean} - Returns true if the node needs parentheses
  */
-function needsParens(node) {
+function needsParens(node, sourceCode) {
     const parent = node.parent;
-
-    if (!parent || !node.type) {
-        return true;
-    }
 
     switch (parent.type) {
         case "VariableDeclarator":
@@ -51,101 +42,102 @@ function needsParens(node) {
         case "CallExpression":
         case "Property":
             return false;
+        case "AssignmentExpression":
+            return parent.left === node && !isParenthesised(sourceCode, node);
         default:
-            return true;
+            return !isParenthesised(sourceCode, node);
     }
 }
 
 /**
  * Determines if an argument needs parentheses. The default is to not add parens.
  * @param {ASTNode} node - The node to be checked.
+ * @param {Object} sourceCode - in context sourcecode object
  * @returns {boolean} True if the node needs parentheses
  */
-function argNeedsParens(node) {
-    if (!node.type) {
-        return false;
-    }
-
+function argNeedsParens(node, sourceCode) {
     switch (node.type) {
         case "AssignmentExpression":
         case "ArrowFunctionExpression":
         case "ConditionalExpression":
-            return true;
+            return !isParenthesised(sourceCode, node);
         default:
             return false;
     }
 }
 
 /**
- * Helper that adds a comma after the last non-whitespace character that is not a part of a comment.
- * @param {string} formattedArg - String of argument text
- * @param {array} comments - comments inside the argument
- * @returns {string} - argument with comma at the end of it
+ * Get the parenthesis tokens of a given ObjectExpression node.
+ * This incldues the braces of the object literal and enclosing parentheses.
+ * @param {ASTNode} node The node to get.
+ * @param {Token} leftArgumentListParen The opening paren token of the argument list.
+ * @param {SourceCode} sourceCode The source code object to get tokens.
+ * @returns {Token[]} The parenthesis tokens of the node. This is sorted by the location.
  */
-function addComma(formattedArg, comments) {
-    const nonWhitespaceCharacterRegex = /[^\s\\]/g;
-    const nonWhitespaceCharacters = Array.from(matchAll(formattedArg, nonWhitespaceCharacterRegex));
-    const commentRanges = comments.map(comment => comment.range);
-    const validWhitespaceMatches = [];
+function getParenTokens(node, leftArgumentListParen, sourceCode) {
+    const parens = [sourceCode.getFirstToken(node), sourceCode.getLastToken(node)];
+    let leftNext = sourceCode.getTokenBefore(node);
+    let rightNext = sourceCode.getTokenAfter(node);
 
-    // Create a list of indexes where non-whitespace characters exist.
-    nonWhitespaceCharacters.forEach(match => {
-        const insertIndex = match.index + match[0].length;
+    // Note: don't include the parens of the argument list.
+    while (
+        leftNext &&
+        rightNext &&
+        leftNext.range[0] > leftArgumentListParen.range[0] &&
+        isOpeningParenToken(leftNext) &&
+        isClosingParenToken(rightNext)
+    ) {
+        parens.push(leftNext, rightNext);
+        leftNext = sourceCode.getTokenBefore(leftNext);
+        rightNext = sourceCode.getTokenAfter(rightNext);
+    }
 
-        if (!commentRanges.length) {
-            validWhitespaceMatches.push(insertIndex);
-        }
-
-        // If comment ranges are found make sure that the non whitespace characters are not part of the comment.
-        commentRanges.forEach(arr => {
-            const commentStart = arr[0];
-            const commentEnd = arr[1];
-
-            if (insertIndex < commentStart || insertIndex > commentEnd) {
-                validWhitespaceMatches.push(insertIndex);
-            }
-        });
-    });
-    const insertPos = Math.max(...validWhitespaceMatches);
-    const regex = new RegExp(`^((?:.|[^/s/S]){${insertPos}}) *`);
-
-    return formattedArg.replace(regex, "$1, ");
+    return parens.sort((a, b) => a.range[0] - b.range[0]);
 }
 
 /**
- * Helper formats an argument by either removing curlies or adding a spread operator
- * @param {ASTNode|null} arg - ast node representing argument to format
- * @param {boolean} isLast - true if on the last element of the array
- * @param {Object} sourceCode - in context sourcecode object
- * @param {array} comments - comments inside checked node
- * @returns {string} - formatted argument
+ * Get the range of a given token and around whitespaces.
+ * @param {Token} token The token to get range.
+ * @param {SourceCode} sourceCode The source code object to get tokens.
+ * @returns {number} The end of the range of the token and around whitespaces.
  */
-function formatArg(arg, isLast, sourceCode, comments) {
-    const text = sourceCode.getText(arg);
-    const parens = argNeedsParens(arg);
-    const spread = arg.type === "SpreadElement" ? "" : "...";
+function getStartWithSpaces(token, sourceCode) {
+    const text = sourceCode.text;
+    let start = token.range[0];
 
-    if (arg.type === "ObjectExpression" && arg.properties.length === 0) {
-        return "";
+    // If the previous token is a line comment then skip this step to avoid commenting this token out.
+    {
+        const prevToken = sourceCode.getTokenBefore(token, { includeComments: true });
+
+        if (prevToken && prevToken.type === "Line") {
+            return start;
+        }
     }
 
-    if (arg.type === "ObjectExpression") {
-
-        /**
-         * This regex finds the opening curly brace and any following spaces and replaces it with whatever
-         * exists before the curly brace. It also does the same for the closing curly brace. This is to avoid
-         * having multiple spaces around the object expression depending on how the object properties are spaced.
-         */
-        const formattedObjectLiteral = text.replace(/^(.*){ */, "$1").replace(/ *}([^}]*)$/, "$1");
-
-        return isLast ? formattedObjectLiteral : addComma(formattedObjectLiteral, comments);
+    // Detect spaces before the token.
+    while (ANY_SPACE.test(text[start - 1] || "")) {
+        start -= 1;
     }
 
-    if (isLast) {
-        return parens ? `${spread}(${text})` : `${spread}${text}`;
+    return start;
+}
+
+/**
+ * Get the range of a given token and around whitespaces.
+ * @param {Token} token The token to get range.
+ * @param {SourceCode} sourceCode The source code object to get tokens.
+ * @returns {number} The start of the range of the token and around whitespaces.
+ */
+function getEndWithSpaces(token, sourceCode) {
+    const text = sourceCode.text;
+    let end = token.range[1];
+
+    // Detect spaces after the token.
+    while (ANY_SPACE.test(text[end] || "")) {
+        end += 1;
     }
 
-    return parens ? addComma(`${spread}(${text})`, comments) : `${spread}${addComma(text, comments)}`;
+    return end;
 }
 
 /**
@@ -154,76 +146,63 @@ function formatArg(arg, isLast, sourceCode, comments) {
  * @param {string} sourceCode - sourceCode of the Object.assign call
  * @returns {Function} autofixer - replaces the Object.assign with a spread object.
  */
-function autofixSpread(node, sourceCode) {
-    return fixer => {
-        const args = node.arguments;
-        const firstArg = args[0];
-        const lastArg = args[args.length - 1];
-        const parens = needsParens(node);
-        const comments = sourceCode.getCommentsInside(node);
-        const replaceObjectAssignStart = fixer.replaceTextRange(
-            [node.range[0], firstArg.range[0]],
-            `${parens ? "({" : "{"}`
-        );
+function defineFixer(node, sourceCode) {
+    return function *(fixer) {
+        const leftParen = sourceCode.getTokenAfter(node.callee, isOpeningParenToken);
+        const rightParen = sourceCode.getLastToken(node);
 
-        const handleArgs = args
-            .map((arg, i, arr) => formatArg(arg, i + 1 >= arr.length, sourceCode, comments))
-            .filter(arg => arg !== "," && arg !== "");
+        // Remove the callee `Object.assign`
+        yield fixer.remove(node.callee);
 
-        const insertBody = fixer.replaceTextRange([firstArg.range[0], lastArg.range[1]], handleArgs.join(""));
-        const replaceObjectAssignEnd = fixer.replaceTextRange([lastArg.range[1], node.range[1]], `${parens ? "})" : "}"}`);
+        // Replace the parens of argument list to braces.
+        if (needsParens(node, sourceCode)) {
+            yield fixer.replaceText(leftParen, "({");
+            yield fixer.replaceText(rightParen, "})");
+        } else {
+            yield fixer.replaceText(leftParen, "{");
+            yield fixer.replaceText(rightParen, "}");
+        }
 
-        return [
-            replaceObjectAssignStart,
-            insertBody,
-            replaceObjectAssignEnd
-        ];
+        // Process arguments.
+        for (const argNode of node.arguments) {
+            const innerParens = getParenTokens(argNode, leftParen, sourceCode);
+            const left = innerParens.shift();
+            const right = innerParens.pop();
+
+            if (argNode.type === "ObjectExpression") {
+                const maybeTrailingComma = sourceCode.getLastToken(argNode, 1);
+                const maybeArgumentComma = sourceCode.getTokenAfter(right);
+
+                /*
+                 * Make bare this object literal.
+                 * And remove spaces inside of the braces for better formatting.
+                 */
+                for (const innerParen of innerParens) {
+                    yield fixer.remove(innerParen);
+                }
+                yield fixer.removeRange([left.range[0], getEndWithSpaces(left, sourceCode)]);
+                yield fixer.removeRange([getStartWithSpaces(right, sourceCode), right.range[1]]);
+
+                // Remove the comma of this argument if it's duplication.
+                if (
+                    (argNode.properties.length === 0 || isCommaToken(maybeTrailingComma)) &&
+                    isCommaToken(maybeArgumentComma)
+                ) {
+                    yield fixer.remove(maybeArgumentComma);
+                }
+            } else {
+
+                // Make spread.
+                if (argNeedsParens(argNode, sourceCode)) {
+                    yield fixer.insertTextBefore(left, "...(");
+                    yield fixer.insertTextAfter(right, ")");
+                } else {
+                    yield fixer.insertTextBefore(left, "...");
+                }
+            }
+        }
     };
 }
-
-/**
- * Autofixes the Object.assign call with a single object literal as an argument
- * @param {ASTNode|null} node - The node that the rule warns on, i.e. the Object.assign call
- * @param {string} sourceCode - sourceCode of the Object.assign call
- * @returns {Function} autofixer - replaces the Object.assign with a object literal.
- */
-function autofixObjectLiteral(node, sourceCode) {
-    return fixer => {
-        const argument = node.arguments[0];
-        const parens = needsParens(node);
-
-        return fixer.replaceText(node, `${parens ? "(" : ""}${sourceCode.text.slice(argument.range[0], argument.range[1])}${parens ? ")" : ""}`);
-    };
-}
-
-/**
- * Check if the node has modified a given variable
- * @param {ASTNode|null} node - The node that the rule warns on, i.e. the Object.assign call
- * @returns {boolean} - true if node is an assignment, variable declaration, or import statement
- */
-function isModifier(node) {
-    if (!node.type) {
-        return false;
-    }
-
-    return node.type === "AssignmentExpression" ||
-        node.type === "VariableDeclarator" ||
-        node.type === "ImportDeclaration";
-}
-
-/**
- * Check if the node has modified a given variable
- * @param {array} references - list of reference nodes
- * @returns {boolean} - true if node is has been overwritten by an assignment or import
- */
-function modifyingObjectReference(references) {
-    return references.some(ref => (
-        ref.identifier &&
-        ref.identifier.parent &&
-        isModifier(ref.identifier.parent)
-    ));
-}
-
 
 module.exports = {
     meta: {
@@ -242,61 +221,33 @@ module.exports = {
         }
     },
 
-    create: function rule(context) {
+    create(context) {
         const sourceCode = context.getSourceCode();
-        const scope = context.getScope();
-        const objectVariable = scope.variables.filter(variable => variable.name === "Object");
-        const moduleReferences = scope.childScopes.filter(childScope => {
-            const varNamedObject = childScope.variables.filter(variable => variable.name === "Object");
-
-            return childScope.type === "module" && varNamedObject.length;
-        });
-        const references = [].concat(...objectVariable.map(variable => variable.references || []));
 
         return {
-            CallExpression(node) {
+            Program() {
+                const scope = context.getScope();
+                const tracker = new ReferenceTracker(scope);
+                const trackMap = {
+                    Object: {
+                        assign: { [CALL]: true }
+                    }
+                };
 
-                /*
-                 * If current file is either importing Object or redefining it,
-                 * we skip warning on this rule.
-                 */
-                if (moduleReferences.length || (references.length && modifyingObjectReference(references))) {
-                    return;
-                }
+                // Iterate all calls of `Object.assign` (only of the global variable `Object`).
+                for (const { node } of tracker.iterateGlobalReferences(trackMap)) {
+                    if (
+                        node.arguments.length >= 1 &&
+                        node.arguments[0].type === "ObjectExpression" &&
+                        !hasArraySpread(node)
+                    ) {
+                        const messageId = node.arguments.length === 1
+                            ? "useLiteralMessage"
+                            : "useSpreadMessage";
+                        const fix = defineFixer(node, sourceCode);
 
-                /*
-                 * The condition below is cases where Object.assign has a single argument and
-                 * that argument is an object literal. e.g. `Object.assign({ foo: bar })`.
-                 * For now, we will warn on this case and autofix it.
-                 */
-                if (
-                    node.arguments.length === 1 &&
-                    node.arguments[0].type === "ObjectExpression" &&
-                    isObjectAssign(node)
-                ) {
-                    context.report({
-                        node,
-                        messageId: "useLiteralMessage",
-                        fix: autofixObjectLiteral(node, sourceCode)
-                    });
-                }
-
-                /*
-                 * The condition below warns on `Object.assign` calls that that have
-                 * an object literal as the first argument and have a second argument
-                 * that can be spread. e.g `Object.assign({ foo: bar }, baz)`
-                 */
-                if (
-                    node.arguments.length > 1 &&
-                    node.arguments[0].type === "ObjectExpression" &&
-                    isObjectAssign(node) &&
-                    !hasArraySpread(node)
-                ) {
-                    context.report({
-                        node,
-                        messageId: "useSpreadMessage",
-                        fix: autofixSpread(node, sourceCode)
-                    });
+                        context.report({ node, messageId, fix });
+                    }
                 }
             }
         };

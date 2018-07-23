@@ -125,7 +125,7 @@ module.exports = {
             },
 
             Property(node) {
-                if (node.parent.type === "ObjectPattern") {
+                if (node.parent.type === "ObjectPattern" || node.parent.properties.some(n => n.type === "SpreadElement")) {
                     return;
                 }
 
