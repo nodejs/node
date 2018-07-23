@@ -170,7 +170,7 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
                     const elements = leftNode.elements;
 
                     hasOuterVariables = elements
-                        .map(element => element.name)
+                        .map(element => element && element.name)
                         .some(name => isOuterVariableInDestructing(name, variable.scope));
                 }
                 if (hasOuterVariables) {

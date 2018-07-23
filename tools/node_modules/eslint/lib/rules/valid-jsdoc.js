@@ -408,7 +408,7 @@ module.exports = {
                 if (!isOverride && !hasReturns && !hasConstructor && !isInterface &&
                     node.parent.kind !== "get" && node.parent.kind !== "constructor" &&
                     node.parent.kind !== "set" && !isTypeClass(node)) {
-                    if (requireReturn || functionData.returnPresent) {
+                    if (requireReturn || (functionData.returnPresent && !node.async)) {
                         context.report({
                             node: jsdocNode,
                             message: "Missing JSDoc @{{returns}} for function.",
