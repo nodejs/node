@@ -612,11 +612,6 @@ apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_as
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
 	$(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the global Node.js binary.
-# If it's a source tarball, assets are already in doc/api/assets,
-# no need to install anything, we have already copied the docs over
-	if [ ! -d doc/api/assets ]; then \
-		$(MAKE) tools/doc/node_modules/js-yaml/package.json; \
-	fi;
 	@$(MAKE) out/doc/api/all.html out/doc/api/all.json
 
 .PHONY: doc
@@ -654,9 +649,6 @@ available-node = \
 
 run-npm-install = $(PWD)/$(NPM) install --production --no-package-lock
 run-npm-ci = $(PWD)/$(NPM) ci
-
-tools/doc/node_modules/js-yaml/package.json:
-	cd tools/doc && $(call available-node,$(run-npm-install))
 
 gen-json = tools/doc/generate.js --format=json $< > $@
 gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html \
