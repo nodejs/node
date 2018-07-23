@@ -37,7 +37,7 @@ function jsonAPI({ filename }) {
     const metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
     const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/s;
 
-    // extract definitions
+    // Extract definitions.
     const definitions = select(tree, 'definition');
 
     // Determine the start, stop, and depth of each section.
@@ -82,7 +82,7 @@ function jsonAPI({ filename }) {
       // Extract (and remove) metadata that is not directly inferable
       // from the markdown itself.
       nodes.forEach((node, i) => {
-        // Input: <!-- name=module -->; output: {name: module}
+        // Input: <!-- name=module -->; output: {name: module}.
         if (node.type === 'html') {
           node.value = node.value.replace(metaExpr, (_0, key, value) => {
             current[key.trim()] = value.trim();
@@ -100,7 +100,7 @@ function jsonAPI({ filename }) {
           delete nodes[i];
         }
 
-        // Stablility marker: > Stability: ...
+        // Stability marker: > Stability: ...
         if (
           node.type === 'blockquote' && node.children.length === 1 &&
           node.children[0].type === 'paragraph' &&
@@ -209,8 +209,7 @@ function jsonAPI({ filename }) {
           .trim().replace(/\s+/g, '_');
       }
 
-      // Pluralize type to determine which 'bucket' to put this section
-      // in.
+      // Pluralize type to determine which 'bucket' to put this section in.
       let plur;
       if (current.type.slice(-1) === 's') {
         plur = `${current.type}es`;
@@ -272,8 +271,8 @@ function jsonAPI({ filename }) {
         });
       }
 
-      // Add this section to the parent.  Sometimes we have two headings with a
-      // single blob of description.  If the preceding entry at this level
+      // Add this section to the parent. Sometimes we have two headings with a
+      // single blob of description. If the preceding entry at this level
       // shares a name and is lacking a description, copy it backwards.
       if (!parent[plur]) parent[plur] = [];
       const prev = parent[plur].slice(-1)[0];
@@ -328,7 +327,7 @@ function parseSignature(text, sig) {
       sigParam = sigParam.substr(0, eq);
     }
 
-    // At this point, the name should match.  If it doesn't find one that does.
+    // At this point, the name should match. If it doesn't find one that does.
     // Example: shared signatures for:
     //   ### new Console(stdout[, stderr][, ignoreErrors])
     //   ### new Console(options)
@@ -429,9 +428,9 @@ function parseListItem(item, file) {
   return current;
 }
 
-// This section parse out the contents of an H# tag.
+// This section parses out the contents of an H# tag.
 
-// To reduse escape slashes in RegExp string components.
+// To reduce escape slashes in RegExp string components.
 const r = String.raw;
 
 const eventPrefix = '^Event: +';
