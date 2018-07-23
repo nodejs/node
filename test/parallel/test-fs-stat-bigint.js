@@ -10,13 +10,18 @@ const { isDate } = require('util').types;
 
 tmpdir.refresh();
 
-const fn = path.join(tmpdir.path, 'test-file');
-fs.writeFileSync(fn, 'test');
+let testIndex = 0;
 
-let link;
-if (!common.isWindows) {
-  link = path.join(tmpdir.path, 'symbolic-link');
-  fs.symlinkSync(fn, link);
+function getFilename() {
+  const filename = path.join(tmpdir.path, `test-file-${++testIndex}`);
+  fs.writeFileSync(filename, 'test');
+  return filename;
+}
+
+function linkToFile(filename) {
+  const link = path.join(tmpdir.path, `symbolic-link-${testIndex}`);
+  fs.symlinkSync(filename, link);
+  return link;
 }
 
 function verifyStats(bigintStats, numStats) {
@@ -74,19 +79,23 @@ function verifyStats(bigintStats, numStats) {
 }
 
 {
-  const bigintStats = fs.statSync(fn, { bigint: true });
-  const numStats = fs.statSync(fn);
+  const filename = getFilename();
+  const bigintStats = fs.statSync(filename, { bigint: true });
+  const numStats = fs.statSync(filename);
   verifyStats(bigintStats, numStats);
 }
 
 if (!common.isWindows) {
+  const filename = getFilename();
+  const link = linkToFile(filename);
   const bigintStats = fs.lstatSync(link, { bigint: true });
   const numStats = fs.lstatSync(link);
   verifyStats(bigintStats, numStats);
 }
 
 {
-  const fd = fs.openSync(fn, 'r');
+  const filename = getFilename();
+  const fd = fs.openSync(filename, 'r');
   const bigintStats = fs.fstatSync(fd, { bigint: true });
   const numStats = fs.fstatSync(fd);
   verifyStats(bigintStats, numStats);
@@ -94,14 +103,17 @@ if (!common.isWindows) {
 }
 
 {
-  fs.stat(fn, { bigint: true }, (err, bigintStats) => {
-    fs.stat(fn, (err, numStats) => {
+  const filename = getFilename();
+  fs.stat(filename, { bigint: true }, (err, bigintStats) => {
+    fs.stat(filename, (err, numStats) => {
       verifyStats(bigintStats, numStats);
     });
   });
 }
 
 if (!common.isWindows) {
+  const filename = getFilename();
+  const link = linkToFile(filename);
   fs.lstat(link, { bigint: true }, (err, bigintStats) => {
     fs.lstat(link, (err, numStats) => {
       verifyStats(bigintStats, numStats);
@@ -110,7 +122,8 @@ if (!common.isWindows) {
 }
 
 {
-  const fd = fs.openSync(fn, 'r');
+  const filename = getFilename();
+  const fd = fs.openSync(filename, 'r');
   fs.fstat(fd, { bigint: true }, (err, bigintStats) => {
     fs.fstat(fd, (err, numStats) => {
       verifyStats(bigintStats, numStats);
@@ -120,13 +133,16 @@ if (!common.isWindows) {
 }
 
 (async function() {
-  const bigintStats = await promiseFs.stat(fn, { bigint: true });
-  const numStats = await promiseFs.stat(fn);
+  const filename = getFilename();
+  const bigintStats = await promiseFs.stat(filename, { bigint: true });
+  const numStats = await promiseFs.stat(filename);
   verifyStats(bigintStats, numStats);
 })();
 
 if (!common.isWindows) {
   (async function() {
+    const filename = getFilename();
+    const link = linkToFile(filename);
     const bigintStats = await promiseFs.lstat(link, { bigint: true });
     const numStats = await promiseFs.lstat(link);
     verifyStats(bigintStats, numStats);
@@ -134,7 +150,8 @@ if (!common.isWindows) {
 }
 
 (async function() {
-  const handle = await promiseFs.open(fn, 'r');
+  const filename = getFilename();
+  const handle = await promiseFs.open(filename, 'r');
   const bigintStats = await handle.stat({ bigint: true });
   const numStats = await handle.stat();
   verifyStats(bigintStats, numStats);
