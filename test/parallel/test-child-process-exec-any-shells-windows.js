@@ -12,7 +12,7 @@ if (!common.isWindows)
 const test = (shell) => {
   cp.exec('echo foo bar', { shell: shell }, (error, stdout, stderror) => {
     assert.ok(!error && !stderror);
-    assert.ok(stdout.startsWith('foo bar'));
+    assert.ok(stdout.includes('foo') && stdout.includes('bar'));
   });
 };
 
