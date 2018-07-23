@@ -1672,9 +1672,11 @@ the `--without-v8-platform` flag.
 <a id="ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER"></a>
 ### ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER
 
-A SharedArrayBuffer object was transfered but we do not see a lifetime partner 
-object and it was not us who externalized it - we are not sure how to serialize
-it because it's unclear how the memory is actually owned.
+A `SharedArrayBuffer` whose memory is not managed by the JavaScript engine or by Node.js was 
+encountered during serialization. Such a `SharedArrayBuffer` can not be serialized.
+
+This can only happen when native addons create `SharedArrayBuffer`s in "externalized" mode, or put
+existing `SharedArrayBuffer` into externalized mode.
 
 <a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
 ### ERR_TRANSFORM_ALREADY_TRANSFORMING
