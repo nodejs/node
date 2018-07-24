@@ -4,6 +4,8 @@ compiler:
 sudo: false
 cache: ccache
 matrix:
+  allow_failures:
+    - python: 3.7
   include:
     - os: linux
       node_js: "latest"
@@ -17,7 +19,25 @@ matrix:
         - make -j2 V=
       script:
         - make -j2 test-ci
+    - os: linux
+      python: 2.7
+      install:
+        - pip install flake8
+      script:
+        - flake8 --version
+        - EXCLUDE=./deps/npm/node_modules/node-gyp,./deps/v8,./src/noperfctr_macros.py,./src/notrace_macros.py,./tools
+        - flake8 . --count --exclude=${EXCLUDE} --select=E901,E999,F821,F822,F823 --show-source --statistics
+    - os: linux
+      python: 3.7
+      dist: xenial  # required for Python 3.7
+      sudo: true    # required for Python 3.7
+      install:
+        - pip install flake8
+      script:
+        - flake8 --version
+        - flake8 . --count --select=E901,E999,F821,F822,F823 --show-source --statistics
+
 before_install:
   - export CXX="ccache clang++ -Qunused-arguments"
   - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
-  - export JOBS=2
+  - export JOBS=4
