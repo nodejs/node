@@ -2,15 +2,22 @@
 const common = require('../common.js');
 const events = require('events');
 
-const bench = common.createBenchmark(main, { n: [1e6] });
+const bench = common.createBenchmark(main, {
+  n: [5e6],
+  staleEventsCount: [0, 5],
+  listenerCount: [1, 5],
+});
 
-function main({ n }) {
+function main({ n, staleEventsCount, listenerCount }) {
   const ee = new events.EventEmitter();
   const listeners = [];
 
   var k;
-  for (k = 0; k < 10; k += 1)
+  for (k = 0; k < listenerCount; k += 1)
     listeners.push(function() {});
+
+  for (k = 0; k < staleEventsCount; k++)
+    ee.on(`dummyunused${k}`, () => {});
 
   bench.start();
   for (var i = 0; i < n; i += 1) {

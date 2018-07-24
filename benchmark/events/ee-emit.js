@@ -5,13 +5,13 @@ const EventEmitter = require('events').EventEmitter;
 const bench = common.createBenchmark(main, {
   n: [2e6],
   argc: [0, 2, 4, 10],
-  listeners: [1, 5, 10],
+  listenerCount: [1, 5, 10],
 });
 
-function main({ n, argc, listeners }) {
+function main({ n, argc, listenerCount }) {
   const ee = new EventEmitter();
 
-  for (var k = 0; k < listeners; k += 1)
+  for (var k = 0; k < listenerCount; k += 1)
     ee.on('dummy', function() {});
 
   var i;
