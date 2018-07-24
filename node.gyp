@@ -961,6 +961,10 @@
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
           },
         }],
+        # Skip cctest while building shared lib node for Windows
+        [ 'OS=="win" and node_shared=="true"', {
+          'type': 'none',
+        }],
       ],
     }
   ], # end targets
