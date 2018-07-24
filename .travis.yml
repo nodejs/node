@@ -20,6 +20,7 @@ matrix:
       script:
         - make -j2 test-ci
     - os: linux
+      language: python
       python: 2.7
       install:
         - pip install flake8
@@ -28,6 +29,7 @@ matrix:
         - EXCLUDE=./deps/npm/node_modules/node-gyp,./deps/v8,./src/noperfctr_macros.py,./src/notrace_macros.py,./tools
         - flake8 . --count --exclude=${EXCLUDE} --select=E901,E999,F821,F822,F823 --show-source --statistics
     - os: linux
+      language: python
       python: 3.7
       dist: xenial  # required for Python 3.7
       sudo: true    # required for Python 3.7
