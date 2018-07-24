@@ -4,14 +4,14 @@ root = true
 end_of_line = lf
 charset = utf-8
 trim_trailing_whitespace = true
-insert_final_newline = fase
+insert_final_newline = true
 
 [vcbuild.bat]
 end_of_line = crlf
 
 [{lib,test,tools}/**.js]
 indent_style = space
-indent_size = 2
+indent_size = 21
 
 [src/**.{h,cc}]
 indent_style = space
