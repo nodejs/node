@@ -529,6 +529,7 @@ if "%test_args%"=="" goto test-v8
 if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 if defined no_cctest echo Skipping cctest because no-cctest was specified && goto run-test-py
+if not exist %config%\cctest.exe goto run-test-py
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
 :run-test-py
