@@ -1208,6 +1208,28 @@ lint-addon-docs: test/addons/.docbuildstamp
 cpplint: lint-cpp
 	@echo "Please use lint-cpp instead of cpplint"
 
+.PHONY: lint-py-build
+# python -m pip install flake8
+# Try with '--system' is to overcome systems that blindly set '--user'
+lint-py-build:
+	@echo "Pip installing flake8 linter on $(shell $(PYTHON) --version)..."
+	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages flake8 || \
+		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages flake8
+
+ifneq ("","$(wildcard tools/pip/site-packages)")
+.PHONY: lint-py
+# Lints the Python code with flake8.
+# Flag the build if there are Python syntax errors or undefined names
+lint-py:
+	PYTHONPATH=tools/pip $(PYTHON) -m flake8 . \
+		--count --show-source --statistics --select=E901,E999,F821,F822,F823 \
+		--exclude=deps,lib,src,tools/*_macros.py,tools/gyp,tools/jinja2,tools/pip
+else
+lint-py:
+	@echo "Python linting with flake8 is not avalible"
+	@echo "Run 'make lint-py-build'"
+endif
+
 .PHONY: lint
 .PHONY: lint-ci
 ifneq ("","$(wildcard tools/node_modules/eslint/)")
@@ -1221,7 +1243,7 @@ lint: ## Run JS, C++, MD and doc linters.
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
 
 # Related CI job: node-test-linter
-lint-ci: lint-js-ci lint-cpp lint-md lint-addon-docs
+lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" benchmark deps doc lib src test tools ) \
 		&& ! ( find . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \
