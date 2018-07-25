@@ -80,7 +80,6 @@ void V8::InitializeOncePerProcessImpl() {
   sampler::Sampler::SetUp();
   CpuFeatures::Probe(false);
   ElementsAccessor::InitializeOncePerProcess();
-  ExternalReference::SetUp();
   Bootstrapper::InitializeOncePerProcess();
 }
 

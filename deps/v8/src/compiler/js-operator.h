@@ -262,44 +262,19 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ContextAccess const&);
 
 V8_EXPORT_PRIVATE ContextAccess const& ContextAccessOf(Operator const*);
 
-// Defines the name and ScopeInfo for a new catch context. This is used as a
-// parameter by the JSCreateCatchContext operator.
-class CreateCatchContextParameters final {
- public:
-  CreateCatchContextParameters(Handle<String> catch_name,
-                               Handle<ScopeInfo> scope_info);
-
-  Handle<String> catch_name() const { return catch_name_; }
-  Handle<ScopeInfo> scope_info() const { return scope_info_; }
-
- private:
-  Handle<String> const catch_name_;
-  Handle<ScopeInfo> const scope_info_;
-};
-
-bool operator==(CreateCatchContextParameters const& lhs,
-                CreateCatchContextParameters const& rhs);
-bool operator!=(CreateCatchContextParameters const& lhs,
-                CreateCatchContextParameters const& rhs);
-
-size_t hash_value(CreateCatchContextParameters const& parameters);
-
-std::ostream& operator<<(std::ostream& os,
-                         CreateCatchContextParameters const& parameters);
-
-CreateCatchContextParameters const& CreateCatchContextParametersOf(
-    Operator const*);
-
 // Defines the slot count and ScopeType for a new function or eval context. This
 // is used as a parameter by the JSCreateFunctionContext operator.
 class CreateFunctionContextParameters final {
  public:
-  CreateFunctionContextParameters(int slot_count, ScopeType scope_type);
+  CreateFunctionContextParameters(Handle<ScopeInfo> scope_info, int slot_count,
+                                  ScopeType scope_type);
 
+  Handle<ScopeInfo> scope_info() const { return scope_info_; }
   int slot_count() const { return slot_count_; }
   ScopeType scope_type() const { return scope_type_; }
 
  private:
+  Handle<ScopeInfo> scope_info_;
   int const slot_count_;
   ScopeType const scope_type_;
 };
@@ -727,6 +702,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateIterResultObject();
   const Operator* CreateStringIterator();
   const Operator* CreateKeyValueArray();
+  const Operator* CreateObject();
   const Operator* CreatePromise();
   const Operator* CreateTypedArray();
   const Operator* CreateLiteralArray(Handle<ConstantElementsPair> constant,
@@ -832,11 +808,14 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* RejectPromise();
   const Operator* ResolvePromise();
 
-  const Operator* CreateFunctionContext(int slot_count, ScopeType scope_type);
-  const Operator* CreateCatchContext(const Handle<String>& name,
-                                     const Handle<ScopeInfo>& scope_info);
+  const Operator* CreateFunctionContext(Handle<ScopeInfo> scope_info,
+                                        int slot_count, ScopeType scope_type);
+  const Operator* CreateCatchContext(const Handle<ScopeInfo>& scope_info);
   const Operator* CreateWithContext(const Handle<ScopeInfo>& scope_info);
   const Operator* CreateBlockContext(const Handle<ScopeInfo>& scpope_info);
+
+  const Operator* ObjectIsArray();
+  const Operator* ParseInt();
 
  private:
   Zone* zone() const { return zone_; }

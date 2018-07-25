@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/assembler-inl.h"
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
@@ -23,11 +24,11 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
 #if defined(__thumb__)
   // Thumb mode builtin.
-  DCHECK_EQ(1, reinterpret_cast<intptr_t>(
-                   ExternalReference(address, masm->isolate()).address()) &
+  DCHECK_EQ(1, reinterpret_cast<uintptr_t>(
+                   ExternalReference::Create(address).address()) &
                    1);
 #endif
-  __ mov(r5, Operand(ExternalReference(address, masm->isolate())));
+  __ Move(r5, ExternalReference::Create(address));
   if (exit_frame_type == BUILTIN_EXIT) {
     __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
             RelocInfo::CODE_TARGET);
@@ -60,7 +61,7 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
   // ordinary functions).
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
-  // CEntryStub expects r0 to contain the number of arguments including the
+  // CEntry expects r0 to contain the number of arguments including the
   // receiver and the extra arguments.
   __ add(r0, r0, Operand(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
@@ -74,9 +75,10 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
   // JumpToExternalReference. We have already loaded entry point to r5
   // in Generate_adaptor.
   __ mov(r1, r5);
-  CEntryStub stub(masm->isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
-                  exit_frame_type == Builtins::BUILTIN_EXIT);
-  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+  Handle<Code> code =
+      CodeFactory::CEntry(masm->isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                          exit_frame_type == Builtins::BUILTIN_EXIT);
+  __ Jump(code, RelocInfo::CODE_TARGET);
 }
 }  // namespace
 
@@ -247,9 +249,10 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   __ Jump(lr);
 }
 
+}  // namespace
+
 // The construct stub for ES5 constructor functions and ES6 class constructors.
-void Generate_JSConstructStubGeneric(MacroAssembler* masm,
-                                     bool restrict_constructor_return) {
+void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  --      r0: number of arguments (untagged)
   //  --      r1: constructor function
@@ -377,7 +380,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // If the result is an object (in the ECMA sense), we should get rid
     // of the receiver and use the result; see ECMA-262 section 13.2.2-7
     // on page 74.
-    Label use_receiver, do_throw, other_result, leave_frame;
+    Label use_receiver, do_throw, leave_frame;
 
     // If the result is undefined, we jump out to using the implicit receiver.
     __ JumpIfRoot(r0, Heap::kUndefinedValueRootIndex, &use_receiver);
@@ -386,30 +389,14 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // is a valid receiver.
 
     // If the result is a smi, it is *not* an object in the ECMA sense.
-    __ JumpIfSmi(r0, &other_result);
+    __ JumpIfSmi(r0, &use_receiver);
 
     // If the type of the result (stored in its map) is less than
     // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
     __ CompareObjectType(r0, r4, r5, FIRST_JS_RECEIVER_TYPE);
     __ b(ge, &leave_frame);
-
-    // The result is now neither undefined nor an object.
-    __ bind(&other_result);
-    __ ldr(r4, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
-    __ ldr(r4, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kFlagsOffset));
-    __ tst(r4, Operand(SharedFunctionInfo::IsClassConstructorBit::kMask));
-
-    if (restrict_constructor_return) {
-      // Throw if constructor function is a class constructor
-      __ b(eq, &use_receiver);
-    } else {
-      __ b(ne, &use_receiver);
-      __ CallRuntime(
-          Runtime::kIncrementUseCounterConstructorReturnNonUndefinedPrimitive);
-      __ b(&use_receiver);
-    }
+    __ b(&use_receiver);
 
     __ bind(&do_throw);
     __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
@@ -431,16 +418,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
   __ add(sp, sp, Operand(kPointerSize));
   __ Jump(lr);
 }
-}  // namespace
 
-void Builtins::Generate_JSConstructStubGenericRestrictedReturn(
-    MacroAssembler* masm) {
-  Generate_JSConstructStubGeneric(masm, true);
-}
-void Builtins::Generate_JSConstructStubGenericUnrestrictedReturn(
-    MacroAssembler* masm) {
-  Generate_JSConstructStubGeneric(masm, false);
-}
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
@@ -483,7 +461,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Flood function if we are stepping.
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
-  __ mov(scratch, Operand(debug_hook));
+  __ Move(scratch, debug_hook);
   __ ldrsb(scratch, MemOperand(scratch));
   __ cmp(scratch, Operand(0));
   __ b(ne, &prepare_step_in_if_stepping);
@@ -492,7 +470,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // generator.
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
-  __ mov(scratch, Operand(debug_suspended_generator));
+  __ Move(scratch, debug_suspended_generator);
   __ ldr(scratch, MemOperand(scratch));
   __ cmp(scratch, Operand(r1));
   __ b(eq, &prepare_step_in_suspended_generator);
@@ -562,6 +540,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     __ Push(r1, r4);
+    // Push hole as receiver since we do not use it for stepping.
+    __ PushRoot(Heap::kTheHoleValueRootIndex);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(r1);
     __ ldr(r4, FieldMemOperand(r1, JSGeneratorObject::kFunctionOffset));
@@ -623,9 +603,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Setup the context (we need to use the caller context from the isolate).
-    ExternalReference context_address(IsolateAddressId::kContextAddress,
-                                      masm->isolate());
-    __ mov(cp, Operand(context_address));
+    ExternalReference context_address = ExternalReference::Create(
+        IsolateAddressId::kContextAddress, masm->isolate());
+    __ Move(cp, context_address);
     __ ldr(cp, MemOperand(cp));
 
     // Push the function and the receiver onto the stack.
@@ -848,9 +828,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
                      bytecode));
 
-  __ mov(
-      bytecode_size_table,
-      Operand(ExternalReference::bytecode_size_table_address(masm->isolate())));
+  __ Move(bytecode_size_table,
+          ExternalReference::bytecode_size_table_address());
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
   Label process_bytecode, extra_wide;
@@ -1231,9 +1210,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                          Code::kHeaderSize - kHeapObjectTag));
 
   // Initialize the dispatch table register.
-  __ mov(kInterpreterDispatchTableRegister,
-         Operand(ExternalReference::interpreter_dispatch_table_address(
-             masm->isolate())));
+  __ Move(
+      kInterpreterDispatchTableRegister,
+      ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
 
   // Get the bytecode array pointer from the frame.
   __ ldr(kInterpreterBytecodeArrayRegister,
@@ -1314,7 +1293,7 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
   // Figure out the SFI's code object.
   Label done;
   Label check_is_bytecode_array;
-  Label check_is_code;
+  Label check_is_exported_function_data;
   Label check_is_fixed_array;
   Label check_is_pre_parsed_scope_data;
   Label check_is_function_template_info;
@@ -1324,8 +1303,7 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
 
   // IsSmi: Is builtin
   __ JumpIfNotSmi(sfi_data, &check_is_bytecode_array);
-  __ Move(scratch1,
-          Operand(ExternalReference::builtins_address(masm->isolate())));
+  __ Move(scratch1, ExternalReference::builtins_address(masm->isolate()));
   __ ldr(sfi_data, MemOperand::PointerAddressFromSmiKey(scratch1, sfi_data));
   __ b(&done);
 
@@ -1336,16 +1314,19 @@ static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
 
   // IsBytecodeArray: Interpret bytecode
   __ cmp(data_type, Operand(BYTECODE_ARRAY_TYPE));
-  __ b(ne, &check_is_code);
+  __ b(ne, &check_is_exported_function_data);
   __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
   __ b(&done);
 
-  // IsCode: Run code
-  __ bind(&check_is_code);
-  __ cmp(data_type, Operand(CODE_TYPE));
-  __ b(eq, &done);
+  // IsWasmExportedFunctionData: Use the wrapper code
+  __ bind(&check_is_exported_function_data);
+  __ cmp(data_type, Operand(WASM_EXPORTED_FUNCTION_DATA_TYPE));
+  __ b(ne, &check_is_fixed_array);
+  __ ldr(sfi_data, FieldMemOperand(
+                       sfi_data, WasmExportedFunctionData::kWrapperCodeOffset));
+  __ b(&done);
 
-  // IsFixedArray: Instantiate using AsmWasmData,
+  // IsFixedArray: Instantiate using AsmWasmData
   __ bind(&check_is_fixed_array);
   __ cmp(data_type, Operand(FIXED_ARRAY_TYPE));
   __ b(ne, &check_is_pre_parsed_scope_data);
@@ -1465,8 +1446,7 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
     // Load the code object at builtins_table[builtin_id] into scratch1.
 
     __ SmiUntag(scratch1);
-    __ Move(scratch0,
-            Operand(ExternalReference::builtins_address(masm->isolate())));
+    __ Move(scratch0, ExternalReference::builtins_address(masm->isolate()));
     __ ldr(scratch1, MemOperand(scratch0, scratch1, LSL, kPointerSizeLog2));
 
     // Check if the loaded code object has already been deserialized. This is
@@ -2317,7 +2297,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 
   __ bind(&call_generic_stub);
-  __ Jump(masm->isolate()->builtins()->JSConstructStubGeneric(),
+  __ Jump(BUILTIN_CODE(masm->isolate(), JSConstructStubGeneric),
           RelocInfo::CODE_TARGET);
 }
 
@@ -2570,8 +2550,6 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
-    auto wasm_instance_reg = r3;  // TODO(titzer): put in a common place.
-
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
@@ -2583,15 +2561,15 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ vstm(db_w, sp, lowest_fp_reg, highest_fp_reg);
 
     // Pass the WASM instance as an explicit argument to WasmCompileLazy.
-    __ push(wasm_instance_reg);
-    // Initialize the JavaScript context with 0. CEntryStub will use it to
+    __ push(kWasmInstanceRegister);
+    // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(cp, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
     // The entrypoint address is the first return value.
     __ mov(r8, kReturnRegister0);
     // The WASM instance is the second return value.
-    __ mov(wasm_instance_reg, kReturnRegister1);
+    __ mov(kWasmInstanceRegister, kReturnRegister1);
 
     // Restore registers.
     __ vldm(ia_w, sp, lowest_fp_reg, highest_fp_reg);
@@ -2600,6 +2578,336 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // Finally, jump to the entrypoint.
   __ Jump(r8);
 }
+
+void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
+                               SaveFPRegsMode save_doubles, ArgvMode argv_mode,
+                               bool builtin_exit_frame) {
+  // Called from JavaScript; parameters are on stack as if calling JS function.
+  // r0: number of arguments including receiver
+  // r1: pointer to builtin function
+  // fp: frame pointer  (restored after C call)
+  // sp: stack pointer  (restored as callee's sp after C call)
+  // cp: current context  (C callee-saved)
+  //
+  // If argv_mode == kArgvInRegister:
+  // r2: pointer to the first argument
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
+  __ mov(r5, Operand(r1));
+
+  if (argv_mode == kArgvInRegister) {
+    // Move argv into the correct register.
+    __ mov(r1, Operand(r2));
+  } else {
+    // Compute the argv pointer in a callee-saved register.
+    __ add(r1, sp, Operand(r0, LSL, kPointerSizeLog2));
+    __ sub(r1, r1, Operand(kPointerSize));
+  }
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ EnterExitFrame(
+      save_doubles == kSaveFPRegs, 0,
+      builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
+
+  // Store a copy of argc in callee-saved registers for later.
+  __ mov(r4, Operand(r0));
+
+// r0, r4: number of arguments including receiver  (C callee-saved)
+// r1: pointer to the first argument (C callee-saved)
+// r5: pointer to builtin function  (C callee-saved)
+
+#if V8_HOST_ARCH_ARM
+  int frame_alignment = MacroAssembler::ActivationFrameAlignment();
+  int frame_alignment_mask = frame_alignment - 1;
+  if (FLAG_debug_code) {
+    if (frame_alignment > kPointerSize) {
+      Label alignment_as_expected;
+      DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
+      __ tst(sp, Operand(frame_alignment_mask));
+      __ b(eq, &alignment_as_expected);
+      // Don't use Check here, as it will call Runtime_Abort re-entering here.
+      __ stop("Unexpected alignment");
+      __ bind(&alignment_as_expected);
+    }
+  }
+#endif
+
+  // Call C built-in.
+  // r0 = argc, r1 = argv, r2 = isolate
+  __ Move(r2, ExternalReference::isolate_address(masm->isolate()));
+
+  // To let the GC traverse the return address of the exit frames, we need to
+  // know where the return address is. CEntry is unmovable, so
+  // we can store the address on the stack to be able to find it again and
+  // we never have to restore it, because it will not change.
+  // Compute the return address in lr to return to after the jump below. Pc is
+  // already at '+ 8' from the current instruction but return is after three
+  // instructions so add another 4 to pc to get the return address.
+  {
+    // Prevent literal pool emission before return address.
+    Assembler::BlockConstPoolScope block_const_pool(masm);
+    __ add(lr, pc, Operand(4));
+    __ str(lr, MemOperand(sp));
+    __ Call(r5);
+  }
+
+  // Result returned in r0 or r1:r0 - do not destroy these registers!
+
+  // Check result for exception sentinel.
+  Label exception_returned;
+  __ CompareRoot(r0, Heap::kExceptionRootIndex);
+  __ b(eq, &exception_returned);
+
+  // Check that there is no pending exception, otherwise we
+  // should have returned the exception sentinel.
+  if (FLAG_debug_code) {
+    Label okay;
+    ExternalReference pending_exception_address = ExternalReference::Create(
+        IsolateAddressId::kPendingExceptionAddress, masm->isolate());
+    __ Move(r3, pending_exception_address);
+    __ ldr(r3, MemOperand(r3));
+    __ CompareRoot(r3, Heap::kTheHoleValueRootIndex);
+    // Cannot use check here as it attempts to generate call into runtime.
+    __ b(eq, &okay);
+    __ stop("Unexpected pending exception");
+    __ bind(&okay);
+  }
+
+  // Exit C frame and return.
+  // r0:r1: result
+  // sp: stack pointer
+  // fp: frame pointer
+  Register argc = argv_mode == kArgvInRegister
+                      // We don't want to pop arguments so set argc to no_reg.
+                      ? no_reg
+                      // Callee-saved register r4 still holds argc.
+                      : r4;
+  __ LeaveExitFrame(save_doubles == kSaveFPRegs, argc);
+  __ mov(pc, lr);
+
+  // Handling of exception.
+  __ bind(&exception_returned);
+
+  ExternalReference pending_handler_context_address = ExternalReference::Create(
+      IsolateAddressId::kPendingHandlerContextAddress, masm->isolate());
+  ExternalReference pending_handler_entrypoint_address =
+      ExternalReference::Create(
+          IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
+  ExternalReference pending_handler_fp_address = ExternalReference::Create(
+      IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
+  ExternalReference pending_handler_sp_address = ExternalReference::Create(
+      IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
+
+  // Ask the runtime for help to determine the handler. This will set r0 to
+  // contain the current pending exception, don't clobber it.
+  ExternalReference find_handler =
+      ExternalReference::Create(Runtime::kUnwindAndFindExceptionHandler);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(3, 0);
+    __ mov(r0, Operand(0));
+    __ mov(r1, Operand(0));
+    __ Move(r2, ExternalReference::isolate_address(masm->isolate()));
+    __ CallCFunction(find_handler, 3);
+  }
+
+  // Retrieve the handler context, SP and FP.
+  __ Move(cp, pending_handler_context_address);
+  __ ldr(cp, MemOperand(cp));
+  __ Move(sp, pending_handler_sp_address);
+  __ ldr(sp, MemOperand(sp));
+  __ Move(fp, pending_handler_fp_address);
+  __ ldr(fp, MemOperand(fp));
+
+  // If the handler is a JS frame, restore the context to the frame. Note that
+  // the context will be set to (cp == 0) for non-JS frames.
+  __ cmp(cp, Operand(0));
+  __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+
+  // Reset the masking register. This is done independent of the underlying
+  // feature flag {FLAG_branch_load_poisoning} to make the snapshot work with
+  // both configurations. It is safe to always do this, because the underlying
+  // register is caller-saved and can be arbitrarily clobbered.
+  __ ResetSpeculationPoisonRegister();
+
+  // Compute the handler entry address and jump to it.
+  ConstantPoolUnavailableScope constant_pool_unavailable(masm);
+  __ Move(r1, pending_handler_entrypoint_address);
+  __ ldr(r1, MemOperand(r1));
+  __ Jump(r1);
+}
+
+void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
+  Label negate, done;
+
+  UseScratchRegisterScope temps(masm);
+  Register result_reg = r7;
+  Register double_low = GetRegisterThatIsNotOneOf(result_reg);
+  Register double_high = GetRegisterThatIsNotOneOf(result_reg, double_low);
+  LowDwVfpRegister double_scratch = temps.AcquireLowD();
+
+  // Save the old values from these temporary registers on the stack.
+  __ Push(result_reg, double_high, double_low);
+
+  // Account for saved regs.
+  const int kArgumentOffset = 3 * kPointerSize;
+
+  MemOperand input_operand(sp, kArgumentOffset);
+  MemOperand result_operand = input_operand;
+
+  // Load double input.
+  __ vldr(double_scratch, input_operand);
+  __ vmov(double_low, double_high, double_scratch);
+  // Try to convert with a FPU convert instruction. This handles all
+  // non-saturating cases.
+  __ TryInlineTruncateDoubleToI(result_reg, double_scratch, &done);
+
+  Register scratch = temps.Acquire();
+  __ Ubfx(scratch, double_high, HeapNumber::kExponentShift,
+          HeapNumber::kExponentBits);
+  // Load scratch with exponent - 1. This is faster than loading
+  // with exponent because Bias + 1 = 1024 which is an *ARM* immediate value.
+  STATIC_ASSERT(HeapNumber::kExponentBias + 1 == 1024);
+  __ sub(scratch, scratch, Operand(HeapNumber::kExponentBias + 1));
+  // If exponent is greater than or equal to 84, the 32 less significant
+  // bits are 0s (2^84 = 1, 52 significant bits, 32 uncoded bits),
+  // the result is 0.
+  // Compare exponent with 84 (compare exponent - 1 with 83). If the exponent is
+  // greater than this, the conversion is out of range, so return zero.
+  __ cmp(scratch, Operand(83));
+  __ mov(result_reg, Operand::Zero(), LeaveCC, ge);
+  __ b(ge, &done);
+
+  // If we reach this code, 30 <= exponent <= 83.
+  // `TryInlineTruncateDoubleToI` above will have truncated any double with an
+  // exponent lower than 30.
+  if (masm->emit_debug_code()) {
+    // Scratch is exponent - 1.
+    __ cmp(scratch, Operand(30 - 1));
+    __ Check(ge, AbortReason::kUnexpectedValue);
+  }
+
+  // We don't have to handle cases where 0 <= exponent <= 20 for which we would
+  // need to shift right the high part of the mantissa.
+  // Scratch contains exponent - 1.
+  // Load scratch with 52 - exponent (load with 51 - (exponent - 1)).
+  __ rsb(scratch, scratch, Operand(51), SetCC);
+
+  // 52 <= exponent <= 83, shift only double_low.
+  // On entry, scratch contains: 52 - exponent.
+  __ rsb(scratch, scratch, Operand::Zero(), LeaveCC, ls);
+  __ mov(result_reg, Operand(double_low, LSL, scratch), LeaveCC, ls);
+  __ b(ls, &negate);
+
+  // 21 <= exponent <= 51, shift double_low and double_high
+  // to generate the result.
+  __ mov(double_low, Operand(double_low, LSR, scratch));
+  // Scratch contains: 52 - exponent.
+  // We needs: exponent - 20.
+  // So we use: 32 - scratch = 32 - 52 + exponent = exponent - 20.
+  __ rsb(scratch, scratch, Operand(32));
+  __ Ubfx(result_reg, double_high, 0, HeapNumber::kMantissaBitsInTopWord);
+  // Set the implicit 1 before the mantissa part in double_high.
+  __ orr(result_reg, result_reg,
+         Operand(1 << HeapNumber::kMantissaBitsInTopWord));
+  __ orr(result_reg, double_low, Operand(result_reg, LSL, scratch));
+
+  __ bind(&negate);
+  // If input was positive, double_high ASR 31 equals 0 and
+  // double_high LSR 31 equals zero.
+  // New result = (result eor 0) + 0 = result.
+  // If the input was negative, we have to negate the result.
+  // Input_high ASR 31 equals 0xFFFFFFFF and double_high LSR 31 equals 1.
+  // New result = (result eor 0xFFFFFFFF) + 1 = 0 - result.
+  __ eor(result_reg, result_reg, Operand(double_high, ASR, 31));
+  __ add(result_reg, result_reg, Operand(double_high, LSR, 31));
+
+  __ bind(&done);
+  __ str(result_reg, result_operand);
+
+  // Restore registers corrupted in this routine and return.
+  __ Pop(result_reg, double_high, double_low);
+  __ Ret();
+}
+
+void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
+  const Register exponent = MathPowTaggedDescriptor::exponent();
+  DCHECK(exponent == r2);
+  const LowDwVfpRegister double_base = d0;
+  const LowDwVfpRegister double_exponent = d1;
+  const LowDwVfpRegister double_result = d2;
+  const LowDwVfpRegister double_scratch = d3;
+  const SwVfpRegister single_scratch = s6;
+  const Register scratch = r9;
+  const Register scratch2 = r4;
+
+  Label call_runtime, done, int_exponent;
+
+  // Detect integer exponents stored as double.
+  __ TryDoubleToInt32Exact(scratch, double_exponent, double_scratch);
+  __ b(eq, &int_exponent);
+
+  __ push(lr);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
+  }
+  __ pop(lr);
+  __ MovFromFloatResult(double_result);
+  __ b(&done);
+
+  // Calculate power with integer exponent.
+  __ bind(&int_exponent);
+
+  // Get two copies of exponent in the registers scratch and exponent.
+  // Exponent has previously been stored into scratch as untagged integer.
+  __ mov(exponent, scratch);
+
+  __ vmov(double_scratch, double_base);  // Back up base.
+  __ vmov(double_result, Double(1.0), scratch2);
+
+  // Get absolute value of exponent.
+  __ cmp(scratch, Operand::Zero());
+  __ rsb(scratch, scratch, Operand::Zero(), LeaveCC, mi);
+
+  Label while_true;
+  __ bind(&while_true);
+  __ mov(scratch, Operand(scratch, LSR, 1), SetCC);
+  __ vmul(double_result, double_result, double_scratch, cs);
+  __ vmul(double_scratch, double_scratch, double_scratch, ne);
+  __ b(ne, &while_true);
+
+  __ cmp(exponent, Operand::Zero());
+  __ b(ge, &done);
+  __ vmov(double_scratch, Double(1.0), scratch);
+  __ vdiv(double_result, double_scratch, double_result);
+  // Test whether result is zero.  Bail out to check for subnormal result.
+  // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
+  __ VFPCompareAndSetFlags(double_result, 0.0);
+  __ b(ne, &done);
+  // double_exponent may not containe the exponent value if the input was a
+  // smi.  We set it with exponent value before bailing out.
+  __ vmov(single_scratch, exponent);
+  __ vcvt_f64_s32(double_exponent, single_scratch);
+
+  // Returning or bailing out.
+  __ push(lr);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
+  }
+  __ pop(lr);
+  __ MovFromFloatResult(double_result);
+
+  __ bind(&done);
+  __ Ret();
+}
+
 #undef __
 
 }  // namespace internal

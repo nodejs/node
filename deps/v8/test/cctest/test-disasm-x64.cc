@@ -47,27 +47,6 @@ namespace internal {
 static void DummyStaticFunction(Object* result) {
 }
 
-void Disassemble(FILE* f, byte* begin, byte* end) {
-  disasm::NameConverter converter;
-  disasm::Disassembler d(converter);
-  for (byte* pc = begin; pc < end;) {
-    v8::internal::EmbeddedVector<char, 128> buffer;
-    buffer[0] = '\0';
-    byte* prev_pc = pc;
-    pc += d.InstructionDecodeForTesting(buffer, pc);
-    fprintf(f, "%p", static_cast<void*>(prev_pc));
-    fprintf(f, "    ");
-
-    for (byte* bp = prev_pc; bp < pc; bp++) {
-      fprintf(f, "%02x", *bp);
-    }
-    for (int i = 6 - static_cast<int>(pc - prev_pc); i >= 0; i--) {
-      fprintf(f, "  ");
-    }
-    fprintf(f, "  %s\n", buffer.start());
-  }
-}
-
 TEST(DisasmX64) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -976,6 +955,7 @@ TEST(DisasmX64) {
     __ Nop(i);
   }
 
+  __ pause();
   __ ret(0);
 
   CodeDesc desc;
@@ -986,9 +966,10 @@ TEST(DisasmX64) {
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
-  byte* begin = code->raw_instruction_start();
-  byte* end = begin + code->raw_instruction_size();
-  Disassemble(stdout, begin, end);
+  Address begin = code->raw_instruction_start();
+  Address end = code->raw_instruction_end();
+  disasm::Disassembler::Disassemble(stdout, reinterpret_cast<byte*>(begin),
+                                    reinterpret_cast<byte*>(end));
 #endif
 }
 

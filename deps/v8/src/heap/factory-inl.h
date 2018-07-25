@@ -143,7 +143,8 @@ Handle<Object> Factory::NewURIError() {
 Handle<String> Factory::Uint32ToString(uint32_t value) {
   Handle<String> result = NumberToString(NewNumberFromUint(value));
 
-  if (result->length() <= String::kMaxArrayIndexSize) {
+  if (result->length() <= String::kMaxArrayIndexSize &&
+      result->hash_field() == String::kEmptyHashField) {
     uint32_t field = StringHasher::MakeArrayIndexHash(value, result->length());
     result->set_hash_field(field);
   }

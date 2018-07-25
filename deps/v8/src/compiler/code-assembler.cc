@@ -18,6 +18,7 @@
 #include "src/frames.h"
 #include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/lsan.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
@@ -58,9 +59,8 @@ static_assert(
 
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
-    Code::Kind kind, const char* name,
-    PoisoningMitigationLevel poisoning_enabled, size_t result_size,
-    uint32_t stub_key, int32_t builtin_index)
+    Code::Kind kind, const char* name, PoisoningMitigationLevel poisoning_level,
+    size_t result_size, uint32_t stub_key, int32_t builtin_index)
     // TODO(rmcilroy): Should we use Linkage::GetBytecodeDispatchDescriptor for
     // bytecode handlers?
     : CodeAssemblerState(
@@ -69,30 +69,31 @@ CodeAssemblerState::CodeAssemblerState(
               isolate, zone, descriptor, descriptor.GetStackParameterCount(),
               CallDescriptor::kNoFlags, Operator::kNoProperties,
               MachineType::AnyTagged(), result_size),
-          kind, name, poisoning_enabled, stub_key, builtin_index) {}
+          kind, name, poisoning_level, stub_key, builtin_index) {}
 
-CodeAssemblerState::CodeAssemblerState(
-    Isolate* isolate, Zone* zone, int parameter_count, Code::Kind kind,
-    const char* name, PoisoningMitigationLevel poisoning_enabled,
-    int32_t builtin_index)
+CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
+                                       int parameter_count, Code::Kind kind,
+                                       const char* name,
+                                       PoisoningMitigationLevel poisoning_level,
+                                       int32_t builtin_index)
     : CodeAssemblerState(
           isolate, zone,
           Linkage::GetJSCallDescriptor(zone, false, parameter_count,
                                        kind == Code::BUILTIN
                                            ? CallDescriptor::kPushArgumentCount
                                            : CallDescriptor::kNoFlags),
-          kind, name, poisoning_enabled, 0, builtin_index) {}
+          kind, name, poisoning_level, 0, builtin_index) {}
 
-CodeAssemblerState::CodeAssemblerState(
-    Isolate* isolate, Zone* zone, CallDescriptor* call_descriptor,
-    Code::Kind kind, const char* name,
-    PoisoningMitigationLevel poisoning_enabled, uint32_t stub_key,
-    int32_t builtin_index)
+CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
+                                       CallDescriptor* call_descriptor,
+                                       Code::Kind kind, const char* name,
+                                       PoisoningMitigationLevel poisoning_level,
+                                       uint32_t stub_key, int32_t builtin_index)
     : raw_assembler_(new RawMachineAssembler(
           isolate, new (zone) Graph(zone), call_descriptor,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements(), poisoning_enabled)),
+          InstructionSelector::AlignmentRequirements(), poisoning_level)),
       kind_(kind),
       name_(name),
       stub_key_(stub_key),
@@ -178,8 +179,8 @@ bool CodeAssembler::Word32ShiftIsSafe() const {
   return raw_assembler()->machine()->Word32ShiftIsSafe();
 }
 
-PoisoningMitigationLevel CodeAssembler::poisoning_enabled() const {
-  return raw_assembler()->poisoning_enabled();
+PoisoningMitigationLevel CodeAssembler::poisoning_level() const {
+  return raw_assembler()->poisoning_level();
 }
 
 // static
@@ -196,7 +197,7 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
       rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
       state->kind_, state->name_, state->stub_key_, state->builtin_index_,
-      should_optimize_jumps ? &jump_opt : nullptr, rasm->poisoning_enabled());
+      should_optimize_jumps ? &jump_opt : nullptr, rasm->poisoning_level());
 
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
@@ -205,7 +206,7 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
     code = Pipeline::GenerateCodeForCodeStub(
         rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
         state->kind_, state->name_, state->stub_key_, state->builtin_index_,
-        &jump_opt, rasm->poisoning_enabled());
+        &jump_opt, rasm->poisoning_level());
   }
 
   state->code_generated_ = true;
@@ -245,7 +246,7 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
 
 #ifdef V8_EMBEDDED_BUILTINS
 TNode<HeapObject> CodeAssembler::LookupConstant(Handle<HeapObject> object) {
-  DCHECK(isolate()->serializer_enabled());
+  DCHECK(isolate()->ShouldLoadConstantsFromRootList());
 
   // Ensure the given object is in the builtins constants table and fetch its
   // index.
@@ -272,7 +273,7 @@ TNode<HeapObject> CodeAssembler::LookupConstant(Handle<HeapObject> object) {
 // External references are stored in the external reference table.
 TNode<ExternalReference> CodeAssembler::LookupExternalReference(
     ExternalReference reference) {
-  DCHECK(isolate()->serializer_enabled());
+  DCHECK(isolate()->ShouldLoadConstantsFromRootList());
 
   // Encode as an index into the external reference table stored on the isolate.
 
@@ -313,7 +314,12 @@ TNode<Number> CodeAssembler::NumberConstant(double value) {
   if (DoubleToSmiInteger(value, &smi_value)) {
     return UncheckedCast<Number>(SmiConstant(smi_value));
   } else {
-    return UncheckedCast<Number>(raw_assembler()->NumberConstant(value));
+    // We allocate the heap number constant eagerly at this point instead of
+    // deferring allocation to code generation
+    // (see AllocateAndInstallRequestedHeapObjects) since that makes it easier
+    // to generate constant lookups for embedded builtins.
+    return UncheckedCast<Number>(HeapConstant(
+        isolate()->factory()->NewHeapNumber(value, IMMUTABLE, TENURED)));
   }
 }
 
@@ -331,7 +337,7 @@ TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
 #ifdef V8_EMBEDDED_BUILTINS
   // Root constants are simply loaded from the root list, while non-root
   // constants must be looked up from the builtins constants table.
-  if (ShouldLoadConstantsFromRootList()) {
+  if (isolate()->ShouldLoadConstantsFromRootList()) {
     Heap::RootListIndex root_index;
     if (!isolate()->heap()->IsRootHandle(object, &root_index)) {
       return LookupConstant(object);
@@ -354,7 +360,7 @@ TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
 TNode<ExternalReference> CodeAssembler::ExternalConstant(
     ExternalReference address) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (ShouldLoadConstantsFromRootList()) {
+  if (isolate()->ShouldLoadConstantsFromRootList()) {
     return LookupExternalReference(address);
   }
 #endif  // V8_EMBEDDED_BUILTINS
@@ -371,12 +377,21 @@ TNode<HeapNumber> CodeAssembler::NaNConstant() {
 }
 
 bool CodeAssembler::ToInt32Constant(Node* node, int32_t& out_value) {
-  Int64Matcher m(node);
-  if (m.HasValue() &&
-      m.IsInRange(std::numeric_limits<int32_t>::min(),
-                  std::numeric_limits<int32_t>::max())) {
-    out_value = static_cast<int32_t>(m.Value());
-    return true;
+  {
+    Int64Matcher m(node);
+    if (m.HasValue() && m.IsInRange(std::numeric_limits<int32_t>::min(),
+                                    std::numeric_limits<int32_t>::max())) {
+      out_value = static_cast<int32_t>(m.Value());
+      return true;
+    }
+  }
+
+  {
+    Int32Matcher m(node);
+    if (m.HasValue()) {
+      out_value = m.Value();
+      return true;
+    }
   }
 
   return false;
@@ -411,6 +426,16 @@ bool CodeAssembler::ToIntPtrConstant(Node* node, intptr_t& out_value) {
   IntPtrMatcher m(node);
   if (m.HasValue()) out_value = m.Value();
   return m.HasValue();
+}
+
+bool CodeAssembler::IsUndefinedConstant(TNode<Object> node) {
+  compiler::HeapObjectMatcher m(node);
+  return m.Is(isolate()->factory()->undefined_value());
+}
+
+bool CodeAssembler::IsNullConstant(TNode<Object> node) {
+  compiler::HeapObjectMatcher m(node);
+  return m.Is(isolate()->factory()->null_value());
 }
 
 Node* CodeAssembler::Parameter(int value) {
@@ -476,6 +501,7 @@ void CodeAssembler::Comment(const char* format, ...) {
   const int prefix_len = 2;
   int length = builder.position() + 1;
   char* copy = reinterpret_cast<char*>(malloc(length + prefix_len));
+  LSAN_IGNORE_OBJECT(copy);
   MemCopy(copy + prefix_len, builder.Finalize(), length);
   copy[0] = ';';
   copy[1] = ' ';
@@ -506,14 +532,14 @@ Node* CodeAssembler::LoadStackPointer() {
   return raw_assembler()->LoadStackPointer();
 }
 
-TNode<Object> CodeAssembler::PoisonOnSpeculationTagged(
+TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(
     SloppyTNode<Object> value) {
   return UncheckedCast<Object>(
-      raw_assembler()->PoisonOnSpeculationTagged(value));
+      raw_assembler()->TaggedPoisonOnSpeculation(value));
 }
 
-TNode<WordT> CodeAssembler::PoisonOnSpeculationWord(SloppyTNode<WordT> value) {
-  return UncheckedCast<WordT>(raw_assembler()->PoisonOnSpeculationWord(value));
+TNode<WordT> CodeAssembler::WordPoisonOnSpeculation(SloppyTNode<WordT> value) {
+  return UncheckedCast<WordT>(raw_assembler()->WordPoisonOnSpeculation(value));
 }
 
 #define DEFINE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \
@@ -1086,7 +1112,7 @@ TNode<Object> CodeAssembler::CallRuntimeImpl(Runtime::FunctionId function,
 
   Node* centry =
       HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
-  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
+  Node* ref = ExternalConstant(ExternalReference::Create(function));
   Node* arity = Int32Constant(argc);
 
   Node* nodes[] = {centry, args..., ref, arity, context};
@@ -1117,7 +1143,7 @@ TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
 
   Node* centry =
       HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
-  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
+  Node* ref = ExternalConstant(ExternalReference::Create(function));
   Node* arity = Int32Constant(argc);
 
   Node* nodes[] = {centry, args..., ref, arity, context};

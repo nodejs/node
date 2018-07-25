@@ -196,7 +196,7 @@ class RememberedSet : public AllStatic {
     if (slot_set == nullptr) {
       slot_set = page->AllocateTypedSlotSet<type>();
     }
-    if (host_addr == nullptr) {
+    if (host_addr == kNullAddress) {
       host_addr = page->address();
     }
     uintptr_t offset = slot_addr - page->address();
@@ -328,8 +328,7 @@ class UpdateTypedSlotHelper {
   // Updates a typed slot using an untyped slot callback.
   // The callback accepts MaybeObject** and returns SlotCallbackResult.
   template <typename Callback>
-  static SlotCallbackResult UpdateTypedSlot(Isolate* isolate,
-                                            SlotType slot_type, Address addr,
+  static SlotCallbackResult UpdateTypedSlot(SlotType slot_type, Address addr,
                                             Callback callback) {
     switch (slot_type) {
       case CODE_TARGET_SLOT: {

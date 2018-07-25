@@ -69,10 +69,10 @@ class CompilationCacheTable
     : public HashTable<CompilationCacheTable, CompilationCacheShape> {
  public:
   // Find cached value for a string key, otherwise return null.
-  Handle<Object> Lookup(Handle<String> src, Handle<Context> context,
+  Handle<Object> Lookup(Handle<String> src, Handle<SharedFunctionInfo> shared,
                         LanguageMode language_mode);
   MaybeHandle<SharedFunctionInfo> LookupScript(Handle<String> src,
-                                               Handle<Context> context,
+                                               Handle<Context> native_context,
                                                LanguageMode language_mode);
   InfoCellPair LookupEval(Handle<String> src, Handle<SharedFunctionInfo> shared,
                           Handle<Context> native_context,
@@ -80,12 +80,12 @@ class CompilationCacheTable
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
   static Handle<CompilationCacheTable> Put(Handle<CompilationCacheTable> cache,
                                            Handle<String> src,
-                                           Handle<Context> context,
+                                           Handle<SharedFunctionInfo> shared,
                                            LanguageMode language_mode,
                                            Handle<Object> value);
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<Context> context, LanguageMode language_mode,
+      Handle<Context> native_context, LanguageMode language_mode,
       Handle<SharedFunctionInfo> value);
   static Handle<CompilationCacheTable> PutEval(
       Handle<CompilationCacheTable> cache, Handle<String> src,

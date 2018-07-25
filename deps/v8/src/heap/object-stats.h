@@ -144,6 +144,13 @@ class ObjectStats {
   // Detailed histograms by InstanceType.
   size_t size_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
   size_t over_allocated_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
+
+  size_t tagged_fields_count_;
+  size_t embedder_fields_count_;
+  size_t unboxed_double_fields_count_;
+  size_t raw_fields_count_;
+
+  friend class ObjectStatsCollectorImpl;
 };
 
 class ObjectStatsCollector {

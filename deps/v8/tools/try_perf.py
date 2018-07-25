@@ -52,6 +52,7 @@ PUBLIC_BENCHMARKS = [
   'sunspider',
   'unity',
   'wasm',
+  'web-tooling-benchmark',
 ]
 
 V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))

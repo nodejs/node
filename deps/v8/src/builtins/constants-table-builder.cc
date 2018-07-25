@@ -38,11 +38,43 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
 
   uint32_t* maybe_key = map_.Find(object);
   if (maybe_key == nullptr) {
+    DCHECK(object->IsHeapObject());
     uint32_t index = map_.size();
     map_.Set(object, index);
     return index;
   } else {
     return *maybe_key;
+  }
+}
+
+void BuiltinsConstantsTableBuilder::PatchSelfReference(
+    Handle<Object> self_reference, Handle<Code> code_object) {
+#ifdef DEBUG
+  // Roots must not be inserted into the constants table as they are already
+  // accessibly from the root list.
+  Heap::RootListIndex root_list_index;
+  DCHECK(!isolate_->heap()->IsRootHandle(code_object, &root_list_index));
+
+  // Not yet finalized.
+  DCHECK_EQ(isolate_->heap()->empty_fixed_array(),
+            isolate_->heap()->builtins_constants_table());
+
+  DCHECK(isolate_->serializer_enabled());
+
+  DCHECK(self_reference->IsOddball());
+  DCHECK(Oddball::cast(*self_reference)->kind() ==
+         Oddball::kSelfReferenceMarker);
+
+  // During indirection generation, we always create a distinct marker for each
+  // macro assembler. The canonical marker is only used when not generating a
+  // snapshot.
+  DCHECK(*self_reference != isolate_->heap()->self_reference_marker());
+#endif
+
+  uint32_t key;
+  if (map_.Delete(self_reference, &key)) {
+    DCHECK(code_object->IsCode());
+    map_.Set(code_object, key);
   }
 }
 
@@ -69,6 +101,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
       // builtin.
       value = builtins->builtin(Code::cast(value)->builtin_index());
     }
+    DCHECK(value->IsHeapObject());
     table->set(index, value);
   }
 
@@ -76,6 +109,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   for (int i = 0; i < map_.size(); i++) {
     DCHECK(table->get(i)->IsHeapObject());
     DCHECK_NE(isolate_->heap()->undefined_value(), table->get(i));
+    DCHECK_NE(isolate_->heap()->self_reference_marker(), table->get(i));
   }
 #endif
 

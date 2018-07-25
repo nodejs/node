@@ -34,6 +34,17 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToNumber) {
   return *isolate->factory()->ToBoolean(result);
 }
 
+RUNTIME_FUNCTION(Runtime_BigIntCompareToString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Smi, mode, 0);
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, rhs, 2);
+  bool result = ComparisonResultToBool(static_cast<Operation>(mode->value()),
+                                       BigInt::CompareToString(lhs, rhs));
+  return *isolate->factory()->ToBoolean(result);
+}
+
 RUNTIME_FUNCTION(Runtime_BigIntEqualToBigInt) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());

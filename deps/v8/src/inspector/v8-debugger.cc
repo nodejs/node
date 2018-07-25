@@ -170,12 +170,10 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_wasmTranslation(isolate) {}
 
 V8Debugger::~V8Debugger() {
-  if (m_terminateExecutionCallback) {
-    m_isolate->RemoveCallCompletedCallback(
-        &V8Debugger::terminateExecutionCompletedCallback);
-    m_isolate->RemoveMicrotasksCompletedCallback(
-        &V8Debugger::terminateExecutionCompletedCallback);
-  }
+  m_isolate->RemoveCallCompletedCallback(
+      &V8Debugger::terminateExecutionCompletedCallback);
+  m_isolate->RemoveMicrotasksCompletedCallback(
+      &V8Debugger::terminateExecutionCompletedCallback);
 }
 
 void V8Debugger::enable() {
@@ -188,6 +186,18 @@ void V8Debugger::enable() {
 }
 
 void V8Debugger::disable() {
+  if (isPaused()) {
+    bool scheduledOOMBreak = m_scheduledOOMBreak;
+    bool hasAgentAcceptsPause = false;
+    m_inspector->forEachSession(
+        m_pausedContextGroupId, [&scheduledOOMBreak, &hasAgentAcceptsPause](
+                                    V8InspectorSessionImpl* session) {
+          if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
+            hasAgentAcceptsPause = true;
+          }
+        });
+    if (!hasAgentAcceptsPause) m_inspector->client()->quitMessageLoopOnPause();
+  }
   if (--m_enableCount) return;
   clearContinueToLocation();
   allAsyncTasksCanceled();
@@ -345,8 +355,10 @@ void V8Debugger::pauseOnAsyncCall(int targetContextGroupId, uintptr_t task,
 void V8Debugger::terminateExecution(
     std::unique_ptr<TerminateExecutionCallback> callback) {
   if (m_terminateExecutionCallback) {
-    callback->sendFailure(
-        Response::Error("There is current termination request in progress"));
+    if (callback) {
+      callback->sendFailure(
+          Response::Error("There is current termination request in progress"));
+    }
     return;
   }
   m_terminateExecutionCallback = std::move(callback);
@@ -366,8 +378,10 @@ void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   V8Debugger* debugger = inspector->debugger();
   debugger->m_isolate->CancelTerminateExecution();
-  debugger->m_terminateExecutionCallback->sendSuccess();
-  debugger->m_terminateExecutionCallback.reset();
+  if (debugger->m_terminateExecutionCallback) {
+    debugger->m_terminateExecutionCallback->sendSuccess();
+    debugger->m_terminateExecutionCallback.reset();
+  }
 }
 
 Response V8Debugger::continueToLocation(
@@ -653,6 +667,11 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
     v8::Local<v8::Function> closure = iterator->GetFunction();
     if (!closure.IsEmpty()) {
       name = toProtocolStringWithTypeCheck(closure->GetDebugName());
+    } else {
+      v8::Local<v8::Value> maybe_name = iterator->GetFunctionDebugName();
+      if (!maybe_name->IsUndefined()) {
+        name = toProtocolStringWithTypeCheck(maybe_name);
+      }
     }
     v8::Local<v8::Object> object = iterator->GetObject();
     createDataProperty(context, scope,

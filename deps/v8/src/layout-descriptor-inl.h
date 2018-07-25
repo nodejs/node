@@ -6,6 +6,8 @@
 #define V8_LAYOUT_DESCRIPTOR_INL_H_
 
 #include "src/layout-descriptor.h"
+#include "src/objects-inl.h"
+#include "src/objects/descriptor-array.h"
 
 namespace v8 {
 namespace internal {
@@ -23,7 +25,8 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
   int backing_store_length = GetSlowModeBackingStoreLength(length);
   Handle<LayoutDescriptor> result = Handle<LayoutDescriptor>::cast(
       isolate->factory()->NewByteArray(backing_store_length, TENURED));
-  memset(result->GetDataStartAddress(), 0, result->DataSize());
+  memset(reinterpret_cast<void*>(result->GetDataStartAddress()), 0,
+         result->DataSize());
   return result;
 }
 

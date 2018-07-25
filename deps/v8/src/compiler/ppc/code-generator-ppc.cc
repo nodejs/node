@@ -417,16 +417,15 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
            i.OutputRCBit());                                         \
   } while (0)
 
-#define ASSEMBLE_FLOAT_MODULO()                                            \
-  do {                                                                     \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                          \
-    __ PrepareCallCFunction(0, 2, kScratchReg);                            \
-    __ MovToFloatParameters(i.InputDoubleRegister(0),                      \
-                            i.InputDoubleRegister(1));                     \
-    __ CallCFunction(                                                      \
-        ExternalReference::mod_two_doubles_operation(__ isolate()), 0, 2); \
-    __ MovFromFloatResult(i.OutputDoubleRegister());                       \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                   \
+#define ASSEMBLE_FLOAT_MODULO()                                             \
+  do {                                                                      \
+    FrameScope scope(tasm(), StackFrame::MANUAL);                           \
+    __ PrepareCallCFunction(0, 2, kScratchReg);                             \
+    __ MovToFloatParameters(i.InputDoubleRegister(0),                       \
+                            i.InputDoubleRegister(1));                      \
+    __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2); \
+    __ MovFromFloatResult(i.OutputDoubleRegister());                        \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                    \
   } while (0)
 
 #define ASSEMBLE_IEEE754_UNOP(name)                                            \
@@ -436,8 +435,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     FrameScope scope(tasm(), StackFrame::MANUAL);                              \
     __ PrepareCallCFunction(0, 1, kScratchReg);                                \
     __ MovToFloatParameter(i.InputDoubleRegister(0));                          \
-    __ CallCFunction(                                                          \
-        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 1);     \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1);    \
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
@@ -451,8 +449,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     __ PrepareCallCFunction(0, 2, kScratchReg);                                \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                          \
                             i.InputDoubleRegister(1));                         \
-    __ CallCFunction(                                                          \
-        ExternalReference::ieee754_##name##_function(__ isolate()), 0, 2);     \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 2);    \
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
@@ -662,6 +659,60 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     __ bne(&exchange, cr0);                                             \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, load_inst, store_inst)                 \
+  do {                                                                         \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
+    Label binop;                                                               \
+    __ bind(&binop);                                                           \
+    __ load_inst(i.OutputRegister(), operand);                                 \
+    __ bin_inst(i.InputRegister(2), i.OutputRegister(), i.InputRegister(2));   \
+    __ store_inst(i.InputRegister(2), operand);                                \
+    __ bne(&binop, cr0);                                                       \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(bin_inst, load_inst,                    \
+                                       store_inst, ext_instr)                  \
+  do {                                                                         \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
+    Label binop;                                                               \
+    __ bind(&binop);                                                           \
+    __ load_inst(i.OutputRegister(), operand);                                 \
+    __ ext_instr(i.OutputRegister(), i.OutputRegister());                      \
+    __ bin_inst(i.InputRegister(2), i.OutputRegister(), i.InputRegister(2));   \
+    __ store_inst(i.InputRegister(2), operand);                                \
+    __ bne(&binop, cr0);                                                       \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp_inst, load_inst, store_inst)      \
+  do {                                                                         \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
+    Label loop;                                                                \
+    Label exit;                                                                \
+    __ bind(&loop);                                                            \
+    __ load_inst(i.OutputRegister(), operand);                                 \
+    __ cmp_inst(i.OutputRegister(), i.InputRegister(2));                       \
+    __ bne(&exit, cr0);                                                        \
+    __ store_inst(i.InputRegister(3), operand);                                \
+    __ bne(&loop, cr0);                                                        \
+    __ bind(&exit);                                                            \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp_inst, load_inst,         \
+                                                  store_inst, ext_instr)       \
+  do {                                                                         \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
+    Label loop;                                                                \
+    Label exit;                                                                \
+    __ bind(&loop);                                                            \
+    __ load_inst(i.OutputRegister(), operand);                                 \
+    __ ext_instr(i.OutputRegister(), i.OutputRegister());                      \
+    __ cmp_inst(i.OutputRegister(), i.InputRegister(2));                       \
+    __ bne(&exit, cr0);                                                        \
+    __ store_inst(i.InputRegister(3), operand);                                \
+    __ bne(&loop, cr0);                                                        \
+    __ bind(&exit);                                                            \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
 }
@@ -819,6 +870,9 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ LoadWordArith(
       r11, FieldMemOperand(r11, CodeDataContainer::kKindSpecificFlagsOffset));
   __ TestBit(r11, Code::kMarkedForDeoptimizationBit);
+  // Ensure we're not serializing (otherwise we'd need to use an indirection to
+  // access the builtin below).
+  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
   __ Jump(code, RelocInfo::CODE_TARGET, ne, cr0);
@@ -880,11 +934,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       if (instr->InputAt(0)->IsImmediate()) {
 #ifdef V8_TARGET_ARCH_PPC64
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt64());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
 #else
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt32());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt32());
 #endif
         __ Call(wasm_code, rmode);
       } else {
@@ -926,8 +980,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       if (instr->InputAt(0)->IsImmediate()) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt32());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt32());
         __ Jump(wasm_code, rmode);
       } else {
         __ Jump(i.InputRegister(0));
@@ -1098,9 +1152,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kArchTruncateDoubleToI:
-      // TODO(mbrandy): move slow call to stub out of line.
-      __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
-                                  i.InputDoubleRegister(0));
+      __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
+                           i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kArchStoreWithWriteBarrier: {
@@ -1139,7 +1192,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               Operand(offset.offset()));
       break;
     }
-    case kArchPoisonOnSpeculationWord:
+    case kArchWordPoisonOnSpeculation:
       __ and_(i.OutputRegister(), i.InputRegister(0),
               kSpeculationPoisonRegister);
       break;
@@ -1545,7 +1598,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
     case kIeee754Float64Pow: {
-      __ CallStubDelayed(new (zone()) MathPowStub());
+      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
       __ Move(d1, d3);
       break;
     }
@@ -1960,6 +2013,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kWord32AtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lwarx, stwcx);
       break;
+
+    case kWord32AtomicCompareExchangeInt8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lbarx, stbcx, extsb);
+      break;
+    case kWord32AtomicCompareExchangeUint8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lbarx, stbcx);
+      break;
+    case kWord32AtomicCompareExchangeInt16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lharx, sthcx, extsh);
+      break;
+    case kWord32AtomicCompareExchangeUint16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lharx, sthcx);
+      break;
+    case kWord32AtomicCompareExchangeWord32:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmpw, lwarx, stwcx);
+      break;
+
+#define ATOMIC_BINOP_CASE(op, inst)                             \
+  case kWord32Atomic##op##Int8:                                 \
+    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lbarx, stbcx, extsb);  \
+    break;                                                      \
+  case kWord32Atomic##op##Uint8:                                \
+    ASSEMBLE_ATOMIC_BINOP(inst, lbarx, stbcx);                  \
+    break;                                                      \
+  case kWord32Atomic##op##Int16:                                \
+    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lharx, sthcx, extsh);  \
+    break;                                                      \
+  case kWord32Atomic##op##Uint16:                               \
+    ASSEMBLE_ATOMIC_BINOP(inst, lharx, sthcx);                  \
+    break;                                                      \
+  case kWord32Atomic##op##Word32:                               \
+    ASSEMBLE_ATOMIC_BINOP(inst, lwarx, stwcx);                  \
+    break;
+      ATOMIC_BINOP_CASE(Add, add)
+      ATOMIC_BINOP_CASE(Sub, sub)
+      ATOMIC_BINOP_CASE(And, and_)
+      ATOMIC_BINOP_CASE(Or, orx)
+      ATOMIC_BINOP_CASE(Xor, xor_)
+#undef ATOMIC_BINOP_CASE
+
     default:
       UNREACHABLE();
       break;
@@ -2049,9 +2142,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // We use the context register as the scratch register, because we do
         // not have a context here.
         __ PrepareCallCFunction(0, 0, cp);
-        __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(
-                             __ isolate()),
-                         0);
+        __ CallCFunction(
+            ExternalReference::wasm_call_trap_callback_for_testing(), 0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
         int pop_count =
@@ -2234,6 +2326,9 @@ void CodeGenerator::AssembleConstructFrame() {
       // TODO(mbrandy): Detect cases where ip is the entrypoint (for
       // efficient intialization of the constant pool pointer register).
       __ StubPrologue(type);
+      if (call_descriptor->IsWasmFunctionCall()) {
+        __ Push(kWasmInstanceRegister);
+      }
     }
   }
 

@@ -276,7 +276,9 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
     AllowHandleDereference allow_deref;
     return inferred_name_->ToCString();
   } else {
-    return std::unique_ptr<char[]>(new char{'\0'});
+    char* empty_str = new char[1];
+    empty_str[0] = 0;
+    return std::unique_ptr<char[]>(empty_str);
   }
 
   // TODO(rmcilroy): Deal with two-character strings.

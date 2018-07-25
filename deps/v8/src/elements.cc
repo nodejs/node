@@ -11,6 +11,7 @@
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/utils.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,
@@ -117,6 +118,11 @@ MaybeHandle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
                   Object);
 }
 
+WriteBarrierMode GetWriteBarrierMode(ElementsKind kind) {
+  if (IsSmiElementsKind(kind)) return SKIP_WRITE_BARRIER;
+  if (IsDoubleElementsKind(kind)) return SKIP_WRITE_BARRIER;
+  return UPDATE_WRITE_BARRIER;
+}
 
 void CopyObjectToObjectElements(FixedArrayBase* from_base,
                                 ElementsKind from_kind, uint32_t from_start,
@@ -188,8 +194,7 @@ static void CopyDictionaryToObjectElements(
   if (to_start + copy_size > to_length) {
     copy_size = to_length - to_start;
   }
-  WriteBarrierMode write_barrier_mode =
-      IsObjectElementsKind(to_kind) ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER;
+  WriteBarrierMode write_barrier_mode = GetWriteBarrierMode(to_kind);
   Isolate* isolate = from->GetIsolate();
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(isolate, i + from_start);
@@ -1461,8 +1466,10 @@ class DictionaryElementsAccessor
             }
           }
 
-          // Update the number of elements.
-          dict->ElementsRemoved(removed_entries);
+          if (removed_entries > 0) {
+            // Update the number of elements.
+            dict->ElementsRemoved(removed_entries);
+          }
         }
       }
     }
@@ -2258,26 +2265,6 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return deleted_elements;
   }
 
-  static Maybe<bool> CollectValuesOrEntriesImpl(
-      Isolate* isolate, Handle<JSObject> object,
-      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
-      PropertyFilter filter) {
-    Handle<BackingStore> elements(BackingStore::cast(object->elements()),
-                                  isolate);
-    int count = 0;
-    uint32_t length = elements->length();
-    for (uint32_t index = 0; index < length; ++index) {
-      if (!HasEntryImpl(isolate, *elements, index)) continue;
-      Handle<Object> value = Subclass::GetImpl(isolate, *elements, index);
-      if (get_entries) {
-        value = MakeEntryPair(isolate, index, value);
-      }
-      values_or_entries->set(count++, *value);
-    }
-    *nof_items = count;
-    return Just(true);
-  }
-
   static void MoveElements(Isolate* isolate, Handle<JSArray> receiver,
                            Handle<FixedArrayBase> backing_store, int dst_index,
                            int src_index, int len, int hole_start,
@@ -2300,8 +2287,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                 dst_elms->data_start() + src_index, len * kDoubleSize);
       } else {
         DisallowHeapAllocation no_gc;
+        WriteBarrierMode mode = GetWriteBarrierMode(KindTraits::Kind);
         heap->MoveElements(FixedArray::cast(*dst_elms), dst_index, src_index,
-                           len);
+                           len, mode);
       }
     }
     if (hole_start != hole_end) {
@@ -2671,6 +2659,37 @@ class FastSmiOrObjectElementsAccessor
     }
   }
 
+  static Maybe<bool> CollectValuesOrEntriesImpl(
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
+      PropertyFilter filter) {
+    int count = 0;
+    if (get_entries) {
+      // Collecting entries needs to allocate, so this code must be handlified.
+      Handle<FixedArray> elements(FixedArray::cast(object->elements()),
+                                  isolate);
+      uint32_t length = elements->length();
+      for (uint32_t index = 0; index < length; ++index) {
+        if (!Subclass::HasEntryImpl(isolate, *elements, index)) continue;
+        Handle<Object> value = Subclass::GetImpl(isolate, *elements, index);
+        value = MakeEntryPair(isolate, index, value);
+        values_or_entries->set(count++, *value);
+      }
+    } else {
+      // No allocations here, so we can avoid handlification overhead.
+      DisallowHeapAllocation no_gc;
+      FixedArray* elements = FixedArray::cast(object->elements());
+      uint32_t length = elements->length();
+      for (uint32_t index = 0; index < length; ++index) {
+        if (!Subclass::HasEntryImpl(isolate, elements, index)) continue;
+        Object* value = GetRaw(elements, index);
+        values_or_entries->set(count++, value);
+      }
+    }
+    *nof_items = count;
+    return Just(true);
+  }
+
   static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
                                          Handle<JSObject> receiver,
                                          Handle<Object> search_value,
@@ -2808,6 +2827,26 @@ class FastDoubleElementsAccessor
       UNREACHABLE();
       break;
     }
+  }
+
+  static Maybe<bool> CollectValuesOrEntriesImpl(
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
+      PropertyFilter filter) {
+    Handle<FixedDoubleArray> elements(
+        FixedDoubleArray::cast(object->elements()), isolate);
+    int count = 0;
+    uint32_t length = elements->length();
+    for (uint32_t index = 0; index < length; ++index) {
+      if (!Subclass::HasEntryImpl(isolate, *elements, index)) continue;
+      Handle<Object> value = Subclass::GetImpl(isolate, *elements, index);
+      if (get_entries) {
+        value = MakeEntryPair(isolate, index, value);
+      }
+      values_or_entries->set(count++, *value);
+    }
+    *nof_items = count;
+    return Just(true);
   }
 
   static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
@@ -3367,6 +3406,16 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
+    size_t current_length;
+    DCHECK(source->length()->IsNumber() &&
+           TryNumberToSize(source->length(), &current_length) &&
+           length <= current_length);
+    USE(current_length);
+
+    size_t dest_length = destination->length_value();
+    DCHECK(length + offset <= dest_length);
+    USE(dest_length);
+
     ElementsKind kind = source->GetElementsKind();
     BackingStore* dest = BackingStore::cast(destination->elements());
 
@@ -3504,6 +3553,7 @@ class TypedElementsAccessor
       // If we have to copy more elements than we have in the source, we need to
       // do special handling and conversion; that happens in the slow case.
       if (length + offset <= source_ta->length_value()) {
+        DCHECK(length == 0 || !source_ta->WasNeutered());
         CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
         return *isolate->factory()->undefined_value();
       }
@@ -3511,10 +3561,17 @@ class TypedElementsAccessor
 
     // Fast cases for packed numbers kinds where we don't need to allocate.
     if (source->IsJSArray()) {
-      Handle<JSArray> source_array = Handle<JSArray>::cast(source);
-      if (TryCopyElementsFastNumber(isolate->context(), *source_array,
-                                    *destination_ta, length, offset)) {
-        return *isolate->factory()->undefined_value();
+      Handle<JSArray> source_js_array = Handle<JSArray>::cast(source);
+      size_t current_length;
+      if (source_js_array->length()->IsNumber() &&
+          TryNumberToSize(source_js_array->length(), &current_length)) {
+        if (length <= current_length) {
+          Handle<JSArray> source_array = Handle<JSArray>::cast(source);
+          if (TryCopyElementsFastNumber(isolate->context(), *source_array,
+                                        *destination_ta, length, offset)) {
+            return *isolate->factory()->undefined_value();
+          }
+        }
       }
     }
     // Final generic case that handles prototype chain lookups, getters, proxies

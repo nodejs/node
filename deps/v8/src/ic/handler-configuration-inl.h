@@ -187,14 +187,6 @@ Handle<Smi> StoreHandler::StoreApiSetter(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
-// static
-WeakCell* StoreHandler::GetTransitionCell(Object* handler) {
-  DCHECK(handler->IsStoreHandler());
-  WeakCell* cell = WeakCell::cast(StoreHandler::cast(handler)->data1());
-  DCHECK(!cell->cleared());
-  return cell;
-}
-
 }  // namespace internal
 }  // namespace v8
 

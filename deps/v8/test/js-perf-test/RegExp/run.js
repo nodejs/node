@@ -20,6 +20,7 @@ load('slow_replace.js');
 load('slow_search.js');
 load('slow_split.js');
 load('slow_test.js');
+load('test_inl.js')
 
 var success = true;
 

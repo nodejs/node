@@ -466,9 +466,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ PrepareCallCFunction(0, 2, kScratchReg);                             \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                       \
                             i.InputDoubleRegister(1));                      \
-    __ CallCFunction(                                                       \
-        ExternalReference::ieee754_##name##_function(tasm()->isolate()), 0, \
-        2);                                                                 \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 2); \
     /* Move the result in the double result register. */                    \
     __ MovFromFloatResult(i.OutputDoubleRegister());                        \
   } while (0)
@@ -478,9 +476,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     FrameScope scope(tasm(), StackFrame::MANUAL);                           \
     __ PrepareCallCFunction(0, 1, kScratchReg);                             \
     __ MovToFloatParameter(i.InputDoubleRegister(0));                       \
-    __ CallCFunction(                                                       \
-        ExternalReference::ieee754_##name##_function(tasm()->isolate()), 0, \
-        1);                                                                 \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1); \
     /* Move the result in the double result register. */                    \
     __ MovFromFloatResult(i.OutputDoubleRegister());                        \
   } while (0)
@@ -557,9 +553,9 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
-  __ ComputeCodeStartAddress(at);
+  __ ComputeCodeStartAddress(kScratchReg);
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart,
-            kJavaScriptCallCodeStartRegister, Operand(at));
+            kJavaScriptCallCodeStartRegister, Operand(kScratchReg));
 }
 
 // Check if the code object is marked for deoptimization. If it is, then it
@@ -571,12 +567,18 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
-  __ Ld(at, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ Lw(at, FieldMemOperand(at, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ And(at, at, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  __ Ld(kScratchReg, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  __ Lw(kScratchReg,
+        FieldMemOperand(kScratchReg,
+                        CodeDataContainer::kKindSpecificFlagsOffset));
+  __ And(kScratchReg, kScratchReg,
+         Operand(1 << Code::kMarkedForDeoptimizationBit));
+  // Ensure we're not serializing (otherwise we'd need to use an indirection to
+  // access the builtin below).
+  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
-  __ Jump(code, RelocInfo::CODE_TARGET, ne, at, Operand(zero_reg));
+  __ Jump(code, RelocInfo::CODE_TARGET, ne, kScratchReg, Operand(zero_reg));
 }
 
 void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
@@ -584,12 +586,12 @@ void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   // bits cleared if we are speculatively executing the wrong PC.
   //    difference = (current - expected) | (expected - current)
   //    poison = ~(difference >> (kBitsPerPointer - 1))
-  __ ComputeCodeStartAddress(at);
-  __ Move(kSpeculationPoisonRegister, at);
+  __ ComputeCodeStartAddress(kScratchReg);
+  __ Move(kSpeculationPoisonRegister, kScratchReg);
   __ subu(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
           kJavaScriptCallCodeStartRegister);
   __ subu(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
-          at);
+          kScratchReg);
   __ or_(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
          kJavaScriptCallCodeStartRegister);
   __ sra(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
@@ -615,8 +617,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsImmediate()) {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
-        __ daddiu(at, i.InputRegister(0), Code::kHeaderSize - kHeapObjectTag);
-        __ Call(at);
+        __ daddiu(kScratchReg, i.InputRegister(0),
+                  Code::kHeaderSize - kHeapObjectTag);
+        __ Call(kScratchReg);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -629,13 +632,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                          i.TempRegister(2));
       }
       if (instr->InputAt(0)->IsImmediate()) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt64());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
         __ Call(wasm_code, info()->IsWasm() ? RelocInfo::WASM_CALL
                                             : RelocInfo::JS_TO_WASM_CALL);
       } else {
-        __ daddiu(at, i.InputRegister(0), 0);
-        __ Call(at);
+        __ daddiu(kScratchReg, i.InputRegister(0), 0);
+        __ Call(kScratchReg);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -651,8 +654,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsImmediate()) {
         __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
-        __ daddiu(at, i.InputRegister(0), Code::kHeaderSize - kHeapObjectTag);
-        __ Jump(at);
+        __ daddiu(kScratchReg, i.InputRegister(0),
+                  Code::kHeaderSize - kHeapObjectTag);
+        __ Jump(kScratchReg);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -660,13 +664,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchTailCallWasm: {
       if (instr->InputAt(0)->IsImmediate()) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt64());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
         __ Jump(wasm_code, info()->IsWasm() ? RelocInfo::WASM_CALL
                                             : RelocInfo::JS_TO_WASM_CALL);
       } else {
-        __ daddiu(at, i.InputRegister(0), 0);
-        __ Jump(at);
+        __ daddiu(kScratchReg, i.InputRegister(0), 0);
+        __ Jump(kScratchReg);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -784,11 +788,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDebugBreak:
       __ stop("kArchDebugBreak");
       break;
-    case kArchComment: {
-      Address comment_string = i.InputExternalReference(0).address();
-      __ RecordComment(reinterpret_cast<const char*>(comment_string));
+    case kArchComment:
+      __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)));
       break;
-    }
     case kArchNop:
     case kArchThrowTerminator:
       // don't emit code for nops.
@@ -821,8 +823,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(i.OutputRegister(), kRootRegister);
       break;
     case kArchTruncateDoubleToI:
-      __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
-                                  i.InputDoubleRegister(0));
+      __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
+                           i.InputDoubleRegister(0));
       break;
     case kArchStoreWithWriteBarrier: {
       RecordWriteMode mode =
@@ -834,8 +836,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch1 = i.TempRegister(1);
       auto ool = new (zone()) OutOfLineRecordWrite(this, object, index, value,
                                                    scratch0, scratch1, mode);
-      __ Daddu(at, object, index);
-      __ Sd(value, MemOperand(at));
+      __ Daddu(kScratchReg, object, index);
+      __ Sd(value, MemOperand(kScratchReg));
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                        ool->entry());
@@ -876,7 +878,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       break;
     }
-    case kArchPoisonOnSpeculationWord:
+    case kArchWordPoisonOnSpeculation:
       __ And(i.OutputRegister(), i.InputRegister(0),
              kSpeculationPoisonRegister);
       break;
@@ -929,7 +931,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
     case kIeee754Float64Pow: {
-      __ CallStubDelayed(new (zone()) MathPowStub());
+      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
       break;
     }
     case kIeee754Float64Sin:
@@ -1280,9 +1282,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ MovToFloatParameters(i.InputDoubleRegister(0),
                               i.InputDoubleRegister(1));
       // TODO(balazs.kilvady): implement mod_two_floats_operation(isolate())
-      __ CallCFunction(
-          ExternalReference::mod_two_doubles_operation(tasm()->isolate()), 0,
-          2);
+      __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
       // Move the result in the double result register.
       __ MovFromFloatResult(i.OutputSingleRegister());
       break;
@@ -1342,9 +1342,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ PrepareCallCFunction(0, 2, kScratchReg);
       __ MovToFloatParameters(i.InputDoubleRegister(0),
                               i.InputDoubleRegister(1));
-      __ CallCFunction(
-          ExternalReference::mod_two_doubles_operation(tasm()->isolate()), 0,
-          2);
+      __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
       // Move the result in the double result register.
       __ MovFromFloatResult(i.OutputDoubleRegister());
       break;
@@ -1596,14 +1594,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kMips64TruncUwD: {
       FPURegister scratch = kScratchDoubleReg;
-      // TODO(plind): Fix wrong param order of Trunc_uw_d() macro-asm function.
-      __ Trunc_uw_d(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
+      __ Trunc_uw_d(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
       break;
     }
     case kMips64TruncUwS: {
       FPURegister scratch = kScratchDoubleReg;
-      // TODO(plind): Fix wrong param order of Trunc_uw_d() macro-asm function.
-      __ Trunc_uw_s(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
+      __ Trunc_uw_s(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
       // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
       // because 0 allows easier out-of-bounds detection.
       __ addiu(kScratchReg, i.OutputRegister(), 1);
@@ -1613,16 +1609,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64TruncUlS: {
       FPURegister scratch = kScratchDoubleReg;
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
-      // TODO(plind): Fix wrong param order of Trunc_ul_s() macro-asm function.
-      __ Trunc_ul_s(i.InputDoubleRegister(0), i.OutputRegister(), scratch,
+      __ Trunc_ul_s(i.OutputRegister(), i.InputDoubleRegister(0), scratch,
                     result);
       break;
     }
     case kMips64TruncUlD: {
       FPURegister scratch = kScratchDoubleReg;
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
-      // TODO(plind): Fix wrong param order of Trunc_ul_d() macro-asm function.
-      __ Trunc_ul_d(i.InputDoubleRegister(0), i.OutputRegister(0), scratch,
+      __ Trunc_ul_d(i.OutputRegister(0), i.InputDoubleRegister(0), scratch,
                     result);
       break;
     }
@@ -3013,8 +3007,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
              instr->arch_opcode() == kMips64Dsub) {
     cc = FlagsConditionToConditionOvf(condition);
     __ dsra32(kScratchReg, i.OutputRegister(), 0);
-    __ sra(at, i.OutputRegister(), 31);
-    __ Branch(tlabel, cc, at, Operand(kScratchReg));
+    __ sra(kScratchReg2, i.OutputRegister(), 31);
+    __ Branch(tlabel, cc, kScratchReg2, Operand(kScratchReg));
   } else if (instr->arch_opcode() == kMips64DaddOvf ||
              instr->arch_opcode() == kMips64DsubOvf) {
     switch (condition) {
@@ -3108,14 +3102,15 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
     case kMips64Dsub: {
       // Check for overflow creates 1 or 0 for result.
       __ dsrl32(kScratchReg, i.OutputRegister(), 31);
-      __ srl(at, i.OutputRegister(), 31);
-      __ xor_(at, kScratchReg, at);
+      __ srl(kScratchReg2, i.OutputRegister(), 31);
+      __ xor_(kScratchReg2, kScratchReg, kScratchReg2);
       switch (condition) {
         case kOverflow:
-          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister, at);
+          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
+                                        kScratchReg2);
           break;
         case kNotOverflow:
-          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, at);
+          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg2);
           break;
         default:
           UNSUPPORTED_COND(instr->arch_opcode(), condition);
@@ -3154,7 +3149,19 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       }
     }
       return;
+    case kMips64CmpS:
+    case kMips64CmpD: {
+      bool predicate;
+      FlagsConditionToConditionCmpFPU(predicate, condition);
+      if (predicate) {
+        __ LoadZeroIfFPUCondition(kSpeculationPoisonRegister);
+      } else {
+        __ LoadZeroIfNotFPUCondition(kSpeculationPoisonRegister);
+      }
+    }
+      return;
     default:
+      UNREACHABLE();
       break;
   }
 }
@@ -3200,9 +3207,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // We use the context register as the scratch register, because we do
         // not have a context here.
         __ PrepareCallCFunction(0, 0, cp);
-        __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(
-                             tasm()->isolate()),
-                         0);
+        __ CallCFunction(
+            ExternalReference::wasm_call_trap_callback_for_testing(), 0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
         int pop_count =
@@ -3262,8 +3268,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     cc = FlagsConditionToConditionOvf(condition);
     // Check for overflow creates 1 or 0 for result.
     __ dsrl32(kScratchReg, i.OutputRegister(), 31);
-    __ srl(at, i.OutputRegister(), 31);
-    __ xor_(result, kScratchReg, at);
+    __ srl(kScratchReg2, i.OutputRegister(), 31);
+    __ xor_(result, kScratchReg, kScratchReg2);
     if (cc == eq)  // Toggle result for not overflow.
       __ xori(result, result, 1);
     return;
@@ -3403,8 +3409,8 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   MipsOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    __ li(at, Operand(i.InputInt32(index + 0)));
-    __ Branch(GetLabel(i.InputRpo(index + 1)), eq, input, Operand(at));
+    __ li(kScratchReg, Operand(i.InputInt32(index + 0)));
+    __ Branch(GetLabel(i.InputRpo(index + 1)), eq, input, Operand(kScratchReg));
   }
   AssembleArchJump(i.InputRpo(1));
 }
@@ -3453,6 +3459,9 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
+      if (call_descriptor->IsWasmFunctionCall()) {
+        __ Push(kWasmInstanceRegister);
+      }
     }
   }
 

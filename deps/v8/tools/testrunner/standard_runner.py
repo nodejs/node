@@ -33,7 +33,6 @@ MORE_VARIANTS = [
   "stress",
   "stress_background_compile",
   "stress_incremental_marking",
-  "wasm_traps",
 ]
 
 VARIANT_ALIASES = {
@@ -44,7 +43,7 @@ VARIANT_ALIASES = {
   # Shortcut for the two above ("more" first - it has the longer running tests).
   "exhaustive": MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
-  "extra": ["future", "liftoff", "trusted"],
+  "extra": ["future", "liftoff", "no_wasm_traps", "trusted"],
 }
 
 GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
@@ -166,6 +165,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         options.extra_flags.append("--invoke-weak-callbacks")
         options.extra_flags.append("--omit-quit")
 
+      if self.build_config.no_snap:
+        # Speed up slow nosnap runs. Allocation verification is covered by
+        # running mksnapshot on other builders.
+        options.extra_flags.append("--no-turbo-verify-allocation")
+
       if options.novfp3:
         options.extra_flags.append("--noenable-vfp3")
 
@@ -266,6 +270,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       variables.update({
         'gc_stress': options.gc_stress or options.random_gc_stress,
+        'gc_fuzzer': options.random_gc_stress,
         'novfp3': options.novfp3,
         'simulator_run': simulator_run,
       })

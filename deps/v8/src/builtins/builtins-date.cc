@@ -80,7 +80,7 @@ double MakeDay(double year, double month, double date) {
                                           182, 213, 244, 274, 305, 335};
       day_from_year += kDayFromMonth[m];
     }
-    return static_cast<double>(day_from_year - 1) + date;
+    return static_cast<double>(day_from_year - 1) + DoubleToInteger(date);
   }
   return std::numeric_limits<double>::quiet_NaN();
 }
@@ -94,14 +94,6 @@ double MakeTime(double hour, double min, double sec, double ms) {
     double const s = DoubleToInteger(sec);
     double const milli = DoubleToInteger(ms);
     return h * kMsPerHour + m * kMsPerMinute + s * kMsPerSecond + milli;
-  }
-  return std::numeric_limits<double>::quiet_NaN();
-}
-
-// ES6 section 20.3.1.15 TimeClip (time)
-double TimeClip(double time) {
-  if (-DateCache::kMaxTimeInMs <= time && time <= DateCache::kMaxTimeInMs) {
-    return DoubleToInteger(time) + 0.0;
   }
   return std::numeric_limits<double>::quiet_NaN();
 }
@@ -190,7 +182,7 @@ Object* SetLocalDateValue(Handle<JSDate> date, double time_val) {
   } else {
     time_val = std::numeric_limits<double>::quiet_NaN();
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 }  // namespace
@@ -356,7 +348,8 @@ BUILTIN(DateUTC) {
   }
   double const day = MakeDay(year, month, date);
   double const time = MakeTime(hours, minutes, seconds, ms);
-  return *isolate->factory()->NewNumber(TimeClip(MakeDate(day, time)));
+  return *isolate->factory()->NewNumber(
+      DateCache::TimeClip(MakeDate(day, time)));
 }
 
 // ES6 section 20.3.4.20 Date.prototype.setDate ( date )
@@ -560,7 +553,7 @@ BUILTIN(DatePrototypeSetTime) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setTime");
   Handle<Object> value = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(value));
-  return *JSDate::SetValue(date, TimeClip(value->Number()));
+  return *JSDate::SetValue(date, DateCache::TimeClip(value->Number()));
 }
 
 // ES6 section 20.3.4.28 Date.prototype.setUTCDate ( date )
@@ -577,7 +570,7 @@ BUILTIN(DatePrototypeSetUTCDate) {
   isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
   double const time_val =
       MakeDate(MakeDay(year, month, value->Number()), time_within_day);
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.29 Date.prototype.setUTCFullYear (year, month, date)
@@ -609,7 +602,7 @@ BUILTIN(DatePrototypeSetUTCFullYear) {
     }
   }
   double const time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.30 Date.prototype.setUTCHours(hour, min, sec, ms)
@@ -645,7 +638,7 @@ BUILTIN(DatePrototypeSetUTCHours) {
     }
     time_val = MakeDate(day, MakeTime(h, m, s, milli));
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.31 Date.prototype.setUTCMilliseconds(ms)
@@ -664,7 +657,7 @@ BUILTIN(DatePrototypeSetUTCMilliseconds) {
     int s = (time_within_day / 1000) % 60;
     time_val = MakeDate(day, MakeTime(h, m, s, ms->Number()));
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.32 Date.prototype.setUTCMinutes ( min, sec, ms )
@@ -695,7 +688,7 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
     }
     time_val = MakeDate(day, MakeTime(h, m, s, milli));
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.31 Date.prototype.setUTCMonth ( month, date )
@@ -721,7 +714,7 @@ BUILTIN(DatePrototypeSetUTCMonth) {
     }
     time_val = MakeDate(MakeDay(year, m, dt), time_within_day);
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.34 Date.prototype.setUTCSeconds ( sec, ms )
@@ -747,7 +740,7 @@ BUILTIN(DatePrototypeSetUTCSeconds) {
     }
     time_val = MakeDate(day, MakeTime(h, m, s, milli));
   }
-  return *JSDate::SetValue(date, TimeClip(time_val));
+  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.35 Date.prototype.toDateString ( )

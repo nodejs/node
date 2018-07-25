@@ -462,7 +462,7 @@ TEST_F(WasmModuleVerifyTest, OneI32Exception) {
 
   const WasmException& e0 = result.val->exceptions.front();
   EXPECT_EQ(1u, e0.sig->parameter_count());
-  EXPECT_EQ(MachineRepresentation::kWord32, e0.sig->GetParam(0));
+  EXPECT_EQ(kWasmI32, e0.sig->GetParam(0));
 }
 
 TEST_F(WasmModuleVerifyTest, TwoExceptions) {
@@ -479,10 +479,10 @@ TEST_F(WasmModuleVerifyTest, TwoExceptions) {
   EXPECT_EQ(2u, result.val->exceptions.size());
   const WasmException& e0 = result.val->exceptions.front();
   EXPECT_EQ(2u, e0.sig->parameter_count());
-  EXPECT_EQ(MachineRepresentation::kFloat32, e0.sig->GetParam(0));
-  EXPECT_EQ(MachineRepresentation::kWord64, e0.sig->GetParam(1));
+  EXPECT_EQ(kWasmF32, e0.sig->GetParam(0));
+  EXPECT_EQ(kWasmI64, e0.sig->GetParam(1));
   const WasmException& e1 = result.val->exceptions.back();
-  EXPECT_EQ(MachineRepresentation::kWord32, e1.sig->GetParam(0));
+  EXPECT_EQ(kWasmI32, e1.sig->GetParam(0));
 }
 
 TEST_F(WasmModuleVerifyTest, Exception_invalid_type) {

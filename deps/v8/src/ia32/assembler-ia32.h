@@ -233,6 +233,7 @@ enum RoundingMode {
 
 class Immediate BASE_EMBEDDED {
  public:
+  // Calls where x is an Address (uintptr_t) resolve to this overload.
   inline explicit Immediate(int x, RelocInfo::Mode rmode = RelocInfo::NONE) {
     value_.immediate = x;
     rmode_ = rmode;
@@ -243,9 +244,6 @@ class Immediate BASE_EMBEDDED {
       : Immediate(handle.address(), RelocInfo::EMBEDDED_OBJECT) {}
   inline explicit Immediate(Smi* value)
       : Immediate(reinterpret_cast<intptr_t>(value)) {}
-  inline explicit Immediate(Address addr,
-                            RelocInfo::Mode rmode = RelocInfo::NONE)
-      : Immediate(reinterpret_cast<int32_t>(addr), rmode) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Immediate EmbeddedCode(CodeStub* code);
@@ -363,15 +361,13 @@ class Operand {
   }
 
   static Operand StaticVariable(const ExternalReference& ext) {
-    return Operand(reinterpret_cast<int32_t>(ext.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
+    return Operand(ext.address(), RelocInfo::EXTERNAL_REFERENCE);
   }
 
   static Operand StaticArray(Register index,
                              ScaleFactor scale,
                              const ExternalReference& arr) {
-    return Operand(index, scale, reinterpret_cast<int32_t>(arr.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
+    return Operand(index, scale, arr.address(), RelocInfo::EXTERNAL_REFERENCE);
   }
 
   static Operand ForRegisterPlusImmediate(Register base, Immediate imm) {
@@ -529,6 +525,10 @@ class Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
       Address instruction_payload, Code* code, Address target);
+
+  // Get the size of the special target encoded at 'instruction_payload'.
+  inline static int deserialization_special_target_size(
+      Address instruction_payload);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
@@ -850,7 +850,7 @@ class Assembler : public AssemblerBase {
 
   // Calls
   void call(Label* L);
-  void call(byte* entry, RelocInfo::Mode rmode);
+  void call(Address entry, RelocInfo::Mode rmode);
   int CallSize(Operand adr);
   void call(Register reg) { call(Operand(reg)); }
   void call(Operand adr);
@@ -862,7 +862,7 @@ class Assembler : public AssemblerBase {
   // Jumps
   // unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
-  void jmp(byte* entry, RelocInfo::Mode rmode);
+  void jmp(Address entry, RelocInfo::Mode rmode);
   void jmp(Register reg) { jmp(Operand(reg)); }
   void jmp(Operand adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
@@ -1111,7 +1111,8 @@ class Assembler : public AssemblerBase {
   void movss(XMMRegister dst, XMMRegister src) { movss(dst, Operand(src)); }
   void extractps(Register dst, XMMRegister src, byte imm8);
 
-  void ptest(XMMRegister dst, XMMRegister src);
+  void ptest(XMMRegister dst, XMMRegister src) { ptest(dst, Operand(src)); }
+  void ptest(XMMRegister dst, Operand src);
 
   void psllw(XMMRegister reg, int8_t shift);
   void pslld(XMMRegister reg, int8_t shift);
@@ -1430,6 +1431,10 @@ class Assembler : public AssemblerBase {
   }
   void vshufps(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8);
 
+  void vptest(XMMRegister dst, XMMRegister src) { vptest(dst, Operand(src)); }
+  void vptest(XMMRegister dst, Operand src) {
+    vinstr(0x17, dst, xmm0, src, k66, k0F38, kWIG);
+  }
   void vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpslld(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrlw(XMMRegister dst, XMMRegister src, int8_t imm8);

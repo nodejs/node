@@ -8,6 +8,7 @@
 #include "src/conversions-inl.h"
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/heap.h"
+#include "src/heap/spaces.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -28,6 +29,8 @@ void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
     DCHECK_NOT_NULL(tracker);
     tracker->Add(buffer, length);
   }
+
+  // TODO(wez): Remove backing-store from external memory accounting.
   // We may go over the limit of externally allocated memory here. We call the
   // api function to trigger a GC in this case.
   reinterpret_cast<v8::Isolate*>(heap->isolate())
@@ -45,33 +48,38 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
     DCHECK_NOT_NULL(tracker);
     tracker->Remove(buffer, length);
   }
+
+  // TODO(wez): Remove backing-store from external memory accounting.
   heap->update_external_memory(-static_cast<intptr_t>(length));
 }
 
 template <typename Callback>
 void LocalArrayBufferTracker::Free(Callback should_free) {
-  size_t new_retained_size = 0;
-  Isolate* isolate = heap_->isolate();
+  size_t freed_memory = 0;
+  Isolate* isolate = space_->heap()->isolate();
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
     JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
     const size_t length = it->second;
+
     if (should_free(buffer)) {
       JSArrayBuffer::FreeBackingStore(
           isolate, {buffer->backing_store(), length, buffer->backing_store(),
                     buffer->allocation_mode(), buffer->is_wasm_memory()});
       it = array_buffers_.erase(it);
+      freed_memory += length;
     } else {
-      new_retained_size += length;
       ++it;
     }
   }
-  const size_t freed_memory = retained_size_ - new_retained_size;
   if (freed_memory > 0) {
-    heap_->update_external_memory_concurrently_freed(
+    // Update the Space with any freed backing-store bytes.
+    space_->DecrementExternalBackingStoreBytes(freed_memory);
+
+    // TODO(wez): Remove backing-store from external memory accounting.
+    space_->heap()->update_external_memory_concurrently_freed(
         static_cast<intptr_t>(freed_memory));
   }
-  retained_size_ = new_retained_size;
 }
 
 template <typename MarkingState>
@@ -88,8 +96,9 @@ void ArrayBufferTracker::FreeDead(Page* page, MarkingState* marking_state) {
 }
 
 void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
-  DCHECK_GE(retained_size_ + length, retained_size_);
-  retained_size_ += length;
+  // Track the backing-store usage against the owning Space.
+  space_->IncrementExternalBackingStoreBytes(length);
+
   auto ret = array_buffers_.insert({buffer, length});
   USE(ret);
   // Check that we indeed inserted a new value and did not overwrite an existing
@@ -98,8 +107,9 @@ void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
 }
 
 void LocalArrayBufferTracker::Remove(JSArrayBuffer* buffer, size_t length) {
-  DCHECK_GE(retained_size_, retained_size_ - length);
-  retained_size_ -= length;
+  // Remove the backing-store accounting from the owning Space.
+  space_->DecrementExternalBackingStoreBytes(length);
+
   TrackingData::iterator it = array_buffers_.find(buffer);
   // Check that we indeed find a key to remove.
   DCHECK(it != array_buffers_.end());

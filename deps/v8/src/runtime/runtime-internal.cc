@@ -430,11 +430,6 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
 RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  if (FLAG_harmony_restrict_constructor_return) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kClassConstructorReturnedNonObject));
-  }
 
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
@@ -482,15 +477,6 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(counter, 0);
   isolate->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(counter));
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(
-    Runtime_IncrementUseCounterConstructorReturnNonUndefinedPrimitive) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kConstructorNonUndefinedPrimitiveReturn);
   return isolate->heap()->undefined_value();
 }
 

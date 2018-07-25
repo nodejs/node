@@ -139,7 +139,7 @@ Node* InterpreterAssembler::GetAccumulatorUnchecked() {
 Node* InterpreterAssembler::GetAccumulator() {
   DCHECK(Bytecodes::ReadsAccumulator(bytecode_));
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kRead;
-  return PoisonOnSpeculationTagged(GetAccumulatorUnchecked());
+  return TaggedPoisonOnSpeculation(GetAccumulatorUnchecked());
 }
 
 void InterpreterAssembler::SetAccumulator(Node* value) {
@@ -222,7 +222,7 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(Node* context,
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
-  return PoisonOnSpeculationWord(
+  return WordPoisonOnSpeculation(
       IntPtrAdd(GetInterpretedFramePointer(), RegisterFrameOffset(reg_index)));
 }
 
@@ -236,7 +236,7 @@ Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
 
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
   return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
-              RegisterFrameOffset(reg_index), LoadSensitivity::kNeedsPoisoning);
+              RegisterFrameOffset(reg_index), LoadSensitivity::kCritical);
 }
 
 Node* InterpreterAssembler::LoadRegister(Register reg) {
@@ -648,7 +648,7 @@ Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
                                         BytecodeArray::kConstantPoolOffset);
   return LoadFixedArrayElement(constant_pool, UncheckedCast<IntPtrT>(index),
-                               LoadSensitivity::kNeedsPoisoning);
+                               LoadSensitivity::kCritical);
 }
 
 Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
@@ -703,8 +703,8 @@ void InterpreterAssembler::CallEpilogue() {
 void InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
                                               Node* slot_id) {
   Comment("increment call count");
-  Node* call_count =
-      LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize);
+  TNode<Smi> call_count = CAST(
+      ToObject(LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize)));
   // The lowest {FeedbackNexus::CallCountField::kShift} bits of the call
   // count are used as flags. To increment the call count by 1 we hence
   // have to increment by 1 << {FeedbackNexus::CallCountField::kShift}.
@@ -721,7 +721,8 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
   Label extra_checks(this, Label::kDeferred), done(this);
 
   // Check if we have monomorphic {target} feedback already.
-  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  TNode<HeapObject> feedback_element =
+      ToStrongHeapObject(LoadFeedbackVectorSlot(feedback_vector, slot_id));
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Comment("check if monomorphic");
   Node* is_monomorphic = WordEqual(target, feedback_value);
@@ -929,7 +930,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
   IncrementCallCount(feedback_vector, slot_id);
 
   // Check if we have monomorphic {new_target} feedback already.
-  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  TNode<HeapObject> feedback_element =
+      CAST(ToObject(LoadFeedbackVectorSlot(feedback_vector, slot_id)));
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Branch(WordEqual(new_target, feedback_value), &construct, &extra_checks);
 
@@ -1108,7 +1110,8 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
   IncrementCallCount(feedback_vector, slot_id);
 
   // Check if we have monomorphic {new_target} feedback already.
-  Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  TNode<HeapObject> feedback_element =
+      CAST(ToObject(LoadFeedbackVectorSlot(feedback_vector, slot_id)));
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Branch(WordEqual(new_target, feedback_value), &construct, &extra_checks);
 
@@ -1422,7 +1425,7 @@ Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     Node* handler_entry, Node* bytecode_offset, Node* target_bytecode) {
   InterpreterDispatchDescriptor descriptor(isolate());
   // Propagate speculation poisoning.
-  Node* poisoned_handler_entry = PoisonOnSpeculationWord(handler_entry);
+  Node* poisoned_handler_entry = WordPoisonOnSpeculation(handler_entry);
   return TailCallBytecodeDispatch(
       descriptor, poisoned_handler_entry, GetAccumulatorUnchecked(),
       bytecode_offset, BytecodeArrayTaggedPointer(), DispatchTableRawPointer());
@@ -1654,7 +1657,8 @@ Node* InterpreterAssembler::ImportRegisterFile(
     Node* reg_index = IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
     StoreRegister(value, reg_index);
 
-    StoreFixedArrayElement(array, index, StaleRegisterConstant());
+    StoreFixedArrayElement(array, index,
+                           LoadRoot(Heap::kStaleRegisterRootIndex));
 
     var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
     Goto(&loop);

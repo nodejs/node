@@ -28,8 +28,6 @@ static const char* kHeader =
 // Non-snapshot builds allocate objects to different places.
 // Debug builds emit debug code, affecting code object sizes.
 // Embedded builtins cause objects to be allocated in different locations.
-// TODO(jgruber,v8:6666): Change the V8_EMBEDDED_BUILTINS condition when it
-// becomes the default.
 #if !defined(V8_EMBEDDED_BUILTINS) && defined(V8_USE_SNAPSHOT) && \
     !defined(DEBUG)
 static const char* kBuild = "shipping";

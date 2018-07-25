@@ -10,6 +10,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/wasm/flag-utils.h"
@@ -205,7 +206,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         ValueType type = decls.type_list[pos];
         while (pos + count < locals && decls.type_list[pos + count] == type)
           ++count;
-        os << ".addLocals({" << WasmOpcodes::TypeName(type)
+        os << ".addLocals({" << ValueTypes::TypeName(type)
            << "_count: " << count << "})";
       }
       os << "\n";

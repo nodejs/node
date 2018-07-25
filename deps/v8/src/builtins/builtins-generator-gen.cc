@@ -35,11 +35,11 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
             &if_receiverisincompatible);
 
   // Check if the {receiver} is running or already closed.
-  Node* receiver_continuation =
-      LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset);
+  TNode<Smi> receiver_continuation =
+      CAST(LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset));
   Label if_receiverisclosed(this, Label::kDeferred),
       if_receiverisrunning(this, Label::kDeferred);
-  Node* closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
+  TNode<Smi> closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
   GotoIf(SmiEqual(receiver_continuation, closed), &if_receiverisclosed);
   DCHECK_LT(JSGeneratorObject::kGeneratorExecuting,
             JSGeneratorObject::kGeneratorClosed);
@@ -59,14 +59,14 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
 
   // If the generator is not suspended (i.e., its state is 'executing'),
   // close it and wrap the return value in IteratorResult.
-  Node* result_continuation =
-      LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset);
+  TNode<Smi> result_continuation =
+      CAST(LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset));
 
   // The generator function should not close the generator by itself, let's
   // check it is indeed not closed yet.
   CSA_ASSERT(this, SmiNotEqual(result_continuation, closed));
 
-  Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
+  TNode<Smi> executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   GotoIf(SmiEqual(result_continuation, executing), &if_final_return);
 
   args->PopAndReturn(result);

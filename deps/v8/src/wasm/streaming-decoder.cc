@@ -12,6 +12,7 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 

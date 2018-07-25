@@ -28,7 +28,8 @@ InterpreterAssemblerTestState::InterpreterAssemblerTestState(
           test->isolate(), test->zone(),
           InterpreterDispatchDescriptor(test->isolate()),
           Code::BYTECODE_HANDLER, Bytecodes::ToString(bytecode),
-          PoisoningMitigationLevel::kOn, Bytecodes::ReturnCount(bytecode)) {}
+          PoisoningMitigationLevel::kPoisonCriticalOnly,
+          Bytecodes::ReturnCount(bytecode)) {}
 
 const interpreter::Bytecode kBytecodes[] = {
 #define DEFINE_BYTECODE(Name, ...) interpreter::Bytecode::k##Name,
@@ -53,8 +54,10 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsLoad(
     const Matcher<c::LoadRepresentation>& rep_matcher,
     const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher,
     LoadSensitivity needs_poisoning) {
-  if (poisoning_enabled() == PoisoningMitigationLevel::kOn &&
-      needs_poisoning == LoadSensitivity::kNeedsPoisoning) {
+  CHECK_NE(LoadSensitivity::kUnsafe, needs_poisoning);
+  CHECK_NE(PoisoningMitigationLevel::kPoisonAll, poisoning_level());
+  if (poisoning_level() == PoisoningMitigationLevel::kPoisonCriticalOnly &&
+      needs_poisoning == LoadSensitivity::kCritical) {
     return ::i::compiler::IsPoisonedLoad(rep_matcher, base_matcher,
                                          index_matcher, _, _);
   }
@@ -293,7 +296,7 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsLoadRegisterOperand(
   return IsLoad(
       MachineType::AnyTagged(), c::IsLoadParentFramePointer(),
       c::IsWordShl(reg_operand, c::IsIntPtrConstant(kPointerSizeLog2)),
-      LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity::kCritical);
 }
 
 TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
@@ -354,45 +357,43 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
           case interpreter::OperandType::kRegCount:
             EXPECT_THAT(m.BytecodeOperandCount(i),
                         m.IsUnsignedOperand(offset, operand_size,
-                                            LoadSensitivity::kNeedsPoisoning));
+                                            LoadSensitivity::kCritical));
             break;
           case interpreter::OperandType::kFlag8:
             EXPECT_THAT(m.BytecodeOperandFlag(i),
                         m.IsUnsignedOperand(offset, operand_size,
-                                            LoadSensitivity::kNeedsPoisoning));
+                                            LoadSensitivity::kCritical));
             break;
           case interpreter::OperandType::kIdx:
-            EXPECT_THAT(
-                m.BytecodeOperandIdx(i),
-                c::IsChangeUint32ToWord(m.IsUnsignedOperand(
-                    offset, operand_size, LoadSensitivity::kNeedsPoisoning)));
+            EXPECT_THAT(m.BytecodeOperandIdx(i),
+                        c::IsChangeUint32ToWord(m.IsUnsignedOperand(
+                            offset, operand_size, LoadSensitivity::kCritical)));
             break;
           case interpreter::OperandType::kNativeContextIndex:
-            EXPECT_THAT(
-                m.BytecodeOperandNativeContextIndex(i),
-                c::IsChangeUint32ToWord(m.IsUnsignedOperand(
-                    offset, operand_size, LoadSensitivity::kNeedsPoisoning)));
+            EXPECT_THAT(m.BytecodeOperandNativeContextIndex(i),
+                        c::IsChangeUint32ToWord(m.IsUnsignedOperand(
+                            offset, operand_size, LoadSensitivity::kCritical)));
             break;
           case interpreter::OperandType::kUImm:
             EXPECT_THAT(m.BytecodeOperandUImm(i),
                         m.IsUnsignedOperand(offset, operand_size,
-                                            LoadSensitivity::kNeedsPoisoning));
+                                            LoadSensitivity::kCritical));
             break;
           case interpreter::OperandType::kImm: {
             EXPECT_THAT(m.BytecodeOperandImm(i),
                         m.IsSignedOperand(offset, operand_size,
-                                          LoadSensitivity::kNeedsPoisoning));
+                                          LoadSensitivity::kCritical));
             break;
           }
           case interpreter::OperandType::kRuntimeId:
             EXPECT_THAT(m.BytecodeOperandRuntimeId(i),
                         m.IsUnsignedOperand(offset, operand_size,
-                                            LoadSensitivity::kNeedsPoisoning));
+                                            LoadSensitivity::kCritical));
             break;
           case interpreter::OperandType::kIntrinsicId:
             EXPECT_THAT(m.BytecodeOperandIntrinsicId(i),
                         m.IsUnsignedOperand(offset, operand_size,
-                                            LoadSensitivity::kNeedsPoisoning));
+                                            LoadSensitivity::kCritical));
             break;
           case interpreter::OperandType::kRegList:
           case interpreter::OperandType::kReg:
@@ -442,7 +443,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
           m.IsLoad(MachineType::AnyTagged(), constant_pool_matcher,
                    c::IsIntPtrConstant(FixedArray::OffsetOfElementAt(2) -
                                        kHeapObjectTag),
-                   LoadSensitivity::kNeedsPoisoning));
+                   LoadSensitivity::kCritical));
     }
     {
       Node* index = m.Parameter(2);
@@ -459,7 +460,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
               c::IsIntPtrAdd(
                   c::IsIntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
                   c::IsWordShl(index, c::IsIntPtrConstant(kPointerSizeLog2))),
-              LoadSensitivity::kNeedsPoisoning));
+              LoadSensitivity::kCritical));
     }
   }
 }

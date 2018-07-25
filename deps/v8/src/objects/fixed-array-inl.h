@@ -17,7 +17,7 @@ TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
 TYPE_CHECKER(FixedArrayExact, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(FixedArrayOfWeakCells, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(WeakFixedArray, WEAK_FIXED_ARRAY_TYPE)
+TYPE_CHECKER(WeakArrayList, WEAK_ARRAY_LIST_TYPE)
 
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(ByteArray)
@@ -28,11 +28,16 @@ CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(TemplateList)
 CAST_ACCESSOR(FixedArrayOfWeakCells)
 CAST_ACCESSOR(WeakFixedArray)
+CAST_ACCESSOR(WeakArrayList)
 
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
+
+SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
+SYNCHRONIZED_SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
+SMI_ACCESSORS(WeakArrayList, length, kLengthOffset)
 
 Object* FixedArrayBase::unchecked_synchronized_length() const {
   return ACQUIRE_READ_FIELD(this, kLengthOffset);
@@ -232,7 +237,36 @@ void WeakFixedArray::Set(int index, MaybeObject* value) {
   WEAK_WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
+void WeakFixedArray::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, length());
+  int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+}
+
 MaybeObject** WeakFixedArray::data_start() {
+  return HeapObject::RawMaybeWeakField(this, kHeaderSize);
+}
+
+MaybeObject** WeakFixedArray::RawFieldOfElementAt(int index) {
+  return HeapObject::RawMaybeWeakField(this, OffsetOfElementAt(index));
+}
+
+MaybeObject* WeakArrayList::Get(int index) const {
+  SLOW_DCHECK(index >= 0 && index < this->capacity());
+  return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
+}
+
+void WeakArrayList::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->capacity());
+  int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+}
+
+MaybeObject** WeakArrayList::data_start() {
   return HeapObject::RawMaybeWeakField(this, kHeaderSize);
 }
 
@@ -320,15 +354,15 @@ void ByteArray::set(int index, byte value) {
 void ByteArray::copy_in(int index, const byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
-  byte* dst_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
-  memcpy(dst_addr, buffer, length);
+  Address dst_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
+  memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
 }
 
 void ByteArray::copy_out(int index, byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
-  const byte* src_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
-  memcpy(buffer, src_addr, length);
+  Address src_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
+  memcpy(buffer, reinterpret_cast<void*>(src_addr), length);
 }
 
 int ByteArray::get_int(int index) const {
@@ -353,7 +387,7 @@ void ByteArray::set_uint32(int index, uint32_t value) {
 
 void ByteArray::clear_padding() {
   int data_size = length() + kHeaderSize;
-  memset(address() + data_size, 0, Size() - data_size);
+  memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);
 }
 
 ByteArray* ByteArray::FromDataStartAddress(Address address) {
@@ -365,8 +399,8 @@ int ByteArray::DataSize() const { return RoundUp(length(), kPointerSize); }
 
 int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
 
-Address ByteArray::GetDataStartAddress() {
-  return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
+byte* ByteArray::GetDataStartAddress() {
+  return reinterpret_cast<byte*>(address() + kHeaderSize);
 }
 
 template <class T>

@@ -318,49 +318,49 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // do not support unaligned memory accesses.
   compiler::Node* BytecodeOperandReadUnaligned(
       int relative_offset, MachineType result_type,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Returns zero- or sign-extended to word32 value of the operand.
   compiler::Node* BytecodeOperandUnsignedByte(
       int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
   compiler::Node* BytecodeOperandSignedByte(
       int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
   compiler::Node* BytecodeOperandUnsignedShort(
       int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
   compiler::Node* BytecodeOperandSignedShort(
       int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
   compiler::Node* BytecodeOperandUnsignedQuad(
       int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
   compiler::Node* BytecodeOperandSignedQuad(
       int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Returns zero- or sign-extended to word32 value of the operand of
   // given size.
   compiler::Node* BytecodeSignedOperand(
       int operand_index, OperandSize operand_size,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
   compiler::Node* BytecodeUnsignedOperand(
       int operand_index, OperandSize operand_size,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Returns the word-size sign-extended register index for bytecode operand
   // |operand_index| in the current bytecode. Value is not poisoned on
   // speculation since the value loaded from the register is poisoned instead.
   compiler::Node* BytecodeOperandReg(
       int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Returns the word zero-extended index immediate for bytecode operand
   // |operand_index| in the current bytecode for use when loading a .
   compiler::Node* BytecodeOperandConstantPoolIdx(
       int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kNeedsPoisoning);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Jump relative to the current bytecode by the |jump_offset|. If |backward|,
   // then jump backward (subtract the offset), otherwise jump forward (add the

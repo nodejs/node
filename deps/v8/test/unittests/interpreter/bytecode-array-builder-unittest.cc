@@ -168,9 +168,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit create context operation.
   builder.CreateBlockContext(&scope);
-  builder.CreateCatchContext(reg, name, &scope);
-  builder.CreateFunctionContext(1);
-  builder.CreateEvalContext(1);
+  builder.CreateCatchContext(reg, &scope);
+  builder.CreateFunctionContext(&scope, 1);
+  builder.CreateEvalContext(&scope, 1);
   builder.CreateWithContext(reg, &scope);
 
   // Emit literal creation operations.
@@ -193,7 +193,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallUndefinedReceiver(reg, pair, 1)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
-      .CallJSRuntime(Context::OBJECT_IS_FROZEN, reg_list)
+      .CallJSRuntime(Context::OBJECT_CREATE, reg_list)
       .CallWithSpread(reg, reg_list, 1);
 
   // Emit binary operator invocations.
@@ -249,7 +249,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, 1)
       .CompareOperation(Token::Value::EQ_STRICT, reg, 2)
-      .CompareOperation(Token::Value::EQ_STRICT, reg)
       .CompareOperation(Token::Value::LT, reg, 3)
       .CompareOperation(Token::Value::GT, reg, 4)
       .CompareOperation(Token::Value::LTE, reg, 5)
@@ -257,6 +256,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber)
       .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
       .CompareOperation(Token::Value::IN, reg)
+      .CompareReference(reg)
       .CompareUndetectable()
       .CompareUndefined()
       .CompareNull();
