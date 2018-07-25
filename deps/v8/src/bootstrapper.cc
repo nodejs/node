@@ -5077,6 +5077,15 @@ bool Genesis::InstallExtraNatives() {
 
   Handle<JSObject> extras_binding =
       factory()->NewJSObject(isolate()->object_function());
+
+  // binding.isTraceCategoryEnabled(category)
+  SimpleInstallFunction(isolate(), extras_binding, "isTraceCategoryEnabled",
+                        Builtins::kIsTraceCategoryEnabled, 1, true);
+
+  // binding.trace(phase, category, name, id, data)
+  SimpleInstallFunction(isolate(), extras_binding, "trace", Builtins::kTrace, 5,
+                        true);
+
   native_context()->set_extras_binding_object(*extras_binding);
 
   for (int i = ExtraNatives::GetDebuggerCount();
