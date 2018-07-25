@@ -407,15 +407,15 @@ int FileHandle::DoShutdown(ShutdownWrap* req_wrap) {
 }
 
 
-void FSReqWrap::Reject(Local<Value> reject) {
+void FSReqCallback::Reject(Local<Value> reject) {
   MakeCallback(env()->oncomplete_string(), 1, &reject);
 }
 
-void FSReqWrap::ResolveStat(const uv_stat_t* stat) {
+void FSReqCallback::ResolveStat(const uv_stat_t* stat) {
   Resolve(node::FillGlobalStatsArray(env(), stat, use_bigint()));
 }
 
-void FSReqWrap::Resolve(Local<Value> value) {
+void FSReqCallback::Resolve(Local<Value> value) {
   Local<Value> argv[2] {
     Null(env()->isolate()),
     value
@@ -425,14 +425,14 @@ void FSReqWrap::Resolve(Local<Value> value) {
                argv);
 }
 
-void FSReqWrap::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
+void FSReqCallback::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().SetUndefined();
 }
 
-void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
+void NewFSReqCallback(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  new FSReqWrap(env, args.This(), args[0]->IsTrue());
+  new FSReqCallback(env, args.This(), args[0]->IsTrue());
 }
 
 FSReqAfterScope::FSReqAfterScope(FSReqBase* wrap, uv_fs_t* req)
@@ -600,7 +600,7 @@ void AfterScanDir(uv_fs_t* req) {
 
 
 // This class is only used on sync fs calls.
-// For async calls FSReqWrap is used.
+// For async calls FSReqCallback is used.
 class FSReqWrapSync {
  public:
   FSReqWrapSync() {}
@@ -1954,13 +1954,13 @@ void Initialize(Local<Object> target,
 
   StatWatcher::Initialize(env, target);
 
-  // Create FunctionTemplate for FSReqWrap
+  // Create FunctionTemplate for FSReqCallback
   Local<FunctionTemplate> fst =
-      FunctionTemplate::New(env->isolate(), NewFSReqWrap);
+      FunctionTemplate::New(env->isolate(), NewFSReqCallback);
   fst->InstanceTemplate()->SetInternalFieldCount(1);
   AsyncWrap::AddWrapMethods(env, fst);
   Local<String> wrapString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap");
+      FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqCallback");
   fst->SetClassName(wrapString);
   target->Set(context, wrapString, fst->GetFunction()).FromJust();
 

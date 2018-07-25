@@ -133,11 +133,11 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const binding = process.binding('fs');
   const path = require('path');
 
-  const FSReqWrap = binding.FSReqWrap;
-  const req = new FSReqWrap();
+  const FSReqCallback = binding.FSReqCallback;
+  const req = new FSReqCallback();
   req.oncomplete = () => { };
 
-  testInitialized(req, 'FSReqWrap');
+  testInitialized(req, 'FSReqCallback');
   binding.access(path.toNamespacedPath('../'), fs.F_OK, req);
 
   const StatWatcher = binding.StatWatcher;
