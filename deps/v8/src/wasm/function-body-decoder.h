@@ -77,11 +77,11 @@ inline DecodeResult BuildTFGraph(AccountingAllocator* allocator,
 
 struct BodyLocalDecls {
   // The size of the encoded declarations.
-  uint32_t encoded_size;  // size of encoded declarations
+  uint32_t encoded_size = 0;  // size of encoded declarations
 
   ZoneVector<ValueType> type_list;
 
-  explicit BodyLocalDecls(Zone* zone) : encoded_size(0), type_list(zone) {}
+  explicit BodyLocalDecls(Zone* zone) : type_list(zone) {}
 };
 
 V8_EXPORT_PRIVATE bool DecodeLocalDecls(BodyLocalDecls* decls,

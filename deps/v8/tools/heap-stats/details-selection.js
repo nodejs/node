@@ -8,6 +8,10 @@ const details_selection_template =
     document.currentScript.ownerDocument.querySelector(
         '#details-selection-template');
 
+const VIEW_BY_INSTANCE_TYPE = 'by-instance-type';
+const VIEW_BY_INSTANCE_CATEGORY = 'by-instance-category';
+const VIEW_BY_FIELD_TYPE = 'by-field-type';
+
 class DetailsSelection extends HTMLElement {
   constructor() {
     super();
@@ -15,14 +19,14 @@ class DetailsSelection extends HTMLElement {
     shadowRoot.appendChild(details_selection_template.content.cloneNode(true));
     this.isolateSelect.addEventListener(
         'change', e => this.handleIsolateChange(e));
+    this.dataViewSelect.addEventListener(
+        'change', e => this.notifySelectionChanged(e));
     this.datasetSelect.addEventListener(
         'change', e => this.notifySelectionChanged(e));
     this.gcSelect.addEventListener(
-        'change', e => this.notifySelectionChanged(e));
+      'change', e => this.notifySelectionChanged(e));
     this.$('#csv-export-btn')
         .addEventListener('click', e => this.exportCurrentSelection(e));
-    this.$('#merge-categories')
-        .addEventListener('change', e => this.notifySelectionChanged(e));
     this.$('#category-filter-btn')
         .addEventListener('click', e => this.filterCurrentSelection(e));
     this.$('#category-auto-filter-btn')
@@ -60,6 +64,10 @@ class DetailsSelection extends HTMLElement {
 
   querySelectorAll(query) {
     return this.shadowRoot.querySelectorAll(query);
+  }
+
+  get dataViewSelect() {
+    return this.$('#data-view-select');
   }
 
   get datasetSelect() {
@@ -128,6 +136,7 @@ class DetailsSelection extends HTMLElement {
   resetUI(resetIsolateSelect) {
     if (resetIsolateSelect) removeAllChildren(this.isolateSelect);
 
+    removeAllChildren(this.dataViewSelect);
     removeAllChildren(this.datasetSelect);
     removeAllChildren(this.gcSelect);
     this.clearCategories();
@@ -149,6 +158,13 @@ class DetailsSelection extends HTMLElement {
     }
     this.resetUI(false);
     this.populateSelect(
+        '#data-view-select', [
+          [VIEW_BY_INSTANCE_TYPE, 'Selected instance types'],
+          [VIEW_BY_INSTANCE_CATEGORY, 'Selected type categories'],
+          [VIEW_BY_FIELD_TYPE, 'Field type statistics']
+        ],
+        (key, label) => label, VIEW_BY_INSTANCE_TYPE);
+    this.populateSelect(
         '#dataset-select', this.selectedIsolate.data_sets.entries(), null,
         'live');
     this.populateSelect(
@@ -168,14 +184,19 @@ class DetailsSelection extends HTMLElement {
   notifySelectionChanged(e) {
     if (!this.selection.isolate) return;
 
+    this.selection.data_view = this.dataViewSelect.value;
     this.selection.categories = {};
-    for (let category of CATEGORIES.keys()) {
-      const selected = this.selectedInCategory(category);
-      if (selected.length > 0) this.selection.categories[category] = selected;
+    if (this.selection.data_view === VIEW_BY_FIELD_TYPE) {
+      this.$('#categories').style.display = 'none';
+    } else {
+      for (let category of CATEGORIES.keys()) {
+        const selected = this.selectedInCategory(category);
+        if (selected.length > 0) this.selection.categories[category] = selected;
+      }
+      this.$('#categories').style.display = 'block';
     }
     this.selection.category_names = CATEGORY_NAMES;
     this.selection.data_set = this.datasetSelect.value;
-    this.selection.merge_categories = this.$('#merge-categories').checked;
     this.selection.gc = this.gcSelect.value;
     this.setButtonState(false);
     this.updatePercentagesInCategory();

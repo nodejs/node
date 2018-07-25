@@ -150,6 +150,8 @@ class ConsoleDelegate {
                      const ConsoleContext& context) {}
   virtual void Count(const ConsoleCallArguments& args,
                      const ConsoleContext& context) {}
+  virtual void CountReset(const ConsoleCallArguments& args,
+                          const ConsoleContext& context) {}
   virtual void Assert(const ConsoleCallArguments& args,
                       const ConsoleContext& context) {}
   virtual void MarkTimeline(const ConsoleCallArguments& args,

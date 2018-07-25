@@ -14,6 +14,7 @@
 #include "src/machine-type.h"
 #include "src/reglist.h"
 #include "src/runtime/runtime.h"
+#include "src/signature.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -113,6 +114,8 @@ class LinkageLocation {
   }
 
   int32_t GetLocation() const {
+    // We can't use LocationField::decode here because it doesn't work for
+    // negative values!
     return static_cast<int32_t>(bit_field_ & LocationField::kMask) >>
            LocationField::kShift;
   }
@@ -221,8 +224,11 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // Returns {true} if this descriptor is a call to a JSFunction.
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
 
+  // Returns {true} if this descriptor is a call to a WebAssembly function.
+  bool IsWasmFunctionCall() const { return kind_ == kCallWasmFunction; }
+
   bool RequiresFrameAsIncoming() const {
-    return IsCFunctionCall() || IsJSFunctionCall();
+    return IsCFunctionCall() || IsJSFunctionCall() || IsWasmFunctionCall();
   }
 
   // The number of return values from this call.
@@ -356,7 +362,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 //                        #0          #1     #2     [...]             #n
 // Call[CodeStub]         code,       arg 1, arg 2, [...],            context
 // Call[JSFunction]       function,   rcvr,  arg 1, [...], new, #arg, context
-// Call[Runtime]          CEntryStub, arg 1, arg 2, [...], fun, #arg, context
+// Call[Runtime]          CEntry,     arg 1, arg 2, [...], fun, #arg, context
 // Call[BytecodeDispatch] address,    arg 1, arg 2, [...]
 class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
  public:

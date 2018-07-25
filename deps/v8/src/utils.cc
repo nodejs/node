@@ -442,6 +442,53 @@ bool DoubleToBoolean(double d) {
   return true;
 }
 
+// The filter is a pattern that matches function names in this way:
+//   "*"      all; the default
+//   "-"      all but the top-level function
+//   "-name"  all but the function "name"
+//   ""       only the top-level function
+//   "name"   only the function "name"
+//   "name*"  only functions starting with "name"
+//   "~"      none; the tilde is not an identifier
+bool PassesFilter(Vector<const char> name, Vector<const char> filter) {
+  if (filter.size() == 0) return name.size() == 0;
+  auto filter_it = filter.begin();
+  bool positive_filter = true;
+  if (*filter_it == '-') {
+    ++filter_it;
+    positive_filter = false;
+  }
+  if (filter_it == filter.end()) return name.size() != 0;
+  if (*filter_it == '*') return positive_filter;
+  if (*filter_it == '~') return !positive_filter;
+
+  bool prefix_match = filter[filter.size() - 1] == '*';
+  size_t min_match_length = filter.size();
+  if (!positive_filter) min_match_length--;  // Subtract 1 for leading '-'.
+  if (prefix_match) min_match_length--;      // Subtract 1 for trailing '*'.
+
+  if (name.size() < min_match_length) return !positive_filter;
+
+  // TODO(sigurds): Use the new version of std::mismatch here, once we
+  // can assume C++14.
+  auto res = std::mismatch(filter_it, filter.end(), name.begin());
+  if (res.first == filter.end()) {
+    if (res.second == name.end()) {
+      // The strings match, so {name} passes if we have a {positive_filter}.
+      return positive_filter;
+    }
+    // {name} is longer than the filter, so {name} passes if we don't have a
+    // {positive_filter}.
+    return !positive_filter;
+  }
+  if (*res.first == '*') {
+    // We matched up to the wildcard, so {name} passes if we have a
+    // {positive_filter}.
+    return positive_filter;
+  }
+  // We don't match, so {name} passes if we don't have a {positive_filter}.
+  return !positive_filter;
+}
 
 }  // namespace internal
 }  // namespace v8

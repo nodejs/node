@@ -30,8 +30,10 @@ constexpr Register kJavaScriptCallNewTargetRegister = a3;
 constexpr Register kOffHeapTrampolineRegister = at;
 constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
+constexpr Register kWasmInstanceRegister = a0;
 
-// Forward declaration.
+// Forward declarations
+enum class AbortReason;
 class JumpTarget;
 
 // Reserved Register Usage Summary.
@@ -227,11 +229,11 @@ class TurboAssembler : public Assembler {
     CompareIsNanF(D, cmp1, cmp2);
   }
 
-  void BranchTrueShortF(Label* target);
-  void BranchFalseShortF(Label* target);
+  void BranchTrueShortF(Label* target, BranchDelaySlot bd = PROTECT);
+  void BranchFalseShortF(Label* target, BranchDelaySlot bd = PROTECT);
 
-  void BranchTrueF(Label* target);
-  void BranchFalseF(Label* target);
+  void BranchTrueF(Label* target, BranchDelaySlot bd = PROTECT);
+  void BranchFalseF(Label* target, BranchDelaySlot bd = PROTECT);
 
   // MSA Branches
   void BranchMSA(Label* target, MSABranchDF df, MSABranchCondition cond,
@@ -246,8 +248,15 @@ class TurboAssembler : public Assembler {
     li(rd, Operand(j), mode);
   }
   void li(Register dst, Handle<HeapObject> value, LiFlags mode = OPTIMIZE_SIZE);
+  void li(Register dst, ExternalReference value, LiFlags mode = OPTIMIZE_SIZE);
 
-  // Jump, Call, and Ret pseudo instructions implementing inter-working.
+#ifdef V8_EMBEDDED_BUILTINS
+  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupExternalReference(Register destination,
+                               ExternalReference reference);
+#endif  // V8_EMBEDDED_BUILTINS
+
+// Jump, Call, and Ret pseudo instructions implementing inter-working.
 #define COND_ARGS Condition cond = al, Register rs = zero_reg, \
   const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
@@ -530,10 +539,10 @@ class TurboAssembler : public Assembler {
   void MovToFloatParameters(DoubleRegister src1, DoubleRegister src2);
   void MovToFloatResult(DoubleRegister src);
 
-  // See comments at the beginning of CEntryStub::Generate.
+  // See comments at the beginning of Builtins::Generate_CEntry.
   inline void PrepareCEntryArgs(int num_args) { li(a0, num_args); }
   inline void PrepareCEntryFunction(const ExternalReference& ref) {
-    li(a1, Operand(ref));
+    li(a1, ref);
   }
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
@@ -542,9 +551,9 @@ class TurboAssembler : public Assembler {
   void CallStubDelayed(CodeStub* stub, COND_ARGS);
 #undef COND_ARGS
 
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
-                          SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                          BranchDelaySlot bd = PROTECT);
+                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
@@ -558,14 +567,17 @@ class TurboAssembler : public Assembler {
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
   // Exits with 'result' holding the answer.
-  void TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                DoubleRegister double_input);
+  void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
+                         DoubleRegister double_input);
 
   // Conditional move.
   void Movz(Register rd, Register rs, Register rt);
   void Movn(Register rd, Register rs, Register rt);
   void Movt(Register rd, Register rs, uint16_t cc = 0);
   void Movf(Register rd, Register rs, uint16_t cc = 0);
+
+  void LoadZeroIfFPUCondition(Register dest);
+  void LoadZeroIfNotFPUCondition(Register dest);
 
   void LoadZeroIfConditionNotZero(Register dest, Register condition);
   void LoadZeroIfConditionZero(Register dest, Register condition);
@@ -578,10 +590,16 @@ class TurboAssembler : public Assembler {
 
   // Int64Lowering instructions
   void AddPair(Register dst_low, Register dst_high, Register left_low,
-               Register left_high, Register right_low, Register right_high);
+               Register left_high, Register right_low, Register right_high,
+               Register scratch1, Register scratch2);
 
   void SubPair(Register dst_low, Register dst_high, Register left_low,
-               Register left_high, Register right_low, Register right_high);
+               Register left_high, Register right_low, Register right_high,
+               Register scratch1, Register scratch2);
+
+  void MulPair(Register dst_low, Register dst_high, Register left_low,
+               Register left_high, Register right_low, Register right_high,
+               Register scratch1, Register scratch2);
 
   void ShlPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, Register shift, Register scratch1,
@@ -622,7 +640,7 @@ class TurboAssembler : public Assembler {
 
   // Convert single to unsigned word.
   void Trunc_uw_s(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_uw_s(FPURegister fd, Register rs, FPURegister scratch);
+  void Trunc_uw_s(Register rd, FPURegister fs, FPURegister scratch);
 
   void Trunc_w_d(FPURegister fd, FPURegister fs);
   void Round_w_d(FPURegister fd, FPURegister fs);
@@ -810,7 +828,7 @@ class TurboAssembler : public Assembler {
 
   // Convert double to unsigned word.
   void Trunc_uw_d(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_uw_d(FPURegister fd, Register rs, FPURegister scratch);
+  void Trunc_uw_d(Register rd, FPURegister fs, FPURegister scratch);
 
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label, Register scratch = at,
@@ -828,6 +846,9 @@ class TurboAssembler : public Assembler {
 
   void ResetSpeculationPoisonRegister();
 
+  bool root_array_available() const { return root_array_available_; }
+  void set_root_array_available(bool v) { root_array_available_ = v; }
+
  protected:
   void BranchLong(Label* L, BranchDelaySlot bdslot);
 
@@ -835,11 +856,13 @@ class TurboAssembler : public Assembler {
 
   inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
 
- private:
-  bool has_frame_ = false;
-  Isolate* const isolate_;
   // This handle will be patched with the code object on installation.
   Handle<HeapObject> code_object_;
+
+ private:
+  bool has_frame_ = false;
+  bool root_array_available_ = true;
+  Isolate* const isolate_;
   bool has_double_zero_reg_set_;
 
   void CallCFunctionHelper(Register function_base, int16_t function_offset,
@@ -1048,22 +1071,19 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f, int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                   BranchDelaySlot bd = PROTECT);
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                   BranchDelaySlot bd = PROTECT) {
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
     const Runtime::Function* function = Runtime::FunctionForId(fid);
-    CallRuntime(function, function->nargs, save_doubles, bd);
+    CallRuntime(function, function->nargs, save_doubles);
   }
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId id, int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-                   BranchDelaySlot bd = PROTECT) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles, bd);
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
   }
 
   // Convenience function: tail call a runtime routine (jump).

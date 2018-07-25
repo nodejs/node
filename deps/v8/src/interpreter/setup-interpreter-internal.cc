@@ -51,7 +51,7 @@ void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
   size_t illegal_index = Interpreter::GetDispatchTableIndex(
       Bytecode::kIllegal, OperandScale::kSingle);
   for (size_t index = 0; index < Interpreter::kDispatchTableSize; ++index) {
-    if (dispatch_table[index] == nullptr) {
+    if (dispatch_table[index] == kNullAddress) {
       dispatch_table[index] = dispatch_table[illegal_index];
     }
   }

@@ -290,7 +290,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       // must not be reordered with instruction with side effects.
       return kIsLoadOperation;
 
-    case kArchPoisonOnSpeculationWord:
+    case kArchWordPoisonOnSpeculation:
       // While poisoning operations have no side effect, they must not be
       // reordered relative to branches.
       return kHasSideEffect;

@@ -363,12 +363,12 @@ bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
   for (auto ret : sig.returns()) {
-    os << WasmOpcodes::ShortNameOf(ret);
+    os << ValueTypes::ShortNameOf(ret);
   }
   os << "_";
   if (sig.parameter_count() == 0) os << "v";
   for (auto param : sig.parameters()) {
-    os << WasmOpcodes::ShortNameOf(param);
+    os << ValueTypes::ShortNameOf(param);
   }
   return os;
 }

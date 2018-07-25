@@ -2234,6 +2234,8 @@ void Scope::AllocateNonParameterLocal(Variable* var) {
   if (var->IsUnallocated() && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
       AllocateHeapSlot(var);
+      DCHECK_IMPLIES(is_catch_scope(),
+                     var->index() == Context::THROWN_OBJECT_INDEX);
     } else {
       AllocateStackSlot(var);
     }

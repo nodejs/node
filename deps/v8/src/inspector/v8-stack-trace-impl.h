@@ -64,6 +64,7 @@ class V8StackTraceImpl : public V8StackTrace {
   // V8StackTrace implementation.
   // This method drops the async stack trace.
   std::unique_ptr<V8StackTrace> clone() override;
+  StringView firstNonEmptySourceURL() const override;
   bool isEmpty() const override;
   StringView topSourceURL() const override;
   int topLineNumber() const override;    // 1-based.

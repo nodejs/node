@@ -666,7 +666,7 @@ class Instruction {
   // reference to an instruction is to convert a pointer. There is no way
   // to allocate or create instances of class Instruction.
   // Use the At(pc) function to create references to Instruction.
-  static Instruction* At(byte* pc) {
+  static Instruction* At(Address pc) {
     return reinterpret_cast<Instruction*>(pc);
   }
 

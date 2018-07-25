@@ -73,6 +73,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                            Handle<Map> initial_map, PretenureFlag pretenure);
   Reduction ReduceNewArray(Node* node, std::vector<Node*> values,
                            Handle<Map> initial_map, PretenureFlag pretenure);
+  Reduction ReduceJSCreateObject(Node* node);
 
   Node* AllocateArguments(Node* effect, Node* control, Node* frame_state);
   Node* AllocateRestArguments(Node* effect, Node* control, Node* frame_state,

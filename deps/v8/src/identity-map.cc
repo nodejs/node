@@ -78,8 +78,8 @@ int IdentityMapBase::InsertKey(Object* address) {
   UNREACHABLE();
 }
 
-void* IdentityMapBase::DeleteIndex(int index) {
-  void* ret_value = values_[index];
+bool IdentityMapBase::DeleteIndex(int index, void** deleted_value) {
+  if (deleted_value != nullptr) *deleted_value = values_[index];
   Object* not_mapped = heap_->not_mapped_symbol();
   DCHECK_NE(keys_[index], not_mapped);
   keys_[index] = not_mapped;
@@ -90,7 +90,7 @@ void* IdentityMapBase::DeleteIndex(int index) {
   if (capacity_ > kInitialIdentityMapSize &&
       size_ * kResizeFactor < capacity_ / kResizeFactor) {
     Resize(capacity_ / kResizeFactor);
-    return ret_value;  // No need to fix collisions as resize reinserts keys.
+    return true;  // No need to fix collisions as resize reinserts keys.
   }
 
   // Move any collisions to their new correct location.
@@ -115,7 +115,7 @@ void* IdentityMapBase::DeleteIndex(int index) {
     index = next_index;
   }
 
-  return ret_value;
+  return true;
 }
 
 int IdentityMapBase::Lookup(Object* key) const {
@@ -184,15 +184,14 @@ IdentityMapBase::RawEntry IdentityMapBase::FindEntry(Object* key) const {
 }
 
 // Deletes the given key from the map using the object's address as the
-// identity, returning:
-//    found => the value
-//    not found => {nullptr}
-void* IdentityMapBase::DeleteEntry(Object* key) {
+// identity, returning true iff the key was found (in which case, the value
+// argument will be set to the deleted entry's value).
+bool IdentityMapBase::DeleteEntry(Object* key, void** deleted_value) {
   CHECK(!is_iterable());  // Don't allow deletion by key while iterable.
-  if (size_ == 0) return nullptr;
+  if (size_ == 0) return false;
   int index = Lookup(key);
-  if (index < 0) return nullptr;  // No entry found.
-  return DeleteIndex(index);
+  if (index < 0) return false;  // No entry found.
+  return DeleteIndex(index, deleted_value);
 }
 
 Object* IdentityMapBase::KeyAtIndex(int index) const {

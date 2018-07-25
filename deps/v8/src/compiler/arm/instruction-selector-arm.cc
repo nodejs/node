@@ -73,6 +73,17 @@ class ArmOperandGenerator : public OperandGenerator {
     }
     return false;
   }
+
+  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
+  // register.
+  InstructionOperand UseRegisterOrStackPointer(Node* node) {
+    if (node->opcode() == IrOpcode::kLoadStackPointer) {
+      return LocationOperand(LocationOperand::EXPLICIT,
+                             LocationOperand::REGISTER,
+                             MachineRepresentation::kWord32, sp.code());
+    }
+    return UseRegister(node);
+  }
 };
 
 
@@ -444,7 +455,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       return;
   }
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
-    CHECK_EQ(poisoning_enabled_, PoisoningMitigationLevel::kOn);
+    CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
     opcode |= MiscField::encode(kMemoryAccessPoisoned);
   }
 
@@ -1679,17 +1690,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
                                &input_count, &inputs[1])) {
-    inputs[0] = g.UseRegister(m.left().node());
+    inputs[0] = g.UseRegisterOrStackPointer(m.left().node());
     input_count++;
   } else if (TryMatchImmediateOrShift(selector, &opcode, m.left().node(),
                                       &input_count, &inputs[1])) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    inputs[0] = g.UseRegister(m.right().node());
+    inputs[0] = g.UseRegisterOrStackPointer(m.right().node());
     input_count++;
   } else {
     opcode |= AddressingModeField::encode(kMode_Operand2_R);
-    inputs[input_count++] = g.UseRegister(m.left().node());
-    inputs[input_count++] = g.UseRegister(m.right().node());
+    inputs[input_count++] = g.UseRegisterOrStackPointer(m.left().node());
+    inputs[input_count++] = g.UseRegisterOrStackPointer(m.right().node());
   }
 
   if (has_result) {
@@ -2157,7 +2168,7 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
 }
 
-void InstructionSelector::VisitAtomicBinaryOperation(
+void InstructionSelector::VisitWord32AtomicBinaryOperation(
     Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
   ArmOperandGenerator g(this);
@@ -2197,7 +2208,7 @@ void InstructionSelector::VisitAtomicBinaryOperation(
 
 #define VISIT_ATOMIC_BINOP(op)                                   \
   void InstructionSelector::VisitWord32Atomic##op(Node* node) {  \
-    VisitAtomicBinaryOperation(                                  \
+    VisitWord32AtomicBinaryOperation(                            \
         node, kWord32Atomic##op##Int8, kWord32Atomic##op##Uint8, \
         kWord32Atomic##op##Int16, kWord32Atomic##op##Uint16,     \
         kWord32Atomic##op##Word32);                              \

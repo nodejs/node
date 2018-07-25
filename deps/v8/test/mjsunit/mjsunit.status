@@ -120,10 +120,11 @@
   'tools/dumpcpp': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
 
   ##############################################################################
-  # This test generates a file in the test directory, so we cannot run several
-  # variants of the test simultaneously. Additionally the test should not be
-  # affected by variants.
+  # These tests generate files in the test directory, so we cannot run several
+  # variants of them simultaneously. Additionally they should not be affected by
+  # variants.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
+  'tools/compiler-trace-flags': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Long running test that reproduces memory leak and should be run manually.
@@ -203,6 +204,12 @@
 
   # Allocates a huge string and then flattens it, very slow in debug mode.
   'regress/regress-752764': [PASS, ['mode == debug', SLOW]],
+
+  # https://crbug.com/v8/7682
+  'regress/regress-v8-7682': [FAIL],
+
+  # https://crbug.com/v8/7697
+  'array-literal-feedback': [PASS, FAIL],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -326,6 +333,10 @@
   'regress/regress-91010': [SKIP],
   'regress/regress-91013': [SKIP],
   'regress/regress-99167': [SKIP],
+
+  # Sometimes fails because the hard-coded timeout in the test is exceeded when
+  # dcheck_always_on = true.
+  'regress/regress-165637': [SKIP],
 
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
@@ -675,7 +686,9 @@
   'elements-transition-hoisting': [PASS, FAIL],
   'es6/collections-constructor-custom-iterator': [PASS, FAIL],
   'keyed-load-with-symbol-key': [PASS, FAIL],
+  'object-seal': [PASS, FAIL],
   'regress/regress-3709': [PASS, FAIL],
+  'regress/regress-7510': [PASS, FAIL],
   'regress/regress-trap-allocation-memento': [PASS, FAIL],
   'regress/regress-unlink-closures-on-deopt': [PASS, FAIL],
   'shared-function-tier-up-turbo': [PASS, FAIL],
@@ -736,9 +749,6 @@
 ##############################################################################
 ['arch == ppc64 or arch == ppc or arch == s390 or arch == s390x', {
 
-  # TODO(ppc/s390): implement atomic operations
-  'wasm/atomics': [SKIP],
-  'wasm/shared-memory': [SKIP],
   # TODO(ppc/s390): fix constant pool issue and implement tagging for reloc
   'wasm/compiled-module-serialization': [SKIP],
   'regress/wasm/regress-808980': [SKIP],
@@ -752,6 +762,9 @@
   'array-natives-elements': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
+
+  # Flaky crash on Odroid devices: https://crbug.com/v8/7678
+  'regress/regress-336820': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
   # Slow tests.
   'regress/regress-2185-2': [SKIP],
@@ -773,7 +786,7 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   # Skip stuff uninteresting for wasm traps
   'bugs/*': [SKIP],
   'compiler/*': [SKIP],
@@ -789,7 +802,7 @@
   'math-*': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ##############################################################################
 ['no_harness', {
@@ -812,9 +825,9 @@
 }], # arch != x64 and arch != ia32
 
 ##############################################################################
-['variant == liftoff', {
-  # In the liftoff variant, liftoff compilation happens even though the test
-  # does not explicitly enable it.
+['variant == liftoff or variant == future', {
+  # In the liftoff and future variant, liftoff compilation happens even
+  # though the test does not explicitly enable it.
   'wasm/default-liftoff-setting': [SKIP],
 }], # variant == liftoff
 

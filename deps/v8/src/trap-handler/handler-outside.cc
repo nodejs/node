@@ -59,11 +59,7 @@ bool IsDisjoint(const CodeProtectionInfo* a, const CodeProtectionInfo* b) {
   if (a == nullptr || b == nullptr) {
     return true;
   }
-
-  const auto a_base = reinterpret_cast<uintptr_t>(a->base);
-  const auto b_base = reinterpret_cast<uintptr_t>(b->base);
-
-  return a_base >= b_base + b->size || b_base >= a_base + a->size;
+  return a->base >= b->base + b->size || b->base >= a->base + a->size;
 }
 #endif
 
@@ -115,7 +111,7 @@ void ValidateCodeObjects() {
 }  // namespace
 
 CodeProtectionInfo* CreateHandlerData(
-    void* base, size_t size, size_t num_protected_instructions,
+    Address base, size_t size, size_t num_protected_instructions,
     const ProtectedInstructionData* protected_instructions) {
   const size_t alloc_size = HandlerDataSize(num_protected_instructions);
   CodeProtectionInfo* data =
@@ -136,7 +132,7 @@ CodeProtectionInfo* CreateHandlerData(
 }
 
 int RegisterHandlerData(
-    void* base, size_t size, size_t num_protected_instructions,
+    Address base, size_t size, size_t num_protected_instructions,
     const ProtectedInstructionData* protected_instructions) {
   // TODO(eholk): in debug builds, make sure this data isn't already registered.
 
@@ -240,51 +236,16 @@ void ReleaseHandlerData(int index) {
   free(data);
 }
 
-bool RegisterDefaultSignalHandler() {
-#if V8_TRAP_HANDLER_SUPPORTED
-  CHECK(!g_is_default_signal_handler_registered);
-
-  struct sigaction action;
-  action.sa_sigaction = HandleSignal;
-  action.sa_flags = SA_SIGINFO;
-  sigemptyset(&action.sa_mask);
-  // {sigaction} installs a new custom segfault handler. On success, it returns
-  // 0. If we get a nonzero value, we report an error to the caller by returning
-  // false.
-  if (sigaction(SIGSEGV, &action, &g_old_handler) != 0) {
-    return false;
-  }
-
-// Sanitizers often prevent us from installing our own signal handler. Attempt
-// to detect this and if so, refuse to enable trap handling.
-//
-// TODO(chromium:830894): Remove this once all bots support custom signal
-// handlers.
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER) ||    \
-    defined(UNDEFINED_SANITIZER)
-  struct sigaction installed_handler;
-  CHECK_EQ(sigaction(SIGSEGV, NULL, &installed_handler), 0);
-  // If the installed handler does not point to HandleSignal, then
-  // allow_user_segv_handler is 0.
-  if (installed_handler.sa_sigaction != HandleSignal) {
-    printf(
-        "WARNING: sanitizers are preventing signal handler installation. "
-        "Trap handlers are disabled.");
-    return false;
-  }
-#endif
-
-  g_is_default_signal_handler_registered = true;
-  return true;
-#else
-  return false;
-#endif
-}
-
 size_t GetRecoveredTrapCount() {
   return gRecoveredTrapCount.load(std::memory_order_relaxed);
 }
+
+#if !V8_TRAP_HANDLER_SUPPORTED
+// This version is provided for systems that do not support trap handlers.
+// Otherwise, the correct one should be implemented in the appropriate
+// platform-specific handler-outside.cc.
+bool RegisterDefaultTrapHandler() { return false; }
+#endif
 
 bool g_is_trap_handler_enabled;
 
@@ -293,7 +254,7 @@ bool EnableTrapHandler(bool use_v8_signal_handler) {
     return false;
   }
   if (use_v8_signal_handler) {
-    g_is_trap_handler_enabled = RegisterDefaultSignalHandler();
+    g_is_trap_handler_enabled = RegisterDefaultTrapHandler();
     return g_is_trap_handler_enabled;
   }
   g_is_trap_handler_enabled = true;

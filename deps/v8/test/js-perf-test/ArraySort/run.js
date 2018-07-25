@@ -3,12 +3,12 @@
 // found in the LICENSE file.
 
 load('../base.js');
-load('sort.js')
+load(arguments[0] + '.js')
 
-function benchy(name, test, testSetup) {
+function benchy(name, test, testSetup, testTearDown) {
   new BenchmarkSuite(name, [1000],
       [
-        new Benchmark(name, false, false, 0, test, testSetup)
+        new Benchmark(name, false, false, 0, test, testSetup, testTearDown)
       ]);
 }
 

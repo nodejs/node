@@ -123,7 +123,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   // the incoming event.
   static State Step(const State& state, const Event& event);
   // Posts a timer task that will call NotifyTimer after the given delay.
-  void ScheduleTimer(double time_ms, double delay_ms);
+  void ScheduleTimer(double delay_ms);
   void TearDown();
   static const int kLongDelayMs;
   static const int kShortDelayMs;

@@ -794,22 +794,14 @@ class ContextInitializer {
   v8::Local<v8::Context> env_;
 };
 
-
-static ArchRegExpMacroAssembler::Result Execute(Code* code,
-                                                String* input,
+static ArchRegExpMacroAssembler::Result Execute(Code* code, String* input,
                                                 int start_offset,
-                                                const byte* input_start,
-                                                const byte* input_end,
+                                                Address input_start,
+                                                Address input_end,
                                                 int* captures) {
   return NativeRegExpMacroAssembler::Execute(
-      code,
-      input,
-      start_offset,
-      input_start,
-      input_end,
-      captures,
-      0,
-      CcTest::i_isolate());
+      code, input, start_offset, reinterpret_cast<byte*>(input_start),
+      reinterpret_cast<byte*>(input_end), captures, 0, CcTest::i_isolate());
 }
 
 
@@ -832,8 +824,7 @@ TEST(MacroAssemblerNativeSuccess) {
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
-  const byte* start_adr =
-      reinterpret_cast<const byte*>(seq_input->GetCharsAddress());
+  Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result =
       Execute(*code,

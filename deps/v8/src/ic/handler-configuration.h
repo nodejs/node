@@ -175,7 +175,7 @@ class LoadHandler final : public DataHandler {
                                               KeyedAccessLoadMode load_mode);
 
   // Decodes the KeyedAccessLoadMode from a {handler}.
-  static KeyedAccessLoadMode GetKeyedAccessLoadMode(Object* handler);
+  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject* handler);
 };
 
 // A set of bit fields representing Smi handlers for stores and a HeapObject
@@ -243,18 +243,14 @@ class StoreHandler final : public DataHandler {
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(FieldIndexBits::kNext <= kSmiValueSize);
 
-  static inline WeakCell* GetTransitionCell(Object* handler);
-  static Object* ValidHandlerOrNull(Object* handler, Name* name,
-                                    Handle<Map>* out_transition);
-
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,
                                        FieldIndex field_index,
                                        PropertyConstness constness,
                                        Representation representation);
 
-  static Handle<Object> StoreTransition(Isolate* isolate,
-                                        Handle<Map> transition_map);
+  static MaybeObjectHandle StoreTransition(Isolate* isolate,
+                                           Handle<Map> transition_map);
 
   // Creates a Smi-handler for storing a native data property on a fast object.
   static inline Handle<Smi> StoreNativeDataProperty(Isolate* isolate,
@@ -284,8 +280,8 @@ class StoreHandler final : public DataHandler {
 
   // Creates a handler for storing a property to the property cell of a global
   // object.
-  static Handle<Object> StoreGlobal(Isolate* isolate,
-                                    Handle<PropertyCell> cell);
+  static MaybeObjectHandle StoreGlobal(Isolate* isolate,
+                                       Handle<PropertyCell> cell);
 
   // Creates a Smi-handler for storing a property to a global proxy object.
   static inline Handle<Smi> StoreGlobalProxy(Isolate* isolate);

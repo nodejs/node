@@ -37,7 +37,7 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
       heap->isolate(),
       RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
   incremental_marking_.AdvanceIncrementalMarkingOnAllocation();
-  if (incremental_marking_.black_allocation() && addr != nullptr) {
+  if (incremental_marking_.black_allocation() && addr != kNullAddress) {
     // AdvanceIncrementalMarkingOnAllocation can start black allocation.
     // Ensure that the new object is marked black.
     HeapObject* object = HeapObject::FromAddress(addr);
@@ -227,8 +227,7 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
 };
 
 void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
-                                              bool is_marking,
-                                              bool is_compacting) {
+                                              bool is_marking) {
   if (is_marking) {
     chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
@@ -253,7 +252,7 @@ void IncrementalMarking::SetNewSpacePageFlags(MemoryChunk* chunk,
 void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
     PagedSpace* space) {
   for (Page* p : *space) {
-    SetOldSpacePageFlags(p, false, false);
+    SetOldSpacePageFlags(p, false);
   }
 }
 
@@ -273,14 +272,14 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
   DeactivateIncrementalWriteBarrierForSpace(heap_->new_space());
 
   for (LargePage* lop : *heap_->lo_space()) {
-    SetOldSpacePageFlags(lop, false, false);
+    SetOldSpacePageFlags(lop, false);
   }
 }
 
 
 void IncrementalMarking::ActivateIncrementalWriteBarrier(PagedSpace* space) {
   for (Page* p : *space) {
-    SetOldSpacePageFlags(p, true, is_compacting_);
+    SetOldSpacePageFlags(p, true);
   }
 }
 
@@ -299,7 +298,7 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
   ActivateIncrementalWriteBarrier(heap_->new_space());
 
   for (LargePage* lop : *heap_->lo_space()) {
-    SetOldSpacePageFlags(lop, true, is_compacting_);
+    SetOldSpacePageFlags(lop, true);
   }
 }
 
@@ -324,7 +323,7 @@ void IncrementalMarking::Deactivate() {
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   if (FLAG_trace_incremental_marking) {
     int old_generation_size_mb =
-        static_cast<int>(heap()->PromotedSpaceSizeOfObjects() / MB);
+        static_cast<int>(heap()->OldGenerationSizeOfObjects() / MB);
     int old_generation_limit_mb =
         static_cast<int>(heap()->old_generation_allocation_limit() / MB);
     heap()->isolate()->PrintWithTimestamp(
@@ -350,7 +349,7 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   heap_->tracer()->NotifyIncrementalMarkingStart();
 
   start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
-  initial_old_generation_size_ = heap_->PromotedSpaceSizeOfObjects();
+  initial_old_generation_size_ = heap_->OldGenerationSizeOfObjects();
   old_generation_allocation_counter_ = heap_->OldGenerationAllocationCounter();
   bytes_allocated_ = 0;
   bytes_marked_ahead_of_schedule_ = 0;
@@ -511,19 +510,21 @@ void IncrementalMarking::RetainMaps() {
   bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
                                    heap()->ShouldAbortIncrementalMarking() ||
                                    FLAG_retain_maps_for_n_gc == 0;
-  ArrayList* retained_maps = heap()->retained_maps();
-  int length = retained_maps->Length();
+  WeakArrayList* retained_maps = heap()->retained_maps();
+  int length = retained_maps->length();
   // The number_of_disposed_maps separates maps in the retained_maps
   // array that were created before and after context disposal.
   // We do not age and retain disposed maps to avoid memory leaks.
   int number_of_disposed_maps = heap()->number_of_disposed_maps_;
   for (int i = 0; i < length; i += 2) {
-    DCHECK(retained_maps->Get(i)->IsWeakCell());
-    WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
-    if (cell->cleared()) continue;
-    int age = Smi::ToInt(retained_maps->Get(i + 1));
+    MaybeObject* value = retained_maps->Get(i);
+    HeapObject* map_heap_object;
+    if (!value->ToWeakHeapObject(&map_heap_object)) {
+      continue;
+    }
+    int age = Smi::ToInt(retained_maps->Get(i + 1)->ToSmi());
     int new_age;
-    Map* map = Map::cast(cell->value());
+    Map* map = Map::cast(map_heap_object);
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
         marking_state()->IsWhite(map)) {
       if (ShouldRetainMap(map, age)) {
@@ -544,7 +545,7 @@ void IncrementalMarking::RetainMaps() {
     }
     // Compact the array and update the age.
     if (new_age != age) {
-      retained_maps->Set(i + 1, Smi::FromInt(new_age));
+      retained_maps->Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
     }
   }
 }
@@ -714,8 +715,7 @@ int IncrementalMarking::VisitObject(Map* map, HeapObject* obj) {
     //    unsafe layout change.
     // 4. The object is materizalized by the deoptimizer.
     DCHECK(obj->IsHashTable() || obj->IsPropertyArray() ||
-           obj->IsContextExtension() || obj->IsFixedArray() ||
-           obj->IsJSObject() || obj->IsString());
+           obj->IsFixedArray() || obj->IsJSObject() || obj->IsString());
   }
   DCHECK(marking_state()->IsBlack(obj));
   WhiteToGreyAndPush(map);
@@ -810,7 +810,7 @@ void IncrementalMarking::Stop() {
   if (IsStopped()) return;
   if (FLAG_trace_incremental_marking) {
     int old_generation_size_mb =
-        static_cast<int>(heap()->PromotedSpaceSizeOfObjects() / MB);
+        static_cast<int>(heap()->OldGenerationSizeOfObjects() / MB);
     int old_generation_limit_mb =
         static_cast<int>(heap()->old_generation_allocation_limit() / MB);
     heap()->isolate()->PrintWithTimestamp(
@@ -959,7 +959,7 @@ size_t IncrementalMarking::StepSizeToMakeProgress() {
   size_t oom_slack = heap()->new_space()->Capacity() + 64 * MB;
 
   if (!heap()->CanExpandOldGeneration(oom_slack)) {
-    return heap()->PromotedSpaceSizeOfObjects() / kTargetStepCountAtOOM;
+    return heap()->OldGenerationSizeOfObjects() / kTargetStepCountAtOOM;
   }
 
   size_t step_size = Max(initial_old_generation_size_ / kTargetStepCount,

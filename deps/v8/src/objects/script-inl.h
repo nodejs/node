@@ -7,6 +7,7 @@
 
 #include "src/objects/script.h"
 
+#include "src/objects/shared-function-info.h"
 #include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -37,7 +38,7 @@ SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
 ACCESSORS(Script, host_defined_options, FixedArray, kHostDefinedOptionsOffset)
-ACCESSORS_CHECKED(Script, wasm_compiled_module, Object,
+ACCESSORS_CHECKED(Script, wasm_module_object, Object,
                   kEvalFromSharedOrWrappedArgumentsOffset,
                   this->type() == TYPE_WASM)
 

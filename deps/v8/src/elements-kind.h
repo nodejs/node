@@ -264,6 +264,7 @@ inline bool IsTransitionableFastElementsKind(ElementsKind from_kind) {
          from_kind != TERMINAL_FAST_ELEMENTS_KIND;
 }
 
+inline bool ElementsKindEqual(ElementsKind a, ElementsKind b) { return a == b; }
 
 }  // namespace internal
 }  // namespace v8

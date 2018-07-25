@@ -6,6 +6,7 @@
 #define V8_COMPILER_GRAPH_VISUALIZER_H_
 
 #include <stdio.h>
+#include <fstream>  // NOLINT(readability/streams)
 #include <iosfwd>
 #include <memory>
 
@@ -15,26 +16,88 @@ namespace v8 {
 namespace internal {
 
 class OptimizedCompilationInfo;
-
+class SharedFunctionInfo;
+class SourcePosition;
 namespace compiler {
 
 class Graph;
 class InstructionSequence;
+class NodeOrigin;
+class NodeOriginTable;
 class RegisterAllocationData;
 class Schedule;
 class SourcePositionTable;
 
+struct TurboJsonFile : public std::ofstream {
+  TurboJsonFile(OptimizedCompilationInfo* info, std::ios_base::openmode mode);
+};
+
+struct SourcePositionAsJSON {
+  explicit SourcePositionAsJSON(const SourcePosition& sp) : sp(sp) {}
+  const SourcePosition& sp;
+};
+
+V8_INLINE V8_EXPORT_PRIVATE SourcePositionAsJSON
+AsJSON(const SourcePosition& sp) {
+  return SourcePositionAsJSON(sp);
+}
+
+struct NodeOriginAsJSON {
+  explicit NodeOriginAsJSON(const NodeOrigin& no) : no(no) {}
+  const NodeOrigin& no;
+};
+
+V8_INLINE V8_EXPORT_PRIVATE NodeOriginAsJSON AsJSON(const NodeOrigin& no) {
+  return NodeOriginAsJSON(no);
+}
+
+std::ostream& operator<<(std::ostream& out, const SourcePositionAsJSON& pos);
+
+// Small helper that deduplicates SharedFunctionInfos.
+class SourceIdAssigner {
+ public:
+  explicit SourceIdAssigner(size_t size) {
+    printed_.reserve(size);
+    source_ids_.reserve(size);
+  }
+  int GetIdFor(Handle<SharedFunctionInfo> shared);
+  int GetIdAt(size_t pos) const { return source_ids_[pos]; }
+
+ private:
+  std::vector<Handle<SharedFunctionInfo>> printed_;
+  std::vector<int> source_ids_;
+};
+
+void JsonPrintAllSourceWithPositions(std::ostream& os,
+                                     OptimizedCompilationInfo* info,
+                                     Isolate* isolate);
+
+void JsonPrintFunctionSource(std::ostream& os, int source_id,
+                             std::unique_ptr<char[]> function_name,
+                             Handle<Script> script, Isolate* isolate,
+                             Handle<SharedFunctionInfo> shared,
+                             bool with_key = false);
 std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
+                                                 const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix);
 
-struct AsJSON {
-  AsJSON(const Graph& g, SourcePositionTable* p) : graph(g), positions(p) {}
+struct GraphAsJSON {
+  GraphAsJSON(const Graph& g, SourcePositionTable* p, NodeOriginTable* o)
+      : graph(g), positions(p), origins(o) {}
   const Graph& graph;
   const SourcePositionTable* positions;
+  const NodeOriginTable* origins;
 };
 
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const AsJSON& ad);
+V8_INLINE V8_EXPORT_PRIVATE GraphAsJSON AsJSON(const Graph& g,
+                                               SourcePositionTable* p,
+                                               NodeOriginTable* o) {
+  return GraphAsJSON(g, p, o);
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const GraphAsJSON& ad);
 
 struct AsRPO {
   explicit AsRPO(const Graph& g) : graph(g) {}

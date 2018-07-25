@@ -9,6 +9,7 @@
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/property-descriptor.h"
 #include "src/runtime/runtime.h"
@@ -21,6 +22,9 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                                                Handle<Object> key,
                                                bool* is_found_out) {
   if (object->IsNullOrUndefined(isolate)) {
+    if (*key == isolate->heap()->iterator_symbol()) {
+      return Runtime::ThrowIteratorError(isolate, object);
+    }
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kNonObjectPropertyLoad, key, object),
@@ -800,13 +804,13 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   if (nexus.ic_state() == UNINITIALIZED) {
     if (name->IsUniqueName()) {
       nexus.ConfigureMonomorphic(name, handle(object->map()),
-                                 Handle<Code>::null());
+                                 MaybeObjectHandle());
     } else {
       nexus.ConfigureMegamorphic(PROPERTY);
     }
   } else if (nexus.ic_state() == MONOMORPHIC) {
     if (nexus.FindFirstMap() != object->map() ||
-        nexus.GetFeedbackExtra() != *name) {
+        nexus.GetFeedbackExtra() != MaybeObject::FromObject(*name)) {
       nexus.ConfigureMegamorphic(PROPERTY);
     }
   }
@@ -927,6 +931,22 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
       isolate,
       JSObject::DefineAccessor(object, name, getter,
                                isolate->factory()->null_value(), attrs));
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_SetDataProperties) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
+
+  // 2. If source is undefined or null, let keys be an empty List.
+  if (source->IsUndefined(isolate) || source->IsNull(isolate)) {
+    return isolate->heap()->undefined_value();
+  }
+
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source),
+               isolate->heap()->exception());
   return isolate->heap()->undefined_value();
 }
 

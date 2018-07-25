@@ -31,6 +31,7 @@
 #include "src/accessors.h"
 #include "src/api.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/property.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -227,7 +228,7 @@ TEST(CodeRange) {
       Address base = code_range.AllocateRawMemory(
           requested, requested - (2 * MemoryAllocator::CodePageGuardSize()),
           &allocated);
-      CHECK_NOT_NULL(base);
+      CHECK_NE(base, kNullAddress);
       blocks.emplace_back(base, static_cast<int>(allocated));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);

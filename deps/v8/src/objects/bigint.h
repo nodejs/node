@@ -63,9 +63,8 @@ class BigIntBase : public HeapObject {
 
   inline digit_t digit(int n) const {
     SLOW_DCHECK(0 <= n && n < length());
-    const byte* address =
-        FIELD_ADDR_CONST(this, kDigitsOffset + n * kDigitSize);
-    return *reinterpret_cast<digit_t*>(reinterpret_cast<intptr_t>(address));
+    Address address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
+    return *reinterpret_cast<digit_t*>(address);
   }
 
   bool is_zero() const { return length() == 0; }
@@ -135,6 +134,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
 
   static bool EqualToString(Handle<BigInt> x, Handle<String> y);
   static bool EqualToNumber(Handle<BigInt> x, Handle<Object> y);
+  static ComparisonResult CompareToString(Handle<BigInt> x, Handle<String> y);
   static ComparisonResult CompareToNumber(Handle<BigInt> x, Handle<Object> y);
   // Exposed for tests, do not call directly. Use CompareToNumber() instead.
   static ComparisonResult CompareToDouble(Handle<BigInt> x, double y);
@@ -144,13 +144,8 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
 
   static Handle<BigInt> FromInt64(Isolate* isolate, int64_t n);
   static Handle<BigInt> FromUint64(Isolate* isolate, uint64_t n);
-  static MaybeHandle<BigInt> FromWords64(Isolate* isolate, int sign_bit,
-                                         int words64_count,
-                                         const uint64_t* words);
   int64_t AsInt64(bool* lossless = nullptr);
   uint64_t AsUint64(bool* lossless = nullptr);
-  int Words64Count();
-  void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);
 
   DECL_CAST(BigInt)
   DECL_VERIFIER(BigInt)

@@ -10,17 +10,9 @@ namespace v8 {
 namespace internal {
 
 std::ostream& operator<<(std::ostream& out, const SourcePositionInfo& pos) {
-  Handle<SharedFunctionInfo> function(pos.function);
-  String* name = nullptr;
-  if (function->script()->IsScript()) {
-    Script* script = Script::cast(function->script());
-    if (script->name()->IsString()) {
-      name = String::cast(script->name());
-    }
-  }
   out << "<";
-  if (name != nullptr) {
-    out << name->ToCString(DISALLOW_NULLS).get();
+  if (!pos.script.is_null() && pos.script->name()->IsString()) {
+    out << String::cast(pos.script->name())->ToCString(DISALLOW_NULLS).get();
   } else {
     out << "unknown";
   }
@@ -102,6 +94,11 @@ void SourcePosition::Print(std::ostream& out,
   out << ":" << pos.line + 1 << ":" << pos.column + 1 << ">";
 }
 
+void SourcePosition::PrintJson(std::ostream& out) const {
+  out << "{ \"scriptOffset\" : " << ScriptOffset() << ", "
+      << "  \"inliningId\" : " << InliningId() << "}";
+}
+
 void SourcePosition::Print(std::ostream& out, Code* code) const {
   DeoptimizationData* deopt_data =
       DeoptimizationData::cast(code->deoptimization_data());
@@ -125,9 +122,11 @@ void SourcePosition::Print(std::ostream& out, Code* code) const {
 
 SourcePositionInfo::SourcePositionInfo(SourcePosition pos,
                                        Handle<SharedFunctionInfo> f)
-    : position(pos), function(f) {
-  if (function->script()->IsScript()) {
-    Handle<Script> script(Script::cast(function->script()));
+    : position(pos),
+      script(f.is_null() || !f->script()->IsScript()
+                 ? Handle<Script>::null()
+                 : handle(Script::cast(f->script()))) {
+  if (!script.is_null()) {
     Script::PositionInfo info;
     if (Script::GetPositionInfo(script, pos.ScriptOffset(), &info,
                                 Script::WITH_OFFSET)) {

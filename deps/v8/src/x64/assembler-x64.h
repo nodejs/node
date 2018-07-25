@@ -481,6 +481,10 @@ class Assembler : public AssemblerBase {
   inline static void deserialization_set_special_target_at(
       Address instruction_payload, Code* code, Address target);
 
+  // Get the size of the special target encoded at 'instruction_payload'.
+  inline static int deserialization_special_target_size(
+      Address instruction_payload);
+
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
       Address pc, Address target,
@@ -488,6 +492,7 @@ class Assembler : public AssemblerBase {
 
   inline Handle<Code> code_target_object_handle_at(Address pc);
   inline Address runtime_entry_at(Address pc);
+
   // Number of bytes taken up by the branch target in the code.
   static constexpr int kSpecialTargetSize = 4;  // 32-bit displacement.
   // Distance between the address of the code target in the call instruction
@@ -637,7 +642,7 @@ class Assembler : public AssemblerBase {
   void movl(Operand dst, Label* src);
 
   // Loads a pointer into a register with a relocation mode.
-  void movp(Register dst, void* ptr, RelocInfo::Mode rmode);
+  void movp(Register dst, Address ptr, RelocInfo::Mode rmode);
 
   // Load a heap number into a register.
   // The heap number will not be allocated and embedded into the code right
@@ -674,7 +679,7 @@ class Assembler : public AssemblerBase {
   void repmovsq() { emit_repmovs(kInt64Size); }
 
   // Instruction to load from an immediate 64-bit pointer into RAX.
-  void load_rax(void* ptr, RelocInfo::Mode rmode);
+  void load_rax(Address value, RelocInfo::Mode rmode);
   void load_rax(ExternalReference ext);
 
   // Conditional moves.
@@ -793,7 +798,7 @@ class Assembler : public AssemblerBase {
   // Shifts src:dst right by cl bits, affecting only dst.
   void shrd(Register dst, Register src);
 
-  void store_rax(void* dst, RelocInfo::Mode mode);
+  void store_rax(Address dst, RelocInfo::Mode mode);
   void store_rax(ExternalReference ref);
 
   void subb(Register dst, Immediate src) {
@@ -1910,8 +1915,6 @@ class Assembler : public AssemblerBase {
   byte byte_at(int pos)  { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
-  Address pc() const { return pc_; }
-
  protected:
   // Call near indirect
   void call(Operand operand);
@@ -1930,7 +1933,7 @@ class Assembler : public AssemblerBase {
 
   void emit(byte x) { *pc_++ = x; }
   inline void emitl(uint32_t x);
-  inline void emitp(void* x, RelocInfo::Mode rmode);
+  inline void emitp(Address x, RelocInfo::Mode rmode);
   inline void emitq(uint64_t x);
   inline void emitw(uint16_t x);
   inline void emit_code_target(Handle<Code> target, RelocInfo::Mode rmode);

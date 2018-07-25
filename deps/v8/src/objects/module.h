@@ -67,6 +67,10 @@ class Module : public Struct {
   // The exception in the case {status} is kErrored.
   Object* GetException();
 
+  // The shared function info in case {status} is not kEvaluating, kEvaluated or
+  // kErrored.
+  SharedFunctionInfo* GetSharedFunctionInfo() const;
+
   // The namespace object (or undefined).
   DECL_ACCESSORS(module_namespace, HeapObject)
 
@@ -172,15 +176,16 @@ class Module : public Struct {
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
       Handle<Module> module, ZoneForwardList<Handle<Module>>* stack,
       unsigned* dfs_index, Zone* zone);
-  static void RunInitializationCode(Handle<Module> module);
+  static V8_WARN_UNUSED_RESULT bool RunInitializationCode(
+      Handle<Module> module);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
       Handle<Module> module, ZoneForwardList<Handle<Module>>* stack,
       unsigned* dfs_index);
 
-  static void MaybeTransitionComponent(Handle<Module> module,
-                                       ZoneForwardList<Handle<Module>>* stack,
-                                       Status new_status);
+  static V8_WARN_UNUSED_RESULT bool MaybeTransitionComponent(
+      Handle<Module> module, ZoneForwardList<Handle<Module>>* stack,
+      Status new_status);
 
   // Set module's status back to kUninstantiated and reset other internal state.
   // This is used when instantiation fails.
