@@ -253,6 +253,13 @@ class ConstructFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(5);
 };
 
+class WasmCompiledFrameConstants : public TypedFrameConstants {
+ public:
+  // FP-relative.
+  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  DEFINE_TYPED_FRAME_SIZES(1);
+};
+
 class BuiltinContinuationFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.

@@ -81,6 +81,10 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--combine-min", default=2, type="int",
                       help="Minimum number of tests to combine")
 
+    # Miscellaneous
+    parser.add_option("--variants", default='default',
+                      help="Comma-separated list of testing variants")
+
     return parser
 
 
@@ -96,6 +100,10 @@ class NumFuzzer(base_runner.BaseTestRunner):
         print ('min_group_size (%d) cannot be larger than max_group_size (%d)' %
                options.min_group_size, options.max_group_size)
         raise base_runner.TestRunnerError()
+
+    if options.variants != 'default':
+      print ('Only default testing variant is supported with numfuzz')
+      raise base_runner.TestRunnerError()
 
     return True
 

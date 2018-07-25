@@ -98,7 +98,8 @@ class IdentityMapTester : public HandleAndZoneScope {
     }
 
     // Delete {key1}
-    void* deleted_entry_1 = map.Delete(key1);
+    void* deleted_entry_1;
+    CHECK(map.Delete(key1, &deleted_entry_1));
     CHECK_NOT_NULL(deleted_entry_1);
     deleted_entry_1 = val1;
 
@@ -114,7 +115,8 @@ class IdentityMapTester : public HandleAndZoneScope {
     }
 
     // Delete {key2}
-    void* deleted_entry_2 = map.Delete(key2);
+    void* deleted_entry_2;
+    CHECK(map.Delete(key2, &deleted_entry_2));
     CHECK_NOT_NULL(deleted_entry_2);
     deleted_entry_2 = val2;
 
@@ -160,7 +162,8 @@ class IdentityMapTester : public HandleAndZoneScope {
   }
 
   void CheckDelete(Handle<Object> key, void* value) {
-    void* entry = map.Delete(key);
+    void* entry;
+    CHECK(map.Delete(key, &entry));
     CHECK_NOT_NULL(entry);
     CHECK_EQ(value, entry);
   }
@@ -197,14 +200,18 @@ TEST(Find_num_not_found) {
 TEST(Delete_smi_not_found) {
   IdentityMapTester t;
   for (int i = 0; i < 100; i++) {
-    CHECK_NULL(t.map.Delete(t.smi(i)));
+    void* deleted_value = &t;
+    CHECK(!t.map.Delete(t.smi(i), &deleted_value));
+    CHECK_EQ(&t, deleted_value);
   }
 }
 
 TEST(Delete_num_not_found) {
   IdentityMapTester t;
   for (int i = 0; i < 100; i++) {
-    CHECK_NULL(t.map.Delete(t.num(i + 0.2)));
+    void* deleted_value = &t;
+    CHECK(!t.map.Delete(t.num(i + 0.2), &deleted_value));
+    CHECK_EQ(&t, deleted_value);
   }
 }
 
@@ -311,7 +318,8 @@ TEST(Delete_num_1000) {
 
   // Delete every second value in reverse.
   for (int i = 999; i >= 0; i -= 2) {
-    void* entry = t.map.Delete(t.smi(i * kPrime));
+    void* entry;
+    CHECK(t.map.Delete(t.smi(i * kPrime), &entry));
     CHECK_EQ(reinterpret_cast<void*>(i * kPrime), entry);
   }
 
@@ -327,7 +335,8 @@ TEST(Delete_num_1000) {
 
   // Delete the rest.
   for (int i = 0; i < 1000; i += 2) {
-    void* entry = t.map.Delete(t.smi(i * kPrime));
+    void* entry;
+    CHECK(t.map.Delete(t.smi(i * kPrime), &entry));
     CHECK_EQ(reinterpret_cast<void*>(i * kPrime), entry);
   }
 

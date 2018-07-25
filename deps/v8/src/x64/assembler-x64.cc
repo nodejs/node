@@ -240,7 +240,8 @@ class OperandBuilder {
       // Need 32 bits of displacement, mode 2 or mode 1 with register rbp/r13.
       data_.buf[0] = (modrm & 0x3F) | (is_baseless ? 0x00 : 0x80);
       data_.len = disp_offset + 4;
-      Memory::int32_at(&data_.buf[disp_offset]) = disp_value;
+      Memory::int32_at(reinterpret_cast<Address>(&data_.buf[disp_offset])) =
+          disp_value;
     } else if (disp_value != 0 || (base_reg == 0x05)) {
       // Need 8 bits of displacement.
       data_.buf[0] = (modrm & 0x3F) | 0x40;  // Mode 1.
@@ -346,7 +347,7 @@ bool Operand::AddressUsesRegister(Register reg) const {
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   for (auto& request : heap_object_requests_) {
-    Address pc = buffer_ + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
         Handle<HeapNumber> object = isolate->factory()->NewHeapNumber(
@@ -438,7 +439,7 @@ void Assembler::CodeTargetAlign() {
 
 
 bool Assembler::IsNop(Address addr) {
-  Address a = addr;
+  byte* a = reinterpret_cast<byte*>(addr);
   while (*a == 0x66) a++;
   if (*a == 0x90) return true;
   if (a[0] == 0xF && a[1] == 0x1F) return true;
@@ -1004,7 +1005,7 @@ void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
 void Assembler::near_call(Address addr, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit(0xE8);
-  intptr_t value = reinterpret_cast<intptr_t>(addr);
+  intptr_t value = static_cast<intptr_t>(addr);
   DCHECK(is_int32(value));
   RecordRelocInfo(rmode);
   emitl(static_cast<int32_t>(value));
@@ -1013,7 +1014,7 @@ void Assembler::near_call(Address addr, RelocInfo::Mode rmode) {
 void Assembler::near_jmp(Address addr, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit(0xE9);
-  intptr_t value = reinterpret_cast<intptr_t>(addr);
+  intptr_t value = static_cast<intptr_t>(addr);
   DCHECK(is_int32(value));
   RecordRelocInfo(rmode);
   emitl(static_cast<int32_t>(value));
@@ -1044,7 +1045,7 @@ void Assembler::call(Address target) {
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);
-  Address source = pc_ + 4;
+  Address source = reinterpret_cast<Address>(pc_) + 4;
   intptr_t displacement = target - source;
   DCHECK(is_int32(displacement));
   emitl(static_cast<int32_t>(displacement));
@@ -1429,6 +1430,12 @@ void Assembler::j(Condition cc, Address entry, RelocInfo::Mode rmode) {
 void Assembler::j(Condition cc,
                   Handle<Code> target,
                   RelocInfo::Mode rmode) {
+  if (cc == always) {
+    jmp(target, rmode);
+    return;
+  } else if (cc == never) {
+    return;
+  }
   EnsureSpace ensure_space(this);
   DCHECK(is_uint4(cc));
   // 0000 1111 1000 tttn #32-bit disp.
@@ -1525,8 +1532,7 @@ void Assembler::emit_lea(Register dst, Operand src, int size) {
   emit_operand(dst, src);
 }
 
-
-void Assembler::load_rax(void* value, RelocInfo::Mode mode) {
+void Assembler::load_rax(Address value, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
   if (kPointerSize == kInt64Size) {
     emit(0x48);  // REX.W
@@ -1673,8 +1679,7 @@ void Assembler::emit_mov(Operand dst, Immediate value, int size) {
   emit(value);
 }
 
-
-void Assembler::movp(Register dst, void* value, RelocInfo::Mode rmode) {
+void Assembler::movp(Register dst, Address value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, kPointerSize);
   emit(0xB8 | dst.low_bits());
@@ -1686,7 +1691,7 @@ void Assembler::movp_heap_number(Register dst, double value) {
   emit_rex(dst, kPointerSize);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(value));
-  emitp(nullptr, RelocInfo::EMBEDDED_OBJECT);
+  emitp(0, RelocInfo::EMBEDDED_OBJECT);
 }
 
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
@@ -2178,8 +2183,7 @@ void Assembler::emit_xchg(Register dst, Operand src, int size) {
   emit_operand(dst, src);
 }
 
-
-void Assembler::store_rax(void* dst, RelocInfo::Mode mode) {
+void Assembler::store_rax(Address dst, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
   if (kPointerSize == kInt64Size) {
     emit(0x48);  // REX.W
@@ -4816,7 +4820,8 @@ void Assembler::dq(Label* label) {
   EnsureSpace ensure_space(this);
   if (label->is_bound()) {
     internal_reference_positions_.push_back(pc_offset());
-    emitp(buffer_ + label->pos(), RelocInfo::INTERNAL_REFERENCE);
+    emitp(reinterpret_cast<Address>(buffer_) + label->pos(),
+          RelocInfo::INTERNAL_REFERENCE);
   } else {
     RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
     emitl(0);  // Zero for the first 32bit marks it as 64bit absolute address.
@@ -4842,7 +4847,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       !serializer_enabled() && !emit_debug_code()) {
     return;
   }
-  RelocInfo rinfo(pc_, rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   reloc_info_writer.Write(&rinfo);
 }
 

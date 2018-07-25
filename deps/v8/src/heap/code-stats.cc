@@ -11,32 +11,41 @@ namespace internal {
 // Record code statisitcs.
 void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject* object,
                                                      Isolate* isolate) {
-  if (!object->IsAbstractCode()) {
-    return;
-  }
-
-  // Record code+metadata statisitcs.
-  AbstractCode* abstract_code = AbstractCode::cast(object);
-  int size = abstract_code->SizeIncludingMetadata();
-  if (abstract_code->IsCode()) {
-    size += isolate->code_and_metadata_size();
-    isolate->set_code_and_metadata_size(size);
-  } else {
-    size += isolate->bytecode_and_metadata_size();
-    isolate->set_bytecode_and_metadata_size(size);
-  }
+  if (object->IsScript()) {
+    Script* script = Script::cast(object);
+    // Log the size of external source code.
+    Object* source = script->source();
+    if (source->IsExternalString()) {
+      ExternalString* external_source_string = ExternalString::cast(source);
+      int size = isolate->external_script_source_size();
+      size += external_source_string->ExternalPayloadSize();
+      isolate->set_external_script_source_size(size);
+    }
+  } else if (object->IsAbstractCode()) {
+    // Record code+metadata statisitcs.
+    AbstractCode* abstract_code = AbstractCode::cast(object);
+    int size = abstract_code->SizeIncludingMetadata();
+    if (abstract_code->IsCode()) {
+      size += isolate->code_and_metadata_size();
+      isolate->set_code_and_metadata_size(size);
+    } else {
+      size += isolate->bytecode_and_metadata_size();
+      isolate->set_bytecode_and_metadata_size(size);
+    }
 
 #ifdef DEBUG
-  // Record code kind and code comment statistics.
-  isolate->code_kind_statistics()[abstract_code->kind()] +=
-      abstract_code->Size();
-  CodeStatistics::CollectCodeCommentStatistics(object, isolate);
+    // Record code kind and code comment statistics.
+    isolate->code_kind_statistics()[abstract_code->kind()] +=
+        abstract_code->Size();
+    CodeStatistics::CollectCodeCommentStatistics(object, isolate);
 #endif
+  }
 }
 
 void CodeStatistics::ResetCodeAndMetadataStatistics(Isolate* isolate) {
   isolate->set_code_and_metadata_size(0);
   isolate->set_bytecode_and_metadata_size(0);
+  isolate->set_external_script_source_size(0);
 #ifdef DEBUG
   ResetCodeStatistics(isolate);
 #endif
@@ -165,7 +174,7 @@ void CodeStatistics::CollectCommentStatistics(Isolate* isolate,
   // Search for end of nested comment or a new nested comment
   const char* const comment_txt =
       reinterpret_cast<const char*>(it->rinfo()->data());
-  const byte* prev_pc = it->rinfo()->pc();
+  Address prev_pc = it->rinfo()->pc();
   int flat_delta = 0;
   it->next();
   while (true) {
@@ -199,7 +208,7 @@ void CodeStatistics::CollectCodeCommentStatistics(HeapObject* obj,
   Code* code = Code::cast(obj);
   RelocIterator it(code);
   int delta = 0;
-  const byte* prev_pc = code->raw_instruction_start();
+  Address prev_pc = code->raw_instruction_start();
   while (!it.done()) {
     if (it.rinfo()->rmode() == RelocInfo::COMMENT) {
       delta += static_cast<int>(it.rinfo()->pc() - prev_pc);

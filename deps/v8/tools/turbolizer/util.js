@@ -4,19 +4,41 @@
 
 "use strict";
 
-function makeContainerPosVisible(container, pos) {
-  var height = container.offsetHeight;
-  var margin = Math.floor(height / 4);
-  if (pos < container.scrollTop + margin) {
-    pos -= margin;
-    if (pos < 0) pos = 0;
-    container.scrollTop = pos;
-    return;
+function computeScrollTop(container, element) {
+  const height = container.offsetHeight;
+  const margin = Math.floor(height / 4);
+  const pos = element.offsetTop;
+  const currentScrollTop = container.scrollTop;
+  if (pos < currentScrollTop + margin) {
+    return Math.max(0, pos - margin);
+  } else if (pos > (currentScrollTop + 3 * margin)) {
+    return Math.max(0, pos - 3 * margin);
   }
-  if (pos > (container.scrollTop + 3 * margin)) {
-    pos = pos - 3 * margin;
-    if (pos < 0) pos = 0;
-    container.scrollTop = pos;
+  return pos;
+}
+
+class ViewElements {
+  constructor(container) {
+    this.container = container;
+    this.scrollTop = undefined;
+  }
+
+  consider(element, doConsider) {
+    if (!doConsider) return;
+    const newScrollTop = computeScrollTop(this.container, element);
+    if (isNaN(newScrollTop)) {
+      console.log("NOO")
+    }
+    if (this.scrollTop === undefined) {
+      this.scrollTop = newScrollTop;
+    } else {
+      this.scrollTop = Math.min(this.scrollTop, newScrollTop);
+    }
+  }
+
+  apply(doApply) {
+    if (!doApply || this.scrollTop === undefined) return;
+    this.container.scrollTop = this.scrollTop;
   }
 }
 
@@ -59,11 +81,12 @@ function upperBound(a, value, compare, lookup) {
 }
 
 
-function sortUnique(arr, f) {
+function sortUnique(arr, f, equal) {
+  if (arr.length == 0) return arr;
   arr = arr.sort(f);
   let ret = [arr[0]];
   for (var i = 1; i < arr.length; i++) {
-    if (arr[i-1] !== arr[i]) {
+    if (!equal(arr[i-1], arr[i])) {
       ret.push(arr[i]);
     }
   }
@@ -77,4 +100,9 @@ function partial(f) {
     var arguments2 = Array.from(arguments);
     f.apply(this, arguments1.concat(arguments2));
   }
+}
+
+function isIterable(obj) {
+  return obj != null && obj != undefined
+    && typeof obj != 'string' && typeof obj[Symbol.iterator] === 'function';
 }

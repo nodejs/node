@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/isolate.h"
+#include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/string.h"
@@ -72,7 +73,7 @@ void Deserializer<AllocatorT>::VisitRootPointers(Root root,
   // The space must be new space.  Any other space would cause ReadChunk to try
   // to update the remembered using nullptr as the address.
   ReadData(reinterpret_cast<MaybeObject**>(start),
-           reinterpret_cast<MaybeObject**>(end), NEW_SPACE, nullptr);
+           reinterpret_cast<MaybeObject**>(end), NEW_SPACE, kNullAddress);
 }
 
 template <class AllocatorT>
@@ -169,6 +170,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       DCHECK(CanBeDeferred(obj));
     }
   }
+
   if (obj->IsAllocationSite()) {
     // Allocation sites are present in the snapshot, and must be linked into
     // a list at deserialization time.
@@ -190,13 +192,13 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       new_code_objects_.push_back(Code::cast(obj));
     }
   } else if (obj->IsAccessorInfo()) {
-    if (isolate_->external_reference_redirector()) {
-      accessor_infos_.push_back(AccessorInfo::cast(obj));
-    }
+#ifdef USE_SIMULATOR
+    accessor_infos_.push_back(AccessorInfo::cast(obj));
+#endif
   } else if (obj->IsCallHandlerInfo()) {
-    if (isolate_->external_reference_redirector()) {
-      call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
-    }
+#ifdef USE_SIMULATOR
+    call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
+#endif
   } else if (obj->IsExternalString()) {
     if (obj->map() == isolate_->heap()->native_source_string_map()) {
       ExternalOneByteString* string = ExternalOneByteString::cast(obj);
@@ -208,7 +210,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       ExternalString* string = ExternalString::cast(obj);
       uint32_t index = string->resource_as_uint32();
       Address address =
-          reinterpret_cast<Address>(isolate_->api_external_references()[index]);
+          static_cast<Address>(isolate_->api_external_references()[index]);
       string->set_address_as_resource(address);
     }
     isolate_->heap()->RegisterExternalString(String::cast(obj));
@@ -353,7 +355,7 @@ Object* Deserializer<AllocatorT>::ReadDataSingle() {
   MaybeObject** start = &o;
   MaybeObject** end = start + 1;
   int source_space = NEW_SPACE;
-  Address current_object = nullptr;
+  Address current_object = kNullAddress;
 
   CHECK(ReadData(start, end, source_space, current_object));
   HeapObject* heap_object;
@@ -380,7 +382,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
   // are no new space objects in current boot snapshots, so it's not needed,
   // but that may change.
   bool write_barrier_needed =
-      (current_object_address != nullptr && source_space != NEW_SPACE &&
+      (current_object_address != kNullAddress && source_space != NEW_SPACE &&
        source_space != CODE_SPACE);
   while (current < limit) {
     byte data = source_.Get();
@@ -488,7 +490,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       case kSkip: {
         int size = source_.GetInt();
         current = reinterpret_cast<MaybeObject**>(
-            reinterpret_cast<intptr_t>(current) + size);
+            reinterpret_cast<Address>(current) + size);
         break;
       }
 
@@ -538,20 +540,21 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
 
         CHECK_NOT_NULL(isolate->embedded_blob());
         EmbeddedData d = EmbeddedData::FromBlob();
-        const uint8_t* address = d.InstructionStartOfBuiltin(builtin_index);
-        CHECK_NOT_NULL(address);
+        Address address = d.InstructionStartOfBuiltin(builtin_index);
+        CHECK_NE(kNullAddress, address);
 
         if (RelocInfo::OffHeapTargetIsCodedSpecially()) {
           Address location_of_branch_data = reinterpret_cast<Address>(current);
+          int skip = Assembler::deserialization_special_target_size(
+              location_of_branch_data);
           Assembler::deserialization_set_special_target_at(
               location_of_branch_data,
               Code::cast(HeapObject::FromAddress(current_object_address)),
-              const_cast<Address>(address));
-          location_of_branch_data += Assembler::kSpecialTargetSize;
+              address);
+          location_of_branch_data += skip;
           current = reinterpret_cast<MaybeObject**>(location_of_branch_data);
         } else {
-          MaybeObject* o =
-              reinterpret_cast<MaybeObject*>(const_cast<uint8_t*>(address));
+          MaybeObject* o = reinterpret_cast<MaybeObject*>(address);
           UnalignedCopy(current, &o);
           current++;
         }
@@ -601,8 +604,9 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       // Do not move current.
       case kVariableRawCode: {
         int size_in_bytes = source_.GetInt();
-        source_.CopyRaw(current_object_address + Code::kDataStart,
-                        size_in_bytes);
+        source_.CopyRaw(
+            reinterpret_cast<byte*>(current_object_address + Code::kDataStart),
+            size_in_bytes);
         break;
       }
 
@@ -636,7 +640,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
           DCHECK_WITH_MSG(
               reference_id < num_api_references_,
               "too few external references provided through the API");
-          address = reinterpret_cast<Address>(
+          address = static_cast<Address>(
               isolate->api_external_references()[reference_id]);
         } else {
           address = reinterpret_cast<Address>(NoExternalReferencesCallback);
@@ -750,24 +754,6 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
   return true;
 }
 
-namespace {
-
-int FixupJSConstructStub(Isolate* isolate, int builtin_id) {
-  if (isolate->serializer_enabled()) return builtin_id;
-
-  if (FLAG_harmony_restrict_constructor_return &&
-      builtin_id == Builtins::kJSConstructStubGenericUnrestrictedReturn) {
-    return Builtins::kJSConstructStubGenericRestrictedReturn;
-  } else if (!FLAG_harmony_restrict_constructor_return &&
-             builtin_id == Builtins::kJSConstructStubGenericRestrictedReturn) {
-    return Builtins::kJSConstructStubGenericUnrestrictedReturn;
-  } else {
-    return builtin_id;
-  }
-}
-
-}  // namespace
-
 template <class AllocatorT>
 void** Deserializer<AllocatorT>::ReadExternalReferenceCase(
     HowToCode how, Isolate* isolate, void** current,
@@ -779,10 +765,12 @@ void** Deserializer<AllocatorT>::ReadExternalReferenceCase(
 
   if (how == kFromCode) {
     Address location_of_branch_data = reinterpret_cast<Address>(current);
+    int skip =
+        Assembler::deserialization_special_target_size(location_of_branch_data);
     Assembler::deserialization_set_special_target_at(
         location_of_branch_data,
         Code::cast(HeapObject::FromAddress(current_object_address)), address);
-    location_of_branch_data += Assembler::kSpecialTargetSize;
+    location_of_branch_data += skip;
     current = reinterpret_cast<void**>(location_of_branch_data);
   } else {
     void* new_current = reinterpret_cast<void**>(address);
@@ -838,8 +826,7 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
       emit_write_barrier = isolate->heap()->InNewSpace(new_object);
     } else {
       DCHECK_EQ(where, kBuiltin);
-      int raw_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
-      int builtin_id = FixupJSConstructStub(isolate, raw_id);
+      int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
       new_object = isolate->builtins()->builtin(builtin_id);
       emit_write_barrier = false;
     }
@@ -861,11 +848,13 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
     if (how == kFromCode) {
       DCHECK(!allocator()->next_reference_is_weak());
       Address location_of_branch_data = reinterpret_cast<Address>(current);
+      int skip = Assembler::deserialization_special_target_size(
+          location_of_branch_data);
       Assembler::deserialization_set_special_target_at(
           location_of_branch_data,
           Code::cast(HeapObject::FromAddress(current_object_address)),
           reinterpret_cast<Address>(new_object));
-      location_of_branch_data += Assembler::kSpecialTargetSize;
+      location_of_branch_data += skip;
       current = reinterpret_cast<MaybeObject**>(location_of_branch_data);
       current_was_incremented = true;
     } else {

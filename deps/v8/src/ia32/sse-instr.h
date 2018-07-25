@@ -6,6 +6,9 @@
 #define V8_IA32_SSE_INSTR_H_
 
 #define SSE2_INSTRUCTION_LIST(V) \
+  V(packsswb, 66, 0F, 63)        \
+  V(packssdw, 66, 0F, 6B)        \
+  V(packuswb, 66, 0F, 67)        \
   V(paddb, 66, 0F, FC)           \
   V(paddw, 66, 0F, FD)           \
   V(paddd, 66, 0F, FE)           \
@@ -52,6 +55,7 @@
   V(psignd, 66, 0F, 38, 0A)
 
 #define SSE4_INSTRUCTION_LIST(V) \
+  V(packusdw, 66, 0F, 38, 2B)    \
   V(pminsb, 66, 0F, 38, 38)      \
   V(pminsd, 66, 0F, 38, 39)      \
   V(pminuw, 66, 0F, 38, 3A)      \

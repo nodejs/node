@@ -31,8 +31,8 @@
   'overrides/caching': [PASS, FAIL],
 }],  # ALWAYS
 
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ]

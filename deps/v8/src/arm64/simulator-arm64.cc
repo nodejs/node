@@ -117,7 +117,7 @@ Simulator* Simulator::current(Isolate* isolate) {
   return sim;
 }
 
-void Simulator::CallImpl(byte* entry, CallArgument* args) {
+void Simulator::CallImpl(Address entry, CallArgument* args) {
   int index_x = 0;
   int index_d = 0;
 

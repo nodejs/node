@@ -32,6 +32,7 @@ constexpr Register kJavaScriptCallCodeStartRegister = r5;
 constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r4;
 constexpr Register kRuntimeCallArgCountRegister = r3;
+constexpr Register kWasmInstanceRegister = r10;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -219,6 +220,9 @@ class TurboAssembler : public Assembler {
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
 
+  bool root_array_available() const { return root_array_available_; }
+  void set_root_array_available(bool v) { root_array_available_ = v; }
+
   void StoreDouble(DoubleRegister src, const MemOperand& mem,
                    Register scratch = no_reg);
   void StoreDoubleU(DoubleRegister src, const MemOperand& mem,
@@ -401,6 +405,7 @@ class TurboAssembler : public Assembler {
   void CallCFunction(Register function, int num_reg_arguments,
                      int num_double_arguments);
 
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
   void MovFromFloatParameter(DoubleRegister dst);
@@ -431,6 +436,13 @@ class TurboAssembler : public Assembler {
   void ShiftRightAlgPair(Register dst_low, Register dst_high, Register src_low,
                          Register src_high, uint32_t shift);
 #endif
+
+#ifdef V8_EMBEDDED_BUILTINS
+  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupExternalReference(Register destination,
+                               ExternalReference reference);
+#endif  // V8_EMBEDDED_BUILTINS
+
   // Returns the size of a call in instructions. Note, the value returned is
   // only valid as long as no entries are added to the constant pool between
   // checking the call size and emitting the actual call.
@@ -503,6 +515,7 @@ class TurboAssembler : public Assembler {
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> value);
+  void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
 
@@ -644,8 +657,8 @@ class TurboAssembler : public Assembler {
   // Only public for the test code in test-code-stubs-arm.cc.
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
                                   Label* done);
-  void TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                DoubleRegister double_input);
+  void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
+                         DoubleRegister double_input);
 
   // Call a code stub.
   void CallStubDelayed(CodeStub* stub);
@@ -664,13 +677,16 @@ class TurboAssembler : public Assembler {
 
   void ResetSpeculationPoisonRegister();
 
+ protected:
+  // This handle will be patched with the code object on installation.
+  Handle<HeapObject> code_object_;
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
   bool has_frame_ = false;
+  bool root_array_available_ = true;
   Isolate* const isolate_;
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
 
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);

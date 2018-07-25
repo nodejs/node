@@ -5471,6 +5471,27 @@ TEST(ExceptionEventWhenEventListenerIsReset) {
 }
 
 
+// Tests that script is reported as compiled when bound to context.
+TEST(AfterCompileEventOnBindToContext) {
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  SetDebugEventListener(isolate, AfterCompileEventListener);
+
+  const char* source = "var a=1";
+  v8::ScriptCompiler::Source script_source(
+      v8::String::NewFromUtf8(isolate, source, v8::NewStringType::kNormal)
+          .ToLocalChecked());
+
+  v8::Local<v8::UnboundScript> unbound =
+      v8::ScriptCompiler::CompileUnboundScript(isolate, &script_source)
+          .ToLocalChecked();
+  CHECK_EQ(after_compile_event_count, 0);
+
+  unbound->BindToCurrentContext();
+  CHECK_EQ(after_compile_event_count, 1);
+}
+
+
 static void BreakEventListener(const v8::Debug::EventDetails& details) {
   if (details.GetEvent() == v8::Break) break_point_hit_count++;
 }
@@ -6000,7 +6021,6 @@ static void DebugBreakInlineListener(
                                       result->Int32Value(context).FromJust()));
   }
   SetDebugEventListener(CcTest::isolate(), nullptr);
-  CcTest::isolate()->TerminateExecution();
 }
 
 
@@ -6680,7 +6700,8 @@ TEST(DebugEvaluateNoSideEffect) {
   for (i::Handle<i::JSFunction> fun : all_functions) {
     bool failed = false;
     isolate->debug()->StartSideEffectCheckMode();
-    failed = !isolate->debug()->PerformSideEffectCheck(fun);
+    failed = !isolate->debug()->PerformSideEffectCheck(
+        fun, v8::Utils::OpenHandle(*env->Global()));
     isolate->debug()->StopSideEffectCheckMode();
     if (failed) isolate->clear_pending_exception();
   }

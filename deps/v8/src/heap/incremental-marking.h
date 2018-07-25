@@ -227,7 +227,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void MarkBlackAndPush(HeapObject* obj);
 
   inline void SetOldSpacePageFlags(MemoryChunk* chunk) {
-    SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());
+    SetOldSpacePageFlags(chunk, IsMarking());
   }
 
   inline void SetNewSpacePageFlags(Page* chunk) {
@@ -279,8 +279,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     IncrementalMarking& incremental_marking_;
   };
 
-  static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking,
-                                   bool is_compacting);
+  static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking);
 
   static void SetNewSpacePageFlags(MemoryChunk* chunk, bool is_marking);
 

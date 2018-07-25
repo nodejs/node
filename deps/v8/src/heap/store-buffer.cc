@@ -38,15 +38,13 @@ void StoreBuffer::SetUp() {
                           &reservation)) {
     heap_->FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
-  uintptr_t start_as_int = reinterpret_cast<uintptr_t>(reservation.address());
-  start_[0] =
-      reinterpret_cast<Address*>(::RoundUp(start_as_int, kStoreBufferSize));
+  Address start = reservation.address();
+  start_[0] = reinterpret_cast<Address*>(::RoundUp(start, kStoreBufferSize));
   limit_[0] = start_[0] + (kStoreBufferSize / kPointerSize);
   start_[1] = limit_[0];
   limit_[1] = start_[1] + (kStoreBufferSize / kPointerSize);
 
-  Address* vm_limit = reinterpret_cast<Address*>(
-      reinterpret_cast<char*>(reservation.address()) + reservation.size());
+  Address* vm_limit = reinterpret_cast<Address*>(start + reservation.size());
 
   USE(vm_limit);
   for (int i = 0; i < kStoreBuffers; i++) {
@@ -54,7 +52,7 @@ void StoreBuffer::SetUp() {
     DCHECK(reinterpret_cast<Address>(limit_[i]) >= reservation.address());
     DCHECK(start_[i] <= vm_limit);
     DCHECK(limit_[i] <= vm_limit);
-    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(limit_[i]) & kStoreBufferMask);
+    DCHECK_EQ(0, reinterpret_cast<Address>(limit_[i]) & kStoreBufferMask);
   }
 
   if (!reservation.SetPermissions(reinterpret_cast<Address>(start_[0]),
@@ -104,7 +102,7 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
   if (!lazy_top_[index]) return;
   DCHECK_GE(index, 0);
   DCHECK_LT(index, kStoreBuffers);
-  Address last_inserted_addr = nullptr;
+  Address last_inserted_addr = kNullAddress;
 
   // We are taking the chunk map mutex here because the page lookup of addr
   // below may require us to check if addr is part of a large page.
@@ -114,7 +112,7 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
     Address addr = *current;
     MemoryChunk* chunk = MemoryChunk::FromAnyPointerAddress(heap_, addr);
     if (IsDeletionAddress(addr)) {
-      last_inserted_addr = nullptr;
+      last_inserted_addr = kNullAddress;
       current++;
       Address end = *current;
       DCHECK(!IsDeletionAddress(end));

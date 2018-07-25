@@ -138,7 +138,7 @@ TEST(Regress3540) {
   address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &size);
-  CHECK_NOT_NULL(address);
+  CHECK_NE(address, kNullAddress);
 
   Address null_address;
   size_t null_size;
@@ -146,7 +146,7 @@ TEST(Regress3540) {
   null_address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &null_size);
-  CHECK_NULL(null_address);
+  CHECK_EQ(null_address, kNullAddress);
 
   code_range->FreeRawMemory(address, size);
   delete code_range;
@@ -208,7 +208,7 @@ TEST(MemoryAllocator) {
 
   {
     int total_pages = 0;
-    OldSpace faked_space(heap, OLD_SPACE, NOT_EXECUTABLE);
+    OldSpace faked_space(heap);
     Page* first_page = memory_allocator->AllocatePage(
         faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
         NOT_EXECUTABLE);
@@ -264,7 +264,7 @@ TEST(NewSpace) {
   }
 
   new_space.TearDown();
-  memory_allocator->unmapper()->WaitUntilCompleted();
+  memory_allocator->unmapper()->EnsureUnmappingCompleted();
   memory_allocator->TearDown();
   delete memory_allocator;
 }
@@ -277,7 +277,7 @@ TEST(OldSpace) {
   CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
-  OldSpace* s = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
+  OldSpace* s = new OldSpace(heap);
   CHECK_NOT_NULL(s);
 
   CHECK(s->SetUp());

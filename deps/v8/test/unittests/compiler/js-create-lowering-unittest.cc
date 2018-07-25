@@ -144,13 +144,13 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedRestArray) {
 // JSCreateFunctionContext
 
 TEST_F(JSCreateLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
-  Node* const closure = Parameter(Type::Any());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->CreateFunctionContext(8, FUNCTION_SCOPE),
-                       closure, context, effect, control));
+  Reduction const r = Reduce(graph()->NewNode(
+      javascript()->CreateFunctionContext(handle(ScopeInfo::Empty(isolate())),
+                                          8, FUNCTION_SCOPE),
+      context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
@@ -165,13 +165,12 @@ TEST_F(JSCreateLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
 TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
   Handle<ScopeInfo> scope_info(factory()->NewScopeInfo(1));
   Node* const object = Parameter(Type::Receiver());
-  Node* const closure = Parameter(Type::Function());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction r =
       Reduce(graph()->NewNode(javascript()->CreateWithContext(scope_info),
-                              object, closure, context, effect, control));
+                              object, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
@@ -184,16 +183,14 @@ TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
 // JSCreateCatchContext
 
 TEST_F(JSCreateLoweringTest, JSCreateCatchContext) {
-  Handle<String> name = factory()->length_string();
   Handle<ScopeInfo> scope_info(factory()->NewScopeInfo(1));
   Node* const exception = Parameter(Type::Receiver());
-  Node* const closure = Parameter(Type::Function());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r = Reduce(
-      graph()->NewNode(javascript()->CreateCatchContext(name, scope_info),
-                       exception, closure, context, effect, control));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->CreateCatchContext(scope_info),
+                              exception, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(

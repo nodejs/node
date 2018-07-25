@@ -23,6 +23,11 @@ group("v8_run_gcmole") {
     "../../testing/gtest/include/gtest/gtest_prod.h",
     "../../third_party/googletest/src/googletest/include/gtest/gtest_prod.h",
     "../../third_party/icu/source/",
+    "$target_gen_dir/../../torque-generated/",
+  ]
+
+  deps = [
+    "../../:run_torque",
   ]
 
   if (v8_gcmole) {

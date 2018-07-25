@@ -7,7 +7,6 @@
 #include "src/v8.h"
 #include "src/vector.h"
 
-#include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
@@ -31,11 +30,6 @@ class MockPlatform final : public TestPlatform {
   }
 
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate* isolate) override {
-    return task_runner_;
-  }
-
-  std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
       v8::Isolate* isolate) override {
     return task_runner_;
   }
@@ -104,7 +98,6 @@ class StreamTester {
     i::Handle<i::JSPromise> i_promise = v8::Utils::OpenHandle(*promise_);
 
     stream_ = i_isolate->wasm_engine()
-                  ->compilation_manager()
                   ->StartStreamingCompilation(
                       i_isolate, v8::Utils::OpenHandle(*context), i_promise);
   }

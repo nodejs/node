@@ -52,6 +52,7 @@ InspectorTest.runAsyncTestSuite([
       InspectorTest.log(
           '> Debugger.enable in another context group returns own debugger id');
     }
+    await Protocol2.Debugger.disable();
   },
 
   async function testInstrumentation() {

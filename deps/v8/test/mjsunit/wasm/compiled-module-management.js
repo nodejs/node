@@ -82,7 +82,6 @@ print("After gc module state");
   module = null;
 })();
 
+// Note that the first GC will clear the module, the second the instance.
 gc();
-// the first GC will clear the module, the second the instance.
 gc();
-%ValidateWasmOrphanedInstance(instance4);

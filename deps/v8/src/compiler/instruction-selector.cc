@@ -28,7 +28,7 @@ InstructionSelector::InstructionSelector(
     SourcePositionMode source_position_mode, Features features,
     EnableScheduling enable_scheduling,
     EnableSerialization enable_serialization,
-    PoisoningMitigationLevel poisoning_enabled)
+    PoisoningMitigationLevel poisoning_level)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -50,7 +50,7 @@ InstructionSelector::InstructionSelector(
       enable_scheduling_(enable_scheduling),
       enable_serialization_(enable_serialization),
       enable_switch_jump_table_(enable_switch_jump_table),
-      poisoning_enabled_(poisoning_enabled),
+      poisoning_level_(poisoning_level),
       frame_(frame),
       instruction_selection_failed_(false) {
   instructions_.reserve(node_count);
@@ -1001,7 +1001,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       // If we do load poisoning and the linkage uses the poisoning register,
       // then we request the input in memory location, and during code
       // generation, we move the input to the register.
-      if (poisoning_enabled_ != PoisoningMitigationLevel::kOff &&
+      if (poisoning_level_ != PoisoningMitigationLevel::kDontPoison &&
           unallocated.HasFixedRegisterPolicy()) {
         int reg = unallocated.fixed_register_index();
         if (reg == kSpeculationPoisonRegister.code()) {
@@ -1618,11 +1618,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64InsertLowWord32(node);
     case IrOpcode::kFloat64InsertHighWord32:
       return MarkAsFloat64(node), VisitFloat64InsertHighWord32(node);
-    case IrOpcode::kPoisonOnSpeculationTagged:
-      return MarkAsReference(node), VisitPoisonOnSpeculationTagged(node);
-    case IrOpcode::kPoisonOnSpeculationWord:
-      return MarkAsRepresentation(MachineType::PointerRepresentation(), node),
-             VisitPoisonOnSpeculationWord(node);
+    case IrOpcode::kTaggedPoisonOnSpeculation:
+      return MarkAsReference(node), VisitTaggedPoisonOnSpeculation(node);
+    case IrOpcode::kWord32PoisonOnSpeculation:
+      return MarkAsWord32(node), VisitWord32PoisonOnSpeculation(node);
+    case IrOpcode::kWord64PoisonOnSpeculation:
+      return MarkAsWord64(node), VisitWord64PoisonOnSpeculation(node);
     case IrOpcode::kStackSlot:
       return VisitStackSlot(node);
     case IrOpcode::kLoadStackPointer:
@@ -1958,20 +1959,28 @@ void InstructionSelector::VisitNode(Node* node) {
   }
 }
 
-void InstructionSelector::VisitPoisonOnSpeculationWord(Node* node) {
-  if (poisoning_enabled_ != PoisoningMitigationLevel::kOff) {
+void InstructionSelector::EmitWordPoisonOnSpeculation(Node* node) {
+  if (poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
     OperandGenerator g(this);
     Node* input_node = NodeProperties::GetValueInput(node, 0);
     InstructionOperand input = g.UseRegister(input_node);
     InstructionOperand output = g.DefineSameAsFirst(node);
-    Emit(kArchPoisonOnSpeculationWord, output, input);
+    Emit(kArchWordPoisonOnSpeculation, output, input);
   } else {
     EmitIdentity(node);
   }
 }
 
-void InstructionSelector::VisitPoisonOnSpeculationTagged(Node* node) {
-  VisitPoisonOnSpeculationWord(node);
+void InstructionSelector::VisitWord32PoisonOnSpeculation(Node* node) {
+  EmitWordPoisonOnSpeculation(node);
+}
+
+void InstructionSelector::VisitWord64PoisonOnSpeculation(Node* node) {
+  EmitWordPoisonOnSpeculation(node);
+}
+
+void InstructionSelector::VisitTaggedPoisonOnSpeculation(Node* node) {
+  EmitWordPoisonOnSpeculation(node);
 }
 
 void InstructionSelector::VisitLoadStackPointer(Node* node) {
@@ -2317,15 +2326,13 @@ void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
         // && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitWord64AtomicLoad(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_X64
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitWord64AtomicAdd(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64AtomicSub(Node* node) { UNIMPLEMENTED(); }
@@ -2335,9 +2342,7 @@ void InstructionSelector::VisitWord64AtomicAnd(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitWord64AtomicOr(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64AtomicXor(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 
-#if !V8_TARGET_ARCH_X64
 void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2345,7 +2350,7 @@ void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
 void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_X64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
     !V8_TARGET_ARCH_MIPS64
@@ -2385,23 +2390,23 @@ void InstructionSelector::VisitI16x8SConvertI8x16High(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitI16x8SConvertI32x4(Node* node) {
-  UNIMPLEMENTED();
-}
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
-        // && !V8_TARGET_ARCH_MIPS64
-
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64
-void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
-  UNIMPLEMENTED();
-}
-
 void InstructionSelector::VisitI16x8UConvertI8x16Low(Node* node) {
   UNIMPLEMENTED();
 }
 
 void InstructionSelector::VisitI16x8UConvertI8x16High(Node* node) {
+  UNIMPLEMENTED();
+}
+
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
+        // && !V8_TARGET_ARCH_MIPS64
+
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
+    !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
+void InstructionSelector::VisitI16x8SConvertI32x4(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
   UNIMPLEMENTED();
 }
 
@@ -2413,7 +2418,7 @@ void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
-        // && !V8_TARGET_ARCH_MIPS64
+        // && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
     !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
@@ -2426,11 +2431,7 @@ void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
-        // && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitS1x4AnyTrue(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS1x4AllTrue(Node* node) { UNIMPLEMENTED(); }
@@ -2443,7 +2444,7 @@ void InstructionSelector::VisitS1x16AnyTrue(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS1x16AllTrue(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
-        // && !V8_TARGET_ARCH_MIPS64
+        // && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
@@ -2716,32 +2717,41 @@ void InstructionSelector::VisitReturn(Node* ret) {
 
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
                                       BasicBlock* fbranch) {
-  bool update_poison =
-      IsSafetyCheckOf(branch->op()) == IsSafetyCheck::kSafetyCheck &&
-      poisoning_enabled_ == PoisoningMitigationLevel::kOn;
-  FlagsContinuation cont =
-      FlagsContinuation::ForBranch(kNotEqual, tbranch, fbranch, update_poison);
-  VisitWordCompareZero(branch, branch->InputAt(0), &cont);
+  if (NeedsPoisoning(IsSafetyCheckOf(branch->op()))) {
+    FlagsContinuation cont =
+        FlagsContinuation::ForBranchAndPoison(kNotEqual, tbranch, fbranch);
+    VisitWordCompareZero(branch, branch->InputAt(0), &cont);
+  } else {
+    FlagsContinuation cont =
+        FlagsContinuation::ForBranch(kNotEqual, tbranch, fbranch);
+    VisitWordCompareZero(branch, branch->InputAt(0), &cont);
+  }
 }
 
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
-  bool update_poison = p.is_safety_check() == IsSafetyCheck::kSafetyCheck &&
-                       poisoning_enabled_ == PoisoningMitigationLevel::kOn;
-  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1),
-      update_poison);
-  VisitWordCompareZero(node, node->InputAt(0), &cont);
+  if (NeedsPoisoning(p.is_safety_check())) {
+    FlagsContinuation cont = FlagsContinuation::ForDeoptimizeAndPoison(
+        kNotEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
+    VisitWordCompareZero(node, node->InputAt(0), &cont);
+  } else {
+    FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
+        kNotEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
+    VisitWordCompareZero(node, node->InputAt(0), &cont);
+  }
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
-  bool update_poison = p.is_safety_check() == IsSafetyCheck::kSafetyCheck &&
-                       poisoning_enabled_ == PoisoningMitigationLevel::kOn;
-  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1),
-      update_poison);
-  VisitWordCompareZero(node, node->InputAt(0), &cont);
+  if (NeedsPoisoning(p.is_safety_check())) {
+    FlagsContinuation cont = FlagsContinuation::ForDeoptimizeAndPoison(
+        kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
+    VisitWordCompareZero(node, node->InputAt(0), &cont);
+  } else {
+    FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
+        kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
+    VisitWordCompareZero(node, node->InputAt(0), &cont);
+  }
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
@@ -2921,6 +2931,18 @@ int32_t InstructionSelector::Pack4Lanes(const uint8_t* shuffle, uint8_t mask) {
     result |= shuffle[i] & mask;
   }
   return result;
+}
+
+bool InstructionSelector::NeedsPoisoning(IsSafetyCheck safety_check) const {
+  switch (poisoning_level_) {
+    case PoisoningMitigationLevel::kDontPoison:
+      return false;
+    case PoisoningMitigationLevel::kPoisonAll:
+      return safety_check != IsSafetyCheck::kNoSafetyCheck;
+    case PoisoningMitigationLevel::kPoisonCriticalOnly:
+      return safety_check == IsSafetyCheck::kCriticalSafetyCheck;
+  }
+  UNREACHABLE();
 }
 
 }  // namespace compiler

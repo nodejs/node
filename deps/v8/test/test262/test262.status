@@ -85,10 +85,6 @@
   'language/statements/variable/binding-resolution': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
-  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-detached-when-species-retrieved-different-type': [FAIL],
-  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-detached-when-species-retrieved-different-type': [FAIL],
-  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-detached-when-species-retrieved-same-type': [FAIL],
-  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-detached-when-species-retrieved-same-type': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/BigInt/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
@@ -136,8 +132,6 @@
   'built-ins/TypedArray/prototype/reduceRight/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/some/BigInt/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/sort/detached-buffer-comparefn': [FAIL],
-  'built-ins/TypedArray/prototype/sort/BigInt/detached-buffer-comparefn': [FAIL],
   # DataView functions should also throw on detached buffers
   'built-ins/ArrayBuffer/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/detached-buffer': [FAIL],
@@ -303,9 +297,6 @@
   'language/expressions/arrow-function/dflt-params-duplicates': [FAIL],
   'language/expressions/async-arrow-function/dflt-params-duplicates': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5244
-  'intl402/NumberFormat/prototype/formatToParts/*': ['--harmony-number-format-to-parts'],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5327
   'built-ins/TypedArrays/internals/Set/key-is-minus-zero': [FAIL],
   'built-ins/TypedArrays/internals/Set/BigInt/key-is-minus-zero': [FAIL],
@@ -339,9 +330,6 @@
   'language/expressions/object/method-definition/generator-param-redecl-let': [FAIL],
   'language/expressions/object/method-definition/name-param-redecl': [FAIL],
   'language/statements/async-function/early-errors-declaration-formals-body-duplicate': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5601
-  'intl402/PluralRules/*': ['--harmony-plural-rules'],
 
   # SharedArrayBuffer tests that require flags
   'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],
@@ -416,6 +404,10 @@
   'built-ins/BigInt/prototype/Symbol.toStringTag': [FAIL],
   'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-other-ctor-returns-new-typedarray': [FAIL],
 
+  # https://github.com/tc39/proposal-bigint/pull/139
+  'built-ins/BigInt/out-of-bounds-integer-rangeerror': [FAIL],
+  'built-ins/DataView/prototype/setBigInt64/set-values-return-undefined': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7184
   'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],
   'annexB/language/statements/for-await-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
@@ -433,24 +425,12 @@
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
   'language/expressions/call/eval-spread-empty-trailing': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7471
-  'intl402/DateTimeFormat/prototype/format/time-clip-near-time-boundaries': [FAIL],
-  'intl402/DateTimeFormat/prototype/format/time-clip-to-integer': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatToParts/time-clip-near-time-boundaries': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatToParts/time-clip-to-integer': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7473
-  'intl402/language-tags-canonicalized': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7474
   'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7475
-  'built-ins/Date/UTC/non-integer-values': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7480
   'intl402/Collator/unicode-ext-seq-in-private-tag': [FAIL],
@@ -466,20 +446,13 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7483
   'annexB/built-ins/Function/createdynfn-html-close-comment-params': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5012
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7669
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
-  'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7513
   'built-ins/TypedArrays/ctors/buffer-arg/buffer-arg-bufferbyteoffset-throws-from-modulo-element-size': [FAIL],
   'built-ins/TypedArrays/ctors/buffer-arg/buffer-arg-byteoffset-throws-from-modulo-element-size': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7512
-  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-other-ctor-buffer-ctor-custom-species-proto-from-ctor-realm': [FAIL],
-  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-same-ctor-buffer-ctor-species-custom-proto-from-ctor-realm': [FAIL],
-  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-other-ctor-buffer-ctor-custom-species-proto-from-ctor-realm': [FAIL],
-  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-same-ctor-buffer-ctor-species-custom-proto-from-ctor-realm': [FAIL],
 
 ######################## NEEDS INVESTIGATION ###########################
 
@@ -490,19 +463,6 @@
   'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle': [FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
-
-  # We do not expose Array.prototype.values due to webcompat issues.
-  # Most recent incompatibility: https://crbug.com/615873
-  # https://code.google.com/p/v8/issues/detail?id=4247
-  'built-ins/Array/prototype/Symbol.iterator': [FAIL],
-  'built-ins/Array/prototype/values/returns-iterator': [FAIL],
-  'built-ins/Array/prototype/values/returns-iterator-from-object': [FAIL],
-  'built-ins/Array/prototype/values/prop-desc': [FAIL],
-  'built-ins/Array/prototype/values/name': [FAIL],
-  'built-ins/Array/prototype/values/length': [FAIL],
-  'built-ins/Array/prototype/values/iteration': [FAIL],
-  'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
-  'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
 
   # https://github.com/tc39/ecma262/pull/889
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
@@ -535,6 +495,8 @@
   'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7418
+  # TODO(mathias): These tests have been removed in upstream Test262.
+  # Remove them once we sync.
   'language/line-terminators/S7.3_A2.3': [FAIL],
   'language/line-terminators/S7.3_A2.4': [FAIL],
 
@@ -656,9 +618,9 @@
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
 }],  # asan == True or msan == True or tsan == True
 
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ['variant != default or arch == arm or arch == arm64 or arch == mipsel or arch == mips or arch == mips64 or arch == mips64el', {
   # These tests take a long time to run

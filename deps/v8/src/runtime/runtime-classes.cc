@@ -13,6 +13,7 @@
 #include "src/elements.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/runtime/runtime.h"
 

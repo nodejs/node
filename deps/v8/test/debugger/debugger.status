@@ -75,9 +75,9 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ##############################################################################
 ['arch == arm and not simulator_run', {

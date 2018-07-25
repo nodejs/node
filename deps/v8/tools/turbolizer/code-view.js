@@ -5,166 +5,257 @@
 "use strict";
 
 class CodeView extends View {
-  constructor(divID, PR, sourceText, sourcePosition, broker) {
-    super(divID, broker, null, false);
-    let view = this;
-    view.PR = PR;
-    view.mouseDown = false;
-    view.broker = broker;
-    view.allSpans = [];
-
-    var selectionHandler = {
-      clear: function() { broker.clear(selectionHandler); },
-      select: function(items, selected) {
-        var handler = this;
-        var broker = view.broker;
-        for (let span of items) {
-          if (selected) {
-            span.classList.add("selected");
-          } else {
-            span.classList.remove("selected");
-          }
-        }
-        var locations = [];
-        for (var span of items) {
-          locations.push({pos_start: span.start, pos_end: span.end});
-        }
-        broker.clear(selectionHandler);
-        broker.select(selectionHandler, locations, selected);
-      },
-      selectionDifference: function(span1, inclusive1, span2, inclusive2) {
-        var pos1 = span1.start;
-        var pos2 = span2.start;
-        var result = [];
-        var lineListDiv = view.divNode.firstChild.firstChild.childNodes;
-        for (var i = 0; i < lineListDiv.length; i++) {
-          var currentLineElement = lineListDiv[i];
-          var spans = currentLineElement.childNodes;
-          for (var j = 0; j < spans.length; ++j) {
-            var currentSpan = spans[j];
-            if (currentSpan.start > pos1 ||
-                (inclusive1 && currentSpan.start == pos1)) {
-              if (currentSpan.start < pos2 ||
-                  (inclusive2 && currentSpan.start == pos2)) {
-                result.push(currentSpan);
-              }
-            }
-          }
-        }
-        return result;
-      },
-      brokeredSelect: function(locations, selected) {
-        let firstSelect = view.selection.isEmpty();
-        for (let location of locations) {
-          let start = location.pos_start;
-          let end = location.pos_end;
-          if (start && end) {
-            let lower = 0;
-            let upper = view.allSpans.length;
-            if (upper > 0) {
-              while ((upper - lower) > 1) {
-                var middle = Math.floor((upper + lower) / 2);
-                var lineStart = view.allSpans[middle].start;
-                if (lineStart < start) {
-                  lower = middle;
-                } else if (lineStart > start) {
-                  upper = middle;
-                } else {
-                  lower = middle;
-                  break;
-                }
-              }
-              var currentSpan = view.allSpans[lower];
-              var currentLineElement = currentSpan.parentNode;
-              if ((currentSpan.start <= start && start < currentSpan.end) ||
-                  (currentSpan.start <= end && end < currentSpan.end)) {
-                if (firstSelect) {
-                  makeContainerPosVisible(
-                      view.divNode, currentLineElement.offsetTop);
-                  firstSelect = false;
-                }
-                view.selection.select(currentSpan, selected);
-              }
-            }
-          }
-        }
-      },
-      brokeredClear: function() { view.selection.clear(); },
-    };
-    view.selection = new Selection(selectionHandler);
-    broker.addSelectionHandler(selectionHandler);
-
-    view.handleSpanMouseDown = function(e) {
-      e.stopPropagation();
-      if (!e.shiftKey) {
-        view.selection.clear();
-      }
-      view.selection.select(this, true);
-      view.mouseDown = true;
-    }
-
-    view.handleSpanMouseMove = function(e) {
-      if (view.mouseDown) {
-        view.selection.extendTo(this);
-      }
-    }
-
-    view.handleCodeMouseDown = function(e) { view.selection.clear(); }
-
-    document.addEventListener('mouseup', function(e) {
-      view.mouseDown = false;
-    }, false);
-
-    view.initializeCode(sourceText, sourcePosition);
+  static get MAIN_SOURCE() {
+    return "main function";
+  }
+  static get INLINED_SOURCE() {
+    return "inlined function";
   }
 
-  initializeContent(data, rememberedSelection) { this.data = data; }
+  createViewElement() {
+    const sourceContainer = document.createElement("div");
+    sourceContainer.classList.add("source-container");
+    return sourceContainer;
+  }
 
-  initializeCode(sourceText, sourcePosition) {
+  constructor(parentId, broker, sourceResolver, sourceFunction, codeMode) {
+    super(parentId, broker, null, false);
+    let view = this;
+    view.mouseDown = false;
+    view.broker = broker;
+    view.source = null;
+    view.sourceResolver = sourceResolver;
+    view.source = sourceFunction;
+    view.codeMode = codeMode;
+    this.lineToSourcePositions = new Map();
+    this.sourcePositionToHtmlElement = new Map();
+    this.showAdditionalInliningPosition = false;
+
+    const selectionHandler = {
+      clear: function () {
+        view.selection.clear();
+        view.updateSelection();
+        broker.broadcastClear(this)
+      },
+      select: function (sourcePositions, selected) {
+        const locations = [];
+        for (var sourcePosition of sourcePositions) {
+          locations.push(sourcePosition);
+          sourceResolver.addInliningPositions(sourcePosition, locations);
+        }
+        if (locations.length == 0) return;
+        view.selection.select(locations, selected);
+        view.updateSelection();
+        broker.broadcastSourcePositionSelect(this, locations, selected);
+      },
+      brokeredSourcePositionSelect: function (locations, selected) {
+        const firstSelect = view.selection.isEmpty();
+        for (const location of locations) {
+          const translated = sourceResolver.translateToSourceId(view.source.sourceId, location);
+          if (!translated) continue;
+          view.selection.select(translated, selected);
+        }
+        view.updateSelection(firstSelect);
+      },
+      brokeredClear: function () {
+        view.selection.clear();
+        view.updateSelection();
+      },
+    };
+    view.selection = new Selection(sourcePositionToStringKey);
+    broker.addSourcePositionHandler(selectionHandler);
+    this.selectionHandler = selectionHandler;
+    this.initializeCode();
+  }
+
+  addSourcePositionToLine(lineNumber, sourcePosition) {
+    const lineNumberString = anyToString(lineNumber);
+    if (!this.lineToSourcePositions.has(lineNumberString)) {
+      this.lineToSourcePositions.set(lineNumberString, []);
+    }
+    this.lineToSourcePositions.get(lineNumberString).push(sourcePosition);
+  }
+
+  addHtmlElementToSourcePosition(sourcePosition, element) {
+    const key = sourcePositionToStringKey(sourcePosition);
+    if (this.sourcePositionToHtmlElement.has(key)) {
+      console.log("Warning: duplicate source position", sourcePosition);
+    }
+    this.sourcePositionToHtmlElement.set(key, element);
+  }
+
+  getHtmlElementForSourcePosition(sourcePosition) {
+    const key = sourcePositionToStringKey(lineNumber);
+    return this.sourcePositionToHtmlElement.get(key);
+  }
+
+  updateSelection(scrollIntoView) {
+    const mkVisible = new ViewElements(this.divNode.parentNode);
+    for (const [sp, el] of this.sourcePositionToHtmlElement.entries()) {
+      const isSelected = this.selection.isKeySelected(sp);
+      mkVisible.consider(el, isSelected);
+      el.classList.toggle("selected", isSelected);
+    }
+    mkVisible.apply(scrollIntoView);
+  }
+
+  initializeContent(data, rememberedSelection) {
+    this.data = data;
+  }
+
+  getCodeHtmlElementName() {
+    return `source-pre-${this.source.sourceId}`;
+  }
+
+  getCodeHeaderHtmlElementName() {
+    return `source-pre-${this.source.sourceId}-header`;
+  }
+
+  getHtmlCodeLines() {
+    const lineListDiv = this.divNode.querySelector(`#${this.getCodeHtmlElementName()} ol`).childNodes;
+    return lineListDiv;
+  }
+
+  onSelectLine(lineNumber, doClear) {
+    const sourcePositions = this.lineToSourcePositions.get(anyToString(lineNumber));
+    if (doClear) {
+      this.selectionHandler.clear();
+    }
+    if (!sourcePositions) return;
+    this.selectionHandler.select(sourcePositions, undefined);
+  }
+
+  onSelectSourcePosition(sourcePosition, doClear) {
+    if (doClear) {
+      this.selectionHandler.clear();
+    }
+    this.selectionHandler.select([sourcePosition], undefined);
+  }
+
+  initializeCode() {
     var view = this;
+    const source = this.source;
+    const sourceText = source.sourceText;
+    if (!sourceText) return;
+    const sourceContainer = view.divNode;
+    if (this.codeMode == CodeView.MAIN_SOURCE) {
+      sourceContainer.classList.add("main-source");
+    } else {
+      sourceContainer.classList.add("inlined-source");
+    }
+    var codeHeader = document.createElement("div");
+    codeHeader.setAttribute("id", this.getCodeHeaderHtmlElementName());
+    codeHeader.classList.add("code-header");
+    var codeFileFunction = document.createElement("div");
+    codeFileFunction.classList.add("code-file-function");
+    codeFileFunction.innerHTML = `${source.sourceName}:${source.functionName}`;
+    codeHeader.appendChild(codeFileFunction);
+    var codeModeDiv = document.createElement("div");
+    codeModeDiv.classList.add("code-mode");
+    codeModeDiv.innerHTML = `${this.codeMode}`;
+    codeHeader.appendChild(codeModeDiv);
+    var clearDiv = document.createElement("div");
+    clearDiv.style = "clear:both;"
+    codeHeader.appendChild(clearDiv);
+    sourceContainer.appendChild(codeHeader);
     var codePre = document.createElement("pre");
+    codePre.setAttribute("id", this.getCodeHtmlElementName());
     codePre.classList.add("prettyprint");
-    view.divNode.innerHTML = "";
-    view.divNode.appendChild(codePre);
+    sourceContainer.appendChild(codePre);
+
+    codeHeader.onclick = function myFunction() {
+      if (codePre.style.display === "none") {
+        codePre.style.display = "block";
+      } else {
+        codePre.style.display = "none";
+      }
+    }
     if (sourceText != "") {
       codePre.classList.add("linenums");
       codePre.textContent = sourceText;
       try {
         // Wrap in try to work when offline.
-        view.PR.prettyPrint();
+        PR.prettyPrint(undefined, sourceContainer);
       } catch (e) {
+        console.log(e);
       }
 
-      view.divNode.onmousedown = this.handleCodeMouseDown;
+      view.divNode.onclick = function (e) {
+        view.selectionHandler.clear();
+      }
 
-      var base = sourcePosition;
-      var current = 0;
-      var lineListDiv = view.divNode.firstChild.firstChild.childNodes;
+      const base = source.startPosition;
+      let current = 0;
+      const lineListDiv = this.getHtmlCodeLines();
+      let newlineAdjust = 0;
       for (let i = 0; i < lineListDiv.length; i++) {
-        var currentLineElement = lineListDiv[i];
+        // Line numbers are not zero-based.
+        const lineNumber = i + 1;
+        const currentLineElement = lineListDiv[i];
         currentLineElement.id = "li" + i;
-        var pos = base + current;
-        currentLineElement.pos = pos;
-        var spans = currentLineElement.childNodes;
+        currentLineElement.dataset.lineNumber = lineNumber;
+        const spans = currentLineElement.childNodes;
         for (let j = 0; j < spans.length; ++j) {
-          var currentSpan = spans[j];
-          if (currentSpan.nodeType == 1) {
-            currentSpan.start = pos;
-            currentSpan.end = pos + currentSpan.textContent.length;
-            currentSpan.onmousedown = this.handleSpanMouseDown;
-            currentSpan.onmousemove = this.handleSpanMouseMove;
-            view.allSpans.push(currentSpan);
-          }
+          const currentSpan = spans[j];
+          const pos = base + current;
+          const end = pos + currentSpan.textContent.length;
           current += currentSpan.textContent.length;
-          pos = base + current;
+          this.insertSourcePositions(currentSpan, lineNumber, pos, end, newlineAdjust);
+          newlineAdjust = 0;
         }
+
+        this.insertLineNumber(currentLineElement, lineNumber);
+
         while ((current < sourceText.length) &&
-               (sourceText[current] == '\n' || sourceText[current] == '\r')) {
+          (sourceText[current] == '\n' || sourceText[current] == '\r')) {
           ++current;
+          ++newlineAdjust;
         }
       }
     }
   }
 
-  deleteContent() {}
+  insertSourcePositions(currentSpan, lineNumber, pos, end, adjust) {
+    const view = this;
+    const sps = this.sourceResolver.sourcePositionsInRange(this.source.sourceId, pos - adjust, end);
+    for (const sourcePosition of sps) {
+      view.addSourcePositionToLine(lineNumber, sourcePosition);
+      const textnode = currentSpan.tagName == 'SPAN' ? currentSpan.firstChild : currentSpan;
+      const replacementNode = textnode.splitText(Math.max(0, sourcePosition.scriptOffset - pos));
+      const span = document.createElement('span');
+      span.setAttribute("scriptOffset", sourcePosition.scriptOffset);
+      span.classList.add("source-position")
+      const marker = document.createElement('span');
+      marker.classList.add("marker")
+      span.appendChild(marker);
+      const inlining = this.sourceResolver.getInliningForPosition(sourcePosition);
+      if (inlining != undefined && view.showAdditionalInliningPosition) {
+        const sourceName = this.sourceResolver.getSourceName(inlining.sourceId);
+        const inliningMarker = document.createElement('span');
+        inliningMarker.classList.add("inlining-marker")
+        inliningMarker.setAttribute("data-descr", `${sourceName} was inlined here`)
+        span.appendChild(inliningMarker);
+      }
+      span.onclick = function (e) {
+        e.stopPropagation();
+        view.onSelectSourcePosition(sourcePosition, !e.shiftKey)
+      };
+      view.addHtmlElementToSourcePosition(sourcePosition, span);
+      textnode.parentNode.insertBefore(span, replacementNode);
+    }
+  }
+
+  insertLineNumber(lineElement, lineNumber) {
+    const view = this;
+    const lineNumberElement = document.createElement("div");
+    lineNumberElement.classList.add("line-number");
+    lineNumberElement.innerText = lineNumber;
+    lineNumberElement.onclick = function (e) {
+      e.stopPropagation();
+      view.onSelectLine(lineNumber, !e.shiftKey);
+    }
+    lineElement.insertBefore(lineNumberElement, lineElement.firstChild)
+  }
+
+  deleteContent() { }
 }

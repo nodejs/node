@@ -24,15 +24,16 @@ console.context() methods:
     [11] : groupEnd
     [12] : clear
     [13] : count
-    [14] : assert
-    [15] : markTimeline
-    [16] : profile
-    [17] : profileEnd
-    [18] : timeline
-    [19] : timelineEnd
-    [20] : time
-    [21] : timeEnd
-    [22] : timeStamp
+    [14] : countReset
+    [15] : assert
+    [16] : markTimeline
+    [17] : profile
+    [18] : profileEnd
+    [19] : timeline
+    [20] : timelineEnd
+    [21] : time
+    [22] : timeEnd
+    [23] : timeStamp
 ]
 
 Running test: testDefaultConsoleContext

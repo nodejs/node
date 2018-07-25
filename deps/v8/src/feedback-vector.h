@@ -129,7 +129,7 @@ inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
 
 std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind);
 
-typedef std::vector<Handle<Object>> ObjectHandles;
+typedef std::vector<MaybeObjectHandle> MaybeObjectHandles;
 
 class FeedbackMetadata;
 
@@ -196,15 +196,19 @@ class FeedbackVector : public HeapObject {
 
   // Conversion from an integer index to the underlying array to a slot.
   static inline FeedbackSlot ToSlot(int index);
-  inline Object* Get(FeedbackSlot slot) const;
-  inline Object* get(int index) const;
+  inline MaybeObject* Get(FeedbackSlot slot) const;
+  inline MaybeObject* get(int index) const;
+  inline void Set(FeedbackSlot slot, MaybeObject* value,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set(int index, MaybeObject* value,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(FeedbackSlot slot, Object* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set(int index, Object* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Gives access to raw memory which stores the array's data.
-  inline Object** slots_start();
+  inline MaybeObject** slots_start();
 
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
@@ -213,9 +217,6 @@ class FeedbackVector : public HeapObject {
 
   V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
-
-  static Handle<FeedbackVector> Copy(Isolate* isolate,
-                                     Handle<FeedbackVector> vector);
 
 #define DEFINE_SLOT_KIND_PREDICATE(Name) \
   bool Name(FeedbackSlot slot) const { return Name##Kind(GetKind(slot)); }
@@ -246,6 +247,8 @@ class FeedbackVector : public HeapObject {
   // For gdb debugging.
   void Print();
 #endif  // OBJECT_PRINT
+
+  static void AssertNoLegacyTypes(Object* object);
 
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
@@ -592,8 +595,8 @@ class FeedbackNexus final {
 
   InlineCacheState StateFromFeedback() const;
   int ExtractMaps(MapHandles* maps) const;
-  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const;
-  bool FindHandlers(ObjectHandles* code_list, int length = -1) const;
+  MaybeObjectHandle FindHandlerForMap(Handle<Map> map) const;
+  bool FindHandlers(MaybeObjectHandles* code_list, int length = -1) const;
 
   bool IsCleared() const {
     InlineCacheState state = StateFromFeedback();
@@ -607,15 +610,15 @@ class FeedbackNexus final {
   bool ConfigureMegamorphic(IcCheckType property_type);
 
   inline Object* GetFeedback() const;
-  inline Object* GetFeedbackExtra() const;
+  inline MaybeObject* GetFeedbackExtra() const;
 
   inline Isolate* GetIsolate() const;
 
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
-                            Handle<Object> handler);
+                            const MaybeObjectHandle& handler);
 
   void ConfigurePolymorphic(Handle<Name> name, MapHandles const& maps,
-                            ObjectHandles* handlers);
+                            MaybeObjectHandles* handlers);
 
   BinaryOperationHint GetBinaryOperationFeedback() const;
   CompareOperationHint GetCompareOperationFeedback() const;
@@ -654,7 +657,7 @@ class FeedbackNexus final {
   // Returns false if given combination of indices is not allowed.
   bool ConfigureLexicalVarMode(int script_context_index,
                                int context_slot_index);
-  void ConfigureHandlerMode(Handle<Object> handler);
+  void ConfigureHandlerMode(const MaybeObjectHandle& handler);
 
 // Bit positions in a smi that encodes lexical environment variable access.
 #define LEXICAL_MODE_BIT_FIELDS(V, _)  \
@@ -683,9 +686,11 @@ class FeedbackNexus final {
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetFeedbackExtra(Object* feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void SetFeedbackExtra(MaybeObject* feedback_extra,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  Handle<FixedArray> EnsureArrayOfSize(int length);
-  Handle<FixedArray> EnsureExtraArrayOfSize(int length);
+  Handle<WeakFixedArray> EnsureArrayOfSize(int length);
+  Handle<WeakFixedArray> EnsureExtraArrayOfSize(int length);
 
  private:
   // The reason for having a vector handle and a raw pointer is that we can and

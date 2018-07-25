@@ -7,7 +7,9 @@
 
 #include "src/handles.h"
 #include "src/isolate.h"
+#include "src/msan.h"
 #include "src/objects-inl.h"
+#include "src/objects/maybe-object-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -43,6 +45,65 @@ inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
   return os << Brief(*handle);
 }
 
+MaybeObjectHandle::MaybeObjectHandle()
+    : reference_type_(HeapObjectReferenceType::STRONG),
+      handle_(Handle<Object>::null()) {}
+
+MaybeObjectHandle::MaybeObjectHandle(MaybeObject* object, Isolate* isolate) {
+  HeapObject* heap_object;
+  DCHECK(!object->IsClearedWeakHeapObject());
+  if (object->ToWeakHeapObject(&heap_object)) {
+    handle_ = handle(heap_object, isolate);
+    reference_type_ = HeapObjectReferenceType::WEAK;
+  } else {
+    handle_ = handle(object->ToObject(), isolate);
+    reference_type_ = HeapObjectReferenceType::STRONG;
+  }
+}
+
+MaybeObjectHandle::MaybeObjectHandle(Handle<Object> object)
+    : reference_type_(HeapObjectReferenceType::STRONG), handle_(object) {}
+
+MaybeObjectHandle::MaybeObjectHandle(Object* object, Isolate* isolate)
+    : reference_type_(HeapObjectReferenceType::STRONG),
+      handle_(object, isolate) {}
+
+MaybeObjectHandle::MaybeObjectHandle(Object* object,
+                                     HeapObjectReferenceType reference_type,
+                                     Isolate* isolate)
+    : reference_type_(reference_type), handle_(handle(object, isolate)) {}
+
+MaybeObjectHandle::MaybeObjectHandle(Handle<Object> object,
+                                     HeapObjectReferenceType reference_type)
+    : reference_type_(reference_type), handle_(object) {}
+
+MaybeObjectHandle MaybeObjectHandle::Weak(Handle<Object> object) {
+  return MaybeObjectHandle(object, HeapObjectReferenceType::WEAK);
+}
+
+MaybeObject* MaybeObjectHandle::operator*() const {
+  if (reference_type_ == HeapObjectReferenceType::WEAK) {
+    return HeapObjectReference::Weak(*handle_.ToHandleChecked());
+  } else {
+    return MaybeObject::FromObject(*handle_.ToHandleChecked());
+  }
+}
+
+MaybeObject* MaybeObjectHandle::operator->() const {
+  if (reference_type_ == HeapObjectReferenceType::WEAK) {
+    return HeapObjectReference::Weak(*handle_.ToHandleChecked());
+  } else {
+    return MaybeObject::FromObject(*handle_.ToHandleChecked());
+  }
+}
+
+Handle<Object> MaybeObjectHandle::object() const {
+  return handle_.ToHandleChecked();
+}
+
+inline MaybeObjectHandle handle(MaybeObject* object, Isolate* isolate) {
+  return MaybeObjectHandle(object, isolate);
+}
 
 HandleScope::~HandleScope() {
 #ifdef DEBUG
@@ -68,15 +129,17 @@ void HandleScope::CloseScope(Isolate* isolate,
 
   std::swap(current->next, prev_next);
   current->level--;
+  Object** limit = prev_next;
   if (current->limit != prev_limit) {
     current->limit = prev_limit;
+    limit = prev_limit;
     DeleteExtensions(isolate);
-#ifdef ENABLE_HANDLE_ZAPPING
-    ZapRange(current->next, prev_limit);
-  } else {
-    ZapRange(current->next, prev_next);
-#endif
   }
+#ifdef ENABLE_HANDLE_ZAPPING
+  ZapRange(current->next, limit);
+#endif
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(
+      current->next, static_cast<size_t>(limit - current->next));
 }
 
 

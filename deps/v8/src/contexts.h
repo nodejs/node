@@ -22,7 +22,6 @@ enum ContextLookupFlags {
   FOLLOW_CHAINS = FOLLOW_CONTEXT_CHAIN | FOLLOW_PROTOTYPE_CHAIN,
 };
 
-
 // Heap-allocated activation contexts.
 //
 // Contexts are implemented as FixedArray objects; the Context
@@ -162,6 +161,7 @@ enum ContextLookupFlags {
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \
   V(DEBUG_CONTEXT_ID_INDEX, Object, debug_context_id)                          \
+  V(EMPTY_FUNCTION_INDEX, JSFunction, empty_function)                          \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
   V(ERRORS_THROWN_INDEX, Smi, errors_thrown)                                   \
@@ -182,7 +182,6 @@ enum ContextLookupFlags {
   V(INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX, JSObject,                          \
     initial_array_iterator_prototype)                                          \
   V(INITIAL_ARRAY_PROTOTYPE_INDEX, JSObject, initial_array_prototype)          \
-  V(INITIAL_ARRAY_PROTOTYPE_MAP_INDEX, Map, initial_array_prototype_map)       \
   V(INITIAL_ERROR_PROTOTYPE_INDEX, JSObject, initial_error_prototype)          \
   V(INITIAL_GENERATOR_PROTOTYPE_INDEX, JSObject, initial_generator_prototype)  \
   V(INITIAL_ASYNC_GENERATOR_PROTOTYPE_INDEX, JSObject,                         \
@@ -203,6 +202,7 @@ enum ContextLookupFlags {
     intl_date_time_format_function)                                            \
   V(INTL_NUMBER_FORMAT_FUNCTION_INDEX, JSFunction,                             \
     intl_number_format_function)                                               \
+  V(INTL_LOCALE_FUNCTION_INDEX, JSFunction, intl_locale_function)              \
   V(INTL_COLLATOR_FUNCTION_INDEX, JSFunction, intl_collator_function)          \
   V(INTL_PLURAL_RULES_FUNCTION_INDEX, JSFunction, intl_plural_rules_function)  \
   V(INTL_V8_BREAK_ITERATOR_FUNCTION_INDEX, JSFunction,                         \
@@ -396,40 +396,30 @@ class ScriptContextTable : public FixedArray {
 // stack, with the top-most context being the current context. All contexts
 // have the following slots:
 //
-// [ closure   ]  This is the current function. It is the same for all
-//                contexts inside a function. It provides access to the
-//                incoming context (i.e., the outer context, which may
-//                or may not become the current function's context), and
-//                it provides access to the functions code and thus it's
-//                scope information, which in turn contains the names of
-//                statically allocated context slots. The names are needed
-//                for dynamic lookups in the presence of 'with' or 'eval'.
+// [ scope_info     ]  This is the scope info describing the current context. It
+//                     contains the names of statically allocated context slots,
+//                     and stack-allocated locals.  The names are needed for
+//                     dynamic lookups in the presence of 'with' or 'eval', and
+//                     for the debugger.
 //
-// [ previous  ]  A pointer to the previous context.
+// [ previous       ]  A pointer to the previous context.
 //
-// [ extension ]  Additional data.
+// [ extension      ]  Additional data.
 //
-//                For script contexts, it contains the respective ScopeInfo.
+//                     For module contexts, it contains the module object.
 //
-//                For catch contexts, it contains a ContextExtension object
-//                consisting of the ScopeInfo and the name of the catch
-//                variable.
+//                     For block contexts, it may contain an "extension object"
+//                     (see below).
 //
-//                For module contexts, it contains the module object.
+//                     For with contexts, it contains an "extension object".
 //
-//                For block contexts, it contains either the respective
-//                ScopeInfo or a ContextExtension object consisting of the
-//                ScopeInfo and an "extension object" (see below).
-//
-//                For with contexts, it contains a ContextExtension object
-//                consisting of the ScopeInfo and an "extension object".
-//
-//                An "extension object" is used to dynamically extend a context
-//                with additional variables, namely in the implementation of the
-//                'with' construct and the 'eval' construct.  For instance,
-//                Context::Lookup also searches the extension object for
-//                properties.  (Storing the extension object is the original
-//                purpose of this context slot, hence the name.)
+//                     An "extension object" is used to dynamically extend a
+//                     context with additional variables, namely in the
+//                     implementation of the 'with' construct and the 'eval'
+//                     construct.  For instance, Context::Lookup also searches
+//                     the extension object for properties.  (Storing the
+//                     extension object is the original purpose of this context
+//                     slot, hence the name.)
 //
 // [ native_context ]  A pointer to the native context.
 //
@@ -444,7 +434,7 @@ class ScriptContextTable : public FixedArray {
 // Script contexts from all top-level scripts are gathered in
 // ScriptContextTable.
 
-class Context: public FixedArray {
+class Context : public FixedArray {
  public:
   // Conversions.
   static inline Context* cast(Object* context);
@@ -452,7 +442,7 @@ class Context: public FixedArray {
   // The default context slot layout; indices are FixedArray slot indices.
   enum Field {
     // These slots are in all contexts.
-    CLOSURE_INDEX,
+    SCOPE_INFO_INDEX,
     PREVIOUS_INDEX,
     // The extension slot is used for either the global object (in native
     // contexts), eval extension object (function contexts), subject of with
@@ -461,7 +451,7 @@ class Context: public FixedArray {
     EXTENSION_INDEX,
     NATIVE_CONTEXT_INDEX,
 
-    // These slots are only in native contexts.
+// These slots are only in native contexts.
 #define NATIVE_CONTEXT_SLOT(index, type, name) index,
     NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_SLOT)
 #undef NATIVE_CONTEXT_SLOT
@@ -499,9 +489,7 @@ class Context: public FixedArray {
   int GetErrorsThrown();
 
   // Direct slot access.
-  inline JSFunction* closure();
-  inline void set_closure(JSFunction* closure);
-
+  inline void set_scope_info(ScopeInfo* scope_info);
   inline Context* previous();
   inline void set_previous(Context* context);
 
@@ -513,7 +501,6 @@ class Context: public FixedArray {
   JSObject* extension_object();
   JSReceiver* extension_receiver();
   ScopeInfo* scope_info();
-  String* catch_name();
 
   // Find the module context (assuming there is one) and return the associated
   // module object.

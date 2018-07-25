@@ -68,7 +68,7 @@ uint32_t BytecodeArrayAccessor::GetUnsignedOperand(
   DCHECK_EQ(operand_type,
             Bytecodes::GetOperandType(current_bytecode(), operand_index));
   DCHECK(Bytecodes::IsUnsignedOperandType(operand_type));
-  const uint8_t* operand_start =
+  Address operand_start =
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
@@ -84,7 +84,7 @@ int32_t BytecodeArrayAccessor::GetSignedOperand(
   DCHECK_EQ(operand_type,
             Bytecodes::GetOperandType(current_bytecode(), operand_index));
   DCHECK(!Bytecodes::IsUnsignedOperandType(operand_type));
-  const uint8_t* operand_start =
+  Address operand_start =
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
@@ -134,7 +134,7 @@ FeedbackSlot BytecodeArrayAccessor::GetSlotOperand(int operand_index) const {
 Register BytecodeArrayAccessor::GetRegisterOperand(int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
-  const uint8_t* operand_start =
+  Address operand_start =
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
@@ -237,9 +237,10 @@ bool BytecodeArrayAccessor::OffsetWithinBytecode(int offset) const {
 }
 
 std::ostream& BytecodeArrayAccessor::PrintTo(std::ostream& os) const {
-  return BytecodeDecoder::Decode(
-      os, bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_,
-      bytecode_array()->parameter_count());
+  const uint8_t* bytecode_addr = reinterpret_cast<const uint8_t*>(
+      bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_);
+  return BytecodeDecoder::Decode(os, bytecode_addr,
+                                 bytecode_array()->parameter_count());
 }
 
 JumpTableTargetOffsets::JumpTableTargetOffsets(

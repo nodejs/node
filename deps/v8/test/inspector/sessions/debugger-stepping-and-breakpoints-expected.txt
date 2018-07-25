@@ -226,3 +226,6 @@ Paused in 2:
   hit breakpoints: 
   location: <anonymous>@1
   data: null
+Activating debugger agent in 1
+Disabling debugger agent in 2
+Disabling debugger agent in 1

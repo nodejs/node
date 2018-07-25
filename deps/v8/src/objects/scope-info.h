@@ -103,6 +103,10 @@ class ScopeInfo : public FixedArray {
   // Return the function_name if present.
   Object* FunctionName() const;
 
+  // The function's name if it is non-empty, otherwise the inferred name or an
+  // empty string.
+  String* FunctionDebugName() const;
+
   // Return the function's inferred name if present.
   // See SharedFunctionInfo::function_identifier.
   Object* InferredFunctionName() const;
@@ -203,6 +207,7 @@ class ScopeInfo : public FixedArray {
                                   MaybeHandle<ScopeInfo> outer_scope);
   static Handle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
+  static Handle<ScopeInfo> CreateForEmptyFunction(Isolate* isolate);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.
@@ -295,6 +300,8 @@ class ScopeInfo : public FixedArray {
   int ModuleVariablesIndex() const;
 
   static bool NeedsPositionInfo(ScopeType type);
+  static Handle<ScopeInfo> CreateForBootstrapping(Isolate* isolate,
+                                                  ScopeType type);
 
   int Lookup(Handle<String> name, int start, int end, VariableMode* mode,
              VariableLocation* location, InitializationFlag* init_flag,
@@ -354,7 +361,12 @@ class ScopeInfo : public FixedArray {
   class MaybeAssignedFlagField : public BitField<MaybeAssignedFlag, 4, 1> {};
 
   friend class ScopeIterator;
+  friend std::ostream& operator<<(std::ostream& os,
+                                  ScopeInfo::VariableAllocationInfo var);
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         ScopeInfo::VariableAllocationInfo var);
 
 }  // namespace internal
 }  // namespace v8

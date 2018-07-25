@@ -32,12 +32,13 @@ inline int FastD2IChecked(double x) {
   return static_cast<int>(x);
 }
 
-
 // The fast double-to-(unsigned-)int conversion routine does not guarantee
 // rounding towards zero.
-// The result is unspecified if x is infinite or NaN, or if the rounded
+// The result is undefined if x is infinite or NaN, or if the rounded
 // integer value is outside the range of type int.
 inline int FastD2I(double x) {
+  DCHECK(x <= INT_MAX);
+  DCHECK(x >= INT_MIN);
   return static_cast<int32_t>(x);
 }
 

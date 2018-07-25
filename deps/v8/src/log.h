@@ -8,7 +8,6 @@
 #include <set>
 #include <string>
 
-#include "include/v8-profiler.h"
 #include "src/allocation.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/platform/elapsed-timer.h"
@@ -72,10 +71,14 @@ class LowLevelLogger;
 class PerfBasicLogger;
 class PerfJitLogger;
 class Profiler;
-class ProfilerListener;
 class RuntimeCallTimer;
 class Ticker;
 class WasmCompiledModule;
+
+namespace interpreter {
+enum class Bytecode : uint8_t;
+enum class OperandScale : uint8_t;
+}  // namespace interpreter
 
 namespace wasm {
 class WasmCode;
@@ -88,34 +91,11 @@ class WasmCode;
     if (logger->is_logging()) logger->Call;             \
   } while (false)
 
-#define LOG_CODE_EVENT(isolate, Call)                        \
-  do {                                                       \
-    v8::internal::Logger* logger = (isolate)->logger();      \
-    if (logger->is_listening_to_code_events()) logger->Call; \
+#define LOG_CODE_EVENT(isolate, Call)                   \
+  do {                                                  \
+    v8::internal::Logger* logger = (isolate)->logger(); \
+    if (logger->is_logging_code_events()) logger->Call; \
   } while (false)
-
-class ExistingCodeLogger {
- public:
-  explicit ExistingCodeLogger(Isolate* isolate,
-                              CodeEventListener* listener = nullptr)
-      : isolate_(isolate), listener_(listener) {}
-
-  void LogCodeObjects();
-  void LogBytecodeHandlers();
-
-  void LogCompiledFunctions();
-  void LogExistingFunction(Handle<SharedFunctionInfo> shared,
-                           Handle<AbstractCode> code,
-                           CodeEventListener::LogEventsAndTags tag =
-                               CodeEventListener::LAZY_COMPILE_TAG);
-  void LogCodeObject(Object* object);
-  void LogBytecodeHandler(interpreter::Bytecode bytecode,
-                          interpreter::OperandScale operand_scale, Code* code);
-
- private:
-  Isolate* isolate_;
-  CodeEventListener* listener_;
-};
 
 class Logger : public CodeEventListener {
  public:
@@ -131,15 +111,7 @@ class Logger : public CodeEventListener {
   void SetCodeEventHandler(uint32_t options,
                            JitCodeEventHandler event_handler);
 
-  // Sets up ProfilerListener.
-  void SetUpProfilerListener();
-
-  // Tear down ProfilerListener if it has no observers.
-  void TearDownProfilerListener();
-
   sampler::Sampler* sampler();
-
-  ProfilerListener* profiler_listener() { return profiler_listener_.get(); }
 
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,
@@ -187,8 +159,8 @@ class Logger : public CodeEventListener {
   void ApiEntryCall(const char* name);
 
   // ==== Events logged by --log-code. ====
-  void addCodeEventListener(CodeEventListener* listener);
-  void removeCodeEventListener(CodeEventListener* listener);
+  void AddCodeEventListener(CodeEventListener* listener);
+  void RemoveCodeEventListener(CodeEventListener* listener);
 
   // Emits a code event for a callback function.
   void CallbackEvent(Name* name, Address entry_point);
@@ -257,7 +229,7 @@ class Logger : public CodeEventListener {
     return is_logging_;
   }
 
-  bool is_listening_to_code_events() {
+  bool is_logging_code_events() {
     return is_logging() || jit_logger_ != nullptr;
   }
 
@@ -348,15 +320,12 @@ class Logger : public CodeEventListener {
   PerfJitLogger* perf_jit_logger_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
-  std::unique_ptr<ProfilerListener> profiler_listener_;
   std::set<int> logged_source_code_;
   uint32_t next_source_info_id_ = 0;
 
   // Guards against multiple calls to TearDown() that can happen in some tests.
   // 'true' between SetUp() and TearDown().
   bool is_initialized_;
-
-  ExistingCodeLogger existing_code_logger_;
 
   base::ElapsedTimer timer_;
 
@@ -438,58 +407,6 @@ class CodeEventLogger : public CodeEventListener {
   NameBuffer* name_buffer_;
 };
 
-struct CodeEvent {
-  uintptr_t code_start_address;
-  size_t code_size;
-  Handle<String> function_name;
-  Handle<String> script_name;
-  int script_line;
-  int script_column;
-  CodeEventType code_type;
-  const char* comment;
-};
-
-class ExternalCodeEventListener : public CodeEventListener {
- public:
-  explicit ExternalCodeEventListener(Isolate* isolate);
-  ~ExternalCodeEventListener() override;
-
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       const char* comment) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       Name* name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, Name* name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, Name* source, int line,
-                       int column) override;
-  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name) override;
-
-  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
-  void CallbackEvent(Name* name, Address entry_point) override {}
-  void GetterCallbackEvent(Name* name, Address entry_point) override {}
-  void SetterCallbackEvent(Name* name, Address entry_point) override {}
-  void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
-  void CodeMoveEvent(AbstractCode* from, Address to) override {}
-  void CodeDisableOptEvent(AbstractCode* code,
-                           SharedFunctionInfo* shared) override {}
-  void CodeMovingGCEvent() override {}
-  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
-                      int fp_to_sp_delta) override {}
-
-  void StartListening(CodeEventHandler* code_event_handler);
-  void StopListening();
-
-  bool is_listening_to_code_events() override { return true; }
-
- private:
-  void LogExistingCode();
-
-  bool is_listening_;
-  Isolate* isolate_;
-  v8::CodeEventHandler* code_event_handler_;
-};
 
 }  // namespace internal
 }  // namespace v8

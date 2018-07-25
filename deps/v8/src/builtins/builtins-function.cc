@@ -10,6 +10,7 @@
 #include "src/counters.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/string-builder.h"
 
 namespace v8 {

@@ -17,7 +17,7 @@ void ProxiesCodeStubAssembler::GotoIfRevokedProxy(Node* object,
                                                   Label* if_proxy_revoked) {
   Label proxy_not_revoked(this);
   GotoIfNot(IsJSProxy(object), &proxy_not_revoked);
-  Branch(IsJSReceiver(LoadObjectField(object, JSProxy::kHandlerOffset)),
+  Branch(IsJSReceiver(CAST(LoadObjectField(object, JSProxy::kHandlerOffset))),
          &proxy_not_revoked, if_proxy_revoked);
   BIND(&proxy_not_revoked);
 }
@@ -408,6 +408,8 @@ TF_BUILTIN(ProxyHasProperty, ProxiesCodeStubAssembler) {
 
   CSA_ASSERT(this, IsJSProxy(proxy));
 
+  PerformStackCheck(context);
+
   // 1. Assert: IsPropertyKey(P) is true.
   CSA_ASSERT(this, IsName(name));
   CSA_ASSERT(this, Word32Equal(IsPrivateSymbol(name), Int32Constant(0)));
@@ -542,7 +544,7 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
   Node* receiver = Parameter(Descriptor::kReceiverValue);
-  Node* language_mode = Parameter(Descriptor::kLanguageMode);
+  TNode<Smi> language_mode = CAST(Parameter(Descriptor::kLanguageMode));
 
   CSA_ASSERT(this, IsJSProxy(proxy));
 
@@ -714,14 +716,23 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
 
     BIND(&throw_non_configurable_data);
     {
-      ThrowTypeError(context, MessageTemplate::kProxyGetNonConfigurableData,
-                     name, var_value.value(), trap_result);
+      if (access_kind == JSProxy::kGet) {
+        ThrowTypeError(context, MessageTemplate::kProxyGetNonConfigurableData,
+                       name, var_value.value(), trap_result);
+      } else {
+        ThrowTypeError(context, MessageTemplate::kProxySetFrozenData, name);
+      }
     }
 
     BIND(&throw_non_configurable_accessor);
     {
-      ThrowTypeError(context, MessageTemplate::kProxyGetNonConfigurableAccessor,
-                     name, trap_result);
+      if (access_kind == JSProxy::kGet) {
+        ThrowTypeError(context,
+                       MessageTemplate::kProxyGetNonConfigurableAccessor, name,
+                       trap_result);
+      } else {
+        ThrowTypeError(context, MessageTemplate::kProxySetFrozenAccessor, name);
+      }
     }
   }
 }

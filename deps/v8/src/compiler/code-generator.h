@@ -74,12 +74,6 @@ class DeoptimizationLiteral {
   double number_;
 };
 
-enum class CodeGeneratorPoisoningLevel {
-  kDontPoison,
-  kPoisonStackPointerInPrologue,
-  kPoisonAll
-};
-
 // Generates native code for a sequence of instructions.
 class CodeGenerator final : public GapResolver::Assembler {
  public:
@@ -90,7 +84,7 @@ class CodeGenerator final : public GapResolver::Assembler {
                          int start_source_position,
                          JumpOptimizationInfo* jump_opt,
                          WasmCompilationData* wasm_compilation_data,
-                         CodeGeneratorPoisoningLevel poisoning_level);
+                         PoisoningMitigationLevel poisoning_level);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -421,7 +415,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   SourcePositionTableBuilder source_position_table_builder_;
   WasmCompilationData* wasm_compilation_data_;
   CodeGenResult result_;
-  CodeGeneratorPoisoningLevel poisoning_level_;
+  PoisoningMitigationLevel poisoning_level_;
 };
 
 }  // namespace compiler

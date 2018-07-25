@@ -84,6 +84,21 @@ class IteratingStringHasher : public StringHasher {
   DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
 };
 
+// Useful for std containers that require something ()'able.
+struct SeededStringHasher {
+  explicit SeededStringHasher(uint32_t hashseed) : hashseed_(hashseed) {}
+  inline std::size_t operator()(const char* name) const;
+
+  uint32_t hashseed_;
+};
+
+// Useful for std containers that require something ()'able.
+struct StringEquals {
+  bool operator()(const char* name1, const char* name2) const {
+    return strcmp(name1, name2) == 0;
+  }
+};
+
 }  // namespace internal
 }  // namespace v8
 

@@ -3543,52 +3543,35 @@ Expression* Parser::SpreadCall(Expression* function,
                                ZoneList<Expression*>* args_list, int pos,
                                Call::PossiblyEval is_possibly_eval) {
   // Handle this case in BytecodeGenerator.
-  if (OnlyLastArgIsSpread(args_list)) {
+  if (OnlyLastArgIsSpread(args_list) || function->IsSuperCallReference()) {
     return factory()->NewCall(function, args_list, pos);
   }
 
-  if (function->IsSuperCallReference()) {
-    // Super calls
-    // $super_constructor = %_GetSuperConstructor(<this-function>)
-    // %reflect_construct($super_constructor, args, new.target)
-    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(3, zone());
-    ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
-    tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
-    args->Add(factory()->NewCallRuntime(Runtime::kInlineGetSuperConstructor,
-                                        tmp, pos),
-              zone());
-    args->Add(ArrayLiteralFromListWithSpread(args_list), zone());
-    args->Add(function->AsSuperCallReference()->new_target_var(), zone());
-    return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args,
-                                     pos);
-  } else {
-    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(3, zone());
-    if (function->IsProperty()) {
-      // Method calls
-      if (function->AsProperty()->IsSuperAccess()) {
-        Expression* home = ThisExpression(kNoSourcePosition);
-        args->Add(function, zone());
-        args->Add(home, zone());
-      } else {
-        Variable* temp = NewTemporary(ast_value_factory()->empty_string());
-        VariableProxy* obj = factory()->NewVariableProxy(temp);
-        Assignment* assign_obj = factory()->NewAssignment(
-            Token::ASSIGN, obj, function->AsProperty()->obj(),
-            kNoSourcePosition);
-        function = factory()->NewProperty(
-            assign_obj, function->AsProperty()->key(), kNoSourcePosition);
-        args->Add(function, zone());
-        obj = factory()->NewVariableProxy(temp);
-        args->Add(obj, zone());
-      }
-    } else {
-      // Non-method calls
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(3, zone());
+  if (function->IsProperty()) {
+    // Method calls
+    if (function->AsProperty()->IsSuperAccess()) {
+      Expression* home = ThisExpression(kNoSourcePosition);
       args->Add(function, zone());
-      args->Add(factory()->NewUndefinedLiteral(kNoSourcePosition), zone());
+      args->Add(home, zone());
+    } else {
+      Variable* temp = NewTemporary(ast_value_factory()->empty_string());
+      VariableProxy* obj = factory()->NewVariableProxy(temp);
+      Assignment* assign_obj = factory()->NewAssignment(
+          Token::ASSIGN, obj, function->AsProperty()->obj(), kNoSourcePosition);
+      function = factory()->NewProperty(
+          assign_obj, function->AsProperty()->key(), kNoSourcePosition);
+      args->Add(function, zone());
+      obj = factory()->NewVariableProxy(temp);
+      args->Add(obj, zone());
     }
-    args->Add(ArrayLiteralFromListWithSpread(args_list), zone());
-    return factory()->NewCallRuntime(Context::REFLECT_APPLY_INDEX, args, pos);
+  } else {
+    // Non-method calls
+    args->Add(function, zone());
+    args->Add(factory()->NewUndefinedLiteral(kNoSourcePosition), zone());
   }
+  args->Add(ArrayLiteralFromListWithSpread(args_list), zone());
+  return factory()->NewCallRuntime(Context::REFLECT_APPLY_INDEX, args, pos);
 }
 
 Expression* Parser::SpreadCallNew(Expression* function,

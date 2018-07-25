@@ -57,7 +57,11 @@ var Node = {
     } else {
       propsString = "[" + this.properties + "]";
     }
-    return this.title + "\n" + propsString + "\n" + this.opinfo;
+    let title = this.title + "\n" + propsString + "\n" + this.opinfo;
+    if (this.origin) {
+      title += `\nOrigin: #${this.origin.nodeId} in phase ${this.origin.phase}/${this.origin.reducer}`;
+    }
+    return title;
   },
   getDisplayLabel: function() {
     var result = this.id + ":" + this.label;

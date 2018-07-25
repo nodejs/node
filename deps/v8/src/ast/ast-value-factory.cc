@@ -223,14 +223,12 @@ AstRawString* AstValueFactory::GetOneByteStringInternal(
   return GetString(hash_field, true, literal);
 }
 
-
 AstRawString* AstValueFactory::GetTwoByteStringInternal(
     Vector<const uint16_t> literal) {
   uint32_t hash_field = StringHasher::HashSequentialString<uint16_t>(
       literal.start(), literal.length(), hash_seed_);
   return GetString(hash_field, false, Vector<const byte>::cast(literal));
 }
-
 
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
   AstRawString* result = nullptr;
@@ -279,7 +277,6 @@ void AstValueFactory::Internalize(Isolate* isolate) {
 
   ResetStrings();
 }
-
 
 AstRawString* AstValueFactory::GetString(uint32_t hash_field, bool is_one_byte,
                                          Vector<const byte> literal_bytes) {

@@ -6,6 +6,7 @@
 #define V8_DISASSEMBLER_H_
 
 #include "src/allocation.h"
+#include "src/code-reference.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +18,7 @@ class Disassembler : public AllStatic {
   // instruction could be decoded.
   // the code object is used for name resolution and may be null.
   static int Decode(Isolate* isolate, std::ostream* os, byte* begin, byte* end,
-                    Code* code = nullptr, void* current_pc = nullptr);
+                    CodeReference code = {}, Address current_pc = kNullAddress);
 };
 
 }  // namespace internal

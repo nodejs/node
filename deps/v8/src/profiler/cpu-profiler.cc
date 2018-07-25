@@ -4,6 +4,9 @@
 
 #include "src/profiler/cpu-profiler.h"
 
+#include <unordered_map>
+#include <utility>
+
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/template-utils.h"
@@ -70,9 +73,9 @@ void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
   TickSampleEventRecord record(last_code_event_id_.Value());
   RegisterState regs;
   Address fp = isolate->c_entry_fp(isolate->thread_local_top());
-  regs.sp = fp - fp_to_sp_delta;
-  regs.fp = fp;
-  regs.pc = from;
+  regs.sp = reinterpret_cast<void*>(fp - fp_to_sp_delta);
+  regs.fp = reinterpret_cast<void*>(fp);
+  regs.pc = reinterpret_cast<void*>(from);
   record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, false, false);
   ticks_from_vm_buffer_.Enqueue(record);
 }
@@ -84,9 +87,9 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate,
   StackFrameIterator it(isolate);
   if (!it.done()) {
     StackFrame* frame = it.frame();
-    regs.sp = frame->sp();
-    regs.fp = frame->fp();
-    regs.pc = frame->pc();
+    regs.sp = reinterpret_cast<void*>(frame->sp());
+    regs.fp = reinterpret_cast<void*>(frame->fp());
+    regs.pc = reinterpret_cast<void*>(frame->pc());
   }
   record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, update_stats,
                      false);
@@ -235,7 +238,7 @@ void CpuProfiler::CodeEventHandler(const CodeEventsContainer& evt_rec) {
       break;
     case CodeEventRecord::CODE_DEOPT: {
       const CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
-      Address pc = reinterpret_cast<Address>(rec->pc);
+      Address pc = rec->pc;
       int fp_to_sp_delta = rec->fp_to_sp_delta;
       processor_->Enqueue(evt_rec);
       processor_->AddDeoptStack(isolate_, pc, fp_to_sp_delta);
@@ -252,33 +255,30 @@ class CpuProfilersManager {
  public:
   void AddProfiler(Isolate* isolate, CpuProfiler* profiler) {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    auto result = profilers_.insert(
-        std::pair<Isolate*, std::unique_ptr<std::set<CpuProfiler*>>>(
-            isolate, base::make_unique<std::set<CpuProfiler*>>()));
-    result.first->second->insert(profiler);
+    profilers_.emplace(isolate, profiler);
   }
 
   void RemoveProfiler(Isolate* isolate, CpuProfiler* profiler) {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    auto it = profilers_.find(isolate);
-    DCHECK(it != profilers_.end());
-    it->second->erase(profiler);
-    if (it->second->empty()) {
+    auto range = profilers_.equal_range(isolate);
+    for (auto it = range.first; it != range.second; ++it) {
+      if (it->second != profiler) continue;
       profilers_.erase(it);
+      return;
     }
+    UNREACHABLE();
   }
 
   void CallCollectSample(Isolate* isolate) {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    auto profilers = profilers_.find(isolate);
-    if (profilers == profilers_.end()) return;
-    for (auto it : *profilers->second) {
-      it->CollectSample();
+    auto range = profilers_.equal_range(isolate);
+    for (auto it = range.first; it != range.second; ++it) {
+      it->second->CollectSample();
     }
   }
 
  private:
-  std::map<Isolate*, std::unique_ptr<std::set<CpuProfiler*>>> profilers_;
+  std::unordered_multimap<Isolate*, CpuProfiler*> profilers_;
   base::Mutex mutex_;
 };
 
@@ -318,20 +318,19 @@ void CpuProfiler::set_sampling_interval(base::TimeDelta value) {
 void CpuProfiler::ResetProfiles() {
   profiles_.reset(new CpuProfilesCollection(isolate_));
   profiles_->set_cpu_profiler(this);
+  profiler_listener_.reset();
+  generator_.reset();
 }
 
 void CpuProfiler::CreateEntriesForRuntimeCallStats() {
-  static_entries_.clear();
   RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
   CodeMap* code_map = generator_->code_map();
   for (int i = 0; i < RuntimeCallStats::kNumberOfCounters; ++i) {
     RuntimeCallCounter* counter = rcs->GetCounter(i);
     DCHECK(counter->name());
-    std::unique_ptr<CodeEntry> entry(
-        new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
-                      CodeEntry::kEmptyNamePrefix, "native V8Runtime"));
-    code_map->AddCode(reinterpret_cast<Address>(counter), entry.get(), 1);
-    static_entries_.push_back(std::move(entry));
+    auto entry = new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
+                               "native V8Runtime");
+    code_map->AddCode(reinterpret_cast<Address>(counter), entry, 1);
   }
 }
 
@@ -369,13 +368,16 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   // Disable logging when using the new implementation.
   saved_is_logging_ = logger->is_logging_;
   logger->is_logging_ = false;
-  generator_.reset(new ProfileGenerator(profiles_.get()));
+  if (!generator_) {
+    generator_.reset(new ProfileGenerator(profiles_.get()));
+    CreateEntriesForRuntimeCallStats();
+  }
   processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
-  CreateEntriesForRuntimeCallStats();
-  logger->SetUpProfilerListener();
-  ProfilerListener* profiler_listener = logger->profiler_listener();
-  profiler_listener->AddObserver(this);
+  if (!profiler_listener_) {
+    profiler_listener_.reset(new ProfilerListener(isolate_, this));
+  }
+  logger->AddCodeEventListener(profiler_listener_.get());
   is_profiling_ = true;
   isolate_->set_is_profiling(true);
   // Enumerate stuff we already have in the heap.
@@ -410,12 +412,9 @@ void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();
   is_profiling_ = false;
   isolate_->set_is_profiling(false);
-  ProfilerListener* profiler_listener = logger->profiler_listener();
-  profiler_listener->RemoveObserver(this);
+  logger->RemoveCodeEventListener(profiler_listener_.get());
   processor_->StopSynchronously();
-  logger->TearDownProfilerListener();
   processor_.reset();
-  generator_.reset();
   logger->is_logging_ = saved_is_logging_;
 }
 

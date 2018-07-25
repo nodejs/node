@@ -8,15 +8,11 @@
 #include "src/base/bits.h"
 #include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
-#include "src/managed.h"
+#include "src/heap/heap.h"
 #include "src/objects.h"
 #include "src/objects/script.h"
-#include "src/wasm/decoder.h"
-#include "src/wasm/wasm-interpreter.h"
-#include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-module.h"
-
-#include "src/heap/heap.h"
+#include "src/signature.h"
+#include "src/wasm/value-type.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -25,17 +21,27 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 class InterpretedFrame;
+struct InterpretedFrameDeleter;
 class NativeModule;
+struct ModuleEnv;
 class WasmCode;
 struct WasmModule;
 class SignatureMap;
-using ValueType = MachineRepresentation;
+class WireBytesRef;
+class WasmInterpreter;
 using FunctionSig = Signature<ValueType>;
 }  // namespace wasm
 
+class BreakPoint;
+class JSArrayBuffer;
+class FixedArrayOfWeakCells;
+class SeqOneByteString;
 class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
+
+template <class CppType>
+class Managed;
 
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   INLINE(bool has_##name());                \
@@ -48,21 +54,17 @@ class WasmInstanceObject;
 // - target   = entrypoint to wasm code for the function, or wasm-to-js wrapper
 class IndirectFunctionTableEntry {
  public:
-  inline IndirectFunctionTableEntry(WasmInstanceObject*, int index);
+  inline IndirectFunctionTableEntry(Handle<WasmInstanceObject>, int index);
 
   void clear();
-  void set(int sig_id, WasmInstanceObject* instance,
-           const wasm::WasmCode* wasm_code);
+  void set(int sig_id, WasmInstanceObject* instance, Address call_target);
 
   WasmInstanceObject* instance();
   int sig_id();
   Address target();
 
  private:
-#ifdef DEBUG
-  DisallowHeapAllocation no_gc;
-#endif
-  WasmInstanceObject* const instance_;
+  Handle<WasmInstanceObject> const instance_;
   int const index_;
 };
 
@@ -79,13 +81,14 @@ class IndirectFunctionTableEntry {
 //      - target   = entrypoint to wasm code of the function
 class ImportedFunctionEntry {
  public:
-  inline ImportedFunctionEntry(WasmInstanceObject*, int index);
+  inline ImportedFunctionEntry(Handle<WasmInstanceObject>, int index);
 
   // Initialize this entry as a {JSReceiver} call.
-  void set(JSReceiver* callable, const wasm::WasmCode* wasm_to_js_wrapper);
+  void set_wasm_to_js(JSReceiver* callable,
+                      const wasm::WasmCode* wasm_to_js_wrapper);
   // Initialize this entry as a WASM to WASM call.
-  void set(WasmInstanceObject* target_instance,
-           const wasm::WasmCode* wasm_function);
+  void set_wasm_to_wasm(WasmInstanceObject* target_instance,
+                        Address call_target);
 
   WasmInstanceObject* instance();
   JSReceiver* callable();
@@ -93,10 +96,7 @@ class ImportedFunctionEntry {
   bool is_js_receiver_entry();
 
  private:
-#ifdef DEBUG
-  DisallowHeapAllocation no_gc;
-#endif
-  WasmInstanceObject* const instance_;
+  Handle<WasmInstanceObject> const instance_;
   int const index_;
 };
 
@@ -107,10 +107,14 @@ class WasmModuleObject : public JSObject {
 
   // Shared compiled code between multiple WebAssembly.Module objects.
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
+  DECL_ACCESSORS(export_wrappers, FixedArray)
+  DECL_ACCESSORS(shared, WasmSharedModuleData)
 
 // Layout description.
 #define WASM_MODULE_OBJECT_FIELDS(V)     \
   V(kCompiledModuleOffset, kPointerSize) \
+  V(kExportWrappersOffset, kPointerSize) \
+  V(kSharedOffset, kPointerSize)         \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -118,7 +122,17 @@ class WasmModuleObject : public JSObject {
 #undef WASM_MODULE_OBJECT_FIELDS
 
   static Handle<WasmModuleObject> New(
-      Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
+      Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+      Handle<FixedArray> export_wrappers, Handle<WasmSharedModuleData> shared);
+
+  // Set a breakpoint on the given byte position inside the given module.
+  // This will affect all live and future instances of the module.
+  // The passed position might be modified to point to the next breakable
+  // location inside the same function.
+  // If it points outside a function, or behind the last breakable location,
+  // this function returns false and does not set any breakpoint.
+  static bool SetBreakPoint(Handle<WasmModuleObject>, int* position,
+                            Handle<BreakPoint> break_point);
 
   static void ValidateStateForTesting(Isolate* isolate,
                                       Handle<WasmModuleObject> module);
@@ -161,9 +175,10 @@ class WasmTableObject : public JSObject {
                                    Handle<WasmTableObject> table,
                                    int table_index, wasm::FunctionSig* sig,
                                    Handle<WasmInstanceObject> from_instance,
-                                   wasm::WasmCode* wasm_code);
+                                   Address call_target);
 
-  static void ClearDispatchTables(Handle<WasmTableObject> table, int index);
+  static void ClearDispatchTables(Isolate* isolate,
+                                  Handle<WasmTableObject> table, int index);
 };
 
 // Representation of a WebAssembly.Memory JavaScript-level object.
@@ -235,14 +250,15 @@ class WasmGlobalObject : public JSObject {
       Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);
 
-  static inline uint32_t TypeSize(wasm::ValueType);
-  inline uint32_t type_size() const;
+  inline int type_size() const;
 
   inline int32_t GetI32();
+  inline int64_t GetI64();
   inline float GetF32();
   inline double GetF64();
 
   inline void SetI32(int32_t value);
+  inline void SetI64(int64_t value);
   inline void SetF32(float value);
   inline void SetF64(double value);
 
@@ -253,15 +269,18 @@ class WasmGlobalObject : public JSObject {
   inline Address address() const;
 };
 
-// A WebAssembly.Instance JavaScript-level object.
+// Representation of a WebAssembly.Instance JavaScript-level object.
 class WasmInstanceObject : public JSObject {
  public:
   DECL_CAST(WasmInstanceObject)
 
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
+  DECL_ACCESSORS(module_object, WasmModuleObject)
   DECL_ACCESSORS(exports_object, JSObject)
+  DECL_ACCESSORS(native_context, Context)
   DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
   DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
+  DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
   DECL_OPTIONAL_ACCESSORS(table_object, WasmTableObject)
   DECL_ACCESSORS(imported_function_instances, FixedArray)
@@ -274,19 +293,26 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(memory_mask, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(imported_function_targets, Address*)
   DECL_PRIMITIVE_ACCESSORS(globals_start, byte*)
+  DECL_PRIMITIVE_ACCESSORS(imported_mutable_globals, Address*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_sig_ids, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_targets, Address*)
 
+  // Dispatched behavior.
+  DECL_PRINTER(WasmInstanceObject)
+  DECL_VERIFIER(WasmInstanceObject)
+
 // Layout description.
 #define WASM_INSTANCE_OBJECT_FIELDS(V)                                  \
   V(kCompiledModuleOffset, kPointerSize)                                \
+  V(kModuleObjectOffset, kPointerSize)                                  \
   V(kExportsObjectOffset, kPointerSize)                                 \
+  V(kNativeContextOffset, kPointerSize)                                 \
   V(kMemoryObjectOffset, kPointerSize)                                  \
   V(kGlobalsBufferOffset, kPointerSize)                                 \
+  V(kImportedMutableGlobalsBuffersOffset, kPointerSize)                 \
   V(kDebugInfoOffset, kPointerSize)                                     \
   V(kTableObjectOffset, kPointerSize)                                   \
-  V(kFunctionTablesOffset, kPointerSize)                                \
   V(kImportedFunctionInstancesOffset, kPointerSize)                     \
   V(kImportedFunctionCallablesOffset, kPointerSize)                     \
   V(kIndirectFunctionTableInstancesOffset, kPointerSize)                \
@@ -298,6 +324,7 @@ class WasmInstanceObject : public JSObject {
   V(kMemoryMaskOffset, kUInt32Size)                      /* untagged */ \
   V(kImportedFunctionTargetsOffset, kPointerSize)        /* untagged */ \
   V(kGlobalsStartOffset, kPointerSize)                   /* untagged */ \
+  V(kImportedMutableGlobalsOffset, kPointerSize)         /* untagged */ \
   V(kIndirectFunctionTableSigIdsOffset, kPointerSize)    /* untagged */ \
   V(kIndirectFunctionTableTargetsOffset, kPointerSize)   /* untagged */ \
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)       /* untagged */ \
@@ -308,7 +335,6 @@ class WasmInstanceObject : public JSObject {
                                 WASM_INSTANCE_OBJECT_FIELDS)
 #undef WASM_INSTANCE_OBJECT_FIELDS
 
-  WasmModuleObject* module_object();
   V8_EXPORT_PRIVATE wasm::WasmModule* module();
 
   static bool EnsureIndirectFunctionTableWithMinimumSize(
@@ -322,22 +348,17 @@ class WasmInstanceObject : public JSObject {
   // If no debug info exists yet, it is created automatically.
   static Handle<WasmDebugInfo> GetOrCreateDebugInfo(Handle<WasmInstanceObject>);
 
-  static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmCompiledModule>);
-
-  // Assumed to be called with a code object associated to a wasm module
-  // instance. Intended to be called from runtime functions. Returns nullptr on
-  // failing to get owning instance.
-  static WasmInstanceObject* GetOwningInstance(const wasm::WasmCode* code);
+  static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>,
+                                        Handle<WasmCompiledModule>);
 
   static void ValidateInstancesChainForTesting(
       Isolate* isolate, Handle<WasmModuleObject> module_obj,
       int instance_count);
 
-  static void ValidateOrphanedInstanceForTesting(
-      Isolate* isolate, Handle<WasmInstanceObject> instance);
-
   static void InstallFinalizer(Isolate* isolate,
                                Handle<WasmInstanceObject> instance);
+
+  Address GetCallTarget(uint32_t func_index);
 
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;
@@ -360,13 +381,45 @@ class WasmExportedFunction : public JSFunction {
                                           int func_index, int arity,
                                           Handle<Code> export_wrapper);
 
+  // TODO(clemensh): Remove this. There might not be a WasmCode object available
+  // yet.
+  // TODO(all): Replace all uses by {GetWasmCallTarget()}.
   wasm::WasmCode* GetWasmCode();
+
+  Address GetWasmCallTarget();
+};
+
+// Information for a WasmExportedFunction which is referenced as the function
+// data of the SharedFunctionInfo underlying the function. For details please
+// see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.
+class WasmExportedFunctionData : public Struct {
+ public:
+  DECL_ACCESSORS(wrapper_code, Code);
+  DECL_ACCESSORS(instance, WasmInstanceObject)
+  DECL_INT_ACCESSORS(function_index);
+
+  DECL_CAST(WasmExportedFunctionData)
+
+  // Dispatched behavior.
+  DECL_PRINTER(WasmExportedFunctionData)
+  DECL_VERIFIER(WasmExportedFunctionData)
+
+// Layout description.
+#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V) \
+  V(kWrapperCodeOffset, kPointerSize)         \
+  V(kInstanceOffset, kPointerSize)            \
+  V(kFunctionIndexOffset, kPointerSize)       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                WASM_EXPORTED_FUNCTION_DATA_FIELDS)
+#undef WASM_EXPORTED_FUNCTION_DATA_FIELDS
 };
 
 // Information shared by all WasmCompiledModule objects for the same module.
 class WasmSharedModuleData : public Struct {
  public:
-  DECL_ACCESSORS(module_wrapper, Object)
+  DECL_ACCESSORS(managed_module, Object)
   wasm::WasmModule* module() const;
   DECL_ACCESSORS(module_bytes, SeqOneByteString)
   DECL_ACCESSORS(script, Script)
@@ -381,12 +434,12 @@ class WasmSharedModuleData : public Struct {
   DECL_VERIFIER(WasmSharedModuleData)
 
 // Layout description.
-#define WASM_SHARED_MODULE_DATA_FIELDS(V)             \
-  V(kModuleWrapperOffset, kPointerSize)               \
-  V(kModuleBytesOffset, kPointerSize)                 \
-  V(kScriptOffset, kPointerSize)                      \
-  V(kAsmJsOffsetTableOffset, kPointerSize)            \
-  V(kBreakPointInfosOffset, kPointerSize)             \
+#define WASM_SHARED_MODULE_DATA_FIELDS(V)  \
+  V(kManagedModuleOffset, kPointerSize)    \
+  V(kModuleBytesOffset, kPointerSize)      \
+  V(kScriptOffset, kPointerSize)           \
+  V(kAsmJsOffsetTableOffset, kPointerSize) \
+  V(kBreakPointInfosOffset, kPointerSize)  \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -403,7 +456,7 @@ class WasmSharedModuleData : public Struct {
                                           Handle<WasmInstanceObject>);
 
   static Handle<WasmSharedModuleData> New(
-      Isolate* isolate, Handle<Foreign> module_wrapper,
+      Isolate* isolate, Handle<Foreign> managed_module,
       Handle<SeqOneByteString> module_bytes, Handle<Script> script,
       Handle<ByteArray> asm_js_offset_table);
 
@@ -491,16 +544,10 @@ class WasmCompiledModule : public Struct {
 
 // Layout description.
 #define WASM_COMPILED_MODULE_FIELDS(V)          \
-  V(kSharedOffset, kPointerSize)                \
-  V(kNativeContextOffset, kPointerSize)         \
-  V(kExportWrappersOffset, kPointerSize)        \
   V(kNextInstanceOffset, kPointerSize)          \
   V(kPrevInstanceOffset, kPointerSize)          \
   V(kOwningInstanceOffset, kPointerSize)        \
-  V(kWasmModuleOffset, kPointerSize)            \
   V(kNativeModuleOffset, kPointerSize)          \
-  V(kLazyCompileDataOffset, kPointerSize)       \
-  V(kUseTrapHandlerOffset, kPointerSize)        \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -521,13 +568,6 @@ class WasmCompiledModule : public Struct {
 
 #define WCM_CONST_OBJECT(TYPE, NAME) WCM_OBJECT_OR_WEAK(TYPE, NAME, private)
 
-#define WCM_SMALL_CONST_NUMBER(TYPE, NAME) \
- public:                                   \
-  inline TYPE NAME() const;                \
-                                           \
- private:                                  \
-  inline void set_##NAME(TYPE value);
-
 #define WCM_WEAK_LINK(TYPE, NAME)                   \
   WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, public) \
                                                     \
@@ -538,22 +578,15 @@ class WasmCompiledModule : public Struct {
   // for deserialization, and if they are serializable.
   // By default, instance values go to WasmInstanceObject, however, if
   // we embed the generated code with a value, then we track that value here.
-  WCM_OBJECT(WasmSharedModuleData, shared)
-  WCM_WEAK_LINK(Context, native_context)
-  WCM_OBJECT(FixedArray, export_wrappers)
   WCM_CONST_OBJECT(WasmCompiledModule, next_instance)
   WCM_CONST_OBJECT(WasmCompiledModule, prev_instance)
   WCM_WEAK_LINK(WasmInstanceObject, owning_instance)
-  WCM_WEAK_LINK(WasmModuleObject, wasm_module)
   WCM_OBJECT(Foreign, native_module)
-  // TODO(mstarzinger): Make {use_trap_handler} smaller.
-  WCM_SMALL_CONST_NUMBER(bool, use_trap_handler)
 
  public:
-  static Handle<WasmCompiledModule> New(
-      Isolate* isolate, wasm::WasmModule* module,
-      Handle<FixedArray> export_wrappers,
-      bool use_trap_hander);
+  static Handle<WasmCompiledModule> New(Isolate* isolate,
+                                        wasm::WasmModule* module,
+                                        wasm::ModuleEnv& env);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);
@@ -569,18 +602,6 @@ class WasmCompiledModule : public Struct {
   DECL_ACCESSORS(raw_prev_instance, Object);
 
   void PrintInstancesChain();
-
-  static void ReinitializeAfterDeserialization(Isolate*,
-                                               Handle<WasmCompiledModule>);
-
-  // Set a breakpoint on the given byte position inside the given module.
-  // This will affect all live and future instances of the module.
-  // The passed position might be modified to point to the next breakable
-  // location inside the same function.
-  // If it points outside a function, or behind the last breakable location,
-  // this function returns false and does not set any breakpoint.
-  static bool SetBreakPoint(Handle<WasmCompiledModule>, int* position,
-                            Handle<BreakPoint> break_point);
 
   void LogWasmCodes(Isolate* isolate);
 
@@ -644,15 +665,15 @@ class WasmDebugInfo : public Struct {
   // Returns true if exited regularly, false if a trap occurred. In the latter
   // case, a pending exception will have been set on the isolate.
   bool RunInterpreter(Address frame_pointer, int func_index,
-                      uint8_t* arg_buffer);
+                      Address arg_buffer);
 
   // Get the stack of the wasm interpreter as pairs of <function index, byte
   // offset>. The list is ordered bottom-to-top, i.e. caller before callee.
   std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
       Address frame_pointer);
 
-  wasm::WasmInterpreter::FramePtr GetInterpretedFrame(Address frame_pointer,
-                                                      int frame_index);
+  std::unique_ptr<wasm::InterpretedFrame, wasm::InterpretedFrameDeleter>
+  GetInterpretedFrame(Address frame_pointer, int frame_index);
 
   // Unwind the interpreted stack belonging to the passed interpreter entry
   // frame.
@@ -687,12 +708,11 @@ class WasmDebugInfo : public Struct {
 #undef WCM_LARGE_NUMBER
 #undef WCM_OBJECT
 #undef WCM_OBJECT_OR_WEAK
-#undef WCM_SMALL_CONST_NUMBER
 #undef WCM_WEAK_LINK
-
-#include "src/objects/object-macros-undef.h"
 
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_WASM_WASM_OBJECTS_H_

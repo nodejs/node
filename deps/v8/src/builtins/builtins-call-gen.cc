@@ -312,8 +312,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     Node* iterator_fn = GetProperty(context, spread, IteratorSymbolConstant());
     GotoIf(TaggedIsSmi(iterator_fn), &if_iterator_fn_not_callable);
     GotoIfNot(IsCallable(iterator_fn), &if_iterator_fn_not_callable);
-    Node* list =
-        CallBuiltin(Builtins::kIterableToList, context, spread, iterator_fn);
+    Node* list = CallBuiltin(Builtins::kIterableToList, context, spread,
+                             iterator_fn);
     CSA_ASSERT(this, IsJSArray(list));
     Node* list_kind = LoadMapElementsKind(LoadMap(list));
     var_length.Bind(
