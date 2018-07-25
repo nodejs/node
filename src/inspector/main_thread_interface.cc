@@ -3,6 +3,7 @@
 #include "node_mutex.h"
 #include "v8-inspector.h"
 
+#include <functional>
 #include <unicode/unistr.h>
 
 namespace node {
@@ -13,56 +14,72 @@ using v8_inspector::StringView;
 using v8_inspector::StringBuffer;
 
 template <typename T>
+class DeletableWrapper : public Deletable {
+ public:
+  explicit DeletableWrapper(std::unique_ptr<T> object)
+                        : object_(std::move(object)) {}
+  ~DeletableWrapper() override = default;
+
+  static T* get(MainThreadInterface* thread, int id) {
+    return
+        static_cast<DeletableWrapper<T>*>(thread->GetObject(id))->object_.get();
+  }
+
+ private:
+  std::unique_ptr<T> object_;
+};
+
+template <typename T>
+std::unique_ptr<Deletable> WrapInDeletable(std::unique_ptr<T> object) {
+  return std::unique_ptr<DeletableWrapper<T>>(
+      new DeletableWrapper<T>(std::move(object)));
+}
+
+template <typename Factory>
+class CreateObjectRequest : public Request {
+ public:
+  CreateObjectRequest(int object_id, Factory factory)
+                      : object_id_(object_id), factory_(std::move(factory)) {}
+
+  void Call(MainThreadInterface* thread) {
+    thread->AddObject(object_id_, WrapInDeletable(factory_(thread)));
+  }
+
+ private:
+  int object_id_;
+  Factory factory_;
+};
+
+template <typename Factory>
+std::unique_ptr<Request> NewCreateRequest(int object_id, Factory factory) {
+  return std::unique_ptr<Request>(
+      new CreateObjectRequest<Factory>(object_id, std::move(factory)));
+}
+
 class DeleteRequest : public Request {
  public:
-  explicit DeleteRequest(T* object) : object_(object) {}
-  void Call() override {
-    delete object_;
+  explicit DeleteRequest(int object_id) : object_id_(object_id) {}
+
+  void Call(MainThreadInterface* thread) override {
+    thread->RemoveObject(object_id_);
   }
 
  private:
-  T* object_;
+  int object_id_;
 };
 
-template <typename Target, typename Arg>
-class SingleArgumentFunctionCall : public Request {
+template <typename Target, typename Fn>
+class CallRequest : public Request {
  public:
-  using Fn = void (Target::*)(Arg);
+  CallRequest(int id, Fn fn) : id_(id), fn_(std::move(fn)) {}
 
-  SingleArgumentFunctionCall(Target* target, Fn fn, Arg argument)
-                             : target_(target),
-                               fn_(fn),
-                               arg_(std::move(argument)) {}
-
-  void Call() override {
-    Apply(target_, fn_, std::move(arg_));
+  void Call(MainThreadInterface* thread) override {
+    fn_(DeletableWrapper<Target>::get(thread, id_));
   }
 
  private:
-  template <typename Element>
-  void Apply(Element* target, Fn fn, Arg arg) {
-    (target->*fn)(std::move(arg));
-  }
-
-  Target* target_;
+  int id_;
   Fn fn_;
-  Arg arg_;
-};
-
-class PostMessageRequest : public Request {
- public:
-  PostMessageRequest(InspectorSessionDelegate* delegate,
-                     StringView message)
-                     : delegate_(delegate),
-                       message_(StringBuffer::create(message)) {}
-
-  void Call() override {
-    delegate_->SendMessageToFrontend(message_->string());
-  }
-
- private:
-  InspectorSessionDelegate* delegate_;
-  std::unique_ptr<StringBuffer> message_;
 };
 
 class DispatchMessagesTask : public v8::Task {
@@ -88,45 +105,63 @@ void DisposePairCallback(uv_handle_t* ref) {
 template <typename T>
 class AnotherThreadObjectReference {
  public:
-  // We create it on whatever thread, just make sure it gets disposed on the
-  // proper thread.
-  AnotherThreadObjectReference(std::shared_ptr<MainThreadHandle> thread,
-                               T* object)
-                               : thread_(thread), object_(object) {
+  AnotherThreadObjectReference(
+      std::shared_ptr<MainThreadHandle> thread, int object_id)
+      : thread_(thread), object_id_(object_id) {}
+
+  template <typename Factory>
+  AnotherThreadObjectReference(
+      std::shared_ptr<MainThreadHandle> thread, Factory factory)
+      : AnotherThreadObjectReference(thread, thread->newObjectId()) {
+    thread_->Post(NewCreateRequest(object_id_, std::move(factory)));
   }
   AnotherThreadObjectReference(AnotherThreadObjectReference&) = delete;
 
   ~AnotherThreadObjectReference() {
     // Disappearing thread may cause a memory leak
-    CHECK(thread_->Post(
-        std::unique_ptr<DeleteRequest<T>>(new DeleteRequest<T>(object_))));
-    object_ = nullptr;
+    thread_->Post(
+        std::unique_ptr<DeleteRequest>(new DeleteRequest(object_id_)));
   }
 
-  template <typename Fn, typename Arg>
-  void Post(Fn fn, Arg argument) const {
-    using R = SingleArgumentFunctionCall<T, Arg>;
-    thread_->Post(std::unique_ptr<R>(new R(object_, fn, std::move(argument))));
+  template <typename Fn>
+  void Call(Fn fn) const {
+    using Request = CallRequest<T, Fn>;
+    thread_->Post(std::unique_ptr<Request>(
+        new Request(object_id_, std::move(fn))));
   }
 
-  T* get() const {
-    return object_;
+  template <typename Arg>
+  void Call(void (T::*fn)(Arg), Arg argument) const {
+    Call(std::bind(Apply<Arg>, std::placeholders::_1, fn, std::move(argument)));
   }
 
  private:
+  // This has to use non-const reference to support std::bind with non-copyable
+  // types
+  template <typename Argument>
+  static void Apply(T* target, void (T::*fn)(Argument),
+    /* NOLINT (runtime/references) */ Argument& argument) {
+    (target->*fn)(std::move(argument));
+  }
+
   std::shared_ptr<MainThreadHandle> thread_;
-  T* object_;
+  const int object_id_;
 };
 
 class MainThreadSessionState {
  public:
-  MainThreadSessionState(
-      std::shared_ptr<MainThreadHandle> thread,
-      bool prevent_shutdown) : thread_(thread),
-                               prevent_shutdown_(prevent_shutdown) {}
+  MainThreadSessionState(MainThreadInterface* thread, bool prevent_shutdown)
+                         : thread_(thread),
+                           prevent_shutdown_(prevent_shutdown) {}
+
+  static std::unique_ptr<MainThreadSessionState> Create(
+      MainThreadInterface* thread, bool prevent_shutdown) {
+    return std::unique_ptr<MainThreadSessionState>(
+        new MainThreadSessionState(thread, prevent_shutdown));
+  }
 
   void Connect(std::unique_ptr<InspectorSessionDelegate> delegate) {
-    Agent* agent = thread_->GetInspectorAgent();
+    Agent* agent = thread_->inspector_agent();
     if (agent != nullptr)
       session_ = agent->Connect(std::move(delegate), prevent_shutdown_);
   }
@@ -136,7 +171,7 @@ class MainThreadSessionState {
   }
 
  private:
-  std::shared_ptr<MainThreadHandle> thread_;
+  MainThreadInterface* thread_;
   bool prevent_shutdown_;
   std::unique_ptr<InspectorSession> session_;
 };
@@ -148,12 +183,14 @@ class CrossThreadInspectorSession : public InspectorSession {
       std::shared_ptr<MainThreadHandle> thread,
       std::unique_ptr<InspectorSessionDelegate> delegate,
       bool prevent_shutdown)
-      : state_(thread, new MainThreadSessionState(thread, prevent_shutdown)) {
-    state_.Post(&MainThreadSessionState::Connect, std::move(delegate));
+      : state_(thread, std::bind(MainThreadSessionState::Create,
+                                 std::placeholders::_1,
+                                 prevent_shutdown)) {
+    state_.Call(&MainThreadSessionState::Connect, std::move(delegate));
   }
 
   void Dispatch(const StringView& message) override {
-    state_.Post(&MainThreadSessionState::Dispatch,
+    state_.Call(&MainThreadSessionState::Dispatch,
                 StringBuffer::create(message));
   }
 
@@ -163,13 +200,15 @@ class CrossThreadInspectorSession : public InspectorSession {
 
 class ThreadSafeDelegate : public InspectorSessionDelegate {
  public:
-  ThreadSafeDelegate(std::shared_ptr<MainThreadHandle> thread,
-                     std::unique_ptr<InspectorSessionDelegate> delegate)
-                     : thread_(thread), delegate_(thread, delegate.release()) {}
+  ThreadSafeDelegate(std::shared_ptr<MainThreadHandle> thread, int object_id)
+                     : thread_(thread), delegate_(thread, object_id) {}
 
   void SendMessageToFrontend(const v8_inspector::StringView& message) override {
-    thread_->Post(std::unique_ptr<Request>(
-        new PostMessageRequest(delegate_.get(), message)));
+    delegate_.Call(
+        [m = StringBuffer::create(message)]
+        (InspectorSessionDelegate* delegate) {
+      delegate->SendMessageToFrontend(m->string());
+    });
   }
 
  private:
@@ -252,7 +291,7 @@ void MainThreadInterface::DispatchMessages() {
       MessageQueue::value_type task;
       std::swap(dispatching_message_queue_.front(), task);
       dispatching_message_queue_.pop_front();
-      task->Call();
+      task->Call(this);
     }
   } while (had_messages);
   dispatching_messages_ = false;
@@ -262,6 +301,26 @@ std::shared_ptr<MainThreadHandle> MainThreadInterface::GetHandle() {
   if (handle_ == nullptr)
     handle_ = std::make_shared<MainThreadHandle>(this);
   return handle_;
+}
+
+void MainThreadInterface::AddObject(int id,
+                                    std::unique_ptr<Deletable> object) {
+  CHECK_NE(nullptr, object);
+  managed_objects_[id] = std::move(object);
+}
+
+void MainThreadInterface::RemoveObject(int id) {
+  CHECK_EQ(1, managed_objects_.erase(id));
+}
+
+Deletable* MainThreadInterface::GetObject(int id) {
+  auto iterator = managed_objects_.find(id);
+  // This would mean the object is requested after it was disposed, which is
+  // a coding error.
+  CHECK_NE(managed_objects_.end(), iterator);
+  Deletable* pointer = iterator->second.get();
+  CHECK_NE(nullptr, pointer);
+  return pointer;
 }
 
 std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string& message) {
@@ -303,10 +362,12 @@ Agent* MainThreadHandle::GetInspectorAgent() {
 }
 
 std::unique_ptr<InspectorSessionDelegate>
-MainThreadHandle::MakeThreadSafeDelegate(
+MainThreadHandle::MakeDelegateThreadSafe(
     std::unique_ptr<InspectorSessionDelegate> delegate) {
+  int id = newObjectId();
+  main_thread_->AddObject(id, WrapInDeletable(std::move(delegate)));
   return std::unique_ptr<InspectorSessionDelegate>(
-      new ThreadSafeDelegate(shared_from_this(), std::move(delegate)));
+      new ThreadSafeDelegate(shared_from_this(), id));
 }
 
 bool MainThreadHandle::Expired() {
