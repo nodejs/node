@@ -33,7 +33,7 @@ function startRead() {
       assert.deepStrictEqual(Buffer.concat(chunks), content);
       if (++done === N) {
         const retainedMemory =
-          [...arrayBuffers].map(buf => buf.byteLength).reduce((a, b) => a + b);
+          [...arrayBuffers].map((ab) => ab.byteLength).reduce((a, b) => a + b);
         assert(retainedMemory / (N * content.length) <= 3,
                `Retaining ${retainedMemory} bytes in ABs for ${N} ` +
                `chunks of size ${content.length}`);
