@@ -27,6 +27,9 @@
 //
 // Tests of profiles generator and utilities.
 
+#include <limits>
+#include <memory>
+
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
@@ -83,18 +86,18 @@ TEST(StartStop) {
 
 static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame1,
-                                   i::Address frame2 = nullptr,
-                                   i::Address frame3 = nullptr) {
+                                   i::Address frame2 = kNullAddress,
+                                   i::Address frame3 = kNullAddress) {
   v8::TickSample* sample = proc->StartTickSample();
-  sample->pc = frame1;
-  sample->tos = frame1;
+  sample->pc = reinterpret_cast<void*>(frame1);
+  sample->tos = reinterpret_cast<void*>(frame1);
   sample->frames_count = 0;
-  if (frame2 != nullptr) {
-    sample->stack[0] = frame2;
+  if (frame2 != kNullAddress) {
+    sample->stack[0] = reinterpret_cast<void*>(frame2);
     sample->frames_count = 1;
   }
-  if (frame3 != nullptr) {
-    sample->stack[1] = frame3;
+  if (frame3 != kNullAddress) {
+    sample->stack[1] = reinterpret_cast<void*>(frame3);
     sample->frames_count = 2;
   }
   proc->FinishTickSample();
@@ -161,9 +164,8 @@ TEST(CodeEvents) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
+  ProfilerListener profiler_listener(isolate, &profiler);
+  isolate->logger()->AddCodeEventListener(&profiler_listener);
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
@@ -179,8 +181,7 @@ TEST(CodeEvents) {
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, aaa_code->address());
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
+  isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
 
   // Check the state of profile generator.
@@ -223,9 +224,8 @@ TEST(TickEvents) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
+  ProfilerListener profiler_listener(isolate, &profiler);
+  isolate->logger()->AddCodeEventListener(&profiler_listener);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
   profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, "ccc");
@@ -240,8 +240,7 @@ TEST(TickEvents) {
                          frame2_code->raw_instruction_end() - 1,
                          frame1_code->raw_instruction_end() - 1);
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
+  isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
   CHECK(profile);
@@ -262,8 +261,6 @@ TEST(TickEvents) {
   const std::vector<ProfileNode*>* top_down_ddd_children =
       top_down_stub_children->back()->children();
   CHECK(top_down_ddd_children->empty());
-
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
 }
 
 // http://crbug/51594
@@ -296,23 +293,19 @@ TEST(Issue1398) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
+  ProfilerListener profiler_listener(isolate, &profiler);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
   v8::TickSample* sample = processor->StartTickSample();
-  sample->pc = code->address();
-  sample->tos = 0;
+  sample->pc = reinterpret_cast<void*>(code->address());
+  sample->tos = nullptr;
   sample->frames_count = v8::TickSample::kMaxFramesCount;
   for (unsigned i = 0; i < sample->frames_count; ++i) {
-    sample->stack[i] = code->address();
+    sample->stack[i] = reinterpret_cast<void*>(code->address());
   }
   processor->FinishTickSample();
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
   CHECK(profile);
@@ -1083,9 +1076,7 @@ static void TickLines(bool optimize) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
+  ProfilerListener profiler_listener(isolate, &profiler);
 
   // Enqueue code creation events.
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
@@ -1097,8 +1088,6 @@ static void TickLines(bool optimize) {
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, code_address);
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
 
   CpuProfile* profile = profiles->StopProfiling("");
@@ -1108,9 +1097,10 @@ static void TickLines(bool optimize) {
   CodeEntry* func_entry = generator->code_map()->FindEntry(code_address);
   CHECK(func_entry);
   CHECK_EQ(0, strcmp(func_name, func_entry->name()));
-  const i::JITLineInfoTable* line_info = func_entry->line_info();
+  const i::SourcePositionTable* line_info = func_entry->line_info();
   CHECK(line_info);
-  CHECK(!line_info->empty());
+  CHECK_NE(v8::CpuProfileNode::kNoLineNumberInfo,
+           line_info->GetSourceLineNumber(100));
 
   // Check the hit source lines using V8 Public APIs.
   const i::ProfileTree* tree = profile->top_down();
@@ -1574,7 +1564,7 @@ TEST(JsNativeJsRuntimeJsSampleMultiple) {
 static const char* inlining_test_source =
     "%NeverOptimizeFunction(action);\n"
     "%NeverOptimizeFunction(start);\n"
-    "level1()\n"
+    "level1();\n"
     "%OptimizeFunctionOnNextCall(level1);\n"
     "%OptimizeFunctionOnNextCall(level2);\n"
     "%OptimizeFunctionOnNextCall(level3);\n"
@@ -2244,7 +2234,6 @@ TEST(TracingCpuProfiler) {
   v8::HandleScope scope(env->GetIsolate());
   {
     tracing_controller->StartTracing(trace_config);
-    auto profiler = v8::TracingCpuProfiler::Create(env->GetIsolate());
     CompileRun("function foo() { } foo();");
     tracing_controller->StopTracing();
     CompileRun("function bar() { } bar();");
@@ -2381,10 +2370,10 @@ TEST(CodeEntriesMemoryLeak) {
     v8::CpuProfile* profile = helper.Run(function, nullptr, 0);
     profile->Delete();
   }
-  ProfilerListener* profiler_listener =
-      CcTest::i_isolate()->logger()->profiler_listener();
 
-  CHECK_GE(10000ul, profiler_listener->entries_count_for_test());
+  i::CpuProfiler* profiler =
+      reinterpret_cast<i::CpuProfiler*>(helper.profiler());
+  CHECK(!profiler->profiler_listener_for_test());
 }
 
 TEST(NativeFrameStackTrace) {
@@ -2432,6 +2421,55 @@ TEST(NativeFrameStackTrace) {
   }
 
   profile->Delete();
+}
+
+TEST(SourcePositionTable) {
+  i::SourcePositionTable info;
+
+  // Newly created tables should return NoLineNumberInfo for any lookup.
+  int no_info = v8::CpuProfileNode::kNoLineNumberInfo;
+  CHECK_EQ(no_info, info.GetSourceLineNumber(std::numeric_limits<int>::min()));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(0));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(1));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(9));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(10));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(11));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(19));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(20));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(21));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(100));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
+
+  info.SetPosition(10, 1);
+  info.SetPosition(20, 2);
+
+  // The only valid return values are 1 or 2 - every pc maps to a line number.
+  CHECK_EQ(1, info.GetSourceLineNumber(std::numeric_limits<int>::min()));
+  CHECK_EQ(1, info.GetSourceLineNumber(0));
+  CHECK_EQ(1, info.GetSourceLineNumber(1));
+  CHECK_EQ(1, info.GetSourceLineNumber(9));
+  CHECK_EQ(1, info.GetSourceLineNumber(10));
+  CHECK_EQ(1, info.GetSourceLineNumber(11));
+  CHECK_EQ(1, info.GetSourceLineNumber(19));
+  CHECK_EQ(2, info.GetSourceLineNumber(20));
+  CHECK_EQ(2, info.GetSourceLineNumber(21));
+  CHECK_EQ(2, info.GetSourceLineNumber(100));
+  CHECK_EQ(2, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
+
+  // Test SetPosition behavior.
+  info.SetPosition(25, 3);
+  CHECK_EQ(2, info.GetSourceLineNumber(21));
+  CHECK_EQ(3, info.GetSourceLineNumber(100));
+  CHECK_EQ(3, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
+}
+
+TEST(MultipleProfilers) {
+  std::unique_ptr<CpuProfiler> profiler1(new CpuProfiler(CcTest::i_isolate()));
+  std::unique_ptr<CpuProfiler> profiler2(new CpuProfiler(CcTest::i_isolate()));
+  profiler1->StartProfiling("1");
+  profiler2->StartProfiling("2");
+  profiler1->StopProfiling("1");
+  profiler2->StopProfiling("2");
 }
 
 }  // namespace test_cpu_profiler

@@ -394,7 +394,7 @@ class Operand BASE_EMBEDDED {
   }
   INLINE(explicit Operand(const ExternalReference& f))
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
-    value_.immediate = reinterpret_cast<int32_t>(f.address());
+    value_.immediate = static_cast<int32_t>(f.address());
   }
   INLINE(explicit Operand(const char* s));
   INLINE(explicit Operand(Object** opp));
@@ -569,8 +569,7 @@ class Assembler : public AssemblerBase {
   INLINE(static void set_target_address_at)
   (Address pc, Address target,
    ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
-    set_target_value_at(pc, reinterpret_cast<uint32_t>(target),
-                        icache_flush_mode);
+    set_target_value_at(pc, static_cast<uint32_t>(target), icache_flush_mode);
   }
   // On MIPS there is no Constant Pool so we skip that parameter.
   INLINE(static Address target_address_at(Address pc, Address constant_pool)) {
@@ -597,6 +596,10 @@ class Assembler : public AssemblerBase {
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
       Address instruction_payload, Code* code, Address target);
+
+  // Get the size of the special target encoded at 'instruction_payload'.
+  inline static int deserialization_special_target_size(
+      Address instruction_payload);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
@@ -1717,7 +1720,7 @@ class Assembler : public AssemblerBase {
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
                          int id);
 
-  static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
+  static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
                                        intptr_t pc_delta);
 
   // Writes a single byte or word of data in the code stream.  Used for
@@ -1741,8 +1744,8 @@ class Assembler : public AssemblerBase {
   inline int available_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Read/patch instructions.
-  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
-  static void instr_at_put(byte* pc, Instr instr) {
+  static Instr instr_at(Address pc) { return *reinterpret_cast<Instr*>(pc); }
+  static void instr_at_put(Address pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }

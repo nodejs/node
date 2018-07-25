@@ -24,10 +24,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 129
+bytecode array length: 125
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-                B(Ldar), R(closure),
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(4),
                 B(LdaTheHole),
@@ -50,7 +49,6 @@ bytecodes: [
                 B(StaNamedProperty), R(5), U8(5), U8(2),
                 B(PopContext), R(4),
                 B(Mov), R(1), R(2),
-                B(Ldar), R(closure),
   /*   38 E> */ B(CreateBlockContext), U8(6),
                 B(PushContext), R(4),
                 B(LdaTheHole),
@@ -127,10 +125,9 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 244
+bytecode array length: 238
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-                B(Ldar), R(closure),
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(6),
                 B(LdaTheHole),
@@ -161,7 +158,6 @@ bytecodes: [
                 B(StaNamedProperty), R(7), U8(7), U8(3),
                 B(PopContext), R(6),
                 B(Mov), R(2), R(3),
-                B(Ldar), R(closure),
   /*   38 E> */ B(CreateBlockContext), U8(8),
                 B(PushContext), R(6),
                 B(LdaTheHole),
@@ -194,7 +190,6 @@ bytecodes: [
                 B(StaNamedProperty), R(7), U8(7), U8(9),
                 B(PopContext), R(6),
                 B(Mov), R(1), R(4),
-                B(Ldar), R(closure),
   /*   90 E> */ B(CreateBlockContext), U8(15),
                 B(PushContext), R(6),
                 B(LdaTheHole),

@@ -64,6 +64,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
                 Maybe<int> executionContextId, Maybe<bool> returnByValue,
                 Maybe<bool> generatePreview, Maybe<bool> userGesture,
                 Maybe<bool> awaitPromise, Maybe<bool> throwOnSideEffect,
+                Maybe<double> timeout,
                 std::unique_ptr<EvaluateCallback>) override;
   void awaitPromise(const String16& promiseObjectId, Maybe<bool> returnByValue,
                     Maybe<bool> generatePreview,

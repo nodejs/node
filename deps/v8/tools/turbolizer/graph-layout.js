@@ -447,7 +447,7 @@ function layoutNodeGraph(graph) {
   });
 
   graph.maxBackEdgeNumber = 0;
-  graph.visibleEdges.each(function (e) {
+  graph.visibleEdges.selectAll("path").each(function (e) {
     if (e.isBackEdge()) {
       e.backEdgeNumber = ++graph.maxBackEdgeNumber;
     } else {
@@ -489,5 +489,4 @@ function redetermineGraphBoundingBox(graph) {
 
   graph.maxGraphX = graph.maxGraphNodeX +
     graph.maxBackEdgeNumber * MINIMUM_EDGE_SEPARATION;
-
 }

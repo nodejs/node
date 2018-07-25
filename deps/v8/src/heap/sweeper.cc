@@ -67,7 +67,7 @@ class Sweeper::SweeperTask final : public CancelableTask {
  public:
   SweeperTask(Isolate* isolate, Sweeper* sweeper,
               base::Semaphore* pending_sweeper_tasks,
-              base::AtomicNumber<intptr_t>* num_sweeping_tasks,
+              std::atomic<intptr_t>* num_sweeping_tasks,
               AllocationSpace space_to_start)
       : CancelableTask(isolate),
         sweeper_(sweeper),
@@ -93,13 +93,13 @@ class Sweeper::SweeperTask final : public CancelableTask {
       DCHECK(IsValidSweepingSpace(space_id));
       sweeper_->SweepSpaceFromTask(space_id);
     }
-    num_sweeping_tasks_->Decrement(1);
+    (*num_sweeping_tasks_)--;
     pending_sweeper_tasks_->Signal();
   }
 
   Sweeper* const sweeper_;
   base::Semaphore* const pending_sweeper_tasks_;
-  base::AtomicNumber<intptr_t>* const num_sweeping_tasks_;
+  std::atomic<intptr_t>* const num_sweeping_tasks_;
   AllocationSpace space_to_start_;
   GCTracer* const tracer_;
 
@@ -151,12 +151,12 @@ void Sweeper::StartSweeping() {
 
 void Sweeper::StartSweeperTasks() {
   DCHECK_EQ(0, num_tasks_);
-  DCHECK_EQ(0, num_sweeping_tasks_.Value());
+  DCHECK_EQ(0, num_sweeping_tasks_);
   if (FLAG_concurrent_sweeping && sweeping_in_progress_ &&
       !heap_->delay_sweeper_tasks_for_testing_) {
     ForAllSweepingSpaces([this](AllocationSpace space) {
       DCHECK(IsValidSweepingSpace(space));
-      num_sweeping_tasks_.Increment(1);
+      num_sweeping_tasks_++;
       auto task = base::make_unique<SweeperTask>(
           heap_->isolate(), this, &pending_sweeper_tasks_semaphore_,
           &num_sweeping_tasks_, space);
@@ -200,11 +200,11 @@ void Sweeper::AbortAndWaitForTasks() {
       pending_sweeper_tasks_semaphore_.Wait();
     } else {
       // Aborted case.
-      num_sweeping_tasks_.Decrement(1);
+      num_sweeping_tasks_--;
     }
   }
   num_tasks_ = 0;
-  DCHECK_EQ(0, num_sweeping_tasks_.Value());
+  DCHECK_EQ(0, num_sweeping_tasks_);
 }
 
 void Sweeper::EnsureCompleted() {
@@ -225,9 +225,7 @@ void Sweeper::EnsureCompleted() {
   sweeping_in_progress_ = false;
 }
 
-bool Sweeper::AreSweeperTasksRunning() {
-  return num_sweeping_tasks_.Value() != 0;
-}
+bool Sweeper::AreSweeperTasksRunning() { return num_sweeping_tasks_ != 0; }
 
 int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                       FreeSpaceTreatmentMode free_space_mode) {
@@ -251,7 +249,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   ArrayBufferTracker::FreeDead(p, marking_state_);
 
   Address free_start = p->area_start();
-  DCHECK_EQ(0, reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize));
+  DCHECK_EQ(0, free_start % (32 * kPointerSize));
 
   // If we use the skip list for code space pages, we have to lock the skip
   // list because it could be accessed concurrently by the runtime or the
@@ -281,7 +279,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
       CHECK_GT(free_end, free_start);
       size_t size = static_cast<size_t>(free_end - free_start);
       if (free_space_mode == ZAP_FREE_SPACE) {
-        memset(free_start, 0xCC, size);
+        memset(reinterpret_cast<void*>(free_start), 0xCC, size);
       }
       if (free_list_mode == REBUILD_FREE_LIST) {
         freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(
@@ -321,7 +319,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
     CHECK_GT(p->area_end(), free_start);
     size_t size = static_cast<size_t>(p->area_end() - free_start);
     if (free_space_mode == ZAP_FREE_SPACE) {
-      memset(free_start, 0xCC, size);
+      memset(reinterpret_cast<void*>(free_start), 0xCC, size);
     }
     if (free_list_mode == REBUILD_FREE_LIST) {
       freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(

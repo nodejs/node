@@ -96,7 +96,7 @@ if (is_debug && !v8_optimized_debug) {
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
-  if (is_posix && !is_android && !using_sanitizer) {
+  if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
     v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     v8_add_configs += [ "//build/config/compiler:optimize_max" ]
@@ -110,7 +110,7 @@ if (v8_code_coverage && !is_clang) {
   ]
 }
 
-if (is_posix && (v8_enable_backtrace || v8_monolithic)) {
+if ((is_posix || is_fuchsia) && (v8_enable_backtrace || v8_monolithic)) {
   v8_remove_configs += [ "//build/config/gcc:symbol_visibility_hidden" ]
   v8_add_configs += [ "//build/config/gcc:symbol_visibility_default" ]
 }

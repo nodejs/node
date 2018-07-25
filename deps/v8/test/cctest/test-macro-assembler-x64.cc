@@ -130,7 +130,7 @@ TEST(SmiMove) {
   masm->GetCode(isolate, &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -223,7 +223,7 @@ TEST(SmiCompare) {
   masm->GetCode(isolate, &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -324,7 +324,7 @@ TEST(Integer32ToSmi) {
   masm->GetCode(isolate, &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -400,7 +400,7 @@ TEST(SmiCheck) {
   masm->GetCode(isolate, &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -455,7 +455,7 @@ TEST(SmiIndex) {
   masm->GetCode(isolate, &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -807,7 +807,7 @@ TEST(OperandOffset) {
   masm->GetCode(isolate, &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -955,7 +955,7 @@ TEST(LoadAndStoreWithRepresentation) {
   masm->GetCode(isolate, &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -1109,7 +1109,7 @@ TEST(SIMDMacros) {
   masm->GetCode(isolate, &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(0, result);
 }

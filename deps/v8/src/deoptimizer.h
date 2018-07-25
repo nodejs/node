@@ -171,31 +171,39 @@ class TranslatedFrame {
   class iterator {
    public:
     iterator& operator++() {
+      ++input_index_;
       AdvanceIterator(&position_);
       return *this;
     }
 
     iterator operator++(int) {
+      ++input_index_;
       iterator original(position_);
       AdvanceIterator(&position_);
       return original;
     }
 
     bool operator==(const iterator& other) const {
+      // Ignore {input_index_} for equality.
       return position_ == other.position_;
     }
     bool operator!=(const iterator& other) const { return !(*this == other); }
 
     TranslatedValue& operator*() { return (*position_); }
     TranslatedValue* operator->() { return &(*position_); }
+    const TranslatedValue& operator*() const { return (*position_); }
+    const TranslatedValue* operator->() const { return &(*position_); }
+
+    int input_index() const { return input_index_; }
 
    private:
     friend TranslatedFrame;
 
     explicit iterator(std::deque<TranslatedValue>::iterator position)
-        : position_(position) {}
+        : position_(position), input_index_(0) {}
 
     std::deque<TranslatedValue>::iterator position_;
+    int input_index_;
   };
 
   typedef TranslatedValue& reference;
@@ -362,7 +370,7 @@ class TranslatedState {
 
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_ = nullptr;
-  Address stack_frame_pointer_ = nullptr;
+  Address stack_frame_pointer_ = kNullAddress;
   int formal_parameter_count_;
 
   struct ObjectPosition {
@@ -398,7 +406,7 @@ class Deoptimizer : public Malloced {
     static const int kNoDeoptId = -1;
   };
 
-  static DeoptInfo GetDeoptInfo(Code* code, byte* from);
+  static DeoptInfo GetDeoptInfo(Code* code, Address from);
 
   static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo* shared,
                                                     BailoutId node_id);
@@ -520,6 +528,10 @@ class Deoptimizer : public Malloced {
   Isolate* isolate() const { return isolate_; }
 
  private:
+  friend class FrameWriter;
+  void QueueValueForMaterialization(Address output_address, Object* obj,
+                                    const TranslatedFrame::iterator& iterator);
+
   static const int kMinNumberOfEntries = 64;
   static const int kMaxNumberOfEntries = 16384;
 
@@ -553,17 +565,6 @@ class Deoptimizer : public Malloced {
   void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
                                     int frame_index,
                                     BuiltinContinuationMode mode);
-
-  void WriteTranslatedValueToOutput(
-      TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
-      unsigned output_offset, const char* debug_hint_string = nullptr,
-      Address output_address_for_materialization = nullptr);
-  void WriteValueToOutput(Object* value, int input_index, int frame_index,
-                          unsigned output_offset,
-                          const char* debug_hint_string);
-  void DebugPrintOutputSlot(intptr_t value, int frame_index,
-                            unsigned output_offset,
-                            const char* debug_hint_string);
 
   unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;

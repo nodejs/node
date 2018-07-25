@@ -709,8 +709,8 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::RemoveJob(
     Handle<SharedFunctionInfo> shared =
         job->AsUnoptimizedCompileJob()->shared();
     if (!shared.is_null()) {
-      JobId deleted_id = shared_to_unoptimized_job_id_.Delete(shared);
-      USE(deleted_id);
+      JobId deleted_id;
+      shared_to_unoptimized_job_id_.Delete(shared, &deleted_id);
       DCHECK_EQ(it->first, deleted_id);
     }
   }

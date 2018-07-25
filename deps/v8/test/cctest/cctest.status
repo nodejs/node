@@ -73,6 +73,7 @@
   'test-heap/OutOfMemory': [SKIP],
 
   # BUG(5193). The cpu profiler tests are notoriously flaky.
+  'test-profile-generator/RecordStackTraceAtStartProfiling': [SKIP],
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
@@ -90,6 +91,9 @@
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
   'test-cpu-profiler/TracingCpuProfiler': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
+
+  # BUG(7702). Flaky data race and other test failures.
+  'test-cpu-profiler/MultipleProfilers': [SKIP],
 
   # BUG(7202). The test is flaky.
   'test-cpu-profiler/NativeFrameStackTrace': [SKIP],
@@ -127,15 +131,8 @@
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
 
-  # Temporary for https://crrev.com/c/947969 until https://crrev.com/c/950775
-  # lands. Tests build a new snapshot, in which the constants list doesn't
-  # match what's expected by embedded builtins. This will become irrelevant
-  # once the serialization process changes to pack trampolines into the
-  # snapshot iff explicitly requested.
-  'test-serialize/StartupSerializerOnce': [SKIP],
-  'test-serialize/StartupSerializerTwice': [SKIP],
-  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
-  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+  # Until https://crbug.com/v8/7718 is fixed.
+  'test-serialize/PartialSerializerCustomContext': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -221,6 +218,9 @@
   # support.
   'test-serialize/CustomSnapshotDataBlobWithWarmup': [SKIP],
   'test-serialize/SnapshotDataBlobWithWarmup': [SKIP],
+
+  # https://crbug.com/v8/7763
+  'test-lockers/ExtensionsRegistration': [SKIP],
 }],  # 'no_snap == True'
 ['no_snap == False', {
   # FunctionEntryHooks require bootstrapping from scratch.
@@ -286,6 +286,9 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+
+  # crbug.com/v8/7605
+  'test-heap/OutOfMemorySmallObjects': [PASS, ['not simulator_run', SKIP]],
 }],  # 'arch == arm'
 
 ##############################################################################
@@ -342,10 +345,6 @@
 ['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips', {
   # Skip tests that fail on MIPS architectures which don't support SIMD,
   # because lowering mechanism doesn't work properly
-  'test-run-wasm-simd/RunWasm_I32x4ConvertI16x8_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_I16x8ConvertI8x16_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_I16x8ConvertI32x4_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_I8x16ConvertI16x8_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest4_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest8_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest16_compiled': [SKIP],
@@ -416,7 +415,7 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
   'test-api/*': [SKIP],
@@ -438,6 +437,6 @@
   'test-log/*': [SKIP],
   'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ]

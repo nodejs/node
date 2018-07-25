@@ -101,7 +101,7 @@ class ConcurrentMarking {
   MarkingWorklist* const on_hold_;
   WeakObjects* const weak_objects_;
   TaskState task_state_[kMaxTasks + 1];
-  base::AtomicNumber<size_t> total_marked_bytes_{0};
+  std::atomic<size_t> total_marked_bytes_{0};
   base::Mutex pending_lock_;
   base::ConditionVariable pending_condition_;
   int pending_task_count_ = 0;

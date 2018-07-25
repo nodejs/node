@@ -80,8 +80,16 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   isolate->interpreter()->GetAndMaybeDeserializeBytecodeHandler(bytecode,
                                                                 operand_scale);
 
-  return MakePair(side_effect_check_failed ? isolate->heap()->exception()
-                                           : isolate->debug()->return_value(),
+  if (side_effect_check_failed) {
+    return MakePair(isolate->heap()->exception(),
+                    Smi::FromInt(static_cast<uint8_t>(bytecode)));
+  }
+  Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
+  if (interrupt_object->IsException(isolate)) {
+    return MakePair(interrupt_object,
+                    Smi::FromInt(static_cast<uint8_t>(bytecode)));
+  }
+  return MakePair(isolate->debug()->return_value(),
                   Smi::FromInt(static_cast<uint8_t>(bytecode)));
 }
 
@@ -116,7 +124,7 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   if (isolate->debug()->break_points_active()) {
     isolate->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
   }
-  return isolate->heap()->undefined_value();
+  return isolate->stack_guard()->HandleInterrupts();
 }
 
 
@@ -1479,7 +1487,7 @@ int ScriptLinePosition(Handle<Script> script, int line) {
   if (line < 0) return -1;
 
   if (script->type() == Script::TYPE_WASM) {
-    return WasmCompiledModule::cast(script->wasm_compiled_module())
+    return WasmModuleObject::cast(script->wasm_module_object())
         ->shared()
         ->GetFunctionOffset(line);
   }
@@ -1664,16 +1672,18 @@ RUNTIME_FUNCTION(Runtime_ScriptPositionInfo2) {
 // or perform a side effect check.
 RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
   if (isolate->debug()->needs_check_on_function_call()) {
     // Ensure that the callee will perform debug check on function call too.
     Deoptimizer::DeoptimizeFunction(*fun);
     if (isolate->debug()->last_step_action() >= StepIn) {
+      DCHECK_EQ(isolate->debug_execution_mode(), DebugInfo::kBreakpoints);
       isolate->debug()->PrepareStepIn(fun);
     }
     if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
-        !isolate->debug()->PerformSideEffectCheck(fun)) {
+        !isolate->debug()->PerformSideEffectCheck(fun, receiver)) {
       return isolate->heap()->exception();
     }
   }

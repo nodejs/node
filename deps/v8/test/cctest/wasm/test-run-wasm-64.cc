@@ -1184,7 +1184,7 @@ WASM_EXEC_TEST(LoadStoreI64_sx) {
 
   for (size_t m = 0; m < arraysize(loads); m++) {
     WasmRunner<int64_t> r(execution_mode);
-    byte* memory = r.builder().AddMemoryElems<byte>(16);
+    byte* memory = r.builder().AddMemoryElems<byte>(kWasmPageSize);
 
     byte code[] = {
         kExprI32Const,    8,  // --
@@ -1223,7 +1223,8 @@ WASM_EXEC_TEST(LoadStoreI64_sx) {
 
 WASM_EXEC_TEST(I64ReinterpretF64) {
   WasmRunner<int64_t> r(execution_mode);
-  int64_t* memory = r.builder().AddMemoryElems<int64_t>(8);
+  int64_t* memory =
+      r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
 
   BUILD(r, WASM_I64_REINTERPRET_F64(
                WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO)));
@@ -1246,7 +1247,8 @@ WASM_EXEC_TEST(SignallingNanSurvivesI64ReinterpretF64) {
 
 WASM_EXEC_TEST(F64ReinterpretI64) {
   WasmRunner<int64_t, int64_t> r(execution_mode);
-  int64_t* memory = r.builder().AddMemoryElems<int64_t>(8);
+  int64_t* memory =
+      r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
 
   BUILD(r, WASM_STORE_MEM(MachineType::Float64(), WASM_ZERO,
                           WASM_F64_REINTERPRET_I64(WASM_GET_LOCAL(0))),
@@ -1261,7 +1263,8 @@ WASM_EXEC_TEST(F64ReinterpretI64) {
 
 WASM_EXEC_TEST(LoadMemI64) {
   WasmRunner<int64_t> r(execution_mode);
-  int64_t* memory = r.builder().AddMemoryElems<int64_t>(8);
+  int64_t* memory =
+      r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
   r.builder().RandomizeMemory(1111);
 
   BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO));
@@ -1279,7 +1282,8 @@ WASM_EXEC_TEST(LoadMemI64) {
 WASM_EXEC_TEST(LoadMemI64_alignment) {
   for (byte alignment = 0; alignment <= 3; alignment++) {
     WasmRunner<int64_t> r(execution_mode);
-    int64_t* memory = r.builder().AddMemoryElems<int64_t>(8);
+    int64_t* memory =
+        r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
     r.builder().RandomizeMemory(1111);
 
     BUILD(r,
@@ -1299,7 +1303,8 @@ WASM_EXEC_TEST(LoadMemI64_alignment) {
 WASM_EXEC_TEST(MemI64_Sum) {
   const int kNumElems = 20;
   WasmRunner<uint64_t, int32_t> r(execution_mode);
-  uint64_t* memory = r.builder().AddMemoryElems<uint64_t>(kNumElems);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
   const byte kSum = r.AllocateLocal(kWasmI64);
 
   BUILD(r, WASM_WHILE(
@@ -1330,7 +1335,8 @@ WASM_EXEC_TEST(StoreMemI64_alignment) {
 
   for (byte i = 0; i <= 3; i++) {
     WasmRunner<int64_t, int64_t> r(execution_mode);
-    int64_t* memory = r.builder().AddMemoryElems<int64_t>(4);
+    int64_t* memory =
+        r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
     BUILD(r, WASM_STORE_MEM_ALIGNMENT(MachineType::Int64(), WASM_ZERO, i,
                                       WASM_GET_LOCAL(0)),
           WASM_GET_LOCAL(0));
@@ -1411,7 +1417,7 @@ WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
                                    WASM_LOAD_MEM(machineTypes[m], WASM_ZERO)),
           WASM_ZERO);
 
-    byte memsize = WasmOpcodes::MemSize(machineTypes[m]);
+    byte memsize = ValueTypes::MemSize(machineTypes[m]);
     uint32_t boundary = num_bytes - 8 - memsize;
     CHECK_EQ(0, r.Call(boundary));  // in bounds.
     CHECK_EQ(0, memcmp(&memory[0], &memory[8 + boundary], memsize));
@@ -1431,7 +1437,7 @@ WASM_EXEC_TEST(Store_i64_narrowed) {
     constexpr int kBytes = 24;
     uint8_t expected_memory[kBytes] = {0};
     WasmRunner<int32_t, int32_t, int64_t> r(execution_mode);
-    uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kBytes);
+    uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
     constexpr uint64_t kPattern = 0x0123456789abcdef;
 
     BUILD(r, WASM_GET_LOCAL(0),                 // index
@@ -1454,14 +1460,14 @@ WASM_EXEC_TEST(Store_i64_narrowed) {
 
 WASM_EXEC_TEST(UnalignedInt64Load) {
   WasmRunner<uint64_t> r(execution_mode);
-  r.builder().AddMemoryElems<int64_t>(8);
+  r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
   BUILD(r, WASM_LOAD_MEM_ALIGNMENT(MachineType::Int64(), WASM_ONE, 3));
   r.Call();
 }
 
 WASM_EXEC_TEST(UnalignedInt64Store) {
   WasmRunner<int32_t> r(execution_mode);
-  r.builder().AddMemoryElems<uint64_t>(8);
+  r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(int64_t));
   BUILD(r, WASM_SEQ(WASM_STORE_MEM_ALIGNMENT(MachineType::Int64(), WASM_ONE, 3,
                                              WASM_I64V_1(1)),
                     WASM_I32V_1(12)));
@@ -1520,7 +1526,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
     WasmRunner<int32_t> r(execution_mode);
-    r.builder().AddMemory(1024);
+    r.builder().AddMemory(kWasmPageSize);
     MachineType* memtypes = &mixed[start];
     MachineType result = memtypes[which];
 
@@ -1528,9 +1534,9 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     // Build the selector function.
     // =========================================================================
     FunctionSig::Builder b(&zone, 1, num_params);
-    b.AddReturn(WasmOpcodes::ValueTypeFor(result));
+    b.AddReturn(ValueTypes::ValueTypeFor(result));
     for (int i = 0; i < num_params; i++) {
-      b.AddParam(WasmOpcodes::ValueTypeFor(memtypes[i]));
+      b.AddParam(ValueTypes::ValueTypeFor(memtypes[i]));
     }
     WasmFunctionCompiler& t = r.NewFunction(b.Build());
     BUILD(t, WASM_GET_LOCAL(which));
@@ -1550,7 +1556,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     ADD_CODE(code, WASM_CALL_FUNCTION0(t.function_index()));
 
     // Store the result in a local.
-    byte local_index = r.AllocateLocal(WasmOpcodes::ValueTypeFor(result));
+    byte local_index = r.AllocateLocal(ValueTypes::ValueTypeFor(result));
     ADD_CODE(code, kExprSetLocal, local_index);
 
     // Store the result in memory.
@@ -1567,7 +1573,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
       r.builder().RandomizeMemory();
       CHECK_EQ(kExpected, r.Call());
 
-      int size = WasmOpcodes::MemSize(result);
+      int size = ValueTypes::MemSize(result);
       for (int i = 0; i < size; i++) {
         int base = (which + 1) * kElemSize;
         byte expected = r.builder().raw_mem_at<byte>(base + i);
@@ -1585,7 +1591,7 @@ WASM_EXEC_TEST(MixedCall_i64_3) { Run_WasmMixedCall_N(execution_mode, 3); }
 
 WASM_EXEC_TEST(Regress5874) {
   WasmRunner<int32_t> r(execution_mode);
-  r.builder().AddMemoryElems<int64_t>(8);
+  r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
 
   BUILD(r, kExprI64Const, 0x00,        // --
         kExprI32ConvertI64,            // --

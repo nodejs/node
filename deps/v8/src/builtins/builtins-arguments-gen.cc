@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-arguments-gen.h"
 
+#include "src/arguments.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"

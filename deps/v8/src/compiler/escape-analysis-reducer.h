@@ -33,7 +33,7 @@ class NodeHashCache {
         : node_cache_(cache), from_(from), tmp_(nullptr) {}
     // Construct a new node from scratch.
     Constructor(NodeHashCache* cache, const Operator* op, int input_count,
-                Node** inputs, Type* type);
+                Node** inputs, Type type);
 
     // Modify the new node.
     void ReplaceValueInput(Node* input, int i) {

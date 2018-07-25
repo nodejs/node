@@ -9,6 +9,7 @@
 #include "src/elements.h"
 #include "src/field-type.h"
 #include "src/isolate-inl.h"
+#include "src/objects/hash-table-inl.h"
 
 namespace v8 {
 namespace internal {

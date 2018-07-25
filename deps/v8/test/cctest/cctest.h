@@ -680,18 +680,22 @@ class TestPlatform : public v8::Platform {
     return old_platform_->OnCriticalMemoryPressure(length);
   }
 
+  int NumberOfWorkerThreads() override {
+    return old_platform_->NumberOfWorkerThreads();
+  }
+
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override {
     return old_platform_->GetForegroundTaskRunner(isolate);
   }
 
-  std::shared_ptr<v8::TaskRunner> GetWorkerThreadsTaskRunner(
-      v8::Isolate* isolate) override {
-    return old_platform_->GetWorkerThreadsTaskRunner(isolate);
-  }
-
   void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
     old_platform_->CallOnWorkerThread(std::move(task));
+  }
+
+  void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
+                                 double delay_in_seconds) override {
+    old_platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {

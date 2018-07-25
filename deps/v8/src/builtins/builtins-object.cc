@@ -18,29 +18,6 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // ES6 section 19.1 Object Objects
 
-// ES6 19.1.2.1 Object.assign
-BUILTIN(ObjectAssign) {
-  HandleScope scope(isolate);
-  Handle<Object> target = args.atOrUndefined(isolate, 1);
-
-  // 1. Let to be ? ToObject(target).
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target,
-                                     Object::ToObject(isolate, target));
-  Handle<JSReceiver> to = Handle<JSReceiver>::cast(target);
-  // 2. If only one argument was passed, return to.
-  if (args.length() == 2) return *to;
-  // 3. Let sources be the List of argument values starting with the
-  //    second argument.
-  // 4. For each element nextSource of sources, in ascending index order,
-  for (int i = 2; i < args.length(); ++i) {
-    Handle<Object> next_source = args.at(i);
-    MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, to, next_source),
-                 isolate->heap()->exception());
-  }
-  // 5. Return to.
-  return *to;
-}
-
 // ES6 section 19.1.3.4 Object.prototype.propertyIsEnumerable ( V )
 BUILTIN(ObjectPrototypePropertyIsEnumerable) {
   HandleScope scope(isolate);

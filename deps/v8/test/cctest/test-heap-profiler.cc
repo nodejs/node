@@ -1541,8 +1541,8 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
         graph->AddNode(std::unique_ptr<Group>(new Group("ccc-group")));
   }
 
-  static void BuildEmbedderGraph(v8::Isolate* isolate, v8::EmbedderGraph* graph,
-                                 void* data) {
+  static void BuildEmbedderGraph(v8::Isolate* isolate,
+                                 v8::EmbedderGraph* graph) {
     EmbedderGraphBuilder builder(isolate, graph);
     isolate->VisitHandlesWithClassIds(&builder);
   }
@@ -1604,8 +1604,8 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   v8::HandleScope scope(isolate);
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
 
-  heap_profiler->AddBuildEmbedderGraphCallback(
-      EmbedderGraphBuilder::BuildEmbedderGraph, nullptr);
+  heap_profiler->SetBuildEmbedderGraphCallback(
+      EmbedderGraphBuilder::BuildEmbedderGraph);
   v8::Persistent<v8::String> p_AAA(isolate, v8_str("AAA"));
   p_AAA.SetWrapperClassId(1);
   v8::Persistent<v8::String> p_BBB(isolate, v8_str("BBB"));
@@ -2932,8 +2932,7 @@ class EmbedderRootNode : public EmbedderNode {
 // global object.
 v8::Local<v8::Value>* global_object_pointer;
 
-void BuildEmbedderGraph(v8::Isolate* v8_isolate, v8::EmbedderGraph* graph,
-                        void* data) {
+void BuildEmbedderGraph(v8::Isolate* v8_isolate, v8::EmbedderGraph* graph) {
   using Node = v8::EmbedderGraph::Node;
   Node* global_node = graph->V8Node(*global_object_pointer);
   Node* embedder_node_A = graph->AddNode(
@@ -2980,90 +2979,10 @@ TEST(EmbedderGraph) {
           (isolate->context()->native_context()->global_object())));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraph, nullptr);
+  heap_profiler->SetBuildEmbedderGraphCallback(BuildEmbedderGraph);
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   CheckEmbedderGraphSnapshot(env->GetIsolate(), snapshot);
-}
-
-struct GraphBuildingContext {
-  int counter = 0;
-};
-
-void CheckEmbedderGraphSnapshotWithContext(
-    v8::Isolate* isolate, const v8::HeapSnapshot* snapshot,
-    const GraphBuildingContext* context) {
-  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  CHECK_GE(context->counter, 1);
-  CHECK_LE(context->counter, 2);
-
-  const v8::HeapGraphNode* embedder_node_A =
-      GetChildByName(global, "EmbedderNodeA");
-  CHECK_EQ(10, GetSize(embedder_node_A));
-
-  const v8::HeapGraphNode* embedder_node_B =
-      GetChildByName(global, "EmbedderNodeB");
-  if (context->counter == 2) {
-    CHECK_NOT_NULL(embedder_node_B);
-    CHECK_EQ(20, GetSize(embedder_node_B));
-  } else {
-    CHECK_NULL(embedder_node_B);
-  }
-}
-
-void BuildEmbedderGraphWithContext(v8::Isolate* v8_isolate,
-                                   v8::EmbedderGraph* graph, void* data) {
-  using Node = v8::EmbedderGraph::Node;
-  GraphBuildingContext* context = static_cast<GraphBuildingContext*>(data);
-  Node* global_node = graph->V8Node(*global_object_pointer);
-
-  CHECK_GE(context->counter, 0);
-  CHECK_LE(context->counter, 1);
-  switch (context->counter++) {
-    case 0: {
-      Node* embedder_node_A = graph->AddNode(
-          std::unique_ptr<Node>(new EmbedderNode("EmbedderNodeA", 10)));
-      graph->AddEdge(global_node, embedder_node_A);
-      break;
-    }
-    case 1: {
-      Node* embedder_node_B = graph->AddNode(
-          std::unique_ptr<Node>(new EmbedderNode("EmbedderNodeB", 20)));
-      graph->AddEdge(global_node, embedder_node_B);
-      break;
-    }
-  }
-}
-
-TEST(EmbedderGraphMultipleCallbacks) {
-  i::FLAG_heap_profiler_use_embedder_graph = true;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
-  v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
-          (isolate->context()->native_context()->global_object())));
-  global_object_pointer = &global_object;
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  GraphBuildingContext context;
-
-  heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraphWithContext,
-                                               &context);
-  heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraphWithContext,
-                                               &context);
-  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
-  CHECK_EQ(context.counter, 2);
-  CHECK(ValidateSnapshot(snapshot));
-  CheckEmbedderGraphSnapshotWithContext(env->GetIsolate(), snapshot, &context);
-
-  heap_profiler->RemoveBuildEmbedderGraphCallback(BuildEmbedderGraphWithContext,
-                                                  &context);
-  context.counter = 0;
-
-  snapshot = heap_profiler->TakeHeapSnapshot();
-  CHECK_EQ(context.counter, 1);
-  CHECK(ValidateSnapshot(snapshot));
-  CheckEmbedderGraphSnapshotWithContext(env->GetIsolate(), snapshot, &context);
 }
 
 TEST(StrongHandleAnnotation) {
@@ -3091,7 +3010,7 @@ TEST(StrongHandleAnnotation) {
 }
 
 void BuildEmbedderGraphWithWrapperNode(v8::Isolate* v8_isolate,
-                                       v8::EmbedderGraph* graph, void* data) {
+                                       v8::EmbedderGraph* graph) {
   using Node = v8::EmbedderGraph::Node;
   Node* global_node = graph->V8Node(*global_object_pointer);
   Node* wrapper_node = graph->AddNode(
@@ -3122,8 +3041,8 @@ TEST(EmbedderGraphWithWrapperNode) {
           (isolate->context()->native_context()->global_object())));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  heap_profiler->AddBuildEmbedderGraphCallback(
-      BuildEmbedderGraphWithWrapperNode, nullptr);
+  heap_profiler->SetBuildEmbedderGraphCallback(
+      BuildEmbedderGraphWithWrapperNode);
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
@@ -3161,7 +3080,7 @@ class EmbedderNodeWithPrefix : public v8::EmbedderGraph::Node {
 };
 
 void BuildEmbedderGraphWithPrefix(v8::Isolate* v8_isolate,
-                                  v8::EmbedderGraph* graph, void* data) {
+                                  v8::EmbedderGraph* graph) {
   using Node = v8::EmbedderGraph::Node;
   Node* global_node = graph->V8Node(*global_object_pointer);
   Node* node = graph->AddNode(
@@ -3179,8 +3098,7 @@ TEST(EmbedderGraphWithPrefix) {
           (isolate->context()->native_context()->global_object())));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraphWithPrefix,
-                                               nullptr);
+  heap_profiler->SetBuildEmbedderGraphCallback(BuildEmbedderGraphWithPrefix);
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
@@ -3188,9 +3106,7 @@ TEST(EmbedderGraphWithPrefix) {
   CHECK(node);
 }
 
-static inline i::Address ToAddress(int n) {
-  return reinterpret_cast<i::Address>(n);
-}
+static inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }
 
 TEST(AddressToTraceMap) {
   i::AddressToTraceMap map;
@@ -3274,6 +3190,14 @@ static void CheckNoZeroCountNodes(v8::AllocationProfile::Node* node) {
   }
 }
 
+static int NumberOfAllocations(const v8::AllocationProfile::Node* node) {
+  int count = 0;
+  for (auto allocation : node->allocations) {
+    count += allocation.count;
+  }
+  return count;
+}
+
 static const char* simple_sampling_heap_profiler_script =
     "var A = [];\n"
     "function bar(size) { return new Array(size); }\n"
@@ -3314,12 +3238,6 @@ TEST(SamplingHeapProfiler) {
     auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
                                               ArrayVector(names));
     CHECK(node_bar);
-
-    // Count the number of allocations we sampled from bar.
-    int count_1024 = 0;
-    for (auto allocation : node_bar->allocations) {
-      count_1024 += allocation.count;
-    }
 
     heap_profiler->StopSamplingHeapProfiler();
   }
@@ -3397,15 +3315,17 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
         heap_profiler->GetAllocationProfile());
     CHECK(profile);
 
-    const char* names[] = {"", "foo", "bar"};
+    const char* path_to_foo[] = {"", "foo"};
+    auto node_foo = FindAllocationProfileNode(env->GetIsolate(), *profile,
+                                              ArrayVector(path_to_foo));
+    CHECK(node_foo);
+    const char* path_to_bar[] = {"", "foo", "bar"};
     auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
-                                              ArrayVector(names));
+                                              ArrayVector(path_to_bar));
     CHECK(node_bar);
 
-    // Count the number of allocations we sampled from bar.
-    for (auto allocation : node_bar->allocations) {
-      count_1024 += allocation.count;
-    }
+    // Function bar can be inlined in foo.
+    count_1024 = NumberOfAllocations(node_foo) + NumberOfAllocations(node_bar);
 
     heap_profiler->StopSamplingHeapProfiler();
   }
@@ -3419,16 +3339,18 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
         heap_profiler->GetAllocationProfile());
     CHECK(profile);
 
-    const char* names[] = {"", "foo", "bar"};
+    const char* path_to_foo[] = {"", "foo"};
+    auto node_foo = FindAllocationProfileNode(env->GetIsolate(), *profile,
+                                              ArrayVector(path_to_foo));
+    CHECK(node_foo);
+    const char* path_to_bar[] = {"", "foo", "bar"};
     auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
-                                              ArrayVector(names));
+                                              ArrayVector(path_to_bar));
     CHECK(node_bar);
 
-    // Count the number of allocations we sampled from bar.
-    int count_128 = 0;
-    for (auto allocation : node_bar->allocations) {
-      count_128 += allocation.count;
-    }
+    // Function bar can be inlined in foo.
+    int count_128 =
+        NumberOfAllocations(node_foo) + NumberOfAllocations(node_bar);
 
     // We should have similar unsampled counts of allocations. Though
     // we will sample different numbers of objects at different rates,
@@ -3439,7 +3361,7 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
     double max_count = std::max(count_128, count_1024);
     double min_count = std::min(count_128, count_1024);
     double percent_difference = (max_count - min_count) / min_count;
-    CHECK_LT(percent_difference, 0.15);
+    CHECK_LT(percent_difference, 0.1);
 
     heap_profiler->StopSamplingHeapProfiler();
   }

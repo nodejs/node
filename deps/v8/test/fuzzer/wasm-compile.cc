@@ -112,7 +112,7 @@ class WasmGenerator {
         : gen_(gen) {
       gen->blocks_.push_back(br_type);
       gen->builder_->EmitWithU8(block_type,
-                                WasmOpcodes::ValueTypeCodeFor(result_type));
+                                ValueTypes::ValueTypeCodeFor(result_type));
     }
 
     ~BlockScope() {

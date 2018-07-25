@@ -16,6 +16,7 @@
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -34,11 +35,11 @@ CallDescriptor* CreateCallDescriptor(Zone* zone, int return_count,
   wasm::FunctionSig::Builder builder(zone, return_count, param_count);
 
   for (int i = 0; i < param_count; i++) {
-    builder.AddParam(type.representation());
+    builder.AddParam(wasm::ValueTypes::ValueTypeFor(type));
   }
 
   for (int i = 0; i < return_count; i++) {
-    builder.AddReturn(type.representation());
+    builder.AddReturn(wasm::ValueTypes::ValueTypeFor(type));
   }
   return compiler::GetWasmCallDescriptor(zone, builder.Build());
 }
@@ -122,12 +123,15 @@ Node* ToInt32(RawMachineAssembler& m, MachineType type, Node* a) {
 
 std::unique_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
                                                          size_t code_size) {
+  wasm::ModuleEnv env(
+      nullptr, wasm::UseTrapHandler::kNoTrapHandler,
+      wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   std::unique_ptr<wasm::NativeModule> module =
       isolate->wasm_engine()->code_manager()->NewNativeModule(code_size, 1, 0,
-                                                              false);
+                                                              false, env);
   return module;
 }
 
@@ -158,7 +162,7 @@ void TestReturnMultipleValues(MachineType type) {
     m.Return(count, returns.get());
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  Code::STUB);
+                                  Code::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
         &info, handles.main_isolate(), desc, m.graph(), m.Export());
 #ifdef ENABLE_DISASSEMBLER
@@ -251,7 +255,7 @@ void ReturnLastValue(MachineType type) {
     m.Return(return_count, returns.get());
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  Code::STUB);
+                                  Code::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
         &info, handles.main_isolate(), desc, m.graph(), m.Export());
 
@@ -311,7 +315,7 @@ void ReturnSumOfReturns(MachineType type) {
     m.Return(return_count, returns.get());
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  Code::STUB);
+                                  Code::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
         &info, handles.main_isolate(), desc, m.graph(), m.Export());
 

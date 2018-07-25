@@ -613,8 +613,13 @@ void ConsumedPreParsedScopeData::RestoreDataForVariable(Variable* var) {
     // It's possible that "name" is a two-byte representation of the string
     // stored in the data.
     for (int i = 0; i < 2 * name->length(); i += 2) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
       DCHECK_EQ(scope_data_->ReadUint8(), name->raw_data()[i]);
       DCHECK_EQ(0, name->raw_data()[i + 1]);
+#else
+      DCHECK_EQ(scope_data_->ReadUint8(), name->raw_data()[i + 1]);
+      DCHECK_EQ(0, name->raw_data()[i]);
+#endif  // V8_TARGET_LITTLE_ENDIAN
     }
   } else {
     for (int i = 0; i < name->length(); ++i) {

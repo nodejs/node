@@ -55,9 +55,9 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
   // Ensure that the generator is neither closed nor running.
   CSA_SLOW_ASSERT(
       this,
-      SmiGreaterThan(
-          LoadObjectField(generator, JSGeneratorObject::kContinuationOffset),
-          SmiConstant(JSGeneratorObject::kGeneratorClosed)));
+      SmiGreaterThan(CAST(LoadObjectField(
+                         generator, JSGeneratorObject::kContinuationOffset)),
+                     SmiConstant(JSGeneratorObject::kGeneratorClosed)));
 
   // Remember the {resume_mode} for the {generator}.
   StoreObjectFieldNoWriteBarrier(generator,

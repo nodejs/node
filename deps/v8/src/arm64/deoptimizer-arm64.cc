@@ -115,8 +115,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   DCHECK_EQ(saved_registers.Count() % 2, 0);
   __ PushCPURegList(saved_registers);
 
-  __ Mov(x3, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
-                                       isolate())));
+  __ Mov(x3, Operand(ExternalReference::Create(
+                 IsolateAddressId::kCEntryFPAddress, isolate())));
   __ Str(fp, MemOperand(x3));
 
   const int kSavedRegistersAreaSize =
@@ -165,7 +165,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   {
     // Call Deoptimizer::New().
     AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate()), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
   // Preserve "deoptimizer" object in register x0.
@@ -212,8 +212,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   {
     // Call Deoptimizer::ComputeOutputFrames().
     AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(
-        ExternalReference::compute_output_frames_function(isolate()), 1);
+    __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
   }
   __ Pop(x4, padreg);  // Restore deoptimizer object (class Deoptimizer).
 

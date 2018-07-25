@@ -47,7 +47,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
                                source_position_mode, features,
                                InstructionSelector::kDisableScheduling,
                                InstructionSelector::kDisableSerialization,
-                               PoisoningMitigationLevel::kOn);
+                               PoisoningMitigationLevel::kPoisonAll);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);

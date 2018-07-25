@@ -20,6 +20,7 @@
 #include "src/feedback-vector.h"
 #include "src/field-index-inl.h"
 #include "src/isolate-inl.h"
+#include "src/objects/templates.h"
 #include "src/vector-slot-pair.h"
 
 namespace v8 {
@@ -521,7 +522,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadContext(Node* node) {
 namespace {
 
 FieldAccess ForPropertyCellValue(MachineRepresentation representation,
-                                 Type* type, MaybeHandle<Map> map,
+                                 Type type, MaybeHandle<Map> map,
                                  Handle<Name> name) {
   WriteBarrierKind kind = kFullWriteBarrier;
   if (representation == MachineRepresentation::kTaggedSigned) {
@@ -609,7 +610,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       } else {
         // Load from constant type cell can benefit from type feedback.
         MaybeHandle<Map> map;
-        Type* property_cell_value_type = Type::NonInternal();
+        Type property_cell_value_type = Type::NonInternal();
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_details.cell_type() == PropertyCellType::kConstantType) {
           // Compute proper type based on the current value in the cell.
@@ -666,7 +667,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         // values' type doesn't match the type of the previous value in the
         // cell.
         dependencies()->AssumePropertyCell(property_cell);
-        Type* property_cell_value_type;
+        Type property_cell_value_type;
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_cell_value->IsHeapObject()) {
           // We cannot do anything if the {property_cell_value}s map is no
@@ -1748,8 +1749,8 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* data = jsgraph()->Constant(call_data_object);
   ApiFunction function(v8::ToCData<Address>(call_handler_info->callback()));
   Node* function_reference =
-      graph()->NewNode(common()->ExternalConstant(ExternalReference(
-          &function, ExternalReference::DIRECT_API_CALL, isolate())));
+      graph()->NewNode(common()->ExternalConstant(ExternalReference::Create(
+          &function, ExternalReference::DIRECT_API_CALL)));
   Node* code = jsgraph()->HeapConstant(stub.GetCode());
 
   // Add CallApiCallbackStub's register argument as well.
@@ -1858,7 +1859,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
     FieldIndex const field_index = access_info.field_index();
-    Type* const field_type = access_info.field_type();
+    Type const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
         access_info.field_representation();
     Node* storage = receiver;
@@ -2055,8 +2056,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   Handle<Map> receiver_map(map, isolate());
   if (!Map::TryUpdate(receiver_map).ToHandle(&receiver_map)) return NoChange();
 
-  Handle<Name> cached_name =
-      handle(Name::cast(nexus.GetFeedbackExtra()), isolate());
+  Handle<Name> cached_name = handle(
+      Name::cast(nexus.GetFeedbackExtra()->ToStrongHeapObject()), isolate());
 
   PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(dependencies(), native_context(),
@@ -2272,20 +2273,19 @@ JSNativeContextSpecialization::BuildElementAccess(
         if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS) {
           Node* check =
               graph()->NewNode(simplified()->NumberLessThan(), index, length);
-          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                          check, control);
+          Node* branch = graph()->NewNode(
+              common()->Branch(BranchHint::kTrue,
+                               IsSafetyCheck::kCriticalSafetyCheck),
+              check, control);
 
           Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
           Node* etrue = effect;
           Node* vtrue;
           {
-            Node* masked_index = graph()->NewNode(
-                simplified()->MaskIndexWithBound(), index, length);
-
             // Perform the actual load
             vtrue = etrue = graph()->NewNode(
                 simplified()->LoadTypedElement(external_array_type), buffer,
-                base_pointer, external_pointer, masked_index, etrue, if_true);
+                base_pointer, external_pointer, index, etrue, if_true);
           }
 
           Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -2303,13 +2303,10 @@ JSNativeContextSpecialization::BuildElementAccess(
               graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                                vtrue, vfalse, control);
         } else {
-          Node* masked_index = graph()->NewNode(
-              simplified()->MaskIndexWithBound(), index, length);
-
           // Perform the actual load.
           value = effect = graph()->NewNode(
               simplified()->LoadTypedElement(external_array_type), buffer,
-              base_pointer, external_pointer, masked_index, effect, control);
+              base_pointer, external_pointer, index, effect, control);
         }
         break;
       }
@@ -2419,7 +2416,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     }
 
     // Compute the element access.
-    Type* element_type = Type::NonInternal();
+    Type element_type = Type::NonInternal();
     MachineType element_machine_type = MachineType::AnyTagged();
     if (IsDoubleElementsKind(elements_kind)) {
       element_type = Type::Number();
@@ -2428,9 +2425,10 @@ JSNativeContextSpecialization::BuildElementAccess(
       element_type = Type::SignedSmall();
       element_machine_type = MachineType::TaggedSigned();
     }
-    ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
-                                    element_type, element_machine_type,
-                                    kFullWriteBarrier};
+    ElementAccess element_access = {
+        kTaggedBase,       FixedArray::kHeaderSize,
+        element_type,      element_machine_type,
+        kFullWriteBarrier, LoadSensitivity::kCritical};
 
     // Access the actual element.
     if (access_mode == AccessMode::kLoad) {
@@ -2450,20 +2448,19 @@ JSNativeContextSpecialization::BuildElementAccess(
           CanTreatHoleAsUndefined(receiver_maps)) {
         Node* check =
             graph()->NewNode(simplified()->NumberLessThan(), index, length);
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, control);
+        Node* branch = graph()->NewNode(
+            common()->Branch(BranchHint::kTrue,
+                             IsSafetyCheck::kCriticalSafetyCheck),
+            check, control);
 
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
         Node* etrue = effect;
         Node* vtrue;
         {
-          Node* masked_index = graph()->NewNode(
-              simplified()->MaskIndexWithBound(), index, length);
-
           // Perform the actual load
           vtrue = etrue =
               graph()->NewNode(simplified()->LoadElement(element_access),
-                               elements, masked_index, etrue, if_true);
+                               elements, index, etrue, if_true);
 
           // Handle loading from holey backing stores correctly, by either
           // mapping the hole to undefined if possible, or deoptimizing
@@ -2498,13 +2495,10 @@ JSNativeContextSpecialization::BuildElementAccess(
             graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                              vtrue, vfalse, control);
       } else {
-        Node* masked_index =
-            graph()->NewNode(simplified()->MaskIndexWithBound(), index, length);
-
         // Perform the actual load.
         value = effect =
             graph()->NewNode(simplified()->LoadElement(element_access),
-                             elements, masked_index, effect, control);
+                             elements, index, effect, control);
 
         // Handle loading from holey backing stores correctly, by either mapping
         // the hole to undefined if possible, or deoptimizing otherwise.
@@ -2656,10 +2650,11 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
     Node* check =
         graph()->NewNode(simplified()->NumberLessThan(), index, length);
     Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, *control);
+        graph()->NewNode(common()->Branch(BranchHint::kTrue,
+                                          IsSafetyCheck::kCriticalSafetyCheck),
+                         check, *control);
 
-    Node* masked_index =
-        graph()->NewNode(simplified()->MaskIndexWithBound(), index, length);
+    Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* etrue;
@@ -2682,8 +2677,7 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
         graph()->NewNode(simplified()->CheckBounds(VectorSlotPair()), index,
                          length, *effect, *control);
 
-    Node* masked_index =
-        graph()->NewNode(simplified()->MaskIndexWithBound(), index, length);
+    Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
 
     // Return the character from the {receiver} as single character string.
     Node* value = *effect =

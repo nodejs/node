@@ -62,17 +62,10 @@ std::ostream& operator<<(std::ostream&, ForInHint);
 
 enum StringAddFlags {
   // Omit both parameter checks.
-  STRING_ADD_CHECK_NONE = 0,
-  // Check left parameter.
-  STRING_ADD_CHECK_LEFT = 1 << 0,
-  // Check right parameter.
-  STRING_ADD_CHECK_RIGHT = 1 << 1,
-  // Check both parameters.
-  STRING_ADD_CHECK_BOTH = STRING_ADD_CHECK_LEFT | STRING_ADD_CHECK_RIGHT,
+  STRING_ADD_CHECK_NONE,
   // Convert parameters when check fails (instead of throwing an exception).
-  STRING_ADD_CONVERT = 1 << 2,
-  STRING_ADD_CONVERT_LEFT = STRING_ADD_CHECK_LEFT | STRING_ADD_CONVERT,
-  STRING_ADD_CONVERT_RIGHT = STRING_ADD_CHECK_RIGHT | STRING_ADD_CONVERT
+  STRING_ADD_CONVERT_LEFT,
+  STRING_ADD_CONVERT_RIGHT,
 };
 
 std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags);

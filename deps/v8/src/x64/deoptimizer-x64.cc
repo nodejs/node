@@ -56,8 +56,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   const int kSavedRegistersAreaSize =
       kNumberOfRegisters * kRegisterSize + kDoubleRegsSize + kFloatRegsSize;
 
-  __ Store(ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate()),
-           rbp);
+  __ Store(
+      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate()),
+      rbp);
 
   // We use this to keep the value of the fifth argument temporarily.
   // Unfortunately we can't store it directly in r8 (used for passing
@@ -115,7 +116,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 #endif
 
   { AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate()), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
@@ -173,8 +174,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate()));
   {
     AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(
-        ExternalReference::compute_output_frames_function(isolate()), 2);
+    __ CallCFunction(ExternalReference::compute_output_frames_function(), 2);
   }
   __ popq(rax);
 

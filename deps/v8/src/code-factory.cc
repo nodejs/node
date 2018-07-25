@@ -25,9 +25,48 @@ Callable make_callable(Stub& stub) {
 
 // static
 Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
-  CEntryStub stub(isolate, result_size);
-  return stub.GetCode();
+  return CodeFactory::CEntry(isolate, result_size);
 }
+
+#define CENTRY_CODE(RS, SD, AM, BE) \
+  BUILTIN_CODE(isolate, CEntry_##RS##_##SD##_##AM##_##BE)
+
+// static
+Handle<Code> CodeFactory::CEntry(Isolate* isolate, int result_size,
+                                 SaveFPRegsMode save_doubles,
+                                 ArgvMode argv_mode, bool builtin_exit_frame) {
+  // Aliases for readability below.
+  const int rs = result_size;
+  const SaveFPRegsMode sd = save_doubles;
+  const ArgvMode am = argv_mode;
+  const bool be = builtin_exit_frame;
+
+  if (rs == 1 && sd == kDontSaveFPRegs && am == kArgvOnStack && !be) {
+    return CENTRY_CODE(Return1, DontSaveFPRegs, ArgvOnStack, NoBuiltinExit);
+  } else if (rs == 1 && sd == kDontSaveFPRegs && am == kArgvOnStack && be) {
+    return CENTRY_CODE(Return1, DontSaveFPRegs, ArgvOnStack, BuiltinExit);
+  } else if (rs == 1 && sd == kDontSaveFPRegs && am == kArgvInRegister && !be) {
+    return CENTRY_CODE(Return1, DontSaveFPRegs, ArgvInRegister, NoBuiltinExit);
+  } else if (rs == 1 && sd == kSaveFPRegs && am == kArgvOnStack && !be) {
+    return CENTRY_CODE(Return1, SaveFPRegs, ArgvOnStack, NoBuiltinExit);
+  } else if (rs == 1 && sd == kSaveFPRegs && am == kArgvOnStack && be) {
+    return CENTRY_CODE(Return1, SaveFPRegs, ArgvOnStack, BuiltinExit);
+  } else if (rs == 2 && sd == kDontSaveFPRegs && am == kArgvOnStack && !be) {
+    return CENTRY_CODE(Return2, DontSaveFPRegs, ArgvOnStack, NoBuiltinExit);
+  } else if (rs == 2 && sd == kDontSaveFPRegs && am == kArgvOnStack && be) {
+    return CENTRY_CODE(Return2, DontSaveFPRegs, ArgvOnStack, BuiltinExit);
+  } else if (rs == 2 && sd == kDontSaveFPRegs && am == kArgvInRegister && !be) {
+    return CENTRY_CODE(Return2, DontSaveFPRegs, ArgvInRegister, NoBuiltinExit);
+  } else if (rs == 2 && sd == kSaveFPRegs && am == kArgvOnStack && !be) {
+    return CENTRY_CODE(Return2, SaveFPRegs, ArgvOnStack, NoBuiltinExit);
+  } else if (rs == 2 && sd == kSaveFPRegs && am == kArgvOnStack && be) {
+    return CENTRY_CODE(Return2, SaveFPRegs, ArgvOnStack, BuiltinExit);
+  }
+
+  UNREACHABLE();
+}
+
+#undef CENTRY_CODE
 
 // static
 Callable CodeFactory::ApiGetter(Isolate* isolate) {
@@ -105,12 +144,6 @@ Callable CodeFactory::BinaryOperation(Isolate* isolate, Operation op) {
 }
 
 // static
-Callable CodeFactory::GetProperty(Isolate* isolate) {
-  GetPropertyStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
 Callable CodeFactory::NonPrimitiveToPrimitive(Isolate* isolate,
                                               ToPrimitiveHint hint) {
   return Callable(isolate->builtins()->NonPrimitiveToPrimitive(hint),
@@ -127,8 +160,26 @@ Callable CodeFactory::OrdinaryToPrimitive(Isolate* isolate,
 // static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
-  StringAddStub stub(isolate, flags, pretenure_flag);
-  return make_callable(stub);
+  if (pretenure_flag == NOT_TENURED) {
+    switch (flags) {
+      case STRING_ADD_CHECK_NONE:
+        return Builtins::CallableFor(isolate,
+                                     Builtins::kStringAdd_CheckNone_NotTenured);
+      case STRING_ADD_CONVERT_LEFT:
+        return Builtins::CallableFor(
+            isolate, Builtins::kStringAdd_ConvertLeft_NotTenured);
+      case STRING_ADD_CONVERT_RIGHT:
+        return Builtins::CallableFor(
+            isolate, Builtins::kStringAdd_ConvertRight_NotTenured);
+    }
+  } else {
+    CHECK_EQ(TENURED, pretenure_flag);
+    CHECK_EQ(STRING_ADD_CHECK_NONE, flags);
+    return Builtins::CallableFor(isolate,
+                                 Builtins::kStringAdd_CheckNone_Tenured);
+  }
+
+  UNREACHABLE();
 }
 
 // static
@@ -260,8 +311,9 @@ Callable CodeFactory::InterpreterPushArgsThenConstruct(
 Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
   // Note: If we ever use fpregs in the interpreter then we will need to
   // save fpregs too.
-  CEntryStub stub(isolate, result_size, kDontSaveFPRegs, kArgvInRegister);
-  return Callable(stub.GetCode(), InterpreterCEntryDescriptor(isolate));
+  Handle<Code> code = CodeFactory::CEntry(isolate, result_size, kDontSaveFPRegs,
+                                          kArgvInRegister);
+  return Callable(code, InterpreterCEntryDescriptor(isolate));
 }
 
 // static

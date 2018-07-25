@@ -16,7 +16,11 @@
 #include "src/objects/bigint.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-locale-inl.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/objects/maybe-object.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module.h"
@@ -141,6 +145,9 @@ void HeapObject::HeapObjectVerify() {
     case WEAK_FIXED_ARRAY_TYPE:
       WeakFixedArray::cast(this)->WeakFixedArrayVerify();
       break;
+    case WEAK_ARRAY_LIST_TYPE:
+      WeakArrayList::cast(this)->WeakArrayListVerify();
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayVerify();
       break;
@@ -192,11 +199,13 @@ void HeapObject::HeapObjectVerify() {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case WASM_GLOBAL_TYPE:
-    case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
       JSObject::cast(this)->JSObjectVerify();
+      break;
+    case WASM_INSTANCE_TYPE:
+      WasmInstanceObject::cast(this)->WasmInstanceObjectVerify();
       break;
     case JS_ARGUMENTS_TYPE:
       JSArgumentsObject::cast(this)->JSArgumentsObjectVerify();
@@ -311,6 +320,11 @@ void HeapObject::HeapObjectVerify() {
     case CODE_DATA_CONTAINER_TYPE:
       CodeDataContainer::cast(this)->CodeDataContainerVerify();
       break;
+#ifdef V8_INTL_SUPPORT
+    case JS_INTL_LOCALE_TYPE:
+      JSLocale::cast(this)->JSLocaleVerify();
+      break;
+#endif  // V8_INTL_SUPPORT
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
@@ -392,9 +406,8 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
         HeapObject::cast(this)->map()->instance_type() ==
             Traits::kInstanceType);
   if (base_pointer() == this) {
-    CHECK(external_pointer() ==
-          ExternalReference::fixed_typed_array_base_data_offset(GetIsolate())
-              .address());
+    CHECK(reinterpret_cast<Address>(external_pointer()) ==
+          ExternalReference::fixed_typed_array_base_data_offset().address());
   } else {
     CHECK_NULL(base_pointer());
   }
@@ -408,6 +421,43 @@ bool JSObject::ElementsAreSafeToExamine() {
       GetHeap()->one_pointer_filler_map();
 }
 
+namespace {
+void VerifyJSObjectElements(JSObject* object) {
+  Isolate* isolate = object->GetIsolate();
+  // Only TypedArrays can have these specialized elements.
+  if (object->IsJSTypedArray()) {
+    // TODO(cbruni): Fix CreateTypedArray to either not instantiate the object
+    // or propertly initialize it on errors during construction.
+    /* CHECK(object->HasFixedTypedArrayElements()); */
+    /* CHECK(object->elements()->IsFixedTypedArrayBase()); */
+    return;
+  }
+  CHECK(!object->HasFixedTypedArrayElements());
+  CHECK(!object->elements()->IsFixedTypedArrayBase());
+
+  if (object->HasDoubleElements()) {
+    if (object->elements()->length() > 0) {
+      CHECK(object->elements()->IsFixedDoubleArray());
+    }
+    return;
+  }
+
+  FixedArray* elements = FixedArray::cast(object->elements());
+  if (object->HasSmiElements()) {
+    // We might have a partially initialized backing store, in which case we
+    // allow the hole + smi values.
+    for (int i = 0; i < elements->length(); i++) {
+      Object* value = elements->get(i);
+      CHECK(value->IsSmi() || value->IsTheHole(isolate));
+    }
+  } else if (object->HasObjectElements()) {
+    for (int i = 0; i < elements->length(); i++) {
+      Object* element = elements->get(i);
+      CHECK_IMPLIES(!element->IsSmi(), !HasWeakHeapObjectTag(element));
+    }
+  }
+}
+}  // namespace
 
 void JSObject::JSObjectVerify() {
   VerifyPointer(raw_properties_or_hash());
@@ -481,7 +531,8 @@ void JSObject::JSObjectVerify() {
               HasFastStringWrapperElements()),
              (elements()->map() == GetHeap()->fixed_array_map() ||
               elements()->map() == GetHeap()->fixed_cow_array_map()));
-    CHECK(map()->has_fast_object_elements() == HasObjectElements());
+    CHECK_EQ(map()->has_fast_object_elements(), HasObjectElements());
+    VerifyJSObjectElements(this);
   }
 }
 
@@ -549,6 +600,12 @@ void FixedArray::FixedArrayVerify() {
 }
 
 void WeakFixedArray::WeakFixedArrayVerify() {
+  for (int i = 0; i < length(); i++) {
+    MaybeObject::VerifyMaybeObjectPointer(Get(i));
+  }
+}
+
+void WeakArrayList::WeakArrayListVerify() {
   for (int i = 0; i < length(); i++) {
     MaybeObject::VerifyMaybeObjectPointer(Get(i));
   }
@@ -625,7 +682,7 @@ void DescriptorArray::DescriptorArrayVerify() {
 }
 
 void TransitionArray::TransitionArrayVerify() {
-  FixedArrayVerify();
+  WeakFixedArrayVerify();
   CHECK_LE(LengthFor(number_of_transitions()), length());
 }
 
@@ -878,8 +935,9 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   }
 
   Isolate* isolate = GetIsolate();
-  CHECK(HasCodeObject() || IsApiFunction() || HasBytecodeArray() ||
-        HasAsmWasmData() || HasBuiltinId() || HasPreParsedScopeData());
+  CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
+        HasBytecodeArray() || HasAsmWasmData() || HasBuiltinId() ||
+        HasPreParsedScopeData());
 
   CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
         HasInferredName());
@@ -977,6 +1035,9 @@ void Oddball::OddballVerify() {
     CHECK(this == heap->optimized_out());
   } else if (map() == heap->stale_register_map()) {
     CHECK(this == heap->stale_register());
+  } else if (map() == heap->self_reference_marker_map()) {
+    // Multiple instances of this oddball may exist at once.
+    CHECK_EQ(kind(), Oddball::kSelfReferenceMarker);
   } else {
     UNREACHABLE();
   }
@@ -1009,10 +1070,9 @@ void CodeDataContainer::CodeDataContainerVerify() {
 
 void Code::CodeVerify() {
   CHECK_LE(constant_pool_offset(), InstructionSize());
-  CHECK(IsAligned(reinterpret_cast<intptr_t>(InstructionStart()),
-                  kCodeAlignment));
+  CHECK(IsAligned(InstructionStart(), kCodeAlignment));
   relocation_info()->ObjectVerify();
-  Address last_gc_pc = nullptr;
+  Address last_gc_pc = kNullAddress;
   Isolate* isolate = GetIsolate();
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);
@@ -1037,6 +1097,9 @@ void JSArray::JSArrayVerify() {
   if (!length()->IsNumber()) return;
   // Verify that the length and the elements backing store are in sync.
   if (length()->IsSmi() && HasFastElements()) {
+    if (elements()->length() > 0) {
+      CHECK_IMPLIES(HasDoubleElements(), elements()->IsFixedDoubleArray());
+    }
     int size = Smi::ToInt(length());
     // Holey / Packed backing stores might have slack or might have not been
     // properly initialized yet.
@@ -1242,24 +1305,22 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify() {
   CHECK(IsSmallOrderedHashTable());
   Isolate* isolate = GetIsolate();
 
+  int capacity = Capacity();
+  CHECK_GE(capacity, kMinCapacity);
+  CHECK_LE(capacity, kMaxCapacity);
+
   for (int entry = 0; entry < NumberOfBuckets(); entry++) {
     int bucket = GetFirstEntry(entry);
     if (bucket == kNotFound) continue;
-
-    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
-      Object* val = GetDataEntry(bucket, offset);
-      CHECK(!val->IsTheHole(isolate));
-    }
+    CHECK_GE(bucket, 0);
+    CHECK_LE(bucket, capacity);
   }
 
   for (int entry = 0; entry < NumberOfElements(); entry++) {
     int chain = GetNextEntry(entry);
     if (chain == kNotFound) continue;
-
-    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
-      Object* val = GetDataEntry(chain, offset);
-      CHECK(!val->IsTheHole(isolate));
-    }
+    CHECK_GE(chain, 0);
+    CHECK_LE(chain, capacity);
   }
 
   for (int entry = 0; entry < NumberOfElements(); entry++) {
@@ -1269,7 +1330,16 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify() {
     }
   }
 
-  for (int entry = NumberOfElements(); entry < Capacity(); entry++) {
+  for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
+       entry++) {
+    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
+      Object* val = GetDataEntry(entry, offset);
+      CHECK(val->IsTheHole(isolate));
+    }
+  }
+
+  for (int entry = NumberOfElements() + NumberOfDeletedElements();
+       entry < Capacity(); entry++) {
     for (int offset = 0; offset < Derived::kEntrySize; offset++) {
       Object* val = GetDataEntry(entry, offset);
       CHECK(val->IsTheHole(isolate));
@@ -1494,16 +1564,10 @@ void Tuple3::Tuple3Verify() {
 
 void WasmCompiledModule::WasmCompiledModuleVerify() {
   CHECK(IsWasmCompiledModule());
-  VerifyObjectField(kSharedOffset);
-  VerifyObjectField(kNativeContextOffset);
-  VerifyObjectField(kExportWrappersOffset);
   VerifyObjectField(kNextInstanceOffset);
   VerifyObjectField(kPrevInstanceOffset);
   VerifyObjectField(kOwningInstanceOffset);
-  VerifyObjectField(kWasmModuleOffset);
   VerifyObjectField(kNativeModuleOffset);
-  VerifyObjectField(kLazyCompileDataOffset);
-  VerifyObjectField(kUseTrapHandlerOffset);
 }
 
 void WasmDebugInfo::WasmDebugInfoVerify() {
@@ -1519,10 +1583,32 @@ void WasmDebugInfo::WasmDebugInfoVerify() {
   VerifyObjectField(kCWasmEntryMapOffset);
 }
 
+void WasmInstanceObject::WasmInstanceObjectVerify() {
+  JSObjectVerify();
+  CHECK(IsWasmInstanceObject());
+
+  // Just generically check all tagged fields. Don't check the untagged fields,
+  // as some of them might still contain the "undefined" value if the
+  // WasmInstanceObject is not fully set up yet.
+  for (int offset = kHeaderSize; offset < kFirstUntaggedOffset;
+       offset += kPointerSize) {
+    VerifyObjectField(offset);
+  }
+}
+
+void WasmExportedFunctionData::WasmExportedFunctionDataVerify() {
+  CHECK(IsWasmExportedFunctionData());
+  VerifyObjectField(kWrapperCodeOffset);
+  CHECK(wrapper_code()->kind() == Code::JS_TO_WASM_FUNCTION ||
+        wrapper_code()->kind() == Code::C_WASM_ENTRY);
+  VerifyObjectField(kInstanceOffset);
+  VerifySmiField(kFunctionIndexOffset);
+}
+
 void WasmSharedModuleData::WasmSharedModuleDataVerify() {
   CHECK(IsWasmSharedModuleData());
-  VerifyObjectField(kModuleWrapperOffset);
-  CHECK(module_wrapper()->IsForeign());
+  VerifyObjectField(kManagedModuleOffset);
+  CHECK(managed_module()->IsForeign());
   VerifyObjectField(kModuleBytesOffset);
   VerifyObjectField(kScriptOffset);
   VerifyObjectField(kAsmJsOffsetTableOffset);
@@ -1556,12 +1642,6 @@ void StoreHandler::StoreHandlerVerify() {
   // TODO(ishell): check handler integrity
 }
 
-void ContextExtension::ContextExtensionVerify() {
-  CHECK(IsContextExtension());
-  VerifyObjectField(kScopeInfoOffset);
-  VerifyObjectField(kExtensionOffset);
-}
-
 void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());
   VerifyPointer(name());
@@ -1591,7 +1671,8 @@ void AccessCheckInfo::AccessCheckInfoVerify() {
 void CallHandlerInfo::CallHandlerInfoVerify() {
   CHECK(IsCallHandlerInfo());
   CHECK(map() == GetHeap()->side_effect_call_handler_info_map() ||
-        map() == GetHeap()->side_effect_free_call_handler_info_map());
+        map() == GetHeap()->side_effect_free_call_handler_info_map() ||
+        map() == GetHeap()->next_call_side_effect_free_call_handler_info_map());
   VerifyPointer(callback());
   VerifyPointer(js_callback());
   VerifyPointer(data());
@@ -1713,6 +1794,23 @@ void InterpreterData::InterpreterDataVerify() {
   CHECK(bytecode_array()->IsBytecodeArray());
   CHECK(interpreter_trampoline()->IsCode());
 }
+
+#ifdef V8_INTL_SUPPORT
+void JSLocale::JSLocaleVerify() {
+  VerifyObjectField(kLanguageOffset);
+  VerifyObjectField(kScriptOffset);
+  VerifyObjectField(kRegionOffset);
+  VerifyObjectField(kBaseNameOffset);
+  VerifyObjectField(kLocaleOffset);
+  // Unicode extension fields.
+  VerifyObjectField(kCalendarOffset);
+  VerifyObjectField(kCaseFirstOffset);
+  VerifyObjectField(kCollationOffset);
+  VerifyObjectField(kHourCycleOffset);
+  VerifyObjectField(kNumericOffset);
+  VerifyObjectField(kNumberingSystemOffset);
+}
+#endif  // V8_INTL_SUPPORT
 
 #endif  // VERIFY_HEAP
 

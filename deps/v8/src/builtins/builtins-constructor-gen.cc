@@ -233,7 +233,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
-    Node* function, Node* slots, Node* context, ScopeType scope_type) {
+    Node* scope_info, Node* slots, Node* context, ScopeType scope_type) {
   slots = ChangeUint32ToWord(slots);
 
   // TODO(ishell): Use CSA::OptimalParameterMode() here.
@@ -261,8 +261,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
                                  SmiTag(length));
 
   // Set up the fixed slots.
-  StoreFixedArrayElement(function_context, Context::CLOSURE_INDEX, function,
-                         SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(function_context, Context::SCOPE_INFO_INDEX,
+                         scope_info, SKIP_WRITE_BARRIER);
   StoreFixedArrayElement(function_context, Context::PREVIOUS_INDEX, context,
                          SKIP_WRITE_BARRIER);
   StoreFixedArrayElement(function_context, Context::EXTENSION_INDEX,
@@ -287,18 +287,18 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
 }
 
 TF_BUILTIN(FastNewFunctionContextEval, ConstructorBuiltinsAssembler) {
-  Node* function = Parameter(FastNewFunctionContextDescriptor::kFunction);
+  Node* scope_info = Parameter(FastNewFunctionContextDescriptor::kScopeInfo);
   Node* slots = Parameter(FastNewFunctionContextDescriptor::kSlots);
   Node* context = Parameter(FastNewFunctionContextDescriptor::kContext);
-  Return(EmitFastNewFunctionContext(function, slots, context,
+  Return(EmitFastNewFunctionContext(scope_info, slots, context,
                                     ScopeType::EVAL_SCOPE));
 }
 
 TF_BUILTIN(FastNewFunctionContextFunction, ConstructorBuiltinsAssembler) {
-  Node* function = Parameter(FastNewFunctionContextDescriptor::kFunction);
+  Node* scope_info = Parameter(FastNewFunctionContextDescriptor::kScopeInfo);
   Node* slots = Parameter(FastNewFunctionContextDescriptor::kSlots);
   Node* context = Parameter(FastNewFunctionContextDescriptor::kContext);
-  Return(EmitFastNewFunctionContext(function, slots, context,
+  Return(EmitFastNewFunctionContext(scope_info, slots, context,
                                     ScopeType::FUNCTION_SCOPE));
 }
 
@@ -308,8 +308,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
   Label call_runtime(this, Label::kDeferred), end(this);
 
   VARIABLE(result, MachineRepresentation::kTagged);
-  Node* literal_site =
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS);
+  TNode<Object> literal_site = ToObject(
+      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
   GotoIf(NotHasBoilerplate(literal_site), &call_runtime);
   {
     Node* boilerplate = literal_site;
@@ -353,17 +353,19 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
       return_result(this);
   VARIABLE(result, MachineRepresentation::kTagged);
 
-  Node* allocation_site =
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS);
+  TNode<Object> allocation_site = ToObject(
+      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
   GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
 
   Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
-  allocation_site =
-      allocation_site_mode == TRACK_ALLOCATION_SITE ? allocation_site : nullptr;
 
   CSA_ASSERT(this, IsJSArrayMap(LoadMap(boilerplate)));
   ParameterMode mode = OptimalParameterMode();
-  return CloneFastJSArray(context, boilerplate, mode, allocation_site);
+  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
+    return CloneFastJSArray(context, boilerplate, mode, allocation_site);
+  } else {
+    return CloneFastJSArray(context, boilerplate, mode);
+  }
 }
 
 TF_BUILTIN(CreateShallowArrayLiteral, ConstructorBuiltinsAssembler) {
@@ -390,8 +392,9 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
     Node* feedback_vector, Node* slot, Node* context) {
   // Array literals always have a valid AllocationSite to properly track
   // elements transitions.
-  VARIABLE(allocation_site, MachineRepresentation::kTagged,
-           LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  TVARIABLE(Object, allocation_site,
+            ToObject(LoadFeedbackVectorSlot(feedback_vector, slot, 0,
+                                            INTPTR_PARAMETERS)));
 
   Label create_empty_array(this),
       initialize_allocation_site(this, Label::kDeferred), done(this);
@@ -401,15 +404,15 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   // TODO(cbruni): create the AllocationSite in CSA.
   BIND(&initialize_allocation_site);
   {
-    allocation_site.Bind(
-        CreateAllocationSiteInFeedbackVector(feedback_vector, SmiTag(slot)));
+    allocation_site =
+        CreateAllocationSiteInFeedbackVector(feedback_vector, SmiTag(slot));
     Goto(&create_empty_array);
   }
 
   BIND(&create_empty_array);
-  CSA_ASSERT(this, IsAllocationSite(allocation_site.value()));
+  CSA_ASSERT(this, IsAllocationSite(CAST(allocation_site.value())));
   Node* kind = SmiToInt32(CAST(
-      LoadObjectField(allocation_site.value(),
+      LoadObjectField(CAST(allocation_site.value()),
                       AllocationSite::kTransitionInfoOrBoilerplateOffset)));
   CSA_ASSERT(this, IsFastElementsKind(kind));
   Node* native_context = LoadNativeContext(context);
@@ -437,8 +440,8 @@ TF_BUILTIN(CreateEmptyArrayLiteral, ConstructorBuiltinsAssembler) {
 
 Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     Node* feedback_vector, Node* slot, Label* call_runtime) {
-  Node* allocation_site =
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS);
+  TNode<Object> allocation_site = ToObject(
+      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
   GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
 
   Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
@@ -456,8 +459,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     BIND(&if_dictionary);
     {
       Comment("Copy dictionary properties");
-      var_properties.Bind(
-          CopyNameDictionary(LoadSlowProperties(boilerplate), call_runtime));
+      var_properties.Bind(CopyNameDictionary(
+          CAST(LoadSlowProperties(boilerplate)), call_runtime));
       // Slow objects have no in-object properties.
       Goto(&done);
     }

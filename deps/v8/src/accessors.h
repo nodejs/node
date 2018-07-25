@@ -33,7 +33,6 @@ class JavaScriptFrame;
   V(function_name, FunctionName)                                    \
   V(function_length, FunctionLength)                                \
   V(function_prototype, FunctionPrototype)                          \
-  V(reconfigure_to_data_property, ReconfigureToDataProperty)        \
   V(script_column_offset, ScriptColumnOffset)                       \
   V(script_compilation_type, ScriptCompilationType)                 \
   V(script_context_data, ScriptContextData)                         \
@@ -109,6 +108,10 @@ class Accessors : public AllStatic {
   // If true, the matching FieldIndex is returned through |field_index|.
   static bool IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
                                       FieldIndex* field_index);
+
+  static MaybeHandle<Object> ReplaceAccessorWithDataProperty(
+      Isolate* isolate, Handle<Object> receiver, Handle<JSObject> holder,
+      Handle<Name> name, Handle<Object> value);
 
   // Create an AccessorInfo. The setter is optional (can be nullptr).
   //

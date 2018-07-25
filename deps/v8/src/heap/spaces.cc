@@ -31,15 +31,15 @@ namespace internal {
 // HeapObjectIterator
 
 HeapObjectIterator::HeapObjectIterator(PagedSpace* space)
-    : cur_addr_(nullptr),
-      cur_end_(nullptr),
+    : cur_addr_(kNullAddress),
+      cur_end_(kNullAddress),
       space_(space),
       page_range_(space->anchor()->next_page(), space->anchor()),
       current_page_(page_range_.begin()) {}
 
 HeapObjectIterator::HeapObjectIterator(Page* page)
-    : cur_addr_(nullptr),
-      cur_end_(nullptr),
+    : cur_addr_(kNullAddress),
+      cur_end_(kNullAddress),
       space_(reinterpret_cast<PagedSpace*>(page->owner())),
       page_range_(page),
       current_page_(page_range_.begin()) {
@@ -133,7 +133,7 @@ bool CodeRange::SetUp(size_t requested) {
 
   // We are sure that we have mapped a block of requested addresses.
   DCHECK_GE(reservation.size(), requested);
-  Address base = reinterpret_cast<Address>(reservation.address());
+  Address base = reservation.address();
 
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space.
@@ -149,7 +149,9 @@ bool CodeRange::SetUp(size_t requested) {
   allocation_list_.emplace_back(aligned_base, size);
   current_allocation_block_index_ = 0;
 
-  LOG(isolate_, NewEvent("CodeRange", reservation.address(), requested));
+  LOG(isolate_,
+      NewEvent("CodeRange", reinterpret_cast<void*>(reservation.address()),
+               requested));
   virtual_memory_.TakeControl(&reservation);
   return true;
 }
@@ -212,7 +214,7 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
   FreeBlock current;
   if (!ReserveBlock(requested_size, &current)) {
     *allocated = 0;
-    return nullptr;
+    return kNullAddress;
   }
   *allocated = current.size;
   DCHECK(IsAddressAligned(current.start, MemoryChunk::kAlignment));
@@ -220,23 +222,10 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
           &virtual_memory_, current.start, commit_size, *allocated)) {
     *allocated = 0;
     ReleaseBlock(&current);
-    return nullptr;
+    return kNullAddress;
   }
   return current.start;
 }
-
-
-bool CodeRange::CommitRawMemory(Address start, size_t length) {
-  return isolate_->heap()->memory_allocator()->CommitMemory(start, length,
-                                                            EXECUTABLE);
-}
-
-
-bool CodeRange::UncommitRawMemory(Address start, size_t length) {
-  return virtual_memory_.SetPermissions(start, length,
-                                        PageAllocator::kNoAccess);
-}
-
 
 void CodeRange::FreeRawMemory(Address address, size_t length) {
   DCHECK(IsAddressAligned(address, MemoryChunk::kAlignment));
@@ -284,8 +273,8 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
       capacity_(0),
       size_(0),
       size_executable_(0),
-      lowest_ever_allocated_(reinterpret_cast<void*>(-1)),
-      highest_ever_allocated_(reinterpret_cast<void*>(0)),
+      lowest_ever_allocated_(static_cast<Address>(-1ll)),
+      highest_ever_allocated_(kNullAddress),
       unmapper_(isolate->heap(), this) {}
 
 bool MemoryAllocator::SetUp(size_t capacity, size_t code_range_size) {
@@ -371,7 +360,7 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
   }
 }
 
-void MemoryAllocator::Unmapper::WaitUntilCompleted() {
+void MemoryAllocator::Unmapper::CancelAndWaitForPendingTasks() {
   for (int i = 0; i < pending_unmapping_tasks_; i++) {
     if (heap_->isolate()->cancelable_task_manager()->TryAbort(task_ids_[i]) !=
         CancelableTaskManager::kTaskAborted) {
@@ -382,9 +371,21 @@ void MemoryAllocator::Unmapper::WaitUntilCompleted() {
   active_unmapping_tasks_.SetValue(0);
 
   if (FLAG_trace_unmapper) {
-    PrintIsolate(heap_->isolate(),
-                 "Unmapper::WaitUntilCompleted: no tasks remaining\n");
+    PrintIsolate(
+        heap_->isolate(),
+        "Unmapper::CancelAndWaitForPendingTasks: no tasks remaining\n");
   }
+}
+
+void MemoryAllocator::Unmapper::PrepareForMarkCompact() {
+  CancelAndWaitForPendingTasks();
+  // Free non-regular chunks because they cannot be re-used.
+  PerformFreeMemoryOnQueuedNonRegularChunks();
+}
+
+void MemoryAllocator::Unmapper::EnsureUnmappingCompleted() {
+  CancelAndWaitForPendingTasks();
+  PerformFreeMemoryOnQueuedChunks<FreeMode::kReleasePooled>();
 }
 
 bool MemoryAllocator::Unmapper::MakeRoomForNewTasks() {
@@ -393,9 +394,16 @@ bool MemoryAllocator::Unmapper::MakeRoomForNewTasks() {
   if (active_unmapping_tasks_.Value() == 0 && pending_unmapping_tasks_ > 0) {
     // All previous unmapping tasks have been run to completion.
     // Finalize those tasks to make room for new ones.
-    WaitUntilCompleted();
+    CancelAndWaitForPendingTasks();
   }
   return pending_unmapping_tasks_ != kMaxUnmapperTasks;
+}
+
+void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedNonRegularChunks() {
+  MemoryChunk* chunk = nullptr;
+  while ((chunk = GetMemoryChunkSafe<kNonRegular>()) != nullptr) {
+    allocator_->PerformFreeMemory(chunk);
+  }
 }
 
 template <MemoryAllocator::Unmapper::FreeMode mode>
@@ -421,10 +429,7 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
       allocator_->Free<MemoryAllocator::kAlreadyPooled>(chunk);
     }
   }
-  // Non-regular chunks.
-  while ((chunk = GetMemoryChunkSafe<kNonRegular>()) != nullptr) {
-    allocator_->PerformFreeMemory(chunk);
-  }
+  PerformFreeMemoryOnQueuedNonRegularChunks();
 }
 
 void MemoryAllocator::Unmapper::TearDown() {
@@ -444,8 +449,7 @@ int MemoryAllocator::Unmapper::NumberOfChunks() {
   return static_cast<int>(result);
 }
 
-bool MemoryAllocator::CommitMemory(Address base, size_t size,
-                                   Executability executable) {
+bool MemoryAllocator::CommitMemory(Address base, size_t size) {
   if (!SetPermissions(base, size, PageAllocator::kReadWrite)) {
     return false;
   }
@@ -458,7 +462,7 @@ void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
   // TODO(gc) make code_range part of memory allocator?
   // Code which is part of the code-range does not have its own VirtualMemory.
   DCHECK(code_range() == nullptr ||
-         !code_range()->contains(static_cast<Address>(reservation->address())));
+         !code_range()->contains(reservation->address()));
   DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid() ||
          reservation->size() <= Page::kPageSize);
 
@@ -469,13 +473,12 @@ void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
 void MemoryAllocator::FreeMemory(Address base, size_t size,
                                  Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
-  if (code_range() != nullptr &&
-      code_range()->contains(static_cast<Address>(base))) {
+  if (code_range() != nullptr && code_range()->contains(base)) {
     DCHECK(executable == EXECUTABLE);
     code_range()->FreeRawMemory(base, size);
   } else {
     DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid());
-    CHECK(FreePages(base, size));
+    CHECK(FreePages(reinterpret_cast<void*>(base), size));
   }
 }
 
@@ -483,10 +486,11 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
                                               void* hint,
                                               VirtualMemory* controller) {
   VirtualMemory reservation;
-  if (!AlignedAllocVirtualMemory(size, alignment, hint, &reservation))
-    return nullptr;
+  if (!AlignedAllocVirtualMemory(size, alignment, hint, &reservation)) {
+    return kNullAddress;
+  }
 
-  Address result = static_cast<Address>(reservation.address());
+  Address result = reservation.address();
   size_.Increment(reservation.size());
   controller->TakeControl(&reservation);
   return result;
@@ -499,28 +503,28 @@ Address MemoryAllocator::AllocateAlignedMemory(
   VirtualMemory reservation;
   Address base =
       ReserveAlignedMemory(reserve_size, alignment, hint, &reservation);
-  if (base == nullptr) return nullptr;
+  if (base == kNullAddress) return kNullAddress;
 
   if (executable == EXECUTABLE) {
     if (!CommitExecutableMemory(&reservation, base, commit_size,
                                 reserve_size)) {
-      base = nullptr;
+      base = kNullAddress;
     }
   } else {
     if (reservation.SetPermissions(base, commit_size,
                                    PageAllocator::kReadWrite)) {
       UpdateAllocatedSpaceLimits(base, base + commit_size);
     } else {
-      base = nullptr;
+      base = kNullAddress;
     }
   }
 
-  if (base == nullptr) {
+  if (base == kNullAddress) {
     // Failed to commit the body. Free the mapping and any partially committed
     // regions inside it.
     reservation.Free();
     size_.Decrement(reserve_size);
-    return nullptr;
+    return kNullAddress;
   }
 
   controller->TakeControl(&reservation);
@@ -705,7 +709,7 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
 }
 
 LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
-                                 Executability executable, Space* owner) {
+                                 Executability executable) {
   if (executable && chunk->size() > LargePage::kMaxCodePageSize) {
     STATIC_ASSERT(LargePage::kMaxCodePageSize <= TypedSlotSet::kMaxOffset);
     FATAL("Code page is too large.");
@@ -796,10 +800,10 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
 
   size_t chunk_size;
   Heap* heap = isolate_->heap();
-  Address base = nullptr;
+  Address base = kNullAddress;
   VirtualMemory reservation;
-  Address area_start = nullptr;
-  Address area_end = nullptr;
+  Address area_start = kNullAddress;
+  Address area_end = kNullAddress;
   void* address_hint =
       AlignedAddress(heap->GetRandomMmapAddr(), MemoryChunk::kAlignment);
 
@@ -851,9 +855,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
 #endif
       base =
           code_range()->AllocateRawMemory(chunk_size, commit_size, &chunk_size);
-      DCHECK(
-          IsAligned(reinterpret_cast<intptr_t>(base), MemoryChunk::kAlignment));
-      if (base == nullptr) return nullptr;
+      DCHECK(IsAligned(base, MemoryChunk::kAlignment));
+      if (base == kNullAddress) return nullptr;
       size_.Increment(chunk_size);
       // Update executable memory size.
       size_executable_.Increment(chunk_size);
@@ -861,7 +864,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
       base = AllocateAlignedMemory(chunk_size, commit_size,
                                    MemoryChunk::kAlignment, executable,
                                    address_hint, &reservation);
-      if (base == nullptr) return nullptr;
+      if (base == kNullAddress) return nullptr;
       // Update executable memory size.
       size_executable_.Increment(reservation.size());
     }
@@ -883,7 +886,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
         AllocateAlignedMemory(chunk_size, commit_size, MemoryChunk::kAlignment,
                               executable, address_hint, &reservation);
 
-    if (base == nullptr) return nullptr;
+    if (base == kNullAddress) return nullptr;
 
     if (Heap::ShouldZapGarbage()) {
       ZapBlock(base, Page::kObjectStartOffset + commit_area_size);
@@ -898,16 +901,16 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   isolate_->counters()->memory_allocated()->Increment(
       static_cast<int>(chunk_size));
 
-  LOG(isolate_, NewEvent("MemoryChunk", base, chunk_size));
+  LOG(isolate_,
+      NewEvent("MemoryChunk", reinterpret_cast<void*>(base), chunk_size));
 
   // We cannot use the last chunk in the address space because we would
   // overflow when comparing top and limit if this chunk is used for a
   // linear allocation area.
-  if ((reinterpret_cast<uintptr_t>(base) + chunk_size) == 0u) {
+  if ((base + chunk_size) == 0u) {
     CHECK(!last_chunk_.IsReserved());
     last_chunk_.TakeControl(&reservation);
-    UncommitBlock(reinterpret_cast<Address>(last_chunk_.address()),
-                  last_chunk_.size());
+    UncommitBlock(last_chunk_.address(), last_chunk_.size());
     size_.Decrement(chunk_size);
     if (executable == EXECUTABLE) {
       size_executable_.Decrement(chunk_size);
@@ -1004,7 +1007,7 @@ void Page::CreateBlackArea(Address start, Address end) {
       heap()->incremental_marking()->marking_state();
   marking_state->bitmap(this)->SetRange(AddressToMarkbitIndex(start),
                                         AddressToMarkbitIndex(end));
-  marking_state->IncrementLiveBytes(this, static_cast<int>(end - start));
+  marking_state->IncrementLiveBytes(this, static_cast<intptr_t>(end - start));
 }
 
 void Page::DestroyBlackArea(Address start, Address end) {
@@ -1016,7 +1019,7 @@ void Page::DestroyBlackArea(Address start, Address end) {
       heap()->incremental_marking()->marking_state();
   marking_state->bitmap(this)->ClearRange(AddressToMarkbitIndex(start),
                                           AddressToMarkbitIndex(end));
-  marking_state->IncrementLiveBytes(this, -static_cast<int>(end - start));
+  marking_state->IncrementLiveBytes(this, -static_cast<intptr_t>(end - start));
 }
 
 void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
@@ -1029,8 +1032,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
   if (chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
     // Add guard page at the end.
     size_t page_size = GetCommitPageSize();
-    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(chunk->area_end_) %
-                     static_cast<uintptr_t>(page_size));
+    DCHECK_EQ(0, chunk->area_end_ % static_cast<Address>(page_size));
     DCHECK_EQ(chunk->address() + chunk->size(),
               chunk->area_end() + CodePageGuardSize());
     reservation->SetPermissions(chunk->area_end_, page_size,
@@ -1153,7 +1155,7 @@ LargePage* MemoryAllocator::AllocateLargePage(size_t size,
                                               Executability executable) {
   MemoryChunk* chunk = AllocateChunk(size, size, executable, owner);
   if (chunk == nullptr) return nullptr;
-  return LargePage::Initialize(isolate_->heap(), chunk, executable, owner);
+  return LargePage::Initialize(isolate_->heap(), chunk, executable);
 }
 
 template <typename SpaceType>
@@ -1164,7 +1166,7 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   const Address start = reinterpret_cast<Address>(chunk);
   const Address area_start = start + MemoryChunk::kObjectStartOffset;
   const Address area_end = start + size;
-  if (!CommitBlock(reinterpret_cast<Address>(chunk), size, NOT_EXECUTABLE)) {
+  if (!CommitBlock(start, size)) {
     return nullptr;
   }
   VirtualMemory reservation(start, size);
@@ -1174,9 +1176,8 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   return chunk;
 }
 
-bool MemoryAllocator::CommitBlock(Address start, size_t size,
-                                  Executability executable) {
-  if (!CommitMemory(start, size, executable)) return false;
+bool MemoryAllocator::CommitBlock(Address start, size_t size) {
+  if (!CommitMemory(start, size)) return false;
 
   if (Heap::ShouldZapGarbage()) {
     ZapBlock(start, size);
@@ -1196,7 +1197,7 @@ bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
 
 void MemoryAllocator::ZapBlock(Address start, size_t size) {
   for (size_t s = 0; s + kPointerSize <= size; s += kPointerSize) {
-    Memory::Address_at(start + s) = reinterpret_cast<Address>(kZapValue);
+    Memory::Address_at(start + s) = static_cast<Address>(kZapValue);
   }
 }
 
@@ -1394,7 +1395,7 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject* object,
 
 void MemoryChunk::AllocateLocalTracker() {
   DCHECK_NULL(local_tracker_);
-  local_tracker_ = new LocalArrayBufferTracker(heap());
+  local_tracker_ = new LocalArrayBufferTracker(owner());
 }
 
 void MemoryChunk::ReleaseLocalTracker() {
@@ -1463,7 +1464,7 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
-    : SpaceWithLinearArea(heap, space, executable), anchor_(this) {
+    : SpaceWithLinearArea(heap, space), executable_(executable), anchor_(this) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 }
@@ -1530,8 +1531,8 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   other->FreeLinearAllocationArea();
 
   // The linear allocation area of {other} should be destroyed now.
-  DCHECK_NULL(other->top());
-  DCHECK_NULL(other->limit());
+  DCHECK_EQ(kNullAddress, other->top());
+  DCHECK_EQ(kNullAddress, other->limit());
 
   // Move over pages.
   for (auto it = other->begin(); it != other->end();) {
@@ -1690,7 +1691,7 @@ void PagedSpace::ResetFreeListStatistics() {
 
 void PagedSpace::SetLinearAllocationArea(Address top, Address limit) {
   SetTopAndLimit(top, limit);
-  if (top != nullptr && top != limit &&
+  if (top != kNullAddress && top != limit &&
       heap()->incremental_marking()->black_allocation()) {
     Page::FromAllocationAreaAddress(top)->CreateBlackArea(top, limit);
   }
@@ -1735,7 +1736,7 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
     } else {
       rounded_step = RoundSizeDownToObjectAlignment(static_cast<int>(step));
     }
-    return Min(start + min_size + rounded_step, end);
+    return Min(static_cast<Address>(start + min_size + rounded_step), end);
   } else {
     // The entire node can be used as the linear allocation area.
     return end;
@@ -1746,7 +1747,7 @@ void PagedSpace::MarkLinearAllocationAreaBlack() {
   DCHECK(heap()->incremental_marking()->black_allocation());
   Address current_top = top();
   Address current_limit = limit();
-  if (current_top != nullptr && current_top != current_limit) {
+  if (current_top != kNullAddress && current_top != current_limit) {
     Page::FromAllocationAreaAddress(current_top)
         ->CreateBlackArea(current_top, current_limit);
   }
@@ -1755,7 +1756,7 @@ void PagedSpace::MarkLinearAllocationAreaBlack() {
 void PagedSpace::UnmarkLinearAllocationArea() {
   Address current_top = top();
   Address current_limit = limit();
-  if (current_top != nullptr && current_top != current_limit) {
+  if (current_top != kNullAddress && current_top != current_limit) {
     Page::FromAllocationAreaAddress(current_top)
         ->DestroyBlackArea(current_top, current_limit);
   }
@@ -1766,8 +1767,8 @@ void PagedSpace::FreeLinearAllocationArea() {
   // skipped when scanning the heap.
   Address current_top = top();
   Address current_limit = limit();
-  if (current_top == nullptr) {
-    DCHECK_NULL(current_limit);
+  if (current_top == kNullAddress) {
+    DCHECK_EQ(kNullAddress, current_limit);
     return;
   }
 
@@ -1786,14 +1787,14 @@ void PagedSpace::FreeLinearAllocationArea() {
     }
   }
 
-  InlineAllocationStep(current_top, nullptr, nullptr, 0);
-  SetTopAndLimit(nullptr, nullptr);
+  InlineAllocationStep(current_top, kNullAddress, kNullAddress, 0);
+  SetTopAndLimit(kNullAddress, kNullAddress);
   DCHECK_GE(current_limit, current_top);
 
   // The code page of the linear allocation area needs to be unprotected
   // because we are going to write a filler into that memory area below.
   if (identity() == CODE_SPACE) {
-    heap_->UnprotectAndRegisterMemoryChunk(
+    heap()->UnprotectAndRegisterMemoryChunk(
         MemoryChunk::FromAddress(current_top));
   }
   Free(current_top, current_limit - current_top,
@@ -1811,7 +1812,7 @@ void PagedSpace::ReleasePage(Page* page) {
 
   if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
     DCHECK(!top_on_previous_step_);
-    allocation_info_.Reset(nullptr, nullptr);
+    allocation_info_.Reset(kNullAddress, kNullAddress);
   }
 
   // If page is still in a list, unlink it from that list.
@@ -1827,7 +1828,7 @@ void PagedSpace::ReleasePage(Page* page) {
 void PagedSpace::SetReadAndExecutable() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
-    CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+    CHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
     page->SetReadAndExecutable();
   }
 }
@@ -1835,7 +1836,7 @@ void PagedSpace::SetReadAndExecutable() {
 void PagedSpace::SetReadAndWritable() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
-    CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+    CHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
     page->SetReadAndWritable();
   }
 }
@@ -1889,7 +1890,7 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
   DCHECK_LE(size_in_bytes, limit - start);
   if (limit != end) {
     if (identity() == CODE_SPACE) {
-      heap_->UnprotectAndRegisterMemoryChunk(page);
+      heap()->UnprotectAndRegisterMemoryChunk(page);
     }
     Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
   }
@@ -1923,7 +1924,8 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       // be in map space.
       Map* map = object->map();
       CHECK(map->IsMap());
-      CHECK(heap()->map_space()->Contains(map));
+      CHECK(heap()->map_space()->Contains(map) ||
+            heap()->read_only_space()->Contains(map));
 
       // Perform space-specific object verification.
       VerifyObject(object);
@@ -2038,7 +2040,7 @@ bool NewSpace::SetUp(size_t initial_semispace_capacity,
 
 
 void NewSpace::TearDown() {
-  allocation_info_.Reset(nullptr, nullptr);
+  allocation_info_.Reset(kNullAddress, kNullAddress);
 
   to_space_.TearDown();
   from_space_.TearDown();
@@ -2122,7 +2124,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       actual_pages++;
       current_page =
           heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-              Page::kAllocatableMemory, this, executable());
+              Page::kAllocatableMemory, this, NOT_EXECUTABLE);
       if (current_page == nullptr) return false;
       DCHECK_NOT_NULL(current_page);
       current_page->InsertAfter(anchor());
@@ -2144,10 +2146,10 @@ LinearAllocationArea LocalAllocationBuffer::Close() {
         static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
         ClearRecordedSlots::kNo);
     const LinearAllocationArea old_info = allocation_info_;
-    allocation_info_ = LinearAllocationArea(nullptr, nullptr);
+    allocation_info_ = LinearAllocationArea(kNullAddress, kNullAddress);
     return old_info;
   }
-  return LinearAllocationArea(nullptr, nullptr);
+  return LinearAllocationArea(kNullAddress, kNullAddress);
 }
 
 LocalAllocationBuffer::LocalAllocationBuffer(
@@ -2177,8 +2179,8 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
   // This is needed since we (a) cannot yet use move-semantics, and (b) want
   // to make the use of the class easy by it as value and (c) implicitly call
   // {Close} upon copy.
-  const_cast<LocalAllocationBuffer&>(other)
-      .allocation_info_.Reset(nullptr, nullptr);
+  const_cast<LocalAllocationBuffer&>(other).allocation_info_.Reset(
+      kNullAddress, kNullAddress);
   return *this;
 }
 
@@ -2197,7 +2199,7 @@ void NewSpace::UpdateLinearAllocationArea() {
 
 void NewSpace::ResetLinearAllocationArea() {
   // Do a step to account for memory allocated so far before resetting.
-  InlineAllocationStep(top(), top(), nullptr, 0);
+  InlineAllocationStep(top(), top(), kNullAddress, 0);
   to_space_.Reset();
   UpdateLinearAllocationArea();
   // Clear all mark-bits in the to-space.
@@ -2227,7 +2229,7 @@ bool NewSpace::AddFreshPage() {
   DCHECK(!Page::IsAtObjectStart(top));
 
   // Do a step to account for memory allocated on previous page.
-  InlineAllocationStep(top, top, nullptr, 0);
+  InlineAllocationStep(top, top, kNullAddress, 0);
 
   if (!to_space_.AdvancePage()) {
     // No more pages left to advance.
@@ -2293,12 +2295,12 @@ void SpaceWithLinearArea::StartNextInlineAllocationStep() {
     top_on_previous_step_ = top();
     UpdateInlineAllocationLimit(0);
   } else {
-    DCHECK_NULL(top_on_previous_step_);
+    DCHECK_EQ(kNullAddress, top_on_previous_step_);
   }
 }
 
 void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
-  InlineAllocationStep(top(), top(), nullptr, 0);
+  InlineAllocationStep(top(), top(), kNullAddress, 0);
   Space::AddAllocationObserver(observer);
   DCHECK_IMPLIES(top_on_previous_step_, AllocationObserversActive());
 }
@@ -2306,22 +2308,22 @@ void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
 void SpaceWithLinearArea::RemoveAllocationObserver(
     AllocationObserver* observer) {
   Address top_for_next_step =
-      allocation_observers_.size() == 1 ? nullptr : top();
-  InlineAllocationStep(top(), top_for_next_step, nullptr, 0);
+      allocation_observers_.size() == 1 ? kNullAddress : top();
+  InlineAllocationStep(top(), top_for_next_step, kNullAddress, 0);
   Space::RemoveAllocationObserver(observer);
   DCHECK_IMPLIES(top_on_previous_step_, AllocationObserversActive());
 }
 
 void SpaceWithLinearArea::PauseAllocationObservers() {
   // Do a step to account for memory allocated so far.
-  InlineAllocationStep(top(), nullptr, nullptr, 0);
+  InlineAllocationStep(top(), kNullAddress, kNullAddress, 0);
   Space::PauseAllocationObservers();
-  DCHECK_NULL(top_on_previous_step_);
+  DCHECK_EQ(kNullAddress, top_on_previous_step_);
   UpdateInlineAllocationLimit(0);
 }
 
 void SpaceWithLinearArea::ResumeAllocationObservers() {
-  DCHECK_NULL(top_on_previous_step_);
+  DCHECK_EQ(kNullAddress, top_on_previous_step_);
   Space::ResumeAllocationObservers();
   StartNextInlineAllocationStep();
 }
@@ -2338,7 +2340,7 @@ void SpaceWithLinearArea::InlineAllocationStep(Address top,
   if (top_on_previous_step_) {
     if (top < top_on_previous_step_) {
       // Generated code decreased the top pointer to do folded allocations.
-      DCHECK_NOT_NULL(top);
+      DCHECK_NE(top, kNullAddress);
       DCHECK_EQ(Page::FromAllocationAreaAddress(top),
                 Page::FromAllocationAreaAddress(top_on_previous_step_));
       top_on_previous_step_ = top;
@@ -2374,10 +2376,11 @@ void NewSpace::Verify() {
       HeapObject* object = HeapObject::FromAddress(current);
 
       // The first word should be a map, and we expect all map pointers to
-      // be in map space.
+      // be in map space or read-only space.
       Map* map = object->map();
       CHECK(map->IsMap());
-      CHECK(heap()->map_space()->Contains(map));
+      CHECK(heap()->map_space()->Contains(map) ||
+            heap()->read_only_space()->Contains(map));
 
       // The object should not be code or a map.
       CHECK(!object->IsMap());
@@ -2437,7 +2440,7 @@ bool SemiSpace::Commit() {
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-            Page::kAllocatableMemory, this, executable());
+            Page::kAllocatableMemory, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
       RewindPages(current, pages_added);
       return false;
@@ -2447,7 +2450,7 @@ bool SemiSpace::Commit() {
   }
   Reset();
   AccountCommitted(current_capacity_);
-  if (age_mark_ == nullptr) {
+  if (age_mark_ == kNullAddress) {
     age_mark_ = first_page()->area_start();
   }
   committed_ = true;
@@ -2496,7 +2499,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-            Page::kAllocatableMemory, this, executable());
+            Page::kAllocatableMemory, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
       RewindPages(last_page, pages_added);
       return false;
@@ -3181,6 +3184,65 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes) {
 void MapSpace::VerifyObject(HeapObject* object) { CHECK(object->IsMap()); }
 #endif
 
+ReadOnlySpace::ReadOnlySpace(Heap* heap, AllocationSpace id,
+                             Executability executable)
+    : PagedSpace(heap, id, executable),
+      is_string_padding_cleared_(heap->isolate()->initialized_from_snapshot()) {
+}
+
+void ReadOnlyPage::MakeHeaderRelocatable() {
+  if (mutex_ != nullptr) {
+    // TODO(v8:7464): heap_ and owner_ need to be cleared as well.
+    delete mutex_;
+    mutex_ = nullptr;
+    local_tracker_ = nullptr;
+    reservation_.Reset();
+  }
+}
+
+void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
+  const size_t page_size = MemoryAllocator::GetCommitPageSize();
+  const size_t area_start_offset = RoundUp(Page::kObjectStartOffset, page_size);
+  for (Page* p : *this) {
+    ReadOnlyPage* page = static_cast<ReadOnlyPage*>(p);
+    if (access == PageAllocator::kRead) {
+      page->MakeHeaderRelocatable();
+    }
+    CHECK(SetPermissions(page->address() + area_start_offset,
+                         page->size() - area_start_offset, access));
+  }
+}
+
+void ReadOnlySpace::ClearStringPaddingIfNeeded() {
+  if (is_string_padding_cleared_) return;
+
+  WritableScope writable_scope(this);
+  for (Page* page : *this) {
+    HeapObjectIterator iterator(page);
+    for (HeapObject* o = iterator.Next(); o != nullptr; o = iterator.Next()) {
+      if (o->IsSeqOneByteString()) {
+        SeqOneByteString::cast(o)->clear_padding();
+      } else if (o->IsSeqTwoByteString()) {
+        SeqTwoByteString::cast(o)->clear_padding();
+      }
+    }
+  }
+  is_string_padding_cleared_ = true;
+}
+
+void ReadOnlySpace::MarkAsReadOnly() {
+  DCHECK(!is_marked_read_only_);
+  FreeLinearAllocationArea();
+  is_marked_read_only_ = true;
+  SetPermissionsForPages(PageAllocator::kRead);
+}
+
+void ReadOnlySpace::MarkAsReadWrite() {
+  DCHECK(is_marked_read_only_);
+  SetPermissionsForPages(PageAllocator::kReadWrite);
+  is_marked_read_only_ = false;
+}
+
 Address LargePage::GetAddressToShrink(Address object_address,
                                       size_t object_size) {
   if (executable() == EXECUTABLE) {
@@ -3224,7 +3286,7 @@ HeapObject* LargeObjectIterator::Next() {
 // LargeObjectSpace
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
-    : Space(heap, id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
+    : Space(heap, id),  // Managed on a per-allocation basis
       first_page_(nullptr),
       size_(0),
       page_count_(0),
@@ -3241,7 +3303,9 @@ void LargeObjectSpace::TearDown() {
   while (first_page_ != nullptr) {
     LargePage* page = first_page_;
     first_page_ = first_page_->next_page();
-    LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", page->address()));
+    LOG(heap()->isolate(),
+        DeleteEvent("LargeObjectChunk",
+                    reinterpret_cast<void*>(page->address())));
     heap()->memory_allocator()->Free<MemoryAllocator::kFull>(page);
   }
   SetUp();
@@ -3321,7 +3385,7 @@ LargePage* LargeObjectSpace::FindPageThreadSafe(Address a) {
 
 LargePage* LargeObjectSpace::FindPage(Address a) {
   const Address key = MemoryChunk::FromAddress(a)->address();
-  auto it = chunk_map_.find(reinterpret_cast<Address>(key));
+  auto it = chunk_map_.find(key);
   if (it != chunk_map_.end()) {
     LargePage* page = it->second;
     if (page->Contains(a)) {
@@ -3365,8 +3429,7 @@ void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page) {
 
 void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
                                              Address free_start) {
-  for (Address current = reinterpret_cast<Address>(::RoundUp(
-           reinterpret_cast<uintptr_t>(free_start), MemoryChunk::kPageSize));
+  for (Address current = ::RoundUp(free_start, MemoryChunk::kPageSize);
        current < reinterpret_cast<Address>(page) + page->size();
        current += MemoryChunk::kPageSize) {
     chunk_map_.erase(current);
@@ -3451,19 +3514,17 @@ void LargeObjectSpace::Verify() {
     CHECK(object->address() == page->area_start());
 
     // The first word should be a map, and we expect all map pointers to be
-    // in map space.
+    // in map space or read-only space.
     Map* map = object->map();
     CHECK(map->IsMap());
-    CHECK(heap()->map_space()->Contains(map));
+    CHECK(heap()->map_space()->Contains(map) ||
+          heap()->read_only_space()->Contains(map));
 
-    // We have only code, sequential strings, external strings (sequential
-    // strings that have been morphed into external strings), thin strings
-    // (sequential strings that have been morphed into thin strings), fixed
-    // arrays, fixed double arrays, byte arrays, feedback vectors, bigints and
-    // free space (right after allocation) in the large object space.
+    // We have only the following types in the large object space:
     CHECK(object->IsAbstractCode() || object->IsSeqString() ||
           object->IsExternalString() || object->IsThinString() ||
           object->IsFixedArray() || object->IsFixedDoubleArray() ||
+          object->IsWeakFixedArray() || object->IsWeakArrayList() ||
           object->IsPropertyArray() || object->IsByteArray() ||
           object->IsFeedbackVector() || object->IsBigInt() ||
           object->IsFreeSpace());
@@ -3515,7 +3576,7 @@ void LargeObjectSpace::Print() {
 
 void Page::Print() {
   // Make a best-effort to print the objects in the page.
-  PrintF("Page@%p in %s\n", static_cast<void*>(this->address()),
+  PrintF("Page@%p in %s\n", reinterpret_cast<void*>(this->address()),
          AllocationSpaceName(this->owner()->identity()));
   printf(" --------------------------------------\n");
   HeapObjectIterator objects(this);

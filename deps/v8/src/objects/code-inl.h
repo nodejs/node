@@ -7,8 +7,10 @@
 
 #include "src/objects/code.h"
 
+#include "src/interpreter/bytecode-register.h"
 #include "src/isolate.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/map-inl.h"
 #include "src/v8memory.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -115,7 +117,7 @@ Address AbstractCode::InstructionEnd() {
   }
 }
 
-bool AbstractCode::contains(byte* inner_pointer) {
+bool AbstractCode::contains(Address inner_pointer) {
   return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
 }
 
@@ -192,10 +194,12 @@ void Code::WipeOutHeader() {
 }
 
 void Code::clear_padding() {
-  memset(address() + kHeaderPaddingStart, 0, kHeaderSize - kHeaderPaddingStart);
+  memset(reinterpret_cast<void*>(address() + kHeaderPaddingStart), 0,
+         kHeaderSize - kHeaderPaddingStart);
   Address data_end =
       has_unwinding_info() ? unwinding_info_end() : raw_instruction_end();
-  memset(data_end, 0, CodeSize() - (data_end - address()));
+  memset(reinterpret_cast<void*>(data_end), 0,
+         CodeSize() - (data_end - address()));
 }
 
 ByteArray* Code::SourcePositionTable() const {
@@ -231,8 +235,8 @@ int Code::InstructionSize() const {
   return raw_instruction_size();
 }
 
-byte* Code::raw_instruction_start() const {
-  return const_cast<byte*>(FIELD_ADDR_CONST(this, kHeaderSize));
+Address Code::raw_instruction_start() const {
+  return FIELD_ADDR(this, kHeaderSize);
 }
 
 Address Code::InstructionStart() const {
@@ -242,7 +246,7 @@ Address Code::InstructionStart() const {
   return raw_instruction_start();
 }
 
-byte* Code::raw_instruction_end() const {
+Address Code::raw_instruction_end() const {
   return raw_instruction_start() + raw_instruction_size();
 }
 
@@ -269,14 +273,12 @@ void Code::set_unwinding_info_size(int value) {
   WRITE_UINT64_FIELD(this, GetUnwindingInfoSizeOffset(), value);
 }
 
-byte* Code::unwinding_info_start() const {
+Address Code::unwinding_info_start() const {
   DCHECK(has_unwinding_info());
-  return const_cast<byte*>(
-             FIELD_ADDR_CONST(this, GetUnwindingInfoSizeOffset())) +
-         kInt64Size;
+  return FIELD_ADDR(this, GetUnwindingInfoSizeOffset()) + kInt64Size;
 }
 
-byte* Code::unwinding_info_end() const {
+Address Code::unwinding_info_end() const {
   DCHECK(has_unwinding_info());
   return unwinding_info_start() + unwinding_info_size();
 }
@@ -304,14 +306,25 @@ byte* Code::relocation_start() const {
   return unchecked_relocation_info()->GetDataStartAddress();
 }
 
+byte* Code::relocation_end() const {
+  return unchecked_relocation_info()->GetDataStartAddress() +
+         unchecked_relocation_info()->length();
+}
+
 int Code::relocation_size() const {
   return unchecked_relocation_info()->length();
 }
 
-byte* Code::entry() const { return raw_instruction_start(); }
+Address Code::entry() const { return raw_instruction_start(); }
 
-bool Code::contains(byte* inner_pointer) {
-  return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
+bool Code::contains(Address inner_pointer) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (Builtins::IsEmbeddedBuiltin(this)) {
+    return (OffHeapInstructionStart() <= inner_pointer) &&
+           (inner_pointer < OffHeapInstructionEnd());
+  }
+#endif
+  return (address() <= inner_pointer) && (inner_pointer < address() + Size());
 }
 
 int Code::ExecutableSize() const {
@@ -517,7 +530,7 @@ Address Code::constant_pool() const {
       return InstructionStart() + offset;
     }
   }
-  return nullptr;
+  return kNullAddress;
 }
 
 Code* Code::GetCodeFromTargetAddress(Address address) {
@@ -565,7 +578,8 @@ INT_ACCESSORS(CodeDataContainer, kind_specific_flags, kKindSpecificFlagsOffset)
 ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
 
 void CodeDataContainer::clear_padding() {
-  memset(address() + kUnalignedSize, 0, kSize - kUnalignedSize);
+  memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
+         kSize - kUnalignedSize);
 }
 
 byte BytecodeArray::get(int index) {
@@ -669,7 +683,8 @@ ACCESSORS(BytecodeArray, source_position_table, Object,
 
 void BytecodeArray::clear_padding() {
   int data_size = kHeaderSize + length();
-  memset(address() + data_size, 0, SizeFor(length()) - data_size);
+  memset(reinterpret_cast<void*>(address() + data_size), 0,
+         SizeFor(length()) - data_size);
 }
 
 Address BytecodeArray::GetFirstBytecodeAddress() {

@@ -277,11 +277,11 @@ class WasmSerializationTest {
         v8::Utils::OpenHandle(*deserialized_module));
     {
       DisallowHeapAllocation assume_no_gc;
-      Handle<WasmCompiledModule> compiled_part(module_object->compiled_module(),
-                                               current_isolate());
       CHECK_EQ(
-          memcmp(compiled_part->shared()->module_bytes()->GetCharsAddress(),
-                 wire_bytes().first, wire_bytes().second),
+          memcmp(
+              reinterpret_cast<const uint8_t*>(
+                  module_object->shared()->module_bytes()->GetCharsAddress()),
+              wire_bytes().first, wire_bytes().second),
           0);
     }
     Handle<WasmInstanceObject> instance =
@@ -333,17 +333,19 @@ class WasmSerializationTest {
       HandleScope scope(serialization_isolate);
       testing::SetupIsolateForWasmModule(serialization_isolate);
 
-      MaybeHandle<WasmModuleObject> module_object =
+      MaybeHandle<WasmModuleObject> maybe_module_object =
           serialization_isolate->wasm_engine()->SyncCompile(
               serialization_isolate, &thrower,
               ModuleWireBytes(buffer.begin(), buffer.end()));
+      Handle<WasmModuleObject> module_object =
+          maybe_module_object.ToHandleChecked();
 
-      MaybeHandle<WasmCompiledModule> compiled_module(
-          module_object.ToHandleChecked()->compiled_module(),
-          serialization_isolate);
-      CHECK(!compiled_module.is_null());
+      Handle<WasmCompiledModule> compiled_module(
+          module_object->compiled_module());
+      Handle<FixedArray> export_wrappers(module_object->export_wrappers());
+      Handle<WasmSharedModuleData> shared(module_object->shared());
       Handle<JSObject> module_obj = WasmModuleObject::New(
-          serialization_isolate, compiled_module.ToHandleChecked());
+          serialization_isolate, compiled_module, export_wrappers, shared);
       v8::Local<v8::Object> v8_module_obj = v8::Utils::ToLocal(module_obj);
       CHECK(v8_module_obj->IsWebAssemblyCompiledModule());
 
@@ -568,7 +570,7 @@ class InterruptThread : public v8::base::Thread {
   static void OnInterrupt(v8::Isolate* isolate, void* data) {
     int32_t* m = reinterpret_cast<int32_t*>(data);
     // Set the interrupt location to 0 to break the loop in {TestInterruptLoop}.
-    int32_t* ptr = &m[interrupt_location_];
+    Address ptr = reinterpret_cast<Address>(&m[interrupt_location_]);
     WriteLittleEndianValue<int32_t>(ptr, interrupt_value_);
   }
 
@@ -577,7 +579,7 @@ class InterruptThread : public v8::base::Thread {
     int32_t val = 0;
     do {
       val = memory_[0];
-      val = ReadLittleEndianValue<int32_t>(&val);
+      val = ReadLittleEndianValue<int32_t>(reinterpret_cast<Address>(&val));
     } while (val != signal_value_);
     isolate_->RequestInterrupt(&OnInterrupt, const_cast<int32_t*>(memory_));
   }
@@ -642,9 +644,10 @@ TEST(TestInterruptLoop) {
     InterruptThread thread(isolate, memory_array);
     thread.Start();
     testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
-    int32_t val = memory_array[InterruptThread::interrupt_location_];
+    Address address = reinterpret_cast<Address>(
+        &memory_array[InterruptThread::interrupt_location_]);
     CHECK_EQ(InterruptThread::interrupt_value_,
-             ReadLittleEndianValue<int32_t>(&val));
+             ReadLittleEndianValue<int32_t>(address));
   }
   Cleanup();
 }
@@ -1079,15 +1082,8 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-#if V8_TARGET_ARCH_64_BIT
-    constexpr bool require_guard_regions = true;
-#else
-    constexpr bool require_guard_regions = false;
-#endif
     Handle<JSArrayBuffer> buffer;
-    CHECK(
-        wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions)
-            .ToHandle(&buffer));
+    CHECK(wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize).ToHandle(&buffer));
     Handle<WasmMemoryObject> mem_obj =
         WasmMemoryObject::New(isolate, buffer, 100);
     auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
@@ -1108,15 +1104,8 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
     // https://bugs.chromium.org/p/chromium/issues/detail?id=731046
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-#if V8_TARGET_ARCH_64_BIT
-    constexpr bool require_guard_regions = true;
-#else
-    constexpr bool require_guard_regions = false;
-#endif
     Handle<JSArrayBuffer> buffer;
-    CHECK(
-        wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions)
-            .ToHandle(&buffer));
+    CHECK(wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize).ToHandle(&buffer));
     auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
     wasm::DetachMemoryBuffer(isolate, buffer, true);
     constexpr bool is_wasm_memory = true;
@@ -1132,14 +1121,8 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
   // Regresion test for https://crbug.com/813876
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
-#if V8_TARGET_ARCH_64_BIT
-  const bool require_guard_regions = trap_handler::IsTrapHandlerEnabled();
-#else
-  constexpr bool require_guard_regions = false;
-#endif
   Handle<JSArrayBuffer> buffer;
-  CHECK(wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions)
-            .ToHandle(&buffer));
+  CHECK(wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize).ToHandle(&buffer));
   Handle<WasmMemoryObject> mem = WasmMemoryObject::New(isolate, buffer, 128);
   auto contents = v8::Utils::ToLocal(buffer)->Externalize();
   WasmMemoryObject::Grow(isolate, mem, 0);
@@ -1161,9 +1144,7 @@ TEST(Run_WasmModule_Reclaim_Memory) {
   Handle<JSArrayBuffer> buffer;
   for (int i = 0; i < 256; ++i) {
     HandleScope scope(isolate);
-    constexpr bool require_guard_regions = true;
-    CHECK(NewArrayBuffer(isolate, kWasmPageSize, require_guard_regions,
-                         SharedFlag::kNotShared)
+    CHECK(NewArrayBuffer(isolate, kWasmPageSize, SharedFlag::kNotShared)
               .ToHandle(&buffer));
   }
 }
@@ -1199,9 +1180,7 @@ TEST(AtomicOpDisassembly) {
         isolate->wasm_engine()->SyncCompile(
             isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
 
-    Handle<WasmCompiledModule> compiled_module(
-        module_object.ToHandleChecked()->compiled_module(), isolate);
-    compiled_module->shared()->DisassembleFunction(0);
+    module_object.ToHandleChecked()->shared()->DisassembleFunction(0);
   }
   Cleanup();
 }

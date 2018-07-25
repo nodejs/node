@@ -289,6 +289,13 @@ def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   results = []
+  # TODO(machenbach): Replace some of those checks, e.g. owners and copyright,
+  # with the canned PanProjectChecks. Need to make sure that the checks all
+  # pass on all existing files.
+  results.extend(input_api.canned_checks.CheckOwnersFormat(
+      input_api, output_api))
+  results.extend(input_api.canned_checks.CheckOwners(
+      input_api, output_api))
   results.extend(_CheckCommitMessageBugEntry(input_api, output_api))
   results.extend(input_api.canned_checks.CheckPatchFormatted(
       input_api, output_api))

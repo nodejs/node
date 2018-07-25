@@ -80,11 +80,11 @@ Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& args) {
 #elif defined(V8_HOST_ARCH_64_BIT)
   int64_t low_bits = *reinterpret_cast<uint64_t*>(*args[0]) >> 32;
   int64_t high_bits = *reinterpret_cast<uint64_t*>(*args[1]);
-  Address fp = reinterpret_cast<Address>(high_bits | low_bits);
+  Address fp = static_cast<Address>(high_bits | low_bits);
 #else
 #error Host architecture is neither 32-bit nor 64-bit.
 #endif
-  printf("Trace: %p\n", static_cast<void*>(fp));
+  printf("Trace: %p\n", reinterpret_cast<void*>(fp));
   return fp;
 }
 
@@ -97,10 +97,10 @@ void TraceExtension::InitTraceEnv(v8::TickSample* sample) {
 
 void TraceExtension::DoTrace(Address fp) {
   RegisterState regs;
-  regs.fp = fp;
+  regs.fp = reinterpret_cast<void*>(fp);
   // sp is only used to define stack high bound
-  regs.sp =
-      reinterpret_cast<Address>(trace_env.sample) - 10240;
+  regs.sp = reinterpret_cast<void*>(
+      reinterpret_cast<Address>(trace_env.sample) - 10240);
   trace_env.sample->Init(CcTest::isolate(), regs,
                          v8::TickSample::kSkipCEntryFrame, true);
 }
@@ -109,8 +109,7 @@ void TraceExtension::DoTrace(Address fp) {
 void TraceExtension::Trace(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
   i::VMState<EXTERNAL> state(isolate);
-  Address address = reinterpret_cast<Address>(
-      reinterpret_cast<intptr_t>(&TraceExtension::Trace));
+  Address address = reinterpret_cast<Address>(&TraceExtension::Trace);
   i::ExternalCallbackScope call_scope(isolate, address);
   DoTrace(GetFP(args));
 }
@@ -131,8 +130,7 @@ static void DoTraceHideCEntryFPAddress(Address fp) {
 void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
   i::VMState<EXTERNAL> state(isolate);
-  Address address = reinterpret_cast<Address>(
-      reinterpret_cast<intptr_t>(&TraceExtension::JSTrace));
+  Address address = reinterpret_cast<Address>(&TraceExtension::JSTrace);
   i::ExternalCallbackScope call_scope(isolate, address);
   DoTraceHideCEntryFPAddress(GetFP(args));
 }

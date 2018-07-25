@@ -92,13 +92,13 @@ struct ManuallyImportedJSFunction {
 class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, WasmExecutionMode,
-                       compiler::RuntimeExceptionSupport, LowerSimd);
+                       RuntimeExceptionSupport, LowerSimd);
 
-  void ChangeOriginToAsmjs() { test_module_.set_origin(kAsmJsOrigin); }
+  void ChangeOriginToAsmjs() { test_module_->set_origin(kAsmJsOrigin); }
 
   byte* AddMemory(uint32_t size);
 
-  size_t CodeTableLength() const { return native_module_->FunctionCount(); }
+  size_t CodeTableLength() const { return native_module_->function_count(); }
 
   template <typename T>
   T* AddMemoryElems(uint32_t count) {
@@ -108,18 +108,18 @@ class TestingModuleBuilder {
 
   template <typename T>
   T* AddGlobal(
-      ValueType type = WasmOpcodes::ValueTypeFor(MachineTypeForC<T>())) {
+      ValueType type = ValueTypes::ValueTypeFor(MachineTypeForC<T>())) {
     const WasmGlobal* global = AddGlobal(type);
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }
 
   byte AddSignature(FunctionSig* sig) {
-    DCHECK_EQ(test_module_.signatures.size(),
-              test_module_.signature_ids.size());
-    test_module_.signatures.push_back(sig);
-    auto canonical_sig_num = test_module_.signature_map.FindOrInsert(sig);
-    test_module_.signature_ids.push_back(canonical_sig_num);
-    size_t size = test_module_.signatures.size();
+    DCHECK_EQ(test_module_->signatures.size(),
+              test_module_->signature_ids.size());
+    test_module_->signatures.push_back(sig);
+    auto canonical_sig_num = test_module_->signature_map.FindOrInsert(sig);
+    test_module_->signature_ids.push_back(canonical_sig_num);
+    size_t size = test_module_->signatures.size();
     CHECK_GT(127, size);
     return static_cast<byte>(size - 1);
   }
@@ -149,12 +149,12 @@ class TestingModuleBuilder {
 
   template <typename T>
   void WriteMemory(T* p, T val) {
-    WriteLittleEndianValue<T>(p, val);
+    WriteLittleEndianValue<T>(reinterpret_cast<Address>(p), val);
   }
 
   template <typename T>
   T ReadMemory(T* p) {
-    return ReadLittleEndianValue<T>(p);
+    return ReadLittleEndianValue<T>(reinterpret_cast<Address>(p));
   }
 
   // Zero-initialize the memory.
@@ -173,13 +173,13 @@ class TestingModuleBuilder {
   }
 
   void SetMaxMemPages(uint32_t maximum_pages) {
-    test_module_.maximum_pages = maximum_pages;
+    test_module_->maximum_pages = maximum_pages;
     if (instance_object()->has_memory_object()) {
       instance_object()->memory_object()->set_maximum_pages(maximum_pages);
     }
   }
 
-  void SetHasSharedMemory() { test_module_.has_shared_memory = true; }
+  void SetHasSharedMemory() { test_module_->has_shared_memory = true; }
 
   uint32_t AddFunction(FunctionSig* sig, const char* name);
 
@@ -193,38 +193,43 @@ class TestingModuleBuilder {
   uint32_t AddBytes(Vector<const byte> bytes);
 
   WasmFunction* GetFunctionAt(int index) {
-    return &test_module_.functions[index];
+    return &test_module_->functions[index];
   }
 
-  WasmInterpreter* interpreter() { return interpreter_; }
-  bool interpret() { return interpreter_ != nullptr; }
-  LowerSimd lower_simd() { return lower_simd_; }
-  Isolate* isolate() { return isolate_; }
-  Handle<WasmInstanceObject> instance_object() { return instance_object_; }
-  wasm::WasmCode* GetFunctionCode(uint32_t index) {
-    return native_module_->GetCode(index);
+  WasmInterpreter* interpreter() const { return interpreter_; }
+  bool interpret() const { return interpreter_ != nullptr; }
+  LowerSimd lower_simd() const { return lower_simd_; }
+  Isolate* isolate() const { return isolate_; }
+  Handle<WasmInstanceObject> instance_object() const {
+    return instance_object_;
   }
-  Address globals_start() { return reinterpret_cast<Address>(globals_data_); }
+  wasm::WasmCode* GetFunctionCode(uint32_t index) const {
+    return native_module_->code(index);
+  }
+  Address globals_start() const {
+    return reinterpret_cast<Address>(globals_data_);
+  }
   void Link() {
     if (!linked_) {
+      Handle<WasmModuleObject> module(instance_object()->module_object());
       CodeSpecialization code_specialization;
       code_specialization.RelocateDirectCalls(native_module_);
-      code_specialization.ApplyToWholeModule(native_module_);
+      code_specialization.ApplyToWholeModule(native_module_, module);
       linked_ = true;
       native_module_->SetExecutable(true);
     }
   }
 
-  compiler::ModuleEnv CreateModuleEnv();
+  ModuleEnv CreateModuleEnv();
 
   WasmExecutionMode execution_mode() const { return execution_mode_; }
 
-  compiler::RuntimeExceptionSupport runtime_exception_support() const {
+  RuntimeExceptionSupport runtime_exception_support() const {
     return runtime_exception_support_;
   }
 
  private:
-  WasmModule test_module_;
+  std::shared_ptr<WasmModule> test_module_;
   WasmModule* test_module_ptr_;
   Isolate* isolate_;
   uint32_t global_offset = 0;
@@ -236,7 +241,7 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
   bool linked_ = false;
-  compiler::RuntimeExceptionSupport runtime_exception_support_;
+  RuntimeExceptionSupport runtime_exception_support_;
   LowerSimd lower_simd_;
 
   const WasmGlobal* AddGlobal(ValueType type);
@@ -244,11 +249,10 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> InitInstanceObject();
 };
 
-void TestBuildingGraph(
-    Zone* zone, compiler::JSGraph* jsgraph, compiler::ModuleEnv* module,
-    FunctionSig* sig, compiler::SourcePositionTable* source_position_table,
-    const byte* start, const byte* end,
-    compiler::RuntimeExceptionSupport runtime_exception_support);
+void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
+                       ModuleEnv* module, FunctionSig* sig,
+                       compiler::SourcePositionTable* source_position_table,
+                       const byte* start, const byte* end);
 
 class WasmFunctionWrapper : private compiler::GraphAndBuilders {
  public:
@@ -267,7 +271,7 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
   }
 
   void SetInnerCode(wasm::WasmCode* code) {
-    intptr_t address = reinterpret_cast<intptr_t>(code->instructions().start());
+    intptr_t address = static_cast<intptr_t>(code->instruction_start());
     compiler::NodeProperties::ChangeOp(
         inner_code_node_,
         kPointerSize == 8
@@ -348,7 +352,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
  public:
   WasmRunnerBase(ManuallyImportedJSFunction* maybe_import,
                  WasmExecutionMode execution_mode, int num_params,
-                 compiler::RuntimeExceptionSupport runtime_exception_support,
+                 RuntimeExceptionSupport runtime_exception_support,
                  LowerSimd lower_simd)
       : zone_(&allocator_, ZONE_NAME),
         builder_(&zone_, maybe_import, execution_mode,
@@ -431,8 +435,8 @@ class WasmRunner : public WasmRunnerBase {
   WasmRunner(WasmExecutionMode execution_mode,
              ManuallyImportedJSFunction* maybe_import = nullptr,
              const char* main_fn_name = "main",
-             compiler::RuntimeExceptionSupport runtime_exception_support =
-                 compiler::kNoRuntimeExceptionSupport,
+             RuntimeExceptionSupport runtime_exception_support =
+                 kNoRuntimeExceptionSupport,
              LowerSimd lower_simd = kNoLowerSimd)
       : WasmRunnerBase(maybe_import, execution_mode, sizeof...(ParamTypes),
                        runtime_exception_support, lower_simd) {
@@ -443,8 +447,8 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   WasmRunner(WasmExecutionMode execution_mode, LowerSimd lower_simd)
-      : WasmRunner(execution_mode, nullptr, "main",
-                   compiler::kNoRuntimeExceptionSupport, lower_simd) {}
+      : WasmRunner(execution_mode, nullptr, "main", kNoRuntimeExceptionSupport,
+                   lower_simd) {}
 
   ReturnType Call(ParamTypes... p) {
     DCHECK(compiled_);

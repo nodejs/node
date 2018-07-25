@@ -6,6 +6,7 @@
 #include "src/bit-vector.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/zone/zone-containers.h"
 #include "test/unittests/compiler/graph-unittest.h"
@@ -32,7 +33,8 @@ class ControlEquivalenceTest : public GraphTest {
     if (FLAG_trace_turbo) {
       OFStream os(stdout);
       SourcePositionTable table(graph());
-      os << AsJSON(*graph(), &table);
+      NodeOriginTable table2(graph());
+      os << AsJSON(*graph(), &table, &table2);
     }
     ControlEquivalence equivalence(zone(), graph());
     equivalence.Run(node);

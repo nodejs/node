@@ -190,7 +190,7 @@ UNINITIALIZED_HEAP_TEST(Regress658718) {
     }
     heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
     heap->new_space()->Shrink();
-    heap->memory_allocator()->unmapper()->WaitUntilCompleted();
+    heap->memory_allocator()->unmapper()->EnsureUnmappingCompleted();
     heap->delay_sweeper_tasks_for_testing_ = false;
     heap->mark_compact_collector()->sweeper()->StartSweeperTasks();
     heap->mark_compact_collector()->EnsureSweepingCompleted();

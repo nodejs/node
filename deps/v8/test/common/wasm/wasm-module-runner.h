@@ -19,6 +19,9 @@ namespace internal {
 template <typename T>
 class Handle;
 
+template <typename T>
+class MaybeHandle;
+
 namespace wasm {
 namespace testing {
 

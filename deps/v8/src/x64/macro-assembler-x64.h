@@ -30,6 +30,7 @@ constexpr Register kJavaScriptCallCodeStartRegister = rcx;
 constexpr Register kJavaScriptCallNewTargetRegister = rdx;
 constexpr Register kRuntimeCallFunctionRegister = rbx;
 constexpr Register kRuntimeCallArgCountRegister = rax;
+constexpr Register kWasmInstanceRegister = rsi;
 
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
@@ -286,8 +287,18 @@ class TurboAssembler : public Assembler {
   void Cvtqsi2sd(XMMRegister dst, Operand src);
   void Cvtlsi2ss(XMMRegister dst, Register src);
   void Cvtlsi2ss(XMMRegister dst, Operand src);
-  void Cvtqui2ss(XMMRegister dst, Register src, Register tmp);
-  void Cvtqui2sd(XMMRegister dst, Register src, Register tmp);
+  void Cvtlui2ss(XMMRegister dst, Register src);
+  void Cvtlui2ss(XMMRegister dst, Operand src);
+  void Cvtlui2sd(XMMRegister dst, Register src);
+  void Cvtlui2sd(XMMRegister dst, Operand src);
+  void Cvtqui2ss(XMMRegister dst, Register src);
+  void Cvtqui2ss(XMMRegister dst, Operand src);
+  void Cvtqui2sd(XMMRegister dst, Register src);
+  void Cvtqui2sd(XMMRegister dst, Operand src);
+  void Cvttsd2uiq(Register dst, Operand src, Label* fail = nullptr);
+  void Cvttsd2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
+  void Cvttss2uiq(Register dst, Operand src, Label* fail = nullptr);
+  void Cvttss2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
 
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
@@ -323,10 +334,7 @@ class TurboAssembler : public Assembler {
     movp(dst, constant);
   }
 
-  void Move(Register dst, ExternalReference ext) {
-    movp(dst, reinterpret_cast<void*>(ext.address()),
-         RelocInfo::EXTERNAL_REFERENCE);
-  }
+  void Move(Register dst, ExternalReference ext);
 
   void Move(XMMRegister dst, uint32_t src);
   void Move(XMMRegister dst, uint64_t src);
@@ -342,7 +350,7 @@ class TurboAssembler : public Assembler {
             RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
 
   // Loads a pointer into a register with a relocation mode.
-  void Move(Register dst, void* ptr, RelocInfo::Mode rmode) {
+  void Move(Register dst, Address ptr, RelocInfo::Mode rmode) {
     // This method must not be used with heap object references. The stored
     // address is not GC safe. Use the handle version instead.
     DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
@@ -358,6 +366,12 @@ class TurboAssembler : public Assembler {
   // register.
   void LoadAddress(Register destination, ExternalReference source);
 
+#ifdef V8_EMBEDDED_BUILTINS
+  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupExternalReference(Register destination,
+                               ExternalReference reference);
+#endif  // V8_EMBEDDED_BUILTINS
+
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
   // only guaranteed to be correct as long as the scratch register
@@ -367,6 +381,7 @@ class TurboAssembler : public Assembler {
   Operand ExternalOperand(ExternalReference reference,
                           Register scratch = kScratchRegister);
 
+  void Call(Register reg) { call(reg); }
   void Call(Operand op);
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
   void Call(Address destination, RelocInfo::Mode rmode);
@@ -458,9 +473,8 @@ class TurboAssembler : public Assembler {
   // HeapObjectRequest that will be fulfilled after code assembly.
   void CallStubDelayed(CodeStub* stub);
 
-  void SlowTruncateToIDelayed(Zone* zone, Register result_reg);
-
   // Call a runtime routine.
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
@@ -523,10 +537,11 @@ class TurboAssembler : public Assembler {
   // modified. It may be the "smi 1 constant" register.
   Register GetSmiConstant(Smi* value);
 
- private:
-  bool has_frame_ = false;
   // This handle will be patched with the code object on installation.
   Handle<HeapObject> code_object_;
+
+ private:
+  bool has_frame_ = false;
   Isolate* const isolate_;
 };
 
@@ -535,23 +550,6 @@ class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
-
-  // Prevent the use of the RootArray during the lifetime of this
-  // scope object.
-  class NoRootArrayScope BASE_EMBEDDED {
-   public:
-    explicit NoRootArrayScope(MacroAssembler* assembler)
-        : variable_(&assembler->root_array_available_),
-          old_value_(assembler->root_array_available_) {
-      assembler->root_array_available_ = false;
-    }
-    ~NoRootArrayScope() {
-      *variable_ = old_value_;
-    }
-   private:
-    bool* variable_;
-    bool old_value_;
-  };
 
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of
@@ -767,7 +765,8 @@ class MacroAssembler : public TurboAssembler {
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
   void Jump(Operand op);
-  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
+  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
+            Condition cc = always);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
   void JumpToInstructionStream(Address entry);
@@ -905,6 +904,9 @@ class MacroAssembler : public TurboAssembler {
 
   void EnterBuiltinFrame(Register context, Register target, Register argc);
   void LeaveBuiltinFrame(Register context, Register target, Register argc);
+
+  bool root_array_available() const { return root_array_available_; }
+  void set_root_array_available(bool v) { root_array_available_ = v; }
 
  private:
   // Order general registers are pushed by Pushad.

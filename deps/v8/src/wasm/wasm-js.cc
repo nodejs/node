@@ -13,6 +13,7 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/templates.h"
 #include "src/parsing/parse-info.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-engine.h"
@@ -650,15 +651,12 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
 
-  size_t size = static_cast<size_t>(i::wasm::kWasmPageSize) *
-                static_cast<size_t>(initial);
-  const bool enable_guard_regions =
-      internal::trap_handler::IsTrapHandlerEnabled();
   i::SharedFlag shared_flag =
       is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared;
   i::Handle<i::JSArrayBuffer> buffer;
-  if (!i::wasm::NewArrayBuffer(i_isolate, size, enable_guard_regions,
-                               shared_flag)
+  size_t size = static_cast<size_t>(i::wasm::kWasmPageSize) *
+                static_cast<size_t>(initial);
+  if (!i::wasm::NewArrayBuffer(i_isolate, size, shared_flag)
            .ToHandle(&buffer)) {
     thrower.RangeError("could not allocate memory");
     return;
@@ -691,10 +689,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
-
-  // The descriptor's 'value'.
-  v8::MaybeLocal<v8::Value> maybe_value =
-      descriptor->Get(context, v8_str(isolate, "value"));
 
   // The descriptor's 'mutable'.
   bool is_mutable = false;
@@ -744,38 +738,43 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  // Convert value to a WebAssembly value.
-  v8::Local<v8::Value> value;
-  if (maybe_value.ToLocal(&value)) {
-    switch (type) {
-      case i::wasm::kWasmI32: {
-        int32_t i32_value = 0;
+  // Convert value to a WebAssembly value, the default value is 0.
+  Local<v8::Value> value = Local<Value>::Cast(args[1]);
+  switch (type) {
+    case i::wasm::kWasmI32: {
+      int32_t i32_value = 0;
+      if (!value->IsUndefined()) {
         v8::Local<v8::Int32> int32_value;
         if (!value->ToInt32(context).ToLocal(&int32_value)) return;
         if (!int32_value->Int32Value(context).To(&i32_value)) return;
-        global_obj->SetI32(i32_value);
-        break;
       }
-      case i::wasm::kWasmF32: {
-        double f64_value = 0;
-        v8::Local<v8::Number> number_value;
-        if (!value->ToNumber(context).ToLocal(&number_value)) return;
-        if (!number_value->NumberValue(context).To(&f64_value)) return;
-        float f32_value = static_cast<float>(f64_value);
-        global_obj->SetF32(f32_value);
-        break;
-      }
-      case i::wasm::kWasmF64: {
-        double f64_value = 0;
-        v8::Local<v8::Number> number_value;
-        if (!value->ToNumber(context).ToLocal(&number_value)) return;
-        if (!number_value->NumberValue(context).To(&f64_value)) return;
-        global_obj->SetF64(f64_value);
-        break;
-      }
-      default:
-        UNREACHABLE();
+      global_obj->SetI32(i32_value);
+      break;
     }
+    case i::wasm::kWasmF32: {
+      float f32_value = 0;
+      if (!value->IsUndefined()) {
+        double f64_value = 0;
+        v8::Local<v8::Number> number_value;
+        if (!value->ToNumber(context).ToLocal(&number_value)) return;
+        if (!number_value->NumberValue(context).To(&f64_value)) return;
+        f32_value = static_cast<float>(f64_value);
+      }
+      global_obj->SetF32(f32_value);
+      break;
+    }
+    case i::wasm::kWasmF64: {
+      double f64_value = 0;
+      if (!value->IsUndefined()) {
+        v8::Local<v8::Number> number_value;
+        if (!value->ToNumber(context).ToLocal(&number_value)) return;
+        if (!number_value->NumberValue(context).To(&f64_value)) return;
+      }
+      global_obj->SetF64(f64_value);
+      break;
+    }
+    default:
+      UNREACHABLE();
   }
 
   i::Handle<i::JSObject> global_js_object(global_obj);
@@ -909,20 +908,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  // TODO(v8:7232) Allow reset/mutation after addressing referenced issue.
-  int32_t int_index = static_cast<int32_t>(index);
-  if (receiver->functions()->get(int_index) !=
-          i_isolate->heap()->undefined_value() &&
-      receiver->functions()->get(int_index) !=
-          i_isolate->heap()->null_value()) {
-    for (i::StackFrameIterator it(i_isolate); !it.done(); it.Advance()) {
-      if (it.frame()->type() == i::StackFrame::WASM_TO_JS) {
-        thrower.RangeError("Modifying existing entry in table not supported.");
-        return;
-      }
-    }
-  }
-  i::WasmTableObject::Set(i_isolate, receiver, static_cast<int32_t>(int_index),
+  i::WasmTableObject::Set(i_isolate, receiver, static_cast<int32_t>(index),
                           value->IsNull(i_isolate)
                               ? i::Handle<i::JSFunction>::null()
                               : i::Handle<i::JSFunction>::cast(value));
@@ -1044,6 +1030,11 @@ void WebAssemblyGlobalSetValue(
   ScheduledErrorThrower thrower(i_isolate, "set WebAssembly.Global.value");
   EXTRACT_THIS(receiver, WasmGlobalObject);
 
+  if (!receiver->is_mutable()) {
+    thrower.TypeError("Can't set the value of an immutable global.");
+    return;
+  }
+
   switch (receiver->type()) {
     case i::wasm::kWasmI32: {
       int32_t i32_value = 0;
@@ -1136,6 +1127,7 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
       CreateFunc(isolate, GetterName(isolate, name), getter);
   Handle<JSFunction> setter_func =
       CreateFunc(isolate, SetterName(isolate, name), setter);
+  setter_func->shared()->set_length(1);
 
   v8::PropertyAttribute attributes =
       static_cast<v8::PropertyAttribute>(v8::DontEnum);

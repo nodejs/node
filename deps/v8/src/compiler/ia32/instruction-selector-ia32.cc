@@ -289,7 +289,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
-    CHECK_EQ(poisoning_enabled_, PoisoningMitigationLevel::kOn);
+    CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
     code |= MiscField::encode(kMemoryAccessPoisoned);
   }
   Emit(code, 1, outputs, input_count, inputs);
@@ -905,7 +905,7 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
 
 void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+  InstructionOperand temps[] = {g.TempRegister()};
   Emit(kSSEUint32ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
        arraysize(temps), temps);
 }
@@ -1665,7 +1665,7 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   Emit(code, 1, outputs, input_count, inputs);
 }
 
-void InstructionSelector::VisitAtomicBinaryOperation(
+void InstructionSelector::VisitWord32AtomicBinaryOperation(
     Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
   IA32OperandGenerator g(this);
@@ -1715,7 +1715,7 @@ void InstructionSelector::VisitAtomicBinaryOperation(
 
 #define VISIT_ATOMIC_BINOP(op)                                   \
   void InstructionSelector::VisitWord32Atomic##op(Node* node) {  \
-    VisitAtomicBinaryOperation(                                  \
+    VisitWord32AtomicBinaryOperation(                            \
         node, kWord32Atomic##op##Int8, kWord32Atomic##op##Uint8, \
         kWord32Atomic##op##Int16, kWord32Atomic##op##Uint16,     \
         kWord32Atomic##op##Word32);                              \
@@ -1757,6 +1757,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MaxU)             \
   V(I32x4GtU)              \
   V(I32x4GeU)              \
+  V(I16x8SConvertI32x4)    \
   V(I16x8Add)              \
   V(I16x8AddSaturateS)     \
   V(I16x8AddHoriz)         \
@@ -1769,12 +1770,14 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8Ne)               \
   V(I16x8GtS)              \
   V(I16x8GeS)              \
+  V(I16x8UConvertI32x4)    \
   V(I16x8AddSaturateU)     \
   V(I16x8SubSaturateU)     \
   V(I16x8MinU)             \
   V(I16x8MaxU)             \
   V(I16x8GtU)              \
   V(I16x8GeU)              \
+  V(I8x16SConvertI16x8)    \
   V(I8x16Add)              \
   V(I8x16AddSaturateS)     \
   V(I8x16Sub)              \
@@ -1785,6 +1788,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16Ne)               \
   V(I8x16GtS)              \
   V(I8x16GeS)              \
+  V(I8x16UConvertI16x8)    \
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
   V(I8x16MinU)             \
@@ -1807,6 +1811,16 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4Abs)                    \
   V(F32x4Neg)                    \
   V(S128Not)
+
+#define SIMD_ANYTRUE_LIST(V) \
+  V(S1x4AnyTrue)             \
+  V(S1x8AnyTrue)             \
+  V(S1x16AnyTrue)
+
+#define SIMD_ALLTRUE_LIST(V) \
+  V(S1x4AllTrue)             \
+  V(S1x8AllTrue)             \
+  V(S1x16AllTrue)
 
 #define SIMD_SHIFT_OPCODES(V) \
   V(I32x4Shl)                 \
@@ -1966,6 +1980,28 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 SIMD_UNOP_PREFIX_LIST(VISIT_SIMD_UNOP_PREFIX)
 #undef VISIT_SIMD_UNOP_PREFIX
 #undef SIMD_UNOP_PREFIX_LIST
+
+#define VISIT_SIMD_ANYTRUE(Opcode)                                  \
+  void InstructionSelector::Visit##Opcode(Node* node) {             \
+    IA32OperandGenerator g(this);                                   \
+    InstructionOperand temps[] = {g.TempRegister()};                \
+    Emit(kIA32##Opcode, g.DefineAsRegister(node),                   \
+         g.UseRegister(node->InputAt(0)), arraysize(temps), temps); \
+  }
+SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
+#undef VISIT_SIMD_ANYTRUE
+#undef SIMD_ANYTRUE_LIST
+
+#define VISIT_SIMD_ALLTRUE(Opcode)                                         \
+  void InstructionSelector::Visit##Opcode(Node* node) {                    \
+    IA32OperandGenerator g(this);                                          \
+    InstructionOperand temps[] = {g.TempRegister()};                       \
+    Emit(kIA32##Opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)), \
+         arraysize(temps), temps);                                         \
+  }
+SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
+#undef VISIT_SIMD_ALLTRUE
+#undef SIMD_ALLTRUE_LIST
 
 #define VISIT_SIMD_BINOP(Opcode)                           \
   void InstructionSelector::Visit##Opcode(Node* node) {    \
