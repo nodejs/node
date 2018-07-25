@@ -986,7 +986,7 @@ class CodeGeneratorTester {
         environment->main_zone(), &frame_, &linkage_, environment->code(),
         &info_, environment->main_isolate(), base::Optional<OsrHelper>(),
         kNoSourcePosition, nullptr, nullptr,
-        CodeGeneratorPoisoningLevel::kDontPoison);
+        PoisoningMitigationLevel::kDontPoison);
 
     // Force a frame to be created.
     generator_->frame_access_state()->MarkHasFrame(true);

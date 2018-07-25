@@ -74,7 +74,7 @@ Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
          IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
          IsOffHeapTarget(rmode_));
-  return reinterpret_cast<Address>(pc_);
+  return pc_;
 }
 
 
@@ -135,7 +135,7 @@ Address RelocInfo::target_internal_reference() {
 
 Address RelocInfo::target_internal_reference_address() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
-  return reinterpret_cast<Address>(pc_);
+  return pc_;
 }
 
 void RelocInfo::set_wasm_code_table_entry(Address target,
@@ -149,7 +149,7 @@ void RelocInfo::set_wasm_code_table_entry(Address target,
 
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
   DCHECK(IsRuntimeEntry(rmode_));
-  return reinterpret_cast<Address>(*reinterpret_cast<int32_t*>(pc_));
+  return static_cast<Address>(*reinterpret_cast<int32_t*>(pc_));
 }
 
 void RelocInfo::set_target_runtime_entry(Address target,
@@ -169,7 +169,7 @@ Address RelocInfo::target_off_heap_target() {
 void RelocInfo::WipeOut() {
   if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
       IsInternalReference(rmode_)) {
-    Memory::Address_at(pc_) = nullptr;
+    Memory::Address_at(pc_) = kNullAddress;
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     // Effectively write zero into the relocation.
     Assembler::set_target_address_at(pc_, constant_pool_,
@@ -210,8 +210,7 @@ void Assembler::emit_q(uint64_t x) {
 }
 
 void Assembler::emit(Handle<HeapObject> handle) {
-  emit(reinterpret_cast<intptr_t>(handle.address()),
-       RelocInfo::EMBEDDED_OBJECT);
+  emit(handle.address(), RelocInfo::EMBEDDED_OBJECT);
 }
 
 void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
@@ -222,7 +221,7 @@ void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
 }
 
 void Assembler::emit(Handle<Code> code, RelocInfo::Mode rmode) {
-  emit(reinterpret_cast<intptr_t>(code.address()), rmode);
+  emit(code.address(), rmode);
 }
 
 
@@ -273,10 +272,9 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  int32_t* p = reinterpret_cast<int32_t*>(pc);
-  *p = target - (pc + sizeof(int32_t));
+  *reinterpret_cast<int32_t*>(pc) = target - (pc + sizeof(int32_t));
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(p, sizeof(int32_t));
+    Assembler::FlushICache(pc, sizeof(int32_t));
   }
 }
 
@@ -287,7 +285,12 @@ Address Assembler::target_address_from_return_address(Address pc) {
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Code* code, Address target) {
   set_target_address_at(instruction_payload,
-                        code ? code->constant_pool() : nullptr, target);
+                        code ? code->constant_pool() : kNullAddress, target);
+}
+
+int Assembler::deserialization_special_target_size(
+    Address instruction_payload) {
+  return kSpecialTargetSize;
 }
 
 Displacement Assembler::disp_at(Label* L) {

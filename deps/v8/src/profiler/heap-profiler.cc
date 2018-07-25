@@ -16,14 +16,14 @@ namespace internal {
 
 HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
-      names_(new StringsStorage(heap)),
+      names_(new StringsStorage(heap->HashSeed())),
       is_tracking_object_moves_(false) {}
 
 HeapProfiler::~HeapProfiler() = default;
 
 void HeapProfiler::DeleteAllSnapshots() {
   snapshots_.clear();
-  names_.reset(new StringsStorage(heap()));
+  names_.reset(new StringsStorage(heap()->HashSeed()));
 }
 
 
@@ -69,25 +69,16 @@ v8::HeapProfiler::RetainerInfos HeapProfiler::GetRetainerInfos(
   return infos;
 }
 
-void HeapProfiler::AddBuildEmbedderGraphCallback(
-    v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data) {
-  build_embedder_graph_callbacks_.push_back({callback, data});
-}
-
-void HeapProfiler::RemoveBuildEmbedderGraphCallback(
-    v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data) {
-  auto it = std::find(build_embedder_graph_callbacks_.begin(),
-                      build_embedder_graph_callbacks_.end(),
-                      std::make_pair(callback, data));
-  if (it != build_embedder_graph_callbacks_.end())
-    build_embedder_graph_callbacks_.erase(it);
+void HeapProfiler::SetBuildEmbedderGraphCallback(
+    v8::HeapProfiler::BuildEmbedderGraphCallback callback) {
+  build_embedder_graph_callback_ = callback;
 }
 
 void HeapProfiler::BuildEmbedderGraph(Isolate* isolate,
                                       v8::EmbedderGraph* graph) {
-  for (const auto& cb : build_embedder_graph_callbacks_) {
-    cb.first(reinterpret_cast<v8::Isolate*>(isolate), graph, cb.second);
-  }
+  if (build_embedder_graph_callback_ != nullptr)
+    build_embedder_graph_callback_(reinterpret_cast<v8::Isolate*>(isolate),
+                                   graph);
 }
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(

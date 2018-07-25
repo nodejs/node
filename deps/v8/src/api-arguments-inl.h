@@ -7,6 +7,7 @@
 
 #include "src/api-arguments.h"
 
+#include "src/objects/api-callbacks.h"
 #include "src/tracing/trace-event.h"
 #include "src/vm-state-inl.h"
 

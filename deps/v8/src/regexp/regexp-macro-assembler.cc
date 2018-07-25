@@ -359,8 +359,8 @@ Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
   DCHECK(stack_pointer <= old_stack_base);
   DCHECK(static_cast<size_t>(old_stack_base - stack_pointer) <= size);
   Address new_stack_base = regexp_stack->EnsureCapacity(size * 2);
-  if (new_stack_base == nullptr) {
-    return nullptr;
+  if (new_stack_base == kNullAddress) {
+    return kNullAddress;
   }
   *stack_base = new_stack_base;
   intptr_t stack_content_size = old_stack_base - stack_pointer;

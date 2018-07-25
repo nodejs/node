@@ -299,8 +299,15 @@ class OperandGenerator {
       case IrOpcode::kNumberConstant:
         return Constant(OpParameter<double>(node->op()));
       case IrOpcode::kExternalConstant:
-      case IrOpcode::kComment:
         return Constant(OpParameter<ExternalReference>(node->op()));
+      case IrOpcode::kComment: {
+        // We cannot use {intptr_t} here, since the Constant constructor would
+        // be ambiguous on some architectures.
+        using ptrsize_int_t =
+            std::conditional<kPointerSize == 8, int64_t, int32_t>::type;
+        return Constant(reinterpret_cast<ptrsize_int_t>(
+            OpParameter<const char*>(node->op())));
+      }
       case IrOpcode::kHeapConstant:
         return Constant(HeapConstantOf(node->op()));
       case IrOpcode::kDeadValue: {

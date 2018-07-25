@@ -33,6 +33,10 @@ class Memory {
     return *reinterpret_cast<uint64_t*>(addr);
   }
 
+  static int64_t& int64_at(Address addr) {
+    return *reinterpret_cast<int64_t*>(addr);
+  }
+
   static int& int_at(Address addr)  {
     return *reinterpret_cast<int*>(addr);
   }
@@ -70,10 +74,7 @@ class Memory {
   }
 
   static bool IsAddressInRange(Address base, Address address, uint32_t size) {
-    uintptr_t numeric_base = reinterpret_cast<uintptr_t>(base);
-    uintptr_t numeric_address = reinterpret_cast<uintptr_t>(address);
-    return numeric_base <= numeric_address &&
-           numeric_address < numeric_base + size;
+    return base <= address && address < base + size;
   }
 };
 

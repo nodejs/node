@@ -21,7 +21,7 @@ namespace compiler {
 CodeAssemblerTestState::CodeAssemblerTestState(CodeAssemblerTest* test)
     : CodeAssemblerState(test->isolate(), test->zone(),
                          VoidDescriptor(test->isolate()), Code::STUB, "test",
-                         PoisoningMitigationLevel::kOn) {}
+                         PoisoningMitigationLevel::kPoisonCriticalOnly) {}
 
 TARGET_TEST_F(CodeAssemblerTest, IntPtrAdd) {
   CodeAssemblerTestState state(this);

@@ -11,6 +11,7 @@
 #include "src/api.h"
 #include "src/ast/modules.h"
 #include "src/objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -276,6 +277,30 @@ Object* Module::GetException() {
   return exception();
 }
 
+SharedFunctionInfo* Module::GetSharedFunctionInfo() const {
+  DisallowHeapAllocation no_alloc;
+  DCHECK_NE(status(), Module::kEvaluating);
+  DCHECK_NE(status(), Module::kEvaluated);
+  switch (status()) {
+    case kUninstantiated:
+    case kPreInstantiating:
+      DCHECK(code()->IsSharedFunctionInfo());
+      return SharedFunctionInfo::cast(code());
+    case kInstantiating:
+      DCHECK(code()->IsJSFunction());
+      return JSFunction::cast(code())->shared();
+    case kInstantiated:
+      DCHECK(code()->IsJSGeneratorObject());
+      return JSGeneratorObject::cast(code())->function()->shared();
+    case kEvaluating:
+    case kEvaluated:
+    case kErrored:
+      UNREACHABLE();
+  }
+
+  UNREACHABLE();
+}
+
 MaybeHandle<Cell> Module::ResolveImport(Handle<Module> module,
                                         Handle<String> name, int module_request,
                                         MessageLocation loc, bool must_resolve,
@@ -461,8 +486,10 @@ bool Module::PrepareInstantiate(Handle<Module> module,
   if (module->status() >= kPreInstantiating) return true;
   module->SetStatus(kPreInstantiating);
 
-  // Obtain requested modules.
   Isolate* isolate = module->GetIsolate();
+  STACK_CHECK(isolate, false);
+
+  // Obtain requested modules.
   Handle<ModuleInfo> module_info(module->info(), isolate);
   Handle<FixedArray> module_requests(module_info->module_requests(), isolate);
   Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
@@ -515,21 +542,26 @@ bool Module::PrepareInstantiate(Handle<Module> module,
   return true;
 }
 
-void Module::RunInitializationCode(Handle<Module> module) {
+bool Module::RunInitializationCode(Handle<Module> module) {
   DCHECK_EQ(module->status(), kInstantiating);
   Isolate* isolate = module->GetIsolate();
   Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
   DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
   Handle<Object> receiver = isolate->factory()->undefined_value();
   Handle<Object> argv[] = {module};
-  Handle<Object> generator =
-      Execution::Call(isolate, function, receiver, arraysize(argv), argv)
-          .ToHandleChecked();
+  MaybeHandle<Object> maybe_generator =
+      Execution::Call(isolate, function, receiver, arraysize(argv), argv);
+  Handle<Object> generator;
+  if (!maybe_generator.ToHandle(&generator)) {
+    DCHECK(isolate->has_pending_exception());
+    return false;
+  }
   DCHECK_EQ(*function, Handle<JSGeneratorObject>::cast(generator)->function());
   module->set_code(*generator);
+  return true;
 }
 
-void Module::MaybeTransitionComponent(Handle<Module> module,
+bool Module::MaybeTransitionComponent(Handle<Module> module,
                                       ZoneForwardList<Handle<Module>>* stack,
                                       Status new_status) {
   DCHECK(new_status == kInstantiated || new_status == kEvaluated);
@@ -546,10 +578,13 @@ void Module::MaybeTransitionComponent(Handle<Module> module,
       stack->pop_front();
       DCHECK_EQ(ancestor->status(),
                 new_status == kInstantiated ? kInstantiating : kEvaluating);
-      if (new_status == kInstantiated) RunInitializationCode(ancestor);
+      if (new_status == kInstantiated) {
+        if (!RunInitializationCode(ancestor)) return false;
+      }
       ancestor->SetStatus(new_status);
     } while (*ancestor != *module);
   }
+  return true;
 }
 
 bool Module::FinishInstantiate(Handle<Module> module,
@@ -559,9 +594,11 @@ bool Module::FinishInstantiate(Handle<Module> module,
   if (module->status() >= kInstantiating) return true;
   DCHECK_EQ(module->status(), kPreInstantiating);
 
+  Isolate* isolate = module->GetIsolate();
+  STACK_CHECK(isolate, false);
+
   // Instantiate SharedFunctionInfo and mark module as instantiating for
   // the recursion.
-  Isolate* isolate = module->GetIsolate();
   Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(module->code()),
                                     isolate);
   Handle<JSFunction> function =
@@ -635,8 +672,7 @@ bool Module::FinishInstantiate(Handle<Module> module,
     }
   }
 
-  MaybeTransitionComponent(module, stack, kInstantiated);
-  return true;
+  return MaybeTransitionComponent(module, stack, kInstantiated);
 }
 
 MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
@@ -688,6 +724,7 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module,
     return isolate->factory()->undefined_value();
   }
   DCHECK_EQ(module->status(), kInstantiated);
+  STACK_CHECK(isolate, MaybeHandle<Object>());
 
   Handle<JSGeneratorObject> generator(JSGeneratorObject::cast(module->code()),
                                       isolate);
@@ -734,7 +771,7 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module,
              ->done()
              ->BooleanValue());
 
-  MaybeTransitionComponent(module, stack, kEvaluated);
+  CHECK(MaybeTransitionComponent(module, stack, kEvaluated));
   return handle(
       static_cast<JSIteratorResult*>(JSObject::cast(*result))->value(),
       isolate);

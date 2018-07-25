@@ -9,17 +9,18 @@
 #include "src/base/ieee754.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/js-graph.h"
+#include "src/compiler/machine-graph.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/node-properties.h"
 #include "src/conversions-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-MachineOperatorReducer::MachineOperatorReducer(JSGraph* jsgraph,
+MachineOperatorReducer::MachineOperatorReducer(MachineGraph* mcgraph,
                                                bool allow_signalling_nan)
-    : jsgraph_(jsgraph), allow_signalling_nan_(allow_signalling_nan) {}
+    : mcgraph_(mcgraph), allow_signalling_nan_(allow_signalling_nan) {}
 
 MachineOperatorReducer::~MachineOperatorReducer() {}
 
@@ -30,12 +31,12 @@ Node* MachineOperatorReducer::Float32Constant(volatile float value) {
 
 
 Node* MachineOperatorReducer::Float64Constant(volatile double value) {
-  return jsgraph()->Float64Constant(value);
+  return mcgraph()->Float64Constant(value);
 }
 
 
 Node* MachineOperatorReducer::Int32Constant(int32_t value) {
-  return jsgraph()->Int32Constant(value);
+  return mcgraph()->Int32Constant(value);
 }
 
 
@@ -613,7 +614,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kChangeFloat64ToInt32: {
       Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceInt32(FastD2I(m.Value()));
+      if (m.HasValue()) return ReplaceInt32(FastD2IChecked(m.Value()));
       if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
@@ -670,7 +671,9 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kRoundFloat64ToInt32: {
       Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
+      if (m.HasValue()) {
+        return ReplaceInt32(DoubleToInt32(m.Value()));
+      }
       if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
@@ -1422,16 +1425,15 @@ Reduction MachineOperatorReducer::ReduceFloat64RoundDown(Node* node) {
 }
 
 CommonOperatorBuilder* MachineOperatorReducer::common() const {
-  return jsgraph()->common();
+  return mcgraph()->common();
 }
 
 
 MachineOperatorBuilder* MachineOperatorReducer::machine() const {
-  return jsgraph()->machine();
+  return mcgraph()->machine();
 }
 
-
-Graph* MachineOperatorReducer::graph() const { return jsgraph()->graph(); }
+Graph* MachineOperatorReducer::graph() const { return mcgraph()->graph(); }
 
 }  // namespace compiler
 }  // namespace internal

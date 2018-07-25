@@ -193,6 +193,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
         result_(result),
         input_(input),
         unwinding_info_writer_(unwinding_info_writer),
+        isolate_(gen->isolate()),
         zone_(gen->zone()) {}
 
   void Generate() final {
@@ -200,7 +201,8 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                       kDoubleSize);
     __ Movsd(MemOperand(rsp, 0), input_);
-    __ SlowTruncateToIDelayed(zone_, result_);
+    __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
+    __ movl(result_, MemOperand(rsp, 0));
     __ addp(rsp, Immediate(kDoubleSize));
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                       -kDoubleSize);
@@ -210,6 +212,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
   Register const result_;
   XMMRegister const input_;
   UnwindingInfoWriter* const unwinding_info_writer_;
+  Isolate* isolate_;
   Zone* zone_;
 };
 
@@ -294,9 +297,8 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
       __ PrepareCallCFunction(0);
-      __ CallCFunction(
-          ExternalReference::wasm_call_trap_callback_for_testing(__ isolate()),
-          0);
+      __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(),
+                       0);
       __ LeaveFrame(StackFrame::WASM_COMPILED);
       auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
       size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
@@ -497,18 +499,16 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     }                                                                  \
   } while (0)
 
-#define ASSEMBLE_IEEE754_BINOP(name)                                    \
-  do {                                                                  \
-    __ PrepareCallCFunction(2);                                         \
-    __ CallCFunction(                                                   \
-        ExternalReference::ieee754_##name##_function(__ isolate()), 2); \
+#define ASSEMBLE_IEEE754_BINOP(name)                                     \
+  do {                                                                   \
+    __ PrepareCallCFunction(2);                                          \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 2); \
   } while (false)
 
-#define ASSEMBLE_IEEE754_UNOP(name)                                     \
-  do {                                                                  \
-    __ PrepareCallCFunction(1);                                         \
-    __ CallCFunction(                                                   \
-        ExternalReference::ieee754_##name##_function(__ isolate()), 1); \
+#define ASSEMBLE_IEEE754_UNOP(name)                                      \
+  do {                                                                   \
+    __ PrepareCallCFunction(1);                                          \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(), 1); \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP(bin_inst, mov_inst, cmpxchg_inst) \
@@ -654,6 +654,9 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ movp(rbx, Operand(kJavaScriptCallCodeStartRegister, offset));
   __ testl(FieldOperand(rbx, CodeDataContainer::kKindSpecificFlagsOffset),
            Immediate(1 << Code::kMarkedForDeoptimizationBit));
+  // Ensure we're not serializing (otherwise we'd need to use an indirection to
+  // access the builtin below).
+  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
   __ j(not_zero, code, RelocInfo::CODE_TARGET);
@@ -701,8 +704,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallWasmFunction: {
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt64());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
         if (info()->IsWasm()) {
           __ near_call(wasm_code, RelocInfo::WASM_CALL);
         } else {
@@ -750,8 +753,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchTailCallWasm: {
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code = reinterpret_cast<Address>(
-            i.ToConstant(instr->InputAt(0)).ToInt64());
+        Address wasm_code =
+            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
         if (info()->IsWasm()) {
           __ near_jmp(wasm_code, RelocInfo::WASM_CALL);
         } else {
@@ -876,11 +879,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       break;
-    case kArchComment: {
-      Address comment_string = i.InputExternalReference(0).address();
-      __ RecordComment(reinterpret_cast<const char*>(comment_string));
+    case kArchComment:
+      __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)));
       break;
-    }
     case kArchDebugAbort:
       DCHECK(i.InputRegister(0) == rdx);
       if (!frame_access_state()->has_frame()) {
@@ -894,12 +895,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 RelocInfo::CODE_TARGET);
       }
       __ int3();
+      unwinding_info_writer_.MarkBlockWillExit();
       break;
     case kArchDebugBreak:
       __ int3();
       break;
-    case kArchNop:
     case kArchThrowTerminator:
+      unwinding_info_writer_.MarkBlockWillExit();
+      break;
+    case kArchNop:
       // don't emit code for nops.
       break;
     case kArchDeoptimize: {
@@ -908,6 +912,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CodeGenResult result =
           AssembleDeoptimizerCall(deopt_state_id, current_source_position_);
       if (result != kSuccess) return result;
+      unwinding_info_writer_.MarkBlockWillExit();
       break;
     }
     case kArchRet:
@@ -961,7 +966,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
-    case kArchPoisonOnSpeculationWord:
+    case kArchWordPoisonOnSpeculation:
       DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
       __ andq(i.InputRegister(0), kSpeculationPoisonRegister);
       break;
@@ -1026,7 +1031,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Pow: {
       // TODO(bmeurer): Improve integration of the stub.
       __ Movsd(xmm2, xmm0);
-      __ CallStubDelayed(new (zone()) MathPowStub());
+      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
       __ Movsd(xmm0, xmm3);
       break;
     }
@@ -1542,89 +1547,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kSSEFloat32ToUint64: {
-      Label done;
-      Label success;
-      if (instr->OutputCount() > 1) {
-        __ Set(i.OutputRegister(1), 0);
-      }
-      // There does not exist a Float32ToUint64 instruction, so we have to use
-      // the Float32ToInt64 instruction.
+      Label fail;
+      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 0);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Cvttss2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Cvttss2uiq(i.OutputRegister(), i.InputDoubleRegister(0), &fail);
       } else {
-        __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
+        __ Cvttss2uiq(i.OutputRegister(), i.InputOperand(0), &fail);
       }
-      // Check if the result of the Float32ToInt64 conversion is positive, we
-      // are already done.
-      __ testq(i.OutputRegister(), i.OutputRegister());
-      __ j(positive, &success);
-      // The result of the first conversion was negative, which means that the
-      // input value was not within the positive int64 range. We subtract 2^64
-      // and convert it again to see if it is within the uint64 range.
-      __ Move(kScratchDoubleReg, -9223372036854775808.0f);
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ addss(kScratchDoubleReg, i.InputDoubleRegister(0));
-      } else {
-        __ addss(kScratchDoubleReg, i.InputOperand(0));
-      }
-      __ Cvttss2siq(i.OutputRegister(), kScratchDoubleReg);
-      __ testq(i.OutputRegister(), i.OutputRegister());
-      // The only possible negative value here is 0x80000000000000000, which is
-      // used on x64 to indicate an integer overflow.
-      __ j(negative, &done);
-      // The input value is within uint64 range and the second conversion worked
-      // successfully, but we still have to undo the subtraction we did
-      // earlier.
-      __ Set(kScratchRegister, 0x8000000000000000);
-      __ orq(i.OutputRegister(), kScratchRegister);
-      __ bind(&success);
-      if (instr->OutputCount() > 1) {
-        __ Set(i.OutputRegister(1), 1);
-      }
-      __ bind(&done);
+      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 1);
+      __ bind(&fail);
       break;
     }
     case kSSEFloat64ToUint64: {
-      Label done;
-      Label success;
-      if (instr->OutputCount() > 1) {
-        __ Set(i.OutputRegister(1), 0);
-      }
-      // There does not exist a Float64ToUint64 instruction, so we have to use
-      // the Float64ToInt64 instruction.
+      Label fail;
+      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 0);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Cvttsd2uiq(i.OutputRegister(), i.InputDoubleRegister(0), &fail);
       } else {
-        __ Cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
+        __ Cvttsd2uiq(i.OutputRegister(), i.InputOperand(0), &fail);
       }
-      // Check if the result of the Float64ToInt64 conversion is positive, we
-      // are already done.
-      __ testq(i.OutputRegister(), i.OutputRegister());
-      __ j(positive, &success);
-      // The result of the first conversion was negative, which means that the
-      // input value was not within the positive int64 range. We subtract 2^64
-      // and convert it again to see if it is within the uint64 range.
-      __ Move(kScratchDoubleReg, -9223372036854775808.0);
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ addsd(kScratchDoubleReg, i.InputDoubleRegister(0));
-      } else {
-        __ addsd(kScratchDoubleReg, i.InputOperand(0));
-      }
-      __ Cvttsd2siq(i.OutputRegister(), kScratchDoubleReg);
-      __ testq(i.OutputRegister(), i.OutputRegister());
-      // The only possible negative value here is 0x80000000000000000, which is
-      // used on x64 to indicate an integer overflow.
-      __ j(negative, &done);
-      // The input value is within uint64 range and the second conversion worked
-      // successfully, but we still have to undo the subtraction we did
-      // earlier.
-      __ Set(kScratchRegister, 0x8000000000000000);
-      __ orq(i.OutputRegister(), kScratchRegister);
-      __ bind(&success);
-      if (instr->OutputCount() > 1) {
-        __ Set(i.OutputRegister(1), 1);
-      }
-      __ bind(&done);
+      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 1);
+      __ bind(&fail);
       break;
     }
     case kSSEInt32ToFloat64:
@@ -1657,37 +1600,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kSSEUint64ToFloat32:
       if (instr->InputAt(0)->IsRegister()) {
-        __ movq(kScratchRegister, i.InputRegister(0));
+        __ Cvtqui2ss(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
-        __ movq(kScratchRegister, i.InputOperand(0));
+        __ Cvtqui2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       }
-      __ Cvtqui2ss(i.OutputDoubleRegister(), kScratchRegister,
-                   i.TempRegister(0));
       break;
     case kSSEUint64ToFloat64:
       if (instr->InputAt(0)->IsRegister()) {
-        __ movq(kScratchRegister, i.InputRegister(0));
+        __ Cvtqui2sd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
-        __ movq(kScratchRegister, i.InputOperand(0));
+        __ Cvtqui2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
-      __ Cvtqui2sd(i.OutputDoubleRegister(), kScratchRegister,
-                   i.TempRegister(0));
       break;
     case kSSEUint32ToFloat64:
       if (instr->InputAt(0)->IsRegister()) {
-        __ movl(kScratchRegister, i.InputRegister(0));
+        __ Cvtlui2sd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
-        __ movl(kScratchRegister, i.InputOperand(0));
+        __ Cvtlui2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
-      __ Cvtqsi2sd(i.OutputDoubleRegister(), kScratchRegister);
       break;
     case kSSEUint32ToFloat32:
       if (instr->InputAt(0)->IsRegister()) {
-        __ movl(kScratchRegister, i.InputRegister(0));
+        __ Cvtlui2ss(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
-        __ movl(kScratchRegister, i.InputOperand(0));
+        __ Cvtlui2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       }
-      __ Cvtqsi2ss(i.OutputDoubleRegister(), kScratchRegister);
       break;
     case kSSEFloat64ExtractLowWord32:
       if (instr->InputAt(0)->IsFPStackSlot()) {
@@ -3117,6 +3054,9 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
+      if (call_descriptor->IsWasmFunctionCall()) {
+        __ pushq(kWasmInstanceRegister);
+      }
     }
 
     unwinding_info_writer_.MarkFrameConstructed(pc_base);

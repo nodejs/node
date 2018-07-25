@@ -263,3 +263,55 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertThrows(() => i2.exports.main(3));
 
 })();
+
+(function BranchTableAfterSerialization() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_i_i)
+      .addBody([kExprBlock, kWasmStmt,
+                  kExprBlock, kWasmStmt,
+                    kExprBlock, kWasmStmt,
+                      kExprBlock, kWasmStmt,
+                        kExprBlock, kWasmStmt,
+                          kExprBlock, kWasmStmt,
+                            kExprBlock, kWasmStmt,
+                              kExprGetLocal, 0,
+                              kExprBrTable, 6, 0, 1, 2, 3, 4, 5, 6,
+                            kExprEnd,
+                            kExprI32Const, 3,
+                            kExprReturn,
+                          kExprEnd,
+                          kExprI32Const, 7,
+                          kExprReturn,
+                        kExprEnd,
+                        kExprI32Const, 9,
+                        kExprReturn,
+                      kExprEnd,
+                      kExprI32Const, 11,
+                      kExprReturn,
+                    kExprEnd,
+                    kExprI32Const, 23,
+                    kExprReturn,
+                  kExprEnd,
+                  kExprI32Const, 35,
+                  kExprReturn,
+                kExprEnd,
+                kExprI32Const, 42,
+                kExprReturn])
+      .exportFunc();
+
+  var wire_bytes = builder.toBuffer();
+  var module = new WebAssembly.Module(wire_bytes);
+  var buffer = %SerializeWasmModule(module);
+  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var instance = new WebAssembly.Instance(module);
+
+  assertEquals(3, instance.exports.main(0));
+  assertEquals(7, instance.exports.main(1));
+  assertEquals(9, instance.exports.main(2));
+  assertEquals(11, instance.exports.main(3));
+  assertEquals(23, instance.exports.main(4));
+  assertEquals(35, instance.exports.main(5));
+  assertEquals(42, instance.exports.main(6));
+  assertEquals(42, instance.exports.main(9));
+})();

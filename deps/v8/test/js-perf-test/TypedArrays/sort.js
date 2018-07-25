@@ -17,6 +17,14 @@ let typedArrayFloatConstructors = [
   {name: "Float64", ctor: Float64Array},
 ];
 
+// "ref" builds might not yet have BigInt support, so the benchmark fails
+// gracefully during setup (the constructor will be undefined), instead of
+// a hard fail when this file is loaded.
+let typedArrayBigIntConstructors = [
+  {name: "BigUint64", ctor: this["BigUint64Array"]},
+  {name: "BigInt64", ctor: this["BigInt64Array"]}
+];
+
 function CreateBenchmarks(constructors, comparefns = []) {
   var benchmarks = [];
   for (let constructor of constructors) {
@@ -27,17 +35,22 @@ function CreateBenchmarks(constructors, comparefns = []) {
   return benchmarks;
 }
 
-const size = 3000;
-const initialLargeArray = new Array(size);
-for (let i = 0; i < size; ++i) {
-  initialLargeArray[i] = Math.random() * 3000;
+const kArraySize = 3000;
+const initialLargeArray = new Array(kArraySize);
+for (let i = 0; i < kArraySize; ++i) {
+  initialLargeArray[i] = Math.random() * kArraySize;
 }
 
 let array_to_sort = [];
 
 function CreateSetupFn(constructor) {
   return () => {
-    array_to_sort = new constructor(initialLargeArray);
+    if (constructor == BigUint64Array || constructor == BigInt64Array) {
+      array_to_sort = constructor.from(initialLargeArray,
+                                       x => BigInt(Math.floor(x)));
+    } else {
+      array_to_sort = new constructor(initialLargeArray);
+    }
   }
 }
 

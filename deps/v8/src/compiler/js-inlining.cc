@@ -548,62 +548,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       uncaught_subcalls.push_back(create);  // Adds {IfSuccess} & {IfException}.
       NodeProperties::ReplaceControlInput(node, create);
       NodeProperties::ReplaceEffectInput(node, create);
-      Node* node_success =
-          NodeProperties::FindSuccessfulControlProjection(node);
       // Placeholder to hold {node}'s value dependencies while {node} is
       // replaced.
       Node* dummy = graph()->NewNode(common()->Dead());
       NodeProperties::ReplaceUses(node, dummy, node, node, node);
       Node* result;
-      if (FLAG_harmony_restrict_constructor_return &&
-          IsClassConstructor(shared_info->kind())) {
-        Node* is_undefined =
-            graph()->NewNode(simplified()->ReferenceEqual(), node,
-                             jsgraph()->UndefinedConstant());
-        Node* branch_is_undefined =
-            graph()->NewNode(common()->Branch(), is_undefined, node_success);
-        Node* branch_is_undefined_true =
-            graph()->NewNode(common()->IfTrue(), branch_is_undefined);
-        Node* branch_is_undefined_false =
-            graph()->NewNode(common()->IfFalse(), branch_is_undefined);
-        Node* is_receiver =
-            graph()->NewNode(simplified()->ObjectIsReceiver(), node);
-        Node* branch_is_receiver = graph()->NewNode(
-            common()->Branch(), is_receiver, branch_is_undefined_false);
-        Node* branch_is_receiver_true =
-            graph()->NewNode(common()->IfTrue(), branch_is_receiver);
-        Node* branch_is_receiver_false =
-            graph()->NewNode(common()->IfFalse(), branch_is_receiver);
-        branch_is_receiver_false =
-            graph()->NewNode(javascript()->CallRuntime(
-                                 Runtime::kThrowConstructorReturnedNonObject),
-                             context, NodeProperties::GetFrameStateInput(node),
-                             node, branch_is_receiver_false);
-        uncaught_subcalls.push_back(branch_is_receiver_false);
-        branch_is_receiver_false =
-            graph()->NewNode(common()->Throw(), branch_is_receiver_false,
-                             branch_is_receiver_false);
-        NodeProperties::MergeControlToEnd(graph(), common(),
-                                          branch_is_receiver_false);
-        Node* merge =
-            graph()->NewNode(common()->Merge(2), branch_is_undefined_true,
-                             branch_is_receiver_true);
-        result =
-            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                             create, node, merge);
-        ReplaceWithValue(node_success, node_success, node_success, merge);
-        // Fix input destroyed by the above {ReplaceWithValue} call.
-        NodeProperties::ReplaceControlInput(branch_is_undefined, node_success,
-                                            0);
-      } else {
-        // Insert a check of the return value to determine whether the return
-        // value or the implicit receiver should be selected as a result of the
-        // call.
-        Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), node);
-        result =
-            graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
-                             check, node, create);
-      }
+      // Insert a check of the return value to determine whether the return
+      // value or the implicit receiver should be selected as a result of the
+      // call.
+      Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), node);
+      result =
+          graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                           check, node, create);
       receiver = create;  // The implicit receiver.
       ReplaceWithValue(dummy, result);
     } else if (IsDerivedConstructor(shared_info->kind())) {

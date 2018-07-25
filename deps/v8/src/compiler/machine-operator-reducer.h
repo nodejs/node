@@ -16,15 +16,14 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
-class JSGraph;
-
+class MachineGraph;
 
 // Performs constant folding and strength reduction on nodes that have
 // machine operators.
 class V8_EXPORT_PRIVATE MachineOperatorReducer final
     : public NON_EXPORTED_BASE(Reducer) {
  public:
-  explicit MachineOperatorReducer(JSGraph* jsgraph,
+  explicit MachineOperatorReducer(MachineGraph* mcgraph,
                                   bool allow_signalling_nan = true);
   ~MachineOperatorReducer();
 
@@ -102,11 +101,11 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceFloat64RoundDown(Node* node);
 
   Graph* graph() const;
-  JSGraph* jsgraph() const { return jsgraph_; }
+  MachineGraph* mcgraph() const { return mcgraph_; }
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
 
-  JSGraph* jsgraph_;
+  MachineGraph* mcgraph_;
   bool allow_signalling_nan_;
 };
 

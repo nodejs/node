@@ -779,7 +779,8 @@ TEST(BytecodeArray) {
   CHECK_GE(array->address() + array->BytecodeArraySize(),
            array->GetFirstBytecodeAddress() + array->length());
   for (int i = 0; i < kRawBytesSize; i++) {
-    CHECK_EQ(array->GetFirstBytecodeAddress()[i], kRawBytes[i]);
+    CHECK_EQ(Memory::uint8_at(array->GetFirstBytecodeAddress() + i),
+             kRawBytes[i]);
     CHECK_EQ(array->get(i), kRawBytes[i]);
   }
 
@@ -796,7 +797,8 @@ TEST(BytecodeArray) {
   CHECK_EQ(array->frame_size(), kFrameSize);
   for (int i = 0; i < kRawBytesSize; i++) {
     CHECK_EQ(array->get(i), kRawBytes[i]);
-    CHECK_EQ(array->GetFirstBytecodeAddress()[i], kRawBytes[i]);
+    CHECK_EQ(Memory::uint8_at(array->GetFirstBytecodeAddress() + i),
+             kRawBytes[i]);
   }
 
   // Constant pool should have been migrated.
@@ -1599,7 +1601,7 @@ TEST(TestAlignmentCalculations) {
   int max_double_unaligned_fill = Heap::GetMaximumFillToAlign(kDoubleUnaligned);
   CHECK_EQ(maximum_double_misalignment, max_double_unaligned_fill);
 
-  Address base = static_cast<Address>(nullptr);
+  Address base = kNullAddress;
   int fill = 0;
 
   // Word alignment never requires fill.
@@ -2181,6 +2183,33 @@ HEAP_TEST(GCFlags) {
   CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
 }
 
+HEAP_TEST(Regress845060) {
+  // Regression test for crbug.com/845060, where a raw pointer to a string's
+  // data was kept across an allocation. If the allocation causes GC and
+  // moves the string, such raw pointers become invalid.
+  FLAG_allow_natives_syntax = true;
+  FLAG_stress_incremental_marking = false;
+  FLAG_stress_compaction = false;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+
+  // Preparation: create a string in new space.
+  Local<Value> str = CompileRun("var str = (new Array(10000)).join('x'); str");
+  CHECK(heap->InNewSpace(*v8::Utils::OpenHandle(*str)));
+
+  // Idle incremental marking sets the "kReduceMemoryFootprint" flag, which
+  // causes from_space to be unmapped after scavenging.
+  heap->StartIdleIncrementalMarking(GarbageCollectionReason::kTesting);
+  CHECK(heap->ShouldReduceMemory());
+
+  // Run the test (which allocates results) until the original string was
+  // promoted to old space. Unmapping of from_space causes accesses to any
+  // stale raw pointers to crash.
+  CompileRun("while (%InNewSpace(str)) { str.split(''); }");
+  CHECK(!heap->InNewSpace(*v8::Utils::OpenHandle(*str)));
+}
 
 TEST(IdleNotificationFinishMarking) {
   if (!FLAG_incremental_marking) return;
@@ -2414,7 +2443,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
     return;
   v8::HandleScope scope(CcTest::isolate());
 
-  // Grow new space unitl maximum capacity reached.
+  // Grow new space until maximum capacity reached.
   while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
     CcTest::heap()->new_space()->Grow();
   }
@@ -2441,7 +2470,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
   CHECK(CcTest::heap()->InOldSpace(*o));
-  CHECK(CcTest::heap()->InOldSpace(o->property_array()));
+  CHECK_EQ(o->property_array(), CcTest::heap()->empty_property_array());
 }
 
 
@@ -2987,15 +3016,21 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   CHECK_EQ(expected_slots, feedback_helper.slot_count());
   int slot1 = 0;
   int slot2 = 1;
-  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))->IsWeakCell());
-  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeakCell());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))
+            ->ToStrongHeapObject()
+            ->IsWeakCell());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))
+            ->ToStrongHeapObject()
+            ->IsWeakCell());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage();
 
-  CHECK(!WeakCell::cast(feedback_vector->Get(feedback_helper.slot(slot1)))
+  CHECK(!WeakCell::cast(feedback_vector->Get(feedback_helper.slot(slot1))
+                            ->ToStrongHeapObject())
              ->cleared());
-  CHECK(!WeakCell::cast(feedback_vector->Get(feedback_helper.slot(slot2)))
+  CHECK(!WeakCell::cast(feedback_vector->Get(feedback_helper.slot(slot2))
+                            ->ToStrongHeapObject())
              ->cleared());
 }
 
@@ -3025,12 +3060,12 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
   Handle<FeedbackVector> vector(f->feedback_vector());
-  CHECK(vector->Get(FeedbackSlot(0))->IsWeakCell());
+  CHECK(vector->Get(FeedbackSlot(0))->ToStrongHeapObject()->IsWeakCell());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage();
 
-  CHECK(vector->Get(FeedbackSlot(0))->IsWeakCell());
+  CHECK(vector->Get(FeedbackSlot(0))->ToStrongHeapObject()->IsWeakCell());
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
@@ -3864,9 +3899,8 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   masm.Push(isolate->factory()->undefined_value());
   masm.Drop(2);
   masm.GetCode(isolate, &desc);
-  Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::OPTIMIZED_FUNCTION, undefined);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::OPTIMIZED_FUNCTION, masm.CodeObject());
   CHECK(code->IsCode());
   return code;
 }
@@ -3953,18 +3987,18 @@ TEST(WeakFunctionInConstructor) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(createObj->feedback_vector(), CcTest::i_isolate());
   for (int i = 0; i < 20; i++) {
-    Object* slot_value = feedback_vector->Get(FeedbackSlot(0));
+    Object* slot_value = feedback_vector->Get(FeedbackSlot(0))->ToObject();
     CHECK(slot_value->IsWeakCell());
     if (WeakCell::cast(slot_value)->cleared()) break;
     CcTest::CollectAllGarbage();
   }
 
-  Object* slot_value = feedback_vector->Get(FeedbackSlot(0));
+  Object* slot_value = feedback_vector->Get(FeedbackSlot(0))->ToObject();
   CHECK(slot_value->IsWeakCell() && WeakCell::cast(slot_value)->cleared());
   CompileRun(
       "function coat() { this.x = 6; }"
       "createObj(coat);");
-  slot_value = feedback_vector->Get(FeedbackSlot(0));
+  slot_value = feedback_vector->Get(FeedbackSlot(0))->ToObject();
   CHECK(slot_value->IsWeakCell() && !WeakCell::cast(slot_value)->cleared());
 }
 
@@ -4460,7 +4494,7 @@ TEST(Regress507979) {
 
   for (HeapObject* obj = it.next(); obj != nullptr; obj = it.next()) {
     // Let's not optimize the loop away.
-    CHECK_NOT_NULL(obj->address());
+    CHECK_NE(obj->address(), kNullAddress);
   }
 }
 
@@ -4616,17 +4650,18 @@ TEST(Regress3877) {
   CHECK(weak_prototype->cleared());
 }
 
-
-Handle<WeakCell> AddRetainedMap(Isolate* isolate, Heap* heap) {
-    HandleScope inner_scope(isolate);
-    Handle<Map> map = Map::Create(isolate, 1);
-    v8::Local<v8::Value> result =
-        CompileRun("(function () { return {x : 10}; })();");
-    Handle<JSReceiver> proto =
-        v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
-    Map::SetPrototype(map, proto);
-    heap->AddRetainedMap(map);
-    return inner_scope.CloseAndEscape(Map::WeakCellForMap(map));
+Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {
+  HandleScope inner_scope(isolate);
+  Handle<Map> map = Map::Create(isolate, 1);
+  v8::Local<v8::Value> result =
+      CompileRun("(function () { return {x : 10}; })();");
+  Handle<JSReceiver> proto =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
+  Map::SetPrototype(map, proto);
+  heap->AddRetainedMap(map);
+  Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(1);
+  array->Set(0, HeapObjectReference::Weak(*map));
+  return inner_scope.CloseAndEscape(array);
 }
 
 
@@ -4634,16 +4669,16 @@ void CheckMapRetainingFor(int n) {
   FLAG_retain_maps_for_n_gc = n;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  Handle<WeakCell> weak_cell = AddRetainedMap(isolate, heap);
-  CHECK(!weak_cell->cleared());
+  Handle<WeakFixedArray> array_with_map = AddRetainedMap(isolate, heap);
+  CHECK(array_with_map->Get(0)->IsWeakHeapObject());
   for (int i = 0; i < n; i++) {
     heap::SimulateIncrementalMarking(heap);
     CcTest::CollectGarbage(OLD_SPACE);
   }
-  CHECK(!weak_cell->cleared());
+  CHECK(array_with_map->Get(0)->IsWeakHeapObject());
   heap::SimulateIncrementalMarking(heap);
   CcTest::CollectGarbage(OLD_SPACE);
-  CHECK(weak_cell->cleared());
+  CHECK(array_with_map->Get(0)->IsClearedWeakHeapObject());
 }
 
 
@@ -5494,13 +5529,14 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   heap::GcAndSweep(heap, OLD_SPACE);
 }
 
-TEST(ContinuousRightTrimFixedArrayInBlackArea) {
+template <typename T, typename NewFunction, typename TrimFunction>
+void ContinuousRightTrimFixedArrayInBlackAreaHelper(NewFunction& new_func,
+                                                    TrimFunction& trim_func) {
   if (!FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
-  Isolate* isolate = heap->isolate();
   CcTest::CollectAllGarbage();
 
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
@@ -5519,10 +5555,10 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   // Ensure that we allocate a new page, set up a bump pointer area, and
   // perform the allocation in a black area.
   heap::SimulateFullSpace(heap->old_space());
-  isolate->factory()->NewFixedArray(10, TENURED);
+  new_func(10, TENURED);
 
   // Allocate the fixed array that will be trimmed later.
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(100, TENURED);
+  Handle<T> array = new_func(100, TENURED);
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
@@ -5536,7 +5572,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
 
   // Trim it once by one word to make checking for white marking color uniform.
   Address previous = end_address - kPointerSize;
-  heap->RightTrimFixedArray(*array, 1);
+  trim_func(*array, 1);
   HeapObject* filler = HeapObject::FromAddress(previous);
   CHECK(filler->IsFiller());
   CHECK(marking_state->IsImpossible(filler));
@@ -5545,7 +5581,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   for (int i = 1; i <= 3; i++) {
     for (int j = 0; j < 10; j++) {
       previous -= kPointerSize * i;
-      heap->RightTrimFixedArray(*array, i);
+      trim_func(*array, i);
       HeapObject* filler = HeapObject::FromAddress(previous);
       CHECK(filler->IsFiller());
       CHECK(marking_state->IsWhite(filler));
@@ -5553,6 +5589,29 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   }
 
   heap::GcAndSweep(heap, OLD_SPACE);
+}
+
+TEST(ContinuousRightTrimFixedArrayInBlackArea) {
+  auto new_func = [](int size, PretenureFlag tenured) {
+    return CcTest::i_isolate()->factory()->NewFixedArray(size, tenured);
+  };
+  auto trim_func = [](FixedArray* array, int elements_to_trim) {
+    CcTest::i_isolate()->heap()->RightTrimFixedArray(array, elements_to_trim);
+  };
+  ContinuousRightTrimFixedArrayInBlackAreaHelper<FixedArray>(new_func,
+                                                             trim_func);
+}
+
+TEST(ContinuousRightTrimWeakFixedArrayInBlackArea) {
+  auto new_func = [](int size, PretenureFlag tenured) {
+    return CcTest::i_isolate()->factory()->NewWeakFixedArray(size, tenured);
+  };
+  auto trim_func = [](WeakFixedArray* array, int elements_to_trim) {
+    CcTest::i_isolate()->heap()->RightTrimWeakFixedArray(array,
+                                                         elements_to_trim);
+  };
+  ContinuousRightTrimFixedArrayInBlackAreaHelper<WeakFixedArray>(new_func,
+                                                                 trim_func);
 }
 
 TEST(Regress618958) {
@@ -5917,7 +5976,7 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
   heap->CollectAllGarbage(Heap::kNoGCFlags, GarbageCollectionReason::kTesting);
   {
     HandleScope scope(i_isolate);
-    while (heap->PromotedSpaceSizeOfObjects() <
+    while (heap->OldGenerationSizeOfObjects() <
            heap->MaxOldGenerationSize() * 0.9) {
       factory->NewFixedArray(100, TENURED);
     }

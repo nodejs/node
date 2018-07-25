@@ -27,9 +27,8 @@ static const bool FLAG_enable_slow_asserts = false;
 }  // namespace internal
 }  // namespace v8
 
-#define DCHECK_TAG_ALIGNED(address)             \
-  DCHECK((reinterpret_cast<intptr_t>(address) & \
-          ::v8::internal::kHeapObjectTagMask) == 0)
+#define DCHECK_TAG_ALIGNED(address) \
+  DCHECK((address & ::v8::internal::kHeapObjectTagMask) == 0)
 
 #define DCHECK_SIZE_TAG_ALIGNED(size) \
   DCHECK((size & ::v8::internal::kHeapObjectTagMask) == 0)

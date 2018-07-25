@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/bailout-reason.h"
 #include "src/compilation-dependencies.h"
 #include "src/feedback-vector.h"
 #include "src/frames.h"
@@ -41,18 +42,20 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     kAccessorInliningEnabled = 1 << 0,
     kFunctionContextSpecializing = 1 << 1,
     kInliningEnabled = 1 << 2,
-    kPoisonLoads = 1 << 3,
-    kDisableFutureOptimization = 1 << 4,
-    kSplittingEnabled = 1 << 5,
-    kSourcePositionsEnabled = 1 << 6,
-    kBailoutOnUninitialized = 1 << 7,
-    kLoopPeelingEnabled = 1 << 8,
-    kUntrustedCodeMitigations = 1 << 9,
-    kSwitchJumpTableEnabled = 1 << 10,
-    kCalledWithCodeStartRegister = 1 << 11,
-    kPoisonRegisterArguments = 1 << 12,
-    kAllocationFoldingEnabled = 1 << 13,
-    kAnalyzeEnvironmentLiveness = 1 << 14,
+    kDisableFutureOptimization = 1 << 3,
+    kSplittingEnabled = 1 << 4,
+    kSourcePositionsEnabled = 1 << 5,
+    kBailoutOnUninitialized = 1 << 6,
+    kLoopPeelingEnabled = 1 << 7,
+    kUntrustedCodeMitigations = 1 << 8,
+    kSwitchJumpTableEnabled = 1 << 9,
+    kCalledWithCodeStartRegister = 1 << 10,
+    kPoisonRegisterArguments = 1 << 11,
+    kAllocationFoldingEnabled = 1 << 12,
+    kAnalyzeEnvironmentLiveness = 1 << 13,
+    kTraceTurboJson = 1 << 14,
+    kTraceTurboGraph = 1 << 15,
+    kTraceTurboScheduled = 1 << 16,
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
@@ -71,7 +74,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
                            Handle<SharedFunctionInfo> shared,
                            Handle<JSFunction> closure);
-  // Construct a compilation info for stub compilation (or testing).
+  // Construct a compilation info for stub compilation, Wasm, and testing.
   OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
                            Code::Kind code_kind);
 
@@ -117,8 +120,12 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
 
-  void MarkAsPoisonLoads() { SetFlag(kPoisonLoads); }
-  bool is_poison_loads() const { return GetFlag(kPoisonLoads); }
+  void SetPoisoningMitigationLevel(PoisoningMitigationLevel poisoning_level) {
+    poisoning_level_ = poisoning_level;
+  }
+  PoisoningMitigationLevel GetPoisoningMitigationLevel() const {
+    return poisoning_level_;
+  }
 
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
   bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
@@ -165,6 +172,14 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
   bool is_analyze_environment_liveness() const {
     return GetFlag(kAnalyzeEnvironmentLiveness);
+  }
+
+  bool trace_turbo_json_enabled() const { return GetFlag(kTraceTurboJson); }
+
+  bool trace_turbo_graph_enabled() const { return GetFlag(kTraceTurboGraph); }
+
+  bool trace_turbo_scheduled_enabled() const {
+    return GetFlag(kTraceTurboScheduled);
   }
 
   // Code getters and setters.
@@ -264,8 +279,12 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void SetFlag(Flag flag) { flags_ |= flag; }
   bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
 
+  void SetTracingFlags(bool passes_filter);
+
   // Compilation flags.
   unsigned flags_;
+  PoisoningMitigationLevel poisoning_level_ =
+      PoisoningMitigationLevel::kDontPoison;
 
   AbstractCode::Kind code_kind_;
   uint32_t stub_key_;

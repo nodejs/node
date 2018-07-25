@@ -31,6 +31,8 @@ std::ostream& operator<<(std::ostream& os, BranchHint hint) {
 
 std::ostream& operator<<(std::ostream& os, IsSafetyCheck is_safety_check) {
   switch (is_safety_check) {
+    case IsSafetyCheck::kCriticalSafetyCheck:
+      return os << "CriticalSafetyCheck";
     case IsSafetyCheck::kSafetyCheck:
       return os << "SafetyCheck";
     case IsSafetyCheck::kNoSafetyCheck:
@@ -96,21 +98,20 @@ IsSafetyCheck IsSafetyCheckOf(const Operator* op) {
   return DeoptimizeParametersOf(op).is_safety_check();
 }
 
-const Operator* CommonOperatorBuilder::MarkAsSafetyCheck(const Operator* op) {
+const Operator* CommonOperatorBuilder::MarkAsSafetyCheck(
+    const Operator* op, IsSafetyCheck safety_check) {
   if (op->opcode() == IrOpcode::kBranch) {
     BranchOperatorInfo info = BranchOperatorInfoOf(op);
-    if (info.is_safety_check == IsSafetyCheck::kSafetyCheck) return op;
-    return Branch(info.hint, IsSafetyCheck::kSafetyCheck);
+    if (info.is_safety_check == safety_check) return op;
+    return Branch(info.hint, safety_check);
   }
   DeoptimizeParameters p = DeoptimizeParametersOf(op);
-  if (p.is_safety_check() == IsSafetyCheck::kSafetyCheck) return op;
+  if (p.is_safety_check() == safety_check) return op;
   switch (op->opcode()) {
     case IrOpcode::kDeoptimizeIf:
-      return DeoptimizeIf(p.kind(), p.reason(), p.feedback(),
-                          IsSafetyCheck::kSafetyCheck);
+      return DeoptimizeIf(p.kind(), p.reason(), p.feedback(), safety_check);
     case IrOpcode::kDeoptimizeUnless:
-      return DeoptimizeUnless(p.kind(), p.reason(), p.feedback(),
-                              IsSafetyCheck::kSafetyCheck);
+      return DeoptimizeUnless(p.kind(), p.reason(), p.feedback(), safety_check);
     default:
       UNREACHABLE();
   }
@@ -347,9 +348,9 @@ RegionObservability RegionObservabilityOf(Operator const* op) {
   return OpParameter<RegionObservability>(op);
 }
 
-Type* TypeGuardTypeOf(Operator const* op) {
+Type TypeGuardTypeOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kTypeGuard, op->opcode());
-  return OpParameter<Type*>(op);
+  return OpParameter<Type>(op);
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -430,12 +431,15 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)                       \
   V(Retain, Operator::kKontrol, 1, 1, 0, 0, 1, 0)
 
-#define CACHED_BRANCH_LIST(V) \
-  V(None, SafetyCheck)        \
-  V(True, SafetyCheck)        \
-  V(False, SafetyCheck)       \
-  V(None, NoSafetyCheck)      \
-  V(True, NoSafetyCheck)      \
+#define CACHED_BRANCH_LIST(V)   \
+  V(None, CriticalSafetyCheck)  \
+  V(True, CriticalSafetyCheck)  \
+  V(False, CriticalSafetyCheck) \
+  V(None, SafetyCheck)          \
+  V(True, SafetyCheck)          \
+  V(False, SafetyCheck)         \
+  V(None, NoSafetyCheck)        \
+  V(True, NoSafetyCheck)        \
   V(False, NoSafetyCheck)
 
 #define CACHED_RETURN_LIST(V) \
@@ -1227,8 +1231,8 @@ const Operator* CommonOperatorBuilder::Phi(MachineRepresentation rep,
       rep);                                              // parameter
 }
 
-const Operator* CommonOperatorBuilder::TypeGuard(Type* type) {
-  return new (zone()) Operator1<Type*>(       // --
+const Operator* CommonOperatorBuilder::TypeGuard(Type type) {
+  return new (zone()) Operator1<Type>(        // --
       IrOpcode::kTypeGuard, Operator::kPure,  // opcode
       "TypeGuard",                            // name
       1, 1, 1, 1, 1, 0,                       // counts
@@ -1514,6 +1518,17 @@ const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep) {
 const FrameStateInfo& FrameStateInfoOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kFrameState, op->opcode());
   return OpParameter<FrameStateInfo>(op);
+}
+
+IsSafetyCheck CombineSafetyChecks(IsSafetyCheck a, IsSafetyCheck b) {
+  if (a == IsSafetyCheck::kCriticalSafetyCheck ||
+      b == IsSafetyCheck::kCriticalSafetyCheck) {
+    return IsSafetyCheck::kCriticalSafetyCheck;
+  }
+  if (a == IsSafetyCheck::kSafetyCheck || b == IsSafetyCheck::kSafetyCheck) {
+    return IsSafetyCheck::kSafetyCheck;
+  }
+  return IsSafetyCheck::kNoSafetyCheck;
 }
 
 #undef COMMON_CACHED_OP_LIST

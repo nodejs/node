@@ -13,6 +13,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/eh-frame.h"
 #include "src/frames.h"
+#include "src/lsan.h"
 #include "src/macro-assembler-inl.h"
 #include "src/optimized-compilation-info.h"
 
@@ -44,7 +45,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                              int start_source_position,
                              JumpOptimizationInfo* jump_opt,
                              WasmCompilationData* wasm_compilation_data,
-                             CodeGeneratorPoisoningLevel poisoning_level)
+                             PoisoningMitigationLevel poisoning_level)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -130,7 +131,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
       GetDeoptimizationReason(deoptimization_id);
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       tasm()->isolate(), deoptimization_id, bailout_type);
-  if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
+  if (deopt_entry == kNullAddress) return kTooManyDeoptimizationBailouts;
   if (info()->is_source_positions_enabled()) {
     tasm()->RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   }
@@ -204,9 +205,9 @@ void CodeGenerator::AssembleCode() {
       current_block_ = block->rpo_number();
       unwinding_info_writer_.BeginInstructionBlock(tasm()->pc_offset(), block);
       if (FLAG_code_comments) {
-        // TODO(titzer): these code comments are a giant memory leak.
         Vector<char> buffer = Vector<char>::New(200);
         char* buffer_start = buffer.start();
+        LSAN_IGNORE_OBJECT(buffer_start);
 
         int next = SNPrintF(
             buffer, "-- B%d start%s%s%s%s", block->rpo_number().ToInt(),
@@ -286,7 +287,8 @@ void CodeGenerator::AssembleCode() {
       last_updated = safepoints()->UpdateDeoptimizationInfo(
           ds->pc_offset(), trampoline_pc, last_updated);
     }
-    AssembleDeoptimizerCall(deoptimization_id, exit->pos());
+    result_ = AssembleDeoptimizerCall(deoptimization_id, exit->pos());
+    if (result_ != kSuccess) return;
   }
 
   FinishCode();
@@ -376,19 +378,24 @@ Handle<Code> CodeGenerator::FinalizeCode() {
     unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
   }
 
-  Handle<Code> result = isolate()->factory()->NewCode(
+  MaybeHandle<Code> maybe_code = isolate()->factory()->TryNewCode(
       desc, info()->code_kind(), Handle<Object>(), info()->builtin_index(),
       source_positions, deopt_data, kMovable, info()->stub_key(), true,
       frame()->GetTotalFrameSlotCount(), safepoints()->GetCodeOffset(),
       handler_table_offset_);
+  Handle<Code> code;
+  if (!maybe_code.ToHandle(&code)) {
+    tasm()->AbortedCodeGeneration();
+    return Handle<Code>();
+  }
   isolate()->counters()->total_compiled_code_size()->Increment(
-      result->raw_instruction_size());
+      code->raw_instruction_size());
 
   LOG_CODE_EVENT(isolate(),
-                 CodeLinePosInfoRecordEvent(result->raw_instruction_start(),
+                 CodeLinePosInfoRecordEvent(code->raw_instruction_start(),
                                             *source_positions));
 
-  return result;
+  return code;
 }
 
 
@@ -696,7 +703,9 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
     if (info->IsStub()) return;
     std::ostringstream buffer;
     buffer << "-- ";
-    if (FLAG_trace_turbo || FLAG_trace_turbo_graph ||
+    // Turbolizer only needs the source position, as it can reconstruct
+    // the inlining stack from other information.
+    if (info->trace_turbo_json_enabled() ||
         tasm()->isolate()->concurrent_recompilation_enabled()) {
       buffer << source_position;
     } else {
@@ -706,7 +715,9 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
       buffer << source_position.InliningStack(info);
     }
     buffer << " --";
-    tasm()->RecordComment(StrDup(buffer.str().c_str()));
+    char* str = StrDup(buffer.str().c_str());
+    LSAN_IGNORE_OBJECT(str);
+    tasm()->RecordComment(str);
   }
 }
 
@@ -1192,7 +1203,7 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
 }
 
 void CodeGenerator::InitializeSpeculationPoison() {
-  if (poisoning_level_ == CodeGeneratorPoisoningLevel::kDontPoison) return;
+  if (poisoning_level_ == PoisoningMitigationLevel::kDontPoison) return;
 
   // Initialize {kSpeculationPoisonRegister} either by comparing the expected
   // with the actual call target, or by unconditionally using {-1} initially.
@@ -1209,7 +1220,7 @@ void CodeGenerator::InitializeSpeculationPoison() {
 }
 
 void CodeGenerator::ResetSpeculationPoison() {
-  if (poisoning_level_ == CodeGeneratorPoisoningLevel::kPoisonAll) {
+  if (poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
     tasm()->ResetSpeculationPoisonRegister();
   }
 }

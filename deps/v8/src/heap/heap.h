@@ -22,8 +22,7 @@
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/objects.h"
-#include "src/objects/code.h"
-#include "src/objects/hash-table.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/string-table.h"
 #include "src/visitors.h"
 
@@ -132,12 +131,15 @@ using v8::MemoryPressureLevel;
   V(Map, side_effect_call_handler_info_map, SideEffectCallHandlerInfoMap)      \
   V(Map, side_effect_free_call_handler_info_map,                               \
     SideEffectFreeCallHandlerInfoMap)                                          \
+  V(Map, next_call_side_effect_free_call_handler_info_map,                     \
+    NextCallSideEffectFreeCallHandlerInfoMap)                                  \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, string_table_map, StringTableMap)                                     \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
+  V(Map, weak_array_list_map, WeakArrayListMap)                                \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -190,6 +192,7 @@ using v8::MemoryPressureLevel;
   V(Map, termination_exception_map, TerminationExceptionMap)                   \
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
   V(Map, stale_register_map, StaleRegisterMap)                                 \
+  V(Map, self_reference_marker_map, SelfReferenceMarkerMap)                    \
   /* Canonical empty values */                                                 \
   V(EnumCache, empty_enum_cache, EmptyEnumCache)                               \
   V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
@@ -222,6 +225,7 @@ using v8::MemoryPressureLevel;
   V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
+  V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
   /* Protectors */                                                             \
   V(Cell, array_constructor_protector, ArrayConstructorProtector)              \
   V(PropertyCell, no_elements_protector, NoElementsProtector)                  \
@@ -242,6 +246,8 @@ using v8::MemoryPressureLevel;
   V(HeapNumber, infinity_value, InfinityValue)                                 \
   V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
   V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
+  /* Marker for self-references during code-generation */                      \
+  V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
   /* Caches */                                                                 \
   V(FixedArray, number_string_cache, NumberStringCache)                        \
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
@@ -258,7 +264,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, microtask_queue, MicrotaskQueue)                               \
   V(FixedArray, detached_contexts, DetachedContexts)                           \
   V(HeapObject, retaining_path_targets, RetainingPathTargets)                  \
-  V(ArrayList, retained_maps, RetainedMaps)                                    \
+  V(WeakArrayList, retained_maps, RetainedMaps)                                \
   /* Indirection lists for isolate-independent builtins */                     \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
   /* Feedback vectors that we need for code coverage or type profile */        \
@@ -384,6 +390,7 @@ using v8::MemoryPressureLevel;
   V(ScopeInfoMap)                       \
   V(ScriptContextMap)                   \
   V(ScriptContextTableMap)              \
+  V(SelfReferenceMarker)                \
   V(SharedFunctionInfoMap)              \
   V(SimpleNumberDictionaryMap)          \
   V(SloppyArgumentsElementsMap)         \
@@ -408,6 +415,7 @@ using v8::MemoryPressureLevel;
   V(UninitializedValue)                 \
   V(WeakCellMap)                        \
   V(WeakFixedArrayMap)                  \
+  V(WeakArrayListMap)                   \
   V(WithContextMap)                     \
   V(empty_string)                       \
   PRIVATE_SYMBOL_LIST(V)
@@ -760,7 +768,8 @@ class Heap {
 
   // Move len elements within a given array from src_index index to dst_index
   // index.
-  void MoveElements(FixedArray* array, int dst_index, int src_index, int len);
+  void MoveElements(FixedArray* array, int dst_index, int src_index, int len,
+                    WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. If slots could have been recorded in
@@ -773,6 +782,9 @@ class Heap {
       ClearFreedMemoryMode clear_memory_mode =
           ClearFreedMemoryMode::kDontClearFreedMemory);
 
+  template <typename T>
+  void CreateFillerForArray(T* object, int elements_to_trim, int bytes_to_trim);
+
   bool CanMoveObjectStart(HeapObject* object);
 
   static bool IsImmovable(HeapObject* object);
@@ -783,6 +795,7 @@ class Heap {
 
   // Trim the given array from the right.
   void RightTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
+  void RightTrimWeakFixedArray(WeakFixedArray* obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball* ToBoolean(bool condition);
@@ -922,12 +935,12 @@ class Heap {
   void update_external_memory(int64_t delta) { external_memory_ += delta; }
 
   void update_external_memory_concurrently_freed(intptr_t freed) {
-    external_memory_concurrently_freed_.Increment(freed);
+    external_memory_concurrently_freed_ += freed;
   }
 
   void account_external_memory_concurrently_freed() {
-    external_memory_ -= external_memory_concurrently_freed_.Value();
-    external_memory_concurrently_freed_.SetValue(0);
+    external_memory_ -= external_memory_concurrently_freed_;
+    external_memory_concurrently_freed_ = 0;
   }
 
   void CompactFixedArraysOfWeakCells();
@@ -944,6 +957,7 @@ class Heap {
   inline void OnMoveEvent(HeapObject* target, HeapObject* source,
                           int size_in_bytes);
 
+  inline bool CanAllocateInReadOnlySpace();
   bool deserialization_complete() const { return deserialization_complete_; }
 
   bool HasLowAllocationRate();
@@ -1010,7 +1024,7 @@ class Heap {
 
   NewSpace* new_space() { return new_space_; }
   OldSpace* old_space() { return old_space_; }
-  OldSpace* code_space() { return code_space_; }
+  CodeSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
   LargeObjectSpace* lo_space() { return lo_space_; }
   ReadOnlySpace* read_only_space() { return read_only_space_; }
@@ -1357,6 +1371,9 @@ class Heap {
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object* object);
 
+  // Returns whether the object resides in read-only space.
+  inline bool InReadOnlySpace(Object* object);
+
   // Checks whether an address/object in the heap (including auxiliary
   // area and unused area).
   bool Contains(HeapObject* value);
@@ -1501,8 +1518,8 @@ class Heap {
     survived_since_last_expansion_ += survived;
   }
 
-  inline uint64_t PromotedTotalSize() {
-    return PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
+  inline uint64_t OldGenerationObjectsAndPromotedExternalMemorySize() {
+    return OldGenerationSizeOfObjects() + PromotedExternalMemorySize();
   }
 
   inline void UpdateNewSpaceAllocationCounter();
@@ -1531,18 +1548,18 @@ class Heap {
   }
 
   size_t PromotedSinceLastGC() {
-    size_t old_generation_size = PromotedSpaceSizeOfObjects();
+    size_t old_generation_size = OldGenerationSizeOfObjects();
     DCHECK_GE(old_generation_size, old_generation_size_at_last_gc_);
     return old_generation_size - old_generation_size_at_last_gc_;
   }
 
   // This is called by the sweeper when it discovers more free space
-  // as expected at the end of the last GC.
+  // than expected at the end of the preceding GC.
   void NotifyRefinedOldGenerationSize(size_t decreased_bytes) {
     if (old_generation_size_at_last_gc_ != 0) {
-      // PromotedSpaceSizeOfObjects() is now smaller by |decreased_bytes|.
-      // Adjust old_generation_size_at_last_gc_ too so that PromotedSinceLastGC
-      // stay monotonically non-decreasing function.
+      // OldGenerationSizeOfObjects() is now smaller by |decreased_bytes|.
+      // Adjust old_generation_size_at_last_gc_ too, so that PromotedSinceLastGC
+      // continues to increase monotonically, rather than decreasing here.
       DCHECK_GE(old_generation_size_at_last_gc_, decreased_bytes);
       old_generation_size_at_last_gc_ -= decreased_bytes;
     }
@@ -1550,8 +1567,9 @@ class Heap {
 
   int gc_count() const { return gc_count_; }
 
-  // Returns the size of objects residing in non new spaces.
-  size_t PromotedSpaceSizeOfObjects();
+  // Returns the size of objects residing in non-new spaces.
+  // Excludes external memory held by those objects.
+  size_t OldGenerationSizeOfObjects();
 
   // ===========================================================================
   // Prologue/epilogue callback methods.========================================
@@ -1811,7 +1829,16 @@ class Heap {
 
   // Selects the proper allocation space based on the pretenuring decision.
   static AllocationSpace SelectSpace(PretenureFlag pretenure) {
-    return (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
+    switch (pretenure) {
+      case TENURED_READ_ONLY:
+        return RO_SPACE;
+      case TENURED:
+        return OLD_SPACE;
+      case NOT_TENURED:
+        return NEW_SPACE;
+      default:
+        UNREACHABLE();
+    }
   }
 
   static size_t DefaultGetExternallyAllocatedMemoryInBytesCallback() {
@@ -1942,13 +1969,13 @@ class Heap {
   void AddToRingBuffer(const char* string);
   void GetFromRingBuffer(char* buffer);
 
-  void CompactRetainedMaps(ArrayList* retained_maps);
+  void CompactRetainedMaps(WeakArrayList* retained_maps);
 
   void CollectGarbageOnMemoryPressure();
 
   bool InvokeNearHeapLimitCallback();
 
-  void ComputeFastPromotionMode(double survival_rate);
+  void ComputeFastPromotionMode();
 
   // Attempt to over-approximate the weak closure by marking object groups and
   // implicit references from global handles, but don't atomically complete
@@ -2016,9 +2043,12 @@ class Heap {
   // ===========================================================================
 
   inline size_t OldGenerationSpaceAvailable() {
-    if (old_generation_allocation_limit_ <= PromotedTotalSize()) return 0;
+    if (old_generation_allocation_limit_ <=
+        OldGenerationObjectsAndPromotedExternalMemorySize())
+      return 0;
     return old_generation_allocation_limit_ -
-           static_cast<size_t>(PromotedTotalSize());
+           static_cast<size_t>(
+               OldGenerationObjectsAndPromotedExternalMemorySize());
   }
 
   // We allow incremental marking to overshoot the allocation limit for
@@ -2028,8 +2058,11 @@ class Heap {
     // This guards against too eager finalization in small heaps.
     // The number is chosen based on v8.browsing_mobile on Nexus 7v2.
     size_t kMarginForSmallHeaps = 32u * MB;
-    if (old_generation_allocation_limit_ >= PromotedTotalSize()) return false;
-    uint64_t overshoot = PromotedTotalSize() - old_generation_allocation_limit_;
+    if (old_generation_allocation_limit_ >=
+        OldGenerationObjectsAndPromotedExternalMemorySize())
+      return false;
+    uint64_t overshoot = OldGenerationObjectsAndPromotedExternalMemorySize() -
+                         old_generation_allocation_limit_;
     // Overshoot margin is 50% of allocation limit or half-way to the max heap
     // with special handling of small heaps.
     uint64_t margin =
@@ -2079,7 +2112,7 @@ class Heap {
     return old_generation_allocation_limit_;
   }
 
-  bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
+  bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
   bool CanExpandOldGeneration(size_t size);
 
@@ -2123,7 +2156,22 @@ class Heap {
       int size_in_bytes, AllocationSpace space,
       AllocationAlignment aligment = kWordAligned);
 
-  HeapObject* AllocateRawWithRetry(
+  // This method will try to perform an allocation of a given size in a given
+  // space. If the allocation fails, a regular full garbage collection is
+  // triggered and the allocation is retried. This is performed multiple times.
+  // If after that retry procedure the allocation still fails nullptr is
+  // returned.
+  HeapObject* AllocateRawWithLigthRetry(
+      int size, AllocationSpace space,
+      AllocationAlignment alignment = kWordAligned);
+
+  // This method will try to perform an allocation of a given size in a given
+  // space. If the allocation fails, a regular full garbage collection is
+  // triggered and the allocation is retried. This is performed multiple times.
+  // If after that retry procedure the allocation still fails a "hammer"
+  // garbage collection is triggered which tries to significantly reduce memory.
+  // If the allocation still fails after that a fatal error is thrown.
+  HeapObject* AllocateRawWithRetryOrFail(
       int size, AllocationSpace space,
       AllocationAlignment alignment = kWordAligned);
   HeapObject* AllocateRawCodeInLargeObjectSpace(int size);
@@ -2132,9 +2180,16 @@ class Heap {
   V8_WARN_UNUSED_RESULT AllocationResult Allocate(Map* map,
                                                   AllocationSpace space);
 
+  // Takes a code object and checks if it is on memory which is not subject to
+  // compaction. This method will return a new code object on an immovable
+  // memory location if the original code object was movable.
+  HeapObject* EnsureImmovableCode(HeapObject* heap_object, int object_size);
+
   // Allocates a partial map for bootstrapping.
   V8_WARN_UNUSED_RESULT AllocationResult
   AllocatePartialMap(InstanceType instance_type, int instance_size);
+
+  void FinalizePartialMap(Map* map);
 
   // Allocate empty fixed typed array of given type.
   V8_WARN_UNUSED_RESULT AllocationResult
@@ -2164,7 +2219,7 @@ class Heap {
   int64_t external_memory_at_last_mark_compact_;
 
   // The amount of memory that has been freed concurrently.
-  base::AtomicNumber<intptr_t> external_memory_concurrently_freed_;
+  std::atomic<intptr_t> external_memory_concurrently_freed_;
 
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
@@ -2197,7 +2252,7 @@ class Heap {
 
   // This is not the depth of nested AlwaysAllocateScope's but rather a single
   // count, as scopes can be acquired from multiple tasks (read: threads).
-  base::AtomicNumber<size_t> always_allocate_scope_count_;
+  std::atomic<size_t> always_allocate_scope_count_;
 
   // Stores the memory pressure level that set by MemoryPressureNotification
   // and reset by a mark-compact garbage collection.
@@ -2216,7 +2271,7 @@ class Heap {
 
   NewSpace* new_space_;
   OldSpace* old_space_;
-  OldSpace* code_space_;
+  CodeSpace* code_space_;
   MapSpace* map_space_;
   LargeObjectSpace* lo_space_;
   ReadOnlySpace* read_only_space_;
@@ -2485,30 +2540,32 @@ class HeapStats {
   static const int kEndMarker = 0xDECADE01;
 
   intptr_t* start_marker;                  //  0
-  size_t* new_space_size;                  //  1
-  size_t* new_space_capacity;              //  2
-  size_t* old_space_size;                  //  3
-  size_t* old_space_capacity;              //  4
-  size_t* code_space_size;                 //  5
-  size_t* code_space_capacity;             //  6
-  size_t* map_space_size;                  //  7
-  size_t* map_space_capacity;              //  8
-  size_t* lo_space_size;                   //  9
-  size_t* global_handle_count;             // 10
-  size_t* weak_global_handle_count;        // 11
-  size_t* pending_global_handle_count;     // 12
-  size_t* near_death_global_handle_count;  // 13
-  size_t* free_global_handle_count;        // 14
-  size_t* memory_allocator_size;           // 15
-  size_t* memory_allocator_capacity;       // 16
-  size_t* malloced_memory;                 // 17
-  size_t* malloced_peak_memory;            // 18
-  size_t* objects_per_type;                // 19
-  size_t* size_per_type;                   // 20
-  int* os_error;                           // 21
-  char* last_few_messages;                 // 22
-  char* js_stacktrace;                     // 23
-  intptr_t* end_marker;                    // 24
+  size_t* ro_space_size;                   //  1
+  size_t* ro_space_capacity;               //  2
+  size_t* new_space_size;                  //  3
+  size_t* new_space_capacity;              //  4
+  size_t* old_space_size;                  //  5
+  size_t* old_space_capacity;              //  6
+  size_t* code_space_size;                 //  7
+  size_t* code_space_capacity;             //  8
+  size_t* map_space_size;                  //  9
+  size_t* map_space_capacity;              // 10
+  size_t* lo_space_size;                   // 11
+  size_t* global_handle_count;             // 12
+  size_t* weak_global_handle_count;        // 13
+  size_t* pending_global_handle_count;     // 14
+  size_t* near_death_global_handle_count;  // 15
+  size_t* free_global_handle_count;        // 16
+  size_t* memory_allocator_size;           // 17
+  size_t* memory_allocator_capacity;       // 18
+  size_t* malloced_memory;                 // 19
+  size_t* malloced_peak_memory;            // 20
+  size_t* objects_per_type;                // 21
+  size_t* size_per_type;                   // 22
+  int* os_error;                           // 23
+  char* last_few_messages;                 // 24
+  char* js_stacktrace;                     // 25
+  intptr_t* end_marker;                    // 26
 };
 
 

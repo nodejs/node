@@ -85,7 +85,7 @@ TEST(AssemblerX64ReturnOperation) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F2>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call(3, 2);
   CHECK_EQ(2, result);
 }
@@ -116,7 +116,7 @@ TEST(AssemblerX64StackOperations) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F2>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call(3, 2);
   CHECK_EQ(2, result);
 }
@@ -137,7 +137,7 @@ TEST(AssemblerX64ArithmeticOperations) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F2>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call(3, 2);
   CHECK_EQ(5, result);
 }
@@ -165,7 +165,7 @@ TEST(AssemblerX64CmpbOperation) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F2>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call(0x1002, 0x2002);
   CHECK_EQ(1, result);
   result = f.Call(0x1002, 0x2003);
@@ -189,7 +189,7 @@ TEST(AssemblerX64ImulOperation) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F2>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call(3, 2);
   CHECK_EQ(0, result);
   result = f.Call(0x100000000l, 0x100000000l);
@@ -360,7 +360,7 @@ TEST(AssemblerX64testbwqOperation) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F2>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call(0, 0);
   CHECK_EQ(1, result);
 }
@@ -384,7 +384,7 @@ TEST(AssemblerX64XchglOperations) {
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
-  auto f = GeneratedCode<F4>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F4>::FromBuffer(CcTest::i_isolate(), buffer);
   uint64_t result = f.Call(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 40000000), left);
   CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 20000000), right);
@@ -408,7 +408,7 @@ TEST(AssemblerX64OrlOperations) {
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
-  auto f = GeneratedCode<F4>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F4>::FromBuffer(CcTest::i_isolate(), buffer);
   uint64_t result = f.Call(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x10000000, 60000000), left);
   USE(result);
@@ -430,7 +430,7 @@ TEST(AssemblerX64RollOperations) {
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint64_t src = V8_2PART_UINT64_C(0x10000000, C0000000);
-  auto f = GeneratedCode<F5>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F5>::FromBuffer(CcTest::i_isolate(), buffer);
   uint64_t result = f.Call(src);
   CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 80000001), result);
 }
@@ -452,7 +452,7 @@ TEST(AssemblerX64SublOperations) {
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
-  auto f = GeneratedCode<F4>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F4>::FromBuffer(CcTest::i_isolate(), buffer);
   uint64_t result = f.Call(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x10000000, E0000000), left);
   USE(result);
@@ -481,7 +481,7 @@ TEST(AssemblerX64TestlOperations) {
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 00000000);
-  auto f = GeneratedCode<F4>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F4>::FromBuffer(CcTest::i_isolate(), buffer);
   uint64_t result = f.Call(&left, &right);
   CHECK_EQ(1u, result);
 }
@@ -507,7 +507,7 @@ TEST(AssemblerX64TestwOperations) {
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint16_t operand = 0x8000;
-  auto f = GeneratedCode<F>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F>::FromBuffer(CcTest::i_isolate(), buffer);
   uint16_t result = f.Call(&operand);
   CHECK_EQ(1u, result);
 }
@@ -528,7 +528,7 @@ TEST(AssemblerX64XorlOperations) {
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 60000000);
-  auto f = GeneratedCode<F4>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F4>::FromBuffer(CcTest::i_isolate(), buffer);
   uint64_t result = f.Call(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x10000000, 40000000), left);
   USE(result);
@@ -562,7 +562,7 @@ TEST(AssemblerX64MemoryOperands) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F2>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call(3, 2);
   CHECK_EQ(3, result);
 }
@@ -590,7 +590,7 @@ TEST(AssemblerX64ControlFlow) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F2>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call(3, 2);
   CHECK_EQ(3, result);
 }
@@ -640,7 +640,7 @@ TEST(AssemblerX64LoopImmediates) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(1, result);
 }
@@ -2492,7 +2492,7 @@ TEST(AssemblerX64PslldWithXmm15) {
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
-  auto f = GeneratedCode<F5>::FromAddress(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F5>::FromBuffer(CcTest::i_isolate(), buffer);
   uint64_t result = f.Call(uint64_t{0x1122334455667788});
   CHECK_EQ(uint64_t{0x22446688AACCEF10}, result);
 }

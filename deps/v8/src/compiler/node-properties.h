@@ -183,17 +183,17 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // ---------------------------------------------------------------------------
   // Type.
 
-  static bool IsTyped(Node* node) { return node->type() != nullptr; }
-  static Type* GetType(Node* node) {
+  static bool IsTyped(Node* node) { return !node->type().IsInvalid(); }
+  static Type GetType(Node* node) {
     DCHECK(IsTyped(node));
     return node->type();
   }
-  static Type* GetTypeOrAny(Node* node);
-  static void SetType(Node* node, Type* type) {
-    DCHECK_NOT_NULL(type);
+  static Type GetTypeOrAny(Node* node);
+  static void SetType(Node* node, Type type) {
+    DCHECK(!type.IsInvalid());
     node->set_type(type);
   }
-  static void RemoveType(Node* node) { node->set_type(nullptr); }
+  static void RemoveType(Node* node) { node->set_type(Type::Invalid()); }
   static bool AllValueInputsAreTyped(Node* node);
 
  private:

@@ -17,11 +17,10 @@ typedef compiler::CodeAssemblerState CodeAssemblerState;
 class PromiseBuiltinsAssembler : public CodeStubAssembler {
  public:
   enum PromiseResolvingFunctionContextSlot {
-    // The promise which resolve/reject callbacks fulfill.
+    // The promise which resolve/reject callbacks fulfill. If this is
+    // undefined, then we've already visited this callback and it
+    // should be a no-op.
     kPromiseSlot = Context::MIN_CONTEXT_SLOTS,
-
-    // Whether the callback was already invoked.
-    kAlreadyResolvedSlot,
 
     // Whether to trigger a debug event or not. Used in catch
     // prediction.
@@ -114,7 +113,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   // case to mark it's done).
   Node* CreatePromiseAllResolveElementContext(Node* promise_capability,
                                               Node* native_context);
-  Node* CreatePromiseAllResolveElementFunction(Node* context, Node* index,
+  Node* CreatePromiseAllResolveElementFunction(Node* context, TNode<Smi> index,
                                                Node* native_context);
 
   Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,

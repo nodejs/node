@@ -14,6 +14,7 @@
 #include "src/isolate.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/prototype.h"
 
 namespace v8 {
@@ -55,7 +56,7 @@ inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
 }
 
 inline bool HasSimpleElements(JSObject* current) {
-  return current->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+  return !current->map()->IsCustomElementsReceiverMap() &&
          !current->GetElementsAccessor()->HasAccessors(current);
 }
 
@@ -321,13 +322,12 @@ class ArrayConcatVisitor {
       : isolate_(isolate),
         storage_(isolate->global_handles()->Create(*storage)),
         index_offset_(0u),
-        bit_field_(
-            FastElementsField::encode(fast_elements) |
-            ExceedsLimitField::encode(false) |
-            IsFixedArrayField::encode(storage->IsFixedArray()) |
-            HasSimpleElementsField::encode(storage->IsFixedArray() ||
-                                           storage->map()->instance_type() >
-                                               LAST_CUSTOM_ELEMENTS_RECEIVER)) {
+        bit_field_(FastElementsField::encode(fast_elements) |
+                   ExceedsLimitField::encode(false) |
+                   IsFixedArrayField::encode(storage->IsFixedArray()) |
+                   HasSimpleElementsField::encode(
+                       storage->IsFixedArray() ||
+                       !storage->map()->IsCustomElementsReceiverMap())) {
     DCHECK(!(this->fast_elements() && !is_fixed_array()));
   }
 
@@ -377,6 +377,8 @@ class ArrayConcatVisitor {
     }
     return true;
   }
+
+  uint32_t index_offset() const { return index_offset_; }
 
   void increase_index_offset(uint32_t delta) {
     if (JSObject::kMaxElementCount - index_offset_ < delta) {
@@ -710,6 +712,11 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     Handle<Object> val;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, val, Object::GetLengthFromArrayLike(isolate, receiver), false);
+    if (visitor->index_offset() + val->Number() > kMaxSafeInteger) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kInvalidArrayLength));
+      return false;
+    }
     // TODO(caitp): Support larger element indexes (up to 2^53-1).
     if (!val->ToUint32(&length)) {
       length = 0;

@@ -14,6 +14,7 @@
 #include "src/macro-assembler.h"
 #include "src/messages.h"
 #include "src/objects/map.h"
+#include "src/objects/maybe-object.h"
 
 namespace v8 {
 namespace internal {
@@ -26,10 +27,6 @@ class IC {
   // Alias the inline cache state type to make the IC code more readable.
   typedef InlineCacheState State;
 
-  // The IC code is either invoked with no extra frames on the stack
-  // or with a single extra frame for supporting calls.
-  enum FrameDepth { NO_EXTRA_FRAME = 0, EXTRA_CALL_FRAME = 1 };
-
   static constexpr int kMaxKeyedPolymorphism = 4;
 
   // A polymorphic IC can handle at most 4 distinct maps before transitioning
@@ -38,8 +35,7 @@ class IC {
 
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
-  IC(FrameDepth depth, Isolate* isolate, Handle<FeedbackVector> vector,
-     FeedbackSlot slot);
+  IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot);
   virtual ~IC() {}
 
   State state() const { return state_; }
@@ -63,7 +59,8 @@ class IC {
            IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind());
   }
 
-  static inline bool IsHandler(Object* object);
+  static inline bool IsHandler(MaybeObject* object,
+                               bool from_stub_cache = false);
 
   // Nofity the IC system that a feedback has changed.
   static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
@@ -92,7 +89,7 @@ class IC {
   bool vector_needs_update() {
     return (!vector_set_ &&
             (state() != MEGAMORPHIC ||
-             Smi::ToInt(nexus()->GetFeedbackExtra()) != ELEMENT));
+             Smi::ToInt(nexus()->GetFeedbackExtra()->ToSmi()) != ELEMENT));
   }
 
   // Configure for most states.
@@ -100,9 +97,11 @@ class IC {
   // Configure the vector for MONOMORPHIC.
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                             Handle<Object> handler);
+  void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
+                            const MaybeObjectHandle& handler);
   // Configure the vector for POLYMORPHIC.
   void ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
-                            ObjectHandles* handlers);
+                            MaybeObjectHandles* handlers);
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, Handle<Object> name);
@@ -115,15 +114,17 @@ class IC {
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
 
-  void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);
-  bool UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code);
-  void UpdateMegamorphicCache(Map* map, Name* name, Object* code);
+  void UpdateMonomorphicIC(const MaybeObjectHandle& handler, Handle<Name> name);
+  bool UpdatePolymorphicIC(Handle<Name> name, const MaybeObjectHandle& handler);
+  void UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
+                              const MaybeObjectHandle& handler);
 
   StubCache* stub_cache();
 
   void CopyICToMegamorphicCache(Handle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
-  void PatchCache(Handle<Name> name, Handle<Object> code);
+  void PatchCache(Handle<Name> name, Handle<Object> handler);
+  void PatchCache(Handle<Name> name, const MaybeObjectHandle& handler);
   FeedbackSlotKind kind() const { return kind_; }
   bool IsGlobalIC() const { return IsLoadGlobalIC() || IsStoreGlobalIC(); }
   bool IsLoadIC() const { return IsLoadICKind(kind_); }
@@ -197,7 +198,7 @@ class IC {
   State state_;
   FeedbackSlotKind kind_;
   Handle<Map> receiver_map_;
-  MaybeHandle<Object> maybe_handler_;
+  MaybeObjectHandle maybe_handler_;
 
   MapHandles target_maps_;
   bool target_maps_set_;
@@ -210,17 +211,10 @@ class IC {
 };
 
 
-class CallIC : public IC {
- public:
-  CallIC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : IC(EXTRA_CALL_FRAME, isolate, vector, slot) {}
-};
-
-
 class LoadIC : public IC {
  public:
   LoadIC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : IC(NO_EXTRA_FRAME, isolate, vector, slot) {
+      : IC(isolate, vector, slot) {
     DCHECK(IsAnyLoad());
   }
 
@@ -286,7 +280,7 @@ class KeyedLoadIC : public LoadIC {
                                     KeyedAccessLoadMode load_mode);
 
   void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
-                                      ObjectHandles* handlers,
+                                      MaybeObjectHandles* handlers,
                                       KeyedAccessLoadMode load_mode);
 
   // Returns true if the receiver_map has a kElement or kIndexedString
@@ -299,7 +293,7 @@ class KeyedLoadIC : public LoadIC {
 class StoreIC : public IC {
  public:
   StoreIC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : IC(NO_EXTRA_FRAME, isolate, vector, slot) {
+      : IC(isolate, vector, slot) {
     DCHECK(IsAnyStore());
   }
 
@@ -326,7 +320,7 @@ class StoreIC : public IC {
                     JSReceiver::StoreFromKeyed store_mode);
 
  private:
-  Handle<Object> ComputeHandler(LookupIterator* lookup);
+  MaybeObjectHandle ComputeHandler(LookupIterator* lookup);
 
   friend class IC;
 };
@@ -383,7 +377,7 @@ class KeyedStoreIC : public StoreIC {
                                      KeyedAccessStoreMode store_mode);
 
   void StoreElementPolymorphicHandlers(MapHandles* receiver_maps,
-                                       ObjectHandles* handlers,
+                                       MaybeObjectHandles* handlers,
                                        KeyedAccessStoreMode store_mode);
 
   friend class IC;

@@ -47,6 +47,7 @@ class ArrayBufferCollector::FreeingTask final : public CancelableTask {
 };
 
 void ArrayBufferCollector::FreeAllocationsOnBackgroundThread() {
+  // TODO(wez): Remove backing-store from external memory accounting.
   heap_->account_external_memory_concurrently_freed();
   if (!heap_->IsTearingDown() && FLAG_concurrent_array_buffer_freeing) {
     V8::GetCurrentPlatform()->CallOnWorkerThread(

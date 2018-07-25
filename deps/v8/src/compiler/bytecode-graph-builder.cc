@@ -1483,36 +1483,38 @@ void BytecodeGraphBuilder::VisitCreateBlockContext() {
       bytecode_iterator().GetConstantForIndexOperand(0));
 
   const Operator* op = javascript()->CreateBlockContext(scope_info);
-  Node* context = NewNode(op, environment()->LookupAccumulator());
+  Node* context = NewNode(op);
   environment()->BindAccumulator(context);
 }
 
 void BytecodeGraphBuilder::VisitCreateFunctionContext() {
-  uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(0);
+  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(
+      bytecode_iterator().GetConstantForIndexOperand(0));
+  uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);
   const Operator* op =
-      javascript()->CreateFunctionContext(slots, FUNCTION_SCOPE);
-  Node* context = NewNode(op, GetFunctionClosure());
+      javascript()->CreateFunctionContext(scope_info, slots, FUNCTION_SCOPE);
+  Node* context = NewNode(op);
   environment()->BindAccumulator(context);
 }
 
 void BytecodeGraphBuilder::VisitCreateEvalContext() {
-  uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(0);
-  const Operator* op = javascript()->CreateFunctionContext(slots, EVAL_SCOPE);
-  Node* context = NewNode(op, GetFunctionClosure());
+  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(
+      bytecode_iterator().GetConstantForIndexOperand(0));
+  uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);
+  const Operator* op =
+      javascript()->CreateFunctionContext(scope_info, slots, EVAL_SCOPE);
+  Node* context = NewNode(op);
   environment()->BindAccumulator(context);
 }
 
 void BytecodeGraphBuilder::VisitCreateCatchContext() {
   interpreter::Register reg = bytecode_iterator().GetRegisterOperand(0);
   Node* exception = environment()->LookupRegister(reg);
-  Handle<String> name =
-      Handle<String>::cast(bytecode_iterator().GetConstantForIndexOperand(1));
   Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(
-      bytecode_iterator().GetConstantForIndexOperand(2));
-  Node* closure = environment()->LookupAccumulator();
+      bytecode_iterator().GetConstantForIndexOperand(1));
 
-  const Operator* op = javascript()->CreateCatchContext(name, scope_info);
-  Node* context = NewNode(op, exception, closure);
+  const Operator* op = javascript()->CreateCatchContext(scope_info);
+  Node* context = NewNode(op, exception);
   environment()->BindAccumulator(context);
 }
 
@@ -1523,7 +1525,7 @@ void BytecodeGraphBuilder::VisitCreateWithContext() {
       bytecode_iterator().GetConstantForIndexOperand(1));
 
   const Operator* op = javascript()->CreateWithContext(scope_info);
-  Node* context = NewNode(op, object, environment()->LookupAccumulator());
+  Node* context = NewNode(op, object);
   environment()->BindAccumulator(context);
 }
 
@@ -2413,19 +2415,12 @@ void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual() {
   BuildCompareOp(javascript()->GreaterThanOrEqual(GetCompareOperationHint()));
 }
 
-void BytecodeGraphBuilder::VisitTestEqualStrictNoFeedback() {
-  // TODO(5310): Currently this is used with both Smi operands and with
-  // string operands. We pass string operands for static property check in
-  // VisitClassLiteralProperties. This should be changed, so we only use this
-  // for Smi operations and lower it to SpeculativeNumberEqual[kSignedSmall]
-  PrepareEagerCheckpoint();
+void BytecodeGraphBuilder::VisitTestReferenceEqual() {
   Node* left =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* right = environment()->LookupAccumulator();
-
-  Node* node = NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
-                       left, right);
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+  Node* result = NewNode(simplified()->ReferenceEqual(), left, right);
+  environment()->BindAccumulator(result);
 }
 
 void BytecodeGraphBuilder::BuildTestingOp(const Operator* op) {

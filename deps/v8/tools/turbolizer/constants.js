@@ -11,7 +11,6 @@ var SOURCE_PANE_ID = 'left';
 var SOURCE_COLLAPSE_ID = 'source-shrink';
 var SOURCE_EXPAND_ID = 'source-expand';
 var INTERMEDIATE_PANE_ID = 'middle';
-var EMPTY_PANE_ID = 'empty';
 var GRAPH_PANE_ID = 'graph';
 var SCHEDULE_PANE_ID = 'schedule';
 var GENERATED_PANE_ID = 'right';

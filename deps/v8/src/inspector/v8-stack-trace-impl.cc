@@ -215,6 +215,15 @@ std::unique_ptr<V8StackTrace> V8StackTraceImpl::clone() {
       m_frames, 0, std::shared_ptr<AsyncStackTrace>(), V8StackTraceId()));
 }
 
+StringView V8StackTraceImpl::firstNonEmptySourceURL() const {
+  for (size_t i = 0; i < m_frames.size(); ++i) {
+    if (m_frames[i]->sourceURL().length()) {
+      return toStringView(m_frames[i]->sourceURL());
+    }
+  }
+  return StringView();
+}
+
 bool V8StackTraceImpl::isEmpty() const { return m_frames.empty(); }
 
 StringView V8StackTraceImpl::topSourceURL() const {

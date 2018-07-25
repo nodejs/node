@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --use-allocation-folding --verify-heap
+// Flags: --allow-natives-syntax --verify-heap
 
 function f() {
   var a = new Array(84632);

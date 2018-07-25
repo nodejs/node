@@ -135,7 +135,8 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
     OFStream os(stdout);
 
     // Print bytecode.
-    const uint8_t* base_address = bytecode_array->GetFirstBytecodeAddress();
+    const uint8_t* base_address = reinterpret_cast<const uint8_t*>(
+        bytecode_array->GetFirstBytecodeAddress());
     const uint8_t* bytecode_address = base_address + offset;
     os << " -> " << static_cast<const void*>(bytecode_address) << " @ "
        << std::setw(4) << offset << " : ";
