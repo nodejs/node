@@ -31,4 +31,4 @@ const client = net.createConnection(53, '8.8.8.8', function() {
 
 client.on('close', common.mustNotCall());
 
-setTimeout(common.mustNotCall(), TIMEOUT).unref();
+setTimeout(common.mustNotCall(), common.platformTimeout(TIMEOUT)).unref();
