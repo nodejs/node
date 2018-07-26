@@ -247,6 +247,8 @@ const BIO_METHOD* NodeBIO::GetMethod() {
 
   return &method;
 #else
+  // This is called from InitCryptoOnce() to avoid race conditions during
+  // initialization.
   static BIO_METHOD* method = nullptr;
 
   if (method == nullptr) {

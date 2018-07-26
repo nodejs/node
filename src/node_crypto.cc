@@ -5141,6 +5141,8 @@ void InitCryptoOnce() {
   ERR_load_ENGINE_strings();
   ENGINE_load_builtin_engines();
 #endif  // !OPENSSL_NO_ENGINE
+
+  NodeBIO::GetMethod();
 }
 
 
