@@ -8,6 +8,8 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/templates.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -201,7 +203,8 @@ void SharedFunctionInfo::set_function_map_index(int index) {
 }
 
 void SharedFunctionInfo::clear_padding() {
-  memset(this->address() + kSize, 0, kAlignedSize - kSize);
+  memset(reinterpret_cast<void*>(this->address() + kSize), 0,
+         kAlignedSize - kSize);
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
@@ -217,14 +220,8 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, is_anonymous_expression,
                     SharedFunctionInfo::IsAnonymousExpressionBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, deserialized,
                     SharedFunctionInfo::IsDeserializedBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, has_no_side_effect,
-                    SharedFunctionInfo::HasNoSideEffectBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
-                    requires_runtime_side_effect_checks,
-                    SharedFunctionInfo::RequiresRuntimeSideEffectChecksBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
-                    computed_has_no_side_effect,
-                    SharedFunctionInfo::ComputedHasNoSideEffectBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, side_effect_state,
+                    SharedFunctionInfo::SideEffectStateBits)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, debug_is_blackboxed,
                     SharedFunctionInfo::DebugIsBlackboxedBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
@@ -238,7 +235,7 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, debugging_id,
 
 void SharedFunctionInfo::DontAdaptArguments() {
   // TODO(leszeks): Revise this DCHECK now that the code field is gone.
-  DCHECK(!HasCodeObject());
+  DCHECK(!HasWasmExportedFunctionData());
   set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
@@ -292,10 +289,10 @@ Code* SharedFunctionInfo::GetCode() const {
     // Having a function template info means we are an API function.
     DCHECK(IsApiFunction());
     return isolate->builtins()->builtin(Builtins::kHandleApiCall);
-  } else if (data->IsCode()) {
-    // Having a code object means we should run it.
-    DCHECK(HasCodeObject());
-    return Code::cast(data);
+  } else if (data->IsWasmExportedFunctionData()) {
+    // Having a WasmExportedFunctionData means the code is in there.
+    DCHECK(HasWasmExportedFunctionData());
+    return wasm_exported_function_data()->wrapper_code();
   } else if (data->IsInterpreterData()) {
     Code* code = InterpreterTrampoline();
     DCHECK(code->IsCode());
@@ -519,8 +516,14 @@ void SharedFunctionInfo::ClearPreParsedScopeData() {
   set_builtin_id(Builtins::kCompileLazy);
 }
 
-bool SharedFunctionInfo::HasCodeObject() const {
-  return function_data()->IsCode();
+bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
+  return function_data()->IsWasmExportedFunctionData();
+}
+
+WasmExportedFunctionData* SharedFunctionInfo::wasm_exported_function_data()
+    const {
+  DCHECK(HasWasmExportedFunctionData());
+  return WasmExportedFunctionData::cast(function_data());
 }
 
 bool SharedFunctionInfo::HasBuiltinFunctionId() {

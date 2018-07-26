@@ -38,7 +38,10 @@ class HistogramViewer extends HTMLElement {
   }
 
   isValid() {
-    return this.data && this.selection;
+    return this.data && this.selection &&
+           (this.selection.data_view === VIEW_BY_INSTANCE_CATEGORY ||
+            this.selection.data_view === VIEW_BY_INSTANCE_TYPE);
+    ;
   }
 
   hide() {
@@ -49,11 +52,21 @@ class HistogramViewer extends HTMLElement {
     this.$('#container').style.display = 'block';
   }
 
+  getOverallValue() {
+    switch (this.selection.data_view) {
+      case VIEW_BY_FIELD_TYPE:
+        return NaN;
+      case VIEW_BY_INSTANCE_CATEGORY:
+        return this.getPropertyForCategory('overall');
+      case VIEW_BY_INSTANCE_TYPE:
+      default:
+        return this.getPropertyForInstanceTypes('overall');
+    }
+  }
+
   stateChanged() {
     if (this.isValid()) {
-      const overall_bytes = (this.selection.merge_categories) ?
-          this.getPropertyForCategory('overall') :
-          this.getPropertyForInstanceTypes('overall');
+      const overall_bytes = this.getOverallValue();
       this.$('#overall').innerHTML = `Overall: ${overall_bytes / KB} KB`;
       this.drawChart();
     } else {
@@ -143,10 +156,20 @@ class HistogramViewer extends HTMLElement {
     return [labels, ...data];
   }
 
+  getChartData() {
+    switch (this.selection.data_view) {
+      case VIEW_BY_FIELD_TYPE:
+        return this.getFieldData();
+      case VIEW_BY_INSTANCE_CATEGORY:
+        return this.getCategoryData();
+      case VIEW_BY_INSTANCE_TYPE:
+      default:
+        return this.getInstanceTypeData();
+    }
+  }
+
   drawChart() {
-    const chart_data = (this.selection.merge_categories) ?
-        this.getCategoryData() :
-        this.getInstanceTypeData();
+    const chart_data = this.getChartData();
     const data = google.visualization.arrayToDataTable(chart_data);
     const options = {
       legend: {position: 'top', maxLines: '1'},

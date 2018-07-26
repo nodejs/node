@@ -1666,17 +1666,18 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
             PrintF("Call to host function at %p with args %f, %f",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                   dval1);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
             PrintF("Call to host function at %p with arg %f",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
             PrintF("Call to host function at %p with args %f, %d",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                   ival);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0, ival);
             break;
           default:
             UNREACHABLE();
@@ -1803,8 +1804,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF(
               "Call to host function at %p "
               "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x",
-              static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
-              arg4, arg5, arg6, arg7, arg8);
+              reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
+              arg3, arg4, arg5, arg6, arg7, arg8);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
@@ -3651,6 +3652,8 @@ int VFPConversionSaturate(double val, bool unsigned_res) {
 
 int32_t Simulator::ConvertDoubleToInt(double val, bool unsigned_integer,
                                       VFPRoundingMode mode) {
+  // TODO(jkummerow): These casts are undefined behavior if the integral
+  // part of {val} does not fit into the destination type.
   int32_t result =
       unsigned_integer ? static_cast<uint32_t>(val) : static_cast<int32_t>(val);
 
@@ -5731,13 +5734,12 @@ void Simulator::Execute() {
   }
 }
 
-
-void Simulator::CallInternal(byte* entry) {
+void Simulator::CallInternal(Address entry) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
   // Prepare to execute the code at entry
-  set_register(pc, reinterpret_cast<int32_t>(entry));
+  set_register(pc, static_cast<int32_t>(entry));
   // Put down marker for end of simulation. The simulator will stop simulation
   // when the PC reaches this value. By saving the "end simulation" value into
   // the LR the simulation stops when returning to this call point.
@@ -5791,7 +5793,7 @@ void Simulator::CallInternal(byte* entry) {
   set_register(r11, r11_val);
 }
 
-intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+intptr_t Simulator::CallImpl(Address entry, int argument_count,
                              const intptr_t* arguments) {
   // Set up arguments
 
@@ -5823,7 +5825,7 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   return get_register(r0);
 }
 
-intptr_t Simulator::CallFPImpl(byte* entry, double d0, double d1) {
+intptr_t Simulator::CallFPImpl(Address entry, double d0, double d1) {
   if (use_eabi_hardfloat()) {
     set_d_register_from_double(0, d0);
     set_d_register_from_double(1, d1);

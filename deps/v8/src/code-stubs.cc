@@ -20,6 +20,7 @@
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {
@@ -33,7 +34,7 @@ CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
       stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
-      deoptimization_handler_(nullptr),
+      deoptimization_handler_(kNullAddress),
       miss_handler_(),
       has_miss_handler_(false) {
   stub->InitializeDescriptor(this);
@@ -44,7 +45,7 @@ CodeStubDescriptor::CodeStubDescriptor(Isolate* isolate, uint32_t stub_key)
       stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
-      deoptimization_handler_(nullptr),
+      deoptimization_handler_(kNullAddress),
       miss_handler_(),
       has_miss_handler_(false) {
   CodeStub::InitializeDescriptor(isolate, stub_key, this);
@@ -256,51 +257,13 @@ MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
   return scope.CloseAndEscape(code);
 }
 
-
-void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
-  os << "StringAddStub_" << flags() << "_" << pretenure_flag();
-}
-
-TF_STUB(StringAddStub, CodeStubAssembler) {
-  StringAddFlags flags = stub->flags();
-  PretenureFlag pretenure_flag = stub->pretenure_flag();
-
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
-  Node* context = Parameter(Descriptor::kContext);
-
-  if ((flags & STRING_ADD_CHECK_LEFT) != 0) {
-    DCHECK_NE(flags & STRING_ADD_CONVERT, 0);
-    // TODO(danno): The ToString and JSReceiverToPrimitive below could be
-    // combined to avoid duplicate smi and instance type checks.
-    left = ToString(context, JSReceiverToPrimitive(context, left));
-  }
-  if ((flags & STRING_ADD_CHECK_RIGHT) != 0) {
-    DCHECK_NE(flags & STRING_ADD_CONVERT, 0);
-    // TODO(danno): The ToString and JSReceiverToPrimitive below could be
-    // combined to avoid duplicate smi and instance type checks.
-    right = ToString(context, JSReceiverToPrimitive(context, right));
-  }
-
-  if ((flags & STRING_ADD_CHECK_BOTH) == 0) {
-    CodeStubAssembler::AllocationFlag allocation_flags =
-        (pretenure_flag == TENURED) ? CodeStubAssembler::kPretenured
-                                    : CodeStubAssembler::kNone;
-    Return(StringAdd(context, CAST(left), CAST(right), allocation_flags));
-  } else {
-    Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE,
-                                               pretenure_flag);
-    TailCallStub(callable, context, left, right);
-  }
-}
-
 Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
   Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
-  compiler::CodeAssemblerState state(isolate(), &zone, descriptor, Code::STUB,
-                                     name, PoisoningMitigationLevel::kOff, 1,
-                                     GetKey());
+  compiler::CodeAssemblerState state(
+      isolate(), &zone, descriptor, Code::STUB, name,
+      PoisoningMitigationLevel::kDontPoison, 1, GetKey());
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
 }
@@ -438,61 +401,6 @@ int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
   return handler_table_offset;
 }
 
-
-// TODO(ishell): move to builtins.
-TF_STUB(GetPropertyStub, CodeStubAssembler) {
-  Label call_runtime(this, Label::kDeferred), return_undefined(this), end(this);
-
-  Node* object = Parameter(Descriptor::kObject);
-  Node* key = Parameter(Descriptor::kKey);
-  Node* context = Parameter(Descriptor::kContext);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-
-  CodeStubAssembler::LookupInHolder lookup_property_in_holder =
-      [=, &var_result, &end](Node* receiver, Node* holder, Node* holder_map,
-                             Node* holder_instance_type, Node* unique_name,
-                             Label* next_holder, Label* if_bailout) {
-        VARIABLE(var_value, MachineRepresentation::kTagged);
-        Label if_found(this);
-        TryGetOwnProperty(context, receiver, holder, holder_map,
-                          holder_instance_type, unique_name, &if_found,
-                          &var_value, next_holder, if_bailout);
-        BIND(&if_found);
-        {
-          var_result.Bind(var_value.value());
-          Goto(&end);
-        }
-      };
-
-  CodeStubAssembler::LookupInHolder lookup_element_in_holder =
-      [=](Node* receiver, Node* holder, Node* holder_map,
-          Node* holder_instance_type, Node* index, Label* next_holder,
-          Label* if_bailout) {
-        // Not supported yet.
-        Use(next_holder);
-        Goto(if_bailout);
-      };
-
-  TryPrototypeChainLookup(object, key, lookup_property_in_holder,
-                          lookup_element_in_holder, &return_undefined,
-                          &call_runtime);
-
-  BIND(&return_undefined);
-  {
-    var_result.Bind(UndefinedConstant());
-    Goto(&end);
-  }
-
-  BIND(&call_runtime);
-  {
-    var_result.Bind(CallRuntime(Runtime::kGetProperty, context, object, key));
-    Goto(&end);
-  }
-
-  BIND(&end);
-  Return(var_result.value());
-}
-
 // TODO(ishell): move to builtins-handler-gen.
 TF_STUB(StoreSlowElementStub, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -620,7 +528,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
 
   if (IsFastPackedElementsKind(elements_kind)) {
     Label abort(this, Label::kDeferred);
-    Branch(SmiEqual(array_size, SmiConstant(0)), &small_smi_size, &abort);
+    Branch(SmiEqual(CAST(array_size), SmiConstant(0)), &small_smi_size, &abort);
 
     BIND(&abort);
     Node* reason = SmiConstant(AbortReason::kAllocatingNonEmptyPackedArray);
@@ -632,7 +540,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
         (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
          AllocationMemento::kSize) /
         element_size;
-    Branch(SmiAboveOrEqual(array_size, SmiConstant(max_fast_elements)),
+    Branch(SmiAboveOrEqual(CAST(array_size), SmiConstant(max_fast_elements)),
            &call_runtime, &small_smi_size);
   }
 

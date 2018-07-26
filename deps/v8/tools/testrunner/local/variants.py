@@ -7,6 +7,7 @@ ALL_VARIANT_FLAGS = {
   "code_serializer": [["--cache=code"]],
   "default": [[]],
   "future": [["--future"]],
+  "gc_stats": [["--gc_stats=1"]],
   # Alias of exhaustive variants, but triggering new test framework features.
   "infra_staging": [[]],
   "liftoff": [["--liftoff"]],
@@ -22,7 +23,7 @@ ALL_VARIANT_FLAGS = {
   # Trigger stress sampling allocation profiler with sample interval = 2^14
   "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
   "trusted": [["--no-untrusted-code-mitigations"]],
-  "wasm_traps": [["--wasm-trap-handler", "--invoke-weak-callbacks"]],
+  "no_wasm_traps": [["--no-wasm-trap-handler"]],
 }
 
 SLOW_VARIANTS = set([

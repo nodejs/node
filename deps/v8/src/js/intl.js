@@ -24,7 +24,7 @@ var GlobalIntl = global.Intl;
 var GlobalIntlDateTimeFormat = GlobalIntl.DateTimeFormat;
 var GlobalIntlNumberFormat = GlobalIntl.NumberFormat;
 var GlobalIntlCollator = GlobalIntl.Collator;
-var GlobalIntlPluralRules = utils.ImportNow("PluralRules");
+var GlobalIntlPluralRules = GlobalIntl.PluralRules;
 var GlobalIntlv8BreakIterator = GlobalIntl.v8BreakIterator;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
@@ -782,14 +782,18 @@ function canonicalizeLanguageTag(localeID) {
     throw %make_type_error(kLanguageID);
   }
 
-  // Optimize for the most common case; a language code alone in
-  // the canonical form/lowercase (e.g. "en", "fil").
-  if (IS_STRING(localeID) &&
-      !IS_NULL(%regexp_internal_match(/^[a-z]{2,3}$/, localeID))) {
-    return localeID;
-  }
-
   var localeString = TO_STRING(localeID);
+
+  // Optimize for the most common case; a 2-letter language code in the
+  // canonical form/lowercase that is not one of deprecated codes
+  // (in, iw, ji, jw). Don't check for ~70 of 3-letter deprecated language
+  // codes. Instead, let them be handled by ICU in the slow path. Besides,
+  // fast-track 'fil' (3-letter canonical code).
+  if ((!IS_NULL(%regexp_internal_match(/^[a-z]{2}$/, localeString)) &&
+      IS_NULL(%regexp_internal_match(/^(in|iw|ji|jw)$/, localeString))) ||
+      localeString === "fil") {
+    return localeString;
+  }
 
   if (isStructuallyValidLanguageTag(localeString) === false) {
     throw %make_range_error(kInvalidLanguageTag, localeString);
@@ -1835,30 +1839,6 @@ function formatDate(formatter, dateValue) {
 
   return %InternalDateFormat(formatter, dateMs);
 }
-
-DEFINE_METHOD(
-  GlobalIntlDateTimeFormat.prototype,
-  formatToParts(dateValue) {
-    REQUIRE_OBJECT_COERCIBLE(this, "Intl.DateTimeFormat.prototype.formatToParts");
-    if (!IS_OBJECT(this)) {
-      throw %make_type_error(kCalledOnNonObject, this);
-    }
-    if (!%IsInitializedIntlObjectOfType(this, 'dateformat')) {
-      throw %make_type_error(kIncompatibleMethodReceiver,
-                            'Intl.DateTimeFormat.prototype.formatToParts',
-                            this);
-    }
-    var dateMs;
-    if (IS_UNDEFINED(dateValue)) {
-      dateMs = %DateCurrentTime();
-    } else {
-      dateMs = TO_NUMBER(dateValue);
-    }
-
-    return %InternalDateFormatToParts(this, dateMs);
-  }
-);
-
 
 // Length is 1 as specified in ECMA 402 v2+
 AddBoundMethod(GlobalIntlDateTimeFormat, 'format', formatDate, 1, 'dateformat',

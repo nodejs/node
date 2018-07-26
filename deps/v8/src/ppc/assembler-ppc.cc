@@ -155,8 +155,8 @@ bool RelocInfo::IsCodedSpecially() {
 
 
 bool RelocInfo::IsInConstantPool() {
-  if (FLAG_enable_embedded_constant_pool && constant_pool_ != nullptr) {
-    return (constant_pool_ && Assembler::IsConstantPoolLoadStart(pc_));
+  if (FLAG_enable_embedded_constant_pool && constant_pool_ != kNullAddress) {
+    return Assembler::IsConstantPoolLoadStart(pc_);
   }
   return false;
 }
@@ -166,8 +166,8 @@ Address RelocInfo::embedded_address() const {
 }
 
 uint32_t RelocInfo::embedded_size() const {
-  return static_cast<uint32_t>(reinterpret_cast<intptr_t>(
-      Assembler::target_address_at(pc_, constant_pool_)));
+  return static_cast<uint32_t>(
+      Assembler::target_address_at(pc_, constant_pool_));
 }
 
 void RelocInfo::set_embedded_address(Address address,
@@ -177,7 +177,7 @@ void RelocInfo::set_embedded_address(Address address,
 
 void RelocInfo::set_embedded_size(uint32_t size, ICacheFlushMode flush_mode) {
   Assembler::set_target_address_at(pc_, constant_pool_,
-                                   reinterpret_cast<Address>(size), flush_mode);
+                                   static_cast<Address>(size), flush_mode);
 }
 
 void RelocInfo::set_js_to_wasm_address(Address address,
@@ -197,7 +197,7 @@ Address RelocInfo::js_to_wasm_address() const {
 
 Operand::Operand(Handle<HeapObject> handle) {
   rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(handle.address());
+  value_.immediate = static_cast<intptr_t>(handle.address());
   rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
@@ -236,8 +236,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         object = request.code_stub()->GetCode();
         break;
     }
-    Address pc = buffer_ + request.offset();
-    Address constant_pool = nullptr;
+    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
+    Address constant_pool = kNullAddress;
     set_target_address_at(pc, constant_pool,
                           reinterpret_cast<Address>(object.location()),
                           SKIP_ICACHE_FLUSH);
@@ -2092,18 +2092,19 @@ void Assembler::EmitRelocations() {
   for (std::vector<DeferredRelocInfo>::iterator it = relocations_.begin();
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
-    Address pc = buffer_ + it->position();
+    Address pc = reinterpret_cast<Address>(buffer_) + it->position();
     RelocInfo rinfo(pc, rmode, it->data(), nullptr);
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
       // Jump table entry
-      intptr_t pos = reinterpret_cast<intptr_t>(Memory::Address_at(pc));
-      Memory::Address_at(pc) = buffer_ + pos;
+      intptr_t pos = static_cast<intptr_t>(Memory::Address_at(pc));
+      Memory::Address_at(pc) = reinterpret_cast<Address>(buffer_) + pos;
     } else if (RelocInfo::IsInternalReferenceEncoded(rmode)) {
       // mov sequence
-      intptr_t pos = reinterpret_cast<intptr_t>(target_address_at(pc, nullptr));
-      set_target_address_at(pc, nullptr, buffer_ + pos, SKIP_ICACHE_FLUSH);
+      intptr_t pos = static_cast<intptr_t>(target_address_at(pc, kNullAddress));
+      set_target_address_at(pc, 0, reinterpret_cast<Address>(buffer_) + pos,
+                            SKIP_ICACHE_FLUSH);
     }
 
     reloc_info_writer.Write(&rinfo);

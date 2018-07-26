@@ -31,6 +31,7 @@ constexpr Register kJavaScriptCallCodeStartRegister = r4;
 constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r3;
 constexpr Register kRuntimeCallArgCountRegister = r2;
+constexpr Register kWasmInstanceRegister = r6;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -178,12 +179,18 @@ class TurboAssembler : public Assembler {
     return code_object_;
   }
 
+#ifdef V8_EMBEDDED_BUILTINS
+  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupExternalReference(Register destination,
+                               ExternalReference reference);
+#endif  // V8_EMBEDDED_BUILTINS
+
   // Returns the size of a call in instructions.
   static int CallSize(Register target);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
-  void Jump(Register target);
+  void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
@@ -221,6 +228,7 @@ class TurboAssembler : public Assembler {
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> value);
+  void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
 
@@ -391,6 +399,7 @@ class TurboAssembler : public Assembler {
   void CmpP(Register dst, const Operand& opnd);
   void Cmp32(Register dst, const MemOperand& opnd);
   void CmpP(Register dst, const MemOperand& opnd);
+  void CmpAndSwap(Register old_val, Register new_val, const MemOperand& opnd);
 
   // Compare Logical
   void CmpLogical32(Register src1, Register src2);
@@ -759,6 +768,8 @@ class TurboAssembler : public Assembler {
 
   void StoreW(Register src, const MemOperand& mem, Register scratch = no_reg);
 
+  void LoadHalfWordP(Register dst, Register src);
+
   void LoadHalfWordP(Register dst, const MemOperand& mem,
                      Register scratch = no_reg);
 
@@ -824,6 +835,7 @@ class TurboAssembler : public Assembler {
   void CallStubDelayed(CodeStub* stub);
 
   // Call a runtime routine.
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
@@ -866,8 +878,8 @@ class TurboAssembler : public Assembler {
 
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged and ip gets clobbered. Dividend and result must be different.
-  void TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                DoubleRegister double_input);
+  void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
+                         DoubleRegister double_input);
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister double_input,
                                   Label* done);
 
@@ -1013,6 +1025,13 @@ class TurboAssembler : public Assembler {
   void ResetSpeculationPoisonRegister();
   void ComputeCodeStartAddress(Register dst);
 
+  bool root_array_available() const { return root_array_available_; }
+  void set_root_array_available(bool v) { root_array_available_ = v; }
+
+ protected:
+  // This handle will be patched with the code object on installation.
+  Handle<HeapObject> code_object_;
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
@@ -1025,9 +1044,8 @@ class TurboAssembler : public Assembler {
                                 int num_double_arguments);
 
   bool has_frame_ = false;
+  bool root_array_available_ = true;
   Isolate* isolate_;
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
 };
 
 // MacroAssembler implements a collection of frequently used macros.

@@ -902,8 +902,8 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     Node* slot_index = BytecodeOperandIdx(1);
     Node* feedback_vector = LoadFeedbackVector();
 
-    VARIABLE(var_left_feedback, MachineRepresentation::kTaggedSigned);
-    VARIABLE(var_right_feedback, MachineRepresentation::kTaggedSigned);
+    TVARIABLE(Smi, var_left_feedback);
+    TVARIABLE(Smi, var_right_feedback);
     VARIABLE(var_left_word32, MachineRepresentation::kWord32);
     VARIABLE(var_right_word32, MachineRepresentation::kWord32);
     VARIABLE(var_left_bigint, MachineRepresentation::kTagged, left);
@@ -919,12 +919,12 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
                                        &var_right_word32, &do_bigint_op,
                                        &var_right_bigint, &var_right_feedback);
     BIND(&do_number_op);
-    Node* result = BitwiseOp(var_left_word32.value(), var_right_word32.value(),
-                             bitwise_op);
-    Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                          BinaryOperationFeedback::kSignedSmall,
-                                          BinaryOperationFeedback::kNumber);
-    Node* input_feedback =
+    TNode<Number> result = BitwiseOp(var_left_word32.value(),
+                                     var_right_word32.value(), bitwise_op);
+    TNode<Smi> result_type = SelectSmiConstant(
+        TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+        BinaryOperationFeedback::kNumber);
+    TNode<Smi> input_feedback =
         SmiOr(var_left_feedback.value(), var_right_feedback.value());
     UpdateFeedback(SmiOr(result_type, input_feedback), feedback_vector,
                    slot_index);
@@ -952,7 +952,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     Node* feedback_vector = LoadFeedbackVector();
     Node* context = GetContext();
 
-    VARIABLE(var_left_feedback, MachineRepresentation::kTaggedSigned);
+    TVARIABLE(Smi, var_left_feedback);
     VARIABLE(var_left_word32, MachineRepresentation::kWord32);
     VARIABLE(var_left_bigint, MachineRepresentation::kTagged);
     Label do_smi_op(this), if_bigint_mix(this);
@@ -961,11 +961,11 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
                                        &var_left_word32, &if_bigint_mix,
                                        &var_left_bigint, &var_left_feedback);
     BIND(&do_smi_op);
-    Node* result =
+    TNode<Number> result =
         BitwiseOp(var_left_word32.value(), SmiToInt32(right), bitwise_op);
-    Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                          BinaryOperationFeedback::kSignedSmall,
-                                          BinaryOperationFeedback::kNumber);
+    TNode<Smi> result_type = SelectSmiConstant(
+        TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+        BinaryOperationFeedback::kNumber);
     UpdateFeedback(SmiOr(result_type, var_left_feedback.value()),
                    feedback_vector, slot_index);
     SetAccumulator(result);
@@ -1059,7 +1059,7 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
   Node* context = GetContext();
 
   VARIABLE(var_word32, MachineRepresentation::kWord32);
-  VARIABLE(var_feedback, MachineRepresentation::kTaggedSigned);
+  TVARIABLE(Smi, var_feedback);
   VARIABLE(var_bigint, MachineRepresentation::kTagged);
   Label if_number(this), if_bigint(this);
   TaggedToWord32OrBigIntWithFeedback(context, operand, &if_number, &var_word32,
@@ -1067,10 +1067,11 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
 
   // Number case.
   BIND(&if_number);
-  Node* result = ChangeInt32ToTagged(Signed(Word32Not(var_word32.value())));
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
+  TNode<Number> result =
+      ChangeInt32ToTagged(Signed(Word32Not(var_word32.value())));
+  TNode<Smi> result_type = SelectSmiConstant(
+      TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumber);
   UpdateFeedback(SmiOr(result_type, var_feedback.value()), feedback_vector,
                  slot_index);
   SetAccumulator(result);
@@ -1122,8 +1123,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
   virtual ~UnaryNumericOpAssembler() {}
 
   // Must return a tagged value.
-  virtual Node* SmiOp(Node* smi_value, Variable* var_feedback,
-                      Label* do_float_op, Variable* var_float) = 0;
+  virtual TNode<Number> SmiOp(TNode<Smi> smi_value, Variable* var_feedback,
+                              Label* do_float_op, Variable* var_float) = 0;
   // Must return a Float64 value.
   virtual Node* FloatOp(Node* float_value) = 0;
   // Must return a tagged value.
@@ -1136,8 +1137,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
 
     VARIABLE(var_result, MachineRepresentation::kTagged);
     VARIABLE(var_float_value, MachineRepresentation::kFloat64);
-    VARIABLE(var_feedback, MachineRepresentation::kTaggedSigned,
-             SmiConstant(BinaryOperationFeedback::kNone));
+    TVARIABLE(Smi, var_feedback, SmiConstant(BinaryOperationFeedback::kNone));
     Variable* loop_vars[] = {&var_value, &var_feedback};
     Label start(this, arraysize(loop_vars), loop_vars), end(this);
     Label do_float_op(this, &var_float_value);
@@ -1159,7 +1159,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
       BIND(&if_smi);
       {
         var_result.Bind(
-            SmiOp(value, &var_feedback, &do_float_op, &var_float_value));
+            SmiOp(CAST(value), &var_feedback, &do_float_op, &var_float_value));
         Goto(&end);
       }
 
@@ -1224,9 +1224,9 @@ class NegateAssemblerImpl : public UnaryNumericOpAssembler {
                                OperandScale operand_scale)
       : UnaryNumericOpAssembler(state, bytecode, operand_scale) {}
 
-  Node* SmiOp(Node* smi_value, Variable* var_feedback, Label* do_float_op,
-              Variable* var_float) override {
-    VARIABLE(var_result, MachineRepresentation::kTagged);
+  TNode<Number> SmiOp(TNode<Smi> smi_value, Variable* var_feedback,
+                      Label* do_float_op, Variable* var_float) override {
+    TVARIABLE(Number, var_result);
     Label if_zero(this), if_min_smi(this), end(this);
     // Return -0 if operand is 0.
     GotoIf(SmiEqual(smi_value, SmiConstant(0)), &if_zero);
@@ -1236,12 +1236,12 @@ class NegateAssemblerImpl : public UnaryNumericOpAssembler {
 
     // Else simply subtract operand from 0.
     CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
-    var_result.Bind(SmiSub(SmiConstant(0), smi_value));
+    var_result = SmiSub(SmiConstant(0), smi_value);
     Goto(&end);
 
     BIND(&if_zero);
     CombineFeedback(var_feedback, BinaryOperationFeedback::kNumber);
-    var_result.Bind(MinusZeroConstant());
+    var_result = MinusZeroConstant();
     Goto(&end);
 
     BIND(&if_min_smi);
@@ -1320,29 +1320,24 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
     return op_;
   }
 
-  Node* SmiOp(Node* smi_value, Variable* var_feedback, Label* do_float_op,
-              Variable* var_float) override {
-    // Try fast Smi operation first.
-    Node* value = BitcastTaggedToWord(smi_value);
-    Node* one = BitcastTaggedToWord(SmiConstant(1));
-    Node* pair = op() == Operation::kIncrement
-                     ? IntPtrAddWithOverflow(value, one)
-                     : IntPtrSubWithOverflow(value, one);
-    Node* overflow = Projection(1, pair);
-
-    // Check if the Smi operation overflowed.
+  TNode<Number> SmiOp(TNode<Smi> value, Variable* var_feedback,
+                      Label* do_float_op, Variable* var_float) override {
+    TNode<Smi> one = SmiConstant(1);
     Label if_overflow(this), if_notoverflow(this);
-    Branch(overflow, &if_overflow, &if_notoverflow);
+    TNode<Smi> result = op() == Operation::kIncrement
+                            ? TrySmiAdd(value, one, &if_overflow)
+                            : TrySmiSub(value, one, &if_overflow);
+    Goto(&if_notoverflow);
 
     BIND(&if_overflow);
     {
-      var_float->Bind(SmiToFloat64(smi_value));
+      var_float->Bind(SmiToFloat64(value));
       Goto(do_float_op);
     }
 
     BIND(&if_notoverflow);
     CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
-    return BitcastWordToTaggedSigned(Projection(0, pair));
+    return result;
   }
 
   Node* FloatOp(Node* float_value) override {
@@ -1797,18 +1792,14 @@ IGNITION_HANDLER(TestGreaterThanOrEqual, InterpreterCompareOpAssembler) {
   CompareOpWithFeedback(Operation::kGreaterThanOrEqual);
 }
 
-// TestEqualStrictNoFeedback <src>
+// TestReferenceEqual <src>
 //
-// Test if the value in the <src> register is strictly equal to the accumulator.
-// Type feedback is not collected.
-IGNITION_HANDLER(TestEqualStrictNoFeedback, InterpreterAssembler) {
+// Test if the value in the <src> register is equal to the accumulator
+// by means of simple comparison. For SMIs and simple reference comparisons.
+IGNITION_HANDLER(TestReferenceEqual, InterpreterAssembler) {
   Node* lhs = LoadRegisterAtOperandIndex(0);
   Node* rhs = GetAccumulator();
-  // TODO(5310): This is called only when lhs and rhs are Smis (for ex:
-  // try-finally or generators) or strings (only when visiting
-  // ClassLiteralProperties). We should be able to optimize this and not perform
-  // the full strict equality.
-  Node* result = StrictEqual(lhs, rhs);
+  Node* result = SelectBooleanConstant(WordEqual(lhs, rhs));
   SetAccumulator(result);
   Dispatch();
 }
@@ -2451,8 +2442,8 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
 IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
   Node* feedback_vector = LoadFeedbackVector();
   Node* slot = BytecodeOperandIdx(1);
-  Node* cached_value =
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS);
+  TNode<Object> cached_value = ToObject(
+      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
 
   Label call_runtime(this, Label::kDeferred);
   GotoIf(WordEqual(cached_value, SmiConstant(0)), &call_runtime);
@@ -2466,8 +2457,7 @@ IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
     Node* context = GetContext();
     Node* result =
         CallRuntime(Runtime::kCreateTemplateObject, context, description);
-    StoreFeedbackVectorSlot(feedback_vector, slot, result, UPDATE_WRITE_BARRIER,
-                            0, INTPTR_PARAMETERS);
+    StoreFeedbackVectorSlot(feedback_vector, slot, result);
     SetAccumulator(result);
     Dispatch();
   }
@@ -2483,7 +2473,8 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   Node* context = GetContext();
   Node* slot = BytecodeOperandIdx(1);
   Node* feedback_vector = LoadFeedbackVector();
-  Node* feedback_cell = LoadFeedbackVectorSlot(feedback_vector, slot);
+  TNode<Object> feedback_cell =
+      ToObject(LoadFeedbackVectorSlot(feedback_vector, slot));
 
   Label if_fast(this), if_slow(this, Label::kDeferred);
   Branch(IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags), &if_fast,
@@ -2523,71 +2514,65 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
 
 // CreateBlockContext <index>
 //
-// Creates a new block context with the scope info constant at |index| and the
-// closure in the accumulator.
+// Creates a new block context with the scope info constant at |index|.
 IGNITION_HANDLER(CreateBlockContext, InterpreterAssembler) {
   Node* scope_info = LoadConstantPoolEntryAtOperandIndex(0);
-  Node* closure = GetAccumulator();
   Node* context = GetContext();
-  SetAccumulator(
-      CallRuntime(Runtime::kPushBlockContext, context, scope_info, closure));
+  SetAccumulator(CallRuntime(Runtime::kPushBlockContext, context, scope_info));
   Dispatch();
 }
 
-// CreateCatchContext <exception> <name_idx> <scope_info_idx>
+// CreateCatchContext <exception> <scope_info_idx>
 //
-// Creates a new context for a catch block with the |exception| in a register,
-// the variable name at |name_idx|, the ScopeInfo at |scope_info_idx|, and the
-// closure in the accumulator.
+// Creates a new context for a catch block with the |exception| in a register
+// and the ScopeInfo at |scope_info_idx|.
 IGNITION_HANDLER(CreateCatchContext, InterpreterAssembler) {
   Node* exception = LoadRegisterAtOperandIndex(0);
-  Node* name = LoadConstantPoolEntryAtOperandIndex(1);
-  Node* scope_info = LoadConstantPoolEntryAtOperandIndex(2);
-  Node* closure = GetAccumulator();
+  Node* scope_info = LoadConstantPoolEntryAtOperandIndex(1);
   Node* context = GetContext();
-  SetAccumulator(CallRuntime(Runtime::kPushCatchContext, context, name,
-                             exception, scope_info, closure));
+  SetAccumulator(
+      CallRuntime(Runtime::kPushCatchContext, context, exception, scope_info));
   Dispatch();
 }
 
-// CreateFunctionContext <slots>
+// CreateFunctionContext <scope_info_idx> <slots>
 //
 // Creates a new context with number of |slots| for the function closure.
 IGNITION_HANDLER(CreateFunctionContext, InterpreterAssembler) {
-  Node* closure = LoadRegister(Register::function_closure());
-  Node* slots = BytecodeOperandUImm(0);
+  Node* scope_info_idx = BytecodeOperandIdx(0);
+  Node* scope_info = LoadConstantPoolEntry(scope_info_idx);
+  Node* slots = BytecodeOperandUImm(1);
   Node* context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
   SetAccumulator(constructor_assembler.EmitFastNewFunctionContext(
-      closure, slots, context, FUNCTION_SCOPE));
+      scope_info, slots, context, FUNCTION_SCOPE));
   Dispatch();
 }
 
-// CreateEvalContext <slots>
+// CreateEvalContext <scope_info_idx> <slots>
 //
 // Creates a new context with number of |slots| for an eval closure.
 IGNITION_HANDLER(CreateEvalContext, InterpreterAssembler) {
-  Node* closure = LoadRegister(Register::function_closure());
-  Node* slots = BytecodeOperandUImm(0);
+  Node* scope_info_idx = BytecodeOperandIdx(0);
+  Node* scope_info = LoadConstantPoolEntry(scope_info_idx);
+  Node* slots = BytecodeOperandUImm(1);
   Node* context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
   SetAccumulator(constructor_assembler.EmitFastNewFunctionContext(
-      closure, slots, context, EVAL_SCOPE));
+      scope_info, slots, context, EVAL_SCOPE));
   Dispatch();
 }
 
 // CreateWithContext <register> <scope_info_idx>
 //
 // Creates a new context with the ScopeInfo at |scope_info_idx| for a
-// with-statement with the object in |register| and the closure in the
-// accumulator.
+// with-statement with the object in |register|.
 IGNITION_HANDLER(CreateWithContext, InterpreterAssembler) {
   Node* object = LoadRegisterAtOperandIndex(0);
   Node* scope_info = LoadConstantPoolEntryAtOperandIndex(1);
-  Node* closure = GetAccumulator();
   Node* context = GetContext();
-  SetAccumulator(CallRuntime(Runtime::kPushWithContext, context, object,
-                             scope_info, closure));
+  SetAccumulator(
+      CallRuntime(Runtime::kPushWithContext, context, object, scope_info));
   Dispatch();
 }
 
@@ -2980,9 +2965,9 @@ IGNITION_HANDLER(ForInContinue, InterpreterAssembler) {
 // Increments the loop counter in register |index| and stores the result
 // in the accumulator.
 IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
-  Node* index = LoadRegisterAtOperandIndex(0);
-  Node* one = SmiConstant(1);
-  Node* result = SmiAdd(index, one);
+  TNode<Smi> index = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<Smi> one = SmiConstant(1);
+  TNode<Smi> result = SmiAdd(index, one);
   SetAccumulator(result);
   Dispatch();
 }
@@ -3109,8 +3094,9 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
   compiler::CodeAssemblerState state(
       isolate, &zone, descriptor, Code::BYTECODE_HANDLER,
       Bytecodes::ToString(bytecode),
-      FLAG_untrusted_code_mitigations ? PoisoningMitigationLevel::kOn
-                                      : PoisoningMitigationLevel::kOff,
+      FLAG_untrusted_code_mitigations
+          ? PoisoningMitigationLevel::kPoisonCriticalOnly
+          : PoisoningMitigationLevel::kDontPoison,
       Bytecodes::ReturnCount(bytecode));
 
   switch (bytecode) {
@@ -3183,8 +3169,9 @@ Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
   InterpreterDispatchDescriptor descriptor(isolate);
   compiler::CodeAssemblerState state(
       isolate, &zone, descriptor, Code::BYTECODE_HANDLER, debug_name.c_str(),
-      FLAG_untrusted_code_mitigations ? PoisoningMitigationLevel::kOn
-                                      : PoisoningMitigationLevel::kOff,
+      FLAG_untrusted_code_mitigations
+          ? PoisoningMitigationLevel::kPoisonCriticalOnly
+          : PoisoningMitigationLevel::kDontPoison,
       return_count);
 
   DeserializeLazyAssembler::Generate(&state, operand_scale);

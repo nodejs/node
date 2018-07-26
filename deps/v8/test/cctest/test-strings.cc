@@ -1202,7 +1202,7 @@ TEST(InternalizeExternal) {
   Factory* factory = isolate->factory();
   // This won't leak; the external string mechanism will call Dispose() on it.
   OneByteVectorResource* resource =
-      new OneByteVectorResource(i::Vector<const char>("prop", 4));
+      new OneByteVectorResource(i::Vector<const char>("prop-1234", 9));
   {
     v8::HandleScope scope(CcTest::isolate());
     v8::Local<v8::String> ext_string =
@@ -1211,11 +1211,13 @@ TEST(InternalizeExternal) {
     Handle<String> string = v8::Utils::OpenHandle(*ext_string);
     CHECK(string->IsExternalString());
     CHECK(!string->IsInternalizedString());
-    CHECK(isolate->heap()->InNewSpace(*string));
+    CHECK(!isolate->heap()->InNewSpace(*string));
+    CHECK_EQ(
+        isolate->factory()->string_table()->LookupStringIfExists_NoAllocate(
+            *string),
+        Smi::FromInt(ResultSentinel::kNotFound));
     factory->InternalizeName(string);
-    CHECK(string->IsThinString());
-    CcTest::CollectGarbage(i::NEW_SPACE);
-    CcTest::CollectGarbage(i::NEW_SPACE);
+    CHECK(string->IsExternalString());
     CHECK(string->IsInternalizedString());
     CHECK(!isolate->heap()->InNewSpace(*string));
   }
@@ -1639,6 +1641,21 @@ GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
     "QQ\xF0\x9F\x98\x8D\xF0\x9F\x98\x8D")
 
 #undef GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING
+
+TEST(HashArrayIndexStrings) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(CcTest::isolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+
+  CHECK_EQ(StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */) >>
+               Name::kHashShift,
+           isolate->factory()->zero_string()->Hash());
+
+  CHECK_EQ(StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */) >>
+               Name::kHashShift,
+           isolate->factory()->one_string()->Hash());
+}
 
 }  // namespace test_strings
 }  // namespace internal

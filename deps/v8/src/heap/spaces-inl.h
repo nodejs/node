@@ -139,7 +139,7 @@ bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
 bool PagedSpace::Contains(Address addr) {
-  if (heap_->lo_space()->FindPage(addr)) return false;
+  if (heap()->lo_space()->FindPage(addr)) return false;
   return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
 }
 
@@ -171,7 +171,7 @@ size_t PagedSpace::RelinkFreeListCategories(Page* page) {
 }
 
 bool PagedSpace::TryFreeLast(HeapObject* object, int object_size) {
-  if (allocation_info_.top() != nullptr) {
+  if (allocation_info_.top() != kNullAddress) {
     const Address object_address = object->address();
     if ((allocation_info_.top() - object_size) == object_address) {
       allocation_info_.set_top(object_address);
@@ -315,6 +315,7 @@ HeapObject* PagedSpace::TryAllocateLinearlyAligned(
 
 AllocationResult PagedSpace::AllocateRawUnaligned(
     int size_in_bytes, UpdateSkipList update_skip_list) {
+  DCHECK_IMPLIES(identity() == RO_SPACE, heap()->CanAllocateInReadOnlySpace());
   if (!EnsureLinearAllocationArea(size_in_bytes)) {
     return AllocationResult::Retry(identity());
   }
@@ -330,7 +331,8 @@ AllocationResult PagedSpace::AllocateRawUnaligned(
 
 AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
                                                 AllocationAlignment alignment) {
-  DCHECK(identity() == OLD_SPACE);
+  DCHECK(identity() == OLD_SPACE || identity() == RO_SPACE);
+  DCHECK_IMPLIES(identity() == RO_SPACE, heap()->CanAllocateInReadOnlySpace());
   int allocation_size = size_in_bytes;
   HeapObject* object = TryAllocateLinearlyAligned(&allocation_size, alignment);
   if (object == nullptr) {
@@ -356,7 +358,7 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
       SupportsInlineAllocation()) {
     // Generated code decreased the top() pointer to do folded allocations.
     // The top_on_previous_step_ can be one byte beyond the current page.
-    DCHECK_NOT_NULL(top());
+    DCHECK_NE(top(), kNullAddress);
     DCHECK_EQ(Page::FromAllocationAreaAddress(top()),
               Page::FromAllocationAreaAddress(top_on_previous_step_ - 1));
     top_on_previous_step_ = top();
@@ -396,7 +398,8 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
   int filler_size = Heap::GetFillToAlign(top, alignment);
   int aligned_size_in_bytes = size_in_bytes + filler_size;
 
-  if (allocation_info_.limit() - top < aligned_size_in_bytes) {
+  if (allocation_info_.limit() - top <
+      static_cast<uintptr_t>(aligned_size_in_bytes)) {
     // See if we can create room.
     if (!EnsureAllocation(size_in_bytes, alignment)) {
       return AllocationResult::Retry();
@@ -471,7 +474,8 @@ size_t LargeObjectSpace::Available() {
 
 
 LocalAllocationBuffer LocalAllocationBuffer::InvalidBuffer() {
-  return LocalAllocationBuffer(nullptr, LinearAllocationArea(nullptr, nullptr));
+  return LocalAllocationBuffer(
+      nullptr, LinearAllocationArea(kNullAddress, kNullAddress));
 }
 
 
@@ -491,7 +495,7 @@ LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
 bool LocalAllocationBuffer::TryMerge(LocalAllocationBuffer* other) {
   if (allocation_info_.top() == other->allocation_info_.limit()) {
     allocation_info_.set_top(other->allocation_info_.top());
-    other->allocation_info_.Reset(nullptr, nullptr);
+    other->allocation_info_.Reset(kNullAddress, kNullAddress);
     return true;
   }
   return false;

@@ -50,11 +50,8 @@ class V8_EXPORT_PRIVATE Typer {
   TypeCache const& cache_;
   OperationTyper operation_typer_;
 
-  Type* singleton_empty_string_;
-  Type* singleton_false_;
-  Type* singleton_true_;
-  Type* falsish_;
-  Type* truish_;
+  Type singleton_false_;
+  Type singleton_true_;
 
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };

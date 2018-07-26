@@ -41,10 +41,8 @@ class FlagsContinuation final {
   // blocks.
   static FlagsContinuation ForBranch(FlagsCondition condition,
                                      BasicBlock* true_block,
-                                     BasicBlock* false_block,
-                                     bool update_poison) {
-    FlagsMode mode = update_poison ? kFlags_branch_and_poison : kFlags_branch;
-    return FlagsContinuation(mode, condition, true_block, false_block);
+                                     BasicBlock* false_block) {
+    return FlagsContinuation(kFlags_branch, condition, true_block, false_block);
   }
 
   static FlagsContinuation ForBranchAndPoison(FlagsCondition condition,
@@ -55,13 +53,21 @@ class FlagsContinuation final {
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
-  static FlagsContinuation ForDeoptimize(
+  static FlagsContinuation ForDeoptimize(FlagsCondition condition,
+                                         DeoptimizeKind kind,
+                                         DeoptimizeReason reason,
+                                         VectorSlotPair const& feedback,
+                                         Node* frame_state) {
+    return FlagsContinuation(kFlags_deoptimize, condition, kind, reason,
+                             feedback, frame_state);
+  }
+
+  // Creates a new flags continuation for an eager deoptimization exit.
+  static FlagsContinuation ForDeoptimizeAndPoison(
       FlagsCondition condition, DeoptimizeKind kind, DeoptimizeReason reason,
-      VectorSlotPair const& feedback, Node* frame_state, bool update_poison) {
-    FlagsMode mode =
-        update_poison ? kFlags_deoptimize_and_poison : kFlags_deoptimize;
-    return FlagsContinuation(mode, condition, kind, reason, feedback,
-                             frame_state);
+      VectorSlotPair const& feedback, Node* frame_state) {
+    return FlagsContinuation(kFlags_deoptimize_and_poison, condition, kind,
+                             reason, feedback, frame_state);
   }
 
   // Creates a new flags continuation for a boolean value.
@@ -263,8 +269,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                                ? kEnableScheduling
                                                : kDisableScheduling,
       EnableSerialization enable_serialization = kDisableSerialization,
-      PoisoningMitigationLevel poisoning_enabled =
-          PoisoningMitigationLevel::kOff);
+      PoisoningMitigationLevel poisoning_level =
+          PoisoningMitigationLevel::kDontPoison);
 
   // Visit code for the entire graph with the included schedule.
   bool SelectInstructions();
@@ -370,6 +376,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
 
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
+
+  bool NeedsPoisoning(IsSafetyCheck safety_check) const;
 
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
@@ -575,6 +583,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void VisitWordCompareZero(Node* user, Node* value, FlagsContinuation* cont);
 
+  void EmitWordPoisonOnSpeculation(Node* node);
+
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* call_descriptor, Node* node);
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
@@ -643,9 +653,11 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void MarkPairProjectionsAsWord32(Node* node);
   bool IsSourcePositionUsed(Node* node);
-  void VisitAtomicBinaryOperation(Node* node, ArchOpcode int8_op,
-                                  ArchOpcode uint8_op, ArchOpcode int16_op,
-                                  ArchOpcode uint16_op, ArchOpcode word32_op);
+  void VisitWord32AtomicBinaryOperation(Node* node, ArchOpcode int8_op,
+                                        ArchOpcode uint8_op,
+                                        ArchOpcode int16_op,
+                                        ArchOpcode uint16_op,
+                                        ArchOpcode word32_op);
   void VisitWord64AtomicBinaryOperation(Node* node, ArchOpcode uint8_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode uint32_op,
@@ -674,7 +686,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   EnableSerialization enable_serialization_;
   EnableSwitchJumpTable enable_switch_jump_table_;
 
-  PoisoningMitigationLevel poisoning_enabled_;
+  PoisoningMitigationLevel poisoning_level_;
   Frame* frame_;
   bool instruction_selection_failed_;
 };

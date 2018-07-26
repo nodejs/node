@@ -16,7 +16,7 @@ namespace internal {
 namespace compiler {
 
 MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
-                                 PoisoningMitigationLevel poisoning_enabled,
+                                 PoisoningMitigationLevel poisoning_level,
                                  AllocationFolding allocation_folding)
     : jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
@@ -24,7 +24,7 @@ MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
       tokens_(zone),
       zone_(zone),
       graph_assembler_(jsgraph, nullptr, nullptr, zone),
-      poisoning_enabled_(poisoning_enabled),
+      poisoning_level_(poisoning_level),
       allocation_folding_(allocation_folding) {}
 
 void MemoryOptimizer::Optimize() {
@@ -107,6 +107,8 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
     case IrOpcode::kUnsafePointerAdd:
     case IrOpcode::kDebugBreak:
     case IrOpcode::kUnreachable:
+    case IrOpcode::kWord32PoisonOnSpeculation:
+    case IrOpcode::kWord64PoisonOnSpeculation:
       return VisitOtherEffect(node, state);
     default:
       break;
@@ -353,7 +355,7 @@ void MemoryOptimizer::VisitLoadElement(Node* node,
   ElementAccess const& access = ElementAccessOf(node->op());
   Node* index = node->InputAt(1);
   node->ReplaceInput(1, ComputeIndex(access, index));
-  if (poisoning_enabled_ == PoisoningMitigationLevel::kOn &&
+  if (NeedsPoisoning(access.load_sensitivity) &&
       access.machine_type.representation() !=
           MachineRepresentation::kTaggedPointer) {
     NodeProperties::ChangeOp(node,
@@ -369,7 +371,7 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   FieldAccess const& access = FieldAccessOf(node->op());
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
-  if (poisoning_enabled_ == PoisoningMitigationLevel::kOn &&
+  if (NeedsPoisoning(access.load_sensitivity) &&
       access.machine_type.representation() !=
           MachineRepresentation::kTaggedPointer) {
     NodeProperties::ChangeOp(node,
@@ -540,6 +542,21 @@ CommonOperatorBuilder* MemoryOptimizer::common() const {
 
 MachineOperatorBuilder* MemoryOptimizer::machine() const {
   return jsgraph()->machine();
+}
+
+bool MemoryOptimizer::NeedsPoisoning(LoadSensitivity load_sensitivity) const {
+  // Safe loads do not need poisoning.
+  if (load_sensitivity == LoadSensitivity::kSafe) return false;
+
+  switch (poisoning_level_) {
+    case PoisoningMitigationLevel::kDontPoison:
+      return false;
+    case PoisoningMitigationLevel::kPoisonAll:
+      return true;
+    case PoisoningMitigationLevel::kPoisonCriticalOnly:
+      return load_sensitivity == LoadSensitivity::kCritical;
+  }
+  UNREACHABLE();
 }
 
 }  // namespace compiler

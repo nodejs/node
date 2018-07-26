@@ -9,6 +9,7 @@
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
@@ -34,7 +35,8 @@ class SchedulerTest : public TestWithIsolateAndZone {
     if (FLAG_trace_turbo) {
       OFStream os(stdout);
       SourcePositionTable table(graph());
-      os << AsJSON(*graph(), &table);
+      NodeOriginTable table2(graph());
+      os << AsJSON(*graph(), &table, &table2);
     }
 
     Schedule* schedule =

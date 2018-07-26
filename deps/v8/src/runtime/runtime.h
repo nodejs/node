@@ -49,7 +49,7 @@ namespace internal {
   F(MoveArrayContents, 2, 1)        \
   F(NewArray, -1 /* >= 3 */, 1)     \
   F(NormalizeElements, 1, 1)        \
-  F(RemoveArrayHoles, 2, 1)         \
+  F(PrepareElementsForSort, 2, 1)   \
   F(TransitionElementsKind, 2, 1)   \
   F(TrySliceSimpleNonFastElements, 3, 1)
 
@@ -68,6 +68,7 @@ namespace internal {
   F(BigIntBinaryOp, 3, 1)            \
   F(BigIntCompareToBigInt, 3, 1)     \
   F(BigIntCompareToNumber, 3, 1)     \
+  F(BigIntCompareToString, 3, 1)     \
   F(BigIntEqualToBigInt, 2, 1)       \
   F(BigIntEqualToNumber, 2, 1)       \
   F(BigIntEqualToString, 2, 1)       \
@@ -143,7 +144,7 @@ namespace internal {
   F(DebugGetPropertyDetails, 2, 1)              \
   F(DebugGetPrototype, 1, 1)                    \
   F(DebugIsActive, 0, 1)                        \
-  F(DebugOnFunctionCall, 1, 1)                  \
+  F(DebugOnFunctionCall, 2, 1)                  \
   F(DebugPopPromise, 0, 1)                      \
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
   F(DebugPropertyAttributesFromDetails, 1, 1)   \
@@ -254,7 +255,6 @@ namespace internal {
   F(GetDefaultICULocale, 0, 1)               \
   F(InternalCompare, 3, 1)                   \
   F(InternalDateFormat, 2, 1)                \
-  F(InternalDateFormatToParts, 2, 1)         \
   F(InternalNumberFormat, 2, 1)              \
   F(IsInitializedIntlObject, 1, 1)           \
   F(IsInitializedIntlObjectOfType, 2, 1)     \
@@ -281,7 +281,6 @@ namespace internal {
   F(ExportFromRuntime, 1, 1)                                         \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)                   \
   F(IncrementUseCounter, 1, 1)                                       \
-  F(IncrementUseCounterConstructorReturnNonUndefinedPrimitive, 0, 1) \
   F(InstallToContext, 1, 1)                                          \
   F(Interrupt, 0, 1)                                                 \
   F(IS_VAR, 1, 1)                                                    \
@@ -346,7 +345,6 @@ namespace internal {
   F(IsSmi, 1, 1)                      \
   F(IsValidSmi, 1, 1)                 \
   F(MaxSmi, 0, 1)                     \
-  F(NumberToSmi, 1, 1)                \
   F(NumberToStringSkipCache, 1, 1)    \
   F(SmiLexicographicCompare, 2, 1)    \
   F(StringParseFloat, 1, 1)           \
@@ -396,6 +394,7 @@ namespace internal {
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
   F(SameValue, 2, 1)                                            \
   F(SameValueZero, 2, 1)                                        \
+  F(SetDataProperties, 2, 1)                                    \
   F(SetProperty, 4, 1)                                          \
   F(ShrinkPropertyDictionary, 1, 1)                             \
   F(ToFastProperties, 1, 1)                                     \
@@ -465,18 +464,19 @@ namespace internal {
   F(LoadLookupSlot, 1, 1)                 \
   F(LoadLookupSlotInsideTypeof, 1, 1)     \
   F(NewArgumentsElements, 3, 1)           \
+                                          \
   F(NewClosure, 2, 1)                     \
   F(NewClosure_Tenured, 2, 1)             \
-  F(NewFunctionContext, 2, 1)             \
+  F(NewFunctionContext, 1, 1)             \
   F(NewRestParameter, 1, 1)               \
-  F(NewScriptContext, 2, 1)               \
+  F(NewScriptContext, 1, 1)               \
   F(NewSloppyArguments, 3, 1)             \
   F(NewSloppyArguments_Generic, 1, 1)     \
   F(NewStrictArguments, 1, 1)             \
-  F(PushBlockContext, 2, 1)               \
-  F(PushCatchContext, 4, 1)               \
-  F(PushModuleContext, 3, 1)              \
-  F(PushWithContext, 3, 1)                \
+  F(PushBlockContext, 1, 1)               \
+  F(PushCatchContext, 2, 1)               \
+  F(PushModuleContext, 2, 1)              \
+  F(PushWithContext, 2, 1)                \
   F(StoreLookupSlot_Sloppy, 2, 1)         \
   F(StoreLookupSlot_SloppyHoisting, 2, 1) \
   F(StoreLookupSlot_Strict, 2, 1)         \
@@ -521,6 +521,7 @@ namespace internal {
   F(ClearFunctionFeedback, 1, 1)              \
   F(CompleteInobjectSlackTracking, 1, 1)      \
   F(ConstructConsString, 2, 1)                \
+  F(ConstructSlicedString, 2, 1)              \
   F(ConstructDouble, 2, 1)                    \
   F(DebugPrint, 1, 1)                         \
   F(DebugTrace, 0, 1)                         \
@@ -594,7 +595,6 @@ namespace internal {
   F(UnblockConcurrentRecompilation, 0, 1)     \
   F(ValidateWasmInstancesChain, 2, 1)         \
   F(ValidateWasmModuleState, 1, 1)            \
-  F(ValidateWasmOrphanedInstance, 1, 1)       \
   F(WasmNumInterpretedCalls, 1, 1)            \
   F(WasmTraceMemory, 1, 1)
 

@@ -337,7 +337,6 @@ std::ostream& operator<<(std::ostream& os, const Node& n) {
 
 Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
     : op_(op),
-      type_(nullptr),
       mark_(0),
       bit_field_(IdField::encode(id) | InlineCountField::encode(inline_count) |
                  InlineCapacityField::encode(inline_capacity)),

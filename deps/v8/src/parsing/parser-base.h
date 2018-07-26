@@ -3424,22 +3424,10 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
         Call::PossiblyEval is_possibly_eval =
             CheckPossibleEvalCall(result, scope());
 
-        bool is_super_call = result->IsSuperCallReference();
         if (spread_pos.IsValid()) {
           result = impl()->SpreadCall(result, args, pos, is_possibly_eval);
         } else {
           result = factory()->NewCall(result, args, pos, is_possibly_eval);
-        }
-
-        // Explicit calls to the super constructor using super() perform an
-        // implicit binding assignment to the 'this' variable.
-        if (is_super_call) {
-          classifier()->RecordAssignmentPatternError(
-              Scanner::Location(pos, scanner()->location().end_pos),
-              MessageTemplate::kInvalidDestructuringTarget);
-          ExpressionT this_expr = impl()->ThisExpression(pos);
-          result =
-              factory()->NewAssignment(Token::INIT, this_expr, result, pos);
         }
 
         if (fni_ != nullptr) fni_->RemoveLastFunction();

@@ -10,6 +10,8 @@
 #include "src/identity-map.h"
 #include "src/isolate-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
 
@@ -373,10 +375,6 @@ MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
   return result;
 }
 
-bool OnlyHasSimpleProperties(Map* map) {
-  return map->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER;
-}
-
 }  // namespace
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeys(
@@ -396,7 +394,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
     GetKeysConversion keys_conversion) {
   bool own_only = has_empty_prototype_ || mode_ == KeyCollectionMode::kOwnOnly;
   Map* map = receiver_->map();
-  if (!own_only || !OnlyHasSimpleProperties(map)) {
+  if (!own_only || map->IsCustomElementsReceiverMap()) {
     return MaybeHandle<FixedArray>();
   }
 

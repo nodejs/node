@@ -78,6 +78,8 @@ class RootVisitor BASE_EMBEDDED {
   static const char* RootName(Root root);
 };
 
+class RelocIterator;
+
 // Abstract base class for visiting, and optionally modifying, the
 // pointers contained in Objects. Used in GC and serialization/deserialization.
 class ObjectVisitor BASE_EMBEDDED {
@@ -122,6 +124,9 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits an off-heap target in the instruction stream.
   virtual void VisitOffHeapTarget(Code* host, RelocInfo* rinfo) {}
+
+  // Visits the relocation info using the given iterator.
+  virtual void VisitRelocInfo(RelocIterator* it);
 };
 
 }  // namespace internal

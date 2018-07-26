@@ -12,6 +12,8 @@
 #ifndef V8_OBJECTS_INL_H_
 #define V8_OBJECTS_INL_H_
 
+#include "src/objects.h"
+
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
 #include "src/base/tsan.h"
@@ -20,7 +22,6 @@
 #include "src/conversions-inl.h"
 #include "src/feedback-vector-inl.h"
 #include "src/field-index-inl.h"
-#include "src/field-type.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
@@ -29,22 +30,25 @@
 #include "src/layout-descriptor-inl.h"
 #include "src/lookup-cache-inl.h"
 #include "src/lookup.h"
-#include "src/objects.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/data-handler-inl.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/fixed-array-inl.h"
-#include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/name-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/template-objects.h"
+#include "src/objects/templates.h"
+#include "src/property-details.h"
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
@@ -80,7 +84,6 @@ TYPE_CHECKER(BigInt, BIGINT_TYPE)
 TYPE_CHECKER(BoilerplateDescription, BOILERPLATE_DESCRIPTION_TYPE)
 TYPE_CHECKER(BreakPoint, TUPLE2_TYPE)
 TYPE_CHECKER(BreakPointInfo, TUPLE2_TYPE)
-TYPE_CHECKER(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
 TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
@@ -102,6 +105,9 @@ TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSError, JS_ERROR_TYPE)
 TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
 TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
+#ifdef V8_INTL_SUPPORT
+TYPE_CHECKER(JSLocale, JS_INTL_LOCALE_TYPE)
+#endif  // V8_INTL_SUPPORT
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
@@ -138,6 +144,12 @@ bool HeapObject::IsFixedArray() const {
   InstanceType instance_type = map()->instance_type();
   return instance_type >= FIRST_FIXED_ARRAY_TYPE &&
          instance_type <= LAST_FIXED_ARRAY_TYPE;
+}
+
+bool HeapObject::IsWeakFixedArray() const {
+  InstanceType instance_type = map()->instance_type();
+  return instance_type >= FIRST_WEAK_FIXED_ARRAY_TYPE &&
+         instance_type <= LAST_WEAK_FIXED_ARRAY_TYPE;
 }
 
 bool HeapObject::IsSloppyArgumentsElements() const {
@@ -557,26 +569,20 @@ bool Object::IsMinusZero() const {
 // ------------------------------------
 // Cast operations
 
-CAST_ACCESSOR(AccessCheckInfo)
-CAST_ACCESSOR(AccessorInfo)
 CAST_ACCESSOR(AccessorPair)
 CAST_ACCESSOR(AllocationMemento)
 CAST_ACCESSOR(AllocationSite)
 CAST_ACCESSOR(AsyncGeneratorRequest)
 CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(BoilerplateDescription)
-CAST_ACCESSOR(CallHandlerInfo)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ConstantElementsPair)
-CAST_ACCESSOR(ContextExtension)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(FeedbackCell)
 CAST_ACCESSOR(Foreign)
-CAST_ACCESSOR(FunctionTemplateInfo)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HeapObject)
-CAST_ACCESSOR(InterceptorInfo)
 CAST_ACCESSOR(JSAsyncFromSyncIterator)
 CAST_ACCESSOR(JSAsyncGeneratorObject)
 CAST_ACCESSOR(JSBoundFunction)
@@ -599,7 +605,6 @@ CAST_ACCESSOR(NumberDictionary)
 CAST_ACCESSOR(Object)
 CAST_ACCESSOR(ObjectHashSet)
 CAST_ACCESSOR(ObjectHashTable)
-CAST_ACCESSOR(ObjectTemplateInfo)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
@@ -617,7 +622,6 @@ CAST_ACCESSOR(StackFrameInfo)
 CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
-CAST_ACCESSOR(TemplateInfo)
 CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
@@ -898,7 +902,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
       isolate->heap()->empty_slow_element_dictionary();
   while (prototype != null) {
     Map* map = prototype->map();
-    if (map->instance_type() <= LAST_CUSTOM_ELEMENTS_RECEIVER) return false;
+    if (map->IsCustomElementsReceiverMap()) return false;
     HeapObject* elements = JSObject::cast(prototype)->elements();
     if (elements != empty_fixed_array &&
         elements != empty_slow_element_dictionary) {
@@ -909,7 +913,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   return true;
 }
 
-Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
+Object** HeapObject::RawField(const HeapObject* obj, int byte_offset) {
   return reinterpret_cast<Object**>(FIELD_ADDR(obj, byte_offset));
 }
 
@@ -932,13 +936,13 @@ bool MapWord::IsForwardingAddress() const {
 
 MapWord MapWord::FromForwardingAddress(HeapObject* object) {
   Address raw = reinterpret_cast<Address>(object) - kHeapObjectTag;
-  return MapWord(reinterpret_cast<uintptr_t>(raw));
+  return MapWord(static_cast<uintptr_t>(raw));
 }
 
 
 HeapObject* MapWord::ToForwardingAddress() {
   DCHECK(IsForwardingAddress());
-  return HeapObject::FromAddress(reinterpret_cast<Address>(value_));
+  return HeapObject::FromAddress(static_cast<Address>(value_));
 }
 
 
@@ -1448,6 +1452,16 @@ bool Map::IsSpecialReceiverMap() const {
   DCHECK_IMPLIES(!result,
                  !has_named_interceptor() && !is_access_check_needed());
   return result;
+}
+
+inline bool IsCustomElementsReceiverInstanceType(InstanceType instance_type) {
+  return instance_type <= LAST_CUSTOM_ELEMENTS_RECEIVER;
+}
+
+// This should be in objects/map-inl.h, but can't, because of a cyclic
+// dependency.
+bool Map::IsCustomElementsReceiverMap() const {
+  return IsCustomElementsReceiverInstanceType(instance_type());
 }
 
 // static
@@ -2228,9 +2242,14 @@ int HeapObject::SizeFromMap(Map* map) const {
         reinterpret_cast<const FeedbackMetadata*>(this)
             ->synchronized_slot_count());
   }
-  if (instance_type == WEAK_FIXED_ARRAY_TYPE) {
+  if (instance_type >= FIRST_WEAK_FIXED_ARRAY_TYPE &&
+      instance_type <= LAST_WEAK_FIXED_ARRAY_TYPE) {
     return WeakFixedArray::SizeFor(
         reinterpret_cast<const WeakFixedArray*>(this)->synchronized_length());
+  }
+  if (instance_type == WEAK_ARRAY_LIST_TYPE) {
+    return WeakArrayList::SizeForCapacity(
+        reinterpret_cast<const WeakArrayList*>(this)->synchronized_capacity());
   }
   if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
       instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
@@ -2238,14 +2257,16 @@ int HeapObject::SizeFromMap(Map* map) const {
         instance_type);
   }
   if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
-    return reinterpret_cast<const SmallOrderedHashSet*>(this)->Size();
+    return SmallOrderedHashSet::SizeFor(
+        reinterpret_cast<const SmallOrderedHashSet*>(this)->Capacity());
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(
         reinterpret_cast<const PropertyArray*>(this)->synchronized_length());
   }
   if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
-    return reinterpret_cast<const SmallOrderedHashMap*>(this)->Size();
+    return SmallOrderedHashMap::SizeFor(
+        reinterpret_cast<const SmallOrderedHashMap*>(this)->Capacity());
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
@@ -2275,32 +2296,6 @@ ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 
-ACCESSORS(AccessorInfo, name, Name, kNameOffset)
-SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
-ACCESSORS(AccessorInfo, expected_receiver_type, Object,
-           kExpectedReceiverTypeOffset)
-
-ACCESSORS_CHECKED2(AccessorInfo, getter, Object, kGetterOffset, true,
-                   Foreign::IsNormalized(value))
-ACCESSORS_CHECKED2(AccessorInfo, setter, Object, kSetterOffset, true,
-                   Foreign::IsNormalized(value));
-ACCESSORS(AccessorInfo, js_getter, Object, kJsGetterOffset)
-ACCESSORS(AccessorInfo, data, Object, kDataOffset)
-
-bool AccessorInfo::has_getter() {
-  bool result = getter() != Smi::kZero;
-  DCHECK_EQ(result, getter() != Smi::kZero &&
-                        Foreign::cast(getter())->foreign_address() != nullptr);
-  return result;
-}
-
-bool AccessorInfo::has_setter() {
-  bool result = setter() != Smi::kZero;
-  DCHECK_EQ(result, setter() != Smi::kZero &&
-                        Foreign::cast(setter())->foreign_address() != nullptr);
-  return result;
-}
-
 ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
 SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
 ACCESSORS(AsyncGeneratorRequest, value, Object, kValueOffset)
@@ -2322,40 +2317,6 @@ bool PrototypeInfo::HasObjectCreateMap() {
   return cache->IsWeakCell() && !WeakCell::cast(cache)->cleared();
 }
 
-bool FunctionTemplateInfo::instantiated() {
-  return shared_function_info()->IsSharedFunctionInfo();
-}
-
-bool FunctionTemplateInfo::BreakAtEntry() {
-  Object* maybe_shared = shared_function_info();
-  if (maybe_shared->IsSharedFunctionInfo()) {
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(maybe_shared);
-    return shared->BreakAtEntry();
-  }
-  return false;
-}
-
-FunctionTemplateInfo* FunctionTemplateInfo::GetParent(Isolate* isolate) {
-  Object* parent = parent_template();
-  return parent->IsUndefined(isolate) ? nullptr
-                                      : FunctionTemplateInfo::cast(parent);
-}
-
-ObjectTemplateInfo* ObjectTemplateInfo::GetParent(Isolate* isolate) {
-  Object* maybe_ctor = constructor();
-  if (maybe_ctor->IsUndefined(isolate)) return nullptr;
-  FunctionTemplateInfo* constructor = FunctionTemplateInfo::cast(maybe_ctor);
-  while (true) {
-    constructor = constructor->GetParent(isolate);
-    if (constructor == nullptr) return nullptr;
-    Object* maybe_obj = constructor->instance_template();
-    if (!maybe_obj->IsUndefined(isolate)) {
-      return ObjectTemplateInfo::cast(maybe_obj);
-    }
-  }
-  return nullptr;
-}
-
 ACCESSORS(PrototypeInfo, weak_cell, Object, kWeakCellOffset)
 ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
 ACCESSORS(PrototypeInfo, object_create_map, Object, kObjectCreateMap)
@@ -2366,9 +2327,6 @@ BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 ACCESSORS(Tuple2, value1, Object, kValue1Offset)
 ACCESSORS(Tuple2, value2, Object, kValue2Offset)
 ACCESSORS(Tuple3, value3, Object, kValue3Offset)
-
-ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
-ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
 SMI_ACCESSORS(ConstantElementsPair, elements_kind, kElementsKindOffset)
 ACCESSORS(ConstantElementsPair, constant_values, FixedArrayBase,
@@ -2383,96 +2341,6 @@ ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
-
-ACCESSORS(AccessCheckInfo, callback, Object, kCallbackOffset)
-ACCESSORS(AccessCheckInfo, named_interceptor, Object, kNamedInterceptorOffset)
-ACCESSORS(AccessCheckInfo, indexed_interceptor, Object,
-          kIndexedInterceptorOffset)
-ACCESSORS(AccessCheckInfo, data, Object, kDataOffset)
-
-ACCESSORS(InterceptorInfo, getter, Object, kGetterOffset)
-ACCESSORS(InterceptorInfo, setter, Object, kSetterOffset)
-ACCESSORS(InterceptorInfo, query, Object, kQueryOffset)
-ACCESSORS(InterceptorInfo, descriptor, Object, kDescriptorOffset)
-ACCESSORS(InterceptorInfo, deleter, Object, kDeleterOffset)
-ACCESSORS(InterceptorInfo, enumerator, Object, kEnumeratorOffset)
-ACCESSORS(InterceptorInfo, definer, Object, kDefinerOffset)
-ACCESSORS(InterceptorInfo, data, Object, kDataOffset)
-SMI_ACCESSORS(InterceptorInfo, flags, kFlagsOffset)
-BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
-               kCanInterceptSymbolsBit)
-BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, kAllCanReadBit)
-BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, kNonMasking)
-BOOL_ACCESSORS(InterceptorInfo, flags, is_named, kNamed)
-BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect, kHasNoSideEffect)
-
-ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
-ACCESSORS(CallHandlerInfo, js_callback, Object, kJsCallbackOffset)
-ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
-
-bool CallHandlerInfo::IsSideEffectFreeCallHandlerInfo() const {
-  DCHECK(map() == GetHeap()->side_effect_call_handler_info_map() ||
-         map() == GetHeap()->side_effect_free_call_handler_info_map());
-  return map() == GetHeap()->side_effect_free_call_handler_info_map();
-}
-
-ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
-ACCESSORS(TemplateInfo, serial_number, Object, kSerialNumberOffset)
-SMI_ACCESSORS(TemplateInfo, number_of_properties, kNumberOfProperties)
-ACCESSORS(TemplateInfo, property_list, Object, kPropertyListOffset)
-ACCESSORS(TemplateInfo, property_accessors, Object, kPropertyAccessorsOffset)
-
-ACCESSORS(FunctionTemplateInfo, call_code, Object, kCallCodeOffset)
-ACCESSORS(FunctionTemplateInfo, prototype_template, Object,
-          kPrototypeTemplateOffset)
-ACCESSORS(FunctionTemplateInfo, prototype_provider_template, Object,
-          kPrototypeProviderTemplateOffset)
-
-ACCESSORS(FunctionTemplateInfo, parent_template, Object, kParentTemplateOffset)
-ACCESSORS(FunctionTemplateInfo, named_property_handler, Object,
-          kNamedPropertyHandlerOffset)
-ACCESSORS(FunctionTemplateInfo, indexed_property_handler, Object,
-          kIndexedPropertyHandlerOffset)
-ACCESSORS(FunctionTemplateInfo, instance_template, Object,
-          kInstanceTemplateOffset)
-ACCESSORS(FunctionTemplateInfo, class_name, Object, kClassNameOffset)
-ACCESSORS(FunctionTemplateInfo, signature, Object, kSignatureOffset)
-ACCESSORS(FunctionTemplateInfo, instance_call_handler, Object,
-          kInstanceCallHandlerOffset)
-ACCESSORS(FunctionTemplateInfo, access_check_info, Object,
-          kAccessCheckInfoOffset)
-ACCESSORS(FunctionTemplateInfo, shared_function_info, Object,
-          kSharedFunctionInfoOffset)
-ACCESSORS(FunctionTemplateInfo, cached_property_name, Object,
-          kCachedPropertyNameOffset)
-
-SMI_ACCESSORS(FunctionTemplateInfo, flag, kFlagOffset)
-
-ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
-ACCESSORS(ObjectTemplateInfo, data, Object, kDataOffset)
-
-int ObjectTemplateInfo::embedder_field_count() const {
-  Object* value = data();
-  DCHECK(value->IsSmi());
-  return EmbedderFieldCount::decode(Smi::ToInt(value));
-}
-
-void ObjectTemplateInfo::set_embedder_field_count(int count) {
-  DCHECK_LE(count, JSObject::kMaxEmbedderFields);
-  return set_data(
-      Smi::FromInt(EmbedderFieldCount::update(Smi::ToInt(data()), count)));
-}
-
-bool ObjectTemplateInfo::immutable_proto() const {
-  Object* value = data();
-  DCHECK(value->IsSmi());
-  return IsImmutablePrototype::decode(Smi::ToInt(value));
-}
-
-void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
-  return set_data(Smi::FromInt(
-      IsImmutablePrototype::update(Smi::ToInt(data()), immutable)));
-}
 
 ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
           kTransitionInfoOrBoilerplateOffset)
@@ -2523,20 +2391,6 @@ ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
 ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
           SimpleNumberDictionary, kStackFrameCacheIndex)
 
-SMI_ACCESSORS(FunctionTemplateInfo, length, kLengthOffset)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
-               kHiddenPrototypeBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
-               kNeedsAccessCheckBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
-               kReadOnlyPrototypeBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
-               kRemovePrototypeBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache,
-               kDoNotCacheBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
-               kAcceptAnyReceiver)
 
 FeedbackVector* JSFunction::feedback_vector() const {
   DCHECK(has_feedback_vector());
@@ -2732,8 +2586,7 @@ Object* JSFunction::prototype() {
 
 
 bool JSFunction::is_compiled() {
-  Builtins* builtins = GetIsolate()->builtins();
-  return code() != builtins->builtin(Builtins::kCompileLazy);
+  return code()->builtin_index() != Builtins::kCompileLazy;
 }
 
 ACCESSORS(JSProxy, target, Object, kTargetOffset)
@@ -2744,7 +2597,7 @@ bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }
 // static
 bool Foreign::IsNormalized(Object* value) {
   if (value == Smi::kZero) return true;
-  return Foreign::cast(value)->foreign_address() != nullptr;
+  return Foreign::cast(value)->foreign_address() != kNullAddress;
 }
 
 Address Foreign::foreign_address() {
@@ -2758,9 +2611,10 @@ void Foreign::set_foreign_address(Address value) {
 template <class Derived>
 void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
                                                   Object* value) {
-  int entry_offset = GetDataEntryOffset(entry, relative_index);
+  Address entry_offset =
+      kHeaderSize + GetDataEntryOffset(entry, relative_index);
   RELAXED_WRITE_FIELD(this, entry_offset, value);
-  WRITE_BARRIER(GetHeap(), this, entry_offset, value);
+  WRITE_BARRIER(GetHeap(), this, static_cast<int>(entry_offset), value);
 }
 
 ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
@@ -2874,6 +2728,9 @@ bool JSObject::HasFastElements() {
   return IsFastElementsKind(GetElementsKind());
 }
 
+bool JSObject::HasFastPackedElements() {
+  return IsFastPackedElementsKind(GetElementsKind());
+}
 
 bool JSObject::HasDictionaryElements() {
   return GetElementsKind() == DICTIONARY_ELEMENTS;
@@ -3170,37 +3027,6 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
   return kSize + embedder_field_count * kPointerSize;
 }
 
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_read,
-                    AccessorInfo::AllCanReadBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_write,
-                    AccessorInfo::AllCanWriteBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_special_data_property,
-                    AccessorInfo::IsSpecialDataPropertyBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, replace_on_access,
-                    AccessorInfo::ReplaceOnAccessBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_sloppy, AccessorInfo::IsSloppyBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, has_no_side_effect,
-                    AccessorInfo::HasNoSideEffectBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
-                    AccessorInfo::InitialAttributesBits)
-
-bool FunctionTemplateInfo::IsTemplateFor(JSObject* object) {
-  return IsTemplateFor(object->map());
-}
-
-bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
-  if (!HasExpectedReceiverType()) return true;
-  if (!receiver->IsJSObject()) return false;
-  return FunctionTemplateInfo::cast(expected_receiver_type())
-      ->IsTemplateFor(JSObject::cast(receiver)->map());
-}
-
-
-bool AccessorInfo::HasExpectedReceiverType() {
-  return expected_receiver_type()->IsFunctionTemplateInfo();
-}
-
-
 Object* AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();
 }
@@ -3396,6 +3222,53 @@ uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object* other) {
   return Smi::ToInt(other->GetHash());
 }
 
+// static
+Object* Object::GetSimpleHash(Object* object) {
+  DisallowHeapAllocation no_gc;
+  if (object->IsSmi()) {
+    uint32_t hash = ComputeIntegerHash(Smi::ToInt(object));
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  if (object->IsHeapNumber()) {
+    double num = HeapNumber::cast(object)->value();
+    if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
+    // Use ComputeIntegerHash for all values in Signed32 range, including -0,
+    // which is considered equal to 0 because collections use SameValueZero.
+    uint32_t hash;
+    // Check range before conversion to avoid undefined behavior.
+    if (num >= kMinInt && num <= kMaxInt && FastI2D(FastD2I(num)) == num) {
+      hash = ComputeIntegerHash(FastD2I(num));
+    } else {
+      hash = ComputeLongHash(double_to_uint64(num));
+    }
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  if (object->IsName()) {
+    uint32_t hash = Name::cast(object)->Hash();
+    return Smi::FromInt(hash);
+  }
+  if (object->IsOddball()) {
+    uint32_t hash = Oddball::cast(object)->to_string()->Hash();
+    return Smi::FromInt(hash);
+  }
+  if (object->IsBigInt()) {
+    uint32_t hash = BigInt::cast(object)->Hash();
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  DCHECK(object->IsJSReceiver());
+  return object;
+}
+
+Object* Object::GetHash() {
+  DisallowHeapAllocation no_gc;
+  Object* hash = GetSimpleHash(this);
+  if (hash->IsSmi()) return hash;
+
+  DCHECK(IsJSReceiver());
+  JSReceiver* receiver = JSReceiver::cast(this);
+  Isolate* isolate = receiver->GetIsolate();
+  return receiver->GetIdentityHash(isolate);
+}
 
 Handle<Object> ObjectHashTableShape::AsHandle(Isolate* isolate,
                                               Handle<Object> key) {

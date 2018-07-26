@@ -65,7 +65,7 @@ class ExternalReferenceTable {
     Address address;
     const char* name;
 
-    ExternalReferenceEntry() : address(nullptr), name(nullptr) {}
+    ExternalReferenceEntry() : address(kNullAddress), name(nullptr) {}
     ExternalReferenceEntry(Address address, const char* name)
         : address(address), name(name) {}
   };

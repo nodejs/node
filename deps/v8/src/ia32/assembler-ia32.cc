@@ -318,7 +318,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         object = request.code_stub()->GetCode();
         break;
     }
-    Address pc = buffer_ + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     Memory::Object_Handle_at(pc) = object;
   }
 }
@@ -395,7 +395,7 @@ void Assembler::Align(int m) {
 
 
 bool Assembler::IsNop(Address addr) {
-  Address a = addr;
+  byte* a = reinterpret_cast<byte*>(addr);
   while (*a == 0x66) a++;
   if (*a == 0x90) return true;
   if (a[0] == 0xF && a[1] == 0x1F) return true;
@@ -654,7 +654,7 @@ void Assembler::mov(Operand dst, Address src, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   EMIT(0xC7);
   emit_operand(eax, dst);
-  emit(reinterpret_cast<uint32_t>(src), rmode);
+  emit(src, rmode);
 }
 
 void Assembler::mov(Operand dst, Handle<HeapObject> handle) {
@@ -1595,22 +1595,21 @@ void Assembler::call(Label* L) {
   }
 }
 
-
-void Assembler::call(byte* entry, RelocInfo::Mode rmode) {
+void Assembler::call(Address entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
   if (RelocInfo::IsRuntimeEntry(rmode)) {
-    emit(reinterpret_cast<uint32_t>(entry), rmode);
+    emit(entry, rmode);
   } else {
-    emit(entry - (pc_ + sizeof(int32_t)), rmode);
+    emit(entry - (reinterpret_cast<Address>(pc_) + sizeof(int32_t)), rmode);
   }
 }
 
 void Assembler::wasm_call(Address entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   EMIT(0xE8);
-  emit(reinterpret_cast<intptr_t>(entry), rmode);
+  emit(entry, rmode);
 }
 
 int Assembler::CallSize(Operand adr) {
@@ -1680,14 +1679,14 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
   }
 }
 
-void Assembler::jmp(byte* entry, RelocInfo::Mode rmode) {
+void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE9);
   if (RelocInfo::IsRuntimeEntry(rmode)) {
-    emit(reinterpret_cast<uint32_t>(entry), rmode);
+    emit(entry, rmode);
   } else {
-    emit(entry - (pc_ + sizeof(int32_t)), rmode);
+    emit(entry - (reinterpret_cast<Address>(pc_) + sizeof(int32_t)), rmode);
   }
 }
 
@@ -2606,7 +2605,7 @@ void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
   EMIT(imm8);
 }
 
-void Assembler::ptest(XMMRegister dst, XMMRegister src) {
+void Assembler::ptest(XMMRegister dst, Operand src) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -3304,7 +3303,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       !serializer_enabled() && !emit_debug_code()) {
     return;
   }
-  RelocInfo rinfo(pc_, rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   reloc_info_writer.Write(&rinfo);
 }
 

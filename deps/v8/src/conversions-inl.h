@@ -43,9 +43,10 @@ inline unsigned int FastD2UI(double x) {
     x += k2Pow52;
     uint32_t result;
 #ifndef V8_TARGET_BIG_ENDIAN
-    Address mantissa_ptr = reinterpret_cast<Address>(&x);
+    void* mantissa_ptr = reinterpret_cast<void*>(&x);
 #else
-    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kInt32Size;
+    void* mantissa_ptr =
+        reinterpret_cast<void*>(reinterpret_cast<Address>(&x) + kInt32Size);
 #endif
     // Copy least significant 32 bits of mantissa.
     memcpy(&result, mantissa_ptr, sizeof(result));
@@ -88,23 +89,21 @@ int32_t DoubleToInt32(double x) {
 }
 
 bool DoubleToSmiInteger(double value, int* smi_int_value) {
-  if (IsMinusZero(value)) return false;
-  int i = FastD2IChecked(value);
-  if (value != i || !Smi::IsValid(i)) return false;
-  *smi_int_value = i;
+  if (!IsSmiDouble(value)) return false;
+  *smi_int_value = FastD2I(value);
+  DCHECK(Smi::IsValid(*smi_int_value));
   return true;
 }
 
 bool IsSmiDouble(double value) {
-  return std::isfinite(value) && !IsMinusZero(value) &&
-         value >= Smi::kMinValue && value <= Smi::kMaxValue &&
-         value == FastI2D(FastD2I(value));
+  return value >= Smi::kMinValue && value <= Smi::kMaxValue &&
+         !IsMinusZero(value) && value == FastI2D(FastD2I(value));
 }
 
 
 bool IsInt32Double(double value) {
-  return std::isfinite(value) && !IsMinusZero(value) && value >= kMinInt &&
-         value <= kMaxInt && value == FastI2D(FastD2I(value));
+  return value >= kMinInt && value <= kMaxInt && !IsMinusZero(value) &&
+         value == FastI2D(FastD2I(value));
 }
 
 

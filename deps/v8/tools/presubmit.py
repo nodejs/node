@@ -283,7 +283,7 @@ class SourceProcessor(SourceFileProcessor):
   Check that all files include a copyright notice and no trailing whitespaces.
   """
 
-  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', '.status']
+  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', '.status', '.tq', '.g4']
 
   def __init__(self):
     self.runtime_function_call_pattern = self.CreateRuntimeFunctionCallMatcher()

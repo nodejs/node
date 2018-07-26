@@ -198,6 +198,8 @@ namespace compiler {
   V(AVXI16x8Shl)                   \
   V(SSEI16x8ShrS)                  \
   V(AVXI16x8ShrS)                  \
+  V(SSEI16x8SConvertI32x4)         \
+  V(AVXI16x8SConvertI32x4)         \
   V(SSEI16x8Add)                   \
   V(AVXI16x8Add)                   \
   V(SSEI16x8AddSaturateS)          \
@@ -224,6 +226,8 @@ namespace compiler {
   V(AVXI16x8GeS)                   \
   V(SSEI16x8ShrU)                  \
   V(AVXI16x8ShrU)                  \
+  V(SSEI16x8UConvertI32x4)         \
+  V(AVXI16x8UConvertI32x4)         \
   V(SSEI16x8AddSaturateU)          \
   V(AVXI16x8AddSaturateU)          \
   V(SSEI16x8SubSaturateU)          \
@@ -240,11 +244,13 @@ namespace compiler {
   V(IA32I8x16ExtractLane)          \
   V(SSEI8x16ReplaceLane)           \
   V(AVXI8x16ReplaceLane)           \
+  V(SSEI8x16SConvertI16x8)         \
+  V(AVXI8x16SConvertI16x8)         \
+  V(IA32I8x16Neg)                  \
   V(SSEI8x16Shl)                   \
   V(AVXI8x16Shl)                   \
   V(SSEI8x16ShrS)                  \
   V(AVXI8x16ShrS)                  \
-  V(IA32I8x16Neg)                  \
   V(SSEI8x16Add)                   \
   V(AVXI8x16Add)                   \
   V(SSEI8x16AddSaturateS)          \
@@ -267,6 +273,8 @@ namespace compiler {
   V(AVXI8x16GtS)                   \
   V(SSEI8x16GeS)                   \
   V(AVXI8x16GeS)                   \
+  V(SSEI8x16UConvertI16x8)         \
+  V(AVXI8x16UConvertI16x8)         \
   V(SSEI8x16AddSaturateU)          \
   V(AVXI8x16AddSaturateU)          \
   V(SSEI8x16SubSaturateU)          \
@@ -293,7 +301,13 @@ namespace compiler {
   V(SSES128Select)                 \
   V(AVXS128Select)                 \
   V(IA32S8x16Shuffle)              \
-  V(IA32S32x4Swizzle)
+  V(IA32S32x4Swizzle)              \
+  V(IA32S1x4AnyTrue)               \
+  V(IA32S1x4AllTrue)               \
+  V(IA32S1x8AnyTrue)               \
+  V(IA32S1x8AllTrue)               \
+  V(IA32S1x16AnyTrue)              \
+  V(IA32S1x16AllTrue)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

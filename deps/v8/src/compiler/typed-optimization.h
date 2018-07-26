@@ -72,8 +72,8 @@ class V8_EXPORT_PRIVATE TypedOptimization final
 
   CompilationDependencies* const dependencies_;
   JSGraph* const jsgraph_;
-  Type* const true_type_;
-  Type* const false_type_;
+  Type const true_type_;
+  Type const false_type_;
   TypeCache const& type_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(TypedOptimization);

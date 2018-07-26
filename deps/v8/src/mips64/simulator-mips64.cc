@@ -861,7 +861,6 @@ Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
        isolate->FindOrAllocatePerThreadDataForThisThread();
   DCHECK_NOT_NULL(isolate_data);
-  DCHECK_NOT_NULL(isolate_data);
 
   Simulator* sim = isolate_data->simulator();
   if (sim == nullptr) {
@@ -2238,17 +2237,18 @@ void Simulator::SoftwareInterrupt() {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
             PrintF("Call to host function at %p with args %f, %f",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                   dval1);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
             PrintF("Call to host function at %p with arg %f",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
             PrintF("Call to host function at %p with args %f, %d",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                   ival);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0, ival);
             break;
           default:
             UNREACHABLE();
@@ -2353,8 +2353,8 @@ void Simulator::SoftwareInterrupt() {
             "args %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
             " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
             " , %08" PRIx64 " \n",
-            static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
-            arg4, arg5, arg6, arg7, arg8);
+            reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
+            arg3, arg4, arg5, arg6, arg7, arg8);
       }
       ObjectPair result =
           target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
@@ -6625,10 +6625,10 @@ void Simulator::DecodeTypeImmediate() {
           break;
         }
         case BC1EQZ:
-          BranchCompactHelper(!(get_fpu_register(ft_reg) & 0x1), 16);
+          BranchHelper(!(get_fpu_register(ft_reg) & 0x1));
           break;
         case BC1NEZ:
-          BranchCompactHelper((get_fpu_register(ft_reg) & 0x1), 16);
+          BranchHelper(get_fpu_register(ft_reg) & 0x1);
           break;
         case BZ_V: {
           msa_reg_t wt;
@@ -7327,13 +7327,12 @@ void Simulator::Execute() {
   }
 }
 
-
-void Simulator::CallInternal(byte* entry) {
+void Simulator::CallInternal(Address entry) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
   // Prepare to execute the code at entry.
-  set_register(pc, reinterpret_cast<int64_t>(entry));
+  set_register(pc, static_cast<int64_t>(entry));
   // Put down marker for end of simulation. The simulator will stop simulation
   // when the PC reaches this value. By saving the "end simulation" value into
   // the LR the simulation stops when returning to this call point.
@@ -7397,7 +7396,7 @@ void Simulator::CallInternal(byte* entry) {
   set_register(fp, fp_val);
 }
 
-intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+intptr_t Simulator::CallImpl(Address entry, int argument_count,
                              const intptr_t* arguments) {
   constexpr int kRegisterPassedArguments = 8;
   // Set up arguments.
@@ -7441,8 +7440,7 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   return get_register(v0);
 }
 
-
-double Simulator::CallFP(byte* entry, double d0, double d1) {
+double Simulator::CallFP(Address entry, double d0, double d1) {
   if (!IsMipsSoftFloatABI) {
     const FPURegister fparg2 = f13;
     set_fpu_register_double(f12, d0);

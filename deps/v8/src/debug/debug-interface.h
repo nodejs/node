@@ -436,6 +436,9 @@ class ScopeIterator {
   virtual ScopeType GetType() = 0;
   virtual v8::Local<v8::Object> GetObject() = 0;
   virtual v8::Local<v8::Function> GetFunction() = 0;
+  virtual v8::Local<v8::Value> GetFunctionDebugName() = 0;
+  virtual int GetScriptId() = 0;
+  virtual bool HasLocationInfo() = 0;
   virtual debug::Location GetStartLocation() = 0;
   virtual debug::Location GetEndLocation() = 0;
 
@@ -459,7 +462,7 @@ class StackTraceIterator {
   virtual int GetContextId() const = 0;
   virtual v8::MaybeLocal<v8::Value> GetReceiver() const = 0;
   virtual v8::Local<v8::Value> GetReturnValue() const = 0;
-  virtual v8::Local<v8::String> GetFunctionName() const = 0;
+  virtual v8::Local<v8::String> GetFunctionDebugName() const = 0;
   virtual v8::Local<v8::debug::Script> GetScript() const = 0;
   virtual debug::Location GetSourceLocation() const = 0;
   virtual v8::Local<v8::Function> GetFunction() const = 0;
@@ -509,6 +512,8 @@ int GetDebuggingId(v8::Local<v8::Function> function);
 
 bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
                            v8::Local<v8::String> condition, BreakpointId* id);
+
+v8::Platform* GetCurrentPlatform();
 
 }  // namespace debug
 }  // namespace v8

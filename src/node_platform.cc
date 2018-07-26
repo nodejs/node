@@ -15,50 +15,52 @@ using v8::Platform;
 using v8::Task;
 using v8::TracingController;
 
-static void BackgroundRunner(void* data) {
+namespace {
+
+static void WorkerThreadMain(void* data) {
   TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
                         "BackgroundTaskRunner");
-  TaskQueue<Task> *background_tasks = static_cast<TaskQueue<Task> *>(data);
-  while (std::unique_ptr<Task> task = background_tasks->BlockingPop()) {
+  TaskQueue<Task>* pending_worker_tasks = static_cast<TaskQueue<Task>*>(data);
+  while (std::unique_ptr<Task> task = pending_worker_tasks->BlockingPop()) {
     task->Run();
-    background_tasks->NotifyOfCompletion();
+    pending_worker_tasks->NotifyOfCompletion();
   }
 }
 
-BackgroundTaskRunner::BackgroundTaskRunner(int thread_pool_size) {
+}  // namespace
+
+WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(int thread_pool_size) {
   for (int i = 0; i < thread_pool_size; i++) {
     std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
-    if (uv_thread_create(t.get(), BackgroundRunner, &background_tasks_) != 0)
+    if (uv_thread_create(t.get(), WorkerThreadMain,
+                         &pending_worker_tasks_) != 0) {
       break;
+    }
     threads_.push_back(std::move(t));
   }
 }
 
-void BackgroundTaskRunner::PostTask(std::unique_ptr<Task> task) {
-  background_tasks_.Push(std::move(task));
+void WorkerThreadsTaskRunner::PostTask(std::unique_ptr<Task> task) {
+  pending_worker_tasks_.Push(std::move(task));
 }
 
-void BackgroundTaskRunner::PostIdleTask(std::unique_ptr<v8::IdleTask> task) {
+void WorkerThreadsTaskRunner::PostDelayedTask(std::unique_ptr<v8::Task> task,
+                                              double delay_in_seconds) {
   UNREACHABLE();
 }
 
-void BackgroundTaskRunner::PostDelayedTask(std::unique_ptr<v8::Task> task,
-                                           double delay_in_seconds) {
-  UNREACHABLE();
+void WorkerThreadsTaskRunner::BlockingDrain() {
+  pending_worker_tasks_.BlockingDrain();
 }
 
-void BackgroundTaskRunner::BlockingDrain() {
-  background_tasks_.BlockingDrain();
-}
-
-void BackgroundTaskRunner::Shutdown() {
-  background_tasks_.Stop();
+void WorkerThreadsTaskRunner::Shutdown() {
+  pending_worker_tasks_.Stop();
   for (size_t i = 0; i < threads_.size(); i++) {
     CHECK_EQ(0, uv_thread_join(threads_[i].get()));
   }
 }
 
-size_t BackgroundTaskRunner::NumberOfAvailableBackgroundThreads() const {
+int WorkerThreadsTaskRunner::NumberOfWorkerThreads() const {
   return threads_.size();
 }
 
@@ -131,8 +133,8 @@ NodePlatform::NodePlatform(int thread_pool_size,
     TracingController* controller = new TracingController();
     tracing_controller_.reset(controller);
   }
-  background_task_runner_ =
-      std::make_shared<BackgroundTaskRunner>(thread_pool_size);
+  worker_thread_task_runner_ =
+      std::make_shared<WorkerThreadsTaskRunner>(thread_pool_size);
 }
 
 void NodePlatform::RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) {
@@ -160,7 +162,7 @@ void NodePlatform::UnregisterIsolate(IsolateData* isolate_data) {
 }
 
 void NodePlatform::Shutdown() {
-  background_task_runner_->Shutdown();
+  worker_thread_task_runner_->Shutdown();
 
   {
     Mutex::ScopedLock lock(per_isolate_mutex_);
@@ -168,8 +170,8 @@ void NodePlatform::Shutdown() {
   }
 }
 
-size_t NodePlatform::NumberOfAvailableBackgroundThreads() {
-  return background_task_runner_->NumberOfAvailableBackgroundThreads();
+int NodePlatform::NumberOfWorkerThreads() {
+  return worker_thread_task_runner_->NumberOfWorkerThreads();
 }
 
 void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
@@ -201,15 +203,12 @@ void PerIsolatePlatformData::CancelPendingDelayedTasks() {
   scheduled_delayed_tasks_.clear();
 }
 
-void NodePlatform::DrainBackgroundTasks(Isolate* isolate) {
+void NodePlatform::DrainTasks(Isolate* isolate) {
   std::shared_ptr<PerIsolatePlatformData> per_isolate = ForIsolate(isolate);
 
   do {
-    // Right now, there is no way to drain only background tasks associated
-    // with a specific isolate, so this sometimes does more work than
-    // necessary. In the long run, that functionality is probably going to
-    // be available anyway, though.
-    background_task_runner_->BlockingDrain();
+    // Worker tasks aren't associated with an Isolate.
+    worker_thread_task_runner_->BlockingDrain();
   } while (per_isolate->FlushForegroundTasksInternal());
 }
 
@@ -249,10 +248,16 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
   return did_work;
 }
 
-void NodePlatform::CallOnBackgroundThread(Task* task,
-                                          ExpectedRuntime expected_runtime) {
-  background_task_runner_->PostTask(std::unique_ptr<Task>(task));
+void NodePlatform::CallOnWorkerThread(std::unique_ptr<v8::Task> task) {
+  worker_thread_task_runner_->PostTask(std::move(task));
 }
+
+void NodePlatform::CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
+                                             double delay_in_seconds) {
+  worker_thread_task_runner_->PostDelayedTask(std::move(task),
+                                              delay_in_seconds);
+}
+
 
 std::shared_ptr<PerIsolatePlatformData>
 NodePlatform::ForIsolate(Isolate* isolate) {
@@ -282,11 +287,6 @@ void NodePlatform::CancelPendingDelayedTasks(v8::Isolate* isolate) {
 }
 
 bool NodePlatform::IdleTasksEnabled(Isolate* isolate) { return false; }
-
-std::shared_ptr<v8::TaskRunner>
-NodePlatform::GetBackgroundTaskRunner(Isolate* isolate) {
-  return background_task_runner_;
-}
 
 std::shared_ptr<v8::TaskRunner>
 NodePlatform::GetForegroundTaskRunner(Isolate* isolate) {

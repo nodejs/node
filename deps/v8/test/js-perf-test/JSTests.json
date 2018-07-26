@@ -1,4 +1,5 @@
 {
+  "owners": ["jarin@chromium.org", "mvstanston@chromium.org"],
   "name": "JSTests",
   "run_count": 3,
   "run_count_arm": 1,
@@ -238,6 +239,24 @@
           ]
         },
         {
+          "name": "StringSplit",
+          "main": "run.js",
+          "resources": [ "string-split.js" ],
+          "test_flags": [ "string-split" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "ShortSubjectEmptySeparator"},
+            {"name": "LongSubjectEmptySeparator"},
+            {"name": "ShortTwoBytesSubjectEmptySeparator"},
+            {"name": "LongTwoBytesSubjectEmptySeparator"},
+            {"name": "ShortSubject"},
+            {"name": "LongSubject"},
+            {"name": "ShortTwoBytesSubject"},
+            {"name": "LongTwoBytesSubject"}
+          ]
+        },
+        {
           "name": "StringAt",
           "main": "run.js",
           "resources": [ "string-stringat.js" ],
@@ -290,6 +309,20 @@
             {"name": "StringMatchAllManualRegExp"},
             {"name": "StringMatchAllBuiltinZeroWidth"},
             {"name": "StringMatchAllBuiltinZeroWidthUnicode"}
+          ]
+        },
+        {
+          "name": "StringStartsEndsWithComparison",
+          "main": "run.js",
+          "resources": [ "string-startsendswith-comp.js" ],
+          "test_flags": [ "string-startsendswith-comp" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "startsWith"},
+            {"name": "startsIndex"},
+            {"name": "endsWith"},
+            {"name": "endsIndex"}
           ]
         },
         {
@@ -447,6 +480,19 @@
       ]
     },
     {
+      "name": "DataView",
+      "path": ["DataView"],
+      "main": "run.js",
+      "resources": ["dataviewtest.js"],
+      "results_regexp": "^DataView\\-%s\\(Score\\): (.+)$",
+      "tests": [
+	{"name": "DataViewTest-DataView-BigEndian"},
+	{"name": "DataViewTest-DataView-LittleEndian"},
+	{"name": "DataViewTest-TypedArray-BigEndian"},
+	{"name": "DataViewTest-TypedArray-LittleEndian"}
+      ]
+    },
+    {
       "name": "TypedArrays",
       "path": ["TypedArrays"],
       "results_regexp": "^TypedArrays\\-%s\\(Score\\): (.+)$",
@@ -520,25 +566,37 @@
         {
           "name": "SortIntTypes",
           "main": "run.js",
-          "resources": ["sort-int.js"],
+          "resources": ["sort.js", "sort-int.js"],
           "test_flags": ["sort-int"]
+        },
+        {
+          "name": "SortBigIntTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-bigint.js"],
+          "test_flags": ["sort-bigint"]
         },
         {
           "name": "SortFloatTypes",
           "main": "run.js",
-          "resources": ["sort-float.js"],
+          "resources": ["sort.js", "sort-float.js"],
           "test_flags": ["sort-float"]
         },
         {
           "name": "SortCustomCompareFnIntTypes",
           "main": "run.js",
-          "resources": ["sort-cmpfn-int.js"],
+          "resources": ["sort.js", "sort-cmpfn-int.js"],
           "test_flags": ["sort-cmpfn-int"]
+        },
+        {
+          "name": "SortCustomCompareFnBigIntTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-cmpfn-bigint.js"],
+          "test_flags": ["sort-cmpfn-bigint"]
         },
         {
           "name": "SortCustomCompareFnFloatTypes",
           "main": "run.js",
-          "resources": ["sort-cmpfn-float.js"],
+          "resources": ["sort.js", "sort-cmpfn-float.js"],
           "test_flags": ["sort-cmpfn-float"]
         },
         {
@@ -648,11 +706,12 @@
       "name": "ArraySort",
       "path": ["ArraySort"],
       "main": "run.js",
-      "resources": ["sort.js"],
+      "resources": ["sort-base.js", "sort.js"],
+      "test_flags": ["sort"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
       "flags": [
         "--allow-natives-syntax"
       ],
-      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
       "tests": [
         {"name": "PackedSmi"},
         {"name": "PackedDouble"},
@@ -661,6 +720,74 @@
         {"name": "HoleyDouble"},
         {"name": "HoleyElement"},
         {"name": "Dictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortCompareFns",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-cmpfn.js"],
+      "test_flags": ["sort-cmpfn"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmi"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElement"},
+        {"name": "HoleySmi"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElement"},
+        {"name": "Dictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortCompareFnKindChange",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-cmpfn-kindchange.js"],
+      "test_flags": ["sort-cmpfn-kindchange"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmiToPackedDouble"},
+        {"name": "HoleySmiToHoleyDouble"},
+        {"name": "PackedDoubleToHoleyDouble"},
+        {"name": "PackedElementToDictionary"},
+        {"name": "HoleyElementToDictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortPreSorted",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-presorted.js"],
+      "test_flags": ["sort-presorted"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmiPreSorted"},
+        {"name": "PackedSmiPreSortedReversed"}
+      ]
+    },
+    {
+      "name": "ArraySortMegamorphic",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-megamorphic.js"],
+      "test_flags": ["sort-megamorphic"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "Base"},
+        {"name": "MultipleCompareFns"}
       ]
     },
     {

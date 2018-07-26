@@ -11,14 +11,16 @@
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
-#include "src/base/template-utils.h"
+#include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
+#include "src/objects.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/map.h"
+#include "src/objects/maybe-object.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone-containers.h"
 
@@ -41,6 +43,9 @@ class PromiseRejectReactionJobTask;
 class InterpreterData;
 class Factory;
 class Zone;
+
+template <typename T>
+class Signature;
 
 struct UntaggedT {};
 
@@ -126,6 +131,10 @@ struct MachineTypeOf<Object> {
   static constexpr MachineType value = MachineType::AnyTagged();
 };
 template <>
+struct MachineTypeOf<MaybeObject> {
+  static constexpr MachineType value = MachineType::AnyTagged();
+};
+template <>
 struct MachineTypeOf<Smi> {
   static constexpr MachineType value = MachineType::TaggedSigned();
 };
@@ -151,13 +160,21 @@ struct MachineRepresentationOf<
   static const MachineRepresentation value =
       MachineTypeOf<T>::value.representation();
 };
+template <class T>
+struct MachineRepresentationOf<
+    T, typename std::enable_if<std::is_base_of<MaybeObject, T>::value>::type> {
+  static const MachineRepresentation value =
+      MachineTypeOf<T>::value.representation();
+};
 
 template <class T>
 struct is_valid_type_tag {
   static const bool value = std::is_base_of<Object, T>::value ||
                             std::is_base_of<UntaggedT, T>::value ||
+                            std::is_base_of<MaybeObject, T>::value ||
                             std::is_same<ExternalReference, T>::value;
-  static const bool is_tagged = std::is_base_of<Object, T>::value;
+  static const bool is_tagged = std::is_base_of<Object, T>::value ||
+                                std::is_base_of<MaybeObject, T>::value;
 };
 
 template <class T1, class T2>
@@ -225,6 +242,7 @@ class StringWrapper;
 class SymbolWrapper;
 class Undetectable;
 class UniqueName;
+class WasmExportedFunctionData;
 class WasmGlobalObject;
 class WasmMemoryObject;
 class WasmModuleObject;
@@ -362,7 +380,7 @@ class TNode {
   TNode() : node_(nullptr) {}
 
   TNode operator=(TNode other) {
-    DCHECK_NULL(node_);
+    DCHECK_NOT_NULL(other.node_);
     node_ = other.node_;
     return *this;
   }
@@ -403,6 +421,7 @@ class SloppyTNode : public TNode<T> {
   V(Float32GreaterThan, BoolT, Float32T, Float32T)        \
   V(Float32GreaterThanOrEqual, BoolT, Float32T, Float32T) \
   V(Float64Equal, BoolT, Float64T, Float64T)              \
+  V(Float64NotEqual, BoolT, Float64T, Float64T)           \
   V(Float64LessThan, BoolT, Float64T, Float64T)           \
   V(Float64LessThanOrEqual, BoolT, Float64T, Float64T)    \
   V(Float64GreaterThan, BoolT, Float64T, Float64T)        \
@@ -485,6 +504,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(Float64ExtractLowWord32, Word32T, Float64T)                \
   V(Float64ExtractHighWord32, Word32T, Float64T)               \
   V(BitcastTaggedToWord, IntPtrT, Object)                      \
+  V(BitcastMaybeObjectToWord, IntPtrT, MaybeObject)            \
   V(BitcastWordToTagged, Object, WordT)                        \
   V(BitcastWordToTaggedSigned, Smi, WordT)                     \
   V(TruncateFloat64ToFloat32, Float32T, Float64T)              \
@@ -584,7 +604,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #ifdef DEBUG
       if (FLAG_debug_code) {
         Node* function = code_assembler_->ExternalConstant(
-            ExternalReference::check_object_type(code_assembler_->isolate()));
+            ExternalReference::check_object_type());
         code_assembler_->CallCFunction3(
             MachineType::AnyTagged(), MachineType::AnyTagged(),
             MachineType::TaggedSigned(), MachineType::AnyTagged(), function,
@@ -599,7 +619,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
     template <class A>
     operator SloppyTNode<A>() {
-      return base::implicit_cast<TNode<A>>(*this);
+      return implicit_cast<TNode<A>>(*this);
     }
 
     Node* node() const { return node_; }
@@ -649,13 +669,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #endif
 
 #ifdef V8_EMBEDDED_BUILTINS
-  // Off-heap builtins cannot embed constants within the code object itself,
-  // and thus need to load them from the root list.
-  bool ShouldLoadConstantsFromRootList() const {
-    return (isolate()->serializer_enabled() &&
-            isolate()->builtins_constants_table_builder() != nullptr);
-  }
-
   TNode<HeapObject> LookupConstant(Handle<HeapObject> object);
   TNode<ExternalReference> LookupExternalReference(ExternalReference reference);
 #endif
@@ -694,6 +707,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool ToInt64Constant(Node* node, int64_t& out_value);
   bool ToSmiConstant(Node* node, Smi*& out_value);
   bool ToIntPtrConstant(Node* node, intptr_t& out_value);
+
+  bool IsUndefinedConstant(TNode<Object> node);
+  bool IsNullConstant(TNode<Object> node);
 
   TNode<Int32T> Signed(TNode<Word32T> x) { return UncheckedCast<Int32T>(x); }
   TNode<IntPtrT> Signed(TNode<WordT> x) { return UncheckedCast<IntPtrT>(x); }
@@ -744,8 +760,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* LoadStackPointer();
 
   // Poison |value| on speculative paths.
-  TNode<Object> PoisonOnSpeculationTagged(SloppyTNode<Object> value);
-  TNode<WordT> PoisonOnSpeculationWord(SloppyTNode<WordT> value);
+  TNode<Object> TaggedPoisonOnSpeculation(SloppyTNode<Object> value);
+  TNode<WordT> WordPoisonOnSpeculation(SloppyTNode<WordT> value);
 
   // Load raw memory location.
   Node* Load(MachineType rep, Node* base,
@@ -944,7 +960,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Object> CallRuntime(Runtime::FunctionId function,
                             SloppyTNode<Object> context, TArgs... args) {
     return CallRuntimeImpl(function, context,
-                           base::implicit_cast<SloppyTNode<Object>>(args)...);
+                           implicit_cast<SloppyTNode<Object>>(args)...);
   }
 
   template <class... TArgs>
@@ -953,8 +969,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   TNode<Object> TailCallRuntime(Runtime::FunctionId function,
                                 SloppyTNode<Object> context, TArgs... args) {
-    return TailCallRuntimeImpl(
-        function, context, base::implicit_cast<SloppyTNode<Object>>(args)...);
+    return TailCallRuntimeImpl(function, context,
+                               implicit_cast<SloppyTNode<Object>>(args)...);
   }
 
   //
@@ -965,14 +981,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* CallStub(Callable const& callable, Node* context, TArgs... args) {
     Node* target = HeapConstant(callable.code());
     return CallStub(callable.descriptor(), target, context,
-                    base::implicit_cast<Node*>(args)...);
+                    implicit_cast<Node*>(args)...);
   }
 
   template <class... TArgs>
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node* context, TArgs... args) {
     return CallStubR(descriptor, 1, target, context,
-                     base::implicit_cast<Node*>(args)...);
+                     implicit_cast<Node*>(args)...);
   }
 
   template <class... TArgs>
@@ -993,7 +1009,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, TArgs... args) {
     return TailCallStubImpl(descriptor, target, context,
-                            base::implicit_cast<Node*>(args)...);
+                            implicit_cast<Node*>(args)...);
   }
   template <class... TArgs>
   Node* TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
@@ -1113,7 +1129,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void UnregisterCallGenerationCallbacks();
 
   bool Word32ShiftIsSafe() const;
-  PoisoningMitigationLevel poisoning_enabled() const;
+  PoisoningMitigationLevel poisoning_level() const;
 
  private:
   // These two don't have definitions and are here only for catching use cases
@@ -1228,6 +1244,7 @@ class CodeAssemblerLabel {
   ~CodeAssemblerLabel();
 
   inline bool is_bound() const { return bound_; }
+  inline bool is_used() const { return merge_count_ != 0; }
 
  private:
   friend class CodeAssembler;
@@ -1258,15 +1275,14 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      const CallInterfaceDescriptor& descriptor, Code::Kind kind,
-                     const char* name,
-                     PoisoningMitigationLevel poisoning_enabled,
+                     const char* name, PoisoningMitigationLevel poisoning_level,
                      size_t result_size = 1, uint32_t stub_key = 0,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
   // Create with JSCall linkage.
   CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
                      Code::Kind kind, const char* name,
-                     PoisoningMitigationLevel poisoning_enabled,
+                     PoisoningMitigationLevel poisoning_level,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
   ~CodeAssemblerState();
@@ -1288,8 +1304,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Kind kind,
-                     const char* name,
-                     PoisoningMitigationLevel poisoning_enabled,
+                     const char* name, PoisoningMitigationLevel poisoning_level,
                      uint32_t stub_key, int32_t builtin_index);
 
   std::unique_ptr<RawMachineAssembler> raw_assembler_;

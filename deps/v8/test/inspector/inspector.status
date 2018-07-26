@@ -20,8 +20,12 @@
 }],  # variant != default
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
+[ALWAYS, {
+  # https://crbug.com/v8/7767
+  'debugger/wasm-imports': [SKIP],
+}],  # ALWAYS
 ]

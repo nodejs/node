@@ -72,10 +72,14 @@ class LowLevelLogger;
 class PerfBasicLogger;
 class PerfJitLogger;
 class Profiler;
-class ProfilerListener;
 class RuntimeCallTimer;
 class Ticker;
 class WasmCompiledModule;
+
+namespace interpreter {
+enum class Bytecode : uint8_t;
+enum class OperandScale : uint8_t;
+}  // namespace interpreter
 
 namespace wasm {
 class WasmCode;
@@ -131,15 +135,7 @@ class Logger : public CodeEventListener {
   void SetCodeEventHandler(uint32_t options,
                            JitCodeEventHandler event_handler);
 
-  // Sets up ProfilerListener.
-  void SetUpProfilerListener();
-
-  // Tear down ProfilerListener if it has no observers.
-  void TearDownProfilerListener();
-
   sampler::Sampler* sampler();
-
-  ProfilerListener* profiler_listener() { return profiler_listener_.get(); }
 
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,
@@ -187,8 +183,8 @@ class Logger : public CodeEventListener {
   void ApiEntryCall(const char* name);
 
   // ==== Events logged by --log-code. ====
-  void addCodeEventListener(CodeEventListener* listener);
-  void removeCodeEventListener(CodeEventListener* listener);
+  void AddCodeEventListener(CodeEventListener* listener);
+  void RemoveCodeEventListener(CodeEventListener* listener);
 
   // Emits a code event for a callback function.
   void CallbackEvent(Name* name, Address entry_point);
@@ -348,7 +344,6 @@ class Logger : public CodeEventListener {
   PerfJitLogger* perf_jit_logger_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
-  std::unique_ptr<ProfilerListener> profiler_listener_;
   std::set<int> logged_source_code_;
   uint32_t next_source_info_id_ = 0;
 

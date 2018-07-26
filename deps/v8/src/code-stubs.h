@@ -31,11 +31,8 @@ class Node;
   V(ArrayConstructor)                       \
   V(CallApiCallback)                        \
   V(CallApiGetter)                          \
-  V(CEntry)                                 \
-  V(DoubleToI)                              \
   V(InternalArrayConstructor)               \
   V(JSEntry)                                \
-  V(MathPow)                                \
   V(ProfileEntryHook)                       \
   /* --- TurboFanCodeStubs --- */           \
   V(StoreSlowElement)                       \
@@ -48,8 +45,6 @@ class Node;
   V(ElementsTransitionAndStore)             \
   V(KeyedLoadSloppyArguments)               \
   V(KeyedStoreSloppyArguments)              \
-  V(StringAdd)                              \
-  V(GetProperty)                            \
   V(StoreFastElement)                       \
   V(StoreInterceptor)                       \
   V(TransitionElementsKind)                 \
@@ -138,7 +133,6 @@ class CodeStub : public ZoneObject {
   virtual ~CodeStub() {}
 
   static void GenerateStubsAheadOfTime(Isolate* isolate);
-  static void GenerateFPStubs(Isolate* isolate);
 
   // Some stubs put untagged junk on the stack that cannot be scanned by the
   // GC.  This means that we must be statically sure that no GC can occur while
@@ -191,6 +185,8 @@ class CodeStub : public ZoneObject {
 
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.
+  // TODO(jgruber): Only required by DirectCEntryStub. Can be removed when/if
+  // that is ported to a builtin.
   virtual Movability NeedsImmovableCode() { return kMovable; }
 
   virtual void PrintName(std::ostream& os) const;        // NOLINT
@@ -304,17 +300,17 @@ class CodeStubDescriptor {
 
   CodeStubDescriptor(Isolate* isolate, uint32_t stub_key);
 
-  void Initialize(Address deoptimization_handler = nullptr,
+  void Initialize(Address deoptimization_handler = kNullAddress,
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE);
   void Initialize(Register stack_parameter_count,
-                  Address deoptimization_handler = nullptr,
+                  Address deoptimization_handler = kNullAddress,
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE);
 
   void SetMissHandler(Runtime::FunctionId id) {
     miss_handler_id_ = id;
-    miss_handler_ = ExternalReference(Runtime::FunctionForId(id), isolate_);
+    miss_handler_ = ExternalReference::Create(Runtime::FunctionForId(id));
     has_miss_handler_ = true;
     // Our miss handler infrastructure doesn't currently support
     // variable stack parameter counts.
@@ -434,6 +430,7 @@ class TurboFanCodeStub : public CodeStub {
 namespace v8 {
 namespace internal {
 
+// TODO(jgruber): Convert this stub into a builtin.
 class StoreInterceptorStub : public TurboFanCodeStub {
  public:
   explicit StoreInterceptorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
@@ -473,6 +470,7 @@ class TransitionElementsKindStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(TransitionElementsKind, TurboFanCodeStub);
 };
 
+// TODO(jgruber): Convert this stub into a builtin.
 class LoadIndexedInterceptorStub : public TurboFanCodeStub {
  public:
   explicit LoadIndexedInterceptorStub(Isolate* isolate)
@@ -482,23 +480,13 @@ class LoadIndexedInterceptorStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);
 };
 
-// ES6 [[Get]] operation.
-class GetPropertyStub : public TurboFanCodeStub {
- public:
-  explicit GetPropertyStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(GetProperty);
-  DEFINE_TURBOFAN_CODE_STUB(GetProperty, TurboFanCodeStub);
-};
-
-
 enum AllocationSiteOverrideMode {
   DONT_OVERRIDE,
   DISABLE_ALLOCATION_SITES,
   LAST_ALLOCATION_SITE_OVERRIDE_MODE = DISABLE_ALLOCATION_SITES
 };
 
-
+// TODO(jgruber): Convert this stub into a builtin.
 class ArrayConstructorStub: public PlatformCodeStub {
  public:
   explicit ArrayConstructorStub(Isolate* isolate);
@@ -511,7 +499,7 @@ class ArrayConstructorStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(ArrayConstructor, PlatformCodeStub);
 };
 
-
+// TODO(jgruber): Convert this stub into a builtin.
 class InternalArrayConstructorStub: public PlatformCodeStub {
  public:
   explicit InternalArrayConstructorStub(Isolate* isolate);
@@ -523,20 +511,7 @@ class InternalArrayConstructorStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(InternalArrayConstructor, PlatformCodeStub);
 };
 
-
-class MathPowStub: public PlatformCodeStub {
- public:
-  MathPowStub() : PlatformCodeStub(nullptr) {}
-
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    // A CallInterfaceDescriptor doesn't specify double registers (yet).
-    return ContextOnlyDescriptor(isolate());
-  }
-
- private:
-  DEFINE_PLATFORM_CODE_STUB(MathPow, PlatformCodeStub);
-};
-
+// TODO(jgruber): Convert this stub into a builtin.
 class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
  public:
   explicit KeyedLoadSloppyArgumentsStub(Isolate* isolate)
@@ -584,78 +559,13 @@ class CallApiCallbackStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(CallApiCallback, PlatformCodeStub);
 };
 
-
+// TODO(jgruber): Convert this stub into a builtin.
 class CallApiGetterStub : public PlatformCodeStub {
  public:
   explicit CallApiGetterStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiGetter);
   DEFINE_PLATFORM_CODE_STUB(CallApiGetter, PlatformCodeStub);
-};
-
-
-class StringAddStub final : public TurboFanCodeStub {
- public:
-  StringAddStub(Isolate* isolate, StringAddFlags flags,
-                PretenureFlag pretenure_flag)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = (StringAddFlagsBits::encode(flags) |
-                  PretenureFlagBits::encode(pretenure_flag));
-  }
-
-  StringAddFlags flags() const {
-    return StringAddFlagsBits::decode(minor_key_);
-  }
-
-  PretenureFlag pretenure_flag() const {
-    return PretenureFlagBits::decode(minor_key_);
-  }
-
- private:
-  class StringAddFlagsBits : public BitField<StringAddFlags, 0, 3> {};
-  class PretenureFlagBits : public BitField<PretenureFlag, 3, 1> {};
-
-  void PrintBaseName(std::ostream& os) const override;  // NOLINT
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StringAdd);
-  DEFINE_TURBOFAN_CODE_STUB(StringAdd, TurboFanCodeStub);
-};
-
-
-class CEntryStub : public PlatformCodeStub {
- public:
-  CEntryStub(Isolate* isolate, int result_size,
-             SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-             ArgvMode argv_mode = kArgvOnStack, bool builtin_exit_frame = false)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = SaveDoublesBits::encode(save_doubles == kSaveFPRegs) |
-                 FrameTypeBits::encode(builtin_exit_frame) |
-                 ArgvMode::encode(argv_mode == kArgvInRegister);
-    DCHECK(result_size == 1 || result_size == 2);
-    minor_key_ = ResultSizeBits::update(minor_key_, result_size);
-  }
-
-  // The version of this stub that doesn't save doubles is generated ahead of
-  // time, so it's OK to call it from other stubs that can't cope with GC during
-  // their code generation.  On machines that always have gp registers (x64) we
-  // can generate both variants ahead of time.
-  static void GenerateAheadOfTime(Isolate* isolate);
-
- private:
-  bool save_doubles() const { return SaveDoublesBits::decode(minor_key_); }
-  bool argv_in_register() const { return ArgvMode::decode(minor_key_); }
-  bool is_builtin_exit() const { return FrameTypeBits::decode(minor_key_); }
-  int result_size() const { return ResultSizeBits::decode(minor_key_); }
-
-  Movability NeedsImmovableCode() override;
-
-  class SaveDoublesBits : public BitField<bool, 0, 1> {};
-  class ArgvMode : public BitField<bool, 1, 1> {};
-  class FrameTypeBits : public BitField<bool, 2, 1> {};
-  class ResultSizeBits : public BitField<int, 3, 3> {};
-
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(CEntry, PlatformCodeStub);
 };
 
 class JSEntryStub : public PlatformCodeStub {
@@ -711,49 +621,6 @@ class JSEntryStub : public PlatformCodeStub {
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(JSEntry, PlatformCodeStub);
-};
-
-
-enum ReceiverCheckMode {
-  // We don't know anything about the receiver.
-  RECEIVER_IS_UNKNOWN,
-
-  // We know the receiver is a string.
-  RECEIVER_IS_STRING
-};
-
-
-enum EmbedMode {
-  // The code being generated is part of an IC handler, which may MISS
-  // to an IC in failure cases.
-  PART_OF_IC_HANDLER,
-
-  NOT_PART_OF_IC_HANDLER
-};
-
-class DoubleToIStub : public PlatformCodeStub {
- public:
-  DoubleToIStub(Isolate* isolate, Register destination)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = DestinationRegisterBits::encode(destination.code()) |
-                 SSE3Bits::encode(CpuFeatures::IsSupported(SSE3) ? 1 : 0);
-  }
-
-  bool SometimesSetsUpAFrame() override { return false; }
-
- private:
-  Register destination() const {
-    return Register::from_code(DestinationRegisterBits::decode(minor_key_));
-  }
-
-  static const int kBitsPerRegisterNumber = 6;
-  STATIC_ASSERT((1L << kBitsPerRegisterNumber) >= Register::kNumRegisters);
-  class DestinationRegisterBits
-      : public BitField<int, 0, kBitsPerRegisterNumber> {};
-  class SSE3Bits : public BitField<int, kBitsPerRegisterNumber, 1> {};
-
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(DoubleToI, PlatformCodeStub);
 };
 
 class StoreFastElementStub : public TurboFanCodeStub {
@@ -887,6 +754,7 @@ class InternalArraySingleArgumentConstructorStub
                             CommonArrayConstructorStub);
 };
 
+// TODO(jgruber): Convert this stub into a builtin.
 class ArrayNArgumentsConstructorStub : public PlatformCodeStub {
  public:
   explicit ArrayNArgumentsConstructorStub(Isolate* isolate)
@@ -952,7 +820,7 @@ class ElementsTransitionAndStoreStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(ElementsTransitionAndStore, TurboFanCodeStub);
 };
 
-
+// TODO(jgruber): Convert this stub into a builtin.
 class ProfileEntryHookStub : public PlatformCodeStub {
  public:
   explicit ProfileEntryHookStub(Isolate* isolate) : PlatformCodeStub(isolate) {}

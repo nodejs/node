@@ -84,7 +84,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
           GarbageCollectionReason::kFinalizeMarkingViaTask);
     }
     // Re-schedule the timer.
-    ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
+    ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
     if (FLAG_trace_gc_verbose) {
       heap()->isolate()->PrintWithTimestamp(
           "Memory reducer: waiting for %.f ms\n",
@@ -100,7 +100,7 @@ void MemoryReducer::NotifyMarkCompact(const Event& event) {
   state_ = Step(state_, event);
   if (old_action != kWait && state_.action == kWait) {
     // If we are transitioning to the WAIT state, start the timer.
-    ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
+    ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
   }
   if (old_action == kRun) {
     if (FLAG_trace_gc_verbose) {
@@ -117,7 +117,7 @@ void MemoryReducer::NotifyPossibleGarbage(const Event& event) {
   state_ = Step(state_, event);
   if (old_action != kWait && state_.action == kWait) {
     // If we are transitioning to the WAIT state, start the timer.
-    ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
+    ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
   }
 }
 
@@ -199,8 +199,7 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
   UNREACHABLE();
 }
 
-
-void MemoryReducer::ScheduleTimer(double time_ms, double delay_ms) {
+void MemoryReducer::ScheduleTimer(double delay_ms) {
   DCHECK_LT(0, delay_ms);
   if (heap()->IsTearingDown()) return;
   // Leave some room for precision error in task scheduler.

@@ -273,15 +273,13 @@ class ErrorUtils : public AllStatic {
     "Derived ArrayBuffer constructor created a buffer which was too small")    \
   T(ArrayBufferSpeciesThis,                                                    \
     "ArrayBuffer subclass returned this from species constructor")             \
-  T(ArrayFunctionsOnFrozen, "Cannot modify frozen array elements")             \
-  T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(AwaitNotInAsyncFunction, "await is only valid in async function")          \
   T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
   T(BadSortComparisonFunction,                                                 \
     "The comparison function must be either a function or undefined")          \
   T(BigIntFromNumber,                                                          \
-    "The number % is not a safe integer and thus cannot be converted to a "    \
-    "BigInt")                                                                  \
+    "The number % cannot be converted to a BigInt because it is not an "       \
+    "integer")                                                                 \
   T(BigIntFromObject, "Cannot convert % to a BigInt")                          \
   T(BigIntMixedTypes,                                                          \
     "Cannot mix BigInt and other types, use explicit conversions")             \
@@ -343,6 +341,9 @@ class ErrorUtils : public AllStatic {
   T(IteratorSymbolNonCallable, "Found non-callable @@iterator")                \
   T(IteratorValueNotAnObject, "Iterator value % is not an entry object")       \
   T(LanguageID, "Language ID should be string or object.")                     \
+  T(LocaleNotEmpty,                                                            \
+    "First argument to Intl.Locale constructor can't be empty or missing")     \
+  T(LocaleBadParameters, "Incorrect locale information provided")              \
   T(MapperFunctionNonCallable, "flatMap mapper function is not callable")      \
   T(MethodCalledOnWrongObject,                                                 \
     "Method % called on a non-object or on a wrong type of object.")           \
@@ -581,8 +582,6 @@ class ErrorUtils : public AllStatic {
   T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
   T(ConstructorIsGenerator, "Class constructor may not be a generator")        \
   T(ConstructorIsAsync, "Class constructor may not be an async method")        \
-  T(ClassConstructorReturnedNonObject,                                         \
-    "Class constructors may only return object or undefined")                  \
   T(DerivedConstructorReturnedNonObject,                                       \
     "Derived constructors may only return object or undefined")                \
   T(DuplicateConstructor, "A class may only have one constructor")             \

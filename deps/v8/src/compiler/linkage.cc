@@ -19,7 +19,7 @@ namespace compiler {
 
 namespace {
 
-LinkageLocation regloc(Register reg, MachineType type) {
+inline LinkageLocation regloc(Register reg, MachineType type) {
   return LinkageLocation::ForRegister(reg.code(), type);
 }
 
@@ -123,14 +123,13 @@ int CallDescriptor::CalculateFixedFrameSize() const {
       return PushArgumentCount()
                  ? OptimizedBuiltinFrameConstants::kFixedSlotCount
                  : StandardFrameConstants::kFixedSlotCount;
-      break;
     case kCallAddress:
       return CommonFrameConstants::kFixedSlotCountAboveFp +
              CommonFrameConstants::kCPSlotCount;
-      break;
     case kCallCodeObject:
-    case kCallWasmFunction:
       return TypedFrameConstants::kFixedSlotCount;
+    case kCallWasmFunction:
+      return WasmCompiledFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();
 }
@@ -500,26 +499,55 @@ LinkageLocation Linkage::GetOsrValueLocation(int index) const {
   }
 }
 
+namespace {
+inline bool IsTaggedReg(const LinkageLocation& loc, Register reg) {
+  return loc.IsRegister() && loc.AsRegister() == reg.code() &&
+         loc.GetType().representation() ==
+             MachineRepresentation::kTaggedPointer;
+}
+}  // namespace
 
 bool Linkage::ParameterHasSecondaryLocation(int index) const {
-  if (!incoming_->IsJSFunctionCall()) return false;
-  LinkageLocation loc = GetParameterLocation(index);
-  return (loc == regloc(kJSFunctionRegister, MachineType::AnyTagged()) ||
-          loc == regloc(kContextRegister, MachineType::AnyTagged()));
+  // TODO(titzer): this should be configurable, not call-type specific.
+  if (incoming_->IsJSFunctionCall()) {
+    LinkageLocation loc = GetParameterLocation(index);
+    return IsTaggedReg(loc, kJSFunctionRegister) ||
+           IsTaggedReg(loc, kContextRegister);
+  }
+  if (incoming_->IsWasmFunctionCall()) {
+    LinkageLocation loc = GetParameterLocation(index);
+    return IsTaggedReg(loc, kWasmInstanceRegister);
+  }
+  return false;
 }
 
 LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
+  // TODO(titzer): these constants are necessary due to offset/slot# mismatch
+  static const int kJSContextSlot = 2 + StandardFrameConstants::kCPSlotCount;
+  static const int kJSFunctionSlot = 3 + StandardFrameConstants::kCPSlotCount;
+  static const int kWasmInstanceSlot = 3 + StandardFrameConstants::kCPSlotCount;
+
   DCHECK(ParameterHasSecondaryLocation(index));
   LinkageLocation loc = GetParameterLocation(index);
 
-  if (loc == regloc(kJSFunctionRegister, MachineType::AnyTagged())) {
-    return LinkageLocation::ForCalleeFrameSlot(Frame::kJSFunctionSlot,
-                                               MachineType::AnyTagged());
-  } else {
-    DCHECK(loc == regloc(kContextRegister, MachineType::AnyTagged()));
-    return LinkageLocation::ForCalleeFrameSlot(Frame::kContextSlot,
+  // TODO(titzer): this should be configurable, not call-type specific.
+  if (incoming_->IsJSFunctionCall()) {
+    if (IsTaggedReg(loc, kJSFunctionRegister)) {
+      return LinkageLocation::ForCalleeFrameSlot(kJSFunctionSlot,
+                                                 MachineType::AnyTagged());
+    } else {
+      DCHECK(IsTaggedReg(loc, kContextRegister));
+      return LinkageLocation::ForCalleeFrameSlot(kJSContextSlot,
+                                                 MachineType::AnyTagged());
+    }
+  }
+  if (incoming_->IsWasmFunctionCall()) {
+    DCHECK(IsTaggedReg(loc, kWasmInstanceRegister));
+    return LinkageLocation::ForCalleeFrameSlot(kWasmInstanceSlot,
                                                MachineType::AnyTagged());
   }
+  UNREACHABLE();
+  return LinkageLocation::ForCalleeFrameSlot(0, MachineType::AnyTagged());
 }
 
 

@@ -540,8 +540,6 @@ function ArrayShiftFallback() {
     return;
   }
 
-  if (%object_is_sealed(array)) throw %make_type_error(kArrayFunctionsOnSealed);
-
   var first = array[0];
 
   if (UseSparseVariant(array, len, IS_ARRAY(array), len)) {
@@ -561,20 +559,24 @@ function ArrayUnshiftFallback(arg1) {  // length == 1
   var len = TO_LENGTH(array.length);
   var num_arguments = arguments.length;
 
-  if (len > 0 && UseSparseVariant(array, len, IS_ARRAY(array), len) &&
-      !%object_is_sealed(array)) {
-    SparseMove(array, 0, 0, len, num_arguments);
-  } else {
-    SimpleMove(array, 0, 0, len, num_arguments);
+  const new_len = len + num_arguments;
+  if (num_arguments > 0) {
+    if (new_len >= 2**53) throw %make_type_error(kInvalidArrayLength);
+
+    if (len > 0 && UseSparseVariant(array, len, IS_ARRAY(array), len) &&
+        !%object_is_sealed(array)) {
+      SparseMove(array, 0, 0, len, num_arguments);
+    } else {
+      SimpleMove(array, 0, 0, len, num_arguments);
+    }
+
+    for (var i = 0; i < num_arguments; i++) {
+      array[i] = arguments[i];
+    }
   }
 
-  for (var i = 0; i < num_arguments; i++) {
-    array[i] = arguments[i];
-  }
-
-  var new_length = len + num_arguments;
-  array.length = new_length;
-  return new_length;
+  array.length = new_len;
+  return new_len;
 }
 
 
@@ -624,15 +626,13 @@ function ArraySpliceFallback(start, delete_count) {
   var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
   var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
                                            start_i);
-  var deleted_elements = ArraySpeciesCreate(array, del_count);
-  deleted_elements.length = del_count;
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
-  if (del_count != num_elements_to_add && %object_is_sealed(array)) {
-    throw %make_type_error(kArrayFunctionsOnSealed);
-  } else if (del_count > 0 && %object_is_frozen(array)) {
-    throw %make_type_error(kArrayFunctionsOnFrozen);
-  }
+  const new_len = len - del_count + num_elements_to_add;
+  if (new_len >= 2**53) throw %make_type_error(kInvalidArrayLength);
+
+  var deleted_elements = ArraySpeciesCreate(array, del_count);
+  deleted_elements.length = del_count;
 
   var changed_elements = del_count;
   if (num_elements_to_add != del_count) {
@@ -658,7 +658,7 @@ function ArraySpliceFallback(start, delete_count) {
   while (arguments_index < arguments_length) {
     array[i++] = arguments[arguments_index++];
   }
-  array.length = len - del_count + num_elements_to_add;
+  array.length = new_len;
 
   // Return the deleted elements.
   return deleted_elements;
@@ -801,152 +801,23 @@ function InnerArraySort(array, length, comparefn) {
     }
   };
 
-  // Copy elements in the range 0..length from obj's prototype chain
-  // to obj itself, if obj has holes. Return one more than the maximal index
-  // of a prototype property.
-  function CopyFromPrototype(obj, length) {
-    var max = 0;
-    for (var proto = %object_get_prototype_of(obj); proto;
-         proto = %object_get_prototype_of(proto)) {
-      var indices = IS_PROXY(proto) ? length : %GetArrayKeys(proto, length);
-      if (IS_NUMBER(indices)) {
-        // It's an interval.
-        var proto_length = indices;
-        for (var i = 0; i < proto_length; i++) {
-          if (!HAS_OWN_PROPERTY(obj, i) && HAS_OWN_PROPERTY(proto, i)) {
-            obj[i] = proto[i];
-            if (i >= max) { max = i + 1; }
-          }
-        }
-      } else {
-        for (var i = 0; i < indices.length; i++) {
-          var index = indices[i];
-          if (!HAS_OWN_PROPERTY(obj, index) && HAS_OWN_PROPERTY(proto, index)) {
-            obj[index] = proto[index];
-            if (index >= max) { max = index + 1; }
-          }
-        }
-      }
-    }
-    return max;
-  };
-
-  // Set a value of "undefined" on all indices in the range from..to
-  // where a prototype of obj has an element. I.e., shadow all prototype
-  // elements in that range.
-  function ShadowPrototypeElements(obj, from, to) {
-    for (var proto = %object_get_prototype_of(obj); proto;
-         proto = %object_get_prototype_of(proto)) {
-      var indices = IS_PROXY(proto) ? to : %GetArrayKeys(proto, to);
-      if (IS_NUMBER(indices)) {
-        // It's an interval.
-        var proto_length = indices;
-        for (var i = from; i < proto_length; i++) {
-          if (HAS_OWN_PROPERTY(proto, i)) {
-            obj[i] = UNDEFINED;
-          }
-        }
-      } else {
-        for (var i = 0; i < indices.length; i++) {
-          var index = indices[i];
-          if (from <= index && HAS_OWN_PROPERTY(proto, index)) {
-            obj[index] = UNDEFINED;
-          }
-        }
-      }
-    }
-  };
-
-  function SafeRemoveArrayHoles(obj) {
-    // Copy defined elements from the end to fill in all holes and undefineds
-    // in the beginning of the array.  Write undefineds and holes at the end
-    // after loop is finished.
-    var first_undefined = 0;
-    var last_defined = length - 1;
-    var num_holes = 0;
-    while (first_undefined < last_defined) {
-      // Find first undefined element.
-      while (first_undefined < last_defined &&
-             !IS_UNDEFINED(obj[first_undefined])) {
-        first_undefined++;
-      }
-      // Maintain the invariant num_holes = the number of holes in the original
-      // array with indices <= first_undefined or > last_defined.
-      if (!HAS_OWN_PROPERTY(obj, first_undefined)) {
-        num_holes++;
-      }
-
-      // Find last defined element.
-      while (first_undefined < last_defined &&
-             IS_UNDEFINED(obj[last_defined])) {
-        if (!HAS_OWN_PROPERTY(obj, last_defined)) {
-          num_holes++;
-        }
-        last_defined--;
-      }
-      if (first_undefined < last_defined) {
-        // Fill in hole or undefined.
-        obj[first_undefined] = obj[last_defined];
-        obj[last_defined] = UNDEFINED;
-      }
-    }
-    // If there were any undefineds in the entire array, first_undefined
-    // points to one past the last defined element.  Make this true if
-    // there were no undefineds, as well, so that first_undefined == number
-    // of defined elements.
-    if (!IS_UNDEFINED(obj[first_undefined])) first_undefined++;
-    // Fill in the undefineds and the holes.  There may be a hole where
-    // an undefined should be and vice versa.
-    var i;
-    for (i = first_undefined; i < length - num_holes; i++) {
-      obj[i] = UNDEFINED;
-    }
-    for (i = length - num_holes; i < length; i++) {
-      // For compatibility with Webkit, do not expose elements in the prototype.
-      if (i in %object_get_prototype_of(obj)) {
-        obj[i] = UNDEFINED;
-      } else {
-        delete obj[i];
-      }
-    }
-
-    // Return the number of defined elements.
-    return first_undefined;
-  };
-
   if (length < 2) return array;
 
-  var is_array = IS_ARRAY(array);
-  var max_prototype_element;
-  if (!is_array) {
-    // For compatibility with JSC, we also sort elements inherited from
-    // the prototype chain on non-Array objects.
-    // We do this by copying them to this object and sorting only
-    // own elements. This is not very efficient, but sorting with
-    // inherited elements happens very, very rarely, if at all.
-    // The specification allows "implementation dependent" behavior
-    // if an element on the prototype chain has an element that
-    // might interact with sorting.
-    max_prototype_element = CopyFromPrototype(array, length);
-  }
-
-  // %RemoveArrayHoles returns -1 if fast removal is not supported.
-  var num_non_undefined = %RemoveArrayHoles(array, length);
-
-  if (num_non_undefined == -1) {
-    // There were indexed accessors in the array.
-    // Move array holes and undefineds to the end using a Javascript function
-    // that is safe in the presence of accessors.
-    num_non_undefined = SafeRemoveArrayHoles(array);
-  }
+  // For compatibility with JSC, we also sort elements inherited from
+  // the prototype chain on non-Array objects.
+  // We do this by copying them to this object and sorting only
+  // own elements. This is not very efficient, but sorting with
+  // inherited elements happens very, very rarely, if at all.
+  // The specification allows "implementation dependent" behavior
+  // if an element on the prototype chain has an element that
+  // might interact with sorting.
+  //
+  // We also move all non-undefined elements to the front of the
+  // array and move the undefineds after that. Holes are removed.
+  // This happens for Array as well as non-Array objects.
+  var num_non_undefined = %PrepareElementsForSort(array, length);
 
   QuickSort(array, 0, num_non_undefined);
-
-  if (!is_array && (num_non_undefined + 1 < max_prototype_element)) {
-    // For compatibility with JSC, we shadow any elements in the prototype
-    // chain that has become exposed by sort moving a hole to its position.
-    ShadowPrototypeElements(array, num_non_undefined, max_prototype_element);
-  }
 
   return array;
 }
@@ -1101,10 +972,6 @@ DEFINE_METHOD_LEN(
       if (end < 0) end = 0;
     } else {
       if (end > length) end = length;
-    }
-
-    if ((end - i) > 0 && %object_is_frozen(array)) {
-      throw %make_type_error(kArrayFunctionsOnFrozen);
     }
 
     for (; i < end; i++)

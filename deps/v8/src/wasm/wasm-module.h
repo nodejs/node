@@ -10,12 +10,12 @@
 #include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/managed.h"
+#include "src/objects/managed.h"
 #include "src/parsing/preparse-data.h"
-
 #include "src/wasm/decoder.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
@@ -50,12 +50,15 @@ struct WasmFunction {
 
 // Static representation of a wasm global variable.
 struct WasmGlobal {
-  ValueType type;        // type of the global.
-  bool mutability;       // {true} if mutable.
-  WasmInitExpr init;     // the initialization expression of the global.
-  uint32_t offset;       // offset into global memory.
-  bool imported;         // true if imported.
-  bool exported;         // true if exported.
+  ValueType type;     // type of the global.
+  bool mutability;    // {true} if mutable.
+  WasmInitExpr init;  // the initialization expression of the global.
+  union {
+    uint32_t index;   // index of imported mutable global.
+    uint32_t offset;  // offset into global memory (if not imported & mutable).
+  };
+  bool imported;  // true if imported.
+  bool exported;  // true if exported.
 };
 
 // Note: An exception signature only uses the params portion of a
@@ -141,7 +144,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
   int start_function_index = -1;   // start function, >= 0 if any
 
   std::vector<WasmGlobal> globals;
+  // Size of the buffer required for all globals that are not imported and
+  // mutable.
+  // TODO(wasm): Rename for clarity?
   uint32_t globals_size = 0;
+  uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
   uint32_t num_declared_functions = 0;
   uint32_t num_exported_functions = 0;
@@ -177,8 +184,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   ModuleOrigin origin_ = kWasmOrigin;  // origin of the module
   mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>> names_;
 };
-
-typedef Managed<WasmModule> WasmModuleWrapper;
 
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based

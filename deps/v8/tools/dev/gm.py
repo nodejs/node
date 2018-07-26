@@ -246,7 +246,7 @@ class Config(object):
 
     return_code, output = _CallWithOutput("autoninja -C %s %s" %
                                           (path, targets))
-    if return_code != 0 and "FAILED: gen/snapshot.cc" in output:
+    if return_code != 0 and "FAILED: snapshot_blob.bin" in output:
       csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
       match = csa_trap.search(output)
       extra_opt = match.group(1) if match else ""

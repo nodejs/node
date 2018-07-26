@@ -50,7 +50,7 @@ int CollectFunctions(Node* node, Handle<JSFunction>* functions,
 }
 
 bool CanInlineFunction(Handle<SharedFunctionInfo> shared) {
-  // Built-in functions are handled by the JSBuiltinReducer.
+  // Built-in functions are handled by the JSCallReducer.
   if (shared->HasBuiltinFunctionId()) return false;
 
   // Only choose user code for inlining.
