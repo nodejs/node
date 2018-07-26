@@ -1,8 +1,8 @@
 'use strict';
 
 // doc/api/addons.md has a bunch of code.  Extract it for verification
-// that the c++ code complles and the js code runs.
-// Add .gyp files which will be used to compile the c++ code.
+// that the C++ code compiles and the js code runs.
+// Add .gyp files which will be used to compile the C++ code.
 // Modify the require paths in the js code to pull from the build tree.
 // Triggered from the build-addons target in the Makefile and vcbuild.bat.
 
