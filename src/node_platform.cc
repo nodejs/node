@@ -17,9 +17,9 @@ using v8::TracingController;
 
 namespace {
 
-static void WorkerThreadMain(void* data) {
+static void PlatformWorkerThread(void* data) {
   TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
-                        "BackgroundTaskRunner");
+                        "PlatformWorkerThread");
   TaskQueue<Task>* pending_worker_tasks = static_cast<TaskQueue<Task>*>(data);
   while (std::unique_ptr<Task> task = pending_worker_tasks->BlockingPop()) {
     task->Run();
@@ -32,7 +32,7 @@ static void WorkerThreadMain(void* data) {
 WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(int thread_pool_size) {
   for (int i = 0; i < thread_pool_size; i++) {
     std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
-    if (uv_thread_create(t.get(), WorkerThreadMain,
+    if (uv_thread_create(t.get(), PlatformWorkerThread,
                          &pending_worker_tasks_) != 0) {
       break;
     }
