@@ -488,8 +488,12 @@ Maybe<uv_file> CheckFile(const std::string& path,
   return Just(fd);
 }
 
+using Exists = PackageConfig::Exists;
+using IsValid = PackageConfig::IsValid;
+using HasMain = PackageConfig::HasMain;
+
 const PackageConfig& GetPackageConfig(Environment* env,
-                                                   const std::string path) {
+                                      const std::string& path) {
   auto existing = env->package_json_cache.find(path);
   if (existing != env->package_json_cache.end()) {
     return existing->second;
@@ -530,7 +534,7 @@ const PackageConfig& GetPackageConfig(Environment* env,
   }
 
   Local<Value> pkg_main;
-  HasMain::Bool has_main = HasMain::No;
+  HasMain has_main = HasMain::No;
   std::string main_std;
   if (pkg_json->Get(env->context(), env->main_string()).ToLocal(&pkg_main)) {
     has_main = HasMain::Yes;
