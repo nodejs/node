@@ -18,6 +18,10 @@ const test = (shell) => {
 
 test('cmd');
 test('cmd.exe');
-test('C:\\WINDOWS\\system32\\cmd.exe');
 test('powershell');
-test('C:\\Program Files\\Git\\bin\\bash.exe');
+cp.exec('where bash', (error, stdout) => {
+  if (error) {
+    return;
+  }
+  test(stdout.trim());
+});
