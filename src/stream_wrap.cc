@@ -276,10 +276,7 @@ WriteWrap* LibuvStreamWrap::CreateWriteWrap(Local<Object> object) {
 
 int LibuvStreamWrap::DoShutdown(ShutdownWrap* req_wrap_) {
   LibuvShutdownWrap* req_wrap = static_cast<LibuvShutdownWrap*>(req_wrap_);
-  int err;
-  err = uv_shutdown(req_wrap->req(), stream(), AfterUvShutdown);
-  req_wrap->Dispatched();
-  return err;
+  return req_wrap->Dispatch(uv_shutdown, stream(), AfterUvShutdown);
 }
 
 
@@ -340,9 +337,14 @@ int LibuvStreamWrap::DoWrite(WriteWrap* req_wrap,
   LibuvWriteWrap* w = static_cast<LibuvWriteWrap*>(req_wrap);
   int r;
   if (send_handle == nullptr) {
-    r = uv_write(w->req(), stream(), bufs, count, AfterUvWrite);
+    r = w->Dispatch(uv_write, stream(), bufs, count, AfterUvWrite);
   } else {
-    r = uv_write2(w->req(), stream(), bufs, count, send_handle, AfterUvWrite);
+    r = w->Dispatch(uv_write2,
+                    stream(),
+                    bufs,
+                    count,
+                    send_handle,
+                    AfterUvWrite);
   }
 
   if (!r) {
@@ -355,8 +357,6 @@ int LibuvStreamWrap::DoWrite(WriteWrap* req_wrap,
       NODE_COUNT_PIPE_BYTES_SENT(bytes);
     }
   }
-
-  w->Dispatched();
 
   return r;
 }
