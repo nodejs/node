@@ -1552,7 +1552,12 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     len = StringBytes::Write(env->isolate(), *stack_buffer, len, args[1], enc);
     stack_buffer.SetLengthAndZeroTerminate(len);
     uv_buf_t uvbuf = uv_buf_init(*stack_buffer, len);
-    int err = req_wrap_async->Dispatch(uv_fs_write, fd, &uvbuf, 1, pos, AfterInteger);
+    int err = req_wrap_async->Dispatch(uv_fs_write,
+                                       fd,
+                                       &uvbuf,
+                                       1,
+                                       pos,
+                                       AfterInteger);
     if (err < 0) {
       uv_fs_t* uv_req = req_wrap_async->req();
       uv_req->result = err;

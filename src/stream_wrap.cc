@@ -339,7 +339,12 @@ int LibuvStreamWrap::DoWrite(WriteWrap* req_wrap,
   if (send_handle == nullptr) {
     r = w->Dispatch(uv_write, stream(), bufs, count, AfterUvWrite);
   } else {
-    r = w->Dispatch(uv_write2, stream(), bufs, count, send_handle, AfterUvWrite);
+    r = w->Dispatch(uv_write2,
+                    stream(),
+                    bufs,
+                    count,
+                    send_handle,
+                    AfterUvWrite);
   }
 
   if (!r) {
