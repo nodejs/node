@@ -97,6 +97,8 @@ extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
 extern void UseExtraCaCerts(const std::string& file);
 
+void InitCryptoOnce();
+
 class SecureContext : public BaseObject {
  public:
   ~SecureContext() override {
