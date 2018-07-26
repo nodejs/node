@@ -1,6 +1,11 @@
 'use strict';
 
-const { mkdir, readFileSync, writeFile } = require('fs');
+// doc/api/addons.md has a bunch of code.  Extract it for verification
+// that the c++ code comples and the js code runs.
+// Add .gyp files which will be used to compile the c++ code.
+// Modify the require paths in the js code to pull from the build tree.
+
+const { mkdir, writeFile } = require('fs');
 const { resolve } = require('path');
 const vfile = require('to-vfile');
 const unified = require('unified');
@@ -18,12 +23,12 @@ let currentHeader;
 
 const validNames = /^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/;
 tree.children.forEach((node) => {
-  if (node.type == 'heading') {
+  if (node.type === 'heading') {
     currentHeader = file.contents.slice(
       node.children[0].position.start.offset,
       node.position.end.offset);
     addons[currentHeader] = { files: {} };
-  } else if (node.type == 'code') {
+  } else if (node.type === 'code') {
     const match = node.value.match(validNames);
     if (match !== null) {
       addons[currentHeader].files[match[1]] = node.value;
