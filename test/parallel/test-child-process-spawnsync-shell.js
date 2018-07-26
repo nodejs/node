@@ -54,11 +54,13 @@ assert.strictEqual(env.stdout.toString().trim(), 'buzz');
 
   function test(testPlatform, shell, shellOutput) {
     platform = testPlatform;
-
+    const isCmd = shellOutput.endsWith('cmd.exe') ||
+                   shellOutput.endsWith('cmd');
     const cmd = 'not_a_real_command';
-    const shellFlags = platform === 'win32' ? ['/d', '/s', '/c'] : ['-c'];
-    const outputCmd = platform === 'win32' ? `"${cmd}"` : cmd;
-    const windowsVerbatim = platform === 'win32' ? true : undefined;
+
+    const shellFlags = isCmd ? ['/d', '/s', '/c'] : ['-c'];
+    const outputCmd = isCmd ? `"${cmd}"` : cmd;
+    const windowsVerbatim = isCmd ? true : undefined;
     internalCp.spawnSync = common.mustCall(function(opts) {
       assert.strictEqual(opts.file, shellOutput);
       assert.deepStrictEqual(opts.args,
