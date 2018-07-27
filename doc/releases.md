@@ -8,7 +8,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
 ## Who can make a release?
 
 Release authorization is given by the Node.js TSC. Once authorized, an
-individual must be have the following:
+individual must have the following:
 
 ### 1. Jenkins Release Access
 
