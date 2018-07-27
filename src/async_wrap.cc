@@ -752,7 +752,7 @@ Local<Object> AsyncWrap::GetOwner(Environment* env, Local<Object> obj) {
     }
 
     obj = owner.As<Object>();
-  };
+  }
 }
 
 }  // namespace node
