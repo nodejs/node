@@ -71,7 +71,7 @@ assert.throws(() => a.strictEqual(null, undefined),
 assert.throws(
   () => a.notStrictEqual(2, 2),
   {
-    message: 'Expected "actual" to be strictly unequal 2',
+    message: 'Expected "actual" to be strictly unequal to: 2',
     name: 'AssertionError [ERR_ASSERTION]'
   }
 );
@@ -79,7 +79,8 @@ assert.throws(
 assert.throws(
   () => a.notStrictEqual('a '.repeat(30), 'a '.repeat(30)),
   {
-    message: `Expected "actual" to be strictly unequal '${'a '.repeat(30)}'`,
+    message: 'Expected "actual" to be strictly unequal to: ' +
+             `'${'a '.repeat(30)}'`,
     name: 'AssertionError [ERR_ASSERTION]'
   }
 );
@@ -415,7 +416,8 @@ assert.throws(
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
     message: strictEqualMessageStart +
-             '+ actual - expected\n\n+ [Error: foo]\n- [Error: foobar]'
+             '+ actual - expected\n\n' +
+             '+ [Error: foo]\n- [Error: foobar]\n             ^'
   }
 );
 
@@ -606,12 +608,15 @@ assert.throws(
   });
 
   // notDeepEqual tests
-  message = 'Expected "actual" not to be strictly deep-equal\n\n[\n  1\n]\n';
   assert.throws(
     () => assert.notDeepEqual([1], [1]),
-    { message });
+    {
+      message: 'Expected "actual" not to be strictly deep-equal to:\n\n' +
+               '[\n  1\n]\n'
+    }
+  );
 
-  message = 'Expected "actual" not to be strictly deep-equal' +
+  message = 'Expected "actual" not to be strictly deep-equal to:' +
             `\n\n[${'\n  1,'.repeat(25)}\n...\n`;
   const data = Array(31).fill(1);
   assert.throws(

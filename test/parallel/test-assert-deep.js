@@ -750,7 +750,7 @@ assert.throws(
   () => assert.notDeepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14)),
   {
     name: 'AssertionError [ERR_ASSERTION]',
-    message: 'Expected "actual" not to be strictly deep-equal ' +
+    message: 'Expected "actual" not to be strictly deep-equal to: ' +
              util.inspect(new Date(2000, 3, 14))
   }
 );
@@ -795,7 +795,7 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: `${defaultMsgStartFull}\n\n+ /a/gim\n- /a/im`
+    message: `${defaultMsgStartFull}\n\n+ /a/gim\n- /a/im\n     ^`
   });
 
 {
