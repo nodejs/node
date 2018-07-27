@@ -1,5 +1,6 @@
 'use strict';
-// just like test/gc/http-client-timeout.js,
+// Flags: --expose-gc
+// just like test-gc-http-client-timeout.js,
 // but using a net server/client instead
 
 const common = require('../common');
@@ -19,7 +20,6 @@ function serverHandler(sock) {
 }
 
 const net = require('net');
-const weak = require(`./build/${common.buildType}/binding`);
 const assert = require('assert');
 const todo = 500;
 let done = 0;
@@ -44,7 +44,7 @@ function getall() {
   });
 
   count++;
-  weak(req, afterGC);
+  common.onGC(req, { ongc });
 
   setImmediate(getall);
 }
@@ -52,7 +52,7 @@ function getall() {
 for (let i = 0; i < 10; i++)
   getall();
 
-function afterGC() {
+function ongc() {
   countGC++;
 }
 
