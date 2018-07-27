@@ -483,6 +483,10 @@ void AsyncWrap::Initialize(Local<Object> target,
               env->async_ids_stack_string(),
               env->async_hooks()->async_ids_stack().GetJSArray()).FromJust();
 
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "owner_symbol"),
+              env->owner_symbol()).FromJust();
+
   Local<Object> constants = Object::New(isolate);
 #define SET_HOOKS_CONSTANT(name)                                              \
   FORCE_SET_TARGET_FIELD(                                                     \
