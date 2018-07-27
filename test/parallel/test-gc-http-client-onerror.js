@@ -1,5 +1,6 @@
 'use strict';
-// just like test/gc/http-client.js,
+// Flags: --expose-gc
+// just like test-gc-http-client.js,
 // but with an on('error') handler that does nothing.
 
 const common = require('../common');
@@ -11,7 +12,6 @@ function serverHandler(req, res) {
 }
 
 const http = require('http');
-const weak = require(`./build/${common.buildType}/binding`);
 const todo = 500;
 let done = 0;
 let count = 0;
@@ -42,7 +42,7 @@ function getall() {
     }, cb).on('error', onerror);
 
     count++;
-    weak(req, afterGC);
+    common.onGC(req, { ongc });
   })();
 
   setImmediate(getall);
@@ -53,7 +53,7 @@ function runTest() {
     getall();
 }
 
-function afterGC() {
+function ongc() {
   countGC++;
 }
 

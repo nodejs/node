@@ -1,5 +1,6 @@
 'use strict';
-// just like test/gc/http-client.js,
+// Flags: --expose-gc
+// just like test-gc-http-client.js,
 // but aborting every connection that comes in.
 
 const common = require('../common');
@@ -9,7 +10,6 @@ function serverHandler(req, res) {
 }
 
 const http = require('http');
-const weak = require(`./build/${common.buildType}/binding`);
 const todo = 500;
 let done = 0;
 let count = 0;
@@ -36,7 +36,7 @@ function getall() {
     }, cb).on('error', cb);
 
     count++;
-    weak(req, afterGC);
+    common.onGC(req, { ongc });
   })();
 
   setImmediate(getall);
@@ -45,7 +45,7 @@ function getall() {
 for (let i = 0; i < 10; i++)
   getall();
 
-function afterGC() {
+function ongc() {
   countGC++;
 }
 
