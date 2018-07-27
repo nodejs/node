@@ -59,6 +59,7 @@ Agent::Agent() {
     Agent* agent = ContainerOf(&Agent::initialize_writer_async_, async);
     agent->InitializeWritersOnThread();
   }), 0);
+  uv_unref(reinterpret_cast<uv_handle_t*>(&initialize_writer_async_));
 }
 
 void Agent::InitializeWritersOnThread() {
@@ -72,6 +73,11 @@ void Agent::InitializeWritersOnThread() {
 }
 
 Agent::~Agent() {
+  categories_.clear();
+  writers_.clear();
+
+  StopTracing();
+
   uv_close(reinterpret_cast<uv_handle_t*>(&initialize_writer_async_), nullptr);
   uv_run(&tracing_loop_, UV_RUN_ONCE);
   CheckedUvLoopClose(&tracing_loop_);
