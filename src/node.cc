@@ -1143,7 +1143,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   for (auto w : *env->req_wrap_queue()) {
     if (w->persistent().IsEmpty())
       continue;
-    argv[idx] = w->object();
+    argv[idx] = w->GetOwner();
     if (++idx >= arraysize(argv)) {
       fn->Call(ctx, ary, idx, argv).ToLocalChecked();
       idx = 0;
@@ -1169,16 +1169,10 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
   size_t idx = 0;
 
-  Local<String> owner_sym = env->owner_string();
-
   for (auto w : *env->handle_wrap_queue()) {
-    if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w))
+    if (!HandleWrap::HasRef(w))
       continue;
-    Local<Object> object = w->object();
-    Local<Value> owner = object->Get(owner_sym);
-    if (owner->IsUndefined())
-      owner = object;
-    argv[idx] = owner;
+    argv[idx] = w->GetOwner();
     if (++idx >= arraysize(argv)) {
       fn->Call(ctx, ary, idx, argv).ToLocalChecked();
       idx = 0;

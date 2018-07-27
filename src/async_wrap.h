@@ -179,6 +179,12 @@ class AsyncWrap : public BaseObject {
 
   static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam> &info);
 
+  // Returns the object that 'owns' an async wrap. For example, for a
+  // TCP connection handle, this is the corresponding net.Socket.
+  v8::Local<v8::Object> GetOwner();
+  static v8::Local<v8::Object> GetOwner(Environment* env,
+                                        v8::Local<v8::Object> obj);
+
   // This is a simplified version of InternalCallbackScope that only runs
   // the `before` and `after` hooks. Only use it when not actually calling
   // back into JS; otherwise, use InternalCallbackScope.
