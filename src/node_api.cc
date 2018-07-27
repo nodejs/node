@@ -3717,7 +3717,6 @@ class TsFn: public node::AsyncResource {
       env(env_),
       finalize_data(finalize_data_),
       finalize_cb(finalize_cb_),
-      idle_running(false),
       call_js_cb(call_js_cb_ == nullptr ? CallJs : call_js_cb_),
       handles_closing(false) {
     ref.Reset(env->isolate, func);
@@ -3879,8 +3878,6 @@ class TsFn: public node::AsyncResource {
           } else {
             if (uv_idle_stop(&idle) != 0) {
               idle_stop_failed = true;
-            } else {
-              idle_running = false;
             }
           }
         }
@@ -3913,14 +3910,12 @@ class TsFn: public node::AsyncResource {
   }
 
   void MaybeStartIdle() {
-    if (!idle_running) {
-      if (uv_idle_start(&idle, IdleCb) != 0) {
-        v8::HandleScope scope(env->isolate);
-        CallbackScope cb_scope(this);
-        CHECK(napi_throw_error(env,
-                               "ERR_NAPI_TSFN_START_IDLE_LOOP",
-                               "Failed to start the idle loop") == napi_ok);
-      }
+    if (uv_idle_start(&idle, IdleCb) != 0) {
+      v8::HandleScope scope(env->isolate);
+      CallbackScope cb_scope(this);
+      CHECK(napi_throw_error(env,
+                             "ERR_NAPI_TSFN_START_IDLE_LOOP",
+                             "Failed to start the idle loop") == napi_ok);
     }
   }
 
@@ -4023,7 +4018,6 @@ class TsFn: public node::AsyncResource {
   napi_env env;
   void* finalize_data;
   napi_finalize finalize_cb;
-  bool idle_running;
   napi_threadsafe_function_call_js call_js_cb;
   bool handles_closing;
 };
