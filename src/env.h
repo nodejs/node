@@ -240,7 +240,6 @@ struct PackageConfig {
   V(openssl_error_stack, "opensslErrorStack")                                 \
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
-  V(owner_string, "owner")                                                    \
   V(parse_error_string, "Parse Error")                                        \
   V(password_string, "password")                                              \
   V(path_string, "path")                                                      \
