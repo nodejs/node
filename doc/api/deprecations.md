@@ -929,6 +929,9 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 Using `process.binding()` in general should be avoided. The type checking
 methods in particular can be replaced by using [`util.types`][].
 
+This deprecation has been superseded by the deprecation of the
+`process.binding()` API ([DEP00XX](#DEP00XX)).
+
 <a id="DEP0104"></a>
 ### DEP0104: process.env string coercion
 
@@ -986,6 +989,14 @@ Type: Documentation-only
 
 The option `produceCachedData` has been deprecated. Use
 [`script.createCachedData()`][] instead.
+
+<a id="DEP00XX"></a>
+### DEP00XX: process.binding()
+
+Type: Documentation-only
+
+The `process.binding()` API is intended for use by Node.js internal code
+only. Use of `process.binding()` by userland code is unsupported.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
