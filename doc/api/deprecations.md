@@ -999,6 +999,15 @@ Type: Documentation-only
 The option `produceCachedData` has been deprecated. Use
 [`script.createCachedData()`][] instead.
 
+<a id="DEP00XX"></a>
+### DEP00XX: process.binding()
+
+Type: Documentation-only
+
+The `process.binding()` API is intended for use strictly by Node.js internal
+code to provide a bridge between Node.js' JavaScript and native code layer.
+Use of `process.binding()` by user-land code is unsupported.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
