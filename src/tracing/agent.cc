@@ -68,11 +68,25 @@ void Agent::InitializeWritersOnThread() {
     head->InitializeOnThread(&tracing_loop_);
     to_be_initialized_.erase(head);
   }
+  if (stopping_) {
+    uv_close(reinterpret_cast<uv_handle_t*>(&initialize_writer_async_),
+             nullptr);
+  }
   initialize_writer_condvar_.Broadcast(lock);
 }
 
 Agent::~Agent() {
-  uv_close(reinterpret_cast<uv_handle_t*>(&initialize_writer_async_), nullptr);
+  {
+    Mutex::ScopedLock lock(initialize_writer_mutex_);
+    stopping_ = true;
+    uv_async_send(&initialize_writer_async_);
+  }
+
+  categories_.clear();
+  writers_.clear();
+
+  StopTracing();
+
   uv_run(&tracing_loop_, UV_RUN_ONCE);
   CheckedUvLoopClose(&tracing_loop_);
 }

@@ -111,6 +111,7 @@ class Agent {
   uv_loop_t tracing_loop_;
 
   bool started_ = false;
+  bool stopping_ = false;
   class ScopedSuspendTracing;
 
   // Each individual Writer has one id.
