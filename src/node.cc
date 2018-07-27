@@ -185,7 +185,7 @@ static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
 static bool v8_is_profiling = false;
 static bool node_is_initialized = false;
-static uv_once_t init_once = UV_ONCE_INIT;
+static uv_once_t init_modpending_once = UV_ONCE_INIT;
 static uv_key_t thread_local_modpending;
 static node_module* modlist_builtin;
 static node_module* modlist_internal;
@@ -1259,7 +1259,7 @@ inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
       reinterpret_cast<napi_addon_register_func>(dlib->GetSymbolAddress(name));
 }
 
-void InitDLOpenOnce() {
+void InitModpendingOnce() {
   CHECK_EQ(0, uv_key_create(&thread_local_modpending));
 }
 
@@ -1273,7 +1273,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto context = env->context();
 
-  uv_once(&init_once, InitDLOpenOnce);
+  uv_once(&init_modpending_once, InitModpendingOnce);
   CHECK_NULL(uv_key_get(&thread_local_modpending));
 
   if (args.Length() < 2) {
