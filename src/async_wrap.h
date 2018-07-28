@@ -39,7 +39,7 @@ namespace node {
   V(FILEHANDLE)                                                               \
   V(FILEHANDLECLOSEREQ)                                                       \
   V(FSEVENTWRAP)                                                              \
-  V(FSREQWRAP)                                                                \
+  V(FSREQCALLBACK)                                                            \
   V(FSREQPROMISE)                                                             \
   V(GETADDRINFOREQWRAP)                                                       \
   V(GETNAMEINFOREQWRAP)                                                       \

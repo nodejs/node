@@ -88,7 +88,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
 class FSReqCallback : public FSReqBase {
  public:
   FSReqCallback(Environment* env, Local<Object> req, bool use_bigint)
-      : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQWRAP, use_bigint) { }
+      : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQCALLBACK, use_bigint) { }
 
   void Reject(Local<Value> reject) override;
   void Resolve(Local<Value> value) override;
