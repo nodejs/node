@@ -36,7 +36,3 @@ GitHub with the `autocrlf` git config flag set to true.
 |testpy             |               |Test configuration utility used by various test suites.|
 |tick-processor     |No             |Tests for the V8 tick processor integration. The tests are for the logic in ```lib/internal/v8_prof_processor.js``` and  ```lib/internal/v8_prof_polyfill.js```. The tests confirm that the profile processor packages the correct set of scripts from V8 and introduces the correct platform specific logic.|
 |v8-updates         |No             |Tests for V8 performance integration.|
-
-_When a new test directory is added, make sure to update the `CI_JS_SUITES`
-variable in the `Makefile` and the `js_test_suites` variable in
-`vcbuild.bat`._
