@@ -517,21 +517,12 @@ class TestCase(object):
                      self.context.GetTimeout(self.mode),
                      env,
                      disable_core_files = self.disable_core_files)
-    self.Cleanup()
     return TestOutput(self,
                       full_command,
                       output,
                       self.context.store_unexpected_output)
 
-  def BeforeRun(self):
-    pass
-
-  def AfterRun(self, result):
-    pass
-
   def Run(self):
-    self.BeforeRun()
-
     try:
       result = self.RunCommand(self.GetCommand(), {
         "TEST_THREAD_ID": "%d" % self.thread_id,
@@ -547,11 +538,7 @@ class TestCase(object):
         from os import O_NONBLOCK
         for fd in 0,1,2: fcntl(fd, F_SETFL, ~O_NONBLOCK & fcntl(fd, F_GETFL))
 
-    self.AfterRun(result)
     return result
-
-  def Cleanup(self):
-    return
 
 
 class TestOutput(object):
