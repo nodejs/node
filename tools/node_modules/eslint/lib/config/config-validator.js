@@ -23,10 +23,15 @@ const ruleValidators = new WeakMap();
 let validateSchema;
 
 // Defitions for deprecation warnings.
-const deprecationWarningMessages = Object.freeze({
+const deprecationWarningMessages = {
     ESLINT_LEGACY_ECMAFEATURES: "The 'ecmaFeatures' config file property is deprecated, and has no effect.",
     ESLINT_LEGACY_OBJECT_REST_SPREAD: "The 'parserOptions.ecmaFeatures.experimentalObjectRestSpread' option is deprecated. Use 'parserOptions.ecmaVersion' instead."
-});
+};
+const severityMap = {
+    error: 2,
+    warn: 1,
+    off: 0
+};
 
 /**
  * Gets a complete options schema for a rule.
@@ -65,12 +70,14 @@ function getRuleOptionsSchema(rule) {
  */
 function validateRuleSeverity(options) {
     const severity = Array.isArray(options) ? options[0] : options;
+    const normSeverity = typeof severity === "string" ? severityMap[severity.toLowerCase()] : severity;
 
-    if (severity !== 0 && severity !== 1 && severity !== 2 && !(typeof severity === "string" && /^(?:off|warn|error)$/i.test(severity))) {
-        throw new Error(`\tSeverity should be one of the following: 0 = off, 1 = warn, 2 = error (you passed '${util.inspect(severity).replace(/'/g, "\"").replace(/\n/g, "")}').\n`);
+    if (normSeverity === 0 || normSeverity === 1 || normSeverity === 2) {
+        return normSeverity;
     }
 
-    return severity;
+    throw new Error(`\tSeverity should be one of the following: 0 = off, 1 = warn, 2 = error (you passed '${util.inspect(severity).replace(/'/g, "\"").replace(/\n/g, "")}').\n`);
+
 }
 
 /**
@@ -116,7 +123,7 @@ function validateRuleOptions(rule, ruleId, options, source) {
     try {
         const severity = validateRuleSeverity(options);
 
-        if (severity !== 0 && !(typeof severity === "string" && severity.toLowerCase() === "off")) {
+        if (severity !== 0) {
             validateRuleSchema(rule, Array.isArray(options) ? options.slice(1) : []);
         }
     } catch (err) {
