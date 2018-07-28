@@ -269,7 +269,7 @@ void FileHandle::AfterClose() {
 
 
 FileHandleReadWrap::FileHandleReadWrap(FileHandle* handle, Local<Object> obj)
-  : ReqWrap(handle->env(), obj, AsyncWrap::PROVIDER_FSREQWRAP),
+  : ReqWrap(handle->env(), obj, AsyncWrap::PROVIDER_FSREQCALLBACK),
     file_handle_(handle) {}
 
 int FileHandle::ReadStart() {

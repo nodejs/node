@@ -16,11 +16,11 @@ hooks.enable();
 fs.readFile(__filename, common.mustCall(onread));
 
 function onread() {
-  const as = hooks.activitiesOfTypes('FSREQWRAP');
+  const as = hooks.activitiesOfTypes('FSREQCALLBACK');
   let lastParent = 1;
   for (let i = 0; i < as.length; i++) {
     const a = as[i];
-    assert.strictEqual(a.type, 'FSREQWRAP');
+    assert.strictEqual(a.type, 'FSREQCALLBACK');
     assert.strictEqual(typeof a.uid, 'number');
     assert.strictEqual(a.triggerAsyncId, lastParent);
     lastParent = a.uid;
@@ -43,8 +43,8 @@ process.on('exit', onexit);
 
 function onexit() {
   hooks.disable();
-  hooks.sanityCheck('FSREQWRAP');
-  const as = hooks.activitiesOfTypes('FSREQWRAP');
+  hooks.sanityCheck('FSREQCALLBACK');
+  const as = hooks.activitiesOfTypes('FSREQCALLBACK');
   const a = as.pop();
   checkInvocations(a, { init: 1, before: 1, after: 1, destroy: 1 },
                    'when process exits');
