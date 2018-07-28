@@ -3849,7 +3849,7 @@ class TsFn: public node::AsyncResource {
   }
 
   void DispatchOne() {
-    void* data;
+    void* data = nullptr;
     bool popped_value = false;
     bool idle_stop_failed = false;
 
