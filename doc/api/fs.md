@@ -283,6 +283,87 @@ synchronous use libuv's threadpool, which can have surprising and negative
 performance implications for some applications. See the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
+## Class: fs.DirectoryEntry
+<!-- YAML
+added: REPLACEME
+-->
+
+When [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with the `withTypes`
+option set to `true`, the resulting array is filled with `fs.DirectoryEntry`
+objects, rather than strings or `Buffers`.
+
+### dirent.name
+
+* {string|Buffer}
+
+The file name that this `fs.DirectoryEntry` object refers to. The type of this
+value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
+[`fs.readdirSync()`][].
+
+### dirent.isBlockDevice()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.DirectoryEntry` object describes a block device.
+
+### dirent.isCharacterDevice()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.DirectoryEntry` object describes a character device.
+
+### dirent.isDirectory()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.DirectoryEntry` object describes a file system directory.
+
+### dirent.isFIFO()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.DirectoryEntry` object describes a first-in-first-out (FIFO)
+pipe.
+
+### dirent.isFile()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.DirectoryEntry` object describes a regular file.
+
+### dirent.isSocket()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.DirectoryEntry` object describes a socket.
+
+### dirent.isSymbolicLink()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the `fs.DirectoryEntry` object describes a symbolic link.
+
 ## Class: fs.FSWatcher
 <!-- YAML
 added: v0.5.8
@@ -2319,9 +2400,10 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
+  * `withTypes` {boolean} **Default:** `false`
 * `callback` {Function}
   * `err` {Error}
-  * `files` {string[]|Buffer[]}
+  * `files` {string[]|Buffer[]|fs.DirectoryEntry[]}
 
 Asynchronous readdir(3). Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
@@ -2331,6 +2413,9 @@ The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
 the filenames passed to the callback. If the `encoding` is set to `'buffer'`,
 the filenames returned will be passed as `Buffer` objects.
+
+If `options.withTypes` is set to `true`, the `files` array will contain
+[`fs.DirectoryEntry`][] objects.
 
 ## fs.readdirSync(path[, options])
 <!-- YAML
@@ -2345,7 +2430,8 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-* Returns: {string[]} An array of filenames excluding `'.'` and `'..'`.
+  * `withTypes` {boolean} **Default:** `false`
+* Returns: {string[]|Buffer[]|fs.DirectoryEntry[]}
 
 Synchronous readdir(3).
 
@@ -2353,6 +2439,9 @@ The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
 the filenames returned. If the `encoding` is set to `'buffer'`,
 the filenames returned will be passed as `Buffer` objects.
+
+If `options.withTypes` is set to `true`, the result will contain
+[`fs.DirectoryEntry`][] objects.
 
 ## fs.readFile(path[, options], callback)
 <!-- YAML
@@ -4637,6 +4726,7 @@ the file contents.
 [`WriteStream`]: #fs_class_fs_writestream
 [`EventEmitter`]: events.html
 [`event ports`]: http://illumos.org/man/port_create
+[`fs.DirectoryEntry`]: #fs_class_fs_directoryentry
 [`fs.FSWatcher`]: #fs_class_fs_fswatcher
 [`fs.Stats`]: #fs_class_fs_stats
 [`fs.access()`]: #fs_fs_access_path_mode_callback
@@ -4652,6 +4742,8 @@ the file contents.
 [`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_options_callback
 [`fs.open()`]: #fs_fs_open_path_flags_mode_callback
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
+[`fs.readdir()`]: #fs_fs_readdir_path_options_callback
+[`fs.readdirSync()`]: #fs_fs_readdirsync_path_options
 [`fs.readFile()`]: #fs_fs_readfile_path_options_callback
 [`fs.readFileSync()`]: #fs_fs_readfilesync_path_options
 [`fs.realpath()`]: #fs_fs_realpath_path_options_callback
