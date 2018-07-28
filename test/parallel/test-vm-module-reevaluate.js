@@ -6,13 +6,13 @@ const common = require('../common');
 
 const assert = require('assert');
 
-const { Module } = require('vm');
+const { SourceTextModule } = require('vm');
 
 const finished = common.mustCall();
 
 (async function main() {
   {
-    const m = new Module('1');
+    const m = new SourceTextModule('1');
     await m.link(common.mustNotCall());
     m.instantiate();
     assert.strictEqual((await m.evaluate()).result, 1);
@@ -21,7 +21,7 @@ const finished = common.mustCall();
   }
 
   {
-    const m = new Module('throw new Error()');
+    const m = new SourceTextModule('throw new Error()');
     await m.link(common.mustNotCall());
     m.instantiate();
 

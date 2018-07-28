@@ -1811,7 +1811,7 @@ The module must be successfully linked before instantiation.
 <a id="ERR_VM_MODULE_NOT_MODULE"></a>
 ### ERR_VM_MODULE_NOT_MODULE
 
-The fulfilled value of a linking promise is not a `vm.Module` object.
+The fulfilled value of a linking promise is not a `vm.SourceTextModule` object.
 
 <a id="ERR_VM_MODULE_STATUS"></a>
 ### ERR_VM_MODULE_STATUS

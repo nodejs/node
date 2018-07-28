@@ -5,11 +5,11 @@
 require('../common');
 const assert = require('assert');
 
-const { Module } = require('vm');
+const { SourceTextModule } = require('vm');
 const { inspect } = require('util');
 
 (async () => {
-  const m = new Module('export const a = 1; export var b = 2');
+  const m = new SourceTextModule('export const a = 1; export var b = 2');
   await m.link(() => 0);
   m.instantiate();
   assert.strictEqual(
