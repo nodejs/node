@@ -36,11 +36,11 @@ let caught = false;
 // Verify that stderr is not accessed when a bad shell is used
 assert.throws(
   function() { execSync('exit -1', { shell: 'bad_shell' }); },
-  /spawnSync bad_shell ENOENT/,
+  /spawnSync bad_shell ENOENT/
 );
 assert.throws(
   function() { execFileSync('exit -1', { shell: 'bad_shell' }); },
-  /spawnSync bad_shell ENOENT/,
+  /spawnSync bad_shell ENOENT/
 );
 
 let cmd, ret;
