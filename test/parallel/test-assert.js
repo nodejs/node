@@ -72,7 +72,7 @@ assert.throws(
   () => a.notStrictEqual(2, 2),
   {
     message: 'Expected "actual" to be strictly unequal to: 2',
-    name: 'AssertionError [ERR_ASSERTION]'
+    name: 'AssertionError'
   }
 );
 
@@ -81,7 +81,7 @@ assert.throws(
   {
     message: 'Expected "actual" to be strictly unequal to: ' +
              `'${'a '.repeat(30)}'`,
-    name: 'AssertionError [ERR_ASSERTION]'
+    name: 'AssertionError'
   }
 );
 
@@ -142,7 +142,7 @@ assert.throws(() => thrower(TypeError));
 assert.throws(
   () => a.doesNotThrow(() => thrower(Error), 'user message'),
   {
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     code: 'ERR_ASSERTION',
     operator: 'doesNotThrow',
     message: 'Got unwanted exception: user message\n' +
@@ -414,7 +414,7 @@ assert.throws(
   () => assert.strictEqual(new Error('foo'), new Error('foobar')),
   {
     code: 'ERR_ASSERTION',
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     message: strictEqualMessageStart +
              '+ actual - expected\n\n' +
              '+ [Error: foo]\n- [Error: foobar]\n             ^'
@@ -441,7 +441,7 @@ assert.throws(
     () => assert(...[]),
     {
       message: 'No value argument passed to `assert.ok()`',
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       generatedMessage: true
     }
   );
@@ -449,7 +449,7 @@ assert.throws(
     () => a(),
     {
       message: 'No value argument passed to `assert.ok()`',
-      name: 'AssertionError [ERR_ASSERTION]'
+      name: 'AssertionError'
     }
   );
 
@@ -883,7 +883,7 @@ common.expectsError(
     () => assert.throws(errFn, errObj),
     {
       code: 'ERR_ASSERTION',
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       message: `${start}\n${actExp}\n\n` +
                "  Comparison {\n    name: 'TypeError',\n" +
                "    message: 'Wrong value',\n+   code: 404\n" +
@@ -897,7 +897,7 @@ common.expectsError(
     () => assert.throws(errFn, errObj),
     {
       code: 'ERR_ASSERTION',
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       message: `${start}\n${actExp}\n\n` +
                "  Comparison {\n    name: 'TypeError',\n" +
                "    message: 'Wrong value',\n+   code: 404\n" +
@@ -928,7 +928,7 @@ common.expectsError(
   assert.throws(
     () => assert.throws(() => { throw new TypeError('e'); }, new Error('e')),
     {
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       code: 'ERR_ASSERTION',
       message: `${start}\n${actExp}\n\n` +
                "  Comparison {\n+   name: 'TypeError',\n-   name: 'Error'," +
@@ -938,7 +938,7 @@ common.expectsError(
   assert.throws(
     () => assert.throws(() => { throw new Error('foo'); }, new Error('')),
     {
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       code: 'ERR_ASSERTION',
       generatedMessage: true,
       message: `${start}\n${actExp}\n\n` +
@@ -953,7 +953,7 @@ common.expectsError(
     // eslint-disable-next-line no-throw-literal
     () => a.doesNotThrow(() => { throw undefined; }),
     {
-      name: 'AssertionError [ERR_ASSERTION]',
+      name: 'AssertionError',
       code: 'ERR_ASSERTION',
       message: 'Got unwanted exception.\nActual message: "undefined"'
     }

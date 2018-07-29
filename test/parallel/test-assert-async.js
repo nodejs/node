@@ -13,7 +13,7 @@ const promises = [];
   const rejectingFn = async () => assert.fail();
   const errObj = {
     code: 'ERR_ASSERTION',
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     message: 'Failed'
   };
   // `assert.rejects` accepts a function or a promise as first argument.

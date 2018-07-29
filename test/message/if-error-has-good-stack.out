@@ -2,7 +2,7 @@ assert.js:*
     throw newErr;
     ^
 
-AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
+AssertionError: ifError got unwanted exception: test error
     at z (*if-error-has-good-stack.js:*:*
     at y (*if-error-has-good-stack.js:*:*)
     at x (*if-error-has-good-stack.js:*:*)

@@ -68,7 +68,7 @@ try {
 } catch (err) {
   assert(err instanceof assert.AssertionError);
   assert.strictEqual(err.message, message);
-  assert.strictEqual(err.name, 'AssertionError [ERR_ASSERTION]');
+  assert.strictEqual(err.name, 'AssertionError');
   assert.strictEqual(err.actual, 1);
   assert.strictEqual(err.expected, 2);
   assert.strictEqual(err.code, 'ERR_ASSERTION');
@@ -376,7 +376,7 @@ assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol1]: 1 });
 // OK, because it is the same symbol on both objects.
 
 assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol2]: 1 });
-// AssertionError [ERR_ASSERTION]: Inputs identical but not reference equal:
+// AssertionError: Inputs identical but not reference equal:
 //
 // {
 //   [Symbol()]: 1
@@ -583,10 +583,10 @@ will be thrown instead of the `AssertionError`.
 const assert = require('assert').strict;
 
 assert.fail();
-// AssertionError [ERR_ASSERTION]: Failed
+// AssertionError: Failed
 
 assert.fail('boom');
-// AssertionError [ERR_ASSERTION]: boom
+// AssertionError: boom
 
 assert.fail(new TypeError('need array'));
 // TypeError: need array
@@ -626,16 +626,16 @@ given, the default message `Failed` will be used.
 const assert = require('assert').strict;
 
 assert.fail('a', 'b');
-// AssertionError [ERR_ASSERTION]: 'a' != 'b'
+// AssertionError: 'a' != 'b'
 
 assert.fail(1, 2, undefined, '>');
-// AssertionError [ERR_ASSERTION]: 1 > 2
+// AssertionError: 1 > 2
 
 assert.fail(1, 2, 'fail');
-// AssertionError [ERR_ASSERTION]: fail
+// AssertionError: fail
 
 assert.fail(1, 2, 'whoops', '>');
-// AssertionError [ERR_ASSERTION]: whoops
+// AssertionError: whoops
 
 assert.fail(1, 2, new TypeError('need array'));
 // TypeError: need array
@@ -651,7 +651,7 @@ function suppressFrame() {
   assert.fail('a', 'b', undefined, '!==', suppressFrame);
 }
 suppressFrame();
-// AssertionError [ERR_ASSERTION]: 'a' !== 'b'
+// AssertionError: 'a' !== 'b'
 //     at repl:1:1
 //     at ContextifyScript.Script.runInThisContext (vm.js:44:33)
 //     ...
@@ -683,11 +683,11 @@ const assert = require('assert').strict;
 assert.ifError(null);
 // OK
 assert.ifError(0);
-// AssertionError [ERR_ASSERTION]: ifError got unwanted exception: 0
+// AssertionError: ifError got unwanted exception: 0
 assert.ifError('error');
-// AssertionError [ERR_ASSERTION]: ifError got unwanted exception: 'error'
+// AssertionError: ifError got unwanted exception: 'error'
 assert.ifError(new Error());
-// AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Error
+// AssertionError: ifError got unwanted exception: Error
 
 // Create some random error frames.
 let err;
@@ -698,7 +698,7 @@ let err;
 (function ifErrorFrame() {
   assert.ifError(err);
 })();
-// AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
+// AssertionError: ifError got unwanted exception: test error
 //     at ifErrorFrame
 //     at errorFrame
 ```
@@ -883,9 +883,7 @@ assert.notStrictEqual(1, 2);
 // OK
 
 assert.notStrictEqual(1, 1);
-// AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
-//
-// 1
+// AssertionError: Expected "actual" to be strictly unequal to: 1
 
 assert.notStrictEqual(1, '1');
 // OK
@@ -1041,7 +1039,7 @@ determined by the [SameValue Comparison][].
 const assert = require('assert').strict;
 
 assert.strictEqual(1, 2);
-// AssertionError [ERR_ASSERTION]: Expected inputs to be strictly equal:
+// AssertionError: Expected inputs to be strictly equal:
 //
 // 1 !== 2
 
@@ -1049,7 +1047,7 @@ assert.strictEqual(1, 1);
 // OK
 
 assert.strictEqual('Hello foobar', 'Hello World!');
-// AssertionError [ERR_ASSERTION]: Expected inputs to be strictly equal:
+// AssertionError: Expected inputs to be strictly equal:
 // + actual - expected
 //
 // + 'Hello foobar'
@@ -1228,7 +1226,7 @@ assert.throws(throwingSecond, 'Second');
 
 // The string is only used (as message) in case the function does not throw:
 assert.throws(notThrowing, 'Second');
-// AssertionError [ERR_ASSERTION]: Missing expected exception: Second
+// AssertionError: Missing expected exception: Second
 
 // If it was intended to match for the error message do this instead:
 // It does not throw because the error messages match.

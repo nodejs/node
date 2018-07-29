@@ -5,7 +5,7 @@ const assert = require('assert');
 
 // With the current behavior of Node.js (at least as late as 8.1.0), this
 // test fails with the following error:
-// `AssertionError [ERR_ASSERTION]: worker 2 failed to bind port`
+// `AssertionError: worker 2 failed to bind port`
 // Ideally, there would be a way for the user to opt out of sequential port
 // assignment.
 //
