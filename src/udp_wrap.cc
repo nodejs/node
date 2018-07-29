@@ -117,6 +117,7 @@ void UDPWrap::Initialize(Local<Object> target,
                                               Local<FunctionTemplate>(),
                                               attributes);
 
+  env->SetProtoMethod(t, "open", Open);
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "send", Send);
   env->SetProtoMethod(t, "bind6", Bind6);
@@ -201,6 +202,18 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
                       reinterpret_cast<const sockaddr*>(&addr),
                       flags);
   }
+
+  args.GetReturnValue().Set(err);
+}
+
+
+void UDPWrap::Open(const FunctionCallbackInfo<Value>& args) {
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+  int fd = static_cast<int>(args[0]->IntegerValue());
+  int err = uv_udp_open(&wrap->handle_, fd);
 
   args.GetReturnValue().Set(err);
 }
