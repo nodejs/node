@@ -432,6 +432,11 @@ Environment::should_abort_on_uncaught_toggle() {
   return should_abort_on_uncaught_toggle_;
 }
 
+inline AliasedBuffer<uint8_t, v8::Uint8Array>&
+Environment::trace_category_state() {
+  return trace_category_state_;
+}
+
 Environment::ShouldNotAbortOnUncaughtScope::ShouldNotAbortOnUncaughtScope(
     Environment* env)
     : env_(env) {

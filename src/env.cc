@@ -31,6 +31,8 @@ using v8::TryCatch;
 using v8::Value;
 using worker::Worker;
 
+#define kTraceCategoryCount 1
+
 int const Environment::kNodeContextTag = 0x6e6f64;
 void* Environment::kNodeContextTagPtr = const_cast<void*>(
     static_cast<const void*>(&Environment::kNodeContextTag));
@@ -103,6 +105,21 @@ void InitThreadLocalOnce() {
   CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
 }
 
+void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
+  env_->trace_category_state()[0] =
+      *TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACING_CATEGORY_NODE1(async_hooks));
+
+  Isolate* isolate = env_->isolate();
+  Local<Function> cb = env_->trace_category_state_function();
+  if (cb.IsEmpty())
+    return;
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  cb->Call(env_->context(), v8::Undefined(isolate),
+           0, nullptr).ToLocalChecked();
+}
+
 Environment::Environment(IsolateData* isolate_data,
                          Local<Context> context,
                          tracing::AgentWriterHandle* tracing_agent_writer)
@@ -118,6 +135,7 @@ Environment::Environment(IsolateData* isolate_data,
       emit_env_nonstring_warning_(true),
       makecallback_cntr_(0),
       should_abort_on_uncaught_toggle_(isolate_, 1),
+      trace_category_state_(isolate_, kTraceCategoryCount),
 #if HAVE_INSPECTOR
       inspector_agent_(new inspector::Agent(this)),
 #endif
@@ -131,6 +149,14 @@ Environment::Environment(IsolateData* isolate_data,
   set_as_external(v8::External::New(isolate(), this));
 
   AssignToContext(context, ContextInfo(""));
+
+  if (tracing_agent_writer_ != nullptr) {
+    trace_state_observer_.reset(new TrackingTraceStateObserver(this));
+    v8::TracingController* tracing_controller =
+        tracing_agent_writer_->GetTracingController();
+    if (tracing_controller != nullptr)
+      tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
+  }
 
   destroy_async_id_list_.reserve(512);
   performance_state_.reset(new performance::performance_state(isolate()));
@@ -172,6 +198,13 @@ Environment::~Environment() {
 
   context()->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kEnvironment, nullptr);
+
+  if (tracing_agent_writer_ != nullptr) {
+    v8::TracingController* tracing_controller =
+        tracing_agent_writer_->GetTracingController();
+    if (tracing_controller != nullptr)
+      tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
+  }
 
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;

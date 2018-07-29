@@ -127,6 +127,10 @@ void Initialize(Local<Object> target,
                   .FromJust();
   target->Set(context, trace,
               binding->Get(context, trace).ToLocalChecked()).FromJust();
+
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "traceCategoryState"),
+              env->trace_category_state().GetJSArray()).FromJust();
 }
 
 }  // namespace node
