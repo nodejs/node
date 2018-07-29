@@ -11,8 +11,7 @@
 
 <h1><a href="../cli/npm-outdated.html">npm-outdated</a></h1> <p>Check for outdated packages</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm outdated [[&lt;@scope&gt;/]&lt;pkg&gt; ...]
-</code></pre><h2 id="description">DESCRIPTION</h2>
+<pre><code>npm outdated [[&lt;@scope&gt;/]&lt;pkg&gt; ...]</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This command will check the registry to see if any (or, specific) installed
 packages are currently outdated.</p>
 <p>In the output:</p>
@@ -42,15 +41,13 @@ glob          5.0.15   5.0.15    6.0.1  test-outdated-output
 nothingness    0.0.3      git      git  test-outdated-output
 npm            3.5.1    3.5.2    3.5.1  test-outdated-output
 local-dev      0.0.3   linked   linked  test-outdated-output
-once           1.3.2    1.3.3    1.3.3  test-outdated-output
-</code></pre><p>With these <code>dependencies</code>:</p>
-<pre><code class="lang-json">{
+once           1.3.2    1.3.3    1.3.3  test-outdated-output</code></pre><p>With these <code>dependencies</code>:</p>
+<pre><code class="language-json">{
   &quot;glob&quot;: &quot;^5.0.15&quot;,
   &quot;nothingness&quot;: &quot;github:othiym23/nothingness#master&quot;,
   &quot;npm&quot;: &quot;^3.5.1&quot;,
   &quot;once&quot;: &quot;^1.3.1&quot;
-}
-</code></pre>
+}</code></pre>
 <p>A few things to note:</p>
 <ul>
 <li><code>glob</code> requires <code>^5</code>, which prevents npm from installing <code>glob@6</code>, which is
@@ -60,7 +57,7 @@ The installed committish might satisfy the dependency specifier (if it&#39;s
 something immutable, like a commit SHA), or it might not, so <code>npm outdated</code> and
 <code>npm update</code> have to fetch Git repos to check. This is why currently doing a
 reinstall of a Git dependency always forces a new clone and install.</li>
-<li><a href="mailto:`npm@3.5.2">`npm@3.5.2</a><code>is marked as &quot;wanted&quot;, but &quot;latest&quot; is</code><a href="mailto:npm@3.5.1">npm@3.5.1</a><code>because npm
+<li><a href="mailto:%60npm@3.5.2">`npm@3.5.2</a><code>is marked as &quot;wanted&quot;, but &quot;latest&quot; is</code><a href="mailto:npm@3.5.1">npm@3.5.1</a><code>because npm
 uses dist-tags to manage its</code>latest<code>and</code>next<code>release channels.</code>npm update<code>will install the _newest_ version, but</code>npm install npm<code>(with no semver range)
 will install whatever&#39;s tagged as</code>latest`.</li>
 <li><code>once</code> is just plain out of date. Reinstalling <code>node_modules</code> from scratch or
@@ -117,5 +114,5 @@ project.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-outdated &mdash; npm@6.1.0</p>
+<p id="footer">npm-outdated &mdash; npm@6.2.0</p>
 

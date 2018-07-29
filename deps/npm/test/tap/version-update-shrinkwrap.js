@@ -28,6 +28,7 @@ test('npm version <semver> updates git works with no shrinkwrap', function (t) {
   setup()
   rimraf.sync(path.resolve(pkg, 'npm-shrinkwrap.json'))
 
+  npm.config.set('sign-git-commit', false)
   npm.config.set('sign-git-tag', false)
 
   common.makeGitRepo({
@@ -70,6 +71,7 @@ test('npm version <semver> updates git works with no shrinkwrap', function (t) {
 test('npm version <semver> updates shrinkwrap and updates git', function (t) {
   setup()
 
+  npm.config.set('sign-git-commit', false)
   npm.config.set('sign-git-tag', false)
 
   common.makeGitRepo({

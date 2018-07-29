@@ -16,7 +16,7 @@ var packagePath = path.resolve(pkg, 'package.json')
 
 var json = { name: 'blah', version: '0.1.2' }
 
-var configContents = 'sign-git-tag=false\nmessage=":bookmark: %s"\n'
+var configContents = 'sign-git-commit=false\nsign-git-tag=false\nmessage=":bookmark: %s"\n'
 
 test('npm version <semver> with message config', function (t) {
   setup()

@@ -1,7 +1,12 @@
+module.exports = exports = function (gyp, argv, callback) {
+  return install(fs, gyp, argv, callback)
+}
 
-module.exports = exports = install
-
-module.exports.test = { download: download, readCAFile: readCAFile }
+module.exports.test = {
+  download: download,
+  install: install,
+  readCAFile: readCAFile,
+}
 
 exports.usage = 'Install node development files for the specified node version.'
 
@@ -20,12 +25,11 @@ var fs = require('graceful-fs')
   , semver = require('semver')
   , fstream = require('fstream')
   , request = require('request')
-  , minimatch = require('minimatch')
   , mkdir = require('mkdirp')
   , processRelease = require('./process-release')
   , win = process.platform == 'win32'
 
-function install (gyp, argv, callback) {
+function install (fs, gyp, argv, callback) {
 
   var release = processRelease(argv, gyp, process.version, process.release)
 
@@ -84,7 +88,7 @@ function install (gyp, argv, callback) {
           log.verbose('install', 'version not already installed, continuing with install', release.version)
           go()
         } else if (err.code == 'EACCES') {
-          eaccesFallback()
+          eaccesFallback(err)
         } else {
           cb(err)
         }
@@ -129,7 +133,7 @@ function install (gyp, argv, callback) {
     mkdir(devDir, function (err, created) {
       if (err) {
         if (err.code == 'EACCES') {
-          eaccesFallback()
+          eaccesFallback(err)
         } else {
           cb(err)
         }
@@ -396,8 +400,8 @@ function install (gyp, argv, callback) {
 
   function valid (file) {
     // header files
-    return minimatch(file, '*.h', { matchBase: true }) ||
-           minimatch(file, '*.gypi', { matchBase: true })
+    var extname = path.extname(file);
+    return extname === '.h' || extname === '.gypi';
   }
 
   /**
@@ -409,7 +413,9 @@ function install (gyp, argv, callback) {
    * the compilation will succeed...
    */
 
-  function eaccesFallback () {
+  function eaccesFallback (err) {
+    var noretry = '--node_gyp_internal_noretry'
+    if (-1 !== argv.indexOf(noretry)) return cb(err)
     var tmpdir = osenv.tmpdir()
     gyp.devDir = path.resolve(tmpdir, '.node-gyp')
     log.warn('EACCES', 'user "%s" does not have permission to access the dev dir "%s"', osenv.user(), devDir)
@@ -418,7 +424,7 @@ function install (gyp, argv, callback) {
       log.verbose('tmpdir == cwd', 'automatically will remove dev files after to save disk space')
       gyp.todo.push({ name: 'remove', args: argv })
     }
-    gyp.commands.install(argv, cb)
+    gyp.commands.install([noretry].concat(argv), cb)
   }
 
 }

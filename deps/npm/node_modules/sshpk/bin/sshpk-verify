@@ -7,6 +7,7 @@ var dashdash = require('dashdash');
 var sshpk = require('../lib/index');
 var fs = require('fs');
 var path = require('path');
+var Buffer = require('safer-buffer').Buffer;
 
 var options = [
 	{
@@ -93,7 +94,7 @@ if (require.main === module) {
 	}
 
 	var fmt = opts.format || 'asn1';
-	var sigData = new Buffer(opts.signature, 'base64');
+	var sigData = Buffer.from(opts.signature, 'base64');
 
 	var sig;
 	try {

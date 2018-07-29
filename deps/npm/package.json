@@ -1,5 +1,5 @@
 {
-  "version": "6.1.0",
+  "version": "6.2.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -16,10 +16,10 @@
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me)",
   "repository": {
     "type": "git",
-    "url": "https://github.com/npm/npm"
+    "url": "https://github.com/npm/cli"
   },
   "bugs": {
-    "url": "https://github.com/npm/npm/issues"
+    "url": "https://npm.community/c/bugs"
   },
   "directories": {
     "bin": "./bin",
@@ -33,9 +33,8 @@
     "npx": "./bin/npx-cli.js"
   },
   "dependencies": {
-    "JSONStream": "^1.3.2",
+    "JSONStream": "^1.3.3",
     "abbrev": "~1.1.1",
-    "ansi-regex": "~3.0.0",
     "ansicolors": "~0.3.2",
     "ansistyles": "~0.1.3",
     "aproba": "~1.2.0",
@@ -47,7 +46,7 @@
     "call-limit": "~1.1.0",
     "chownr": "~1.0.1",
     "cli-columns": "^3.1.2",
-    "cli-table2": "~0.2.0",
+    "cli-table3": "^0.5.0",
     "cmd-shim": "~2.0.2",
     "columnify": "~1.5.4",
     "config-chain": "~1.1.11",
@@ -69,7 +68,7 @@
     "inherits": "~2.0.3",
     "ini": "^1.3.5",
     "init-package-json": "^1.10.3",
-    "is-cidr": "^2.0.5",
+    "is-cidr": "^2.0.6",
     "json-parse-better-errors": "^1.0.2",
     "lazy-property": "~1.0.0",
     "libcipm": "^2.0.0",
@@ -87,17 +86,17 @@
     "mississippi": "^3.0.0",
     "mkdirp": "~0.5.1",
     "move-concurrently": "^1.0.1",
-    "node-gyp": "^3.6.2",
+    "node-gyp": "^3.7.0",
     "nopt": "~4.0.1",
     "normalize-package-data": "~2.4.0",
-    "npm-audit-report": "^1.2.1",
+    "npm-audit-report": "^1.3.1",
     "npm-cache-filename": "~1.0.2",
     "npm-install-checks": "~3.0.0",
     "npm-lifecycle": "^2.0.3",
     "npm-package-arg": "^6.1.0",
     "npm-packlist": "~1.1.10",
     "npm-pick-manifest": "^2.1.0",
-    "npm-profile": "^3.0.1",
+    "npm-profile": "^3.0.2",
     "npm-registry-client": "^8.5.1",
     "npm-registry-fetch": "^1.1.0",
     "npm-user-validate": "~1.0.0",
@@ -117,7 +116,7 @@
     "read-package-json": "^2.0.13",
     "read-package-tree": "^5.2.1",
     "readable-stream": "^2.3.6",
-    "request": "^2.86.0",
+    "request": "^2.81.0",
     "retry": "^0.12.0",
     "rimraf": "~2.6.2",
     "safe-buffer": "^5.1.2",
@@ -127,8 +126,7 @@
     "sorted-object": "~2.0.1",
     "sorted-union-stream": "~2.1.3",
     "ssri": "^6.0.0",
-    "strip-ansi": "~4.0.0",
-    "tar": "^4.4.3",
+    "tar": "^4.4.4",
     "text-table": "~0.2.0",
     "tiny-relative-date": "^1.3.0",
     "uid-number": "0.0.6",
@@ -136,17 +134,16 @@
     "unique-filename": "~1.1.0",
     "unpipe": "~1.0.0",
     "update-notifier": "^2.5.0",
-    "uuid": "^3.2.1",
+    "uuid": "^3.3.2",
     "validate-npm-package-license": "^3.0.3",
     "validate-npm-package-name": "~3.0.0",
-    "which": "~1.3.0",
+    "which": "^1.3.1",
     "worker-farm": "^1.6.0",
     "wrappy": "~1.0.2",
     "write-file-atomic": "^2.3.0"
   },
   "bundleDependencies": [
     "abbrev",
-    "ansi-regex",
     "ansicolors",
     "ansistyles",
     "aproba",
@@ -157,7 +154,6 @@
     "bluebird",
     "bin-links",
     "chownr",
-    "cli-table2",
     "cmd-shim",
     "columnify",
     "config-chain",
@@ -244,7 +240,6 @@
     "sorted-object",
     "sorted-union-stream",
     "ssri",
-    "strip-ansi",
     "tar",
     "text-table",
     "uid-number",
@@ -262,12 +257,13 @@
     "worker-farm",
     "tiny-relative-date",
     "cli-columns",
+    "cli-table3",
     "node-gyp",
     "lock-verify"
   ],
   "devDependencies": {
     "deep-equal": "~1.0.1",
-    "marked": "^0.3.19",
+    "marked": "^0.4.0",
     "marked-man": "~0.2.1",
     "npm-registry-couchapp": "^2.7.1",
     "npm-registry-mock": "~1.1.0",
@@ -275,7 +271,7 @@
     "sprintf-js": "~1.1.1",
     "standard": "^11.0.1",
     "tacks": "~1.2.6",
-    "tap": "^11.1.5"
+    "tap": "^12.0.1"
   },
   "scripts": {
     "dumpconf": "env | grep npm | sort | uniq",
