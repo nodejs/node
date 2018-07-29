@@ -166,6 +166,7 @@ added: v0.11.14
   * `port` {integer}
   * `address` {string}
   * `exclusive` {boolean}
+  * `fd` {integer}
 * `callback` {Function}
 
 For UDP sockets, causes the `dgram.Socket` to listen for datagram
@@ -176,6 +177,11 @@ to bind to a random port. If `address` is not specified, the operating
 system will attempt to listen on all addresses. Once binding is
 complete, a `'listening'` event is emitted and the optional `callback`
 function is called.
+
+The `options` object may contain a `fd` property. When a `fd` greater
+than `0` is set, it will wrap around an existing socket with the given
+file descriptor. In this case, the properties of `port` and `address`
+will be ignored.
 
 Note that specifying both a `'listening'` event listener and passing a
 `callback` to the `socket.bind()` method is not harmful but not very
