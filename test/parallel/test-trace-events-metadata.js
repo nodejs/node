@@ -31,7 +31,7 @@ proc.once('exit', common.mustCall(() => {
         trace.args.name === 'JavaScriptMainThread'));
     assert(traces.some((trace) =>
       trace.name === 'thread_name' &&
-        trace.args.name === 'BackgroundTaskRunner'));
+        trace.args.name === 'PlatformWorkerThread'));
     assert(traces.some((trace) =>
       trace.name === 'version' &&
         trace.args.node === process.versions.node));
