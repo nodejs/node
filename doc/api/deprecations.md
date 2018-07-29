@@ -1004,9 +1004,8 @@ The option `produceCachedData` has been deprecated. Use
 
 Type: Documentation-only
 
-The `process.binding()` API is intended for use strictly by Node.js internal
-code to provide a bridge between Node.js' JavaScript and native code layer.
-Use of `process.binding()` by user-land code is unsupported.
+The `process.binding()` API is intended for use by Node.js internal only
+code. Use of `process.binding()` by userland code is unsupported.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
