@@ -965,7 +965,8 @@ void AppendExceptionLine(Environment* env,
   arrow[off] = '\n';
   arrow[off + 1] = '\0';
 
-  Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow);
+  Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow,
+      v8::NewStringType::kNormal).ToLocalChecked();
 
   const bool can_set_arrow = !arrow_str.IsEmpty() && !err_obj.IsEmpty();
   // If allocating arrow_str failed, print it out. There's not much else to do.
@@ -1742,7 +1743,8 @@ static void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> module = Object::New(env->isolate());
   Local<Object> exports = Object::New(env->isolate());
-  Local<String> exports_prop = String::NewFromUtf8(env->isolate(), "exports");
+  Local<String> exports_prop = String::NewFromUtf8(env->isolate(), "exports",
+      v8::NewStringType::kNormal).ToLocalChecked();
   module->Set(exports_prop, exports);
 
   if (mod->nm_context_register_func != nullptr) {
@@ -1765,7 +1767,8 @@ static void ProcessTitleGetter(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
   char buffer[512];
   uv_get_process_title(buffer, sizeof(buffer));
-  info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), buffer));
+  info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), buffer,
+      v8::NewStringType::kNormal).ToLocalChecked());
 }
 
 
@@ -1790,7 +1793,8 @@ static void EnvGetter(Local<Name> property,
   node::Utf8Value key(isolate, property);
   const char* val = getenv(*key);
   if (val) {
-    return info.GetReturnValue().Set(String::NewFromUtf8(isolate, val));
+    return info.GetReturnValue().Set(String::NewFromUtf8(isolate, val,
+        v8::NewStringType::kNormal).ToLocalChecked());
   }
 #else  // _WIN32
   node::TwoByteValue key(isolate, property);
@@ -1918,8 +1922,8 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     const int length = s ? s - var : strlen(var);
     argv[idx] = String::NewFromUtf8(isolate,
                                     var,
-                                    String::kNormalString,
-                                    length);
+                                    v8::NewStringType::kNormal,
+                                    length).ToLocalChecked();
     if (++idx >= arraysize(argv)) {
       fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
       idx = 0;
@@ -2196,14 +2200,16 @@ void SetupProcessObject(Environment* env,
   // process.argv
   Local<Array> arguments = Array::New(env->isolate(), argc);
   for (int i = 0; i < argc; ++i) {
-    arguments->Set(i, String::NewFromUtf8(env->isolate(), argv[i]));
+    arguments->Set(i, String::NewFromUtf8(env->isolate(), argv[i],
+        v8::NewStringType::kNormal).ToLocalChecked());
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "argv"), arguments);
 
   // process.execArgv
   Local<Array> exec_arguments = Array::New(env->isolate(), exec_argc);
   for (int i = 0; i < exec_argc; ++i) {
-    exec_arguments->Set(i, String::NewFromUtf8(env->isolate(), exec_argv[i]));
+    exec_arguments->Set(i, String::NewFromUtf8(env->isolate(), exec_argv[i],
+        v8::NewStringType::kNormal).ToLocalChecked());
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execArgv"),
                exec_arguments);
@@ -2235,7 +2241,8 @@ void SetupProcessObject(Environment* env,
   if (eval_string) {
     READONLY_PROPERTY(process,
                       "_eval",
-                      String::NewFromUtf8(env->isolate(), eval_string));
+                      String::NewFromUtf8(env->isolate(), eval_string,
+                          v8::NewStringType::kNormal).ToLocalChecked());
   }
 
   // -p, --print
@@ -2258,7 +2265,9 @@ void SetupProcessObject(Environment* env,
     Local<Array> array = Array::New(env->isolate());
     for (unsigned int i = 0; i < preload_modules.size(); ++i) {
       Local<String> module = String::NewFromUtf8(env->isolate(),
-                                                 preload_modules[i].c_str());
+                                                 preload_modules[i].c_str(),
+                                                 v8::NewStringType::kNormal)
+                                 .ToLocalChecked();
       array->Set(i, module);
     }
     READONLY_PROPERTY(process,
@@ -2343,10 +2352,11 @@ void SetupProcessObject(Environment* env,
   if (uv_exepath(exec_path, &exec_path_len) == 0) {
     exec_path_value = String::NewFromUtf8(env->isolate(),
                                           exec_path,
-                                          String::kNormalString,
-                                          exec_path_len);
+                                          v8::NewStringType::kInternalized,
+                                          exec_path_len).ToLocalChecked();
   } else {
-    exec_path_value = String::NewFromUtf8(env->isolate(), argv[0]);
+    exec_path_value = String::NewFromUtf8(env->isolate(), argv[0],
+        v8::NewStringType::kInternalized).ToLocalChecked();
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execPath"),
                exec_path_value);
