@@ -54,7 +54,7 @@ try {
 } finally {
   assert.strictEqual(ret, undefined,
                      `should not have a return value, received ${ret}`);
-  assert.ok(caught, true, 'execSync should throw');
+  assert.ok(caught, 'execSync should throw');
   const end = Date.now() - start;
   assert(end < SLEEP);
   assert(err.status > 128 || err.signal);
