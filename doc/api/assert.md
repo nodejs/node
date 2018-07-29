@@ -123,8 +123,37 @@ assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 //   ]
 ```
 
+By default colors are turned on in case a TTY is used as stderr and it supports
+colors. Please note that the color detection might fail and no colors are used
+in that case.
 To deactivate the colors, use the `NODE_DISABLE_COLORS` environment variable.
-Please note that this will also deactivate the colors in the REPL.
+Using that environment variable will also deactivate the colors in the REPL.
+
+The diff will also be minified in case more than three lines are identical or if
+either side of an loose equal check is longer than 128 characters. To prevent
+the minification use the `NODE_ASSERT_FULL` environment variable and set it to
+'1'.
+
+In this example the "3" and "4" would normally be visualized as "skipped lines".
+
+```js
+const assert = require('assert').strict;
+
+process.env.NODE_ASSERT_FULL = '1';
+
+assert.deepEqual([1, 2, 3, 4, 5], [2, 2, 3, 4, 5]);
+// AssertionError: Expected inputs to be strictly deep-equal:
+// + actual - expected
+//
+//  [
+// +   1,
+// -   2,
+//    2,
+//    3,
+//    4,
+//    5
+//  ]
+```
 
 ## Legacy mode
 

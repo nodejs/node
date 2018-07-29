@@ -929,3 +929,30 @@ assert.throws(() => assert.deepStrictEqual(new Boolean(true), {}),
   );
   util.inspect.defaultOptions = tmp;
 }
+
+// Check full error diff.
+{
+  process.env.NODE_ASSERT_FULL = '1';
+  assert.throws(
+    () => assert.deepStrictEqual([1, 2, 3, 4, 5], [2, 2, 3, 4, 5]),
+    { message: /^[^.]+$/ }
+  );
+  assert.throws(
+    () => assert.notDeepStrictEqual(Array(100).fill(1), Array(100).fill(1)),
+    { message: /^[^.]+$/ }
+  );
+  assert.throws(
+    () => assert.strictEqual(
+      Array(100).fill(Symbol()),
+      Array(100).fill(Symbol())
+    ),
+    { message: /^[^.]+$/ }
+  );
+
+  assert.throws(
+    // eslint-disable-next-line no-restricted-properties
+    () => assert.deepEqual('a'.repeat(1000), 'b'.repeat(1000)),
+    { message: `'${'a'.repeat(1000)}' deepEqual '${'b'.repeat(1000)}'` }
+  );
+  delete process.env.NODE_ASSERT_FULL;
+}

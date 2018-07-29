@@ -617,6 +617,7 @@ assert.throws(
   );
 
   message = 'Expected "actual" not to be strictly deep-equal to:' +
+            '\n ... Lines skipped' +
             `\n\n[${'\n  1,'.repeat(25)}\n...\n`;
   const data = Array(31).fill(1);
   assert.throws(
@@ -1000,7 +1001,7 @@ assert.throws(() => { throw null; }, 'foo');
 assert.throws(
   () => assert.strictEqual([], []),
   {
-    message: 'Inputs identical but not reference equal:\n\n[]\n'
+    message: 'Inputs identical but not reference equal:\n\n[]'
   }
 );
 
