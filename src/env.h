@@ -344,6 +344,7 @@ struct PackageConfig {
   V(tick_callback_function, v8::Function)                                     \
   V(timers_callback_function, v8::Function)                                   \
   V(tls_wrap_constructor_function, v8::Function)                              \
+  V(trace_category_state_function, v8::Function)                              \
   V(tty_constructor_template, v8::FunctionTemplate)                           \
   V(udp_constructor_function, v8::Function)                                   \
   V(url_constructor_function, v8::Function)                                   \
@@ -649,6 +650,8 @@ class Environment {
   inline AliasedBuffer<uint32_t, v8::Uint32Array>&
   should_abort_on_uncaught_toggle();
 
+  inline AliasedBuffer<uint8_t, v8::Uint8Array>& trace_category_state();
+
   // The necessary API for async_hooks.
   inline double new_async_id();
   inline double execution_async_id();
@@ -830,6 +833,25 @@ class Environment {
   // This needs to be available for the JS-land setImmediate().
   void ToggleImmediateRef(bool ref);
 
+  class TrackingTraceStateObserver :
+      public v8::TracingController::TraceStateObserver {
+   public:
+    explicit TrackingTraceStateObserver(Environment* env) : env_(env) {}
+
+    void OnTraceEnabled() override {
+      UpdateTraceCategoryState();
+    }
+
+    void OnTraceDisabled() override {
+      UpdateTraceCategoryState();
+    }
+
+   private:
+    void UpdateTraceCategoryState();
+
+    Environment* env_;
+  };
+
   class ShouldNotAbortOnUncaughtScope {
    public:
     explicit inline ShouldNotAbortOnUncaughtScope(Environment* env);
@@ -888,6 +910,10 @@ class Environment {
 
   AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;
+
+  // Attached to a Uint8Array that tracks the state of trace category
+  AliasedBuffer<uint8_t, v8::Uint8Array> trace_category_state_;
+  std::unique_ptr<TrackingTraceStateObserver> trace_state_observer_;
 
   std::unique_ptr<performance::performance_state> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;
