@@ -156,6 +156,7 @@ module.exports = {
     ],
     /* eslint-disable max-len */
     // If this list is modified, please copy the change to lib/.eslintrc.yaml
+    // and test/.eslintrc.yaml.
     'no-restricted-syntax': [
       'error',
       {
@@ -165,6 +166,10 @@ module.exports = {
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='rejects'][arguments.length<2]",
         message: 'assert.rejects() must be invoked with at least two arguments.',
+      },
+      {
+        selector: "CallExpression[callee.object.name='assert'][callee.property.name='strictEqual'][arguments.2.type='Literal']",
+        message: 'Do not use a literal for the third argument of assert.strictEqual()'
       },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.1.type='Literal']:not([arguments.1.regex])",
