@@ -5,7 +5,8 @@
 require('../common');
 const assert = require('assert');
 
-const { ModuleWrap } = require('internal/test/binding');
+const { internalBinding } = require('internal/test/binding');
+const { ModuleWrap } = internalBinding('module_wrap');
 const { getPromiseDetails, isPromise } = process.binding('util');
 const setTimeoutAsync = require('util').promisify(setTimeout);
 
