@@ -301,6 +301,12 @@
           # the executable and rename it back to node.exe later
           'product_name': '<(node_core_target_name)-win',
         }],
+        [ 'OS=="mac" or OS=="linux"', {
+          # On Unix builds, the build may replace the executable while it is
+          # running.  To avoid this, we provide a different PRODUCT_NAME for
+          # the executable and rename it back to node later
+          'product_name': '<(node_core_target_name)-unix',
+        }],
       ],
     },
     {
@@ -893,6 +899,34 @@
                 '<@(_inputs)',
                 '<@(OS)',
                 '<@(target_arch)',
+              ],
+            },
+          ],
+        } ],
+      ]
+    },
+    {
+      # When building executable in Mac OS/X, in order to avoid overwriting
+      # the executable while it it running, build it with a different name
+      # and then rename it back to node.
+      'target_name': 'rename_node_bin_mac',
+      'type': 'none',
+      'dependencies': [
+        '<(node_core_target_name)',
+      ],
+      'conditions': [
+        [ 'OS=="mac"', {
+          'actions': [
+            {
+              'action_name': 'rename_node_bin_mac',
+              'inputs': [
+                '<(PRODUCT_DIR)/<(node_core_target_name)-unix'
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/<(node_core_target_name)',
+              ],
+              'action': [
+                'mv', '<@(_inputs)', '<@(_outputs)',
               ],
             },
           ],
