@@ -273,6 +273,16 @@ class V8_EXPORT CpuProfile {
   void Delete();
 };
 
+enum CpuProfilingMode {
+  // In the resulting CpuProfile tree, intermediate nodes in a stack trace
+  // (from the root to a leaf) will have line numbers that point to the start
+  // line of the function, rather than the line of the callsite of the child.
+  kLeafNodeLineNumbers,
+  // In the resulting CpuProfile tree, nodes are separated based on the line
+  // number of their callsite in their parent.
+  kCallerLineNumbers,
+};
+
 /**
  * Interface for controlling CPU profiling. Instance of the
  * profiler can be created using v8::CpuProfiler::New method.
@@ -315,6 +325,13 @@ class V8_EXPORT CpuProfiler {
    *
    * |record_samples| parameter controls whether individual samples should
    * be recorded in addition to the aggregated tree.
+   */
+  void StartProfiling(Local<String> title, CpuProfilingMode mode,
+                      bool record_samples = false);
+  /**
+   * The same as StartProfiling above, but the CpuProfilingMode defaults to
+   * kLeafNodeLineNumbers mode, which was the previous default behavior of the
+   * profiler.
    */
   void StartProfiling(Local<String> title, bool record_samples = false);
 

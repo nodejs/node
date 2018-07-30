@@ -15,6 +15,7 @@ namespace v8 {
 namespace internal {
 
 class CodeEventsContainer;
+class CodeDeoptEventRecord;
 
 class CodeEventObserver {
  public:
@@ -43,7 +44,7 @@ class ProfilerListener : public CodeEventListener {
                        wasm::WasmName name) override;
 
   void CodeMovingGCEvent() override {}
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override;
   void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
@@ -79,7 +80,7 @@ class ProfilerListener : public CodeEventListener {
 
  private:
   void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
-  void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
+  void AttachDeoptInlinedFrames(Code* code, CodeDeoptEventRecord* rec);
   Name* InferScriptName(Name* name, SharedFunctionInfo* info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {
     observer_->CodeEventHandler(evt_rec);
