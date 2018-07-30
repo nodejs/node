@@ -37,7 +37,7 @@ const handle1 = setTimeout(common.mustCall(function() {
 
         // Make sure our clearTimeout succeeded. One timer finished and
         // the other was canceled, so none should be active.
-        assert.strictEqual(activeTimers.length, 0, 'Timers remain.');
+        assert.strictEqual(activeTimers.length, 0);
       }));
     }));
   }), 1);
@@ -53,11 +53,9 @@ const handle1 = setTimeout(common.mustCall(function() {
 
   // Make sure our clearTimeout succeeded. One timer finished and
   // the other was canceled, so none should be active.
-  assert.strictEqual(activeTimers.length, 3,
-                     'There should be 3 timers in the list.');
+  assert.strictEqual(activeTimers.length, 3);
   assert(shortTimer instanceof Timer, 'The shorter timer is not in the list.');
-  assert.strictEqual(longTimers.length, 2,
-                     'Both longer timers should be in the list.');
+  assert.strictEqual(longTimers.length, 2);
 
   // When this callback completes, `listOnTimeout` should now look at the
   // correct list and refrain from removing the new TIMEOUT list which
