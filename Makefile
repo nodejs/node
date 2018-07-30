@@ -254,6 +254,10 @@ v8:
 
 .PHONY: jstest
 jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
+	$(MAKE) -s test-js
+
+.PHONY: test-js
+test-js:
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		--skip-tests=$(CI_SKIP_TESTS) \
 		$(CI_JS_SUITES) \
@@ -267,7 +271,8 @@ test: all ## Runs default tests, linters, and builds docs.
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-addons-napi
 	$(MAKE) -s cctest
-	$(MAKE) -s jstest
+	$(MAKE) -s test-js
+	$(MAKE) -s test-doc
 
 .PHONY: test-only
 test-only: all  ## For a quick test, does not run linter or build docs.
@@ -276,7 +281,7 @@ test-only: all  ## For a quick test, does not run linter or build docs.
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	$(MAKE) cctest
-	$(MAKE) jstest
+	$(MAKE) test-js
 
 # Used by `make coverage-test`
 test-cov: all
@@ -285,7 +290,7 @@ test-cov: all
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	# $(MAKE) cctest
-	CI_SKIP_TESTS=core_line_numbers.js $(MAKE) jstest
+	CI_SKIP_TESTS=core_line_numbers.js $(MAKE) test-js
 
 test-parallel: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) parallel
@@ -342,6 +347,7 @@ ADDONS_BINDING_SOURCES := \
 	$(filter-out test/addons/??_*/*.cc, $(wildcard test/addons/*/*.cc)) \
 	$(filter-out test/addons/??_*/*.h, $(wildcard test/addons/*/*.h))
 
+.PHONY: test/addons/.buildstamp
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
 # Depends on node-gyp package.json so that build-addons is (re)executed when
 # node-gyp is updated as part of an npm update.
@@ -356,7 +362,6 @@ test/addons/.buildstamp: config.gypi \
 		"$$PWD/deps/npm/node_modules/node-gyp/bin/node-gyp.js" "$$PWD/test/addons"
 	touch $@
 
-.PHONY: build-addons
 # .buildstamp needs $(NODE_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
@@ -374,6 +379,7 @@ ADDONS_NAPI_BINDING_SOURCES := \
 	$(filter-out test/addons-napi/??_*/*.cc, $(wildcard test/addons-napi/*/*.cc)) \
 	$(filter-out test/addons-napi/??_*/*.h, $(wildcard test/addons-napi/*/*.h))
 
+.PHONY: test/addons-napi/.buildstamp
 # Implicitly depends on $(NODE_EXE), see the build-addons-napi rule for rationale.
 test/addons-napi/.buildstamp: config.gypi \
 	deps/npm/node_modules/node-gyp/package.json tools/build-addons.js \
@@ -387,7 +393,6 @@ test/addons-napi/.buildstamp: config.gypi \
 		"$$PWD/test/addons-napi"
 	touch $@
 
-.PHONY: build-addons-napi
 # .buildstamp needs $(NODE_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
@@ -1077,8 +1082,7 @@ lint-md-build: tools/remark-cli/node_modules \
 	tools/doc/node_modules \
 	tools/remark-preset-lint-node/node_modules
 
-.PHONY: tools/doc/node_modules
-tools/doc/node_modules:
+tools/doc/node_modules: tools/doc/package.json
 	@cd tools/doc && $(call available-node,$(run-npm-install))
 
 .PHONY: lint-md
