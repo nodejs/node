@@ -608,16 +608,6 @@ class ContextifyScript : public BaseObject {
 
     target->Set(class_name, script_tmpl->GetFunction());
     env->set_script_context_constructor_template(script_tmpl);
-
-    Local<Symbol> parsing_context_symbol =
-        Symbol::New(env->isolate(),
-                    FIXED_ONE_BYTE_STRING(env->isolate(),
-                                          "script parsing context"));
-    env->set_vm_parsing_context_symbol(parsing_context_symbol);
-    target->Set(env->context(),
-                FIXED_ONE_BYTE_STRING(env->isolate(), "kParsingContext"),
-                parsing_context_symbol)
-        .FromJust();
   }
 
 
