@@ -1,11 +1,13 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
+const { internalBinding } = require('internal/test/binding');
 const {
   observerCounts: counts
-} = process.binding('performance');
+} = internalBinding('performance');
 const {
   performance,
   PerformanceObserver,

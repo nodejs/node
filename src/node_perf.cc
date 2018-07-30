@@ -454,4 +454,4 @@ void Initialize(Local<Object> target,
 }  // namespace performance
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(performance, node::performance::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(performance, node::performance::Initialize)
