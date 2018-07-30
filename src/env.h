@@ -155,7 +155,6 @@ struct PackageConfig {
   V(emit_warning_string, "emitWarning")                                       \
   V(exchange_string, "exchange")                                              \
   V(encoding_string, "encoding")                                              \
-  V(enter_string, "enter")                                                    \
   V(entries_string, "entries")                                                \
   V(env_pairs_string, "envPairs")                                             \
   V(errno_string, "errno")                                                    \
@@ -195,8 +194,6 @@ struct PackageConfig {
   V(mac_string, "mac")                                                        \
   V(main_string, "main")                                                      \
   V(max_buffer_string, "maxBuffer")                                           \
-  V(max_semi_space_size_string, "maxSemiSpaceSize")                           \
-  V(max_old_space_size_string, "maxOldSpaceSize")                             \
   V(message_string, "message")                                                \
   V(message_port_string, "messagePort")                                       \
   V(message_port_constructor_string, "MessagePort")                           \
@@ -231,7 +228,6 @@ struct PackageConfig {
   V(onsettings_string, "onsettings")                                          \
   V(onshutdown_string, "onshutdown")                                          \
   V(onsignal_string, "onsignal")                                              \
-  V(onstop_string, "onstop")                                                  \
   V(onstreamclose_string, "onstreamclose")                                    \
   V(ontrailers_string, "ontrailers")                                          \
   V(onunpipe_string, "onunpipe")                                              \
@@ -293,7 +289,6 @@ struct PackageConfig {
   V(uid_string, "uid")                                                        \
   V(unknown_string, "<unknown>")                                              \
   V(url_string, "url")                                                        \
-  V(user_string, "user")                                                      \
   V(username_string, "username")                                              \
   V(valid_from_string, "valid_from")                                          \
   V(valid_to_string, "valid_to")                                              \
