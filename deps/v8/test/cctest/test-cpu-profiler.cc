@@ -176,27 +176,29 @@ TEST(CodeEvents) {
                                     "comment");
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code,
                                     "comment2");
-  profiler_listener.CodeMoveEvent(comment2_code, moved_code->address());
+  profiler_listener.CodeMoveEvent(comment2_code, moved_code);
 
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(processor, aaa_code->address());
+  EnqueueTickSampleEvent(processor, aaa_code->InstructionStart());
 
   isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
 
   // Check the state of profile generator.
-  CodeEntry* aaa = generator->code_map()->FindEntry(aaa_code->address());
+  CodeEntry* aaa =
+      generator->code_map()->FindEntry(aaa_code->InstructionStart());
   CHECK(aaa);
   CHECK_EQ(0, strcmp(aaa_str, aaa->name()));
 
   CodeEntry* comment =
-      generator->code_map()->FindEntry(comment_code->address());
+      generator->code_map()->FindEntry(comment_code->InstructionStart());
   CHECK(comment);
   CHECK_EQ(0, strcmp("comment", comment->name()));
 
-  CHECK(!generator->code_map()->FindEntry(comment2_code->address()));
+  CHECK(!generator->code_map()->FindEntry(comment2_code->InstructionStart()));
 
-  CodeEntry* comment2 = generator->code_map()->FindEntry(moved_code->address());
+  CodeEntry* comment2 =
+      generator->code_map()->FindEntry(moved_code->InstructionStart());
   CHECK(comment2);
   CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
@@ -298,11 +300,11 @@ TEST(Issue1398) {
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
   v8::TickSample* sample = processor->StartTickSample();
-  sample->pc = reinterpret_cast<void*>(code->address());
+  sample->pc = reinterpret_cast<void*>(code->InstructionStart());
   sample->tos = nullptr;
   sample->frames_count = v8::TickSample::kMaxFramesCount;
   for (unsigned i = 0; i < sample->frames_count; ++i) {
-    sample->stack[i] = reinterpret_cast<void*>(code->address());
+    sample->stack[i] = reinterpret_cast<void*>(code->InstructionStart());
   }
   processor->FinishTickSample();
 
@@ -428,11 +430,14 @@ class ProfilerHelper {
     profiler_->Dispose();
   }
 
+  typedef v8::CpuProfilingMode ProfilingMode;
+
   v8::CpuProfile* Run(v8::Local<v8::Function> function,
                       v8::Local<v8::Value> argv[], int argc,
                       unsigned min_js_samples = 0,
                       unsigned min_external_samples = 0,
-                      bool collect_samples = false);
+                      bool collect_samples = false,
+                      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers);
 
   v8::CpuProfiler* profiler() { return profiler_; }
 
@@ -445,11 +450,11 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
                                     v8::Local<v8::Value> argv[], int argc,
                                     unsigned min_js_samples,
                                     unsigned min_external_samples,
-                                    bool collect_samples) {
+                                    bool collect_samples, ProfilingMode mode) {
   v8::Local<v8::String> profile_name = v8_str("my_profile");
 
   profiler_->SetSamplingInterval(100);
-  profiler_->StartProfiling(profile_name, collect_samples);
+  profiler_->StartProfiling(profile_name, mode, collect_samples);
 
   v8::internal::CpuProfiler* iprofiler =
       reinterpret_cast<v8::internal::CpuProfiler*>(profiler_);
@@ -509,7 +514,6 @@ static const v8::CpuProfileNode* GetChild(v8::Local<v8::Context> context,
   return result;
 }
 
-
 static void CheckSimpleBranch(v8::Local<v8::Context> context,
                               const v8::CpuProfileNode* node,
                               const char* names[], int length) {
@@ -519,7 +523,6 @@ static void CheckSimpleBranch(v8::Local<v8::Context> context,
   }
 }
 
-
 static const ProfileNode* GetSimpleBranch(v8::Local<v8::Context> context,
                                           v8::CpuProfile* profile,
                                           const char* names[], int length) {
@@ -528,6 +531,41 @@ static const ProfileNode* GetSimpleBranch(v8::Local<v8::Context> context,
     node = GetChild(context, node, names[i]);
   }
   return reinterpret_cast<const ProfileNode*>(node);
+}
+
+struct NameLinePair {
+  const char* name;
+  int line_number;
+};
+
+static const v8::CpuProfileNode* FindChild(const v8::CpuProfileNode* node,
+                                           NameLinePair pair) {
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
+    const v8::CpuProfileNode* child = node->GetChild(i);
+    // The name and line number must match, or if the requested line number was
+    // -1, then match any function of the same name.
+    if (strcmp(child->GetFunctionNameStr(), pair.name) == 0 &&
+        (child->GetLineNumber() == pair.line_number ||
+         pair.line_number == -1)) {
+      return child;
+    }
+  }
+  return nullptr;
+}
+
+static const v8::CpuProfileNode* GetChild(const v8::CpuProfileNode* node,
+                                          NameLinePair pair) {
+  const v8::CpuProfileNode* result = FindChild(node, pair);
+  if (!result) FATAL("Failed to GetChild: %s:%d", pair.name, pair.line_number);
+  return result;
+}
+
+static void CheckBranch(const v8::CpuProfileNode* node, NameLinePair path[],
+                        int length) {
+  for (int i = 0; i < length; i++) {
+    NameLinePair pair = path[i];
+    node = GetChild(node, pair);
+  }
 }
 
 static const char* cpu_profiler_test_source =
@@ -606,6 +644,40 @@ TEST(CollectCpuProfile) {
   const char* delay_branch[] = {"delay", "loop"};
   CheckSimpleBranch(env.local(), foo_node, delay_branch,
                     arraysize(delay_branch));
+
+  profile->Delete();
+}
+
+TEST(CollectCpuProfileCallerLineNumbers) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  CompileRun(cpu_profiler_test_source);
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+
+  int32_t profiling_interval_ms = 200;
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), profiling_interval_ms)};
+  ProfilerHelper helper(env.local());
+  helper.Run(function, args, arraysize(args), 1000, 0, false,
+             v8::CpuProfilingMode::kCallerLineNumbers);
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), 1000, 0, false,
+                 v8::CpuProfilingMode::kCallerLineNumbers);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(root, {"start", 27});
+  const v8::CpuProfileNode* foo_node = GetChild(start_node, {"foo", 30});
+
+  NameLinePair bar_branch[] = {{"bar", 23}, {"delay", 19}, {"loop", 18}};
+  CheckBranch(foo_node, bar_branch, arraysize(bar_branch));
+  NameLinePair baz_branch[] = {{"baz", 25}, {"delay", 20}, {"loop", 18}};
+  CheckBranch(foo_node, baz_branch, arraysize(baz_branch));
+  NameLinePair delay_at22_branch[] = {{"delay", 22}, {"loop", 18}};
+  CheckBranch(foo_node, delay_at22_branch, arraysize(delay_at22_branch));
+  NameLinePair delay_at24_branch[] = {{"delay", 24}, {"loop", 18}};
+  CheckBranch(foo_node, delay_at24_branch, arraysize(delay_at24_branch));
 
   profile->Delete();
 }

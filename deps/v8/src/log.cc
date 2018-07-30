@@ -270,7 +270,7 @@ class PerfBasicLogger : public CodeEventLogger {
   PerfBasicLogger();
   ~PerfBasicLogger() override;
 
-  void CodeMoveEvent(AbstractCode* from, Address to) override {}
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override {}
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
 
@@ -492,7 +492,7 @@ class LowLevelLogger : public CodeEventLogger {
   explicit LowLevelLogger(const char* file_name);
   ~LowLevelLogger() override;
 
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
   void SnapshotPositionEvent(HeapObject* obj, int pos);
@@ -610,11 +610,10 @@ void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
                 code->instructions().length());
 }
 
-void LowLevelLogger::CodeMoveEvent(AbstractCode* from, Address to) {
+void LowLevelLogger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
   CodeMoveStruct event;
   event.from_address = from->InstructionStart();
-  size_t header_size = from->InstructionStart() - from->address();
-  event.to_address = to + header_size;
+  event.to_address = to->InstructionStart();
   LogWriteStruct(event);
 }
 
@@ -636,7 +635,7 @@ class JitLogger : public CodeEventLogger {
  public:
   explicit JitLogger(JitCodeEventHandler code_event_handler);
 
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
   void AddCodeLinePosInfoEvent(void* jit_handler_data, int pc_offset,
@@ -694,7 +693,7 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
   code_event_handler_(&event);
 }
 
-void JitLogger::CodeMoveEvent(AbstractCode* from, Address to) {
+void JitLogger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
   base::LockGuard<base::Mutex> guard(&logger_mutex_);
 
   JitCodeEvent event;
@@ -703,12 +702,7 @@ void JitLogger::CodeMoveEvent(AbstractCode* from, Address to) {
       from->IsCode() ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
   event.code_start = reinterpret_cast<void*>(from->InstructionStart());
   event.code_len = from->InstructionSize();
-
-  // Calculate the header size.
-  const size_t header_size = from->InstructionStart() - from->address();
-
-  // Calculate the new start address of the instructions.
-  event.new_code_start = reinterpret_cast<void*>(to + header_size);
+  event.new_code_start = reinterpret_cast<void*>(to->InstructionStart());
 
   code_event_handler_(&event);
 }
@@ -1450,9 +1444,10 @@ void Logger::RegExpCodeCreateEvent(AbstractCode* code, String* source) {
   msg.WriteToLogFile();
 }
 
-void Logger::CodeMoveEvent(AbstractCode* from, Address to) {
+void Logger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
   if (!is_listening_to_code_events()) return;
-  MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from->address(), to);
+  MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from->address(),
+                    to->address());
 }
 
 namespace {

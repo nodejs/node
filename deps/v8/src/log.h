@@ -209,7 +209,7 @@ class Logger : public CodeEventListener {
   // Emits a code create event for a RegExp.
   void RegExpCodeCreateEvent(AbstractCode* code, String* source);
   // Emits a code move event.
-  void CodeMoveEvent(AbstractCode* from, Address to);
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to);
   // Emits a code line info record event.
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray* source_position_table);
@@ -466,7 +466,7 @@ class ExternalCodeEventListener : public CodeEventListener {
   void GetterCallbackEvent(Name* name, Address entry_point) override {}
   void SetterCallbackEvent(Name* name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
-  void CodeMoveEvent(AbstractCode* from, Address to) override {}
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override {}
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
   void CodeMovingGCEvent() override {}

@@ -64,6 +64,25 @@ TEST(ProfileNodeFindOrAddChild) {
   CHECK_EQ(childNode3, node->FindOrAddChild(&entry3));
 }
 
+TEST(ProfileNodeFindOrAddChildWithLineNumber) {
+  CcTest::InitializeVM();
+  ProfileTree tree(CcTest::i_isolate());
+  ProfileNode* root = tree.root();
+  CodeEntry a(i::CodeEventListener::FUNCTION_TAG, "a");
+  ProfileNode* a_node = root->FindOrAddChild(&a, -1);
+
+  // a --(22)--> child1
+  //   --(23)--> child1
+
+  CodeEntry child1(i::CodeEventListener::FUNCTION_TAG, "child1");
+  ProfileNode* child1_node = a_node->FindOrAddChild(&child1, 22);
+  CHECK(child1_node);
+  CHECK_EQ(child1_node, a_node->FindOrAddChild(&child1, 22));
+
+  ProfileNode* child2_node = a_node->FindOrAddChild(&child1, 23);
+  CHECK(child2_node);
+  CHECK_NE(child1_node, child2_node);
+}
 
 TEST(ProfileNodeFindOrAddChildForSameFunction) {
   CcTest::InitializeVM();
@@ -172,6 +191,29 @@ TEST(ProfileTreeAddPathFromEnd) {
   CHECK_EQ(1u, node4->self_ticks());
 }
 
+TEST(ProfileTreeAddPathFromEndWithLineNumbers) {
+  CcTest::InitializeVM();
+  CodeEntry a(i::CodeEventListener::FUNCTION_TAG, "a");
+  CodeEntry b(i::CodeEventListener::FUNCTION_TAG, "b");
+  CodeEntry c(i::CodeEventListener::FUNCTION_TAG, "c");
+  ProfileTree tree(CcTest::i_isolate());
+  ProfileTreeTestHelper helper(&tree);
+
+  ProfileStackTrace path = {{&c, 5}, {&b, 3}, {&a, 1}};
+  tree.AddPathFromEnd(path, v8::CpuProfileNode::kNoLineNumberInfo, true,
+                      v8::CpuProfilingMode::kCallerLineNumbers);
+
+  ProfileNode* a_node =
+      tree.root()->FindChild(&a, v8::CpuProfileNode::kNoLineNumberInfo);
+  tree.Print();
+  CHECK(a_node);
+
+  ProfileNode* b_node = a_node->FindChild(&b, 1);
+  CHECK(b_node);
+
+  ProfileNode* c_node = b_node->FindChild(&c, 3);
+  CHECK(c_node);
+}
 
 TEST(ProfileTreeCalculateTotalTicks) {
   CcTest::InitializeVM();
@@ -634,7 +676,8 @@ int GetFunctionLineNumber(CpuProfiler& profiler, LocalContext& env,
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           env->Global()->Get(env.local(), v8_str(name)).ToLocalChecked())));
-  CodeEntry* func_entry = code_map->FindEntry(func->abstract_code()->address());
+  CodeEntry* func_entry =
+      code_map->FindEntry(func->abstract_code()->InstructionStart());
   if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }

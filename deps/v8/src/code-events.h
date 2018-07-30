@@ -83,7 +83,7 @@ class CodeEventListener {
   virtual void GetterCallbackEvent(Name* name, Address entry_point) = 0;
   virtual void SetterCallbackEvent(Name* name, Address entry_point) = 0;
   virtual void RegExpCodeCreateEvent(AbstractCode* code, String* source) = 0;
-  virtual void CodeMoveEvent(AbstractCode* from, Address to) = 0;
+  virtual void CodeMoveEvent(AbstractCode* from, AbstractCode* to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
   virtual void CodeDisableOptEvent(AbstractCode* code,
@@ -155,7 +155,7 @@ class CodeEventDispatcher {
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) {
     CODE_EVENT_DISPATCH(RegExpCodeCreateEvent(code, source));
   }
-  void CodeMoveEvent(AbstractCode* from, Address to) {
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
     CODE_EVENT_DISPATCH(CodeMoveEvent(from, to));
   }
   void SharedFunctionInfoMoveEvent(Address from, Address to) {

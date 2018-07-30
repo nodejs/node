@@ -345,19 +345,19 @@ void CpuProfiler::CollectSample() {
   }
 }
 
-void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
-  if (profiles_->StartProfiling(title, record_samples)) {
+void CpuProfiler::StartProfiling(const char* title, bool record_samples,
+                                 ProfilingMode mode) {
+  if (profiles_->StartProfiling(title, record_samples, mode)) {
     TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     StartProcessorIfNotStarted();
   }
 }
 
-
-void CpuProfiler::StartProfiling(String* title, bool record_samples) {
-  StartProfiling(profiles_->GetName(title), record_samples);
+void CpuProfiler::StartProfiling(String* title, bool record_samples,
+                                 ProfilingMode mode) {
+  StartProfiling(profiles_->GetName(title), record_samples, mode);
   isolate_->debug()->feature_tracker()->Track(DebugFeatureTracker::kProfiler);
 }
-
 
 void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_) {
@@ -426,7 +426,7 @@ void CpuProfiler::LogBuiltins() {
     CodeEventsContainer evt_rec(CodeEventRecord::REPORT_BUILTIN);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
     Builtins::Name id = static_cast<Builtins::Name>(i);
-    rec->start = builtins->builtin(id)->address();
+    rec->instruction_start = builtins->builtin(id)->InstructionStart();
     rec->builtin_id = id;
     processor_->Enqueue(evt_rec);
   }

@@ -75,6 +75,7 @@
   # BUG(5193). The cpu profiler tests are notoriously flaky.
   'test-profile-generator/RecordStackTraceAtStartProfiling': [SKIP],
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
+  'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [FAIL, PASS],
   'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
   'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
