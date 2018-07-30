@@ -627,6 +627,9 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
   Local<Function> fn = env->push_values_to_array_function();
   Local<Value> name_argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
   size_t name_idx = 0;
+  Local<Value> types = Array::New(env->isolate(), 0);
+  Local<Value> type_argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t type_idx = 0;
 
   for (int i = 0; ; i++) {
     uv_dirent_t ent;
@@ -659,24 +662,38 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
       name_idx = 0;
     }
 
-    name_argv[name_idx++] = Integer::New(env->isolate(), ent.type);
+    type_argv[type_idx++] = Integer::New(env->isolate(), ent.type);
 
-    if (name_idx >= arraysize(name_argv)) {
-      MaybeLocal<Value> ret = fn->Call(env->context(), names, name_idx,
-                                       name_argv);
+    if (type_idx >= arraysize(type_argv)) {
+      MaybeLocal<Value> ret = fn->Call(env->context(), types, type_idx,
+          type_argv);
       if (ret.IsEmpty()) {
         return;
       }
-      name_idx = 0;
+      type_idx = 0;
     }
   }
 
   if (name_idx > 0) {
-    fn->Call(env->context(), names, name_idx, name_argv)
-      .ToLocalChecked();
+    MaybeLocal<Value> ret = fn->Call(env->context(), names, name_idx,
+        name_argv);
+    if (ret.IsEmpty()) {
+      return;
+    }
   }
 
-  req_wrap->Resolve(names);
+  if (type_idx > 0) {
+    MaybeLocal<Value> ret = fn->Call(env->context(), types, type_idx,
+        type_argv);
+    if (ret.IsEmpty()) {
+      return;
+    }
+  }
+
+  Local<Array> result = Array::New(env->isolate(), 2);
+  result->Set(0, names);
+  result->Set(1, types);
+  req_wrap->Resolve(result);
 }
 
 
@@ -1472,6 +1489,14 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     Local<Value> name_v[NODE_PUSH_VAL_TO_ARRAY_MAX];
     size_t name_idx = 0;
 
+    Local<Value> types;
+    Local<Value> type_v[NODE_PUSH_VAL_TO_ARRAY_MAX];
+    size_t type_idx;
+    if (with_types) {
+      types = Array::New(env->isolate(), 0);
+      type_idx = 0;
+    }
+
     for (int i = 0; ; i++) {
       uv_dirent_t ent;
 
@@ -1511,15 +1536,15 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       }
 
       if (with_types) {
-        name_v[name_idx++] = Integer::New(env->isolate(), ent.type);
+        type_v[type_idx++] = Integer::New(env->isolate(), ent.type);
 
-        if (name_idx >= arraysize(name_v)) {
-          MaybeLocal<Value> ret = fn->Call(env->context(), names, name_idx,
-              name_v);
+        if (type_idx >= arraysize(type_v)) {
+          MaybeLocal<Value> ret = fn->Call(env->context(), types, type_idx,
+              type_v);
           if (ret.IsEmpty()) {
             return;
           }
-          name_idx = 0;
+          type_idx = 0;
         }
       }
     }
@@ -1531,7 +1556,21 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
-    args.GetReturnValue().Set(names);
+    if (with_types && type_idx > 0) {
+      MaybeLocal<Value> ret = fn->Call(env->context(), types, type_idx, type_v);
+      if (ret.IsEmpty()) {
+        return;
+      }
+    }
+
+    if (with_types) {
+      Local<Array> result = Array::New(env->isolate(), 2);
+      result->Set(0, names);
+      result->Set(1, types);
+      args.GetReturnValue().Set(result);
+    } else {
+      args.GetReturnValue().Set(names);
+    }
   }
 }
 
