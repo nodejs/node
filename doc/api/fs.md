@@ -288,17 +288,9 @@ performance implications for some applications. See the
 added: REPLACEME
 -->
 
-When [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with the `withTypes`
-option set to `true`, the resulting array is filled with `fs.DirectoryEntry`
-objects, rather than strings or `Buffers`.
-
-### dirent.name
-
-* {string|Buffer}
-
-The file name that this `fs.DirectoryEntry` object refers to. The type of this
-value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
-[`fs.readdirSync()`][].
+When [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with the
+`withFileTypes` option set to `true`, the resulting array is filled with
+`fs.DirectoryEntry` objects, rather than strings or `Buffers`.
 
 ### dirent.isBlockDevice()
 <!-- YAML
@@ -325,7 +317,8 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Returns `true` if the `fs.DirectoryEntry` object describes a file system directory.
+Returns `true` if the `fs.DirectoryEntry` object describes a file system
+directory.
 
 ### dirent.isFIFO()
 <!-- YAML
@@ -334,8 +327,8 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Returns `true` if the `fs.DirectoryEntry` object describes a first-in-first-out (FIFO)
-pipe.
+Returns `true` if the `fs.DirectoryEntry` object describes a first-in-first-out
+(FIFO) pipe.
 
 ### dirent.isFile()
 <!-- YAML
@@ -363,6 +356,18 @@ added: REPLACEME
 * Returns: {boolean}
 
 Returns `true` if the `fs.DirectoryEntry` object describes a symbolic link.
+
+
+### dirent.name
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string|Buffer}
+
+The file name that this `fs.DirectoryEntry` object refers to. The type of this
+value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
+[`fs.readdirSync()`][].
 
 ## Class: fs.FSWatcher
 <!-- YAML
@@ -2400,7 +2405,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-  * `withTypes` {boolean} **Default:** `false`
+  * `withFileTypes` {boolean} **Default:** `false`
 * `callback` {Function}
   * `err` {Error}
   * `files` {string[]|Buffer[]|fs.DirectoryEntry[]}
@@ -2414,7 +2419,7 @@ object with an `encoding` property specifying the character encoding to use for
 the filenames passed to the callback. If the `encoding` is set to `'buffer'`,
 the filenames returned will be passed as `Buffer` objects.
 
-If `options.withTypes` is set to `true`, the `files` array will contain
+If `options.withFileTypes` is set to `true`, the `files` array will contain
 [`fs.DirectoryEntry`][] objects.
 
 ## fs.readdirSync(path[, options])
@@ -2430,7 +2435,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-  * `withTypes` {boolean} **Default:** `false`
+  * `withFileTypes` {boolean} **Default:** `false`
 * Returns: {string[]|Buffer[]|fs.DirectoryEntry[]}
 
 Synchronous readdir(3).
@@ -2440,7 +2445,7 @@ object with an `encoding` property specifying the character encoding to use for
 the filenames returned. If the `encoding` is set to `'buffer'`,
 the filenames returned will be passed as `Buffer` objects.
 
-If `options.withTypes` is set to `true`, the result will contain
+If `options.withFileTypes` is set to `true`, the result will contain
 [`fs.DirectoryEntry`][] objects.
 
 ## fs.readFile(path[, options], callback)
