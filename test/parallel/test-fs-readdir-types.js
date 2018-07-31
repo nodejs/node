@@ -35,6 +35,11 @@ function assertDirents(dirents) {
   for (const [i, dirent] of dirents.entries()) {
     assert(dirent instanceof fs.DirectoryEntry);
     assert.strictEqual(dirent.name, files[i]);
+    // Some systems will always give us unknown type, so if the dirent says it's
+    // not a file, then it must be unknown.
+    const isFile = dirent.isFile();
+    assert.strictEqual(typeof isFile, 'boolean');
+    assert.strictEqual(dirent.isUnknown(), !isFile);
     assert.strictEqual(dirent.isDirectory(), false);
     assert.strictEqual(dirent.isFile(), true);
     assert.strictEqual(dirent.isSocket(), false);
@@ -42,7 +47,6 @@ function assertDirents(dirents) {
     assert.strictEqual(dirent.isCharacterDevice(), false);
     assert.strictEqual(dirent.isFIFO(), false);
     assert.strictEqual(dirent.isSymbolicLink(), false);
-    assert.strictEqual(dirent.isUnknown(), false);
   }
 }
 

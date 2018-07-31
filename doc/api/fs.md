@@ -292,6 +292,11 @@ When [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with the
 `withFileTypes` option set to `true`, the resulting array is filled with
 `fs.DirectoryEntry` objects, rather than strings or `Buffers`.
 
+Note that on some systems, getting file types at the same time as `readdir` is
+not supported. On those systems, only `dirent.isUnknown()` will return true, and
+all other `DirectoryEntry` methods will return false. To get file types on those
+systems, use [`fs.stat()`][].
+
 ### dirent.isBlockDevice()
 <!-- YAML
 added: REPLACEME
