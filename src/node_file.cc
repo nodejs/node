@@ -50,6 +50,7 @@ namespace fs {
 
 using v8::Array;
 using v8::BigUint64Array;
+using v8::BigInt;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Float64Array;
@@ -1042,8 +1043,8 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
   const int fd = args[0].As<Int32>()->Value();
 
-  CHECK(args[1]->IsNumber());
-  const int64_t len = args[1].As<Integer>()->Value();
+  CHECK(args[1]->IsBigInt());
+  const int64_t len = args[1].As<v8::BigInt>()->Uint64Value();
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {
@@ -1428,7 +1429,8 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK_LE(len, buffer_length);
   CHECK_GE(off + len, off);
 
-  const int64_t pos = GET_OFFSET(args[4]);
+  CHECK(args[4]->IsBigInt());
+  const int64_t pos = args[4].As<v8::BigInt>()->Uint64Value();
 
   char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
@@ -1468,7 +1470,8 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsArray());
   Local<Array> chunks = args[1].As<Array>();
 
-  int64_t pos = GET_OFFSET(args[2]);
+  CHECK(args[2]->IsBigInt());
+  int64_t pos = args[2].As<v8::BigInt>()->Uint64Value();
 
   MaybeStackBuffer<uv_buf_t> iovs(chunks->Length());
 
@@ -1511,7 +1514,8 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
   const int fd = args[0].As<Int32>()->Value();
 
-  const int64_t pos = GET_OFFSET(args[2]);
+  CHECK(args[2]->IsBigInt());
+  const int64_t pos = args[2].As<v8::BigInt>()->Uint64Value();
 
   const auto enc = ParseEncoding(env->isolate(), args[3], UTF8);
 
@@ -1624,8 +1628,8 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
   CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
 
-  CHECK(args[4]->IsNumber());
-  const int64_t pos = args[4].As<Integer>()->Value();
+  CHECK(args[4]->IsBigInt());
+  const int64_t pos = args[4].As<v8::BigInt>()->Uint64Value();
 
   char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);

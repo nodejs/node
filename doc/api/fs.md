@@ -1766,7 +1766,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `len` {integer} **Default:** `0`
+* `len` {integer} **Default:** `0n`
 * `callback` {Function}
   * `err` {Error}
 
@@ -1805,7 +1805,7 @@ console.log(fs.readFileSync('temp.txt', 'utf8'));
 const fd = fs.openSync('temp.txt', 'r+');
 
 // truncate the file to 10 bytes, whereas the actual size is 7 bytes
-fs.ftruncate(fd, 10, (err) => {
+fs.ftruncate(fd, 10n, (err) => {
   assert.ifError(err);
   console.log(fs.readFileSync('temp.txt'));
 });
@@ -1821,7 +1821,7 @@ added: v0.8.6
 -->
 
 * `fd` {integer}
-* `len` {integer} **Default:** `0`
+* `len` {integer} **Default:** `0n`
 
 Returns `undefined`.
 
@@ -2904,7 +2904,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `len` {integer} **Default:** `0`
+* `len` {integer} **Default:** `0n`
 * `callback` {Function}
   * `err` {Error}
 
@@ -2921,7 +2921,7 @@ added: v0.8.6
 -->
 
 * `path` {string|Buffer|URL}
-* `len` {integer} **Default:** `0`
+* `len` {integer} **Default:** `0n`
 
 Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
 passed as the first argument. In this case, `fs.ftruncateSync()` is called.
@@ -3277,8 +3277,9 @@ Write `buffer` to the file specified by `fd`.
 an integer specifying the number of bytes to write.
 
 `position` refers to the offset from the beginning of the file where this data
-should be written. If `typeof position !== 'number'`, the data will be written
-at the current position. See pwrite(2).
+should be written. If `typeof position !== 'number'` or
+`typeof position !== 'bigint', the data will be written at the current position.
+See pwrite(2).
 
 The callback will be given three arguments `(err, bytesWritten, buffer)` where
 `bytesWritten` specifies how many _bytes_ were written from `buffer`.
@@ -3323,8 +3324,9 @@ Write `string` to the file specified by `fd`. If `string` is not a string, then
 the value will be coerced to one.
 
 `position` refers to the offset from the beginning of the file where this data
-should be written. If `typeof position !== 'number'` the data will be written at
-the current position. See pwrite(2).
+should be written. If `typeof position !== 'number'` or
+`typeof position !== 'bigint'`, the data will be written at the current
+position. See pwrite(2).
 
 `encoding` is the expected string encoding.
 
@@ -3649,7 +3651,7 @@ success.
 <!-- YAML
 added: v10.0.0
 -->
-* `len` {integer} **Default:** `0`
+* `len` {integer} **Default:** `0n`
 * Returns: {Promise}
 
 Truncates the file then resolves the `Promise` with no arguments upon success.
@@ -3747,8 +3749,9 @@ a reference to the `buffer` written.
 an integer specifying the number of bytes to write.
 
 `position` refers to the offset from the beginning of the file where this data
-should be written. If `typeof position !== 'number'`, the data will be written
-at the current position. See pwrite(2).
+should be written. If `typeof position !== 'number'` or
+`typeof position !== 'bigint'`, the data will be written at the current
+position. See pwrite(2).
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
 without waiting for the `Promise` to be resolved (or rejected). For this
@@ -4196,7 +4199,7 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `len` {integer} **Default:** `0`
+* `len` {integer} **Default:** `0n`
 * Returns: {Promise}
 
 Truncates the `path` then resolves the `Promise` with no arguments upon
