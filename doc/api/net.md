@@ -114,7 +114,7 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 added: v0.1.90
 -->
 
-* Returns: {Object}
+* Returns: {Object|string}
 
 Returns the bound `address`, the address `family` name, and `port` of the server
 as reported by the operating system if listening on an IP socket
