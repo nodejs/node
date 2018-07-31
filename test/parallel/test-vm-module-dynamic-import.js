@@ -5,12 +5,12 @@
 const common = require('../common');
 
 const assert = require('assert');
-const { Module, createContext } = require('vm');
+const { SourceTextModule, createContext } = require('vm');
 
 const finished = common.mustCall();
 
 (async function() {
-  const m = new Module('import("foo")', { context: createContext() });
+  const m = new SourceTextModule('import("foo")', { context: createContext() });
   await m.link(common.mustNotCall());
   m.instantiate();
   const { result } = await m.evaluate();
