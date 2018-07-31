@@ -41,7 +41,6 @@ function assertDirents(dirents) {
     assert.strictEqual(typeof isFile, 'boolean');
     assert.strictEqual(dirent.isUnknown(), !isFile);
     assert.strictEqual(dirent.isDirectory(), false);
-    assert.strictEqual(dirent.isFile(), true);
     assert.strictEqual(dirent.isSocket(), false);
     assert.strictEqual(dirent.isBlockDevice(), false);
     assert.strictEqual(dirent.isCharacterDevice(), false);
