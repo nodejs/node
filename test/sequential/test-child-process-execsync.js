@@ -36,13 +36,11 @@ let caught = false;
 // Verify that stderr is not accessed when a bad shell is used
 assert.throws(
   function() { execSync('exit -1', { shell: 'bad_shell' }); },
-  /spawnSync bad_shell ENOENT/,
-  'execSync did not throw the expected exception!'
+  /spawnSync bad_shell ENOENT/
 );
 assert.throws(
   function() { execFileSync('exit -1', { shell: 'bad_shell' }); },
-  /spawnSync bad_shell ENOENT/,
-  'execFileSync did not throw the expected exception!'
+  /spawnSync bad_shell ENOENT/
 );
 
 let cmd, ret;
@@ -56,7 +54,7 @@ try {
 } finally {
   assert.strictEqual(ret, undefined,
                      `should not have a return value, received ${ret}`);
-  assert.strictEqual(caught, true, 'execSync should throw');
+  assert.ok(caught, 'execSync should throw');
   const end = Date.now() - start;
   assert(end < SLEEP);
   assert(err.status > 128 || err.signal);
