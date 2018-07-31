@@ -170,7 +170,7 @@ console.log(myURL.href);
 Invalid URL characters included in the value assigned to the `hash` property
 are [percent-encoded][]. Note that the selection of which characters to
 percent-encode may vary somewhat from what the [`url.parse()`][] and
-[`url.format()`][] methods would produce.
+[`url.format()`][] methods would produce. Web Browser do not send the hash when making http requests.
 
 #### url.host
 
