@@ -5,7 +5,7 @@ import sys
 script_dir = os.path.dirname(__file__)
 node_root  = os.path.normpath(os.path.join(script_dir, os.pardir))
 
-sys.path.insert(0, os.path.join(node_root, 'tools', 'gyp', 'pylib'))
+sys.path.insert(0, os.path.join(node_root, 'deps', 'npm', 'node_modules', 'node-gyp', 'gyp', 'pylib'))
 import gyp
 
 # Directory within which we want all generated files (including Makefiles)

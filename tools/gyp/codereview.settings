@@ -1,6 +1,0 @@
-# This file is used by git cl to get repository specific information.
-CC_LIST: gyp-developer@googlegroups.com
-CODE_REVIEW_SERVER: codereview.chromium.org
-GERRIT_HOST: True
-PROJECT: gyp
-VIEW_VC: https://chromium.googlesource.com/external/gyp/+/
