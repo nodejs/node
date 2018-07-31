@@ -61,10 +61,6 @@ fs.readdir(readdirDir, {
 for (const method of typeMethods) {
   const dirent = new fs.DirectoryEntry('foo', types[method]);
   for (const testMethod of typeMethods) {
-    if (testMethod === method) {
-      assert.strictEqual(dirent[testMethod](), true);
-    } else {
-      assert.strictEqual(dirent[testMethod](), false);
-    }
+    assert.strictEqual(dirent[testMethod](), testMethod === method);
   }
 }
