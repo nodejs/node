@@ -57,7 +57,7 @@ class TestReqWrap : public node::ReqWrap<uv_req_t> {
   TestReqWrap(node::Environment* env, v8::Local<v8::Object> object)
       : node::ReqWrap<uv_req_t>(env,
                                 object,
-                                node::AsyncWrap::PROVIDER_FSREQWRAP) {}
+                                node::AsyncWrap::PROVIDER_FSREQCALLBACK) {}
 };
 
 TEST_F(DebugSymbolsTest, ContextEmbedderEnvironmentIndex) {

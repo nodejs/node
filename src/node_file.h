@@ -85,10 +85,10 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   DISALLOW_COPY_AND_ASSIGN(FSReqBase);
 };
 
-class FSReqWrap : public FSReqBase {
+class FSReqCallback : public FSReqBase {
  public:
-  FSReqWrap(Environment* env, Local<Object> req, bool use_bigint)
-      : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQWRAP, use_bigint) { }
+  FSReqCallback(Environment* env, Local<Object> req, bool use_bigint)
+      : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQCALLBACK, use_bigint) { }
 
   void Reject(Local<Value> reject) override;
   void Resolve(Local<Value> value) override;
@@ -99,10 +99,10 @@ class FSReqWrap : public FSReqBase {
     tracker->TrackThis(this);
   }
 
-  ADD_MEMORY_INFO_NAME(FSReqWrap)
+  ADD_MEMORY_INFO_NAME(FSReqCallback)
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
+  DISALLOW_COPY_AND_ASSIGN(FSReqCallback);
 };
 
 template <typename NativeT = double, typename V8T = v8::Float64Array>
