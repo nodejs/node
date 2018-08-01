@@ -758,7 +758,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
   CHECK(!recv.IsEmpty());
   InternalCallbackScope scope(env, recv, asyncContext);
   if (scope.Failed()) {
-    return Undefined(env->isolate());
+    return MaybeLocal<Value>();
   }
 
   Local<Function> domain_cb = env->domain_callback();
@@ -773,15 +773,13 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
   }
 
   if (ret.IsEmpty()) {
-    // NOTE: For backwards compatibility with public API we return Undefined()
-    // if the top level call threw.
     scope.MarkAsFailed();
-    return scope.IsInnerMakeCallback() ? ret : Undefined(env->isolate());
+    return MaybeLocal<Value>();
   }
 
   scope.Close();
   if (scope.Failed()) {
-    return Undefined(env->isolate());
+    return MaybeLocal<Value>();
   }
 
   return ret;
@@ -833,8 +831,14 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   // the two contexts need not be the same.
   Environment* env = Environment::GetCurrent(callback->CreationContext());
   Context::Scope context_scope(env->context());
-  return InternalMakeCallback(env, recv, callback,
-                              argc, argv, asyncContext);
+  MaybeLocal<Value> ret = InternalMakeCallback(env, recv, callback,
+                                               argc, argv, asyncContext);
+  if (ret.IsEmpty() && env->makecallback_depth() == 0) {
+    // This is only for legacy compatiblity and we may want to look into
+    // removing/adjusting it.
+    return Undefined(env->isolate());
+  }
+  return ret;
 }
 
 
