@@ -543,9 +543,6 @@ class InternalCallbackScope {
 
   inline bool Failed() const { return failed_; }
   inline void MarkAsFailed() { failed_ = true; }
-  inline bool IsInnerMakeCallback() const {
-    return callback_scope_.in_makecallback();
-  }
 
  private:
   Environment* env_;

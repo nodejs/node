@@ -218,8 +218,8 @@ inline Environment::AsyncCallbackScope::~AsyncCallbackScope() {
   env_->makecallback_cntr_--;
 }
 
-inline bool Environment::AsyncCallbackScope::in_makecallback() const {
-  return env_->makecallback_cntr_ > 1;
+inline size_t Environment::makecallback_depth() const {
+  return makecallback_cntr_;
 }
 
 inline Environment::ImmediateInfo::ImmediateInfo(v8::Isolate* isolate)

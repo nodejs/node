@@ -503,13 +503,14 @@ class Environment {
     AsyncCallbackScope() = delete;
     explicit AsyncCallbackScope(Environment* env);
     ~AsyncCallbackScope();
-    inline bool in_makecallback() const;
 
    private:
     Environment* env_;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncCallbackScope);
   };
+
+  inline size_t makecallback_depth() const;
 
   class ImmediateInfo {
    public:
