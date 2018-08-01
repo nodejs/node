@@ -46,9 +46,7 @@ class InspectorTraceWriter : public node::tracing::AsyncTraceWriter {
 }  // namespace
 
 TracingAgent::TracingAgent(Environment* env)
-                           : env_(env),
-                             trace_writer_(
-                                  tracing::Agent::EmptyClientHandle()) {
+                           : env_(env) {
 }
 
 TracingAgent::~TracingAgent() {
@@ -62,7 +60,7 @@ void TracingAgent::Wire(UberDispatcher* dispatcher) {
 
 DispatchResponse TracingAgent::start(
     std::unique_ptr<protocol::NodeTracing::TraceConfig> traceConfig) {
-  if (trace_writer_ != nullptr) {
+  if (!trace_writer_.empty()) {
     return DispatchResponse::Error(
         "Call NodeTracing::end to stop tracing before updating the config");
   }
@@ -76,10 +74,11 @@ DispatchResponse TracingAgent::start(
   if (categories_set.empty())
     return DispatchResponse::Error("At least one category should be enabled");
 
-  trace_writer_ = env_->tracing_agent()->AddClient(
+  trace_writer_ = env_->tracing_agent_writer()->agent()->AddClient(
       categories_set,
       std::unique_ptr<InspectorTraceWriter>(
-          new InspectorTraceWriter(frontend_.get())));
+          new InspectorTraceWriter(frontend_.get())),
+      tracing::Agent::kIgnoreDefaultCategories);
   return DispatchResponse::OK();
 }
 

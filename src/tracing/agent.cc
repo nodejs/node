@@ -1,23 +1,26 @@
 #include "tracing/agent.h"
 
-#include <sstream>
 #include <string>
 #include "tracing/node_trace_buffer.h"
-#include "tracing/node_trace_writer.h"
+#include "debug_utils.h"
+#include "env-inl.h"
 
 namespace node {
 namespace tracing {
 
-namespace {
-
-class ScopedSuspendTracing {
+class Agent::ScopedSuspendTracing {
  public:
-  ScopedSuspendTracing(TracingController* controller, Agent* agent)
-                       : controller_(controller), agent_(agent) {
-    controller->StopTracing();
+  ScopedSuspendTracing(TracingController* controller, Agent* agent,
+                       bool do_suspend = true)
+    : controller_(controller), agent_(do_suspend ? agent : nullptr) {
+    if (do_suspend) {
+      CHECK(agent_->started_);
+      controller->StopTracing();
+    }
   }
 
   ~ScopedSuspendTracing() {
+    if (agent_ == nullptr) return;
     TraceConfig* config = agent_->CreateTraceConfig();
     if (config != nullptr) {
       controller_->StartTracing(config);
@@ -29,8 +32,10 @@ class ScopedSuspendTracing {
   Agent* agent_;
 };
 
+namespace {
+
 std::set<std::string> flatten(
-    const std::unordered_map<int, std::set<std::string>>& map) {
+    const std::unordered_map<int, std::multiset<std::string>>& map) {
   std::set<std::string> result;
   for (const auto& id_value : map)
     result.insert(id_value.second.begin(), id_value.second.end());
@@ -43,17 +48,44 @@ using v8::platform::tracing::TraceConfig;
 using v8::platform::tracing::TraceWriter;
 using std::string;
 
-Agent::Agent(const std::string& log_file_pattern)
-    : log_file_pattern_(log_file_pattern), file_writer_(EmptyClientHandle()) {
+Agent::Agent() {
   tracing_controller_ = new TracingController();
   tracing_controller_->Initialize(nullptr);
+
+  CHECK_EQ(uv_loop_init(&tracing_loop_), 0);
+  CHECK_EQ(uv_async_init(&tracing_loop_,
+                         &initialize_writer_async_,
+                         [](uv_async_t* async) {
+    Agent* agent = ContainerOf(&Agent::initialize_writer_async_, async);
+    agent->InitializeWritersOnThread();
+  }), 0);
+  uv_unref(reinterpret_cast<uv_handle_t*>(&initialize_writer_async_));
+}
+
+void Agent::InitializeWritersOnThread() {
+  Mutex::ScopedLock lock(initialize_writer_mutex_);
+  while (!to_be_initialized_.empty()) {
+    AsyncTraceWriter* head = *to_be_initialized_.begin();
+    head->InitializeOnThread(&tracing_loop_);
+    to_be_initialized_.erase(head);
+  }
+  initialize_writer_condvar_.Broadcast(lock);
+}
+
+Agent::~Agent() {
+  categories_.clear();
+  writers_.clear();
+
+  StopTracing();
+
+  uv_close(reinterpret_cast<uv_handle_t*>(&initialize_writer_async_), nullptr);
+  uv_run(&tracing_loop_, UV_RUN_ONCE);
+  CheckedUvLoopClose(&tracing_loop_);
 }
 
 void Agent::Start() {
   if (started_)
     return;
-
-  CHECK_EQ(uv_loop_init(&tracing_loop_), 0);
 
   NodeTraceBuffer* trace_buffer_ = new NodeTraceBuffer(
       NodeTraceBuffer::kBufferChunks, this, &tracing_loop_);
@@ -62,24 +94,48 @@ void Agent::Start() {
   // This thread should be created *after* async handles are created
   // (within NodeTraceWriter and NodeTraceBuffer constructors).
   // Otherwise the thread could shut down prematurely.
-  CHECK_EQ(0, uv_thread_create(&thread_, ThreadCb, this));
+  CHECK_EQ(0, uv_thread_create(&thread_, [](void* arg) {
+    Agent* agent = static_cast<Agent*>(arg);
+    uv_run(&agent->tracing_loop_, UV_RUN_DEFAULT);
+  }, this));
   started_ = true;
 }
 
-Agent::ClientHandle Agent::AddClient(const std::set<std::string>& categories,
-                                     std::unique_ptr<AsyncTraceWriter> writer) {
+AgentWriterHandle Agent::AddClient(
+    const std::set<std::string>& categories,
+    std::unique_ptr<AsyncTraceWriter> writer,
+    enum UseDefaultCategoryMode mode) {
   Start();
+
+  const std::set<std::string>* use_categories = &categories;
+
+  std::set<std::string> categories_with_default;
+  if (mode == kUseDefaultCategories) {
+    categories_with_default.insert(categories.begin(), categories.end());
+    categories_with_default.insert(categories_[kDefaultHandleId].begin(),
+                                   categories_[kDefaultHandleId].end());
+    use_categories = &categories_with_default;
+  }
+
   ScopedSuspendTracing suspend(tracing_controller_, this);
   int id = next_writer_id_++;
+  AsyncTraceWriter* raw = writer.get();
   writers_[id] = std::move(writer);
-  categories_[id] = categories;
+  categories_[id] = { use_categories->begin(), use_categories->end() };
 
-  auto client_id = new std::pair<Agent*, int>(this, id);
-  return ClientHandle(client_id, &DisconnectClient);
+  {
+    Mutex::ScopedLock lock(initialize_writer_mutex_);
+    to_be_initialized_.insert(raw);
+    uv_async_send(&initialize_writer_async_);
+    while (to_be_initialized_.count(raw) > 0)
+      initialize_writer_condvar_.Wait(lock);
+  }
+
+  return AgentWriterHandle(this, id);
 }
 
-void Agent::Stop() {
-  file_writer_.reset();
+AgentWriterHandle Agent::DefaultHandle() {
+  return AgentWriterHandle(this, kDefaultHandleId);
 }
 
 void Agent::StopTracing() {
@@ -96,66 +152,37 @@ void Agent::StopTracing() {
 }
 
 void Agent::Disconnect(int client) {
+  if (client == kDefaultHandleId) return;
+  {
+    Mutex::ScopedLock lock(initialize_writer_mutex_);
+    to_be_initialized_.erase(writers_[client].get());
+  }
   ScopedSuspendTracing suspend(tracing_controller_, this);
   writers_.erase(client);
   categories_.erase(client);
 }
 
-// static
-void Agent::ThreadCb(void* arg) {
-  Agent* agent = static_cast<Agent*>(arg);
-  uv_run(&agent->tracing_loop_, UV_RUN_DEFAULT);
-}
-
-void Agent::Enable(const std::string& categories) {
-  if (categories.empty())
-    return;
-  std::set<std::string> categories_set;
-  std::stringstream category_list(categories);
-  while (category_list.good()) {
-    std::string category;
-    getline(category_list, category, ',');
-    categories_set.insert(category);
-  }
-  Enable(categories_set);
-}
-
-void Agent::Enable(const std::set<std::string>& categories) {
-  std::string cats;
-  for (const std::string cat : categories)
-    cats += cat + ", ";
+void Agent::Enable(int id, const std::set<std::string>& categories) {
   if (categories.empty())
     return;
 
-  file_writer_categories_.insert(categories.begin(), categories.end());
-  std::set<std::string> full_list(file_writer_categories_.begin(),
-                                  file_writer_categories_.end());
-  if (!file_writer_) {
-    // Ensure background thread is running
-    Start();
-    std::unique_ptr<NodeTraceWriter> writer(
-        new NodeTraceWriter(log_file_pattern_, &tracing_loop_));
-    file_writer_ = AddClient(full_list, std::move(writer));
-  } else {
-    ScopedSuspendTracing suspend(tracing_controller_, this);
-    categories_[file_writer_->second] = full_list;
+  ScopedSuspendTracing suspend(tracing_controller_, this,
+                               id != kDefaultHandleId);
+  categories_[id].insert(categories.begin(), categories.end());
+}
+
+void Agent::Disable(int id, const std::set<std::string>& categories) {
+  ScopedSuspendTracing suspend(tracing_controller_, this,
+                               id != kDefaultHandleId);
+  std::multiset<std::string>& writer_categories = categories_[id];
+  for (const std::string& category : categories) {
+    auto it = writer_categories.find(category);
+    if (it != writer_categories.end())
+      writer_categories.erase(it);
   }
 }
 
-void Agent::Disable(const std::set<std::string>& categories) {
-  for (auto category : categories) {
-    auto it = file_writer_categories_.find(category);
-    if (it != file_writer_categories_.end())
-      file_writer_categories_.erase(it);
-  }
-  if (!file_writer_)
-    return;
-  ScopedSuspendTracing suspend(tracing_controller_, this);
-  categories_[file_writer_->second] = { file_writer_categories_.begin(),
-                                        file_writer_categories_.end() };
-}
-
-TraceConfig* Agent::CreateTraceConfig() {
+TraceConfig* Agent::CreateTraceConfig() const {
   if (categories_.empty())
     return nullptr;
   TraceConfig* trace_config = new TraceConfig();
@@ -165,9 +192,9 @@ TraceConfig* Agent::CreateTraceConfig() {
   return trace_config;
 }
 
-std::string Agent::GetEnabledCategories() {
+std::string Agent::GetEnabledCategories() const {
   std::string categories;
-  for (const auto& category : flatten(categories_)) {
+  for (const std::string& category : flatten(categories_)) {
     if (!categories.empty())
       categories += ',';
     categories += category;
@@ -184,5 +211,6 @@ void Agent::Flush(bool blocking) {
   for (const auto& id_writer : writers_)
     id_writer.second->Flush(blocking);
 }
+
 }  // namespace tracing
 }  // namespace node

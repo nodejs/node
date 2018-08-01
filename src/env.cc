@@ -105,10 +105,10 @@ void InitThreadLocalOnce() {
 
 Environment::Environment(IsolateData* isolate_data,
                          Local<Context> context,
-                         tracing::Agent* tracing_agent)
+                         tracing::AgentWriterHandle* tracing_agent_writer)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
-      tracing_agent_(tracing_agent),
+      tracing_agent_writer_(tracing_agent_writer),
       immediate_info_(context->GetIsolate()),
       tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),

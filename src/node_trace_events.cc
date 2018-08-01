@@ -25,7 +25,7 @@ class NodeCategorySet : public BaseObject {
   static void Enable(const FunctionCallbackInfo<Value>& args);
   static void Disable(const FunctionCallbackInfo<Value>& args);
 
-  const std::set<std::string>& GetCategories() { return categories_; }
+  const std::set<std::string>& GetCategories() const { return categories_; }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackThis(this);
@@ -37,8 +37,8 @@ class NodeCategorySet : public BaseObject {
  private:
   NodeCategorySet(Environment* env,
                   Local<Object> wrap,
-                  std::set<std::string> categories) :
-        BaseObject(env, wrap), categories_(categories) {
+                  std::set<std::string>&& categories) :
+        BaseObject(env, wrap), categories_(std::move(categories)) {
     MakeWeak();
   }
 
@@ -52,12 +52,14 @@ void NodeCategorySet::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArray());
   Local<Array> cats = args[0].As<Array>();
   for (size_t n = 0; n < cats->Length(); n++) {
-    Local<Value> category = cats->Get(env->context(), n).ToLocalChecked();
+    Local<Value> category;
+    if (!cats->Get(env->context(), n).ToLocal(&category)) return;
     Utf8Value val(env->isolate(), category);
+    if (!*val) return;
     categories.emplace(*val);
   }
-  CHECK_NOT_NULL(env->tracing_agent());
-  new NodeCategorySet(env, args.This(), categories);
+  CHECK_NOT_NULL(env->tracing_agent_writer());
+  new NodeCategorySet(env, args.This(), std::move(categories));
 }
 
 void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
@@ -67,7 +69,7 @@ void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(category_set);
   const auto& categories = category_set->GetCategories();
   if (!category_set->enabled_ && !categories.empty()) {
-    env->tracing_agent()->Enable(categories);
+    env->tracing_agent_writer()->Enable(categories);
     category_set->enabled_ = true;
   }
 }
@@ -79,25 +81,28 @@ void NodeCategorySet::Disable(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(category_set);
   const auto& categories = category_set->GetCategories();
   if (category_set->enabled_ && !categories.empty()) {
-    env->tracing_agent()->Disable(categories);
+    env->tracing_agent_writer()->Disable(categories);
     category_set->enabled_ = false;
   }
 }
 
 void GetEnabledCategories(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  std::string categories = env->tracing_agent()->GetEnabledCategories();
+  std::string categories =
+      env->tracing_agent_writer()->agent()->GetEnabledCategories();
   if (!categories.empty()) {
     args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           categories.c_str(),
-                          v8::NewStringType::kNormal).ToLocalChecked());
+                          v8::NewStringType::kNormal,
+                          categories.size()).ToLocalChecked());
   }
 }
 
 // The tracing APIs require category groups to be pointers to long-lived
 // strings. Those strings are stored here.
-static std::unordered_set<std::string> categoryGroups;
+static std::unordered_set<std::string> category_groups;
+static Mutex category_groups_mutex;
 
 // Gets a pointer to the category-enabled flags for a tracing category group,
 // if tracing is enabled for it.
@@ -107,14 +112,15 @@ static const uint8_t* GetCategoryGroupEnabled(const char* category_group) {
 }
 
 static const char* GetCategoryGroup(Environment* env,
-                                    const Local<Value> categoryValue) {
-  CHECK(categoryValue->IsString());
+                                    const Local<Value> category_value) {
+  CHECK(category_value->IsString());
 
-  Utf8Value category(env->isolate(), categoryValue);
+  Utf8Value category(env->isolate(), category_value);
+  Mutex::ScopedLock lock(category_groups_mutex);
   // If the value already exists in the set, insertion.first will point
   // to the existing value. Thus, this will maintain a long lived pointer
   // to the category c-string.
-  auto insertion = categoryGroups.insert(category.out());
+  auto insertion = category_groups.insert(category.out());
 
   // The returned insertion is a pair whose first item is the object that was
   // inserted or that blocked the insertion and second item is a boolean
@@ -133,7 +139,7 @@ static void Emit(const FunctionCallbackInfo<Value>& args) {
   // enabled.
   const char* category_group = GetCategoryGroup(env, args[1]);
   const uint8_t* category_group_enabled =
-    GetCategoryGroupEnabled(category_group);
+      GetCategoryGroupEnabled(category_group);
   if (*category_group_enabled == 0) return;
 
   // get trace_event phase
@@ -142,8 +148,8 @@ static void Emit(const FunctionCallbackInfo<Value>& args) {
 
   // get trace_event name
   CHECK(args[2]->IsString());
-  Utf8Value nameValue(env->isolate(), args[2]);
-  const char* name = nameValue.out();
+  Utf8Value name_value(env->isolate(), args[2]);
+  const char* name = name_value.out();
 
   // get trace_event id
   int64_t id = 0;
@@ -212,7 +218,7 @@ static void CategoryGroupEnabled(const FunctionCallbackInfo<Value>& args) {
 
   const char* category_group = GetCategoryGroup(env, args[0]);
   const uint8_t* category_group_enabled =
-    GetCategoryGroupEnabled(category_group);
+      GetCategoryGroupEnabled(category_group);
   args.GetReturnValue().Set(*category_group_enabled > 0);
 }
 

@@ -3,16 +3,25 @@
 #include <string.h>
 #include <fcntl.h>
 
-#include "util.h"
+#include "util-inl.h"
 
 namespace node {
 namespace tracing {
 
-NodeTraceWriter::NodeTraceWriter(const std::string& log_file_pattern,
-                                 uv_loop_t* tracing_loop)
-    : tracing_loop_(tracing_loop), log_file_pattern_(log_file_pattern) {
+NodeTraceWriter::NodeTraceWriter(const std::string& log_file_pattern)
+    : log_file_pattern_(log_file_pattern) {}
+
+void NodeTraceWriter::InitializeOnThread(uv_loop_t* loop) {
+  CHECK_NULL(tracing_loop_);
+  tracing_loop_ = loop;
+
   flush_signal_.data = this;
-  int err = uv_async_init(tracing_loop_, &flush_signal_, FlushSignalCb);
+  int err = uv_async_init(tracing_loop_, &flush_signal_,
+                          [](uv_async_t* signal) {
+    NodeTraceWriter* trace_writer =
+        ContainerOf(&NodeTraceWriter::flush_signal_, signal);
+    trace_writer->FlushPrivate();
+  });
   CHECK_EQ(err, 0);
 
   exit_signal_.data = this;
@@ -28,9 +37,7 @@ void NodeTraceWriter::WriteSuffix() {
   {
     Mutex::ScopedLock scoped_lock(stream_mutex_);
     if (total_traces_ > 0) {
-      total_traces_ = 0;  // so we don't write it again in FlushPrivate
-      // Appends "]}" to stream_.
-      delete json_trace_writer_;
+      total_traces_ = kTracesPerFile;  // Act as if we reached the file limit.
       should_flush = true;
     }
   }
@@ -44,7 +51,7 @@ NodeTraceWriter::~NodeTraceWriter() {
   uv_fs_t req;
   int err;
   if (fd_ != -1) {
-    err = uv_fs_close(tracing_loop_, &req, fd_, nullptr);
+    err = uv_fs_close(nullptr, &req, fd_, nullptr);
     CHECK_EQ(err, 0);
     uv_fs_req_cleanup(&req);
   }
@@ -75,10 +82,20 @@ void NodeTraceWriter::OpenNewFileForStreaming() {
   replace_substring(&filepath, "${pid}", std::to_string(uv_os_getpid()));
   replace_substring(&filepath, "${rotation}", std::to_string(file_num_));
 
-  fd_ = uv_fs_open(tracing_loop_, &req, filepath.c_str(),
+  if (fd_ != -1) {
+    CHECK_EQ(uv_fs_close(nullptr, &req, fd_, nullptr), 0);
+    uv_fs_req_cleanup(&req);
+  }
+
+  fd_ = uv_fs_open(nullptr, &req, filepath.c_str(),
       O_CREAT | O_WRONLY | O_TRUNC, 0644, nullptr);
-  CHECK_NE(fd_, -1);
   uv_fs_req_cleanup(&req);
+  if (fd_ < 0) {
+    fprintf(stderr, "Could not open trace file %s: %s\n",
+                    filepath.c_str(),
+                    uv_strerror(fd_));
+    fd_ = -1;
+  }
 }
 
 void NodeTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
@@ -92,7 +109,7 @@ void NodeTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
     // to a state where we can start writing trace events to it.
     // Repeatedly constructing and destroying json_trace_writer_ allows
     // us to use V8's JSON writer instead of implementing our own.
-    json_trace_writer_ = TraceWriter::CreateJSONTraceWriter(stream_);
+    json_trace_writer_.reset(TraceWriter::CreateJSONTraceWriter(stream_));
   }
   ++total_traces_;
   json_trace_writer_->AppendTraceEvent(trace_event);
@@ -107,7 +124,7 @@ void NodeTraceWriter::FlushPrivate() {
       total_traces_ = 0;
       // Destroying the member JSONTraceWriter object appends "]}" to
       // stream_ - in other words, ending a JSON file.
-      delete json_trace_writer_;
+      json_trace_writer_.reset();
     }
     // str() makes a copy of the contents of the stream.
     str = stream_.str();
@@ -119,11 +136,6 @@ void NodeTraceWriter::FlushPrivate() {
     highest_request_id = num_write_requests_;
   }
   WriteToFile(std::move(str), highest_request_id);
-}
-
-void NodeTraceWriter::FlushSignalCb(uv_async_t* signal) {
-  NodeTraceWriter* trace_writer = static_cast<NodeTraceWriter*>(signal->data);
-  trace_writer->FlushPrivate();
 }
 
 void NodeTraceWriter::Flush(bool blocking) {
@@ -145,49 +157,71 @@ void NodeTraceWriter::Flush(bool blocking) {
 }
 
 void NodeTraceWriter::WriteToFile(std::string&& str, int highest_request_id) {
-  WriteRequest* write_req = new WriteRequest();
-  write_req->str = std::move(str);
-  write_req->writer = this;
-  write_req->highest_request_id = highest_request_id;
-  uv_buf_t uv_buf = uv_buf_init(const_cast<char*>(write_req->str.c_str()),
-      write_req->str.length());
-  request_mutex_.Lock();
-  // Manage a queue of WriteRequest objects because the behavior of uv_write is
-  // undefined if the same WriteRequest object is used more than once
-  // between WriteCb calls. In addition, this allows us to keep track of the id
-  // of the latest write request that actually been completed.
-  write_req_queue_.push(write_req);
-  request_mutex_.Unlock();
-  int err = uv_fs_write(tracing_loop_, reinterpret_cast<uv_fs_t*>(write_req),
-      fd_, &uv_buf, 1, -1, WriteCb);
+  if (fd_ == -1) return;
+
+  uv_buf_t buf = uv_buf_init(nullptr, 0);
+  {
+    Mutex::ScopedLock lock(request_mutex_);
+    write_req_queue_.emplace(WriteRequest {
+      std::move(str), highest_request_id
+    });
+    if (write_req_queue_.size() == 1) {
+      buf = uv_buf_init(
+          const_cast<char*>(write_req_queue_.front().str.c_str()),
+          write_req_queue_.front().str.length());
+    }
+  }
+  // Only one write request for the same file descriptor should be active at
+  // a time.
+  if (buf.base != nullptr && fd_ != -1) {
+    StartWrite(buf);
+  }
+}
+
+void NodeTraceWriter::StartWrite(uv_buf_t buf) {
+  int err = uv_fs_write(
+      tracing_loop_, &write_req_, fd_, &buf, 1, -1,
+      [](uv_fs_t* req) {
+        NodeTraceWriter* writer =
+            ContainerOf(&NodeTraceWriter::write_req_, req);
+        writer->AfterWrite();
+      });
   CHECK_EQ(err, 0);
 }
 
-void NodeTraceWriter::WriteCb(uv_fs_t* req) {
-  WriteRequest* write_req = reinterpret_cast<WriteRequest*>(req);
-  CHECK_GE(write_req->req.result, 0);
+void NodeTraceWriter::AfterWrite() {
+  CHECK_GE(write_req_.result, 0);
+  uv_fs_req_cleanup(&write_req_);
 
-  NodeTraceWriter* writer = write_req->writer;
-  int highest_request_id = write_req->highest_request_id;
+  uv_buf_t buf = uv_buf_init(nullptr, 0);
   {
-    Mutex::ScopedLock scoped_lock(writer->request_mutex_);
-    CHECK_EQ(write_req, writer->write_req_queue_.front());
-    writer->write_req_queue_.pop();
-    writer->highest_request_id_completed_ = highest_request_id;
-    writer->request_cond_.Broadcast(scoped_lock);
+    Mutex::ScopedLock scoped_lock(request_mutex_);
+    int highest_request_id = write_req_queue_.front().highest_request_id;
+    write_req_queue_.pop();
+    highest_request_id_completed_ = highest_request_id;
+    request_cond_.Broadcast(scoped_lock);
+    if (!write_req_queue_.empty()) {
+      buf = uv_buf_init(
+          const_cast<char*>(write_req_queue_.front().str.c_str()),
+          write_req_queue_.front().str.length());
+    }
   }
-  delete write_req;
+  if (buf.base != nullptr && fd_ != -1) {
+    StartWrite(buf);
+  }
 }
 
 // static
 void NodeTraceWriter::ExitSignalCb(uv_async_t* signal) {
-  NodeTraceWriter* trace_writer = static_cast<NodeTraceWriter*>(signal->data);
+  NodeTraceWriter* trace_writer =
+      ContainerOf(&NodeTraceWriter::exit_signal_, signal);
   uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->flush_signal_),
            nullptr);
   uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->exit_signal_),
            [](uv_handle_t* signal) {
       NodeTraceWriter* trace_writer =
-          static_cast<NodeTraceWriter*>(signal->data);
+          ContainerOf(&NodeTraceWriter::exit_signal_,
+                      reinterpret_cast<uv_async_t*>(signal));
       Mutex::ScopedLock scoped_lock(trace_writer->request_mutex_);
       trace_writer->exited_ = true;
       trace_writer->exit_cond_.Signal(scoped_lock);

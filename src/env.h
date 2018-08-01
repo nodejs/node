@@ -35,7 +35,6 @@
 #include "v8.h"
 #include "node.h"
 #include "node_http2_state.h"
-#include "tracing/agent.h"
 
 #include <list>
 #include <stdint.h>
@@ -53,6 +52,10 @@ class FileHandleReadWrap;
 
 namespace performance {
 class performance_state;
+}
+
+namespace tracing {
+class AgentWriterHandle;
 }
 
 namespace worker {
@@ -584,7 +587,7 @@ class Environment {
 
   Environment(IsolateData* isolate_data,
               v8::Local<v8::Context> context,
-              tracing::Agent* tracing_agent);
+              tracing::AgentWriterHandle* tracing_agent_writer);
   ~Environment();
 
   void Start(int argc,
@@ -622,7 +625,7 @@ class Environment {
   inline bool profiler_idle_notifier_started() const;
 
   inline v8::Isolate* isolate() const;
-  inline tracing::Agent* tracing_agent() const;
+  inline tracing::AgentWriterHandle* tracing_agent_writer() const;
   inline uv_loop_t* event_loop() const;
   inline uint32_t watched_providers() const;
 
@@ -876,7 +879,7 @@ class Environment {
 
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
-  tracing::Agent* const tracing_agent_;
+  tracing::AgentWriterHandle* const tracing_agent_writer_;
   uv_timer_t timer_handle_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
