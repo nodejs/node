@@ -1,6 +1,6 @@
 #include <node.h>
-#include <v8.h>
 #include <uv.h>
+#include <v8.h>
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -37,7 +37,7 @@ void LeakHandle(const FunctionCallbackInfo<Value>& args) {
   }
 
   uv_timer_init(loop, leaked_timer);
-  uv_timer_start(leaked_timer, [](uv_timer_t*){}, 1000, 1000);
+  uv_timer_start(leaked_timer, [](uv_timer_t*) {}, 1000, 1000);
   uv_unref(reinterpret_cast<uv_handle_t*>(leaked_timer));
 }
 

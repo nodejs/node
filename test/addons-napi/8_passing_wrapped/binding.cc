@@ -1,5 +1,5 @@
-#include "myobject.h"
 #include "../common.h"
+#include "myobject.h"
 
 extern size_t finalize_count;
 
@@ -41,12 +41,13 @@ static napi_value Init(napi_env env, napi_value exports) {
   MyObject::Init(env);
 
   napi_property_descriptor desc[] = {
-    DECLARE_NAPI_PROPERTY("createObject", CreateObject),
-    DECLARE_NAPI_PROPERTY("add", Add),
-    DECLARE_NAPI_PROPERTY("finalizeCount", FinalizeCount),
+      DECLARE_NAPI_PROPERTY("createObject", CreateObject),
+      DECLARE_NAPI_PROPERTY("add", Add),
+      DECLARE_NAPI_PROPERTY("finalizeCount", FinalizeCount),
   };
 
-  NAPI_CALL(env,
+  NAPI_CALL(
+      env,
       napi_define_properties(env, exports, sizeof(desc) / sizeof(*desc), desc));
 
   return exports;

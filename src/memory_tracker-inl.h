@@ -12,12 +12,11 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
   explicit inline MemoryRetainerNode(MemoryTracker* tracker,
                                      const MemoryRetainer* retainer,
                                      const char* name)
-     : retainer_(retainer) {
+      : retainer_(retainer) {
     if (retainer_ != nullptr) {
       v8::HandleScope handle_scope(tracker->isolate());
       v8::Local<v8::Object> obj = retainer_->WrappedObject();
-      if (!obj.IsEmpty())
-        wrapper_node_ = tracker->graph()->V8Node(obj);
+      if (!obj.IsEmpty()) wrapper_node_ = tracker->graph()->V8Node(obj);
 
       name_ = retainer_->MemoryInfoName();
     }
@@ -53,8 +52,7 @@ void MemoryTracker::TrackThis(const T* obj) {
 }
 
 void MemoryTracker::TrackFieldWithSize(const char* name, size_t size) {
-  if (size > 0)
-    AddNode(name)->size_ = size;
+  if (size > 0) AddNode(name)->size_ = size;
 }
 
 void MemoryTracker::TrackField(const char* name, const MemoryRetainer& value) {
@@ -128,8 +126,7 @@ void MemoryTracker::TrackField(const char* name,
 
 template <typename T>
 void MemoryTracker::TrackField(const char* name, const v8::Local<T>& value) {
-  if (!value.IsEmpty())
-    graph_->AddEdge(CurrentNode(), graph_->V8Node(value));
+  if (!value.IsEmpty()) graph_->AddEdge(CurrentNode(), graph_->V8Node(value));
 }
 
 template <typename T>
@@ -144,7 +141,7 @@ void MemoryTracker::TrackField(const char* name, const uv_buf_t& value) {
 
 template <class NativeT, class V8T>
 void MemoryTracker::TrackField(const char* name,
-                       const AliasedBuffer<NativeT, V8T>& value) {
+                               const AliasedBuffer<NativeT, V8T>& value) {
   TrackField(name, value.GetJSArray());
 }
 
@@ -162,15 +159,13 @@ MemoryRetainerNode* MemoryTracker::CurrentNode() const {
   return node_stack_.top();
 }
 
-MemoryRetainerNode* MemoryTracker::AddNode(
-    const char* name, const MemoryRetainer* retainer) {
+MemoryRetainerNode* MemoryTracker::AddNode(const char* name,
+                                           const MemoryRetainer* retainer) {
   MemoryRetainerNode* n = new MemoryRetainerNode(this, retainer, name);
   graph_->AddNode(std::unique_ptr<v8::EmbedderGraph::Node>(n));
-  if (retainer != nullptr)
-    seen_[retainer] = n;
+  if (retainer != nullptr) seen_[retainer] = n;
 
-  if (CurrentNode() != nullptr)
-    graph_->AddEdge(CurrentNode(), n);
+  if (CurrentNode() != nullptr) graph_->AddEdge(CurrentNode(), n);
 
   if (n->JSWrapperNode() != nullptr) {
     graph_->AddEdge(n, n->JSWrapperNode());
@@ -180,8 +175,8 @@ MemoryRetainerNode* MemoryTracker::AddNode(
   return n;
 }
 
-MemoryRetainerNode* MemoryTracker::PushNode(
-    const char* name, const MemoryRetainer* retainer) {
+MemoryRetainerNode* MemoryTracker::PushNode(const char* name,
+                                            const MemoryRetainer* retainer) {
   MemoryRetainerNode* n = AddNode(name, retainer);
   node_stack_.push(n);
   return n;

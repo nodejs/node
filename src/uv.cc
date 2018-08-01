@@ -20,9 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "uv.h"
+#include "env-inl.h"
 #include "node.h"
 #include "node_internals.h"
-#include "env-inl.h"
 
 namespace node {
 namespace {
@@ -38,7 +38,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-
 // TODO(joyeecheung): deprecate this function in favor of
 // lib/util.getSystemErrorName()
 void ErrName(const FunctionCallbackInfo<Value>& args) {
@@ -48,7 +47,6 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
   const char* name = uv_err_name(err);
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
 }
-
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -64,19 +62,19 @@ void Initialize(Local<Object> target,
 
   Local<Map> err_map = Map::New(isolate);
 
-#define V(name, msg) do {                                                     \
-  Local<Array> arr = Array::New(isolate, 2);                                  \
-  arr->Set(0, OneByteString(isolate, #name));                                 \
-  arr->Set(1, OneByteString(isolate, msg));                                   \
-  err_map->Set(context,                                                       \
-               Integer::New(isolate, UV_##name),                              \
-               arr).ToLocalChecked();                                         \
-} while (0);
+#define V(name, msg)                                                           \
+  do {                                                                         \
+    Local<Array> arr = Array::New(isolate, 2);                                 \
+    arr->Set(0, OneByteString(isolate, #name));                                \
+    arr->Set(1, OneByteString(isolate, msg));                                  \
+    err_map->Set(context, Integer::New(isolate, UV_##name), arr)               \
+        .ToLocalChecked();                                                     \
+  } while (0);
   UV_ERRNO_MAP(V)
 #undef V
 
-  target->Set(context, FIXED_ONE_BYTE_STRING(isolate, "errmap"),
-              err_map).FromJust();
+  target->Set(context, FIXED_ONE_BYTE_STRING(isolate, "errmap"), err_map)
+      .FromJust();
 }
 
 }  // anonymous namespace

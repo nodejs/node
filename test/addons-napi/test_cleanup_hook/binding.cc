@@ -1,6 +1,6 @@
+#include "../common.h"
 #include "node_api.h"
 #include "uv.h"
-#include "../common.h"
 
 namespace {
 

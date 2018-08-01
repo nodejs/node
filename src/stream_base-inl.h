@@ -5,13 +5,12 @@
 
 #include "stream_base.h"
 
-#include "node.h"
 #include "env-inl.h"
+#include "node.h"
 #include "v8.h"
 
 namespace node {
 
-using v8::Signature;
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -20,6 +19,7 @@ using v8::Local;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
+using v8::Signature;
 using v8::String;
 using v8::Value;
 
@@ -46,8 +46,7 @@ inline v8::Local<v8::Object> StreamReq::object() {
 }
 
 inline StreamListener::~StreamListener() {
-  if (stream_ != nullptr)
-    stream_->RemoveStreamListener(this);
+  if (stream_ != nullptr) stream_->RemoveStreamListener(this);
 }
 
 inline void StreamListener::PassReadErrorToPreviousListener(ssize_t nread) {
@@ -73,8 +72,7 @@ inline StreamResource::~StreamResource() {
     // in `OnStreamDestroy()` implementations easier, because they
     // may call generic cleanup functions which can just remove the
     // listener unconditionally.
-    if (listener == listener_)
-      RemoveStreamListener(listener_);
+    if (listener == listener_) RemoveStreamListener(listener_);
   }
 }
 
@@ -97,7 +95,8 @@ inline void StreamResource::RemoveStreamListener(StreamListener* listener) {
   // Remove from the linked list.
   for (current = listener_, previous = nullptr;
        /* No loop condition because we want a crash if listener is not found */
-       ; previous = current, current = current->previous_listener_) {
+       ;  // NOLINT(whitespace/semicolon)
+       previous = current, current = current->previous_listener_) {
     CHECK_NOT_NULL(current);
     if (current == listener) {
       if (previous != nullptr)
@@ -123,8 +122,7 @@ inline void StreamResource::EmitRead(ssize_t nread, const uv_buf_t& buf) {
 #ifdef DEBUG
   v8::SealHandleScope handle_scope(v8::Isolate::GetCurrent());
 #endif
-  if (nread > 0)
-    bytes_read_ += static_cast<uint64_t>(nread);
+  if (nread > 0) bytes_read_ += static_cast<uint64_t>(nread);
   listener_->OnStreamRead(nread, buf);
 }
 
@@ -163,9 +161,9 @@ inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
   HandleScope handle_scope(env->isolate());
 
   if (req_wrap_obj.IsEmpty()) {
-    req_wrap_obj =
-        env->shutdown_wrap_template()
-            ->NewInstance(env->context()).ToLocalChecked();
+    req_wrap_obj = env->shutdown_wrap_template()
+                       ->NewInstance(env->context())
+                       .ToLocalChecked();
     StreamReq::ResetObject(req_wrap_obj);
   }
 
@@ -186,32 +184,30 @@ inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
   return err;
 }
 
-inline StreamWriteResult StreamBase::Write(
-    uv_buf_t* bufs,
-    size_t count,
-    uv_stream_t* send_handle,
-    v8::Local<v8::Object> req_wrap_obj) {
+inline StreamWriteResult StreamBase::Write(uv_buf_t* bufs,
+                                           size_t count,
+                                           uv_stream_t* send_handle,
+                                           v8::Local<v8::Object> req_wrap_obj) {
   Environment* env = stream_env();
   int err;
 
   size_t total_bytes = 0;
-  for (size_t i = 0; i < count; ++i)
-    total_bytes += bufs[i].len;
+  for (size_t i = 0; i < count; ++i) total_bytes += bufs[i].len;
   bytes_written_ += total_bytes;
 
   if (send_handle == nullptr) {
     err = DoTryWrite(&bufs, &count);
     if (err != 0 || count == 0) {
-      return StreamWriteResult { false, err, nullptr, total_bytes };
+      return StreamWriteResult{false, err, nullptr, total_bytes};
     }
   }
 
   HandleScope handle_scope(env->isolate());
 
   if (req_wrap_obj.IsEmpty()) {
-    req_wrap_obj =
-        env->write_wrap_template()
-            ->NewInstance(env->context()).ToLocalChecked();
+    req_wrap_obj = env->write_wrap_template()
+                       ->NewInstance(env->context())
+                       .ToLocalChecked();
     StreamReq::ResetObject(req_wrap_obj);
   }
 
@@ -232,18 +228,16 @@ inline StreamWriteResult StreamBase::Write(
     ClearError();
   }
 
-  return StreamWriteResult { async, err, req_wrap, total_bytes };
+  return StreamWriteResult{async, err, req_wrap, total_bytes};
 }
 
 template <typename OtherBase>
 SimpleShutdownWrap<OtherBase>::SimpleShutdownWrap(
-    StreamBase* stream,
-    v8::Local<v8::Object> req_wrap_obj)
-  : ShutdownWrap(stream, req_wrap_obj),
-    OtherBase(stream->stream_env(),
-              req_wrap_obj,
-              AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
-}
+    StreamBase* stream, v8::Local<v8::Object> req_wrap_obj)
+    : ShutdownWrap(stream, req_wrap_obj),
+      OtherBase(stream->stream_env(),
+                req_wrap_obj,
+                AsyncWrap::PROVIDER_SHUTDOWNWRAP) {}
 
 inline ShutdownWrap* StreamBase::CreateShutdownWrap(
     v8::Local<v8::Object> object) {
@@ -251,17 +245,13 @@ inline ShutdownWrap* StreamBase::CreateShutdownWrap(
 }
 
 template <typename OtherBase>
-SimpleWriteWrap<OtherBase>::SimpleWriteWrap(
-    StreamBase* stream,
-    v8::Local<v8::Object> req_wrap_obj)
-  : WriteWrap(stream, req_wrap_obj),
-    OtherBase(stream->stream_env(),
-              req_wrap_obj,
-              AsyncWrap::PROVIDER_WRITEWRAP) {
-}
+SimpleWriteWrap<OtherBase>::SimpleWriteWrap(StreamBase* stream,
+                                            v8::Local<v8::Object> req_wrap_obj)
+    : WriteWrap(stream, req_wrap_obj),
+      OtherBase(
+          stream->stream_env(), req_wrap_obj, AsyncWrap::PROVIDER_WRITEWRAP) {}
 
-inline WriteWrap* StreamBase::CreateWriteWrap(
-    v8::Local<v8::Object> object) {
+inline WriteWrap* StreamBase::CreateWriteWrap(v8::Local<v8::Object> object) {
   return new SimpleWriteWrap<AsyncWrap>(this, object);
 }
 
@@ -269,9 +259,8 @@ template <class Base>
 void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
-  enum PropertyAttribute attributes =
-      static_cast<PropertyAttribute>(
-          v8::ReadOnly | v8::DontDelete | v8::DontEnum);
+  enum PropertyAttribute attributes = static_cast<PropertyAttribute>(
+      v8::ReadOnly | v8::DontDelete | v8::DontEnum);
 
   Local<Signature> signature = Signature::New(env->isolate(), t);
 
@@ -300,10 +289,8 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
                                v8::ConstructorBehavior::kAllow,
                                v8::SideEffectType::kHasNoSideEffect);
 
-  t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
-                                              get_fd_templ,
-                                              Local<FunctionTemplate>(),
-                                              attributes);
+  t->PrototypeTemplate()->SetAccessorProperty(
+      env->fd_string(), get_fd_templ, Local<FunctionTemplate>(), attributes);
 
   t->PrototypeTemplate()->SetAccessorProperty(env->external_stream_string(),
                                               get_external_templ,
@@ -324,35 +311,28 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethod(t, "readStop", JSMethod<Base, &StreamBase::ReadStopJS>);
   env->SetProtoMethod(t, "shutdown", JSMethod<Base, &StreamBase::Shutdown>);
   env->SetProtoMethod(t, "writev", JSMethod<Base, &StreamBase::Writev>);
-  env->SetProtoMethod(t,
-                      "writeBuffer",
-                      JSMethod<Base, &StreamBase::WriteBuffer>);
-  env->SetProtoMethod(t,
-                      "writeAsciiString",
-                      JSMethod<Base, &StreamBase::WriteString<ASCII> >);
-  env->SetProtoMethod(t,
-                      "writeUtf8String",
-                      JSMethod<Base, &StreamBase::WriteString<UTF8> >);
-  env->SetProtoMethod(t,
-                      "writeUcs2String",
-                      JSMethod<Base, &StreamBase::WriteString<UCS2> >);
+  env->SetProtoMethod(
+      t, "writeBuffer", JSMethod<Base, &StreamBase::WriteBuffer>);
+  env->SetProtoMethod(
+      t, "writeAsciiString", JSMethod<Base, &StreamBase::WriteString<ASCII> >);
+  env->SetProtoMethod(
+      t, "writeUtf8String", JSMethod<Base, &StreamBase::WriteString<UTF8> >);
+  env->SetProtoMethod(
+      t, "writeUcs2String", JSMethod<Base, &StreamBase::WriteString<UCS2> >);
   env->SetProtoMethod(t,
                       "writeLatin1String",
                       JSMethod<Base, &StreamBase::WriteString<LATIN1> >);
 }
 
-
 template <class Base>
 void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
   // Mimic implementation of StreamBase::GetFD() and UDPWrap::GetFD().
   Base* handle;
-  ASSIGN_OR_RETURN_UNWRAP(&handle,
-                          args.This(),
-                          args.GetReturnValue().Set(UV_EINVAL));
+  ASSIGN_OR_RETURN_UNWRAP(
+      &handle, args.This(), args.GetReturnValue().Set(UV_EINVAL));
 
   StreamBase* wrap = static_cast<StreamBase*>(handle);
-  if (!wrap->IsAlive())
-    return args.GetReturnValue().Set(UV_EINVAL);
+  if (!wrap->IsAlive()) return args.GetReturnValue().Set(UV_EINVAL);
 
   args.GetReturnValue().Set(wrap->GetFD());
 }
@@ -360,9 +340,7 @@ void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
 template <class Base>
 void StreamBase::GetBytesRead(const FunctionCallbackInfo<Value>& args) {
   Base* handle;
-  ASSIGN_OR_RETURN_UNWRAP(&handle,
-                          args.This(),
-                          args.GetReturnValue().Set(0));
+  ASSIGN_OR_RETURN_UNWRAP(&handle, args.This(), args.GetReturnValue().Set(0));
 
   StreamBase* wrap = static_cast<StreamBase*>(handle);
   // uint64_t -> double. 53bits is enough for all real cases.
@@ -372,9 +350,7 @@ void StreamBase::GetBytesRead(const FunctionCallbackInfo<Value>& args) {
 template <class Base>
 void StreamBase::GetBytesWritten(const FunctionCallbackInfo<Value>& args) {
   Base* handle;
-  ASSIGN_OR_RETURN_UNWRAP(&handle,
-                          args.This(),
-                          args.GetReturnValue().Set(0));
+  ASSIGN_OR_RETURN_UNWRAP(&handle, args.This(), args.GetReturnValue().Set(0));
 
   StreamBase* wrap = static_cast<StreamBase*>(handle);
   // uint64_t -> double. 53bits is enough for all real cases.
@@ -391,7 +367,6 @@ void StreamBase::GetExternal(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ext);
 }
 
-
 template <class Base,
           int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
 void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
@@ -399,13 +374,11 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&handle, args.Holder());
 
   StreamBase* wrap = static_cast<StreamBase*>(handle);
-  if (!wrap->IsAlive())
-    return args.GetReturnValue().Set(UV_EINVAL);
+  if (!wrap->IsAlive()) return args.GetReturnValue().Set(UV_EINVAL);
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(handle);
   args.GetReturnValue().Set((wrap->*Method)(args));
 }
-
 
 inline void ShutdownWrap::OnDone(int status) {
   stream()->EmitAfterShutdown(this, status);
@@ -449,7 +422,6 @@ inline void StreamReq::ResetObject(v8::Local<v8::Object> obj) {
   obj->SetAlignedPointerInInternalField(0, nullptr);  // BaseObject field.
   obj->SetAlignedPointerInInternalField(StreamReq::kStreamReqField, nullptr);
 }
-
 
 }  // namespace node
 

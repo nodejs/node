@@ -39,38 +39,37 @@
  *    See:  http://bugs.icu-project.org/trac/ticket/10924
  */
 
-
 #include "node_i18n.h"
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
+#include "base_object-inl.h"
+#include "env-inl.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_errors.h"
-#include "env-inl.h"
 #include "util-inl.h"
-#include "base_object-inl.h"
 #include "v8.h"
 
-#include <unicode/utypes.h>
 #include <unicode/putil.h>
+#include <unicode/timezone.h>
 #include <unicode/uchar.h>
 #include <unicode/uclean.h>
+#include <unicode/ucnv.h>
 #include <unicode/udata.h>
 #include <unicode/uidna.h>
-#include <unicode/ucnv.h>
-#include <unicode/utf8.h>
-#include <unicode/utf16.h>
-#include <unicode/timezone.h>
 #include <unicode/ulocdata.h>
+#include <unicode/ustring.h>
+#include <unicode/utf16.h>
+#include <unicode/utf8.h>
+#include <unicode/utypes.h>
 #include <unicode/uvernum.h>
 #include <unicode/uversion.h>
-#include <unicode/ustring.h>
 
 #ifdef NODE_HAVE_SMALL_ICU
 /* if this is defined, we have a 'secondary' entry point.
    compare following to utypes.h defs for U_ICUDATA_ENTRY_POINT */
-#define SMALL_ICUDATA_ENTRY_POINT \
+#define SMALL_ICUDATA_ENTRY_POINT                                              \
   SMALL_DEF2(U_ICU_VERSION_MAJOR_NUM, U_LIB_SUFFIX_C_NAME)
 #define SMALL_DEF2(major, suff) SMALL_DEF(major, suff)
 #ifndef U_LIB_SUFFIX_C_NAME
@@ -101,8 +100,7 @@ namespace {
 template <typename T>
 MaybeLocal<Object> ToBufferEndian(Environment* env, MaybeStackBuffer<T>* buf) {
   MaybeLocal<Object> ret = Buffer::New(env, buf);
-  if (ret.IsEmpty())
-    return ret;
+  if (ret.IsEmpty()) return ret;
 
   static_assert(sizeof(T) == 1 || sizeof(T) == 2,
                 "Currently only one- or two-byte buffers are supported");
@@ -125,8 +123,8 @@ struct Converter {
     }
   }
 
-  explicit Converter(UConverter* converter,
-                     const char* sub = nullptr) : conv(converter) {
+  explicit Converter(UConverter* converter, const char* sub = nullptr)
+      : conv(converter) {
     CHECK_NOT_NULL(conv);
     UErrorCode status = U_ZERO_ERROR;
     if (sub != nullptr) {
@@ -134,9 +132,7 @@ struct Converter {
     }
   }
 
-  ~Converter() {
-    ucnv_close(conv);
-  }
+  ~Converter() { ucnv_close(conv); }
 
   UConverter* conv;
 };
@@ -144,8 +140,8 @@ struct Converter {
 class ConverterObject : public BaseObject, Converter {
  public:
   enum ConverterFlags {
-    CONVERTER_FLAGS_FLUSH      = 0x1,
-    CONVERTER_FLAGS_FATAL      = 0x2,
+    CONVERTER_FLAGS_FLUSH = 0x1,
+    CONVERTER_FLAGS_FATAL = 0x2,
     CONVERTER_FLAGS_IGNORE_BOM = 0x4
   };
 
@@ -171,20 +167,18 @@ class ConverterObject : public BaseObject, Converter {
     CHECK_GE(args.Length(), 2);
     Utf8Value label(env->isolate(), args[0]);
     int flags = args[1]->Uint32Value(env->context()).ToChecked();
-    bool fatal =
-        (flags & CONVERTER_FLAGS_FATAL) == CONVERTER_FLAGS_FATAL;
+    bool fatal = (flags & CONVERTER_FLAGS_FATAL) == CONVERTER_FLAGS_FATAL;
     bool ignoreBOM =
         (flags & CONVERTER_FLAGS_IGNORE_BOM) == CONVERTER_FLAGS_IGNORE_BOM;
 
     UErrorCode status = U_ZERO_ERROR;
     UConverter* conv = ucnv_open(*label, &status);
-    if (U_FAILURE(status))
-      return;
+    if (U_FAILURE(status)) return;
 
     if (fatal) {
       status = U_ZERO_ERROR;
-      ucnv_setToUCallBack(conv, UCNV_TO_U_CALLBACK_STOP,
-                          nullptr, nullptr, nullptr, &status);
+      ucnv_setToUCallBack(
+          conv, UCNV_TO_U_CALLBACK_STOP, nullptr, nullptr, nullptr, &status);
     }
 
     Local<ObjectTemplate> t = ObjectTemplate::New(env->isolate());
@@ -208,10 +202,8 @@ class ConverterObject : public BaseObject, Converter {
     UErrorCode status = U_ZERO_ERROR;
     MaybeStackBuffer<UChar> result;
     MaybeLocal<Object> ret;
-    size_t limit = ucnv_getMinCharSize(converter->conv) *
-                   input_obj_length;
-    if (limit > 0)
-      result.AllocateSufficientStorage(limit);
+    size_t limit = ucnv_getMinCharSize(converter->conv) * input_obj_length;
+    if (limit > 0) result.AllocateSufficientStorage(limit);
 
     UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
 
@@ -228,13 +220,16 @@ class ConverterObject : public BaseObject, Converter {
 
     UChar* target = *result;
     ucnv_toUnicode(converter->conv,
-                   &target, target + (limit * sizeof(UChar)),
-                   &source, source + source_length,
-                   nullptr, flush, &status);
+                   &target,
+                   target + (limit * sizeof(UChar)),
+                   &source,
+                   source + source_length,
+                   nullptr,
+                   flush,
+                   &status);
 
     if (U_SUCCESS(status)) {
-      if (limit > 0)
-        result.SetLength(target - &result[0]);
+      if (limit > 0) result.SetLength(target - &result[0]);
       ret = ToBufferEndian(env, &result);
       args.GetReturnValue().Set(ret.ToLocalChecked());
       goto reset;
@@ -242,7 +237,7 @@ class ConverterObject : public BaseObject, Converter {
 
     args.GetReturnValue().Set(status);
 
-   reset:
+  reset:
     if (flush) {
       // Reset the converter state
       converter->bomSeen_ = false;
@@ -261,10 +256,10 @@ class ConverterObject : public BaseObject, Converter {
                   v8::Local<v8::Object> wrap,
                   UConverter* converter,
                   bool ignoreBOM,
-                  const char* sub = nullptr) :
-                  BaseObject(env, wrap),
-                  Converter(converter, sub),
-                  ignoreBOM_(ignoreBOM) {
+                  const char* sub = nullptr)
+      : BaseObject(env, wrap),
+        Converter(converter, sub),
+        ignoreBOM_(ignoreBOM) {
     MakeWeak();
 
     switch (ucnv_getType(converter)) {
@@ -279,9 +274,9 @@ class ConverterObject : public BaseObject, Converter {
   }
 
  private:
-  bool unicode_ = false;     // True if this is a Unicode converter
-  bool ignoreBOM_ = false;   // True if the BOM should be ignored on Unicode
-  bool bomSeen_ = false;     // True if the BOM has been seen
+  bool unicode_ = false;    // True if this is a Unicode converter
+  bool ignoreBOM_ = false;  // True if the BOM should be ignored on Unicode
+  bool bomSeen_ = false;    // True if the BOM has been seen
 };
 
 // One-Shot Converters
@@ -319,9 +314,19 @@ MaybeLocal<Object> Transcode(Environment* env,
   const uint32_t limit = source_length * ucnv_getMaxCharSize(to.conv);
   result.AllocateSufficientStorage(limit);
   char* target = *result;
-  ucnv_convertEx(to.conv, from.conv, &target, target + limit,
-                 &source, source + source_length, nullptr, nullptr,
-                 nullptr, nullptr, true, true, status);
+  ucnv_convertEx(to.conv,
+                 from.conv,
+                 &target,
+                 target + limit,
+                 &source,
+                 source + source_length,
+                 nullptr,
+                 nullptr,
+                 nullptr,
+                 nullptr,
+                 true,
+                 true,
+                 status);
   if (U_SUCCESS(*status)) {
     result.SetLength(target - &result[0]);
     ret = ToBufferEndian(env, &result);
@@ -340,10 +345,9 @@ MaybeLocal<Object> TranscodeToUcs2(Environment* env,
   MaybeStackBuffer<UChar> destbuf(source_length);
   Converter from(fromEncoding);
   const size_t length_in_chars = source_length * sizeof(UChar);
-  ucnv_toUChars(from.conv, *destbuf, length_in_chars,
-                source, source_length, status);
-  if (U_SUCCESS(*status))
-    ret = ToBufferEndian(env, &destbuf);
+  ucnv_toUChars(
+      from.conv, *destbuf, length_in_chars, source, source_length, status);
+  if (U_SUCCESS(*status)) ret = ToBufferEndian(env, &destbuf);
   return ret;
 }
 
@@ -360,8 +364,8 @@ MaybeLocal<Object> TranscodeFromUcs2(Environment* env,
   const size_t length_in_chars = source_length / sizeof(UChar);
   CopySourceBuffer(&sourcebuf, source, source_length, length_in_chars);
   MaybeStackBuffer<char> destbuf(length_in_chars);
-  const uint32_t len = ucnv_fromUChars(to.conv, *destbuf, length_in_chars,
-                                       *sourcebuf, length_in_chars, status);
+  const uint32_t len = ucnv_fromUChars(
+      to.conv, *destbuf, length_in_chars, *sourcebuf, length_in_chars, status);
   if (U_SUCCESS(*status)) {
     destbuf.SetLength(len);
     ret = ToBufferEndian(env, &destbuf);
@@ -378,8 +382,12 @@ MaybeLocal<Object> TranscodeUcs2FromUtf8(Environment* env,
   *status = U_ZERO_ERROR;
   MaybeStackBuffer<UChar> destbuf;
   int32_t result_length;
-  u_strFromUTF8(*destbuf, destbuf.capacity(), &result_length,
-                source, source_length, status);
+  u_strFromUTF8(*destbuf,
+                destbuf.capacity(),
+                &result_length,
+                source,
+                source_length,
+                status);
   MaybeLocal<Object> ret;
   if (U_SUCCESS(*status)) {
     destbuf.SetLength(result_length);
@@ -387,8 +395,8 @@ MaybeLocal<Object> TranscodeUcs2FromUtf8(Environment* env,
   } else if (*status == U_BUFFER_OVERFLOW_ERROR) {
     *status = U_ZERO_ERROR;
     destbuf.AllocateSufficientStorage(result_length);
-    u_strFromUTF8(*destbuf, result_length, &result_length,
-                  source, source_length, status);
+    u_strFromUTF8(
+        *destbuf, result_length, &result_length, source, source_length, status);
     if (U_SUCCESS(*status)) {
       destbuf.SetLength(result_length);
       ret = ToBufferEndian(env, &destbuf);
@@ -410,16 +418,24 @@ MaybeLocal<Object> TranscodeUtf8FromUcs2(Environment* env,
   MaybeStackBuffer<UChar> sourcebuf;
   MaybeStackBuffer<char> destbuf;
   CopySourceBuffer(&sourcebuf, source, source_length, length_in_chars);
-  u_strToUTF8(*destbuf, destbuf.capacity(), &result_length,
-              *sourcebuf, length_in_chars, status);
+  u_strToUTF8(*destbuf,
+              destbuf.capacity(),
+              &result_length,
+              *sourcebuf,
+              length_in_chars,
+              status);
   if (U_SUCCESS(*status)) {
     destbuf.SetLength(result_length);
     ret = ToBufferEndian(env, &destbuf);
   } else if (*status == U_BUFFER_OVERFLOW_ERROR) {
     *status = U_ZERO_ERROR;
     destbuf.AllocateSufficientStorage(result_length);
-    u_strToUTF8(*destbuf, result_length, &result_length, *sourcebuf,
-                length_in_chars, status);
+    u_strToUTF8(*destbuf,
+                result_length,
+                &result_length,
+                *sourcebuf,
+                length_in_chars,
+                status);
     if (U_SUCCESS(*status)) {
       destbuf.SetLength(result_length);
       ret = ToBufferEndian(env, &destbuf);
@@ -430,11 +446,16 @@ MaybeLocal<Object> TranscodeUtf8FromUcs2(Environment* env,
 
 const char* EncodingName(const enum encoding encoding) {
   switch (encoding) {
-    case ASCII: return "us-ascii";
-    case LATIN1: return "iso8859-1";
-    case UCS2: return "utf16le";
-    case UTF8: return "utf-8";
-    default: return nullptr;
+    case ASCII:
+      return "us-ascii";
+    case LATIN1:
+      return "iso8859-1";
+    case UCS2:
+      return "utf16le";
+    case UTF8:
+      return "utf-8";
+    default:
+      return nullptr;
   }
 }
 
@@ -443,12 +464,14 @@ bool SupportedEncoding(const enum encoding encoding) {
     case ASCII:
     case LATIN1:
     case UCS2:
-    case UTF8: return true;
-    default: return false;
+    case UTF8:
+      return true;
+    default:
+      return false;
   }
 }
 
-void Transcode(const FunctionCallbackInfo<Value>&args) {
+void Transcode(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   UErrorCode status = U_ZERO_ERROR;
@@ -464,12 +487,10 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
     switch (fromEncoding) {
       case ASCII:
       case LATIN1:
-        if (toEncoding == UCS2)
-          tfn = &TranscodeToUcs2;
+        if (toEncoding == UCS2) tfn = &TranscodeToUcs2;
         break;
       case UTF8:
-        if (toEncoding == UCS2)
-          tfn = &TranscodeUcs2FromUtf8;
+        if (toEncoding == UCS2) tfn = &TranscodeUcs2FromUtf8;
         break;
       case UCS2:
         switch (toEncoding) {
@@ -488,14 +509,17 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
         ABORT();
     }
 
-    result = tfn(env, EncodingName(fromEncoding), EncodingName(toEncoding),
-                 ts_obj_data, ts_obj_length, &status);
+    result = tfn(env,
+                 EncodingName(fromEncoding),
+                 EncodingName(toEncoding),
+                 ts_obj_data,
+                 ts_obj_length,
+                 &status);
   } else {
     status = U_ILLEGAL_ARGUMENT_ERROR;
   }
 
-  if (result.IsEmpty())
-    return args.GetReturnValue().Set(status);
+  if (result.IsEmpty()) return args.GetReturnValue().Set(status);
 
   return args.GetReturnValue().Set(result.ToLocalChecked());
 }
@@ -503,10 +527,10 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
 void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   UErrorCode status = static_cast<UErrorCode>(args[0]->Int32Value());
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(),
-                          u_errorName(status),
-                          v8::NewStringType::kNormal).ToLocalChecked());
+  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
+                                                u_errorName(status),
+                                                v8::NewStringType::kNormal)
+                                .ToLocalChecked());
 }
 
 #define TYPE_ICU "icu"
@@ -545,14 +569,13 @@ const char* GetVersion(const char* type,
 
 void GetVersion(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if ( args.Length() == 0 ) {
+  if (args.Length() == 0) {
     // With no args - return a comma-separated list of allowed values
-      args.GetReturnValue().Set(
-          String::NewFromUtf8(env->isolate(),
-            TYPE_ICU ","
-            TYPE_UNICODE ","
-            TYPE_CLDR ","
-            TYPE_TZ, v8::NewStringType::kNormal).ToLocalChecked());
+    args.GetReturnValue().Set(
+        String::NewFromUtf8(env->isolate(),
+                            TYPE_ICU "," TYPE_UNICODE "," TYPE_CLDR "," TYPE_TZ,
+                            v8::NewStringType::kNormal)
+            .ToLocalChecked());
   } else {
     CHECK_GE(args.Length(), 1);
     CHECK(args[0]->IsString());
@@ -563,9 +586,10 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
 
     if (U_SUCCESS(status) && versionString) {
       // Success.
-      args.GetReturnValue().Set(
-          String::NewFromUtf8(env->isolate(),
-          versionString, v8::NewStringType::kNormal).ToLocalChecked());
+      args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
+                                                    versionString,
+                                                    v8::NewStringType::kNormal)
+                                    .ToLocalChecked());
     }
   }
 }
@@ -578,7 +602,7 @@ bool InitializeICUDirectory(const std::string& path) {
 #ifdef NODE_HAVE_SMALL_ICU
     // install the 'small' data.
     udata_setCommonData(&SMALL_ICUDATA_ENTRY_POINT, &status);
-#else  // !NODE_HAVE_SMALL_ICU
+#else   // !NODE_HAVE_SMALL_ICU
     // no small data, so nothing to do.
 #endif  // !NODE_HAVE_SMALL_ICU
   } else {
@@ -594,15 +618,11 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
   UErrorCode status = U_ZERO_ERROR;
   uint32_t options = UIDNA_NONTRANSITIONAL_TO_UNICODE;
   UIDNA* uidna = uidna_openUTS46(options, &status);
-  if (U_FAILURE(status))
-    return -1;
+  if (U_FAILURE(status)) return -1;
   UIDNAInfo info = UIDNA_INFO_INITIALIZER;
 
-  int32_t len = uidna_nameToUnicodeUTF8(uidna,
-                                        input, length,
-                                        **buf, buf->capacity(),
-                                        &info,
-                                        &status);
+  int32_t len = uidna_nameToUnicodeUTF8(
+      uidna, input, length, **buf, buf->capacity(), &info, &status);
 
   // Do not check info.errors like we do with ToASCII since ToUnicode always
   // returns a string, despite any possible errors that may have occurred.
@@ -610,11 +630,8 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
   if (status == U_BUFFER_OVERFLOW_ERROR) {
     status = U_ZERO_ERROR;
     buf->AllocateSufficientStorage(len);
-    len = uidna_nameToUnicodeUTF8(uidna,
-                                  input, length,
-                                  **buf, buf->capacity(),
-                                  &info,
-                                  &status);
+    len = uidna_nameToUnicodeUTF8(
+        uidna, input, length, **buf, buf->capacity(), &info, &status);
   }
 
   // info.errors is ignored as UTS #46 ToUnicode always produces a Unicode
@@ -636,10 +653,10 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
                 size_t length,
                 enum idna_mode mode) {
   UErrorCode status = U_ZERO_ERROR;
-  uint32_t options =                  // CheckHyphens = false; handled later
-    UIDNA_CHECK_BIDI |                // CheckBidi = true
-    UIDNA_CHECK_CONTEXTJ |            // CheckJoiners = true
-    UIDNA_NONTRANSITIONAL_TO_ASCII;   // Nontransitional_Processing
+  uint32_t options =                   // CheckHyphens = false; handled later
+      UIDNA_CHECK_BIDI |               // CheckBidi = true
+      UIDNA_CHECK_CONTEXTJ |           // CheckJoiners = true
+      UIDNA_NONTRANSITIONAL_TO_ASCII;  // Nontransitional_Processing
   if (mode == IDNA_STRICT) {
     options |= UIDNA_USE_STD3_RULES;  // UseSTD3ASCIIRules = beStrict
                                       // VerifyDnsLength = beStrict;
@@ -647,24 +664,17 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
   }
 
   UIDNA* uidna = uidna_openUTS46(options, &status);
-  if (U_FAILURE(status))
-    return -1;
+  if (U_FAILURE(status)) return -1;
   UIDNAInfo info = UIDNA_INFO_INITIALIZER;
 
-  int32_t len = uidna_nameToASCII_UTF8(uidna,
-                                       input, length,
-                                       **buf, buf->capacity(),
-                                       &info,
-                                       &status);
+  int32_t len = uidna_nameToASCII_UTF8(
+      uidna, input, length, **buf, buf->capacity(), &info, &status);
 
   if (status == U_BUFFER_OVERFLOW_ERROR) {
     status = U_ZERO_ERROR;
     buf->AllocateSufficientStorage(len);
-    len = uidna_nameToASCII_UTF8(uidna,
-                                 input, length,
-                                 **buf, buf->capacity(),
-                                 &info,
-                                 &status);
+    len = uidna_nameToASCII_UTF8(
+        uidna, input, length, **buf, buf->capacity(), &info, &status);
   }
 
   // In UTS #46 which specifies ToASCII, certain error conditions are
@@ -720,10 +730,8 @@ static void ToUnicode(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(),
-                          *buf,
-                          v8::NewStringType::kNormal,
-                          len).ToLocalChecked());
+      String::NewFromUtf8(env->isolate(), *buf, v8::NewStringType::kNormal, len)
+          .ToLocalChecked());
 }
 
 static void ToASCII(const FunctionCallbackInfo<Value>& args) {
@@ -743,10 +751,8 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(),
-                          *buf,
-                          v8::NewStringType::kNormal,
-                          len).ToLocalChecked());
+      String::NewFromUtf8(env->isolate(), *buf, v8::NewStringType::kNormal, len)
+          .ToLocalChecked());
 }
 
 // This is similar to wcwidth except that it takes the current unicode
@@ -767,9 +773,11 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
 // are technically Wide. But many terminals (including Konsole and
 // VTE/GLib-based) implement all medials and finals as 0-width.
 //
-// Refs: https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/#combining-characters-and-character-width
+// Refs:
+// https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/#combining-characters-and-character-width
 // Refs: https://github.com/GNOME/glib/blob/79e4d4c6be/glib/guniprop.c#L388-L420
-// Refs: https://github.com/KDE/konsole/blob/8c6a5d13c0/src/konsole_wcwidth.cpp#L101-L223
+// Refs:
+// https://github.com/KDE/konsole/blob/8c6a5d13c0/src/konsole_wcwidth.cpp#L101-L223
 static int GetColumnWidth(UChar32 codepoint,
                           bool ambiguous_as_full_width = false) {
   const auto zero_width_mask = U_GC_CC_MASK |  // C0/C1 control code
@@ -812,16 +820,14 @@ static int GetColumnWidth(UChar32 codepoint,
 // Returns the column width for the given String.
 static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (args.Length() < 1)
-    return;
+  if (args.Length() < 1) return;
 
   bool ambiguous_as_full_width = args[1]->BooleanValue();
   bool expand_emoji_sequence = args[2]->BooleanValue();
 
   if (args[0]->IsNumber()) {
     args.GetReturnValue().Set(
-        GetColumnWidth(args[0]->Uint32Value(),
-                       ambiguous_as_full_width));
+        GetColumnWidth(args[0]->Uint32Value(), ambiguous_as_full_width));
     return;
   }
 
@@ -848,8 +854,8 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
     // in advance if a particular sequence is going to be supported.
     // The expand_emoji_sequence option allows the caller to skip this
     // check and count each code within an emoji sequence separately.
-    if (!expand_emoji_sequence &&
-        n > 0 && p == 0x200d &&  // 0x200d == ZWJ (zero width joiner)
+    if (!expand_emoji_sequence && n > 0 &&
+        p == 0x200d &&  // 0x200d == ZWJ (zero width joiner)
         (u_hasBinaryProperty(c, UCHAR_EMOJI_PRESENTATION) ||
          u_hasBinaryProperty(c, UCHAR_EMOJI_MODIFIER))) {
       continue;

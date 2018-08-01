@@ -24,8 +24,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util.h"
 #include <cstring>
+#include "util.h"
 
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -34,20 +34,17 @@
 #define BSWAP_8(x) _byteswap_uint64(x)
 #else
 #define BSWAP_2(x) ((x) << 8) | ((x) >> 8)
-#define BSWAP_4(x)                                                            \
-  (((x) & 0xFF) << 24) |                                                      \
-  (((x) & 0xFF00) << 8) |                                                     \
-  (((x) >> 8) & 0xFF00) |                                                     \
-  (((x) >> 24) & 0xFF)
-#define BSWAP_8(x)                                                            \
-  (((x) & 0xFF00000000000000ull) >> 56) |                                     \
-  (((x) & 0x00FF000000000000ull) >> 40) |                                     \
-  (((x) & 0x0000FF0000000000ull) >> 24) |                                     \
-  (((x) & 0x000000FF00000000ull) >> 8) |                                      \
-  (((x) & 0x00000000FF000000ull) << 8) |                                      \
-  (((x) & 0x0000000000FF0000ull) << 24) |                                     \
-  (((x) & 0x000000000000FF00ull) << 40) |                                     \
-  (((x) & 0x00000000000000FFull) << 56)
+#define BSWAP_4(x)                                                             \
+  (((x)&0xFF) << 24) | (((x)&0xFF00) << 8) | (((x) >> 8) & 0xFF00) |           \
+      (((x) >> 24) & 0xFF)
+#define BSWAP_8(x)                                                             \
+  (((x)&0xFF00000000000000ull) >> 56) | (((x)&0x00FF000000000000ull) >> 40) |  \
+      (((x)&0x0000FF0000000000ull) >> 24) |                                    \
+      (((x)&0x000000FF00000000ull) >> 8) |                                     \
+      (((x)&0x00000000FF000000ull) << 8) |                                     \
+      (((x)&0x0000000000FF0000ull) << 24) |                                    \
+      (((x)&0x000000000000FF00ull) << 40) |                                    \
+      (((x)&0x00000000000000FFull) << 56)
 #endif
 
 namespace node {
@@ -73,33 +70,32 @@ bool ListNode<T>::IsEmpty() const {
   return prev_ == this;
 }
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 ListHead<T, M>::Iterator::Iterator(ListNode<T>* node) : node_(node) {}
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 T* ListHead<T, M>::Iterator::operator*() const {
   return ContainerOf(M, node_);
 }
 
-template <typename T, ListNode<T> (T::*M)>
-const typename ListHead<T, M>::Iterator&
-ListHead<T, M>::Iterator::operator++() {
+template <typename T, ListNode<T>(T::*M)>
+const typename ListHead<T, M>::Iterator& ListHead<T, M>::Iterator::
+operator++() {
   node_ = node_->next_;
   return *this;
 }
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 bool ListHead<T, M>::Iterator::operator!=(const Iterator& that) const {
   return node_ != that.node_;
 }
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 ListHead<T, M>::~ListHead() {
-  while (IsEmpty() == false)
-    head_.next_->Remove();
+  while (IsEmpty() == false) head_.next_->Remove();
 }
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 void ListHead<T, M>::PushBack(T* element) {
   ListNode<T>* that = &(element->*M);
   head_.prev_->next_ = that;
@@ -108,7 +104,7 @@ void ListHead<T, M>::PushBack(T* element) {
   head_.prev_ = that;
 }
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 void ListHead<T, M>::PushFront(T* element) {
   ListNode<T>* that = &(element->*M);
   head_.next_->prev_ = that;
@@ -117,26 +113,25 @@ void ListHead<T, M>::PushFront(T* element) {
   head_.next_ = that;
 }
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 bool ListHead<T, M>::IsEmpty() const {
   return head_.IsEmpty();
 }
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 T* ListHead<T, M>::PopFront() {
-  if (IsEmpty())
-    return nullptr;
+  if (IsEmpty()) return nullptr;
   ListNode<T>* node = head_.next_;
   node->Remove();
   return ContainerOf(M, node);
 }
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 typename ListHead<T, M>::Iterator ListHead<T, M>::begin() const {
   return Iterator(head_.next_);
 }
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 typename ListHead<T, M>::Iterator ListHead<T, M>::end() const {
   return Iterator(const_cast<ListNode<T>*>(&head_));
 }
@@ -149,9 +144,8 @@ constexpr uintptr_t OffsetOf(Inner Outer::*field) {
 template <typename Inner, typename Outer>
 ContainerOfHelper<Inner, Outer>::ContainerOfHelper(Inner Outer::*field,
                                                    Inner* pointer)
-    : pointer_(
-        reinterpret_cast<Outer*>(
-            reinterpret_cast<uintptr_t>(pointer) - OffsetOf(field))) {}
+    : pointer_(reinterpret_cast<Outer*>(reinterpret_cast<uintptr_t>(pointer) -
+                                        OffsetOf(field))) {}
 
 template <typename Inner, typename Outer>
 template <typename TypeName>
@@ -167,8 +161,7 @@ inline ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
 
 template <class TypeName>
 inline v8::Local<TypeName> PersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent) {
+    v8::Isolate* isolate, const Persistent<TypeName>& persistent) {
   if (persistent.IsWeak()) {
     return WeakPersistentToLocal(isolate, persistent);
   } else {
@@ -185,8 +178,7 @@ inline v8::Local<TypeName> StrongPersistentToLocal(
 
 template <class TypeName>
 inline v8::Local<TypeName> WeakPersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent) {
+    v8::Isolate* isolate, const Persistent<TypeName>& persistent) {
   return v8::Local<TypeName>::New(isolate, persistent);
 }
 
@@ -196,7 +188,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
   return v8::String::NewFromOneByte(isolate,
                                     reinterpret_cast<const uint8_t*>(data),
                                     v8::NewStringType::kNormal,
-                                    length).ToLocalChecked();
+                                    length)
+      .ToLocalChecked();
 }
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
@@ -205,7 +198,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
   return v8::String::NewFromOneByte(isolate,
                                     reinterpret_cast<const uint8_t*>(data),
                                     v8::NewStringType::kNormal,
-                                    length).ToLocalChecked();
+                                    length)
+      .ToLocalChecked();
 }
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
@@ -214,7 +208,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
   return v8::String::NewFromOneByte(isolate,
                                     reinterpret_cast<const uint8_t*>(data),
                                     v8::NewStringType::kNormal,
-                                    length).ToLocalChecked();
+                                    length)
+      .ToLocalChecked();
 }
 
 void SwapBytes16(char* data, size_t nbytes) {
@@ -295,27 +290,22 @@ char ToLower(char c) {
 
 std::string ToLower(const std::string& in) {
   std::string out(in.size(), 0);
-  for (size_t i = 0; i < in.size(); ++i)
-    out[i] = ToLower(in[i]);
+  for (size_t i = 0; i < in.size(); ++i) out[i] = ToLower(in[i]);
   return out;
 }
 
 bool StringEqualNoCase(const char* a, const char* b) {
   do {
-    if (*a == '\0')
-      return *b == '\0';
-    if (*b == '\0')
-      return *a == '\0';
+    if (*a == '\0') return *b == '\0';
+    if (*b == '\0') return *a == '\0';
   } while (ToLower(*a++) == ToLower(*b++));
   return false;
 }
 
 bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   for (size_t i = 0; i < length; i++) {
-    if (ToLower(a[i]) != ToLower(b[i]))
-      return false;
-    if (a[i] == '\0')
-      return true;
+    if (ToLower(a[i]) != ToLower(b[i])) return false;
+    if (a[i] == '\0') return true;
   }
   return true;
 }
@@ -323,8 +313,7 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
 template <typename T>
 inline T MultiplyWithOverflowCheck(T a, T b) {
   auto ret = a * b;
-  if (a != 0)
-    CHECK_EQ(b, ret / a);
+  if (a != 0) CHECK_EQ(b, ret / a);
 
   return ret;
 }
@@ -392,10 +381,18 @@ inline T* Calloc(size_t n) {
 }
 
 // Shortcuts for char*.
-inline char* Malloc(size_t n) { return Malloc<char>(n); }
-inline char* Calloc(size_t n) { return Calloc<char>(n); }
-inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
-inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
+inline char* Malloc(size_t n) {
+  return Malloc<char>(n);
+}
+inline char* Calloc(size_t n) {
+  return Calloc<char>(n);
+}
+inline char* UncheckedMalloc(size_t n) {
+  return UncheckedMalloc<char>(n);
+}
+inline char* UncheckedCalloc(size_t n) {
+  return UncheckedCalloc<char>(n);
+}
 
 }  // namespace node
 

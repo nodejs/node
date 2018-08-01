@@ -3,8 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
 #include "env-inl.h"
+#include "node.h"
 
 #include <string>
 
@@ -14,44 +14,43 @@ namespace url {
 using v8::Local;
 using v8::Value;
 
-
-#define PARSESTATES(XX)                                                       \
-  XX(kSchemeStart)                                                            \
-  XX(kScheme)                                                                 \
-  XX(kNoScheme)                                                               \
-  XX(kSpecialRelativeOrAuthority)                                             \
-  XX(kPathOrAuthority)                                                        \
-  XX(kRelative)                                                               \
-  XX(kRelativeSlash)                                                          \
-  XX(kSpecialAuthoritySlashes)                                                \
-  XX(kSpecialAuthorityIgnoreSlashes)                                          \
-  XX(kAuthority)                                                              \
-  XX(kHost)                                                                   \
-  XX(kHostname)                                                               \
-  XX(kPort)                                                                   \
-  XX(kFile)                                                                   \
-  XX(kFileSlash)                                                              \
-  XX(kFileHost)                                                               \
-  XX(kPathStart)                                                              \
-  XX(kPath)                                                                   \
-  XX(kCannotBeBase)                                                           \
-  XX(kQuery)                                                                  \
+#define PARSESTATES(XX)                                                        \
+  XX(kSchemeStart)                                                             \
+  XX(kScheme)                                                                  \
+  XX(kNoScheme)                                                                \
+  XX(kSpecialRelativeOrAuthority)                                              \
+  XX(kPathOrAuthority)                                                         \
+  XX(kRelative)                                                                \
+  XX(kRelativeSlash)                                                           \
+  XX(kSpecialAuthoritySlashes)                                                 \
+  XX(kSpecialAuthorityIgnoreSlashes)                                           \
+  XX(kAuthority)                                                               \
+  XX(kHost)                                                                    \
+  XX(kHostname)                                                                \
+  XX(kPort)                                                                    \
+  XX(kFile)                                                                    \
+  XX(kFileSlash)                                                               \
+  XX(kFileHost)                                                                \
+  XX(kPathStart)                                                               \
+  XX(kPath)                                                                    \
+  XX(kCannotBeBase)                                                            \
+  XX(kQuery)                                                                   \
   XX(kFragment)
 
-#define FLAGS(XX)                                                             \
-  XX(URL_FLAGS_NONE, 0)                                                       \
-  XX(URL_FLAGS_FAILED, 0x01)                                                  \
-  XX(URL_FLAGS_CANNOT_BE_BASE, 0x02)                                          \
-  XX(URL_FLAGS_INVALID_PARSE_STATE, 0x04)                                     \
-  XX(URL_FLAGS_TERMINATED, 0x08)                                              \
-  XX(URL_FLAGS_SPECIAL, 0x10)                                                 \
-  XX(URL_FLAGS_HAS_USERNAME, 0x20)                                            \
-  XX(URL_FLAGS_HAS_PASSWORD, 0x40)                                            \
-  XX(URL_FLAGS_HAS_HOST, 0x80)                                                \
-  XX(URL_FLAGS_HAS_PATH, 0x100)                                               \
-  XX(URL_FLAGS_HAS_QUERY, 0x200)                                              \
-  XX(URL_FLAGS_HAS_FRAGMENT, 0x400)                                           \
-  XX(URL_FLAGS_IS_DEFAULT_SCHEME_PORT, 0x800)                                 \
+#define FLAGS(XX)                                                              \
+  XX(URL_FLAGS_NONE, 0)                                                        \
+  XX(URL_FLAGS_FAILED, 0x01)                                                   \
+  XX(URL_FLAGS_CANNOT_BE_BASE, 0x02)                                           \
+  XX(URL_FLAGS_INVALID_PARSE_STATE, 0x04)                                      \
+  XX(URL_FLAGS_TERMINATED, 0x08)                                               \
+  XX(URL_FLAGS_SPECIAL, 0x10)                                                  \
+  XX(URL_FLAGS_HAS_USERNAME, 0x20)                                             \
+  XX(URL_FLAGS_HAS_PASSWORD, 0x40)                                             \
+  XX(URL_FLAGS_HAS_HOST, 0x80)                                                 \
+  XX(URL_FLAGS_HAS_PATH, 0x100)                                                \
+  XX(URL_FLAGS_HAS_QUERY, 0x200)                                               \
+  XX(URL_FLAGS_HAS_FRAGMENT, 0x400)                                            \
+  XX(URL_FLAGS_IS_DEFAULT_SCHEME_PORT, 0x800)
 
 enum url_parse_state {
   kUnknownState = -1,
@@ -94,68 +93,51 @@ class URL {
 
   URL(const char* input, const size_t len, const URL* base) {
     if (base != nullptr)
-      Parse(input, len, kUnknownState,
-            &context_, false,
-            &(base->context_), true);
+      Parse(
+          input, len, kUnknownState, &context_, false, &(base->context_), true);
     else
       Parse(input, len, kUnknownState, &context_, false, nullptr, false);
   }
 
-  URL(const char* input, const size_t len,
-      const char* base, const size_t baselen) {
+  URL(const char* input,
+      const size_t len,
+      const char* base,
+      const size_t baselen) {
     if (base != nullptr && baselen > 0) {
       URL _base(base, baselen);
-      Parse(input, len, kUnknownState,
-            &context_, false,
-            &(_base.context_), true);
+      Parse(
+          input, len, kUnknownState, &context_, false, &(_base.context_), true);
     } else {
       Parse(input, len, kUnknownState, &context_, false, nullptr, false);
     }
   }
 
-  explicit URL(std::string input) :
-      URL(input.c_str(), input.length()) {}
+  explicit URL(std::string input) : URL(input.c_str(), input.length()) {}
 
-  URL(std::string input, const URL* base) :
-      URL(input.c_str(), input.length(), base) {}
+  URL(std::string input, const URL* base)
+      : URL(input.c_str(), input.length(), base) {}
 
-  URL(std::string input, const URL& base) :
-      URL(input.c_str(), input.length(), &base) {}
+  URL(std::string input, const URL& base)
+      : URL(input.c_str(), input.length(), &base) {}
 
-  URL(std::string input, std::string base) :
-      URL(input.c_str(), input.length(), base.c_str(), base.length()) {}
+  URL(std::string input, std::string base)
+      : URL(input.c_str(), input.length(), base.c_str(), base.length()) {}
 
-  int32_t flags() {
-    return context_.flags;
-  }
+  int32_t flags() { return context_.flags; }
 
-  int port() {
-    return context_.port;
-  }
+  int port() { return context_.port; }
 
-  const std::string& protocol() const {
-    return context_.scheme;
-  }
+  const std::string& protocol() const { return context_.scheme; }
 
-  const std::string& username() const {
-    return context_.username;
-  }
+  const std::string& username() const { return context_.username; }
 
-  const std::string& password() const {
-    return context_.password;
-  }
+  const std::string& password() const { return context_.password; }
 
-  const std::string& host() const {
-    return context_.host;
-  }
+  const std::string& host() const { return context_.host; }
 
-  const std::string& query() const {
-    return context_.query;
-  }
+  const std::string& query() const { return context_.query; }
 
-  const std::string& fragment() const {
-    return context_.fragment;
-  }
+  const std::string& fragment() const { return context_.fragment; }
 
   std::string path() const {
     std::string ret;

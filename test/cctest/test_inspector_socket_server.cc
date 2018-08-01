@@ -1,7 +1,7 @@
 #include "inspector_socket_server.h"
 
-#include "node.h"
 #include "gtest/gtest.h"
+#include "node.h"
 
 #include <algorithm>
 #include <sstream>
@@ -60,7 +60,7 @@ class Timeout {
 
   static void mark_done(uv_handle_t* timer) {
     Timeout* t = node::ContainerOf(&Timeout::timer_,
-        reinterpret_cast<uv_timer_t*>(timer));
+                                   reinterpret_cast<uv_timer_t*>(timer));
     t->done_ = true;
   }
 
@@ -70,9 +70,7 @@ class Timeout {
 
 class InspectorSocketServerTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    EXPECT_EQ(0, uv_loop_init(&loop));
-  }
+  void SetUp() override { EXPECT_EQ(0, uv_loop_init(&loop)); }
 
   void TearDown() override {
     const int err = uv_loop_close(&loop);
@@ -85,12 +83,13 @@ class InspectorSocketServerTest : public ::testing::Test {
 
 class SocketWrapper {
  public:
-  explicit SocketWrapper(uv_loop_t* loop) : closed_(false),
-                                            eof_(false),
-                                            loop_(loop),
-                                            socket_(uv_tcp_t()),
-                                            connected_(false),
-                                            sending_(false) { }
+  explicit SocketWrapper(uv_loop_t* loop)
+      : closed_(false),
+        eof_(false),
+        loop_(loop),
+        socket_(uv_tcp_t()),
+        connected_(false),
+        sending_(false) {}
 
   void Connect(std::string host, int port, bool v6 = false) {
     closed_ = false;
@@ -99,7 +98,11 @@ class SocketWrapper {
     eof_ = false;
     contents_.clear();
     uv_tcp_init(loop_, &socket_);
-    union {sockaddr generic; sockaddr_in v4; sockaddr_in6 v6;} addr;
+    union {
+      sockaddr generic;
+      sockaddr_in v4;
+      sockaddr_in6 v6;
+    } addr;
     int err = 0;
     if (v6) {
       err = uv_ip6_addr(host.c_str(), port, &addr.v6);
@@ -110,8 +113,8 @@ class SocketWrapper {
     err = uv_tcp_connect(&connect_, &socket_, &addr.generic, Connected_);
     CHECK_EQ(0, err);
     SPIN_WHILE(!connected_)
-    uv_read_start(reinterpret_cast<uv_stream_t*>(&socket_), AllocCallback,
-                  ReadCallback);
+    uv_read_start(
+        reinterpret_cast<uv_stream_t*>(&socket_), AllocCallback, ReadCallback);
   }
 
   void ExpectFailureToConnect(std::string host, int port) {
@@ -124,13 +127,14 @@ class SocketWrapper {
     sockaddr_in addr;
     int err = uv_ip4_addr(host.c_str(), port, &addr);
     CHECK_EQ(0, err);
-    err = uv_tcp_connect(&connect_, &socket_,
+    err = uv_tcp_connect(&connect_,
+                         &socket_,
                          reinterpret_cast<const sockaddr*>(&addr),
                          ConnectionMustFail_);
     CHECK_EQ(0, err);
     SPIN_WHILE(!connection_failed_)
-    uv_read_start(reinterpret_cast<uv_stream_t*>(&socket_), AllocCallback,
-                  ReadCallback);
+    uv_read_start(
+        reinterpret_cast<uv_stream_t*>(&socket_), AllocCallback, ReadCallback);
   }
 
   void Close() {
@@ -159,7 +163,8 @@ class SocketWrapper {
                     "Content-Length: ";
     expectations << expected_reply.length() + 2;
     expectations << "\r\n\r\n" << expected_reply << "\n\n";
-    Write("GET " + path + " HTTP/1.1\r\n"
+    Write("GET " + path +
+          " HTTP/1.1\r\n"
           "Host: localhost:9229\r\n\r\n");
     Expect(expectations.str());
   }
@@ -170,8 +175,8 @@ class SocketWrapper {
     buf[0].base = const_cast<char*>(data.data());
     buf[0].len = data.length();
     sending_ = true;
-    int err = uv_write(&write_, reinterpret_cast<uv_stream_t*>(&socket_),
-                       buf, 1, WriteDone_);
+    int err = uv_write(
+        &write_, reinterpret_cast<uv_stream_t*>(&socket_), buf, 1, WriteDone_);
     CHECK_EQ(err, 0);
     SPIN_WHILE(sending_);
   }
@@ -182,9 +187,8 @@ class SocketWrapper {
   }
 
   static void ClosedCallback(uv_handle_t* handle) {
-    SocketWrapper* wrapper =
-        node::ContainerOf(&SocketWrapper::socket_,
-                          reinterpret_cast<uv_tcp_t*>(handle));
+    SocketWrapper* wrapper = node::ContainerOf(
+        &SocketWrapper::socket_, reinterpret_cast<uv_tcp_t*>(handle));
     ASSERT_FALSE(wrapper->closed_);
     wrapper->closed_ = true;
   }
@@ -203,23 +207,22 @@ class SocketWrapper {
     wrapper->connection_failed_ = true;
   }
 
-  static void ReadCallback(uv_stream_t* stream, ssize_t read,
+  static void ReadCallback(uv_stream_t* stream,
+                           ssize_t read,
                            const uv_buf_t* buf) {
-    SocketWrapper* wrapper =
-        node::ContainerOf(&SocketWrapper::socket_,
-                          reinterpret_cast<uv_tcp_t*>(stream));
+    SocketWrapper* wrapper = node::ContainerOf(
+        &SocketWrapper::socket_, reinterpret_cast<uv_tcp_t*>(stream));
     if (read == UV_EOF) {
       wrapper->eof_ = true;
     } else {
-      wrapper->contents_.insert(wrapper->contents_.end(), buf->base,
-                                buf->base + read);
+      wrapper->contents_.insert(
+          wrapper->contents_.end(), buf->base, buf->base + read);
     }
     delete[] buf->base;
   }
   static void WriteDone_(uv_write_t* req, int err) {
     CHECK_EQ(0, err);
-    SocketWrapper* wrapper =
-        node::ContainerOf(&SocketWrapper::write_, req);
+    SocketWrapper* wrapper = node::ContainerOf(&SocketWrapper::write_, req);
     ASSERT_TRUE(wrapper->sending_);
     wrapper->sending_ = false;
   }
@@ -240,30 +243,23 @@ class SocketWrapper {
 class ServerHolder {
  public:
   ServerHolder(bool has_targets, uv_loop_t* loop, int port)
-               : ServerHolder(has_targets, loop, HOST, port, nullptr) { }
+      : ServerHolder(has_targets, loop, HOST, port, nullptr) {}
 
-  ServerHolder(bool has_targets, uv_loop_t* loop,
-               const std::string host, int port, FILE* out);
+  ServerHolder(bool has_targets,
+               uv_loop_t* loop,
+               const std::string host,
+               int port,
+               FILE* out);
 
-  InspectorSocketServer* operator->() {
-    return server_.get();
-  }
+  InspectorSocketServer* operator->() { return server_.get(); }
 
-  int port() {
-    return server_->Port();
-  }
+  int port() { return server_->Port(); }
 
-  bool done() {
-    return server_->done();
-  }
+  bool done() { return server_->done(); }
 
-  void Disconnected() {
-    disconnected++;
-  }
+  void Disconnected() { disconnected++; }
 
-  void Done() {
-    delegate_done = true;
-  }
+  void Done() { delegate_done = true; }
 
   void Connected(int id) {
     buffer_.clear();
@@ -298,16 +294,11 @@ class ServerHolder {
 
 class TestSocketServerDelegate : public SocketServerDelegate {
  public:
-  explicit TestSocketServerDelegate(
-      ServerHolder* server,
-      const std::vector<std::string>& target_ids)
-      : harness_(server),
-        targets_(target_ids),
-        session_id_(0) {}
+  explicit TestSocketServerDelegate(ServerHolder* server,
+                                    const std::vector<std::string>& target_ids)
+      : harness_(server), targets_(target_ids), session_id_(0) {}
 
-  ~TestSocketServerDelegate() {
-    harness_->Done();
-  }
+  ~TestSocketServerDelegate() { harness_->Done(); }
 
   void AssignServer(InspectorSocketServer* server) override {
     server_ = server;
@@ -330,9 +321,7 @@ class TestSocketServerDelegate : public SocketServerDelegate {
     harness_->Disconnected();
   }
 
-  std::vector<std::string> GetTargetIds() override {
-    return targets_;
-  }
+  std::vector<std::string> GetTargetIds() override { return targets_; }
 
   std::string GetTargetTitle(const std::string& id) override {
     return id + " Target Title";
@@ -349,18 +338,21 @@ class TestSocketServerDelegate : public SocketServerDelegate {
   int session_id_;
 };
 
-ServerHolder::ServerHolder(bool has_targets, uv_loop_t* loop,
-                           const std::string host, int port, FILE* out) {
+ServerHolder::ServerHolder(bool has_targets,
+                           uv_loop_t* loop,
+                           const std::string host,
+                           int port,
+                           FILE* out) {
   std::vector<std::string> targets;
-  if (has_targets)
-    targets = { MAIN_TARGET_ID };
+  if (has_targets) targets = {MAIN_TARGET_ID};
   std::unique_ptr<TestSocketServerDelegate> delegate(
       new TestSocketServerDelegate(this, targets));
   server_.reset(
       new InspectorSocketServer(std::move(delegate), loop, host, port, out));
 }
 
-static void TestHttpRequest(int port, const std::string& path,
+static void TestHttpRequest(int port,
+                            const std::string& path,
                             const std::string& expected_body) {
   SocketWrapper socket(&loop);
   socket.Connect(HOST, port);
@@ -369,7 +361,8 @@ static void TestHttpRequest(int port, const std::string& path,
 }
 
 static const std::string WsHandshakeRequest(const std::string& target_id) {
-  return "GET /" + target_id + " HTTP/1.1\r\n"
+  return "GET /" + target_id +
+         " HTTP/1.1\r\n"
          "Host: localhost:9229\r\n"
          "Upgrade: websocket\r\n"
          "Connection: Upgrade\r\n"
@@ -377,7 +370,6 @@ static const std::string WsHandshakeRequest(const std::string& target_id) {
          "Sec-WebSocket-Version: 13\r\n\r\n";
 }
 }  // anonymous namespace
-
 
 TEST_F(InspectorSocketServerTest, InspectorSessions) {
   ServerHolder server(true, &loop, 0);
@@ -396,7 +388,8 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   server.Expect("1234");
   server.Write("5678");
 
-  well_behaved_socket.Expect("\x81\x4" "5678");
+  well_behaved_socket.Expect("\x81\x4"
+                             "5678");
   well_behaved_socket.Write(CLIENT_CLOSE_FRAME);
   well_behaved_socket.Expect(SERVER_CLOSE_FRAME);
 
@@ -422,7 +415,8 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   EXPECT_EQ(2, server.connected);
 
   server.Write("5678");
-  dropped_connection_socket.Expect("\x81\x4" "5678");
+  dropped_connection_socket.Expect("\x81\x4"
+                                   "5678");
 
   dropped_connection_socket.Close();
   SPIN_WHILE(server.disconnected < 2);
@@ -436,10 +430,11 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   SPIN_WHILE(3 != server.connected);
 
   server.Write("5678");
-  stays_till_termination_socket.Expect("\x81\x4" "5678");
+  stays_till_termination_socket.Expect("\x81\x4"
+                                       "5678");
 
-  stays_till_termination_socket
-      .Write("\x81\x84\x7F\xC2\x66\x31\x4E\xF0\x55\x05");
+  stays_till_termination_socket.Write(
+      "\x81\x84\x7F\xC2\x66\x31\x4E\xF0\x55\x05");
   server.Expect("1234");
 
   server->Stop();

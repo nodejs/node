@@ -19,8 +19,8 @@ void MakeCallback(const FunctionCallbackInfo<Value>& args) {
   Local<Object> recv = args[0].As<Object>();
   Local<Function> method = args[1].As<Function>();
 
-  node::MakeCallback(isolate, recv, method, 0, nullptr,
-                     node::async_context{0, 0});
+  node::MakeCallback(
+      isolate, recv, method, 0, nullptr, node::async_context{0, 0});
 }
 
 void Initialize(Local<Object> exports) {

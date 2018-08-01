@@ -1,8 +1,8 @@
-#include <stdlib.h>
 #include <node.h>
+#include <stdlib.h>
 #include <v8.h>
 
-void EnsureAllocation(const v8::FunctionCallbackInfo<v8::Value> &args) {
+void EnsureAllocation(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   uintptr_t size = args[0]->IntegerValue();
   v8::Local<v8::Boolean> success;

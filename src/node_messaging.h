@@ -3,10 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <list>
 #include "env.h"
 #include "node_mutex.h"
 #include "sharedarraybuffer_metadata.h"
-#include <list>
 
 namespace node {
 namespace worker {
@@ -34,12 +34,12 @@ class Message : public MemoryRetainer {
   // deserialization.
   // The source_port parameter, if provided, will make Serialize() throw a
   // "DataCloneError" DOMException if source_port is found in transfer_list.
-  v8::Maybe<bool> Serialize(Environment* env,
-                            v8::Local<v8::Context> context,
-                            v8::Local<v8::Value> input,
-                            v8::Local<v8::Value> transfer_list,
-                            v8::Local<v8::Object> source_port =
-                                v8::Local<v8::Object>());
+  v8::Maybe<bool> Serialize(
+      Environment* env,
+      v8::Local<v8::Context> context,
+      v8::Local<v8::Value> input,
+      v8::Local<v8::Value> transfer_list,
+      v8::Local<v8::Object> source_port = v8::Local<v8::Object>());
 
   // Internal method of Message that is called when a new SharedArrayBuffer
   // object is encountered in the incoming value's structure.
@@ -212,6 +212,5 @@ v8::MaybeLocal<v8::Function> GetMessagePortConstructor(
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 
 #endif  // SRC_NODE_MESSAGING_H_

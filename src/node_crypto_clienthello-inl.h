@@ -61,8 +61,7 @@ inline void ClientHelloParser::Reset() {
 inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
                                      ClientHelloParser::OnEndCb onend_cb,
                                      void* onend_arg) {
-  if (!IsEnded())
-    return;
+  if (!IsEnded()) return;
   Reset();
 
   CHECK_NOT_NULL(onhello_cb);
@@ -74,8 +73,7 @@ inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
 }
 
 inline void ClientHelloParser::End() {
-  if (state_ == kEnded)
-    return;
+  if (state_ == kEnded) return;
   state_ = kEnded;
   if (onend_cb_ != nullptr) {
     onend_cb_(cb_arg_);

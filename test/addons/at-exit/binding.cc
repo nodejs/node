@@ -1,6 +1,6 @@
 #include <assert.h>
-#include <stdlib.h>
 #include <node.h>
+#include <stdlib.h>
 #include <v8.h>
 
 using node::AtExit;

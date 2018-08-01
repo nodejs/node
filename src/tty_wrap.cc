@@ -41,7 +41,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-
 void TTYWrap::Initialize(Local<Object> target,
                          Local<Value> unused,
                          Local<Context> context) {
@@ -67,11 +66,9 @@ void TTYWrap::Initialize(Local<Object> target,
   env->set_tty_constructor_template(t);
 }
 
-
 uv_tty_t* TTYWrap::UVHandle() {
   return &handle_;
 }
-
 
 void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -82,19 +79,30 @@ void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   const char* type = nullptr;
 
   switch (t) {
-  case UV_TCP: type = "TCP"; break;
-  case UV_TTY: type = "TTY"; break;
-  case UV_UDP: type = "UDP"; break;
-  case UV_FILE: type = "FILE"; break;
-  case UV_NAMED_PIPE: type = "PIPE"; break;
-  case UV_UNKNOWN_HANDLE: type = "UNKNOWN"; break;
-  default:
-    ABORT();
+    case UV_TCP:
+      type = "TCP";
+      break;
+    case UV_TTY:
+      type = "TTY";
+      break;
+    case UV_UDP:
+      type = "UDP";
+      break;
+    case UV_FILE:
+      type = "FILE";
+      break;
+    case UV_NAMED_PIPE:
+      type = "PIPE";
+      break;
+    case UV_UNKNOWN_HANDLE:
+      type = "UNKNOWN";
+      break;
+    default:
+      ABORT();
   }
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), type));
 }
-
 
 void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
   int fd = args[0]->Int32Value();
@@ -103,14 +111,12 @@ void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc);
 }
 
-
 void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   TTYWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.Holder(), args.GetReturnValue().Set(UV_EBADF));
   CHECK(args[0]->IsArray());
 
   int width, height;
@@ -125,16 +131,13 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
 void TTYWrap::SetRawMode(const FunctionCallbackInfo<Value>& args) {
   TTYWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.Holder(), args.GetReturnValue().Set(UV_EBADF));
   int err = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
   args.GetReturnValue().Set(err);
 }
-
 
 void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -155,7 +158,6 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-
 TTYWrap::TTYWrap(Environment* env,
                  Local<Object> object,
                  int fd,
@@ -167,8 +169,7 @@ TTYWrap::TTYWrap(Environment* env,
                       AsyncWrap::PROVIDER_TTYWRAP) {
   *init_err = uv_tty_init(env->event_loop(), &handle_, fd, readable);
   set_fd(fd);
-  if (*init_err != 0)
-    MarkAsUninitialized();
+  if (*init_err != 0) MarkAsUninitialized();
 }
 
 }  // namespace node

@@ -1,6 +1,6 @@
-#include "node.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#include "node.h"
 #include "v8.h"
 
 namespace node {
@@ -15,33 +15,31 @@ using AsyncHooks = Environment::AsyncHooks;
 CallbackScope::CallbackScope(Isolate* isolate,
                              Local<Object> object,
                              async_context asyncContext)
-  : private_(new InternalCallbackScope(Environment::GetCurrent(isolate),
-                                       object,
-                                       asyncContext)),
-    try_catch_(isolate) {
+    : private_(new InternalCallbackScope(
+          Environment::GetCurrent(isolate), object, asyncContext)),
+      try_catch_(isolate) {
   try_catch_.SetVerbose(true);
 }
 
 CallbackScope::~CallbackScope() {
-  if (try_catch_.HasCaught())
-    private_->MarkAsFailed();
+  if (try_catch_.HasCaught()) private_->MarkAsFailed();
   delete private_;
 }
 
 InternalCallbackScope::InternalCallbackScope(AsyncWrap* async_wrap)
-    : InternalCallbackScope(async_wrap->env(),
-                            async_wrap->object(),
-                            { async_wrap->get_async_id(),
-                              async_wrap->get_trigger_async_id() }) {}
+    : InternalCallbackScope(
+          async_wrap->env(),
+          async_wrap->object(),
+          {async_wrap->get_async_id(), async_wrap->get_trigger_async_id()}) {}
 
 InternalCallbackScope::InternalCallbackScope(Environment* env,
                                              Local<Object> object,
                                              const async_context& asyncContext,
                                              ResourceExpectation expect)
-  : env_(env),
-    async_context_(asyncContext),
-    object_(object),
-    callback_scope_(env) {
+    : env_(env),
+      async_context_(asyncContext),
+      object_(object),
+      callback_scope_(env) {
   CHECK_IMPLIES(expect == kRequireResource, !object.IsEmpty());
 
   if (!env->can_call_into_js()) {
@@ -60,7 +58,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   }
 
   env->async_hooks()->push_async_ids(async_context_.async_id,
-                               async_context_.trigger_async_id);
+                                     async_context_.trigger_async_id);
   pushed_ids_ = true;
 }
 
@@ -78,8 +76,7 @@ void InternalCallbackScope::Close() {
     env_->async_hooks()->clear_async_id_stack();
   }
 
-  if (pushed_ids_)
-    env_->async_hooks()->pop_async_id(async_context_.async_id);
+  if (pushed_ids_) env_->async_hooks()->pop_async_id(async_context_.async_id);
 
   if (failed_) return;
 

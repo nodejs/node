@@ -3,8 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env.h"
 #include "async_wrap-inl.h"
+#include "env.h"
 #include "node.h"
 #include "util.h"
 
@@ -25,13 +25,12 @@ struct StreamWriteResult {
   size_t bytes;
 };
 
-
 class StreamReq {
  public:
   static constexpr int kStreamReqField = 1;
 
-  explicit StreamReq(StreamBase* stream,
-                     v8::Local<v8::Object> req_wrap_obj) : stream_(stream) {
+  explicit StreamReq(StreamBase* stream, v8::Local<v8::Object> req_wrap_obj)
+      : stream_(stream) {
     AttachToObject(req_wrap_obj);
   }
 
@@ -64,9 +63,8 @@ class StreamReq {
 
 class ShutdownWrap : public StreamReq {
  public:
-  ShutdownWrap(StreamBase* stream,
-               v8::Local<v8::Object> req_wrap_obj)
-    : StreamReq(stream, req_wrap_obj) { }
+  ShutdownWrap(StreamBase* stream, v8::Local<v8::Object> req_wrap_obj)
+      : StreamReq(stream, req_wrap_obj) {}
 
   // Call stream()->EmitAfterShutdown() and dispose of this request wrap.
   void OnDone(int status) override;
@@ -78,13 +76,10 @@ class WriteWrap : public StreamReq {
   size_t StorageSize() const;
   void SetAllocatedStorage(char* data, size_t size);
 
-  WriteWrap(StreamBase* stream,
-            v8::Local<v8::Object> req_wrap_obj)
-    : StreamReq(stream, req_wrap_obj) { }
+  WriteWrap(StreamBase* stream, v8::Local<v8::Object> req_wrap_obj)
+      : StreamReq(stream, req_wrap_obj) {}
 
-  ~WriteWrap() {
-    free(storage_);
-  }
+  ~WriteWrap() { free(storage_); }
 
   // Call stream()->EmitAfterWrite() and dispose of this request wrap.
   void OnDone(int status) override;
@@ -93,7 +88,6 @@ class WriteWrap : public StreamReq {
   char* storage_ = nullptr;
   size_t storage_size_ = 0;
 };
-
 
 // This is the generic interface for objects that control Node.js' C++ streams.
 // For example, the default `EmitToJSStreamListener` emits a stream's data
@@ -123,8 +117,7 @@ class StreamListener {
   // with base nullptr in case of an error.
   // `nread` is the number of read bytes (which is at most the buffer length),
   // or, if negative, a libuv error code.
-  virtual void OnStreamRead(ssize_t nread,
-                            const uv_buf_t& buf) = 0;
+  virtual void OnStreamRead(ssize_t nread, const uv_buf_t& buf) = 0;
 
   // This is called once a write has finished. `status` may be 0 or,
   // if negative, a libuv error code.
@@ -164,7 +157,6 @@ class StreamListener {
   friend class StreamResource;
 };
 
-
 // An (incomplete) stream listener class that calls the `.oncomplete()`
 // method of the JS objects associated with the wrap objects.
 class ReportWritesToJSStreamListener : public StreamListener {
@@ -176,14 +168,12 @@ class ReportWritesToJSStreamListener : public StreamListener {
   void OnStreamAfterReqFinished(StreamReq* req_wrap, int status);
 };
 
-
 // A default emitter that just pushes data chunks as Buffer instances to
 // JS land via the handle’s .ondata method.
 class EmitToJSStreamListener : public ReportWritesToJSStreamListener {
  public:
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
 };
-
 
 // A generic stream, comparable to JS land’s `Duplex` streams.
 // A stream is always controlled through one `StreamListener` instance.
@@ -251,7 +241,6 @@ class StreamResource {
 
   friend class StreamListener;
 };
-
 
 class StreamBase : public StreamResource {
  public:
@@ -323,7 +312,7 @@ class StreamBase : public StreamResource {
 
   template <class Base,
             int (StreamBase::*Method)(
-      const v8::FunctionCallbackInfo<v8::Value>& args)>
+                const v8::FunctionCallbackInfo<v8::Value>& args)>
   static void JSMethod(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
@@ -334,7 +323,6 @@ class StreamBase : public StreamResource {
   friend class ShutdownWrap;
 };
 
-
 // These are helpers for creating `ShutdownWrap`/`WriteWrap` instances.
 // `OtherBase` must have a constructor that matches the `AsyncWrap`
 // constructors’s (Environment*, Local<Object>, AsyncWrap::Provider) signature
@@ -342,8 +330,7 @@ class StreamBase : public StreamResource {
 template <typename OtherBase>
 class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
  public:
-  SimpleShutdownWrap(StreamBase* stream,
-                     v8::Local<v8::Object> req_wrap_obj);
+  SimpleShutdownWrap(StreamBase* stream, v8::Local<v8::Object> req_wrap_obj);
 
   AsyncWrap* GetAsyncWrap() override { return this; }
 
@@ -357,8 +344,7 @@ class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
 template <typename OtherBase>
 class SimpleWriteWrap : public WriteWrap, public OtherBase {
  public:
-  SimpleWriteWrap(StreamBase* stream,
-                  v8::Local<v8::Object> req_wrap_obj);
+  SimpleWriteWrap(StreamBase* stream, v8::Local<v8::Object> req_wrap_obj);
 
   AsyncWrap* GetAsyncWrap() override { return this; }
 
@@ -366,7 +352,6 @@ class SimpleWriteWrap : public WriteWrap, public OtherBase {
     tracker->TrackThis(this);
     tracker->TrackFieldWithSize("storage", StorageSize());
   }
-
 
   ADD_MEMORY_INFO_NAME(SimpleWriteWrap)
 };

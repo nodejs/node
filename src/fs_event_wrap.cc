@@ -21,12 +21,11 @@
 
 #include "async_wrap-inl.h"
 #include "env-inl.h"
-#include "util-inl.h"
+#include "handle_wrap.h"
 #include "node.h"
 #include "node_internals.h"
-#include "handle_wrap.h"
 #include "string_bytes.h"
-
+#include "util-inl.h"
 
 namespace node {
 
@@ -48,7 +47,7 @@ using v8::Value;
 
 namespace {
 
-class FSEventWrap: public HandleWrap {
+class FSEventWrap : public HandleWrap {
  public:
   static void Initialize(Local<Object> target,
                          Local<Value> unused,
@@ -69,13 +68,14 @@ class FSEventWrap: public HandleWrap {
   FSEventWrap(Environment* env, Local<Object> object);
   ~FSEventWrap() override;
 
-  static void OnEvent(uv_fs_event_t* handle, const char* filename, int events,
-    int status);
+  static void OnEvent(uv_fs_event_t* handle,
+                      const char* filename,
+                      int events,
+                      int status);
 
   uv_fs_event_t handle_;
   enum encoding encoding_ = kDefaultEncoding;
 };
-
 
 FSEventWrap::FSEventWrap(Environment* env, Local<Object> object)
     : HandleWrap(env,
@@ -85,9 +85,7 @@ FSEventWrap::FSEventWrap(Environment* env, Local<Object> object)
   MarkAsUninitialized();
 }
 
-
-FSEventWrap::~FSEventWrap() {
-}
+FSEventWrap::~FSEventWrap() {}
 
 void FSEventWrap::GetInitialized(const FunctionCallbackInfo<Value>& args) {
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.This());
@@ -124,7 +122,6 @@ void FSEventWrap::Initialize(Local<Object> target,
   target->Set(fsevent_string, t->GetFunction());
 }
 
-
 void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
@@ -146,8 +143,7 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(*path);
 
   unsigned int flags = 0;
-  if (args[2]->IsTrue())
-    flags |= UV_FS_EVENT_RECURSIVE;
+  if (args[2]->IsTrue()) flags |= UV_FS_EVENT_RECURSIVE;
 
   wrap->encoding_ = ParseEncoding(env->isolate(), args[3], kDefaultEncoding);
 
@@ -172,9 +168,10 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
-void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
-    int events, int status) {
+void FSEventWrap::OnEvent(uv_fs_event_t* handle,
+                          const char* filename,
+                          int events,
+                          int status) {
   FSEventWrap* wrap = static_cast<FSEventWrap*>(handle->data);
   Environment* env = wrap->env();
 
@@ -206,24 +203,17 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   }
 
   Local<Value> argv[] = {
-    Integer::New(env->isolate(), status),
-    event_string,
-    Null(env->isolate())
-  };
+      Integer::New(env->isolate(), status), event_string, Null(env->isolate())};
 
   if (filename != nullptr) {
     Local<Value> error;
-    MaybeLocal<Value> fn = StringBytes::Encode(env->isolate(),
-                                               filename,
-                                               wrap->encoding_,
-                                               &error);
+    MaybeLocal<Value> fn =
+        StringBytes::Encode(env->isolate(), filename, wrap->encoding_, &error);
     if (fn.IsEmpty()) {
       argv[0] = Integer::New(env->isolate(), UV_EINVAL);
-      argv[2] = StringBytes::Encode(env->isolate(),
-                                    filename,
-                                    strlen(filename),
-                                    BUFFER,
-                                    &error).ToLocalChecked();
+      argv[2] = StringBytes::Encode(
+                    env->isolate(), filename, strlen(filename), BUFFER, &error)
+                    .ToLocalChecked();
     } else {
       argv[2] = fn.ToLocalChecked();
     }

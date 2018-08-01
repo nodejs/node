@@ -1,9 +1,9 @@
 #ifndef SRC_TRACING_NODE_TRACE_BUFFER_H_
 #define SRC_TRACING_NODE_TRACE_BUFFER_H_
 
-#include "tracing/agent.h"
-#include "node_mutex.h"
 #include "libplatform/v8-tracing.h"
+#include "node_mutex.h"
+#include "tracing/agent.h"
 
 #include <atomic>
 
@@ -27,15 +27,17 @@ class InternalTraceBuffer {
   bool IsFull() const {
     return total_chunks_ == max_chunks_ && chunks_[total_chunks_ - 1]->IsFull();
   }
-  bool IsFlushing() const {
-    return flushing_;
-  }
+  bool IsFlushing() const { return flushing_; }
 
  private:
-  uint64_t MakeHandle(size_t chunk_index, uint32_t chunk_seq,
+  uint64_t MakeHandle(size_t chunk_index,
+                      uint32_t chunk_seq,
                       size_t event_index) const;
-  void ExtractHandle(uint64_t handle, uint32_t* buffer_id, size_t* chunk_index,
-                     uint32_t* chunk_seq, size_t* event_index) const;
+  void ExtractHandle(uint64_t handle,
+                     uint32_t* buffer_id,
+                     size_t* chunk_index,
+                     uint32_t* chunk_seq,
+                     size_t* event_index) const;
   size_t Capacity() const { return max_chunks_ * TraceBufferChunk::kChunkSize; }
 
   Mutex mutex_;

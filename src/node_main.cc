@@ -19,18 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node.h"
 #include <stdio.h>
+#include "node.h"
 
 #ifdef _WIN32
-#include <windows.h>
 #include <VersionHelpers.h>
 #include <WinError.h>
+#include <windows.h>
 
 int wmain(int argc, wchar_t* wargv[]) {
   if (!IsWindows7OrGreater()) {
-    fprintf(stderr, "This application is only supported on Windows 7, "
-                    "Windows Server 2008 R2, or higher.");
+    fprintf(stderr,
+            "This application is only supported on Windows 7, "
+            "Windows Server 2008 R2, or higher.");
     exit(ERROR_EXE_MACHINE_TYPE_MISMATCH);
   }
 
@@ -38,14 +39,8 @@ int wmain(int argc, wchar_t* wargv[]) {
   char** argv = new char*[argc + 1];
   for (int i = 0; i < argc; i++) {
     // Compute the size of the required buffer
-    DWORD size = WideCharToMultiByte(CP_UTF8,
-                                     0,
-                                     wargv[i],
-                                     -1,
-                                     nullptr,
-                                     0,
-                                     nullptr,
-                                     nullptr);
+    DWORD size = WideCharToMultiByte(
+        CP_UTF8, 0, wargv[i], -1, nullptr, 0, nullptr, nullptr);
     if (size == 0) {
       // This should never happen.
       fprintf(stderr, "Could not convert arguments to utf8.");
@@ -53,14 +48,8 @@ int wmain(int argc, wchar_t* wargv[]) {
     }
     // Do the actual conversion
     argv[i] = new char[size];
-    DWORD result = WideCharToMultiByte(CP_UTF8,
-                                       0,
-                                       wargv[i],
-                                       -1,
-                                       argv[i],
-                                       size,
-                                       nullptr,
-                                       nullptr);
+    DWORD result = WideCharToMultiByte(
+        CP_UTF8, 0, wargv[i], -1, argv[i], size, nullptr, nullptr);
     if (result == 0) {
       // This should never happen.
       fprintf(stderr, "Could not convert arguments to utf8.");
@@ -83,12 +72,12 @@ int wmain(int argc, wchar_t* wargv[]) {
 extern char** environ;
 #endif  // __linux__
 #if defined(__POSIX__) && defined(NODE_SHARED_MODE)
-#include <string.h>
 #include <signal.h>
+#include <string.h>
 #endif
 
 namespace node {
-  extern bool linux_at_secure;
+extern bool linux_at_secure;
 }  // namespace node
 
 int main(int argc, char* argv[]) {
@@ -108,7 +97,8 @@ int main(int argc, char* argv[]) {
 
 #if defined(__linux__)
   char** envp = environ;
-  while (*envp++ != nullptr) {}
+  while (*envp++ != nullptr) {
+  }
   Elf_auxv_t* auxv = reinterpret_cast<Elf_auxv_t*>(envp);
   for (; auxv->a_type != AT_NULL; auxv++) {
     if (auxv->a_type == AT_SECURE) {

@@ -36,7 +36,7 @@ class MainThreadInterface;
 class MainThreadHandle : public std::enable_shared_from_this<MainThreadHandle> {
  public:
   explicit MainThreadHandle(MainThreadInterface* main_thread)
-                            : main_thread_(main_thread) {}
+      : main_thread_(main_thread) {}
   ~MainThreadHandle() {
     CHECK_NULL(main_thread_);  // main_thread_ should have called Reset
   }
@@ -61,7 +61,9 @@ class MainThreadHandle : public std::enable_shared_from_this<MainThreadHandle> {
 
 class MainThreadInterface {
  public:
-  MainThreadInterface(Agent* agent, uv_loop_t*, v8::Isolate* isolate,
+  MainThreadInterface(Agent* agent,
+                      uv_loop_t*,
+                      v8::Isolate* isolate,
                       v8::Platform* platform);
   ~MainThreadInterface();
 
@@ -69,9 +71,7 @@ class MainThreadInterface {
   void Post(std::unique_ptr<Request> request);
   bool WaitForFrontendEvent();
   std::shared_ptr<MainThreadHandle> GetHandle();
-  Agent* inspector_agent() {
-    return agent_;
-  }
+  Agent* inspector_agent() { return agent_; }
 
  private:
   using AsyncAndInterface = std::pair<uv_async_t, MainThreadInterface*>;
@@ -80,7 +80,7 @@ class MainThreadInterface {
   static void CloseAsync(AsyncAndInterface*);
 
   MessageQueue requests_;
-  Mutex requests_lock_;   // requests_ live across threads
+  Mutex requests_lock_;  // requests_ live across threads
   // This queue is to maintain the order of the messages for the cases
   // when we reenter the DispatchMessages function.
   MessageQueue dispatching_message_queue_;

@@ -17,12 +17,9 @@ void Run(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   {
     v8::HandleScope scope(isolate);
-    v8::Local<v8::Object> buf = node::Buffer::New(
-          isolate,
-          nullptr,
-          0,
-          FreeCallback,
-          nullptr).ToLocalChecked();
+    v8::Local<v8::Object> buf =
+        node::Buffer::New(isolate, nullptr, 0, FreeCallback, nullptr)
+            .ToLocalChecked();
 
     char* data = node::Buffer::Data(buf);
     assert(data == nullptr);

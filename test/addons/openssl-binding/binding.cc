@@ -1,5 +1,5 @@
-#include <node.h>
 #include <assert.h>
+#include <node.h>
 #include <openssl/rand.h>
 
 namespace {

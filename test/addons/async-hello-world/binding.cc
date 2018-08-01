@@ -1,13 +1,12 @@
 #include <node.h>
-#include <v8.h>
 #include <uv.h>
+#include <v8.h>
 
 #if defined _WIN32
 #include <windows.h>
 #else
 #include <unistd.h>
 #endif
-
 
 struct async_req {
   uv_work_t req;
@@ -35,10 +34,8 @@ void AfterAsync(uv_work_t* r) {
   v8::Isolate* isolate = req->isolate;
   v8::HandleScope scope(isolate);
 
-  v8::Local<v8::Value> argv[2] = {
-    v8::Null(isolate),
-    v8::Integer::New(isolate, req->output)
-  };
+  v8::Local<v8::Value> argv[2] = {v8::Null(isolate),
+                                  v8::Integer::New(isolate, req->output)};
 
   v8::TryCatch try_catch(isolate);
 

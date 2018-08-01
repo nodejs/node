@@ -24,17 +24,14 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_internals.h"
 #include "node_buffer.h"
+#include "node_internals.h"
 
 namespace node {
-
-
 
 class SyncProcessOutputBuffer;
 class SyncProcessStdioPipe;
 class SyncProcessRunner;
-
 
 class SyncProcessOutputBuffer {
   static const unsigned int kBufferSize = 65536;
@@ -60,7 +57,6 @@ class SyncProcessOutputBuffer {
 
   SyncProcessOutputBuffer* next_;
 };
-
 
 class SyncProcessStdioPipe {
   enum Lifecycle {
@@ -130,13 +126,8 @@ class SyncProcessStdioPipe {
   Lifecycle lifecycle_;
 };
 
-
 class SyncProcessRunner {
-  enum Lifecycle {
-    kUninitialized = 0,
-    kInitialized,
-    kHandlesClosed
-  };
+  enum Lifecycle { kUninitialized = 0, kInitialized, kHandlesClosed };
 
  public:
   static void Initialize(v8::Local<v8::Object> target,

@@ -22,6 +22,7 @@
 #include "pipe_wrap.h"
 
 #include "async_wrap.h"
+#include "connect_wrap.h"
 #include "connection_wrap.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
@@ -29,7 +30,6 @@
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "node_wrap.h"
-#include "connect_wrap.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
@@ -50,7 +50,6 @@ using v8::Value;
 
 using AsyncHooks = Environment::AsyncHooks;
 
-
 Local<Object> PipeWrap::Instantiate(Environment* env,
                                     AsyncWrap* parent,
                                     PipeWrap::SocketType type) {
@@ -64,7 +63,6 @@ Local<Object> PipeWrap::Instantiate(Environment* env,
       constructor->NewInstance(env->context(), 1, &type_value).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
-
 
 void PipeWrap::Initialize(Local<Object> target,
                           Local<Value> unused,
@@ -109,11 +107,12 @@ void PipeWrap::Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, IPC);
   NODE_DEFINE_CONSTANT(constants, UV_READABLE);
   NODE_DEFINE_CONSTANT(constants, UV_WRITABLE);
-  target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "constants"),
-              constants).FromJust();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "constants"),
+            constants)
+      .FromJust();
 }
-
 
 void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   // This constructor should not be exposed to public javascript.
@@ -148,7 +147,6 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   new PipeWrap(env, args.This(), provider, ipc);
 }
 
-
 PipeWrap::PipeWrap(Environment* env,
                    Local<Object> object,
                    ProviderType provider,
@@ -159,7 +157,6 @@ PipeWrap::PipeWrap(Environment* env,
                    // Suggestion: uv_pipe_init() returns void.
 }
 
-
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
@@ -167,7 +164,6 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   int err = uv_pipe_bind(&wrap->handle_, *name);
   args.GetReturnValue().Set(err);
 }
-
 
 #ifdef _WIN32
 void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
@@ -178,28 +174,23 @@ void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
 }
 #endif
 
-
 void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   CHECK(args[0]->IsInt32());
   int mode = args[0].As<Int32>()->Value();
-  int err = uv_pipe_chmod(reinterpret_cast<uv_pipe_t*>(&wrap->handle_),
-                          mode);
+  int err = uv_pipe_chmod(reinterpret_cast<uv_pipe_t*>(&wrap->handle_), mode);
   args.GetReturnValue().Set(err);
 }
-
 
 void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   int backlog = args[0]->Int32Value();
-  int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
-                      backlog,
-                      OnConnection);
+  int err = uv_listen(
+      reinterpret_cast<uv_stream_t*>(&wrap->handle_), backlog, OnConnection);
   args.GetReturnValue().Set(err);
 }
-
 
 void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -216,7 +207,6 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
     env->isolate()->ThrowException(UVException(err, "uv_pipe_open"));
 }
 
-
 void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -231,14 +221,10 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   ConnectWrap* req_wrap =
       new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPECONNECTWRAP);
-  req_wrap->Dispatch(uv_pipe_connect,
-                     &wrap->handle_,
-                     *name,
-                     AfterConnect);
+  req_wrap->Dispatch(uv_pipe_connect, &wrap->handle_, *name, AfterConnect);
 
   args.GetReturnValue().Set(0);  // uv_pipe_connect() doesn't return errors.
 }
-
 
 }  // namespace node
 

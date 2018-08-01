@@ -24,19 +24,17 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_persistent.h"
-#include "memory_tracker-inl.h"
-#include "v8.h"
 #include <type_traits>  // std::remove_reference
+#include "memory_tracker-inl.h"
+#include "node_persistent.h"
+#include "v8.h"
 
 namespace node {
 
 class Environment;
 
-#define ADD_MEMORY_INFO_NAME(name)                                          \
-  std::string MemoryInfoName() const override {                             \
-    return #name;                                                           \
-  }
+#define ADD_MEMORY_INFO_NAME(name)                                             \
+  std::string MemoryInfoName() const override { return #name; }
 
 class BaseObject : public MemoryRetainer {
  public:
@@ -97,20 +95,17 @@ class BaseObject : public MemoryRetainer {
   Environment* env_;
 };
 
-
 // Global alias for FromJSObject() to avoid churn.
 template <typename T>
 inline T* Unwrap(v8::Local<v8::Object> obj) {
   return BaseObject::FromJSObject<T>(obj);
 }
 
-
-#define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                \
-  do {                                                                        \
-    *ptr = static_cast<typename std::remove_reference<decltype(*ptr)>::type>( \
-        BaseObject::FromJSObject(obj));                                       \
-    if (*ptr == nullptr)                                                      \
-      return __VA_ARGS__;                                                     \
+#define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                 \
+  do {                                                                         \
+    *ptr = static_cast<typename std::remove_reference<decltype(*ptr)>::type>(  \
+        BaseObject::FromJSObject(obj));                                        \
+    if (*ptr == nullptr) return __VA_ARGS__;                                   \
   } while (0)
 
 }  // namespace node

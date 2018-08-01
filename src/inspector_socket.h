@@ -48,9 +48,7 @@ class InspectorSocket {
   DISALLOW_COPY_AND_ASSIGN(InspectorSocket);
 };
 
-
 }  // namespace inspector
 }  // namespace node
-
 
 #endif  // SRC_INSPECTOR_SOCKET_H_

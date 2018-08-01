@@ -24,17 +24,17 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
-#include "node_mutex.h"
-#include "node_persistent.h"
-#include "util-inl.h"
 #include "env-inl.h"
+#include "node.h"
+#include "node_api.h"
+#include "node_debug_options.h"
+#include "node_mutex.h"
+#include "node_perf_common.h"
+#include "node_persistent.h"
+#include "tracing/trace_event.h"
+#include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
-#include "tracing/trace_event.h"
-#include "node_perf_common.h"
-#include "node_debug_options.h"
-#include "node_api.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -60,31 +60,32 @@
 #define Z_DEFAULT_LEVEL Z_DEFAULT_COMPRESSION
 
 enum {
-  NM_F_BUILTIN  = 1 << 0,
-  NM_F_LINKED   = 1 << 1,
+  NM_F_BUILTIN = 1 << 0,
+  NM_F_LINKED = 1 << 1,
   NM_F_INTERNAL = 1 << 2,
 };
 
 struct sockaddr;
 
 // Variation on NODE_DEFINE_CONSTANT that sets a String value.
-#define NODE_DEFINE_STRING_CONSTANT(target, name, constant)                   \
-  do {                                                                        \
-    v8::Isolate* isolate = target->GetIsolate();                              \
-    v8::Local<v8::String> constant_name =                                     \
-        v8::String::NewFromUtf8(isolate, name, v8::NewStringType::kNormal)    \
-            .ToLocalChecked();                                                \
-    v8::Local<v8::String> constant_value =                                    \
-        v8::String::NewFromUtf8(isolate, constant, v8::NewStringType::kNormal)\
-            .ToLocalChecked();                                                \
-    v8::PropertyAttribute constant_attributes =                               \
-        static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);    \
-    target->DefineOwnProperty(isolate->GetCurrentContext(),                   \
-                              constant_name,                                  \
-                              constant_value,                                 \
-                              constant_attributes).FromJust();                \
+#define NODE_DEFINE_STRING_CONSTANT(target, name, constant)                    \
+  do {                                                                         \
+    v8::Isolate* isolate = target->GetIsolate();                               \
+    v8::Local<v8::String> constant_name =                                      \
+        v8::String::NewFromUtf8(isolate, name, v8::NewStringType::kNormal)     \
+            .ToLocalChecked();                                                 \
+    v8::Local<v8::String> constant_value =                                     \
+        v8::String::NewFromUtf8(isolate, constant, v8::NewStringType::kNormal) \
+            .ToLocalChecked();                                                 \
+    v8::PropertyAttribute constant_attributes =                                \
+        static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);     \
+    target                                                                     \
+        ->DefineOwnProperty(isolate->GetCurrentContext(),                      \
+                            constant_name,                                     \
+                            constant_value,                                    \
+                            constant_attributes)                               \
+        .FromJust();                                                           \
   } while (0)
-
 
 #if HAVE_OPENSSL
 #define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
@@ -104,69 +105,65 @@ struct sockaddr;
 // function. This helps the built-in modules are loaded properly when
 // node is built as static library. No need to depends on the
 // __attribute__((constructor)) like mechanism in GCC.
-#define NODE_BUILTIN_STANDARD_MODULES(V)                                      \
-    V(async_wrap)                                                             \
-    V(buffer)                                                                 \
-    V(cares_wrap)                                                             \
-    V(config)                                                                 \
-    V(contextify)                                                             \
-    V(domain)                                                                 \
-    V(fs)                                                                     \
-    V(fs_event_wrap)                                                          \
-    V(heap_utils)                                                             \
-    V(http2)                                                                  \
-    V(http_parser)                                                            \
-    V(inspector)                                                              \
-    V(js_stream)                                                              \
-    V(messaging)                                                              \
-    V(module_wrap)                                                            \
-    V(os)                                                                     \
-    V(performance)                                                            \
-    V(pipe_wrap)                                                              \
-    V(process_wrap)                                                           \
-    V(serdes)                                                                 \
-    V(signal_wrap)                                                            \
-    V(spawn_sync)                                                             \
-    V(stream_pipe)                                                            \
-    V(stream_wrap)                                                            \
-    V(string_decoder)                                                         \
-    V(symbols)                                                                \
-    V(tcp_wrap)                                                               \
-    V(timers)                                                             \
-    V(trace_events)                                                           \
-    V(tty_wrap)                                                               \
-    V(types)                                                                  \
-    V(udp_wrap)                                                               \
-    V(url)                                                                    \
-    V(util)                                                                   \
-    V(uv)                                                                     \
-    V(v8)                                                                     \
-    V(worker)                                                                 \
-    V(zlib)
+#define NODE_BUILTIN_STANDARD_MODULES(V)                                       \
+  V(async_wrap)                                                                \
+  V(buffer)                                                                    \
+  V(cares_wrap)                                                                \
+  V(config)                                                                    \
+  V(contextify)                                                                \
+  V(domain)                                                                    \
+  V(fs)                                                                        \
+  V(fs_event_wrap)                                                             \
+  V(heap_utils)                                                                \
+  V(http2)                                                                     \
+  V(http_parser)                                                               \
+  V(inspector)                                                                 \
+  V(js_stream)                                                                 \
+  V(messaging)                                                                 \
+  V(module_wrap)                                                               \
+  V(os)                                                                        \
+  V(performance)                                                               \
+  V(pipe_wrap)                                                                 \
+  V(process_wrap)                                                              \
+  V(serdes)                                                                    \
+  V(signal_wrap)                                                               \
+  V(spawn_sync)                                                                \
+  V(stream_pipe)                                                               \
+  V(stream_wrap)                                                               \
+  V(string_decoder)                                                            \
+  V(symbols)                                                                   \
+  V(tcp_wrap)                                                                  \
+  V(timers)                                                                    \
+  V(trace_events)                                                              \
+  V(tty_wrap)                                                                  \
+  V(types)                                                                     \
+  V(udp_wrap)                                                                  \
+  V(url)                                                                       \
+  V(util)                                                                      \
+  V(uv)                                                                        \
+  V(v8)                                                                        \
+  V(worker)                                                                    \
+  V(zlib)
 
-#define NODE_BUILTIN_MODULES(V)                                               \
-  NODE_BUILTIN_STANDARD_MODULES(V)                                            \
-  NODE_BUILTIN_OPENSSL_MODULES(V)                                             \
+#define NODE_BUILTIN_MODULES(V)                                                \
+  NODE_BUILTIN_STANDARD_MODULES(V)                                             \
+  NODE_BUILTIN_OPENSSL_MODULES(V)                                              \
   NODE_BUILTIN_ICU_MODULES(V)
 
-#define NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)          \
-  static node::node_module _module = {                                        \
-    NODE_MODULE_VERSION,                                                      \
-    flags,                                                                    \
-    nullptr,                                                                  \
-    __FILE__,                                                                 \
-    nullptr,                                                                  \
-    (node::addon_context_register_func) (regfunc),                            \
-    NODE_STRINGIFY(modname),                                                  \
-    priv,                                                                     \
-    nullptr                                                                   \
-  };                                                                          \
-  void _register_ ## modname() {                                              \
-    node_module_register(&_module);                                           \
-  }
+#define NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)           \
+  static node::node_module _module = {                                         \
+      NODE_MODULE_VERSION,                                                     \
+      flags,                                                                   \
+      nullptr,                                                                 \
+      __FILE__,                                                                \
+      nullptr,                                                                 \
+      (node::addon_context_register_func)(regfunc),                            \
+      NODE_STRINGIFY(modname),                                                 \
+      priv,                                                                    \
+      nullptr};                                                                \
+  void _register_##modname() { node_module_register(&_module); }
 
-
-#define NODE_BUILTIN_MODULE_CONTEXT_AWARE(modname, regfunc)                   \
+#define NODE_BUILTIN_MODULE_CONTEXT_AWARE(modname, regfunc)                    \
   NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_BUILTIN)
 
 namespace node {
@@ -241,8 +238,7 @@ class Environment;
 // reference to the object.
 template <class TypeName>
 inline v8::Local<TypeName> PersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent);
+    v8::Isolate* isolate, const Persistent<TypeName>& persistent);
 
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
@@ -255,23 +251,20 @@ v8::Local<v8::Object> AddressToJS(
 template <typename T, int (*F)(const typename T::HandleType*, sockaddr*, int*)>
 void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   T* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.Holder(), args.GetReturnValue().Set(UV_EBADF));
   CHECK(args[0]->IsObject());
   sockaddr_storage storage;
   int addrlen = sizeof(storage);
   sockaddr* const addr = reinterpret_cast<sockaddr*>(&storage);
   const int err = F(&wrap->handle_, addr, &addrlen);
-  if (err == 0)
-    AddressToJS(wrap->env(), addr, args[0].As<v8::Object>());
+  if (err == 0) AddressToJS(wrap->env(), addr, args[0].As<v8::Object>());
   args.GetReturnValue().Set(err);
 }
 
 void FatalException(v8::Isolate* isolate,
                     v8::Local<v8::Value> error,
                     v8::Local<v8::Message> message);
-
 
 void SignalExit(int signo);
 #ifdef __POSIX__
@@ -286,16 +279,18 @@ std::string GetHumanReadableProcessName();
 void GetHumanReadableProcessName(char (*name)[1024]);
 
 template <typename T, size_t N>
-constexpr size_t arraysize(const T(&)[N]) { return N; }
+constexpr size_t arraysize(const T (&)[N]) {
+  return N;
+}
 
 #ifndef ROUND_UP
-# define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
+#define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
 #endif
 
 #ifdef __GNUC__
-# define MUST_USE_RESULT __attribute__((warn_unused_result))
+#define MUST_USE_RESULT __attribute__((warn_unused_result))
 #else
-# define MUST_USE_RESULT
+#define MUST_USE_RESULT
 #endif
 
 bool IsExceptionDecorated(Environment* env, v8::Local<v8::Value> er);
@@ -322,8 +317,7 @@ class FatalTryCatch : public v8::TryCatch {
 class SlicedArguments {
  public:
   inline explicit SlicedArguments(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      size_t start = 0);
+      const v8::FunctionCallbackInfo<v8::Value>& args, size_t start = 0);
   inline size_t size() const { return size_; }
   inline v8::Local<v8::Value>* data() { return data_; }
 
@@ -335,8 +329,8 @@ class SlicedArguments {
 };
 
 SlicedArguments::SlicedArguments(
-    const v8::FunctionCallbackInfo<v8::Value>& args,
-    size_t start) : size_(0), data_(fixed_) {
+    const v8::FunctionCallbackInfo<v8::Value>& args, size_t start)
+    : size_(0), data_(fixed_) {
   const size_t length = static_cast<size_t>(args.Length());
   if (start >= length) return;
   const size_t size = length - start;
@@ -346,8 +340,7 @@ SlicedArguments::SlicedArguments(
     data_ = dynamic_.data();
   }
 
-  for (size_t i = 0; i < size; ++i)
-    data_[i] = args[i + start];
+  for (size_t i = 0; i < size; ++i) data_[i] = args[i + start];
 
   size_ = size;
 }
@@ -363,7 +356,8 @@ v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
 
 template <typename NativeT, typename V8T>
 v8::Local<v8::Value> FillStatsArray(AliasedBuffer<NativeT, V8T>* fields_ptr,
-                    const uv_stat_t* s, int offset = 0) {
+                                    const uv_stat_t* s,
+                                    int offset = 0) {
   AliasedBuffer<NativeT, V8T>& fields = *fields_ptr;
   fields[offset + 0] = s->st_dev;
   fields[offset + 1] = s->st_mode;
@@ -385,11 +379,11 @@ v8::Local<v8::Value> FillStatsArray(AliasedBuffer<NativeT, V8T>* fields_ptr,
 #endif
 // Dates.
 // NO-LINT because the fields are 'long' and we just want to cast to `unsigned`
-#define X(idx, name)                                                    \
-  /* NOLINTNEXTLINE(runtime/int) */                                     \
-  fields[offset + idx] = ((unsigned long)(s->st_##name.tv_sec) * 1e3) + \
-  /* NOLINTNEXTLINE(runtime/int) */                                     \
-                ((unsigned long)(s->st_##name.tv_nsec) / 1e6);          \
+#define X(idx, name)                                                           \
+  /* NOLINTNEXTLINE(runtime/int) */                                            \
+  fields[offset + idx] = ((unsigned long)(s->st_##name.tv_sec) *               \
+                          1e3) + /* NOLINTNEXTLINE(runtime/int) */             \
+                         ((unsigned long)(s->st_##name.tv_nsec) / 1e6);
 
   X(10, atim)
   X(11, mtim)
@@ -405,15 +399,13 @@ inline v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,
                                                  bool use_bigint = false,
                                                  int offset = 0) {
   if (use_bigint) {
-    return node::FillStatsArray(
-        env->fs_stats_field_bigint_array(), s, offset);
+    return node::FillStatsArray(env->fs_stats_field_bigint_array(), s, offset);
   } else {
     return node::FillStatsArray(env->fs_stats_field_array(), s, offset);
   }
 }
 
-void SetupBootstrapObject(Environment* env,
-                          v8::Local<v8::Object> bootstrapper);
+void SetupBootstrapObject(Environment* env, v8::Local<v8::Object> bootstrapper);
 void SetupProcessObject(Environment* env,
                         int argc,
                         const char* const* argv,
@@ -436,9 +428,7 @@ inline enum Endianness GetEndianness() {
   const union {
     uint8_t u8[2];
     uint16_t u16;
-  } u = {
-    { 1, 0 }
-  };
+  } u = {{1, 0}};
   return u.u16 == 1 ? kLittleEndian : kBigEndian;
 }
 
@@ -455,8 +445,9 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
 
   virtual void* Allocate(size_t size);  // Defined in src/node.cc
-  virtual void* AllocateUninitialized(size_t size)
-    { return node::UncheckedMalloc(size); }
+  virtual void* AllocateUninitialized(size_t size) {
+    return node::UncheckedMalloc(size);
+  }
   virtual void Free(void* data, size_t) { free(data); }
 
  private:
@@ -477,16 +468,14 @@ v8::MaybeLocal<v8::Object> New(Environment* env,
 // Mixing operator new and free() is undefined behavior so don't do that.
 v8::MaybeLocal<v8::Object> New(Environment* env, char* data, size_t length);
 
-inline
-v8::MaybeLocal<v8::Uint8Array> New(Environment* env,
-                                   v8::Local<v8::ArrayBuffer> ab,
-                                   size_t byte_offset,
-                                   size_t length) {
+inline v8::MaybeLocal<v8::Uint8Array> New(Environment* env,
+                                          v8::Local<v8::ArrayBuffer> ab,
+                                          size_t byte_offset,
+                                          size_t length) {
   v8::Local<v8::Uint8Array> ui = v8::Uint8Array::New(ab, byte_offset, length);
   v8::Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.IsNothing())
-    return v8::MaybeLocal<v8::Uint8Array>();
+  if (mb.IsNothing()) return v8::MaybeLocal<v8::Uint8Array>();
   return ui;
 }
 
@@ -510,11 +499,9 @@ static v8::MaybeLocal<v8::Object> New(Environment* env,
   else if (!buf->IsInvalidated())
     ret = Copy(env, src, len_in_bytes);
 
-  if (ret.IsEmpty())
-    return ret;
+  if (ret.IsEmpty()) return ret;
 
-  if (buf->IsAllocated())
-    buf->Release();
+  if (buf->IsAllocated()) buf->Release();
 
   return ret;
 }
@@ -595,342 +582,342 @@ int ThreadPoolWork::CancelWork() {
 }
 
 static inline const char* errno_string(int errorno) {
-#define ERRNO_CASE(e)  case e: return #e;
+#define ERRNO_CASE(e)                                                          \
+  case e:                                                                      \
+    return #e;
   switch (errorno) {
 #ifdef EACCES
-  ERRNO_CASE(EACCES);
+    ERRNO_CASE(EACCES);
 #endif
 
 #ifdef EADDRINUSE
-  ERRNO_CASE(EADDRINUSE);
+    ERRNO_CASE(EADDRINUSE);
 #endif
 
 #ifdef EADDRNOTAVAIL
-  ERRNO_CASE(EADDRNOTAVAIL);
+    ERRNO_CASE(EADDRNOTAVAIL);
 #endif
 
 #ifdef EAFNOSUPPORT
-  ERRNO_CASE(EAFNOSUPPORT);
+    ERRNO_CASE(EAFNOSUPPORT);
 #endif
 
 #ifdef EAGAIN
-  ERRNO_CASE(EAGAIN);
+    ERRNO_CASE(EAGAIN);
 #endif
 
 #ifdef EWOULDBLOCK
-# if EAGAIN != EWOULDBLOCK
-  ERRNO_CASE(EWOULDBLOCK);
-# endif
+#if EAGAIN != EWOULDBLOCK
+    ERRNO_CASE(EWOULDBLOCK);
+#endif
 #endif
 
 #ifdef EALREADY
-  ERRNO_CASE(EALREADY);
+    ERRNO_CASE(EALREADY);
 #endif
 
 #ifdef EBADF
-  ERRNO_CASE(EBADF);
+    ERRNO_CASE(EBADF);
 #endif
 
 #ifdef EBADMSG
-  ERRNO_CASE(EBADMSG);
+    ERRNO_CASE(EBADMSG);
 #endif
 
 #ifdef EBUSY
-  ERRNO_CASE(EBUSY);
+    ERRNO_CASE(EBUSY);
 #endif
 
 #ifdef ECANCELED
-  ERRNO_CASE(ECANCELED);
+    ERRNO_CASE(ECANCELED);
 #endif
 
 #ifdef ECHILD
-  ERRNO_CASE(ECHILD);
+    ERRNO_CASE(ECHILD);
 #endif
 
 #ifdef ECONNABORTED
-  ERRNO_CASE(ECONNABORTED);
+    ERRNO_CASE(ECONNABORTED);
 #endif
 
 #ifdef ECONNREFUSED
-  ERRNO_CASE(ECONNREFUSED);
+    ERRNO_CASE(ECONNREFUSED);
 #endif
 
 #ifdef ECONNRESET
-  ERRNO_CASE(ECONNRESET);
+    ERRNO_CASE(ECONNRESET);
 #endif
 
 #ifdef EDEADLK
-  ERRNO_CASE(EDEADLK);
+    ERRNO_CASE(EDEADLK);
 #endif
 
 #ifdef EDESTADDRREQ
-  ERRNO_CASE(EDESTADDRREQ);
+    ERRNO_CASE(EDESTADDRREQ);
 #endif
 
 #ifdef EDOM
-  ERRNO_CASE(EDOM);
+    ERRNO_CASE(EDOM);
 #endif
 
 #ifdef EDQUOT
-  ERRNO_CASE(EDQUOT);
+    ERRNO_CASE(EDQUOT);
 #endif
 
 #ifdef EEXIST
-  ERRNO_CASE(EEXIST);
+    ERRNO_CASE(EEXIST);
 #endif
 
 #ifdef EFAULT
-  ERRNO_CASE(EFAULT);
+    ERRNO_CASE(EFAULT);
 #endif
 
 #ifdef EFBIG
-  ERRNO_CASE(EFBIG);
+    ERRNO_CASE(EFBIG);
 #endif
 
 #ifdef EHOSTUNREACH
-  ERRNO_CASE(EHOSTUNREACH);
+    ERRNO_CASE(EHOSTUNREACH);
 #endif
 
 #ifdef EIDRM
-  ERRNO_CASE(EIDRM);
+    ERRNO_CASE(EIDRM);
 #endif
 
 #ifdef EILSEQ
-  ERRNO_CASE(EILSEQ);
+    ERRNO_CASE(EILSEQ);
 #endif
 
 #ifdef EINPROGRESS
-  ERRNO_CASE(EINPROGRESS);
+    ERRNO_CASE(EINPROGRESS);
 #endif
 
 #ifdef EINTR
-  ERRNO_CASE(EINTR);
+    ERRNO_CASE(EINTR);
 #endif
 
 #ifdef EINVAL
-  ERRNO_CASE(EINVAL);
+    ERRNO_CASE(EINVAL);
 #endif
 
 #ifdef EIO
-  ERRNO_CASE(EIO);
+    ERRNO_CASE(EIO);
 #endif
 
 #ifdef EISCONN
-  ERRNO_CASE(EISCONN);
+    ERRNO_CASE(EISCONN);
 #endif
 
 #ifdef EISDIR
-  ERRNO_CASE(EISDIR);
+    ERRNO_CASE(EISDIR);
 #endif
 
 #ifdef ELOOP
-  ERRNO_CASE(ELOOP);
+    ERRNO_CASE(ELOOP);
 #endif
 
 #ifdef EMFILE
-  ERRNO_CASE(EMFILE);
+    ERRNO_CASE(EMFILE);
 #endif
 
 #ifdef EMLINK
-  ERRNO_CASE(EMLINK);
+    ERRNO_CASE(EMLINK);
 #endif
 
 #ifdef EMSGSIZE
-  ERRNO_CASE(EMSGSIZE);
+    ERRNO_CASE(EMSGSIZE);
 #endif
 
 #ifdef EMULTIHOP
-  ERRNO_CASE(EMULTIHOP);
+    ERRNO_CASE(EMULTIHOP);
 #endif
 
 #ifdef ENAMETOOLONG
-  ERRNO_CASE(ENAMETOOLONG);
+    ERRNO_CASE(ENAMETOOLONG);
 #endif
 
 #ifdef ENETDOWN
-  ERRNO_CASE(ENETDOWN);
+    ERRNO_CASE(ENETDOWN);
 #endif
 
 #ifdef ENETRESET
-  ERRNO_CASE(ENETRESET);
+    ERRNO_CASE(ENETRESET);
 #endif
 
 #ifdef ENETUNREACH
-  ERRNO_CASE(ENETUNREACH);
+    ERRNO_CASE(ENETUNREACH);
 #endif
 
 #ifdef ENFILE
-  ERRNO_CASE(ENFILE);
+    ERRNO_CASE(ENFILE);
 #endif
 
 #ifdef ENOBUFS
-  ERRNO_CASE(ENOBUFS);
+    ERRNO_CASE(ENOBUFS);
 #endif
 
 #ifdef ENODATA
-  ERRNO_CASE(ENODATA);
+    ERRNO_CASE(ENODATA);
 #endif
 
 #ifdef ENODEV
-  ERRNO_CASE(ENODEV);
+    ERRNO_CASE(ENODEV);
 #endif
 
 #ifdef ENOENT
-  ERRNO_CASE(ENOENT);
+    ERRNO_CASE(ENOENT);
 #endif
 
 #ifdef ENOEXEC
-  ERRNO_CASE(ENOEXEC);
+    ERRNO_CASE(ENOEXEC);
 #endif
 
 #ifdef ENOLINK
-  ERRNO_CASE(ENOLINK);
+    ERRNO_CASE(ENOLINK);
 #endif
 
 #ifdef ENOLCK
-# if ENOLINK != ENOLCK
-  ERRNO_CASE(ENOLCK);
-# endif
+#if ENOLINK != ENOLCK
+    ERRNO_CASE(ENOLCK);
+#endif
 #endif
 
 #ifdef ENOMEM
-  ERRNO_CASE(ENOMEM);
+    ERRNO_CASE(ENOMEM);
 #endif
 
 #ifdef ENOMSG
-  ERRNO_CASE(ENOMSG);
+    ERRNO_CASE(ENOMSG);
 #endif
 
 #ifdef ENOPROTOOPT
-  ERRNO_CASE(ENOPROTOOPT);
+    ERRNO_CASE(ENOPROTOOPT);
 #endif
 
 #ifdef ENOSPC
-  ERRNO_CASE(ENOSPC);
+    ERRNO_CASE(ENOSPC);
 #endif
 
 #ifdef ENOSR
-  ERRNO_CASE(ENOSR);
+    ERRNO_CASE(ENOSR);
 #endif
 
 #ifdef ENOSTR
-  ERRNO_CASE(ENOSTR);
+    ERRNO_CASE(ENOSTR);
 #endif
 
 #ifdef ENOSYS
-  ERRNO_CASE(ENOSYS);
+    ERRNO_CASE(ENOSYS);
 #endif
 
 #ifdef ENOTCONN
-  ERRNO_CASE(ENOTCONN);
+    ERRNO_CASE(ENOTCONN);
 #endif
 
 #ifdef ENOTDIR
-  ERRNO_CASE(ENOTDIR);
+    ERRNO_CASE(ENOTDIR);
 #endif
 
 #ifdef ENOTEMPTY
-# if ENOTEMPTY != EEXIST
-  ERRNO_CASE(ENOTEMPTY);
-# endif
+#if ENOTEMPTY != EEXIST
+    ERRNO_CASE(ENOTEMPTY);
+#endif
 #endif
 
 #ifdef ENOTSOCK
-  ERRNO_CASE(ENOTSOCK);
+    ERRNO_CASE(ENOTSOCK);
 #endif
 
 #ifdef ENOTSUP
-  ERRNO_CASE(ENOTSUP);
+    ERRNO_CASE(ENOTSUP);
 #else
-# ifdef EOPNOTSUPP
-  ERRNO_CASE(EOPNOTSUPP);
-# endif
+#ifdef EOPNOTSUPP
+    ERRNO_CASE(EOPNOTSUPP);
+#endif
 #endif
 
 #ifdef ENOTTY
-  ERRNO_CASE(ENOTTY);
+    ERRNO_CASE(ENOTTY);
 #endif
 
 #ifdef ENXIO
-  ERRNO_CASE(ENXIO);
+    ERRNO_CASE(ENXIO);
 #endif
 
-
 #ifdef EOVERFLOW
-  ERRNO_CASE(EOVERFLOW);
+    ERRNO_CASE(EOVERFLOW);
 #endif
 
 #ifdef EPERM
-  ERRNO_CASE(EPERM);
+    ERRNO_CASE(EPERM);
 #endif
 
 #ifdef EPIPE
-  ERRNO_CASE(EPIPE);
+    ERRNO_CASE(EPIPE);
 #endif
 
 #ifdef EPROTO
-  ERRNO_CASE(EPROTO);
+    ERRNO_CASE(EPROTO);
 #endif
 
 #ifdef EPROTONOSUPPORT
-  ERRNO_CASE(EPROTONOSUPPORT);
+    ERRNO_CASE(EPROTONOSUPPORT);
 #endif
 
 #ifdef EPROTOTYPE
-  ERRNO_CASE(EPROTOTYPE);
+    ERRNO_CASE(EPROTOTYPE);
 #endif
 
 #ifdef ERANGE
-  ERRNO_CASE(ERANGE);
+    ERRNO_CASE(ERANGE);
 #endif
 
 #ifdef EROFS
-  ERRNO_CASE(EROFS);
+    ERRNO_CASE(EROFS);
 #endif
 
 #ifdef ESPIPE
-  ERRNO_CASE(ESPIPE);
+    ERRNO_CASE(ESPIPE);
 #endif
 
 #ifdef ESRCH
-  ERRNO_CASE(ESRCH);
+    ERRNO_CASE(ESRCH);
 #endif
 
 #ifdef ESTALE
-  ERRNO_CASE(ESTALE);
+    ERRNO_CASE(ESTALE);
 #endif
 
 #ifdef ETIME
-  ERRNO_CASE(ETIME);
+    ERRNO_CASE(ETIME);
 #endif
 
 #ifdef ETIMEDOUT
-  ERRNO_CASE(ETIMEDOUT);
+    ERRNO_CASE(ETIMEDOUT);
 #endif
 
 #ifdef ETXTBSY
-  ERRNO_CASE(ETXTBSY);
+    ERRNO_CASE(ETXTBSY);
 #endif
 
 #ifdef EXDEV
-  ERRNO_CASE(EXDEV);
+    ERRNO_CASE(EXDEV);
 #endif
 
-  default: return "";
+    default:
+      return "";
   }
 }
 
-#define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)                  \
+#define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)                   \
   NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
 
 #define TRACING_CATEGORY_NODE "node"
-#define TRACING_CATEGORY_NODE1(one)                                           \
-    TRACING_CATEGORY_NODE ","                                                 \
-    TRACING_CATEGORY_NODE "." #one
-#define TRACING_CATEGORY_NODE2(one, two)                                      \
-    TRACING_CATEGORY_NODE ","                                                 \
-    TRACING_CATEGORY_NODE "." #one ","                                        \
-    TRACING_CATEGORY_NODE "." #one "." #two
+#define TRACING_CATEGORY_NODE1(one)                                            \
+  TRACING_CATEGORY_NODE "," TRACING_CATEGORY_NODE "." #one
+#define TRACING_CATEGORY_NODE2(one, two)                                       \
+  TRACING_CATEGORY_NODE "," TRACING_CATEGORY_NODE "." #one                     \
+                        "," TRACING_CATEGORY_NODE "." #one "." #two
 
 // Functions defined in node.cc that are exposed via the bootstrapper object
 

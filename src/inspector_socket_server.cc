@@ -14,13 +14,14 @@ namespace inspector {
 
 // Function is declared in inspector_io.h so the rest of the node does not
 // depend on inspector_socket_server.h
-std::string FormatWsAddress(const std::string& host, int port,
+std::string FormatWsAddress(const std::string& host,
+                            int port,
                             const std::string& target_id,
                             bool include_protocol);
 namespace {
 
 static const uint8_t PROTOCOL_JSON[] = {
-  #include "v8_inspector_protocol_json.h"  // NOLINT(build/include_order)
+#include "v8_inspector_protocol_json.h"  // NOLINT(build/include_order)
 };
 
 void Escape(std::string* string) {
@@ -48,8 +49,7 @@ std::string FormatAddress(const std::string& host,
                           const std::string& target_id,
                           bool include_protocol) {
   std::ostringstream url;
-  if (include_protocol)
-    url << "ws://";
+  if (include_protocol) url << "ws://";
   url << host << '/' << target_id;
   return url.str();
 }
@@ -59,8 +59,7 @@ std::string MapToString(const std::map<std::string, std::string>& object) {
   std::ostringstream json;
   json << "{\n";
   for (const auto& name_value : object) {
-    if (!first)
-      json << ",\n";
+    if (!first) json << ",\n";
     first = false;
     json << "  \"" << name_value.first << "\": \"";
     json << name_value.second << "\"";
@@ -75,8 +74,7 @@ std::string MapsToString(
   std::ostringstream json;
   json << "[ ";
   for (const auto& object : array) {
-    if (!first)
-      json << ", ";
+    if (!first) json << ", ";
     first = false;
     json << MapToString(object);
   }
@@ -101,11 +99,11 @@ void PrintDebuggerReadyMessage(const std::string& host,
     return;
   }
   for (const std::string& id : ids) {
-    fprintf(out, "Debugger listening on %s\n",
+    fprintf(out,
+            "Debugger listening on %s\n",
             FormatWsAddress(host, port, id, true).c_str());
   }
-  fprintf(out, "For help, see: %s\n",
-          "https://nodejs.org/en/docs/inspector");
+  fprintf(out, "For help, see: %s\n", "https://nodejs.org/en/docs/inspector");
   fflush(out);
 }
 
@@ -134,10 +132,9 @@ void SendProtocolJson(InspectorSocket* socket) {
   strm.zfree = Z_NULL;
   strm.opaque = Z_NULL;
   CHECK_EQ(Z_OK, inflateInit(&strm));
-  static const size_t kDecompressedSize =
-      PROTOCOL_JSON[0] * 0x10000u +
-      PROTOCOL_JSON[1] * 0x100u +
-      PROTOCOL_JSON[2];
+  static const size_t kDecompressedSize = PROTOCOL_JSON[0] * 0x10000u +
+                                          PROTOCOL_JSON[1] * 0x100u +
+                                          PROTOCOL_JSON[2];
   strm.next_in = const_cast<uint8_t*>(PROTOCOL_JSON + 3);
   strm.avail_in = sizeof(PROTOCOL_JSON) - 3;
   std::string data(kDecompressedSize, '\0');
@@ -150,7 +147,8 @@ void SendProtocolJson(InspectorSocket* socket) {
 }
 }  // namespace
 
-std::string FormatWsAddress(const std::string& host, int port,
+std::string FormatWsAddress(const std::string& host,
+                            int port,
                             const std::string& target_id,
                             bool include_protocol) {
   return FormatAddress(FormatHostPort(host, port), target_id, include_protocol);
@@ -159,43 +157,30 @@ std::string FormatWsAddress(const std::string& host, int port,
 class SocketSession {
  public:
   SocketSession(InspectorSocketServer* server, int id, int server_port);
-  void Close() {
-    ws_socket_.reset();
-  }
+  void Close() { ws_socket_.reset(); }
   void Send(const std::string& message);
   void Own(InspectorSocket::Pointer ws_socket) {
     ws_socket_ = std::move(ws_socket);
   }
   int id() const { return id_; }
-  int server_port() {
-    return server_port_;
-  }
-  InspectorSocket* ws_socket() {
-    return ws_socket_.get();
-  }
-  void Accept(const std::string& ws_key) {
-    ws_socket_->AcceptUpgrade(ws_key);
-  }
-  void Decline() {
-    ws_socket_->CancelHandshake();
-  }
+  int server_port() { return server_port_; }
+  InspectorSocket* ws_socket() { return ws_socket_.get(); }
+  void Accept(const std::string& ws_key) { ws_socket_->AcceptUpgrade(ws_key); }
+  void Decline() { ws_socket_->CancelHandshake(); }
 
   class Delegate : public InspectorSocket::Delegate {
    public:
     Delegate(InspectorSocketServer* server, int session_id)
-             : server_(server), session_id_(session_id) { }
-    ~Delegate() {
-      server_->SessionTerminated(session_id_);
-    }
+        : server_(server), session_id_(session_id) {}
+    ~Delegate() { server_->SessionTerminated(session_id_); }
     void OnHttpGet(const std::string& host, const std::string& path) override;
-    void OnSocketUpgrade(const std::string& host, const std::string& path,
+    void OnSocketUpgrade(const std::string& host,
+                         const std::string& path,
                          const std::string& ws_key) override;
     void OnWsFrame(const std::vector<char>& data) override;
 
    private:
-    SocketSession* Session() {
-      return server_->Session(session_id_);
-    }
+    SocketSession* Session() { return server_->Session(session_id_); }
 
     InspectorSocketServer* server_;
     int session_id_;
@@ -210,7 +195,7 @@ class SocketSession {
 class ServerSocket {
  public:
   explicit ServerSocket(InspectorSocketServer* server)
-                        : tcp_socket_(uv_tcp_t()), server_(server) {}
+      : tcp_socket_(uv_tcp_t()), server_(server) {}
   int Listen(sockaddr* addr, uv_loop_t* loop);
   void Close() {
     uv_close(reinterpret_cast<uv_handle_t*>(&tcp_socket_), FreeOnCloseCallback);
@@ -236,10 +221,17 @@ class ServerSocket {
 };
 
 InspectorSocketServer::InspectorSocketServer(
-    std::unique_ptr<SocketServerDelegate> delegate, uv_loop_t* loop,
-    const std::string& host, int port, FILE* out)
-    : loop_(loop), delegate_(std::move(delegate)), host_(host), port_(port),
-      next_session_id_(0), out_(out) {
+    std::unique_ptr<SocketServerDelegate> delegate,
+    uv_loop_t* loop,
+    const std::string& host,
+    int port,
+    FILE* out)
+    : loop_(loop),
+      delegate_(std::move(delegate)),
+      host_(host),
+      port_(port),
+      next_session_id_(0),
+      out_(out) {
   delegate_->AssignServer(this);
   state_ = ServerState::kNew;
 }
@@ -274,10 +266,10 @@ void InspectorSocketServer::SessionTerminated(int session_id) {
   }
   connected_sessions_.erase(session_id);
   if (connected_sessions_.empty()) {
-    if (was_attached && state_ == ServerState::kRunning
-        && !server_sockets_.empty()) {
-      PrintDebuggerReadyMessage(host_, server_sockets_[0]->port(),
-                                delegate_->GetTargetIds(), out_);
+    if (was_attached && state_ == ServerState::kRunning &&
+        !server_sockets_.empty()) {
+      PrintDebuggerReadyMessage(
+          host_, server_sockets_[0]->port(), delegate_->GetTargetIds(), out_);
     }
     if (state_ == ServerState::kStopped) {
       delegate_.reset();
@@ -291,8 +283,7 @@ bool InspectorSocketServer::HandleGetRequest(int session_id,
   SocketSession* session = Session(session_id);
   InspectorSocket* socket = session->ws_socket();
   const char* command = MatchPathSegment(path.c_str(), "/json");
-  if (command == nullptr)
-    return false;
+  if (command == nullptr) return false;
 
   if (MatchPathSegment(command, "list") || command[0] == '\0') {
     SendListResponse(socket, host, session);
@@ -327,22 +318,21 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket,
 
     std::string detected_host = host;
     if (detected_host.empty()) {
-      detected_host = FormatHostPort(socket->GetHost(),
-                                     session->server_port());
+      detected_host = FormatHostPort(socket->GetHost(), session->server_port());
     }
     std::string formatted_address = FormatAddress(detected_host, id, false);
-    target_map["devtoolsFrontendUrl"] = GetFrontendURL(false,
-                                                       formatted_address);
+    target_map["devtoolsFrontendUrl"] =
+        GetFrontendURL(false, formatted_address);
     // The compat URL is for Chrome browsers older than 66.0.3345.0
-    target_map["devtoolsFrontendUrlCompat"] = GetFrontendURL(true,
-                                                             formatted_address);
+    target_map["devtoolsFrontendUrlCompat"] =
+        GetFrontendURL(true, formatted_address);
     target_map["webSocketDebuggerUrl"] = FormatAddress(detected_host, id, true);
   }
   SendHttpResponse(socket, MapsToString(response));
 }
 
-std::string InspectorSocketServer::GetFrontendURL(bool is_compat,
-    const std::string &formatted_address) {
+std::string InspectorSocketServer::GetFrontendURL(
+    bool is_compat, const std::string& formatted_address) {
   std::ostringstream frontend_url;
   frontend_url << "chrome-devtools://devtools/bundled/";
   frontend_url << (is_compat ? "inspector" : "js_app");
@@ -363,11 +353,13 @@ bool InspectorSocketServer::Start() {
   hints.ai_socktype = SOCK_STREAM;
   uv_getaddrinfo_t req;
   const std::string port_string = std::to_string(port_);
-  int err = uv_getaddrinfo(loop_, &req, nullptr, host_.c_str(),
-                           port_string.c_str(), &hints);
+  int err = uv_getaddrinfo(
+      loop_, &req, nullptr, host_.c_str(), port_string.c_str(), &hints);
   if (err < 0) {
     if (out_ != nullptr) {
-      fprintf(out_, "Unable to resolve \"%s\": %s\n", host_.c_str(),
+      fprintf(out_,
+              "Unable to resolve \"%s\": %s\n",
+              host_.c_str(),
               uv_strerror(err));
     }
     return false;
@@ -376,8 +368,7 @@ bool InspectorSocketServer::Start() {
        address = address->ai_next) {
     auto server_socket = ServerSocketPtr(new ServerSocket(this));
     err = server_socket->Listen(address->ai_addr, loop_);
-    if (err == 0)
-      server_sockets_.push_back(std::move(server_socket));
+    if (err == 0) server_sockets_.push_back(std::move(server_socket));
   }
   uv_freeaddrinfo(req.addrinfo);
 
@@ -385,8 +376,11 @@ bool InspectorSocketServer::Start() {
   // show one error, for the last address.
   if (server_sockets_.empty()) {
     if (out_ != nullptr) {
-      fprintf(out_, "Starting inspector on %s:%d failed: %s\n",
-              host_.c_str(), port_, uv_strerror(err));
+      fprintf(out_,
+              "Starting inspector on %s:%d failed: %s\n",
+              host_.c_str(),
+              port_,
+              uv_strerror(err));
       fflush(out_);
     }
     return false;
@@ -394,19 +388,17 @@ bool InspectorSocketServer::Start() {
   delegate_.swap(delegate_holder);
   state_ = ServerState::kRunning;
   // getaddrinfo sorts the addresses, so the first port is most relevant.
-  PrintDebuggerReadyMessage(host_, server_sockets_[0]->port(),
-                            delegate_->GetTargetIds(), out_);
+  PrintDebuggerReadyMessage(
+      host_, server_sockets_[0]->port(), delegate_->GetTargetIds(), out_);
   return true;
 }
 
 void InspectorSocketServer::Stop() {
-  if (state_ == ServerState::kStopped)
-    return;
+  if (state_ == ServerState::kStopped) return;
   CHECK_EQ(state_, ServerState::kRunning);
   state_ = ServerState::kStopped;
   server_sockets_.clear();
-  if (done())
-    delegate_.reset();
+  if (done()) delegate_.reset();
 }
 
 void InspectorSocketServer::TerminateConnections() {
@@ -432,9 +424,8 @@ void InspectorSocketServer::Accept(int server_port,
   std::unique_ptr<SocketSession> session(
       new SocketSession(this, next_session_id_++, server_port));
 
-  InspectorSocket::DelegatePointer delegate =
-      InspectorSocket::DelegatePointer(
-          new SocketSession::Delegate(this, session->id()));
+  InspectorSocket::DelegatePointer delegate = InspectorSocket::DelegatePointer(
+      new SocketSession::Delegate(this, session->id()));
 
   InspectorSocket::Pointer inspector =
       InspectorSocket::Accept(server_socket, std::move(delegate));
@@ -456,7 +447,8 @@ void InspectorSocketServer::CloseServerSocket(ServerSocket* server) {
 }
 
 // InspectorSession tracking
-SocketSession::SocketSession(InspectorSocketServer* server, int id,
+SocketSession::SocketSession(InspectorSocketServer* server,
+                             int id,
                              int server_port)
     : id_(id), server_port_(server_port) {}
 
@@ -478,18 +470,16 @@ void SocketSession::Delegate::OnSocketUpgrade(const std::string& host,
 }
 
 void SocketSession::Delegate::OnWsFrame(const std::vector<char>& data) {
-  server_->MessageReceived(session_id_,
-                           std::string(data.data(), data.size()));
+  server_->MessageReceived(session_id_, std::string(data.data(), data.size()));
 }
 
 // ServerSocket implementation
 int ServerSocket::DetectPort() {
   sockaddr_storage addr;
   int len = sizeof(addr);
-  int err = uv_tcp_getsockname(&tcp_socket_,
-                               reinterpret_cast<struct sockaddr*>(&addr), &len);
-  if (err != 0)
-    return err;
+  int err = uv_tcp_getsockname(
+      &tcp_socket_, reinterpret_cast<struct sockaddr*>(&addr), &len);
+  if (err != 0) return err;
   int port;
   if (addr.ss_family == AF_INET6)
     port = reinterpret_cast<const sockaddr_in6*>(&addr)->sin6_port;
@@ -505,7 +495,8 @@ int ServerSocket::Listen(sockaddr* addr, uv_loop_t* loop) {
   int err = uv_tcp_bind(server, addr, 0);
   if (err == 0) {
     // 511 is the value used by a 'net' module by default
-    err = uv_listen(reinterpret_cast<uv_stream_t*>(server), 511,
+    err = uv_listen(reinterpret_cast<uv_stream_t*>(server),
+                    511,
                     ServerSocket::SocketConnectedCallback);
   }
   if (err == 0) {

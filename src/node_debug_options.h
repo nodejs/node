@@ -12,9 +12,7 @@ class DebugOptions {
   bool ParseOption(const char* argv0, const std::string& option);
   bool inspector_enabled() const { return inspector_enabled_; }
   bool deprecated_invocation() const {
-    return deprecated_debug_ &&
-      inspector_enabled_ &&
-      break_first_line_;
+    return deprecated_debug_ && inspector_enabled_ && break_first_line_;
   }
   bool invalid_invocation() const {
     return deprecated_debug_ && !inspector_enabled_;

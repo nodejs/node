@@ -23,9 +23,7 @@ class CustomAsyncResource : public AsyncResource {
  public:
   CustomAsyncResource(Isolate* isolate, Local<Object> resource)
       : AsyncResource(isolate, resource, "CustomAsyncResource") {}
-  ~CustomAsyncResource() {
-    custom_async_resource_destructor_calls++;
-  }
+  ~CustomAsyncResource() { custom_async_resource_destructor_calls++; }
 };
 
 void CreateAsyncResource(const FunctionCallbackInfo<Value>& args) {
@@ -33,14 +31,15 @@ void CreateAsyncResource(const FunctionCallbackInfo<Value>& args) {
   assert(args[0]->IsObject());
   AsyncResource* r;
   if (args[1]->IsInt32()) {
-    r = new AsyncResource(isolate, args[0].As<Object>(), "foobär",
+    r = new AsyncResource(isolate,
+                          args[0].As<Object>(),
+                          "foobär",
                           args[1].As<Integer>()->Value());
   } else {
     r = new AsyncResource(isolate, args[0].As<Object>(), "foobär");
   }
 
-  args.GetReturnValue().Set(
-      External::New(isolate, static_cast<void*>(r)));
+  args.GetReturnValue().Set(External::New(isolate, static_cast<void*>(r)));
 }
 
 void DestroyAsyncResource(const FunctionCallbackInfo<Value>& args) {
@@ -56,10 +55,10 @@ void CallViaFunction(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> name =
       String::NewFromUtf8(isolate, "methöd", v8::NewStringType::kNormal)
-      .ToLocalChecked();
-  Local<Value> fn =
-      r->get_resource()->Get(isolate->GetCurrentContext(), name)
-      .ToLocalChecked();
+          .ToLocalChecked();
+  Local<Value> fn = r->get_resource()
+                        ->Get(isolate->GetCurrentContext(), name)
+                        .ToLocalChecked();
   assert(fn->IsFunction());
 
   Local<Value> arg = Integer::New(isolate, 42);
@@ -74,7 +73,7 @@ void CallViaString(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> name =
       String::NewFromUtf8(isolate, "methöd", v8::NewStringType::kNormal)
-      .ToLocalChecked();
+          .ToLocalChecked();
 
   Local<Value> arg = Integer::New(isolate, 42);
   MaybeLocal<Value> ret = r->MakeCallback(name, 1, &arg);

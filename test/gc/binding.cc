@@ -7,7 +7,10 @@
 #include <vector>
 
 #ifdef NDEBUG
-#define CHECK(x) do { if (!(x)) abort(); } while (false)
+#define CHECK(x)                                                               \
+  do {                                                                         \
+    if (!(x)) abort();                                                         \
+  } while (false)
 #else
 #define CHECK assert
 #endif
@@ -57,14 +60,14 @@ inline void OnGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto object = info[0].As<v8::Object>();
   auto function = info[1].As<v8::Function>();
   auto callback = new Callback(info.GetIsolate(), object, function);
-  auto on_callback = [] (const v8::WeakCallbackInfo<Callback>& data) {
+  auto on_callback = [](const v8::WeakCallbackInfo<Callback>& data) {
     auto callback = data.GetParameter();
     callbacks.push_back(callback);
     callback->object.Reset();
     Prime();
   };
-  callback->object.SetWeak(callback, on_callback,
-                           v8::WeakCallbackType::kParameter);
+  callback->object.SetWeak(
+      callback, on_callback, v8::WeakCallbackType::kParameter);
 }
 
 inline void Initialize(v8::Local<v8::Object> exports,

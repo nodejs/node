@@ -1,5 +1,5 @@
-#include "v8.h"
 #include "node_internals.h"
+#include "v8.h"
 
 namespace node {
 namespace domain {
@@ -10,7 +10,6 @@ using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Object;
 using v8::Value;
-
 
 void Enable(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);

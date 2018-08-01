@@ -1187,6 +1187,33 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 # and the actual filename is generated so it won't match header guards
 ADDON_DOC_LINT_FLAGS=-whitespace/ending_newline,-build/header_guard
 
+format-cpp-build:
+	cd tools/clang-format && $(call available-node,$(run-npm-install))
+
+format-cpp-clean:
+	$(RM) -r tools/clang-format/node_modules
+
+CLANG_FORMAT_START ?= HEAD
+.PHONY: format-cpp
+# To format staged changes:
+#  $ make format-cpp
+# To format HEAD~1...HEAD (latest commit):
+#  $ CLANG_FORMAT_START=`git rev-parse HEAD~1` make format-cpp
+# To format diff between master and current branch head (master...HEAD):
+#  $ CLANG_FORMAT_START=master make format-cpp
+format-cpp: ## Format C++ diff from $CLANG_FORMAT_START to current changes
+ifneq ("","$(wildcard tools/clang-format/node_modules/)")
+	@echo "Formatting C++ diff from $(CLANG_FORMAT_START).."
+	@$(PYTHON) tools/clang-format/node_modules/.bin/git-clang-format \
+		--binary=tools/clang-format/node_modules/.bin/clang-format \
+		--style=file \
+		$(CLANG_FORMAT_START) -- \
+		$(LINT_CPP_FILES)
+else
+	@echo "clang-format is not installed."
+	@echo "To install (requires internet access) run: $ make format-cpp-build"
+endif
+
 .PHONY: lint-cpp
 # Lints the C++ code with cpplint.py and check-imports.py.
 lint-cpp: tools/.cpplintstamp

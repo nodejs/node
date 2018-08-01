@@ -30,28 +30,28 @@
 
 #include "node_buffer.h"
 
-#include "env.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
+#include "env.h"
 
 #include "v8.h"
 
-#include <openssl/ssl.h>
 #include <openssl/ec.h>
 #include <openssl/ecdh.h>
+#include <openssl/ssl.h>
 #ifndef OPENSSL_NO_ENGINE
-# include <openssl/engine.h>
+#include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
 #include <openssl/err.h>
 #include <openssl/evp.h>
 // TODO(shigeki) Remove this after upgrading to 1.1.1
+#include <openssl/hmac.h>
 #include <openssl/obj_mac.h>
 #include <openssl/pem.h>
+#include <openssl/pkcs12.h>
+#include <openssl/rand.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include <openssl/hmac.h>
-#include <openssl/rand.h>
-#include <openssl/pkcs12.h>
 
 namespace node {
 namespace crypto {
@@ -88,10 +88,7 @@ using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using DHPointer = DeleteFnPtr<DH, DH_free>;
 
-enum CheckResult {
-  CHECK_CERT_REVOKED = 0,
-  CHECK_OK = 1
-};
+enum CheckResult { CHECK_CERT_REVOKED = 0, CHECK_OK = 1 };
 
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
@@ -99,9 +96,7 @@ extern void UseExtraCaCerts(const std::string& file);
 
 class SecureContext : public BaseObject {
  public:
-  ~SecureContext() override {
-    Reset();
-  }
+  ~SecureContext() override { Reset(); }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
@@ -208,10 +203,7 @@ class SecureContext : public BaseObject {
 template <class Base>
 class SSLWrap {
  public:
-  enum Kind {
-    kClient,
-    kServer
-  };
+  enum Kind { kClient, kServer };
 
   SSLWrap(Environment* env, SecureContext* sc, Kind kind)
       : env_(env),
@@ -227,9 +219,7 @@ class SSLWrap {
     env_->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
   }
 
-  virtual ~SSLWrap() {
-    DestroySSL();
-  }
+  virtual ~SSLWrap() { DestroySSL(); }
 
   inline void enable_session_callbacks() { session_callbacks_ = true; }
   inline bool is_server() const { return kind_ == kServer; }
@@ -315,9 +305,7 @@ class SSLWrap {
   void SetSNIContext(SecureContext* sc);
   int SetCACerts(SecureContext* sc);
 
-  inline Environment* ssl_env() const {
-    return env_;
-  }
+  inline Environment* ssl_env() const { return env_; }
 
   Environment* const env_;
   Kind kind_;
@@ -350,15 +338,8 @@ class CipherBase : public BaseObject {
   ADD_MEMORY_INFO_NAME(CipherBase)
 
  protected:
-  enum CipherKind {
-    kCipher,
-    kDecipher
-  };
-  enum UpdateResult {
-    kSuccess,
-    kErrorMessageSize,
-    kErrorState
-  };
+  enum CipherKind { kCipher, kDecipher };
+  enum UpdateResult { kSuccess, kErrorMessageSize, kErrorState };
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
   void Init(const char* cipher_type,
@@ -371,10 +352,13 @@ class CipherBase : public BaseObject {
               const char* iv,
               int iv_len,
               unsigned int auth_tag_len);
-  bool InitAuthenticated(const char* cipher_type, int iv_len,
+  bool InitAuthenticated(const char* cipher_type,
+                         int iv_len,
                          unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
-  UpdateResult Update(const char* data, int len, unsigned char** out,
+  UpdateResult Update(const char* data,
+                      int len,
+                      unsigned char** out,
                       int* out_len);
   bool Final(unsigned char** out, int* out_len);
   bool SetAutoPadding(bool auto_padding);
@@ -393,9 +377,7 @@ class CipherBase : public BaseObject {
   static void SetAuthTag(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAAD(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  CipherBase(Environment* env,
-             v8::Local<v8::Object> wrap,
-             CipherKind kind)
+  CipherBase(Environment* env, v8::Local<v8::Object> wrap, CipherKind kind)
       : BaseObject(env, wrap),
         ctx_(nullptr),
         kind_(kind),
@@ -435,8 +417,7 @@ class Hmac : public BaseObject {
   static void HmacDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Hmac(Environment* env, v8::Local<v8::Object> wrap)
-      : BaseObject(env, wrap),
-        ctx_(nullptr) {
+      : BaseObject(env, wrap), ctx_(nullptr) {
     MakeWeak();
   }
 
@@ -463,9 +444,7 @@ class Hash : public BaseObject {
   static void HashDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Hash(Environment* env, v8::Local<v8::Object> wrap)
-      : BaseObject(env, wrap),
-        mdctx_(nullptr),
-        finalized_(false) {
+      : BaseObject(env, wrap), mdctx_(nullptr), finalized_(false) {
     MakeWeak();
   }
 
@@ -487,8 +466,7 @@ class SignBase : public BaseObject {
   } Error;
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap)
-      : BaseObject(env, wrap) {
-  }
+      : BaseObject(env, wrap) {}
 
   Error Init(const char* sign_type);
   Error Update(const char* data, int len);
@@ -555,13 +533,12 @@ class PublicKeyCipher {
  public:
   typedef int (*EVP_PKEY_cipher_init_t)(EVP_PKEY_CTX* ctx);
   typedef int (*EVP_PKEY_cipher_t)(EVP_PKEY_CTX* ctx,
-                                   unsigned char* out, size_t* outlen,
-                                   const unsigned char* in, size_t inlen);
+                                   unsigned char* out,
+                                   size_t* outlen,
+                                   const unsigned char* in,
+                                   size_t inlen);
 
-  enum Operation {
-    kPublic,
-    kPrivate
-  };
+  enum Operation { kPublic, kPrivate };
 
   template <Operation operation,
             EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
@@ -605,9 +582,7 @@ class DiffieHellman : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
   DiffieHellman(Environment* env, v8::Local<v8::Object> wrap)
-      : BaseObject(env, wrap),
-        initialised_(false),
-        verifyError_(0) {
+      : BaseObject(env, wrap), initialised_(false), verifyError_(0) {
     MakeWeak();
   }
 
@@ -622,7 +597,8 @@ class DiffieHellman : public BaseObject {
                        const BIGNUM* (*get_field)(const DH*),
                        const char* err_if_null);
   static void SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
-                     int (*set_field)(DH*, BIGNUM*), const char* what);
+                     int (*set_field)(DH*, BIGNUM*),
+                     const char* what);
   bool VerifyContext();
 
   bool initialised_;
@@ -632,9 +608,7 @@ class DiffieHellman : public BaseObject {
 
 class ECDH : public BaseObject {
  public:
-  ~ECDH() override {
-    group_ = nullptr;
-  }
+  ~ECDH() override { group_ = nullptr; }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   static ECPointPointer BufferToPoint(Environment* env,

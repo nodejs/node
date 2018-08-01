@@ -25,21 +25,22 @@
 using v8::Boolean;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::Local;
 using v8::Isolate;
+using v8::Local;
 using v8::Object;
 using v8::Value;
 
 void Method(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  Local<Value> params[] = {
-    Boolean::New(isolate, true),
-    Boolean::New(isolate, false)
-  };
-  Local<Value> ret =
-      node::MakeCallback(isolate, isolate->GetCurrentContext()->Global(),
-                         args[0].As<Function>(), 2, params,
-                         node::async_context{0, 0}).ToLocalChecked();
+  Local<Value> params[] = {Boolean::New(isolate, true),
+                           Boolean::New(isolate, false)};
+  Local<Value> ret = node::MakeCallback(isolate,
+                                        isolate->GetCurrentContext()->Global(),
+                                        args[0].As<Function>(),
+                                        2,
+                                        params,
+                                        node::async_context{0, 0})
+                         .ToLocalChecked();
   assert(ret->IsTrue());
 }
 

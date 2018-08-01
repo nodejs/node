@@ -1,5 +1,5 @@
-#include "myobject.h"
 #include "../common.h"
+#include "myobject.h"
 
 napi_value Init(napi_env env, napi_value exports) {
   MyObject::Init(env, exports);

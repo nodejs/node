@@ -21,8 +21,8 @@ int parse_and_validate_port(const std::string& port) {
   char* endptr;
   errno = 0;
   const long result = strtol(port.c_str(), &endptr, 10);  // NOLINT(runtime/int)
-  if (errno != 0 || *endptr != '\0'||
-      (result != 0 && result < 1024) || result > 65535) {
+  if (errno != 0 || *endptr != '\0' || (result != 0 && result < 1024) ||
+      result > 65535) {
     fprintf(stderr, "Debug port must be 0 or in range 1024 to 65535.\n");
     exit(12);
   }
@@ -33,8 +33,7 @@ std::pair<std::string, int> split_host_port(const std::string& arg) {
   // remove_brackets only works if no port is specified
   // so if it has an effect only an IPv6 address was specified
   std::string host = remove_brackets(arg);
-  if (host.length() < arg.length())
-    return {host, -1};
+  if (host.length() < arg.length()) return {host, -1};
 
   size_t colon = arg.rfind(':');
   if (colon == std::string::npos) {
@@ -54,12 +53,13 @@ std::pair<std::string, int> split_host_port(const std::string& arg) {
 
 }  // namespace
 
-DebugOptions::DebugOptions() :
-                               inspector_enabled_(false),
-                               deprecated_debug_(false),
-                               break_first_line_(false),
-                               break_node_first_line_(false),
-                               host_name_("127.0.0.1"), port_(-1) { }
+DebugOptions::DebugOptions()
+    : inspector_enabled_(false),
+      deprecated_debug_(false),
+      break_first_line_(false),
+      break_node_first_line_(false),
+      host_name_("127.0.0.1"),
+      port_(-1) {}
 
 bool DebugOptions::ParseOption(const char* argv0, const std::string& option) {
   bool has_argument = false;
@@ -97,11 +97,9 @@ bool DebugOptions::ParseOption(const char* argv0, const std::string& option) {
   } else if (option_name == "--debug-brk") {
     break_first_line_ = true;
     deprecated_debug_ = true;
-  } else if (option_name == "--debug-port" ||
-             option_name == "--inspect-port") {
+  } else if (option_name == "--debug-port" || option_name == "--inspect-port") {
     if (!has_argument) {
-      fprintf(stderr, "%s: %s requires an argument\n",
-              argv0, option.c_str());
+      fprintf(stderr, "%s: %s requires an argument\n", argv0, option.c_str());
       exit(9);
     }
   } else {

@@ -16,7 +16,7 @@ using v8::platform::tracing::TraceWriter;
 class InspectorTraceWriter : public node::tracing::AsyncTraceWriter {
  public:
   explicit InspectorTraceWriter(NodeTracing::Frontend* frontend)
-                                : frontend_(frontend) {}
+      : frontend_(frontend) {}
 
   void AppendTraceEvent(
       v8::platform::tracing::TraceObject* trace_event) override {
@@ -26,8 +26,7 @@ class InspectorTraceWriter : public node::tracing::AsyncTraceWriter {
   }
 
   void Flush(bool) override {
-    if (!json_writer_)
-      return;
+    if (!json_writer_) return;
     json_writer_.reset();
     std::ostringstream result(
         "{\"method\":\"NodeTracing.dataCollected\",\"data\":",
@@ -46,10 +45,7 @@ class InspectorTraceWriter : public node::tracing::AsyncTraceWriter {
 }  // namespace
 
 TracingAgent::TracingAgent(Environment* env)
-                           : env_(env),
-                             trace_writer_(
-                                  tracing::Agent::EmptyClientHandle()) {
-}
+    : env_(env), trace_writer_(tracing::Agent::EmptyClientHandle()) {}
 
 TracingAgent::~TracingAgent() {
   trace_writer_.reset();

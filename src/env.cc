@@ -1,12 +1,12 @@
-#include "node_internals.h"
 #include "async_wrap.h"
-#include "v8-profiler.h"
 #include "node_buffer.h"
-#include "node_platform.h"
-#include "node_file.h"
 #include "node_context_data.h"
+#include "node_file.h"
+#include "node_internals.h"
+#include "node_platform.h"
 #include "node_worker.h"
 #include "tracing/agent.h"
+#include "v8-profiler.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -32,72 +32,69 @@ using v8::Value;
 using worker::Worker;
 
 int const Environment::kNodeContextTag = 0x6e6f64;
-void* Environment::kNodeContextTagPtr = const_cast<void*>(
-    static_cast<const void*>(&Environment::kNodeContextTag));
+void* Environment::kNodeContextTagPtr =
+    const_cast<void*>(static_cast<const void*>(&Environment::kNodeContextTag));
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
-                         uint32_t* zero_fill_field) :
-    isolate_(isolate),
-    event_loop_(event_loop),
-    zero_fill_field_(zero_fill_field),
-    platform_(platform) {
-  if (platform_ != nullptr)
-    platform_->RegisterIsolate(this, event_loop);
+                         uint32_t* zero_fill_field)
+    : isolate_(isolate),
+      event_loop_(event_loop),
+      zero_fill_field_(zero_fill_field),
+      platform_(platform) {
+  if (platform_ != nullptr) platform_->RegisterIsolate(this, event_loop);
 
-  // Create string and private symbol properties as internalized one byte
-  // strings after the platform is properly initialized.
-  //
-  // Internalized because it makes property lookups a little faster and
-  // because the string is created in the old space straight away.  It's going
-  // to end up in the old space sooner or later anyway but now it doesn't go
-  // through v8::Eternal's new space handling first.
-  //
-  // One byte because our strings are ASCII and we can safely skip V8's UTF-8
-  // decoding step.
+    // Create string and private symbol properties as internalized one byte
+    // strings after the platform is properly initialized.
+    //
+    // Internalized because it makes property lookups a little faster and
+    // because the string is created in the old space straight away.  It's going
+    // to end up in the old space sooner or later anyway but now it doesn't go
+    // through v8::Eternal's new space handling first.
+    //
+    // One byte because our strings are ASCII and we can safely skip V8's UTF-8
+    // decoding step.
 
-#define V(PropertyName, StringValue)                                        \
-    PropertyName ## _.Set(                                                  \
-        isolate,                                                            \
-        Private::New(                                                       \
-            isolate,                                                        \
-            String::NewFromOneByte(                                         \
-                isolate,                                                    \
-                reinterpret_cast<const uint8_t*>(StringValue),              \
-                v8::NewStringType::kInternalized,                           \
-                sizeof(StringValue) - 1).ToLocalChecked()));
+#define V(PropertyName, StringValue)                                           \
+  PropertyName##_.Set(                                                         \
+      isolate,                                                                 \
+      Private::New(isolate,                                                    \
+                   String::NewFromOneByte(                                     \
+                       isolate,                                                \
+                       reinterpret_cast<const uint8_t*>(StringValue),          \
+                       v8::NewStringType::kInternalized,                       \
+                       sizeof(StringValue) - 1)                                \
+                       .ToLocalChecked()));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
 #undef V
-#define V(PropertyName, StringValue)                                        \
-    PropertyName ## _.Set(                                                  \
-        isolate,                                                            \
-        Symbol::New(                                                        \
-            isolate,                                                        \
-            String::NewFromOneByte(                                         \
-                isolate,                                                    \
-                reinterpret_cast<const uint8_t*>(StringValue),              \
-                v8::NewStringType::kInternalized,                           \
-                sizeof(StringValue) - 1).ToLocalChecked()));
+#define V(PropertyName, StringValue)                                           \
+  PropertyName##_.Set(                                                         \
+      isolate,                                                                 \
+      Symbol::New(isolate,                                                     \
+                  String::NewFromOneByte(                                      \
+                      isolate,                                                 \
+                      reinterpret_cast<const uint8_t*>(StringValue),           \
+                      v8::NewStringType::kInternalized,                        \
+                      sizeof(StringValue) - 1)                                 \
+                      .ToLocalChecked()));
   PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
-#define V(PropertyName, StringValue)                                        \
-    PropertyName ## _.Set(                                                  \
-        isolate,                                                            \
-        String::NewFromOneByte(                                             \
-            isolate,                                                        \
-            reinterpret_cast<const uint8_t*>(StringValue),                  \
-            v8::NewStringType::kInternalized,                               \
-            sizeof(StringValue) - 1).ToLocalChecked());
+#define V(PropertyName, StringValue)                                           \
+  PropertyName##_.Set(                                                         \
+      isolate,                                                                 \
+      String::NewFromOneByte(isolate,                                          \
+                             reinterpret_cast<const uint8_t*>(StringValue),    \
+                             v8::NewStringType::kInternalized,                 \
+                             sizeof(StringValue) - 1)                          \
+          .ToLocalChecked());
   PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
 }
 
 IsolateData::~IsolateData() {
-  if (platform_ != nullptr)
-    platform_->UnregisterIsolate(this);
+  if (platform_ != nullptr) platform_->UnregisterIsolate(this);
 }
-
 
 void InitThreadLocalOnce() {
   CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
@@ -134,14 +131,11 @@ Environment::Environment(IsolateData* isolate_data,
 
   destroy_async_id_list_.reserve(512);
   performance_state_.reset(new performance::performance_state(isolate()));
-  performance_state_->Mark(
-      performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
-  performance_state_->Mark(
-      performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
-      performance::performance_node_start);
-  performance_state_->Mark(
-      performance::NODE_PERFORMANCE_MILESTONE_V8_START,
-      performance::performance_v8_start);
+  performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
+  performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
+                           performance::performance_node_start);
+  performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_V8_START,
+                           performance::performance_v8_start);
 
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
@@ -170,8 +164,8 @@ Environment::~Environment() {
   inspector_agent_.reset();
 #endif
 
-  context()->SetAlignedPointerInEmbedderData(
-      ContextEmbedderIndex::kEnvironment, nullptr);
+  context()->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+                                             nullptr);
 
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
@@ -235,48 +229,41 @@ void Environment::Start(int argc,
 }
 
 void Environment::RegisterHandleCleanups() {
-  HandleCleanupCb close_and_finish = [](Environment* env, uv_handle_t* handle,
-                                        void* arg) {
-    handle->data = env;
+  HandleCleanupCb close_and_finish =
+      [](Environment* env, uv_handle_t* handle, void* arg) {
+        handle->data = env;
 
-    env->CloseHandle(handle, [](uv_handle_t* handle) {});
-  };
+        env->CloseHandle(handle, [](uv_handle_t* handle) {});
+      };
 
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(timer_handle()),
-      close_and_finish,
-      nullptr);
+  RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(timer_handle()),
+                        close_and_finish,
+                        nullptr);
   RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(immediate_check_handle()),
       close_and_finish,
       nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(immediate_idle_handle()),
-      close_and_finish,
-      nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_),
-      close_and_finish,
-      nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&idle_check_handle_),
-      close_and_finish,
-      nullptr);
+  RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(immediate_idle_handle()),
+                        close_and_finish,
+                        nullptr);
+  RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_),
+                        close_and_finish,
+                        nullptr);
+  RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(&idle_check_handle_),
+                        close_and_finish,
+                        nullptr);
 }
 
 void Environment::CleanupHandles() {
-  for (ReqWrap<uv_req_t>* request : req_wrap_queue_)
-    request->Cancel();
+  for (ReqWrap<uv_req_t>* request : req_wrap_queue_) request->Cancel();
 
-  for (HandleWrap* handle : handle_wrap_queue_)
-    handle->Close();
+  for (HandleWrap* handle : handle_wrap_queue_) handle->Close();
 
   for (HandleCleanup& hc : handle_cleanup_queue_)
     hc.cb_(this, hc.handle_, hc.arg_);
   handle_cleanup_queue_.clear();
 
-  while (handle_cleanup_waiting_ != 0 ||
-         request_waiting_ != 0 ||
+  while (handle_cleanup_waiting_ != 0 || request_waiting_ != 0 ||
          !handle_wrap_queue_.IsEmpty()) {
     uv_run(event_loop(), UV_RUN_ONCE);
   }
@@ -285,8 +272,7 @@ void Environment::CleanupHandles() {
 }
 
 void Environment::StartProfilerIdleNotifier() {
-  if (profiler_idle_notifier_started_)
-    return;
+  if (profiler_idle_notifier_started_) return;
 
   profiler_idle_notifier_started_ = true;
 
@@ -308,15 +294,14 @@ void Environment::StopProfilerIdleNotifier() {
 }
 
 void Environment::PrintSyncTrace() const {
-  if (!trace_sync_io_)
-    return;
+  if (!trace_sync_io_) return;
 
   HandleScope handle_scope(isolate());
   Local<v8::StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
 
-  fprintf(stderr, "(node:%d) WARNING: Detected use of sync API\n",
-          uv_os_getpid());
+  fprintf(
+      stderr, "(node:%d) WARNING: Detected use of sync API\n", uv_os_getpid());
 
   for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(i);
@@ -357,17 +342,18 @@ void Environment::RunCleanup() {
 
   while (!cleanup_hooks_.empty()) {
     // Copy into a vector, since we can't sort an unordered_set in-place.
-    std::vector<CleanupHookCallback> callbacks(
-        cleanup_hooks_.begin(), cleanup_hooks_.end());
+    std::vector<CleanupHookCallback> callbacks(cleanup_hooks_.begin(),
+                                               cleanup_hooks_.end());
     // We can't erase the copied elements from `cleanup_hooks_` yet, because we
     // need to be able to check whether they were un-scheduled by another hook.
 
-    std::sort(callbacks.begin(), callbacks.end(),
+    std::sort(callbacks.begin(),
+              callbacks.end(),
               [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
-      // Sort in descending order so that the most recently inserted callbacks
-      // are run first.
-      return a.insertion_order_counter_ > b.insertion_order_counter_;
-    });
+                // Sort in descending order so that the most recently inserted
+                // callbacks are run first.
+                return a.insertion_order_counter_ > b.insertion_order_counter_;
+              });
 
     for (const CleanupHookCallback& cb : callbacks) {
       if (cleanup_hooks_.count(cb) == 0) {
@@ -406,11 +392,11 @@ void Environment::AtExit(void (*cb)(void* arg), void* arg) {
 }
 
 void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
-  auto it = std::find_if(
-      promise_hooks_.begin(), promise_hooks_.end(),
-      [&](const PromiseHookCallback& hook) {
-        return hook.cb_ == fn && hook.arg_ == arg;
-      });
+  auto it = std::find_if(promise_hooks_.begin(),
+                         promise_hooks_.end(),
+                         [&](const PromiseHookCallback& hook) {
+                           return hook.cb_ == fn && hook.arg_ == arg;
+                         });
   if (it != promise_hooks_.end()) {
     it->enable_count_++;
     return;
@@ -423,11 +409,11 @@ void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
 }
 
 bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
-  auto it = std::find_if(
-      promise_hooks_.begin(), promise_hooks_.end(),
-      [&](const PromiseHookCallback& hook) {
-        return hook.cb_ == fn && hook.arg_ == arg;
-      });
+  auto it = std::find_if(promise_hooks_.begin(),
+                         promise_hooks_.end(),
+                         [&](const PromiseHookCallback& hook) {
+                           return hook.cb_ == fn && hook.arg_ == arg;
+                         });
 
   if (it == promise_hooks_.end()) return false;
 
@@ -450,8 +436,8 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
   // when reading the magic number.
   context->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kContextTagBoundary, nullptr);
-  int* magicNumberPtr = reinterpret_cast<int*>(
-      context->GetAlignedPointerFromEmbedderData(
+  int* magicNumberPtr =
+      reinterpret_cast<int*>(context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kContextTag));
   if (magicNumberPtr != Environment::kNodeContextTagPtr) {
     return;
@@ -476,11 +462,9 @@ void Environment::RunAndClearNativeImmediates() {
         v8::SealHandleScope seal_handle_scope(isolate());
 #endif
         it->cb_(this, it->data_);
-        if (it->refed_)
-          ref_count++;
+        if (it->refed_) ref_count++;
         if (UNLIKELY(try_catch.HasCaught())) {
-          if (!try_catch.HasTerminated())
-            FatalException(isolate(), try_catch);
+          if (!try_catch.HasTerminated()) FatalException(isolate(), try_catch);
 
           // Bail out, remove the already executed callbacks from list
           // and set up a new TryCatch for the other pending callbacks.
@@ -491,7 +475,8 @@ void Environment::RunAndClearNativeImmediates() {
       }
       return false;
     };
-    while (drain_list()) {}
+    while (drain_list()) {
+    }
 
 #ifdef DEBUG
     CHECK_GE(immediate_info()->count(), count);
@@ -500,7 +485,6 @@ void Environment::RunAndClearNativeImmediates() {
     immediate_info()->ref_count_dec(ref_count);
   }
 }
-
 
 void Environment::ScheduleTimer(int64_t duration_ms) {
   uv_timer_start(timer_handle(), RunTimers, duration_ms, 0);
@@ -517,8 +501,7 @@ void Environment::ToggleTimerRef(bool ref) {
 void Environment::RunTimers(uv_timer_t* handle) {
   Environment* env = Environment::from_timer_handle(handle);
 
-  if (!env->can_call_into_js())
-    return;
+  if (!env->can_call_into_js()) return;
 
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -543,8 +526,7 @@ void Environment::RunTimers(uv_timer_t* handle) {
   // code becomes invalid and needs to be rewritten. Otherwise catastrophic
   // timers corruption will occurr and all timers behaviour will become
   // entirely unpredictable.
-  if (ret.IsEmpty())
-    return;
+  if (ret.IsEmpty()) return;
 
   // To allow for less JS-C++ boundary crossing, the value returned from JS
   // serves a few purposes:
@@ -573,20 +555,17 @@ void Environment::RunTimers(uv_timer_t* handle) {
   }
 }
 
-
 void Environment::CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
 
-  if (env->immediate_info()->count() == 0)
-    return;
+  if (env->immediate_info()->count() == 0) return;
 
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
 
   env->RunAndClearNativeImmediates();
 
-  if (!env->can_call_into_js())
-    return;
+  if (!env->can_call_into_js()) return;
 
   do {
     MakeCallback(env->isolate(),
@@ -594,22 +573,21 @@ void Environment::CheckImmediate(uv_check_t* handle) {
                  env->immediate_callback_function(),
                  0,
                  nullptr,
-                 {0, 0}).ToLocalChecked();
+                 {0, 0})
+        .ToLocalChecked();
   } while (env->immediate_info()->has_outstanding() && env->can_call_into_js());
 
-  if (env->immediate_info()->ref_count() == 0)
-    env->ToggleImmediateRef(false);
+  if (env->immediate_info()->ref_count() == 0) env->ToggleImmediateRef(false);
 }
 
 void Environment::ToggleImmediateRef(bool ref) {
   if (ref) {
     // Idle handle is needed only to stop the event loop from blocking in poll.
-    uv_idle_start(immediate_idle_handle(), [](uv_idle_t*){ });
+    uv_idle_start(immediate_idle_handle(), [](uv_idle_t*) {});
   } else {
     uv_idle_stop(immediate_idle_handle());
   }
 }
-
 
 Local<Value> Environment::GetNow() {
   uv_update_time(event_loop());
@@ -622,24 +600,22 @@ Local<Value> Environment::GetNow() {
     return Number::New(isolate(), static_cast<double>(now));
 }
 
-
 void Environment::set_debug_categories(const std::string& cats, bool enabled) {
   std::string debug_categories = cats;
   while (!debug_categories.empty()) {
     std::string::size_type comma_pos = debug_categories.find(',');
     std::string wanted = ToLower(debug_categories.substr(0, comma_pos));
 
-#define V(name)                                                          \
-    {                                                                    \
-      static const std::string available_category = ToLower(#name);      \
-      if (available_category.find(wanted) != std::string::npos)          \
-        set_debug_enabled(DebugCategory::name, enabled);                 \
-    }
+#define V(name)                                                                \
+  {                                                                            \
+    static const std::string available_category = ToLower(#name);              \
+    if (available_category.find(wanted) != std::string::npos)                  \
+      set_debug_enabled(DebugCategory::name, enabled);                         \
+  }
 
     DEBUG_CATEGORY_NAMES(V)
 
-    if (comma_pos == std::string::npos)
-      break;
+    if (comma_pos == std::string::npos) break;
     // Use everything after the `,` as the list for the next iteration.
     debug_categories = debug_categories.substr(comma_pos + 1);
   }
@@ -655,31 +631,37 @@ void CollectExceptionInfo(Environment* env,
                           const char* dest) {
   obj->Set(env->errno_string(), v8::Integer::New(env->isolate(), errorno));
 
-  obj->Set(env->context(), env->code_string(),
-           OneByteString(env->isolate(), err_string)).FromJust();
+  obj->Set(env->context(),
+           env->code_string(),
+           OneByteString(env->isolate(), err_string))
+      .FromJust();
 
   if (message != nullptr) {
-    obj->Set(env->context(), env->message_string(),
-             OneByteString(env->isolate(), message)).FromJust();
+    obj->Set(env->context(),
+             env->message_string(),
+             OneByteString(env->isolate(), message))
+        .FromJust();
   }
 
   v8::Local<v8::Value> path_buffer;
   if (path != nullptr) {
     path_buffer =
-      Buffer::Copy(env->isolate(), path, strlen(path)).ToLocalChecked();
+        Buffer::Copy(env->isolate(), path, strlen(path)).ToLocalChecked();
     obj->Set(env->context(), env->path_string(), path_buffer).FromJust();
   }
 
   v8::Local<v8::Value> dest_buffer;
   if (dest != nullptr) {
     dest_buffer =
-      Buffer::Copy(env->isolate(), dest, strlen(dest)).ToLocalChecked();
+        Buffer::Copy(env->isolate(), dest, strlen(dest)).ToLocalChecked();
     obj->Set(env->context(), env->dest_string(), dest_buffer).FromJust();
   }
 
   if (syscall != nullptr) {
-    obj->Set(env->context(), env->syscall_string(),
-             OneByteString(env->isolate(), syscall)).FromJust();
+    obj->Set(env->context(),
+             env->syscall_string(),
+             OneByteString(env->isolate(), syscall))
+        .FromJust();
   }
 }
 
@@ -688,8 +670,7 @@ void Environment::CollectExceptionInfo(v8::Local<v8::Value> object,
                                        const char* syscall,
                                        const char* message,
                                        const char* path) {
-  if (!object->IsObject() || errorno == 0)
-    return;
+  if (!object->IsObject() || errorno == 0) return;
 
   v8::Local<v8::Object> obj = object.As<v8::Object>();
   const char* err_string = node::errno_string(errorno);
@@ -698,8 +679,8 @@ void Environment::CollectExceptionInfo(v8::Local<v8::Value> object,
     message = strerror(errorno);
   }
 
-  node::CollectExceptionInfo(this, obj, errorno, err_string,
-                             syscall, message, path, nullptr);
+  node::CollectExceptionInfo(
+      this, obj, errorno, err_string, syscall, message, path, nullptr);
 }
 
 void Environment::CollectUVExceptionInfo(v8::Local<v8::Value> object,
@@ -708,8 +689,7 @@ void Environment::CollectUVExceptionInfo(v8::Local<v8::Value> object,
                                          const char* message,
                                          const char* path,
                                          const char* dest) {
-  if (!object->IsObject() || errorno == 0)
-    return;
+  if (!object->IsObject() || errorno == 0) return;
 
   v8::Local<v8::Object> obj = object.As<v8::Object>();
   const char* err_string = uv_err_name(errorno);
@@ -718,25 +698,26 @@ void Environment::CollectUVExceptionInfo(v8::Local<v8::Value> object,
     message = uv_strerror(errorno);
   }
 
-  node::CollectExceptionInfo(this, obj, errorno, err_string,
-                             syscall, message, path, dest);
+  node::CollectExceptionInfo(
+      this, obj, errorno, err_string, syscall, message, path, dest);
 }
-
 
 void Environment::AsyncHooks::grow_async_ids_stack() {
   const uint32_t old_capacity = async_ids_stack_.Length() / 2;
   const uint32_t new_capacity = old_capacity * 1.5;
-  AliasedBuffer<double, v8::Float64Array> new_buffer(
-      env()->isolate(), new_capacity * 2);
+  AliasedBuffer<double, v8::Float64Array> new_buffer(env()->isolate(),
+                                                     new_capacity * 2);
 
   for (uint32_t i = 0; i < old_capacity * 2; ++i)
     new_buffer[i] = async_ids_stack_[i];
   async_ids_stack_ = std::move(new_buffer);
 
-  env()->async_hooks_binding()->Set(
-      env()->context(),
-      env()->async_ids_stack_string(),
-      async_ids_stack_.GetJSArray()).FromJust();
+  env()
+      ->async_hooks_binding()
+      ->Set(env()->context(),
+            env()->async_ids_stack_string(),
+            async_ids_stack_.GetJSArray())
+      .FromJust();
 }
 
 uv_key_t Environment::thread_local_env = {};
@@ -761,11 +742,9 @@ void Environment::BuildEmbedderGraph(v8::Isolate* isolate,
                                      v8::EmbedderGraph* graph,
                                      void* data) {
   MemoryTracker tracker(isolate, graph);
-  static_cast<Environment*>(data)->ForEachBaseObject([&](BaseObject* obj) {
-    tracker.Track(obj);
-  });
+  static_cast<Environment*>(data)->ForEachBaseObject(
+      [&](BaseObject* obj) { tracker.Track(obj); });
 }
-
 
 // Not really any better place than env.cc at this moment.
 void BaseObject::DeleteMe(void* data) {

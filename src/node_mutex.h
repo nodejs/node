@@ -6,8 +6,10 @@
 
 namespace node {
 
-template <typename Traits> class ConditionVariableBase;
-template <typename Traits> class MutexBase;
+template <typename Traits>
+class ConditionVariableBase;
+template <typename Traits>
+class MutexBase;
 struct LibuvMutexTraits;
 
 using ConditionVariable = ConditionVariableBase<LibuvMutexTraits>;
@@ -31,7 +33,8 @@ class MutexBase {
     inline ~ScopedLock();
 
    private:
-    template <typename> friend class ConditionVariableBase;
+    template <typename>
+    friend class ConditionVariableBase;
     friend class ScopedUnlock;
     const MutexBase& mutex_;
     DISALLOW_COPY_AND_ASSIGN(ScopedLock);
@@ -49,7 +52,8 @@ class MutexBase {
   };
 
  private:
-  template <typename> friend class ConditionVariableBase;
+  template <typename>
+  friend class ConditionVariableBase;
   mutable typename Traits::MutexT mutex_;
   DISALLOW_COPY_AND_ASSIGN(MutexBase);
 };
@@ -74,41 +78,25 @@ struct LibuvMutexTraits {
   using CondT = uv_cond_t;
   using MutexT = uv_mutex_t;
 
-  static inline int cond_init(CondT* cond) {
-    return uv_cond_init(cond);
-  }
+  static inline int cond_init(CondT* cond) { return uv_cond_init(cond); }
 
-  static inline int mutex_init(MutexT* mutex) {
-    return uv_mutex_init(mutex);
-  }
+  static inline int mutex_init(MutexT* mutex) { return uv_mutex_init(mutex); }
 
-  static inline void cond_broadcast(CondT* cond) {
-    uv_cond_broadcast(cond);
-  }
+  static inline void cond_broadcast(CondT* cond) { uv_cond_broadcast(cond); }
 
-  static inline void cond_destroy(CondT* cond) {
-    uv_cond_destroy(cond);
-  }
+  static inline void cond_destroy(CondT* cond) { uv_cond_destroy(cond); }
 
-  static inline void cond_signal(CondT* cond) {
-    uv_cond_signal(cond);
-  }
+  static inline void cond_signal(CondT* cond) { uv_cond_signal(cond); }
 
   static inline void cond_wait(CondT* cond, MutexT* mutex) {
     uv_cond_wait(cond, mutex);
   }
 
-  static inline void mutex_destroy(MutexT* mutex) {
-    uv_mutex_destroy(mutex);
-  }
+  static inline void mutex_destroy(MutexT* mutex) { uv_mutex_destroy(mutex); }
 
-  static inline void mutex_lock(MutexT* mutex) {
-    uv_mutex_lock(mutex);
-  }
+  static inline void mutex_lock(MutexT* mutex) { uv_mutex_lock(mutex); }
 
-  static inline void mutex_unlock(MutexT* mutex) {
-    uv_mutex_unlock(mutex);
-  }
+  static inline void mutex_unlock(MutexT* mutex) { uv_mutex_unlock(mutex); }
 };
 
 template <typename Traits>

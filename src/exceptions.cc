@@ -1,9 +1,9 @@
+#include "env-inl.h"
 #include "node.h"
 #include "node_internals.h"
-#include "env-inl.h"
 #include "util-inl.h"
-#include "v8.h"
 #include "uv.h"
+#include "v8.h"
 
 #include <string.h>
 
@@ -39,8 +39,9 @@ Local<Value> ErrnoException(Isolate* isolate,
   Local<String> path_string;
   if (path != nullptr) {
     // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
-    path_string = String::NewFromUtf8(env->isolate(), path,
-        v8::NewStringType::kNormal).ToLocalChecked();
+    path_string =
+        String::NewFromUtf8(env->isolate(), path, v8::NewStringType::kNormal)
+            .ToLocalChecked();
   }
 
   if (path_string.IsEmpty() == false) {
@@ -68,10 +69,10 @@ Local<Value> ErrnoException(Isolate* isolate,
 static Local<String> StringFromPath(Isolate* isolate, const char* path) {
 #ifdef _WIN32
   if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
-    return String::Concat(FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
-                          String::NewFromUtf8(isolate, path + 8,
-                                              v8::NewStringType::kNormal)
-                              .ToLocalChecked());
+    return String::Concat(
+        FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
+        String::NewFromUtf8(isolate, path + 8, v8::NewStringType::kNormal)
+            .ToLocalChecked());
   } else if (strncmp(path, "\\\\?\\", 4) == 0) {
     return String::NewFromUtf8(isolate, path + 4, v8::NewStringType::kNormal)
         .ToLocalChecked();
@@ -82,7 +83,6 @@ static Local<String> StringFromPath(Isolate* isolate, const char* path) {
       .ToLocalChecked();
 }
 
-
 Local<Value> UVException(Isolate* isolate,
                          int errorno,
                          const char* syscall,
@@ -90,7 +90,6 @@ Local<Value> UVException(Isolate* isolate,
                          const char* path) {
   return UVException(isolate, errorno, syscall, msg, path, nullptr);
 }
-
 
 Local<Value> UVException(Isolate* isolate,
                          int errorno,
@@ -100,8 +99,7 @@ Local<Value> UVException(Isolate* isolate,
                          const char* dest) {
   Environment* env = Environment::GetCurrent(isolate);
 
-  if (!msg || !msg[0])
-    msg = uv_strerror(errorno);
+  if (!msg || !msg[0]) msg = uv_strerror(errorno);
 
   Local<String> js_code = OneByteString(isolate, uv_err_name(errorno));
   Local<String> js_syscall = OneByteString(isolate, syscall);
@@ -135,10 +133,8 @@ Local<Value> UVException(Isolate* isolate,
   e->Set(env->errno_string(), Integer::New(isolate, errorno));
   e->Set(env->code_string(), js_code);
   e->Set(env->syscall_string(), js_syscall);
-  if (!js_path.IsEmpty())
-    e->Set(env->path_string(), js_path);
-  if (!js_dest.IsEmpty())
-    e->Set(env->dest_string(), js_dest);
+  if (!js_path.IsEmpty()) e->Set(env->path_string(), js_path);
+  if (!js_dest.IsEmpty()) e->Set(env->dest_string(), js_dest);
 
   return e;
 }
@@ -150,15 +146,21 @@ static const char* winapi_strerror(const int errorno, bool* must_free) {
   char* errmsg = nullptr;
 
   FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-      FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, errorno,
-      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, nullptr);
+                    FORMAT_MESSAGE_IGNORE_INSERTS,
+                nullptr,
+                errorno,
+                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                (LPTSTR)&errmsg,
+                0,
+                nullptr);
 
   if (errmsg) {
     *must_free = true;
 
     // Remove trailing newlines
     for (int i = strlen(errmsg) - 1;
-        i >= 0 && (errmsg[i] == '\n' || errmsg[i] == '\r'); i--) {
+         i >= 0 && (errmsg[i] == '\n' || errmsg[i] == '\r');
+         i--) {
       errmsg[i] = '\0';
     }
 
@@ -169,7 +171,6 @@ static const char* winapi_strerror(const int errorno, bool* must_free) {
     return "Unknown error";
   }
 }
-
 
 Local<Value> WinapiErrnoException(Isolate* isolate,
                                   int errorno,
@@ -187,10 +188,10 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
   if (path) {
     Local<String> cons1 =
         String::Concat(message, FIXED_ONE_BYTE_STRING(isolate, " '"));
-    Local<String> cons2 =
-        String::Concat(cons1,
-            String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
-                .ToLocalChecked());
+    Local<String> cons2 = String::Concat(
+        cons1,
+        String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
+            .ToLocalChecked());
     Local<String> cons3 =
         String::Concat(cons2, FIXED_ONE_BYTE_STRING(isolate, "'"));
     e = Exception::Error(cons3);
@@ -211,8 +212,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
     obj->Set(env->syscall_string(), OneByteString(isolate, syscall));
   }
 
-  if (must_free)
-    LocalFree((HLOCAL)msg);
+  if (must_free) LocalFree((HLOCAL)msg);
 
   return e;
 }

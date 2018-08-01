@@ -27,7 +27,6 @@
 
 #include <string.h>
 
-
 namespace node {
 
 using v8::Array;
@@ -44,12 +43,7 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-
-SyncProcessOutputBuffer::SyncProcessOutputBuffer()
-    : used_(0),
-      next_(nullptr) {
-}
-
+SyncProcessOutputBuffer::SyncProcessOutputBuffer() : used_(0), next_(nullptr) {}
 
 void SyncProcessOutputBuffer::OnAlloc(size_t suggested_size,
                                       uv_buf_t* buf) const {
@@ -59,39 +53,32 @@ void SyncProcessOutputBuffer::OnAlloc(size_t suggested_size,
     *buf = uv_buf_init(data_ + used(), available());
 }
 
-
 void SyncProcessOutputBuffer::OnRead(const uv_buf_t* buf, size_t nread) {
   // If we hand out the same chunk twice, this should catch it.
   CHECK_EQ(buf->base, data_ + used());
   used_ += static_cast<unsigned int>(nread);
 }
 
-
 size_t SyncProcessOutputBuffer::Copy(char* dest) const {
   memcpy(dest, data_, used());
   return used();
 }
 
-
 unsigned int SyncProcessOutputBuffer::available() const {
   return sizeof data_ - used();
 }
-
 
 unsigned int SyncProcessOutputBuffer::used() const {
   return used_;
 }
 
-
 SyncProcessOutputBuffer* SyncProcessOutputBuffer::next() const {
   return next_;
 }
 
-
 void SyncProcessOutputBuffer::set_next(SyncProcessOutputBuffer* next) {
   next_ = next;
 }
-
 
 SyncProcessStdioPipe::SyncProcessStdioPipe(SyncProcessRunner* process_handler,
                                            bool readable,
@@ -113,7 +100,6 @@ SyncProcessStdioPipe::SyncProcessStdioPipe(SyncProcessRunner* process_handler,
   CHECK(readable || writable);
 }
 
-
 SyncProcessStdioPipe::~SyncProcessStdioPipe() {
   CHECK(lifecycle_ == kUninitialized || lifecycle_ == kClosed);
 
@@ -126,20 +112,17 @@ SyncProcessStdioPipe::~SyncProcessStdioPipe() {
   }
 }
 
-
 int SyncProcessStdioPipe::Initialize(uv_loop_t* loop) {
   CHECK_EQ(lifecycle_, kUninitialized);
 
   int r = uv_pipe_init(loop, uv_pipe(), 0);
-  if (r < 0)
-    return r;
+  if (r < 0) return r;
 
   uv_pipe()->data = this;
 
   lifecycle_ = kInitialized;
   return 0;
 }
-
 
 int SyncProcessStdioPipe::Start() {
   CHECK_EQ(lifecycle_, kInitialized);
@@ -152,29 +135,22 @@ int SyncProcessStdioPipe::Start() {
     if (input_buffer_.len > 0) {
       CHECK_NOT_NULL(input_buffer_.base);
 
-      int r = uv_write(&write_req_,
-                       uv_stream(),
-                       &input_buffer_,
-                       1,
-                       WriteCallback);
-      if (r < 0)
-        return r;
+      int r =
+          uv_write(&write_req_, uv_stream(), &input_buffer_, 1, WriteCallback);
+      if (r < 0) return r;
     }
 
     int r = uv_shutdown(&shutdown_req_, uv_stream(), ShutdownCallback);
-    if (r < 0)
-      return r;
+    if (r < 0) return r;
   }
 
   if (writable()) {
     int r = uv_read_start(uv_stream(), AllocCallback, ReadCallback);
-    if (r < 0)
-      return r;
+    if (r < 0) return r;
   }
 
   return 0;
 }
-
 
 void SyncProcessStdioPipe::Close() {
   CHECK(lifecycle_ == kInitialized || lifecycle_ == kStarted);
@@ -184,7 +160,6 @@ void SyncProcessStdioPipe::Close() {
   lifecycle_ = kClosing;
 }
 
-
 Local<Object> SyncProcessStdioPipe::GetOutputAsBuffer(Environment* env) const {
   size_t length = OutputLength();
   Local<Object> js_buffer = Buffer::New(env, length).ToLocalChecked();
@@ -192,45 +167,36 @@ Local<Object> SyncProcessStdioPipe::GetOutputAsBuffer(Environment* env) const {
   return js_buffer;
 }
 
-
 bool SyncProcessStdioPipe::readable() const {
   return readable_;
 }
-
 
 bool SyncProcessStdioPipe::writable() const {
   return writable_;
 }
 
-
 uv_stdio_flags SyncProcessStdioPipe::uv_flags() const {
   unsigned int flags;
 
   flags = UV_CREATE_PIPE;
-  if (readable())
-    flags |= UV_READABLE_PIPE;
-  if (writable())
-    flags |= UV_WRITABLE_PIPE;
+  if (readable()) flags |= UV_READABLE_PIPE;
+  if (writable()) flags |= UV_WRITABLE_PIPE;
 
   return static_cast<uv_stdio_flags>(flags);
 }
-
 
 uv_pipe_t* SyncProcessStdioPipe::uv_pipe() const {
   CHECK_LT(lifecycle_, kClosing);
   return &uv_pipe_;
 }
 
-
 uv_stream_t* SyncProcessStdioPipe::uv_stream() const {
   return reinterpret_cast<uv_stream_t*>(uv_pipe());
 }
 
-
 uv_handle_t* SyncProcessStdioPipe::uv_handle() const {
   return reinterpret_cast<uv_handle_t*>(uv_pipe());
 }
-
 
 size_t SyncProcessStdioPipe::OutputLength() const {
   SyncProcessOutputBuffer* buf;
@@ -242,7 +208,6 @@ size_t SyncProcessStdioPipe::OutputLength() const {
   return size;
 }
 
-
 void SyncProcessStdioPipe::CopyOutput(char* dest) const {
   SyncProcessOutputBuffer* buf;
   size_t offset = 0;
@@ -250,7 +215,6 @@ void SyncProcessStdioPipe::CopyOutput(char* dest) const {
   for (buf = first_output_buffer_; buf != nullptr; buf = buf->next())
     offset += buf->Copy(dest + offset);
 }
-
 
 void SyncProcessStdioPipe::OnAlloc(size_t suggested_size, uv_buf_t* buf) {
   // This function assumes that libuv will never allocate two buffers for the
@@ -273,7 +237,6 @@ void SyncProcessStdioPipe::OnAlloc(size_t suggested_size, uv_buf_t* buf) {
   last_output_buffer_->OnAlloc(suggested_size, buf);
 }
 
-
 void SyncProcessStdioPipe::OnRead(const uv_buf_t* buf, ssize_t nread) {
   if (nread == UV_EOF) {
     // Libuv implicitly stops reading on EOF.
@@ -289,29 +252,22 @@ void SyncProcessStdioPipe::OnRead(const uv_buf_t* buf, ssize_t nread) {
   }
 }
 
-
 void SyncProcessStdioPipe::OnWriteDone(int result) {
-  if (result < 0)
-    SetError(result);
+  if (result < 0) SetError(result);
 }
-
 
 void SyncProcessStdioPipe::OnShutdownDone(int result) {
-  if (result < 0)
-    SetError(result);
+  if (result < 0) SetError(result);
 }
-
 
 void SyncProcessStdioPipe::OnClose() {
   lifecycle_ = kClosed;
 }
 
-
 void SyncProcessStdioPipe::SetError(int error) {
   CHECK_NE(error, 0);
   process_handler_->SetPipeError(error);
 }
-
 
 void SyncProcessStdioPipe::AllocCallback(uv_handle_t* handle,
                                          size_t suggested_size,
@@ -321,22 +277,19 @@ void SyncProcessStdioPipe::AllocCallback(uv_handle_t* handle,
   self->OnAlloc(suggested_size, buf);
 }
 
-
 void SyncProcessStdioPipe::ReadCallback(uv_stream_t* stream,
                                         ssize_t nread,
                                         const uv_buf_t* buf) {
   SyncProcessStdioPipe* self =
-        reinterpret_cast<SyncProcessStdioPipe*>(stream->data);
+      reinterpret_cast<SyncProcessStdioPipe*>(stream->data);
   self->OnRead(buf, nread);
 }
-
 
 void SyncProcessStdioPipe::WriteCallback(uv_write_t* req, int result) {
   SyncProcessStdioPipe* self =
       reinterpret_cast<SyncProcessStdioPipe*>(req->handle->data);
   self->OnWriteDone(result);
 }
-
 
 void SyncProcessStdioPipe::ShutdownCallback(uv_shutdown_t* req, int result) {
   SyncProcessStdioPipe* self =
@@ -346,19 +299,16 @@ void SyncProcessStdioPipe::ShutdownCallback(uv_shutdown_t* req, int result) {
   // when the other end has closed the connection fails with ENOTCONN.
   // Libuv is not the right place to handle that because it can't tell
   // if the error is genuine but we here can.
-  if (result == UV_ENOTCONN)
-    result = 0;
+  if (result == UV_ENOTCONN) result = 0;
 
   self->OnShutdownDone(result);
 }
-
 
 void SyncProcessStdioPipe::CloseCallback(uv_handle_t* handle) {
   SyncProcessStdioPipe* self =
       reinterpret_cast<SyncProcessStdioPipe*>(handle->data);
   self->OnClose();
 }
-
 
 void SyncProcessRunner::Initialize(Local<Object> target,
                                    Local<Value> unused,
@@ -367,7 +317,6 @@ void SyncProcessRunner::Initialize(Local<Object> target,
   env->SetMethod(target, "spawn", Spawn);
 }
 
-
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->PrintSyncTrace();
@@ -375,7 +324,6 @@ void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Local<Value> result = p.Run(args[0]);
   args.GetReturnValue().Set(result);
 }
-
 
 SyncProcessRunner::SyncProcessRunner(Environment* env)
     : max_buffer_(0),
@@ -410,9 +358,7 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
 
       lifecycle_(kUninitialized),
 
-      env_(env) {
-}
-
+      env_(env) {}
 
 SyncProcessRunner::~SyncProcessRunner() {
   CHECK_EQ(lifecycle_, kHandlesClosed);
@@ -425,11 +371,9 @@ SyncProcessRunner::~SyncProcessRunner() {
   delete[] uv_stdio_containers_;
 }
 
-
 Environment* SyncProcessRunner::env() const {
   return env_;
 }
-
 
 Local<Object> SyncProcessRunner::Run(Local<Value> options) {
   EscapableHandleScope scope(env()->isolate());
@@ -444,7 +388,6 @@ Local<Object> SyncProcessRunner::Run(Local<Value> options) {
   return scope.Escape(result);
 }
 
-
 void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   int r;
 
@@ -454,18 +397,15 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   lifecycle_ = kInitialized;
 
   uv_loop_ = new uv_loop_t;
-  if (uv_loop_ == nullptr)
-    return SetError(UV_ENOMEM);
+  if (uv_loop_ == nullptr) return SetError(UV_ENOMEM);
   CHECK_EQ(uv_loop_init(uv_loop_), 0);
 
   r = ParseOptions(options);
-  if (r < 0)
-    return SetError(r);
+  if (r < 0) return SetError(r);
 
   if (timeout_ > 0) {
     r = uv_timer_init(uv_loop_, &uv_timer_);
-    if (r < 0)
-      return SetError(r);
+    if (r < 0) return SetError(r);
 
     uv_unref(reinterpret_cast<uv_handle_t*>(&uv_timer_));
 
@@ -477,22 +417,19 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
     // which implicitly stops it, so there is no risk that the timeout callback
     // runs when the process didn't start.
     r = uv_timer_start(&uv_timer_, KillTimerCallback, timeout_, 0);
-    if (r < 0)
-      return SetError(r);
+    if (r < 0) return SetError(r);
   }
 
   uv_process_options_.exit_cb = ExitCallback;
   r = uv_spawn(uv_loop_, &uv_process_, &uv_process_options_);
-  if (r < 0)
-    return SetError(r);
+  if (r < 0) return SetError(r);
   uv_process_.data = this;
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i].get();
     if (h != nullptr) {
       r = h->Start();
-      if (r < 0)
-        return SetPipeError(r);
+      if (r < 0) return SetPipeError(r);
     }
   }
 
@@ -504,7 +441,6 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   // If we get here the process should have exited.
   CHECK_GE(exit_status_, 0);
 }
-
 
 void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
   CHECK_LT(lifecycle_, kHandlesClosed);
@@ -526,8 +462,7 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
     // Give closing watchers a chance to finish closing and get their close
     // callbacks called.
     int r = uv_run(uv_loop_, UV_RUN_DEFAULT);
-    if (r < 0)
-      ABORT();
+    if (r < 0) ABORT();
 
     CheckedUvLoopClose(uv_loop_);
     delete uv_loop_;
@@ -542,7 +477,6 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
   lifecycle_ = kHandlesClosed;
 }
 
-
 void SyncProcessRunner::CloseStdioPipes() {
   CHECK_LT(lifecycle_, kHandlesClosed);
 
@@ -551,14 +485,12 @@ void SyncProcessRunner::CloseStdioPipes() {
     CHECK_NOT_NULL(uv_loop_);
 
     for (uint32_t i = 0; i < stdio_count_; i++) {
-      if (stdio_pipes_[i])
-        stdio_pipes_[i]->Close();
+      if (stdio_pipes_[i]) stdio_pipes_[i]->Close();
     }
 
     stdio_pipes_initialized_ = false;
   }
 }
-
 
 void SyncProcessRunner::CloseKillTimer() {
   CHECK_LT(lifecycle_, kHandlesClosed);
@@ -575,11 +507,9 @@ void SyncProcessRunner::CloseKillTimer() {
   }
 }
 
-
 void SyncProcessRunner::Kill() {
   // Only attempt to kill once.
-  if (killed_)
-    return;
+  if (killed_) return;
   killed_ = true;
 
   // We might get here even if the process we spawned has already exited. This
@@ -608,7 +538,6 @@ void SyncProcessRunner::Kill() {
   CloseKillTimer();
 }
 
-
 void SyncProcessRunner::IncrementBufferSizeAndCheckOverflow(ssize_t length) {
   buffered_output_size_ += length;
 
@@ -618,21 +547,17 @@ void SyncProcessRunner::IncrementBufferSizeAndCheckOverflow(ssize_t length) {
   }
 }
 
-
 void SyncProcessRunner::OnExit(int64_t exit_status, int term_signal) {
-  if (exit_status < 0)
-    return SetError(static_cast<int>(exit_status));
+  if (exit_status < 0) return SetError(static_cast<int>(exit_status));
 
   exit_status_ = exit_status;
   term_signal_ = term_signal;
 }
 
-
 void SyncProcessRunner::OnKillTimerTimeout() {
   SetError(UV_ETIMEDOUT);
   Kill();
 }
-
 
 int SyncProcessRunner::GetError() {
   if (error_ != 0)
@@ -641,18 +566,13 @@ int SyncProcessRunner::GetError() {
     return pipe_error_;
 }
 
-
 void SyncProcessRunner::SetError(int error) {
-  if (error_ == 0)
-    error_ = error;
+  if (error_ == 0) error_ = error;
 }
-
 
 void SyncProcessRunner::SetPipeError(int pipe_error) {
-  if (pipe_error_ == 0)
-    pipe_error_ = pipe_error;
+  if (pipe_error_ == 0) pipe_error_ = pipe_error;
 }
-
 
 Local<Object> SyncProcessRunner::BuildResultObject() {
   EscapableHandleScope scope(env()->isolate());
@@ -661,49 +581,59 @@ Local<Object> SyncProcessRunner::BuildResultObject() {
   Local<Object> js_result = Object::New(env()->isolate());
 
   if (GetError() != 0) {
-    js_result->Set(context, env()->error_string(),
-                   Integer::New(env()->isolate(), GetError())).FromJust();
+    js_result
+        ->Set(context,
+              env()->error_string(),
+              Integer::New(env()->isolate(), GetError()))
+        .FromJust();
   }
 
   if (exit_status_ >= 0) {
     if (term_signal_ > 0) {
-      js_result->Set(context, env()->status_string(),
-                     Null(env()->isolate())).FromJust();
+      js_result->Set(context, env()->status_string(), Null(env()->isolate()))
+          .FromJust();
     } else {
-      js_result->Set(context, env()->status_string(),
-                     Number::New(env()->isolate(),
-                                 static_cast<double>(exit_status_))).FromJust();
+      js_result
+          ->Set(
+              context,
+              env()->status_string(),
+              Number::New(env()->isolate(), static_cast<double>(exit_status_)))
+          .FromJust();
     }
   } else {
     // If exit_status_ < 0 the process was never started because of some error.
-    js_result->Set(context, env()->status_string(),
-                   Null(env()->isolate())).FromJust();
+    js_result->Set(context, env()->status_string(), Null(env()->isolate()))
+        .FromJust();
   }
 
   if (term_signal_ > 0)
-    js_result->Set(context, env()->signal_string(),
-                   String::NewFromUtf8(env()->isolate(),
-                                       signo_string(term_signal_),
-                                       v8::NewStringType::kNormal)
-                       .ToLocalChecked())
+    js_result
+        ->Set(context,
+              env()->signal_string(),
+              String::NewFromUtf8(env()->isolate(),
+                                  signo_string(term_signal_),
+                                  v8::NewStringType::kNormal)
+                  .ToLocalChecked())
         .FromJust();
   else
-    js_result->Set(context, env()->signal_string(),
-                   Null(env()->isolate())).FromJust();
+    js_result->Set(context, env()->signal_string(), Null(env()->isolate()))
+        .FromJust();
 
   if (exit_status_ >= 0)
-    js_result->Set(context, env()->output_string(),
-                   BuildOutputArray()).FromJust();
+    js_result->Set(context, env()->output_string(), BuildOutputArray())
+        .FromJust();
   else
-    js_result->Set(context, env()->output_string(),
-                   Null(env()->isolate())).FromJust();
+    js_result->Set(context, env()->output_string(), Null(env()->isolate()))
+        .FromJust();
 
-  js_result->Set(context, env()->pid_string(),
-                 Number::New(env()->isolate(), uv_process_.pid)).FromJust();
+  js_result
+      ->Set(context,
+            env()->pid_string(),
+            Number::New(env()->isolate(), uv_process_.pid))
+      .FromJust();
 
   return scope.Escape(js_result);
 }
-
 
 Local<Array> SyncProcessRunner::BuildOutputArray() {
   CHECK_GE(lifecycle_, kInitialized);
@@ -724,13 +654,11 @@ Local<Array> SyncProcessRunner::BuildOutputArray() {
   return scope.Escape(js_output);
 }
 
-
 int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   HandleScope scope(env()->isolate());
   int r;
 
-  if (!js_value->IsObject())
-    return UV_EINVAL;
+  if (!js_value->IsObject()) return UV_EINVAL;
 
   Local<Context> context = env()->context();
   Local<Object> js_options = js_value.As<Object>();
@@ -738,23 +666,20 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   Local<Value> js_file =
       js_options->Get(context, env()->file_string()).ToLocalChecked();
   r = CopyJsString(js_file, &file_buffer_);
-  if (r < 0)
-    return r;
+  if (r < 0) return r;
   uv_process_options_.file = file_buffer_;
 
   Local<Value> js_args =
       js_options->Get(context, env()->args_string()).ToLocalChecked();
   r = CopyJsStringArray(js_args, &args_buffer_);
-  if (r < 0)
-    return r;
+  if (r < 0) return r;
   uv_process_options_.args = reinterpret_cast<char**>(args_buffer_);
 
   Local<Value> js_cwd =
       js_options->Get(context, env()->cwd_string()).ToLocalChecked();
   if (IsSet(js_cwd)) {
     r = CopyJsString(js_cwd, &cwd_buffer_);
-    if (r < 0)
-      return r;
+    if (r < 0) return r;
     uv_process_options_.cwd = cwd_buffer_;
   }
 
@@ -762,8 +687,7 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
       js_options->Get(context, env()->env_pairs_string()).ToLocalChecked();
   if (IsSet(js_env_pairs)) {
     r = CopyJsStringArray(js_env_pairs, &env_buffer_);
-    if (r < 0)
-      return r;
+    if (r < 0) return r;
 
     uv_process_options_.env = reinterpret_cast<char**>(env_buffer_);
   }
@@ -827,19 +751,16 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   Local<Value> js_stdio =
       js_options->Get(context, env()->stdio_string()).ToLocalChecked();
   r = ParseStdioOptions(js_stdio);
-  if (r < 0)
-    return r;
+  if (r < 0) return r;
 
   return 0;
 }
-
 
 int SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
   HandleScope scope(env()->isolate());
   Local<Array> js_stdio_options;
 
-  if (!js_value->IsArray())
-    return UV_EINVAL;
+  if (!js_value->IsArray()) return UV_EINVAL;
 
   Local<Context> context = env()->context();
   js_stdio_options = js_value.As<Array>();
@@ -847,20 +768,17 @@ int SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
   stdio_count_ = js_stdio_options->Length();
   uv_stdio_containers_ = new uv_stdio_container_t[stdio_count_];
 
-  stdio_pipes_.reset(
-      new std::unique_ptr<SyncProcessStdioPipe>[stdio_count_]());
+  stdio_pipes_.reset(new std::unique_ptr<SyncProcessStdioPipe>[stdio_count_]());
   stdio_pipes_initialized_ = true;
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
     Local<Value> js_stdio_option =
         js_stdio_options->Get(context, i).ToLocalChecked();
 
-    if (!js_stdio_option->IsObject())
-      return UV_EINVAL;
+    if (!js_stdio_option->IsObject()) return UV_EINVAL;
 
     int r = ParseStdioOption(i, js_stdio_option.As<Object>());
-    if (r < 0)
-      return r;
+    if (r < 0) return r;
   }
 
   uv_process_options_.stdio = uv_stdio_containers_;
@@ -868,7 +786,6 @@ int SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
 
   return 0;
 }
-
 
 int SyncProcessRunner::ParseStdioOption(int child_fd,
                                         Local<Object> js_stdio_option) {
@@ -884,10 +801,13 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
     Local<String> ws = env()->writable_string();
 
     bool readable = js_stdio_option->Get(context, rs)
-        .ToLocalChecked()->BooleanValue(context).FromJust();
-    bool writable =
-        js_stdio_option->Get(context, ws)
-        .ToLocalChecked()->BooleanValue(context).FromJust();
+                        .ToLocalChecked()
+                        ->BooleanValue(context)
+                        .FromJust();
+    bool writable = js_stdio_option->Get(context, ws)
+                        .ToLocalChecked()
+                        ->BooleanValue(context)
+                        .FromJust();
 
     uv_buf_t buf = uv_buf_init(nullptr, 0);
 
@@ -910,7 +830,9 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
   } else if (js_type->StrictEquals(env()->inherit_string()) ||
              js_type->StrictEquals(env()->fd_string())) {
     int inherit_fd = js_stdio_option->Get(context, env()->fd_string())
-        .ToLocalChecked()->Int32Value(context).FromJust();
+                         .ToLocalChecked()
+                         ->Int32Value(context)
+                         .FromJust();
     return AddStdioInheritFD(child_fd, inherit_fd);
 
   } else {
@@ -918,7 +840,6 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
     return UV_EINVAL;
   }
 }
-
 
 int SyncProcessRunner::AddStdioIgnore(uint32_t child_fd) {
   CHECK_LT(child_fd, stdio_count_);
@@ -928,7 +849,6 @@ int SyncProcessRunner::AddStdioIgnore(uint32_t child_fd) {
 
   return 0;
 }
-
 
 int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
                                     bool readable,
@@ -954,7 +874,6 @@ int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
   return 0;
 }
 
-
 int SyncProcessRunner::AddStdioInheritFD(uint32_t child_fd, int inherit_fd) {
   CHECK_LT(child_fd, stdio_count_);
   CHECK(!stdio_pipes_[child_fd]);
@@ -965,11 +884,9 @@ int SyncProcessRunner::AddStdioInheritFD(uint32_t child_fd, int inherit_fd) {
   return 0;
 }
 
-
 bool SyncProcessRunner::IsSet(Local<Value> value) {
   return !value->IsUndefined() && !value->IsNull();
 }
-
 
 int SyncProcessRunner::CopyJsString(Local<Value> js_value,
                                     const char** target) {
@@ -995,9 +912,7 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
   return 0;
 }
 
-
-int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
-                                         char** target) {
+int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value, char** target) {
   Isolate* isolate = env()->isolate();
   Local<Array> js_array;
   uint32_t length;
@@ -1005,8 +920,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   char** list;
   char* buffer;
 
-  if (!js_value->IsArray())
-    return UV_EINVAL;
+  if (!js_value->IsArray()) return UV_EINVAL;
 
   Local<Context> context = env()->context();
   js_array = js_value.As<Array>()->Clone().As<Array>();
@@ -1039,11 +953,8 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   for (uint32_t i = 0; i < length; i++) {
     list[i] = buffer + data_offset;
     auto value = js_array->Get(context, i).ToLocalChecked();
-    data_offset += StringBytes::Write(isolate,
-                                      buffer + data_offset,
-                                      -1,
-                                      value,
-                                      UTF8);
+    data_offset +=
+        StringBytes::Write(isolate, buffer + data_offset, -1, value, UTF8);
     buffer[data_offset++] = '\0';
     data_offset = ROUND_UP(data_offset, sizeof(void*));
   }
@@ -1054,7 +965,6 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   return 0;
 }
 
-
 void SyncProcessRunner::ExitCallback(uv_process_t* handle,
                                      int64_t exit_status,
                                      int term_signal) {
@@ -1063,12 +973,10 @@ void SyncProcessRunner::ExitCallback(uv_process_t* handle,
   self->OnExit(exit_status, term_signal);
 }
 
-
 void SyncProcessRunner::KillTimerCallback(uv_timer_t* handle) {
   SyncProcessRunner* self = reinterpret_cast<SyncProcessRunner*>(handle->data);
   self->OnKillTimerTimeout();
 }
-
 
 void SyncProcessRunner::KillTimerCloseCallback(uv_handle_t* handle) {
   // No-op.
@@ -1077,4 +985,4 @@ void SyncProcessRunner::KillTimerCloseCallback(uv_handle_t* handle) {
 }  // namespace node
 
 NODE_BUILTIN_MODULE_CONTEXT_AWARE(spawn_sync,
-  node::SyncProcessRunner::Initialize)
+                                  node::SyncProcessRunner::Initialize)

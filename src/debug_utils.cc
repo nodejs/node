@@ -6,8 +6,7 @@
 #include <features.h>
 #endif
 
-#if defined(__linux__) && !defined(__GLIBC__) || \
-    defined(__UCLIBC__) || \
+#if defined(__linux__) && !defined(__GLIBC__) || defined(__UCLIBC__) ||        \
     defined(_AIX)
 #define HAVE_EXECINFO_H 0
 #else
@@ -18,15 +17,15 @@
 #include <cxxabi.h>
 #include <dlfcn.h>
 #include <execinfo.h>
-#include <unistd.h>
-#include <sys/mman.h>
 #include <stdio.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #endif
 
 #else  // __POSIX__
 
-#include <windows.h>
 #include <dbghelp.h>
+#include <windows.h>
 
 #endif  // __POSIX__
 
@@ -36,14 +35,13 @@ namespace node {
 #if HAVE_EXECINFO_H
 class PosixSymbolDebuggingContext final : public NativeSymbolDebuggingContext {
  public:
-  PosixSymbolDebuggingContext() : pagesize_(getpagesize()) { }
+  PosixSymbolDebuggingContext() : pagesize_(getpagesize()) {}
 
   SymbolInfo LookupSymbol(void* address) override {
     Dl_info info;
     const bool have_info = dladdr(address, &info);
     SymbolInfo ret;
-    if (!have_info)
-      return ret;
+    if (!have_info) return ret;
 
     if (info.dli_sname != nullptr) {
       if (char* demangled = abi::__cxa_demangle(info.dli_sname, 0, 0, 0)) {
@@ -100,12 +98,11 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
     USE(SymInitialize(current_process_, nullptr, true));
   }
 
-  ~Win32SymbolDebuggingContext() {
-    USE(SymCleanup(current_process_));
-  }
+  ~Win32SymbolDebuggingContext() { USE(SymCleanup(current_process_)); }
 
   SymbolInfo LookupSymbol(void* address) override {
-    // Ref: https://msdn.microsoft.com/en-en/library/windows/desktop/ms680578(v=vs.85).aspx
+    // Ref:
+    // https://msdn.microsoft.com/en-en/library/windows/desktop/ms680578(v=vs.85).aspx
     char info_buf[sizeof(SYMBOL_INFO) + MAX_SYM_NAME];
     SYMBOL_INFO* info = reinterpret_cast<SYMBOL_INFO*>(info_buf);
     char demangled[MAX_SYM_NAME];
@@ -114,15 +111,11 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
     info->SizeOfStruct = sizeof(SYMBOL_INFO);
 
     SymbolInfo ret;
-    const bool have_info = SymFromAddr(current_process_,
-                                       reinterpret_cast<DWORD64>(address),
-                                       nullptr,
-                                       info);
+    const bool have_info = SymFromAddr(
+        current_process_, reinterpret_cast<DWORD64>(address), nullptr, info);
     if (have_info && strlen(info->Name) == 0) {
-      if (UnDecorateSymbolName(info->Name,
-                               demangled,
-                               sizeof(demangled),
-                               UNDNAME_COMPLETE)) {
+      if (UnDecorateSymbolName(
+              info->Name, demangled, sizeof(demangled), UNDNAME_COMPLETE)) {
         ret.name = demangled;
       } else {
         ret.name = info->Name;
@@ -173,8 +166,11 @@ void DumpBacktrace(FILE* fp) {
   const int size = sym_ctx->GetStackTrace(frames, arraysize(frames));
   for (int i = 1; i < size; i += 1) {
     void* frame = frames[i];
-    fprintf(fp, "%2d: %p %s\n",
-            i, frame, sym_ctx->LookupSymbol(frame).Display().c_str());
+    fprintf(fp,
+            "%2d: %p %s\n",
+            i,
+            frame,
+            sym_ctx->LookupSymbol(frame).Display().c_str());
   }
 }
 
@@ -185,33 +181,43 @@ void CheckedUvLoopClose(uv_loop_t* loop) {
 
   fprintf(stderr, "uv loop at [%p] has active handles\n", loop);
 
-  uv_walk(loop, [](uv_handle_t* handle, void* arg) {
-    auto sym_ctx = static_cast<NativeSymbolDebuggingContext*>(arg);
+  uv_walk(loop,
+          [](uv_handle_t* handle, void* arg) {
+            auto sym_ctx = static_cast<NativeSymbolDebuggingContext*>(arg);
 
-    fprintf(stderr, "[%p] %s\n", handle, uv_handle_type_name(handle->type));
+            fprintf(
+                stderr, "[%p] %s\n", handle, uv_handle_type_name(handle->type));
 
-    void* close_cb = reinterpret_cast<void*>(handle->close_cb);
-    fprintf(stderr, "\tClose callback: %p %s\n",
-        close_cb, sym_ctx->LookupSymbol(close_cb).Display().c_str());
+            void* close_cb = reinterpret_cast<void*>(handle->close_cb);
+            fprintf(stderr,
+                    "\tClose callback: %p %s\n",
+                    close_cb,
+                    sym_ctx->LookupSymbol(close_cb).Display().c_str());
 
-    fprintf(stderr, "\tData: %p %s\n",
-        handle->data, sym_ctx->LookupSymbol(handle->data).Display().c_str());
+            fprintf(stderr,
+                    "\tData: %p %s\n",
+                    handle->data,
+                    sym_ctx->LookupSymbol(handle->data).Display().c_str());
 
-    // We are also interested in the first field of what `handle->data`
-    // points to, because for C++ code that is usually the virtual table pointer
-    // and gives us information about the exact kind of object we're looking at.
-    void* first_field = nullptr;
-    // `handle->data` might be any value, including `nullptr`, or something
-    // cast from a completely different type; therefore, check that it’s
-    // dereferencable first.
-    if (sym_ctx->IsMapped(handle->data))
-      first_field = *reinterpret_cast<void**>(handle->data);
+            // We are also interested in the first field of what `handle->data`
+            // points to, because for C++ code that is usually the virtual table
+            // pointer and gives us information about the exact kind of object
+            // we're looking at.
+            void* first_field = nullptr;
+            // `handle->data` might be any value, including `nullptr`, or
+            // something cast from a completely different type; therefore, check
+            // that it’s dereferencable first.
+            if (sym_ctx->IsMapped(handle->data))
+              first_field = *reinterpret_cast<void**>(handle->data);
 
-    if (first_field != nullptr) {
-      fprintf(stderr, "\t(First field): %p %s\n",
-          first_field, sym_ctx->LookupSymbol(first_field).Display().c_str());
-    }
-  }, sym_ctx.get());
+            if (first_field != nullptr) {
+              fprintf(stderr,
+                      "\t(First field): %p %s\n",
+                      first_field,
+                      sym_ctx->LookupSymbol(first_field).Display().c_str());
+            }
+          },
+          sym_ctx.get());
 
   fflush(stderr);
   // Finally, abort.

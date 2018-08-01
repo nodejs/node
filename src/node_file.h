@@ -4,8 +4,8 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "stream_base.h"
 #include "req_wrap-inl.h"
+#include "stream_base.h"
 
 namespace node {
 
@@ -21,15 +21,15 @@ using v8::Value;
 
 namespace fs {
 
-
 class FSReqBase : public ReqWrap<uv_fs_t> {
  public:
   typedef MaybeStackBuffer<char, 64> FSReqBuffer;
 
-  FSReqBase(Environment* env, Local<Object> req, AsyncWrap::ProviderType type,
+  FSReqBase(Environment* env,
+            Local<Object> req,
+            AsyncWrap::ProviderType type,
             bool use_bigint)
-      : ReqWrap(env, req, type), use_bigint_(use_bigint) {
-  }
+      : ReqWrap(env, req, type), use_bigint_(use_bigint) {}
 
   void Init(const char* syscall,
             const char* data,
@@ -47,8 +47,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
     }
   }
 
-  FSReqBuffer& Init(const char* syscall, size_t len,
-                    enum encoding encoding) {
+  FSReqBuffer& Init(const char* syscall, size_t len, enum encoding encoding) {
     syscall_ = syscall;
     encoding_ = encoding;
 
@@ -88,7 +87,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
 class FSReqWrap : public FSReqBase {
  public:
   FSReqWrap(Environment* env, Local<Object> req, bool use_bigint)
-      : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQWRAP, use_bigint) { }
+      : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQWRAP, use_bigint) {}
 
   void Reject(Local<Value> reject) override;
   void Resolve(Local<Value> value) override;
@@ -111,13 +110,13 @@ class FSReqPromise : public FSReqBase {
   explicit FSReqPromise(Environment* env, bool use_bigint)
       : FSReqBase(env,
                   env->fsreqpromise_constructor_template()
-                      ->NewInstance(env->context()).ToLocalChecked(),
+                      ->NewInstance(env->context())
+                      .ToLocalChecked(),
                   AsyncWrap::PROVIDER_FSREQPROMISE,
                   use_bigint),
         stats_field_array_(env->isolate(), env->kFsStatsFieldsLength) {
     auto resolver = Promise::Resolver::New(env->context()).ToLocalChecked();
-    object()->Set(env->context(), env->promise_string(),
-                  resolver).FromJust();
+    object()->Set(env->context(), env->promise_string(), resolver).FromJust();
   }
 
   ~FSReqPromise() override {
@@ -129,9 +128,9 @@ class FSReqPromise : public FSReqBase {
     finished_ = true;
     HandleScope scope(env()->isolate());
     InternalCallbackScope callback_scope(this);
-    Local<Value> value =
-        object()->Get(env()->context(),
-                      env()->promise_string()).ToLocalChecked();
+    Local<Value> value = object()
+                             ->Get(env()->context(), env()->promise_string())
+                             .ToLocalChecked();
     Local<Promise::Resolver> resolver = value.As<Promise::Resolver>();
     resolver->Reject(env()->context(), reject).FromJust();
   }
@@ -140,9 +139,9 @@ class FSReqPromise : public FSReqBase {
     finished_ = true;
     HandleScope scope(env()->isolate());
     InternalCallbackScope callback_scope(this);
-    Local<Value> val =
-        object()->Get(env()->context(),
-                      env()->promise_string()).ToLocalChecked();
+    Local<Value> val = object()
+                           ->Get(env()->context(), env()->promise_string())
+                           .ToLocalChecked();
     Local<Promise::Resolver> resolver = val.As<Promise::Resolver>();
     resolver->Resolve(env()->context(), value).FromJust();
   }
@@ -152,9 +151,9 @@ class FSReqPromise : public FSReqBase {
   }
 
   void SetReturnValue(const FunctionCallbackInfo<Value>& args) override {
-    Local<Value> val =
-        object()->Get(env()->context(),
-                      env()->promise_string()).ToLocalChecked();
+    Local<Value> val = object()
+                           ->Get(env()->context(), env()->promise_string())
+                           .ToLocalChecked();
     Local<Promise::Resolver> resolver = val.As<Promise::Resolver>();
     args.GetReturnValue().Set(resolver->GetPromise());
   }
@@ -267,12 +266,11 @@ class FileHandle : public AsyncWrap, public StreamBase {
 
   class CloseReq : public ReqWrap<uv_fs_t> {
    public:
-    CloseReq(Environment* env,
-             Local<Promise> promise,
-             Local<Value> ref)
+    CloseReq(Environment* env, Local<Promise> promise, Local<Value> ref)
         : ReqWrap(env,
                   env->fdclose_constructor_template()
-                      ->NewInstance(env->context()).ToLocalChecked(),
+                      ->NewInstance(env->context())
+                      .ToLocalChecked(),
                   AsyncWrap::PROVIDER_FILEHANDLECLOSEREQ) {
       promise_.Reset(env->isolate(), promise);
       ref_.Reset(env->isolate(), ref);
@@ -318,7 +316,6 @@ class FileHandle : public AsyncWrap, public StreamBase {
 
   bool reading_ = false;
   std::unique_ptr<FileHandleReadWrap> current_read_ = nullptr;
-
 
   DISALLOW_COPY_AND_ASSIGN(FileHandle);
 };

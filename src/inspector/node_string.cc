@@ -17,34 +17,31 @@ void builderAppendQuotedString(StringBuilder& builder, const String& string) {
     icu::UnicodeString utf16 = icu::UnicodeString::fromUTF8(
         icu::StringPiece(string.data(), string.length()));
     escapeWideStringForJSON(
-        reinterpret_cast<const uint16_t*>(utf16.getBuffer()), utf16.length(),
+        reinterpret_cast<const uint16_t*>(utf16.getBuffer()),
+        utf16.length(),
         &builder);
   }
   builder.put('"');
 }
 
 std::unique_ptr<Value> parseJSON(const String& string) {
-  if (string.empty())
-    return nullptr;
+  if (string.empty()) return nullptr;
 
-  icu::UnicodeString utf16 =
-      icu::UnicodeString::fromUTF8(icu::StringPiece(string.data(),
-                                                    string.length()));
+  icu::UnicodeString utf16 = icu::UnicodeString::fromUTF8(
+      icu::StringPiece(string.data(), string.length()));
   return parseJSONCharacters(
       reinterpret_cast<const uint16_t*>(utf16.getBuffer()), utf16.length());
 }
 
 std::unique_ptr<Value> parseJSON(v8_inspector::StringView string) {
-  if (string.length() == 0)
-    return nullptr;
+  if (string.length() == 0) return nullptr;
   if (string.is8Bit())
     return parseJSONCharacters(string.characters8(), string.length());
   return parseJSONCharacters(string.characters16(), string.length());
 }
 
 String StringViewToUtf8(v8_inspector::StringView view) {
-  if (view.length() == 0)
-    return "";
+  if (view.length() == 0) return "";
   if (view.is8Bit()) {
     return std::string(reinterpret_cast<const char*>(view.characters8()),
                        view.length());
@@ -89,4 +86,3 @@ double toDouble(const char* buffer, size_t length, bool* ok) {
 }  // namespace protocol
 }  // namespace inspector
 }  // namespace node
-

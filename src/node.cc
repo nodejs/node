@@ -20,16 +20,16 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_buffer.h"
-#include "node_constants.h"
-#include "node_javascript.h"
 #include "node_code_cache.h"
-#include "node_platform.h"
-#include "node_version.h"
-#include "node_internals.h"
-#include "node_revert.h"
-#include "node_debug_options.h"
-#include "node_perf.h"
+#include "node_constants.h"
 #include "node_context_data.h"
+#include "node_debug_options.h"
+#include "node_internals.h"
+#include "node_javascript.h"
+#include "node_perf.h"
+#include "node_platform.h"
+#include "node_revert.h"
+#include "node_version.h"
 #include "tracing/traced_value.h"
 
 #if defined HAVE_PERFCTR
@@ -74,7 +74,7 @@
 #endif
 
 #include <errno.h>
-#include <fcntl.h>  // _O_RDWR
+#include <fcntl.h>   // _O_RDWR
 #include <limits.h>  // PATH_MAX
 #include <locale.h>
 #include <signal.h>
@@ -102,12 +102,12 @@ typedef int mode_t;
 #else
 #include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
-#include <unistd.h>  // setuid, getuid
+#include <unistd.h>        // setuid, getuid
 #endif
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-#include <pwd.h>  // getpwnam()
 #include <grp.h>  // getgrnam()
+#include <pwd.h>  // getpwnam()
 #endif
 
 #if defined(__POSIX__)
@@ -118,7 +118,7 @@ typedef int mode_t;
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
 #elif !defined(_MSC_VER)
-extern char **environ;
+extern char** environ;
 #endif
 
 // This is used to load built-in modules. Instead of using
@@ -128,7 +128,7 @@ extern char **environ;
 // The definitions are in each module's implementation when calling
 // the NODE_BUILTIN_MODULE_CONTEXT_AWARE.
 #define V(modname) void _register_##modname();
-  NODE_BUILTIN_MODULES(V)
+NODE_BUILTIN_MODULES(V)
 #undef V
 
 namespace node {
@@ -192,8 +192,8 @@ static node_module* modlist_internal;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
 static std::string trace_enabled_categories;  // NOLINT(runtime/string)
-static std::string trace_file_pattern =  // NOLINT(runtime/string)
-  "node_trace.${rotation}.log";
+static std::string trace_file_pattern =       // NOLINT(runtime/string)
+    "node_trace.${rotation}.log";
 static bool abort_on_uncaught_exception = false;
 
 // Bit flag used to track security reverts (see node_revert.h)
@@ -211,18 +211,18 @@ bool no_deprecation = false;
 // use OpenSSL's cert store instead of bundled certs
 bool ssl_openssl_cert_store =
 #if defined(NODE_OPENSSL_CERT_STORE)
-        true;
+    true;
 #else
-        false;
+    false;
 #endif
 
-# if NODE_FIPS_MODE
+#if NODE_FIPS_MODE
 // used by crypto module
 bool enable_fips_crypto = false;
 bool force_fips_crypto = false;
-# endif  // NODE_FIPS_MODE
+#endif                       // NODE_FIPS_MODE
 std::string openssl_config;  // NOLINT(runtime/string)
-#endif  // HAVE_OPENSSL
+#endif                       // HAVE_OPENSSL
 
 // true if process warnings should be suppressed
 bool no_process_warnings = false;
@@ -292,31 +292,32 @@ DebugOptions debug_options;
 
 // Ensures that __metadata trace events are only emitted
 // when tracing is enabled.
-class NodeTraceStateObserver :
-    public v8::TracingController::TraceStateObserver {
+class NodeTraceStateObserver
+    : public v8::TracingController::TraceStateObserver {
  public:
   void OnTraceEnabled() override {
     char name_buffer[512];
     if (uv_get_process_title(name_buffer, sizeof(name_buffer)) == 0) {
       // Only emit the metadata event if the title can be retrieved
       // successfully. Ignore it otherwise.
-      TRACE_EVENT_METADATA1("__metadata", "process_name",
-                            "name", TRACE_STR_COPY(name_buffer));
+      TRACE_EVENT_METADATA1(
+          "__metadata", "process_name", "name", TRACE_STR_COPY(name_buffer));
     }
-    TRACE_EVENT_METADATA1("__metadata", "version",
-                          "node", NODE_VERSION_STRING);
-    TRACE_EVENT_METADATA1("__metadata", "thread_name",
-                          "name", "JavaScriptMainThread");
+    TRACE_EVENT_METADATA1("__metadata", "version", "node", NODE_VERSION_STRING);
+    TRACE_EVENT_METADATA1(
+        "__metadata", "thread_name", "name", "JavaScriptMainThread");
 
     auto trace_process = tracing::TracedValue::Create();
     trace_process->BeginDictionary("versions");
 
+    // clang-format off
     const char http_parser_version[] =
         NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
         "."
         NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
         "."
         NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+    // clang-format on
 
     const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
     const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
@@ -341,14 +342,13 @@ class NodeTraceStateObserver :
         if ('0' <= c && c <= '9') {
           for (j = i + 1; j < k; ++j) {
             c = OPENSSL_VERSION_TEXT[j];
-            if (c == ' ')
-              break;
+            if (c == ' ') break;
           }
           break;
         }
       }
       trace_process->SetString("openssl",
-                              std::string(&OPENSSL_VERSION_TEXT[i], j - i));
+                               std::string(&OPENSSL_VERSION_TEXT[i], j - i));
     }
 #endif
     trace_process->EndDictionary();
@@ -362,8 +362,8 @@ class NodeTraceStateObserver :
     trace_process->SetString("lts", NODE_VERSION_LTS_CODENAME);
 #endif
     trace_process->EndDictionary();
-    TRACE_EVENT_METADATA1("__metadata", "node",
-                          "process", std::move(trace_process));
+    TRACE_EVENT_METADATA1(
+        "__metadata", "node", "process", std::move(trace_process));
 
     // This only runs the first time tracing is enabled
     controller_->RemoveTraceStateObserver(this);
@@ -376,8 +376,8 @@ class NodeTraceStateObserver :
     UNREACHABLE();
   }
 
-  explicit NodeTraceStateObserver(v8::TracingController* controller) :
-      controller_(controller) {}
+  explicit NodeTraceStateObserver(v8::TracingController* controller)
+      : controller_(controller) {}
   ~NodeTraceStateObserver() override {}
 
  private:
@@ -403,16 +403,15 @@ static struct {
     tracing_agent_.reset(nullptr);
   }
 
-  void DrainVMTasks(Isolate* isolate) {
-    platform_->DrainTasks(isolate);
-  }
+  void DrainVMTasks(Isolate* isolate) { platform_->DrainTasks(isolate); }
 
   void CancelVMTasks(Isolate* isolate) {
     platform_->CancelPendingDelayedTasks(isolate);
   }
 
 #if HAVE_INSPECTOR
-  bool StartInspector(Environment* env, const char* script_path,
+  bool StartInspector(Environment* env,
+                      const char* script_path,
                       const DebugOptions& options) {
     // Inspector agent can't fail to start, but if it was configured to listen
     // right away on the websocket port and fails to bind/etc, this will return
@@ -426,31 +425,25 @@ static struct {
   }
 #endif  // HAVE_INSPECTOR
 
-  void StartTracingAgent() {
-    tracing_agent_->Enable(trace_enabled_categories);
-  }
+  void StartTracingAgent() { tracing_agent_->Enable(trace_enabled_categories); }
 
   void StopTracingAgent() {
-    if (tracing_agent_)
-      tracing_agent_->Stop();
+    if (tracing_agent_) tracing_agent_->Stop();
   }
 
-  tracing::Agent* GetTracingAgent() const {
-    return tracing_agent_.get();
-  }
+  tracing::Agent* GetTracingAgent() const { return tracing_agent_.get(); }
 
-  NodePlatform* Platform() {
-    return platform_;
-  }
+  NodePlatform* Platform() { return platform_; }
 
   std::unique_ptr<tracing::Agent> tracing_agent_;
   NodePlatform* platform_;
-#else  // !NODE_USE_V8_PLATFORM
+#else   // !NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {}
   void Dispose() {}
   void DrainVMTasks(Isolate* isolate) {}
   void CancelVMTasks(Isolate* isolate) {}
-  bool StartInspector(Environment* env, const char* script_path,
+  bool StartInspector(Environment* env,
+                      const char* script_path,
                       const DebugOptions& options) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
     return true;
@@ -458,23 +451,20 @@ static struct {
 
   void StartTracingAgent() {
     if (!trace_enabled_categories.empty()) {
-      fprintf(stderr, "Node compiled with NODE_USE_V8_PLATFORM=0, "
-                      "so event tracing is not available.\n");
+      fprintf(stderr,
+              "Node compiled with NODE_USE_V8_PLATFORM=0, "
+              "so event tracing is not available.\n");
     }
   }
   void StopTracingAgent() {}
 
   tracing::Agent* GetTracingAgent() const { return nullptr; }
 
-  NodePlatform* Platform() {
-    return nullptr;
-  }
+  NodePlatform* Platform() { return nullptr; }
 #endif  // !NODE_USE_V8_PLATFORM
 
 #if !NODE_USE_V8_PLATFORM || !HAVE_INSPECTOR
-  bool InspectorStarted(Environment* env) {
-    return false;
-  }
+  bool InspectorStarted(Environment* env) { return false; }
 #endif  //  !NODE_USE_V8_PLATFORM || !HAVE_INSPECTOR
 } v8_platform;
 
@@ -489,8 +479,7 @@ void PrintErrorString(const char* format, ...) {
   HANDLE stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
 
   // Check if stderr is something other than a tty/console
-  if (stderr_handle == INVALID_HANDLE_VALUE ||
-      stderr_handle == nullptr ||
+  if (stderr_handle == INVALID_HANDLE_VALUE || stderr_handle == nullptr ||
       uv_guess_handle(_fileno(stderr)) != UV_TTY) {
     vfprintf(stderr, format, ap);
     va_end(ap);
@@ -518,162 +507,164 @@ void PrintErrorString(const char* format, ...) {
 }
 
 const char* signo_string(int signo) {
-#define SIGNO_CASE(e)  case e: return #e;
+#define SIGNO_CASE(e)                                                          \
+  case e:                                                                      \
+    return #e;
   switch (signo) {
 #ifdef SIGHUP
-  SIGNO_CASE(SIGHUP);
+    SIGNO_CASE(SIGHUP);
 #endif
 
 #ifdef SIGINT
-  SIGNO_CASE(SIGINT);
+    SIGNO_CASE(SIGINT);
 #endif
 
 #ifdef SIGQUIT
-  SIGNO_CASE(SIGQUIT);
+    SIGNO_CASE(SIGQUIT);
 #endif
 
 #ifdef SIGILL
-  SIGNO_CASE(SIGILL);
+    SIGNO_CASE(SIGILL);
 #endif
 
 #ifdef SIGTRAP
-  SIGNO_CASE(SIGTRAP);
+    SIGNO_CASE(SIGTRAP);
 #endif
 
 #ifdef SIGABRT
-  SIGNO_CASE(SIGABRT);
+    SIGNO_CASE(SIGABRT);
 #endif
 
 #ifdef SIGIOT
-# if SIGABRT != SIGIOT
-  SIGNO_CASE(SIGIOT);
-# endif
+#if SIGABRT != SIGIOT
+    SIGNO_CASE(SIGIOT);
+#endif
 #endif
 
 #ifdef SIGBUS
-  SIGNO_CASE(SIGBUS);
+    SIGNO_CASE(SIGBUS);
 #endif
 
 #ifdef SIGFPE
-  SIGNO_CASE(SIGFPE);
+    SIGNO_CASE(SIGFPE);
 #endif
 
 #ifdef SIGKILL
-  SIGNO_CASE(SIGKILL);
+    SIGNO_CASE(SIGKILL);
 #endif
 
 #ifdef SIGUSR1
-  SIGNO_CASE(SIGUSR1);
+    SIGNO_CASE(SIGUSR1);
 #endif
 
 #ifdef SIGSEGV
-  SIGNO_CASE(SIGSEGV);
+    SIGNO_CASE(SIGSEGV);
 #endif
 
 #ifdef SIGUSR2
-  SIGNO_CASE(SIGUSR2);
+    SIGNO_CASE(SIGUSR2);
 #endif
 
 #ifdef SIGPIPE
-  SIGNO_CASE(SIGPIPE);
+    SIGNO_CASE(SIGPIPE);
 #endif
 
 #ifdef SIGALRM
-  SIGNO_CASE(SIGALRM);
+    SIGNO_CASE(SIGALRM);
 #endif
 
-  SIGNO_CASE(SIGTERM);
+    SIGNO_CASE(SIGTERM);
 
 #ifdef SIGCHLD
-  SIGNO_CASE(SIGCHLD);
+    SIGNO_CASE(SIGCHLD);
 #endif
 
 #ifdef SIGSTKFLT
-  SIGNO_CASE(SIGSTKFLT);
+    SIGNO_CASE(SIGSTKFLT);
 #endif
 
-
 #ifdef SIGCONT
-  SIGNO_CASE(SIGCONT);
+    SIGNO_CASE(SIGCONT);
 #endif
 
 #ifdef SIGSTOP
-  SIGNO_CASE(SIGSTOP);
+    SIGNO_CASE(SIGSTOP);
 #endif
 
 #ifdef SIGTSTP
-  SIGNO_CASE(SIGTSTP);
+    SIGNO_CASE(SIGTSTP);
 #endif
 
 #ifdef SIGBREAK
-  SIGNO_CASE(SIGBREAK);
+    SIGNO_CASE(SIGBREAK);
 #endif
 
 #ifdef SIGTTIN
-  SIGNO_CASE(SIGTTIN);
+    SIGNO_CASE(SIGTTIN);
 #endif
 
 #ifdef SIGTTOU
-  SIGNO_CASE(SIGTTOU);
+    SIGNO_CASE(SIGTTOU);
 #endif
 
 #ifdef SIGURG
-  SIGNO_CASE(SIGURG);
+    SIGNO_CASE(SIGURG);
 #endif
 
 #ifdef SIGXCPU
-  SIGNO_CASE(SIGXCPU);
+    SIGNO_CASE(SIGXCPU);
 #endif
 
 #ifdef SIGXFSZ
-  SIGNO_CASE(SIGXFSZ);
+    SIGNO_CASE(SIGXFSZ);
 #endif
 
 #ifdef SIGVTALRM
-  SIGNO_CASE(SIGVTALRM);
+    SIGNO_CASE(SIGVTALRM);
 #endif
 
 #ifdef SIGPROF
-  SIGNO_CASE(SIGPROF);
+    SIGNO_CASE(SIGPROF);
 #endif
 
 #ifdef SIGWINCH
-  SIGNO_CASE(SIGWINCH);
+    SIGNO_CASE(SIGWINCH);
 #endif
 
 #ifdef SIGIO
-  SIGNO_CASE(SIGIO);
+    SIGNO_CASE(SIGIO);
 #endif
 
 #ifdef SIGPOLL
-# if SIGPOLL != SIGIO
-  SIGNO_CASE(SIGPOLL);
-# endif
+#if SIGPOLL != SIGIO
+    SIGNO_CASE(SIGPOLL);
+#endif
 #endif
 
 #ifdef SIGLOST
-# if SIGLOST != SIGABRT
-  SIGNO_CASE(SIGLOST);
-# endif
+#if SIGLOST != SIGABRT
+    SIGNO_CASE(SIGLOST);
+#endif
 #endif
 
 #ifdef SIGPWR
-# if SIGPWR != SIGLOST
-  SIGNO_CASE(SIGPWR);
-# endif
+#if SIGPWR != SIGLOST
+    SIGNO_CASE(SIGPWR);
+#endif
 #endif
 
 #ifdef SIGINFO
-# if !defined(SIGPWR) || SIGINFO != SIGPWR
-  SIGNO_CASE(SIGINFO);
-# endif
+#if !defined(SIGPWR) || SIGINFO != SIGPWR
+    SIGNO_CASE(SIGINFO);
+#endif
 #endif
 
 #ifdef SIGSYS
-  SIGNO_CASE(SIGSYS);
+    SIGNO_CASE(SIGSYS);
 #endif
 
-  default: return "";
+    default:
+      return "";
   }
 }
 
@@ -697,7 +688,6 @@ fail:
   return false;
 }
 
-
 void* ArrayBufferAllocator::Allocate(size_t size) {
   if (zero_fill_field_ || zero_fill_all_buffers)
     return UncheckedCalloc(size);
@@ -716,7 +706,6 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 
 }  // anonymous namespace
 
-
 void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
   Environment* env = Environment::GetCurrent(isolate);
   env->AddPromiseHook(fn, arg);
@@ -728,7 +717,6 @@ void AddEnvironmentCleanupHook(v8::Isolate* isolate,
   Environment* env = Environment::GetCurrent(isolate);
   env->AddCleanupHook(fun, arg);
 }
-
 
 void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
                                   void (*fun)(void* arg),
@@ -775,9 +763,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
   return ret;
 }
 
-
 // Public MakeCallback()s
-
 
 MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                Local<Object> recv,
@@ -791,7 +777,6 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   return MakeCallback(isolate, recv, method_string, argc, argv, asyncContext);
 }
 
-
 MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                Local<Object> recv,
                                Local<String> symbol,
@@ -804,7 +789,6 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   Local<Function> callback = callback_v.As<Function>();
   return MakeCallback(isolate, recv, callback, argc, argv, asyncContext);
 }
-
 
 MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                Local<Object> recv,
@@ -821,10 +805,8 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   // the two contexts need not be the same.
   Environment* env = Environment::GetCurrent(callback->CreationContext());
   Context::Scope context_scope(env->context());
-  return InternalMakeCallback(env, recv, callback,
-                              argc, argv, asyncContext);
+  return InternalMakeCallback(env, recv, callback, argc, argv, asyncContext);
 }
-
 
 // Legacy MakeCallback()s
 
@@ -839,24 +821,22 @@ Local<Value> MakeCallback(Isolate* isolate,
           .FromMaybe(Local<Value>()));
 }
 
-
 Local<Value> MakeCallback(Isolate* isolate,
-    Local<Object> recv,
-    Local<String> symbol,
-    int argc,
-    Local<Value>* argv) {
+                          Local<Object> recv,
+                          Local<String> symbol,
+                          int argc,
+                          Local<Value>* argv) {
   EscapableHandleScope handle_scope(isolate);
   return handle_scope.Escape(
       MakeCallback(isolate, recv, symbol, argc, argv, {0, 0})
           .FromMaybe(Local<Value>()));
 }
 
-
 Local<Value> MakeCallback(Isolate* isolate,
-    Local<Object> recv,
-    Local<Function> callback,
-    int argc,
-    Local<Value>* argv) {
+                          Local<Object> recv,
+                          Local<Function> callback,
+                          int argc,
+                          Local<Value>* argv) {
   EscapableHandleScope handle_scope(isolate);
   return handle_scope.Escape(
       MakeCallback(isolate, recv, callback, argc, argv, {0, 0})
@@ -878,8 +858,7 @@ void AppendExceptionLine(Environment* env,
                          Local<Value> er,
                          Local<Message> message,
                          enum ErrorHandlingMode mode) {
-  if (message.IsEmpty())
-    return;
+  if (message.IsEmpty()) return;
 
   HandleScope scope(env->isolate());
   Local<Object> err_obj;
@@ -921,9 +900,9 @@ void AppendExceptionLine(Environment* env,
   // sourceline to 78 characters, and we end up not providing very much
   // useful debugging info to the user if we remove 62 characters.
 
-  int script_start =
-      (linenum - origin.ResourceLineOffset()->Value()) == 1 ?
-          origin.ResourceColumnOffset()->Value() : 0;
+  int script_start = (linenum - origin.ResourceLineOffset()->Value()) == 1
+                         ? origin.ResourceColumnOffset()->Value()
+                         : 0;
   int start = message->GetStartColumn(env->context()).FromMaybe(0);
   int end = message->GetEndColumn(env->context()).FromMaybe(0);
   if (start >= script_start) {
@@ -965,8 +944,9 @@ void AppendExceptionLine(Environment* env,
   arrow[off] = '\n';
   arrow[off + 1] = '\0';
 
-  Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow,
-      v8::NewStringType::kNormal).ToLocalChecked();
+  Local<String> arrow_str =
+      String::NewFromUtf8(env->isolate(), arrow, v8::NewStringType::kNormal)
+          .ToLocalChecked();
 
   const bool can_set_arrow = !arrow_str.IsEmpty() && !err_obj.IsEmpty();
   // If allocating arrow_str failed, print it out. There's not much else to do.
@@ -975,8 +955,7 @@ void AppendExceptionLine(Environment* env,
   // Otherwise, the arrow property will be attached to the object and handled
   // by the caller.
   if (!can_set_arrow || (mode == FATAL_ERROR && !err_obj->IsNativeError())) {
-    if (env->printed_error())
-      return;
+    if (env->printed_error()) return;
     Mutex::ScopedLock lock(process_mutex);
     env->set_printed_error(true);
 
@@ -985,12 +964,11 @@ void AppendExceptionLine(Environment* env,
     return;
   }
 
-  CHECK(err_obj->SetPrivate(
-            env->context(),
-            env->arrow_message_private_symbol(),
-            arrow_str).FromMaybe(false));
+  CHECK(err_obj
+            ->SetPrivate(
+                env->context(), env->arrow_message_private_symbol(), arrow_str)
+            .FromMaybe(false));
 }
-
 
 void ReportException(Environment* env,
                      Local<Value> er,
@@ -998,8 +976,7 @@ void ReportException(Environment* env,
   CHECK(!er.IsEmpty());
   HandleScope scope(env->isolate());
 
-  if (message.IsEmpty())
-    message = Exception::CreateMessage(env->isolate(), er);
+  if (message.IsEmpty()) message = Exception::CreateMessage(env->isolate(), er);
 
   AppendExceptionLine(env, er, message, FATAL_ERROR);
 
@@ -1014,9 +991,8 @@ void ReportException(Environment* env,
 
     trace_value = err_obj->Get(env->stack_string());
     arrow =
-        err_obj->GetPrivate(
-            env->context(),
-            env->arrow_message_private_symbol()).ToLocalChecked();
+        err_obj->GetPrivate(env->context(), env->arrow_message_private_symbol())
+            .ToLocalChecked();
   }
 
   node::Utf8Value trace(env->isolate(), trace_value);
@@ -1042,15 +1018,13 @@ void ReportException(Environment* env,
       name = err_obj->Get(FIXED_ONE_BYTE_STRING(env->isolate(), "name"));
     }
 
-    if (message.IsEmpty() ||
-        message->IsUndefined() ||
-        name.IsEmpty() ||
+    if (message.IsEmpty() || message->IsUndefined() || name.IsEmpty() ||
         name->IsUndefined()) {
       // Not an error object. Just print as-is.
       String::Utf8Value message(env->isolate(), er);
 
-      PrintErrorString("%s\n", *message ? *message :
-                                          "<toString() threw exception>");
+      PrintErrorString("%s\n",
+                       *message ? *message : "<toString() threw exception>");
     } else {
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
@@ -1059,10 +1033,8 @@ void ReportException(Environment* env,
         PrintErrorString("%s: %s\n", *name_string, *message_string);
       } else {
         node::Utf8Value arrow_string(env->isolate(), arrow);
-        PrintErrorString("%s\n%s: %s\n",
-                         *arrow_string,
-                         *name_string,
-                         *message_string);
+        PrintErrorString(
+            "%s\n%s: %s\n", *arrow_string, *name_string, *message_string);
       }
     }
   }
@@ -1074,11 +1046,9 @@ void ReportException(Environment* env,
 #endif
 }
 
-
 static void ReportException(Environment* env, const TryCatch& try_catch) {
   ReportException(env, try_catch.Exception(), try_catch.Message());
 }
-
 
 // Executes a str within the current v8 context.
 static MaybeLocal<Value> ExecuteString(Environment* env,
@@ -1114,7 +1084,6 @@ static MaybeLocal<Value> ExecuteString(Environment* env,
   return scope.Escape(result.ToLocalChecked());
 }
 
-
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1125,8 +1094,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   size_t idx = 0;
 
   for (auto w : *env->req_wrap_queue()) {
-    if (w->persistent().IsEmpty())
-      continue;
+    if (w->persistent().IsEmpty()) continue;
     argv[idx] = w->object();
     if (++idx >= arraysize(argv)) {
       fn->Call(ctx, ary, idx, argv).ToLocalChecked();
@@ -1140,7 +1108,6 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(ary);
 }
-
 
 // Non-static, friend of HandleWrap. Could have been a HandleWrap method but
 // implemented here for consistency with GetActiveRequests().
@@ -1156,12 +1123,10 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Local<String> owner_sym = env->owner_string();
 
   for (auto w : *env->handle_wrap_queue()) {
-    if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w))
-      continue;
+    if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w)) continue;
     Local<Object> object = w->object();
     Local<Value> owner = object->Get(owner_sym);
-    if (owner->IsUndefined())
-      owner = object;
+    if (owner->IsUndefined()) owner = object;
     argv[idx] = owner;
     if (++idx >= arraysize(argv)) {
       fn->Call(ctx, ary, idx, argv).ToLocalChecked();
@@ -1175,13 +1140,11 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ary);
 }
 
-
 NO_RETURN void Abort() {
   DumpBacktrace(stderr);
   fflush(stderr);
   ABORT_NO_BACKTRACE();
 }
-
 
 NO_RETURN void Assert(const char* const (*args)[4]) {
   auto filename = (*args)[0];
@@ -1192,13 +1155,18 @@ NO_RETURN void Assert(const char* const (*args)[4]) {
   char name[1024];
   GetHumanReadableProcessName(&name);
 
-  fprintf(stderr, "%s: %s:%s:%s%s Assertion `%s' failed.\n",
-          name, filename, linenum, function, *function ? ":" : "", message);
+  fprintf(stderr,
+          "%s: %s:%s:%s%s Assertion `%s' failed.\n",
+          name,
+          filename,
+          linenum,
+          function,
+          *function ? ":" : "",
+          message);
   fflush(stderr);
 
   Abort();
 }
-
 
 static void WaitForInspectorDisconnect(Environment* env) {
 #if HAVE_INSPECTOR
@@ -1209,8 +1177,7 @@ static void WaitForInspectorDisconnect(Environment* env) {
     struct sigaction act;
     memset(&act, 0, sizeof(act));
     for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
-      if (nr == SIGKILL || nr == SIGSTOP || nr == SIGPROF)
-        continue;
+      if (nr == SIGKILL || nr == SIGSTOP || nr == SIGPROF) continue;
       act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
       CHECK_EQ(0, sigaction(nr, &act, nullptr));
     }
@@ -1219,7 +1186,6 @@ static void WaitForInspectorDisconnect(Environment* env) {
   }
 #endif
 }
-
 
 static void Exit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1254,8 +1220,7 @@ inline struct node_module* FindModule(struct node_module* list,
   struct node_module* mp;
 
   for (mp = list; mp != nullptr; mp = mp->nm_link) {
-    if (strcmp(mp->nm_modname, name) == 0)
-      break;
+    if (strcmp(mp->nm_modname, name) == 0) break;
   }
 
   CHECK(mp == nullptr || (mp->nm_flags & flag) != 0);
@@ -1298,12 +1263,10 @@ class DLib {
   DISALLOW_COPY_AND_ASSIGN(DLib);
 };
 
-
 #ifdef __POSIX__
 bool DLib::Open() {
   handle_ = dlopen(filename_.c_str(), flags_);
-  if (handle_ != nullptr)
-    return true;
+  if (handle_ != nullptr) return true;
   errmsg_ = dlerror();
   return false;
 }
@@ -1317,7 +1280,7 @@ void DLib::Close() {
 void* DLib::GetSymbolAddress(const char* name) {
   return dlsym(handle_, name);
 }
-#else  // !__POSIX__
+#else   // !__POSIX__
 bool DLib::Open() {
   int ret = uv_dlopen(filename_.c_str(), &lib_);
   if (ret == 0) {
@@ -1354,8 +1317,8 @@ inline InitializerCallback GetInitializerCallback(DLib* dlib) {
 inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
   const char* name =
       STRINGIFY(NAPI_MODULE_INITIALIZER_BASE) STRINGIFY(NAPI_MODULE_VERSION);
-  return
-      reinterpret_cast<napi_addon_register_func>(dlib->GetSymbolAddress(name));
+  return reinterpret_cast<napi_addon_register_func>(
+      dlib->GetSymbolAddress(name));
 }
 
 // DLOpen is process.dlopen(module, filename, flags).
@@ -1404,8 +1367,8 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
     dlib.Close();
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
-    errmsg = String::Concat(errmsg,
-                            args[1]->ToString(context).ToLocalChecked());
+    errmsg =
+        String::Concat(errmsg, args[1]->ToString(context).ToLocalChecked());
 #endif  // _WIN32
     env->isolate()->ThrowException(Exception::Error(errmsg));
     return;
@@ -1441,7 +1404,9 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
              "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
              "re-installing\nthe module (for instance, using `npm rebuild` "
              "or `npm install`).",
-             *filename, mp->nm_version, NODE_MODULE_VERSION);
+             *filename,
+             mp->nm_version,
+             NODE_MODULE_VERSION);
 
     // NOTE: `mp` is allocated inside of the shared library's memory, calling
     // `dlclose` will deallocate it
@@ -1473,7 +1438,6 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   // coverity[leaked_storage]
 }
 
-
 static void OnFatalError(const char* location, const char* message) {
   if (location) {
     PrintErrorString("FATAL ERROR: %s %s\n", location, message);
@@ -1484,13 +1448,11 @@ static void OnFatalError(const char* location, const char* message) {
   ABORT();
 }
 
-
 NO_RETURN void FatalError(const char* location, const char* message) {
   OnFatalError(location, message);
   // to suppress compiler warning
   ABORT();
 }
-
 
 FatalTryCatch::~FatalTryCatch() {
   if (HasCaught()) {
@@ -1499,7 +1461,6 @@ FatalTryCatch::~FatalTryCatch() {
     exit(7);
   }
 }
-
 
 void FatalException(Isolate* isolate,
                     Local<Value> error,
@@ -1527,8 +1488,7 @@ void FatalException(Isolate* isolate,
     Local<Value> caught =
         fatal_exception_function->Call(process_object, 1, &error);
 
-    if (fatal_try_catch.HasTerminated())
-      return;
+    if (fatal_try_catch.HasTerminated()) return;
 
     if (fatal_try_catch.HasCaught()) {
       // The fatal exception function threw, so we must exit
@@ -1550,7 +1510,6 @@ void FatalException(Isolate* isolate,
   }
 }
 
-
 void FatalException(Isolate* isolate, const TryCatch& try_catch) {
   // If we try to print out a termination exception, we'd just get 'null',
   // so just crashing here with that information seems like a better idea,
@@ -1563,7 +1522,6 @@ void FatalException(Isolate* isolate, const TryCatch& try_catch) {
     FatalException(isolate, try_catch.Exception(), try_catch.Message());
   }
 }
-
 
 static void OnMessage(Local<Message> message, Local<Value> error) {
   // The current version of V8 sends messages for errors only
@@ -1580,8 +1538,8 @@ static Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
 
   Local<Object> process = env->process_object();
   Local<Value> emit_warning;
-  if (!process->Get(env->context(),
-                    env->emit_warning_string()).ToLocal(&emit_warning)) {
+  if (!process->Get(env->context(), env->emit_warning_string())
+           .ToLocal(&emit_warning)) {
     return Nothing<bool>();
   }
 
@@ -1592,38 +1550,35 @@ static Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
 
   // The caller has to be able to handle a failure anyway, so we might as well
   // do proper error checking for string creation.
-  if (!String::NewFromUtf8(env->isolate(),
-                           warning,
-                           v8::NewStringType::kNormal).ToLocal(&args[argc++])) {
+  if (!String::NewFromUtf8(env->isolate(), warning, v8::NewStringType::kNormal)
+           .ToLocal(&args[argc++])) {
     return Nothing<bool>();
   }
   if (type != nullptr) {
     if (!String::NewFromOneByte(env->isolate(),
                                 reinterpret_cast<const uint8_t*>(type),
                                 v8::NewStringType::kNormal)
-                                    .ToLocal(&args[argc++])) {
+             .ToLocal(&args[argc++])) {
       return Nothing<bool>();
     }
     if (code != nullptr &&
         !String::NewFromOneByte(env->isolate(),
                                 reinterpret_cast<const uint8_t*>(code),
                                 v8::NewStringType::kNormal)
-                                    .ToLocal(&args[argc++])) {
+             .ToLocal(&args[argc++])) {
       return Nothing<bool>();
     }
   }
 
   // MakeCallback() unneeded because emitWarning is internal code, it calls
   // process.emit('warning', ...), but does so on the nextTick.
-  if (emit_warning.As<Function>()->Call(env->context(),
-                                        process,
-                                        argc,
-                                        args).IsEmpty()) {
+  if (emit_warning.As<Function>()
+          ->Call(env->context(), process, argc, args)
+          .IsEmpty()) {
     return Nothing<bool>();
   }
   return Just(true);
 }
-
 
 // Call process.emitWarning(str), fmt is a snprintf() format string
 Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...) {
@@ -1637,38 +1592,28 @@ Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...) {
   return ProcessEmitWarningGeneric(env, warning);
 }
 
-
 Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                           const char* warning,
                                           const char* deprecation_code) {
-  return ProcessEmitWarningGeneric(env,
-                                   warning,
-                                   "DeprecationWarning",
-                                   deprecation_code);
+  return ProcessEmitWarningGeneric(
+      env, warning, "DeprecationWarning", deprecation_code);
 }
 
-
 static Local<Object> InitModule(Environment* env,
-                                 node_module* mod,
-                                 Local<String> module) {
+                                node_module* mod,
+                                Local<String> module) {
   Local<Object> exports = Object::New(env->isolate());
   // Internal bindings don't have a "module" object, only exports.
   CHECK_NULL(mod->nm_register_func);
   CHECK_NOT_NULL(mod->nm_context_register_func);
   Local<Value> unused = Undefined(env->isolate());
-  mod->nm_context_register_func(exports,
-                                unused,
-                                env->context(),
-                                mod->nm_priv);
+  mod->nm_context_register_func(exports, unused, env->context(), mod->nm_priv);
   return exports;
 }
 
 static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
   char errmsg[1024];
-  snprintf(errmsg,
-           sizeof(errmsg),
-           "No such module: %s",
-           module_v);
+  snprintf(errmsg, sizeof(errmsg), "No such module: %s", module_v);
   env->ThrowError(errmsg);
 }
 
@@ -1686,8 +1631,8 @@ static void GetBinding(const FunctionCallbackInfo<Value>& args) {
     exports = InitModule(env, mod, module);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
-    CHECK(exports->SetPrototype(env->context(),
-                                Null(env->isolate())).FromJust());
+    CHECK(
+        exports->SetPrototype(env->context(), Null(env->isolate())).FromJust());
     DefineConstants(env->isolate(), exports);
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New(env->isolate());
@@ -1743,15 +1688,14 @@ static void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> module = Object::New(env->isolate());
   Local<Object> exports = Object::New(env->isolate());
-  Local<String> exports_prop = String::NewFromUtf8(env->isolate(), "exports",
-      v8::NewStringType::kNormal).ToLocalChecked();
+  Local<String> exports_prop =
+      String::NewFromUtf8(env->isolate(), "exports", v8::NewStringType::kNormal)
+          .ToLocalChecked();
   module->Set(exports_prop, exports);
 
   if (mod->nm_context_register_func != nullptr) {
-    mod->nm_context_register_func(exports,
-                                  module,
-                                  env->context(),
-                                  mod->nm_priv);
+    mod->nm_context_register_func(
+        exports, module, env->context(), mod->nm_priv);
   } else if (mod->nm_register_func != nullptr) {
     mod->nm_register_func(exports, module, mod->nm_priv);
   } else {
@@ -1767,20 +1711,19 @@ static void ProcessTitleGetter(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
   char buffer[512];
   uv_get_process_title(buffer, sizeof(buffer));
-  info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), buffer,
-      v8::NewStringType::kNormal).ToLocalChecked());
+  info.GetReturnValue().Set(
+      String::NewFromUtf8(info.GetIsolate(), buffer, v8::NewStringType::kNormal)
+          .ToLocalChecked());
 }
-
 
 static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
-  TRACE_EVENT_METADATA1("__metadata", "process_name", "name",
-                        TRACE_STR_COPY(*title));
+  TRACE_EVENT_METADATA1(
+      "__metadata", "process_name", "name", TRACE_STR_COPY(*title));
   uv_set_process_title(*title);
 }
-
 
 static void EnvGetter(Local<Name> property,
                       const PropertyCallbackInfo<Value>& info) {
@@ -1793,16 +1736,16 @@ static void EnvGetter(Local<Name> property,
   node::Utf8Value key(isolate, property);
   const char* val = getenv(*key);
   if (val) {
-    return info.GetReturnValue().Set(String::NewFromUtf8(isolate, val,
-        v8::NewStringType::kNormal).ToLocalChecked());
+    return info.GetReturnValue().Set(
+        String::NewFromUtf8(isolate, val, v8::NewStringType::kNormal)
+            .ToLocalChecked());
   }
 #else  // _WIN32
   node::TwoByteValue key(isolate, property);
   WCHAR buffer[32767];  // The maximum size allowed for environment variables.
   SetLastError(ERROR_SUCCESS);
-  DWORD result = GetEnvironmentVariableW(reinterpret_cast<WCHAR*>(*key),
-                                         buffer,
-                                         arraysize(buffer));
+  DWORD result = GetEnvironmentVariableW(
+      reinterpret_cast<WCHAR*>(*key), buffer, arraysize(buffer));
   // If result >= sizeof buffer the buffer was too small. That should never
   // happen. If result == 0 and result != ERROR_SUCCESS the variable was not
   // found.
@@ -1815,7 +1758,6 @@ static void EnvGetter(Local<Name> property,
 #endif
 }
 
-
 static void EnvSetter(Local<Name> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
@@ -1823,11 +1765,13 @@ static void EnvSetter(Local<Name> property,
   if (config_pending_deprecation && env->EmitProcessEnvWarning() &&
       !value->IsString() && !value->IsNumber() && !value->IsBoolean()) {
     if (ProcessEmitDeprecationWarning(
-          env,
-          "Assigning any value other than a string, number, or boolean to a "
-          "process.env property is deprecated. Please make sure to convert the "
-          "value to a string before setting process.env with it.",
-          "DEP0104").IsNothing())
+            env,
+            "Assigning any value other than a string, number, or boolean to a "
+            "process.env property is deprecated. Please make sure to convert "
+            "the "
+            "value to a string before setting process.env with it.",
+            "DEP0104")
+            .IsNothing())
       return;
   }
 
@@ -1849,7 +1793,6 @@ static void EnvSetter(Local<Name> property,
   info.GetReturnValue().Set(value);
 }
 
-
 static void EnvQuery(Local<Name> property,
                      const PropertyCallbackInfo<Integer>& info) {
   Mutex::ScopedLock lock(environ_mutex);
@@ -1857,8 +1800,7 @@ static void EnvQuery(Local<Name> property,
   if (property->IsString()) {
 #ifdef __POSIX__
     node::Utf8Value key(info.GetIsolate(), property);
-    if (getenv(*key))
-      rc = 0;
+    if (getenv(*key)) rc = 0;
 #else  // _WIN32
     node::TwoByteValue key(info.GetIsolate(), property);
     WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
@@ -1875,10 +1817,8 @@ static void EnvQuery(Local<Name> property,
     }
 #endif
   }
-  if (rc != -1)
-    info.GetReturnValue().Set(rc);
+  if (rc != -1) info.GetReturnValue().Set(rc);
 }
-
 
 static void EnvDeleter(Local<Name> property,
                        const PropertyCallbackInfo<Boolean>& info) {
@@ -1899,7 +1839,6 @@ static void EnvDeleter(Local<Name> property,
   info.GetReturnValue().Set(true);
 }
 
-
 static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Environment* env = Environment::GetCurrent(info);
   Isolate* isolate = env->isolate();
@@ -1911,8 +1850,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Mutex::ScopedLock lock(environ_mutex);
 #ifdef __POSIX__
   int size = 0;
-  while (environ[size])
-    size++;
+  while (environ[size]) size++;
 
   Local<Array> envarr = Array::New(isolate);
 
@@ -1920,10 +1858,9 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     const char* var = environ[i];
     const char* s = strchr(var, '=');
     const int length = s ? s - var : strlen(var);
-    argv[idx] = String::NewFromUtf8(isolate,
-                                    var,
-                                    v8::NewStringType::kNormal,
-                                    length).ToLocalChecked();
+    argv[idx] =
+        String::NewFromUtf8(isolate, var, v8::NewStringType::kNormal, length)
+            .ToLocalChecked();
     if (++idx >= arraysize(argv)) {
       fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
       idx = 0;
@@ -1934,8 +1871,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   }
 #else  // _WIN32
   WCHAR* environment = GetEnvironmentStringsW();
-  if (environment == nullptr)
-    return;  // This should not happen.
+  if (environment == nullptr) return;  // This should not happen.
   Local<Array> envarr = Array::New(isolate);
   WCHAR* p = environment;
   while (*p) {
@@ -1952,10 +1888,8 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     }
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(p);
     const size_t two_byte_buffer_len = s - p;
-    argv[idx] = String::NewFromTwoByte(isolate,
-                                       two_byte_buffer,
-                                       String::kNormalString,
-                                       two_byte_buffer_len);
+    argv[idx] = String::NewFromTwoByte(
+        isolate, two_byte_buffer, String::kNormalString, two_byte_buffer_len);
     if (++idx >= arraysize(argv)) {
       fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
       idx = 0;
@@ -1971,12 +1905,10 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   info.GetReturnValue().Set(envarr);
 }
 
-
 static void GetParentProcessId(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(Integer::New(info.GetIsolate(), uv_os_getppid()));
 }
-
 
 static Local<Object> GetFeatures(Environment* env) {
   EscapableHandleScope scope(env->isolate());
@@ -2007,7 +1939,6 @@ static Local<Object> GetFeatures(Environment* env) {
   return scope.Escape(obj);
 }
 
-
 static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
   Mutex::ScopedLock lock(process_mutex);
@@ -2015,13 +1946,11 @@ static void DebugPortGetter(Local<Name> property,
 #if HAVE_INSPECTOR
   if (port == 0) {
     Environment* env = Environment::GetCurrent(info);
-    if (auto io = env->inspector_agent()->io())
-      port = io->port();
+    if (auto io = env->inspector_agent()->io()) port = io->port();
   }
 #endif  // HAVE_INSPECTOR
   info.GetReturnValue().Set(port);
 }
-
 
 static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
@@ -2030,28 +1959,28 @@ static void DebugPortSetter(Local<Name> property,
   debug_options.set_port(value->Int32Value());
 }
 
-
 static void DebugProcess(const FunctionCallbackInfo<Value>& args);
 static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 namespace {
 
-#define READONLY_PROPERTY(obj, str, var)                                      \
-  do {                                                                        \
-    obj->DefineOwnProperty(env->context(),                                    \
-                           OneByteString(env->isolate(), str),                \
-                           var,                                               \
-                           v8::ReadOnly).FromJust();                          \
+#define READONLY_PROPERTY(obj, str, var)                                       \
+  do {                                                                         \
+    obj->DefineOwnProperty(env->context(),                                     \
+                           OneByteString(env->isolate(), str),                 \
+                           var,                                                \
+                           v8::ReadOnly)                                       \
+        .FromJust();                                                           \
   } while (0)
 
-#define READONLY_DONT_ENUM_PROPERTY(obj, str, var)                            \
-  do {                                                                        \
-    obj->DefineOwnProperty(env->context(),                                    \
-                           OneByteString(env->isolate(), str),                \
-                           var,                                               \
-                           static_cast<v8::PropertyAttribute>(v8::ReadOnly |  \
-                                                              v8::DontEnum))  \
-        .FromJust();                                                          \
+#define READONLY_DONT_ENUM_PROPERTY(obj, str, var)                             \
+  do {                                                                         \
+    obj->DefineOwnProperty(                                                    \
+           env->context(),                                                     \
+           OneByteString(env->isolate(), str),                                 \
+           var,                                                                \
+           static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum))    \
+        .FromJust();                                                           \
   } while (0)
 
 }  // anonymous namespace
@@ -2066,46 +1995,44 @@ void SetupProcessObject(Environment* env,
   Local<Object> process = env->process_object();
 
   auto title_string = FIXED_ONE_BYTE_STRING(env->isolate(), "title");
-  CHECK(process->SetAccessor(
-      env->context(),
-      title_string,
-      ProcessTitleGetter,
-      env->is_main_thread() ? ProcessTitleSetter : nullptr,
-      env->as_external(),
-      v8::DEFAULT,
-      v8::None,
-      SideEffectType::kHasNoSideEffect).FromJust());
+  CHECK(process
+            ->SetAccessor(env->context(),
+                          title_string,
+                          ProcessTitleGetter,
+                          env->is_main_thread() ? ProcessTitleSetter : nullptr,
+                          env->as_external(),
+                          v8::DEFAULT,
+                          v8::None,
+                          SideEffectType::kHasNoSideEffect)
+            .FromJust());
 
   // process.version
-  READONLY_PROPERTY(process,
-                    "version",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), NODE_VERSION));
+  READONLY_PROPERTY(
+      process, "version", FIXED_ONE_BYTE_STRING(env->isolate(), NODE_VERSION));
 
   // process.versions
   Local<Object> versions = Object::New(env->isolate());
   READONLY_PROPERTY(process, "versions", versions);
-
-  const char http_parser_version[] = NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
-                                     "."
-                                     NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
-                                     "."
-                                     NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+  // clang-format off
+  const char http_parser_version[] =
+      NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
+      "."
+      NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
+      "."
+      NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+  // clang-format on
   READONLY_PROPERTY(versions,
                     "http_parser",
                     FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
   // +1 to get rid of the leading 'v'
-  READONLY_PROPERTY(versions,
-                    "node",
-                    OneByteString(env->isolate(), NODE_VERSION + 1));
-  READONLY_PROPERTY(versions,
-                    "v8",
-                    OneByteString(env->isolate(), V8::GetVersion()));
-  READONLY_PROPERTY(versions,
-                    "uv",
-                    OneByteString(env->isolate(), uv_version_string()));
-  READONLY_PROPERTY(versions,
-                    "zlib",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
+  READONLY_PROPERTY(
+      versions, "node", OneByteString(env->isolate(), NODE_VERSION + 1));
+  READONLY_PROPERTY(
+      versions, "v8", OneByteString(env->isolate(), V8::GetVersion()));
+  READONLY_PROPERTY(
+      versions, "uv", OneByteString(env->isolate(), uv_version_string()));
+  READONLY_PROPERTY(
+      versions, "zlib", FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
   READONLY_PROPERTY(versions,
                     "ares",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
@@ -2119,10 +2046,9 @@ void SetupProcessObject(Environment* env,
                     "nghttp2",
                     FIXED_ONE_BYTE_STRING(env->isolate(), NGHTTP2_VERSION));
   const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
-  READONLY_PROPERTY(
-      versions,
-      "napi",
-      FIXED_ONE_BYTE_STRING(env->isolate(), node_napi_version));
+  READONLY_PROPERTY(versions,
+                    "napi",
+                    FIXED_ONE_BYTE_STRING(env->isolate(), node_napi_version));
 
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
@@ -2134,8 +2060,7 @@ void SetupProcessObject(Environment* env,
       if ('0' <= c && c <= '9') {
         for (j = i + 1; j < k; ++j) {
           c = OPENSSL_VERSION_TEXT[j];
-          if (c == ' ')
-            break;
+          if (c == ' ') break;
         }
         break;
       }
@@ -2151,65 +2076,69 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), NODE_ARCH));
 
   // process.platform
-  READONLY_PROPERTY(process,
-                    "platform",
-                    OneByteString(env->isolate(), NODE_PLATFORM));
+  READONLY_PROPERTY(
+      process, "platform", OneByteString(env->isolate(), NODE_PLATFORM));
 
   // process.release
   Local<Object> release = Object::New(env->isolate());
   READONLY_PROPERTY(process, "release", release);
-  READONLY_PROPERTY(release, "name",
-                    OneByteString(env->isolate(), NODE_RELEASE));
+  READONLY_PROPERTY(
+      release, "name", OneByteString(env->isolate(), NODE_RELEASE));
 
 #if NODE_VERSION_IS_LTS
-  READONLY_PROPERTY(release, "lts",
-                    OneByteString(env->isolate(), NODE_VERSION_LTS_CODENAME));
+  READONLY_PROPERTY(
+      release, "lts", OneByteString(env->isolate(), NODE_VERSION_LTS_CODENAME));
 #endif
 
 // if this is a release build and no explicit base has been set
 // substitute the standard release download URL
 #ifndef NODE_RELEASE_URLBASE
-# if NODE_VERSION_IS_RELEASE
-#  define NODE_RELEASE_URLBASE "https://nodejs.org/download/release/"
-# endif
+#if NODE_VERSION_IS_RELEASE
+#define NODE_RELEASE_URLBASE "https://nodejs.org/download/release/"
+#endif
 #endif
 
 #if defined(NODE_RELEASE_URLBASE)
-#  define NODE_RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
-#  define NODE_RELEASE_URLFPFX NODE_RELEASE_URLPFX "node-v" NODE_VERSION_STRING
+#define NODE_RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
+#define NODE_RELEASE_URLFPFX NODE_RELEASE_URLPFX "node-v" NODE_VERSION_STRING
 
-  READONLY_PROPERTY(release,
-                    "sourceUrl",
-                    OneByteString(env->isolate(),
-                    NODE_RELEASE_URLFPFX ".tar.gz"));
-  READONLY_PROPERTY(release,
-                    "headersUrl",
-                    OneByteString(env->isolate(),
-                    NODE_RELEASE_URLFPFX "-headers.tar.gz"));
-#  ifdef _WIN32
-  READONLY_PROPERTY(release,
-                    "libUrl",
-                    OneByteString(env->isolate(),
-                    strcmp(NODE_ARCH, "ia32") ? NODE_RELEASE_URLPFX "win-"
-                                                NODE_ARCH "/node.lib"
-                                              : NODE_RELEASE_URLPFX
-                                                "win-x86/node.lib"));
-#  endif
+  READONLY_PROPERTY(
+      release,
+      "sourceUrl",
+      OneByteString(env->isolate(), NODE_RELEASE_URLFPFX ".tar.gz"));
+  READONLY_PROPERTY(
+      release,
+      "headersUrl",
+      OneByteString(env->isolate(), NODE_RELEASE_URLFPFX "-headers.tar.gz"));
+#ifdef _WIN32
+  READONLY_PROPERTY(
+      release,
+      "libUrl",
+      OneByteString(env->isolate(),
+                    strcmp(NODE_ARCH, "ia32")
+                        ? NODE_RELEASE_URLPFX "win-" NODE_ARCH "/node.lib"
+                        : NODE_RELEASE_URLPFX "win-x86/node.lib"));
+#endif
 #endif
 
   // process.argv
   Local<Array> arguments = Array::New(env->isolate(), argc);
   for (int i = 0; i < argc; ++i) {
-    arguments->Set(i, String::NewFromUtf8(env->isolate(), argv[i],
-        v8::NewStringType::kNormal).ToLocalChecked());
+    arguments->Set(
+        i,
+        String::NewFromUtf8(env->isolate(), argv[i], v8::NewStringType::kNormal)
+            .ToLocalChecked());
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "argv"), arguments);
 
   // process.execArgv
   Local<Array> exec_arguments = Array::New(env->isolate(), exec_argc);
   for (int i = 0; i < exec_argc; ++i) {
-    exec_arguments->Set(i, String::NewFromUtf8(env->isolate(), exec_argv[i],
-        v8::NewStringType::kNormal).ToLocalChecked());
+    exec_arguments->Set(
+        i,
+        String::NewFromUtf8(
+            env->isolate(), exec_argv[i], v8::NewStringType::kNormal)
+            .ToLocalChecked());
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execArgv"),
                exec_arguments);
@@ -2217,32 +2146,36 @@ void SetupProcessObject(Environment* env,
   // create process.env
   Local<ObjectTemplate> process_env_template =
       ObjectTemplate::New(env->isolate());
-  process_env_template->SetHandler(NamedPropertyHandlerConfiguration(
-          EnvGetter,
-          EnvSetter,
-          EnvQuery,
-          EnvDeleter,
-          EnvEnumerator,
-          env->as_external()));
+  process_env_template->SetHandler(
+      NamedPropertyHandlerConfiguration(EnvGetter,
+                                        EnvSetter,
+                                        EnvQuery,
+                                        EnvDeleter,
+                                        EnvEnumerator,
+                                        env->as_external()));
 
   Local<Object> process_env =
       process_env_template->NewInstance(env->context()).ToLocalChecked();
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "env"), process_env);
 
-  READONLY_PROPERTY(process, "pid",
-                    Integer::New(env->isolate(), uv_os_getpid()));
+  READONLY_PROPERTY(
+      process, "pid", Integer::New(env->isolate(), uv_os_getpid()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
 
-  CHECK(process->SetAccessor(env->context(),
-                             FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
-                             GetParentProcessId).FromJust());
+  CHECK(process
+            ->SetAccessor(env->context(),
+                          FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
+                          GetParentProcessId)
+            .FromJust());
 
   // -e, --eval
   if (eval_string) {
-    READONLY_PROPERTY(process,
-                      "_eval",
-                      String::NewFromUtf8(env->isolate(), eval_string,
-                          v8::NewStringType::kNormal).ToLocalChecked());
+    READONLY_PROPERTY(
+        process,
+        "_eval",
+        String::NewFromUtf8(
+            env->isolate(), eval_string, v8::NewStringType::kNormal)
+            .ToLocalChecked());
   }
 
   // -p, --print
@@ -2270,9 +2203,7 @@ void SetupProcessObject(Environment* env,
                                  .ToLocalChecked();
       array->Set(i, module);
     }
-    READONLY_PROPERTY(process,
-                      "_preload_modules",
-                      array);
+    READONLY_PROPERTY(process, "_preload_modules", array);
 
     preload_modules.clear();
   }
@@ -2315,33 +2246,32 @@ void SetupProcessObject(Environment* env,
   // TODO(refack): move the following 3 to `node_config`
   // --inspect-brk
   if (debug_options.wait_for_connect()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_breakFirstLine", True(env->isolate()));
+    READONLY_DONT_ENUM_PROPERTY(
+        process, "_breakFirstLine", True(env->isolate()));
   }
 
   if (debug_options.break_node_first_line()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_breakNodeFirstLine", True(env->isolate()));
+    READONLY_DONT_ENUM_PROPERTY(
+        process, "_breakNodeFirstLine", True(env->isolate()));
   }
 
   // --inspect --debug-brk
   if (debug_options.deprecated_invocation()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_deprecatedDebugBrk", True(env->isolate()));
+    READONLY_DONT_ENUM_PROPERTY(
+        process, "_deprecatedDebugBrk", True(env->isolate()));
   }
 
   // --debug or, --debug-brk without --inspect
   if (debug_options.invalid_invocation()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_invalidDebug", True(env->isolate()));
+    READONLY_DONT_ENUM_PROPERTY(process, "_invalidDebug", True(env->isolate()));
   }
 
   // --security-revert flags
-#define V(code, _, __)                                                        \
-  do {                                                                        \
-    if (IsReverted(SECURITY_REVERT_ ## code)) {                               \
-      READONLY_PROPERTY(process, "REVERT_" #code, True(env->isolate()));      \
-    }                                                                         \
+#define V(code, _, __)                                                         \
+  do {                                                                         \
+    if (IsReverted(SECURITY_REVERT_##code)) {                                  \
+      READONLY_PROPERTY(process, "REVERT_" #code, True(env->isolate()));       \
+    }                                                                          \
   } while (0);
   SECURITY_REVERSIONS(V)
 #undef V
@@ -2353,32 +2283,35 @@ void SetupProcessObject(Environment* env,
     exec_path_value = String::NewFromUtf8(env->isolate(),
                                           exec_path,
                                           v8::NewStringType::kInternalized,
-                                          exec_path_len).ToLocalChecked();
+                                          exec_path_len)
+                          .ToLocalChecked();
   } else {
-    exec_path_value = String::NewFromUtf8(env->isolate(), argv[0],
-        v8::NewStringType::kInternalized).ToLocalChecked();
+    exec_path_value =
+        String::NewFromUtf8(
+            env->isolate(), argv[0], v8::NewStringType::kInternalized)
+            .ToLocalChecked();
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execPath"),
                exec_path_value);
   delete[] exec_path;
 
   auto debug_port_string = FIXED_ONE_BYTE_STRING(env->isolate(), "debugPort");
-  CHECK(process->SetAccessor(env->context(),
-                             debug_port_string,
-                             DebugPortGetter,
-                             env->is_main_thread() ? DebugPortSetter : nullptr,
-                             env->as_external()).FromJust());
+  CHECK(process
+            ->SetAccessor(env->context(),
+                          debug_port_string,
+                          DebugPortGetter,
+                          env->is_main_thread() ? DebugPortSetter : nullptr,
+                          env->as_external())
+            .FromJust());
 
   // define various internal methods
   if (env->is_main_thread()) {
     env->SetMethod(process, "_debugProcess", DebugProcess);
     env->SetMethod(process, "_debugEnd", DebugEnd);
-    env->SetMethod(process,
-                   "_startProfilerIdleNotifier",
-                   StartProfilerIdleNotifier);
-    env->SetMethod(process,
-                   "_stopProfilerIdleNotifier",
-                   StopProfilerIdleNotifier);
+    env->SetMethod(
+        process, "_startProfilerIdleNotifier", StartProfilerIdleNotifier);
+    env->SetMethod(
+        process, "_stopProfilerIdleNotifier", StopProfilerIdleNotifier);
     env->SetMethod(process, "abort", Abort);
     env->SetMethod(process, "chdir", Chdir);
     env->SetMethod(process, "umask", Umask);
@@ -2401,9 +2334,7 @@ void SetupProcessObject(Environment* env,
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 }
 
-
 #undef READONLY_PROPERTY
-
 
 void SignalExit(int signo) {
   uv_tty_reset_mode();
@@ -2418,11 +2349,9 @@ void SignalExit(int signo) {
   raise(signo);
 }
 
-
-static MaybeLocal<Function> GetBootstrapper(
-    Environment* env,
-    Local<String> source,
-    Local<String> script_name) {
+static MaybeLocal<Function> GetBootstrapper(Environment* env,
+                                            Local<String> source,
+                                            Local<String> script_name) {
   EscapableHandleScope scope(env->isolate());
 
   TryCatch try_catch(env->isolate());
@@ -2437,7 +2366,7 @@ static MaybeLocal<Function> GetBootstrapper(
   if (bootstrapper_v.IsEmpty())  // This happens when execution was interrupted.
     return MaybeLocal<Function>();
 
-  if (try_catch.HasCaught())  {
+  if (try_catch.HasCaught()) {
     ReportException(env, try_catch);
     exit(10);
   }
@@ -2446,11 +2375,14 @@ static MaybeLocal<Function> GetBootstrapper(
   return scope.Escape(bootstrapper_v.ToLocalChecked().As<Function>());
 }
 
-static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
-                                int argc, Local<Value> argv[],
+static bool ExecuteBootstrapper(Environment* env,
+                                Local<Function> bootstrapper,
+                                int argc,
+                                Local<Value> argv[],
                                 Local<Value>* out) {
-  bool ret = bootstrapper->Call(
-      env->context(), Null(env->isolate()), argc, argv).ToLocal(out);
+  bool ret =
+      bootstrapper->Call(env->context(), Null(env->isolate()), argc, argv)
+          .ToLocal(out);
 
   // If there was an error during bootstrap then it was either handled by the
   // FatalException handler or it's unrecoverable (e.g. max call stack
@@ -2465,7 +2397,6 @@ static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
 
   return ret;
 }
-
 
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
@@ -2520,29 +2451,31 @@ void LoadEnvironment(Environment* env) {
   global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
 
   // Create binding loaders
-  v8::Local<v8::Function> get_binding_fn =
-      env->NewFunctionTemplate(GetBinding)->GetFunction(env->context())
-          .ToLocalChecked();
+  v8::Local<v8::Function> get_binding_fn = env->NewFunctionTemplate(GetBinding)
+                                               ->GetFunction(env->context())
+                                               .ToLocalChecked();
 
   v8::Local<v8::Function> get_linked_binding_fn =
-      env->NewFunctionTemplate(GetLinkedBinding)->GetFunction(env->context())
+      env->NewFunctionTemplate(GetLinkedBinding)
+          ->GetFunction(env->context())
           .ToLocalChecked();
 
   v8::Local<v8::Function> get_internal_binding_fn =
-      env->NewFunctionTemplate(GetInternalBinding)->GetFunction(env->context())
+      env->NewFunctionTemplate(GetInternalBinding)
+          ->GetFunction(env->context())
           .ToLocalChecked();
 
   Local<Value> loaders_bootstrapper_args[] = {
-    env->process_object(),
-    get_binding_fn,
-    get_linked_binding_fn,
-    get_internal_binding_fn,
-    Boolean::New(env->isolate(), debug_options.break_node_first_line())
-  };
+      env->process_object(),
+      get_binding_fn,
+      get_linked_binding_fn,
+      get_internal_binding_fn,
+      Boolean::New(env->isolate(), debug_options.break_node_first_line())};
 
   // Bootstrap internal loaders
   Local<Value> bootstrapped_loaders;
-  if (!ExecuteBootstrapper(env, loaders_bootstrapper.ToLocalChecked(),
+  if (!ExecuteBootstrapper(env,
+                           loaders_bootstrapper.ToLocalChecked(),
                            arraysize(loaders_bootstrapper_args),
                            loaders_bootstrapper_args,
                            &bootstrapped_loaders)) {
@@ -2554,11 +2487,9 @@ void LoadEnvironment(Environment* env) {
   SetupBootstrapObject(env, bootstrapper);
   Local<Value> bootstrapped_node;
   Local<Value> node_bootstrapper_args[] = {
-    env->process_object(),
-    bootstrapper,
-    bootstrapped_loaders
-  };
-  if (!ExecuteBootstrapper(env, node_bootstrapper.ToLocalChecked(),
+      env->process_object(), bootstrapper, bootstrapped_loaders};
+  if (!ExecuteBootstrapper(env,
+                           node_bootstrapper.ToLocalChecked(),
                            arraysize(node_bootstrapper_args),
                            node_bootstrapper_args,
                            &bootstrapped_node)) {
@@ -2722,91 +2653,82 @@ static void PrintHelp() {
          "Documentation can be found at https://nodejs.org/\n");
 }
 
-
 static bool ArgIsAllowed(const char* arg, const char* allowed) {
   for (; *arg && *allowed; arg++, allowed++) {
     // Like normal strcmp(), except that a '_' in `allowed` matches either a '-'
     // or '_' in `arg`.
     if (*allowed == '_') {
-      if (!(*arg == '_' || *arg == '-'))
-        return false;
+      if (!(*arg == '_' || *arg == '-')) return false;
     } else {
-      if (*arg != *allowed)
-        return false;
+      if (*arg != *allowed) return false;
     }
   }
 
   // "--some-arg=val" is allowed for "--some-arg"
-  if (*arg == '=')
-    return true;
+  if (*arg == '=') return true;
 
   // Both must be null, or one string is just a prefix of the other, not a
   // match.
   return !*arg && !*allowed;
 }
 
-
-static void CheckIfAllowedInEnv(const char* exe, bool is_env,
-                                const char* arg) {
-  if (!is_env)
-    return;
+static void CheckIfAllowedInEnv(const char* exe, bool is_env, const char* arg) {
+  if (!is_env) return;
 
   static const char* whitelist[] = {
-    // Node options, sorted in `node --help` order for ease of comparison.
-    // Please, update NODE_OPTIONS section in cli.md if changed.
-    "--enable-fips",
-    "--experimental-modules",
-    "--experimental-repl-await",
-    "--experimental-vm-modules",
-    "--experimental-worker",
-    "--force-fips",
-    "--icu-data-dir",
-    "--inspect",
-    "--inspect-brk",
-    "--inspect-port",
-    "--loader",
-    "--napi-modules",
-    "--no-deprecation",
-    "--no-force-async-hooks-checks",
-    "--no-warnings",
-    "--openssl-config",
-    "--pending-deprecation",
-    "--redirect-warnings",
-    "--require",
-    "--throw-deprecation",
-    "--title",
-    "--tls-cipher-list",
-    "--trace-deprecation",
-    "--trace-event-categories",
-    "--trace-event-file-pattern",
-    "--trace-events-enabled",
-    "--trace-sync-io",
-    "--trace-warnings",
-    "--track-heap-objects",
-    "--use-bundled-ca",
-    "--use-openssl-ca",
-    "--v8-pool-size",
-    "--zero-fill-buffers",
-    "-r",
+      // Node options, sorted in `node --help` order for ease of comparison.
+      // Please, update NODE_OPTIONS section in cli.md if changed.
+      "--enable-fips",
+      "--experimental-modules",
+      "--experimental-repl-await",
+      "--experimental-vm-modules",
+      "--experimental-worker",
+      "--force-fips",
+      "--icu-data-dir",
+      "--inspect",
+      "--inspect-brk",
+      "--inspect-port",
+      "--loader",
+      "--napi-modules",
+      "--no-deprecation",
+      "--no-force-async-hooks-checks",
+      "--no-warnings",
+      "--openssl-config",
+      "--pending-deprecation",
+      "--redirect-warnings",
+      "--require",
+      "--throw-deprecation",
+      "--title",
+      "--tls-cipher-list",
+      "--trace-deprecation",
+      "--trace-event-categories",
+      "--trace-event-file-pattern",
+      "--trace-events-enabled",
+      "--trace-sync-io",
+      "--trace-warnings",
+      "--track-heap-objects",
+      "--use-bundled-ca",
+      "--use-openssl-ca",
+      "--v8-pool-size",
+      "--zero-fill-buffers",
+      "-r",
 
-    // V8 options (define with '_', which allows '-' or '_')
-    "--abort_on_uncaught_exception",
-    "--max_old_space_size",
-    "--perf_basic_prof",
-    "--perf_prof",
-    "--stack_trace_limit",
+      // V8 options (define with '_', which allows '-' or '_')
+      "--abort_on_uncaught_exception",
+      "--max_old_space_size",
+      "--perf_basic_prof",
+      "--perf_prof",
+      "--stack_trace_limit",
   };
 
   for (unsigned i = 0; i < arraysize(whitelist); i++) {
     const char* allowed = whitelist[i];
-    if (ArgIsAllowed(arg, allowed))
-      return;
+    if (ArgIsAllowed(arg, allowed)) return;
   }
 
   fprintf(stderr, "%s: %s is not allowed in NODE_OPTIONS\n", exe, arg);
   exit(9);
 }
-
 
 // Parse command line arguments.
 //
@@ -2864,10 +2786,8 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);
-    } else if (strcmp(arg, "--eval") == 0 ||
-               strcmp(arg, "-e") == 0 ||
-               strcmp(arg, "--print") == 0 ||
-               strcmp(arg, "-pe") == 0 ||
+    } else if (strcmp(arg, "--eval") == 0 || strcmp(arg, "-e") == 0 ||
+               strcmp(arg, "--print") == 0 || strcmp(arg, "-pe") == 0 ||
                strcmp(arg, "-p") == 0) {
       bool is_eval = strchr(arg, 'e') != nullptr;
       bool is_print = strchr(arg, 'p') != nullptr;
@@ -2880,8 +2800,7 @@ static void ParseArgs(int* argc,
           fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
           exit(9);
         }
-      } else if ((index + 1 < nargs) &&
-                 argv[index + 1] != nullptr &&
+      } else if ((index + 1 < nargs) && argv[index + 1] != nullptr &&
                  argv[index + 1][0] != '-') {
         args_consumed += 1;
         eval_string = argv[index + 1];
@@ -2890,8 +2809,7 @@ static void ParseArgs(int* argc,
           eval_string += 1;
         }
       }
-    } else if (strcmp(arg, "--require") == 0 ||
-               strcmp(arg, "-r") == 0) {
+    } else if (strcmp(arg, "--require") == 0 || strcmp(arg, "-r") == 0) {
       const char* module = argv[index + 1];
       if (module == nullptr) {
         fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
@@ -2963,11 +2881,13 @@ static void ParseArgs(int* argc,
       config_experimental_worker = true;
     } else if (strcmp(arg, "--experimental-repl-await") == 0) {
       config_experimental_repl_await = true;
-    }  else if (strcmp(arg, "--loader") == 0) {
+    } else if (strcmp(arg, "--loader") == 0) {
       const char* module = argv[index + 1];
       if (!config_experimental_modules) {
-        fprintf(stderr, "%s: %s requires --experimental-modules be enabled\n",
-            argv[0], arg);
+        fprintf(stderr,
+                "%s: %s requires --experimental-modules be enabled\n",
+                argv[0],
+                arg);
         exit(9);
       }
       if (module == nullptr) {
@@ -3050,7 +2970,8 @@ static void ParseArgs(int* argc,
 
   if (eval_string != nullptr && syntax_check_only) {
     fprintf(stderr,
-            "%s: either --check or --eval can be used, not both\n", argv[0]);
+            "%s: either --check or --eval can be used, not both\n",
+            argv[0]);
     exit(9);
   }
 
@@ -3058,8 +2979,10 @@ static void ParseArgs(int* argc,
   const unsigned int args_left = nargs - index;
 
   if (is_env && args_left) {
-    fprintf(stderr, "%s: %s is not supported in NODE_OPTIONS\n",
-            argv[0], argv[index]);
+    fprintf(stderr,
+            "%s: %s is not supported in NODE_OPTIONS\n",
+            argv[0],
+            argv[index]);
     exit(9);
   }
 
@@ -3077,15 +3000,14 @@ static void ParseArgs(int* argc,
   *argc = static_cast<int>(new_argc);
 }
 
-
-static void StartInspector(Environment* env, const char* path,
+static void StartInspector(Environment* env,
+                           const char* path,
                            DebugOptions debug_options) {
 #if HAVE_INSPECTOR
   CHECK(!env->inspector_agent()->IsListening());
   v8_platform.StartInspector(env, path, debug_options);
 #endif  // HAVE_INSPECTOR
 }
-
 
 #ifdef __POSIX__
 void RegisterSignalHandler(int signal,
@@ -3103,7 +3025,6 @@ void RegisterSignalHandler(int signal,
   sigfillset(&sa.sa_mask);
   CHECK_EQ(sigaction(signal, &sa, nullptr), 0);
 }
-
 
 void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -3123,13 +3044,12 @@ void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // __POSIX__
 
-
 #ifdef _WIN32
-static int GetDebugSignalHandlerMappingName(DWORD pid, wchar_t* buf,
-    size_t buf_len) {
+static int GetDebugSignalHandlerMappingName(DWORD pid,
+                                            wchar_t* buf,
+                                            size_t buf_len) {
   return _snwprintf(buf, buf_len, L"node-debug-handler-%u", pid);
 }
-
 
 static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -3146,80 +3066,62 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
     goto out;
   }
 
-  pid = (DWORD) args[0]->IntegerValue();
+  pid = (DWORD)args[0]->IntegerValue();
 
-  process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
-                            PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
-                            PROCESS_VM_READ,
-                        FALSE,
-                        pid);
+  process =
+      OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+                      PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
+                  FALSE,
+                  pid);
   if (process == nullptr) {
     isolate->ThrowException(
         WinapiErrnoException(isolate, GetLastError(), "OpenProcess"));
     goto out;
   }
 
-  if (GetDebugSignalHandlerMappingName(pid,
-                                       mapping_name,
-                                       arraysize(mapping_name)) < 0) {
+  if (GetDebugSignalHandlerMappingName(
+          pid, mapping_name, arraysize(mapping_name)) < 0) {
     env->ThrowErrnoException(errno, "sprintf");
     goto out;
   }
 
   mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, mapping_name);
   if (mapping == nullptr) {
-    isolate->ThrowException(WinapiErrnoException(isolate,
-                                             GetLastError(),
-                                             "OpenFileMappingW"));
+    isolate->ThrowException(
+        WinapiErrnoException(isolate, GetLastError(), "OpenFileMappingW"));
     goto out;
   }
 
   handler = reinterpret_cast<LPTHREAD_START_ROUTINE*>(
-      MapViewOfFile(mapping,
-                    FILE_MAP_READ,
-                    0,
-                    0,
-                    sizeof *handler));
+      MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, sizeof *handler));
   if (handler == nullptr || *handler == nullptr) {
     isolate->ThrowException(
         WinapiErrnoException(isolate, GetLastError(), "MapViewOfFile"));
     goto out;
   }
 
-  thread = CreateRemoteThread(process,
-                              nullptr,
-                              0,
-                              *handler,
-                              nullptr,
-                              0,
-                              nullptr);
+  thread =
+      CreateRemoteThread(process, nullptr, 0, *handler, nullptr, 0, nullptr);
   if (thread == nullptr) {
-    isolate->ThrowException(WinapiErrnoException(isolate,
-                                                 GetLastError(),
-                                                 "CreateRemoteThread"));
+    isolate->ThrowException(
+        WinapiErrnoException(isolate, GetLastError(), "CreateRemoteThread"));
     goto out;
   }
 
   // Wait for the thread to terminate
   if (WaitForSingleObject(thread, INFINITE) != WAIT_OBJECT_0) {
-    isolate->ThrowException(WinapiErrnoException(isolate,
-                                                 GetLastError(),
-                                                 "WaitForSingleObject"));
+    isolate->ThrowException(
+        WinapiErrnoException(isolate, GetLastError(), "WaitForSingleObject"));
     goto out;
   }
 
- out:
-  if (process != nullptr)
-    CloseHandle(process);
-  if (thread != nullptr)
-    CloseHandle(thread);
-  if (handler != nullptr)
-    UnmapViewOfFile(handler);
-  if (mapping != nullptr)
-    CloseHandle(mapping);
+out:
+  if (process != nullptr) CloseHandle(process);
+  if (thread != nullptr) CloseHandle(thread);
+  if (handler != nullptr) UnmapViewOfFile(handler);
+  if (mapping != nullptr) CloseHandle(mapping);
 }
 #endif  // _WIN32
-
 
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 #if HAVE_INSPECTOR
@@ -3229,7 +3131,6 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
   }
 #endif
 }
-
 
 inline void PlatformInit() {
 #ifdef __POSIX__
@@ -3243,14 +3144,11 @@ inline void PlatformInit() {
   // Make sure file descriptors 0-2 are valid before we start logging anything.
   for (int fd = STDIN_FILENO; fd <= STDERR_FILENO; fd += 1) {
     struct stat ignored;
-    if (fstat(fd, &ignored) == 0)
-      continue;
+    if (fstat(fd, &ignored) == 0) continue;
     // Anything but EBADF means something is seriously wrong.  We don't
     // have to special-case EINTR, fstat() is not interruptible.
-    if (errno != EBADF)
-      ABORT();
-    if (fd != open("/dev/null", O_RDWR))
-      ABORT();
+    if (errno != EBADF) ABORT();
+    if (fd != open("/dev/null", O_RDWR)) ABORT();
   }
 
 #if HAVE_INSPECTOR
@@ -3266,8 +3164,7 @@ inline void PlatformInit() {
   // it evaluates to 32, 34 or 64, depending on whether RT signals are enabled.
   // Counting up to SIGRTMIN doesn't work for the same reason.
   for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
-    if (nr == SIGKILL || nr == SIGSTOP)
-      continue;
+    if (nr == SIGKILL || nr == SIGSTOP) continue;
     act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
     CHECK_EQ(0, sigaction(nr, &act, nullptr));
   }
@@ -3305,13 +3202,11 @@ inline void PlatformInit() {
       // Ignore _close result. If it fails or not depends on used Windows
       // version. We will just check _open result.
       _close(fd);
-      if (fd != _open("nul", _O_RDWR))
-        ABORT();
+      if (fd != _open("nul", _O_RDWR)) ABORT();
     }
   }
 #endif  // _WIN32
 }
-
 
 void ProcessArgv(int* argc,
                  const char** argv,
@@ -3360,7 +3255,6 @@ void ProcessArgv(int* argc,
   }
 }
 
-
 void Init(int* argc,
           const char** argv,
           int* exec_argc,
@@ -3404,8 +3298,7 @@ void Init(int* argc,
     SafeGetenv("NODE_REDIRECT_WARNINGS", &config_warning_file);
 
 #if HAVE_OPENSSL
-  if (openssl_config.empty())
-    SafeGetenv("OPENSSL_CONF", &openssl_config);
+  if (openssl_config.empty()) SafeGetenv("OPENSSL_CONF", &openssl_config);
 #endif
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
@@ -3444,8 +3337,7 @@ void Init(int* argc,
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
   // If the parameter isn't given, use the env variable.
-  if (icu_data_dir.empty())
-    SafeGetenv("NODE_ICU_DATA", &icu_data_dir);
+  if (icu_data_dir.empty()) SafeGetenv("NODE_ICU_DATA", &icu_data_dir);
   // Initialize ICU.
   // If icu_data_dir is empty here, it will load the 'minimal' data.
   if (!i18n::InitializeICUDirectory(icu_data_dir)) {
@@ -3463,56 +3355,47 @@ void Init(int* argc,
   node_is_initialized = true;
 }
 
-
 void RunAtExit(Environment* env) {
   env->RunAtExitCallbacks();
 }
 
-
 uv_loop_t* GetCurrentEventLoop(v8::Isolate* isolate) {
   HandleScope handle_scope(isolate);
   auto context = isolate->GetCurrentContext();
-  if (context.IsEmpty())
-    return nullptr;
+  if (context.IsEmpty()) return nullptr;
   return Environment::GetCurrent(context)->event_loop();
 }
-
 
 void AtExit(void (*cb)(void* arg), void* arg) {
   auto env = Environment::GetThreadLocalEnv();
   AtExit(env, cb, arg);
 }
 
-
 void AtExit(Environment* env, void (*cb)(void* arg), void* arg) {
   CHECK_NOT_NULL(env);
   env->AtExit(cb, arg);
 }
 
-
 void RunBeforeExit(Environment* env) {
   env->RunBeforeExitCallbacks();
 
-  if (!uv_loop_alive(env->event_loop()))
-    EmitBeforeExit(env);
+  if (!uv_loop_alive(env->event_loop())) EmitBeforeExit(env);
 }
-
 
 void EmitBeforeExit(Environment* env) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Object> process_object = env->process_object();
   Local<String> exit_code = env->exit_code_string();
-  Local<Value> args[] = {
-    FIXED_ONE_BYTE_STRING(env->isolate(), "beforeExit"),
-    process_object->Get(env->context(), exit_code).ToLocalChecked()
-        ->ToInteger(env->context()).ToLocalChecked()
-  };
-  MakeCallback(env->isolate(),
-               process_object, "emit", arraysize(args), args,
-               {0, 0}).ToLocalChecked();
+  Local<Value> args[] = {FIXED_ONE_BYTE_STRING(env->isolate(), "beforeExit"),
+                         process_object->Get(env->context(), exit_code)
+                             .ToLocalChecked()
+                             ->ToInteger(env->context())
+                             .ToLocalChecked()};
+  MakeCallback(
+      env->isolate(), process_object, "emit", arraysize(args), args, {0, 0})
+      .ToLocalChecked();
 }
-
 
 int EmitExit(Environment* env) {
   // process.emit('exit')
@@ -3523,60 +3406,53 @@ int EmitExit(Environment* env) {
                       True(env->isolate()));
 
   Local<String> exit_code = env->exit_code_string();
-  int code = process_object->Get(env->context(), exit_code).ToLocalChecked()
-      ->Int32Value(env->context()).ToChecked();
+  int code = process_object->Get(env->context(), exit_code)
+                 .ToLocalChecked()
+                 ->Int32Value(env->context())
+                 .ToChecked();
 
-  Local<Value> args[] = {
-    FIXED_ONE_BYTE_STRING(env->isolate(), "exit"),
-    Integer::New(env->isolate(), code)
-  };
+  Local<Value> args[] = {FIXED_ONE_BYTE_STRING(env->isolate(), "exit"),
+                         Integer::New(env->isolate(), code)};
 
-  MakeCallback(env->isolate(),
-               process_object, "emit", arraysize(args), args,
-               {0, 0}).ToLocalChecked();
+  MakeCallback(
+      env->isolate(), process_object, "emit", arraysize(args), args, {0, 0})
+      .ToLocalChecked();
 
   // Reload exit code, it may be changed by `emit('exit')`
-  return process_object->Get(env->context(), exit_code).ToLocalChecked()
-      ->Int32Value(env->context()).ToChecked();
+  return process_object->Get(env->context(), exit_code)
+      .ToLocalChecked()
+      ->Int32Value(env->context())
+      .ToChecked();
 }
-
 
 ArrayBufferAllocator* CreateArrayBufferAllocator() {
   return new ArrayBufferAllocator();
 }
 
-
 void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
   delete allocator;
 }
-
 
 IsolateData* CreateIsolateData(Isolate* isolate, uv_loop_t* loop) {
   return new IsolateData(isolate, loop, nullptr);
 }
 
-
-IsolateData* CreateIsolateData(
-    Isolate* isolate,
-    uv_loop_t* loop,
-    MultiIsolatePlatform* platform) {
+IsolateData* CreateIsolateData(Isolate* isolate,
+                               uv_loop_t* loop,
+                               MultiIsolatePlatform* platform) {
   return new IsolateData(isolate, loop, platform);
 }
 
-
-IsolateData* CreateIsolateData(
-    Isolate* isolate,
-    uv_loop_t* loop,
-    MultiIsolatePlatform* platform,
-    ArrayBufferAllocator* allocator) {
+IsolateData* CreateIsolateData(Isolate* isolate,
+                               uv_loop_t* loop,
+                               MultiIsolatePlatform* platform,
+                               ArrayBufferAllocator* allocator) {
   return new IsolateData(isolate, loop, platform, allocator->zero_fill_field());
 }
-
 
 void FreeIsolateData(IsolateData* isolate_data) {
   delete isolate_data;
 }
-
 
 Environment* CreateEnvironment(IsolateData* isolate_data,
                                Local<Context> context,
@@ -3587,35 +3463,29 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
-  auto env = new Environment(isolate_data, context,
-                             v8_platform.GetTracingAgent());
+  auto env =
+      new Environment(isolate_data, context, v8_platform.GetTracingAgent());
   env->Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
   return env;
 }
-
 
 void FreeEnvironment(Environment* env) {
   env->RunCleanup();
   delete env;
 }
 
-
 MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
   return v8_platform.Platform();
 }
 
-
 MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    v8::TracingController* tracing_controller) {
+    int thread_pool_size, v8::TracingController* tracing_controller) {
   return new NodePlatform(thread_pool_size, tracing_controller);
 }
-
 
 void FreePlatform(MultiIsolatePlatform* platform) {
   delete platform;
 }
-
 
 Local<Context> NewContext(Isolate* isolate,
                           Local<ObjectTemplate> object_template) {
@@ -3623,27 +3493,28 @@ Local<Context> NewContext(Isolate* isolate,
   if (context.IsEmpty()) return context;
   HandleScope handle_scope(isolate);
 
-  context->SetEmbedderData(
-      ContextEmbedderIndex::kAllowWasmCodeGeneration, True(isolate));
+  context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
+                           True(isolate));
 
   {
     // Run lib/internal/per_context.js
     Context::Scope context_scope(context);
     Local<String> per_context = NodePerContextSource(isolate);
     v8::ScriptCompiler::Source per_context_src(per_context, nullptr);
-    Local<v8::Script> s = v8::ScriptCompiler::Compile(
-        context,
-        &per_context_src).ToLocalChecked();
+    Local<v8::Script> s =
+        v8::ScriptCompiler::Compile(context, &per_context_src).ToLocalChecked();
     s->Run(context).ToLocalChecked();
   }
 
   return context;
 }
 
-
-inline int Start(Isolate* isolate, IsolateData* isolate_data,
-                 int argc, const char* const* argv,
-                 int exec_argc, const char* const* exec_argv) {
+inline int Start(Isolate* isolate,
+                 IsolateData* isolate_data,
+                 int argc,
+                 const char* const* argv,
+                 int exec_argc,
+                 const char* const* exec_argv) {
   HandleScope handle_scope(isolate);
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
@@ -3682,8 +3553,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       v8_platform.DrainVMTasks(isolate);
 
       more = uv_loop_alive(env.event_loop());
-      if (more)
-        continue;
+      if (more) continue;
 
       RunBeforeExit(&env);
 
@@ -3716,10 +3586,9 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   return exit_code;
 }
 
-bool AllowWasmCodeGenerationCallback(
-    Local<Context> context, Local<String>) {
+bool AllowWasmCodeGenerationCallback(Local<Context> context, Local<String>) {
   Local<Value> wasm_code_gen =
-    context->GetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration);
+      context->GetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration);
   return wasm_code_gen->IsUndefined() || wasm_code_gen->IsTrue();
 }
 
@@ -3731,8 +3600,7 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator) {
 #endif
 
   Isolate* isolate = Isolate::New(params);
-  if (isolate == nullptr)
-    return nullptr;
+  if (isolate == nullptr) return nullptr;
 
   isolate->AddMessageListener(OnMessage);
   isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
@@ -3744,13 +3612,14 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator) {
 }
 
 inline int Start(uv_loop_t* event_loop,
-                 int argc, const char* const* argv,
-                 int exec_argc, const char* const* exec_argv) {
+                 int argc,
+                 const char* const* argv,
+                 int exec_argc,
+                 const char* const* exec_argv) {
   std::unique_ptr<ArrayBufferAllocator, decltype(&FreeArrayBufferAllocator)>
       allocator(CreateArrayBufferAllocator(), &FreeArrayBufferAllocator);
   Isolate* const isolate = NewIsolate(allocator.get());
-  if (isolate == nullptr)
-    return 12;  // Signal internal error.
+  if (isolate == nullptr) return 12;  // Signal internal error.
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
@@ -3765,10 +3634,7 @@ inline int Start(uv_loop_t* event_loop,
     HandleScope handle_scope(isolate);
     std::unique_ptr<IsolateData, decltype(&FreeIsolateData)> isolate_data(
         CreateIsolateData(
-            isolate,
-            event_loop,
-            v8_platform.Platform(),
-            allocator.get()),
+            isolate, event_loop, v8_platform.Platform(), allocator.get()),
         &FreeIsolateData);
     if (track_heap_objects) {
       isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
@@ -3789,7 +3655,7 @@ inline int Start(uv_loop_t* event_loop,
 }
 
 int Start(int argc, char** argv) {
-  atexit([] () { uv_tty_reset_mode(); });
+  atexit([]() { uv_tty_reset_mode(); });
   PlatformInit();
   performance::performance_node_start = PERFORMANCE_NOW();
 

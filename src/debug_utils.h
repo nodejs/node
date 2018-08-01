@@ -3,9 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <string>
 #include "async_wrap.h"
 #include "env.h"
-#include <string>
 
 // Use FORCE_INLINE on functions that have a debug-category-enabled check first
 // and then ideally only a single function call following it, to maintain
@@ -21,20 +21,16 @@
 namespace node {
 
 template <typename... Args>
-inline void FORCE_INLINE Debug(Environment* env,
-                               DebugCategory cat,
-                               const char* format,
-                               Args&&... args) {
-  if (!UNLIKELY(env->debug_enabled(cat)))
-    return;
+inline void FORCE_INLINE
+Debug(Environment* env, DebugCategory cat, const char* format, Args&&... args) {
+  if (!UNLIKELY(env->debug_enabled(cat))) return;
   fprintf(stderr, format, std::forward<Args>(args)...);
 }
 
 inline void FORCE_INLINE Debug(Environment* env,
                                DebugCategory cat,
                                const char* message) {
-  if (!UNLIKELY(env->debug_enabled(cat)))
-    return;
+  if (!UNLIKELY(env->debug_enabled(cat))) return;
   fprintf(stderr, "%s", message);
 }
 
@@ -70,10 +66,8 @@ inline void FORCE_INLINE Debug(AsyncWrap* async_wrap,
 #ifdef DEBUG
   CHECK_NOT_NULL(async_wrap);
 #endif
-  DebugCategory cat =
-      static_cast<DebugCategory>(async_wrap->provider_type());
-  if (!UNLIKELY(async_wrap->env()->debug_enabled(cat)))
-    return;
+  DebugCategory cat = static_cast<DebugCategory>(async_wrap->provider_type());
+  if (!UNLIKELY(async_wrap->env()->debug_enabled(cat))) return;
   UnconditionalAsyncWrapDebug(async_wrap, format, std::forward<Args>(args)...);
 }
 
@@ -98,7 +92,7 @@ class NativeSymbolDebuggingContext {
   };
 
   virtual ~NativeSymbolDebuggingContext() {}
-  virtual SymbolInfo LookupSymbol(void* address) { return { "", "" }; }
+  virtual SymbolInfo LookupSymbol(void* address) { return {"", ""}; }
   virtual bool IsMapped(void* address) { return false; }
   virtual int GetStackTrace(void** frames, int count) { return 0; }
 };

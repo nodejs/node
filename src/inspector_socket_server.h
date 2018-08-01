@@ -58,9 +58,11 @@ class InspectorSocketServer {
 
   // Session connection lifecycle
   void Accept(int server_port, uv_stream_t* server_socket);
-  bool HandleGetRequest(int session_id, const std::string& host,
+  bool HandleGetRequest(int session_id,
+                        const std::string& host,
                         const std::string& path);
-  void SessionStarted(int session_id, const std::string& target_id,
+  void SessionStarted(int session_id,
+                      const std::string& target_id,
                       const std::string& ws_id);
   void SessionTerminated(int session_id);
   void MessageReceived(int session_id, const std::string& message) {
@@ -75,13 +77,14 @@ class InspectorSocketServer {
   static void CloseServerSocket(ServerSocket*);
   using ServerSocketPtr = DeleteFnPtr<ServerSocket, CloseServerSocket>;
 
-  void SendListResponse(InspectorSocket* socket, const std::string& host,
+  void SendListResponse(InspectorSocket* socket,
+                        const std::string& host,
                         SocketSession* session);
   std::string GetFrontendURL(bool is_compat,
-                             const std::string &formatted_address);
+                             const std::string& formatted_address);
   bool TargetExists(const std::string& id);
 
-  enum class ServerState {kNew, kRunning, kStopping, kStopped};
+  enum class ServerState { kNew, kRunning, kStopping, kStopped };
   uv_loop_t* loop_;
   std::unique_ptr<SocketServerDelegate> delegate_;
   const std::string host_;

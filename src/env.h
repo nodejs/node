@@ -29,19 +29,19 @@
 #include "inspector_agent.h"
 #endif
 #include "handle_wrap.h"
+#include "node.h"
+#include "node_http2_state.h"
 #include "req_wrap.h"
+#include "tracing/agent.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
-#include "node.h"
-#include "node_http2_state.h"
-#include "tracing/agent.h"
 
-#include <list>
 #include <stdint.h>
-#include <vector>
+#include <list>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 struct nghttp2_rcbuf;
 
@@ -102,269 +102,270 @@ struct PackageConfig {
 // Private symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only and have a
 // "node:" prefix to avoid name clashes with third-party code.
-#define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                              \
-  V(alpn_buffer_private_symbol, "node:alpnBuffer")                            \
-  V(arrow_message_private_symbol, "node:arrowMessage")                        \
-  V(contextify_context_private_symbol, "node:contextify:context")             \
-  V(contextify_global_private_symbol, "node:contextify:global")               \
-  V(decorated_private_symbol, "node:decorated")                               \
-  V(napi_env, "node:napi:env")                                                \
-  V(napi_wrapper, "node:napi:wrapper")                                        \
-  V(sab_lifetimepartner_symbol, "node:sharedArrayBufferLifetimePartner")      \
+#define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                               \
+  V(alpn_buffer_private_symbol, "node:alpnBuffer")                             \
+  V(arrow_message_private_symbol, "node:arrowMessage")                         \
+  V(contextify_context_private_symbol, "node:contextify:context")              \
+  V(contextify_global_private_symbol, "node:contextify:global")                \
+  V(decorated_private_symbol, "node:decorated")                                \
+  V(napi_env, "node:napi:env")                                                 \
+  V(napi_wrapper, "node:napi:wrapper")                                         \
+  V(sab_lifetimepartner_symbol, "node:sharedArrayBufferLifetimePartner")
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
-#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
-  V(handle_onclose_symbol, "handle_onclose")                                  \
+#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                       \
+  V(handle_onclose_symbol, "handle_onclose")
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
-#define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
-  V(address_string, "address")                                                \
-  V(args_string, "args")                                                      \
-  V(async, "async")                                                           \
-  V(async_ids_stack_string, "async_ids_stack")                                \
-  V(buffer_string, "buffer")                                                  \
-  V(bytes_string, "bytes")                                                    \
-  V(bytes_parsed_string, "bytesParsed")                                       \
-  V(bytes_read_string, "bytesRead")                                           \
-  V(bytes_written_string, "bytesWritten")                                     \
-  V(cached_data_string, "cachedData")                                         \
-  V(cached_data_produced_string, "cachedDataProduced")                        \
-  V(cached_data_rejected_string, "cachedDataRejected")                        \
-  V(change_string, "change")                                                  \
-  V(channel_string, "channel")                                                \
-  V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")          \
-  V(constants_string, "constants")                                            \
-  V(oncertcb_string, "oncertcb")                                              \
-  V(code_string, "code")                                                      \
-  V(cwd_string, "cwd")                                                        \
-  V(dest_string, "dest")                                                      \
-  V(destroyed_string, "destroyed")                                            \
-  V(detached_string, "detached")                                              \
-  V(dns_a_string, "A")                                                        \
-  V(dns_aaaa_string, "AAAA")                                                  \
-  V(dns_cname_string, "CNAME")                                                \
-  V(dns_mx_string, "MX")                                                      \
-  V(dns_naptr_string, "NAPTR")                                                \
-  V(dns_ns_string, "NS")                                                      \
-  V(dns_ptr_string, "PTR")                                                    \
-  V(dns_soa_string, "SOA")                                                    \
-  V(dns_srv_string, "SRV")                                                    \
-  V(dns_txt_string, "TXT")                                                    \
-  V(emit_warning_string, "emitWarning")                                       \
-  V(exchange_string, "exchange")                                              \
-  V(encoding_string, "encoding")                                              \
-  V(enter_string, "enter")                                                    \
-  V(entries_string, "entries")                                                \
-  V(env_pairs_string, "envPairs")                                             \
-  V(errno_string, "errno")                                                    \
-  V(error_string, "error")                                                    \
-  V(exit_code_string, "exitCode")                                             \
-  V(expire_string, "expire")                                                  \
-  V(exponent_string, "exponent")                                              \
-  V(exports_string, "exports")                                                \
-  V(ext_key_usage_string, "ext_key_usage")                                    \
-  V(external_stream_string, "_externalStream")                                \
-  V(family_string, "family")                                                  \
-  V(fatal_exception_string, "_fatalException")                                \
-  V(fd_string, "fd")                                                          \
-  V(file_string, "file")                                                      \
-  V(fingerprint_string, "fingerprint")                                        \
-  V(fingerprint256_string, "fingerprint256")                                  \
-  V(flags_string, "flags")                                                    \
-  V(fragment_string, "fragment")                                              \
-  V(get_data_clone_error_string, "_getDataCloneError")                        \
-  V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
-  V(gid_string, "gid")                                                        \
-  V(handle_string, "handle")                                                  \
-  V(homedir_string, "homedir")                                                \
-  V(host_string, "host")                                                      \
-  V(hostmaster_string, "hostmaster")                                          \
-  V(ignore_string, "ignore")                                                  \
-  V(infoaccess_string, "infoAccess")                                          \
-  V(inherit_string, "inherit")                                                \
-  V(input_string, "input")                                                    \
-  V(internal_string, "internal")                                              \
-  V(ipv4_string, "IPv4")                                                      \
-  V(ipv6_string, "IPv6")                                                      \
-  V(isclosing_string, "isClosing")                                            \
-  V(issuer_string, "issuer")                                                  \
-  V(issuercert_string, "issuerCertificate")                                   \
-  V(kill_signal_string, "killSignal")                                         \
-  V(mac_string, "mac")                                                        \
-  V(main_string, "main")                                                      \
-  V(max_buffer_string, "maxBuffer")                                           \
-  V(max_semi_space_size_string, "maxSemiSpaceSize")                           \
-  V(max_old_space_size_string, "maxOldSpaceSize")                             \
-  V(message_string, "message")                                                \
-  V(message_port_string, "messagePort")                                       \
-  V(message_port_constructor_string, "MessagePort")                           \
-  V(minttl_string, "minttl")                                                  \
-  V(modulus_string, "modulus")                                                \
-  V(name_string, "name")                                                      \
-  V(netmask_string, "netmask")                                                \
-  V(nsname_string, "nsname")                                                  \
-  V(ocsp_request_string, "OCSPRequest")                                       \
-  V(onaltsvc_string, "onaltsvc")                                              \
-  V(onchange_string, "onchange")                                              \
-  V(onclienthello_string, "onclienthello")                                    \
-  V(oncomplete_string, "oncomplete")                                          \
-  V(onconnection_string, "onconnection")                                      \
-  V(ondone_string, "ondone")                                                  \
-  V(onerror_string, "onerror")                                                \
-  V(onexit_string, "onexit")                                                  \
-  V(onframeerror_string, "onframeerror")                                      \
-  V(ongetpadding_string, "ongetpadding")                                      \
-  V(onhandshakedone_string, "onhandshakedone")                                \
-  V(onhandshakestart_string, "onhandshakestart")                              \
-  V(onheaders_string, "onheaders")                                            \
-  V(oninit_string, "oninit")                                                  \
-  V(onmessage_string, "onmessage")                                            \
-  V(onnewsession_string, "onnewsession")                                      \
-  V(onocspresponse_string, "onocspresponse")                                  \
-  V(ongoawaydata_string, "ongoawaydata")                                      \
-  V(onpriority_string, "onpriority")                                          \
-  V(onread_string, "onread")                                                  \
-  V(onreadstart_string, "onreadstart")                                        \
-  V(onreadstop_string, "onreadstop")                                          \
-  V(onsettings_string, "onsettings")                                          \
-  V(onshutdown_string, "onshutdown")                                          \
-  V(onsignal_string, "onsignal")                                              \
-  V(onstop_string, "onstop")                                                  \
-  V(onstreamclose_string, "onstreamclose")                                    \
-  V(ontrailers_string, "ontrailers")                                          \
-  V(onunpipe_string, "onunpipe")                                              \
-  V(onwrite_string, "onwrite")                                                \
-  V(openssl_error_stack, "opensslErrorStack")                                 \
-  V(output_string, "output")                                                  \
-  V(order_string, "order")                                                    \
-  V(owner_string, "owner")                                                    \
-  V(parse_error_string, "Parse Error")                                        \
-  V(password_string, "password")                                              \
-  V(path_string, "path")                                                      \
-  V(pending_handle_string, "pendingHandle")                                   \
-  V(pid_string, "pid")                                                        \
-  V(pipe_string, "pipe")                                                      \
-  V(pipe_target_string, "pipeTarget")                                         \
-  V(pipe_source_string, "pipeSource")                                         \
-  V(port_string, "port")                                                      \
-  V(port1_string, "port1")                                                    \
-  V(port2_string, "port2")                                                    \
-  V(preference_string, "preference")                                          \
-  V(priority_string, "priority")                                              \
-  V(promise_string, "promise")                                                \
-  V(pubkey_string, "pubkey")                                                  \
-  V(query_string, "query")                                                    \
-  V(raw_string, "raw")                                                        \
-  V(read_host_object_string, "_readHostObject")                               \
-  V(readable_string, "readable")                                              \
-  V(refresh_string, "refresh")                                                \
-  V(regexp_string, "regexp")                                                  \
-  V(rename_string, "rename")                                                  \
-  V(replacement_string, "replacement")                                        \
-  V(retry_string, "retry")                                                    \
-  V(scheme_string, "scheme")                                                  \
-  V(serial_string, "serial")                                                  \
-  V(scopeid_string, "scopeid")                                                \
-  V(serial_number_string, "serialNumber")                                     \
-  V(service_string, "service")                                                \
-  V(servername_string, "servername")                                          \
-  V(session_id_string, "sessionId")                                           \
-  V(shell_string, "shell")                                                    \
-  V(signal_string, "signal")                                                  \
-  V(sink_string, "sink")                                                      \
-  V(size_string, "size")                                                      \
-  V(sni_context_err_string, "Invalid SNI context")                            \
-  V(sni_context_string, "sni_context")                                        \
-  V(source_string, "source")                                                  \
-  V(stack_string, "stack")                                                    \
-  V(status_string, "status")                                                  \
-  V(stdio_string, "stdio")                                                    \
-  V(subject_string, "subject")                                                \
-  V(subjectaltname_string, "subjectaltname")                                  \
-  V(syscall_string, "syscall")                                                \
-  V(thread_id_string, "threadId")                                             \
-  V(ticketkeycallback_string, "onticketkeycallback")                          \
-  V(timeout_string, "timeout")                                                \
-  V(tls_ticket_string, "tlsTicket")                                           \
-  V(ttl_string, "ttl")                                                        \
-  V(type_string, "type")                                                      \
-  V(uid_string, "uid")                                                        \
-  V(unknown_string, "<unknown>")                                              \
-  V(url_string, "url")                                                        \
-  V(user_string, "user")                                                      \
-  V(username_string, "username")                                              \
-  V(valid_from_string, "valid_from")                                          \
-  V(valid_to_string, "valid_to")                                              \
-  V(value_string, "value")                                                    \
-  V(verify_error_string, "verifyError")                                       \
-  V(version_string, "version")                                                \
-  V(weight_string, "weight")                                                  \
-  V(windows_hide_string, "windowsHide")                                       \
-  V(windows_verbatim_arguments_string, "windowsVerbatimArguments")            \
-  V(wrap_string, "wrap")                                                      \
-  V(writable_string, "writable")                                              \
-  V(write_host_object_string, "_writeHostObject")                             \
-  V(write_queue_size_string, "writeQueueSize")                                \
-  V(x_forwarded_string, "x-forwarded-for")                                    \
+#define PER_ISOLATE_STRING_PROPERTIES(V)                                       \
+  V(address_string, "address")                                                 \
+  V(args_string, "args")                                                       \
+  V(async, "async")                                                            \
+  V(async_ids_stack_string, "async_ids_stack")                                 \
+  V(buffer_string, "buffer")                                                   \
+  V(bytes_string, "bytes")                                                     \
+  V(bytes_parsed_string, "bytesParsed")                                        \
+  V(bytes_read_string, "bytesRead")                                            \
+  V(bytes_written_string, "bytesWritten")                                      \
+  V(cached_data_string, "cachedData")                                          \
+  V(cached_data_produced_string, "cachedDataProduced")                         \
+  V(cached_data_rejected_string, "cachedDataRejected")                         \
+  V(change_string, "change")                                                   \
+  V(channel_string, "channel")                                                 \
+  V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
+  V(constants_string, "constants")                                             \
+  V(oncertcb_string, "oncertcb")                                               \
+  V(code_string, "code")                                                       \
+  V(cwd_string, "cwd")                                                         \
+  V(dest_string, "dest")                                                       \
+  V(destroyed_string, "destroyed")                                             \
+  V(detached_string, "detached")                                               \
+  V(dns_a_string, "A")                                                         \
+  V(dns_aaaa_string, "AAAA")                                                   \
+  V(dns_cname_string, "CNAME")                                                 \
+  V(dns_mx_string, "MX")                                                       \
+  V(dns_naptr_string, "NAPTR")                                                 \
+  V(dns_ns_string, "NS")                                                       \
+  V(dns_ptr_string, "PTR")                                                     \
+  V(dns_soa_string, "SOA")                                                     \
+  V(dns_srv_string, "SRV")                                                     \
+  V(dns_txt_string, "TXT")                                                     \
+  V(emit_warning_string, "emitWarning")                                        \
+  V(exchange_string, "exchange")                                               \
+  V(encoding_string, "encoding")                                               \
+  V(enter_string, "enter")                                                     \
+  V(entries_string, "entries")                                                 \
+  V(env_pairs_string, "envPairs")                                              \
+  V(errno_string, "errno")                                                     \
+  V(error_string, "error")                                                     \
+  V(exit_code_string, "exitCode")                                              \
+  V(expire_string, "expire")                                                   \
+  V(exponent_string, "exponent")                                               \
+  V(exports_string, "exports")                                                 \
+  V(ext_key_usage_string, "ext_key_usage")                                     \
+  V(external_stream_string, "_externalStream")                                 \
+  V(family_string, "family")                                                   \
+  V(fatal_exception_string, "_fatalException")                                 \
+  V(fd_string, "fd")                                                           \
+  V(file_string, "file")                                                       \
+  V(fingerprint_string, "fingerprint")                                         \
+  V(fingerprint256_string, "fingerprint256")                                   \
+  V(flags_string, "flags")                                                     \
+  V(fragment_string, "fragment")                                               \
+  V(get_data_clone_error_string, "_getDataCloneError")                         \
+  V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")              \
+  V(gid_string, "gid")                                                         \
+  V(handle_string, "handle")                                                   \
+  V(homedir_string, "homedir")                                                 \
+  V(host_string, "host")                                                       \
+  V(hostmaster_string, "hostmaster")                                           \
+  V(ignore_string, "ignore")                                                   \
+  V(infoaccess_string, "infoAccess")                                           \
+  V(inherit_string, "inherit")                                                 \
+  V(input_string, "input")                                                     \
+  V(internal_string, "internal")                                               \
+  V(ipv4_string, "IPv4")                                                       \
+  V(ipv6_string, "IPv6")                                                       \
+  V(isclosing_string, "isClosing")                                             \
+  V(issuer_string, "issuer")                                                   \
+  V(issuercert_string, "issuerCertificate")                                    \
+  V(kill_signal_string, "killSignal")                                          \
+  V(mac_string, "mac")                                                         \
+  V(main_string, "main")                                                       \
+  V(max_buffer_string, "maxBuffer")                                            \
+  V(max_semi_space_size_string, "maxSemiSpaceSize")                            \
+  V(max_old_space_size_string, "maxOldSpaceSize")                              \
+  V(message_string, "message")                                                 \
+  V(message_port_string, "messagePort")                                        \
+  V(message_port_constructor_string, "MessagePort")                            \
+  V(minttl_string, "minttl")                                                   \
+  V(modulus_string, "modulus")                                                 \
+  V(name_string, "name")                                                       \
+  V(netmask_string, "netmask")                                                 \
+  V(nsname_string, "nsname")                                                   \
+  V(ocsp_request_string, "OCSPRequest")                                        \
+  V(onaltsvc_string, "onaltsvc")                                               \
+  V(onchange_string, "onchange")                                               \
+  V(onclienthello_string, "onclienthello")                                     \
+  V(oncomplete_string, "oncomplete")                                           \
+  V(onconnection_string, "onconnection")                                       \
+  V(ondone_string, "ondone")                                                   \
+  V(onerror_string, "onerror")                                                 \
+  V(onexit_string, "onexit")                                                   \
+  V(onframeerror_string, "onframeerror")                                       \
+  V(ongetpadding_string, "ongetpadding")                                       \
+  V(onhandshakedone_string, "onhandshakedone")                                 \
+  V(onhandshakestart_string, "onhandshakestart")                               \
+  V(onheaders_string, "onheaders")                                             \
+  V(oninit_string, "oninit")                                                   \
+  V(onmessage_string, "onmessage")                                             \
+  V(onnewsession_string, "onnewsession")                                       \
+  V(onocspresponse_string, "onocspresponse")                                   \
+  V(ongoawaydata_string, "ongoawaydata")                                       \
+  V(onpriority_string, "onpriority")                                           \
+  V(onread_string, "onread")                                                   \
+  V(onreadstart_string, "onreadstart")                                         \
+  V(onreadstop_string, "onreadstop")                                           \
+  V(onsettings_string, "onsettings")                                           \
+  V(onshutdown_string, "onshutdown")                                           \
+  V(onsignal_string, "onsignal")                                               \
+  V(onstop_string, "onstop")                                                   \
+  V(onstreamclose_string, "onstreamclose")                                     \
+  V(ontrailers_string, "ontrailers")                                           \
+  V(onunpipe_string, "onunpipe")                                               \
+  V(onwrite_string, "onwrite")                                                 \
+  V(openssl_error_stack, "opensslErrorStack")                                  \
+  V(output_string, "output")                                                   \
+  V(order_string, "order")                                                     \
+  V(owner_string, "owner")                                                     \
+  V(parse_error_string, "Parse Error")                                         \
+  V(password_string, "password")                                               \
+  V(path_string, "path")                                                       \
+  V(pending_handle_string, "pendingHandle")                                    \
+  V(pid_string, "pid")                                                         \
+  V(pipe_string, "pipe")                                                       \
+  V(pipe_target_string, "pipeTarget")                                          \
+  V(pipe_source_string, "pipeSource")                                          \
+  V(port_string, "port")                                                       \
+  V(port1_string, "port1")                                                     \
+  V(port2_string, "port2")                                                     \
+  V(preference_string, "preference")                                           \
+  V(priority_string, "priority")                                               \
+  V(promise_string, "promise")                                                 \
+  V(pubkey_string, "pubkey")                                                   \
+  V(query_string, "query")                                                     \
+  V(raw_string, "raw")                                                         \
+  V(read_host_object_string, "_readHostObject")                                \
+  V(readable_string, "readable")                                               \
+  V(refresh_string, "refresh")                                                 \
+  V(regexp_string, "regexp")                                                   \
+  V(rename_string, "rename")                                                   \
+  V(replacement_string, "replacement")                                         \
+  V(retry_string, "retry")                                                     \
+  V(scheme_string, "scheme")                                                   \
+  V(serial_string, "serial")                                                   \
+  V(scopeid_string, "scopeid")                                                 \
+  V(serial_number_string, "serialNumber")                                      \
+  V(service_string, "service")                                                 \
+  V(servername_string, "servername")                                           \
+  V(session_id_string, "sessionId")                                            \
+  V(shell_string, "shell")                                                     \
+  V(signal_string, "signal")                                                   \
+  V(sink_string, "sink")                                                       \
+  V(size_string, "size")                                                       \
+  V(sni_context_err_string, "Invalid SNI context")                             \
+  V(sni_context_string, "sni_context")                                         \
+  V(source_string, "source")                                                   \
+  V(stack_string, "stack")                                                     \
+  V(status_string, "status")                                                   \
+  V(stdio_string, "stdio")                                                     \
+  V(subject_string, "subject")                                                 \
+  V(subjectaltname_string, "subjectaltname")                                   \
+  V(syscall_string, "syscall")                                                 \
+  V(thread_id_string, "threadId")                                              \
+  V(ticketkeycallback_string, "onticketkeycallback")                           \
+  V(timeout_string, "timeout")                                                 \
+  V(tls_ticket_string, "tlsTicket")                                            \
+  V(ttl_string, "ttl")                                                         \
+  V(type_string, "type")                                                       \
+  V(uid_string, "uid")                                                         \
+  V(unknown_string, "<unknown>")                                               \
+  V(url_string, "url")                                                         \
+  V(user_string, "user")                                                       \
+  V(username_string, "username")                                               \
+  V(valid_from_string, "valid_from")                                           \
+  V(valid_to_string, "valid_to")                                               \
+  V(value_string, "value")                                                     \
+  V(verify_error_string, "verifyError")                                        \
+  V(version_string, "version")                                                 \
+  V(weight_string, "weight")                                                   \
+  V(windows_hide_string, "windowsHide")                                        \
+  V(windows_verbatim_arguments_string, "windowsVerbatimArguments")             \
+  V(wrap_string, "wrap")                                                       \
+  V(writable_string, "writable")                                               \
+  V(write_host_object_string, "_writeHostObject")                              \
+  V(write_queue_size_string, "writeQueueSize")                                 \
+  V(x_forwarded_string, "x-forwarded-for")                                     \
   V(zero_return_string, "ZERO_RETURN")
 
-#define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
-  V(as_external, v8::External)                                                \
-  V(async_hooks_after_function, v8::Function)                                 \
-  V(async_hooks_before_function, v8::Function)                                \
-  V(async_hooks_binding, v8::Object)                                          \
-  V(async_hooks_destroy_function, v8::Function)                               \
-  V(async_hooks_init_function, v8::Function)                                  \
-  V(async_hooks_promise_resolve_function, v8::Function)                       \
-  V(async_wrap_constructor_template, v8::FunctionTemplate)                    \
-  V(buffer_prototype_object, v8::Object)                                      \
-  V(context, v8::Context)                                                     \
-  V(domain_callback, v8::Function)                                            \
-  V(domexception_function, v8::Function)                                      \
-  V(fdclose_constructor_template, v8::ObjectTemplate)                         \
-  V(fd_constructor_template, v8::ObjectTemplate)                              \
-  V(filehandlereadwrap_template, v8::ObjectTemplate)                          \
-  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                    \
-  V(fs_use_promises_symbol, v8::Symbol)                                       \
-  V(host_import_module_dynamically_callback, v8::Function)                    \
-  V(host_initialize_import_meta_object_callback, v8::Function)                \
-  V(http2ping_constructor_template, v8::ObjectTemplate)                       \
-  V(http2settings_constructor_template, v8::ObjectTemplate)                   \
-  V(http2stream_constructor_template, v8::ObjectTemplate)                     \
-  V(immediate_callback_function, v8::Function)                                \
-  V(inspector_console_api_object, v8::Object)                                 \
-  V(message_port, v8::Object)                                                 \
-  V(message_port_constructor_template, v8::FunctionTemplate)                  \
-  V(pipe_constructor_template, v8::FunctionTemplate)                          \
-  V(performance_entry_callback, v8::Function)                                 \
-  V(performance_entry_template, v8::Function)                                 \
-  V(process_object, v8::Object)                                               \
-  V(promise_reject_handled_function, v8::Function)                            \
-  V(promise_reject_unhandled_function, v8::Function)                          \
-  V(promise_wrap_template, v8::ObjectTemplate)                                \
-  V(push_values_to_array_function, v8::Function)                              \
-  V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)           \
-  V(script_context_constructor_template, v8::FunctionTemplate)                \
-  V(script_data_constructor_function, v8::Function)                           \
-  V(secure_context_constructor_template, v8::FunctionTemplate)                \
-  V(shutdown_wrap_template, v8::ObjectTemplate)                               \
-  V(tcp_constructor_template, v8::FunctionTemplate)                           \
-  V(tick_callback_function, v8::Function)                                     \
-  V(timers_callback_function, v8::Function)                                   \
-  V(tls_wrap_constructor_function, v8::Function)                              \
-  V(tty_constructor_template, v8::FunctionTemplate)                           \
-  V(udp_constructor_function, v8::Function)                                   \
-  V(vm_parsing_context_symbol, v8::Symbol)                                    \
-  V(url_constructor_function, v8::Function)                                   \
+#define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                            \
+  V(as_external, v8::External)                                                 \
+  V(async_hooks_after_function, v8::Function)                                  \
+  V(async_hooks_before_function, v8::Function)                                 \
+  V(async_hooks_binding, v8::Object)                                           \
+  V(async_hooks_destroy_function, v8::Function)                                \
+  V(async_hooks_init_function, v8::Function)                                   \
+  V(async_hooks_promise_resolve_function, v8::Function)                        \
+  V(async_wrap_constructor_template, v8::FunctionTemplate)                     \
+  V(buffer_prototype_object, v8::Object)                                       \
+  V(context, v8::Context)                                                      \
+  V(domain_callback, v8::Function)                                             \
+  V(domexception_function, v8::Function)                                       \
+  V(fdclose_constructor_template, v8::ObjectTemplate)                          \
+  V(fd_constructor_template, v8::ObjectTemplate)                               \
+  V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
+  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
+  V(fs_use_promises_symbol, v8::Symbol)                                        \
+  V(host_import_module_dynamically_callback, v8::Function)                     \
+  V(host_initialize_import_meta_object_callback, v8::Function)                 \
+  V(http2ping_constructor_template, v8::ObjectTemplate)                        \
+  V(http2settings_constructor_template, v8::ObjectTemplate)                    \
+  V(http2stream_constructor_template, v8::ObjectTemplate)                      \
+  V(immediate_callback_function, v8::Function)                                 \
+  V(inspector_console_api_object, v8::Object)                                  \
+  V(message_port, v8::Object)                                                  \
+  V(message_port_constructor_template, v8::FunctionTemplate)                   \
+  V(pipe_constructor_template, v8::FunctionTemplate)                           \
+  V(performance_entry_callback, v8::Function)                                  \
+  V(performance_entry_template, v8::Function)                                  \
+  V(process_object, v8::Object)                                                \
+  V(promise_reject_handled_function, v8::Function)                             \
+  V(promise_reject_unhandled_function, v8::Function)                           \
+  V(promise_wrap_template, v8::ObjectTemplate)                                 \
+  V(push_values_to_array_function, v8::Function)                               \
+  V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)            \
+  V(script_context_constructor_template, v8::FunctionTemplate)                 \
+  V(script_data_constructor_function, v8::Function)                            \
+  V(secure_context_constructor_template, v8::FunctionTemplate)                 \
+  V(shutdown_wrap_template, v8::ObjectTemplate)                                \
+  V(tcp_constructor_template, v8::FunctionTemplate)                            \
+  V(tick_callback_function, v8::Function)                                      \
+  V(timers_callback_function, v8::Function)                                    \
+  V(tls_wrap_constructor_function, v8::Function)                               \
+  V(tty_constructor_template, v8::FunctionTemplate)                            \
+  V(udp_constructor_function, v8::Function)                                    \
+  V(vm_parsing_context_symbol, v8::Symbol)                                     \
+  V(url_constructor_function, v8::Function)                                    \
   V(write_wrap_template, v8::ObjectTemplate)
 
 class Environment;
 
 class IsolateData {
  public:
-  IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
+  IsolateData(v8::Isolate* isolate,
+              uv_loop_t* event_loop,
               MultiIsolatePlatform* platform = nullptr,
               uint32_t* zero_fill_field = nullptr);
   ~IsolateData();
@@ -375,7 +376,7 @@ class IsolateData {
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
-#define V(TypeName, PropertyName)                                             \
+#define V(TypeName, PropertyName)                                              \
   inline v8::Local<TypeName> PropertyName(v8::Isolate* isolate) const;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
@@ -391,8 +392,7 @@ class IsolateData {
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
-#define V(TypeName, PropertyName)                                             \
-  v8::Eternal<TypeName> PropertyName ## _;
+#define V(TypeName, PropertyName) v8::Eternal<TypeName> PropertyName##_;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
@@ -417,15 +417,15 @@ struct ContextInfo {
 
 // Listing the AsyncWrap provider types first enables us to cast directly
 // from a provider type to a debug category.
-#define DEBUG_CATEGORY_NAMES(V) \
-    NODE_ASYNC_PROVIDER_TYPES(V) \
-    V(INSPECTOR_SERVER)
+#define DEBUG_CATEGORY_NAMES(V)                                                \
+  NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
+  V(INSPECTOR_SERVER)
 
 enum class DebugCategory {
 #define V(name) name,
   DEBUG_CATEGORY_NAMES(V)
 #undef V
-  CATEGORY_COUNT
+      CATEGORY_COUNT
 };
 
 class Environment {
@@ -484,7 +484,6 @@ class Environment {
       DISALLOW_COPY_AND_ASSIGN(DefaultTriggerAsyncIdScope);
     };
 
-
    private:
     friend class Environment;  // So we can call the constructor.
     inline AsyncHooks();
@@ -535,12 +534,7 @@ class Environment {
     friend class Environment;  // So we can call the constructor.
     inline explicit ImmediateInfo(v8::Isolate* isolate);
 
-    enum Fields {
-      kCount,
-      kRefCount,
-      kHasOutstanding,
-      kFieldsCount
-    };
+    enum Fields { kCount, kRefCount, kHasOutstanding, kFieldsCount };
 
     AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
 
@@ -559,11 +553,7 @@ class Environment {
     friend class Environment;  // So we can call the constructor.
     inline explicit TickInfo(v8::Isolate* isolate);
 
-    enum Fields {
-      kHasScheduled,
-      kHasPromiseRejections,
-      kFieldsCount
-    };
+    enum Fields { kHasScheduled, kHasPromiseRejections, kFieldsCount };
 
     AliasedBuffer<uint8_t, v8::Uint8Array> fields_;
 
@@ -692,14 +682,14 @@ class Environment {
 
   inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
   inline AliasedBuffer<uint64_t, v8::BigUint64Array>*
-      fs_stats_field_bigint_array();
+  fs_stats_field_bigint_array();
 
   // stat fields contains twice the number of entries because `fs.StatWatcher`
   // needs room to store data for *two* `fs.Stats` instances.
   static const int kFsStatsFieldsLength = 14;
 
   inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
-      file_handle_read_wrap_freelist();
+  file_handle_read_wrap_freelist();
 
   inline performance::performance_state* performance_state();
   inline std::unordered_map<std::string, uint64_t>* performance_marks();
@@ -746,14 +736,11 @@ class Environment {
                                const char* path = nullptr,
                                const char* dest = nullptr);
 
-  inline v8::Local<v8::FunctionTemplate>
-      NewFunctionTemplate(v8::FunctionCallback callback,
-                          v8::Local<v8::Signature> signature =
-                              v8::Local<v8::Signature>(),
-                          v8::ConstructorBehavior behavior =
-                              v8::ConstructorBehavior::kAllow,
-                          v8::SideEffectType side_effect =
-                              v8::SideEffectType::kHasSideEffect);
+  inline v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
+      v8::FunctionCallback callback,
+      v8::Local<v8::Signature> signature = v8::Local<v8::Signature>(),
+      v8::ConstructorBehavior behavior = v8::ConstructorBehavior::kAllow,
+      v8::SideEffectType side_effect = v8::SideEffectType::kHasSideEffect);
 
   // Convenience methods for NewFunctionTemplate().
   inline void SetMethod(v8::Local<v8::Object> that,
@@ -789,7 +776,7 @@ class Environment {
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
-#define V(TypeName, PropertyName)                                             \
+#define V(TypeName, PropertyName)                                              \
   inline v8::Local<TypeName> PropertyName() const;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
@@ -799,9 +786,9 @@ class Environment {
 #undef VY
 #undef VP
 
-#define V(PropertyName, TypeName)                                             \
-  inline v8::Local<TypeName> PropertyName() const;                            \
-  inline void set_ ## PropertyName(v8::Local<TypeName> value);
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> PropertyName() const;                             \
+  inline void set_##PropertyName(v8::Local<TypeName> value);
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 
@@ -813,7 +800,7 @@ class Environment {
 
   typedef ListHead<HandleWrap, &HandleWrap::handle_wrap_queue_> HandleWrapQueue;
   typedef ListHead<ReqWrap<uv_req_t>, &ReqWrap<uv_req_t>::req_wrap_queue_>
-          ReqWrapQueue;
+      ReqWrapQueue;
 
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
@@ -832,10 +819,10 @@ class Environment {
   inline void SetImmediate(native_immediate_callback cb,
                            void* data,
                            v8::Local<v8::Object> obj = v8::Local<v8::Object>());
-  inline void SetUnrefImmediate(native_immediate_callback cb,
-                                void* data,
-                                v8::Local<v8::Object> obj =
-                                    v8::Local<v8::Object>());
+  inline void SetUnrefImmediate(
+      native_immediate_callback cb,
+      void* data,
+      v8::Local<v8::Object> obj = v8::Local<v8::Object>());
   // This needs to be available for the JS-land setImmediate().
   void ToggleImmediateRef(bool ref);
 
@@ -994,7 +981,8 @@ class Environment {
   // Use an unordered_set, so that we have efficient insertion and removal.
   std::unordered_set<CleanupHookCallback,
                      CleanupHookCallback::Hash,
-                     CleanupHookCallback::Equal> cleanup_hooks_;
+                     CleanupHookCallback::Equal>
+      cleanup_hooks_;
   uint64_t cleanup_hook_counter_ = 0;
 
   static void EnvPromiseHook(v8::PromiseHookType type,
@@ -1004,7 +992,7 @@ class Environment {
   template <typename T>
   void ForEachBaseObject(T&& iterator);
 
-#define V(PropertyName, TypeName) Persistent<TypeName> PropertyName ## _;
+#define V(PropertyName, TypeName) Persistent<TypeName> PropertyName##_;
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 

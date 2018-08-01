@@ -6,29 +6,34 @@ napi_ref MyObject::constructor;
 MyObject::MyObject(double value)
     : value_(value), env_(nullptr), wrapper_(nullptr) {}
 
-MyObject::~MyObject() { napi_delete_reference(env_, wrapper_); }
+MyObject::~MyObject() {
+  napi_delete_reference(env_, wrapper_);
+}
 
-void MyObject::Destructor(
-  napi_env env, void* nativeObject, void* /*finalize_hint*/) {
+void MyObject::Destructor(napi_env env,
+                          void* nativeObject,
+                          void* /*finalize_hint*/) {
   MyObject* obj = static_cast<MyObject*>(nativeObject);
   delete obj;
 }
 
 void MyObject::Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
-    { "value", nullptr, nullptr, GetValue, SetValue, 0, napi_default, 0 },
-    DECLARE_NAPI_PROPERTY("plusOne", PlusOne),
-    DECLARE_NAPI_PROPERTY("multiply", Multiply),
+      {"value", nullptr, nullptr, GetValue, SetValue, 0, napi_default, 0},
+      DECLARE_NAPI_PROPERTY("plusOne", PlusOne),
+      DECLARE_NAPI_PROPERTY("multiply", Multiply),
   };
 
   napi_value cons;
-  NAPI_CALL_RETURN_VOID(env, napi_define_class(
-      env, "MyObject", -1, New, nullptr, 3, properties, &cons));
+  NAPI_CALL_RETURN_VOID(
+      env,
+      napi_define_class(
+          env, "MyObject", -1, New, nullptr, 3, properties, &cons));
 
   NAPI_CALL_RETURN_VOID(env, napi_create_reference(env, cons, 1, &constructor));
 
-  NAPI_CALL_RETURN_VOID(env,
-      napi_set_named_property(env, exports, "MyObject", cons));
+  NAPI_CALL_RETURN_VOID(
+      env, napi_set_named_property(env, exports, "MyObject", cons));
 }
 
 napi_value MyObject::New(napi_env env, napi_callback_info info) {
@@ -55,12 +60,13 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
     MyObject* obj = new MyObject(value);
 
     obj->env_ = env;
-    NAPI_CALL(env, napi_wrap(env,
-                             _this,
-                             obj,
-                             MyObject::Destructor,
-                             nullptr,  // finalize_hint
-                             &obj->wrapper_));
+    NAPI_CALL(env,
+              napi_wrap(env,
+                        _this,
+                        obj,
+                        MyObject::Destructor,
+                        nullptr,  // finalize_hint
+                        &obj->wrapper_));
 
     return _this;
   }
@@ -81,7 +87,7 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
 napi_value MyObject::GetValue(napi_env env, napi_callback_info info) {
   napi_value _this;
   NAPI_CALL(env,
-      napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
+            napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;
   NAPI_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));
@@ -109,7 +115,7 @@ napi_value MyObject::SetValue(napi_env env, napi_callback_info info) {
 napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
   napi_value _this;
   NAPI_CALL(env,
-      napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
+            napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;
   NAPI_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));

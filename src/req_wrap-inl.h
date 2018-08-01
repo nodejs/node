@@ -3,9 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "req_wrap.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#include "req_wrap.h"
 #include "util-inl.h"
 #include "uv.h"
 
@@ -16,7 +16,6 @@ ReqWrap<T>::ReqWrap(Environment* env,
                     v8::Local<v8::Object> object,
                     AsyncWrap::ProviderType provider)
     : AsyncWrap(env, object, provider) {
-
   // FIXME(bnoordhuis) The fact that a reinterpret_cast is needed is
   // arguably a good indicator that there should be more than one queue.
   env->req_wrap_queue()->PushBack(reinterpret_cast<ReqWrap<uv_req_t>*>(this));
@@ -66,8 +65,8 @@ struct CallLibuvFunction;
 
 // Detect `int uv_foo(uv_loop_t* loop, uv_req_t* request, ...);`.
 template <typename ReqT, typename... Args>
-struct CallLibuvFunction<ReqT, int(*)(uv_loop_t*, ReqT*, Args...)> {
-  using T = int(*)(uv_loop_t*, ReqT*, Args...);
+struct CallLibuvFunction<ReqT, int (*)(uv_loop_t*, ReqT*, Args...)> {
+  using T = int (*)(uv_loop_t*, ReqT*, Args...);
   template <typename... PassedArgs>
   static int Call(T fn, uv_loop_t* loop, ReqT* req, PassedArgs... args) {
     return fn(loop, req, args...);
@@ -76,8 +75,8 @@ struct CallLibuvFunction<ReqT, int(*)(uv_loop_t*, ReqT*, Args...)> {
 
 // Detect `int uv_foo(uv_req_t* request, ...);`.
 template <typename ReqT, typename... Args>
-struct CallLibuvFunction<ReqT, int(*)(ReqT*, Args...)> {
-  using T = int(*)(ReqT*, Args...);
+struct CallLibuvFunction<ReqT, int (*)(ReqT*, Args...)> {
+  using T = int (*)(ReqT*, Args...);
   template <typename... PassedArgs>
   static int Call(T fn, uv_loop_t* loop, ReqT* req, PassedArgs... args) {
     return fn(req, args...);
@@ -86,8 +85,8 @@ struct CallLibuvFunction<ReqT, int(*)(ReqT*, Args...)> {
 
 // Detect `void uv_foo(uv_req_t* request, ...);`.
 template <typename ReqT, typename... Args>
-struct CallLibuvFunction<ReqT, void(*)(ReqT*, Args...)> {
-  using T = void(*)(ReqT*, Args...);
+struct CallLibuvFunction<ReqT, void (*)(ReqT*, Args...)> {
+  using T = void (*)(ReqT*, Args...);
   template <typename... PassedArgs>
   static int Call(T fn, uv_loop_t* loop, ReqT* req, PassedArgs... args) {
     fn(req, args...);
@@ -112,8 +111,8 @@ struct MakeLibuvRequestCallback {
 // Match the `void callback(uv_req_t*, ...);` signature that all libuv
 // callbacks use.
 template <typename ReqT, typename... Args>
-struct MakeLibuvRequestCallback<ReqT, void(*)(ReqT*, Args...)> {
-  using F = void(*)(ReqT* req, Args... args);
+struct MakeLibuvRequestCallback<ReqT, void (*)(ReqT*, Args...)> {
+  using F = void (*)(ReqT* req, Args... args);
 
   static void Wrapper(ReqT* req, Args... args) {
     ReqWrap<ReqT>* req_wrap = ContainerOf(&ReqWrap<ReqT>::req_, req);
@@ -154,8 +153,7 @@ int ReqWrap<T>::Dispatch(LibuvFunction fn, Args... args) {
       env()->event_loop(),
       req(),
       MakeLibuvRequestCallback<T, Args>::For(this, args)...);
-  if (err >= 0)
-    env()->IncreaseWaitingRequestCounter();
+  if (err >= 0) env()->IncreaseWaitingRequestCounter();
   return err;
 }
 

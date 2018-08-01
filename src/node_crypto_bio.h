@@ -24,8 +24,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "openssl/bio.h"
 #include "env-inl.h"
+#include "openssl/bio.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -34,13 +34,13 @@ namespace crypto {
 
 class NodeBIO : public MemoryRetainer {
  public:
-  NodeBIO() : env_(nullptr),
-              initial_(kInitialBufferLength),
-              length_(0),
-              eof_return_(-1),
-              read_head_(nullptr),
-              write_head_(nullptr) {
-  }
+  NodeBIO()
+      : env_(nullptr),
+        initial_(kInitialBufferLength),
+        length_(0),
+        eof_return_(-1),
+        read_head_(nullptr),
+        write_head_(nullptr) {}
 
   ~NodeBIO();
 
@@ -90,23 +90,14 @@ class NodeBIO : public MemoryRetainer {
   // Commit reserved data
   void Commit(size_t size);
 
-
   // Return size of buffer in bytes
-  inline size_t Length() const {
-    return length_;
-  }
+  inline size_t Length() const { return length_; }
 
-  inline void set_eof_return(int num) {
-    eof_return_ = num;
-  }
+  inline void set_eof_return(int num) { eof_return_ = num; }
 
-  inline int eof_return() {
-    return eof_return_;
-  }
+  inline int eof_return() { return eof_return_; }
 
-  inline void set_initial(size_t initial) {
-    initial_ = initial;
-  }
+  inline void set_initial(size_t initial) { initial_ = initial; }
 
   static NodeBIO* FromBIO(BIO* bio);
 
@@ -124,7 +115,9 @@ class NodeBIO : public MemoryRetainer {
   static int Write(BIO* bio, const char* data, int len);
   static int Puts(BIO* bio, const char* str);
   static int Gets(BIO* bio, char* out, int size);
-  static long Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
+  static long Ctrl(BIO* bio,  // NOLINT(runtime/int)
+                   int cmd,
+                   long num,  // NOLINT(runtime/int)
                    void* ptr);
 
   static const BIO_METHOD* GetMethod();
@@ -135,11 +128,8 @@ class NodeBIO : public MemoryRetainer {
 
   class Buffer {
    public:
-    Buffer(Environment* env, size_t len) : env_(env),
-                                           read_pos_(0),
-                                           write_pos_(0),
-                                           len_(len),
-                                           next_(nullptr) {
+    Buffer(Environment* env, size_t len)
+        : env_(env), read_pos_(0), write_pos_(0), len_(len), next_(nullptr) {
       data_ = new char[len];
       if (env_ != nullptr)
         env_->isolate()->AdjustAmountOfExternalAllocatedMemory(len);

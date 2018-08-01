@@ -13,10 +13,11 @@ using v8::String;
 using v8::Value;
 
 static void ThrowError(Isolate* isolate, const char* err_msg) {
-  Local<String> str = String::NewFromOneByte(
-      isolate,
-      reinterpret_cast<const uint8_t*>(err_msg),
-      NewStringType::kNormal).ToLocalChecked();
+  Local<String> str =
+      String::NewFromOneByte(isolate,
+                             reinterpret_cast<const uint8_t*>(err_msg),
+                             NewStringType::kNormal)
+          .ToLocalChecked();
   isolate->ThrowException(str);
 }
 
