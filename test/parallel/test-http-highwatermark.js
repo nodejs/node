@@ -24,14 +24,14 @@ const server = http.createServer(function(req, res) {
     }));
   } else {
     // Case of needParse = true
-    const resume = req.connection.parser.resume.bind(req.connection.parser);
-    req.connection.parser.resume = common.mustCall((...args) => {
+    const resume = req.connection.resume.bind(req.connection);
+    req.connection.resume = common.mustCall((...args) => {
       const paused = req.connection._paused;
       assert(!paused, '_paused must be false because it become false by ' +
                       'socketOnDrain when outgoingData falls below ' +
                       'highWaterMark');
       return resume(...args);
-    });
+    }, 2);
   }
   assert(!res.write(body), 'res.write must return false because it will ' +
                            'exceed highWaterMark on this call');

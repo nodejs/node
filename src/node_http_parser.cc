@@ -472,17 +472,6 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  template <bool should_pause>
-  static void Pause(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-    Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
-    // Should always be called from the same context.
-    CHECK_EQ(env, parser->env());
-    http_parser_pause(&parser->parser_, should_pause);
-  }
-
-
   static void Consume(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
@@ -762,8 +751,6 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(t, "execute", Parser::Execute);
   env->SetProtoMethod(t, "finish", Parser::Finish);
   env->SetProtoMethod(t, "reinitialize", Parser::Reinitialize);
-  env->SetProtoMethod(t, "pause", Parser::Pause<true>);
-  env->SetProtoMethod(t, "resume", Parser::Pause<false>);
   env->SetProtoMethod(t, "consume", Parser::Consume);
   env->SetProtoMethod(t, "unconsume", Parser::Unconsume);
   env->SetProtoMethod(t, "getCurrentBuffer", Parser::GetCurrentBuffer);

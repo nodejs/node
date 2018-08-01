@@ -12,7 +12,8 @@ const common = require('../common');
 // uncorks the readable stream, although we arent testing that part here.
 
 // The issue being tested exists in Node.js 0.10.20 and is resolved in 0.10.21
-// and newer.
+// and newer. As a security vulnerability, it has been assigned the identifier
+// CVE-2013-4450.
 
 switch (process.argv[2]) {
   case undefined:
