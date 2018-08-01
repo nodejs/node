@@ -115,7 +115,7 @@ class NodeBIO : public MemoryRetainer {
   static int Write(BIO* bio, const char* data, int len);
   static int Puts(BIO* bio, const char* str);
   static int Gets(BIO* bio, char* out, int size);
-  static long Ctrl(BIO* bio,
+  static long Ctrl(BIO* bio,  // NOLINT(runtime/int)
                    int cmd,
                    long num,  // NOLINT(runtime/int)
                    void* ptr);

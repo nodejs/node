@@ -40,14 +40,12 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
 napi_value Init(napi_env env, napi_value exports) {
   napi_value fn;
   NAPI_CALL(env,
-            napi_create_function(
-                // NOLINTNEXTLINE (readability/null_usage)
-                env,
-                NULL,
-                NAPI_AUTO_LENGTH,
-                MakeCallback,
-                NULL,
-                &fn));
+            napi_create_function(env,
+                                 NULL,  // NOLINT (readability/null_usage)
+                                 NAPI_AUTO_LENGTH,
+                                 MakeCallback,
+                                 NULL,  // NOLINT (readability/null_usage)
+                                 &fn));
   NAPI_CALL(env, napi_set_named_property(env, exports, "makeCallback", fn));
   return exports;
 }

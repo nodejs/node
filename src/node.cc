@@ -310,9 +310,14 @@ class NodeTraceStateObserver
     auto trace_process = tracing::TracedValue::Create();
     trace_process->BeginDictionary("versions");
 
+    // clang-format off
     const char http_parser_version[] =
-        NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR) "." NODE_STRINGIFY(
-            HTTP_PARSER_VERSION_MINOR) "." NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+        NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
+        "."
+        NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
+        "."
+        NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+    // clang-format on
 
     const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
     const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
@@ -2008,10 +2013,14 @@ void SetupProcessObject(Environment* env,
   // process.versions
   Local<Object> versions = Object::New(env->isolate());
   READONLY_PROPERTY(process, "versions", versions);
-
+  // clang-format off
   const char http_parser_version[] =
-      NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR) "." NODE_STRINGIFY(
-          HTTP_PARSER_VERSION_MINOR) "." NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+      NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
+      "."
+      NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
+      "."
+      NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+  // clang-format on
   READONLY_PROPERTY(versions,
                     "http_parser",
                     FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));

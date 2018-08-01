@@ -44,7 +44,9 @@ int EngineLoadSSLClientCert(ENGINE* engine,
                             STACK_OF(X509_NAME) * ca_dn,
                             X509** ppcert,
                             EVP_PKEY** ppkey,
-                            STACK_OF(X509) * *pother,
+                            // clang-format off
+                            STACK_OF(X509)** pother,
+                            // clang-format on
                             UI_METHOD* ui_method,
                             void* callback_data) {
   if (ppcert != nullptr) {

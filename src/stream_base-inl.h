@@ -95,7 +95,7 @@ inline void StreamResource::RemoveStreamListener(StreamListener* listener) {
   // Remove from the linked list.
   for (current = listener_, previous = nullptr;
        /* No loop condition because we want a crash if listener is not found */
-       ;
+       ;  // NOLINT(whitespace/semicolon)
        previous = current, current = current->previous_listener_) {
     CHECK_NOT_NULL(current);
     if (current == listener) {
