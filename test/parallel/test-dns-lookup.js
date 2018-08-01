@@ -97,21 +97,6 @@ common.expectsError(() => {
   });
   assert.deepStrictEqual(res, { address: '127.0.0.1', family: 4 });
 
-  res = await dnsPromises.lookup(addresses.INET4_HOST, {
-    hints: 0,
-    family: 4,
-    all: false
-  });
-  assert.strictEqual(res.family, 4);
-
-  res = await dnsPromises.lookup(addresses.INET4_HOST, {
-    hints: 0,
-    family: 4,
-    all: true
-  });
-  assert.ok(res.length > 0);
-  res.forEach((obj) => { assert.strictEqual(obj.family, 4); });
-
   assert.rejects(
     dnsPromises.lookup(addresses.INVALID_HOST, {
       hints: 0,
