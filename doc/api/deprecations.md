@@ -930,7 +930,7 @@ Using `process.binding()` in general should be avoided. The type checking
 methods in particular can be replaced by using [`util.types`][].
 
 This deprecation has been superseded by the deprecation of the
-`process.binding()` API ([DEP00XX](#DEP00XX)).
+`process.binding()` API ([DEP0111](#DEP0111)).
 
 <a id="DEP0104"></a>
 ### DEP0104: process.env string coercion
@@ -990,8 +990,8 @@ Type: Documentation-only
 The option `produceCachedData` has been deprecated. Use
 [`script.createCachedData()`][] instead.
 
-<a id="DEP00XX"></a>
-### DEP00XX: process.binding()
+<a id="DEP0111"></a>
+### DEP0111: process.binding()
 
 Type: Documentation-only
 
