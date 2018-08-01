@@ -168,7 +168,7 @@ void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
-  int enable = static_cast<int>(args[0]->BooleanValue());
+  int enable = static_cast<int>(args[0]->IsTrue());
   int err = uv_tcp_nodelay(&wrap->handle_, enable);
   args.GetReturnValue().Set(err);
 }

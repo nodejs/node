@@ -3093,7 +3093,7 @@ void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
-  bool b = cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue());
+  bool b = cipher->SetAutoPadding(args.Length() < 1 || args[0]->IsTrue());
   args.GetReturnValue().Set(b);  // Possibly report invalid state failure
 }
 
