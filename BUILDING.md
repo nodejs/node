@@ -4,7 +4,7 @@ Depending on what platform or features you require, the build process may
 differ slightly. After you've successfully built a binary, running the
 test suite to validate that the binary works as intended is a good next step.
 
-If you consistently can reproduce a test failure, search for it in the
+If you can reproduce a test failure consistently, search for it in the
 [Node.js issue tracker](https://github.com/nodejs/node/issues) or
 file a new issue.
 
@@ -34,7 +34,7 @@ Support is divided into three tiers:
 ### Supported platforms
 
 The community does not build or test against end-of-life distributions (EoL).
-Thus we do not recommend that you use Node on end-of-life or unsupported
+Thus, we do not recommend that you use Node on end-of-life or unsupported
 platforms in production.
 
 |  System      | Support type | Version                          | Architectures        | Notes            |
