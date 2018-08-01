@@ -25,7 +25,6 @@ GitHub with the `autocrlf` git config flag set to true.
 |doctool            |Yes            |Tests for the documentation generator.|
 |es-module          |Yes            |Test ESM module loading.|
 |fixtures           |               |Test fixtures used in various tests throughout the test suite.|
-|gc                 |No             |Tests for garbage collection related functionality.|
 |internet           |No             |Tests that make real outbound connections (mainly networking related modules). Tests for networking related modules may also be present in        other directories, but those tests do not make outbound connections.|
 |known_issues       |Yes            |Tests reproducing known issues within the system. All tests inside of this directory are expected to fail consistently. If a test doesn't fail on certain platforms, those should be skipped via `known_issues.status`.|
 |message            |Yes            |Tests for messages that are output for various conditions (```console.log```, error messages etc.)|
