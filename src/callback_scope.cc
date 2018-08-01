@@ -87,7 +87,7 @@ void InternalCallbackScope::Close() {
     AsyncWrap::EmitAfter(env_, async_context_.async_id);
   }
 
-  if (IsInnerMakeCallback()) {
+  if (env_->makecallback_depth() > 1) {
     return;
   }
 
