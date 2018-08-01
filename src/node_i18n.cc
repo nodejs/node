@@ -815,8 +815,8 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1)
     return;
 
-  bool ambiguous_as_full_width = args[1]->BooleanValue();
-  bool expand_emoji_sequence = args[2]->BooleanValue();
+  bool ambiguous_as_full_width = args[1]->IsTrue();
+  bool expand_emoji_sequence = args[2]->IsTrue();
 
   if (args[0]->IsNumber()) {
     args.GetReturnValue().Set(
