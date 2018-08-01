@@ -22,27 +22,21 @@
 #ifndef SRC_NODE_OBJECT_WRAP_H_
 #define SRC_NODE_OBJECT_WRAP_H_
 
-#include "v8.h"
 #include <assert.h>
-
+#include "v8.h"
 
 namespace node {
 
 class ObjectWrap {
  public:
-  ObjectWrap() {
-    refs_ = 0;
-  }
-
+  ObjectWrap() { refs_ = 0; }
 
   virtual ~ObjectWrap() {
-    if (persistent().IsEmpty())
-      return;
+    if (persistent().IsEmpty()) return;
     assert(persistent().IsNearDeath());
     persistent().ClearWeak();
     persistent().Reset();
   }
-
 
   template <class T>
   static inline T* Unwrap(v8::Local<v8::Object> handle) {
@@ -55,21 +49,15 @@ class ObjectWrap {
     return static_cast<T*>(wrap);
   }
 
-
   inline v8::Local<v8::Object> handle() {
     return handle(v8::Isolate::GetCurrent());
   }
-
 
   inline v8::Local<v8::Object> handle(v8::Isolate* isolate) {
     return v8::Local<v8::Object>::New(isolate, persistent());
   }
 
-
-  inline v8::Persistent<v8::Object>& persistent() {
-    return handle_;
-  }
-
+  inline v8::Persistent<v8::Object>& persistent() { return handle_; }
 
  protected:
   inline void Wrap(v8::Local<v8::Object> handle) {
@@ -79,7 +67,6 @@ class ObjectWrap {
     persistent().Reset(v8::Isolate::GetCurrent(), handle);
     MakeWeak();
   }
-
 
   inline void MakeWeak(void) {
     persistent().SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
@@ -108,15 +95,13 @@ class ObjectWrap {
     assert(!persistent().IsEmpty());
     assert(!persistent().IsWeak());
     assert(refs_ > 0);
-    if (--refs_ == 0)
-      MakeWeak();
+    if (--refs_ == 0) MakeWeak();
   }
 
   int refs_;  // ro
 
  private:
-  static void WeakCallback(
-      const v8::WeakCallbackInfo<ObjectWrap>& data) {
+  static void WeakCallback(const v8::WeakCallbackInfo<ObjectWrap>& data) {
     ObjectWrap* wrap = data.GetParameter();
     assert(wrap->refs_ == 0);
     wrap->handle_.Reset();

@@ -1,7 +1,7 @@
 
-#include "v8.h"
 #include "aliased_buffer.h"
 #include "node_test_fixture.h"
+#include "v8.h"
 
 using node::AliasedBuffer;
 
@@ -47,9 +47,8 @@ void ReadAndValidate(v8::Isolate* isolate,
 
   // validate size of JS Buffer
   EXPECT_TRUE(aliasedBuffer->GetJSArray()->Length() == oracle.size());
-  EXPECT_TRUE(
-    aliasedBuffer->GetJSArray()->ByteLength() ==
-    (oracle.size() * sizeof(NativeT)));
+  EXPECT_TRUE(aliasedBuffer->GetJSArray()->ByteLength() ==
+              (oracle.size() * sizeof(NativeT)));
 
   // validate operator * and GetBuffer are the same
   EXPECT_TRUE(aliasedBuffer->GetNativeBuffer() == *(*aliasedBuffer));
@@ -92,15 +91,16 @@ void ReadWriteTest(v8::Isolate* isolate) {
   ReadAndValidate(isolate, context, &ab, oracle);
 }
 
-template <
-    class NativeT_A, class V8T_A,
-    class NativeT_B, class V8T_B,
-    class NativeT_C, class V8T_C>
-void SharedBufferTest(
-    v8::Isolate* isolate,
-    size_t count_A,
-    size_t count_B,
-    size_t count_C) {
+template <class NativeT_A,
+          class V8T_A,
+          class NativeT_B,
+          class V8T_B,
+          class NativeT_C,
+          class V8T_C>
+void SharedBufferTest(v8::Isolate* isolate,
+                      size_t count_A,
+                      size_t count_B,
+                      size_t count_C) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
@@ -112,8 +112,7 @@ void SharedBufferTest(
 
   AliasedBuffer<uint8_t, v8::Uint8Array> rootBuffer(
       isolate, sizeInBytes_A + sizeInBytes_B + sizeInBytes_C);
-  AliasedBuffer<NativeT_A, V8T_A> ab_A(
-      isolate, 0, count_A, rootBuffer);
+  AliasedBuffer<NativeT_A, V8T_A> ab_A(isolate, 0, count_A, rootBuffer);
   AliasedBuffer<NativeT_B, V8T_B> ab_B(
       isolate, sizeInBytes_A, count_B, rootBuffer);
   AliasedBuffer<NativeT_C, V8T_C> ab_C(
@@ -176,31 +175,39 @@ TEST_F(AliasBufferTest, Float64Array) {
 }
 
 TEST_F(AliasBufferTest, SharedArrayBuffer1) {
-  SharedBufferTest<
-      uint32_t, v8::Uint32Array,
-      double, v8::Float64Array,
-      int8_t, v8::Int8Array>(isolate_, 100, 80, 8);
+  SharedBufferTest<uint32_t,
+                   v8::Uint32Array,
+                   double,
+                   v8::Float64Array,
+                   int8_t,
+                   v8::Int8Array>(isolate_, 100, 80, 8);
 }
 
 TEST_F(AliasBufferTest, SharedArrayBuffer2) {
-  SharedBufferTest<
-      double, v8::Float64Array,
-      int8_t, v8::Int8Array,
-      double, v8::Float64Array>(isolate_, 100, 8, 8);
+  SharedBufferTest<double,
+                   v8::Float64Array,
+                   int8_t,
+                   v8::Int8Array,
+                   double,
+                   v8::Float64Array>(isolate_, 100, 8, 8);
 }
 
 TEST_F(AliasBufferTest, SharedArrayBuffer3) {
-  SharedBufferTest<
-      int8_t, v8::Int8Array,
-      int8_t, v8::Int8Array,
-      double, v8::Float64Array>(isolate_, 1, 7, 8);
+  SharedBufferTest<int8_t,
+                   v8::Int8Array,
+                   int8_t,
+                   v8::Int8Array,
+                   double,
+                   v8::Float64Array>(isolate_, 1, 7, 8);
 }
 
 TEST_F(AliasBufferTest, SharedArrayBuffer4) {
-  SharedBufferTest<
-      int8_t, v8::Int8Array,
-      int8_t, v8::Int8Array,
-      int32_t, v8::Int32Array>(isolate_, 1, 3, 1);
+  SharedBufferTest<int8_t,
+                   v8::Int8Array,
+                   int8_t,
+                   v8::Int8Array,
+                   int32_t,
+                   v8::Int32Array>(isolate_, 1, 3, 1);
 }
 
 TEST_F(AliasBufferTest, OperatorOverloads) {

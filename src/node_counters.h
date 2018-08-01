@@ -30,22 +30,46 @@
 #include "node_win32_perfctr_provider.h"
 #else
 #define NODE_COUNTER_ENABLED() (false)
-#define NODE_COUNT_GC_PERCENTTIME(percent) do { } while (false)
-#define NODE_COUNT_GET_GC_RAWTIME() do { } while (false)
-#define NODE_COUNT_HTTP_CLIENT_REQUEST() do { } while (false)
-#define NODE_COUNT_HTTP_CLIENT_RESPONSE() do { } while (false)
-#define NODE_COUNT_HTTP_SERVER_REQUEST() do { } while (false)
-#define NODE_COUNT_HTTP_SERVER_RESPONSE() do { } while (false)
-#define NODE_COUNT_NET_BYTES_RECV(bytes) do { } while (false)
-#define NODE_COUNT_NET_BYTES_SENT(bytes) do { } while (false)
-#define NODE_COUNT_PIPE_BYTES_RECV(bytes) do { } while (false)
-#define NODE_COUNT_PIPE_BYTES_SENT(bytes) do { } while (false)
-#define NODE_COUNT_SERVER_CONN_CLOSE() do { } while (false)
-#define NODE_COUNT_SERVER_CONN_OPEN() do { } while (false)
+#define NODE_COUNT_GC_PERCENTTIME(percent)                                     \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_GET_GC_RAWTIME()                                            \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_HTTP_CLIENT_REQUEST()                                       \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_HTTP_CLIENT_RESPONSE()                                      \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_HTTP_SERVER_REQUEST()                                       \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_HTTP_SERVER_RESPONSE()                                      \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_NET_BYTES_RECV(bytes)                                       \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_NET_BYTES_SENT(bytes)                                       \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_PIPE_BYTES_RECV(bytes)                                      \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_PIPE_BYTES_SENT(bytes)                                      \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_SERVER_CONN_CLOSE()                                         \
+  do {                                                                         \
+  } while (false)
+#define NODE_COUNT_SERVER_CONN_OPEN()                                          \
+  do {                                                                         \
+  } while (false)
 #endif
 
-#include "v8.h"
 #include "env.h"
+#include "v8.h"
 
 namespace node {
 

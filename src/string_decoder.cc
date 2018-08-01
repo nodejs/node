@@ -1,7 +1,7 @@
-#include "string_decoder-inl.h"
-#include "string_bytes.h"
-#include "node_internals.h"
 #include "node_buffer.h"
+#include "node_internals.h"
+#include "string_bytes.h"
+#include "string_decoder-inl.h"
 
 using v8::Array;
 using v8::Context;
@@ -26,27 +26,16 @@ MaybeLocal<String> MakeString(Isolate* isolate,
   MaybeLocal<Value> ret;
   if (encoding == UTF8) {
     return String::NewFromUtf8(
-        isolate,
-        data,
-        v8::NewStringType::kNormal,
-        length);
+        isolate, data, v8::NewStringType::kNormal, length);
   } else if (encoding == UCS2) {
 #ifdef DEBUG
     CHECK_EQ(reinterpret_cast<uintptr_t>(data) % 2, 0);
     CHECK_EQ(length % 2, 0);
 #endif
     ret = StringBytes::Encode(
-        isolate,
-        reinterpret_cast<const uint16_t*>(data),
-        length / 2,
-        &error);
+        isolate, reinterpret_cast<const uint16_t*>(data), length / 2, &error);
   } else {
-    ret = StringBytes::Encode(
-        isolate,
-        data,
-        length,
-        encoding,
-        &error);
+    ret = StringBytes::Encode(isolate, data, length, encoding, &error);
   }
 
   if (ret.IsEmpty()) {
@@ -62,7 +51,6 @@ MaybeLocal<String> MakeString(Isolate* isolate,
 
 }  // anonymous namespace
 
-
 MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
                                              const char* data,
                                              size_t* nread_ptr) {
@@ -77,8 +65,7 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
     // main body.
     if (MissingBytes() > 0) {
       // There are never more bytes missing than the pre-calculated maximum.
-      CHECK_LE(MissingBytes() + BufferedBytes(),
-               kIncompleteCharactersEnd);
+      CHECK_LE(MissingBytes() + BufferedBytes(), kIncompleteCharactersEnd);
       if (Encoding() == UTF8) {
         // For UTF-8, we need special treatment to align with the V8 decoder:
         // If an incomplete character is found at a chunk boundary, we turn
@@ -98,11 +85,8 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
         }
       }
 
-      size_t found_bytes =
-          std::min(nread, static_cast<size_t>(MissingBytes()));
-      memcpy(IncompleteCharacterBuffer() + BufferedBytes(),
-             data,
-             found_bytes);
+      size_t found_bytes = std::min(nread, static_cast<size_t>(MissingBytes()));
+      memcpy(IncompleteCharacterBuffer() + BufferedBytes(), data, found_bytes);
       // Adjust the two buffers.
       data += found_bytes;
       nread -= found_bytes;
@@ -116,7 +100,8 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
         if (!MakeString(isolate,
                         IncompleteCharacterBuffer(),
                         BufferedBytes(),
-                        Encoding()).ToLocal(&prepend)) {
+                        Encoding())
+                 .ToLocal(&prepend)) {
           return MaybeLocal<String>();
         }
 
@@ -144,7 +129,7 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
         // This is UTF-8 encoded data and we ended on a non-ASCII UTF-8 byte.
         // This means we'll need to figure out where the character to which
         // the byte belongs begins.
-        for (size_t i = nread - 1; ; --i) {
+        for (size_t i = nread - 1;; --i) {
 #ifdef DEBUG
           CHECK_LT(i, nread);
 #endif
@@ -246,14 +231,10 @@ MaybeLocal<String> StringDecoder::FlushData(Isolate* isolate) {
     state_[kBufferedBytes]--;
   }
 
-  if (BufferedBytes() == 0)
-    return String::Empty(isolate);
+  if (BufferedBytes() == 0) return String::Empty(isolate);
 
-  MaybeLocal<String> ret =
-      MakeString(isolate,
-                 IncompleteCharacterBuffer(),
-                 BufferedBytes(),
-                 Encoding());
+  MaybeLocal<String> ret = MakeString(
+      isolate, IncompleteCharacterBuffer(), BufferedBytes(), Encoding());
 
   state_[kMissingBytes] = 0;
   state_[kBufferedBytes] = 0;
@@ -270,8 +251,7 @@ void DecodeData(const FunctionCallbackInfo<Value>& args) {
   size_t nread = Buffer::Length(args[1]);
   MaybeLocal<String> ret =
       decoder->DecodeData(args.GetIsolate(), Buffer::Data(args[1]), &nread);
-  if (!ret.IsEmpty())
-    args.GetReturnValue().Set(ret.ToLocalChecked());
+  if (!ret.IsEmpty()) args.GetReturnValue().Set(ret.ToLocalChecked());
 }
 
 void FlushData(const FunctionCallbackInfo<Value>& args) {
@@ -279,8 +259,7 @@ void FlushData(const FunctionCallbackInfo<Value>& args) {
       reinterpret_cast<StringDecoder*>(Buffer::Data(args[0]));
   CHECK_NOT_NULL(decoder);
   MaybeLocal<String> ret = decoder->FlushData(args.GetIsolate());
-  if (!ret.IsEmpty())
-    args.GetReturnValue().Set(ret.ToLocalChecked());
+  if (!ret.IsEmpty()) args.GetReturnValue().Set(ret.ToLocalChecked());
 }
 
 void InitializeStringDecoder(Local<Object> target,
@@ -289,10 +268,12 @@ void InitializeStringDecoder(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-#define SET_DECODER_CONSTANT(name)                                            \
-  target->Set(context,                                                        \
-              FIXED_ONE_BYTE_STRING(isolate, #name),                          \
-              Integer::New(isolate, StringDecoder::name)).FromJust()
+#define SET_DECODER_CONSTANT(name)                                             \
+  target                                                                       \
+      ->Set(context,                                                           \
+            FIXED_ONE_BYTE_STRING(isolate, #name),                             \
+            Integer::New(isolate, StringDecoder::name))                        \
+      .FromJust()
 
   SET_DECODER_CONSTANT(kIncompleteCharactersStart);
   SET_DECODER_CONSTANT(kIncompleteCharactersEnd);
@@ -302,10 +283,12 @@ void InitializeStringDecoder(Local<Object> target,
   SET_DECODER_CONSTANT(kNumFields);
 
   Local<Array> encodings = Array::New(isolate);
-#define ADD_TO_ENCODINGS_ARRAY(cname, jsname)                                 \
-  encodings->Set(context,                                                     \
-                 static_cast<int32_t>(cname),                                 \
-                 FIXED_ONE_BYTE_STRING(isolate, jsname)).FromJust()
+#define ADD_TO_ENCODINGS_ARRAY(cname, jsname)                                  \
+  encodings                                                                    \
+      ->Set(context,                                                           \
+            static_cast<int32_t>(cname),                                       \
+            FIXED_ONE_BYTE_STRING(isolate, jsname))                            \
+      .FromJust()
   ADD_TO_ENCODINGS_ARRAY(ASCII, "ascii");
   ADD_TO_ENCODINGS_ARRAY(UTF8, "utf8");
   ADD_TO_ENCODINGS_ARRAY(BASE64, "base64");
@@ -314,13 +297,14 @@ void InitializeStringDecoder(Local<Object> target,
   ADD_TO_ENCODINGS_ARRAY(BUFFER, "buffer");
   ADD_TO_ENCODINGS_ARRAY(LATIN1, "latin1");
 
-  target->Set(context,
-              FIXED_ONE_BYTE_STRING(isolate, "encodings"),
-              encodings).FromJust();
+  target->Set(context, FIXED_ONE_BYTE_STRING(isolate, "encodings"), encodings)
+      .FromJust();
 
-  target->Set(context,
-              FIXED_ONE_BYTE_STRING(isolate, "kSize"),
-              Integer::New(isolate, sizeof(StringDecoder))).FromJust();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "kSize"),
+            Integer::New(isolate, sizeof(StringDecoder)))
+      .FromJust();
 
   env->SetMethod(target, "decode", DecodeData);
   env->SetMethod(target, "flush", FlushData);

@@ -1,10 +1,10 @@
 #ifndef SRC_NODE_PLATFORM_H_
 #define SRC_NODE_PLATFORM_H_
 
+#include <functional>
 #include <queue>
 #include <unordered_map>
 #include <vector>
-#include <functional>
 
 #include "libplatform/libplatform.h"
 #include "node.h"
@@ -48,9 +48,9 @@ struct DelayedTask {
 };
 
 // This acts as the foreground task runner for a given Isolate.
-class PerIsolatePlatformData :
-    public v8::TaskRunner,
-    public std::enable_shared_from_this<PerIsolatePlatformData> {
+class PerIsolatePlatformData
+    : public v8::TaskRunner,
+      public std::enable_shared_from_this<PerIsolatePlatformData> {
  public:
   PerIsolatePlatformData(v8::Isolate* isolate, uv_loop_t* loop);
   ~PerIsolatePlatformData();
@@ -99,8 +99,7 @@ class WorkerThreadsTaskRunner {
   explicit WorkerThreadsTaskRunner(int thread_pool_size);
 
   void PostTask(std::unique_ptr<v8::Task> task);
-  void PostDelayedTask(std::unique_ptr<v8::Task> task,
-                       double delay_in_seconds);
+  void PostDelayedTask(std::unique_ptr<v8::Task> task, double delay_in_seconds);
 
   void BlockingDrain();
   void Shutdown();
@@ -127,7 +126,8 @@ class NodePlatform : public MultiIsolatePlatform {
   void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
                                  double delay_in_seconds) override;
   void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override;
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, v8::Task* task,
+  void CallDelayedOnForegroundThread(v8::Isolate* isolate,
+                                     v8::Task* task,
                                      double delay_in_seconds) override;
   bool IdleTasksEnabled(v8::Isolate* isolate) override;
   double MonotonicallyIncreasingTime() override;
@@ -145,8 +145,8 @@ class NodePlatform : public MultiIsolatePlatform {
   std::shared_ptr<PerIsolatePlatformData> ForIsolate(v8::Isolate* isolate);
 
   Mutex per_isolate_mutex_;
-  std::unordered_map<v8::Isolate*,
-                     std::shared_ptr<PerIsolatePlatformData>> per_isolate_;
+  std::unordered_map<v8::Isolate*, std::shared_ptr<PerIsolatePlatformData>>
+      per_isolate_;
 
   std::unique_ptr<v8::TracingController> tracing_controller_;
   std::shared_ptr<WorkerThreadsTaskRunner> worker_thread_task_runner_;

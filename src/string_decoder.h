@@ -47,4 +47,4 @@ class StringDecoder {
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#endif   // SRC_STRING_DECODER_H_
+#endif  // SRC_STRING_DECODER_H_

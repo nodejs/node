@@ -4,9 +4,9 @@
 
 #include "tracing/traced_value.h"
 
+#include <stdio.h>
 #include <cmath>
 #include <sstream>
-#include <stdio.h>
 #include <string>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -38,18 +38,33 @@ std::string EscapeString(const char* value) {
     UChar32 c;
     U8_NEXT_OR_FFFD(value, i, len, c);
     switch (c) {
-      case '\b': result += "\\b"; break;
-      case '\f': result += "\\f"; break;
-      case '\n': result += "\\n"; break;
-      case '\r': result += "\\r"; break;
-      case '\t': result += "\\t"; break;
-      case '\\': result += "\\\\"; break;
-      case '"': result += "\\\""; break;
+      case '\b':
+        result += "\\b";
+        break;
+      case '\f':
+        result += "\\f";
+        break;
+      case '\n':
+        result += "\\n";
+        break;
+      case '\r':
+        result += "\\r";
+        break;
+      case '\t':
+        result += "\\t";
+        break;
+      case '\\':
+        result += "\\\\";
+        break;
+      case '"':
+        result += "\\\"";
+        break;
       default:
         if (c < 32 || c > 126) {
-          snprintf(
-              number_buffer, arraysize(number_buffer), "\\u%04X",
-              static_cast<uint16_t>(static_cast<uint16_t>(c)));
+          snprintf(number_buffer,
+                   arraysize(number_buffer),
+                   "\\u%04X",
+                   static_cast<uint16_t>(static_cast<uint16_t>(c)));
           result += number_buffer;
         } else {
           result.append(value + p, i - p);
@@ -63,18 +78,33 @@ std::string EscapeString(const char* value) {
   while (*value) {
     char c = *value++;
     switch (c) {
-      case '\b': result += "\\b"; break;
-      case '\f': result += "\\f"; break;
-      case '\n': result += "\\n"; break;
-      case '\r': result += "\\r"; break;
-      case '\t': result += "\\t"; break;
-      case '\\': result += "\\\\"; break;
-      case '"': result += "\\\""; break;
+      case '\b':
+        result += "\\b";
+        break;
+      case '\f':
+        result += "\\f";
+        break;
+      case '\n':
+        result += "\\n";
+        break;
+      case '\r':
+        result += "\\r";
+        break;
+      case '\t':
+        result += "\\t";
+        break;
+      case '\\':
+        result += "\\\\";
+        break;
+      case '"':
+        result += "\\\"";
+        break;
       default:
         if (c < '\x20') {
-          snprintf(
-              number_buffer, arraysize(number_buffer), "\\u%04X",
-              static_cast<unsigned>(static_cast<unsigned char>(c)));
+          snprintf(number_buffer,
+                   arraysize(number_buffer),
+                   "\\u%04X",
+                   static_cast<unsigned>(static_cast<unsigned char>(c)));
           result += number_buffer;
         } else {
           result += c;
@@ -88,9 +118,12 @@ std::string EscapeString(const char* value) {
 
 std::string DoubleToCString(double v) {
   switch (FPCLASSIFY_NAMESPACE::fpclassify(v)) {
-    case FP_NAN: return "\"NaN\"";
-    case FP_INFINITE: return (v < 0.0 ? "\"-Infinity\"" : "\"Infinity\"");
-    case FP_ZERO: return "0";
+    case FP_NAN:
+      return "\"NaN\"";
+    case FP_INFINITE:
+      return (v < 0.0 ? "\"-Infinity\"" : "\"Infinity\"");
+    case FP_ZERO:
+      return "0";
     default:
       // This is a far less sophisticated version than the one used inside v8.
       std::ostringstream stream;
@@ -110,8 +143,8 @@ std::unique_ptr<TracedValue> TracedValue::CreateArray() {
   return std::unique_ptr<TracedValue>(new TracedValue(true));
 }
 
-TracedValue::TracedValue(bool root_is_array) :
-    first_item_(true), root_is_array_(root_is_array) {}
+TracedValue::TracedValue(bool root_is_array)
+    : first_item_(true), root_is_array_(root_is_array) {}
 
 TracedValue::~TracedValue() {}
 

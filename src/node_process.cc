@@ -1,6 +1,6 @@
+#include "env-inl.h"
 #include "node.h"
 #include "node_internals.h"
-#include "env-inl.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
@@ -16,13 +16,13 @@ typedef int mode_t;
 #else
 #include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
-#include <termios.h>  // tcgetattr, tcsetattr
-#include <unistd.h>  // setuid, getuid
+#include <termios.h>       // tcgetattr, tcsetattr
+#include <unistd.h>        // setuid, getuid
 #endif
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-#include <pwd.h>  // getpwnam()
 #include <grp.h>  // getgrnam()
+#include <pwd.h>  // getpwnam()
 #endif
 
 namespace node {
@@ -109,16 +109,14 @@ void Cwd(const FunctionCallbackInfo<Value>& args) {
   char buf[CHDIR_BUFSIZE];
   size_t cwd_len = sizeof(buf);
   int err = uv_cwd(buf, &cwd_len);
-  if (err)
-    return env->ThrowUVException(err, "uv_cwd");
+  if (err) return env->ThrowUVException(err, "uv_cwd");
 
-  Local<String> cwd = String::NewFromUtf8(env->isolate(),
-                                          buf,
-                                          v8::NewStringType::kNormal,
-                                          cwd_len).ToLocalChecked();
+  Local<String> cwd =
+      String::NewFromUtf8(
+          env->isolate(), buf, v8::NewStringType::kNormal, cwd_len)
+          .ToLocalChecked();
   args.GetReturnValue().Set(cwd);
 }
-
 
 // Hrtime exposes libuv's uv_hrtime() high-resolution timer.
 
@@ -151,8 +149,7 @@ void HrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
 void Kill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() != 2)
-    return env->ThrowError("Bad argument.");
+  if (args.Length() != 2) return env->ThrowError("Bad argument.");
 
   int pid = args[0]->Int32Value();
   int sig = args[1]->Int32Value();
@@ -160,14 +157,12 @@ void Kill(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
 void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   size_t rss;
   int err = uv_resident_set_memory(&rss);
-  if (err)
-    return env->ThrowUVException(err, "uv_resident_set_memory");
+  if (err) return env->ThrowUVException(err, "uv_resident_set_memory");
 
   Isolate* isolate = env->isolate();
   // V8 memory usage
@@ -204,7 +199,6 @@ void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   env->StartProfilerIdleNotifier();
 }
 
-
 void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->StopProfilerIdleNotifier();
@@ -237,12 +231,10 @@ void Uptime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Number::New(env->isolate(), uptime / 1000));
 }
 
-
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 static const uid_t uid_not_found = static_cast<uid_t>(-1);
 static const gid_t gid_not_found = static_cast<gid_t>(-1);
-
 
 static uid_t uid_by_name(const char* name) {
   struct passwd pwd;
@@ -258,7 +250,6 @@ static uid_t uid_by_name(const char* name) {
   return uid_not_found;
 }
 
-
 static char* name_by_uid(uid_t uid) {
   struct passwd pwd;
   struct passwd* pp;
@@ -273,12 +264,10 @@ static char* name_by_uid(uid_t uid) {
     return strdup(pp->pw_name);
   }
 
-  if (rc == 0)
-    errno = ENOENT;
+  if (rc == 0) errno = ENOENT;
 
   return nullptr;
 }
-
 
 static gid_t gid_by_name(const char* name) {
   struct group pwd;
@@ -293,7 +282,6 @@ static gid_t gid_by_name(const char* name) {
 
   return gid_not_found;
 }
-
 
 #if 0  // For future use.
 static const char* name_by_gid(gid_t gid) {
@@ -317,7 +305,6 @@ static const char* name_by_gid(gid_t gid) {
 }
 #endif
 
-
 static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {
     return static_cast<uid_t>(value->Uint32Value());
@@ -326,7 +313,6 @@ static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
     return uid_by_name(*name);
   }
 }
-
 
 static gid_t gid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {
@@ -342,24 +328,20 @@ void GetUid(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(static_cast<uint32_t>(getuid()));
 }
 
-
 void GetGid(const FunctionCallbackInfo<Value>& args) {
   // gid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(getgid()));
 }
-
 
 void GetEUid(const FunctionCallbackInfo<Value>& args) {
   // uid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(geteuid()));
 }
 
-
 void GetEGid(const FunctionCallbackInfo<Value>& args) {
   // gid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(getegid()));
 }
-
 
 void SetGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -380,7 +362,6 @@ void SetGid(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-
 void SetEGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->is_main_thread());
@@ -399,7 +380,6 @@ void SetEGid(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(0);
   }
 }
-
 
 void SetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -420,7 +400,6 @@ void SetUid(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-
 void SetEUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->is_main_thread());
@@ -440,14 +419,12 @@ void SetEUid(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-
 void GetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   int ngroups = getgroups(0, nullptr);
 
-  if (ngroups == -1)
-    return env->ThrowErrnoException(errno, "getgroups");
+  if (ngroups == -1) return env->ThrowErrnoException(errno, "getgroups");
 
   gid_t* groups = new gid_t[ngroups];
 
@@ -464,8 +441,7 @@ void GetGroups(const FunctionCallbackInfo<Value>& args) {
 
   for (int i = 0; i < ngroups; i++) {
     groups_list->Set(i, Integer::New(env->isolate(), groups[i]));
-    if (groups[i] == egid)
-      seen_egid = true;
+    if (groups[i] == egid) seen_egid = true;
   }
 
   delete[] groups;
@@ -475,7 +451,6 @@ void GetGroups(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(groups_list);
 }
-
 
 void SetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -503,12 +478,10 @@ void SetGroups(const FunctionCallbackInfo<Value>& args) {
   int rc = setgroups(size, groups);
   delete[] groups;
 
-  if (rc == -1)
-    return env->ThrowErrnoException(errno, "setgroups");
+  if (rc == -1) return env->ThrowErrnoException(errno, "setgroups");
 
   args.GetReturnValue().Set(0);
 }
-
 
 void InitGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -538,19 +511,16 @@ void InitGroups(const FunctionCallbackInfo<Value>& args) {
   extra_group = gid_by_name(env->isolate(), args[1]);
 
   if (extra_group == gid_not_found) {
-    if (must_free)
-      free(user);
+    if (must_free) free(user);
     // Tells JS to throw ERR_INVALID_CREDENTIAL
     return args.GetReturnValue().Set(2);
   }
 
   int rc = initgroups(user, extra_group);
 
-  if (must_free)
-    free(user);
+  if (must_free) free(user);
 
-  if (rc)
-    return env->ThrowErrnoException(errno, "initgroups");
+  if (rc) return env->ThrowErrnoException(errno, "initgroups");
 
   args.GetReturnValue().Set(0);
 }

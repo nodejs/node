@@ -63,7 +63,7 @@ typedef struct {
 typedef struct {
   union {
     uint32_t version;
-    uintptr_t unused;  /* for compat. with old 64-bit struct */
+    uintptr_t unused; /* for compat. with old 64-bit struct */
   } _un;
   char* url;
   char* method;

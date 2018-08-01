@@ -26,11 +26,8 @@ class TracingController : public v8::platform::tracing::TracingController {
  public:
   TracingController() : v8::platform::tracing::TracingController() {}
 
-  int64_t CurrentTimestampMicroseconds() override {
-    return uv_hrtime() / 1000;
-  }
+  int64_t CurrentTimestampMicroseconds() override { return uv_hrtime() / 1000; }
 };
-
 
 class Agent {
  public:

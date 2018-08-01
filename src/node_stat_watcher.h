@@ -24,9 +24,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
-#include "handle_wrap.h"
 #include "env.h"
+#include "handle_wrap.h"
+#include "node.h"
 #include "uv.h"
 #include "v8.h"
 
@@ -37,9 +37,7 @@ class StatWatcher : public HandleWrap {
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
  protected:
-  StatWatcher(Environment* env,
-              v8::Local<v8::Object> wrap,
-              bool use_bigint);
+  StatWatcher(Environment* env, v8::Local<v8::Object> wrap, bool use_bigint);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);

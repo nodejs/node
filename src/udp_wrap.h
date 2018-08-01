@@ -32,11 +32,9 @@
 
 namespace node {
 
-class UDPWrap: public HandleWrap {
+class UDPWrap : public HandleWrap {
  public:
-  enum SocketType {
-    SOCKET
-  };
+  enum SocketType { SOCKET };
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);

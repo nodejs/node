@@ -3,12 +3,12 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <unordered_map>
+#include <uv.h>
+#include <limits>
 #include <queue>
 #include <stack>
 #include <string>
-#include <limits>
-#include <uv.h>
+#include <unordered_map>
 #include "aliased_buffer.h"
 #include "v8-profiler.h"
 
@@ -54,10 +54,10 @@ class MemoryTracker {
   inline void TrackField(const char* name, const std::queue<T>& value);
   template <typename T>
   inline void TrackField(const char* name, const std::basic_string<T>& value);
-  template <typename T, typename test_for_number =
-      typename std::enable_if<
-          std::numeric_limits<T>::is_specialized, bool>::type,
-      typename dummy = bool>
+  template <typename T,
+            typename test_for_number = typename std::
+                enable_if<std::numeric_limits<T>::is_specialized, bool>::type,
+            typename dummy = bool>
   inline void TrackField(const char* name, const T& value);
   template <typename T, typename U>
   inline void TrackField(const char* name, const std::pair<T, U>& value);
@@ -79,9 +79,8 @@ class MemoryTracker {
   inline v8::EmbedderGraph* graph() { return graph_; }
   inline v8::Isolate* isolate() { return isolate_; }
 
-  inline explicit MemoryTracker(v8::Isolate* isolate,
-                                v8::EmbedderGraph* graph)
-    : isolate_(isolate), graph_(graph) {}
+  inline explicit MemoryTracker(v8::Isolate* isolate, v8::EmbedderGraph* graph)
+      : isolate_(isolate), graph_(graph) {}
 
  private:
   typedef std::unordered_map<const MemoryRetainer*, MemoryRetainerNode*>

@@ -32,11 +32,7 @@ namespace node {
 
 class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
  public:
-  enum SocketType {
-    SOCKET,
-    SERVER,
-    IPC
-  };
+  enum SocketType { SOCKET, SERVER, IPC };
 
   static v8::Local<v8::Object> Instantiate(Environment* env,
                                            AsyncWrap* parent,
@@ -69,7 +65,6 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
 #endif
   static void Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
-
 
 }  // namespace node
 

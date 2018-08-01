@@ -1,7 +1,7 @@
 #include "tracing/node_trace_writer.h"
 
-#include <string.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include "util.h"
 
@@ -75,8 +75,12 @@ void NodeTraceWriter::OpenNewFileForStreaming() {
   replace_substring(&filepath, "${pid}", std::to_string(uv_os_getpid()));
   replace_substring(&filepath, "${rotation}", std::to_string(file_num_));
 
-  fd_ = uv_fs_open(tracing_loop_, &req, filepath.c_str(),
-      O_CREAT | O_WRONLY | O_TRUNC, 0644, nullptr);
+  fd_ = uv_fs_open(tracing_loop_,
+                   &req,
+                   filepath.c_str(),
+                   O_CREAT | O_WRONLY | O_TRUNC,
+                   0644,
+                   nullptr);
   CHECK_NE(fd_, -1);
   uv_fs_req_cleanup(&req);
 }
@@ -150,7 +154,7 @@ void NodeTraceWriter::WriteToFile(std::string&& str, int highest_request_id) {
   write_req->writer = this;
   write_req->highest_request_id = highest_request_id;
   uv_buf_t uv_buf = uv_buf_init(const_cast<char*>(write_req->str.c_str()),
-      write_req->str.length());
+                                write_req->str.length());
   request_mutex_.Lock();
   // Manage a queue of WriteRequest objects because the behavior of uv_write is
   // undefined if the same WriteRequest object is used more than once
@@ -158,8 +162,13 @@ void NodeTraceWriter::WriteToFile(std::string&& str, int highest_request_id) {
   // of the latest write request that actually been completed.
   write_req_queue_.push(write_req);
   request_mutex_.Unlock();
-  int err = uv_fs_write(tracing_loop_, reinterpret_cast<uv_fs_t*>(write_req),
-      fd_, &uv_buf, 1, -1, WriteCb);
+  int err = uv_fs_write(tracing_loop_,
+                        reinterpret_cast<uv_fs_t*>(write_req),
+                        fd_,
+                        &uv_buf,
+                        1,
+                        -1,
+                        WriteCb);
   CHECK_EQ(err, 0);
 }
 
@@ -186,12 +195,12 @@ void NodeTraceWriter::ExitSignalCb(uv_async_t* signal) {
            nullptr);
   uv_close(reinterpret_cast<uv_handle_t*>(&trace_writer->exit_signal_),
            [](uv_handle_t* signal) {
-      NodeTraceWriter* trace_writer =
-          static_cast<NodeTraceWriter*>(signal->data);
-      Mutex::ScopedLock scoped_lock(trace_writer->request_mutex_);
-      trace_writer->exited_ = true;
-      trace_writer->exit_cond_.Signal(scoped_lock);
-  });
+             NodeTraceWriter* trace_writer =
+                 static_cast<NodeTraceWriter*>(signal->data);
+             Mutex::ScopedLock scoped_lock(trace_writer->request_mutex_);
+             trace_writer->exited_ = true;
+             trace_writer->exit_cond_.Signal(scoped_lock);
+           });
 }
 
 }  // namespace tracing

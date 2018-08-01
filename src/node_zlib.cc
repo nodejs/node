@@ -94,7 +94,6 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     MakeWeak();
   }
 
-
   ~ZCtx() override {
     CHECK_EQ(false, write_in_progress_ && "write in progress");
     Close();
@@ -130,13 +129,11 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     }
   }
 
-
   static void Close(const FunctionCallbackInfo<Value>& args) {
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     ctx->Close();
   }
-
 
   // write(flush, in, in_off, in_len, out, out_off, out_len)
   template <bool async>
@@ -157,11 +154,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
     unsigned int flush = args[0]->Uint32Value();
 
-    if (flush != Z_NO_FLUSH &&
-        flush != Z_PARTIAL_FLUSH &&
-        flush != Z_SYNC_FLUSH &&
-        flush != Z_FULL_FLUSH &&
-        flush != Z_FINISH &&
+    if (flush != Z_NO_FLUSH && flush != Z_PARTIAL_FLUSH &&
+        flush != Z_SYNC_FLUSH && flush != Z_FULL_FLUSH && flush != Z_FINISH &&
         flush != Z_BLOCK) {
       CHECK(0 && "Invalid flush value");
     }
@@ -186,7 +180,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
       in_len = args[3]->Uint32Value();
 
       CHECK(Buffer::IsWithinBounds(in_off, in_len, Buffer::Length(in_buf)));
-      in = reinterpret_cast<Bytef *>(Buffer::Data(in_buf) + in_off);
+      in = reinterpret_cast<Bytef*>(Buffer::Data(in_buf) + in_off);
     }
 
     CHECK(Buffer::HasInstance(args[4]));
@@ -194,7 +188,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     out_off = args[5]->Uint32Value();
     out_len = args[6]->Uint32Value();
     CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
-    out = reinterpret_cast<Bytef *>(Buffer::Data(out_buf) + out_off);
+    out = reinterpret_cast<Bytef*>(Buffer::Data(out_buf) + out_off);
 
     ctx->strm_.avail_in = in_len;
     ctx->strm_.next_in = in;
@@ -287,8 +281,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
         // If data was encoded with dictionary (INFLATERAW will have it set in
         // SetDictionary, don't repeat that here)
-        if (mode_ != INFLATERAW &&
-            err_ == Z_NEED_DICT &&
+        if (mode_ != INFLATERAW && err_ == Z_NEED_DICT &&
             dictionary_ != nullptr) {
           // Load it
           err_ = inflateSetDictionary(&strm_, dictionary_, dictionary_len_);
@@ -303,9 +296,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
           }
         }
 
-        while (strm_.avail_in > 0 &&
-               mode_ == GUNZIP &&
-               err_ == Z_STREAM_END &&
+        while (strm_.avail_in > 0 && mode_ == GUNZIP && err_ == Z_STREAM_END &&
                strm_.next_in[0] != 0x00) {
           // Bytes remain in input buffer. Perhaps this is another compressed
           // member in the same archive, or just trailing garbage.
@@ -327,34 +318,32 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     // or shift the queue and call Process.
   }
 
-
   bool CheckError() {
     // Acceptable error states depend on the type of zlib stream.
     switch (err_) {
-    case Z_OK:
-    case Z_BUF_ERROR:
-      if (strm_.avail_out != 0 && flush_ == Z_FINISH) {
-        Error("unexpected end of file");
+      case Z_OK:
+      case Z_BUF_ERROR:
+        if (strm_.avail_out != 0 && flush_ == Z_FINISH) {
+          Error("unexpected end of file");
+          return false;
+        }
+      case Z_STREAM_END:
+        // normal statuses, not fatal
+        break;
+      case Z_NEED_DICT:
+        if (dictionary_ == nullptr)
+          Error("Missing dictionary");
+        else
+          Error("Bad dictionary");
         return false;
-      }
-    case Z_STREAM_END:
-      // normal statuses, not fatal
-      break;
-    case Z_NEED_DICT:
-      if (dictionary_ == nullptr)
-        Error("Missing dictionary");
-      else
-        Error("Bad dictionary");
-      return false;
-    default:
-      // something else.
-      Error("Zlib error");
-      return false;
+      default:
+        // something else.
+        Error("Zlib error");
+        return false;
     }
 
     return true;
   }
-
 
   // v8 land!
   void AfterThreadPoolWork(int status) override {
@@ -372,20 +361,18 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
 
-    if (!CheckError())
-      return;
+    if (!CheckError()) return;
 
     write_result_[0] = strm_.avail_out;
     write_result_[1] = strm_.avail_in;
 
     // call the write() cb
-    Local<Function> cb = PersistentToLocal(env()->isolate(),
-                                           write_js_callback_);
+    Local<Function> cb =
+        PersistentToLocal(env()->isolate(), write_js_callback_);
     MakeCallback(cb, 0, nullptr);
 
     Unref();
-    if (pending_close_)
-      Close();
+    if (pending_close_) Close();
   }
 
   // TODO(addaleax): Switch to modern error system (node_errors.h).
@@ -398,18 +385,14 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     }
 
     HandleScope scope(env()->isolate());
-    Local<Value> args[2] = {
-      OneByteString(env()->isolate(), message),
-      Number::New(env()->isolate(), err_)
-    };
+    Local<Value> args[2] = {OneByteString(env()->isolate(), message),
+                            Number::New(env()->isolate(), err_)};
     MakeCallback(env()->onerror_string(), arraysize(args), args);
 
     // no hope of rescue.
-    if (write_in_progress_)
-      Unref();
+    if (write_in_progress_) Unref();
     write_in_progress_ = false;
-    if (pending_close_)
-      Close();
+    if (pending_close_) Close();
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
@@ -425,15 +408,15 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     // Refs: https://github.com/nodejs/node/issues/14161
     if (args.Length() == 5) {
       fprintf(stderr,
-          "WARNING: You are likely using a version of node-tar or npm that "
-          "is incompatible with this version of Node.js.\nPlease use "
-          "either the version of npm that is bundled with Node.js, or "
-          "a version of npm (> 5.5.1 or < 5.4.0) or node-tar (> 4.0.1) "
-          "that is compatible with Node.js 9 and above.\n");
+              "WARNING: You are likely using a version of node-tar or npm that "
+              "is incompatible with this version of Node.js.\nPlease use "
+              "either the version of npm that is bundled with Node.js, or "
+              "a version of npm (> 5.5.1 or < 5.4.0) or node-tar (> 4.0.1) "
+              "that is compatible with Node.js 9 and above.\n");
     }
-    CHECK(args.Length() == 7 &&
-      "init(windowBits, level, memLevel, strategy, writeResult, writeCallback,"
-      " dictionary)");
+    CHECK(args.Length() == 7 && "init(windowBits, level, memLevel, strategy, "
+                                "writeResult, writeCallback,"
+                                " dictionary)");
 
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
@@ -442,28 +425,26 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     // But on the decompression side, a value of 0 for windowBits tells zlib
     // to use the window size in the zlib header of the compressed stream.
     int windowBits = args[0]->Uint32Value();
-    if (!((windowBits == 0) &&
-          (ctx->mode_ == INFLATE ||
-           ctx->mode_ == GUNZIP ||
-           ctx->mode_ == UNZIP))) {
-      CHECK((windowBits >= Z_MIN_WINDOWBITS &&
-             windowBits <= Z_MAX_WINDOWBITS) && "invalid windowBits");
+    if (!((windowBits == 0) && (ctx->mode_ == INFLATE || ctx->mode_ == GUNZIP ||
+                                ctx->mode_ == UNZIP))) {
+      CHECK(
+          (windowBits >= Z_MIN_WINDOWBITS && windowBits <= Z_MAX_WINDOWBITS) &&
+          "invalid windowBits");
     }
 
     int level = args[1]->Int32Value();
     CHECK((level >= Z_MIN_LEVEL && level <= Z_MAX_LEVEL) &&
-      "invalid compression level");
+          "invalid compression level");
 
     int memLevel = args[2]->Uint32Value();
     CHECK((memLevel >= Z_MIN_MEMLEVEL && memLevel <= Z_MAX_MEMLEVEL) &&
-      "invalid memlevel");
+          "invalid memlevel");
 
     int strategy = args[3]->Uint32Value();
-    CHECK((strategy == Z_FILTERED ||
-           strategy == Z_HUFFMAN_ONLY ||
-           strategy == Z_RLE ||
-           strategy == Z_FIXED ||
-           strategy == Z_DEFAULT_STRATEGY) && "invalid strategy");
+    CHECK((strategy == Z_FILTERED || strategy == Z_HUFFMAN_ONLY ||
+           strategy == Z_RLE || strategy == Z_FIXED ||
+           strategy == Z_DEFAULT_STRATEGY) &&
+          "invalid strategy");
 
     CHECK(args[4]->IsUint32Array());
     Local<Uint32Array> array = args[4].As<Uint32Array>();
@@ -482,13 +463,20 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
       memcpy(dictionary, dictionary_, dictionary_len);
     }
 
-    bool ret = Init(ctx, level, windowBits, memLevel, strategy, write_result,
-                    write_js_callback, dictionary, dictionary_len);
+    bool ret = Init(ctx,
+                    level,
+                    windowBits,
+                    memLevel,
+                    strategy,
+                    write_result,
+                    write_js_callback,
+                    dictionary,
+                    dictionary_len);
     if (!ret) goto end;
 
     ctx->SetDictionary();
 
-   end:
+  end:
     return args.GetReturnValue().Set(ret);
   }
 
@@ -499,16 +487,21 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     ctx->Params(args[0]->Int32Value(), args[1]->Int32Value());
   }
 
-  static void Reset(const FunctionCallbackInfo<Value> &args) {
+  static void Reset(const FunctionCallbackInfo<Value>& args) {
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     ctx->Reset();
     ctx->SetDictionary();
   }
 
-  static bool Init(ZCtx* ctx, int level, int windowBits, int memLevel,
-                   int strategy, uint32_t* write_result,
-                   Local<Function> write_js_callback, char* dictionary,
+  static bool Init(ZCtx* ctx,
+                   int level,
+                   int windowBits,
+                   int memLevel,
+                   int strategy,
+                   uint32_t* write_result,
+                   Local<Function> write_js_callback,
+                   char* dictionary,
                    size_t dictionary_len) {
     AllocScope alloc_scope(ctx);
     ctx->level_ = level;
@@ -557,7 +550,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
         UNREACHABLE();
     }
 
-    ctx->dictionary_ = reinterpret_cast<Bytef *>(dictionary);
+    ctx->dictionary_ = reinterpret_cast<Bytef*>(dictionary);
     ctx->dictionary_len_ = dictionary_len;
 
     ctx->write_in_progress_ = false;
@@ -578,8 +571,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   }
 
   void SetDictionary() {
-    if (dictionary_ == nullptr)
-      return;
+    if (dictionary_ == nullptr) return;
 
     err_ = Z_OK;
 
@@ -650,9 +642,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     tracker->TrackThis(this);
     tracker->TrackFieldWithSize("dictionary", dictionary_len_);
     tracker->TrackFieldWithSize("zlib memory",
-        zlib_memory_ + unreported_allocations_);
+                                zlib_memory_ + unreported_allocations_);
   }
-
 
   ADD_MEMORY_INFO_NAME(ZCtx)
 
@@ -678,9 +669,9 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   // field and later report it back from the main thread.
   static void* AllocForZlib(void* data, uInt items, uInt size) {
     ZCtx* ctx = static_cast<ZCtx*>(data);
-    size_t real_size =
-        MultiplyWithOverflowCheck(static_cast<size_t>(items),
-                                  static_cast<size_t>(size)) + sizeof(size_t);
+    size_t real_size = MultiplyWithOverflowCheck(static_cast<size_t>(items),
+                                                 static_cast<size_t>(size)) +
+                       sizeof(size_t);
     char* memory = UncheckedMalloc(real_size);
     if (UNLIKELY(memory == nullptr)) return nullptr;
     *reinterpret_cast<size_t*>(memory) = real_size;
@@ -736,7 +727,6 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   std::atomic<ssize_t> unreported_allocations_{0};
   size_t zlib_memory_ = 0;
 };
-
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,

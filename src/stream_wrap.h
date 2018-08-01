@@ -56,22 +56,16 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
               size_t count,
               uv_stream_t* send_handle) override;
 
-  inline uv_stream_t* stream() const {
-    return stream_;
-  }
+  inline uv_stream_t* stream() const { return stream_; }
 
-  inline bool is_named_pipe() const {
-    return stream()->type == UV_NAMED_PIPE;
-  }
+  inline bool is_named_pipe() const { return stream()->type == UV_NAMED_PIPE; }
 
   inline bool is_named_pipe_ipc() const {
     return is_named_pipe() &&
            reinterpret_cast<const uv_pipe_t*>(stream())->ipc != 0;
   }
 
-  inline bool is_tcp() const {
-    return stream()->type == UV_TCP;
-  }
+  inline bool is_tcp() const { return stream()->type == UV_TCP; }
 
   ShutdownWrap* CreateShutdownWrap(v8::Local<v8::Object> object) override;
   WriteWrap* CreateWriteWrap(v8::Local<v8::Object> object) override;
@@ -93,7 +87,6 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
     fd_ = fd;
 #endif
   }
-
 
  private:
   static void GetWriteQueueSize(
@@ -119,7 +112,6 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   int fd_ = -1;
 #endif
 };
-
 
 }  // namespace node
 

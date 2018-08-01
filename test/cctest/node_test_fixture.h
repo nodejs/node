@@ -2,19 +2,19 @@
 #define TEST_CCTEST_NODE_TEST_FIXTURE_H_
 
 #include <stdlib.h>
-#include "gtest/gtest.h"
-#include "node.h"
-#include "node_platform.h"
-#include "node_internals.h"
 #include "env.h"
-#include "v8.h"
+#include "gtest/gtest.h"
 #include "libplatform/libplatform.h"
+#include "node.h"
+#include "node_internals.h"
+#include "node_platform.h"
+#include "v8.h"
 
 struct Argv {
  public:
   Argv() : Argv({"node", "-p", "process.version"}) {}
 
-  Argv(const std::initializer_list<const char*> &args) {
+  Argv(const std::initializer_list<const char*>& args) {
     nr_args_ = args.size();
     int total_len = 0;
     for (auto it = args.begin(); it != args.end(); ++it) {
@@ -40,21 +40,18 @@ struct Argv {
     free(argv_);
   }
 
-  int nr_args() const {
-    return nr_args_;
-  }
+  int nr_args() const { return nr_args_; }
 
-  char** operator*() const {
-    return argv_;
-  }
+  char** operator*() const { return argv_; }
 
  private:
   char** argv_;
   int nr_args_;
 };
 
-using ArrayBufferUniquePtr = std::unique_ptr<node::ArrayBufferAllocator,
-      decltype(&node::FreeArrayBufferAllocator)>;
+using ArrayBufferUniquePtr =
+    std::unique_ptr<node::ArrayBufferAllocator,
+                    decltype(&node::FreeArrayBufferAllocator)>;
 using TracingControllerUniquePtr = std::unique_ptr<v8::TracingController>;
 using NodePlatformUniquePtr = std::unique_ptr<node::NodePlatform>;
 
@@ -98,7 +95,6 @@ class NodeTestFixture : public ::testing::Test {
   }
 };
 
-
 class EnvironmentTestFixture : public NodeTestFixture {
  public:
   class Env {
@@ -109,14 +105,11 @@ class EnvironmentTestFixture : public NodeTestFixture {
       CHECK(!context_.IsEmpty());
       context_->Enter();
 
-      isolate_data_ = node::CreateIsolateData(isolate,
-                                              &NodeTestFixture::current_loop,
-                                              platform.get());
+      isolate_data_ = node::CreateIsolateData(
+          isolate, &NodeTestFixture::current_loop, platform.get());
       CHECK_NE(nullptr, isolate_data_);
-      environment_ = node::CreateEnvironment(isolate_data_,
-                                             context_,
-                                             1, *argv,
-                                             argv.nr_args(), *argv);
+      environment_ = node::CreateEnvironment(
+          isolate_data_, context_, 1, *argv, argv.nr_args(), *argv);
       CHECK_NE(nullptr, environment_);
     }
 
@@ -126,13 +119,9 @@ class EnvironmentTestFixture : public NodeTestFixture {
       context_->Exit();
     }
 
-    node::Environment* operator*() const {
-      return environment_;
-    }
+    node::Environment* operator*() const { return environment_; }
 
-    v8::Local<v8::Context> context()  const {
-      return context_;
-    }
+    v8::Local<v8::Context> context() const { return context_; }
 
    private:
     v8::Local<v8::Context> context_;

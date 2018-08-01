@@ -1,5 +1,5 @@
-#include "node_internals.h"
 #include "env.h"
+#include "node_internals.h"
 
 using v8::Array;
 using v8::Boolean;
@@ -62,10 +62,9 @@ class JSGraph : public EmbedderGraph {
   explicit JSGraph(Isolate* isolate) : isolate_(isolate) {}
 
   Node* V8Node(const Local<Value>& value) override {
-    std::unique_ptr<JSGraphJSNode> n { new JSGraphJSNode(isolate_, value) };
+    std::unique_ptr<JSGraphJSNode> n{new JSGraphJSNode(isolate_, value)};
     auto it = engine_nodes_.find(n.get());
-    if (it != engine_nodes_.end())
-      return *it;
+    if (it != engine_nodes_.end()) return *it;
     engine_nodes_.insert(n.get());
     return AddNode(std::unique_ptr<Node>(n.release()));
   }
@@ -76,9 +75,7 @@ class JSGraph : public EmbedderGraph {
     return n;
   }
 
-  void AddEdge(Node* from, Node* to) override {
-    edges_[from].insert(to);
-  }
+  void AddEdge(Node* from, Node* to) override { edges_[from].insert(to); }
 
   MaybeLocal<Array> CreateObject() const {
     EscapableHandleScope handle_scope(isolate_);
@@ -102,15 +99,19 @@ class JSGraph : public EmbedderGraph {
       for (const std::unique_ptr<Node>& n : nodes_) {
         Local<Object> obj = info_objects[n.get()];
         Local<Value> value;
-        if (!String::NewFromUtf8(isolate_, n->Name(),
-                                 v8::NewStringType::kNormal).ToLocal(&value) ||
+        if (!String::NewFromUtf8(
+                 isolate_, n->Name(), v8::NewStringType::kNormal)
+                 .ToLocal(&value) ||
             obj->Set(context, name_string, value).IsNothing() ||
-            obj->Set(context, is_root_string,
-                     Boolean::New(isolate_, n->IsRootNode())).IsNothing() ||
-            obj->Set(context, size_string,
-                     Number::New(isolate_, n->SizeInBytes())).IsNothing() ||
-            obj->Set(context, edges_string,
-                     Array::New(isolate_)).IsNothing()) {
+            obj->Set(context,
+                     is_root_string,
+                     Boolean::New(isolate_, n->IsRootNode()))
+                .IsNothing() ||
+            obj->Set(context,
+                     size_string,
+                     Number::New(isolate_, n->SizeInBytes()))
+                .IsNothing() ||
+            obj->Set(context, edges_string, Array::New(isolate_)).IsNothing()) {
           return MaybeLocal<Array>();
         }
         if (nodes->Set(context, i++, obj).IsNothing())
@@ -142,9 +143,9 @@ class JSGraph : public EmbedderGraph {
 
       size_t i = 0;
       for (Node* target : edge_info.second) {
-        if (edges.As<Array>()->Set(context,
-                                   i++,
-                                   info_objects[target]).IsNothing()) {
+        if (edges.As<Array>()
+                ->Set(context, i++, info_objects[target])
+                .IsNothing()) {
           return MaybeLocal<Array>();
         }
       }
@@ -166,10 +167,8 @@ void BuildEmbedderGraph(const FunctionCallbackInfo<Value>& args) {
   JSGraph graph(env->isolate());
   Environment::BuildEmbedderGraph(env->isolate(), &graph, env);
   Local<Array> ret;
-  if (graph.CreateObject().ToLocal(&ret))
-    args.GetReturnValue().Set(ret);
+  if (graph.CreateObject().ToLocal(&ret)) args.GetReturnValue().Set(ret);
 }
-
 
 class BufferOutputStream : public v8::OutputStream {
  public:
@@ -183,16 +182,14 @@ class BufferOutputStream : public v8::OutputStream {
   }
 
   Local<String> ToString(Isolate* isolate) {
-    return String::NewExternalOneByte(isolate,
-                                      buffer_.release()).ToLocalChecked();
+    return String::NewExternalOneByte(isolate, buffer_.release())
+        .ToLocalChecked();
   }
 
  private:
   class JSString : public String::ExternalOneByteStringResource {
    public:
-    void Append(char* data, size_t count) {
-      store_.append(data, count);
-    }
+    void Append(char* data, size_t count) { store_.append(data, count); }
 
     const char* data() const override { return store_.data(); }
     size_t length() const override { return store_.size(); }
@@ -211,8 +208,8 @@ void CreateHeapDump(const FunctionCallbackInfo<Value>& args) {
   snapshot->Serialize(&out, HeapSnapshot::kJSON);
   const_cast<HeapSnapshot*>(snapshot)->Delete();
   Local<Value> ret;
-  if (JSON::Parse(isolate->GetCurrentContext(),
-                  out.ToString(isolate)).ToLocal(&ret)) {
+  if (JSON::Parse(isolate->GetCurrentContext(), out.ToString(isolate))
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }

@@ -50,12 +50,12 @@ Japanese, it doesn't *claim* to have Japanese.
 
 */
 
-#include "string.h"
-#include "charstr.h"  // ICU internal header
-#include <unicode/ures.h>
-#include <unicode/udata.h>
-#include <unicode/putil.h>
 #include <stdio.h>
+#include <unicode/putil.h>
+#include <unicode/udata.h>
+#include <unicode/ures.h>
+#include "charstr.h"  // ICU internal header
+#include "string.h"
 
 const char* PROG = "iculslocs";
 const char* NAME = U_ICUDATA_NAME;  // assume ICU data
@@ -70,51 +70,44 @@ const char* locale = RES_INDEX;  // locale referring to our index
 
 void usage() {
   printf("Usage: %s [options]\n", PROG);
-  printf(
-      "This program lists and optionally regenerates the locale "
-      "manifests\n"
-      " in ICU 'res_index.res' files.\n");
-  printf(
-      "  -i ICUDATA  Set ICUDATA dir to ICUDATA.\n"
-      "    NOTE: this must be the first option given.\n");
+  printf("This program lists and optionally regenerates the locale "
+         "manifests\n"
+         " in ICU 'res_index.res' files.\n");
+  printf("  -i ICUDATA  Set ICUDATA dir to ICUDATA.\n"
+         "    NOTE: this must be the first option given.\n");
   printf("  -h          This Help\n");
   printf("  -v          Verbose Mode on\n");
   printf("  -l          List locales to stdout\n");
-  printf(
-      "               if Verbose mode, then missing (unopenable)"
-      "locales\n"
-      "               will be listed preceded by a '#'.\n");
-  printf(
-      "  -b res_index.txt  Write 'corrected' bundle "
-      "to res_index.txt\n"
-      "                    missing bundles will be "
-      "OMITTED\n");
-  printf(
-      "  -T TREE     Choose tree TREE\n"
-      "         (TREE should be one of: \n"
-      "    ROOT, brkitr, coll, curr, lang, rbnf, region, zone)\n");
+  printf("               if Verbose mode, then missing (unopenable)"
+         "locales\n"
+         "               will be listed preceded by a '#'.\n");
+  printf("  -b res_index.txt  Write 'corrected' bundle "
+         "to res_index.txt\n"
+         "                    missing bundles will be "
+         "OMITTED\n");
+  printf("  -T TREE     Choose tree TREE\n"
+         "         (TREE should be one of: \n"
+         "    ROOT, brkitr, coll, curr, lang, rbnf, region, zone)\n");
   // see ureslocs.h and elsewhere
-  printf(
-      "  -N NAME     Choose name NAME\n"
-      "         (default: '%s')\n",
-      U_ICUDATA_NAME);
-  printf(
-      "\nNOTE: for best results, this tool ought to be "
-      "linked against\n"
-      "stubdata. i.e. '%s -l' SHOULD return an error with "
-      " no data.\n",
-      PROG);
+  printf("  -N NAME     Choose name NAME\n"
+         "         (default: '%s')\n",
+         U_ICUDATA_NAME);
+  printf("\nNOTE: for best results, this tool ought to be "
+         "linked against\n"
+         "stubdata. i.e. '%s -l' SHOULD return an error with "
+         " no data.\n",
+         PROG);
 }
 
-#define ASSERT_SUCCESS(status, what)      \
-  if (U_FAILURE(*status)) {               \
-    printf("%s:%d: %s: ERROR: %s %s\n", \
-             __FILE__,                    \
-             __LINE__,                    \
-             PROG,                        \
-             u_errorName(*status),        \
-             what);                       \
-    return 1;                             \
+#define ASSERT_SUCCESS(status, what)                                           \
+  if (U_FAILURE(*status)) {                                                    \
+    printf("%s:%d: %s: ERROR: %s %s\n",                                        \
+           __FILE__,                                                           \
+           __LINE__,                                                           \
+           PROG,                                                               \
+           u_errorName(*status),                                               \
+           what);                                                              \
+    return 1;                                                                  \
   }
 
 /**
@@ -313,7 +306,7 @@ int list(const char* toBundle) {
     UBool exists;
     if (localeExists(key, &exists)) {
       if (bf != NULL) fclose(bf);  // NOLINT (readability/null_usage)
-      return 1;  // get out.
+      return 1;                    // get out.
     }
     if (exists) {
       validCount++;

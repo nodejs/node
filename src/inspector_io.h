@@ -6,13 +6,12 @@
 #include "node_mutex.h"
 #include "uv.h"
 
-#include <memory>
 #include <stddef.h>
+#include <memory>
 
 #if !HAVE_INSPECTOR
 #error("This header can only be used when inspector is enabled")
 #endif
-
 
 namespace v8_inspector {
 class StringBuffer;
@@ -24,7 +23,8 @@ namespace node {
 class Environment;
 namespace inspector {
 
-std::string FormatWsAddress(const std::string& host, int port,
+std::string FormatWsAddress(const std::string& host,
+                            int port,
                             const std::string& target_id,
                             bool include_protocol);
 
@@ -33,11 +33,7 @@ class MainThreadHandle;
 class RequestQueue;
 
 // kKill closes connections and stops the server, kStop only stops the server
-enum class TransportAction {
-  kKill,
-  kSendMessage,
-  kStop
-};
+enum class TransportAction { kKill, kSendMessage, kStop };
 
 class InspectorIo {
  public:
@@ -45,7 +41,8 @@ class InspectorIo {
   // bool Start();
   // Returns empty pointer if thread was not started
   static std::unique_ptr<InspectorIo> Start(
-      std::shared_ptr<MainThreadHandle> main_thread, const std::string& path,
+      std::shared_ptr<MainThreadHandle> main_thread,
+      const std::string& path,
       const DebugOptions& options);
 
   // Will block till the transport thread shuts down
@@ -58,7 +55,8 @@ class InspectorIo {
 
  private:
   InspectorIo(std::shared_ptr<MainThreadHandle> handle,
-              const std::string& path, const DebugOptions& options);
+              const std::string& path,
+              const DebugOptions& options);
 
   // Wrapper for agent->ThreadMain()
   static void ThreadMain(void* agent);

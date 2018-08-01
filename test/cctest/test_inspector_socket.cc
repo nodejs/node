@@ -1,5 +1,5 @@
-#include "inspector_socket.h"
 #include "gtest/gtest.h"
+#include "inspector_socket.h"
 
 #include <queue>
 
@@ -38,7 +38,7 @@ class Timeout {
 
   static void mark_done(uv_handle_t* timer) {
     Timeout* t = node::ContainerOf(&Timeout::timer_,
-        reinterpret_cast<uv_timer_t*>(timer));
+                                   reinterpret_cast<uv_timer_t*>(timer));
     t->done_ = true;
   }
 
@@ -98,14 +98,16 @@ static void assert_is_delegate(TestInspectorDelegate* d) {
 
 class TestInspectorDelegate : public InspectorSocket::Delegate {
  public:
-  using delegate_fn = void(*)(inspector_handshake_event, const std::string&,
-                              bool* should_continue);
+  using delegate_fn = void (*)(inspector_handshake_event,
+                               const std::string&,
+                               bool* should_continue);
 
-  TestInspectorDelegate() : inspector_ready(false),
-                            last_event(kInspectorHandshakeNoEvents),
-                            handshake_events(0),
-                            handshake_delegate_(stop_if_stop_path),
-                            fail_on_ws_frame_(false) { }
+  TestInspectorDelegate()
+      : inspector_ready(false),
+        last_event(kInspectorHandshakeNoEvents),
+        handshake_events(0),
+        handshake_delegate_(stop_if_stop_path),
+        fail_on_ws_frame_(false) {}
 
   ~TestInspectorDelegate() {
     assert_is_delegate(this);
@@ -116,7 +118,8 @@ class TestInspectorDelegate : public InspectorSocket::Delegate {
     process(kInspectorHandshakeHttpGet, path);
   }
 
-  void OnSocketUpgrade(const std::string& host, const std::string& path,
+  void OnSocketUpgrade(const std::string& host,
+                       const std::string& path,
                        const std::string& ws_key) override {
     ws_key_ = ws_key;
     process(kInspectorHandshakeUpgraded, path);
@@ -127,17 +130,13 @@ class TestInspectorDelegate : public InspectorSocket::Delegate {
     frames.push(buffer);
   }
 
-  void SetDelegate(delegate_fn d) {
-    handshake_delegate_ = d;
-  }
+  void SetDelegate(delegate_fn d) { handshake_delegate_ = d; }
 
   void SetInspector(InspectorSocket::Pointer inspector) {
     socket_ = std::move(inspector);
   }
 
-  void Write(const char* buf, size_t len) {
-    socket_->Write(buf, len);
-  }
+  void Write(const char* buf, size_t len) { socket_->Write(buf, len); }
 
   void ExpectReadError() {
     SPIN_WHILE(frames.empty() || !frames.back().empty());
@@ -160,17 +159,11 @@ class TestInspectorDelegate : public InspectorSocket::Delegate {
     }
   }
 
-  void FailOnWsFrame() {
-    fail_on_ws_frame_ = true;
-  }
+  void FailOnWsFrame() { fail_on_ws_frame_ = true; }
 
-  void WaitForDispose() {
-    SPIN_WHILE(delegate != nullptr);
-  }
+  void WaitForDispose() { SPIN_WHILE(delegate != nullptr); }
 
-  void Close() {
-    socket_.reset();
-  }
+  void Close() { socket_.reset(); }
 
   bool inspector_ready;
   std::string last_path;  // NOLINT(runtime/string)
@@ -180,7 +173,8 @@ class TestInspectorDelegate : public InspectorSocket::Delegate {
 
  private:
   static void stop_if_stop_path(enum inspector_handshake_event state,
-                              const std::string& path, bool* cont) {
+                                const std::string& path,
+                                bool* cont) {
     *cont = path.empty() || path != "/close";
   }
 
@@ -224,8 +218,7 @@ void TestInspectorDelegate::process(inspector_handshake_event event,
   bool should_continue = true;
   handshake_delegate_(event, path, &should_continue);
   if (should_continue) {
-    if (inspector_ready)
-      socket_->AcceptUpgrade(ws_key_);
+    if (inspector_ready) socket_->AcceptUpgrade(ws_key_);
   } else {
     socket_->CancelHandshake();
   }
@@ -235,13 +228,14 @@ static void on_new_connection(uv_stream_t* server, int status) {
   GTEST_ASSERT_EQ(0, status);
   connected = true;
   delegate = new TestInspectorDelegate();
-  delegate->SetInspector(
-      InspectorSocket::Accept(server,
-                              InspectorSocket::DelegatePointer(delegate)));
+  delegate->SetInspector(InspectorSocket::Accept(
+      server, InspectorSocket::DelegatePointer(delegate)));
   GTEST_ASSERT_NE(nullptr, delegate);
 }
 
-void write_done(uv_write_t* req, int status) { req->data = nullptr; }
+void write_done(uv_write_t* req, int status) {
+  req->data = nullptr;
+}
 
 static void do_write(const char* data, int len) {
   uv_write_t req;
@@ -251,13 +245,18 @@ static void do_write(const char* data, int len) {
   buf[0].base = const_cast<char*>(data);
   buf[0].len = len;
   GTEST_ASSERT_EQ(0,
-                  uv_write(&req, reinterpret_cast<uv_stream_t*>(&client_socket),
-                           buf, 1, write_done));
+                  uv_write(&req,
+                           reinterpret_cast<uv_stream_t*>(&client_socket),
+                           buf,
+                           1,
+                           write_done));
   SPIN_WHILE(req.data);
 }
 
-static void check_data_cb(read_expects* expectation, ssize_t nread,
-                          const uv_buf_t* buf, bool* retval) {
+static void check_data_cb(read_expects* expectation,
+                          ssize_t nread,
+                          const uv_buf_t* buf,
+                          bool* retval) {
   *retval = false;
   EXPECT_TRUE(nread >= 0 && nread != UV_EOF);
   ssize_t i;
@@ -267,7 +266,8 @@ static void check_data_cb(read_expects* expectation, ssize_t nread,
     c = expectation->expected[expectation->pos++];
     actual = buf->base[i];
     if (c != actual) {
-      fprintf(stderr, "Unexpected character at position %zd\n",
+      fprintf(stderr,
+              "Unexpected character at position %zd\n",
               expectation->pos - 1);
       GTEST_ASSERT_EQ(c, actual);
     }
@@ -280,7 +280,8 @@ static void check_data_cb(read_expects* expectation, ssize_t nread,
   }
 }
 
-static void check_data_cb(uv_stream_t* stream, ssize_t nread,
+static void check_data_cb(uv_stream_t* stream,
+                          ssize_t nread,
                           const uv_buf_t* buf) {
   bool retval = false;
   read_expects* expects = static_cast<read_expects*>(stream->data);
@@ -302,7 +303,8 @@ static read_expects prepare_expects(const char* data, size_t len) {
   return expectation;
 }
 
-static void fail_callback(uv_stream_t* stream, ssize_t nread,
+static void fail_callback(uv_stream_t* stream,
+                          ssize_t nread,
                           const uv_buf_t* buf) {
   if (nread < 0) {
     fprintf(stderr, "IO error: %s\n", uv_strerror(nread));
@@ -316,8 +318,7 @@ static void expect_nothing_on_client() {
   uv_stream_t* stream = reinterpret_cast<uv_stream_t*>(&client_socket);
   int err = uv_read_start(stream, buffer_alloc_cb, fail_callback);
   GTEST_ASSERT_EQ(0, err);
-  for (int i = 0; i < MAX_LOOP_ITERATIONS; i++)
-    uv_run(&loop, UV_RUN_NOWAIT);
+  for (int i = 0; i < MAX_LOOP_ITERATIONS; i++) uv_run(&loop, UV_RUN_NOWAIT);
   uv_read_stop(stream);
 }
 
@@ -325,7 +326,8 @@ static void expect_on_client(const char* data, size_t len) {
   read_expects expectation = prepare_expects(data, len);
   client_socket.data = &expectation;
   uv_read_start(reinterpret_cast<uv_stream_t*>(&client_socket),
-                buffer_alloc_cb, check_data_cb);
+                buffer_alloc_cb,
+                check_data_cb);
   SPIN_WHILE(!expectation.read_expected);
 }
 
@@ -363,13 +365,17 @@ class InspectorSocketTest : public ::testing::Test {
     uv_tcp_init(&loop, &client_socket);
     GTEST_ASSERT_EQ(0, uv_ip4_addr("127.0.0.1", PORT, &addr));
     uv_tcp_bind(&server, reinterpret_cast<const struct sockaddr*>(&addr), 0);
-    GTEST_ASSERT_EQ(0, uv_listen(reinterpret_cast<uv_stream_t*>(&server),
-                                 1, on_new_connection));
+    GTEST_ASSERT_EQ(
+        0,
+        uv_listen(
+            reinterpret_cast<uv_stream_t*>(&server), 1, on_new_connection));
     uv_connect_t connect;
     connect.data = nullptr;
-    GTEST_ASSERT_EQ(0, uv_tcp_connect(&connect, &client_socket,
-                                      reinterpret_cast<const sockaddr*>(&addr),
-                                      on_connection));
+    GTEST_ASSERT_EQ(0,
+                    uv_tcp_connect(&connect,
+                                   &client_socket,
+                                   reinterpret_cast<const sockaddr*>(&addr),
+                                   on_connection));
     uv_tcp_nodelay(&client_socket, 1);  // The buffering messes up the test
     SPIN_WHILE(!connect.data || !connected);
     really_close(reinterpret_cast<uv_handle_t*>(&server));
@@ -399,20 +405,28 @@ TEST_F(InspectorSocketTest, ReadsAndWritesInspectorMessage) {
   delegate->Write(SERVER_MESSAGE, sizeof(SERVER_MESSAGE) - 1);
   expect_on_client(CLIENT_FRAME, sizeof(CLIENT_FRAME));
 
-  const char SERVER_FRAME[] = {'\x81', '\x84', '\x7F', '\xC2', '\x66',
-                               '\x31', '\x4E', '\xF0', '\x55', '\x05'};
+  const char SERVER_FRAME[] = {'\x81',
+                               '\x84',
+                               '\x7F',
+                               '\xC2',
+                               '\x66',
+                               '\x31',
+                               '\x4E',
+                               '\xF0',
+                               '\x55',
+                               '\x05'};
   const char CLIENT_MESSAGE[] = "1234";
   do_write(SERVER_FRAME, sizeof(SERVER_FRAME));
   delegate->ExpectData(CLIENT_MESSAGE, sizeof(CLIENT_MESSAGE) - 1);
 
   // 3. Close
-  const char CLIENT_CLOSE_FRAME[] = {'\x88', '\x80', '\x2D',
-                                     '\x0E', '\x1E', '\xFA'};
+  const char CLIENT_CLOSE_FRAME[] = {
+      '\x88', '\x80', '\x2D', '\x0E', '\x1E', '\xFA'};
   const char SERVER_CLOSE_FRAME[] = {'\x88', '\x00'};
   do_write(CLIENT_CLOSE_FRAME, sizeof(CLIENT_CLOSE_FRAME));
   expect_on_client(SERVER_CLOSE_FRAME, sizeof(SERVER_CLOSE_FRAME));
-  GTEST_ASSERT_EQ(0, uv_is_active(
-                         reinterpret_cast<uv_handle_t*>(&client_socket)));
+  GTEST_ASSERT_EQ(0,
+                  uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)));
 }
 
 TEST_F(InspectorSocketTest, BufferEdgeCases) {
@@ -535,15 +549,23 @@ TEST_F(InspectorSocketTest, CanStopReadingFromInspector) {
   ASSERT_TRUE(delegate->inspector_ready);
 
   // 2. Brief exchange
-  const char SERVER_FRAME[] = {'\x81', '\x84', '\x7F', '\xC2', '\x66',
-                               '\x31', '\x4E', '\xF0', '\x55', '\x05'};
+  const char SERVER_FRAME[] = {'\x81',
+                               '\x84',
+                               '\x7F',
+                               '\xC2',
+                               '\x66',
+                               '\x31',
+                               '\x4E',
+                               '\xF0',
+                               '\x55',
+                               '\x05'};
   const char CLIENT_MESSAGE[] = "1234";
   do_write(SERVER_FRAME, sizeof(SERVER_FRAME));
   delegate->ExpectData(CLIENT_MESSAGE, sizeof(CLIENT_MESSAGE) - 1);
 
   do_write(SERVER_FRAME, sizeof(SERVER_FRAME));
-  GTEST_ASSERT_EQ(uv_is_active(
-                      reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
+  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)),
+                  0);
 }
 
 TEST_F(InspectorSocketTest, CloseDoesNotNotifyReadCallback) {
@@ -553,8 +575,8 @@ TEST_F(InspectorSocketTest, CloseDoesNotNotifyReadCallback) {
   delegate->Close();
   char CLOSE_FRAME[] = {'\x88', '\x00'};
   expect_on_client(CLOSE_FRAME, sizeof(CLOSE_FRAME));
-  const char CLIENT_CLOSE_FRAME[] = {'\x88', '\x80', '\x2D',
-                                     '\x0E', '\x1E', '\xFA'};
+  const char CLIENT_CLOSE_FRAME[] = {
+      '\x88', '\x80', '\x2D', '\x0E', '\x1E', '\xFA'};
   delegate->FailOnWsFrame();
   do_write(CLIENT_CLOSE_FRAME, sizeof(CLIENT_CLOSE_FRAME));
   SPIN_WHILE(delegate != nullptr);
@@ -566,8 +588,8 @@ TEST_F(InspectorSocketTest, CloseWorksWithoutReadEnabled) {
   delegate->Close();
   char CLOSE_FRAME[] = {'\x88', '\x00'};
   expect_on_client(CLOSE_FRAME, sizeof(CLOSE_FRAME));
-  const char CLIENT_CLOSE_FRAME[] = {'\x88', '\x80', '\x2D',
-                                     '\x0E', '\x1E', '\xFA'};
+  const char CLIENT_CLOSE_FRAME[] = {
+      '\x88', '\x80', '\x2D', '\x0E', '\x1E', '\xFA'};
   do_write(CLIENT_CLOSE_FRAME, sizeof(CLIENT_CLOSE_FRAME));
 }
 
@@ -588,27 +610,28 @@ static const char TEST_SUCCESS[] = "Test Success\n\n";
 static int ReportsHttpGet_eventsCount = 0;
 
 static void ReportsHttpGet_handshake(enum inspector_handshake_event state,
-                                     const std::string& path, bool* cont) {
+                                     const std::string& path,
+                                     bool* cont) {
   *cont = true;
   enum inspector_handshake_event expected_state = kInspectorHandshakeHttpGet;
   std::string expected_path;
   switch (delegate->handshake_events) {
-  case 1:
-    expected_path = "/some/path";
-    break;
-  case 2:
-    expected_path = "/respond/withtext";
-    delegate->Write(TEST_SUCCESS, sizeof(TEST_SUCCESS) - 1);
-    break;
-  case 3:
-    expected_path = "/some/path2";
-    break;
-  case 4:
-    expected_path = "/close";
-    *cont = false;
-    break;
-  default:
-    ASSERT_TRUE(false);
+    case 1:
+      expected_path = "/some/path";
+      break;
+    case 2:
+      expected_path = "/respond/withtext";
+      delegate->Write(TEST_SUCCESS, sizeof(TEST_SUCCESS) - 1);
+      break;
+    case 3:
+      expected_path = "/some/path2";
+      break;
+    case 4:
+      expected_path = "/close";
+      *cont = false;
+      break;
+    default:
+      ASSERT_TRUE(false);
   }
   EXPECT_EQ(expected_state, state);
   EXPECT_EQ(expected_path, path);
@@ -646,17 +669,16 @@ TEST_F(InspectorSocketTest, ReportsHttpGet) {
 
 static int HandshakeCanBeCanceled_eventCount = 0;
 
-static
-void HandshakeCanBeCanceled_handshake(enum inspector_handshake_event state,
-                                      const std::string& path, bool* cont) {
+static void HandshakeCanBeCanceled_handshake(
+    enum inspector_handshake_event state, const std::string& path, bool* cont) {
   switch (delegate->handshake_events - 1) {
-  case 0:
-    EXPECT_EQ(kInspectorHandshakeUpgraded, state);
-    EXPECT_EQ("/ws/path", path);
-    break;
-  default:
-    EXPECT_TRUE(false);
-    break;
+    case 0:
+      EXPECT_EQ(kInspectorHandshakeUpgraded, state);
+      EXPECT_EQ("/ws/path", path);
+      break;
+    default:
+      EXPECT_TRUE(false);
+      break;
   }
   *cont = false;
   HandshakeCanBeCanceled_eventCount = delegate->handshake_events;
@@ -673,21 +695,22 @@ TEST_F(InspectorSocketTest, HandshakeCanBeCanceled) {
 }
 
 static void GetThenHandshake_handshake(enum inspector_handshake_event state,
-                                       const std::string& path, bool* cont) {
+                                       const std::string& path,
+                                       bool* cont) {
   *cont = true;
   std::string expected_path = "/ws/path";
   switch (delegate->handshake_events - 1) {
-  case 0:
-    EXPECT_EQ(kInspectorHandshakeHttpGet, state);
-    expected_path = "/respond/withtext";
-    delegate->Write(TEST_SUCCESS, sizeof(TEST_SUCCESS) - 1);
-    break;
-  case 1:
-    EXPECT_EQ(kInspectorHandshakeUpgraded, state);
-    break;
-  default:
-    EXPECT_TRUE(false);
-    break;
+    case 0:
+      EXPECT_EQ(kInspectorHandshakeHttpGet, state);
+      expected_path = "/respond/withtext";
+      delegate->Write(TEST_SUCCESS, sizeof(TEST_SUCCESS) - 1);
+      break;
+    case 1:
+      EXPECT_EQ(kInspectorHandshakeUpgraded, state);
+      break;
+    default:
+      EXPECT_TRUE(false);
+      break;
   }
   EXPECT_EQ(expected_path, path);
 }
@@ -744,7 +767,8 @@ static void fill_message(std::string* buffer) {
 }
 
 static void mask_message(const std::string& message,
-                         char* buffer, const char mask[]) {
+                         char* buffer,
+                         const char mask[]) {
   const size_t mask_len = 4;
   for (size_t i = 0; i < message.size(); i += 1) {
     buffer[i] = message[i] ^ mask[i % mask_len];
@@ -763,10 +787,16 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   fill_message(&message);
 
   // 1000000 is 0xF4240 hex
-  const char EXPECTED_FRAME_HEADER[] = {
-    '\x81', '\x7f', '\x00', '\x00', '\x00', '\x00', '\x00', '\x0F',
-    '\x42', '\x40'
-  };
+  const char EXPECTED_FRAME_HEADER[] = {'\x81',
+                                        '\x7f',
+                                        '\x00',
+                                        '\x00',
+                                        '\x00',
+                                        '\x00',
+                                        '\x00',
+                                        '\x0F',
+                                        '\x42',
+                                        '\x40'};
   std::string expected(EXPECTED_FRAME_HEADER, sizeof(EXPECTED_FRAME_HEADER));
   expected.append(message);
 
@@ -775,10 +805,20 @@ TEST_F(InspectorSocketTest, Send1Mb) {
 
   char MASK[4] = {'W', 'h', 'O', 'a'};
 
-  const char FRAME_TO_SERVER_HEADER[] = {
-    '\x81', '\xff', '\x00', '\x00', '\x00', '\x00', '\x00', '\x0F',
-    '\x42', '\x40', MASK[0], MASK[1], MASK[2], MASK[3]
-  };
+  const char FRAME_TO_SERVER_HEADER[] = {'\x81',
+                                         '\xff',
+                                         '\x00',
+                                         '\x00',
+                                         '\x00',
+                                         '\x00',
+                                         '\x00',
+                                         '\x0F',
+                                         '\x42',
+                                         '\x40',
+                                         MASK[0],
+                                         MASK[1],
+                                         MASK[2],
+                                         MASK[3]};
 
   std::string outgoing(FRAME_TO_SERVER_HEADER, sizeof(FRAME_TO_SERVER_HEADER));
   outgoing.resize(outgoing.size() + message.size());
@@ -788,12 +828,12 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   delegate->ExpectData(&message[0], message.size());
 
   // 3. Close
-  const char CLIENT_CLOSE_FRAME[] = {'\x88', '\x80', '\x2D',
-                                     '\x0E', '\x1E', '\xFA'};
+  const char CLIENT_CLOSE_FRAME[] = {
+      '\x88', '\x80', '\x2D', '\x0E', '\x1E', '\xFA'};
   do_write(CLIENT_CLOSE_FRAME, sizeof(CLIENT_CLOSE_FRAME));
   expect_on_client(SERVER_CLOSE_FRAME, sizeof(SERVER_CLOSE_FRAME));
-  GTEST_ASSERT_EQ(0, uv_is_active(
-                         reinterpret_cast<uv_handle_t*>(&client_socket)));
+  GTEST_ASSERT_EQ(0,
+                  uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)));
 }
 
 TEST_F(InspectorSocketTest, ErrorCleansUpTheSocket) {
@@ -820,15 +860,16 @@ TEST_F(InspectorSocketTest, NoCloseResponseFromClient) {
   delegate->Close();
   expect_on_client(SERVER_CLOSE_FRAME, sizeof(SERVER_CLOSE_FRAME));
   uv_close(reinterpret_cast<uv_handle_t*>(&client_socket), nullptr);
-  GTEST_ASSERT_EQ(0, uv_is_active(
-                  reinterpret_cast<uv_handle_t*>(&client_socket)));
+  GTEST_ASSERT_EQ(0,
+                  uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)));
   delegate->WaitForDispose();
 }
 
 static bool delegate_called = false;
 
 void shouldnt_be_called(enum inspector_handshake_event state,
-                        const std::string& path, bool* cont) {
+                        const std::string& path,
+                        bool* cont) {
   delegate_called = true;
 }
 

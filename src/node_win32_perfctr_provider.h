@@ -25,16 +25,18 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #if defined(_MSC_VER)
-# define INLINE __forceinline
+#define INLINE __forceinline
 #else
-# define INLINE inline
+#define INLINE inline
 #endif
 
 namespace node {
 
 extern HANDLE NodeCounterProvider;
 
-INLINE bool NODE_COUNTER_ENABLED() { return NodeCounterProvider != nullptr; }
+INLINE bool NODE_COUNTER_ENABLED() {
+  return NodeCounterProvider != nullptr;
+}
 void NODE_COUNT_HTTP_SERVER_REQUEST();
 void NODE_COUNT_HTTP_SERVER_RESPONSE();
 void NODE_COUNT_HTTP_CLIENT_REQUEST();

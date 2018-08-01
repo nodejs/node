@@ -3,19 +3,16 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
 #include <vector>
-#include "node_url.h"
 #include "base_object-inl.h"
+#include "node_url.h"
 
 namespace node {
 namespace loader {
 
-enum PackageMainCheck : bool {
-    CheckMain = true,
-    IgnoreMain = false
-};
+enum PackageMainCheck : bool { CheckMain = true, IgnoreMain = false };
 
 v8::Maybe<url::URL> Resolve(Environment* env,
                             const std::string& specifier,
@@ -68,7 +65,6 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::String> specifier,
       v8::Local<v8::Module> referrer);
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
-
 
   Persistent<v8::Module> module_;
   Persistent<v8::String> url_;

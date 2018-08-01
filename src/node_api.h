@@ -1,8 +1,8 @@
 #ifndef SRC_NODE_API_H_
 #define SRC_NODE_API_H_
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "node_api_types.h"
 
 struct uv_loop_s;  // Forward declaration.
@@ -18,26 +18,27 @@ struct uv_loop_s;  // Forward declaration.
 #endif
 
 #ifdef _WIN32
-  #ifdef BUILDING_NODE_EXTENSION
-    #ifdef EXTERNAL_NAPI
-      // Building external N-API, or native module against external N-API
-      #define NAPI_EXTERN /* nothing */
-    #else
-      // Building native module against node with built-in N-API
-      #define NAPI_EXTERN __declspec(dllimport)
-    #endif
-  #else
-    // Building node with built-in N-API
-    #define NAPI_EXTERN __declspec(dllexport)
-  #endif
+#ifdef BUILDING_NODE_EXTENSION
+#ifdef EXTERNAL_NAPI
+                   // Building external N-API, or native module against external
+                   // N-API
+#define NAPI_EXTERN /* nothing */
 #else
-  #define NAPI_EXTERN /* nothing */
+                   // Building native module against node with built-in N-API
+#define NAPI_EXTERN __declspec(dllimport)
+#endif
+#else
+                   // Building node with built-in N-API
+#define NAPI_EXTERN __declspec(dllexport)
+#endif
+#else
+#define NAPI_EXTERN /* nothing */
 #endif
 
 #ifdef _WIN32
-# define NAPI_MODULE_EXPORT __declspec(dllexport)
+#define NAPI_MODULE_EXPORT __declspec(dllexport)
 #else
-# define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
+#define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 
 #ifdef __GNUC__
@@ -45,7 +46,6 @@ struct uv_loop_s;  // Forward declaration.
 #else
 #define NAPI_NO_RETURN
 #endif
-
 
 typedef napi_value (*napi_addon_register_func)(napi_env env,
                                                napi_value exports);
@@ -60,18 +60,18 @@ typedef struct {
   void* reserved[4];
 } napi_module;
 
-#define NAPI_MODULE_VERSION  1
+#define NAPI_MODULE_VERSION 1
 
 #if defined(_MSC_VER)
 #pragma section(".CRT$XCU", read)
-#define NAPI_C_CTOR(fn)                                                     \
-  static void __cdecl fn(void);                                             \
-  __declspec(dllexport, allocate(".CRT$XCU")) void(__cdecl * fn##_)(void) = \
-      fn;                                                                   \
+#define NAPI_C_CTOR(fn)                                                        \
+  static void __cdecl fn(void);                                                \
+  __declspec(dllexport, allocate(".CRT$XCU")) void(__cdecl * fn##_)(void) =    \
+      fn;                                                                      \
   static void __cdecl fn(void)
 #else
-#define NAPI_C_CTOR(fn)                              \
-  static void fn(void) __attribute__((constructor)); \
+#define NAPI_C_CTOR(fn)                                                        \
+  static void fn(void) __attribute__((constructor));                           \
   static void fn(void)
 #endif
 
@@ -83,44 +83,39 @@ typedef struct {
 #define EXTERN_C_END
 #endif
 
-#define NAPI_MODULE_X(modname, regfunc, priv, flags)                  \
-  EXTERN_C_START                                                      \
-    static napi_module _module =                                      \
-    {                                                                 \
-      NAPI_MODULE_VERSION,                                            \
-      flags,                                                          \
-      __FILE__,                                                       \
-      regfunc,                                                        \
-      #modname,                                                       \
-      priv,                                                           \
-      {0},                                                            \
-    };                                                                \
-    NAPI_C_CTOR(_register_ ## modname) {                              \
-      napi_module_register(&_module);                                 \
-    }                                                                 \
+#define NAPI_MODULE_X(modname, regfunc, priv, flags)                           \
+  EXTERN_C_START                                                               \
+  static napi_module _module = {                                               \
+      NAPI_MODULE_VERSION,                                                     \
+      flags,                                                                   \
+      __FILE__,                                                                \
+      regfunc,                                                                 \
+      #modname,                                                                \
+      priv,                                                                    \
+      {0},                                                                     \
+  };                                                                           \
+  NAPI_C_CTOR(_register_##modname) { napi_module_register(&_module); }         \
   EXTERN_C_END
 
-#define NAPI_MODULE(modname, regfunc)                                 \
+#define NAPI_MODULE(modname, regfunc)                                          \
   NAPI_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
 
 #define NAPI_MODULE_INITIALIZER_BASE napi_register_module_v
 
-#define NAPI_MODULE_INITIALIZER_X(base, version)                      \
-    NAPI_MODULE_INITIALIZER_X_HELPER(base, version)
+#define NAPI_MODULE_INITIALIZER_X(base, version)                               \
+  NAPI_MODULE_INITIALIZER_X_HELPER(base, version)
 #define NAPI_MODULE_INITIALIZER_X_HELPER(base, version) base##version
 
-#define NAPI_MODULE_INITIALIZER                                       \
-  NAPI_MODULE_INITIALIZER_X(NAPI_MODULE_INITIALIZER_BASE,             \
-      NAPI_MODULE_VERSION)
+#define NAPI_MODULE_INITIALIZER                                                \
+  NAPI_MODULE_INITIALIZER_X(NAPI_MODULE_INITIALIZER_BASE, NAPI_MODULE_VERSION)
 
-#define NAPI_MODULE_INIT()                                            \
-  EXTERN_C_START                                                      \
-  NAPI_MODULE_EXPORT napi_value                                       \
-  NAPI_MODULE_INITIALIZER(napi_env env, napi_value exports);          \
-  EXTERN_C_END                                                        \
-  NAPI_MODULE(NODE_GYP_MODULE_NAME, NAPI_MODULE_INITIALIZER)          \
-  napi_value NAPI_MODULE_INITIALIZER(napi_env env,                    \
-                                     napi_value exports)
+#define NAPI_MODULE_INIT()                                                     \
+  EXTERN_C_START                                                               \
+  NAPI_MODULE_EXPORT napi_value NAPI_MODULE_INITIALIZER(napi_env env,          \
+                                                        napi_value exports);   \
+  EXTERN_C_END                                                                 \
+  NAPI_MODULE(NODE_GYP_MODULE_NAME, NAPI_MODULE_INITIALIZER)                   \
+  napi_value NAPI_MODULE_INITIALIZER(napi_env env, napi_value exports)
 
 #define NAPI_AUTO_LENGTH SIZE_MAX
 
@@ -129,8 +124,7 @@ EXTERN_C_START
 NAPI_EXTERN void napi_module_register(napi_module* mod);
 
 NAPI_EXTERN napi_status
-napi_get_last_error_info(napi_env env,
-                         const napi_extended_error_info** result);
+napi_get_last_error_info(napi_env env, const napi_extended_error_info** result);
 
 NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location,
                                                  size_t location_len,
@@ -218,18 +212,12 @@ NAPI_EXTERN napi_status napi_get_value_bool(napi_env env,
                                             bool* result);
 
 // Copies LATIN-1 encoded bytes from a string into a buffer.
-NAPI_EXTERN napi_status napi_get_value_string_latin1(napi_env env,
-                                                     napi_value value,
-                                                     char* buf,
-                                                     size_t bufsize,
-                                                     size_t* result);
+NAPI_EXTERN napi_status napi_get_value_string_latin1(
+    napi_env env, napi_value value, char* buf, size_t bufsize, size_t* result);
 
 // Copies UTF-8 encoded bytes from a string into a buffer.
-NAPI_EXTERN napi_status napi_get_value_string_utf8(napi_env env,
-                                                   napi_value value,
-                                                   char* buf,
-                                                   size_t bufsize,
-                                                   size_t* result);
+NAPI_EXTERN napi_status napi_get_value_string_utf8(
+    napi_env env, napi_value value, char* buf, size_t bufsize, size_t* result);
 
 // Copies UTF-16 encoded bytes from a string into a buffer.
 NAPI_EXTERN napi_status napi_get_value_string_utf16(napi_env env,
@@ -281,17 +269,17 @@ NAPI_EXTERN napi_status napi_has_own_property(napi_env env,
                                               napi_value key,
                                               bool* result);
 NAPI_EXTERN napi_status napi_set_named_property(napi_env env,
-                                          napi_value object,
-                                          const char* utf8name,
-                                          napi_value value);
+                                                napi_value object,
+                                                const char* utf8name,
+                                                napi_value value);
 NAPI_EXTERN napi_status napi_has_named_property(napi_env env,
-                                          napi_value object,
-                                          const char* utf8name,
-                                          bool* result);
+                                                napi_value object,
+                                                const char* utf8name,
+                                                bool* result);
 NAPI_EXTERN napi_status napi_get_named_property(napi_env env,
-                                          napi_value object,
-                                          const char* utf8name,
-                                          napi_value* result);
+                                                napi_value object,
+                                                const char* utf8name,
+                                                napi_value* result);
 NAPI_EXTERN napi_status napi_set_element(napi_env env,
                                          napi_value object,
                                          uint32_t index,
@@ -432,12 +420,10 @@ NAPI_EXTERN napi_status napi_open_handle_scope(napi_env env,
                                                napi_handle_scope* result);
 NAPI_EXTERN napi_status napi_close_handle_scope(napi_env env,
                                                 napi_handle_scope scope);
-NAPI_EXTERN napi_status
-napi_open_escapable_handle_scope(napi_env env,
-                                 napi_escapable_handle_scope* result);
-NAPI_EXTERN napi_status
-napi_close_escapable_handle_scope(napi_env env,
-                                  napi_escapable_handle_scope scope);
+NAPI_EXTERN napi_status napi_open_escapable_handle_scope(
+    napi_env env, napi_escapable_handle_scope* result);
+NAPI_EXTERN napi_status napi_close_escapable_handle_scope(
+    napi_env env, napi_escapable_handle_scope scope);
 
 NAPI_EXTERN napi_status napi_escape_handle(napi_env env,
                                            napi_escapable_handle_scope scope,
@@ -450,11 +436,11 @@ NAPI_EXTERN napi_status napi_throw_error(napi_env env,
                                          const char* code,
                                          const char* msg);
 NAPI_EXTERN napi_status napi_throw_type_error(napi_env env,
-                                         const char* code,
-                                         const char* msg);
+                                              const char* code,
+                                              const char* msg);
 NAPI_EXTERN napi_status napi_throw_range_error(napi_env env,
-                                         const char* code,
-                                         const char* msg);
+                                               const char* code,
+                                               const char* msg);
 NAPI_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
                                       bool* result);
@@ -649,9 +635,8 @@ napi_create_threadsafe_function(napi_env env,
                                 napi_threadsafe_function_call_js call_js_cb,
                                 napi_threadsafe_function* result);
 
-NAPI_EXTERN napi_status
-napi_get_threadsafe_function_context(napi_threadsafe_function func,
-                                     void** result);
+NAPI_EXTERN napi_status napi_get_threadsafe_function_context(
+    napi_threadsafe_function func, void** result);
 
 NAPI_EXTERN napi_status
 napi_call_threadsafe_function(napi_threadsafe_function func,
@@ -661,9 +646,8 @@ napi_call_threadsafe_function(napi_threadsafe_function func,
 NAPI_EXTERN napi_status
 napi_acquire_threadsafe_function(napi_threadsafe_function func);
 
-NAPI_EXTERN napi_status
-napi_release_threadsafe_function(napi_threadsafe_function func,
-                                 napi_threadsafe_function_release_mode mode);
+NAPI_EXTERN napi_status napi_release_threadsafe_function(
+    napi_threadsafe_function func, napi_threadsafe_function_release_mode mode);
 
 NAPI_EXTERN napi_status
 napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func);

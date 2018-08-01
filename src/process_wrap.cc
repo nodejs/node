@@ -26,8 +26,8 @@
 #include "stream_base-inl.h"
 #include "util-inl.h"
 
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 namespace node {
 
@@ -117,9 +117,8 @@ class ProcessWrap : public HandleWrap {
         Local<Object> handle =
             stdio->Get(context, handle_key).ToLocalChecked().As<Object>();
         CHECK(!handle.IsEmpty());
-        options->stdio[i].data.stream =
-            reinterpret_cast<uv_stream_t*>(
-                Unwrap<PipeWrap>(handle)->UVHandle());
+        options->stdio[i].data.stream = reinterpret_cast<uv_stream_t*>(
+            Unwrap<PipeWrap>(handle)->UVHandle());
       } else if (type->Equals(env->wrap_string())) {
         Local<String> handle_key = env->handle_string();
         Local<Object> handle =
@@ -216,7 +215,7 @@ class ProcessWrap : public HandleWrap {
     if (!env_v.IsEmpty() && env_v->IsArray()) {
       Local<Array> env_opt = Local<Array>::Cast(env_v);
       int envc = env_opt->Length();
-      CHECK_GT(envc + 1, 0);  // Check for overflow.
+      CHECK_GT(envc + 1, 0);              // Check for overflow.
       options.env = new char*[envc + 1];  // Heap allocated to detect errors.
       for (int i = 0; i < envc; i++) {
         node::Utf8Value pair(env->isolate(),
@@ -260,19 +259,21 @@ class ProcessWrap : public HandleWrap {
 
     if (err == 0) {
       CHECK_EQ(wrap->process_.data, wrap);
-      wrap->object()->Set(context, env->pid_string(),
-                          Integer::New(env->isolate(),
-                                       wrap->process_.pid)).FromJust();
+      wrap->object()
+          ->Set(context,
+                env->pid_string(),
+                Integer::New(env->isolate(), wrap->process_.pid))
+          .FromJust();
     }
 
     if (options.args) {
       for (int i = 0; options.args[i]; i++) free(options.args[i]);
-      delete [] options.args;
+      delete[] options.args;
     }
 
     if (options.env) {
       for (int i = 0; options.env[i]; i++) free(options.env[i]);
-      delete [] options.env;
+      delete[] options.env;
     }
 
     delete[] options.stdio;
@@ -301,16 +302,14 @@ class ProcessWrap : public HandleWrap {
     Context::Scope context_scope(env->context());
 
     Local<Value> argv[] = {
-      Number::New(env->isolate(), static_cast<double>(exit_status)),
-      OneByteString(env->isolate(), signo_string(term_signal))
-    };
+        Number::New(env->isolate(), static_cast<double>(exit_status)),
+        OneByteString(env->isolate(), signo_string(term_signal))};
 
     wrap->MakeCallback(env->onexit_string(), arraysize(argv), argv);
   }
 
   uv_process_t process_;
 };
-
 
 }  // anonymous namespace
 }  // namespace node

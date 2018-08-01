@@ -1,10 +1,12 @@
-#include "util.h"
 #include "util-inl.h"
+#include "util.h"
 
 #include "gtest/gtest.h"
 
 TEST(UtilTest, ListHead) {
-  struct Item { node::ListNode<Item> node_; };
+  struct Item {
+    node::ListNode<Item> node_;
+  };
   typedef node::ListHead<Item, &Item::node_> List;
 
   List list;
@@ -90,11 +92,11 @@ TEST(UtilTest, ToLower) {
   EXPECT_EQ('a', ToLower('A'));
 }
 
-#define TEST_AND_FREE(expression)                                             \
-  do {                                                                        \
-    auto pointer = expression;                                                \
-    EXPECT_NE(nullptr, pointer);                                              \
-    free(pointer);                                                            \
+#define TEST_AND_FREE(expression)                                              \
+  do {                                                                         \
+    auto pointer = expression;                                                 \
+    EXPECT_NE(nullptr, pointer);                                               \
+    free(pointer);                                                             \
   } while (0)
 
 TEST(UtilTest, Malloc) {
@@ -152,8 +154,7 @@ static void MaybeStackBufferBasic() {
   EXPECT_EQ(&buf[0], *buf);
 
   /* Basic I/O */
-  for (size_t i = 0; i < buf.length(); i++)
-    buf[i] = static_cast<T>(i);
+  for (size_t i = 0; i < buf.length(); i++) buf[i] = static_cast<T>(i);
   for (size_t i = 0; i < buf.length(); i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
 
@@ -171,13 +172,11 @@ static void MaybeStackBufferBasic() {
   buf.AllocateSufficientStorage(buf.capacity() * 2);
   EXPECT_EQ(buf.capacity(), buf.length());
   EXPECT_TRUE(buf.IsAllocated());
-  for (size_t i = 0; i < old_length; i++)
-    EXPECT_EQ(static_cast<T>(i), buf[i]);
+  for (size_t i = 0; i < old_length; i++) EXPECT_EQ(static_cast<T>(i), buf[i]);
   EXPECT_EQ(0, buf[old_length]);
 
   /* SetLength() reduction and expansion */
-  for (size_t i = 0; i < buf.length(); i++)
-    buf[i] = static_cast<T>(i);
+  for (size_t i = 0; i < buf.length(); i++) buf[i] = static_cast<T>(i);
   buf.SetLength(10);
   for (size_t i = 0; i < buf.length(); i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
@@ -192,12 +191,10 @@ static void MaybeStackBufferBasic() {
   EXPECT_EQ(buf.capacity(), buf.length());
   EXPECT_EQ(static_cast<size_t>(old_capacity * 1.5), buf.length());
   EXPECT_TRUE(buf.IsAllocated());
-  for (size_t i = 0; i < old_length; i++)
-    EXPECT_EQ(static_cast<T>(i), buf[i]);
+  for (size_t i = 0; i < old_length; i++) EXPECT_EQ(static_cast<T>(i), buf[i]);
 
   /* Basic I/O on Realloc'd buffer */
-  for (size_t i = 0; i < buf.length(); i++)
-    buf[i] = static_cast<T>(i);
+  for (size_t i = 0; i < buf.length(); i++) buf[i] = static_cast<T>(i);
   for (size_t i = 0; i < buf.length(); i++)
     EXPECT_EQ(static_cast<T>(i), buf[i]);
 

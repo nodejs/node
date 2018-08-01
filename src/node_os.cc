@@ -26,20 +26,20 @@
 #include <string.h>
 
 #ifdef __MINGW32__
-# include <io.h>
+#include <io.h>
 #endif  // __MINGW32__
 
 #ifdef __POSIX__
-# include <limits.h>        // PATH_MAX on Solaris.
-# include <netdb.h>         // MAXHOSTNAMELEN on Solaris.
-# include <unistd.h>        // gethostname, sysconf
-# include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
-# include <sys/utsname.h>
-#endif  // __POSIX__
+#include <limits.h>     // PATH_MAX on Solaris.
+#include <netdb.h>      // MAXHOSTNAMELEN on Solaris.
+#include <sys/param.h>  // MAXHOSTNAMELEN on Linux and the BSDs.
+#include <sys/utsname.h>
+#include <unistd.h>  // gethostname, sysconf
+#endif               // __POSIX__
 
 // Add Windows fallback.
 #ifndef MAXHOSTNAMELEN
-# define MAXHOSTNAMELEN 256
+#define MAXHOSTNAMELEN 256
 #endif  // MAXHOSTNAMELEN
 
 namespace node {
@@ -61,7 +61,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-
 static void GetHostname(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   char buf[MAXHOSTNAMELEN + 1];
@@ -69,7 +68,7 @@ static void GetHostname(const FunctionCallbackInfo<Value>& args) {
   if (gethostname(buf, sizeof(buf))) {
 #ifdef __POSIX__
     int errorno = errno;
-#else  // __MINGW32__
+#else   // __MINGW32__
     int errorno = WSAGetLastError();
 #endif  // __POSIX__
     CHECK_GE(args.Length(), 1);
@@ -80,7 +79,6 @@ static void GetHostname(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), buf));
 }
-
 
 static void GetOSType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -94,13 +92,12 @@ static void GetOSType(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetUndefined();
   }
   rval = info.sysname;
-#else  // __MINGW32__
+#else   // __MINGW32__
   rval = "Windows_NT";
 #endif  // __POSIX__
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
 }
-
 
 static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -113,24 +110,22 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
     env->CollectExceptionInfo(args[args.Length() - 1], errno, "uname");
     return args.GetReturnValue().SetUndefined();
   }
-# ifdef _AIX
+#ifdef _AIX
   char release[256];
-  snprintf(release, sizeof(release),
-           "%s.%s", info.version, info.release);
+  snprintf(release, sizeof(release), "%s.%s", info.version, info.release);
   rval = release;
-# else
+#else
   rval = info.release;
-# endif
+#endif
 #else  // Windows
   char release[256];
   OSVERSIONINFOW info;
 
   info.dwOSVersionInfoSize = sizeof(info);
 
-  // Don't complain that GetVersionEx is deprecated; there is no alternative.
-  #pragma warning(suppress : 4996)
-  if (GetVersionExW(&info) == 0)
-    return;
+// Don't complain that GetVersionEx is deprecated; there is no alternative.
+#pragma warning(suppress : 4996)
+  if (GetVersionExW(&info) == 0) return;
 
   snprintf(release,
            sizeof(release),
@@ -144,15 +139,13 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
 }
 
-
 static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uv_cpu_info_t* cpu_infos;
   int count, i, field_idx;
 
   int err = uv_cpu_info(&cpu_infos, &count);
-  if (err)
-    return;
+  if (err) return;
 
   CHECK(args[0]->IsFunction());
   Local<Function> addfn = args[0].As<Function>();
@@ -195,30 +188,23 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(cpus);
 }
 
-
 static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
   double amount = uv_get_free_memory();
-  if (amount < 0)
-    return;
+  if (amount < 0) return;
   args.GetReturnValue().Set(amount);
 }
-
 
 static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
   double amount = uv_get_total_memory();
-  if (amount < 0)
-    return;
+  if (amount < 0) return;
   args.GetReturnValue().Set(amount);
 }
-
 
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
   double uptime;
   int err = uv_uptime(&uptime);
-  if (err == 0)
-    args.GetReturnValue().Set(uptime);
+  if (err == 0) args.GetReturnValue().Set(uptime);
 }
-
 
 static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsFloat64Array());
@@ -228,7 +214,6 @@ static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
   double* loadavg = static_cast<double*>(ab->GetContents().Data());
   uv_loadavg(loadavg);
 }
-
 
 static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -249,8 +234,8 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(ret);
   } else if (err) {
     CHECK_GE(args.Length(), 1);
-    env->CollectUVExceptionInfo(args[args.Length() - 1], errno,
-                                "uv_interface_addresses");
+    env->CollectUVExceptionInfo(
+        args[args.Length() - 1], errno, "uv_interface_addresses");
     return args.GetReturnValue().SetUndefined();
   }
 
@@ -262,8 +247,9 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     // to assume UTF8 as the default as well. It’s what people will expect if
     // they name the interface from any input that uses UTF-8, which should be
     // the most frequent case by far these days.)
-    name = String::NewFromUtf8(env->isolate(), raw_name,
-        v8::NewStringType::kNormal).ToLocalChecked();
+    name = String::NewFromUtf8(
+               env->isolate(), raw_name, v8::NewStringType::kNormal)
+               .ToLocalChecked();
 
     if (ret->Has(env->context(), name).FromJust()) {
       ifarr = Local<Array>::Cast(ret->Get(name));
@@ -318,7 +304,6 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-
 static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   char buf[PATH_MAX];
@@ -332,13 +317,11 @@ static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetUndefined();
   }
 
-  Local<String> home = String::NewFromUtf8(env->isolate(),
-                                           buf,
-                                           v8::NewStringType::kNormal,
-                                           len).ToLocalChecked();
+  Local<String> home =
+      String::NewFromUtf8(env->isolate(), buf, v8::NewStringType::kNormal, len)
+          .ToLocalChecked();
   args.GetReturnValue().Set(home);
 }
-
 
 static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -347,10 +330,9 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   if (args[0]->IsObject()) {
     Local<Object> options = args[0].As<Object>();
-    MaybeLocal<Value> maybe_encoding = options->Get(env->context(),
-                                                    env->encoding_string());
-    if (maybe_encoding.IsEmpty())
-      return;
+    MaybeLocal<Value> maybe_encoding =
+        options->Get(env->context(), env->encoding_string());
+    if (maybe_encoding.IsEmpty()) return;
 
     Local<Value> encoding_opt = maybe_encoding.ToLocalChecked();
     encoding = ParseEncoding(env->isolate(), encoding_opt, UTF8);
@@ -362,8 +344,8 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   if (err) {
     CHECK_GE(args.Length(), 2);
-    env->CollectUVExceptionInfo(args[args.Length() - 1], err,
-                                "uv_os_get_passwd");
+    env->CollectUVExceptionInfo(
+        args[args.Length() - 1], err, "uv_os_get_passwd");
     return args.GetReturnValue().SetUndefined();
   }
 
@@ -371,14 +353,10 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   Local<Value> uid = Number::New(env->isolate(), pwd.uid);
   Local<Value> gid = Number::New(env->isolate(), pwd.gid);
-  MaybeLocal<Value> username = StringBytes::Encode(env->isolate(),
-                                                   pwd.username,
-                                                   encoding,
-                                                   &error);
-  MaybeLocal<Value> homedir = StringBytes::Encode(env->isolate(),
-                                                  pwd.homedir,
-                                                  encoding,
-                                                  &error);
+  MaybeLocal<Value> username =
+      StringBytes::Encode(env->isolate(), pwd.username, encoding, &error);
+  MaybeLocal<Value> homedir =
+      StringBytes::Encode(env->isolate(), pwd.homedir, encoding, &error);
   MaybeLocal<Value> shell;
 
   if (pwd.shell == nullptr)
@@ -403,7 +381,6 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(entry);
 }
-
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,

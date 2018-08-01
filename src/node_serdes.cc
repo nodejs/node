@@ -1,7 +1,7 @@
-#include "node_internals.h"
+#include "base_object-inl.h"
 #include "node_buffer.h"
 #include "node_errors.h"
-#include "base_object-inl.h"
+#include "node_internals.h"
 
 namespace node {
 
@@ -27,11 +27,9 @@ using v8::ValueSerializer;
 
 namespace {
 
-class SerializerContext : public BaseObject,
-                          public ValueSerializer::Delegate {
+class SerializerContext : public BaseObject, public ValueSerializer::Delegate {
  public:
-  SerializerContext(Environment* env,
-                    Local<Object> wrap);
+  SerializerContext(Environment* env, Local<Object> wrap);
 
   ~SerializerContext() {}
 
@@ -98,24 +96,20 @@ class DeserializerContext : public BaseObject,
 };
 
 SerializerContext::SerializerContext(Environment* env, Local<Object> wrap)
-  : BaseObject(env, wrap),
-    serializer_(env->isolate(), this) {
+    : BaseObject(env, wrap), serializer_(env->isolate(), this) {
   MakeWeak();
 }
 
 void SerializerContext::ThrowDataCloneError(Local<String> message) {
-  Local<Value> args[1] = { message };
+  Local<Value> args[1] = {message};
   Local<Value> get_data_clone_error =
-      object()->Get(env()->context(),
-                    env()->get_data_clone_error_string())
-                      .ToLocalChecked();
+      object()
+          ->Get(env()->context(), env()->get_data_clone_error_string())
+          .ToLocalChecked();
 
   CHECK(get_data_clone_error->IsFunction());
-  MaybeLocal<Value> error =
-      get_data_clone_error.As<Function>()->Call(env()->context(),
-                                                object(),
-                                                arraysize(args),
-                                                args);
+  MaybeLocal<Value> error = get_data_clone_error.As<Function>()->Call(
+      env()->context(), object(), arraysize(args), args);
 
   if (error.IsEmpty()) return;
 
@@ -124,22 +118,19 @@ void SerializerContext::ThrowDataCloneError(Local<String> message) {
 
 Maybe<uint32_t> SerializerContext::GetSharedArrayBufferId(
     Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer) {
-  Local<Value> args[1] = { shared_array_buffer };
+  Local<Value> args[1] = {shared_array_buffer};
   Local<Value> get_shared_array_buffer_id =
-      object()->Get(env()->context(),
-                    env()->get_shared_array_buffer_id_string())
-                      .ToLocalChecked();
+      object()
+          ->Get(env()->context(), env()->get_shared_array_buffer_id_string())
+          .ToLocalChecked();
 
   if (!get_shared_array_buffer_id->IsFunction()) {
     return ValueSerializer::Delegate::GetSharedArrayBufferId(
         isolate, shared_array_buffer);
   }
 
-  MaybeLocal<Value> id =
-      get_shared_array_buffer_id.As<Function>()->Call(env()->context(),
-                                                      object(),
-                                                      arraysize(args),
-                                                      args);
+  MaybeLocal<Value> id = get_shared_array_buffer_id.As<Function>()->Call(
+      env()->context(), object(), arraysize(args), args);
 
   if (id.IsEmpty()) return Nothing<uint32_t>();
 
@@ -149,23 +140,21 @@ Maybe<uint32_t> SerializerContext::GetSharedArrayBufferId(
 Maybe<bool> SerializerContext::WriteHostObject(Isolate* isolate,
                                                Local<Object> input) {
   MaybeLocal<Value> ret;
-  Local<Value> args[1] = { input };
+  Local<Value> args[1] = {input};
 
   Local<Value> write_host_object =
-      object()->Get(env()->context(),
-                    env()->write_host_object_string()).ToLocalChecked();
+      object()
+          ->Get(env()->context(), env()->write_host_object_string())
+          .ToLocalChecked();
 
   if (!write_host_object->IsFunction()) {
     return ValueSerializer::Delegate::WriteHostObject(isolate, input);
   }
 
-  ret = write_host_object.As<Function>()->Call(env()->context(),
-                                               object(),
-                                               arraysize(args),
-                                               args);
+  ret = write_host_object.As<Function>()->Call(
+      env()->context(), object(), arraysize(args), args);
 
-  if (ret.IsEmpty())
-    return Nothing<bool>();
+  if (ret.IsEmpty()) return Nothing<bool>();
 
   return Just(true);
 }
@@ -185,8 +174,7 @@ void SerializerContext::WriteHeader(const FunctionCallbackInfo<Value>& args) {
 void SerializerContext::WriteValue(const FunctionCallbackInfo<Value>& args) {
   SerializerContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
-  Maybe<bool> ret =
-      ctx->serializer_.WriteValue(ctx->env()->context(), args[0]);
+  Maybe<bool> ret = ctx->serializer_.WriteValue(ctx->env()->context(), args[0]);
 
   if (ret.IsJust()) args.GetReturnValue().Set(ret.FromJust());
 }
@@ -206,9 +194,8 @@ void SerializerContext::ReleaseBuffer(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
   std::pair<uint8_t*, size_t> ret = ctx->serializer_.Release();
-  auto buf = Buffer::New(ctx->env(),
-                         reinterpret_cast<char*>(ret.first),
-                         ret.second);
+  auto buf =
+      Buffer::New(ctx->env(), reinterpret_cast<char*>(ret.first), ret.second);
 
   if (!buf.IsEmpty()) {
     args.GetReturnValue().Set(buf.ToLocalChecked());
@@ -248,8 +235,7 @@ void SerializerContext::WriteUint64(const FunctionCallbackInfo<Value>& args) {
 
   Maybe<uint32_t> arg0 = args[0]->Uint32Value(ctx->env()->context());
   Maybe<uint32_t> arg1 = args[1]->Uint32Value(ctx->env()->context());
-  if (arg0.IsNothing() || arg1.IsNothing())
-    return;
+  if (arg0.IsNothing() || arg1.IsNothing()) return;
 
   uint64_t hi = arg0.FromJust();
   uint64_t lo = arg1.FromJust();
@@ -271,8 +257,8 @@ void SerializerContext::WriteRawBytes(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
   if (!args[0]->IsUint8Array()) {
-    return node::THROW_ERR_INVALID_ARG_TYPE(
-        ctx->env(), "source must be a Uint8Array");
+    return node::THROW_ERR_INVALID_ARG_TYPE(ctx->env(),
+                                            "source must be a Uint8Array");
   }
 
   ctx->serializer_.WriteRawBytes(Buffer::Data(args[0]),
@@ -282,10 +268,10 @@ void SerializerContext::WriteRawBytes(const FunctionCallbackInfo<Value>& args) {
 DeserializerContext::DeserializerContext(Environment* env,
                                          Local<Object> wrap,
                                          Local<Value> buffer)
-  : BaseObject(env, wrap),
-    data_(reinterpret_cast<const uint8_t*>(Buffer::Data(buffer))),
-    length_(Buffer::Length(buffer)),
-    deserializer_(env->isolate(), data_, length_, this) {
+    : BaseObject(env, wrap),
+      data_(reinterpret_cast<const uint8_t*>(Buffer::Data(buffer))),
+      length_(Buffer::Length(buffer)),
+      deserializer_(env->isolate(), data_, length_, this) {
   object()->Set(env->context(), env->buffer_string(), buffer).FromJust();
 
   MakeWeak();
@@ -293,21 +279,18 @@ DeserializerContext::DeserializerContext(Environment* env,
 
 MaybeLocal<Object> DeserializerContext::ReadHostObject(Isolate* isolate) {
   Local<Value> read_host_object =
-      object()->Get(env()->context(),
-                    env()->read_host_object_string()).ToLocalChecked();
+      object()
+          ->Get(env()->context(), env()->read_host_object_string())
+          .ToLocalChecked();
 
   if (!read_host_object->IsFunction()) {
     return ValueDeserializer::Delegate::ReadHostObject(isolate);
   }
 
-  MaybeLocal<Value> ret =
-      read_host_object.As<Function>()->Call(env()->context(),
-                                            object(),
-                                            0,
-                                            nullptr);
+  MaybeLocal<Value> ret = read_host_object.As<Function>()->Call(
+      env()->context(), object(), 0, nullptr);
 
-  if (ret.IsEmpty())
-    return MaybeLocal<Object>();
+  if (ret.IsEmpty()) return MaybeLocal<Object>();
 
   Local<Value> return_value = ret.ToLocalChecked();
   if (!return_value->IsObject()) {
@@ -322,8 +305,7 @@ void DeserializerContext::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint8Array()) {
-    return node::THROW_ERR_INVALID_ARG_TYPE(
-        env, "buffer must be a Uint8Array");
+    return node::THROW_ERR_INVALID_ARG_TYPE(env, "buffer must be a Uint8Array");
   }
 
   new DeserializerContext(env, args.This(), args[0]);
@@ -454,9 +436,8 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(ser, "writeHeader", SerializerContext::WriteHeader);
   env->SetProtoMethod(ser, "writeValue", SerializerContext::WriteValue);
   env->SetProtoMethod(ser, "releaseBuffer", SerializerContext::ReleaseBuffer);
-  env->SetProtoMethod(ser,
-                      "transferArrayBuffer",
-                      SerializerContext::TransferArrayBuffer);
+  env->SetProtoMethod(
+      ser, "transferArrayBuffer", SerializerContext::TransferArrayBuffer);
   env->SetProtoMethod(ser, "writeUint32", SerializerContext::WriteUint32);
   env->SetProtoMethod(ser, "writeUint64", SerializerContext::WriteUint64);
   env->SetProtoMethod(ser, "writeDouble", SerializerContext::WriteDouble);
@@ -468,9 +449,11 @@ void Initialize(Local<Object> target,
   Local<String> serializerString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "Serializer");
   ser->SetClassName(serializerString);
-  target->Set(env->context(),
-              serializerString,
-              ser->GetFunction(env->context()).ToLocalChecked()).FromJust();
+  target
+      ->Set(env->context(),
+            serializerString,
+            ser->GetFunction(env->context()).ToLocalChecked())
+      .FromJust();
 
   Local<FunctionTemplate> des =
       env->NewFunctionTemplate(DeserializerContext::New);
@@ -479,12 +462,10 @@ void Initialize(Local<Object> target,
 
   env->SetProtoMethod(des, "readHeader", DeserializerContext::ReadHeader);
   env->SetProtoMethod(des, "readValue", DeserializerContext::ReadValue);
-  env->SetProtoMethod(des,
-                      "getWireFormatVersion",
-                      DeserializerContext::GetWireFormatVersion);
-  env->SetProtoMethod(des,
-                      "transferArrayBuffer",
-                      DeserializerContext::TransferArrayBuffer);
+  env->SetProtoMethod(
+      des, "getWireFormatVersion", DeserializerContext::GetWireFormatVersion);
+  env->SetProtoMethod(
+      des, "transferArrayBuffer", DeserializerContext::TransferArrayBuffer);
   env->SetProtoMethod(des, "readUint32", DeserializerContext::ReadUint32);
   env->SetProtoMethod(des, "readUint64", DeserializerContext::ReadUint64);
   env->SetProtoMethod(des, "readDouble", DeserializerContext::ReadDouble);
@@ -493,9 +474,11 @@ void Initialize(Local<Object> target,
   Local<String> deserializerString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "Deserializer");
   des->SetClassName(deserializerString);
-  target->Set(env->context(),
-              deserializerString,
-              des->GetFunction(env->context()).ToLocalChecked()).FromJust();
+  target
+      ->Set(env->context(),
+            deserializerString,
+            des->GetFunction(env->context()).ToLocalChecked())
+      .FromJust();
 }
 
 }  // anonymous namespace

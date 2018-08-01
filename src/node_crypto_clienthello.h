@@ -72,12 +72,7 @@ class ClientHelloParser {
   static const uint8_t kStatusRequestOCSP = 1;
   static const size_t kMinStatusRequestSize = 5;
 
-  enum ParseState {
-    kWaiting,
-    kTLSHeader,
-    kPaused,
-    kEnded
-  };
+  enum ParseState { kWaiting, kTLSHeader, kPaused, kEnded };
 
   enum FrameType {
     kChangeCipherSpec = 20,
@@ -87,9 +82,7 @@ class ClientHelloParser {
     kOther = 255
   };
 
-  enum HandshakeType {
-    kClientHello = 1
-  };
+  enum HandshakeType { kClientHello = 1 };
 
   enum ExtensionType {
     kServerName = 0,
@@ -99,9 +92,7 @@ class ClientHelloParser {
 
   bool ParseRecordHeader(const uint8_t* data, size_t avail);
   void ParseHeader(const uint8_t* data, size_t avail);
-  void ParseExtension(const uint16_t type,
-                      const uint8_t* data,
-                      size_t len);
+  void ParseExtension(const uint16_t type, const uint8_t* data, size_t len);
   bool ParseTLSClientHello(const uint8_t* data, size_t avail);
 
   ParseState state_;

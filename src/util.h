@@ -34,8 +34,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <string>
 #include <functional>  // std::function
+#include <string>
 
 namespace node {
 
@@ -87,13 +87,13 @@ NO_RETURN void Abort();
 NO_RETURN void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
 
-#define FIXED_ONE_BYTE_STRING(isolate, string)                                \
+#define FIXED_ONE_BYTE_STRING(isolate, string)                                 \
   (node::OneByteString((isolate), (string), sizeof(string) - 1))
 
-#define DISALLOW_COPY_AND_ASSIGN(TypeName)                                    \
-  void operator=(const TypeName&) = delete;                                   \
-  void operator=(TypeName&&) = delete;                                        \
-  TypeName(const TypeName&) = delete;                                         \
+#define DISALLOW_COPY_AND_ASSIGN(TypeName)                                     \
+  void operator=(const TypeName&) = delete;                                    \
+  void operator=(TypeName&&) = delete;                                         \
+  TypeName(const TypeName&) = delete;                                          \
   TypeName(TypeName&&) = delete
 
 // Windows 8+ does not like abort() in Release mode
@@ -118,13 +118,13 @@ void DumpBacktrace(FILE* fp);
 #define STRINGIFY_(x) #x
 #define STRINGIFY(x) STRINGIFY_(x)
 
-#define CHECK(expr)                                                           \
-  do {                                                                        \
-    if (UNLIKELY(!(expr))) {                                                  \
-      static const char* const args[] = { __FILE__, STRINGIFY(__LINE__),      \
-                                          #expr, PRETTY_FUNCTION_NAME };      \
-      node::Assert(&args);                                                    \
-    }                                                                         \
+#define CHECK(expr)                                                            \
+  do {                                                                         \
+    if (UNLIKELY(!(expr))) {                                                   \
+      static const char* const args[] = {                                      \
+          __FILE__, STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME};         \
+      node::Assert(&args);                                                     \
+    }                                                                          \
   } while (0)
 
 #define CHECK_EQ(a, b) CHECK((a) == (b))
@@ -144,7 +144,7 @@ template <typename T>
 class ListNode;
 
 // TAILQ-style intrusive list head.
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 class ListHead;
 
 template <typename T>
@@ -156,14 +156,15 @@ class ListNode {
   inline bool IsEmpty() const;
 
  private:
-  template <typename U, ListNode<U> (U::*M)> friend class ListHead;
+  template <typename U, ListNode<U>(U::*M)>
+  friend class ListHead;
   friend int GenDebugSymbols();
   ListNode* prev_;
   ListNode* next_;
   DISALLOW_COPY_AND_ASSIGN(ListNode);
 };
 
-template <typename T, ListNode<T> (T::*M)>
+template <typename T, ListNode<T>(T::*M)>
 class ListHead {
  public:
   class Iterator {
@@ -200,6 +201,7 @@ class ContainerOfHelper {
   inline ContainerOfHelper(Inner Outer::*field, Inner* pointer);
   template <typename TypeName>
   inline operator TypeName*() const;
+
  private:
   Outer* const pointer_;
 };
@@ -215,8 +217,7 @@ inline ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
 // reference to the object.
 template <class TypeName>
 inline v8::Local<TypeName> PersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent);
+    v8::Isolate* isolate, const Persistent<TypeName>& persistent);
 
 // Unchecked conversion from a non-weak Persistent<T> to Local<T>,
 // use with care!
@@ -229,8 +230,7 @@ inline v8::Local<TypeName> StrongPersistentToLocal(
 
 template <class TypeName>
 inline v8::Local<TypeName> WeakPersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent);
+    v8::Isolate* isolate, const Persistent<TypeName>& persistent);
 
 // Convenience wrapper around v8::String::NewFromOneByte().
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
@@ -267,22 +267,14 @@ inline bool StringEqualNoCaseN(const char* a, const char* b, size_t length);
 template <typename T, size_t kStackStorageSize = 1024>
 class MaybeStackBuffer {
  public:
-  const T* out() const {
-    return buf_;
-  }
+  const T* out() const { return buf_; }
 
-  T* out() {
-    return buf_;
-  }
+  T* out() { return buf_; }
 
   // operator* for compatibility with `v8::String::(Utf8)Value`
-  T* operator*() {
-    return buf_;
-  }
+  T* operator*() { return buf_; }
 
-  const T* operator*() const {
-    return buf_;
-  }
+  const T* operator*() const { return buf_; }
 
   T& operator[](size_t index) {
     CHECK_LT(index, length());
@@ -294,15 +286,12 @@ class MaybeStackBuffer {
     return buf_[index];
   }
 
-  size_t length() const {
-    return length_;
-  }
+  size_t length() const { return length_; }
 
   // Current maximum capacity of the buffer with which SetLength() can be used
   // without first calling AllocateSufficientStorage().
   size_t capacity() const {
-    return IsAllocated() ? capacity_ :
-                           IsInvalidated() ? 0 : kStackStorageSize;
+    return IsAllocated() ? capacity_ : IsInvalidated() ? 0 : kStackStorageSize;
   }
 
   // Make sure enough space for `storage` entries is available.
@@ -349,14 +338,10 @@ class MaybeStackBuffer {
   }
 
   // If the buffer is stored in the heap rather than on the stack.
-  bool IsAllocated() const {
-    return !IsInvalidated() && buf_ != buf_st_;
-  }
+  bool IsAllocated() const { return !IsInvalidated() && buf_ != buf_st_; }
 
   // If Invalidate() has been called.
-  bool IsInvalidated() const {
-    return buf_ == nullptr;
-  }
+  bool IsInvalidated() const { return buf_ == nullptr; }
 
   // Release ownership of the malloc'd buffer.
   // Note: This does not free the buffer.
@@ -377,8 +362,7 @@ class MaybeStackBuffer {
   }
 
   ~MaybeStackBuffer() {
-    if (IsAllocated())
-      free(buf_);
+    if (IsAllocated()) free(buf_);
   }
 
  private:
@@ -404,20 +388,20 @@ class BufferValue : public MaybeStackBuffer<char> {
   explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 };
 
-#define SPREAD_BUFFER_ARG(val, name)                                          \
-  CHECK((val)->IsArrayBufferView());                                          \
-  v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();      \
-  v8::ArrayBuffer::Contents name##_c = name->Buffer()->GetContents();         \
-  const size_t name##_offset = name->ByteOffset();                            \
-  const size_t name##_length = name->ByteLength();                            \
-  char* const name##_data =                                                   \
-      static_cast<char*>(name##_c.Data()) + name##_offset;                    \
-  if (name##_length > 0)                                                      \
-    CHECK_NE(name##_data, nullptr);
+#define SPREAD_BUFFER_ARG(val, name)                                           \
+  CHECK((val)->IsArrayBufferView());                                           \
+  v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();       \
+  v8::ArrayBuffer::Contents name##_c = name->Buffer()->GetContents();          \
+  const size_t name##_offset = name->ByteOffset();                             \
+  const size_t name##_length = name->ByteLength();                             \
+  char* const name##_data =                                                    \
+      static_cast<char*>(name##_c.Data()) + name##_offset;                     \
+  if (name##_length > 0) CHECK_NE(name##_data, nullptr);
 
 // Use this when a variable or parameter is unused in order to explicitly
 // silence a compiler warning about that.
-template <typename T> inline void USE(T&&) {}
+template <typename T>
+inline void USE(T&&) {}
 
 // Run a function when exiting the current scope.
 struct OnScopeLeave {
@@ -449,23 +433,23 @@ struct MallocedBuffer {
   }
   MallocedBuffer& operator=(MallocedBuffer&& other) {
     this->~MallocedBuffer();
-    return *new(this) MallocedBuffer(std::move(other));
+    return *new (this) MallocedBuffer(std::move(other));
   }
-  ~MallocedBuffer() {
-    free(data);
-  }
+  ~MallocedBuffer() { free(data); }
   MallocedBuffer(const MallocedBuffer&) = delete;
   MallocedBuffer& operator=(const MallocedBuffer&) = delete;
 };
 
 // Test whether some value can be called with ().
 template <typename T, typename = void>
-struct is_callable : std::is_function<T> { };
+struct is_callable : std::is_function<T> {};
 
 template <typename T>
-struct is_callable<T, typename std::enable_if<
-    std::is_same<decltype(void(&T::operator())), void>::value
-    >::type> : std::true_type { };
+struct is_callable<
+    T,
+    typename std::enable_if<
+        std::is_same<decltype(void(&T::operator())), void>::value>::type>
+    : std::true_type {};
 
 template <typename T, void (*function)(T*)>
 struct FunctionDeleter {

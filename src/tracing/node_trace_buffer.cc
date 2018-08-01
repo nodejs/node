@@ -3,10 +3,10 @@
 namespace node {
 namespace tracing {
 
-InternalTraceBuffer::InternalTraceBuffer(size_t max_chunks, uint32_t id,
+InternalTraceBuffer::InternalTraceBuffer(size_t max_chunks,
+                                         uint32_t id,
                                          Agent* agent)
-    : flushing_(false), max_chunks_(max_chunks),
-      agent_(agent), id_(id) {
+    : flushing_(false), max_chunks_(max_chunks), agent_(agent), id_(id) {
   chunks_.resize(max_chunks);
 }
 
@@ -69,15 +69,20 @@ void InternalTraceBuffer::Flush(bool blocking) {
   agent_->Flush(blocking);
 }
 
-uint64_t InternalTraceBuffer::MakeHandle(
-    size_t chunk_index, uint32_t chunk_seq, size_t event_index) const {
+uint64_t InternalTraceBuffer::MakeHandle(size_t chunk_index,
+                                         uint32_t chunk_seq,
+                                         size_t event_index) const {
   return ((static_cast<uint64_t>(chunk_seq) * Capacity() +
-          chunk_index * TraceBufferChunk::kChunkSize + event_index) << 1) + id_;
+           chunk_index * TraceBufferChunk::kChunkSize + event_index)
+          << 1) +
+         id_;
 }
 
-void InternalTraceBuffer::ExtractHandle(
-    uint64_t handle, uint32_t* buffer_id, size_t* chunk_index,
-    uint32_t* chunk_seq, size_t* event_index) const {
+void InternalTraceBuffer::ExtractHandle(uint64_t handle,
+                                        uint32_t* buffer_id,
+                                        size_t* chunk_index,
+                                        uint32_t* chunk_seq,
+                                        size_t* event_index) const {
   *buffer_id = static_cast<uint32_t>(handle & 0x1);
   handle >>= 1;
   *chunk_seq = static_cast<uint32_t>(handle / Capacity());
@@ -87,15 +92,16 @@ void InternalTraceBuffer::ExtractHandle(
 }
 
 NodeTraceBuffer::NodeTraceBuffer(size_t max_chunks,
-    Agent* agent, uv_loop_t* tracing_loop)
+                                 Agent* agent,
+                                 uv_loop_t* tracing_loop)
     : tracing_loop_(tracing_loop),
       buffer1_(max_chunks, 0, agent),
       buffer2_(max_chunks, 1, agent) {
   current_buf_.store(&buffer1_);
 
   flush_signal_.data = this;
-  int err = uv_async_init(tracing_loop_, &flush_signal_,
-                          NonBlockingFlushSignalCb);
+  int err =
+      uv_async_init(tracing_loop_, &flush_signal_, NonBlockingFlushSignalCb);
   CHECK_EQ(err, 0);
 
   exit_signal_.data = this;
@@ -140,8 +146,8 @@ bool NodeTraceBuffer::TryLoadAvailableBuffer() {
   InternalTraceBuffer* prev_buf = current_buf_.load();
   if (prev_buf->IsFull()) {
     uv_async_send(&flush_signal_);  // trigger flush on a separate thread
-    InternalTraceBuffer* other_buf = prev_buf == &buffer1_ ?
-      &buffer2_ : &buffer1_;
+    InternalTraceBuffer* other_buf =
+        prev_buf == &buffer1_ ? &buffer2_ : &buffer1_;
     if (!other_buf->IsFull()) {
       current_buf_.store(other_buf);
     } else {
@@ -168,12 +174,12 @@ void NodeTraceBuffer::ExitSignalCb(uv_async_t* signal) {
   uv_close(reinterpret_cast<uv_handle_t*>(&buffer->flush_signal_), nullptr);
   uv_close(reinterpret_cast<uv_handle_t*>(&buffer->exit_signal_),
            [](uv_handle_t* signal) {
-      NodeTraceBuffer* buffer =
-          reinterpret_cast<NodeTraceBuffer*>(signal->data);
-      Mutex::ScopedLock scoped_lock(buffer->exit_mutex_);
-      buffer->exited_ = true;
-      buffer->exit_cond_.Signal(scoped_lock);
-  });
+             NodeTraceBuffer* buffer =
+                 reinterpret_cast<NodeTraceBuffer*>(signal->data);
+             Mutex::ScopedLock scoped_lock(buffer->exit_mutex_);
+             buffer->exited_ = true;
+             buffer->exit_cond_.Signal(scoped_lock);
+           });
 }
 
 }  // namespace tracing

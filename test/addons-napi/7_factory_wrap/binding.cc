@@ -1,5 +1,5 @@
-#include "myobject.h"
 #include "../common.h"
+#include "myobject.h"
 
 napi_value CreateObject(napi_env env, napi_callback_info info) {
   size_t argc = 1;
@@ -15,7 +15,8 @@ napi_value CreateObject(napi_env env, napi_callback_info info) {
 napi_value Init(napi_env env, napi_value exports) {
   NAPI_CALL(env, MyObject::Init(env));
 
-  NAPI_CALL(env,
+  NAPI_CALL(
+      env,
       // NOLINTNEXTLINE (readability/null_usage)
       napi_create_function(env, "exports", -1, CreateObject, NULL, &exports));
   return exports;

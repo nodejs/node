@@ -1,5 +1,5 @@
-#include "node.h"
 #include "env-inl.h"
+#include "node.h"
 #include "string_bytes.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -19,35 +19,29 @@ enum encoding ParseEncoding(const char* encoding,
       if (encoding[1] == 't' && encoding[2] == 'f') {
         // Skip `-`
         encoding += encoding[3] == '-' ? 4 : 3;
-        if (encoding[0] == '8' && encoding[1] == '\0')
-          return UTF8;
-        if (strncmp(encoding, "16le", 4) == 0)
-          return UCS2;
+        if (encoding[0] == '8' && encoding[1] == '\0') return UTF8;
+        if (strncmp(encoding, "16le", 4) == 0) return UCS2;
 
-      // ucs2
+        // ucs2
       } else if (encoding[1] == 'c' && encoding[2] == 's') {
         encoding += encoding[3] == '-' ? 4 : 3;
-        if (encoding[0] == '2' && encoding[1] == '\0')
-          return UCS2;
+        if (encoding[0] == '2' && encoding[1] == '\0') return UCS2;
       }
       break;
     case 'l':
       // latin1
       if (encoding[1] == 'a') {
-        if (strncmp(encoding + 2, "tin1", 4) == 0)
-          return LATIN1;
+        if (strncmp(encoding + 2, "tin1", 4) == 0) return LATIN1;
       }
       break;
     case 'b':
       // binary
       if (encoding[1] == 'i') {
-        if (strncmp(encoding + 2, "nary", 4) == 0)
-          return LATIN1;
+        if (strncmp(encoding + 2, "nary", 4) == 0) return LATIN1;
 
-      // buffer
+        // buffer
       } else if (encoding[1] == 'u') {
-        if (strncmp(encoding + 2, "ffer", 4) == 0)
-          return BUFFER;
+        if (strncmp(encoding + 2, "ffer", 4) == 0) return BUFFER;
       }
       break;
     case '\0':
@@ -85,14 +79,12 @@ enum encoding ParseEncoding(const char* encoding,
   }
 }
 
-
 enum encoding ParseEncoding(Isolate* isolate,
                             Local<Value> encoding_v,
                             enum encoding default_encoding) {
   CHECK(!encoding_v.IsEmpty());
 
-  if (!encoding_v->IsString())
-    return default_encoding;
+  if (!encoding_v->IsString()) return default_encoding;
 
   Utf8Value encoding(isolate, encoding_v);
 
@@ -111,8 +103,7 @@ Local<Value> Encode(Isolate* isolate,
 
 Local<Value> Encode(Isolate* isolate, const uint16_t* buf, size_t len) {
   Local<Value> error;
-  return StringBytes::Encode(isolate, buf, len, &error)
-      .ToLocalChecked();
+  return StringBytes::Encode(isolate, buf, len, &error).ToLocalChecked();
 }
 
 // Returns -1 if the handle was not valid for decoding

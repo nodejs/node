@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #if !defined __cplusplus || (defined(_MSC_VER) && _MSC_VER < 1900)
-    typedef uint16_t char16_t;
+typedef uint16_t char16_t;
 #endif
 
 // JSVM API types are all opaque pointers for ABI stability
@@ -96,13 +96,11 @@ typedef enum {
 } napi_threadsafe_function_call_mode;
 #endif  // NAPI_EXPERIMENTAL
 
-typedef napi_value (*napi_callback)(napi_env env,
-                                    napi_callback_info info);
+typedef napi_value (*napi_callback)(napi_env env, napi_callback_info info);
 typedef void (*napi_finalize)(napi_env env,
                               void* finalize_data,
                               void* finalize_hint);
-typedef void (*napi_async_execute_callback)(napi_env env,
-                                            void* data);
+typedef void (*napi_async_execute_callback)(napi_env env, void* data);
 typedef void (*napi_async_complete_callback)(napi_env env,
                                              napi_status status,
                                              void* data);

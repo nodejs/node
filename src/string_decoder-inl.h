@@ -30,9 +30,8 @@ char* StringDecoder::IncompleteCharacterBuffer() {
   return reinterpret_cast<char*>(state_ + kIncompleteCharactersStart);
 }
 
-
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#endif   // SRC_STRING_DECODER_INL_H_
+#endif  // SRC_STRING_DECODER_INL_H_

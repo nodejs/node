@@ -8,8 +8,8 @@
 
 #include "openssl/sha.h"  // Sha-1 hash
 
-#include <map>
 #include <string.h>
+#include <map>
 
 #define ACCEPT_KEY_LENGTH base64_encoded_size(20)
 #define BUFFER_GROWTH_CHUNK_SIZE 1024
@@ -29,9 +29,7 @@ class TcpHolder {
                         InspectorSocket::DelegatePointer delegate);
   void SetHandler(ProtocolHandler* handler);
   int WriteRaw(const std::vector<char>& buffer, uv_write_cb write_cb);
-  uv_tcp_t* tcp() {
-    return &tcp_;
-  }
+  uv_tcp_t* tcp() { return &tcp_; }
   InspectorSocket::Delegate* delegate();
 
  private:
@@ -40,7 +38,8 @@ class TcpHolder {
                              reinterpret_cast<uv_tcp_t*>(handle));
   }
   static void OnClosed(uv_handle_t* handle);
-  static void OnDataReceivedCb(uv_stream_t* stream, ssize_t nread,
+  static void OnDataReceivedCb(uv_stream_t* stream,
+                               ssize_t nread,
                                const uv_buf_t* buf);
   explicit TcpHolder(InspectorSocket::DelegatePointer delegate);
   ~TcpHolder() = default;
@@ -51,7 +50,6 @@ class TcpHolder {
   ProtocolHandler* handler_;
   std::vector<char> buffer;
 };
-
 
 class ProtocolHandler {
  public:
@@ -65,9 +63,7 @@ class ProtocolHandler {
 
   std::string GetHost() const;
 
-  InspectorSocket* inspector() {
-    return inspector_;
-  }
+  InspectorSocket* inspector() { return inspector_; }
   virtual void Shutdown() = 0;
 
  protected:
@@ -110,10 +106,10 @@ static void dump_hex(const char* buf, size_t len) {
 class WriteRequest {
  public:
   WriteRequest(ProtocolHandler* handler, const std::vector<char>& buffer)
-      : handler(handler)
-      , storage(buffer)
-      , req(uv_write_t())
-      , buf(uv_buf_init(storage.data(), storage.size())) {}
+      : handler(handler),
+        storage(buffer),
+        req(uv_write_t()),
+        buf(uv_buf_init(storage.data(), storage.size())) {}
 
   static WriteRequest* from_write_req(uv_write_t* req) {
     return node::ContainerOf(&WriteRequest::req, req);
@@ -139,9 +135,7 @@ static void remove_from_beginning(std::vector<char>* buffer, size_t count) {
 
 static const char CLOSE_FRAME[] = {'\x88', '\x00'};
 
-enum ws_decode_result {
-  FRAME_OK, FRAME_INCOMPLETE, FRAME_CLOSE, FRAME_ERROR
-};
+enum ws_decode_result { FRAME_OK, FRAME_INCOMPLETE, FRAME_CLOSE, FRAME_ERROR };
 
 static void generate_accept_string(const std::string& client_key,
                                    char (*buffer)[ACCEPT_KEY_LENGTH]) {
@@ -149,15 +143,15 @@ static void generate_accept_string(const std::string& client_key,
   static const char ws_magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
   std::string input(client_key + ws_magic);
   char hash[SHA_DIGEST_LENGTH];
-  SHA1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(),
+  SHA1(reinterpret_cast<const unsigned char*>(&input[0]),
+       input.size(),
        reinterpret_cast<unsigned char*>(hash));
   node::base64_encode(hash, sizeof(hash), *buffer, sizeof(*buffer));
 }
 
 static std::string TrimPort(const std::string& host) {
   size_t last_colon_pos = host.rfind(":");
-  if (last_colon_pos == std::string::npos)
-    return host;
+  if (last_colon_pos == std::string::npos) return host;
   size_t bracket = host.rfind("]");
   if (bracket == std::string::npos || last_colon_pos > bracket)
     return host.substr(0, last_colon_pos);
@@ -221,8 +215,8 @@ static std::vector<char> encode_frame_hybi17(const std::vector<char>& message) {
       extended_payload_length[7 - i] = remaining & 0xFF;
       remaining >>= 8;
     }
-    frame.insert(frame.end(), extended_payload_length,
-                 extended_payload_length + 8);
+    frame.insert(
+        frame.end(), extended_payload_length, extended_payload_length + 8);
     CHECK_EQ(0, remaining);
   }
   frame.insert(frame.end(), message.begin(), message.end());
@@ -235,8 +229,7 @@ static ws_decode_result decode_frame_hybi17(const std::vector<char>& buffer,
                                             std::vector<char>* output,
                                             bool* compressed) {
   *bytes_consumed = 0;
-  if (buffer.size() < 2)
-    return FRAME_INCOMPLETE;
+  if (buffer.size() < 2) return FRAME_INCOMPLETE;
 
   auto it = buffer.begin();
 
@@ -319,18 +312,17 @@ static ws_decode_result decode_frame_hybi17(const std::vector<char>& buffer,
 class WsHandler : public ProtocolHandler {
  public:
   WsHandler(InspectorSocket* inspector, TcpHolder::Pointer tcp)
-            : ProtocolHandler(inspector, std::move(tcp)),
-              OnCloseSent(&WsHandler::WaitForCloseReply),
-              OnCloseRecieved(&WsHandler::CloseFrameReceived),
-              dispose_(false) { }
+      : ProtocolHandler(inspector, std::move(tcp)),
+        OnCloseSent(&WsHandler::WaitForCloseReply),
+        OnCloseRecieved(&WsHandler::CloseFrameReceived),
+        dispose_(false) {}
 
-  void AcceptUpgrade(const std::string& accept_key) override { }
+  void AcceptUpgrade(const std::string& accept_key) override {}
   void CancelHandshake() override {}
 
   void OnEof() override {
     tcp_.reset();
-    if (dispose_)
-      delete this;
+    if (dispose_) delete this;
   }
 
   void OnData(std::vector<char>* data) override {
@@ -371,9 +363,7 @@ class WsHandler : public ProtocolHandler {
     (handler->*cb)();
   }
 
-  void WaitForCloseReply() {
-    OnCloseRecieved = &WsHandler::OnEof;
-  }
+  void WaitForCloseReply() { OnCloseRecieved = &WsHandler::OnEof; }
 
   void SendClose() {
     WriteRaw(std::vector<char>(CLOSE_FRAME, CLOSE_FRAME + sizeof(CLOSE_FRAME)),
@@ -390,10 +380,8 @@ class WsHandler : public ProtocolHandler {
     std::vector<char> output;
     bool compressed = false;
 
-    ws_decode_result r =  decode_frame_hybi17(buffer,
-                                              true /* client_frame */,
-                                              &bytes_consumed, &output,
-                                              &compressed);
+    ws_decode_result r = decode_frame_hybi17(
+        buffer, true /* client_frame */, &bytes_consumed, &output, &compressed);
     // Compressed frame means client is ignoring the headers and misbehaves
     if (compressed || r == FRAME_ERROR) {
       OnEof();
@@ -407,7 +395,6 @@ class WsHandler : public ProtocolHandler {
     return bytes_consumed;
   }
 
-
   Callback OnCloseSent;
   Callback OnCloseRecieved;
   bool dispose_;
@@ -416,10 +403,16 @@ class WsHandler : public ProtocolHandler {
 // HTTP protocol
 class HttpEvent {
  public:
-  HttpEvent(const std::string& path, bool upgrade, bool isGET,
-            const std::string& ws_key, const std::string& host)
-            : path(path), upgrade(upgrade), isGET(isGET), ws_key(ws_key),
-              host(host) { }
+  HttpEvent(const std::string& path,
+            bool upgrade,
+            bool isGET,
+            const std::string& ws_key,
+            const std::string& host)
+      : path(path),
+        upgrade(upgrade),
+        isGET(isGET),
+        ws_key(ws_key),
+        host(host) {}
 
   std::string path;
   bool upgrade;
@@ -431,8 +424,7 @@ class HttpEvent {
 class HttpHandler : public ProtocolHandler {
  public:
   explicit HttpHandler(InspectorSocket* inspector, TcpHolder::Pointer tcp)
-                       : ProtocolHandler(inspector, std::move(tcp)),
-                         parsing_value_(false) {
+      : ProtocolHandler(inspector, std::move(tcp)), parsing_value_(false) {
     http_parser_init(&parser_, HTTP_REQUEST);
     http_parser_settings_init(&parser_settings);
     parser_settings.on_header_field = OnHeaderField;
@@ -451,9 +443,10 @@ class HttpHandler : public ProtocolHandler {
     const char accept_ws_suffix[] = "\r\n\r\n";
     std::vector<char> reply(accept_ws_prefix,
                             accept_ws_prefix + sizeof(accept_ws_prefix) - 1);
-    reply.insert(reply.end(), accept_string,
-                 accept_string + sizeof(accept_string));
-    reply.insert(reply.end(), accept_ws_suffix,
+    reply.insert(
+        reply.end(), accept_string, accept_string + sizeof(accept_string));
+    reply.insert(reply.end(),
+                 accept_ws_suffix,
                  accept_ws_suffix + sizeof(accept_ws_suffix) - 1);
     if (WriteRaw(reply, WriteRequest::Cleanup) >= 0) {
       inspector_->SwitchProtocol(new WsHandler(inspector_, std::move(tcp_)));
@@ -468,14 +461,12 @@ class HttpHandler : public ProtocolHandler {
         "Content-Type: text/html; charset=UTF-8\r\n\r\n"
         "WebSockets request was expected\r\n";
     WriteRaw(std::vector<char>(HANDSHAKE_FAILED_RESPONSE,
-             HANDSHAKE_FAILED_RESPONSE + sizeof(HANDSHAKE_FAILED_RESPONSE) - 1),
+                               HANDSHAKE_FAILED_RESPONSE +
+                                   sizeof(HANDSHAKE_FAILED_RESPONSE) - 1),
              ThenCloseAndReportFailure);
   }
 
-
-  void OnEof() override {
-    tcp_.reset();
-  }
+  void OnEof() override { tcp_.reset(); }
 
   void OnData(std::vector<char>* data) override {
     http_parser_execute(&parser_, &parser_settings, data->data(), data->size());
@@ -506,9 +497,7 @@ class HttpHandler : public ProtocolHandler {
   }
 
  protected:
-  void Shutdown() override {
-    delete this;
-  }
+  void Shutdown() override { delete this; }
 
  private:
   static void ThenCloseAndReportFailure(uv_write_t* req, int status) {
@@ -548,7 +537,9 @@ class HttpHandler : public ProtocolHandler {
     // Event needs to be fired after the parser is done.
     HttpHandler* handler = From(parser);
     handler->events_.push_back(
-        HttpEvent(handler->path_, parser->upgrade, parser->method == HTTP_GET,
+        HttpEvent(handler->path_,
+                  parser->upgrade,
+                  parser->method == HTTP_GET,
                   handler->HeaderValue("Sec-WebSocket-Key"),
                   handler->HeaderValue("Host")));
     handler->path_ = "";
@@ -562,10 +553,9 @@ class HttpHandler : public ProtocolHandler {
     bool header_found = false;
     std::string value;
     for (const auto& header_value : headers_) {
-      if (node::StringEqualNoCaseN(header_value.first.data(), header.data(),
-                                   header.length())) {
-        if (header_found)
-          return "";
+      if (node::StringEqualNoCaseN(
+              header_value.first.data(), header.data(), header.length())) {
+        if (header_found) return "";
         value = header_value.second;
         header_found = true;
       }
@@ -575,9 +565,9 @@ class HttpHandler : public ProtocolHandler {
 
   bool IsAllowedHost(const std::string& host_with_port) const {
     std::string host = TrimPort(host_with_port);
-    return host.empty() || IsIPAddress(host)
-           || node::StringEqualNoCase(host.data(), "localhost")
-           || node::StringEqualNoCase(host.data(), "localhost6");
+    return host.empty() || IsIPAddress(host) ||
+           node::StringEqualNoCase(host.data(), "localhost") ||
+           node::StringEqualNoCase(host.data(), "localhost6");
   }
 
   bool parsing_value_;
@@ -594,7 +584,7 @@ class HttpHandler : public ProtocolHandler {
 // Any protocol
 ProtocolHandler::ProtocolHandler(InspectorSocket* inspector,
                                  TcpHolder::Pointer tcp)
-                                 : inspector_(inspector), tcp_(std::move(tcp)) {
+    : inspector_(inspector), tcp_(std::move(tcp)) {
   CHECK_NOT_NULL(tcp_);
   tcp_->SetHandler(this);
 }
@@ -612,11 +602,9 @@ std::string ProtocolHandler::GetHost() const {
   char ip[INET6_ADDRSTRLEN];
   sockaddr_storage addr;
   int len = sizeof(addr);
-  int err = uv_tcp_getsockname(tcp_->tcp(),
-                               reinterpret_cast<struct sockaddr*>(&addr),
-                               &len);
-  if (err != 0)
-    return "";
+  int err = uv_tcp_getsockname(
+      tcp_->tcp(), reinterpret_cast<struct sockaddr*>(&addr), &len);
+  if (err != 0) return "";
   if (addr.ss_family == AF_INET6) {
     const sockaddr_in6* v6 = reinterpret_cast<const sockaddr_in6*>(&addr);
     err = uv_ip6_name(v6, ip, sizeof(ip));
@@ -624,21 +612,17 @@ std::string ProtocolHandler::GetHost() const {
     const sockaddr_in* v4 = reinterpret_cast<const sockaddr_in*>(&addr);
     err = uv_ip4_name(v4, ip, sizeof(ip));
   }
-  if (err != 0)
-    return "";
+  if (err != 0) return "";
   return ip;
 }
 
 // RAII uv_tcp_t wrapper
 TcpHolder::TcpHolder(InspectorSocket::DelegatePointer delegate)
-                     : tcp_(),
-                       delegate_(std::move(delegate)),
-                       handler_(nullptr) { }
+    : tcp_(), delegate_(std::move(delegate)), handler_(nullptr) {}
 
 // static
 TcpHolder::Pointer TcpHolder::Accept(
-    uv_stream_t* server,
-    InspectorSocket::DelegatePointer delegate) {
+    uv_stream_t* server, InspectorSocket::DelegatePointer delegate) {
   TcpHolder* result = new TcpHolder(std::move(delegate));
   uv_stream_t* tcp = reinterpret_cast<uv_stream_t*>(&result->tcp_);
   int err = uv_tcp_init(server->loop, &result->tcp_);
@@ -671,8 +655,7 @@ int TcpHolder::WriteRaw(const std::vector<char>& buffer, uv_write_cb write_cb) {
   WriteRequest* wr = new WriteRequest(handler_, buffer);
   uv_stream_t* stream = reinterpret_cast<uv_stream_t*>(&tcp_);
   int err = uv_write(&wr->req, stream, &wr->buf, 1, write_cb);
-  if (err < 0)
-    delete wr;
+  if (err < 0) delete wr;
   return err < 0;
 }
 
@@ -685,7 +668,8 @@ void TcpHolder::OnClosed(uv_handle_t* handle) {
   delete From(handle);
 }
 
-void TcpHolder::OnDataReceivedCb(uv_stream_t* tcp, ssize_t nread,
+void TcpHolder::OnDataReceivedCb(uv_stream_t* tcp,
+                                 ssize_t nread,
                                  const uv_buf_t* buf) {
 #if DUMP_READS
   if (nread >= 0) {

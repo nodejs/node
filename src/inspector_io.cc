@@ -1,19 +1,19 @@
 #include "inspector_io.h"
 
-#include "inspector_socket_server.h"
+#include "debug_utils.h"
+#include "env-inl.h"
 #include "inspector/main_thread_interface.h"
 #include "inspector/node_string.h"
-#include "env-inl.h"
-#include "debug_utils.h"
+#include "inspector_socket_server.h"
 #include "node.h"
 #include "node_crypto.h"
 #include "node_mutex.h"
-#include "v8-inspector.h"
 #include "util.h"
+#include "v8-inspector.h"
 #include "zlib.h"
 
-#include <deque>
 #include <string.h>
+#include <deque>
 #include <vector>
 
 namespace node {
@@ -46,13 +46,15 @@ std::string GenerateID() {
                               sizeof(buffer)));
 
   char uuid[256];
-  snprintf(uuid, sizeof(uuid), "%04x%04x-%04x-%04x-%04x-%04x%04x%04x",
-           buffer[0],  // time_low
-           buffer[1],  // time_mid
-           buffer[2],  // time_low
+  snprintf(uuid,
+           sizeof(uuid),
+           "%04x%04x-%04x-%04x-%04x-%04x%04x%04x",
+           buffer[0],                      // time_low
+           buffer[1],                      // time_mid
+           buffer[2],                      // time_low
            (buffer[3] & 0x0fff) | 0x4000,  // time_hi_and_version
            (buffer[4] & 0x3fff) | 0x8000,  // clk_seq_hi clk_seq_low
-           buffer[5],  // node
+           buffer[5],                      // node
            buffer[6],
            buffer[7]);
   return uuid;
@@ -63,9 +65,9 @@ class RequestToServer {
   RequestToServer(TransportAction action,
                   int session_id,
                   std::unique_ptr<v8_inspector::StringBuffer> message)
-                  : action_(action),
-                    session_id_(session_id),
-                    message_(std::move(message)) {}
+      : action_(action),
+        session_id_(session_id),
+        message_(std::move(message)) {}
 
   void Dispatch(InspectorSocketServer* server) const {
     switch (action_) {
@@ -94,7 +96,7 @@ class RequestQueueData {
   using MessageQueue = std::deque<RequestToServer>;
 
   explicit RequestQueueData(uv_loop_t* loop)
-                            : handle_(std::make_shared<RequestQueue>(this)) {
+      : handle_(std::make_shared<RequestQueue>(this)) {
     int err = uv_async_init(loop, &async_, [](uv_async_t* async) {
       RequestQueueData* wrapper =
           node::ContainerOf(&RequestQueueData::async_, async);
@@ -124,13 +126,9 @@ class RequestQueueData {
     }
   }
 
-  void SetServer(InspectorSocketServer* server) {
-    server_ = server;
-  }
+  void SetServer(InspectorSocketServer* server) { server_ = server; }
 
-  std::shared_ptr<RequestQueue> handle() {
-    return handle_;
-  }
+  std::shared_ptr<RequestQueue> handle() { return handle_; }
 
  private:
   ~RequestQueueData() = default;
@@ -143,8 +141,7 @@ class RequestQueueData {
   }
 
   void DoDispatch() {
-    if (server_ == nullptr)
-      return;
+    if (server_ == nullptr) return;
     for (const auto& request : GetMessages()) {
       request.Dispatch(server_);
     }
@@ -172,14 +169,12 @@ class RequestQueue {
             TransportAction action,
             std::unique_ptr<StringBuffer> message) {
     Mutex::ScopedLock scoped_lock(lock_);
-    if (data_ != nullptr)
-      data_->Post(session_id, action, std::move(message));
+    if (data_ != nullptr) data_->Post(session_id, action, std::move(message));
   }
 
   void SetServer(InspectorSocketServer* server) {
     Mutex::ScopedLock scoped_lock(lock_);
-    if (data_ != nullptr)
-      data_->SetServer(server);
+    if (data_ != nullptr) data_->SetServer(server);
   }
 
   bool Expired() {
@@ -195,10 +190,10 @@ class RequestQueue {
 class IoSessionDelegate : public InspectorSessionDelegate {
  public:
   explicit IoSessionDelegate(std::shared_ptr<RequestQueue> queue, int id)
-                             : request_queue_(queue), id_(id) { }
+      : request_queue_(queue), id_(id) {}
   void SendMessageToFrontend(const v8_inspector::StringView& message) override {
-    request_queue_->Post(id_, TransportAction::kSendMessage,
-                         StringBuffer::create(message));
+    request_queue_->Post(
+        id_, TransportAction::kSendMessage, StringBuffer::create(message));
   }
 
  private:
@@ -208,15 +203,14 @@ class IoSessionDelegate : public InspectorSessionDelegate {
 
 // Passed to InspectorSocketServer to handle WS inspector protocol events,
 // mostly session start, message received, and session end.
-class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
+class InspectorIoDelegate : public node::inspector::SocketServerDelegate {
  public:
   InspectorIoDelegate(std::shared_ptr<RequestQueueData> queue,
                       std::shared_ptr<MainThreadHandle> main_threade,
                       const std::string& target_id,
                       const std::string& script_path,
                       const std::string& script_name);
-  ~InspectorIoDelegate() {
-  }
+  ~InspectorIoDelegate() {}
 
   void StartSession(int session_id, const std::string& target_id) override;
   void MessageReceived(int session_id, const std::string& message) override;
@@ -243,8 +237,8 @@ std::unique_ptr<InspectorIo> InspectorIo::Start(
     std::shared_ptr<MainThreadHandle> main_thread,
     const std::string& path,
     const DebugOptions& options) {
-  auto io = std::unique_ptr<InspectorIo>(
-      new InspectorIo(main_thread, path, options));
+  auto io =
+      std::unique_ptr<InspectorIo>(new InspectorIo(main_thread, path, options));
   if (io->request_queue_->Expired()) {  // Thread is not running
     return nullptr;
   }
@@ -254,8 +248,11 @@ std::unique_ptr<InspectorIo> InspectorIo::Start(
 InspectorIo::InspectorIo(std::shared_ptr<MainThreadHandle> main_thread,
                          const std::string& path,
                          const DebugOptions& options)
-                         : main_thread_(main_thread), options_(options),
-                           thread_(), script_name_(path), id_(GenerateID()) {
+    : main_thread_(main_thread),
+      options_(options),
+      thread_(),
+      script_name_(path),
+      id_(GenerateID()) {
   Mutex::ScopedLock scoped_lock(thread_start_lock_);
   CHECK_EQ(uv_thread_create(&thread_, InspectorIo::ThreadMain, this), 0);
   thread_start_condition_.Wait(scoped_lock);
@@ -284,11 +281,10 @@ void InspectorIo::ThreadMain() {
   std::shared_ptr<RequestQueueData> queue(new RequestQueueData(&loop),
                                           RequestQueueData::CloseAndFree);
   std::string script_path = ScriptPath(&loop, script_name_);
-  std::unique_ptr<InspectorIoDelegate> delegate(
-      new InspectorIoDelegate(queue, main_thread_, id_,
-                              script_path, script_name_));
-  InspectorSocketServer server(std::move(delegate), &loop,
-                               options_.host_name(), options_.port());
+  std::unique_ptr<InspectorIoDelegate> delegate(new InspectorIoDelegate(
+      queue, main_thread_, id_, script_path, script_name_));
+  InspectorSocketServer server(
+      std::move(delegate), &loop, options_.host_name(), options_.port());
   request_queue_ = queue->handle();
   // Its lifetime is now that of the server delegate
   queue.reset();
@@ -304,7 +300,7 @@ void InspectorIo::ThreadMain() {
 }
 
 std::vector<std::string> InspectorIo::GetTargetIds() const {
-  return { id_ };
+  return {id_};
 }
 
 InspectorIoDelegate::InspectorIoDelegate(
@@ -313,15 +309,18 @@ InspectorIoDelegate::InspectorIoDelegate(
     const std::string& target_id,
     const std::string& script_path,
     const std::string& script_name)
-    : request_queue_(queue), main_thread_(main_thread),
-      script_name_(script_name), script_path_(script_path),
+    : request_queue_(queue),
+      main_thread_(main_thread),
+      script_name_(script_name),
+      script_path_(script_path),
       target_id_(target_id) {}
 
 void InspectorIoDelegate::StartSession(int session_id,
                                        const std::string& target_id) {
   auto session = main_thread_->Connect(
       std::unique_ptr<InspectorSessionDelegate>(
-          new IoSessionDelegate(request_queue_->handle(), session_id)), true);
+          new IoSessionDelegate(request_queue_->handle(), session_id)),
+      true);
   if (session) {
     sessions_[session_id] = std::move(session);
     fprintf(stderr, "Debugger attached.\n");
@@ -340,7 +339,7 @@ void InspectorIoDelegate::EndSession(int session_id) {
 }
 
 std::vector<std::string> InspectorIoDelegate::GetTargetIds() {
-  return { target_id_ };
+  return {target_id_};
 }
 
 std::string InspectorIoDelegate::GetTargetTitle(const std::string& id) {
@@ -357,11 +356,11 @@ void RequestQueueData::CloseAndFree(RequestQueueData* queue) {
   queue->handle_.reset();
   uv_close(reinterpret_cast<uv_handle_t*>(&queue->async_),
            [](uv_handle_t* handle) {
-    uv_async_t* async = reinterpret_cast<uv_async_t*>(handle);
-    RequestQueueData* wrapper =
-        node::ContainerOf(&RequestQueueData::async_, async);
-    delete wrapper;
-  });
+             uv_async_t* async = reinterpret_cast<uv_async_t*>(handle);
+             RequestQueueData* wrapper =
+                 node::ContainerOf(&RequestQueueData::async_, async);
+             delete wrapper;
+           });
 }
 }  // namespace inspector
 }  // namespace node

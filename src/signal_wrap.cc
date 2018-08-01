@@ -123,9 +123,7 @@ class SignalWrap : public HandleWrap {
   uv_signal_t handle_;
 };
 
-
 }  // anonymous namespace
 }  // namespace node
-
 
 NODE_BUILTIN_MODULE_CONTEXT_AWARE(signal_wrap, node::SignalWrap::Initialize)

@@ -1,8 +1,8 @@
+#include "base_object-inl.h"
+#include "env.h"
 #include "node.h"
 #include "node_internals.h"
 #include "tracing/agent.h"
-#include "env.h"
-#include "base_object-inl.h"
 
 #include <set>
 #include <string>
@@ -37,8 +37,8 @@ class NodeCategorySet : public BaseObject {
  private:
   NodeCategorySet(Environment* env,
                   Local<Object> wrap,
-                  std::set<std::string> categories) :
-        BaseObject(env, wrap), categories_(categories) {
+                  std::set<std::string> categories)
+      : BaseObject(env, wrap), categories_(categories) {
     MakeWeak();
   }
 
@@ -88,10 +88,10 @@ void GetEnabledCategories(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   std::string categories = env->tracing_agent()->GetEnabledCategories();
   if (!categories.empty()) {
-    args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(),
-                          categories.c_str(),
-                          v8::NewStringType::kNormal).ToLocalChecked());
+    args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
+                                                  categories.c_str(),
+                                                  v8::NewStringType::kNormal)
+                                  .ToLocalChecked());
   }
 }
 
@@ -133,7 +133,7 @@ static void Emit(const FunctionCallbackInfo<Value>& args) {
   // enabled.
   const char* category_group = GetCategoryGroup(env, args[1]);
   const uint8_t* category_group_enabled =
-    GetCategoryGroupEnabled(category_group);
+      GetCategoryGroupEnabled(category_group);
   if (*category_group_enabled == 0) return;
 
   // get trace_event phase
@@ -201,10 +201,17 @@ static void Emit(const FunctionCallbackInfo<Value>& args) {
   const char* scope = node::tracing::kGlobalScope;
   uint64_t bind_id = node::tracing::kNoId;
 
-  TRACE_EVENT_API_ADD_TRACE_EVENT(
-    phase, category_group_enabled, name, scope, id, bind_id,
-    num_args, arg_names, arg_types, arg_values,
-    flags);
+  TRACE_EVENT_API_ADD_TRACE_EVENT(phase,
+                                  category_group_enabled,
+                                  name,
+                                  scope,
+                                  id,
+                                  bind_id,
+                                  num_args,
+                                  arg_names,
+                                  arg_types,
+                                  arg_values,
+                                  flags);
 }
 
 static void CategoryGroupEnabled(const FunctionCallbackInfo<Value>& args) {
@@ -212,7 +219,7 @@ static void CategoryGroupEnabled(const FunctionCallbackInfo<Value>& args) {
 
   const char* category_group = GetCategoryGroup(env, args[0]);
   const uint8_t* category_group_enabled =
-    GetCategoryGroupEnabled(category_group);
+      GetCategoryGroupEnabled(category_group);
   args.GetReturnValue().Set(*category_group_enabled > 0);
 }
 
@@ -242,11 +249,13 @@ void Initialize(Local<Object> target,
   // Grab the trace and isTraceCategoryEnabled intrinsics from the binding
   // object and expose those to our binding layer.
   Local<Object> binding = context->GetExtrasBindingObject();
-  target->Set(context, isTraceCategoryEnabled,
-              binding->Get(context, isTraceCategoryEnabled).ToLocalChecked())
-                  .FromJust();
-  target->Set(context, trace,
-              binding->Get(context, trace).ToLocalChecked()).FromJust();
+  target
+      ->Set(context,
+            isTraceCategoryEnabled,
+            binding->Get(context, isTraceCategoryEnabled).ToLocalChecked())
+      .FromJust();
+  target->Set(context, trace, binding->Get(context, trace).ToLocalChecked())
+      .FromJust();
 }
 
 }  // namespace node

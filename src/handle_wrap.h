@@ -106,7 +106,6 @@ class HandleWrap : public AsyncWrap {
   uv_handle_t* const handle_;
 };
 
-
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

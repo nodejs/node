@@ -42,8 +42,8 @@ void ToggleImmediateRef(const FunctionCallbackInfo<Value>& args) {
 }
 
 void Initialize(Local<Object> target,
-                       Local<Value> unused,
-                       Local<Context> context) {
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "getLibuvNow", GetLibuvNow);
@@ -52,11 +52,12 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "toggleTimerRef", ToggleTimerRef);
   env->SetMethod(target, "toggleImmediateRef", ToggleImmediateRef);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "immediateInfo"),
-              env->immediate_info()->fields().GetJSArray()).FromJust();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "immediateInfo"),
+            env->immediate_info()->fields().GetJSArray())
+      .FromJust();
 }
-
 
 }  // anonymous namespace
 }  // namespace node

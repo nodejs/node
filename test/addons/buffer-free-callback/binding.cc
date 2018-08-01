@@ -21,12 +21,10 @@ void Alloc(const v8::FunctionCallbackInfo<v8::Value>& args) {
   uintptr_t static_offset = reinterpret_cast<uintptr_t>(buf) % alignment;
   char* aligned = buf + (alignment - static_offset) + offset;
 
-  args.GetReturnValue().Set(node::Buffer::New(
-        isolate,
-        aligned,
-        args[0]->IntegerValue(),
-        FreeCallback,
-        nullptr).ToLocalChecked());
+  args.GetReturnValue().Set(
+      node::Buffer::New(
+          isolate, aligned, args[0]->IntegerValue(), FreeCallback, nullptr)
+          .ToLocalChecked());
 }
 
 void Check(const v8::FunctionCallbackInfo<v8::Value>& args) {

@@ -4,7 +4,6 @@
 #include "node/inspector/protocol/NodeTracing.h"
 #include "v8.h"
 
-
 namespace node {
 class Environment;
 
@@ -33,10 +32,10 @@ class TracingAgent : public NodeTracing::Backend {
 
   Environment* env_;
   std::unique_ptr<std::pair<tracing::Agent*, int>,
-                  void (*)(std::pair<tracing::Agent*, int>*)> trace_writer_;
+                  void (*)(std::pair<tracing::Agent*, int>*)>
+      trace_writer_;
   std::unique_ptr<NodeTracing::Frontend> frontend_;
 };
-
 
 }  // namespace protocol
 }  // namespace inspector

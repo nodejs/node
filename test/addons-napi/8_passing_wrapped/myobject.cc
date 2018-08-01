@@ -10,8 +10,9 @@ MyObject::~MyObject() {
   napi_delete_reference(env_, wrapper_);
 }
 
-void MyObject::Destructor(
-  napi_env env, void* nativeObject, void* /*finalize_hint*/) {
+void MyObject::Destructor(napi_env env,
+                          void* nativeObject,
+                          void* /*finalize_hint*/) {
   MyObject* obj = static_cast<MyObject*>(nativeObject);
   delete obj;
 }
@@ -22,8 +23,8 @@ napi_status MyObject::Init(napi_env env) {
   napi_status status;
 
   napi_value cons;
-  status = napi_define_class(
-      env, "MyObject", -1, New, nullptr, 0, nullptr, &cons);
+  status =
+      napi_define_class(env, "MyObject", -1, New, nullptr, 0, nullptr, &cons);
   if (status != napi_ok) return status;
 
   status = napi_create_reference(env, cons, 1, &constructor);
@@ -55,12 +56,13 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
   // a reference to the wrapped object via the out-parameter, because this
   // ensures that we test the code path that deals with a reference that is
   // destroyed from its own finalizer.
-  NAPI_CALL(env, napi_wrap(env,
-                          _this,
-                          obj,
-                          MyObject::Destructor,
-                          nullptr,  // finalize_hint
-                          &obj->wrapper_));
+  NAPI_CALL(env,
+            napi_wrap(env,
+                      _this,
+                      obj,
+                      MyObject::Destructor,
+                      nullptr,  // finalize_hint
+                      &obj->wrapper_));
 
   return _this;
 }

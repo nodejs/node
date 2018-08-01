@@ -1,5 +1,5 @@
-#include "node.h"
 #include "env-inl.h"
+#include "node.h"
 #include "node_internals.h"
 #include "v8.h"
 
@@ -38,9 +38,9 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 
   env->set_tick_callback_function(args[0].As<Function>());
 
-  Local<Function> run_microtasks_fn =
-      env->NewFunctionTemplate(RunMicrotasks)->GetFunction(context)
-          .ToLocalChecked();
+  Local<Function> run_microtasks_fn = env->NewFunctionTemplate(RunMicrotasks)
+                                          ->GetFunction(context)
+                                          .ToLocalChecked();
   run_microtasks_fn->SetName(FIXED_ONE_BYTE_STRING(isolate, "runMicrotasks"));
 
   Local<Array> ret = Array::New(isolate, 2);
@@ -63,8 +63,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
     callback = env->promise_reject_unhandled_function();
     value = message.GetValue();
 
-    if (value.IsEmpty())
-      value = Undefined(isolate);
+    if (value.IsEmpty()) value = Undefined(isolate);
   } else if (event == v8::kPromiseHandlerAddedAfterReject) {
     callback = env->promise_reject_handled_function();
     value = Undefined(isolate);
@@ -72,11 +71,9 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
     return;
   }
 
-  Local<Value> args[] = { promise, value };
-  MaybeLocal<Value> ret = callback->Call(env->context(),
-                                         Undefined(isolate),
-                                         arraysize(args),
-                                         args);
+  Local<Value> args[] = {promise, value};
+  MaybeLocal<Value> ret =
+      callback->Call(env->context(), Undefined(isolate), arraysize(args), args);
 
   if (!ret.IsEmpty() && ret.ToLocalChecked()->IsTrue())
     env->tick_info()->promise_rejections_toggle_on();
@@ -100,8 +97,7 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
 // the bootstrap process of the Node.js environment. A reference to the
 // bootstrap object must not be kept around after the bootstrap process
 // completes so that it can be gc'd as soon as possible.
-void SetupBootstrapObject(Environment* env,
-                          Local<Object> bootstrapper) {
+void SetupBootstrapObject(Environment* env, Local<Object> bootstrapper) {
   BOOTSTRAP_METHOD(_setupProcessObject, SetupProcessObject);
   BOOTSTRAP_METHOD(_setupNextTick, SetupNextTick);
   BOOTSTRAP_METHOD(_setupPromises, SetupPromises);
@@ -126,10 +122,11 @@ void SetupBootstrapObject(Environment* env,
 
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "_shouldAbortOnUncaughtToggle");
-  CHECK(bootstrapper->Set(env->context(),
-                       should_abort_on_uncaught_toggle,
-                       env->should_abort_on_uncaught_toggle().GetJSArray())
-                           .FromJust());
+  CHECK(bootstrapper
+            ->Set(env->context(),
+                  should_abort_on_uncaught_toggle,
+                  env->should_abort_on_uncaught_toggle().GetJSArray())
+            .FromJust());
 }
 #undef BOOTSTRAP_METHOD
 
@@ -139,10 +136,10 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
-#define V(PropertyName, StringValue)                                        \
-    target->Set(env->context(),                                             \
-               env->PropertyName()->Name(),                                 \
-               env->PropertyName()).FromJust();
+#define V(PropertyName, StringValue)                                           \
+  target                                                                       \
+      ->Set(env->context(), env->PropertyName()->Name(), env->PropertyName())  \
+      .FromJust();
   PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
 }

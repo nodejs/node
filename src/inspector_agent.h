@@ -35,8 +35,8 @@ class InspectorSession {
 class InspectorSessionDelegate {
  public:
   virtual ~InspectorSessionDelegate() = default;
-  virtual void SendMessageToFrontend(const v8_inspector::StringView& message)
-                                     = 0;
+  virtual void SendMessageToFrontend(
+      const v8_inspector::StringView& message) = 0;
 };
 
 class Agent {
@@ -65,7 +65,8 @@ class Agent {
                       v8::Local<v8::Message> message);
 
   // Async stack traces instrumentation.
-  void AsyncTaskScheduled(const v8_inspector::StringView& taskName, void* task,
+  void AsyncTaskScheduled(const v8_inspector::StringView& taskName,
+                          void* task,
                           bool recurring);
   void AsyncTaskCanceled(void* task);
   void AsyncTaskStarted(void* task);
@@ -73,8 +74,8 @@ class Agent {
   void AllAsyncTasksCanceled();
 
   void RegisterAsyncHook(v8::Isolate* isolate,
-    v8::Local<v8::Function> enable_function,
-    v8::Local<v8::Function> disable_function);
+                         v8::Local<v8::Function> enable_function,
+                         v8::Local<v8::Function> disable_function);
   void EnableAsyncHook();
   void DisableAsyncHook();
 
@@ -86,9 +87,7 @@ class Agent {
 
   void PauseOnNextJavascriptStatement(const std::string& reason);
 
-  InspectorIo* io() {
-    return io_.get();
-  }
+  InspectorIo* io() { return io_.get(); }
 
   // Can only be called from the main thread.
   bool StartIoThread();

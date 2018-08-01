@@ -1,6 +1,6 @@
+#include <assert.h>
 #include <node.h>
 #include <node_buffer.h>
-#include <assert.h>
 #include <zlib.h>
 
 namespace {
@@ -21,8 +21,12 @@ inline void CompressBytes(const v8::FunctionCallbackInfo<v8::Value>& info) {
   stream.zalloc = nullptr;
   stream.zfree = nullptr;
 
-  int err = deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
-                         -15, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+  int err = deflateInit2(&stream,
+                         Z_DEFAULT_COMPRESSION,
+                         Z_DEFLATED,
+                         -15,
+                         MAX_MEM_LEVEL,
+                         Z_DEFAULT_STRATEGY);
   assert(err == Z_OK);
 
   stream.avail_in = byte_length;

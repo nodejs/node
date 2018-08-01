@@ -13,7 +13,7 @@ namespace {
 class ScopedSuspendTracing {
  public:
   ScopedSuspendTracing(TracingController* controller, Agent* agent)
-                       : controller_(controller), agent_(agent) {
+      : controller_(controller), agent_(agent) {
     controller->StopTracing();
   }
 
@@ -39,9 +39,9 @@ std::set<std::string> flatten(
 
 }  // namespace
 
+using std::string;
 using v8::platform::tracing::TraceConfig;
 using v8::platform::tracing::TraceWriter;
-using std::string;
 
 Agent::Agent(const std::string& log_file_pattern)
     : log_file_pattern_(log_file_pattern), file_writer_(EmptyClientHandle()) {
@@ -50,13 +50,12 @@ Agent::Agent(const std::string& log_file_pattern)
 }
 
 void Agent::Start() {
-  if (started_)
-    return;
+  if (started_) return;
 
   CHECK_EQ(uv_loop_init(&tracing_loop_), 0);
 
-  NodeTraceBuffer* trace_buffer_ = new NodeTraceBuffer(
-      NodeTraceBuffer::kBufferChunks, this, &tracing_loop_);
+  NodeTraceBuffer* trace_buffer_ =
+      new NodeTraceBuffer(NodeTraceBuffer::kBufferChunks, this, &tracing_loop_);
   tracing_controller_->Initialize(trace_buffer_);
 
   // This thread should be created *after* async handles are created
@@ -83,8 +82,7 @@ void Agent::Stop() {
 }
 
 void Agent::StopTracing() {
-  if (!started_)
-    return;
+  if (!started_) return;
   // Perform final Flush on TraceBuffer. We don't want the tracing controller
   // to flush the buffer again on destruction of the V8::Platform.
   tracing_controller_->StopTracing();
@@ -108,8 +106,7 @@ void Agent::ThreadCb(void* arg) {
 }
 
 void Agent::Enable(const std::string& categories) {
-  if (categories.empty())
-    return;
+  if (categories.empty()) return;
   std::set<std::string> categories_set;
   std::stringstream category_list(categories);
   while (category_list.good()) {
@@ -122,10 +119,8 @@ void Agent::Enable(const std::string& categories) {
 
 void Agent::Enable(const std::set<std::string>& categories) {
   std::string cats;
-  for (const std::string cat : categories)
-    cats += cat + ", ";
-  if (categories.empty())
-    return;
+  for (const std::string cat : categories) cats += cat + ", ";
+  if (categories.empty()) return;
 
   file_writer_categories_.insert(categories.begin(), categories.end());
   std::set<std::string> full_list(file_writer_categories_.begin(),
@@ -145,19 +140,16 @@ void Agent::Enable(const std::set<std::string>& categories) {
 void Agent::Disable(const std::set<std::string>& categories) {
   for (auto category : categories) {
     auto it = file_writer_categories_.find(category);
-    if (it != file_writer_categories_.end())
-      file_writer_categories_.erase(it);
+    if (it != file_writer_categories_.end()) file_writer_categories_.erase(it);
   }
-  if (!file_writer_)
-    return;
+  if (!file_writer_) return;
   ScopedSuspendTracing suspend(tracing_controller_, this);
-  categories_[file_writer_->second] = { file_writer_categories_.begin(),
-                                        file_writer_categories_.end() };
+  categories_[file_writer_->second] = {file_writer_categories_.begin(),
+                                       file_writer_categories_.end()};
 }
 
 TraceConfig* Agent::CreateTraceConfig() {
-  if (categories_.empty())
-    return nullptr;
+  if (categories_.empty()) return nullptr;
   TraceConfig* trace_config = new TraceConfig();
   for (const auto& category : flatten(categories_)) {
     trace_config->AddIncludedCategory(category.c_str());
@@ -168,8 +160,7 @@ TraceConfig* Agent::CreateTraceConfig() {
 std::string Agent::GetEnabledCategories() {
   std::string categories;
   for (const auto& category : flatten(categories_)) {
-    if (!categories.empty())
-      categories += ',';
+    if (!categories.empty()) categories += ',';
     categories += category;
   }
   return categories;
@@ -181,8 +172,7 @@ void Agent::AppendTraceEvent(TraceObject* trace_event) {
 }
 
 void Agent::Flush(bool blocking) {
-  for (const auto& id_writer : writers_)
-    id_writer.second->Flush(blocking);
+  for (const auto& id_writer : writers_) id_writer.second->Flush(blocking);
 }
 }  // namespace tracing
 }  // namespace node

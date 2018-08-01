@@ -26,7 +26,8 @@ inline void builderAppend(StringBuilder& builder, char c) {
 }
 
 // NOLINTNEXTLINE(runtime/references)
-inline void builderAppend(StringBuilder& builder, const char* value,
+inline void builderAppend(StringBuilder& builder,
+                          const char* value,
                           size_t length) {
   builder.write(value, length);
 }

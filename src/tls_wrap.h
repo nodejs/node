@@ -43,7 +43,7 @@ class WriteWrap;
 namespace crypto {
 class SecureContext;
 class NodeBIO;
-}
+}  // namespace crypto
 
 class TLSWrap : public AsyncWrap,
                 public crypto::SSLWrap<TLSWrap>,
@@ -110,8 +110,7 @@ class TLSWrap : public AsyncWrap,
 
   inline void Cycle() {
     // Prevent recursion
-    if (++cycle_depth_ > 1)
-      return;
+    if (++cycle_depth_ > 1) return;
 
     for (; cycle_depth_ > 0; cycle_depth_--) {
       ClearIn();
@@ -137,8 +136,7 @@ class TLSWrap : public AsyncWrap,
   static void SetVerifyMode(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableSessionCallbacks(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EnableCertCb(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableCertCb(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DestroySSL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetServername(const v8::FunctionCallbackInfo<v8::Value>& args);

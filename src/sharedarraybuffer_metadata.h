@@ -3,8 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
 #include <memory>
+#include "node.h"
 
 namespace node {
 namespace worker {
@@ -39,10 +39,10 @@ class SharedArrayBufferMetadata
       Environment* env, v8::Local<v8::Context> context);
 
   SharedArrayBufferMetadata(SharedArrayBufferMetadata&& other) = delete;
-  SharedArrayBufferMetadata& operator=(
-      SharedArrayBufferMetadata&& other) = delete;
-  SharedArrayBufferMetadata& operator=(
-      const SharedArrayBufferMetadata&) = delete;
+  SharedArrayBufferMetadata& operator=(SharedArrayBufferMetadata&& other) =
+      delete;
+  SharedArrayBufferMetadata& operator=(const SharedArrayBufferMetadata&) =
+      delete;
   SharedArrayBufferMetadata(const SharedArrayBufferMetadata&) = delete;
 
  private:
@@ -62,6 +62,5 @@ class SharedArrayBufferMetadata
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 
 #endif  // SRC_SHAREDARRAYBUFFER_METADATA_H_

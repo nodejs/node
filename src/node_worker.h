@@ -3,8 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_messaging.h"
 #include <unordered_map>
+#include "node_messaging.h"
 
 namespace node {
 namespace worker {
@@ -32,7 +32,6 @@ class Worker : public AsyncWrap {
     tracker->TrackFieldWithSize("thread_exit_async", sizeof(uv_async_t));
     tracker->TrackField("parent_port", parent_port_);
   }
-
 
   ADD_MEMORY_INFO_NAME(Worker)
 
@@ -88,6 +87,5 @@ class Worker : public AsyncWrap {
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-
 
 #endif  // SRC_NODE_WORKER_H_

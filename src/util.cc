@@ -19,11 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "string_bytes.h"
+#include <stdio.h>
 #include "node_buffer.h"
 #include "node_internals.h"
+#include "string_bytes.h"
 #include "uv.h"
-#include <stdio.h>
 
 namespace node {
 
@@ -33,28 +33,22 @@ using v8::String;
 using v8::Value;
 
 template <typename T>
-static void MakeUtf8String(Isolate* isolate,
-                           Local<Value> value,
-                           T* target) {
+static void MakeUtf8String(Isolate* isolate, Local<Value> value, T* target) {
   Local<String> string = value->ToString(isolate);
-  if (string.IsEmpty())
-    return;
+  if (string.IsEmpty()) return;
 
   const size_t storage = StringBytes::StorageSize(isolate, string, UTF8) + 1;
   target->AllocateSufficientStorage(storage);
-  const int flags =
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
+  const int flags = String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
   const int length = string->WriteUtf8(target->out(), storage, 0, flags);
   target->SetLengthAndZeroTerminate(length);
 }
 
 Utf8Value::Utf8Value(Isolate* isolate, Local<Value> value) {
-  if (value.IsEmpty())
-    return;
+  if (value.IsEmpty()) return;
 
   MakeUtf8String(isolate, value, this);
 }
-
 
 TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
   if (value.IsEmpty()) {
@@ -62,8 +56,7 @@ TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
   }
 
   Local<String> string = value->ToString(isolate);
-  if (string.IsEmpty())
-    return;
+  if (string.IsEmpty()) return;
 
   // Allocate enough space to include the null terminator
   const size_t storage = string->Length() + 1;
