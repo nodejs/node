@@ -64,10 +64,9 @@ The `_writableState.buffer` property is deprecated. Use the
 <a id="DEP0004"></a>
 ### DEP0004: CryptoStream.prototype.readyState
 
-Type: Documentation-only
+Type: End-of-Life
 
-The `CryptoStream.prototype.readyState` property is deprecated and should not
-be used.
+The `CryptoStream.prototype.readyState` property was removed.
 
 <a id="DEP0005"></a>
 ### DEP0005: Buffer() constructor
@@ -377,9 +376,9 @@ The `NODE_REPL_HISTORY_FILE` environment variable was removed. Please use
 <a id="DEP0042"></a>
 ### DEP0042: tls.CryptoStream
 
-Type: Documentation-only
+Type: End-of-Life
 
-The [`tls.CryptoStream`][] class is deprecated. Please use
+The [`tls.CryptoStream`][] class was removed. Please use
 [`tls.TLSSocket`][] instead.
 
 <a id="DEP0043"></a>
