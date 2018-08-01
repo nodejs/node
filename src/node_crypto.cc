@@ -3096,7 +3096,7 @@ void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
-  bool b = cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue());
+  bool b = cipher->SetAutoPadding(args.Length() < 1 || args[0]->IsTrue());
   args.GetReturnValue().Set(b);  // Possibly report invalid state failure
 }
 
@@ -5190,7 +5190,8 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   CHECK(!force_fips_crypto);
   Environment* env = Environment::GetCurrent(args);
   const bool enabled = FIPS_mode();
-  const bool enable = args[0]->BooleanValue();
+  bool enable;
+  if (!args[0]->BooleanValue(env->context()).To(&enable)) return;
   if (enable == enabled)
     return;  // No action needed.
   if (!FIPS_mode_set(enable)) {

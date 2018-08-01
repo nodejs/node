@@ -1316,7 +1316,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
-  bool with_types = args[2]->BooleanValue();
+  bool with_types = args[2]->IsTrue();
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[3]);
   if (req_wrap_async != nullptr) {  // readdir(path, encoding, withTypes, req)
