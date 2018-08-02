@@ -410,7 +410,8 @@ void AsyncWrap::PopAsyncIds(const FunctionCallbackInfo<Value>& args) {
 void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-  double execution_async_id = args[0]->IsNumber() ? args[0]->NumberValue() : -1;
+  double execution_async_id =
+      args[0]->IsNumber() ? args[0].As<Number>()->Value() : -1;
   wrap->AsyncReset(execution_async_id);
 }
 
@@ -418,7 +419,8 @@ void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
 void AsyncWrap::QueueDestroyAsyncId(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsNumber());
   AsyncWrap::EmitDestroy(
-      Environment::GetCurrent(args), args[0]->NumberValue());
+      Environment::GetCurrent(args),
+      args[0].As<Number>()->Value());
 }
 
 void AsyncWrap::AddWrapMethods(Environment* env,
