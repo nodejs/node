@@ -198,7 +198,8 @@ function preprocessElements({ filename }) {
           heading.children = [{
             type: 'text',
             value: file.contents.slice(
-              position.start.offset, position.end.offset),
+              position.start.offset, position.end.offset)
+              .replace(/\\./g, (match) => match[1]),
             position
           }];
         }
