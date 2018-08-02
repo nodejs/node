@@ -25,7 +25,7 @@ cp.exec('where bash', (error, stdout) => {
   if (error) {
     return;
   }
-  test(stdout.trim());
+  test(stdout.split(/[\r\n]+/g)[0].trim());
 });
 
 cp.exec(`Get-ChildItem "${__dirname}" | Select-Object -Property Name`,
