@@ -3,35 +3,34 @@
 'use strict';
 
 const assert = require('assert');
-const fork = require('child_process').fork;
+const { fork } = require('child_process');
 const path = require('path');
 
 const runjs = path.join(__dirname, '..', '..', 'benchmark', 'run.js');
 
+function getArgv(name, args) {
+  return args
+          .reduce((acc, arg) => acc.concat(['--set', arg]), [])
+          .concat([name]);
+}
+
 function runBenchmark(name, args, env) {
-  const argv = [];
-
-  for (let i = 0; i < args.length; i++) {
-    argv.push('--set');
-    argv.push(args[i]);
-  }
-
-  argv.push(name);
-
+  const argv = getArgv(name, args);
   const mergedEnv = Object.assign({}, process.env, env);
+  const stdoutArr = [];
 
   const child = fork(runjs, argv, {
+    encoding: 'utf8',
     env: mergedEnv,
     stdio: ['inherit', 'pipe', 'inherit', 'ipc']
   });
-  child.stdout.setEncoding('utf8');
 
-  let stdout = '';
   child.stdout.on('data', (line) => {
-    stdout += line;
+    stdoutArr.push(line);
   });
 
   child.on('exit', (code, signal) => {
+    const stdout = stdoutArr.join('');
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
     // This bit makes sure that each benchmark file is being sent settings such
