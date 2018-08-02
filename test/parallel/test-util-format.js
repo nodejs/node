@@ -68,6 +68,14 @@ assert.strictEqual(util.format('%d', -0.5), '-0.5');
 assert.strictEqual(util.format('%d', ''), '0');
 assert.strictEqual(util.format('%d %d', 42, 43), '42 43');
 assert.strictEqual(util.format('%d %d', 42), '42 %d');
+assert.strictEqual(
+  util.format('%d', 1180591620717411303424),
+  '1.1805916207174113e+21'
+);
+assert.strictEqual(
+  util.format('%d', 1180591620717411303424n),
+  '1180591620717411303424n'
+);
 
 // Integer format specifier
 assert.strictEqual(util.format('%i'), '%i');

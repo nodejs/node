@@ -198,7 +198,7 @@ Each placeholder token is replaced with the converted value from the
 corresponding argument. Supported placeholders are:
 
 * `%s` - `String`.
-* `%d` - `Number` (integer or floating point value).
+* `%d` - `Number` (integer or floating point value) or `BigInt`.
 * `%i` - Integer.
 * `%f` - Floating point value.
 * `%j` - JSON. Replaced with the string `'[Circular]'` if the argument
