@@ -57,12 +57,23 @@ const listenOnPort = [
     const block = () => {
       net.createServer().listen(options, common.mustNotCall());
     };
-    common.expectsError(block,
-                        {
-                          code: 'ERR_INVALID_OPT_VALUE',
-                          type: TypeError,
-                          message: /^The value "{.*}" is invalid for option "options"$/
-                        });
+
+    if (typeof options === 'object' &&
+      !(('port' in options) || ('path' in options))) {
+      common.expectsError(block,
+                          {
+                            code: 'ERR_INVALID_ARG_VALUE',
+                            type: TypeError,
+                            message: /^The argument 'options' must have the property "port" or "path"\. Received .+$/,
+                          });
+    } else {
+      common.expectsError(block,
+                          {
+                            code: 'ERR_INVALID_OPT_VALUE',
+                            type: TypeError,
+                            message: /^The value "{.*}" is invalid for option "options"(?:\. .+)?$/,
+                          });
+    }
   }
 
   shouldFailToListen(false, { port: false });
@@ -73,6 +84,11 @@ const listenOnPort = [
   shouldFailToListen({ fd: -1 });
   // Invalid path in listen(options)
   shouldFailToListen({ path: -1 });
-  // Host without port
+
+  // Neither port or path are specified in options
+  shouldFailToListen({});
   shouldFailToListen({ host: 'localhost' });
+  shouldFailToListen({ host: 'localhost:3000' });
+  shouldFailToListen({ host: { port: 3000 } });
+  shouldFailToListen({ exclusive: true });
 }
