@@ -954,7 +954,7 @@ Type: End-of-Life
 <a id="DEP0106"></a>
 ### DEP0106: crypto.createCipher and crypto.createDecipher
 
-Type: Documentation-only
+Type: Runtime
 
 Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] should be
 avoided as they use a weak key derivation function (MD5 with no salt) and static

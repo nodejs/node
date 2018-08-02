@@ -11,12 +11,12 @@ const crypto = require('crypto');
 const key = '0123456789';
 
 {
-  common.expectWarning('Warning',
-                       'Use Cipheriv for counter mode of aes-256-gcm',
-                       common.noWarnCode);
+  common.expectWarning('DeprecationWarning',
+                       'crypto.createCipher is deprecated.',
+                       'DEP0106');
 
   // Emits regular warning expected by expectWarning()
-  crypto.createCipher('aes-256-gcm', key);
+  crypto.createCipher('aes-256-cbc', key);
 }
 
 const realEmitWarning = process.emitWarning;
