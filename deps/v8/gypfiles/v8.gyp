@@ -2032,7 +2032,7 @@
           'sources': [
             '../src/base/debug/stack_trace_posix.cc',
             '../src/base/platform/platform-aix.cc',
-            '../src/base/platform/platform-posix.cc'
+            '../src/base/platform/platform-posix.cc',
             '../src/base/platform/platform-posix.h',
           ]},
         ],
