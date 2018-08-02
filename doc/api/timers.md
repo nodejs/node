@@ -178,7 +178,7 @@ added: v0.0.1
 -->
 
 * `callback` {Function} The function to call when the timer elapses.
-* `delay` {number} The number of milliseconds to wait before calling the
+* `delay` {number|bigint} The number of milliseconds to wait before calling the
   `callback`.
 * `...args` {any} Optional arguments to pass when the `callback` is called.
 * Returns: {Timeout} for use with [`clearInterval()`][]
@@ -196,7 +196,7 @@ added: v0.0.1
 -->
 
 * `callback` {Function} The function to call when the timer elapses.
-* `delay` {number} The number of milliseconds to wait before calling the
+* `delay` {number|bigint} The number of milliseconds to wait before calling the
   `callback`.
 * `...args` {any} Optional arguments to pass when the `callback` is called.
 * Returns: {Timeout} for use with [`clearTimeout()`][]
