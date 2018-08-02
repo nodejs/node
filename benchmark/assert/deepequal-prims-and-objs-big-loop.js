@@ -15,7 +15,7 @@ const primValues = {
 
 const bench = common.createBenchmark(main, {
   primitive: Object.keys(primValues),
-  n: [1e6],
+  n: [1e5],
   method: [
     'deepEqual',
     'deepStrictEqual',

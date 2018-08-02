@@ -3,8 +3,8 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [1e5],
-  len: [1e2, 1e4],
+  n: [1e4],
+  len: [1e2, 1e3],
   method: [
     'deepEqual',
     'deepStrictEqual',

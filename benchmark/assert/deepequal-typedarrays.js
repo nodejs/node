@@ -14,14 +14,14 @@ const bench = common.createBenchmark(main, {
     'Float64Array',
     'Uint8ClampedArray',
   ],
-  n: [1],
+  n: [1e2],
   method: [
     'deepEqual',
     'deepStrictEqual',
     'notDeepEqual',
     'notDeepStrictEqual'
   ],
-  len: [1e6]
+  len: [1e4]
 });
 
 function main({ type, n, len, method }) {
@@ -30,7 +30,7 @@ function main({ type, n, len, method }) {
   const clazz = global[type];
   const actual = new clazz(len);
   const expected = new clazz(len);
-  const expectedWrong = Buffer.alloc(len);
+  const expectedWrong = new clazz(len);
   const wrongIndex = Math.floor(len / 2);
   expectedWrong[wrongIndex] = 123;
 

@@ -4,8 +4,8 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [1e6],
-  size: [1e2, 1e3, 1e4],
+  n: [1e4],
+  size: [1e2, 1e3],
   method: [
     'deepEqual',
     'deepStrictEqual',
@@ -20,7 +20,9 @@ function createObj(source, add = '') {
     nope: {
       bar: `123${add}`,
       a: [1, 2, 3],
-      baz: n
+      baz: n,
+      x: [],
+      y: {}
     }
   }));
 }

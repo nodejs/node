@@ -17,8 +17,8 @@ const primValues = {
 
 const bench = common.createBenchmark(main, {
   primitive: Object.keys(primValues),
-  n: [25],
-  len: [1e5],
+  n: [50],
+  len: [1e4],
   method: [
     'deepEqual_Array',
     'deepStrictEqual_Array',
