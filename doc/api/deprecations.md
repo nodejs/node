@@ -959,9 +959,9 @@ Type: Documentation-only
 Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] should be
 avoided as they use a weak key derivation function (MD5 with no salt) and static
 initialization vectors. It is recommended to derive a key using
-[`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][] and
-[`crypto.createDecipheriv()`][] to obtain the [`Cipher`][] and [`Decipher`][]
-objects respectively.
+[`crypto.pbkdf2()`][] or [`crypto.scrypt()`][] and to use
+[`crypto.createCipheriv()`][] and [`crypto.createDecipheriv()`][] to obtain the
+[`Cipher`][] and [`Decipher`][] objects respectively.
 
 <a id="DEP0107"></a>
 ### DEP0107: tls.convertNPNProtocols()
@@ -1024,6 +1024,7 @@ only. Use of `process.binding()` by userland code is unsupported.
 [`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
 [`crypto.fips`]: crypto.html#crypto_crypto_fips
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
 [`decipher.final()`]: crypto.html#crypto_decipher_final_outputencoding
 [`decipher.setAuthTag()`]: crypto.html#crypto_decipher_setauthtag_buffer
 [`domain`]: domain.html
