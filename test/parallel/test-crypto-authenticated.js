@@ -71,8 +71,10 @@ const expectedWarnings = common.hasFipsCrypto ?
     ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode]
   ];
 
-const expectedDeprecationWarnings = ['crypto.DEFAULT_ENCODING is deprecated.',
-                                     'DEP0091'];
+const expectedDeprecationWarnings = [
+  ['crypto.DEFAULT_ENCODING is deprecated.', 'DEP0091'],
+  ['crypto.createCipher is deprecated.', 'DEP0106']
+];
 
 common.expectWarning({
   Warning: expectedWarnings,
