@@ -24,11 +24,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_crypto.h"
 #include "openssl/bio.h"
 #include "env-inl.h"
 #include "util-inl.h"
 #include "v8.h"
-#include "node_crypto.h"
 
 namespace node {
 namespace crypto {
