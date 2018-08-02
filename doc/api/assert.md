@@ -587,7 +587,7 @@ assert.fail(new TypeError('need array'));
 Using `assert.fail()` with more than two arguments is possible but deprecated.
 See below for further details.
 
-## assert.fail(actual, expected[, message[, operator[, stackStartFunction]]])
+## assert.fail(actual, expected[, message[, operator[, stackStartFn]]])
 <!-- YAML
 added: v0.1.21
 changes:
@@ -600,7 +600,7 @@ changes:
 * `expected` {any}
 * `message` {string|Error}
 * `operator` {string} **Default:** `'!='`
-* `stackStartFunction` {Function} **Default:** `assert.fail`
+* `stackStartFn` {Function} **Default:** `assert.fail`
 
 > Stability: 0 - Deprecated: Use `assert.fail([message])` or other assert
 > functions instead.
@@ -610,7 +610,7 @@ If `message` is falsy, the error message is set as the values of `actual` and
 `expected` arguments are provided, `operator` will default to `'!='`. If
 `message` is provided as third argument it will be used as the error message and
 the other arguments will be stored as properties on the thrown object. If
-`stackStartFunction` is provided, all stack frames above that function will be
+`stackStartFn` is provided, all stack frames above that function will be
 removed from stacktrace (see [`Error.captureStackTrace`]). If no arguments are
 given, the default message `Failed` will be used.
 
@@ -636,7 +636,7 @@ assert.fail(1, 2, new TypeError('need array'));
 In the last three cases `actual`, `expected`, and `operator` have no
 influence on the error message.
 
-Example use of `stackStartFunction` for truncating the exception's stacktrace:
+Example use of `stackStartFn` for truncating the exception's stacktrace:
 
 ```js
 function suppressFrame() {
