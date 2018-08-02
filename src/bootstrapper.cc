@@ -3,6 +3,8 @@
 #include "node_internals.h"
 #include "v8.h"
 
+#include <atomic>
+
 namespace node {
 
 using v8::Array;
@@ -51,6 +53,9 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 }
 
 void PromiseRejectCallback(PromiseRejectMessage message) {
+  static std::atomic<uint64_t> unhandledRejections{0};
+  static std::atomic<uint64_t> rejectionsHandledAfter{0};
+
   Local<Promise> promise = message.GetPromise();
   Isolate* isolate = promise->GetIsolate();
   PromiseRejectEvent event = message.GetEvent();
@@ -65,12 +70,22 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 
     if (value.IsEmpty())
       value = Undefined(isolate);
+
+    unhandledRejections++;
   } else if (event == v8::kPromiseHandlerAddedAfterReject) {
     callback = env->promise_reject_handled_function();
     value = Undefined(isolate);
+
+    rejectionsHandledAfter++;
   } else {
     return;
   }
+
+  TRACE_COUNTER2(TRACING_CATEGORY_NODE2(promises, rejections),
+                 "rejections",
+                 "unhandled", unhandledRejections,
+                 "handledAfter", rejectionsHandledAfter);
+
 
   Local<Value> args[] = { promise, value };
   MaybeLocal<Value> ret = callback->Call(env->context(),

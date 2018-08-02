@@ -18,12 +18,14 @@ The available categories are:
   The [`async_hooks`] events have a unique `asyncId` and a special `triggerId`
   `triggerAsyncId` property.
 * `node.bootstrap` - Enables capture of Node.js bootstrap milestones.
+* `node.fs.sync` - Enables capture of trace data for file system sync methods.
 * `node.perf` - Enables capture of [Performance API] measurements.
   * `node.perf.usertiming` - Enables capture of only Performance API User Timing
     measures and marks.
   * `node.perf.timerify` - Enables capture of only Performance API timerify
     measurements.
-* `node.fs.sync` - Enables capture of trace data for file system sync methods.
+* `node.promises.rejections` - Enables capture of trace data tracking the number
+  of unhandled Promise rejections and handled-after-rejections.
 * `node.vm.script` - Enables capture of trace data for the `vm` module's
   `runInNewContext()`, `runInContext()`, and `runInThisContext()` methods.
 * `v8` - The [V8] events are GC, compiling, and execution related.
