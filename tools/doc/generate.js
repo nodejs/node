@@ -67,9 +67,9 @@ fs.readFile(filename, 'utf8', (er, input) => {
 
   const content = unified()
     .use(markdown)
+    .use(html.preprocessText)
     .use(json.jsonAPI, { filename })
     .use(html.firstHeader)
-    .use(html.preprocessText)
     .use(html.preprocessElements, { filename })
     .use(html.buildToc, { filename })
     .use(remark2rehype, { allowDangerousHTML: true })
