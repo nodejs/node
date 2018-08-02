@@ -1848,6 +1848,21 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 A module file could not be resolved while attempting a [`require()`][] or
 `import` operation.
 
+<a id="ERR_FS_WATCHER_ALREADY_STARTED"></a>
+### ERR_FS_WATCHER_ALREADY_STARTED
+<!-- YAML
+added: v10.0.0
+-->
+An attempt was made to start a watcher returned by `fs.watch()` that has already been started.
+
+<a id="ERR_FS_WATCHER_NOT_STARTED"></a>
+### ERR_FS_WATCHER_NOT_STARTED
+<!-- YAML
+added: v10.0.0
+-->
+
+An attempt was made to initiate operations on a watcher returned by `fs.watch()` that has not yet been started.
+
 [`--force-fips`]: cli.html#cli_force_fips
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`child_process`]: child_process.html
@@ -1890,6 +1905,7 @@ A module file could not be resolved while attempting a [`require()`][] or
 [`zlib`]: zlib.html
 [ES6 module]: esm.html
 [Node.js Error Codes]: #nodejs-error-codes
+[Legacy Node.js Error Codes]: #legacy-nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
 [crypto digest algorithm]: crypto.html#crypto_crypto_gethashes
