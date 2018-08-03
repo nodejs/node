@@ -39,6 +39,8 @@ class Worker : public AsyncWrap {
   bool is_stopped() const;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ApplyAccessControl(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartThread(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopThread(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMessagePort(const v8::FunctionCallbackInfo<v8::Value>& args);

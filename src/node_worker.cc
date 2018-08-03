@@ -353,6 +353,22 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   new Worker(env, args.This());
 }
 
+void Worker::ApplyAccessControl(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  CHECK(w->stopped_);
+
+  AccessControl access_control;
+  Local<Object> obj;
+  if (!args[0]->ToObject(w->env()->context()).ToLocal(&obj) ||
+      !AccessControl::FromObject(w->env()->context(), obj)
+          .To(&access_control)) {
+    return;
+  }
+
+  w->env_->access_control()->apply(access_control);
+}
+
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -434,6 +450,7 @@ void InitWorker(Local<Object> target,
     env->SetProtoMethod(w, "stopThread", Worker::StopThread);
     env->SetProtoMethod(w, "ref", Worker::Ref);
     env->SetProtoMethod(w, "unref", Worker::Unref);
+    env->SetProtoMethod(w, "applyAccessControl", Worker::ApplyAccessControl);
 
     Local<String> workerString =
         FIXED_ONE_BYTE_STRING(env->isolate(), "Worker");

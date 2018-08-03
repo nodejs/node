@@ -305,6 +305,12 @@ if (isMainThread) {
 ```
 
 ### new Worker(filename[, options])
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/???
+    description: The `accessControl` option was added.
+-->
 
 * `filename` {string} The path to the Worker’s main script. Must be
   either an absolute path or a relative path (i.e. relative to the
@@ -312,6 +318,8 @@ if (isMainThread) {
   If `options.eval` is true, this is a string containing JavaScript code rather
   than a path.
 * `options` {Object}
+  * `accessControl` {Object} A set of access restrictions that will be applied
+    to the worker thread. See [`process.accessControl.apply()`][] for details.
   * `eval` {boolean} If true, interpret the first argument to the constructor
     as a script that is executed once the worker is online.
   * `workerData` {any} Any JavaScript value that will be cloned and made
@@ -326,6 +334,10 @@ if (isMainThread) {
     not automatically be piped through to `process.stdout` in the parent.
   * stderr {boolean} If this is set to `true`, then `worker.stderr` will
     not automatically be piped through to `process.stderr` in the parent.
+
+Note that if `accessControl.fsRead` is set to `false`, the worker thread will
+not be able to read its main script from the file system, so a source script
+should be passed in instead and the `eval` option should be set.
 
 ### Event: 'error'
 <!-- YAML
@@ -473,6 +485,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`port.on('message')`]: #worker_threads_event_message
 [`process.exit()`]: process.html#process_process_exit_code
 [`process.abort()`]: process.html#process_process_abort
+[`process.accessControl.apply()`]: process.html#process_process_accesscontrol_apply_restrictions
 [`process.chdir()`]: process.html#process_process_chdir_directory
 [`process.env`]: process.html#process_process_env
 [`process.stdin`]: process.html#process_process_stdin
