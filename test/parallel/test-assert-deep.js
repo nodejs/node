@@ -890,3 +890,10 @@ assert.deepStrictEqual(obj1, obj2);
   );
   util.inspect.defaultOptions = tmp;
 }
+
+// Basic valueOf check.
+{
+  const a = new String(1);
+  a.valueOf = undefined;
+  assertNotDeepOrStrict(a, new String(1));
+}
