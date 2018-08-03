@@ -686,11 +686,14 @@ class V8_EXPORT EmbedderGraph {
   virtual Node* AddNode(std::unique_ptr<Node> node) = 0;
 
   /**
-   * Adds an edge that represents a strong reference from the given node
-   * |from| to the given node |to|. The nodes must be added to the graph
+   * Adds an edge that represents a strong reference from the given
+   * node |from| to the given node |to|. The nodes must be added to the graph
    * before calling this function.
+   *
+   * If name is nullptr, the edge will have auto-increment indexes, otherwise
+   * it will be named accordingly.
    */
-  virtual void AddEdge(Node* from, Node* to) = 0;
+  virtual void AddEdge(Node* from, Node* to, const char* name = nullptr) = 0;
 
   virtual ~EmbedderGraph() = default;
 };
