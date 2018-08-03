@@ -199,7 +199,7 @@ function preprocessElements({ filename }) {
             type: 'text',
             value: file.contents.slice(
               position.start.offset, position.end.offset)
-              .replace(/\\(.{1})/g, '$1')
+              .replace(/\\(.{1})/g, '$1'),
             position
           }];
         }
