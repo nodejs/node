@@ -47,15 +47,19 @@ class State {
     else
       assert.strictEqual(graph.length, expected.length);
     for (const expectedNode of expected) {
-      if (expectedNode.edges) {
+      if (expectedNode.children) {
         for (const expectedChild of expectedNode.children) {
-          const check = typeof expectedChild === 'function' ?
-            expectedChild : (node) => {
-              return node.name === expectedChild.name ||
-                (node.value &&
-                 node.value.constructor &&
-                 node.value.constructor.name === expectedChild.name);
-            };
+          const check = (edge) => {
+            // TODO(joyeecheung): check the edge names
+            const node = edge.to;
+            if (typeof expectedChild === 'function') {
+              return expectedChild(node);
+            }
+            return node.name === expectedChild.name ||
+              (node.value &&
+                node.value.constructor &&
+                node.value.constructor.name === expectedChild.name);
+          };
 
           assert(graph.some((node) => node.edges.some(check)),
                  `expected to find child ${util.inspect(expectedChild)} ` +
