@@ -470,6 +470,8 @@ For more information about the governance of the Node.js project, see
 * [ronkorving](https://github.com/ronkorving) -
 **Ron Korving** &lt;ron@ronkorving.nl&gt;
 * [RReverser](https://github.com/RReverser) -
+**Sam Ruby** &lt;rubys@intertwingly.net&gt;
+* [rubys](https://github.com/rubys) -
 **Ingvar Stepanyan** &lt;me@rreverser.com&gt;
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
