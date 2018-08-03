@@ -54,15 +54,19 @@ class State {
     else
       assert.strictEqual(graph.length, expected.length);
     for (const expectedNode of expected) {
-      if (expectedNode.edges) {
+      if (expectedNode.children) {
         for (const expectedChild of expectedNode.children) {
-          const check = typeof expectedChild === 'function' ?
-            expectedChild : (node) => {
-              return node.name === expectedChild.name ||
-                (node.value &&
-                 node.value.constructor &&
-                 node.value.constructor.name === expectedChild.name);
-            };
+          const check = (edge) => {
+            // TODO(joyeecheung): check the edge names
+            const node = edge.to;
+            if (typeof expectedChild === 'function') {
+              return expectedChild(node);
+            }
+            return node.name === expectedChild.name ||
+              (node.value &&
+                node.value.constructor &&
+                node.value.constructor.name === expectedChild.name);
+          };
 
           // Don't use assert with a custom message here. Otherwise the
           // inspection in the message is done eagerly and wastes a lot of CPU
