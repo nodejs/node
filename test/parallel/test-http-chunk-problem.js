@@ -71,7 +71,11 @@ cp.exec(ddcmd, function(err, stdout, stderr) {
     res.writeHead(200);
 
     // Create the subprocess
-    const cat = cp.spawn('cat', [filename]);
+    let cat;
+    if (common.isWindows)
+      cat = cp.spawn('cmd.exe', ['/c', 'type', filename]);
+    else
+      cat = cp.spawn('cat', [filename]);
 
     // Stream the data through to the response as binary chunks
     cat.stdout.on('data', (data) => {
