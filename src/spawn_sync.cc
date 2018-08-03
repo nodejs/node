@@ -370,6 +370,7 @@ void SyncProcessRunner::Initialize(Local<Object> target,
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, childProcesses);
   env->PrintSyncTrace();
   SyncProcessRunner p(env);
   Local<Value> result = p.Run(args[0]);

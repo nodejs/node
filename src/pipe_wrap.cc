@@ -163,6 +163,7 @@ PipeWrap::PipeWrap(Environment* env,
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  THROW_IF_INSUFFICIENT_PERMISSIONS(wrap->env(), fsWrite);
   node::Utf8Value name(args.GetIsolate(), args[0]);
   int err = uv_pipe_bind(&wrap->handle_, *name);
   args.GetReturnValue().Set(err);
@@ -182,6 +183,7 @@ void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
 void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  THROW_IF_INSUFFICIENT_PERMISSIONS(wrap->env(), fsWrite);
   CHECK(args[0]->IsInt32());
   int mode = args[0].As<Int32>()->Value();
   int err = uv_pipe_chmod(reinterpret_cast<uv_pipe_t*>(&wrap->handle_),
@@ -193,6 +195,7 @@ void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  THROW_IF_INSUFFICIENT_PERMISSIONS(wrap->env(), fsWrite);
   int backlog = args[0]->Int32Value();
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
                       backlog,
@@ -206,6 +209,7 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
 
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  THROW_IF_INSUFFICIENT_PERMISSIONS(wrap->env(), fsWrite);
 
   int fd = args[0]->Int32Value();
 
@@ -222,6 +226,7 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  THROW_IF_INSUFFICIENT_PERMISSIONS(wrap->env(), fsWrite);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());

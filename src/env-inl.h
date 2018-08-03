@@ -55,6 +55,27 @@ inline MultiIsolatePlatform* IsolateData::platform() const {
   return platform_;
 }
 
+AccessControl::AccessControl() {
+  permissions_.set();  // Sets all values to 'true'.
+}
+
+void AccessControl::set_permission(Permission perm, bool value) {
+  permissions_.set(static_cast<size_t>(perm), value);
+
+  if (value == false && perm != childProcesses && perm != loadAddons) {
+    set_permission(childProcesses, false);
+    set_permission(loadAddons, false);
+  }
+}
+
+bool AccessControl::has_permission(Permission perm) const {
+  return LIKELY(permissions_.test(static_cast<size_t>(perm)));
+}
+
+void AccessControl::apply(const AccessControl& other) {
+  permissions_ &= other.permissions_;
+}
+
 inline Environment::AsyncHooks::AsyncHooks()
     : async_ids_stack_(env()->isolate(), 16 * 2),
       fields_(env()->isolate(), kFieldsCount),
@@ -389,6 +410,10 @@ void Environment::DecreaseWaitingRequestCounter() {
 
 inline uv_loop_t* Environment::event_loop() const {
   return isolate_data()->event_loop();
+}
+
+inline AccessControl* Environment::access_control() {
+  return &access_control_;
 }
 
 inline Environment::AsyncHooks* Environment::async_hooks() {

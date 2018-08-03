@@ -1800,6 +1800,7 @@ class GetHostByAddrWrap: public QueryWrap {
 template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, netOutgoing);
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
 
@@ -1949,6 +1950,7 @@ void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
 
 void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, netOutgoing);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
@@ -2000,6 +2002,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
 
 void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, netOutgoing);
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());

@@ -204,6 +204,14 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
+
+  AccessControl* ac = wrap->env()->access_control();
+  if (!ac->has_permission(AccessControl::netIncoming) ||
+      !ac->has_permission(AccessControl::netOutgoing)) {
+    args.GetReturnValue().Set(UV_EPERM);
+    return;
+  }
+
   int fd = static_cast<int>(args[0]->IntegerValue());
   int err = uv_tcp_open(&wrap->handle_, fd);
 
@@ -219,6 +227,13 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
+
+  AccessControl* ac = wrap->env()->access_control();
+  if (!ac->has_permission(AccessControl::netIncoming)) {
+    args.GetReturnValue().Set(UV_EPERM);
+    return;
+  }
+
   node::Utf8Value ip_address(args.GetIsolate(), args[0]);
   int port = args[1]->Int32Value();
   sockaddr_in addr;
@@ -237,6 +252,13 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
+
+  AccessControl* ac = wrap->env()->access_control();
+  if (!ac->has_permission(AccessControl::netIncoming)) {
+    args.GetReturnValue().Set(UV_EPERM);
+    return;
+  }
+
   node::Utf8Value ip6_address(args.GetIsolate(), args[0]);
   int port = args[1]->Int32Value();
   sockaddr_in6 addr;
@@ -255,6 +277,13 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
+
+  AccessControl* ac = wrap->env()->access_control();
+  if (!ac->has_permission(AccessControl::netIncoming)) {
+    args.GetReturnValue().Set(UV_EPERM);
+    return;
+  }
+
   int backlog = args[0]->Int32Value();
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
                       backlog,
@@ -270,6 +299,12 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
+
+  AccessControl* ac = wrap->env()->access_control();
+  if (!ac->has_permission(AccessControl::netOutgoing)) {
+    args.GetReturnValue().Set(UV_EPERM);
+    return;
+  }
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
@@ -305,6 +340,12 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
+
+  AccessControl* ac = wrap->env()->access_control();
+  if (!ac->has_permission(AccessControl::netOutgoing)) {
+    args.GetReturnValue().Set(UV_EPERM);
+    return;
+  }
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());

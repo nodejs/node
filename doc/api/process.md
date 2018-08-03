@@ -1996,6 +1996,141 @@ Will generate an object similar to:
   tz: '2016b' }
 ```
 
+## Access Control
+
+> Stability: 1 - Experimental
+
+### process.accessControl.apply(restrictions)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `restrictions` {Object} A set of access restrictions that will be applied
+  to the current Node.js instance. The format should be the same as the one
+  returned by [`process.accessControl.getCurrent()`][]. Omitted keys will
+  default to `true`, i.e. to retaining the relevant permissions.
+
+*Warning*: This does not provide a full isolation mechanism. Existing resources
+and communication channels may be used to circumvent these measures, if they
+have been made available before the corresponding restrictions have been put
+into place.
+
+This API is recent and may not be complete.
+Please report bugs at https://github.com/nodejs/node/issues.
+
+Operations started before this call are not undone or stopped.
+Features that were previously disabled through this call cannot be re-enabled.
+Child processes do not inherit these restrictions, whereas [`Worker`][]s do.
+
+The following code removes some permissions of the current Node.js instance:
+
+```js
+process.accessControl.apply({
+  childProcesses: false,
+  createWorkers: false,
+  fsRead: false,
+  fsWrite: false,
+  loadAddons: false,
+  setV8Flags: false
+});
+```
+
+Keys not listed in the object, or with values not set to `false`,
+are unaffected.
+
+If a key that is not `childProcesses` or `loadAddons` is set to `false`,
+the `childProcesses` and `loadAddons` feature set will also be disabled
+automatically.
+
+See [`process.accessControl.getCurrent()`][] for a list of permissions.
+
+### process.accessControl.getCurrent()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object} An object representing a set of permissions for the
+  current Node.js instance of the following structure:
+
+<!-- eslint-skip -->
+```js
+{ accessInspectorBindings: true,
+  childProcesses: true,
+  createWorkers: true,
+  fsRead: true,
+  fsWrite: true,
+  loadAddons: true,
+  modifyTraceEvents: true,
+  netConnectionless: true,
+  netIncoming: true,
+  netOutgoing: true,
+  setEnvironmentVariables: true,
+  setProcessAttrs: true,
+  setV8Flags: true,
+  signalProcesses: true }
+```
+
+Currently only boolean options are supported.
+
+In particular, these settings affect the following features of the Node.js API:
+
+- `accessInspectorBindings`:
+  - [`inspector.open()`][]
+  - [`inspector.Session.connect()`][]
+- `childProcesses`:
+  - [`child_process`][`ChildProcess`] methods
+- `createWorkers`:
+  - [`worker_threads.Worker`][`Worker`]
+- `fsRead`:
+  - All read-only [`fs`][] operations, including watchers
+    - This always includes `fs.open()` and `fs.openSync()`, even when
+      writing to files.
+  - Existing `fs.ReadStream` instances will not continue to work.
+  - [`os.homedir()`][]
+  - [`os.userInfo()`][]
+  - [`require()`][]
+  - [`process.stdin`][] if this stream points to a file.
+  - Note that `fsRead` and `fsWrite` are distinct permissions.
+- `fsWrite`:
+  - All other [`fs`][] operations
+    - `fs.open()` and `fs.openSync()` when flags indicate writing or appending
+  - Existing `fs.WriteStream` instances will not continue to work.
+  - [`net`][] operations on UNIX domain sockets
+  - [`process.stdout`][] and [`process.stderr`][], respectively, if those
+    streams point to files.
+- `loadAddons`:
+  - [`process.dlopen()`][] and [`require()`][] in the case of native addons
+- `modifyTraceEvents`:
+  - [`tracing.disable()`][] and [`tracing.enable()`][]
+- `netConnectionless`:
+  - [UDP][] operations, including sending data from existing sockets
+- `netIncoming`:
+  - [`server.listen()`][`net.Server`]
+  - Receiving or sending data on existing sockets is unaffected.
+- `netOutgoing`:
+  - [`socket.connect()`][`net.Socket`]
+  - [`dns`][] requests
+  - Receiving or sending data on existing sockets is unaffected.
+- `setEnvironmentVariables`:
+  - Setting/deleting keys on [`process.env`][]
+- `setProcessAttrs`:
+  - [`process.chdir()`][]
+  - [`process.initgroups()`][]
+  - [`process.setgroups()`][]
+  - [`process.setgid()`][]
+  - [`process.setuid()`][]
+  - [`process.setegid()`][]
+  - [`process.seteuid()`][]
+  - [`process.title`][] setting
+- `setV8Flags`:
+  - [`v8.setFlagsFromString()`][]
+- `signalProcesses`:
+  - [`process.kill()`][]
+  - Debugging cluster child processes
+
+This function always returns a new object. Modifications to the returned object
+will have no effect.
+
 ## Exit Codes
 
 Node.js will normally exit with a `0` status code when no more async
@@ -2057,24 +2192,44 @@ cases:
 [`Worker`]: worker_threads.html#worker_threads_class_worker
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`dns`]: dns.html
 [`domain`]: domain.html
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
+[`fs`]: fs.html
+[`inspector.open()`]: inspector.html#inspector_inspector_open_port_host_wait
+[`inspector.Session.connect()`]: inspector.html#inspector_session_connect
+[`net`]: net.html
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`os.constants.dlopen`]: os.html#os_dlopen_constants
+[`os.homedir()`]: os.html#os_os_homedir
+[`os.userInfo()`]: os.html#os_os_userinfo_options
+[`process.accessControl.getCurrent()`]: #process_process_accesscontrol_getcurrent
 [`process.argv`]: #process_process_argv
+[`process.chdir()`]: #process_process_chdir_directory
+[`process.dlopen()`]: #process_process_dlopen_module_filename_flags
+[`process.env`]: #process_process_env
 [`process.execPath`]: #process_process_execpath
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
 [`process.hrtime()`]: #process_process_hrtime_time
 [`process.hrtime.bigint()`]: #process_process_hrtime_bigint
+[`process.initgroups()`]: #process_process_initgroups_user_extragroup
 [`process.kill()`]: #process_process_kill_pid_signal
+[`process.setegid()`]: #process_process_setegid_id
+[`process.seteuid()`]: #process_process_seteuid_id
+[`process.setgid()`]: #process_process_setgid_id
+[`process.setgroups()`]: #process_process_setgroups_groups
+[`process.setuid()`]: #process_process_setuid_id
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
+[`process.title`]: #process_process_title
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
+[`tracing.disable()`]: tracing.html#tracing_tracing_disable
+[`tracing.enable()`]: tracing.html#tracing_tracing_enable
 [`v8.setFlagsFromString()`]: v8.html#v8_v8_setflagsfromstring_flags
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [Child Process]: child_process.html
@@ -2089,4 +2244,5 @@ cases:
 [Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
 [TTY]: tty.html#tty_tty
+[UDP]: dgram.html
 [Writable]: stream.html#stream_writable_streams

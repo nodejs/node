@@ -640,6 +640,7 @@ Maybe<URL> Resolve(Environment* env,
                    const std::string& specifier,
                    const URL& base,
                    PackageMainCheck check_pjson_main) {
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead, Nothing<URL>());
   URL pure_url(specifier);
   if (!(pure_url.flags() & URL_FLAGS_FAILED)) {
     // just check existence, without altering
@@ -668,6 +669,7 @@ Maybe<URL> Resolve(Environment* env,
 
 void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
 
   // module.resolve(specifier, url)
   CHECK_EQ(args.Length(), 2);

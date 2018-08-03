@@ -1380,6 +1380,7 @@ void InitModpendingOnce() {
 // cache that's a plain C list or hash table that's shared across contexts?
 static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, loadAddons);
   auto context = env->context();
 
   uv_once(&init_modpending_once, InitModpendingOnce);
@@ -1799,6 +1800,9 @@ static void ProcessTitleGetter(Local<Name> property,
 static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setProcessAttrs);
+
   node::Utf8Value title(info.GetIsolate(), value);
   TRACE_EVENT_METADATA1("__metadata", "process_name", "name",
                         TRACE_STR_COPY(*title));
@@ -1844,6 +1848,8 @@ static void EnvSetter(Local<Name> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setEnvironmentVariables);
+
   if (config_pending_deprecation && env->EmitProcessEnvWarning() &&
       !value->IsString() && !value->IsNumber() && !value->IsBoolean()) {
     if (ProcessEmitDeprecationWarning(
@@ -1906,6 +1912,9 @@ static void EnvQuery(Local<Name> property,
 
 static void EnvDeleter(Local<Name> property,
                        const PropertyCallbackInfo<Boolean>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setEnvironmentVariables);
+
   Mutex::ScopedLock lock(environ_mutex);
   if (property->IsString()) {
 #ifdef __POSIX__
@@ -2050,6 +2059,9 @@ static void DebugPortGetter(Local<Name> property,
 static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setProcessAttrs);
+
   Mutex::ScopedLock lock(process_mutex);
   debug_options.set_port(value->Int32Value());
 }
@@ -3122,6 +3134,7 @@ void RegisterSignalHandler(int signal,
 
 void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, signalProcesses);
 
   if (args.Length() != 1) {
     return env->ThrowError("Invalid number of arguments.");
@@ -3148,6 +3161,8 @@ static int GetDebugSignalHandlerMappingName(DWORD pid, wchar_t* buf,
 
 static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, signalProcesses);
+
   Isolate* isolate = args.GetIsolate();
   DWORD pid;
   HANDLE process = nullptr;

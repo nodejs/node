@@ -21,6 +21,7 @@ namespace node {
 // a `Local<Value>` containing the TypeError with proper code and message
 
 #define ERRORS_WITH_CODE(V)                                                  \
+  V(ERR_ACCESS_DENIED, Error)                                                \
   V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                    \
   V(ERR_BUFFER_TOO_LARGE, Error)                                             \
   V(ERR_CANNOT_TRANSFER_OBJECT, TypeError)                                   \
@@ -61,6 +62,7 @@ namespace node {
 // Errors with predefined static messages
 
 #define PREDEFINED_ERROR_MESSAGES(V)                                         \
+  V(ERR_ACCESS_DENIED, "Access to this API has been restricted")             \
   V(ERR_CANNOT_TRANSFER_OBJECT, "Cannot transfer object of unsupported type")\
   V(ERR_CLOSED_MESSAGE_PORT, "Cannot send data on closed MessagePort")       \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")    \

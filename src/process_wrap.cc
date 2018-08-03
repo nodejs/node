@@ -21,6 +21,7 @@
 
 #include "env-inl.h"
 #include "handle_wrap.h"
+#include "node_errors.h"
 #include "node_internals.h"
 #include "node_wrap.h"
 #include "stream_base-inl.h"
@@ -141,6 +142,8 @@ class ProcessWrap : public HandleWrap {
 
   static void Spawn(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env, childProcesses);
+
     Local<Context> context = env->context();
     ProcessWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
@@ -282,6 +285,8 @@ class ProcessWrap : public HandleWrap {
 
   static void Kill(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env, signalProcesses);
+
     ProcessWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
     int signal = args[0]->Int32Value(env->context()).FromJust();

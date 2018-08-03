@@ -63,6 +63,7 @@ void NodeCategorySet::New(const FunctionCallbackInfo<Value>& args) {
 
 void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, modifyTraceEvents);
   NodeCategorySet* category_set;
   ASSIGN_OR_RETURN_UNWRAP(&category_set, args.Holder());
   CHECK_NOT_NULL(category_set);
@@ -75,6 +76,7 @@ void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
 
 void NodeCategorySet::Disable(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, modifyTraceEvents);
   NodeCategorySet* category_set;
   ASSIGN_OR_RETURN_UNWRAP(&category_set, args.Holder());
   CHECK_NOT_NULL(category_set);

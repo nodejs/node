@@ -105,6 +105,7 @@ struct sockaddr;
 // node is built as static library. No need to depends on the
 // __attribute__((constructor)) like mechanism in GCC.
 #define NODE_BUILTIN_STANDARD_MODULES(V)                                      \
+    V(access_control)                                                         \
     V(async_wrap)                                                             \
     V(buffer)                                                                 \
     V(cares_wrap)                                                             \

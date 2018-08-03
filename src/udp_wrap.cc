@@ -175,6 +175,7 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
+  THROW_IF_INSUFFICIENT_PERMISSIONS(wrap->env(), netConnectionless);
 
   // bind(ip, port, flags)
   CHECK_EQ(args.Length(), 3);
@@ -340,6 +341,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
+  THROW_IF_INSUFFICIENT_PERMISSIONS(wrap->env(), netConnectionless);
 
   // send(req, list, list.length, port, address, hasCallback)
   CHECK(args[0]->IsObject());
@@ -425,6 +427,8 @@ void UDPWrap::RecvStart(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
+  THROW_IF_INSUFFICIENT_PERMISSIONS(wrap->env(), netConnectionless);
+
   int err = uv_udp_recv_start(&wrap->handle_, OnAlloc, OnRecv);
   // UV_EALREADY means that the socket is already bound but that's okay
   if (err == UV_EALREADY)

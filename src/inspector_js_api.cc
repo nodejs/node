@@ -75,6 +75,7 @@ class JSBindingsConnection : public AsyncWrap {
 
   static void New(const FunctionCallbackInfo<Value>& info) {
     Environment* env = Environment::GetCurrent(info);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env, accessInspectorBindings);
     CHECK(info[0]->IsFunction());
     Local<Function> callback = info[0].As<Function>();
     new JSBindingsConnection(env, info.This(), callback);
@@ -122,7 +123,8 @@ static bool InspectorEnabled(Environment* env) {
 }
 
 void AddCommandLineAPI(const FunctionCallbackInfo<Value>& info) {
-  auto env = Environment::GetCurrent(info);
+  Environment* env = Environment::GetCurrent(info);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env, accessInspectorBindings);
   Local<Context> context = env->context();
 
   // inspector.addCommandLineAPI takes 2 arguments: a string and a value.
@@ -135,6 +137,7 @@ void AddCommandLineAPI(const FunctionCallbackInfo<Value>& info) {
 
 void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env, accessInspectorBindings);
   CHECK_GT(args.Length(), 1);
   CHECK(args[0]->IsFunction());
   SlicedArguments call_args(args, /* start */ 2);
@@ -237,6 +240,8 @@ void IsEnabled(const FunctionCallbackInfo<Value>& args) {
 
 void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, accessInspectorBindings);
+
   Agent* agent = env->inspector_agent();
   bool wait_for_connect = false;
 

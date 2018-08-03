@@ -97,11 +97,14 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
 void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
   new StatWatcher(env, args.This(), args[0]->IsTrue());
 }
 
 // wrap.start(filename, interval)
 void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
   CHECK_EQ(args.Length(), 2);
 
   StatWatcher* wrap;

@@ -60,6 +60,7 @@ void Abort(const FunctionCallbackInfo<Value>& args) {
 
 void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setProcessAttrs);
   CHECK(env->is_main_thread());
 
   CHECK_EQ(args.Length(), 1);
@@ -150,6 +151,7 @@ void HrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
 
 void Kill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, signalProcesses);
 
   if (args.Length() != 2)
     return env->ThrowError("Bad argument.");
@@ -364,6 +366,7 @@ void GetEGid(const FunctionCallbackInfo<Value>& args) {
 void SetGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->is_main_thread());
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setProcessAttrs);
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
@@ -384,6 +387,7 @@ void SetGid(const FunctionCallbackInfo<Value>& args) {
 void SetEGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->is_main_thread());
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setProcessAttrs);
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
@@ -403,6 +407,7 @@ void SetEGid(const FunctionCallbackInfo<Value>& args) {
 
 void SetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setProcessAttrs);
   CHECK(env->is_main_thread());
 
   CHECK_EQ(args.Length(), 1);
@@ -423,6 +428,7 @@ void SetUid(const FunctionCallbackInfo<Value>& args) {
 
 void SetEUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setProcessAttrs);
   CHECK(env->is_main_thread());
 
   CHECK_EQ(args.Length(), 1);
@@ -479,6 +485,7 @@ void GetGroups(const FunctionCallbackInfo<Value>& args) {
 
 void SetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setProcessAttrs);
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsArray());
@@ -512,6 +519,7 @@ void SetGroups(const FunctionCallbackInfo<Value>& args) {
 
 void InitGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, setProcessAttrs);
 
   CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsUint32() || args[0]->IsString());

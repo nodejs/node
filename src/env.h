@@ -36,6 +36,7 @@
 #include "node.h"
 #include "node_http2_state.h"
 
+#include <bitset>
 #include <list>
 #include <stdint.h>
 #include <vector>
@@ -235,6 +236,7 @@ struct PackageConfig {
   V(password_string, "password")                                              \
   V(path_string, "path")                                                      \
   V(pending_handle_string, "pendingHandle")                                   \
+  V(permission_string, "permission")                                          \
   V(pid_string, "pid")                                                        \
   V(pipe_string, "pipe")                                                      \
   V(pipe_target_string, "pipeTarget")                                         \
@@ -417,6 +419,59 @@ enum class DebugCategory {
 #undef V
   CATEGORY_COUNT
 };
+
+class AccessControl {
+ public:
+  enum Permission {
+#define ACCESS_CONTROL_FLAGS(V)                \
+    V(accessInspectorBindings)                 \
+    V(childProcesses)                          \
+    V(createWorkers)                           \
+    V(fsRead)                                  \
+    V(fsWrite)                                 \
+    V(loadAddons)                              \
+    V(modifyTraceEvents)                       \
+    V(netConnectionless)                       \
+    V(netIncoming)                             \
+    V(netOutgoing)                             \
+    V(setEnvironmentVariables)                 \
+    V(setProcessAttrs)                         \
+    V(setV8Flags)                              \
+    V(signalProcesses)                         \
+
+#define V(kind) kind,
+    ACCESS_CONTROL_FLAGS(V)
+#undef V
+    kNumPermissions
+  };
+
+  inline AccessControl();
+
+  inline void set_permission(Permission perm, bool value);
+  inline bool has_permission(Permission perm) const;
+  inline void apply(const AccessControl& other);
+
+  static Permission PermissionFromString(const char* str);
+  static const char* PermissionToString(Permission perm);
+
+  v8::MaybeLocal<v8::Object> ToObject(v8::Local<v8::Context> context);
+  static v8::Maybe<AccessControl> FromObject(v8::Local<v8::Context> context,
+                                             v8::Local<v8::Object> object);
+
+  static void ThrowAccessDenied(Environment* env, Permission perm);
+
+ private:
+  std::bitset<kNumPermissions> permissions_;
+};
+
+#define THROW_IF_INSUFFICIENT_PERMISSIONS(env, perm_, ...)                     \
+  do {                                                                         \
+    const AccessControl::Permission perm = (AccessControl::Permission::perm_); \
+    if (UNLIKELY(!(env)->access_control()->has_permission(perm))) {            \
+      AccessControl::ThrowAccessDenied((env), perm);                           \
+      return __VA_ARGS__;                                                      \
+    }                                                                          \
+  } while (0)
 
 class Environment {
  public:
@@ -627,6 +682,7 @@ class Environment {
   inline void IncreaseWaitingRequestCounter();
   inline void DecreaseWaitingRequestCounter();
 
+  inline AccessControl* access_control();
   inline AsyncHooks* async_hooks();
   inline ImmediateInfo* immediate_info();
   inline TickInfo* tick_info();
@@ -897,6 +953,7 @@ class Environment {
   uv_check_t idle_check_handle_;
   bool profiler_idle_notifier_started_ = false;
 
+  AccessControl access_control_;
   AsyncHooks async_hooks_;
   ImmediateInfo immediate_info_;
   TickInfo tick_info_;

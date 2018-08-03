@@ -103,6 +103,7 @@ Worker::Worker(Environment* env, Local<Object> wrap)
     env_->set_abort_on_uncaught_exception(false);
     env_->set_worker_context(this);
     env_->set_thread_id(thread_id_);
+    env_->access_control()->apply(*env->access_control());
 
     env_->Start(0, nullptr, 0, nullptr, env->profiler_idle_notifier_started());
   }
@@ -340,6 +341,7 @@ Worker::~Worker() {
 
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, createWorkers);
 
   CHECK(args.IsConstructCall());
 

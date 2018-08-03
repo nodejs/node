@@ -321,6 +321,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
 
 static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
   char buf[PATH_MAX];
 
   size_t len = sizeof(buf);
@@ -342,6 +343,7 @@ static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
 
 static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
   uv_passwd_t pwd;
   enum encoding encoding;
 

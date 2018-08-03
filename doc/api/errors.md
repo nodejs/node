@@ -578,6 +578,14 @@ found [here][online].
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
 
+<a id="ERR_ACCESS_DENIED"></a>
+### ERR_ACCESS_DENIED
+
+> Stability: 1 - Experimental
+
+This error is thrown when an attempt was made to use a feature of Node.js
+which was previously disabled through the [`process.accessControl`][] mechanism.
+
 <a id="ERR_AMBIGUOUS_ARGUMENT"></a>
 ### ERR_AMBIGUOUS_ARGUMENT
 
@@ -1867,6 +1875,7 @@ A module file could not be resolved while attempting a [`require()`][] or
 [`net`]: net.html
 [`new URL(input)`]: url.html#url_constructor_new_url_input_base
 [`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
+[`process.accessControl`]: process.html#process_access_control
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`require()`]: modules.html#modules_require

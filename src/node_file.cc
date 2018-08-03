@@ -285,6 +285,8 @@ FileHandleReadWrap::FileHandleReadWrap(FileHandle* handle, Local<Object> obj)
 int FileHandle::ReadStart() {
   if (!IsAlive() || IsClosing())
     return UV_EOF;
+  if (!env()->access_control()->has_permission(AccessControl::fsRead))
+    return UV_EPERM;
 
   reading_ = true;
 
@@ -783,7 +785,7 @@ inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value,
 
 void Access(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
@@ -836,6 +838,8 @@ void Close(const FunctionCallbackInfo<Value>& args) {
 // in the file.
 static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
+
   uv_loop_t* loop = env->event_loop();
 
   CHECK(args[0]->IsString());
@@ -903,6 +907,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
 // The speedup comes from not creating thousands of Stat and Error objects.
 static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
 
   CHECK(args[0]->IsString());
   node::Utf8Value path(env->isolate(), args[0]);
@@ -920,6 +925,7 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
@@ -950,6 +956,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
 
 static void LStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -981,6 +988,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
 
 static void FStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
@@ -1011,6 +1019,7 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
 
 static void Symlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   int argc = args.Length();
   CHECK_GE(argc, 4);
@@ -1039,6 +1048,7 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
 
 static void Link(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -1065,6 +1075,7 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
 
 static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
 
   int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -1107,6 +1118,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
 
 static void Rename(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -1133,6 +1145,7 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
 
 static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -1159,6 +1172,7 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
 
 static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
@@ -1181,6 +1195,7 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
 
 static void Fsync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
@@ -1203,6 +1218,7 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
 
 static void Unlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
@@ -1225,6 +1241,7 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
 
 static void RMDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
@@ -1374,6 +1391,7 @@ int MKDirpAsync(uv_loop_t* loop,
 
 static void MKDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 4);
@@ -1408,6 +1426,7 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
 
 static void RealPath(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -1451,6 +1470,7 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
 
 static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -1586,6 +1606,11 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   const int flags = args[1].As<Int32>()->Value();
 
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
+  if ((flags & (O_WRONLY | O_RDWR | O_APPEND | O_CREAT)) != 0) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
+  }
+
   CHECK(args[2]->IsInt32());
   const int mode = args[2].As<Int32>()->Value();
 
@@ -1616,6 +1641,11 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   const int flags = args[1].As<Int32>()->Value();
 
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
+  if ((flags & (O_WRONLY | O_RDWR | O_APPEND | O_CREAT)) != 0) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
+  }
+
   CHECK(args[2]->IsInt32());
   const int mode = args[2].As<Int32>()->Value();
 
@@ -1641,6 +1671,7 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
 
 static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -1681,7 +1712,7 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
 //             if null, write from the current position
 static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
   const int argc = args.Length();
   CHECK_GE(argc, 4);
 
@@ -1733,6 +1764,7 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 //             if null, write from the current position
 static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -1779,6 +1811,7 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
 // 3 enc       encoding of string
 static void WriteString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 4);
@@ -1879,6 +1912,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
  */
 static void Read(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsRead);
 
   const int argc = args.Length();
   CHECK_GE(argc, 5);
@@ -1926,6 +1960,7 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
  */
 static void Chmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
@@ -1956,6 +1991,7 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
  */
 static void FChmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
@@ -1986,6 +2022,7 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
  */
 static void Chown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -2019,6 +2056,7 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
  */
 static void FChown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -2049,6 +2087,7 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
 
 static void LChown(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -2079,6 +2118,7 @@ static void LChown(const FunctionCallbackInfo<Value>& args) {
 
 static void UTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -2108,6 +2148,7 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
 
 static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
@@ -2137,6 +2178,7 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
 
 static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, fsWrite);
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
