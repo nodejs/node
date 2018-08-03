@@ -372,6 +372,7 @@ assertOnlyDeepEqual(
   new Map([[null, undefined]]),
   new Map([[undefined, null]])
 );
+
 assertOnlyDeepEqual(
   new Set([null, '']),
   new Set([undefined, 0])
@@ -379,6 +380,10 @@ assertOnlyDeepEqual(
 assertNotDeepOrStrict(
   new Set(['']),
   new Set(['0'])
+);
+assertOnlyDeepEqual(
+  new Map([[1, {}]]),
+  new Map([[true, {}]])
 );
 
 // GH-6416. Make sure circular refs don't throw.
@@ -556,13 +561,12 @@ assertOnlyDeepEqual([1, , , 3], [1, , , 3, , , ]);
 // Handle different error messages
 {
   const err1 = new Error('foo1');
-  const err2 = new Error('foo2');
-  const err3 = new TypeError('foo1');
-  assertNotDeepOrStrict(err1, err2, assert.AssertionError);
-  assertNotDeepOrStrict(err1, err3, assert.AssertionError);
+  assertNotDeepOrStrict(err1, new Error('foo2'), assert.AssertionError);
+  assertNotDeepOrStrict(err1, new TypeError('foo1'), assert.AssertionError);
+  assertDeepAndStrictEqual(err1, new Error('foo1'));
   // TODO: evaluate if this should throw or not. The same applies for RegExp
   // Date and any object that has the same keys but not the same prototype.
-  assertOnlyDeepEqual(err1, {}, assert.AssertionError);
+  assertOnlyDeepEqual(err1, {});
 }
 
 // Handle NaN
