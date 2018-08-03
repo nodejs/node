@@ -50,11 +50,11 @@ class ContextualVariable {
   }
 
  private:
-  static thread_local VarType* top_;
+  static VarType* top_;
 };
 
 template <class Derived, class VarType>
-thread_local VarType* ContextualVariable<Derived, VarType>::top_ = nullptr;
+VarType* ContextualVariable<Derived, VarType>::top_ = nullptr;
 
 // Usage: DECLARE_CONTEXTUAL_VARIABLE(VarName, VarType)
 #define DECLARE_CONTEXTUAL_VARIABLE(VarName, ...) \
