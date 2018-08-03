@@ -931,3 +931,10 @@ assert.throws(() => assert.deepStrictEqual(new Boolean(true), {}),
   );
   util.inspect.defaultOptions = tmp;
 }
+
+// Basic valueOf check.
+{
+  const a = new String(1);
+  a.valueOf = undefined;
+  assertNotDeepOrStrict(a, new String(1));
+}
