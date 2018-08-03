@@ -411,11 +411,7 @@ void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   double execution_async_id =
-      args[0]->IsNumber()
-          ? args[0]
-                ->NumberValue(args.GetIsolate()->GetCurrentContext())
-                .ToChecked()
-          : -1;
+      args[0]->IsNumber() ? args[0].As<Number>()->Value() : -1;
   wrap->AsyncReset(execution_async_id);
 }
 
