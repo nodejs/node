@@ -420,7 +420,7 @@ void AsyncWrap::QueueDestroyAsyncId(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsNumber());
   AsyncWrap::EmitDestroy(
       Environment::GetCurrent(args),
-      args[0]->NumberValue(args.GetIsolate()->GetCurrentContext()).ToChecked());
+      args[0].As<Number>()->Value());
 }
 
 void AsyncWrap::AddWrapMethods(Environment* env,
