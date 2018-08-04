@@ -2697,10 +2697,19 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronously rename file at `oldPath` to the pathname provided
+Asynchronously rename file or directory at `oldPath` to the pathname provided
 as `newPath`. In the case that `newPath` already exists, it will
-be overwritten. No arguments other than a possible exception are
-given to the completion callback.
+be overwritten. `fs.rename` can throw the below error:
+
+- On **Linux** when renaming directory exists and is NOT empty, it throws a
+  `ENOTEMPTY` error. 
+- On **Unix** when renaming directory exists and is NOT empty, it throws a
+  `ENOENT` error. 
+- On **Windows** regardless of renaming directory is empty, it throws a 
+  `EPERM` error.
+  
+No arguments other than a possible exception (as mentioned above) are given to 
+the completion callback.
 
 See also: rename(2).
 
