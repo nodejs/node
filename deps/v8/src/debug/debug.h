@@ -309,6 +309,7 @@ class Debug {
   static int ArchiveSpacePerThread();
   void FreeThreadResources() { }
   void Iterate(RootVisitor* v);
+  void InitThread(const ExecutionAccess& lock) { ThreadInit(); }
 
   bool CheckExecutionState(int id) {
     return CheckExecutionState() && break_id() == id;
@@ -690,9 +691,9 @@ class ReturnValueScope {
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {
  public:
-  explicit DisableBreak(Debug* debug)
+  explicit DisableBreak(Debug* debug, bool disable = true)
       : debug_(debug), previous_break_disabled_(debug->break_disabled_) {
-    debug_->break_disabled_ = true;
+    debug_->break_disabled_ = disable;
   }
   ~DisableBreak() {
     debug_->break_disabled_ = previous_break_disabled_;
