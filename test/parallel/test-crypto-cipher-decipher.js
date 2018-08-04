@@ -113,15 +113,6 @@ testCipher2(Buffer.from('0123456789abcdef'));
     });
 
   common.expectsError(
-    () => crypto.createCipher('aes-256-cbc', 'secret').setAuthTag(null),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "buffer" argument must be one of type Buffer, ' +
-               'TypedArray, or DataView. Received type object'
-    });
-
-  common.expectsError(
     () => crypto.createCipher('aes-256-cbc', 'secret').setAAD(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -144,6 +135,15 @@ testCipher2(Buffer.from('0123456789abcdef'));
       type: TypeError,
       message: 'The "cipher" argument must be of type string. ' +
                'Received type object'
+    });
+
+  common.expectsError(
+    () => crypto.createDecipher('aes-256-cbc', 'secret').setAuthTag(null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "buffer" argument must be one of type Buffer, ' +
+               'TypedArray, or DataView. Received type object'
     });
 
   common.expectsError(
