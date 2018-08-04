@@ -4,8 +4,8 @@ const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 const { AssertionError } = assert;
-const defaultMsgStart = 'Input A expected to strictly deep-equal input B:\n' +
-                        '+ expected - actual';
+const defaultMsgStart = 'Expected inputs to be strictly deep-equal:\n';
+const defaultMsgStartFull = `${defaultMsgStart}+ actual - expected`;
 
 // Disable colored output to prevent color codes from breaking assertion
 // message comparisons. This should only be an issue when process.stdout
@@ -44,9 +44,9 @@ assert.throws(
   () => assert.deepStrictEqual(arr, buf),
   {
     code: 'ERR_ASSERTION',
-    message: `${defaultMsgStart} ... Lines skipped\n\n` +
-             '- Uint8Array [\n' +
-             '+ Buffer [Uint8Array] [\n    120,\n...\n    10\n  ]'
+    message: `${defaultMsgStartFull} ... Lines skipped\n\n` +
+             '+ Uint8Array [\n' +
+             '- Buffer [Uint8Array] [\n    120,\n...\n    10\n  ]'
   }
 );
 assert.deepEqual(arr, buf);
@@ -59,9 +59,9 @@ assert.deepEqual(arr, buf);
     () => assert.deepStrictEqual(buf2, buf),
     {
       code: 'ERR_ASSERTION',
-      message: `${defaultMsgStart}\n\n` +
+      message: `${defaultMsgStartFull}\n\n` +
                '  Buffer [Uint8Array] [\n    120,\n    121,\n    122,\n' +
-               '-   10,\n-   prop: 1\n+   10\n  ]'
+               '+   10,\n+   prop: 1\n-   10\n  ]'
     }
   );
   assert.deepEqual(buf2, buf);
@@ -74,9 +74,9 @@ assert.deepEqual(arr, buf);
     () => assert.deepStrictEqual(arr, arr2),
     {
       code: 'ERR_ASSERTION',
-      message: `${defaultMsgStart}\n\n` +
+      message: `${defaultMsgStartFull}\n\n` +
                '  Uint8Array [\n    120,\n    121,\n    122,\n' +
-               '-   10\n+   10,\n+   prop: 5\n  ]'
+               '+   10\n-   10,\n-   prop: 5\n  ]'
     }
   );
   assert.deepEqual(arr, arr2);
@@ -101,18 +101,18 @@ assert.throws(
   () => assert.deepStrictEqual(date, date2),
   {
     code: 'ERR_ASSERTION',
-    message: `${defaultMsgStart}\n\n` +
-             '- 2016-01-01T00:00:00.000Z\n+ 2016-01-01T00:00:00.000Z {\n' +
-             "+   '0': '1'\n+ }"
+    message: `${defaultMsgStartFull}\n\n` +
+             '+ 2016-01-01T00:00:00.000Z\n- 2016-01-01T00:00:00.000Z {\n' +
+             "-   '0': '1'\n- }"
   }
 );
 assert.throws(
   () => assert.deepStrictEqual(date2, date),
   {
     code: 'ERR_ASSERTION',
-    message: `${defaultMsgStart}\n\n` +
-             '- 2016-01-01T00:00:00.000Z {\n' +
-             "-   '0': '1'\n- }\n+ 2016-01-01T00:00:00.000Z"
+    message: `${defaultMsgStartFull}\n\n` +
+             '+ 2016-01-01T00:00:00.000Z {\n' +
+             "+   '0': '1'\n+ }\n- 2016-01-01T00:00:00.000Z"
   }
 );
 
@@ -133,8 +133,8 @@ assert.throws(
   () => assert.deepStrictEqual(re1, re2),
   {
     code: 'ERR_ASSERTION',
-    message: `${defaultMsgStart}\n\n` +
-             "- /test/\n+ /test/ {\n+   '0': '1'\n+ }"
+    message: `${defaultMsgStartFull}\n\n` +
+             "+ /test/\n- /test/ {\n-   '0': '1'\n- }"
   }
 );
 
@@ -498,8 +498,8 @@ assertOnlyDeepEqual(
     () => assert.deepStrictEqual(map1, map2),
     {
       code: 'ERR_ASSERTION',
-      message: `${defaultMsgStart}\n\n` +
-               "  Map {\n-   1 => 1\n+   1 => '1'\n  }"
+      message: `${defaultMsgStartFull}\n\n` +
+               "  Map {\n+   1 => 1\n-   1 => '1'\n  }"
     }
   );
 }
@@ -750,7 +750,7 @@ assert.throws(
   () => assert.notDeepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14)),
   {
     name: 'AssertionError [ERR_ASSERTION]',
-    message: 'Identical input passed to notDeepStrictEqual: ' +
+    message: 'Expected "actual" not to be strictly deep-equal to: ' +
              util.inspect(new Date(2000, 3, 14))
   }
 );
@@ -767,35 +767,35 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: `${defaultMsgStart}\n\n- /ab/\n+ /a/`
+    message: `${defaultMsgStartFull}\n\n+ /ab/\n- /a/`
   });
 assert.throws(
   () => assert.deepStrictEqual(/a/g, /a/),
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: `${defaultMsgStart}\n\n- /a/g\n+ /a/`
+    message: `${defaultMsgStartFull}\n\n+ /a/g\n- /a/`
   });
 assert.throws(
   () => assert.deepStrictEqual(/a/i, /a/),
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: `${defaultMsgStart}\n\n- /a/i\n+ /a/`
+    message: `${defaultMsgStartFull}\n\n+ /a/i\n- /a/`
   });
 assert.throws(
   () => assert.deepStrictEqual(/a/m, /a/),
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: `${defaultMsgStart}\n\n- /a/m\n+ /a/`
+    message: `${defaultMsgStartFull}\n\n+ /a/m\n- /a/`
   });
 assert.throws(
   () => assert.deepStrictEqual(/a/igm, /a/im),
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: `${defaultMsgStart}\n\n- /a/gim\n+ /a/im`
+    message: `${defaultMsgStartFull}\n\n+ /a/gim\n- /a/im\n     ^`
   });
 
 {
@@ -806,12 +806,12 @@ assert.throws(
 
 assert.throws(
   () => assert.deepStrictEqual(4, '4'),
-  { message: `${defaultMsgStart}\n\n- 4\n+ '4'` }
+  { message: `${defaultMsgStart}\n4 !== '4'\n` }
 );
 
 assert.throws(
   () => assert.deepStrictEqual(true, 1),
-  { message: `${defaultMsgStart}\n\n- true\n+ 1` }
+  { message: `${defaultMsgStart}\ntrue !== 1\n` }
 );
 
 // Having the same number of owned properties && the same set of keys.
@@ -821,21 +821,23 @@ assert.throws(() => assert.deepStrictEqual([4], ['4']),
               {
                 code: 'ERR_ASSERTION',
                 name: 'AssertionError [ERR_ASSERTION]',
-                message: `${defaultMsgStart}\n\n  [\n-   4\n+   '4'\n  ]`
+                message: `${defaultMsgStartFull}\n\n  [\n+   4\n-   '4'\n  ]`
               });
 assert.throws(
   () => assert.deepStrictEqual({ a: 4 }, { a: 4, b: true }),
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: `${defaultMsgStart}\n\n  {\n-   a: 4\n+   a: 4,\n+   b: true\n  }`
+    message: `${defaultMsgStartFull}\n\n  ` +
+             '{\n+   a: 4\n-   a: 4,\n-   b: true\n  }'
   });
 assert.throws(
   () => assert.deepStrictEqual(['a'], { 0: 'a' }),
   {
     code: 'ERR_ASSERTION',
     name: 'AssertionError [ERR_ASSERTION]',
-    message: `${defaultMsgStart}\n\n- [\n-   'a'\n- ]\n+ {\n+   '0': 'a'\n+ }`
+    message: `${defaultMsgStartFull}\n\n` +
+             "+ [\n+   'a'\n+ ]\n- {\n-   '0': 'a'\n- }"
   });
 
 /* eslint-enable */
@@ -906,8 +908,8 @@ assert.throws(() => assert.deepStrictEqual(new Boolean(true), {}),
   assert.throws(
     () => assert.deepStrictEqual(a, b),
     {
-      message: `${defaultMsgStart}\n\n` +
-               '  [TypeError: foo] {\n-   foo: \'bar\'\n+   foo: \'baz\'\n  }'
+      message: `${defaultMsgStartFull}\n\n` +
+               '  [TypeError: foo] {\n+   foo: \'bar\'\n-   foo: \'baz\'\n  }'
     }
   );
 }
@@ -922,8 +924,8 @@ assert.throws(() => assert.deepStrictEqual(new Boolean(true), {}),
   util.inspect.defaultOptions = { showProxy: true };
   assert.throws(
     () => assert.deepStrictEqual(arrProxy, [1, 2, 3]),
-    { message: `${defaultMsgStart}\n\n` +
-               '  [\n    1,\n-   2\n+   2,\n+   3\n  ]' }
+    { message: `${defaultMsgStartFull}\n\n` +
+               '  [\n    1,\n+   2\n-   2,\n-   3\n  ]' }
   );
   util.inspect.defaultOptions = tmp;
 }
