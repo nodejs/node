@@ -3,7 +3,6 @@
 import common from './index.js';
 
 const {
-  PORT,
   isMainThread,
   isWindows,
   isWOW64,
@@ -63,7 +62,6 @@ const {
 } = common;
 
 export {
-  PORT,
   isMainThread,
   isWindows,
   isWOW64,
