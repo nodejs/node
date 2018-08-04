@@ -208,27 +208,6 @@ for (const test of TEST_CASES) {
   }
 
   {
-    // trying to set tag on encryption object:
-    const encrypt = crypto.createCipheriv(test.algo,
-                                          Buffer.from(test.key, 'hex'),
-                                          Buffer.from(test.iv, 'hex'),
-                                          options);
-    assert.throws(() => { encrypt.setAuthTag(Buffer.from(test.tag, 'hex')); },
-                  errMessages.state);
-  }
-
-  {
-    if (!isCCM || !common.hasFipsCrypto) {
-      // trying to read tag from decryption object:
-      const decrypt = crypto.createDecipheriv(test.algo,
-                                              Buffer.from(test.key, 'hex'),
-                                              Buffer.from(test.iv, 'hex'),
-                                              options);
-      assert.throws(function() { decrypt.getAuthTag(); }, errMessages.state);
-    }
-  }
-
-  {
     // trying to create cipher with incorrect IV length
     assert.throws(function() {
       crypto.createCipheriv(
