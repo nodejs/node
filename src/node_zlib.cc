@@ -431,9 +431,20 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
           "a version of npm (> 5.5.1 or < 5.4.0) or node-tar (> 4.0.1) "
           "that is compatible with Node.js 9 and above.\n");
     }
-    CHECK(args.Length() == 7 &&
-      "init(windowBits, level, memLevel, strategy, writeResult, writeCallback,"
-      " dictionary)");
+    // Refs: https://github.com/nodejs/node/issues/16987
+    if (args.Length() != 7) {
+      // Cloned from util.h
+      const char* const args[] = {__FILE__,
+                                  STRINGIFY(__LINE__ - 4),
+                                  // The -4 in the previous line makes it
+                                  // possible to refer to the actual line of
+                                  // the condition.
+                                  "args.Length() == 7 && init(windowBits,"
+                                  "level, memLevel, strategy, writeResult,"
+                                  " writeCallback, dictionary)",
+                                  ""};
+      node::Assert(&args);
+    }
 
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
