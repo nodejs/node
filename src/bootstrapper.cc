@@ -3,6 +3,8 @@
 #include "node_internals.h"
 #include "v8.h"
 
+#include <atomic>
+
 namespace node {
 
 using v8::Array;
@@ -51,8 +53,8 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 }
 
 void PromiseRejectCallback(PromiseRejectMessage message) {
-  static uint64_t unhandledRejections = 0;
-  static uint64_t rejectionsHandledAfter = 0;
+  static std::atomic_uint64_t unhandledRejections{0};
+  static std::atomic_uint64_t rejectionsHandledAfter{0};
 
   Local<Promise> promise = message.GetPromise();
   Isolate* isolate = promise->GetIsolate();
