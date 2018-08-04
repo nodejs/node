@@ -2926,6 +2926,8 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
   memset(cipher->auth_tag_, 0, sizeof(cipher->auth_tag_));
   memcpy(cipher->auth_tag_, Buffer::Data(args[0]), cipher->auth_tag_len_);
+
+  args.GetReturnValue().Set(true);
 }
 
 
@@ -2980,9 +2982,9 @@ void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   int plaintext_len = args[1].As<Int32>()->Value();
 
-  if (!cipher->SetAAD(Buffer::Data(args[0]), Buffer::Length(args[0]),
-                      plaintext_len))
-    args.GetReturnValue().Set(false);  // Report invalid state failure
+  bool b = cipher->SetAAD(Buffer::Data(args[0]), Buffer::Length(args[0]),
+                          plaintext_len);
+  args.GetReturnValue().Set(b);  // Possibly report invalid state failure
 }
 
 
@@ -3094,8 +3096,8 @@ void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
-  if (!cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue()))
-    args.GetReturnValue().Set(false);  // Report invalid state failure
+  bool b = cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue());
+  args.GetReturnValue().Set(b);  // Possibly report invalid state failure
 }
 
 
