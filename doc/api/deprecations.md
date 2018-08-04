@@ -1021,6 +1021,16 @@ accessed outside of Node.js core: `Socket.prototype._handle`,
 `Socket.prototype._healthCheck()`, `Socket.prototype._stopReceiving()`, and
 `dgram._createSocketHandle()`.
 
+<a id="DEP0113"></a>
+### DEP0113: Cipher.setAuthTag(), Decipher.getAuthTag()
+
+Type: Runtime
+
+With the current crypto API, having `Cipher.setAuthTag()` and
+`Decipher.getAuthTag()` is not helpful and both functions will throw an error
+when called. They have never been documented and will be removed in a future
+release.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
