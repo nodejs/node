@@ -58,21 +58,12 @@ const listenOnPort = [
       net.createServer().listen(options, common.mustNotCall());
     };
 
-    if (typeof options === 'object' && !('port' in options)) {
-      common.expectsError(block,
-                          {
-                            code: 'ERR_PROPERTY_NOT_IN_OBJECT',
-                            type: TypeError,
-                            message: 'port does not exist in options',
-                          });
-    } else {
-      common.expectsError(block,
-                          {
-                            code: 'ERR_INVALID_OPT_VALUE',
-                            type: TypeError,
-                            message: /^The value "{.*}" is invalid for option "options"$/
-                          });
-    }
+    common.expectsError(block,
+                        {
+                          code: 'ERR_INVALID_OPT_VALUE',
+                          type: TypeError,
+                          message: /^The value "{.*}" is invalid for option "options"(?:\. .+)?$/,
+                        });
   }
 
   shouldFailToListen(false, { port: false });
