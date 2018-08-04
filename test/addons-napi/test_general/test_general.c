@@ -216,7 +216,7 @@ static napi_value testAdjustExternalMemory(napi_env env, napi_callback_info info
   int64_t adjustedValue;
 
   NAPI_CALL(env, napi_adjust_external_memory(env, 1, &adjustedValue));
-  NAPI_CALL(env, napi_create_double(env, adjustedValue, &result));
+  NAPI_CALL(env, napi_create_double(env, (double)adjustedValue, &result));
 
   return result;
 }
