@@ -355,19 +355,36 @@ void Debug::ThreadInit() {
 
 
 char* Debug::ArchiveDebug(char* storage) {
-  // Simply reset state. Don't archive anything.
-  ThreadInit();
+  MemCopy(storage, reinterpret_cast<char*>(&thread_local_),
+          ArchiveSpacePerThread());
   return storage + ArchiveSpacePerThread();
 }
-
 
 char* Debug::RestoreDebug(char* storage) {
-  // Simply reset state. Don't restore anything.
-  ThreadInit();
+  MemCopy(reinterpret_cast<char*>(&thread_local_), storage,
+          ArchiveSpacePerThread());
+
+  if (in_debug_scope()) {
+    // If this thread was in a DebugScope when we archived it, restore the
+    // previous debugging state now. Note that in_debug_scope() returns
+    // true when thread_local_.current_debug_scope_ (restored by MemCopy
+    // above) is non-null.
+
+    // Clear any one-shot breakpoints that may have been set by the other
+    // thread, and reapply breakpoints for this thread.
+    HandleScope scope(isolate_);
+    ClearOneShot();
+
+    if (thread_local_.last_step_action_ != StepNone) {
+      // Reset the previous step action for this thread.
+      PrepareStep(thread_local_.last_step_action_);
+    }
+  }
+
   return storage + ArchiveSpacePerThread();
 }
 
-int Debug::ArchiveSpacePerThread() { return 0; }
+int Debug::ArchiveSpacePerThread() { return sizeof(ThreadLocal); }
 
 void Debug::Iterate(RootVisitor* v) {
   v->VisitRootPointer(Root::kDebug, nullptr, &thread_local_.return_value_);
