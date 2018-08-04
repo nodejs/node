@@ -23,6 +23,7 @@
 #include "env-inl.h"
 #include "node_internals.h"
 #include "util-inl.h"
+#include "tracing/traced_value.h"
 
 #include "v8.h"
 #include "v8-profiler.h"
@@ -608,13 +609,18 @@ void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
   switch (provider_type()) {
 #define V(PROVIDER)                                                           \
     case PROVIDER_ ## PROVIDER:                                               \
-      TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(                                      \
-        TRACING_CATEGORY_NODE1(async_hooks),                                  \
-        #PROVIDER, static_cast<int64_t>(get_async_id()),                      \
-        "executionAsyncId",                                                   \
-        static_cast<int64_t>(env()->execution_async_id()),                    \
-        "triggerAsyncId",                                                     \
-        static_cast<int64_t>(get_trigger_async_id()));                        \
+      if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(                        \
+          TRACING_CATEGORY_NODE1(async_hooks))) {                             \
+        auto data = tracing::TracedValue::Create();                           \
+        data->SetInteger("executionAsyncId",                                  \
+                         static_cast<int64_t>(env()->execution_async_id()));  \
+        data->SetInteger("triggerAsyncId",                                    \
+                         static_cast<int64_t>(get_trigger_async_id()));       \
+        TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(                                    \
+          TRACING_CATEGORY_NODE1(async_hooks),                                \
+          #PROVIDER, static_cast<int64_t>(get_async_id()),                    \
+          "data", std::move(data));                                           \
+        }                                                                     \
       break;
     NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
