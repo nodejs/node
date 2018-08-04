@@ -3252,15 +3252,14 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&hmac, args.Holder());
 
   // Only copy the data if we have to, because it's a string
-  bool r = true;
+  bool r = false;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8)) {
-      args.GetReturnValue().Set(false);
-      return;
+    if (decoder.Decode(env, args[0].As<String>(), args[1], UTF8)) {
+      r = hmac->HmacUpdate(decoder.out(), decoder.size());
     }
-    r = hmac->HmacUpdate(decoder.out(), decoder.size());
-  } else if (args[0]->IsArrayBufferView()) {
+  } else {
+    CHECK(args[0]->IsArrayBufferView());
     char* buf = Buffer::Data(args[0]);
     size_t buflen = Buffer::Length(args[0]);
     r = hmac->HmacUpdate(buf, buflen);
