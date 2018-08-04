@@ -1455,11 +1455,6 @@ A Node.js API was called in an unsupported manner, such as
 
 A given value is out of the accepted range.
 
-<a id="ERR_PROPERTY_NOT_IN_OBJECT"></a>
-### ERR_PROPERTY_NOT_IN_OBJECT
-
-A property does not exist in an object.
-
 <a id="ERR_REQUIRE_ESM"></a>
 ### ERR_REQUIRE_ESM
 
