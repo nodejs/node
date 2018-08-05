@@ -12,14 +12,14 @@
     "remark-html": "^7.0.0",
     "remark-parse": "^5.0.0",
     "remark-rehype": "^3.0.0",
-    "to-vfile": "^5.0.0",
+    "to-vfile": "^5.0.1",
     "unified": "^7.0.0",
     "unist-util-find": "^1.0.1",
     "unist-util-select": "^1.5.0",
-    "unist-util-visit": "^1.3.1"
+    "unist-util-visit": "^1.4.0"
   },
   "devDependencies": {
-    "js-yaml": "^3.5.2"
+    "js-yaml": "^3.12.2"
   },
   "optionalDependencies": {},
   "bin": "./generate.js"
