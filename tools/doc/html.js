@@ -226,8 +226,8 @@ function preprocessElements({ filename }) {
           }
 
           // Do not link to the section we are already in.
-          const noLinking = filename === 'documentation' &&
-            heading !== null && heading.value === 'Stability Index';
+          const noLinking = filename.includes('documentation') &&
+            heading !== null && heading.children[0].value === 'Stability Index';
 
           // collapse blockquote and paragraph into a single node
           node.type = 'paragraph';
