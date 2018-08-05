@@ -266,7 +266,7 @@ module.exports = {
                 // list of comments to ignore
                 comments = ignoreComments || maxCommentLength || ignoreTrailingComments ? sourceCode.getAllComments() : [];
 
-                // we iterate over comments in parallel with the lines
+            // we iterate over comments in parallel with the lines
             let commentsIndex = 0;
 
             const strings = getAllStrings();

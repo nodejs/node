@@ -10,10 +10,10 @@
 //------------------------------------------------------------------------------
 
 const CLIEngine = require("../cli-engine"),
-    globUtil = require("./glob-util"),
+    globUtils = require("./glob-utils"),
     baseDefaultOptions = require("../../conf/default-cli-options");
 
-const debug = require("debug")("eslint:source-code-util");
+const debug = require("debug")("eslint:source-code-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -79,7 +79,7 @@ function getSourceCodeOfFiles(patterns, providedOptions, providedCallback) {
     }
     debug("constructed options:", options);
 
-    const filenames = globUtil.listFilesToProcess(globPatternsList, options)
+    const filenames = globUtils.listFilesToProcess(globPatternsList, options)
         .filter(fileInfo => !fileInfo.ignored)
         .reduce((files, fileInfo) => files.concat(fileInfo.filename), []);
 
