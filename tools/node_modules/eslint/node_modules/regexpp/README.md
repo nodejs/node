@@ -3,6 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/regexpp.svg)](https://www.npmjs.com/package/regexpp)
 [![Downloads/month](https://img.shields.io/npm/dm/regexpp.svg)](http://www.npmtrends.com/regexpp)
 [![Build Status](https://travis-ci.org/mysticatea/regexpp.svg?branch=master)](https://travis-ci.org/mysticatea/regexpp)
+[![Coverage Status](https://coveralls.io/repos/github/mysticatea/regexpp/badge.svg)](https://coveralls.io/github/mysticatea/regexpp)
 [![Dependency Status](https://david-dm.org/mysticatea/regexpp.svg)](https://david-dm.org/mysticatea/regexpp)
 
 The regular expression parser for ECMAScript.
@@ -13,7 +14,7 @@ The regular expression parser for ECMAScript.
 $ npm install regexpp
 ```
 
-- require Node.js 4.0.0 or newer.
+- require Node.js 6.5.0 or newer.
 
 ## 📖 Usage
 
@@ -22,8 +23,10 @@ import {
     AST,
     RegExpParser,
     RegExpValidator,
+    RegExpVisitor,
     parseRegExpLiteral,
     validateRegExpLiteral,
+    visitRegExpAST
 } from "regexpp"
 ```
 
@@ -34,7 +37,7 @@ Parse a given regular expression literal then make AST object.
 This is equivalent to `new RegExpParser(options).parseLiteral(source)`.
 
 - **Parameters:**
-    - `source` (`string`) The source code to parse.
+    - `source` (`string | RegExp`) The source code to parse.
     - `options?` ([`RegExpParser.Options`]) The options to parse.
 - **Return:**
     - The AST of the regular expression.
@@ -48,6 +51,16 @@ This is equivalent to `new RegExpValidator(options).validateLiteral(source)`.
 - **Parameters:**
     - `source` (`string`) The source code to validate.
     - `options?` ([`RegExpValidator.Options`]) The options to validate.
+
+### visitRegExpAST(ast, handlers)
+
+Visit each node of a given AST.
+
+This is equivalent to `new RegExpVisitor(handlers).visit(ast)`.
+
+- **Parameters:**
+    - `ast` ([`AST.Node`]) The AST to visit.
+    - `handlers` ([`RegExpVisitor.Handlers`]) The callbacks.
 
 ### RegExpParser
 
@@ -125,6 +138,20 @@ Validate a regular expression flags.
     - `start?` (`number`) The start index in the source code. Default is `0`.
     - `end?` (`number`) The end index in the source code. Default is `source.length`.
 
+### RegExpVisitor
+
+#### new RegExpVisitor(handlers)
+
+- **Parameters:**
+    - `handlers` ([`RegExpVisitor.Handlers`]) The callbacks.
+
+#### visitor.visit(ast)
+
+Validate a regular expression literal.
+
+- **Parameters:**
+    - `ast` ([`AST.Node`]) The AST to visit.
+
 ## 📰 Changelog
 
 - [GitHub Releases](https://github.com/mysticatea/regexpp/releases)
@@ -145,5 +172,7 @@ Please use GitHub's Issues/PRs.
 - `npm run update:ids` updates `src/unicode/ids.ts`.
 - `npm run watch` runs tests with `--watch` option.
 
-[`RegExpParser.Options`]: src/parser.ts#L527
+[`AST.Node`]: src/ast.ts#L4
+[`RegExpParser.Options`]: src/parser.ts#L539
 [`RegExpValidator.Options`]: src/validator.ts#L127
+[`RegExpVisitor.Handlers`]: src/visitor.ts#L204

@@ -5,7 +5,7 @@
 
 "use strict";
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 // Operators that always result in a boolean value
 const BOOLEAN_OPERATORS = new Set(["==", "===", "!=", "!==", ">", ">=", "<", "<=", "in", "instanceof"]);
