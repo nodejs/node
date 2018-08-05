@@ -12,7 +12,7 @@ const {
     isOpeningParenToken,
     isClosingParenToken,
     isParenthesised
-} = require("../ast-utils");
+} = require("../util/ast-utils");
 
 const ANY_SPACE = /\s/;
 
@@ -180,8 +180,14 @@ function defineFixer(node, sourceCode) {
                 for (const innerParen of innerParens) {
                     yield fixer.remove(innerParen);
                 }
-                yield fixer.removeRange([left.range[0], getEndWithSpaces(left, sourceCode)]);
-                yield fixer.removeRange([getStartWithSpaces(right, sourceCode), right.range[1]]);
+                const leftRange = [left.range[0], getEndWithSpaces(left, sourceCode)];
+                const rightRange = [
+                    Math.max(getStartWithSpaces(right, sourceCode), leftRange[1]), // Ensure ranges don't overlap
+                    right.range[1]
+                ];
+
+                yield fixer.removeRange(leftRange);
+                yield fixer.removeRange(rightRange);
 
                 // Remove the comma of this argument if it's duplication.
                 if (

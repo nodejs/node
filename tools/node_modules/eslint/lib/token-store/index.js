@@ -13,7 +13,7 @@ const cursors = require("./cursors");
 const ForwardTokenCursor = require("./forward-token-cursor");
 const PaddedTokenCursor = require("./padded-token-cursor");
 const utils = require("./utils");
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers

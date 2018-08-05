@@ -45,8 +45,8 @@ function getPossibleTypes(parsedSelector) {
         case "matches": {
             const typesForComponents = parsedSelector.selectors.map(getPossibleTypes);
 
-            if (typesForComponents.every(typesForComponent => typesForComponent)) {
-                return lodash.union.apply(null, typesForComponents);
+            if (typesForComponents.every(Boolean)) {
+                return lodash.union(...typesForComponents);
             }
             return null;
         }
@@ -63,7 +63,7 @@ function getPossibleTypes(parsedSelector) {
              * If at least one of the components could only match a particular type, the compound could only match
              * the intersection of those types.
              */
-            return lodash.intersection.apply(null, typesForComponents);
+            return lodash.intersection(...typesForComponents);
         }
 
         case "child":

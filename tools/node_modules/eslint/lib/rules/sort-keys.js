@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../ast-utils"),
+const astUtils = require("../util/ast-utils"),
     naturalCompare = require("natural-compare");
 
 //------------------------------------------------------------------------------

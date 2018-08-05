@@ -25,7 +25,7 @@ const eslintScope = require("eslint-scope"),
     createReportTranslator = require("./report-translator"),
     Rules = require("./rules"),
     timing = require("./util/timing"),
-    astUtils = require("./ast-utils"),
+    astUtils = require("./util/ast-utils"),
     pkg = require("../package.json"),
     SourceCodeFixer = require("./util/source-code-fixer");
 

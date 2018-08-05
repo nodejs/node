@@ -13,10 +13,10 @@ const lodash = require("lodash"),
     path = require("path"),
     GlobSync = require("./glob"),
 
-    pathUtil = require("./path-util"),
+    pathUtils = require("./path-utils"),
     IgnoredPaths = require("../ignored-paths");
 
-const debug = require("debug")("eslint:glob-util");
+const debug = require("debug")("eslint:glob-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -77,7 +77,7 @@ function processPath(options) {
             newPath = pathname.replace(/[/\\]$/, "") + suffix;
         }
 
-        return pathUtil.convertPathToPosix(newPath);
+        return pathUtils.convertPathToPosix(newPath);
     };
 }
 
@@ -194,7 +194,7 @@ function listFilesToProcess(globPatterns, providedOptions) {
     );
 
     /*
-     * The test "should use default options if none are provided" (source-code-util.js) checks that 'module.exports.resolveFileGlobPatterns' was called.
+     * The test "should use default options if none are provided" (source-code-utils.js) checks that 'module.exports.resolveFileGlobPatterns' was called.
      * So it cannot use the local function "resolveFileGlobPatterns".
      */
     const resolvedGlobPatterns = module.exports.resolveFileGlobPatterns(globPatterns, options);
