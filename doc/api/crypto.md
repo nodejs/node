@@ -2035,7 +2035,7 @@ changes:
 * `buffer` {Buffer|TypedArray|DataView} Must be supplied.
 * `offset` {number} **Default:** `0`
 * `size` {number} **Default:** `buffer.length - offset`
-* Returns: {Buffer}
+* Returns: {Buffer|TypedArray|DataView} The object passed as `buffer` argument.
 
 Synchronous version of [`crypto.randomFill()`][].
 
@@ -2055,13 +2055,16 @@ Any `TypedArray` or `DataView` instance may be passed as `buffer`.
 
 ```js
 const a = new Uint32Array(10);
-console.log(crypto.randomFillSync(a).toString('hex'));
+console.log(Buffer.from(crypto.randomFillSync(a).buffer,
+                        a.byteOffset, a.byteLength).toString('hex'));
 
 const b = new Float64Array(10);
-console.log(crypto.randomFillSync(b).toString('hex'));
+console.log(Buffer.from(crypto.randomFillSync(b).buffer,
+                        b.byteOffset, b.byteLength).toString('hex'));
 
 const c = new DataView(new ArrayBuffer(10));
-console.log(crypto.randomFillSync(c).toString('hex'));
+console.log(Buffer.from(crypto.randomFillSync(c).buffer,
+                        c.byteOffset, c.byteLength).toString('hex'));
 ```
 
 ### crypto.randomFill(buffer[, offset][, size], callback)
@@ -2109,19 +2112,22 @@ Any `TypedArray` or `DataView` instance may be passed as `buffer`.
 const a = new Uint32Array(10);
 crypto.randomFill(a, (err, buf) => {
   if (err) throw err;
-  console.log(buf.toString('hex'));
+  console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
+    .toString('hex'));
 });
 
 const b = new Float64Array(10);
 crypto.randomFill(b, (err, buf) => {
   if (err) throw err;
-  console.log(buf.toString('hex'));
+  console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
+    .toString('hex'));
 });
 
 const c = new DataView(new ArrayBuffer(10));
 crypto.randomFill(c, (err, buf) => {
   if (err) throw err;
-  console.log(buf.toString('hex'));
+  console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
+    .toString('hex'));
 });
 ```
 
