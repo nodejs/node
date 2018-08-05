@@ -3651,6 +3651,45 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc);
 }
 
+enum ParsePublicKeyResult {
+  kParsePublicOk,
+  kParsePublicNotRecognized,
+  kParsePublicFailed
+};
+
+static ParsePublicKeyResult ParsePublicKey(EVPKeyPointer* pkey,
+                                           const char* key_pem,
+                                           int key_pem_len) {
+  BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
+  if (!bp)
+    return kParsePublicFailed;
+
+  // Check if this is a PKCS#8 or RSA public key before trying as X.509.
+  if (strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
+    pkey->reset(
+        PEM_read_bio_PUBKEY(bp.get(), nullptr, NoPasswordCallback, nullptr));
+  } else if (strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
+    RSAPointer rsa(PEM_read_bio_RSAPublicKey(
+        bp.get(), nullptr, PasswordCallback, nullptr));
+    if (rsa) {
+      pkey->reset(EVP_PKEY_new());
+      if (*pkey)
+        EVP_PKEY_set1_RSA(pkey->get(), rsa.get());
+    }
+  } else if (strncmp(key_pem, CERTIFICATE_PFX, CERTIFICATE_PFX_LEN) == 0) {
+    // X.509 fallback
+    X509Pointer x509(PEM_read_bio_X509(
+        bp.get(), nullptr, NoPasswordCallback, nullptr));
+    if (!x509)
+      return kParsePublicFailed;
+
+    pkey->reset(X509_get_pubkey(x509.get()));
+  } else {
+    return kParsePublicNotRecognized;
+  }
+
+  return *pkey ? kParsePublicOk : kParsePublicFailed;
+}
 
 void Verify::Initialize(Environment* env, v8::Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -3711,34 +3750,7 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
   *verify_result = false;
   EVPMDPointer mdctx = std::move(mdctx_);
 
-  BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
-  if (!bp)
-    return kSignPublicKey;
-
-  // Check if this is a PKCS#8 or RSA public key before trying as X.509.
-  // Split this out into a separate function once we have more than one
-  // consumer of public keys.
-  if (strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
-    pkey.reset(
-        PEM_read_bio_PUBKEY(bp.get(), nullptr, NoPasswordCallback, nullptr));
-  } else if (strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
-    RSAPointer rsa(PEM_read_bio_RSAPublicKey(
-        bp.get(), nullptr, PasswordCallback, nullptr));
-    if (rsa) {
-      pkey.reset(EVP_PKEY_new());
-      if (pkey)
-        EVP_PKEY_set1_RSA(pkey.get(), rsa.get());
-    }
-  } else {
-    // X.509 fallback
-    X509Pointer x509(PEM_read_bio_X509(
-        bp.get(), nullptr, NoPasswordCallback, nullptr));
-    if (!x509)
-      return kSignPublicKey;
-
-    pkey.reset(X509_get_pubkey(x509.get()));
-  }
-  if (!pkey)
+  if (ParsePublicKey(&pkey, key_pem, key_pem_len) != kParsePublicOk)
     return kSignPublicKey;
 
   if (!EVP_DigestFinal_ex(mdctx.get(), m, &m_len))
@@ -3808,40 +3820,25 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
                              size_t* out_len) {
   EVPKeyPointer pkey;
 
-  BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
-  if (!bp)
-    return false;
-
   // Check if this is a PKCS#8 or RSA public key before trying as X.509 and
   // private key.
-  if (operation == kPublic &&
-      strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
-    pkey.reset(PEM_read_bio_PUBKEY(bp.get(), nullptr, nullptr, nullptr));
-  } else if (operation == kPublic &&
-             strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
-    RSAPointer rsa(
-        PEM_read_bio_RSAPublicKey(bp.get(), nullptr, nullptr, nullptr));
-    if (rsa) {
-      pkey.reset(EVP_PKEY_new());
-      if (pkey)
-        EVP_PKEY_set1_RSA(pkey.get(), rsa.get());
-    }
-  } else if (operation == kPublic &&
-             strncmp(key_pem, CERTIFICATE_PFX, CERTIFICATE_PFX_LEN) == 0) {
-    X509Pointer x509(
-        PEM_read_bio_X509(bp.get(), nullptr, NoPasswordCallback, nullptr));
-    if (!x509)
+  if (operation == kPublic) {
+    ParsePublicKeyResult pkeyres = ParsePublicKey(&pkey, key_pem, key_pem_len);
+    if (pkeyres == kParsePublicFailed)
       return false;
-
-    pkey.reset(X509_get_pubkey(x509.get()));
-  } else {
+  }
+  if (!pkey) {
+    // Private key fallback.
+    BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
+    if (!bp)
+      return false;
     pkey.reset(PEM_read_bio_PrivateKey(bp.get(),
                                        nullptr,
                                        PasswordCallback,
                                        const_cast<char*>(passphrase)));
+    if (!pkey)
+      return false;
   }
-  if (!pkey)
-    return false;
 
   EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
   if (!ctx)
