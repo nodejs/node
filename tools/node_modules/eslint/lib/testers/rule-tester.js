@@ -140,7 +140,7 @@ const IT = Symbol("it");
  */
 function itDefaultHandler(text, method) {
     try {
-        return method.apply(this);
+        return method.call(this);
     } catch (err) {
         if (err instanceof assert.AssertionError) {
             err.message += ` (${util.inspect(err.actual)} ${err.operator} ${util.inspect(err.expected)})`;
@@ -157,7 +157,7 @@ function itDefaultHandler(text, method) {
  * @returns {any} Returned value of `method`.
  */
 function describeDefaultHandler(text, method) {
-    return method.apply(this);
+    return method.call(this);
 }
 
 class RuleTester {

@@ -5,7 +5,7 @@
 
 "use strict";
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -14,15 +14,6 @@ const astUtils = require("../ast-utils");
 const PATTERN_TYPE = /^(?:.+?Pattern|RestElement|SpreadProperty|ExperimentalRestProperty|Property)$/;
 const DECLARATION_HOST_TYPE = /^(?:Program|BlockStatement|SwitchCase)$/;
 const DESTRUCTURING_HOST_TYPE = /^(?:VariableDeclarator|AssignmentExpression)$/;
-
-/**
- * Adds multiple items to the tail of an array.
- *
- * @param {any[]} array - A destination to add.
- * @param {any[]} values - Items to be added.
- * @returns {void}
- */
-const pushAll = Function.apply.bind(Array.prototype.push);
 
 /**
  * Checks whether a given node is located at `ForStatement.init` or not.
@@ -364,7 +355,7 @@ module.exports = {
 
             VariableDeclaration(node) {
                 if (node.kind === "let" && !isInitOfForStatement(node)) {
-                    pushAll(variables, context.getDeclaredVariables(node));
+                    variables.push(...context.getDeclaredVariables(node));
                 }
             }
         };

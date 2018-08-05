@@ -15,7 +15,7 @@ const path = require("path"),
     ConfigFile = require("./config/config-file"),
     ConfigCache = require("./config/config-cache"),
     Plugins = require("./config/plugins"),
-    FileFinder = require("./file-finder"),
+    FileFinder = require("./util/file-finder"),
     isResolvable = require("is-resolvable");
 
 const debug = require("debug")("eslint:config");

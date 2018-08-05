@@ -4,7 +4,7 @@
  */
 "use strict";
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -59,7 +59,7 @@ module.exports = {
             above = !options || options === "above";
 
         } else {
-            above = options.position === "above";
+            above = !options.position || options.position === "above";
             ignorePattern = options.ignorePattern;
 
             if (options.hasOwnProperty("applyDefaultIgnorePatterns")) {

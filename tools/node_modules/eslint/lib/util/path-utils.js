@@ -54,7 +54,7 @@ function getRelativePath(filepath, baseDir) {
 
     if (baseDir) {
         if (!path.isAbsolute(baseDir)) {
-            throw new Error("baseDir should be an absolute path");
+            throw new Error(`baseDir should be an absolute path: ${baseDir}`);
         }
         return path.relative(baseDir, absolutePath);
     }
