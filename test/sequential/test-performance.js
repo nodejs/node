@@ -4,8 +4,9 @@ const common = require('../common');
 const assert = require('assert');
 const { performance } = require('perf_hooks');
 
-if (!common.isMainThread)
+if (!common.isMainThread) {
   common.skip('bootstrapping workers works differently');
+}
 
 assert(performance);
 assert(performance.nodeTiming);
@@ -56,21 +57,7 @@ assert(inited < 20000);
 assert.strictEqual(performance.nodeTiming.name, 'node');
 assert.strictEqual(performance.nodeTiming.entryType, 'node');
 
-function checkNodeTiming(props) {
-  for (const prop of Object.keys(props)) {
-    if (props[prop].around !== undefined) {
-      assert.strictEqual(typeof performance.nodeTiming[prop], 'number');
-      const delta = performance.nodeTiming[prop] - props[prop].around;
-      assert(Math.abs(delta) < 1000);
-    } else {
-      assert.strictEqual(performance.nodeTiming[prop], props[prop],
-                         `mismatch for performance property ${prop}: ` +
-                         `${performance.nodeTiming[prop]} vs ${props[prop]}`);
-    }
-  }
-}
-
-checkNodeTiming({
+const timingParams = {
   name: 'node',
   entryType: 'node',
   startTime: 0,
@@ -81,34 +68,39 @@ checkNodeTiming({
   environment: { around: 0 },
   loopStart: -1,
   loopExit: -1
-});
+};
 
-setTimeout(() => {
-  checkNodeTiming({
-    name: 'node',
-    entryType: 'node',
-    startTime: 0,
-    duration: { around: performance.now() },
-    nodeStart: { around: 0 },
-    v8Start: { around: 0 },
-    bootstrapComplete: { around: inited },
-    environment: { around: 0 },
+function checkNodeTiming(props) {
+  Object.keys(props).forEach((prop) => {
+    const param = props[prop];
+    const performanceParam = performance.nodeTiming[prop];
+
+    if (param.hasOwnProperty('around')) {
+      assert.strictEqual(typeof performanceParam, 'number');
+      const delta = performanceParam - param.around;
+      assert(Math.abs(delta) < 1000);
+    } else {
+      assert.strictEqual(performanceParam, param,
+                         `mismatch for performance property ${prop}: ` +
+                         `${performanceParam} vs ${param}`);
+    }
+  });
+}
+
+checkNodeTiming(timingParams);
+
+setImmediate(() => {
+  const params = Object.assign({}, timingParams, {
     loopStart: { around: inited },
     loopExit: -1
   });
-}, 2000);
+  checkNodeTiming(params);
+});
 
 process.on('exit', () => {
-  checkNodeTiming({
-    name: 'node',
-    entryType: 'node',
-    startTime: 0,
-    duration: { around: performance.now() },
-    nodeStart: { around: 0 },
-    v8Start: { around: 0 },
-    bootstrapComplete: { around: inited },
-    environment: { around: 0 },
+  const params = Object.assign({}, timingParams, {
     loopStart: { around: inited },
     loopExit: { around: performance.now() }
   });
+  checkNodeTiming(params);
 });
