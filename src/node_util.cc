@@ -16,6 +16,22 @@ using v8::Proxy;
 using v8::String;
 using v8::Value;
 
+static void GetOwnNonIndicesProperties(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+
+  v8::Local<v8::Object> object = args[0].As<v8::Object>();
+
+  // Return only non-enumerable properties by default.
+  v8::Local<v8::Array> properties = object
+    ->GetPropertyNames(context, v8::KeyCollectionMode::kOwnOnly,
+                       v8::ONLY_ENUMERABLE,
+                       v8::IndexFilter::kSkipIndices)
+      .ToLocalChecked();
+  args.GetReturnValue().Set(properties);
+}
+
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
   // Return undefined if it's not a Promise.
   if (!args[0]->IsPromise())
@@ -177,6 +193,8 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getProxyDetails", GetProxyDetails);
   env->SetMethodNoSideEffect(target, "safeToString", SafeToString);
   env->SetMethodNoSideEffect(target, "previewEntries", PreviewEntries);
+  env->SetMethodNoSideEffect(target, "getOwnNonIndicesProperties",
+                                     GetOwnNonIndicesProperties);
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
