@@ -1910,7 +1910,6 @@ An attempt was made to initiate operations on a watcher returned by
 [`zlib`]: zlib.html
 [ES6 module]: esm.html
 [Node.js Error Codes]: #nodejs-error-codes
-[Legacy Node.js Error Codes]: #legacy-nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
 [crypto digest algorithm]: crypto.html#crypto_crypto_gethashes
