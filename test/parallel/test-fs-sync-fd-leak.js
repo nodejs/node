@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -23,7 +24,8 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const { UV_EBADF } = internalBinding('uv');
 
 // ensure that (read|write|append)FileSync() closes the file descriptor
 fs.openSync = function() {
@@ -41,7 +43,7 @@ fs.writeSync = function() {
 };
 
 process.binding('fs').fstat = function(fd, bigint, _, ctx) {
-  ctx.errno = uv.UV_EBADF;
+  ctx.errno = UV_EBADF;
   ctx.syscall = 'fstat';
 };
 

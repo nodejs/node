@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -24,7 +25,8 @@ require('../common');
 const assert = require('assert');
 
 const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const { UV_EINVAL } = internalBinding('uv');
 
 const handle = new TCP(TCPConstants.SOCKET);
 
@@ -36,6 +38,6 @@ assert.strictEqual(err, 0);
 const out = {};
 handle.getsockname(out);
 err = handle.bind('0.0.0.0', out.port);
-assert.strictEqual(err, uv.UV_EINVAL);
+assert.strictEqual(err, UV_EINVAL);
 
 handle.close();
