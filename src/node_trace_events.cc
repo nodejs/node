@@ -257,4 +257,4 @@ void Initialize(Local<Object> target,
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(trace_events, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(trace_events, node::Initialize)

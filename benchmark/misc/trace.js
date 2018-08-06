@@ -10,17 +10,10 @@ const bench = common.createBenchmark(main, {
 });
 
 const {
-  trace,
-  isTraceCategoryEnabled,
-  emit,
-  categoryGroupEnabled
-} = process.binding('trace_events');
-
-const {
   TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent
 } = process.binding('constants').trace;
 
-function doEmit(n) {
+function doEmit(n, emit) {
   bench.start();
   for (var i = 0; i < n; i++) {
     emit(kBeforeEvent, 'foo', 'test', 0, 'arg1', 1);
@@ -28,7 +21,7 @@ function doEmit(n) {
   bench.end(n);
 }
 
-function doTrace(n) {
+function doTrace(n, trace) {
   bench.start();
   for (var i = 0; i < n; i++) {
     trace(kBeforeEvent, 'foo', 'test', 0, 'test');
@@ -36,7 +29,7 @@ function doTrace(n) {
   bench.end(n);
 }
 
-function doIsTraceCategoryEnabled(n) {
+function doIsTraceCategoryEnabled(n, isTraceCategoryEnabled) {
   bench.start();
   for (var i = 0; i < n; i++) {
     isTraceCategoryEnabled('foo');
@@ -45,7 +38,7 @@ function doIsTraceCategoryEnabled(n) {
   bench.end(n);
 }
 
-function doCategoryGroupEnabled(n) {
+function doCategoryGroupEnabled(n, categoryGroupEnabled) {
   bench.start();
   for (var i = 0; i < n; i++) {
     categoryGroupEnabled('foo');
@@ -55,19 +48,28 @@ function doCategoryGroupEnabled(n) {
 }
 
 function main({ n, method }) {
+  const { internalBinding } = require('internal/test/binding');
+
+  const {
+    trace,
+    isTraceCategoryEnabled,
+    emit,
+    categoryGroupEnabled
+  } = internalBinding('trace_events');
+
   switch (method) {
     case '':
     case 'trace':
-      doTrace(n);
+      doTrace(n, trace);
       break;
     case 'emit':
-      doEmit(n);
+      doEmit(n, emit);
       break;
     case 'isTraceCategoryEnabled':
-      doIsTraceCategoryEnabled(n);
+      doIsTraceCategoryEnabled(n, isTraceCategoryEnabled);
       break;
     case 'categoryGroupEnabled':
-      doCategoryGroupEnabled(n);
+      doCategoryGroupEnabled(n, categoryGroupEnabled);
       break;
     default:
       throw new Error(`Unexpected method "${method}"`);
