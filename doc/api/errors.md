@@ -1848,12 +1848,16 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 A module file could not be resolved while attempting a [`require()`][] or
 `import` operation.
 
+<a id="legacy-nodejs-error-codes"></a>
+## Legacy Node.js Error Codes
+
 <a id="ERR_FS_WATCHER_ALREADY_STARTED"></a>
 ### ERR_FS_WATCHER_ALREADY_STARTED
 <!-- YAML
 added: v10.0.0
 -->
-An attempt was made to start a watcher returned by `fs.watch()` that has already been started.
+An attempt was made to start a watcher returned by `fs.watch()` that has
+already been started.
 
 <a id="ERR_FS_WATCHER_NOT_STARTED"></a>
 ### ERR_FS_WATCHER_NOT_STARTED
@@ -1861,7 +1865,8 @@ An attempt was made to start a watcher returned by `fs.watch()` that has already
 added: v10.0.0
 -->
 
-An attempt was made to initiate operations on a watcher returned by `fs.watch()` that has not yet been started.
+An attempt was made to initiate operations on a watcher returned by
+`fs.watch()` that has not yet been started.
 
 [`--force-fips`]: cli.html#cli_force_fips
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
