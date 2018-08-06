@@ -3358,6 +3358,10 @@ This happens when:
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The `buffer` parameter can now be any `TypedArray` or a
+    `DataView`
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3375,14 +3379,14 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|Uint8Array}
+* `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
 * `callback` {Function}
   * `err` {Error}
   * `bytesWritten` {integer}
-  * `buffer` {Buffer|Uint8Array}
+  * `buffer` {Buffer|TypedArray|DataView}
 
 Write `buffer` to the file specified by `fd`.
 
@@ -3457,6 +3461,9 @@ the end of the file.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The `data` parameter can now be any `TypedArray` or a `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3474,7 +3481,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|integer} filename or file descriptor
-* `data` {string|Buffer|Uint8Array}
+* `data` {string|Buffer|TypedArray|DataView}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -3490,10 +3497,13 @@ The `encoding` option is ignored if `data` is a buffer.
 Example:
 
 ```js
-fs.writeFile('message.txt', 'Hello Node.js', (err) => {
-  if (err) throw err;
-  console.log('The file has been saved!');
-});
+fs.writeFile('message.txt',
+  new Uint8Array(Buffer.from('Hello Node.js')),
+  (err) => {
+    if (err) throw err;
+    console.log('The file has been saved!');
+  }
+);
 ```
 
 If `options` is a string, then it specifies the encoding. Example:
