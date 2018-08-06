@@ -1732,6 +1732,14 @@ static void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
     // internalBinding('code_cache')
     exports = Object::New(env->isolate());
     DefineCodeCache(env, exports);
+  } else if (!strcmp(*module_v, "code_cache_hash")) {
+    // internalBinding('code_cache_hash')
+    exports = Object::New(env->isolate());
+    DefineCodeCacheHash(env, exports);
+  } else if (!strcmp(*module_v, "natives_hash")) {
+    // internalBinding('natives_hash')
+    exports = Object::New(env->isolate());
+    DefineJavaScriptHash(env, exports);
   } else {
     return ThrowIfNoSuchModule(env, *module_v);
   }
