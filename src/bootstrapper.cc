@@ -53,8 +53,8 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 }
 
 void PromiseRejectCallback(PromiseRejectMessage message) {
-  static std::atomic_uint64_t unhandledRejections{0};
-  static std::atomic_uint64_t rejectionsHandledAfter{0};
+  static std::atomic<uint64_t> unhandledRejections{0};
+  static std::atomic<uint64_t> rejectionsHandledAfter{0};
 
   Local<Promise> promise = message.GetPromise();
   Isolate* isolate = promise->GetIsolate();
