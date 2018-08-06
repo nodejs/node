@@ -139,7 +139,7 @@ for (const tr in tests) {
   assert.strictEqual(proc.status, 0, `${tr}:\n${util.inspect(proc)}`);
 
   // Confirm that trace log file is created.
-  assert(common.fileExists(traceFile));
+  assert(fs.existsSync(traceFile));
   const data = fs.readFileSync(traceFile);
   const traces = JSON.parse(data.toString()).traceEvents;
   assert(traces.length > 0);

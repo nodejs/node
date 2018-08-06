@@ -32,7 +32,7 @@ tmpdir.refresh();
 
   fs.mkdir(pathname, common.mustCall(function(err) {
     assert.strictEqual(err, null);
-    assert.strictEqual(common.fileExists(pathname), true);
+    assert.strictEqual(fs.existsSync(pathname), true);
   }));
 }
 
@@ -41,7 +41,7 @@ tmpdir.refresh();
 
   fs.mkdir(pathname, 0o777, common.mustCall(function(err) {
     assert.strictEqual(err, null);
-    assert.strictEqual(common.fileExists(pathname), true);
+    assert.strictEqual(fs.existsSync(pathname), true);
   }));
 }
 
@@ -50,7 +50,7 @@ tmpdir.refresh();
 
   fs.mkdirSync(pathname);
 
-  const exists = common.fileExists(pathname);
+  const exists = fs.existsSync(pathname);
   assert.strictEqual(exists, true);
 }
 
