@@ -82,4 +82,4 @@ void Initialize(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(uv, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(uv, node::Initialize)

@@ -1,9 +1,11 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const dgram = require('dgram');
-const { UV_UNKNOWN } = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const { UV_UNKNOWN } = internalBinding('uv');
 
 if (cluster.isMaster) {
   cluster.fork();
