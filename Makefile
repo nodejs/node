@@ -321,9 +321,13 @@ DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
 test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
+ifeq ($(node_use_openssl),true)
 	$(RM) -r test/addons/??_*/
 	[ -x $(NODE) ] && $(NODE) $< || node $<
 	touch $@
+else
+	@echo "Skipping .docbuildstamp (no crypto)"
+endif
 
 ADDONS_BINDING_GYPS := \
 	$(filter-out test/addons/??_*/binding.gyp, \
@@ -1062,7 +1066,11 @@ lint-md-build: tools/remark-cli/node_modules \
 
 .PHONY: tools/doc/node_modules
 tools/doc/node_modules:
-	@cd tools/doc && $(call available-node,$(run-npm-install))
+ifeq ($(node_use_openssl),true)
+	cd tools/doc && $(call available-node,$(run-npm-install))
+else
+	@echo "Skipping tools/doc/node_modules (no crypto)"
+endif
 
 .PHONY: lint-md
 ifneq ("","$(wildcard tools/remark-cli/node_modules/)")
