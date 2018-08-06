@@ -17,13 +17,27 @@ const s = '南越国是前203年至前111年存在于岭南地区的一个国家
           '历经五代君主。南越国是岭南地区的第一个有记载的政权国家，采用封建制和郡县制并存的制度，' +
           '它的建立保证了秦末乱世岭南地区社会秩序的稳定，有效的改善了岭南地区落后的政治、##济现状。\n';
 
-const input = Uint8Array.from(Buffer.from(s, 'utf8'));
+// The length of the buffer should be a multiple of 8
+// as required by common.getArrayBufferViews()
+const inputBuffer = Buffer.from(s.repeat(8), 'utf8');
 
-fs.writeFileSync(filename, input);
-assert.strictEqual(fs.readFileSync(filename, 'utf8'), s);
+for (const expectView of common.getArrayBufferViews(inputBuffer)) {
+  console.log('Sync test for ', expectView[Symbol.toStringTag]);
+  fs.writeFileSync(filename, expectView);
+  assert.strictEqual(
+    fs.readFileSync(filename, 'utf8'),
+    inputBuffer.toString('utf8')
+  );
+}
 
-fs.writeFile(filename, input, common.mustCall((e) => {
-  assert.ifError(e);
+for (const expectView of common.getArrayBufferViews(inputBuffer)) {
+  console.log('Async test for ', expectView[Symbol.toStringTag]);
+  fs.writeFile(filename, expectView, common.mustCall((e) => {
+    assert.ifError(e);
 
-  assert.strictEqual(fs.readFileSync(filename, 'utf8'), s);
-}));
+    fs.readFile(filename, 'utf8', common.mustCall((err, data) => {
+      assert.ifError(err);
+      assert.strictEqual(data, inputBuffer.toString('utf8'));
+    }));
+  }));
+}
