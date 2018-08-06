@@ -273,6 +273,11 @@ Print node's version.
 .\" =====================================================================
 .Sh ENVIRONMENT
 .Bl -tag -width 6n
+.It Ev NODE_ASSERT_FULL
+When set to
+.Ar 1 ,
+assertion error messages will not be minified (e.g., skipping identical input).
+
 .It Ev NODE_DEBUG Ar modules...
 Comma-separated list of core modules that should print debug information.
 .

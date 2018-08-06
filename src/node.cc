@@ -2693,6 +2693,8 @@ static void PrintHelp() {
          "  -v, --version              print Node.js version\n"
          "\n"
          "Environment variables:\n"
+         "NODE_ASSERT_FULL             set to `1` to prevent assertion error\n"
+         "                             messages to be minified\n"
          "NODE_DEBUG                   ','-separated list of core modules\n"
          "                             that should print debug information\n"
          "NODE_DEBUG_NATIVE            ','-separated list of C++ core debug\n"

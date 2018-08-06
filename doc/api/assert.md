@@ -130,9 +130,8 @@ To deactivate the colors, use the `NODE_DISABLE_COLORS` environment variable.
 Using that environment variable will also deactivate the colors in the REPL.
 
 The diff will also be minified in case more than three lines are identical or if
-either side of an loose equal check is longer than 128 characters. To prevent
-the minification use the `NODE_ASSERT_FULL` environment variable and set it to
-'1'.
+either side of a loose equal check is longer than 128 characters. To prevent the
+minification use the `NODE_ASSERT_FULL` environment variable and set it to '1'.
 
 In this example the "3" and "4" would normally be visualized as "skipped lines".
 

@@ -472,6 +472,15 @@ Print node's version.
 
 ## Environment Variables
 
+### `NODE_ASSERT_FULL=1`
+<!-- YAML
+added: REPLACEME
+-->
+
+Setting this environment variable to `1` is going to deactivate any default
+minification in assertion error messages. For further details see
+[`strict mode`][].
+
 ### `NODE_DEBUG=module[,…]`
 <!-- YAML
 added: v0.1.32
@@ -682,6 +691,7 @@ greater than `4` (its current default value). For more information, see the
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
+[`strict mode`]: assert.html#assert_strict_mode
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [debugger]: debugger.html
