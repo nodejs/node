@@ -39,7 +39,7 @@ if (process.argv[2] === 'child') {
         .filter((trace) => trace.cat !== '__metadata');
       traces.forEach((trace) => {
         assert.strictEqual(trace.pid, proc.pid);
-        assert(trace.name === 'rejections');
+        assert.strictEqual(trace.name, 'rejections');
         assert(trace.args.unhandled <= 2);
         assert(trace.args.handledAfter <= 1);
       });
