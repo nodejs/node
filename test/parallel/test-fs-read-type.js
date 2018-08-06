@@ -15,8 +15,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-    message: 'The "buffer" argument must be one of type Buffer or Uint8Array.' +
-             ' Received type number'
+    message: 'The "buffer" argument must be one of type Buffer, TypedArray, ' +
+             'or DataView. Received type number'
   }
 );
 
@@ -70,8 +70,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-    message: 'The "buffer" argument must be one of type Buffer or Uint8Array.' +
-             ' Received type number'
+    message: 'The "buffer" argument must be one of type Buffer, TypedArray, ' +
+             'or DataView. Received type number'
   }
 );
 
