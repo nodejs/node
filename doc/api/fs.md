@@ -2630,7 +2630,8 @@ added: v0.1.21
 changes:
   - version: REPLACEME
     pr-url: REPLACEME
-    description: The `buffer` parameter can now be any `TypedArray` or a `DataView`.
+    description: The `buffer` parameter can now be any `TypedArray` or a
+    `DataView`.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/4518
     description: The `length` parameter can now be `0`.
@@ -3466,7 +3467,8 @@ added: v0.1.29
 changes:
   - version: REPLACEME
     pr-url: REPLACEME
-    description: The `data` parameter can now be any `TypedArray` or a `DataView`.
+    description: The `data` parameter can now be any `TypedArray` or a
+    `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3500,13 +3502,11 @@ The `encoding` option is ignored if `data` is a buffer.
 Example:
 
 ```js
-fs.writeFile('message.txt',
-  new Uint8Array(Buffer.from('Hello Node.js')),
-  (err) => {
-    if (err) throw err;
-    console.log('The file has been saved!');
-  }
-);
+const data = new Uint8Array(Buffer.from('Hello Node.js'));
+fs.writeFile('message.txt', data, (err) => {
+  if (err) throw err;
+  console.log('The file has been saved!');
+});
 ```
 
 If `options` is a string, then it specifies the encoding. Example:
@@ -3530,7 +3530,8 @@ added: v0.1.29
 changes:
   - version: REPLACEME
     pr-url: REPLACEME
-    description: The `data` parameter can now be any `TypedArray` or a `DataView`.
+    description: The `data` parameter can now be any `TypedArray` or a
+    `DataView`.
   - version: v7.4.0
     pr-url: https://github.com/nodejs/node/pull/10382
     description: The `data` parameter can now be a `Uint8Array`.
@@ -3557,7 +3558,8 @@ added: v0.1.21
 changes:
   - version: REPLACEME
     pr-url: REPLACEME
-    description: The `buffer` parameter can now be any `TypedArray` or a `DataView`.
+    description: The `buffer` parameter can now be any `TypedArray` or a
+    `DataView`.
   - version: v7.4.0
     pr-url: https://github.com/nodejs/node/pull/10382
     description: The `buffer` parameter can now be a `Uint8Array`.
