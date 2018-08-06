@@ -6,6 +6,8 @@ const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 
+const binding = process.binding('fs');
+
 const readdirDir = tmpdir.path;
 const files = ['empty', 'files', 'for', 'just', 'testing'];
 const constants = process.binding('constants').fs;
@@ -35,11 +37,8 @@ function assertDirents(dirents) {
   for (const [i, dirent] of dirents.entries()) {
     assert(dirent instanceof fs.DirectoryEntry);
     assert.strictEqual(dirent.name, files[i]);
-    // Some systems will always give us unknown type, so if the dirent says it's
-    // not a file, then it must be unknown.
-    const isFile = dirent.isFile();
-    assert.strictEqual(typeof isFile, 'boolean');
-    assert.strictEqual(dirent.isUnknown(), !isFile);
+    assert.strictEqual(dirent.isFile(), true);
+    assert.strictEqual(dirent.isUnknown(), false);
     assert.strictEqual(dirent.isDirectory(), false);
     assert.strictEqual(dirent.isSocket(), false);
     assert.strictEqual(dirent.isBlockDevice(), false);
@@ -53,6 +52,35 @@ function assertDirents(dirents) {
 assertDirents(fs.readdirSync(readdirDir, { withFileTypes: true }));
 
 // Check the readdir async version
+fs.readdir(readdirDir, {
+  withFileTypes: true
+}, common.mustCall((err, dirents) => {
+  assert.ifError(err);
+  assertDirents(dirents);
+}));
+
+// Check for correct types when the binding returns unknowns
+const UNKNOWN = constants.UV_DIRENT_UNKNOWN;
+const oldReaddir = binding.readdir;
+binding.readdir = common.mustCall((path, encoding, types, req, ctx) => {
+  if (req) {
+    const oldCb = req.oncomplete;
+    req.oncomplete = (err, results) => {
+      if (err) {
+        oldCb(err);
+        return;
+      }
+      results[1] = results[1].map(() => UNKNOWN);
+      oldCb(null, results);
+    };
+    oldReaddir(path, encoding, types, req);
+  } else {
+    const results = oldReaddir(path, encoding, types, req, ctx);
+    results[1] = results[1].map(() => UNKNOWN);
+    return results;
+  }
+}, 2);
+assertDirents(fs.readdirSync(readdirDir, { withFileTypes: true }));
 fs.readdir(readdirDir, {
   withFileTypes: true
 }, common.mustCall((err, dirents) => {
