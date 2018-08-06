@@ -8,18 +8,16 @@ if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
 
 const CODE = `
-  process.binding("trace_events").emit(
-    'b'.charCodeAt(0), 'custom',
-    'type-value', 10, 'extra-value', 20);
-  process.binding("trace_events").emit(
-    'b'.charCodeAt(0), 'custom',
-    'type-value', 20, 'first-value', 20, 'second-value', 30);
-  process.binding("trace_events").emit(
-    'b'.charCodeAt(0), 'custom',
-    'type-value', 30);
-  process.binding("trace_events").emit(
-    'b'.charCodeAt(0), 'missing',
-    'type-value', 10, 'extra-value', 20);
+  const { internalBinding } = require('internal/test/binding');
+  const { emit } = internalBinding('trace_events');
+  emit('b'.charCodeAt(0), 'custom',
+       'type-value', 10, 'extra-value', 20);
+  emit('b'.charCodeAt(0), 'custom',
+       'type-value', 20, 'first-value', 20, 'second-value', 30);
+  emit('b'.charCodeAt(0), 'custom',
+       'type-value', 30);
+  emit('b'.charCodeAt(0), 'missing',
+       'type-value', 10, 'extra-value', 20);
 `;
 const FILE_NAME = 'node_trace.1.log';
 
@@ -29,6 +27,7 @@ process.chdir(tmpdir.path);
 
 const proc = cp.spawn(process.execPath,
                       [ '--trace-event-categories', 'custom',
+                        '--expose-internals',
                         '-e', CODE ]);
 
 proc.once('exit', common.mustCall(() => {
