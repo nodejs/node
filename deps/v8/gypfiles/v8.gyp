@@ -2948,6 +2948,7 @@
             '../src/objects/js-regexp-string-iterator.h',
             '../src/objects/map.h',
             '../src/objects/map-inl.h',
+            '../src/objects/scope-info.h',
             '../src/objects/script.h',
             '../src/objects/script-inl.h',
             '../src/objects/shared-function-info.h',
