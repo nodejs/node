@@ -132,12 +132,12 @@ V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
 and profile Node.js instances. The tools attach to Node.js instances via a
 tcp port and communicate using the [Chrome DevTools Protocol][].
 
-### `--loader`
+### `--loader=file`
 <!--
 added: v9.0.0
 -->
 
-Specify a custom loader, to load [ECMAScript Modules][].
+Specify the `file` as a custom loader, to load [ECMAScript Modules][].
 
 ### `--napi-modules`
 <!-- YAML
