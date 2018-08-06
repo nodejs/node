@@ -2348,7 +2348,7 @@ changes:
   - version: REPLACEME
     pr-url: REPLACEME
     description: The `buffer` parameter can now be any `TypedArray`, or a
-    `DataView`.
+                 `DataView`.
   - version: v7.4.0
     pr-url: https://github.com/nodejs/node/pull/10382
     description: The `buffer` parameter can now be a `Uint8Array`.
@@ -2631,7 +2631,7 @@ changes:
   - version: REPLACEME
     pr-url: REPLACEME
     description: The `buffer` parameter can now be any `TypedArray` or a
-    `DataView`.
+                 `DataView`.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/4518
     description: The `length` parameter can now be `0`.
@@ -3365,7 +3365,7 @@ changes:
   - version: REPLACEME
     pr-url: REPLACEME
     description: The `buffer` parameter can now be any `TypedArray` or a
-    `DataView`
+                 `DataView`
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3468,7 +3468,7 @@ changes:
   - version: REPLACEME
     pr-url: REPLACEME
     description: The `data` parameter can now be any `TypedArray` or a
-    `DataView`.
+                 `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3531,7 +3531,7 @@ changes:
   - version: REPLACEME
     pr-url: REPLACEME
     description: The `data` parameter can now be any `TypedArray` or a
-    `DataView`.
+                 `DataView`.
   - version: v7.4.0
     pr-url: https://github.com/nodejs/node/pull/10382
     description: The `data` parameter can now be a `Uint8Array`.
@@ -3559,7 +3559,7 @@ changes:
   - version: REPLACEME
     pr-url: REPLACEME
     description: The `buffer` parameter can now be any `TypedArray` or a
-    `DataView`.
+                 `DataView`.
   - version: v7.4.0
     pr-url: https://github.com/nodejs/node/pull/10382
     description: The `buffer` parameter can now be a `Uint8Array`.
