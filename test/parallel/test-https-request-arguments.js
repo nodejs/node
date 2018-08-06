@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const https = require('https');
 const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const https = require('https');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
