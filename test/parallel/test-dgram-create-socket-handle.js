@@ -5,14 +5,6 @@ const assert = require('assert');
 const { _createSocketHandle } = require('internal/dgram');
 const UDP = process.binding('udp_wrap').UDP;
 
-// Throws if an "existing fd" is passed in.
-common.expectsError(() => {
-  _createSocketHandle(common.localhostIPv4, 0, 'udp4', 42);
-}, {
-  code: 'ERR_ASSERTION',
-  message: /^false == true$/
-});
-
 {
   // Create a handle that is not bound.
   const handle = _createSocketHandle(null, null, 'udp4');
