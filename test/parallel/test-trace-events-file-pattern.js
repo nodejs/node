@@ -25,7 +25,7 @@ const proc = cp.spawn(process.execPath, [
 proc.once('exit', common.mustCall(() => {
   const expectedFilename = `${proc.pid}-1-${proc.pid}-1.tracing.log`;
 
-  assert(common.fileExists(expectedFilename));
+  assert(fs.existsSync(expectedFilename));
   fs.readFile(expectedFilename, common.mustCall((err, data) => {
     const traces = JSON.parse(data.toString()).traceEvents;
     assert(traces.length > 0);

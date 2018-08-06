@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
@@ -42,14 +42,14 @@ fs.watchFile(FILENAME, { interval: TIMEOUT - 250 }, function(curr, prev) {
   console.log([curr, prev]);
   switch (++nevents) {
     case 1:
-      assert.strictEqual(common.fileExists(FILENAME), false);
+      assert.strictEqual(fs.existsSync(FILENAME), false);
       break;
     case 2:
     case 3:
-      assert.strictEqual(common.fileExists(FILENAME), true);
+      assert.strictEqual(fs.existsSync(FILENAME), true);
       break;
     case 4:
-      assert.strictEqual(common.fileExists(FILENAME), false);
+      assert.strictEqual(fs.existsSync(FILENAME), false);
       fs.unwatchFile(FILENAME);
       break;
     default:

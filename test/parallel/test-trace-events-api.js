@@ -130,7 +130,7 @@ if (isChild) {
   proc.once('exit', common.mustCall(() => {
     const file = path.join(tmpdir.path, 'node_trace.1.log');
 
-    assert(common.fileExists(file));
+    assert(fs.existsSync(file));
     fs.readFile(file, common.mustCall((err, data) => {
       const traces = JSON.parse(data.toString()).traceEvents
         .filter((trace) => trace.cat !== '__metadata');
