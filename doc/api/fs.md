@@ -2360,6 +2360,10 @@ this API: [`fs.open()`][].
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
+    description: The `buffer` parameter can now be any `TypedArray`, or a
+                 `DataView`.
   - version: v7.4.0
     pr-url: https://github.com/nodejs/node/pull/10382
     description: The `buffer` parameter can now be a `Uint8Array`.
@@ -2369,7 +2373,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|Uint8Array}
+* `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
@@ -2639,13 +2643,17 @@ the link path returned will be passed as a `Buffer` object.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
+    description: The `buffer` parameter can now be any `TypedArray` or a
+                 `DataView`.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/4518
     description: The `length` parameter can now be `0`.
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|Uint8Array}
+* `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
@@ -3369,6 +3377,10 @@ This happens when:
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
+    description: The `buffer` parameter can now be any `TypedArray` or a
+                 `DataView`
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3386,14 +3398,14 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|Uint8Array}
+* `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
 * `callback` {Function}
   * `err` {Error}
   * `bytesWritten` {integer}
-  * `buffer` {Buffer|Uint8Array}
+  * `buffer` {Buffer|TypedArray|DataView}
 
 Write `buffer` to the file specified by `fd`.
 
@@ -3468,6 +3480,10 @@ the end of the file.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
+    description: The `data` parameter can now be any `TypedArray` or a
+                 `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3485,7 +3501,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|integer} filename or file descriptor
-* `data` {string|Buffer|Uint8Array}
+* `data` {string|Buffer|TypedArray|DataView}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -3501,7 +3517,8 @@ The `encoding` option is ignored if `data` is a buffer.
 Example:
 
 ```js
-fs.writeFile('message.txt', 'Hello Node.js', (err) => {
+const data = new Uint8Array(Buffer.from('Hello Node.js'));
+fs.writeFile('message.txt', data, (err) => {
   if (err) throw err;
   console.log('The file has been saved!');
 });
@@ -3526,6 +3543,10 @@ automatically.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
+    description: The `data` parameter can now be any `TypedArray` or a
+                 `DataView`.
   - version: v7.4.0
     pr-url: https://github.com/nodejs/node/pull/10382
     description: The `data` parameter can now be a `Uint8Array`.
@@ -3535,7 +3556,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|integer} filename or file descriptor
-* `data` {string|Buffer|Uint8Array}
+* `data` {string|Buffer|TypedArray|DataView}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -3550,6 +3571,10 @@ this API: [`fs.writeFile()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
+    description: The `buffer` parameter can now be any `TypedArray` or a
+                 `DataView`.
   - version: v7.4.0
     pr-url: https://github.com/nodejs/node/pull/10382
     description: The `buffer` parameter can now be a `Uint8Array`.
@@ -3559,7 +3584,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|Uint8Array}
+* `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
