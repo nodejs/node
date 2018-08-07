@@ -320,6 +320,8 @@ ifeq ($(OSTYPE),aix)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
+node_use_openssl = $(shell $(call available-node,"-p" \
+		   "process.versions.openssl != undefined"))
 test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 ifeq ($(node_use_openssl),true)
 	$(RM) -r test/addons/??_*/
@@ -1077,8 +1079,6 @@ ifneq ("","$(wildcard tools/remark-cli/node_modules/)")
 
 LINT_MD_DOC_FILES = $(shell ls doc/*.md doc/**/*.md)
 run-lint-doc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_DOC_FILES)
-node_use_openssl = $(shell $(call available-node,"-p" \
-		   "process.versions.openssl != undefined"))
 # Lint all changed markdown files under doc/
 tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
 ifeq ($(node_use_openssl),true)
