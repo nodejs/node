@@ -18,9 +18,13 @@ the following tiers.
   major release is within 1 month. In addition:
     * The maintainers of the tool remain responsive when there are problems;
     * The tool must be actively used by the ecosystem;
-    * The tool must be heavily depended on; and
+    * The tool must be heavily depended on;
+    * The tool must be work on all supported platforms;
+    * The tol must had a guide or other documentation in the Node.js GitHub
+      organization or website;
     * The tool must only be using APIs exposed by Nodejs as opposed to
-      its dependencies.
+      its dependencies; and
+    * The tool must be open source.
       
 * Tier 2 - Must be working(CI tests passing) for all
   LTS releases. An LTS release will not be shipped if the test
@@ -96,7 +100,6 @@ The tools are currently assigned to Tiers as follows:
  | Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
  |-----------|---------------------------|-------------------------------|-------------------------|-------------|
  | FFDC      | node-report               | No                            | No                      |     1       |
- | Memory    | llnode                    | ?                             | No                      |     2       |          
  | Memory    | mdb_V8                    | No                            | No                      |     4       | 
  | Memory    | node-heapdump             | No                            | No                      |     2       |
  | Memory    | V8 heap profiler          | No                            | Yes                     |     1       |
@@ -104,6 +107,7 @@ The tools are currently assigned to Tiers as follows:
  | AsyncFlow | Async Hooks (API)         | ?                             | Yes                     |     1       |
  | Debugger  | V8 Debug protocol (API)   | No                            | Yes                     |     1       |
  | Debugger  | Command line Debug Client | ?                             | Yes                     |     1       |
+ | Debugger  | llnode                    | ?                             | No                      |     2       |          
  | Debugger  | Chrome Dev tools          | ?                             | No                      |     3       |
  | Debugger  | Chakracore - time-travel  | No                            | Data source only        | too early   |
  | Tracing   | trace_events (API)        | No                            | Yes                     |     1       |
@@ -115,7 +119,7 @@ The tools are currently assigned to Tiers as follows:
  | Profiling | Linux perf                | No                            | Partial                 |     ?       |
  | Profiling | DTrace                    | No                            | Partial                 |     3       |
  | Profiling | Windows Xperf             | No                            | ?                       |     ?       |
- | Profiling | Ox                        | No                            | No                      | too early   |
+ | Profiling | Ox                        | No                            | No                      |     4       |
  | Profiling | node-clinic               | No                            | No                      | to early    |
  | F/P/T     | appmetrics                | No                            | No                      |     ?       |
  | M/T       | eBPF tracing tool         | No                            | No                      |     ?       | 
