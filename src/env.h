@@ -457,6 +457,8 @@ class AccessControl {
   v8::MaybeLocal<v8::Object> ToObject(v8::Local<v8::Context> context);
   static v8::Maybe<AccessControl> FromObject(v8::Local<v8::Context> context,
                                              v8::Local<v8::Object> object);
+  static AccessControl FromString(const std::string& disabled_item_list,
+                                  std::string* unknown_item);
 
   static void ThrowAccessDenied(Environment* env, Permission perm);
 

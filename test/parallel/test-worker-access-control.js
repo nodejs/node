@@ -1,4 +1,4 @@
-// Flags: --experimental-worker
+// Flags: --experimental-worker --experimental-access-control
 'use strict';
 const common = require('../common');
 const assert = require('assert');

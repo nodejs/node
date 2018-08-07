@@ -2000,6 +2000,13 @@ Will generate an object similar to:
 
 > Stability: 1 - Experimental
 
+This feature is experimental and needs to be enabled by passing
+the `--experimental-access-control` flag, or the
+`--disable=restrictionA,restrictionB,...` flag to Node.js.
+
+The `--disable` flag takes a comma-separated list of identifiers as described
+below. For example, it can be used as `--disable=fsRead,fsWrite`.
+
 ### process.accessControl.apply(restrictions)
 <!-- YAML
 added: REPLACEME

@@ -178,6 +178,8 @@ Environment::Environment(IsolateData* isolate_data,
 
   isolate()->GetHeapProfiler()->AddBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
+
+  access_control()->apply(global_access_control);
 }
 
 Environment::~Environment() {

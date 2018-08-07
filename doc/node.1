@@ -75,6 +75,12 @@ the next argument will be used as a script filename.
 .It Fl -abort-on-uncaught-exception
 Aborting instead of exiting causes a core file to be generated for analysis.
 .
+.It Fl -disable Ns = Ns Ar featureA,featureB,...
+Disables certain features of Node.js at startup.
+A full list of available restriction identifiers can be shown by running:
+.Pp
+.Sy ./node --experimental-access-control --print 'process.accessControl.getCurrent()'
+.
 .It Fl -enable-fips
 Enable FIPS-compliant crypto at startup.
 Requires Node.js to be built with
@@ -82,6 +88,12 @@ Requires Node.js to be built with
 .
 .It Fl -experimental-modules
 Enable experimental ES module support and caching modules.
+.
+.It Fl -experimental-access-control
+Allow disabling certain features of Node.js at runtime.
+The
+.Fl -disable
+flag implies this flag.
 .
 .It Fl -experimental-repl-await
 Enable experimental top-level

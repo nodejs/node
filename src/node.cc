@@ -240,6 +240,12 @@ bool config_preserve_symlinks = false;
 // that is used by lib/module.js
 bool config_preserve_symlinks_main = false;
 
+// Set in node.cc by ParseArgs when --experimental-access-control is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by the bootstrapper.
+bool config_experimental_access_control = false;
+AccessControl global_access_control;
+
 // Set in node.cc by ParseArgs when --experimental-modules is used.
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js
@@ -2615,9 +2621,15 @@ static void PrintHelp() {
          "  --abort-on-uncaught-exception\n"
          "                             aborting instead of exiting causes a\n"
          "                             core file to be generated for analysis\n"
+         "  --disable=featureA,featureB,...\n"
+        "                              experimental support for\n"
+         "                             disabling individual features\n"
+         "                             by listing them on the command line\n"
 #if HAVE_OPENSSL && NODE_FIPS_MODE
          "  --enable-fips              enable FIPS crypto at startup\n"
 #endif  // NODE_FIPS_MODE && NODE_FIPS_MODE
+         "  --experimental-access-control     experimental support for\n"
+         "                                    disabling individual features\n"
          "  --experimental-modules     experimental ES Module support\n"
          "                             and caching modules\n"
          "  --experimental-repl-await  experimental await keyword support\n"
@@ -2785,7 +2797,9 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
   static const char* whitelist[] = {
     // Node options, sorted in `node --help` order for ease of comparison.
     // Please, update NODE_OPTIONS section in cli.md if changed.
+    "--disable",
     "--enable-fips",
+    "--experimental-access-control",
     "--experimental-modules",
     "--experimental-repl-await",
     "--experimental-vm-modules",
@@ -2982,6 +2996,18 @@ static void ParseArgs(int* argc,
       config_preserve_symlinks = true;
     } else if (strcmp(arg, "--preserve-symlinks-main") == 0) {
       config_preserve_symlinks_main = true;
+    } else if (strncmp(arg, "--disable=", 10) == 0) {
+      std::string unknown_item;
+      global_access_control.apply(
+          AccessControl::FromString(arg + 10, &unknown_item));
+      if (!unknown_item.empty()) {
+        fprintf(stderr, "%s: unknown --disable entry %s\n",
+                argv[0], unknown_item.c_str());
+        exit(9);
+      }
+      config_experimental_access_control = true;
+    } else if (strcmp(arg, "--experimental-access-control") == 0) {
+      config_experimental_access_control = true;
     } else if (strcmp(arg, "--experimental-modules") == 0) {
       config_experimental_modules = true;
     } else if (strcmp(arg, "--experimental-vm-modules") == 0) {
@@ -3079,6 +3105,12 @@ static void ParseArgs(int* argc,
     fprintf(stderr,
             "%s: either --check or --eval can be used, not both\n", argv[0]);
     exit(9);
+  }
+
+  if (config_experimental_access_control) {
+    fprintf(stderr,
+            "Warning: Access control through disabling features is "
+            "experimental and may be changed at any time.\n");
   }
 
   // Copy remaining arguments.

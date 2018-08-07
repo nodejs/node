@@ -186,6 +186,12 @@ extern bool config_preserve_symlinks;
 // that is used by lib/module.js
 extern bool config_preserve_symlinks_main;
 
+// Set in node.cc by ParseArgs when --experimental-access-control is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by the bootstrapper.
+extern bool config_experimental_access_control;
+extern AccessControl global_access_control;
+
 // Set in node.cc by ParseArgs when --experimental-modules is used.
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js

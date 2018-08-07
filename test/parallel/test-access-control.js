@@ -1,3 +1,4 @@
+// Flags: --experimental-access-control
 'use strict';
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');

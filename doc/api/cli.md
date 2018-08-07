@@ -52,6 +52,14 @@ If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
 `domain` module that uses it).
 
+### `--disable=...`
+<!-- YAML
+added: REPLACEME
+-->
+
+Disable certain features of Node.js at startup. See [`process.accessControl`][]
+for more details.
+
 ### `--enable-fips`
 <!-- YAML
 added: v6.0.0
@@ -59,6 +67,15 @@ added: v6.0.0
 
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 `./configure --openssl-fips`.)
+
+### `--experimental-access-control`
+<!-- YAML
+added: REPLACEME
+-->
+
+Allow disabling certain features of Node.js at runtime.
+See [`process.accessControl`][] for more details.
+The `--disable` flag implies this flag.
 
 ### `--experimental-modules`
 <!-- YAML
@@ -688,6 +705,7 @@ greater than `4` (its current default value). For more information, see the
 [`--openssl-config`]: #cli_openssl_config_file
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
+[`process.accessControl`]: process.html#process_access_control
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html

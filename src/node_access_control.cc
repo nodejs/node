@@ -56,6 +56,24 @@ Maybe<AccessControl> AccessControl::FromObject(Local<Context> context,
   return Just(ret);
 }
 
+AccessControl AccessControl::FromString(const std::string& disabled_item_list,
+                                        std::string* unknown_item) {
+  AccessControl ret;
+
+  std::set<std::string> items = ParseCommaSeparatedSet(disabled_item_list);
+  for (const std::string& item : items) {
+    Permission perm = PermissionFromString(item.c_str());
+    if (perm != kNumPermissions) {
+      ret.set_permission(perm, false);
+      continue;
+    }
+    if (unknown_item != nullptr)
+      *unknown_item = item;
+  }
+
+  return ret;
+}
+
 AccessControl::Permission AccessControl::PermissionFromString(const char* str) {
 #define V(kind) if (strcmp(str, #kind) == 0) return kind;
   ACCESS_CONTROL_FLAGS(V)
