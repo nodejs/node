@@ -99,8 +99,18 @@ if (!common.hasIntl) {
     assert.strictEqual(localeString, '1/1/1970, 12:00:00 AM');
   }
   // number format
-  const numberFormat = new Intl.NumberFormat(['en']).format(12345.67890);
-  assert.strictEqual(numberFormat, '12,345.679');
+  {
+    const numberFormat = new Intl.NumberFormat(['en']).format(12345.67890);
+    assert.strictEqual(numberFormat, '12,345.679');
+  }
+  // Significant Digits
+  {
+    const loc = ['en-US'];
+    const opts = { maximumSignificantDigits: 4 };
+    const num = 10.001;
+    const numberFormat = new Intl.NumberFormat(loc, opts).format(num);
+    assert.strictEqual(numberFormat, '10');
+  }
 
   const collOpts = { sensitivity: 'base', ignorePunctuation: true };
   const coll = new Intl.Collator(['en'], collOpts);
