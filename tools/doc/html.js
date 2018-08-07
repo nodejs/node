@@ -199,6 +199,8 @@ function preprocessElements({ filename }) {
             type: 'text',
             value: file.contents.slice(
               position.start.offset, position.end.offset)
+              .replace('&lt;', '<')
+              .replace('&gt;', '>')
               .replace(/\\(.{1})/g, '$1'),
             position
           }];
