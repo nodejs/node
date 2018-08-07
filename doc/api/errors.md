@@ -1855,6 +1855,7 @@ A module file could not be resolved while attempting a [`require()`][] or
 ### ERR_FS_WATCHER_ALREADY_STARTED
 <!-- YAML
 added: v10.0.0
+removed: v10.8.0
 -->
 An attempt was made to start a watcher returned by `fs.watch()` that has
 already been started.
@@ -1863,6 +1864,7 @@ already been started.
 ### ERR_FS_WATCHER_NOT_STARTED
 <!-- YAML
 added: v10.0.0
+removed: v10.8.0
 -->
 
 An attempt was made to initiate operations on a watcher returned by
