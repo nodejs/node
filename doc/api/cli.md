@@ -94,6 +94,8 @@ added: v7.0.0
 -->
 
 Expose internal modules for usage.
+Notice: Nothing exposed by it is supported in any way by any release system
+or deprecation process.
 
 ### `--force-fips`
 <!-- YAML
