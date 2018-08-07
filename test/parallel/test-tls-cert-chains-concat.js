@@ -27,7 +27,7 @@ connect({
   assert.strictEqual(peer.subject.emailAddress, 'adam.lippai@tresorit.com');
   assert.strictEqual(peer.subject.CN, 'Ádám Lippai'),
   assert.strictEqual(peer.issuer.CN, 'ca3');
-  assert.strictEqual(peer.serialNumber, 'C4CD893EF9A75DCC');
+  assert.strictEqual(peer.serialNumber, 'E987DB4B683F4181');
 
   const next = pair.client.conn.getPeerCertificate(true).issuerCertificate;
   const root = next.issuerCertificate;
@@ -35,12 +35,12 @@ connect({
   debug('next:\n', next);
   assert.strictEqual(next.subject.CN, 'ca3');
   assert.strictEqual(next.issuer.CN, 'ca1');
-  assert.strictEqual(next.serialNumber, '9A84ABCFB8A72ABF');
+  assert.strictEqual(next.serialNumber, 'FAD50CC6A07F516D');
 
   debug('root:\n', root);
   assert.strictEqual(root.subject.CN, 'ca1');
   assert.strictEqual(root.issuer.CN, 'ca1');
-  assert.strictEqual(root.serialNumber, '8DF21C01468AF393');
+  assert.strictEqual(root.serialNumber, 'EE586A7D0951D7B3');
 
   // No client cert, so empty object returned.
   assert.deepStrictEqual(pair.server.conn.getPeerCertificate(), {});
