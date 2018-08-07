@@ -27,7 +27,6 @@ ca3-key.pem:
 ca3-csr.pem: ca3.cnf ca3-key.pem
 	openssl req -new \
 		-extensions v3_ca \
-		-days 9999 \
 		-config ca3.cnf \
 		-key ca3-key.pem \
 		-out ca3-csr.pem
