@@ -16,12 +16,12 @@ the following tiers.
   must exist in the Node.js CI so that it can be run as part of the release
   process.  No commit to master should break this tool/API if the next
   major release is within 1 month. In addition:
-    * The maintainers of the tool remain responsive when there are problems;
+    * The maintainers of the tool must remain responsive when there are problems;
     * The tool must be actively used by the ecosystem;
     * The tool must be heavily depended on;
-    * The tool must be work on all supported platforms;
-    * The tol must had a guide or other documentation in the Node.js GitHub
+    * The tool must have a guide or other documentation in the Node.js GitHub
       organization or website;
+    * The tool must be work on all supported platforms;
     * The tool must only be using APIs exposed by Nodejs as opposed to
       its dependencies; and
     * The tool must be open source.
@@ -31,7 +31,13 @@ the following tiers.
   suite for the tool/API is not green. To be considered for inclusion
   in this tier it must have a good test suite and that test suite and a job
   must exist in the Node.js CI so that it can be run as part of the release
-  process. 
+  process. In addition:
+    * The maintainers of the tool must remain responsive when there are problems;
+    * The tool must be actively used by the ecosystem;
+    * The tool must be heavily depended on;
+    * The tool must have a guide or other documentation in the Node.js GitHub
+      organization or website;
+    * The tool must be open source.
   
  * Tier 3 - If possible its test suite
    will be run at least nightly in the Node.js CI and issues opened for
@@ -66,7 +72,16 @@ The current categories of tools/APIs that fall under these Tiers are:
   CPU cycles are being spent.
 * AsyncFlow (A) - tools that provide additional insight into asynchronous
   execution flow.
+  
+## Adding a tool to this list
 
+Any tool that might be used to investigate issues when running Node.js can be added to the
+list. If there is a new tool that should be added to the list, it should start by being
+added to the "Not yet classified" or "Tier 4" lists. Once it has been added to the list
+"promotion" to Tier 3 through Tier 1 requires that the requirements listed above be met
+AND have agreement from Diagnostics WG and Release WG based on the criteria listed above.
+ 
+# Tiers
  
 The tools are currently assigned to Tiers as follows:
  
