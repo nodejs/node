@@ -23,9 +23,9 @@ N-API API.
 * There **should** be at least one test case per interesting use of the API.
 * There **should** be a sample provided that operates in a realistic way
   (operating how a real addon would be written).
-* A new API **should** be discussed at the N-API working group meeting.
+* A new API **should** be discussed at the N-API team meeting.
 * A new API addition **must** be signed off by at least two members of
-  the N-API WG.
+  the N-API team.
 * A new API addition **should** be simultaneously implemented in at least
   one other VM implementation of Node.js.
 * A new API **must** be considered experimental for at least one minor
@@ -39,8 +39,7 @@ N-API API.
       following:
         * A new PR **must** be opened in `nodejs/node` to remove experimental
           status. This PR **must** be tagged as **n-api** and **semver-minor**.
-        * Exiting an API from experimental **must** be signed off by the
-          working group.
+        * Exiting an API from experimental **must** be signed off by the team.
         * If a backport is merited, an API **must** have a down-level
           implementation.
         * The API **should** be used by a published real-world module. Use of
