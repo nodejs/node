@@ -27,6 +27,7 @@ ca3-key.pem:
 ca3-csr.pem: ca3.cnf ca3-key.pem
 	openssl req -new \
 		-extensions v3_ca \
+		-days 9999 \
 		-config ca3.cnf \
 		-key ca3-key.pem \
 		-out ca3-csr.pem
@@ -53,7 +54,7 @@ fake-cnnic-root-key.pem:
 fake-cnnic-root-cert.pem: fake-cnnic-root.cnf fake-cnnic-root-key.pem
 	openssl req -x509 -new \
 	        -key fake-cnnic-root-key.pem \
-	        -days 1024 \
+	        -days 9999 \
 	        -out fake-cnnic-root-cert.pem \
 	        -config fake-cnnic-root.cnf
 
