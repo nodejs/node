@@ -1432,8 +1432,9 @@ to `stdout` although there are only 4 characters.
 
 ## Shell Requirements
 
-The shell should understand the `-c` switch on UNIX or `/d /s /c` on Windows.
-On Windows, command line parsing should be compatible with `'cmd.exe'`.
+The shell should understand the `-c` switch. If the shell is `'cmd.exe'`, it
+should understand the `/d /s /c` switches and command line parsing should be
+compatible.
 
 ## Default Windows Shell
 
