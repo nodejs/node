@@ -1,19 +1,18 @@
-all: agent1-cert.pem agent1-pfx.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem agent5-cert.pem agent6-cert.pem agent7-cert.pem agent8-cert.pem agent9-cert.pem ca1-cert.pem ca2-crl.pem ca3-cert.pem ec-cert.pem dh512.pem dh1024.pem dh2048.pem dsa1025.pem dsa_private_1025.pem dsa_public_1025.pem rsa_private_1024.pem rsa_private_2048.pem rsa_private_4096.pem rsa_public_1024.pem rsa_public_2048.pem rsa_public_4096.pem
-
+all: agent1-cert.pem agent1-pfx.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem agent5-cert.pem agent6-cert.pem agent7-cert.pem agent8-cert.pem agent9-cert.pem ca1-cert.pem ca2-crl.pem ca3-cert.pem ec-cert.pem dh512.pem dh1024.pem dh2048.pem dsa1025.pem dsa_private_1025.pem dsa_public_1025.pem rsa_private_1024.pem rsa_private_2048.pem rsa_private_4096.pem rsa_public_1024.pem rsa_public_2048.pem rsa_public_4096.pem ec-pfx.pem
 
 #
 # Create Certificate Authority: ca1
 # ('password' is used for the CA password.)
 #
 ca1-cert.pem: ca1.cnf
-	openssl req -new -x509 -days 9999 -config ca1.cnf -keyout ca1-key.pem -out ca1-cert.pem
+	openssl req -new -x509 -days 99999 -config ca1.cnf -keyout ca1-key.pem -out ca1-cert.pem
 
 #
 # Create Certificate Authority: ca2
 # ('password' is used for the CA password.)
 #
 ca2-cert.pem: ca2.cnf
-	openssl req -new -x509 -days 9999 -config ca2.cnf -keyout ca2-key.pem -out ca2-cert.pem
+	openssl req -new -x509 -days 99999 -config ca2.cnf -keyout ca2-key.pem -out ca2-cert.pem
 	echo '01' > ca2-serial
 	touch ca2-database.txt
 
@@ -35,7 +34,7 @@ ca3-cert.pem: ca3-csr.pem ca3-key.pem ca3.cnf ca1-cert.pem ca1-key.pem
 	openssl x509 -req \
 		-extfile ca3.cnf \
 		-extensions v3_ca \
-		-days 9999 \
+		-days 99999 \
 		-passin "pass:password" \
 		-in ca3-csr.pem \
 		-CA ca1-cert.pem \
@@ -53,7 +52,7 @@ fake-cnnic-root-key.pem:
 fake-cnnic-root-cert.pem: fake-cnnic-root.cnf fake-cnnic-root-key.pem
 	openssl req -x509 -new \
 	        -key fake-cnnic-root-key.pem \
-	        -days 1024 \
+	        -days 99999 \
 	        -out fake-cnnic-root-cert.pem \
 	        -config fake-cnnic-root.cnf
 
@@ -65,7 +64,7 @@ fake-startcom-root-key.pem:
 
 fake-startcom-root-cert.pem: fake-startcom-root.cnf \
 	fake-startcom-root-key.pem
-	openssl req -new -x509 -days 9999 -config \
+	openssl req -new -x509 -days 99999 -config \
 	fake-startcom-root.cnf -key fake-startcom-root-key.pem -out \
 	fake-startcom-root-cert.pem
 	echo '01' > fake-startcom-root-serial
@@ -85,7 +84,7 @@ agent1-cert.pem: agent1-csr.pem ca1-cert.pem ca1-key.pem
 	openssl x509 -req \
 		-extfile agent1.cnf \
 		-extensions v3_ca \
-		-days 9999 \
+		-days 99999 \
 		-passin "pass:password" \
 		-in agent1-csr.pem \
 		-CA ca1-cert.pem \
@@ -120,7 +119,7 @@ agent2-csr.pem: agent2-key.pem agent2.cnf
 # Create a Certificate for the agent.
 agent2-cert.pem: agent2-csr.pem agent2-key.pem
 	openssl x509 -req \
-		-days 9999 \
+		-days 99999 \
 		-in agent2-csr.pem \
 		-signkey agent2-key.pem \
 		-out agent2-cert.pem
@@ -140,7 +139,7 @@ agent3-csr.pem: agent3.cnf agent3-key.pem
 
 agent3-cert.pem: agent3-csr.pem ca2-cert.pem ca2-key.pem
 	openssl x509 -req \
-		-days 9999 \
+		-days 99999 \
 		-passin "pass:password" \
 		-in agent3-csr.pem \
 		-CA ca2-cert.pem \
@@ -164,7 +163,7 @@ agent4-csr.pem: agent4.cnf agent4-key.pem
 
 agent4-cert.pem: agent4-csr.pem ca2-cert.pem ca2-key.pem
 	openssl x509 -req \
-		-days 9999 \
+		-days 99999 \
 		-passin "pass:password" \
 		-in agent4-csr.pem \
 		-CA ca2-cert.pem \
@@ -206,7 +205,7 @@ agent5-csr.pem: agent5.cnf agent5-key.pem
 
 agent5-cert.pem: agent5-csr.pem ca2-cert.pem ca2-key.pem
 	openssl x509 -req \
-		-days 9999 \
+		-days 99999 \
 		-passin "pass:password" \
 		-in agent5-csr.pem \
 		-CA ca2-cert.pem \
@@ -231,7 +230,7 @@ agent6-csr.pem: agent6.cnf agent6-key.pem
 
 agent6-cert.pem: agent6-csr.pem ca3-cert.pem ca3-key.pem
 	openssl x509 -req \
-		-days 9999 \
+		-days 99999 \
 		-passin "pass:password" \
 		-in agent6-csr.pem \
 		-CA ca3-cert.pem \
@@ -257,7 +256,7 @@ agent7-csr.pem: agent1.cnf agent7-key.pem
 agent7-cert.pem: agent7-csr.pem fake-cnnic-root-cert.pem fake-cnnic-root-key.pem
 	openssl x509 -req \
 		-extfile agent7.cnf \
-		-days 9999 \
+		-days 99999 \
 		-passin "pass:password" \
 		-in agent7-csr.pem \
 		-CA fake-cnnic-root-cert.pem \
@@ -286,7 +285,7 @@ agent8-cert.pem: agent8-csr.pem fake-startcom-root-cert.pem fake-startcom-root-k
 		-keyfile fake-startcom-root-key.pem \
 		-cert fake-startcom-root-cert.pem \
 		-batch \
-		-days 9999 \
+		-days 99999 \
 		-passin "pass:password" \
 		-in agent8-csr.pem \
 		-startdate 161020235959Z \
@@ -316,7 +315,7 @@ agent9-cert.pem: agent9-csr.pem
 		-keyfile fake-startcom-root-key.pem \
 		-cert fake-startcom-root-cert.pem \
 		-batch \
-		-days 9999 \
+		-days 99999 \
 		-passin "pass:password" \
 		-in agent9-csr.pem \
 		-startdate 161021000001Z \
@@ -330,7 +329,7 @@ ec-csr.pem: ec-key.pem
 
 ec-cert.pem: ec-csr.pem ec-key.pem
 	openssl x509 -req \
-		-days 9999 \
+		-days 99999 \
 		-in ec-csr.pem \
 		-signkey ec-key.pem \
 		-out ec-cert.pem
@@ -371,13 +370,13 @@ rsa_private_4096.pem:
 	openssl genrsa -out rsa_private_4096.pem 4096
 
 rsa_public_1024.pem: rsa_private_1024.pem
-	openssl rsa -in rsa_private_1024.pem -out rsa_public_1024.pem
+	openssl rsa -in rsa_private_1024.pem -pubout -out rsa_public_1024.pem
 
 rsa_public_2048.pem: rsa_private_2048.pem
-	openssl rsa -in rsa_private_2048.pem -out rsa_public_2048.pem
+	openssl rsa -in rsa_private_2048.pem -pubout -out rsa_public_2048.pem
 
 rsa_public_4096.pem: rsa_private_4096.pem
-	openssl rsa -in rsa_private_4096.pem -out rsa_public_4096.pem
+	openssl rsa -in rsa_private_4096.pem -pubout -out rsa_public_4096.pem
 
 clean:
 	rm -f *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial
