@@ -15,7 +15,10 @@ the following tiers.
   in this tier it must have a good test suite and that test suite and a job
   must exist in the Node.js CI so that it can be run as part of the release
   process.  No commit to master should break this tool/API if the next
-  major release is within 1 month.
+  major release is within 1 month. In addition:
+    * The maintainers of the tool remain responsive when there are problems;
+    * The tool must be actively used by the ecosystem; and
+    * The tool must be heavily depended on.
   
 * Tier 2 - Must be working(CI tests passing) for all
   LTS releases. An LTS release will not be shipped if the test
@@ -38,7 +41,7 @@ collaborative decision between Diagnostics WG and Release WG. Some of the
 criteria considered might be:
 
 * If the tool fits into a key category as listed below.
-* Whether the tool is actively used by the community.
+* Whether the tool is actively used by the ecosystem.
 * The availability of alternatives.
 * Impact to the overall ecosystem if the tool is not working.
 * The availability of reliable test suite that can be integrated into our CI.
