@@ -88,14 +88,14 @@ added: v10.5.0
 
 Enable experimental worker threads using the `worker_threads` module.
 
-### `--expose-internals, --expose_internals`
+### `--expose-internals`
 <!-- YAML
 added: v7.0.0
 -->
 
-Expose internal modules for usage.
-Notice: Nothing exposed by it is supported in any way by any release system
-or deprecation process.
+Expose modules that are normally for Node.js internal use only.
+Use of this flag is unsupported,
+It is exposed for Node.js testing and diagnostic purposes only.
 
 ### `--force-fips`
 <!-- YAML
