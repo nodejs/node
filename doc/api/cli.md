@@ -88,6 +88,13 @@ added: v10.5.0
 
 Enable experimental worker threads using the `worker_threads` module.
 
+### `--expose-internals, --expose_internals`
+<!-- YAML
+added: v7.0.0
+-->
+
+Expose internal modules for usage.
+
 ### `--force-fips`
 <!-- YAML
 added: v6.0.0
