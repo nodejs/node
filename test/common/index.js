@@ -703,8 +703,8 @@ exports.expectsError = function expectsError(fn, settings, exact) {
       assert.fail(`Expected one argument, got ${util.inspect(arguments)}`);
     }
     const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
-    assert.strictEqual(descriptor.enumerable,
-                       false, 'The error message should be non-enumerable');
+    // The error message should be non-enumerable
+    assert.strictEqual(descriptor.enumerable, false);
 
     let innerSettings = settings;
     if ('type' in settings) {
