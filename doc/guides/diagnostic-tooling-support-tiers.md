@@ -17,9 +17,11 @@ the following tiers.
   process.  No commit to master should break this tool/API if the next
   major release is within 1 month. In addition:
     * The maintainers of the tool remain responsive when there are problems;
-    * The tool must be actively used by the ecosystem; and
-    * The tool must be heavily depended on.
-  
+    * The tool must be actively used by the ecosystem;
+    * The tool must be heavily depended on; and
+    * The tool must only be using APIs exposed by Nodejs as opposed to
+      its dependencies.
+      
 * Tier 2 - Must be working(CI tests passing) for all
   LTS releases. An LTS release will not be shipped if the test
   suite for the tool/API is not green. To be considered for inclusion
