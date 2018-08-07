@@ -2598,6 +2598,8 @@ static void PrintHelp() {
          "                             in vm module\n"
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
          "  --experimental-worker      experimental threaded Worker support\n"
+         "  --expose-internals         expose modules that are normally for\n"
+         "                             Node.js internal use only\n"
 #if HAVE_OPENSSL && NODE_FIPS_MODE
          "  --force-fips               force FIPS crypto (cannot be disabled)\n"
 #endif  // HAVE_OPENSSL && NODE_FIPS_MODE
