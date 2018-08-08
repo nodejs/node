@@ -1066,8 +1066,7 @@ lint-md-build: tools/remark-cli/node_modules \
 	tools/doc/node_modules \
 	tools/remark-preset-lint-node/node_modules
 
-.PHONY: tools/doc/node_modules
-tools/doc/node_modules:
+tools/doc/node_modules: tools/doc/package.json
 ifeq ($(node_use_openssl),true)
 	cd tools/doc && $(call available-node,$(run-npm-install))
 else
