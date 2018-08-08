@@ -25,8 +25,7 @@ MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   JSObject::MakePrototypesFast(receiver, kStartAtReceiver, isolate);
   FastKeyAccumulator accumulator(isolate, receiver,
                                  KeyCollectionMode::kIncludePrototypes,
-                                 ENUMERABLE_STRINGS);
-  accumulator.set_is_for_in(true);
+                                 ENUMERABLE_STRINGS, true);
   // Test if we have an enum cache for {receiver}.
   if (!accumulator.is_receiver_simple_enum()) {
     Handle<FixedArray> keys;
