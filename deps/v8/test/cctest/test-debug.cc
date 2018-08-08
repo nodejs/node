@@ -6246,7 +6246,7 @@ class ArchiveRestoreThread : public v8::base::Thread,
                                                    "}\n",
                                                    "test");
 
-    debug_->SetDebugDelegate(this);
+    debug_->SetDebugDelegate(this, false);
     v8::internal::DisableBreak enable_break(debug_, false);
 
     v8::Local<v8::Value> args[1] = {v8::Integer::New(isolate_, spawn_count_)};
@@ -6263,6 +6263,7 @@ class ArchiveRestoreThread : public v8::base::Thread,
   }
 
   void BreakProgramRequested(v8::Local<v8::Context> context,
+                             v8::Local<v8::Object> exec_state,
                              const std::vector<v8::debug::BreakpointId>&) {
     auto stack_traces = v8::debug::StackTraceIterator::Create(isolate_);
     if (!stack_traces->Done()) {
@@ -6315,7 +6316,7 @@ class ArchiveRestoreThread : public v8::base::Thread,
       // The child thread sets itself as the debug delegate, so we need to
       // usurp it after the child finishes, or else future breakpoints
       // will be delegated to a destroyed ArchiveRestoreThread object.
-      debug_->SetDebugDelegate(this);
+      debug_->SetDebugDelegate(this, false);
 
       // This is the most important check in this test, since
       // child.GetBreakCount() will return 1 if the debugger fails to stop
