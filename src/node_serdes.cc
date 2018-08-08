@@ -501,4 +501,4 @@ void Initialize(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(serdes, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(serdes, node::Initialize)
