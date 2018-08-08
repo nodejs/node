@@ -28,13 +28,13 @@ assert(!fs.existsSync(d));
 {
   tmpdir.refresh();
   // Create the directory
-  assert(!common.fileExists(d));
+  assert(!fs.existsSync(d));
   fs.mkdirSync(d);
-  assert(common.fileExists(d));
+  assert(fs.existsSync(d));
   // Create the file
   fs.writeFileSync(f, 'foo'.repeat(2 ** 15));
   // Make sure the file exists
-  assert(common.fileExists(f));
+  assert(fs.existsSync(f));
   // Try removing a file that exists, ...
   // in POSIX systems: it should fail with ENOTDIR
   // in Window systems: it should fail with ENOENT
