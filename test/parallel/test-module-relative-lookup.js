@@ -1,15 +1,25 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const _module = require('module'); // avoid collision with global.module
-const lookupResults = _module._resolveLookupPaths('./lodash');
-let paths = lookupResults[1];
 
 // Current directory gets highest priority for local modules
-assert.strictEqual(paths[0], '.');
+function testFirstInPath(moduleName, isLocalModule) {
+  const assertFunction = isLocalModule ?
+    assert.strictEqual :
+    assert.notStrictEqual;
 
-paths = _module._resolveLookupPaths('./lodash', null, true);
+  const lookupResults = _module._resolveLookupPaths(moduleName);
 
-// Current directory gets highest priority for local modules
-assert.strictEqual(paths && paths[0], '.');
+  let paths = lookupResults[1];
+  assertFunction(paths[0], '.');
+
+  paths = _module._resolveLookupPaths(moduleName, null, true);
+  assertFunction(paths && paths[0], '.');
+}
+
+testFirstInPath('./lodash', true);
+
+// Relative path on Windows, but a regular file name elsewhere
+testFirstInPath('.\\lodash', common.isWindows);
