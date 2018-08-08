@@ -14,7 +14,7 @@ const assert = require("assert"),
     CodePathSegment = require("./code-path-segment"),
     IdGenerator = require("./id-generator"),
     debug = require("./debug-helpers"),
-    astUtils = require("../ast-utils");
+    astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers

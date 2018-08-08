@@ -10,13 +10,12 @@
 //------------------------------------------------------------------------------
 
 const Traverser = require("../util/traverser"),
-    astUtils = require("../ast-utils");
+    astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-const pushAll = Function.apply.bind(Array.prototype.push);
 const SENTINEL_PATTERN = /(?:(?:Call|Class|Function|Member|New|Yield)Expression|Statement|Declaration)$/;
 const LOOP_PATTERN = /^(?:DoWhile|For|While)Statement$/; // for-in/of statements don't have `test` property.
 const GROUP_PATTERN = /^(?:BinaryExpression|ConditionalExpression)$/;
@@ -356,7 +355,7 @@ module.exports = {
                 let scope;
 
                 while ((scope = queue.pop())) {
-                    pushAll(queue, scope.childScopes);
+                    queue.push(...scope.childScopes);
                     scope.variables.forEach(checkReferences);
                 }
 
