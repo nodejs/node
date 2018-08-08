@@ -28,6 +28,10 @@
 
 #include <stdlib.h>
 
+// The C++ style guide recommends using <re2> instead of <regex>. However, the
+// former isn't available in V8.
+#include <regex>  // NOLINT(build/c++11)
+
 #include "src/assembler-inl.h"
 #include "src/boxed-float.h"
 #include "src/debug/debug.h"
@@ -43,8 +47,11 @@
 namespace v8 {
 namespace internal {
 
+enum UseRegex { kRawString, kRegexString };
+
 template <typename... S>
-bool DisassembleAndCompare(byte* begin, S... expected_strings) {
+bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
+                           S... expected_strings) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
   EmbeddedVector<char, 128> buffer;
@@ -62,14 +69,28 @@ bool DisassembleAndCompare(byte* begin, S... expected_strings) {
   bool test_passed = true;
 
   for (size_t i = 0; i < disassembly.size(); i++) {
-    if (expected_disassembly[i] != disassembly[i]) {
-      fprintf(stderr,
-              "expected: \n"
-              "%s\n"
-              "disassembled: \n"
-              "%s\n\n",
-              expected_disassembly[i].c_str(), disassembly[i].c_str());
-      test_passed = false;
+    if (use_regex == kRawString) {
+      if (expected_disassembly[i] != disassembly[i]) {
+        fprintf(stderr,
+                "expected: \n"
+                "%s\n"
+                "disassembled: \n"
+                "%s\n\n",
+                expected_disassembly[i].c_str(), disassembly[i].c_str());
+        test_passed = false;
+      }
+    } else {
+      DCHECK_EQ(use_regex, kRegexString);
+      if (!std::regex_match(disassembly[i],
+                            std::regex(expected_disassembly[i]))) {
+        fprintf(stderr,
+                "expected (regex): \n"
+                "%s\n"
+                "disassembled: \n"
+                "%s\n\n",
+                expected_disassembly[i].c_str(), disassembly[i].c_str());
+        test_passed = false;
+      }
     }
   }
 
@@ -98,13 +119,19 @@ bool DisassembleAndCompare(byte* begin, S... expected_strings) {
 // disassembles the generated instruction, comparing the output to the expected
 // value. If the comparison fails an error message is printed, but the test
 // continues to run until the end.
-#define COMPARE(asm_, ...)                                                \
-  {                                                                       \
-    int pc_offset = assm.pc_offset();                                     \
-    byte* progcounter = &buffer[pc_offset];                               \
-    assm.asm_;                                                            \
-    if (!DisassembleAndCompare(progcounter, __VA_ARGS__)) failure = true; \
+#define BASE_COMPARE(asm_, use_regex, ...)                             \
+  {                                                                    \
+    int pc_offset = assm.pc_offset();                                  \
+    byte* progcounter = &buffer[pc_offset];                            \
+    assm.asm_;                                                         \
+    if (!DisassembleAndCompare(progcounter, use_regex, __VA_ARGS__)) { \
+      failure = true;                                                  \
+    }                                                                  \
   }
+
+#define COMPARE(asm_, ...) BASE_COMPARE(asm_, kRawString, __VA_ARGS__)
+
+#define COMPARE_REGEX(asm_, ...) BASE_COMPARE(asm_, kRegexString, __VA_ARGS__)
 
 // Force emission of any pending literals into a pool.
 #define EMIT_PENDING_LITERALS() \
@@ -1488,7 +1515,9 @@ static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
   snprintf(expected_string, sizeof(expected_string), expected_string_template,
            abs(offset), offset,
            progcounter + Instruction::kPCReadOffset + offset);
-  if (!DisassembleAndCompare(progcounter, expected_string)) *failure = true;
+  if (!DisassembleAndCompare(progcounter, kRawString, expected_string)) {
+    *failure = true;
+  }
 }
 
 
@@ -1591,17 +1620,31 @@ TEST(LoadStoreExclusive) {
 TEST(SplitAddImmediate) {
   SET_UP();
 
-  // Re-use the destination as a scratch.
-  COMPARE(add(r0, r1, Operand(0x12345678)),
-          "e3050678       movw r0, #22136",
-          "e3410234       movt r0, #4660",
-          "e0810000       add r0, r1, r0");
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    // Re-use the destination as a scratch.
+    COMPARE(add(r0, r1, Operand(0x12345678)),
+            "e3050678       movw r0, #22136",
+            "e3410234       movt r0, #4660",
+            "e0810000       add r0, r1, r0");
 
-  // Use ip as a scratch.
-  COMPARE(add(r0, r0, Operand(0x12345678)),
-          "e305c678       movw ip, #22136",
-          "e341c234       movt ip, #4660",
-          "e080000c       add r0, r0, ip");
+    // Use ip as a scratch.
+    COMPARE(add(r0, r0, Operand(0x12345678)),
+            "e305c678       movw ip, #22136",
+            "e341c234       movt ip, #4660",
+            "e080000c       add r0, r0, ip");
+  } else {
+    // Re-use the destination as a scratch.
+    COMPARE_REGEX(add(r0, r1, Operand(0x12345678)),
+                  "e59f0[0-9a-f]{3}       "
+                      "ldr r0, \\[pc, #\\+[0-9]+\\] \\(addr 0x[0-9a-f]{8}\\)",
+                  "e0810000       add r0, r1, r0");
+
+    // Use ip as a scratch.
+    COMPARE_REGEX(add(r0, r0, Operand(0x12345678)),
+                  "e59fc[0-9a-f]{3}       "
+                      "ldr ip, \\[pc, #\\+[0-9]+\\] \\(addr 0x[0-9a-f]{8}\\)",
+                  "e080000c       add r0, r0, ip");
+  }
 
   // If ip is not available, split the operation into multiple additions.
   {

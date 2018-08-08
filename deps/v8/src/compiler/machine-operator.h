@@ -301,6 +301,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // This operator reinterprets the bits of a tagged pointer as word.
   const Operator* BitcastTaggedToWord();
 
+  // This operator reinterprets the bits of a tagged MaybeObject pointer as
+  // word.
+  const Operator* BitcastMaybeObjectToWord();
+
   // This operator reinterprets the bits of a word as tagged pointer.
   const Operator* BitcastWordToTagged();
 
@@ -601,8 +605,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
 
   // Destroy value by masking when misspeculating.
-  const Operator* PoisonOnSpeculationTagged();
-  const Operator* PoisonOnSpeculationWord();
+  const Operator* TaggedPoisonOnSpeculation();
+  const Operator* Word32PoisonOnSpeculation();
+  const Operator* Word64PoisonOnSpeculation();
 
   // Access to the machine stack.
   const Operator* LoadStackPointer();
@@ -666,25 +671,26 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
 // Pseudo operators that translate to 32/64-bit operators depending on the
 // word-size of the target machine assumed by this builder.
-#define PSEUDO_OP_LIST(V) \
-  V(Word, And)            \
-  V(Word, Or)             \
-  V(Word, Xor)            \
-  V(Word, Shl)            \
-  V(Word, Shr)            \
-  V(Word, Sar)            \
-  V(Word, Ror)            \
-  V(Word, Clz)            \
-  V(Word, Equal)          \
-  V(Int, Add)             \
-  V(Int, Sub)             \
-  V(Int, Mul)             \
-  V(Int, Div)             \
-  V(Int, Mod)             \
-  V(Int, LessThan)        \
-  V(Int, LessThanOrEqual) \
-  V(Uint, Div)            \
-  V(Uint, LessThan)       \
+#define PSEUDO_OP_LIST(V)      \
+  V(Word, And)                 \
+  V(Word, Or)                  \
+  V(Word, Xor)                 \
+  V(Word, Shl)                 \
+  V(Word, Shr)                 \
+  V(Word, Sar)                 \
+  V(Word, Ror)                 \
+  V(Word, Clz)                 \
+  V(Word, Equal)               \
+  V(Word, PoisonOnSpeculation) \
+  V(Int, Add)                  \
+  V(Int, Sub)                  \
+  V(Int, Mul)                  \
+  V(Int, Div)                  \
+  V(Int, Mod)                  \
+  V(Int, LessThan)             \
+  V(Int, LessThanOrEqual)      \
+  V(Uint, Div)                 \
+  V(Uint, LessThan)            \
   V(Uint, Mod)
 #define PSEUDO_OP(Prefix, Suffix)                                \
   const Operator* Prefix##Suffix() {                             \

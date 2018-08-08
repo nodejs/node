@@ -67,7 +67,8 @@ class InputProvider {
 
   int NextInt32(int limit) {
     if (current_ + sizeof(uint32_t) > end_) return 0;
-    int result = ReadLittleEndianValue<int>(current_);
+    int result =
+        ReadLittleEndianValue<int>(reinterpret_cast<Address>(current_));
     current_ += sizeof(uint32_t);
     return result % limit;
   }
@@ -134,14 +135,14 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
   wasm::FunctionSig::Builder builder(zone, return_count, param_count);
   for (size_t i = 0; i < param_count; i++) {
     MachineType type = RandomType(input);
-    builder.AddParam(type.representation());
+    builder.AddParam(wasm::ValueTypes::ValueTypeFor(type));
   }
   // Read the end byte of the parameters.
   input->NextInt8(1);
 
   for (size_t i = 0; i < return_count; i++) {
     MachineType type = RandomType(input);
-    builder.AddReturn(type.representation());
+    builder.AddReturn(wasm::ValueTypes::ValueTypeFor(type));
   }
 
   return compiler::GetWasmCallDescriptor(zone, builder.Build());
@@ -149,12 +150,16 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
 
 std::unique_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
                                                          size_t code_size) {
+  wasm::ModuleEnv env(
+      nullptr, wasm::UseTrapHandler::kNoTrapHandler,
+      wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
+
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   std::unique_ptr<wasm::NativeModule> module =
       isolate->wasm_engine()->code_manager()->NewNativeModule(code_size, 1, 0,
-                                                              false);
+                                                              false, env);
   return module;
 }
 
@@ -249,7 +254,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
   callee.Return(static_cast<int>(desc->ReturnCount()), returns.get());
 
-  OptimizedCompilationInfo info(ArrayVector("testing"), &zone, Code::STUB);
+  OptimizedCompilationInfo info(ArrayVector("testing"), &zone,
+                                Code::WASM_FUNCTION);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
       &info, i_isolate, desc, callee.graph(), callee.Export());
 

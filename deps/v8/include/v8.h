@@ -1124,6 +1124,13 @@ class V8_EXPORT UnboundScript {
 };
 
 /**
+ * A compiled JavaScript module, not yet tied to a Context.
+ */
+class V8_EXPORT UnboundModuleScript {
+  // Only used as a container for code caching.
+};
+
+/**
  * A location in JavaScript source.
  */
 class V8_EXPORT Location {
@@ -1222,6 +1229,14 @@ class V8_EXPORT Module {
    * The module's status must be at least kInstantiated.
    */
   Local<Value> GetModuleNamespace();
+
+  /**
+   * Returns the corresponding context-unbound module script.
+   *
+   * The module must be unevaluated, i.e. its status must not be kEvaluating,
+   * kEvaluated or kErrored.
+   */
+  Local<UnboundModuleScript> GetUnboundModuleScript();
 };
 
 /**
@@ -1578,11 +1593,17 @@ class V8_EXPORT ScriptCompiler {
    * This will return nullptr if the script cannot be serialized. The
    * CachedData returned by this function should be owned by the caller.
    */
-  static CachedData* CreateCodeCache(Local<UnboundScript> unbound_script);
-
-  // Deprecated.
   static CachedData* CreateCodeCache(Local<UnboundScript> unbound_script,
                                      Local<String> source);
+  static CachedData* CreateCodeCache(Local<UnboundScript> unbound_script);
+
+  /**
+   * Creates and returns code cache for the specified unbound_module_script.
+   * This will return nullptr if the script cannot be serialized. The
+   * CachedData returned by this function should be owned by the caller.
+   */
+  static CachedData* CreateCodeCache(
+      Local<UnboundModuleScript> unbound_module_script);
 
   /**
    * Creates and returns code cache for the specified function that was
@@ -1590,11 +1611,9 @@ class V8_EXPORT ScriptCompiler {
    * This will return nullptr if the script cannot be serialized. The
    * CachedData returned by this function should be owned by the caller.
    */
-  static CachedData* CreateCodeCacheForFunction(Local<Function> function);
-
-  // Deprecated.
   static CachedData* CreateCodeCacheForFunction(Local<Function> function,
                                                 Local<String> source);
+  static CachedData* CreateCodeCacheForFunction(Local<Function> function);
 
  private:
   static V8_WARN_UNUSED_RESULT MaybeLocal<UnboundScript> CompileUnboundInternal(
@@ -1913,12 +1932,16 @@ class V8_EXPORT ValueSerializer {
      * If the memory cannot be allocated, nullptr should be returned.
      * |actual_size| will be ignored. It is assumed that |old_buffer| is still
      * valid in this case and has not been modified.
+     *
+     * The default implementation uses the stdlib's `realloc()` function.
      */
     virtual void* ReallocateBufferMemory(void* old_buffer, size_t size,
                                          size_t* actual_size);
 
     /**
      * Frees a buffer allocated with |ReallocateBufferMemory|.
+     *
+     * The default implementation uses the stdlib's `free()` function.
      */
     virtual void FreeBufferMemory(void* buffer);
   };
@@ -1946,9 +1969,9 @@ class V8_EXPORT ValueSerializer {
 
   /**
    * Returns the stored data (allocated using the delegate's
-   * AllocateBufferMemory) and its size. This serializer should not be used once
-   * the buffer is released. The contents are undefined if a previous write has
-   * failed.
+   * ReallocateBufferMemory) and its size. This serializer should not be used
+   * once the buffer is released. The contents are undefined if a previous write
+   * has failed. Ownership of the buffer is transferred to the caller.
    */
   V8_WARN_UNUSED_RESULT std::pair<uint8_t*, size_t> Release();
 
@@ -3958,6 +3981,15 @@ class V8_EXPORT Function : public Object {
     return NewInstance(context, 0, nullptr);
   }
 
+  /**
+   * When side effect checks are enabled, passing kHasNoSideEffect allows the
+   * constructor to be invoked without throwing. Calls made within the
+   * constructor are still checked.
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstanceWithSideEffectType(
+      Local<Context> context, int argc, Local<Value> argv[],
+      SideEffectType side_effect_type = SideEffectType::kHasSideEffect) const;
+
   V8_DEPRECATE_SOON("Use maybe version",
                     Local<Value> Call(Local<Value> recv, int argc,
                                       Local<Value> argv[]));
@@ -4308,8 +4340,6 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
   ~WasmModuleObjectBuilderStreaming();
 
  private:
-  typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> Buffer;
-
   WasmModuleObjectBuilderStreaming(const WasmModuleObjectBuilderStreaming&) =
       delete;
   WasmModuleObjectBuilderStreaming(WasmModuleObjectBuilderStreaming&&) =
@@ -4332,8 +4362,6 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
 #else
   Persistent<Promise> promise_;
 #endif
-  std::vector<Buffer> received_buffers_;
-  size_t total_size_ = 0;
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
 };
 
@@ -7094,6 +7122,24 @@ class V8_EXPORT Isolate {
   };
 
   /**
+   * This scope allows terminations inside direct V8 API calls and forbid them
+   * inside any recursice API calls without explicit SafeForTerminationScope.
+   */
+  class V8_EXPORT SafeForTerminationScope {
+   public:
+    explicit SafeForTerminationScope(v8::Isolate* isolate);
+    ~SafeForTerminationScope();
+
+    // Prevent copying of Scope objects.
+    SafeForTerminationScope(const SafeForTerminationScope&) = delete;
+    SafeForTerminationScope& operator=(const SafeForTerminationScope&) = delete;
+
+   private:
+    internal::Isolate* isolate_;
+    bool prev_value_;
+  };
+
+  /**
    * Types of garbage collections that can be requested via
    * RequestGarbageCollectionForTesting.
    */
@@ -7156,6 +7202,7 @@ class V8_EXPORT Isolate {
     kErrorStackTraceLimit = 45,
     kWebAssemblyInstantiation = 46,
     kDeoptimizerDisableSpeculation = 47,
+    kArrayPrototypeSortJSArrayModifiedPrototype = 48,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, UseCounterCallback.cpp, and enums.xml. V8 changes to
@@ -7176,6 +7223,26 @@ class V8_EXPORT Isolate {
   typedef void (*UseCounterCallback)(Isolate* isolate,
                                      UseCounterFeature feature);
 
+  /**
+   * Allocates a new isolate but does not initialize it. Does not change the
+   * currently entered isolate.
+   *
+   * Only Isolate::GetData() and Isolate::SetData(), which access the
+   * embedder-controlled parts of the isolate, are allowed to be called on the
+   * uninitialized isolate. To initialize the isolate, call
+   * Isolate::Initialize().
+   *
+   * When an isolate is no longer used its resources should be freed
+   * by calling Dispose().  Using the delete operator is not allowed.
+   *
+   * V8::Initialize() must have run prior to this.
+   */
+  static Isolate* Allocate();
+
+  /**
+   * Initialize an Isolate previously allocated by Isolate::Allocate().
+   */
+  static void Initialize(Isolate* isolate, const CreateParams& params);
 
   /**
    * Creates a new isolate.  Does not change the currently entered
@@ -8231,6 +8298,18 @@ class V8_EXPORT SnapshotCreator {
   enum class FunctionCodeHandling { kClear, kKeep };
 
   /**
+   * Initialize and enter an isolate, and set it up for serialization.
+   * The isolate is either created from scratch or from an existing snapshot.
+   * The caller keeps ownership of the argument snapshot.
+   * \param existing_blob existing snapshot from which to create this one.
+   * \param external_references a null-terminated array of external references
+   *        that must be equivalent to CreateParams::external_references.
+   */
+  SnapshotCreator(Isolate* isolate,
+                  const intptr_t* external_references = nullptr,
+                  StartupData* existing_blob = nullptr);
+
+  /**
    * Create and enter an isolate, and set it up for serialization.
    * The isolate is either created from scratch or from an existing snapshot.
    * The caller keeps ownership of the argument snapshot.
@@ -9040,7 +9119,7 @@ template <> struct SmiTagging<4> {
     // in fact doesn't work correctly with gcc4.1.1 in some cases: The
     // compiler may produce undefined results in case of signed integer
     // overflow. The computation must be done w/ unsigned ints.
-    return static_cast<uintptr_t>(value + 0x40000000U) < 0x80000000U;
+    return static_cast<uintptr_t>(value) + 0x40000000U < 0x80000000U;
   }
 };
 

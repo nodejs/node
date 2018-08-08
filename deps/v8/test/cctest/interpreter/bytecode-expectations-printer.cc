@@ -81,7 +81,8 @@ v8::Local<v8::Module> BytecodeExpectationsPrinter::CompileModule(
 }
 
 void BytecodeExpectationsPrinter::Run(v8::Local<v8::Script> script) const {
-  (void)script->Run(isolate_->GetCurrentContext());
+  MaybeLocal<Value> result = script->Run(isolate_->GetCurrentContext());
+  USE(result);
 }
 
 i::Handle<v8::internal::BytecodeArray>

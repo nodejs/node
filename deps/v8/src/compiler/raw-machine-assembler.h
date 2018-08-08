@@ -45,8 +45,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
       MachineOperatorBuilder::AlignmentRequirements alignment_requirements =
           MachineOperatorBuilder::AlignmentRequirements::
               FullUnalignedAccessSupport(),
-      PoisoningMitigationLevel poisoning_enabled =
-          PoisoningMitigationLevel::kOn);
+      PoisoningMitigationLevel poisoning_level =
+          PoisoningMitigationLevel::kPoisonCriticalOnly);
   ~RawMachineAssembler() {}
 
   Isolate* isolate() const { return isolate_; }
@@ -55,9 +55,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
   CallDescriptor* call_descriptor() const { return call_descriptor_; }
-  PoisoningMitigationLevel poisoning_enabled() const {
-    return poisoning_enabled_;
-  }
+  PoisoningMitigationLevel poisoning_level() const { return poisoning_level_; }
 
   // Finalizes the schedule and exports it to be used for code generation. Note
   // that this RawMachineAssembler becomes invalid after export.
@@ -128,8 +126,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Load(MachineType rep, Node* base, Node* index,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     const Operator* op = machine()->Load(rep);
-    if (needs_poisoning == LoadSensitivity::kNeedsPoisoning &&
-        poisoning_enabled_ == PoisoningMitigationLevel::kOn) {
+    CHECK_NE(PoisoningMitigationLevel::kPoisonAll, poisoning_level_);
+    if (needs_poisoning == LoadSensitivity::kCritical &&
+        poisoning_level_ == PoisoningMitigationLevel::kPoisonCriticalOnly) {
       op = machine()->PoisonedLoad(rep);
     }
     return AddNode(op, base, index);
@@ -580,6 +579,13 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return a;
 #endif
   }
+  Node* BitcastMaybeObjectToWord(Node* a) {
+#ifdef ENABLE_VERIFY_CSA
+    return AddNode(machine()->BitcastMaybeObjectToWord(), a);
+#else
+    return a;
+#endif
+  }
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);
   }
@@ -760,15 +766,17 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));
   }
 
-  Node* PoisonOnSpeculationTagged(Node* value) {
-    if (poisoning_enabled_ == PoisoningMitigationLevel::kOn)
-      return AddNode(machine()->PoisonOnSpeculationTagged(), value);
+  Node* TaggedPoisonOnSpeculation(Node* value) {
+    if (poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
+      return AddNode(machine()->TaggedPoisonOnSpeculation(), value);
+    }
     return value;
   }
 
-  Node* PoisonOnSpeculationWord(Node* value) {
-    if (poisoning_enabled_ == PoisoningMitigationLevel::kOn)
-      return AddNode(machine()->PoisonOnSpeculationWord(), value);
+  Node* WordPoisonOnSpeculation(Node* value) {
+    if (poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
+      return AddNode(machine()->WordPoisonOnSpeculation(), value);
+    }
     return value;
   }
 
@@ -933,7 +941,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   CallDescriptor* call_descriptor_;
   NodeVector parameters_;
   BasicBlock* current_block_;
-  PoisoningMitigationLevel poisoning_enabled_;
+  PoisoningMitigationLevel poisoning_level_;
 
   DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);
 };

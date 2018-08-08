@@ -189,6 +189,22 @@ class NoCurrentFrameScope {
   bool saved_;
 };
 
+// Prevent the use of the RootArray during the lifetime of this
+// scope object.
+class NoRootArrayScope {
+ public:
+  explicit NoRootArrayScope(MacroAssembler* masm)
+      : masm_(masm), old_value_(masm->root_array_available()) {
+    masm->set_root_array_available(false);
+  }
+
+  ~NoRootArrayScope() { masm_->set_root_array_available(old_value_); }
+
+ private:
+  MacroAssembler* masm_;
+  bool old_value_;
+};
+
 // Wrapper class for passing expected and actual parameter counts as
 // either registers or immediate values. Used to make sure that the
 // caller provides exactly the expected number of parameters to the

@@ -24,6 +24,7 @@
 #include "src/futex-emulation.h"
 #include "src/globals.h"
 #include "src/handles.h"
+#include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/messages.h"
 #include "src/objects/code.h"
@@ -74,7 +75,6 @@ class DescriptorLookupCache;
 class EmptyStatement;
 class EternalHandles;
 class ExternalCallbackScope;
-class Factory;
 class HandleScopeImplementer;
 class HeapObjectToIndexHashMap;
 class HeapProfiler;
@@ -102,14 +102,11 @@ class SweeperThread;
 class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
+class TracingCpuProfilerImpl;
 class UnicodeCache;
+struct ManagedPtrDestructor;
 
 template <StateTag Tag> class VMState;
-
-// 'void function pointer', used to roundtrip the
-// ExternalReference::ExternalReferenceRedirector since we can not include
-// assembler.h, where it is defined, here.
-typedef void* ExternalReferenceRedirectorPointer();
 
 namespace interpreter {
 class Interpreter;
@@ -340,7 +337,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // just innermost catching try block).
   Object* wasm_caught_exception_ = nullptr;
 
-  // Communication channel between Isolate::FindHandler and the CEntryStub.
+  // Communication channel between Isolate::FindHandler and the CEntry.
   Context* pending_handler_context_;
   Address pending_handler_entrypoint_;
   Address pending_handler_constant_pool_;
@@ -419,8 +416,6 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
   V(ApiImplementationCallback, wasm_compile_streaming_callback, nullptr)      \
-  V(ExternalReferenceRedirectorPointer*, external_reference_redirector,       \
-    nullptr)                                                                  \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
@@ -436,6 +431,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(const v8::StartupData*, snapshot_blob, nullptr)                           \
   V(int, code_and_metadata_size, 0)                                           \
   V(int, bytecode_and_metadata_size, 0)                                       \
+  V(int, external_script_source_size, 0)                                      \
   /* true if being profiled. Causes collection of extra compile info. */      \
   V(bool, is_profiling, false)                                                \
   /* true if a trace is being formatted through Error.prepareStackTrace. */   \
@@ -447,7 +443,9 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(debug::TypeProfile::Mode, type_profile_mode, debug::TypeProfile::kNone)   \
   V(int, last_stack_frame_info_id, 0)                                         \
   V(int, last_console_context_id, 0)                                          \
-  V(v8_inspector::V8Inspector*, inspector, nullptr)
+  V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
+  V(bool, next_v8_call_is_safe_for_termination, false)                        \
+  V(bool, only_terminate_in_safe_scope, false)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
   inline void set_##name(type v) { thread_local_top_.name##_ = v; }  \
@@ -456,8 +454,11 @@ typedef std::vector<HeapObject*> DebugObjectCache;
 #define THREAD_LOCAL_TOP_ADDRESS(type, name) \
   type* name##_address() { return &thread_local_top_.name##_; }
 
+// HiddenFactory exists so Isolate can privately inherit from it without making
+// Factory's members available to Isolate directly.
+class V8_EXPORT_PRIVATE HiddenFactory : private Factory {};
 
-class Isolate {
+class Isolate : private HiddenFactory {
   // These forward declarations are required to make the friend declarations in
   // PerIsolateThreadData work on some older versions of gcc.
   class ThreadDataTable;
@@ -552,7 +553,7 @@ class Isolate {
   // for legacy API reasons.
   void TearDown();
 
-  void ReleaseManagedObjects();
+  void ReleaseSharedPtrs();
 
   void ClearSerializerData();
 
@@ -983,7 +984,11 @@ class Isolate {
   }
 #endif
 
-  Factory* factory() { return reinterpret_cast<Factory*>(this); }
+  v8::internal::Factory* factory() {
+    // Upcast to the privately inherited base-class using c-style casts to avoid
+    // undefined behavior (as static_cast cannot cast across private bases).
+    return (v8::internal::Factory*)this;  // NOLINT(readability/casting)
+  }
 
   static const int kJSRegexpStaticOffsetsVectorSize = 128;
 
@@ -1001,6 +1006,9 @@ class Isolate {
   }
 
   bool serializer_enabled() const { return serializer_enabled_; }
+
+  void enable_serializer() { serializer_enabled_ = true; }
+
   bool snapshot_available() const {
     return snapshot_blob_ != nullptr && snapshot_blob_->raw_size != 0;
   }
@@ -1259,6 +1267,17 @@ class Isolate {
     return &partial_snapshot_cache_;
   }
 
+  // Off-heap builtins cannot embed constants within the code object itself,
+  // and thus need to load them from the root list.
+  bool ShouldLoadConstantsFromRootList() const {
+#ifdef V8_EMBEDDED_BUILTINS
+    return (serializer_enabled() &&
+            builtins_constants_table_builder() != nullptr);
+#else
+    return false;
+#endif  // V8_EMBEDDED_BUILTINS
+  }
+
 #ifdef V8_EMBEDDED_BUILTINS
   // Called only prior to serialization.
   // This function copies off-heap-safe builtins off the heap, creates off-heap
@@ -1331,41 +1350,11 @@ class Isolate {
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
   bool allow_atomics_wait() { return allow_atomics_wait_; }
 
-  // List of native heap values allocated by the runtime as part of its
-  // implementation that must be freed at isolate deinit.
-  class ManagedObjectFinalizer {
-   public:
-    using Deleter = void (*)(ManagedObjectFinalizer*);
-
-    ManagedObjectFinalizer(void* value, Deleter deleter)
-        : value_(value), deleter_(deleter) {}
-
-    void Dispose() { deleter_(this); }
-
-    void* value() const { return value_; }
-
-   private:
-    friend class Isolate;
-
-    ManagedObjectFinalizer() = default;
-
-    void* value_ = nullptr;
-    Deleter deleter_ = nullptr;
-    ManagedObjectFinalizer* prev_ = nullptr;
-    ManagedObjectFinalizer* next_ = nullptr;
-  };
-
-  static_assert(offsetof(ManagedObjectFinalizer, value_) == 0,
-                "value_ must be the first member");
-
   // Register a finalizer to be called at isolate teardown.
-  void RegisterForReleaseAtTeardown(ManagedObjectFinalizer*);
+  void RegisterManagedPtrDestructor(ManagedPtrDestructor* finalizer);
 
-  // Unregister a previously registered value from release at
-  // isolate teardown.
-  // This transfers the responsibility of the previously managed value's
-  // deletion to the caller.
-  void UnregisterFromReleaseAtTeardown(ManagedObjectFinalizer*);
+  // Removes a previously-registered shared object finalizer.
+  void UnregisterManagedPtrDestructor(ManagedPtrDestructor* finalizer);
 
   size_t elements_deletion_counter() { return elements_deletion_counter_; }
   void set_elements_deletion_counter(size_t value) {
@@ -1383,7 +1372,7 @@ class Isolate {
   void SetIdle(bool is_idle);
 
  protected:
-  explicit Isolate(bool enable_serializer);
+  Isolate();
   bool IsArrayOrObjectOrStringPrototype(Object* object);
 
  private:
@@ -1441,15 +1430,9 @@ class Isolate {
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
-  // TODO(kenton@cloudflare.com): This mutex can be removed if
-  // thread_data_table_ is always accessed under the isolate lock. I do not
-  // know if this is the case, so I'm preserving it for now.
-  base::Mutex thread_data_table_mutex_;
-
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
   static base::Thread::LocalStorageKey thread_id_key_;
-  ThreadDataTable thread_data_table_;
 
   // A global counter for all generated Isolates, might overflow.
   static base::Atomic32 isolate_counter_;
@@ -1510,7 +1493,7 @@ class Isolate {
 
   // TODO(alph): Remove along with the deprecated GetCpuProfiler().
   friend v8::CpuProfiler* v8::Isolate::GetCpuProfiler();
-  CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
+  CpuProfiler* EnsureCpuProfiler();
 
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;
@@ -1679,7 +1662,7 @@ class Isolate {
 
   bool allow_atomics_wait_;
 
-  ManagedObjectFinalizer managed_object_finalizers_list_;
+  ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
 
   size_t total_regexp_code_generated_;
 
@@ -1687,9 +1670,17 @@ class Isolate {
 
   std::unique_ptr<wasm::WasmEngine> wasm_engine_;
 
+  std::unique_ptr<TracingCpuProfilerImpl> tracing_cpu_profiler_;
+
   // The top entry of the v8::Context::BackupIncumbentScope stack.
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope_ =
       nullptr;
+
+  // TODO(kenton@cloudflare.com): This mutex can be removed if
+  // thread_data_table_ is always accessed under the isolate lock. I do not
+  // know if this is the case, so I'm preserving it for now.
+  base::Mutex thread_data_table_mutex_;
+  ThreadDataTable thread_data_table_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
@@ -1822,37 +1813,63 @@ class StackLimitCheck BASE_EMBEDDED {
     }                                      \
   } while (false)
 
-// Support for temporarily postponing interrupts. When the outermost
-// postpone scope is left the interrupts will be re-enabled and any
-// interrupts that occurred while in the scope will be taken into
-// account.
-class PostponeInterruptsScope BASE_EMBEDDED {
+// Scope intercepts only interrupt which is part of its interrupt_mask and does
+// not affect other interrupts.
+class InterruptsScope {
  public:
-  PostponeInterruptsScope(Isolate* isolate,
-                          int intercept_mask = StackGuard::ALL_INTERRUPTS)
-      : stack_guard_(isolate->stack_guard()),
-        intercept_mask_(intercept_mask),
-        intercepted_flags_(0) {
-    stack_guard_->PushPostponeInterruptsScope(this);
+  enum Mode { kPostponeInterrupts, kRunInterrupts, kNoop };
+
+  virtual ~InterruptsScope() {
+    if (mode_ != kNoop) stack_guard_->PopInterruptsScope();
   }
 
-  ~PostponeInterruptsScope() {
-    stack_guard_->PopPostponeInterruptsScope();
-  }
-
-  // Find the bottom-most scope that intercepts this interrupt.
+  // Find the scope that intercepts this interrupt.
+  // It may be outermost PostponeInterruptsScope or innermost
+  // SafeForInterruptsScope if any.
   // Return whether the interrupt has been intercepted.
   bool Intercept(StackGuard::InterruptFlag flag);
+
+  InterruptsScope(Isolate* isolate, int intercept_mask, Mode mode)
+      : stack_guard_(isolate->stack_guard()),
+        intercept_mask_(intercept_mask),
+        intercepted_flags_(0),
+        mode_(mode) {
+    if (mode_ != kNoop) stack_guard_->PushInterruptsScope(this);
+  }
 
  private:
   StackGuard* stack_guard_;
   int intercept_mask_;
   int intercepted_flags_;
-  PostponeInterruptsScope* prev_;
+  Mode mode_;
+  InterruptsScope* prev_;
 
   friend class StackGuard;
 };
 
+// Support for temporarily postponing interrupts. When the outermost
+// postpone scope is left the interrupts will be re-enabled and any
+// interrupts that occurred while in the scope will be taken into
+// account.
+class PostponeInterruptsScope : public InterruptsScope {
+ public:
+  PostponeInterruptsScope(Isolate* isolate,
+                          int intercept_mask = StackGuard::ALL_INTERRUPTS)
+      : InterruptsScope(isolate, intercept_mask,
+                        InterruptsScope::kPostponeInterrupts) {}
+  virtual ~PostponeInterruptsScope() = default;
+};
+
+// Support for overriding PostponeInterruptsScope. Interrupt is not ignored if
+// innermost scope is SafeForInterruptsScope ignoring any outer
+// PostponeInterruptsScopes.
+class SafeForInterruptsScope : public InterruptsScope {
+ public:
+  SafeForInterruptsScope(Isolate* isolate, int intercept_mask)
+      : InterruptsScope(isolate, intercept_mask,
+                        InterruptsScope::kRunInterrupts) {}
+  virtual ~SafeForInterruptsScope() = default;
+};
 
 class CodeTracer final : public Malloced {
  public:

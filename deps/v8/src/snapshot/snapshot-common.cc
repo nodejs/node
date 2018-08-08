@@ -345,11 +345,11 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     if (Builtins::IsIsolateIndependent(i)) {
       DCHECK(!Builtins::IsLazy(i));
 
-      // Sanity-check that the given builtin is process-independent and does not
+      // Sanity-check that the given builtin is isolate-independent and does not
       // use the trampoline register in its calling convention.
       if (!code->IsProcessIndependent()) {
         saw_unsafe_builtin = true;
-        fprintf(stderr, "%s is not process-independent.\n", Builtins::name(i));
+        fprintf(stderr, "%s is not isolate-independent.\n", Builtins::name(i));
       }
       if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
         saw_unsafe_builtin = true;
@@ -370,7 +370,11 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       lengths[i] = 0;
     }
   }
-  CHECK(!saw_unsafe_builtin);
+  CHECK_WITH_MSG(
+      !saw_unsafe_builtin,
+      "One or more builtins marked as isolate-independent either contains "
+      "isolate-dependent code or aliases the off-heap trampoline register. "
+      "If in doubt, ask jgruber@");
 
   const uint32_t blob_size = RawDataOffset() + raw_data_size;
   uint8_t* blob = new uint8_t[blob_size];
@@ -391,11 +395,21 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     uint8_t* dst = blob + RawDataOffset() + offset;
     DCHECK_LE(RawDataOffset() + offset + code->raw_instruction_size(),
               blob_size);
-    std::memcpy(dst, code->raw_instruction_start(),
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code->raw_instruction_start()),
                 code->raw_instruction_size());
   }
 
-  return {blob, blob_size};
+  EmbeddedData d(blob, blob_size);
+
+  // Hash the blob and store the result.
+  STATIC_ASSERT(HashSize() == kSizetSize);
+  const size_t hash = d.CreateHash();
+  std::memcpy(blob + HashOffset(), &hash, HashSize());
+
+  DCHECK_EQ(hash, d.CreateHash());
+  DCHECK_EQ(hash, d.Hash());
+
+  return d;
 }
 
 EmbeddedData EmbeddedData::FromBlob() {
@@ -406,19 +420,25 @@ EmbeddedData EmbeddedData::FromBlob() {
   return {data, size};
 }
 
-const uint8_t* EmbeddedData::InstructionStartOfBuiltin(int i) const {
+Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
-
   const uint32_t* offsets = Offsets();
   const uint8_t* result = RawData() + offsets[i];
-  DCHECK_LT(result, data_ + size_);
-  return result;
+  DCHECK_LE(result, data_ + size_);
+  DCHECK_IMPLIES(result == data_ + size_, InstructionSizeOfBuiltin(i) == 0);
+  return reinterpret_cast<Address>(result);
 }
 
 uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
   const uint32_t* lengths = Lengths();
   return lengths[i];
+}
+
+size_t EmbeddedData::CreateHash() const {
+  STATIC_ASSERT(HashOffset() == 0);
+  STATIC_ASSERT(HashSize() == kSizetSize);
+  return base::hash_range(data_ + HashSize(), data_ + size_);
 }
 #endif
 

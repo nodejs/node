@@ -124,6 +124,7 @@ v8_source_set("cctest_sources") {
     "heap/test-mark-compact.cc",
     "heap/test-page-promotion.cc",
     "heap/test-spaces.cc",
+    "heap/test-unmapper.cc",
     "heap/test-weak-references.cc",
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",
@@ -228,6 +229,7 @@ v8_source_set("cctest_sources") {
     "test-version.cc",
     "test-weakmaps.cc",
     "test-weaksets.cc",
+    "torque/test-torque.cc",
     "trace-extension.cc",
     "trace-extension.h",
     "types-fuzz.h",
@@ -380,7 +382,9 @@ v8_source_set("cctest_sources") {
   ]
 
   defines = []
-  deps = []
+  deps = [
+    "../..:run_torque",
+  ]
 
   if (is_component_build) {
     # cctest can't be built against a shared library, so we

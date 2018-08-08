@@ -12,6 +12,7 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
@@ -22,14 +23,141 @@
 #include "src/compiler/scheduler.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/script-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/optimized-compilation-info.h"
 #include "src/ostreams.h"
+#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+TurboJsonFile::TurboJsonFile(OptimizedCompilationInfo* info,
+                             std::ios_base::openmode mode)
+    : std::ofstream(
+          GetVisualizerLogFileName(info, FLAG_trace_turbo_path, nullptr, "json")
+              .get(),
+          mode) {}
+
+std::ostream& operator<<(std::ostream& out,
+                         const SourcePositionAsJSON& asJSON) {
+  asJSON.sp.PrintJson(out);
+  return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const NodeOriginAsJSON& asJSON) {
+  asJSON.no.PrintJson(out);
+  return out;
+}
+
+void JsonPrintFunctionSource(std::ostream& os, int source_id,
+                             std::unique_ptr<char[]> function_name,
+                             Handle<Script> script, Isolate* isolate,
+                             Handle<SharedFunctionInfo> shared, bool with_key) {
+  if (with_key) os << "\"" << source_id << "\" : ";
+
+  os << "{ ";
+  os << "\"sourceId\": " << source_id;
+  os << ", \"functionName\": \"" << function_name.get() << "\" ";
+
+  int start = 0;
+  int end = 0;
+  if (!script.is_null() && !script->IsUndefined(isolate) && !shared.is_null()) {
+    Object* source_name = script->name();
+    os << ", \"sourceName\": \"";
+    if (source_name->IsString()) {
+      os << String::cast(source_name)->ToCString().get();
+    }
+    os << "\"";
+    {
+      DisallowHeapAllocation no_allocation;
+      start = shared->StartPosition();
+      end = shared->EndPosition();
+      os << ", \"sourceText\": \"";
+      int len = shared->EndPosition() - start;
+      String::SubStringRange source(String::cast(script->source()), start, len);
+      for (const auto& c : source) {
+        os << AsEscapedUC16ForJSON(c);
+      }
+      os << "\"";
+    }
+  } else {
+    os << ", \"sourceName\": \"\"";
+    os << ", \"sourceText\": \"\"";
+  }
+  os << ", \"startPosition\": " << start;
+  os << ", \"endPosition\": " << end;
+  os << "}";
+}
+
+int SourceIdAssigner::GetIdFor(Handle<SharedFunctionInfo> shared) {
+  for (unsigned i = 0; i < printed_.size(); i++) {
+    if (printed_.at(i).is_identical_to(shared)) {
+      source_ids_.push_back(i);
+      return i;
+    }
+  }
+  const int source_id = static_cast<int>(printed_.size());
+  printed_.push_back(shared);
+  source_ids_.push_back(source_id);
+  return source_id;
+}
+
+namespace {
+
+void JsonPrintInlinedFunctionInfo(
+    std::ostream& os, int source_id, int inlining_id,
+    const OptimizedCompilationInfo::InlinedFunctionHolder& h) {
+  os << "\"" << inlining_id << "\" : ";
+  os << "{ \"inliningId\" : " << inlining_id;
+  os << ", \"sourceId\" : " << source_id;
+  const SourcePosition position = h.position.position;
+  if (position.IsKnown()) {
+    os << ", \"inliningPosition\" : " << AsJSON(position);
+  }
+  os << "}";
+}
+
+}  // namespace
+
+void JsonPrintAllSourceWithPositions(std::ostream& os,
+                                     OptimizedCompilationInfo* info,
+                                     Isolate* isolate) {
+  AllowDeferredHandleDereference allow_deference_for_print_code;
+  os << "\"sources\" : {";
+  Handle<Script> script =
+      (info->shared_info().is_null() || !info->shared_info()->script())
+          ? Handle<Script>()
+          : handle(Script::cast(info->shared_info()->script()));
+  JsonPrintFunctionSource(os, -1,
+                          info->shared_info().is_null()
+                              ? std::unique_ptr<char[]>(new char[1]{0})
+                              : info->shared_info()->DebugName()->ToCString(),
+                          script, isolate, info->shared_info(), true);
+  const auto& inlined = info->inlined_functions();
+  SourceIdAssigner id_assigner(info->inlined_functions().size());
+  for (unsigned id = 0; id < inlined.size(); id++) {
+    os << ", ";
+    Handle<SharedFunctionInfo> shared = inlined[id].shared_info;
+    const int source_id = id_assigner.GetIdFor(shared);
+    JsonPrintFunctionSource(os, source_id, shared->DebugName()->ToCString(),
+                            handle(Script::cast(shared->script())), isolate,
+                            shared, true);
+  }
+  os << "}, ";
+  os << "\"inlinings\" : {";
+  bool need_comma = false;
+  for (unsigned id = 0; id < inlined.size(); id++) {
+    if (need_comma) os << ", ";
+    const int source_id = id_assigner.GetIdAt(id);
+    JsonPrintInlinedFunctionInfo(os, source_id, id, inlined[id]);
+    need_comma = true;
+  }
+  os << "}";
+}
+
 std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
+                                                 const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix) {
   EmbeddedVector<char, 256> filename(0);
@@ -39,7 +167,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
     SNPrintF(filename, "turbo-%s-%i", debug_name.get(), optimization_id);
   } else if (info->has_shared_info()) {
     SNPrintF(filename, "turbo-%p-%i",
-             static_cast<void*>(info->shared_info()->address()),
+             reinterpret_cast<void*>(info->shared_info()->address()),
              optimization_id);
   } else {
     SNPrintF(filename, "turbo-none-%i", optimization_id);
@@ -62,16 +190,26 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   std::replace(filename.start(), filename.start() + filename.length(), ' ',
                '_');
 
+  EmbeddedVector<char, 256> base_dir;
+  if (optional_base_dir != nullptr) {
+    SNPrintF(base_dir, "%s%c", optional_base_dir,
+             base::OS::DirectorySeparator());
+  } else {
+    base_dir[0] = '\0';
+  }
+
   EmbeddedVector<char, 256> full_filename;
   if (phase == nullptr && !source_available) {
-    SNPrintF(full_filename, "%s.%s", filename.start(), suffix);
-  } else if (phase != nullptr && !source_available) {
-    SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
-  } else if (phase == nullptr && source_available) {
-    SNPrintF(full_filename, "%s_%s.%s", filename.start(), source_file.start(),
+    SNPrintF(full_filename, "%s%s.%s", base_dir.start(), filename.start(),
              suffix);
+  } else if (phase != nullptr && !source_available) {
+    SNPrintF(full_filename, "%s%s-%s.%s", base_dir.start(), filename.start(),
+             phase, suffix);
+  } else if (phase == nullptr && source_available) {
+    SNPrintF(full_filename, "%s%s_%s.%s", base_dir.start(), filename.start(),
+             source_file.start(), suffix);
   } else {
-    SNPrintF(full_filename, "%s_%s-%s.%s", filename.start(),
+    SNPrintF(full_filename, "%s%s_%s-%s.%s", base_dir.start(), filename.start(),
              source_file.start(), phase, suffix);
   }
 
@@ -114,11 +252,13 @@ class JSONEscaped {
 class JSONGraphNodeWriter {
  public:
   JSONGraphNodeWriter(std::ostream& os, Zone* zone, const Graph* graph,
-                      const SourcePositionTable* positions)
+                      const SourcePositionTable* positions,
+                      const NodeOriginTable* origins)
       : os_(os),
         all_(zone, graph, false),
         live_(zone, graph, true),
         positions_(positions),
+        origins_(origins),
         first_node_(true) {}
 
   void Print() {
@@ -157,7 +297,13 @@ class JSONGraphNodeWriter {
     }
     SourcePosition position = positions_->GetSourcePosition(node);
     if (position.IsKnown()) {
-      os_ << ",\"pos\":" << position.ScriptOffset();
+      os_ << ", \"sourcePosition\" : " << AsJSON(position);
+    }
+    if (origins_) {
+      NodeOrigin origin = origins_->GetNodeOrigin(node);
+      if (origin.IsKnown()) {
+        os_ << ", \"origin\" : " << AsJSON(origin);
+      }
     }
     os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
     os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
@@ -169,9 +315,9 @@ class JSONGraphNodeWriter {
         << node->op()->EffectOutputCount() << " eff "
         << node->op()->ControlOutputCount() << " ctrl out\"";
     if (NodeProperties::IsTyped(node)) {
-      Type* type = NodeProperties::GetType(node);
+      Type type = NodeProperties::GetType(node);
       std::ostringstream type_out;
-      type->PrintTo(type_out);
+      type.PrintTo(type_out);
       os_ << ",\"type\":\"" << JSONEscaped(type_out) << "\"";
     }
     os_ << "}";
@@ -182,6 +328,7 @@ class JSONGraphNodeWriter {
   AllNodes all_;
   AllNodes live_;
   const SourcePositionTable* positions_;
+  const NodeOriginTable* origins_;
   bool first_node_;
 
   DISALLOW_COPY_AND_ASSIGN(JSONGraphNodeWriter);
@@ -238,12 +385,12 @@ class JSONGraphEdgeWriter {
   DISALLOW_COPY_AND_ASSIGN(JSONGraphEdgeWriter);
 };
 
-
-std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
+std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
   AccountingAllocator allocator;
   Zone tmp_zone(&allocator, ZONE_NAME);
   os << "{\n\"nodes\":[";
-  JSONGraphNodeWriter(os, &tmp_zone, &ad.graph, ad.positions).Print();
+  JSONGraphNodeWriter(os, &tmp_zone, &ad.graph, ad.positions, ad.origins)
+      .Print();
   os << "],\n\"edges\":[";
   JSONGraphEdgeWriter(os, &tmp_zone, &ad.graph).Print();
   os << "]}";
@@ -400,9 +547,8 @@ void GraphC1Visualizer::PrintInputs(Node* node) {
 
 void GraphC1Visualizer::PrintType(Node* node) {
   if (NodeProperties::IsTyped(node)) {
-    Type* type = NodeProperties::GetType(node);
-    os_ << " type:";
-    type->PrintTo(os_);
+    Type type = NodeProperties::GetType(node);
+    os_ << " type:" << type;
   }
 }
 
@@ -708,9 +854,7 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
       os << ")";
       // Print the node type, if any.
       if (NodeProperties::IsTyped(n)) {
-        os << "  [Type: ";
-        NodeProperties::GetType(n)->PrintTo(os);
-        os << "]";
+        os << "  [Type: " << NodeProperties::GetType(n) << "]";
       }
       os << std::endl;
     }
@@ -739,9 +883,7 @@ void PrintScheduledNode(std::ostream& os, int indent, Node* n) {
   os << ")";
   // Print the node type, if any.
   if (NodeProperties::IsTyped(n)) {
-    os << "  [Type: ";
-    NodeProperties::GetType(n)->PrintTo(os);
-    os << "]";
+    os << "  [Type: " << NodeProperties::GetType(n) << "]";
   }
 }
 

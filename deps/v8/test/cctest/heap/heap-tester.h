@@ -34,15 +34,16 @@
   V(StressHandles)                                        \
   V(TestMemoryReducerSampleJsCalls)                       \
   V(TestSizeOfObjects)                                    \
-  V(Regress587004)                                        \
+  V(Regress5831)                                          \
   V(Regress538257)                                        \
+  V(Regress587004)                                        \
   V(Regress589413)                                        \
   V(Regress658718)                                        \
   V(Regress670675)                                        \
-  V(Regress5831)                                          \
   V(Regress777177)                                        \
-  V(Regress791582)                                        \
   V(Regress779503)                                        \
+  V(Regress791582)                                        \
+  V(Regress845060)                                        \
   V(RegressMissingWriteBarrierInAllocate)                 \
   V(WriteBarriersInCopyJSObject)
 

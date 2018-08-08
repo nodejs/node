@@ -50,7 +50,6 @@ namespace v8 {
 namespace base {
 class Mutex;
 class RecursiveMutex;
-class VirtualMemory;
 }
 
 namespace internal {
@@ -127,7 +126,8 @@ class AllStatic {
 #define BASE_EMBEDDED
 
 typedef uint8_t byte;
-typedef byte* Address;
+typedef uintptr_t Address;
+static const Address kNullAddress = 0;
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -163,6 +163,7 @@ constexpr int kDoubleSize = sizeof(double);
 constexpr int kIntptrSize = sizeof(intptr_t);
 constexpr int kUIntptrSize = sizeof(uintptr_t);
 constexpr int kPointerSize = sizeof(void*);
+constexpr int kPointerHexDigits = kPointerSize == 4 ? 8 : 12;
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
 constexpr int kRegisterSize = kPointerSize + kPointerSize;
 #else
@@ -178,7 +179,12 @@ constexpr int kElidedFrameSlots = 0;
 #endif
 
 constexpr int kDoubleSizeLog2 = 3;
+#if V8_TARGET_ARCH_ARM64
+// ARM64 only supports direct calls within a 128 MB range.
+constexpr size_t kMaxWasmCodeMemory = 128 * MB;
+#else
 constexpr size_t kMaxWasmCodeMemory = 256 * MB;
+#endif
 
 #if V8_HOST_ARCH_64_BIT
 constexpr int kPointerSizeLog2 = 3;
@@ -195,8 +201,11 @@ constexpr size_t kCodeRangeAreaAlignment = 256 * MB;
 #elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr size_t kMaximalCodeRangeSize = 512 * MB;
 constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
+#elif V8_TARGET_ARCH_ARM64
+constexpr size_t kMaximalCodeRangeSize = 128 * MB;
+constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #else
-constexpr size_t kMaximalCodeRangeSize = 512 * MB;
+constexpr size_t kMaximalCodeRangeSize = 128 * MB;
 constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #endif
 #if V8_OS_WIN
@@ -275,15 +284,18 @@ constexpr int kUC16Size = sizeof(uc16);  // NOLINT
 constexpr int kSimd128Size = 16;
 
 // FUNCTION_ADDR(f) gets the address of a C function f.
-#define FUNCTION_ADDR(f)                                        \
-  (reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(f)))
-
+#define FUNCTION_ADDR(f) (reinterpret_cast<v8::internal::Address>(f))
 
 // FUNCTION_CAST<F>(addr) casts an address into a function
 // of type F. Used to invoke generated code from within C.
 template <typename F>
+F FUNCTION_CAST(byte* addr) {
+  return reinterpret_cast<F>(reinterpret_cast<Address>(addr));
+}
+
+template <typename F>
 F FUNCTION_CAST(Address addr) {
-  return reinterpret_cast<F>(reinterpret_cast<intptr_t>(addr));
+  return reinterpret_cast<F>(addr);
 }
 
 
@@ -350,6 +362,10 @@ inline LanguageMode stricter_language_mode(LanguageMode mode1,
 }
 
 enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
+
+// Enums used by CEntry.
+enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
+enum ArgvMode { kArgvOnStack, kArgvInRegister };
 
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
@@ -454,6 +470,7 @@ class AccessorInfo;
 class Arguments;
 class Assembler;
 class Code;
+class CodeSpace;
 class CodeStub;
 class Context;
 class Debug;
@@ -568,10 +585,10 @@ inline std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
 }
 
 // A flag that indicates whether objects should be pretenured when
-// allocated (allocated directly into the old generation) or not
-// (allocated in the young generation if the object size and type
+// allocated (allocated directly into either the old generation or read-only
+// space), or not (allocated in the young generation if the object size and type
 // allows).
-enum PretenureFlag { NOT_TENURED, TENURED };
+enum PretenureFlag { NOT_TENURED, TENURED, TENURED_READ_ONLY };
 
 inline std::ostream& operator<<(std::ostream& os, const PretenureFlag& flag) {
   switch (flag) {
@@ -579,6 +596,8 @@ inline std::ostream& operator<<(std::ostream& os, const PretenureFlag& flag) {
       return os << "NotTenured";
     case TENURED:
       return os << "Tenured";
+    case TENURED_READ_ONLY:
+      return os << "TenuredReadOnly";
   }
   UNREACHABLE();
 }
@@ -1225,8 +1244,7 @@ inline std::ostream& operator<<(std::ostream& os,
 inline uint32_t ObjectHash(Address address) {
   // All objects are at least pointer aligned, so we can remove the trailing
   // zeros.
-  return static_cast<uint32_t>(bit_cast<uintptr_t>(address) >>
-                               kPointerSizeLog2);
+  return static_cast<uint32_t>(address >> kPointerSizeLog2);
 }
 
 // Type feedback is encoded in such a way that, we can combine the feedback
@@ -1506,7 +1524,7 @@ V8_INLINE static HeapObject* RemoveWeakHeapObjectMask(
                                        ~kWeakHeapObjectMask);
 }
 
-V8_INLINE static HeapObjectReference* AddWeakHeapObjectMask(HeapObject* value) {
+V8_INLINE static HeapObjectReference* AddWeakHeapObjectMask(Object* value) {
   return reinterpret_cast<HeapObjectReference*>(
       reinterpret_cast<intptr_t>(value) | kWeakHeapObjectMask);
 }
@@ -1521,8 +1539,18 @@ enum class HeapObjectReferenceType {
   STRONG,
 };
 
-enum class PoisoningMitigationLevel { kOff, kOn };
-enum class LoadSensitivity { kSafe, kNeedsPoisoning };
+enum class PoisoningMitigationLevel {
+  kPoisonAll,
+  kDontPoison,
+  kPoisonCriticalOnly
+};
+enum class LoadSensitivity {
+  kCritical,  // Critical loads are poisoned whenever we can run untrusted
+              // code (i.e., when --untrusted-code-mitigations is on).
+  kUnsafe,    // Unsafe loads are poisoned when full poisoning is on
+              // (--branch-load-poisoning).
+  kSafe       // Safe loads are never poisoned.
+};
 
 }  // namespace internal
 }  // namespace v8

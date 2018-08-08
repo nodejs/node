@@ -506,6 +506,124 @@ TEST(PostponeTerminateException) {
   CHECK_EQ(2, callback_counter);
 }
 
+static void AssertTerminatedCodeRun(v8::Isolate* isolate) {
+  v8::TryCatch try_catch(isolate);
+  CompileRun("for (var i = 0; i < 10000; i++);");
+  CHECK(try_catch.HasTerminated());
+}
+
+static void AssertFinishedCodeRun(v8::Isolate* isolate) {
+  v8::TryCatch try_catch(isolate);
+  CompileRun("for (var i = 0; i < 10000; i++);");
+  CHECK(!try_catch.HasTerminated());
+}
+
+TEST(SafeForTerminateException) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  {  // Checks safe for termination scope.
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION);
+    isolate->TerminateExecution();
+    AssertFinishedCodeRun(isolate);
+    {
+      i::SafeForInterruptsScope p2(CcTest::i_isolate(),
+                                   i::StackGuard::TERMINATE_EXECUTION);
+      AssertTerminatedCodeRun(isolate);
+      AssertFinishedCodeRun(isolate);
+      isolate->TerminateExecution();
+    }
+    AssertFinishedCodeRun(isolate);
+    isolate->CancelTerminateExecution();
+  }
+
+  isolate->TerminateExecution();
+  {  // no scope -> postpone
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION);
+    AssertFinishedCodeRun(isolate);
+    {  // postpone -> postpone
+      i::PostponeInterruptsScope p2(CcTest::i_isolate(),
+                                    i::StackGuard::TERMINATE_EXECUTION);
+      AssertFinishedCodeRun(isolate);
+
+      {  // postpone -> safe
+        i::SafeForInterruptsScope p3(CcTest::i_isolate(),
+                                     i::StackGuard::TERMINATE_EXECUTION);
+        AssertTerminatedCodeRun(isolate);
+        isolate->TerminateExecution();
+
+        {  // safe -> safe
+          i::SafeForInterruptsScope p4(CcTest::i_isolate(),
+                                       i::StackGuard::TERMINATE_EXECUTION);
+          AssertTerminatedCodeRun(isolate);
+          isolate->TerminateExecution();
+
+          {  // safe -> postpone
+            i::PostponeInterruptsScope p5(CcTest::i_isolate(),
+                                          i::StackGuard::TERMINATE_EXECUTION);
+            AssertFinishedCodeRun(isolate);
+          }  // postpone -> safe
+
+          AssertTerminatedCodeRun(isolate);
+          isolate->TerminateExecution();
+        }  // safe -> safe
+
+        AssertTerminatedCodeRun(isolate);
+        isolate->TerminateExecution();
+      }  // safe -> postpone
+
+      AssertFinishedCodeRun(isolate);
+    }  // postpone -> postpone
+
+    AssertFinishedCodeRun(isolate);
+  }  // postpone -> no scope
+  AssertTerminatedCodeRun(isolate);
+
+  isolate->TerminateExecution();
+  {  // no scope -> safe
+    i::SafeForInterruptsScope p1(CcTest::i_isolate(),
+                                 i::StackGuard::TERMINATE_EXECUTION);
+    AssertTerminatedCodeRun(isolate);
+  }  // safe -> no scope
+  AssertFinishedCodeRun(isolate);
+
+  {  // no scope -> postpone
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION);
+    isolate->TerminateExecution();
+    {  // postpone -> safe
+      i::SafeForInterruptsScope p2(CcTest::i_isolate(),
+                                   i::StackGuard::TERMINATE_EXECUTION);
+      AssertTerminatedCodeRun(isolate);
+    }  // safe -> postpone
+  }    // postpone -> no scope
+  AssertFinishedCodeRun(isolate);
+
+  {  // no scope -> postpone
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION);
+    {  // postpone -> safe
+      i::SafeForInterruptsScope p2(CcTest::i_isolate(),
+                                   i::StackGuard::TERMINATE_EXECUTION);
+      {  // safe -> postpone
+        i::PostponeInterruptsScope p3(CcTest::i_isolate(),
+                                      i::StackGuard::TERMINATE_EXECUTION);
+        isolate->TerminateExecution();
+      }  // postpone -> safe
+      AssertTerminatedCodeRun(isolate);
+    }  // safe -> postpone
+  }    // postpone -> no scope
+}
+
+void RequestTermianteAndCallAPI(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetIsolate()->TerminateExecution();
+  AssertFinishedCodeRun(args.GetIsolate());
+}
 
 TEST(ErrorObjectAfterTermination) {
   v8::Isolate* isolate = CcTest::isolate();

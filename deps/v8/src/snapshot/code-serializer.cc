@@ -8,6 +8,7 @@
 
 #include "src/code-stubs.h"
 #include "src/counters.h"
+#include "src/debug/debug.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
@@ -52,6 +53,8 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   // context independent.
   if (script->ContainsAsmModule()) return nullptr;
   if (isolate->debug()->is_loaded()) return nullptr;
+
+  isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
 
   // Serialize code object.
   Handle<String> source(String::cast(script->source()), isolate);

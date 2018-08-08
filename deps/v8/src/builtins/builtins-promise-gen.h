@@ -114,7 +114,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   // case to mark it's done).
   Node* CreatePromiseAllResolveElementContext(Node* promise_capability,
                                               Node* native_context);
-  Node* CreatePromiseAllResolveElementFunction(Node* context, Node* index,
+  Node* CreatePromiseAllResolveElementFunction(Node* context, TNode<Smi> index,
                                                Node* native_context);
 
   Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,

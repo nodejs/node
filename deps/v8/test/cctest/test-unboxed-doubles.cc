@@ -20,6 +20,7 @@
 #include "src/layout-descriptor.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/property.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -936,7 +937,7 @@ TEST(Regress436816) {
 
   Handle<JSObject> object = factory->NewJSObjectFromMap(map, TENURED);
 
-  Address fake_address = reinterpret_cast<Address>(~kHeapObjectTagMask);
+  Address fake_address = static_cast<Address>(~kHeapObjectTagMask);
   HeapObject* fake_object = HeapObject::FromAddress(fake_address);
   CHECK(fake_object->IsHeapObject());
 

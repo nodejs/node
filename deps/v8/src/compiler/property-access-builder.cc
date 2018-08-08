@@ -242,7 +242,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
   }
 
   FieldIndex const field_index = access_info.field_index();
-  Type* const field_type = access_info.field_type();
+  Type const field_type = access_info.field_type();
   MachineRepresentation const field_representation =
       access_info.field_representation();
   Node* storage = receiver;

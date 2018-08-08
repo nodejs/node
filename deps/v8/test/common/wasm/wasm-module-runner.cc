@@ -74,16 +74,16 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
   // Fill the parameters up with default values.
   for (size_t i = argc; i < param_count; ++i) {
     switch (signature->GetParam(i)) {
-      case MachineRepresentation::kWord32:
+      case kWasmI32:
         arguments[i] = WasmValue(int32_t{0});
         break;
-      case MachineRepresentation::kWord64:
+      case kWasmI64:
         arguments[i] = WasmValue(int64_t{0});
         break;
-      case MachineRepresentation::kFloat32:
+      case kWasmF32:
         arguments[i] = WasmValue(0.0f);
         break;
-      case MachineRepresentation::kFloat64:
+      case kWasmF64:
         arguments[i] = WasmValue(0.0);
         break;
       default:

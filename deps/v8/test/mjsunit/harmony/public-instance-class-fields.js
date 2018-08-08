@@ -507,7 +507,7 @@ x()();
   }
 
   assertThrows(() => new C1, ReferenceError);
-  assertEquals([1,1], log);
+  assertEquals([1], log);
 
   log = [];
   class C2 extends class {} {
@@ -520,7 +520,7 @@ x()();
   }
 
   assertThrows(() => new C2, ReferenceError);
-  assertEquals([1,1], log);
+  assertEquals([1], log);
 }
 
 {
@@ -695,4 +695,22 @@ x()();
 
   let x = new X;
   assertEquals(1, x.p);
+}
+
+{
+  let thisInInitializer, thisInConstructor, thisFromArrowFn, arrowFn;
+  let C = class extends class {} {
+    field = (thisInInitializer = this, thisFromArrowFn = arrowFn());
+    constructor() {
+      arrowFn = () => this;
+      super();
+      thisInConstructor = this;
+    }
+  };
+
+  let c = new C();
+
+  assertSame(thisInInitializer, c);
+  assertSame(thisFromArrowFn, c);
+  assertSame(thisInConstructor, c);
 }

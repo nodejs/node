@@ -46,7 +46,9 @@ class SimplifiedLoweringTest : public GraphTest {
       typer.Run();
     }
 
-    SimplifiedLowering lowering(jsgraph(), zone(), source_positions());
+    SimplifiedLowering lowering(jsgraph(), zone(), source_positions(),
+                                node_origins(),
+                                PoisoningMitigationLevel::kDontPoison);
     lowering.LowerAllNodes();
   }
 

@@ -9,8 +9,10 @@
 
 #include "src/field-type.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/templates-inl.h"
 #include "src/property.h"
 #include "src/transitions.h"
 
@@ -486,25 +488,25 @@ void Map::NotifyLeafMapLayoutChange() {
   }
 }
 
+bool Map::IsJSObject(InstanceType type) {
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
+  return type >= FIRST_JS_OBJECT_TYPE;
+}
+
 bool Map::CanTransition() const {
   // Only JSObject and subtypes have map transitions and back pointers.
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
-  return instance_type() >= FIRST_JS_OBJECT_TYPE;
+  return IsJSObject(instance_type());
 }
 
 bool Map::IsBooleanMap() const { return this == GetHeap()->boolean_map(); }
 bool Map::IsPrimitiveMap() const {
-  STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }
 bool Map::IsJSReceiverMap() const {
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   return instance_type() >= FIRST_JS_RECEIVER_TYPE;
 }
-bool Map::IsJSObjectMap() const {
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  return instance_type() >= FIRST_JS_OBJECT_TYPE;
-}
+bool Map::IsJSObjectMap() const { return IsJSObject(instance_type()); }
 bool Map::IsJSPromiseMap() const { return instance_type() == JS_PROMISE_TYPE; }
 bool Map::IsJSArrayMap() const { return instance_type() == JS_ARRAY_TYPE; }
 bool Map::IsJSFunctionMap() const {

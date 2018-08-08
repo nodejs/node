@@ -62,6 +62,8 @@ class DateCache {
     return static_cast<int>(time_ms - days * kMsPerDay);
   }
 
+  // ECMA 262 - ES#sec-timeclip TimeClip (time)
+  static double TimeClip(double time);
 
   // Given the number of days since the epoch, computes the weekday.
   // ECMA 262 - 15.9.1.6.

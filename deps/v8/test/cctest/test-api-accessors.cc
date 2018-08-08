@@ -231,12 +231,15 @@ TEST(CachedAccessorOnGlobalObject) {
 
 namespace {
 
+// Getter return value should be non-null to trigger lazy property paths.
 static void Getter(v8::Local<v8::Name> name,
-                   const v8::PropertyCallbackInfo<v8::Value>& info) {}
+                   const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8_str("return value"));
+}
 
 static void Setter(v8::Local<v8::String> name, v8::Local<v8::Value> value,
                    const v8::PropertyCallbackInfo<void>& info) {}
-}
+}  // namespace
 
 // Re-declaration of non-configurable accessors should throw.
 TEST(RedeclareAccessor) {

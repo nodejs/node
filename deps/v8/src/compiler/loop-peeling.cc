@@ -7,6 +7,7 @@
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/zone/zone.h"
@@ -123,12 +124,14 @@ struct Peeling {
   }
 
   void CopyNodes(Graph* graph, Zone* tmp_zone_, Node* dead, NodeRange nodes,
-                 SourcePositionTable* source_positions) {
+                 SourcePositionTable* source_positions,
+                 NodeOriginTable* node_origins) {
     NodeVector inputs(tmp_zone_);
     // Copy all the nodes first.
     for (Node* node : nodes) {
       SourcePositionTable::Scope position(
           source_positions, source_positions->GetSourcePosition(node));
+      NodeOriginTable::Scope origin_scope(node_origins, "copy nodes", node);
       inputs.clear();
       for (Node* input : node->inputs()) {
         inputs.push_back(map(input));
@@ -226,7 +229,7 @@ PeeledIteration* LoopPeeler::Peel(LoopTree::Loop* loop) {
 
   // Copy all the nodes of loop body for the peeled iteration.
   peeling.CopyNodes(graph_, tmp_zone_, dead, loop_tree_->BodyNodes(loop),
-                    source_positions_);
+                    source_positions_, node_origins_);
 
   //============================================================================
   // Replace the entry to the loop with the output of the peeled iteration.

@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_MARK_COMPACT_H_
 #define V8_HEAP_MARK_COMPACT_H_
 
-#include <deque>
 #include <vector>
 
 #include "src/heap/concurrent-marking.h"
@@ -261,6 +260,7 @@ class MarkCompactCollectorBase {
   inline Isolate* isolate() { return heap()->isolate(); }
 
  protected:
+  static const int kMainThread = 0;
   explicit MarkCompactCollectorBase(Heap* heap)
       : heap_(heap), old_to_new_slots_(0) {}
 
@@ -440,8 +440,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   using MarkingState = MajorNonAtomicMarkingState;
 #endif  // V8_CONCURRENT_MARKING
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
-
-  static const int kMainThread = 0;
   // Wrapper for the shared and bailout worklists.
   class MarkingWorklist {
    public:
@@ -530,28 +528,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
    private:
     // Prints the stats about the global pool of the worklist.
     void PrintWorklist(const char* worklist_name,
-                       ConcurrentMarkingWorklist* worklist) {
-      std::map<InstanceType, int> count;
-      int total_count = 0;
-      worklist->IterateGlobalPool([&count, &total_count](HeapObject* obj) {
-        ++total_count;
-        count[obj->map()->instance_type()]++;
-      });
-      std::vector<std::pair<int, InstanceType>> rank;
-      for (auto i : count) {
-        rank.push_back(std::make_pair(i.second, i.first));
-      }
-      std::map<InstanceType, std::string> instance_type_name;
-#define INSTANCE_TYPE_NAME(name) instance_type_name[name] = #name;
-      INSTANCE_TYPE_LIST(INSTANCE_TYPE_NAME)
-#undef INSTANCE_TYPE_NAME
-      std::sort(rank.begin(), rank.end(),
-                std::greater<std::pair<int, InstanceType>>());
-      PrintF("Worklist %s: %d\n", worklist_name, total_count);
-      for (auto i : rank) {
-        PrintF("  [%s]: %d\n", instance_type_name[i.second].c_str(), i.first);
-      }
-    }
+                       ConcurrentMarkingWorklist* worklist);
     ConcurrentMarkingWorklist shared_;
     ConcurrentMarkingWorklist bailout_;
     ConcurrentMarkingWorklist on_hold_;
@@ -953,7 +930,8 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   }
 
   void MarkLiveObjects() override;
-  void MarkRootSetInParallel();
+  void MarkRootSetInParallel(RootMarkingVisitor* root_visitor);
+  V8_INLINE void MarkRootObject(HeapObject* obj);
   void ProcessMarkingWorklist() override;
   void ClearNonLiveReferences() override;
 

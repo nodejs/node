@@ -425,6 +425,102 @@ TEST(WeakArraysBasic) {
   CHECK(array->Get(3)->IsClearedWeakHeapObject());
 }
 
+TEST(WeakArrayListBasic) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  HandleScope outer_scope(isolate);
+
+  Handle<WeakArrayList> array(heap->empty_weak_array_list());
+  CHECK(array->IsWeakArrayList());
+  CHECK(!array->IsFixedArray());
+  CHECK(!array->IsWeakFixedArray());
+  CHECK_EQ(array->length(), 0);
+
+  Handle<FixedArray> index2 = factory->NewFixedArray(1);
+  index2->set(0, Smi::FromInt(2017));
+
+  Handle<HeapObject> saved;
+  {
+    HandleScope inner_scope(isolate);
+    Handle<FixedArray> index0 = factory->NewFixedArray(1);
+    index0->set(0, Smi::FromInt(2016));
+    Handle<FixedArray> index4 = factory->NewFixedArray(1);
+    index4->set(0, Smi::FromInt(2018));
+    Handle<FixedArray> index6 = factory->NewFixedArray(1);
+    index6->set(0, Smi::FromInt(2019));
+
+    array = WeakArrayList::Add(array, index0, Smi::FromInt(1));
+    CHECK_EQ(array->length(), 2);
+
+    array = WeakArrayList::Add(array, index2, Smi::FromInt(3));
+    CHECK_EQ(array->length(), 4);
+
+    array = WeakArrayList::Add(array, index4, Smi::FromInt(5));
+    CHECK_EQ(array->length(), 6);
+
+    array = WeakArrayList::Add(array, index6, Smi::FromInt(7));
+    CHECK_EQ(array->length(), 8);
+
+    CHECK(heap->InNewSpace(*array));
+
+    CHECK_EQ(array->Get(0), HeapObjectReference::Weak(*index0));
+    CHECK_EQ(Smi::ToInt(array->Get(1)->ToSmi()), 1);
+
+    CHECK_EQ(array->Get(2), HeapObjectReference::Weak(*index2));
+    CHECK_EQ(Smi::ToInt(array->Get(3)->ToSmi()), 3);
+
+    CHECK_EQ(array->Get(4), HeapObjectReference::Weak(*index4));
+    CHECK_EQ(Smi::ToInt(array->Get(5)->ToSmi()), 5);
+
+    CHECK_EQ(array->Get(6), HeapObjectReference::Weak(*index6));
+    array = inner_scope.CloseAndEscape(array);
+  }  // inner_scope goes out of scope.
+
+  // The references are only cleared by the mark-compact (scavenger treats weak
+  // references as strong). Thus we need to GC until the array reaches old
+  // space.
+
+  // TODO(marja): update this when/if we do handle weak references in the new
+  // space.
+  CcTest::CollectGarbage(NEW_SPACE);
+  HeapObject* heap_object;
+  CHECK_EQ(array->length(), 8);
+  CHECK(array->Get(0)->ToWeakHeapObject(&heap_object));
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2016);
+  CHECK_EQ(Smi::ToInt(array->Get(1)->ToSmi()), 1);
+
+  CHECK(array->Get(2)->ToWeakHeapObject(&heap_object));
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2017);
+  CHECK_EQ(Smi::ToInt(array->Get(3)->ToSmi()), 3);
+
+  CHECK(array->Get(4)->ToWeakHeapObject(&heap_object));
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2018);
+  CHECK_EQ(Smi::ToInt(array->Get(5)->ToSmi()), 5);
+
+  CHECK(array->Get(6)->ToWeakHeapObject(&heap_object));
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2019);
+  CHECK_EQ(Smi::ToInt(array->Get(7)->ToSmi()), 7);
+
+  CcTest::CollectAllGarbage();
+  CHECK(heap->InOldSpace(*array));
+  CHECK_EQ(array->length(), 8);
+  CHECK(array->Get(0)->IsClearedWeakHeapObject());
+  CHECK_EQ(Smi::ToInt(array->Get(1)->ToSmi()), 1);
+
+  CHECK(array->Get(2)->ToWeakHeapObject(&heap_object));
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2017);
+  CHECK_EQ(Smi::ToInt(array->Get(3)->ToSmi()), 3);
+
+  CHECK(array->Get(4)->IsClearedWeakHeapObject());
+  CHECK_EQ(Smi::ToInt(array->Get(5)->ToSmi()), 5);
+
+  CHECK(array->Get(6)->IsClearedWeakHeapObject());
+  CHECK_EQ(Smi::ToInt(array->Get(7)->ToSmi()), 7);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

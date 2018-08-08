@@ -577,7 +577,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
     weak_objects_->weak_references.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
-    total_marked_bytes_.Increment(marked_bytes);
+    total_marked_bytes_ += marked_bytes;
     {
       base::LockGuard<base::Mutex> guard(&pending_lock_);
       is_pending_[task_id] = false;
@@ -687,7 +687,7 @@ void ConcurrentMarking::FlushLiveBytes(
     live_bytes.clear();
     task_state_[i].marked_bytes = 0;
   }
-  total_marked_bytes_.SetValue(0);
+  total_marked_bytes_ = 0;
 }
 
 void ConcurrentMarking::ClearLiveness(MemoryChunk* chunk) {
@@ -704,7 +704,7 @@ size_t ConcurrentMarking::TotalMarkedBytes() {
     result +=
         base::AsAtomicWord::Relaxed_Load<size_t>(&task_state_[i].marked_bytes);
   }
-  result += total_marked_bytes_.Value();
+  result += total_marked_bytes_;
   return result;
 }
 

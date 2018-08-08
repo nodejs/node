@@ -15,6 +15,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
+#include "src/objects/api-callbacks.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
@@ -35,424 +36,10 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kNewArray);
 }
 
-
-void DoubleToIStub::Generate(MacroAssembler* masm) {
-  Label out_of_range, only_low, negate, done, fastpath_done;
-  Register result_reg = destination();
-
-  // Immediate values for this stub fit in instructions, so it's safe to use ip.
-  Register scratch = GetRegisterThatIsNotOneOf(result_reg);
-  Register scratch_low = GetRegisterThatIsNotOneOf(result_reg, scratch);
-  Register scratch_high =
-      GetRegisterThatIsNotOneOf(result_reg, scratch, scratch_low);
-  DoubleRegister double_scratch = kScratchDoubleReg;
-
-  __ push(scratch);
-  // Account for saved regs.
-  int argument_offset = 1 * kPointerSize;
-
-  // Load double input.
-  __ lfd(double_scratch, MemOperand(sp, argument_offset));
-
-  // Do fast-path convert from double to int.
-  __ ConvertDoubleToInt64(double_scratch,
-#if !V8_TARGET_ARCH_PPC64
-                          scratch,
-#endif
-                          result_reg, d0);
-
-// Test for overflow
-#if V8_TARGET_ARCH_PPC64
-  __ TestIfInt32(result_reg, r0);
-#else
-  __ TestIfInt32(scratch, result_reg, r0);
-#endif
-  __ beq(&fastpath_done);
-
-  __ Push(scratch_high, scratch_low);
-  // Account for saved regs.
-  argument_offset += 2 * kPointerSize;
-
-  __ lwz(scratch_high,
-         MemOperand(sp, argument_offset + Register::kExponentOffset));
-  __ lwz(scratch_low,
-         MemOperand(sp, argument_offset + Register::kMantissaOffset));
-
-  __ ExtractBitMask(scratch, scratch_high, HeapNumber::kExponentMask);
-  // Load scratch with exponent - 1. This is faster than loading
-  // with exponent because Bias + 1 = 1024 which is a *PPC* immediate value.
-  STATIC_ASSERT(HeapNumber::kExponentBias + 1 == 1024);
-  __ subi(scratch, scratch, Operand(HeapNumber::kExponentBias + 1));
-  // If exponent is greater than or equal to 84, the 32 less significant
-  // bits are 0s (2^84 = 1, 52 significant bits, 32 uncoded bits),
-  // the result is 0.
-  // Compare exponent with 84 (compare exponent - 1 with 83).
-  __ cmpi(scratch, Operand(83));
-  __ bge(&out_of_range);
-
-  // If we reach this code, 31 <= exponent <= 83.
-  // So, we don't have to handle cases where 0 <= exponent <= 20 for
-  // which we would need to shift right the high part of the mantissa.
-  // Scratch contains exponent - 1.
-  // Load scratch with 52 - exponent (load with 51 - (exponent - 1)).
-  __ subfic(scratch, scratch, Operand(51));
-  __ cmpi(scratch, Operand::Zero());
-  __ ble(&only_low);
-  // 21 <= exponent <= 51, shift scratch_low and scratch_high
-  // to generate the result.
-  __ srw(scratch_low, scratch_low, scratch);
-  // Scratch contains: 52 - exponent.
-  // We needs: exponent - 20.
-  // So we use: 32 - scratch = 32 - 52 + exponent = exponent - 20.
-  __ subfic(scratch, scratch, Operand(32));
-  __ ExtractBitMask(result_reg, scratch_high, HeapNumber::kMantissaMask);
-  // Set the implicit 1 before the mantissa part in scratch_high.
-  STATIC_ASSERT(HeapNumber::kMantissaBitsInTopWord >= 16);
-  __ oris(result_reg, result_reg,
-          Operand(1 << ((HeapNumber::kMantissaBitsInTopWord) - 16)));
-  __ slw(r0, result_reg, scratch);
-  __ orx(result_reg, scratch_low, r0);
-  __ b(&negate);
-
-  __ bind(&out_of_range);
-  __ mov(result_reg, Operand::Zero());
-  __ b(&done);
-
-  __ bind(&only_low);
-  // 52 <= exponent <= 83, shift only scratch_low.
-  // On entry, scratch contains: 52 - exponent.
-  __ neg(scratch, scratch);
-  __ slw(result_reg, scratch_low, scratch);
-
-  __ bind(&negate);
-  // If input was positive, scratch_high ASR 31 equals 0 and
-  // scratch_high LSR 31 equals zero.
-  // New result = (result eor 0) + 0 = result.
-  // If the input was negative, we have to negate the result.
-  // Input_high ASR 31 equals 0xFFFFFFFF and scratch_high LSR 31 equals 1.
-  // New result = (result eor 0xFFFFFFFF) + 1 = 0 - result.
-  __ srawi(r0, scratch_high, 31);
-#if V8_TARGET_ARCH_PPC64
-  __ srdi(r0, r0, Operand(32));
-#endif
-  __ xor_(result_reg, result_reg, r0);
-  __ srwi(r0, scratch_high, Operand(31));
-  __ add(result_reg, result_reg, r0);
-
-  __ bind(&done);
-  __ Pop(scratch_high, scratch_low);
-
-  __ bind(&fastpath_done);
-  __ pop(scratch);
-
-  __ Ret();
-}
-
-void MathPowStub::Generate(MacroAssembler* masm) {
-  const Register exponent = MathPowTaggedDescriptor::exponent();
-  DCHECK(exponent == r5);
-  const DoubleRegister double_base = d1;
-  const DoubleRegister double_exponent = d2;
-  const DoubleRegister double_result = d3;
-  const DoubleRegister double_scratch = d0;
-  const Register scratch = r11;
-  const Register scratch2 = r10;
-
-  Label call_runtime, done, int_exponent;
-
-  // Detect integer exponents stored as double.
-  __ TryDoubleToInt32Exact(scratch, double_exponent, scratch2, double_scratch);
-  __ beq(&int_exponent);
-
-  __ mflr(r0);
-  __ push(r0);
-  {
-    AllowExternalCallThatCantCauseGC scope(masm);
-    __ PrepareCallCFunction(0, 2, scratch);
-    __ MovToFloatParameters(double_base, double_exponent);
-    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
-                     0, 2);
-  }
-  __ pop(r0);
-  __ mtlr(r0);
-  __ MovFromFloatResult(double_result);
-  __ b(&done);
-
-  // Calculate power with integer exponent.
-  __ bind(&int_exponent);
-
-  // Get two copies of exponent in the registers scratch and exponent.
-  // Exponent has previously been stored into scratch as untagged integer.
-  __ mr(exponent, scratch);
-
-  __ fmr(double_scratch, double_base);  // Back up base.
-  __ li(scratch2, Operand(1));
-  __ ConvertIntToDouble(scratch2, double_result);
-
-  // Get absolute value of exponent.
-  __ cmpi(scratch, Operand::Zero());
-  if (CpuFeatures::IsSupported(ISELECT)) {
-    __ neg(scratch2, scratch);
-    __ isel(lt, scratch, scratch2, scratch);
-  } else {
-    Label positive_exponent;
-    __ bge(&positive_exponent);
-    __ neg(scratch, scratch);
-    __ bind(&positive_exponent);
-  }
-
-  Label while_true, no_carry, loop_end;
-  __ bind(&while_true);
-  __ andi(scratch2, scratch, Operand(1));
-  __ beq(&no_carry, cr0);
-  __ fmul(double_result, double_result, double_scratch);
-  __ bind(&no_carry);
-  __ ShiftRightImm(scratch, scratch, Operand(1), SetRC);
-  __ beq(&loop_end, cr0);
-  __ fmul(double_scratch, double_scratch, double_scratch);
-  __ b(&while_true);
-  __ bind(&loop_end);
-
-  __ cmpi(exponent, Operand::Zero());
-  __ bge(&done);
-
-  __ li(scratch2, Operand(1));
-  __ ConvertIntToDouble(scratch2, double_scratch);
-  __ fdiv(double_result, double_scratch, double_result);
-  // Test whether result is zero.  Bail out to check for subnormal result.
-  // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
-  __ fcmpu(double_result, kDoubleRegZero);
-  __ bne(&done);
-  // double_exponent may not containe the exponent value if the input was a
-  // smi.  We set it with exponent value before bailing out.
-  __ ConvertIntToDouble(exponent, double_exponent);
-
-  // Returning or bailing out.
-  __ mflr(r0);
-  __ push(r0);
-  {
-    AllowExternalCallThatCantCauseGC scope(masm);
-    __ PrepareCallCFunction(0, 2, scratch);
-    __ MovToFloatParameters(double_base, double_exponent);
-    __ CallCFunction(
-        ExternalReference::power_double_double_function(isolate()), 0, 2);
-  }
-  __ pop(r0);
-  __ mtlr(r0);
-  __ MovFromFloatResult(double_result);
-
-  __ bind(&done);
-  __ Ret();
-}
-
-Movability CEntryStub::NeedsImmovableCode() { return kImmovable; }
-
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
-  CEntryStub::GenerateAheadOfTime(isolate);
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
 }
-
-
-void CodeStub::GenerateFPStubs(Isolate* isolate) {
-  // Generate if not already in cache.
-  SaveFPRegsMode mode = kSaveFPRegs;
-  CEntryStub(isolate, 1, mode).GetCode();
-}
-
-
-void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
-  CEntryStub stub(isolate, 1, kDontSaveFPRegs);
-  stub.GetCode();
-  CEntryStub save_doubles(isolate, 1, kSaveFPRegs);
-  save_doubles.GetCode();
-}
-
-
-void CEntryStub::Generate(MacroAssembler* masm) {
-  // Called from JavaScript; parameters are on stack as if calling JS function.
-  // r3: number of arguments including receiver
-  // r4: pointer to builtin function
-  // fp: frame pointer  (restored after C call)
-  // sp: stack pointer  (restored as callee's sp after C call)
-  // cp: current context  (C callee-saved)
-  //
-  // If argv_in_register():
-  // r5: pointer to the first argument
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
-  __ mr(r15, r4);
-
-  if (argv_in_register()) {
-    // Move argv into the correct register.
-    __ mr(r4, r5);
-  } else {
-    // Compute the argv pointer.
-    __ ShiftLeftImm(r4, r3, Operand(kPointerSizeLog2));
-    __ add(r4, r4, sp);
-    __ subi(r4, r4, Operand(kPointerSize));
-  }
-
-  // Enter the exit frame that transitions from JavaScript to C++.
-  FrameScope scope(masm, StackFrame::MANUAL);
-
-  // Need at least one extra slot for return address location.
-  int arg_stack_space = 1;
-
-  // Pass buffer for return value on stack if necessary
-  bool needs_return_buffer =
-      (result_size() == 2 && !ABI_RETURNS_OBJECT_PAIRS_IN_REGS);
-  if (needs_return_buffer) {
-    arg_stack_space += result_size();
-  }
-
-  __ EnterExitFrame(save_doubles(), arg_stack_space, is_builtin_exit()
-                                           ? StackFrame::BUILTIN_EXIT
-                                           : StackFrame::EXIT);
-
-  // Store a copy of argc in callee-saved registers for later.
-  __ mr(r14, r3);
-
-  // r3, r14: number of arguments including receiver  (C callee-saved)
-  // r4: pointer to the first argument
-  // r15: pointer to builtin function  (C callee-saved)
-
-  // Result returned in registers or stack, depending on result size and ABI.
-
-  Register isolate_reg = r5;
-  if (needs_return_buffer) {
-    // The return value is a non-scalar value.
-    // Use frame storage reserved by calling function to pass return
-    // buffer as implicit first argument.
-    __ mr(r5, r4);
-    __ mr(r4, r3);
-    __ addi(r3, sp, Operand((kStackFrameExtraParamSlot + 1) * kPointerSize));
-    isolate_reg = r6;
-  }
-
-  // Call C built-in.
-  __ mov(isolate_reg, Operand(ExternalReference::isolate_address(isolate())));
-
-  Register target = r15;
-  if (ABI_USES_FUNCTION_DESCRIPTORS) {
-    // AIX/PPC64BE Linux use a function descriptor.
-    __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(r15, kPointerSize));
-    __ LoadP(ip, MemOperand(r15, 0));  // Instruction address
-    target = ip;
-  } else if (ABI_CALL_VIA_IP) {
-    __ Move(ip, r15);
-    target = ip;
-  }
-
-  // To let the GC traverse the return address of the exit frames, we need to
-  // know where the return address is. The CEntryStub is unmovable, so
-  // we can store the address on the stack to be able to find it again and
-  // we never have to restore it, because it will not change.
-  Label after_call;
-  __ mov_label_addr(r0, &after_call);
-  __ StoreP(r0, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
-  __ Call(target);
-  __ bind(&after_call);
-
-  // If return value is on the stack, pop it to registers.
-  if (needs_return_buffer) {
-    __ LoadP(r4, MemOperand(r3, kPointerSize));
-    __ LoadP(r3, MemOperand(r3));
-  }
-
-  // Check result for exception sentinel.
-  Label exception_returned;
-  __ CompareRoot(r3, Heap::kExceptionRootIndex);
-  __ beq(&exception_returned);
-
-  // Check that there is no pending exception, otherwise we
-  // should have returned the exception sentinel.
-  if (FLAG_debug_code) {
-    Label okay;
-    ExternalReference pending_exception_address(
-        IsolateAddressId::kPendingExceptionAddress, isolate());
-
-    __ mov(r6, Operand(pending_exception_address));
-    __ LoadP(r6, MemOperand(r6));
-    __ CompareRoot(r6, Heap::kTheHoleValueRootIndex);
-    // Cannot use check here as it attempts to generate call into runtime.
-    __ beq(&okay);
-    __ stop("Unexpected pending exception");
-    __ bind(&okay);
-  }
-
-  // Exit C frame and return.
-  // r3:r4: result
-  // sp: stack pointer
-  // fp: frame pointer
-  Register argc = argv_in_register()
-                      // We don't want to pop arguments so set argc to no_reg.
-                      ? no_reg
-                      // r14: still holds argc (callee-saved).
-                      : r14;
-  __ LeaveExitFrame(save_doubles(), argc);
-  __ blr();
-
-  // Handling of exception.
-  __ bind(&exception_returned);
-
-  ExternalReference pending_handler_context_address(
-      IsolateAddressId::kPendingHandlerContextAddress, isolate());
-  ExternalReference pending_handler_entrypoint_address(
-      IsolateAddressId::kPendingHandlerEntrypointAddress, isolate());
-  ExternalReference pending_handler_constant_pool_address(
-      IsolateAddressId::kPendingHandlerConstantPoolAddress, isolate());
-  ExternalReference pending_handler_fp_address(
-      IsolateAddressId::kPendingHandlerFPAddress, isolate());
-  ExternalReference pending_handler_sp_address(
-      IsolateAddressId::kPendingHandlerSPAddress, isolate());
-
-  // Ask the runtime for help to determine the handler. This will set r3 to
-  // contain the current pending exception, don't clobber it.
-  ExternalReference find_handler(Runtime::kUnwindAndFindExceptionHandler,
-                                 isolate());
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(3, 0, r3);
-    __ li(r3, Operand::Zero());
-    __ li(r4, Operand::Zero());
-    __ mov(r5, Operand(ExternalReference::isolate_address(isolate())));
-    __ CallCFunction(find_handler, 3);
-  }
-
-  // Retrieve the handler context, SP and FP.
-  __ mov(cp, Operand(pending_handler_context_address));
-  __ LoadP(cp, MemOperand(cp));
-  __ mov(sp, Operand(pending_handler_sp_address));
-  __ LoadP(sp, MemOperand(sp));
-  __ mov(fp, Operand(pending_handler_fp_address));
-  __ LoadP(fp, MemOperand(fp));
-
-  // If the handler is a JS frame, restore the context to the frame. Note that
-  // the context will be set to (cp == 0) for non-JS frames.
-  Label skip;
-  __ cmpi(cp, Operand::Zero());
-  __ beq(&skip);
-  __ StoreP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ bind(&skip);
-
-  // Reset the masking register.
-  if (FLAG_branch_load_poisoning) {
-    __ ResetSpeculationPoisonRegister();
-  }
-
-  // Compute the handler entry address and jump to it.
-  ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-  __ mov(ip, Operand(pending_handler_entrypoint_address));
-  __ LoadP(ip, MemOperand(ip));
-  if (FLAG_enable_embedded_constant_pool) {
-    __ mov(kConstantPoolRegister,
-           Operand(pending_handler_constant_pool_address));
-    __ LoadP(kConstantPoolRegister, MemOperand(kConstantPoolRegister));
-  }
-  __ Jump(ip);
-}
-
 
 void JSEntryStub::Generate(MacroAssembler* masm) {
   // r3: code entry
@@ -466,22 +53,25 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 // Called from C
   __ function_descriptor();
 
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+  {
+    NoRootArrayScope no_root_array(masm);
+    ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-  // PPC LINUX ABI:
-  // preserve LR in pre-reserved slot in caller's frame
-  __ mflr(r0);
-  __ StoreP(r0, MemOperand(sp, kStackFrameLRSlot * kPointerSize));
+    // PPC LINUX ABI:
+    // preserve LR in pre-reserved slot in caller's frame
+    __ mflr(r0);
+    __ StoreP(r0, MemOperand(sp, kStackFrameLRSlot * kPointerSize));
 
-  // Save callee saved registers on the stack.
-  __ MultiPush(kCalleeSaved);
+    // Save callee saved registers on the stack.
+    __ MultiPush(kCalleeSaved);
 
-  // Save callee-saved double registers.
-  __ MultiPushDoubles(kCalleeSavedDoubles);
-  // Set up the reserved register for 0.0.
-  __ LoadDoubleLiteral(kDoubleRegZero, Double(0.0), r0);
+    // Save callee-saved double registers.
+    __ MultiPushDoubles(kCalleeSavedDoubles);
+    // Set up the reserved register for 0.0.
+    __ LoadDoubleLiteral(kDoubleRegZero, Double(0.0), r0);
 
-  __ InitializeRootRegister();
+    __ InitializeRootRegister();
+  }
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r3: code entry
@@ -500,8 +90,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ push(r0);
   __ push(r0);
   // Save copies of the top frame descriptor on the stack.
-  __ mov(r8, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
-                                       isolate())));
+  __ mov(r8, Operand(ExternalReference::Create(
+                 IsolateAddressId::kCEntryFPAddress, isolate())));
   __ LoadP(r0, MemOperand(r8));
   __ push(r0);
 
@@ -510,8 +100,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
-  ExternalReference js_entry_sp(IsolateAddressId::kJSEntrySPAddress, isolate());
-  __ mov(r8, Operand(ExternalReference(js_entry_sp)));
+  ExternalReference js_entry_sp =
+      ExternalReference::Create(IsolateAddressId::kJSEntrySPAddress, isolate());
+  __ mov(r8, Operand(js_entry_sp));
   __ LoadP(r9, MemOperand(r8));
   __ cmpi(r9, Operand::Zero());
   __ bne(&non_outermost_js);
@@ -534,7 +125,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // field in the JSEnv and return a failure sentinel.  Coming in here the
   // fp will be invalid because the PushStackHandler below sets it to 0 to
   // signal the existence of the JSEntry frame.
-  __ mov(ip, Operand(ExternalReference(
+  __ mov(ip, Operand(ExternalReference::Create(
                  IsolateAddressId::kPendingExceptionAddress, isolate())));
 
   __ StoreP(r3, MemOperand(ip));
@@ -572,14 +163,14 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ cmpi(r8, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ bne(&non_outermost_js_2);
   __ mov(r9, Operand::Zero());
-  __ mov(r8, Operand(ExternalReference(js_entry_sp)));
+  __ mov(r8, Operand(js_entry_sp));
   __ StoreP(r9, MemOperand(r8));
   __ bind(&non_outermost_js_2);
 
   // Restore the top frame descriptors from the stack.
   __ pop(r6);
-  __ mov(ip, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
-                                       isolate())));
+  __ mov(ip, Operand(ExternalReference::Create(
+                 IsolateAddressId::kCEntryFPAddress, isolate())));
   __ StoreP(r6, MemOperand(ip));
 
   // Reset the stack to the callee saved registers.
@@ -700,8 +291,8 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // Under the simulator we need to indirect the entry hook through a
   // trampoline function at a known address.
   ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
-  ExternalReference entry_hook = ExternalReference(
-      &dispatcher, ExternalReference::BUILTIN_CALL, isolate());
+  ExternalReference entry_hook =
+      ExternalReference::Create(&dispatcher, ExternalReference::BUILTIN_CALL);
 
   // It additionally takes an isolate as a third parameter
   __ mov(r5, Operand(ExternalReference::isolate_address(isolate())));
@@ -930,7 +521,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ StorePX(r4, MemOperand(sp, r0));
   __ addi(r3, r3, Operand(3));
   __ Push(r6, r5);
-  __ JumpToExternalReference(ExternalReference(Runtime::kNewArray, isolate()));
+  __ JumpToExternalReference(ExternalReference::Create(Runtime::kNewArray));
 }
 
 
@@ -1071,8 +662,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, r3);
     __ mov(r3, Operand(ExternalReference::isolate_address(isolate)));
-    __ CallCFunction(ExternalReference::log_enter_external_function(isolate),
-                     1);
+    __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
     __ PopSafepointRegisters();
   }
 
@@ -1087,8 +677,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, r3);
     __ mov(r3, Operand(ExternalReference::isolate_address(isolate)));
-    __ CallCFunction(ExternalReference::log_leave_external_function(isolate),
-                     1);
+    __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
     __ PopSafepointRegisters();
   }
 
@@ -1143,8 +732,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ mr(r14, r3);
   __ PrepareCallCFunction(1, r15);
   __ mov(r3, Operand(ExternalReference::isolate_address(isolate)));
-  __ CallCFunction(ExternalReference::delete_handle_scope_extensions(isolate),
-                   1);
+  __ CallCFunction(ExternalReference::delete_handle_scope_extensions(), 1);
   __ mr(r3, r14);
   __ b(&leave_exit_frame);
 }
@@ -1224,8 +812,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ li(ip, Operand(argc()));
   __ stw(ip, MemOperand(r3, 2 * kPointerSize));
 
-  ExternalReference thunk_ref =
-      ExternalReference::invoke_function_callback(masm->isolate());
+  ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
 
   AllowExternalCallThatCantCauseGC scope(masm);
   // Stores return the first js argument
@@ -1317,7 +904,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // r4 = v8::PropertyCallbackInfo&
 
   ExternalReference thunk_ref =
-      ExternalReference::invoke_accessor_getter_callback(isolate());
+      ExternalReference::invoke_accessor_getter_callback();
 
   __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
   __ LoadP(api_function_address,

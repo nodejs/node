@@ -265,6 +265,7 @@ class HeapObjectsMap {
   };
 
   SnapshotObjectId next_id_;
+  // TODO(jkummerow): Use a map that uses {Address} as the key type.
   base::HashMap entries_map_;
   std::vector<EntryInfo> entries_;
   std::vector<TimeInterval> time_intervals_;
@@ -395,7 +396,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractFixedArrayReferences(int entry, FixedArray* array);
   void ExtractFeedbackVectorReferences(int entry,
                                        FeedbackVector* feedback_vector);
-  void ExtractWeakFixedArrayReferences(int entry, WeakFixedArray* array);
+  template <typename T>
+  void ExtractWeakArrayReferences(int header_size, int entry, T* array);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
   void ExtractAccessorPairProperty(JSObject* js_obj, int entry, Name* key,
                                    Object* callback_obj, int field_offset = -1);
@@ -505,18 +507,17 @@ class NativeObjectsExplorer {
                                       v8::RetainedObjectInfo* info);
   void VisitSubtreeWrapper(Object** p, uint16_t class_id);
 
-  static uint32_t InfoHash(v8::RetainedObjectInfo* info) {
-    return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()));
-  }
-  static bool RetainedInfosMatch(void* key1, void* key2) {
-    return key1 == key2 ||
-        (reinterpret_cast<v8::RetainedObjectInfo*>(key1))->IsEquivalent(
-            reinterpret_cast<v8::RetainedObjectInfo*>(key2));
-  }
-  INLINE(static bool StringsMatch(void* key1, void* key2)) {
-    return strcmp(reinterpret_cast<char*>(key1),
-                  reinterpret_cast<char*>(key2)) == 0;
-  }
+  struct RetainedInfoHasher {
+    std::size_t operator()(v8::RetainedObjectInfo* info) const {
+      return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()));
+    }
+  };
+  struct RetainedInfoEquals {
+    bool operator()(v8::RetainedObjectInfo* info1,
+                    v8::RetainedObjectInfo* info2) const {
+      return info1 == info2 || info1->IsEquivalent(info2);
+    }
+  };
 
   NativeGroupRetainedObjectInfo* FindOrAddGroupInfo(const char* label);
 
@@ -527,9 +528,12 @@ class NativeObjectsExplorer {
   StringsStorage* names_;
   bool embedder_queried_;
   HeapObjectsSet in_groups_;
-  // RetainedObjectInfo* -> std::vector<HeapObject*>*
-  base::CustomMatcherHashMap objects_by_info_;
-  base::CustomMatcherHashMap native_groups_;
+  std::unordered_map<v8::RetainedObjectInfo*, std::vector<HeapObject*>*,
+                     RetainedInfoHasher, RetainedInfoEquals>
+      objects_by_info_;
+  std::unordered_map<const char*, NativeGroupRetainedObjectInfo*,
+                     SeededStringHasher, StringEquals>
+      native_groups_;
   std::unique_ptr<HeapEntriesAllocator> synthetic_entries_allocator_;
   std::unique_ptr<HeapEntriesAllocator> native_entries_allocator_;
   std::unique_ptr<HeapEntriesAllocator> embedder_graph_entries_allocator_;

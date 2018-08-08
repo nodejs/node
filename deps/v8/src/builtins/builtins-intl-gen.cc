@@ -57,8 +57,8 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
     TNode<IntPtrT> const end_address =
         Signed(IntPtrAdd(start_address, SmiUntag(length)));
 
-    Node* const to_lower_table_addr = ExternalConstant(
-        ExternalReference::intl_to_latin1_lower_table(isolate()));
+    Node* const to_lower_table_addr =
+        ExternalConstant(ExternalReference::intl_to_latin1_lower_table());
 
     VARIABLE(var_did_change, MachineRepresentation::kWord32, Int32Constant(0));
 
@@ -93,8 +93,8 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   {
     Node* const src = to_direct.string();
 
-    Node* const function_addr = ExternalConstant(
-        ExternalReference::intl_convert_one_byte_to_lower(isolate()));
+    Node* const function_addr =
+        ExternalConstant(ExternalReference::intl_convert_one_byte_to_lower());
     Node* const isolate_ptr =
         ExternalConstant(ExternalReference::isolate_address(isolate()));
 

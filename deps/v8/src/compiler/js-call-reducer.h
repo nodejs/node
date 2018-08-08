@@ -69,6 +69,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceObjectPrototypeGetProto(Node* node);
   Reduction ReduceObjectPrototypeHasOwnProperty(Node* node);
   Reduction ReduceObjectPrototypeIsPrototypeOf(Node* node);
+  Reduction ReduceObjectCreate(Node* node);
   Reduction ReduceReflectApply(Node* node);
   Reduction ReduceReflectConstruct(Node* node);
   Reduction ReduceReflectGet(Node* node);
@@ -91,6 +92,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayPrototypePush(Node* node);
   Reduction ReduceArrayPrototypePop(Node* node);
   Reduction ReduceArrayPrototypeShift(Node* node);
+  Reduction ReduceArrayIsArray(Node* node);
   enum class ArrayIteratorKind { kArray, kTypedArray };
   Reduction ReduceArrayIterator(Node* node, IterationKind kind);
   Reduction ReduceArrayIteratorPrototypeNext(Node* node);
@@ -156,6 +158,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberIsSafeInteger(Node* node);
   Reduction ReduceNumberIsNaN(Node* node);
 
+  Reduction ReduceGlobalIsFinite(Node* node);
+  Reduction ReduceGlobalIsNaN(Node* node);
+
   Reduction ReduceMapPrototypeHas(Node* node);
   Reduction ReduceMapPrototypeGet(Node* node);
   Reduction ReduceCollectionIteration(Node* node,
@@ -172,6 +177,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayBufferViewAccessor(Node* node,
                                           InstanceType instance_type,
                                           FieldAccess const& access);
+
+  Reduction ReduceDatePrototypeGetTime(Node* node);
+  Reduction ReduceDateNow(Node* node);
+  Reduction ReduceNumberParseInt(Node* node);
 
   // Returns the updated {to} node, and updates control and effect along the
   // way.

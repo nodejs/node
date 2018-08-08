@@ -3188,9 +3188,7 @@ TEST(EmbedderGraphWithPrefix) {
   CHECK(node);
 }
 
-static inline i::Address ToAddress(int n) {
-  return reinterpret_cast<i::Address>(n);
-}
+static inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }
 
 TEST(AddressToTraceMap) {
   i::AddressToTraceMap map;
@@ -3274,6 +3272,14 @@ static void CheckNoZeroCountNodes(v8::AllocationProfile::Node* node) {
   }
 }
 
+static int NumberOfAllocations(const v8::AllocationProfile::Node* node) {
+  int count = 0;
+  for (auto allocation : node->allocations) {
+    count += allocation.count;
+  }
+  return count;
+}
+
 static const char* simple_sampling_heap_profiler_script =
     "var A = [];\n"
     "function bar(size) { return new Array(size); }\n"
@@ -3314,12 +3320,6 @@ TEST(SamplingHeapProfiler) {
     auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
                                               ArrayVector(names));
     CHECK(node_bar);
-
-    // Count the number of allocations we sampled from bar.
-    int count_1024 = 0;
-    for (auto allocation : node_bar->allocations) {
-      count_1024 += allocation.count;
-    }
 
     heap_profiler->StopSamplingHeapProfiler();
   }
@@ -3397,15 +3397,17 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
         heap_profiler->GetAllocationProfile());
     CHECK(profile);
 
-    const char* names[] = {"", "foo", "bar"};
+    const char* path_to_foo[] = {"", "foo"};
+    auto node_foo = FindAllocationProfileNode(env->GetIsolate(), *profile,
+                                              ArrayVector(path_to_foo));
+    CHECK(node_foo);
+    const char* path_to_bar[] = {"", "foo", "bar"};
     auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
-                                              ArrayVector(names));
+                                              ArrayVector(path_to_bar));
     CHECK(node_bar);
 
-    // Count the number of allocations we sampled from bar.
-    for (auto allocation : node_bar->allocations) {
-      count_1024 += allocation.count;
-    }
+    // Function bar can be inlined in foo.
+    count_1024 = NumberOfAllocations(node_foo) + NumberOfAllocations(node_bar);
 
     heap_profiler->StopSamplingHeapProfiler();
   }
@@ -3419,16 +3421,18 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
         heap_profiler->GetAllocationProfile());
     CHECK(profile);
 
-    const char* names[] = {"", "foo", "bar"};
+    const char* path_to_foo[] = {"", "foo"};
+    auto node_foo = FindAllocationProfileNode(env->GetIsolate(), *profile,
+                                              ArrayVector(path_to_foo));
+    CHECK(node_foo);
+    const char* path_to_bar[] = {"", "foo", "bar"};
     auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
-                                              ArrayVector(names));
+                                              ArrayVector(path_to_bar));
     CHECK(node_bar);
 
-    // Count the number of allocations we sampled from bar.
-    int count_128 = 0;
-    for (auto allocation : node_bar->allocations) {
-      count_128 += allocation.count;
-    }
+    // Function bar can be inlined in foo.
+    int count_128 =
+        NumberOfAllocations(node_foo) + NumberOfAllocations(node_bar);
 
     // We should have similar unsampled counts of allocations. Though
     // we will sample different numbers of objects at different rates,
@@ -3439,7 +3443,7 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
     double max_count = std::max(count_128, count_1024);
     double min_count = std::min(count_128, count_1024);
     double percent_difference = (max_count - min_count) / min_count;
-    CHECK_LT(percent_difference, 0.15);
+    CHECK_LT(percent_difference, 0.1);
 
     heap_profiler->StopSamplingHeapProfiler();
   }

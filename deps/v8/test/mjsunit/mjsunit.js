@@ -135,7 +135,15 @@ var assertContains;
 // Assert that a string matches a given regex.
 var assertMatches;
 
-// Assert the result of a promise.
+// Assert that a promise resolves or rejects.
+// Parameters:
+// {promise} - the promise
+// {success} - optional - a callback which is called with the result of the
+//             resolving promise.
+//  {fail} -   optional - a callback which is called with the result of the
+//             rejecting promise. If the promise is rejected but no {fail}
+//             callback is set, the error is propagated out of the promise
+//             chain.
 var assertPromiseResult;
 
 var promiseTestChain;
@@ -555,35 +563,47 @@ var prettyPrinted;
     }
   };
 
-  assertPromiseResult = function(promise, success, fail) {
-    // Use --allow-natives-syntax to use this function. Note that this function
-    // overwrites {failWithMessage} permanently with %AbortJS.
+  function concatenateErrors(stack, exception) {
+    // If the exception does not contain a stack trace, wrap it in a new Error.
+    if (!exception.stack) exception = new Error(exception);
 
-    // We have to patch mjsunit because normal assertion failures just throw
-    // exceptions which are swallowed in a then clause.
-    // We use eval here to avoid parsing issues with the natives syntax.
-    if (!success) success = () => {};
-
-    failWithMessage = (msg) => eval("%AbortJS(msg)");
-    if (!fail) {
-      fail = result => failWithMessage("assertPromiseResult failed: " + result);
+    // If the exception already provides a special stack trace, we do not modify
+    // it.
+    if (typeof exception.stack !== 'string') {
+      return exception;
     }
+    exception.stack = stack + '\n\n' + exception.stack;
+    return exception;
+  }
 
-    var test_promise =
-        promise.then(
-          result => {
-            try {
-              success(result);
-            } catch (e) {
-              failWithMessage(String(e));
-            }
-          },
-          result => {
-            fail(result);
+  assertPromiseResult = function(promise, success, fail) {
+    const stack = (new Error()).stack;
+
+    var test_promise = promise.then(
+        result => {
+          try {
+            if (--promiseTestCount == 0) testRunner.notifyDone();
+            if (success) success(result);
+          } catch (e) {
+            // Use setTimeout to throw the error again to get out of the promise
+            // chain.
+            setTimeout(_ => {
+              throw concatenateErrors(stack, e);
+            }, 0);
           }
-        )
-        .then((x)=> {
-          if (--promiseTestCount == 0) testRunner.notifyDone();
+        },
+        result => {
+          try {
+            if (--promiseTestCount == 0) testRunner.notifyDone();
+            if (!fail) throw result;
+            fail(result);
+          } catch (e) {
+            // Use setTimeout to throw the error again to get out of the promise
+            // chain.
+            setTimeout(_ => {
+              throw concatenateErrors(stack, e);
+            }, 0);
+          }
         });
 
     if (!promiseTestChain) promiseTestChain = Promise.resolve();

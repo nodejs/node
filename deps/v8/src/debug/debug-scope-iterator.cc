@@ -113,28 +113,34 @@ v8::Local<v8::Object> DebugScopeIterator::GetObject() {
 
 v8::Local<v8::Function> DebugScopeIterator::GetFunction() {
   DCHECK(!Done());
-  Handle<JSFunction> closure = iterator_.GetClosure();
+  Handle<JSFunction> closure = iterator_.GetFunction();
   if (closure.is_null()) return v8::Local<v8::Function>();
   return Utils::ToLocal(closure);
+}
+int DebugScopeIterator::GetScriptId() {
+  DCHECK(!Done());
+  return iterator_.GetScript()->id();
+}
+
+v8::Local<v8::Value> DebugScopeIterator::GetFunctionDebugName() {
+  DCHECK(!Done());
+  Handle<Object> name = iterator_.GetFunctionDebugName();
+  return Utils::ToLocal(name);
+}
+
+bool DebugScopeIterator::HasLocationInfo() {
+  return iterator_.HasPositionInfo();
 }
 
 debug::Location DebugScopeIterator::GetStartLocation() {
   DCHECK(!Done());
-  Handle<JSFunction> closure = iterator_.GetClosure();
-  if (closure.is_null()) return debug::Location();
-  Object* obj = closure->shared()->script();
-  if (!obj->IsScript()) return debug::Location();
-  return ToApiHandle<v8::debug::Script>(handle(Script::cast(obj)))
+  return ToApiHandle<v8::debug::Script>(iterator_.GetScript())
       ->GetSourceLocation(iterator_.start_position());
 }
 
 debug::Location DebugScopeIterator::GetEndLocation() {
   DCHECK(!Done());
-  Handle<JSFunction> closure = iterator_.GetClosure();
-  if (closure.is_null()) return debug::Location();
-  Object* obj = closure->shared()->script();
-  if (!obj->IsScript()) return debug::Location();
-  return ToApiHandle<v8::debug::Script>(handle(Script::cast(obj)))
+  return ToApiHandle<v8::debug::Script>(iterator_.GetScript())
       ->GetSourceLocation(iterator_.end_position());
 }
 
@@ -190,10 +196,22 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
   return v8::Local<v8::Object>();
 }
 
+int DebugWasmScopeIterator::GetScriptId() {
+  DCHECK(!Done());
+  return -1;
+}
+
 v8::Local<v8::Function> DebugWasmScopeIterator::GetFunction() {
   DCHECK(!Done());
   return v8::Local<v8::Function>();
 }
+
+v8::Local<v8::Value> DebugWasmScopeIterator::GetFunctionDebugName() {
+  DCHECK(!Done());
+  return Utils::ToLocal(isolate_->factory()->empty_string());
+}
+
+bool DebugWasmScopeIterator::HasLocationInfo() { return false; }
 
 debug::Location DebugWasmScopeIterator::GetStartLocation() {
   DCHECK(!Done());

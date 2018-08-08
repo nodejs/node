@@ -16,14 +16,14 @@ namespace internal {
 
 HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
-      names_(new StringsStorage(heap)),
+      names_(new StringsStorage(heap->HashSeed())),
       is_tracking_object_moves_(false) {}
 
 HeapProfiler::~HeapProfiler() = default;
 
 void HeapProfiler::DeleteAllSnapshots() {
   snapshots_.clear();
-  names_.reset(new StringsStorage(heap()));
+  names_.reset(new StringsStorage(heap()->HashSeed()));
 }
 
 

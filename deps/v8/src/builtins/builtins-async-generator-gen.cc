@@ -41,37 +41,39 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
     return LoadObjectField(generator, JSGeneratorObject::kContinuationOffset);
   }
 
-  inline Node* IsGeneratorStateClosed(Node* const state) {
+  inline TNode<BoolT> IsGeneratorStateClosed(SloppyTNode<Smi> const state) {
     return SmiEqual(state, SmiConstant(JSGeneratorObject::kGeneratorClosed));
   }
-  inline Node* IsGeneratorClosed(Node* const generator) {
+  inline TNode<BoolT> IsGeneratorClosed(Node* const generator) {
     return IsGeneratorStateClosed(LoadGeneratorState(generator));
   }
 
-  inline Node* IsGeneratorStateSuspended(Node* const state) {
+  inline TNode<BoolT> IsGeneratorStateSuspended(SloppyTNode<Smi> const state) {
     return SmiGreaterThanOrEqual(state, SmiConstant(0));
   }
 
-  inline Node* IsGeneratorSuspended(Node* const generator) {
+  inline TNode<BoolT> IsGeneratorSuspended(Node* const generator) {
     return IsGeneratorStateSuspended(LoadGeneratorState(generator));
   }
 
-  inline Node* IsGeneratorStateSuspendedAtStart(Node* const state) {
+  inline TNode<BoolT> IsGeneratorStateSuspendedAtStart(
+      SloppyTNode<Smi> const state) {
     return SmiEqual(state, SmiConstant(0));
   }
 
-  inline Node* IsGeneratorStateNotExecuting(Node* const state) {
+  inline TNode<BoolT> IsGeneratorStateNotExecuting(
+      SloppyTNode<Smi> const state) {
     return SmiNotEqual(state,
                        SmiConstant(JSGeneratorObject::kGeneratorExecuting));
   }
-  inline Node* IsGeneratorNotExecuting(Node* const generator) {
+  inline TNode<BoolT> IsGeneratorNotExecuting(Node* const generator) {
     return IsGeneratorStateNotExecuting(LoadGeneratorState(generator));
   }
 
-  inline Node* IsGeneratorAwaiting(Node* const generator) {
-    Node* is_generator_awaiting =
+  inline TNode<BoolT> IsGeneratorAwaiting(Node* const generator) {
+    TNode<Object> is_generator_awaiting =
         LoadObjectField(generator, JSAsyncGeneratorObject::kIsAwaitingOffset);
-    return SmiEqual(is_generator_awaiting, SmiConstant(1));
+    return WordEqual(is_generator_awaiting, SmiConstant(1));
   }
 
   inline void SetGeneratorAwaiting(Node* const generator) {
@@ -118,7 +120,7 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
     return LoadObjectField(request, AsyncGeneratorRequest::kValueOffset);
   }
 
-  inline Node* IsAbruptResumeType(Node* const resume_type) {
+  inline TNode<BoolT> IsAbruptResumeType(SloppyTNode<Smi> const resume_type) {
     return SmiNotEqual(resume_type, SmiConstant(JSGeneratorObject::kNext));
   }
 
@@ -174,7 +176,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
     // If state is not "executing", then
     //     Perform AsyncGeneratorResumeNext(Generator)
     // Check if the {receiver} is running or already closed.
-    Node* continuation = LoadGeneratorState(generator);
+    TNode<Smi> continuation = CAST(LoadGeneratorState(generator));
 
     GotoIf(SmiEqual(continuation,
                     SmiConstant(JSAsyncGeneratorObject::kGeneratorExecuting)),
@@ -430,7 +432,8 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
   ReturnIf(IsUndefined(var_next.value()), UndefinedConstant());
 
   Node* const next = var_next.value();
-  Node* const resume_type = LoadResumeTypeFromAsyncGeneratorRequest(next);
+  TNode<Smi> const resume_type =
+      CAST(LoadResumeTypeFromAsyncGeneratorRequest(next));
 
   Label if_abrupt(this), if_normal(this), resume_generator(this);
   Branch(IsAbruptResumeType(resume_type), &if_abrupt, &if_normal);

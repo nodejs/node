@@ -43,12 +43,6 @@
       'x64.optdebug': 'default_optdebug_x64',
       'x64.release': 'default_release_x64',
     },
-
-    'client.dart.fyi': {
-      'v8-linux-release': 'release_x86_disassembler',
-      'v8-win-release': 'release_x86_disassembler',
-      'v8-mac-release': 'release_x86_disassembler',
-    },
     'client.dynamorio': {
       'linux-v8-dr': 'release_x64',
     },
@@ -110,37 +104,39 @@
       'V8 Random Deopt Fuzzer - debug': 'debug_x64',
     },
     'client.v8.clusterfuzz': {
-      'V8 Win64 ASAN - release builder':
+      'V8 Clusterfuzz Win64 ASAN - release builder':
         'release_x64_asan_no_lsan_verify_heap',
       # Note this is called a debug builder, but it uses a release build
       # configuration with dchecks (which enables DEBUG in V8), since win-asan
       # debug is not supported.
-      'V8 Win64 ASAN - debug builder':
+      'V8 Clusterfuzz Win64 ASAN - debug builder':
         'release_x64_asan_no_lsan_verify_heap_dchecks',
-      'V8 Mac64 ASAN - release builder':
+      'V8 Clusterfuzz Mac64 ASAN - release builder':
           'release_x64_asan_no_lsan_edge_verify_heap',
-      'V8 Mac64 ASAN - debug builder':
+      'V8 Clusterfuzz Mac64 ASAN - debug builder':
           'debug_x64_asan_no_lsan_static_edge',
-      'V8 Linux64 - release builder': 'release_x64_correctness_fuzzer',
-      'V8 Linux64 - debug builder': 'debug_x64',
-      'V8 Linux64 - nosnap release builder': 'release_x64_no_snap',
-      'V8 Linux64 - nosnap debug builder': 'debug_x64_no_snap',
-      'V8 Linux64 ASAN no inline - release builder':
+      'V8 Clusterfuzz Linux64 - release builder':
+          'release_x64_correctness_fuzzer',
+      'V8 Clusterfuzz Linux64 - debug builder': 'debug_x64',
+      'V8 Clusterfuzz Linux64 - nosnap release builder': 'release_x64_no_snap',
+      'V8 Clusterfuzz Linux64 - nosnap debug builder': 'debug_x64_no_snap',
+      'V8 Clusterfuzz Linux64 ASAN no inline - release builder':
           'release_x64_asan_symbolized_edge_verify_heap',
-      'V8 Linux64 ASAN - debug builder': 'debug_x64_asan_edge',
-      'V8 Linux64 ASAN arm64 - debug builder':
+      'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan_edge',
+      'V8 Clusterfuzz Linux64 ASAN arm64 - debug builder':
           'debug_simulate_arm64_asan_edge',
-      'V8 Linux ASAN arm - debug builder':
+      'V8 Clusterfuzz Linux ASAN arm - debug builder':
           'debug_simulate_arm_asan_edge',
-      'V8 Linux ASAN mipsel - debug builder':
+      'V8 Clusterfuzz Linux ASAN mipsel - debug builder':
           'debug_simulate_mipsel_asan_edge',
-      'V8 Linux64 CFI - release builder': 'release_x64_cfi_clusterfuzz',
-      'V8 Linux MSAN no origins':
+      'V8 Clusterfuzz Linux64 CFI - release builder':
+          'release_x64_cfi_clusterfuzz',
+      'V8 Clusterfuzz Linux MSAN no origins':
           'release_simulate_arm64_msan_no_origins_edge',
-      'V8 Linux MSAN chained origins':
+      'V8 Clusterfuzz Linux MSAN chained origins':
           'release_simulate_arm64_msan_edge',
-      'V8 Linux64 TSAN - release builder': 'release_x64_tsan',
-      'V8 Linux64 UBSanVptr - release builder':
+      'V8 Clusterfuzz Linux64 TSAN - release builder': 'release_x64_tsan',
+      'V8 Clusterfuzz Linux64 UBSanVptr - release builder':
           'release_x64_ubsan_vptr_recover_edge',
     },
     'client.v8.ports': {
@@ -207,6 +203,7 @@
       'v8_linux_gcc_compile_rel': 'release_x86_gcc_minimal_symbols',
       'v8_linux_gcc_rel': 'release_x86_gcc_minimal_symbols',
       'v8_linux_shared_compile_rel': 'release_x86_shared_verify_heap',
+      'v8_linux64_dbg_ng': 'debug_x64_trybot',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
@@ -238,6 +235,7 @@
       'v8_mac64_dbg': 'debug_x64',
       'v8_mac64_dbg_ng': 'debug_x64',
       'v8_mac64_asan_rel': 'release_x64_asan_no_lsan',
+      'v8_mips_compile_rel': 'release_mips_no_snap_no_i18n',
       'v8_linux_arm_rel_ng': 'release_simulate_arm_trybot',
       'v8_linux_arm_dbg': 'debug_simulate_arm',
       'v8_linux_arm_armv8a_rel': 'release_simulate_arm_trybot',
@@ -417,7 +415,7 @@
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc_coverage': [
-      'release_bot', 'x64', 'coverage', 'gcc'],
+      'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx', 'no_sysroot'],
     'release_x64_internal': [
       'release_bot', 'x64', 'v8_enable_embedded_builtins',
       'v8_snapshot_internal'],
@@ -503,8 +501,6 @@
     # Release configs for x86.
     'release_x86': [
       'release_bot', 'x86'],
-    'release_x86_disassembler': [
-      'release_bot', 'x86', 'v8_enable_disassembler'],
     'release_x86_gcc': [
       'release_bot', 'x86', 'gcc'],
     'release_x86_gcc_minimal_symbols': [
@@ -566,14 +562,14 @@
 
     'cfi': {
       'mixins': ['v8_enable_test_features'],
-      'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_diag=true '
-                  'use_cfi_recover=false'),
+      'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_icall=true '
+                  'use_cfi_diag=true use_cfi_recover=false'),
     },
 
     'cfi_clusterfuzz': {
       'mixins': ['v8_enable_test_features'],
-      'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_diag=true '
-                  'use_cfi_recover=true'),
+      'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_icall=true '
+                  'use_cfi_diag=true use_cfi_recover=true'),
     },
 
     'clang': {
@@ -669,6 +665,10 @@
       'gn_args': 'is_clang=false',
     },
 
+    'no_custom_libcxx': {
+      'gn_args': 'use_custom_libcxx=false',
+    },
+
     'no_sysroot': {
       'gn_args': 'use_sysroot=false',
     },
@@ -761,10 +761,6 @@
     'v8_correctness_fuzzer': {
       'mixins': ['v8_enable_test_features'],
       'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
-    },
-
-    'v8_enable_disassembler': {
-      'gn_args': 'v8_enable_disassembler=true',
     },
 
     'v8_enable_embedded_builtins': {

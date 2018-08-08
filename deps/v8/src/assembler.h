@@ -40,6 +40,7 @@
 #include <map>
 
 #include "src/allocation.h"
+#include "src/code-reference.h"
 #include "src/contexts.h"
 #include "src/deoptimize-reason.h"
 #include "src/double.h"
@@ -98,7 +99,7 @@ class AssemblerBase: public Malloced {
     IsolateData(const IsolateData&) = default;
 
     bool serializer_enabled_;
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
     Address code_range_start_;
 #endif
   };
@@ -162,6 +163,9 @@ class AssemblerBase: public Malloced {
   static const int kMinimalBufferSize = 4*KB;
 
   static void FlushICache(void* start, size_t size);
+  static void FlushICache(Address start, size_t size) {
+    return FlushICache(reinterpret_cast<void*>(start), size);
+  }
 
  protected:
   // The buffer into which code and relocation info are generated. It could
@@ -180,6 +184,7 @@ class AssemblerBase: public Malloced {
   }
 
   // The program counter, which points into the buffer above and moves forward.
+  // TODO(jkummerow): This should probably have type {Address}.
   byte* pc_;
 
  private:
@@ -315,11 +320,6 @@ class CpuFeatures : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
-
-enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
-
-enum ArgvMode { kArgvOnStack, kArgvInRegister };
-
 // Specifies whether to perform icache flush operations on RelocInfo updates.
 // If FLUSH_ICACHE_IF_NEEDED, the icache will always be flushed if an
 // instruction was modified. If SKIP_ICACHE_FLUSH the flush will always be
@@ -414,7 +414,7 @@ class RelocInfo {
 
   RelocInfo() = default;
 
-  RelocInfo(byte* pc, Mode rmode, intptr_t data, Code* host)
+  RelocInfo(Address pc, Mode rmode, intptr_t data, Code* host)
       : pc_(pc), rmode_(rmode), data_(data), host_(host) {}
 
   static inline bool IsRealRelocMode(Mode mode) {
@@ -476,8 +476,7 @@ class RelocInfo {
   static constexpr int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
-  byte* pc() const { return pc_; }
-  void set_pc(byte* pc) { pc_ = pc; }
+  Address pc() const { return pc_; }
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
   Code* host() const { return host_; }
@@ -613,15 +612,13 @@ class RelocInfo {
   uint32_t embedded_size() const;
   Address embedded_address() const;
 
-  // On ARM, note that pc_ is the address of the constant pool entry
-  // to be relocated and not the address of the instruction
-  // referencing the constant pool entry (except when rmode_ ==
-  // comment).
-  byte* pc_;
+  // On ARM/ARM64, note that pc_ is the address of the instruction referencing
+  // the constant pool and not the address of the constant pool entry.
+  Address pc_;
   Mode rmode_;
   intptr_t data_ = 0;
   Code* host_;
-  Address constant_pool_ = nullptr;
+  Address constant_pool_ = kNullAddress;
   Flags flags_;
   friend class RelocIterator;
 };
@@ -683,6 +680,8 @@ class RelocIterator: public Malloced {
   // iteration iff bit k of mode_mask is set.
   explicit RelocIterator(Code* code, int mode_mask = -1);
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
+  explicit RelocIterator(const CodeReference code_reference,
+                         int mode_mask = -1);
   explicit RelocIterator(Vector<byte> instructions,
                          Vector<const byte> reloc_info, Address const_pool,
                          int mode_mask = -1);
@@ -700,6 +699,9 @@ class RelocIterator: public Malloced {
   }
 
  private:
+  RelocIterator(Code* host, Address pc, Address constant_pool, const byte* pos,
+                const byte* end, int mode_mask);
+
   // Advance* moves the position before/after reading.
   // *Read* reads from current byte(s) into rinfo_.
   // *Get* just reads and returns info on current byte.
@@ -958,8 +960,8 @@ class RegisterBase {
   }
 
   template <RegisterCode reg_code>
-  static constexpr int bit() {
-    return 1 << code<reg_code>();
+  static constexpr RegList bit() {
+    return RegList{1} << code<reg_code>();
   }
 
   static SubType from_code(int code) {
@@ -968,9 +970,16 @@ class RegisterBase {
     return SubType{code};
   }
 
+  // Constexpr version (pass registers as template parameters).
   template <RegisterCode... reg_codes>
   static constexpr RegList ListOf() {
     return CombineRegLists(RegisterBase::bit<reg_codes>()...);
+  }
+
+  // Non-constexpr version (pass registers as method parameters).
+  template <typename... Register>
+  static RegList ListOf(Register... regs) {
+    return CombineRegLists(regs.bit()...);
   }
 
   bool is_valid() const { return reg_code_ != kCode_no_reg; }
@@ -980,7 +989,7 @@ class RegisterBase {
     return reg_code_;
   }
 
-  int bit() const { return 1 << code(); }
+  RegList bit() const { return RegList{1} << code(); }
 
   inline constexpr bool operator==(SubType other) const {
     return reg_code_ == other.reg_code_;

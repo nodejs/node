@@ -23,6 +23,10 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
   BAILOUT("PatchPrepareStackFrame");
 }
 
+void LiftoffAssembler::FinishCode() { CheckConstPool(true, false); }
+
+void LiftoffAssembler::AbortCompilation() { FinishCode(); }
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   BAILOUT("LoadConstant");
@@ -44,15 +48,26 @@ void LiftoffAssembler::FillInstanceInto(Register dst) {
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
-                            uint32_t* protected_load_pc) {
+                            uint32_t* protected_load_pc, bool is_load_mem) {
   BAILOUT("Load");
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
-                             uint32_t* protected_store_pc) {
+                             uint32_t* protected_store_pc, bool is_store_mem) {
   BAILOUT("Store");
+}
+
+void LiftoffAssembler::ChangeEndiannessLoad(LiftoffRegister dst, LoadType type,
+                                            LiftoffRegList pinned) {
+  BAILOUT("ChangeEndiannessLoad");
+}
+
+void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
+                                             StoreType type,
+                                             LiftoffRegList pinned) {
+  BAILOUT("ChangeEndiannessStore");
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
@@ -64,11 +79,6 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
   BAILOUT("MoveStackValue");
-}
-
-void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
-                                            ValueType type) {
-  BAILOUT("MoveToReturnRegister");
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
@@ -122,6 +132,11 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     BAILOUT("fp unop: " #name);                                                \
   }
+#define UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(name)                                \
+  bool LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
+    BAILOUT("fp unop: " #name);                                                \
+    return true;                                                               \
+  }
 #define UNIMPLEMENTED_I32_SHIFTOP(name)                                        \
   void LiftoffAssembler::emit_##name(Register dst, Register src,               \
                                      Register amount, LiftoffRegList pinned) { \
@@ -144,6 +159,7 @@ UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
 UNIMPLEMENTED_I64_BINOP(i64_add)
 UNIMPLEMENTED_I64_BINOP(i64_sub)
+UNIMPLEMENTED_I64_BINOP(i64_mul)
 UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
 UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
 UNIMPLEMENTED_I64_SHIFTOP(i64_shr)
@@ -154,6 +170,8 @@ UNIMPLEMENTED_FP_BINOP(f32_add)
 UNIMPLEMENTED_FP_BINOP(f32_sub)
 UNIMPLEMENTED_FP_BINOP(f32_mul)
 UNIMPLEMENTED_FP_BINOP(f32_div)
+UNIMPLEMENTED_FP_BINOP(f32_min)
+UNIMPLEMENTED_FP_BINOP(f32_max)
 UNIMPLEMENTED_FP_UNOP(f32_abs)
 UNIMPLEMENTED_FP_UNOP(f32_neg)
 UNIMPLEMENTED_FP_UNOP(f32_ceil)
@@ -165,12 +183,14 @@ UNIMPLEMENTED_FP_BINOP(f64_add)
 UNIMPLEMENTED_FP_BINOP(f64_sub)
 UNIMPLEMENTED_FP_BINOP(f64_mul)
 UNIMPLEMENTED_FP_BINOP(f64_div)
+UNIMPLEMENTED_FP_BINOP(f64_min)
+UNIMPLEMENTED_FP_BINOP(f64_max)
 UNIMPLEMENTED_FP_UNOP(f64_abs)
 UNIMPLEMENTED_FP_UNOP(f64_neg)
-UNIMPLEMENTED_FP_UNOP(f64_ceil)
-UNIMPLEMENTED_FP_UNOP(f64_floor)
-UNIMPLEMENTED_FP_UNOP(f64_trunc)
-UNIMPLEMENTED_FP_UNOP(f64_nearest_int)
+UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_ceil)
+UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_floor)
+UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_trunc)
+UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_nearest_int)
 UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 
 #undef UNIMPLEMENTED_GP_BINOP
@@ -178,12 +198,59 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #undef UNIMPLEMENTED_GP_UNOP
 #undef UNIMPLEMENTED_FP_BINOP
 #undef UNIMPLEMENTED_FP_UNOP
+#undef UNIMPLEMENTED_FP_UNOP_RETURN_TRUE
 #undef UNIMPLEMENTED_I32_SHIFTOP
 #undef UNIMPLEMENTED_I64_SHIFTOP
 
+void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero,
+                                     Label* trap_div_unrepresentable) {
+  BAILOUT("i32_divs");
+}
+
+void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero) {
+  BAILOUT("i32_divu");
+}
+
+void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero) {
+  BAILOUT("i32_rems");
+}
+
+void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
+                                     Label* trap_div_by_zero) {
+  BAILOUT("i32_remu");
+}
+
+bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero,
+                                     Label* trap_div_unrepresentable) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs,
+                                     Label* trap_div_by_zero) {
+  return false;
+}
+
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
-                                            LiftoffRegister src) {
+                                            LiftoffRegister src, Label* trap) {
   BAILOUT("emit_type_conversion");
   return true;
 }
@@ -239,17 +306,6 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   BAILOUT("AssertUnreachable");
 }
 
-void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
-                                           uint32_t src_index,
-                                           RegPairHalf half) {
-  BAILOUT("PushCallerFrameSlot");
-}
-
-void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
-                                           ValueType type) {
-  BAILOUT("PushCallerFrameSlot reg");
-}
-
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   BAILOUT("PushRegisters");
 }
@@ -262,33 +318,13 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   BAILOUT("DropStackSlotsAndRet");
 }
 
-void LiftoffAssembler::PrepareCCall(wasm::FunctionSig* sig,
-                                    const LiftoffRegister* args,
-                                    ValueType out_argument_type) {
-  BAILOUT("PrepareCCall");
-}
-
-void LiftoffAssembler::SetCCallRegParamAddr(Register dst, int param_byte_offset,
-                                            ValueType type) {
-  BAILOUT("SetCCallRegParamAddr");
-}
-
-void LiftoffAssembler::SetCCallStackParamAddr(int stack_param_idx,
-                                              int param_byte_offset,
-                                              ValueType type) {
-  BAILOUT("SetCCallStackParamAddr");
-}
-
-void LiftoffAssembler::LoadCCallOutArgument(LiftoffRegister dst, ValueType type,
-                                            int param_byte_offset) {
-  BAILOUT("LoadCCallOutArgument");
-}
-
-void LiftoffAssembler::CallC(ExternalReference ext_ref, uint32_t num_params) {
+void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
+                             const LiftoffRegister* args,
+                             const LiftoffRegister* rets,
+                             ValueType out_argument_type, int stack_bytes,
+                             ExternalReference ext_ref) {
   BAILOUT("CallC");
 }
-
-void LiftoffAssembler::FinishCCall() { BAILOUT("FinishCCall"); }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   BAILOUT("CallNativeWasmCode");
@@ -310,6 +346,10 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   BAILOUT("DeallocateStackSlot");
+}
+
+void LiftoffStackSlots::Construct() {
+  asm_->BAILOUT("LiftoffStackSlots::Construct");
 }
 
 }  // namespace wasm

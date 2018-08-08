@@ -263,7 +263,12 @@ TEST(TestEventWithTimestamp) {
                                       TRACE_EVENT_SCOPE_GLOBAL, 4104, "val", 1);
   TRACE_EVENT_MARK_WITH_TIMESTAMP2("v8-cat", "mark", 13832, "a", 1, "b", 2);
 
-  CHECK_EQ(3, GET_TRACE_OBJECTS_LIST->size());
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0("v8-cat", "begin", 5,
+                                                        20683);
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0("v8-cat", "end", 5,
+                                                      32832);
+
+  CHECK_EQ(5, GET_TRACE_OBJECTS_LIST->size());
 
   CHECK_EQ(1729, GET_TRACE_OBJECT(0)->timestamp);
   CHECK_EQ(0, GET_TRACE_OBJECT(0)->num_args);
@@ -273,6 +278,9 @@ TEST(TestEventWithTimestamp) {
 
   CHECK_EQ(13832, GET_TRACE_OBJECT(2)->timestamp);
   CHECK_EQ(2, GET_TRACE_OBJECT(2)->num_args);
+
+  CHECK_EQ(20683, GET_TRACE_OBJECT(3)->timestamp);
+  CHECK_EQ(32832, GET_TRACE_OBJECT(4)->timestamp);
 }
 
 TEST(BuiltinsIsTraceCategoryEnabled) {

@@ -63,9 +63,8 @@ class BigIntBase : public HeapObject {
 
   inline digit_t digit(int n) const {
     SLOW_DCHECK(0 <= n && n < length());
-    const byte* address =
-        FIELD_ADDR_CONST(this, kDigitsOffset + n * kDigitSize);
-    return *reinterpret_cast<digit_t*>(reinterpret_cast<intptr_t>(address));
+    Address address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
+    return *reinterpret_cast<digit_t*>(address);
   }
 
   bool is_zero() const { return length() == 0; }
@@ -135,6 +134,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
 
   static bool EqualToString(Handle<BigInt> x, Handle<String> y);
   static bool EqualToNumber(Handle<BigInt> x, Handle<Object> y);
+  static ComparisonResult CompareToString(Handle<BigInt> x, Handle<String> y);
   static ComparisonResult CompareToNumber(Handle<BigInt> x, Handle<Object> y);
   // Exposed for tests, do not call directly. Use CompareToNumber() instead.
   static ComparisonResult CompareToDouble(Handle<BigInt> x, double y);

@@ -19,14 +19,17 @@
 #include "src/extensions/trigger-failure-extension.h"
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
+#include "src/objects/api-callbacks.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#include "src/objects/js-locale.h"
+#endif  // V8_INTL_SUPPORT
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/templates.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-js.h"
-
-#if V8_INTL_SUPPORT
-#include "src/objects/intl-objects.h"
-#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -161,7 +164,7 @@ class Genesis BASE_EMBEDDED {
   // Creates some basic objects. Used for creating a context from scratch.
   void CreateRoots();
   // Creates the empty function.  Used for creating a context from scratch.
-  Handle<JSFunction> CreateEmptyFunction(Isolate* isolate);
+  Handle<JSFunction> CreateEmptyFunction();
   // Returns the %ThrowTypeError% intrinsic function.
   // See ES#sec-%throwtypeerror% for details.
   Handle<JSFunction> GetThrowTypeErrorIntrinsic();
@@ -357,10 +360,11 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 namespace {
 
 V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
-    Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len) {
+    Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len,
+    FunctionKind kind = FunctionKind::kNormalFunction) {
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(name, builtin_id,
-                                                          kNormalFunction);
+                                                          kind);
   shared->set_internal_formal_parameter_count(len);
   shared->set_length(len);
   return shared;
@@ -589,29 +593,33 @@ V8_NOINLINE void InstallSpeciesGetter(Handle<JSFunction> constructor) {
 
 }  // namespace
 
-Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
-  Factory* factory = isolate->factory();
-
+Handle<JSFunction> Genesis::CreateEmptyFunction() {
   // Allocate the function map first and then patch the prototype later.
-  Handle<Map> empty_function_map = factory->CreateSloppyFunctionMap(
+  Handle<Map> empty_function_map = factory()->CreateSloppyFunctionMap(
       FUNCTION_WITHOUT_PROTOTYPE, MaybeHandle<JSFunction>());
   empty_function_map->set_is_prototype_map(true);
   DCHECK(!empty_function_map->is_dictionary_map());
 
+  // Allocate ScopeInfo for the empty function.
+  Handle<ScopeInfo> scope_info = ScopeInfo::CreateForEmptyFunction(isolate());
+
   // Allocate the empty function as the prototype for function according to
   // ES#sec-properties-of-the-function-prototype-object
   NewFunctionArgs args = NewFunctionArgs::ForBuiltin(
-      factory->empty_string(), empty_function_map, Builtins::kEmptyFunction);
-  Handle<JSFunction> empty_function = factory->NewFunction(args);
+      factory()->empty_string(), empty_function_map, Builtins::kEmptyFunction);
+  Handle<JSFunction> empty_function = factory()->NewFunction(args);
+  native_context()->set_empty_function(*empty_function);
 
   // --- E m p t y ---
-  Handle<String> source = factory->NewStringFromStaticChars("() {}");
-  Handle<Script> script = factory->NewScript(source);
+  Handle<String> source = factory()->NewStringFromStaticChars("() {}");
+  Handle<Script> script = factory()->NewScript(source);
   script->set_type(Script::TYPE_NATIVE);
-  Handle<WeakFixedArray> infos = factory->NewWeakFixedArray(2);
+  Handle<WeakFixedArray> infos = factory()->NewWeakFixedArray(2);
   script->set_shared_function_infos(*infos);
+  // TODO(cbruni): fix position information here.
   empty_function->shared()->set_raw_start_position(0);
   empty_function->shared()->set_raw_end_position(source->length());
+  empty_function->shared()->set_scope_info(*scope_info);
   empty_function->shared()->set_function_literal_id(1);
   empty_function->shared()->DontAdaptArguments();
   SharedFunctionInfo::SetScript(handle(empty_function->shared()), script);
@@ -1165,8 +1173,8 @@ void Genesis::InstallGlobalThisBinding() {
   Handle<ScriptContextTable> script_contexts(
       native_context()->script_context_table());
   Handle<ScopeInfo> scope_info = ScopeInfo::CreateGlobalThisBinding(isolate());
-  Handle<JSFunction> closure(native_context()->closure());
-  Handle<Context> context = factory()->NewScriptContext(closure, scope_info);
+  Handle<Context> context =
+      factory()->NewScriptContext(native_context(), scope_info);
 
   // Go ahead and hook it up while we're at it.
   int slot = scope_info->ReceiverContextSlotIndex();
@@ -1399,8 +1407,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                Handle<JSFunction> empty_function,
                                GlobalContextType context_type) {
   // --- N a t i v e   C o n t e x t ---
-  // Use the empty function as closure (no scope info).
-  native_context()->set_closure(*empty_function);
+  // Use the empty scope info.
+  native_context()->set_scope_info(empty_function->shared()->scope_info());
   native_context()->set_previous(nullptr);
   // Set extension and global object.
   native_context()->set_extension(*global_object);
@@ -1466,14 +1474,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(object_function, "setPrototypeOf",
                           Builtins::kObjectSetPrototypeOf, 2, false);
 
-    Handle<JSFunction> object_is_extensible = SimpleInstallFunction(
-        object_function, "isExtensible", Builtins::kObjectIsExtensible,
-        1, false);
-    native_context()->set_object_is_extensible(*object_is_extensible);
-
-    Handle<JSFunction> object_is_frozen = SimpleInstallFunction(
-        object_function, "isFrozen", Builtins::kObjectIsFrozen, 1, false);
-    native_context()->set_object_is_frozen(*object_is_frozen);
+    SimpleInstallFunction(object_function, "isExtensible",
+                          Builtins::kObjectIsExtensible, 1, false);
+    SimpleInstallFunction(object_function, "isFrozen",
+                          Builtins::kObjectIsFrozen, 1, false);
 
     Handle<JSFunction> object_is_sealed = SimpleInstallFunction(
         object_function, "isSealed", Builtins::kObjectIsSealed, 1, false);
@@ -1696,7 +1700,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(proto, "unshift", Builtins::kArrayUnshift, 1, false);
     SimpleInstallFunction(proto, "slice", Builtins::kArrayPrototypeSlice, 2,
                           false);
-    SimpleInstallFunction(proto, "splice", Builtins::kArraySplice, 2, false);
+    if (FLAG_enable_experimental_builtins) {
+      SimpleInstallFunction(proto, "splice", Builtins::kArraySpliceTorque, 2,
+                            false);
+    } else {
+      SimpleInstallFunction(proto, "splice", Builtins::kArraySplice, 2, false);
+    }
     SimpleInstallFunction(proto, "includes", Builtins::kArrayIncludes, 1,
                           false);
     SimpleInstallFunction(proto, "indexOf", Builtins::kArrayIndexOf, 1, false);
@@ -1808,9 +1817,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Install Number constants
     double kMaxValue = 1.7976931348623157e+308;
     double kMinValue = 5e-324;
-
-    double kMaxSafeInt = 9007199254740991;
-    double kMinSafeInt = -9007199254740991;
+    double kMinSafeInteger = -kMaxSafeInteger;
     double kEPS = 2.220446049250313e-16;
 
     Handle<Object> infinity = factory->infinity_value();
@@ -1838,11 +1845,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         number_fun, factory->NewStringFromAsciiChecked("MAX_SAFE_INTEGER"),
-        factory->NewNumber(kMaxSafeInt),
+        factory->NewNumber(kMaxSafeInteger),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         number_fun, factory->NewStringFromAsciiChecked("MIN_SAFE_INTEGER"),
-        factory->NewNumber(kMinSafeInt),
+        factory->NewNumber(kMinSafeInteger),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         number_fun, factory->NewStringFromAsciiChecked("EPSILON"),
@@ -2331,15 +2338,19 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {
       Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
           isolate, Builtins::kPromiseCapabilityDefaultResolve,
-          factory->empty_string(), 1);
+          factory->empty_string(), 1, FunctionKind::kConciseMethod);
       info->set_native(true);
+      info->set_function_map_index(
+          Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
       native_context()->set_promise_capability_default_resolve_shared_fun(
           *info);
 
       info = SimpleCreateSharedFunctionInfo(
           isolate, Builtins::kPromiseCapabilityDefaultReject,
-          factory->empty_string(), 1);
+          factory->empty_string(), 1, FunctionKind::kConciseMethod);
       info->set_native(true);
+      info->set_function_map_index(
+          Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
       native_context()->set_promise_capability_default_reject_shared_fun(*info);
     }
 
@@ -2720,6 +2731,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           NONE);
     SimpleInstallFunction(console, "count", Builtins::kConsoleCount, 1, false,
                           NONE);
+    SimpleInstallFunction(console, "countReset", Builtins::kConsoleCountReset,
+                          1, false, NONE);
     SimpleInstallFunction(console, "assert", Builtins::kFastConsoleAssert, 1,
                           false, NONE);
     SimpleInstallFunction(console, "markTimeline",
@@ -2767,6 +2780,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       JSObject::AddProperty(
           prototype, factory->to_string_tag_symbol(), factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+      SimpleInstallFunction(prototype, "formatToParts",
+                            Builtins::kDateTimeFormatPrototypeFormatToParts, 1,
+                            false);
     }
 
     {
@@ -2783,6 +2800,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       JSObject::AddProperty(
           prototype, factory->to_string_tag_symbol(), factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+      SimpleInstallFunction(prototype, "formatToParts",
+                            Builtins::kNumberFormatPrototypeFormatToParts, 1,
+                            false);
     }
 
     {
@@ -2809,6 +2830,22 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       Handle<JSObject> prototype(
           JSObject::cast(v8_break_iterator_constructor->prototype()), isolate);
+
+      // Install the @@toStringTag property on the {prototype}.
+      JSObject::AddProperty(
+          prototype, factory->to_string_tag_symbol(), factory->Object_string(),
+          static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+    }
+
+    {
+      Handle<JSFunction> plural_rules_constructor = InstallFunction(
+          intl, "PluralRules", JS_OBJECT_TYPE, PluralRules::kSize, 0,
+          factory->the_hole_value(), Builtins::kIllegal);
+      native_context()->set_intl_plural_rules_function(
+          *plural_rules_constructor);
+
+      Handle<JSObject> prototype(
+          JSObject::cast(plural_rules_constructor->prototype()), isolate);
 
       // Install the @@toStringTag property on the {prototype}.
       JSObject::AddProperty(
@@ -2870,6 +2907,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(atomics_object, "wait", Builtins::kAtomicsWait, 4,
                           true);
     SimpleInstallFunction(atomics_object, "wake", Builtins::kAtomicsWake, 3,
+                          true);
+    SimpleInstallFunction(atomics_object, "notify", Builtins::kAtomicsWake, 3,
                           true);
   }
 
@@ -2959,6 +2998,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kTypedArrayPrototypeSlice, 2, false);
     SimpleInstallFunction(prototype, "some", Builtins::kTypedArrayPrototypeSome,
                           1, false);
+    SimpleInstallFunction(prototype, "sort", Builtins::kTypedArrayPrototypeSort,
+                          1, false);
     SimpleInstallFunction(prototype, "subarray",
                           Builtins::kTypedArrayPrototypeSubArray, 2, false);
   }
@@ -3042,17 +3083,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- M a p
-    {
-      Handle<String> index_string = isolate->factory()->zero_string();
-      uint32_t field =
-          StringHasher::MakeArrayIndexHash(0, index_string->length());
-      index_string->set_hash_field(field);
-
-      index_string = isolate->factory()->one_string();
-      field = StringHasher::MakeArrayIndexHash(1, index_string->length());
-      index_string->set_hash_field(field);
-    }
-
     Handle<JSFunction> js_map_fun =
         InstallFunction(global, "Map", JS_MAP_TYPE, JSMap::kSize, 0,
                         factory->the_hole_value(), Builtins::kMapConstructor);
@@ -4136,24 +4166,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       }
     }
   }
-
-#ifdef V8_INTL_SUPPORT
-  {  // I n t l  P l u r a l R u l e s
-    Handle<JSObject> plural_rules_prototype =
-        factory->NewJSObject(isolate->object_function(), TENURED);
-    // Install the @@toStringTag property on the {prototype}.
-    JSObject::AddProperty(
-        plural_rules_prototype, factory->to_string_tag_symbol(),
-        factory->Object_string(),
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-    Handle<JSFunction> plural_rules_constructor = InstallFunction(
-        container, "PluralRules", JS_OBJECT_TYPE, PluralRules::kSize, 0,
-        plural_rules_prototype, Builtins::kIllegal);
-    JSObject::AddProperty(plural_rules_prototype, factory->constructor_string(),
-                          plural_rules_constructor, DONT_ENUM);
-    native_context->set_intl_plural_rules_function(*plural_rules_constructor);
-  }
-#endif  // V8_INTL_SUPPORT
 }
 
 
@@ -4170,9 +4182,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_static_fields)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_fields)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_dynamic_import)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_meta)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrict_constructor_return)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_optional_catch_binding)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_subsume_json)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_numeric_separator)
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
@@ -4402,8 +4412,6 @@ void Genesis::InitializeGlobal_harmony_bigint() {
   bigint_fun->shared()->set_length(1);
   InstallWithIntrinsicDefaultProto(isolate(), bigint_fun,
                                    Context::BIGINT_FUNCTION_INDEX);
-  heap()->bigint_map()->SetConstructorFunctionIndex(
-      Context::BIGINT_FUNCTION_INDEX);
 
   // Install the properties of the BigInt constructor.
   // asUintN(bits, bigint)
@@ -4450,30 +4458,56 @@ void Genesis::InitializeGlobal_harmony_bigint() {
 
 #ifdef V8_INTL_SUPPORT
 
-void Genesis::InitializeGlobal_harmony_number_format_to_parts() {
-  if (!FLAG_harmony_number_format_to_parts) return;
-  Handle<JSObject> number_format_prototype(JSObject::cast(
-      native_context()->intl_number_format_function()->prototype()));
-  Handle<String> name = factory()->InternalizeUtf8String("formatToParts");
-  InstallFunction(number_format_prototype,
-                  SimpleCreateFunction(
-                      isolate(), name,
-                      Builtins::kNumberFormatPrototypeFormatToParts, 1, false),
-                  name);
-}
+void Genesis::InitializeGlobal_harmony_locale() {
+  if (!FLAG_harmony_locale) return;
 
-void Genesis::InitializeGlobal_harmony_plural_rules() {
-  if (!FLAG_harmony_plural_rules) return;
-
-  Handle<JSFunction> plural_rules(
-      native_context()->intl_plural_rules_function());
   Handle<JSObject> intl = Handle<JSObject>::cast(
       JSReceiver::GetProperty(
           Handle<JSReceiver>(native_context()->global_object()),
           factory()->InternalizeUtf8String("Intl"))
           .ToHandleChecked());
-  JSObject::AddProperty(intl, factory()->InternalizeUtf8String("PluralRules"),
-                        plural_rules, DONT_ENUM);
+
+  Handle<JSFunction> locale_fun = InstallFunction(
+      intl, "Locale", JS_INTL_LOCALE_TYPE, JSLocale::kSize, 0,
+      factory()->the_hole_value(), Builtins::kLocaleConstructor);
+  InstallWithIntrinsicDefaultProto(isolate(), locale_fun,
+                                   Context::INTL_LOCALE_FUNCTION_INDEX);
+  locale_fun->shared()->set_length(1);
+  locale_fun->shared()->DontAdaptArguments();
+
+  // Setup %LocalePrototype%.
+  Handle<JSObject> prototype(JSObject::cast(locale_fun->instance_prototype()));
+
+  // Install the @@toStringTag property on the {prototype}.
+  JSObject::AddProperty(prototype, factory()->to_string_tag_symbol(),
+                        factory()->NewStringFromAsciiChecked("Locale"),
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  SimpleInstallFunction(prototype, "toString",
+                        Builtins::kLocalePrototypeToString, 0, false);
+  // Base locale getters.
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("language"),
+                      Builtins::kLocalePrototypeLanguage, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("script"),
+                      Builtins::kLocalePrototypeScript, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("region"),
+                      Builtins::kLocalePrototypeRegion, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("baseName"),
+                      Builtins::kLocalePrototypeBaseName, true);
+  // Unicode extension getters.
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("calendar"),
+                      Builtins::kLocalePrototypeCalendar, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("caseFirst"),
+                      Builtins::kLocalePrototypeCaseFirst, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("collation"),
+                      Builtins::kLocalePrototypeCollation, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("hourCycle"),
+                      Builtins::kLocalePrototypeHourCycle, true);
+  SimpleInstallGetter(prototype, factory()->InternalizeUtf8String("numeric"),
+                      Builtins::kLocalePrototypeNumeric, true);
+  SimpleInstallGetter(prototype,
+                      factory()->InternalizeUtf8String("numberingSystem"),
+                      Builtins::kLocalePrototypeNumberingSystem, true);
 }
 
 #endif  // V8_INTL_SUPPORT
@@ -5237,11 +5271,6 @@ bool Genesis::ConfigureGlobalObjects(
   native_context()->set_js_map_map(js_map_fun->initial_map());
   native_context()->set_js_set_map(js_set_fun->initial_map());
 
-  Handle<JSFunction> js_array_constructor(native_context()->array_function());
-  Handle<JSObject> js_array_prototype(
-      JSObject::cast(js_array_constructor->instance_prototype()));
-  native_context()->set_initial_array_prototype_map(js_array_prototype->map());
-
   return true;
 }
 
@@ -5460,7 +5489,7 @@ Genesis::Genesis(
     DCHECK_EQ(0u, context_snapshot_index);
     // We get here if there was no context snapshot.
     CreateRoots();
-    Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
+    Handle<JSFunction> empty_function = CreateEmptyFunction();
     CreateSloppyModeFunctionMaps(empty_function);
     CreateStrictModeFunctionMaps(empty_function);
     CreateObjectFunction(empty_function);

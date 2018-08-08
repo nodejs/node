@@ -532,6 +532,14 @@ void V8ConsoleMessageStorage::time(int contextId, const String16& id) {
   m_data[contextId].m_time[id] = m_inspector->client()->currentTimeMS();
 }
 
+bool V8ConsoleMessageStorage::countReset(int contextId, const String16& id) {
+  std::map<String16, int>& count_map = m_data[contextId].m_count;
+  if (count_map.find(id) == count_map.end()) return false;
+
+  count_map[id] = 0;
+  return true;
+}
+
 double V8ConsoleMessageStorage::timeEnd(int contextId, const String16& id) {
   std::map<String16, double>& time = m_data[contextId].m_time;
   auto it = time.find(id);

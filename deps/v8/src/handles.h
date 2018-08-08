@@ -144,7 +144,7 @@ class Handle final : public HandleBase {
   // Provide function object for location hashing.
   struct hash : public std::unary_function<Handle<T>, size_t> {
     V8_INLINE size_t operator()(Handle<T> const& handle) const {
-      return base::hash<void*>()(handle.address());
+      return base::hash<Address>()(handle.address());
     }
   };
 
@@ -235,6 +235,43 @@ class MaybeHandle final {
   friend class MaybeHandle;
 };
 
+// A handle which contains a potentially weak pointer. Keeps it alive (strongly)
+// while the MaybeObjectHandle is alive.
+class MaybeObjectHandle {
+ public:
+  inline MaybeObjectHandle();
+  inline MaybeObjectHandle(MaybeObject* object, Isolate* isolate);
+  inline MaybeObjectHandle(Object* object, Isolate* isolate);
+  inline explicit MaybeObjectHandle(Handle<Object> object);
+
+  static inline MaybeObjectHandle Weak(Object* object, Isolate* isolate);
+  static inline MaybeObjectHandle Weak(Handle<Object> object);
+
+  inline MaybeObject* operator*() const;
+  inline MaybeObject* operator->() const;
+  inline Handle<Object> object() const;
+
+  bool is_identical_to(const MaybeObjectHandle& other) const {
+    Handle<Object> this_handle;
+    Handle<Object> other_handle;
+    return reference_type_ == other.reference_type_ &&
+           handle_.ToHandle(&this_handle) ==
+               other.handle_.ToHandle(&other_handle) &&
+           this_handle.is_identical_to(other_handle);
+  }
+
+  bool is_null() const { return handle_.is_null(); }
+
+ private:
+  inline MaybeObjectHandle(Object* object,
+                           HeapObjectReferenceType reference_type,
+                           Isolate* isolate);
+  inline MaybeObjectHandle(Handle<Object> object,
+                           HeapObjectReferenceType reference_type);
+
+  HeapObjectReferenceType reference_type_;
+  MaybeHandle<Object> handle_;
+};
 
 // ----------------------------------------------------------------------------
 // A stack-allocated class that governs a number of local handles.

@@ -124,10 +124,6 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
 
   RegisterType type() const { return reg_type_; }
-  RegList bit() const {
-    DCHECK(static_cast<size_t>(reg_code_) < (sizeof(RegList) * kBitsPerByte));
-    return IsValid() ? 1UL << reg_code_ : 0;
-  }
   int SizeInBits() const {
     DCHECK(IsValid());
     return reg_size_;
@@ -445,7 +441,7 @@ ALIAS_REGISTER(Register, ip1, x17);
 ALIAS_REGISTER(Register, wip0, w16);
 ALIAS_REGISTER(Register, wip1, w17);
 // Root register.
-ALIAS_REGISTER(Register, root, x26);
+ALIAS_REGISTER(Register, kRootRegister, x26);
 ALIAS_REGISTER(Register, rr, x26);
 // Context pointer register.
 ALIAS_REGISTER(Register, cp, x27);
@@ -485,14 +481,11 @@ bool AreAliased(const CPURegister& reg1,
 // same size, and are of the same type. The system stack pointer may be
 // specified. Arguments set to NoReg are ignored, as are any subsequent
 // arguments. At least one argument (reg1) must be valid (not NoCPUReg).
-bool AreSameSizeAndType(const CPURegister& reg1,
-                        const CPURegister& reg2,
-                        const CPURegister& reg3 = NoCPUReg,
-                        const CPURegister& reg4 = NoCPUReg,
-                        const CPURegister& reg5 = NoCPUReg,
-                        const CPURegister& reg6 = NoCPUReg,
-                        const CPURegister& reg7 = NoCPUReg,
-                        const CPURegister& reg8 = NoCPUReg);
+bool AreSameSizeAndType(
+    const CPURegister& reg1, const CPURegister& reg2 = NoCPUReg,
+    const CPURegister& reg3 = NoCPUReg, const CPURegister& reg4 = NoCPUReg,
+    const CPURegister& reg5 = NoCPUReg, const CPURegister& reg6 = NoCPUReg,
+    const CPURegister& reg7 = NoCPUReg, const CPURegister& reg8 = NoCPUReg);
 
 // AreSameFormat returns true if all of the specified VRegisters have the same
 // vector format. Arguments set to NoVReg are ignored, as are any subsequent
@@ -517,12 +510,12 @@ typedef VRegister Simd128Register;
 // Lists of registers.
 class CPURegList {
  public:
-  explicit CPURegList(CPURegister reg1, CPURegister reg2 = NoCPUReg,
-                      CPURegister reg3 = NoCPUReg, CPURegister reg4 = NoCPUReg)
-      : list_(reg1.bit() | reg2.bit() | reg3.bit() | reg4.bit()),
-        size_(reg1.SizeInBits()),
-        type_(reg1.type()) {
-    DCHECK(AreSameSizeAndType(reg1, reg2, reg3, reg4));
+  template <typename... CPURegisters>
+  explicit CPURegList(CPURegister reg0, CPURegisters... regs)
+      : list_(CPURegister::ListOf(reg0, regs...)),
+        size_(reg0.SizeInBits()),
+        type_(reg0.type()) {
+    DCHECK(AreSameSizeAndType(reg0, regs...));
     DCHECK(IsValid());
   }
 
@@ -646,8 +639,8 @@ class CPURegList {
   CPURegister::RegisterType type_;
 
   bool IsValid() const {
-    const RegList kValidRegisters = 0x8000000ffffffff;
-    const RegList kValidVRegisters = 0x0000000ffffffff;
+    constexpr RegList kValidRegisters{0x8000000ffffffff};
+    constexpr RegList kValidVRegisters{0x0000000ffffffff};
     switch (type_) {
       case CPURegister::kRegister:
         return (list_ & kValidRegisters) == list_;
@@ -751,6 +744,7 @@ class Operand {
 
   inline Immediate immediate() const;
   inline int64_t ImmediateValue() const;
+  inline RelocInfo::Mode ImmediateRMode() const;
   inline Register reg() const;
   inline Shift shift() const;
   inline Extend extend() const;
@@ -950,7 +944,22 @@ class Assembler : public AssemblerBase {
   // RelocInfo and pools ------------------------------------------------------
 
   // Record relocation information for current pc_.
-  void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
+  enum ConstantPoolMode { NEEDS_POOL_ENTRY, NO_POOL_ENTRY };
+  void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0,
+                       ConstantPoolMode constant_pool_mode = NEEDS_POOL_ENTRY);
+
+  // Generate a B immediate instruction with the corresponding relocation info.
+  // 'offset' is the immediate to encode in the B instruction (so it is the
+  // difference between the target and the PC of the instruction, divided by
+  // the instruction size).
+  void near_jump(int offset, RelocInfo::Mode rmode);
+  // Generate a BL immediate instruction with the corresponding relocation info.
+  // As for near_jump, 'offset' is the immediate to encode in the BL
+  // instruction.
+  void near_call(int offset, RelocInfo::Mode rmode);
+  // Generate a BL immediate instruction with the corresponding relocation info
+  // for the input HeapObjectRequest.
+  void near_call(HeapObjectRequest request);
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
@@ -963,42 +972,59 @@ class Assembler : public AssemblerBase {
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
+  // Add 'target' to the code_targets_ vector, if necessary, and return the
+  // offset at which it is stored.
+  int GetCodeTargetIndex(Handle<Code> target);
+
+  // Returns the handle for the code object called at 'pc'.
+  // This might need to be temporarily encoded as an offset into code_targets_.
+  inline Handle<Code> code_target_object_handle_at(Address pc);
+
+  // Returns the target address for a runtime function for the call encoded
+  // at 'pc'.
+  // Runtime entries can be temporarily encoded as the offset between the
+  // runtime function entrypoint and the code range start (stored in the
+  // code_range_start_ field), in order to be encodable as we generate the code,
+  // before it is moved into the code space.
+  inline Address runtime_entry_at(Address pc);
+
   // Return the code target address at a call site from the return address of
   // that call in the instruction stream.
   inline static Address target_address_from_return_address(Address pc);
 
-  // Given the address of the beginning of a call, return the address in the
-  // instruction stream that call will return from.
-  inline static Address return_address_from_call_start(Address pc);
-
-  // This sets the branch destination (which is in the constant pool on ARM).
+  // This sets the branch destination. 'location' here can be either the pc of
+  // an immediate branch or the address of an entry in the constant pool.
   // This is for calls and branches within generated code.
-  inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Code* code, Address target);
+  inline static void deserialization_set_special_target_at(Address location,
+                                                           Code* code,
+                                                           Address target);
+
+  // Get the size of the special target encoded at 'location'.
+  inline static int deserialization_special_target_size(Address location);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  // All addresses in the constant pool are the same size as pointers.
-  static constexpr int kSpecialTargetSize = kPointerSize;
+  // This value is used in the serialization process and must be zero for
+  // ARM64, as the code target is split across multiple instructions and does
+  // not exist separately in the code, so the serializer should not step
+  // forwards in memory after a target is resolved and written.
+  static constexpr int kSpecialTargetSize = 0;
 
   // The sizes of the call sequences emitted by MacroAssembler::Call.
   // Wherever possible, use MacroAssembler::CallSize instead of these constants,
   // as it will choose the correct value for a given relocation mode.
   //
-  // Without relocation:
-  //  movz  temp, #(target & 0x000000000000ffff)
-  //  movk  temp, #(target & 0x00000000ffff0000)
-  //  movk  temp, #(target & 0x0000ffff00000000)
-  //  blr   temp
+  // A "near" call is encoded in a BL immediate instruction:
+  //  bl target
   //
-  // With relocation:
-  //  ldr   temp, =target
-  //  blr   temp
-  static constexpr int kCallSizeWithoutRelocation = 4 * kInstructionSize;
-  static constexpr int kCallSizeWithRelocation = 2 * kInstructionSize;
+  // whereas a "far" call will be encoded like this:
+  //  ldr temp, =target
+  //  blr temp
+  static constexpr int kNearCallSize = 1 * kInstructionSize;
+  static constexpr int kFarCallSize = 2 * kInstructionSize;
 
   // Size of the generated code in bytes
   uint64_t SizeOfGeneratedCode() const {
@@ -1021,7 +1047,7 @@ class Assembler : public AssemblerBase {
   // change things to be consistent.
   void AssertSizeOfCodeGeneratedSince(const Label* label, ptrdiff_t size) {
     DCHECK_GE(size, 0);
-    DCHECK(static_cast<uint64_t>(size) == SizeOfCodeGeneratedSince(label));
+    DCHECK_EQ(static_cast<uint64_t>(size), SizeOfCodeGeneratedSince(label));
   }
 
   // Return the number of instructions generated from label to the
@@ -3431,8 +3457,6 @@ class Assembler : public AssemblerBase {
   // Verify that a label's link chain is intact.
   void CheckLabelLinkChain(Label const * label);
 
-  void RecordLiteral(int64_t imm, unsigned size);
-
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
   void BlockConstPoolFor(int instructions);
@@ -3521,6 +3545,14 @@ class Assembler : public AssemblerBase {
   // GrowBuffer(); contains only those internal references whose labels
   // are already bound.
   std::deque<int> internal_reference_positions_;
+
+  // Before we copy code into the code space, we cannot encode calls to code
+  // targets as we normally would, as the difference between the instruction's
+  // location in the temporary buffer and the call target is not guaranteed to
+  // fit in the offset field. We keep track of the code handles we encounter
+  // in calls in this vector, and encode the index of the code handle in the
+  // vector instead.
+  std::vector<Handle<Code>> code_targets_;
 
   // Relocation info records are also used during code generation as temporary
   // containers for constants and code target addresses until they are emitted
@@ -3666,6 +3698,7 @@ class PatchingAssembler : public Assembler {
   static constexpr int kAdrFarPatchableNNops = 2;
   static constexpr int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
   void PatchAdrFar(int64_t target_offset);
+  void PatchSubSp(uint32_t immediate);
 };
 
 

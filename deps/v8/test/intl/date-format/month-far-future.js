@@ -21,10 +21,12 @@ var locales = [
     "th-u-ca-buddhist",
 ];
 
-var hugeNum = 1.7976931348623157e+308;
+// Used to test with 1.7976931348623157e+308, but it does not work
+// any more with TimeClip. Instead, try the largest time value.
+var end_of_time =  8.64e15;
 
 locales.forEach(function(loc) {
   var df = new Intl.DateTimeFormat(loc, {month: "long"});
-  assertFalse(df.format(hugeNum) == '');
+  assertFalse(df.format(end_of_time) == '');
 }
 );

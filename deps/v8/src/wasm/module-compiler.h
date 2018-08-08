@@ -6,23 +6,33 @@
 #define V8_WASM_MODULE_COMPILER_H_
 
 #include <functional>
+#include <memory>
 
 #include "src/base/atomic-utils.h"
 #include "src/cancelable-task.h"
-#include "src/isolate.h"
-
-#include "src/wasm/module-decoder.h"
-#include "src/wasm/streaming-decoder.h"
+#include "src/globals.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
+
+class JSArrayBuffer;
+class JSPromise;
+class Counters;
+class WasmModuleObject;
+class WasmInstanceObject;
+
+template <typename T>
+class Vector;
+
 namespace wasm {
 
+class CompilationState;
+class ErrorThrower;
 class ModuleCompiler;
 class WasmCode;
-class CompilationState;
+struct ModuleEnv;
+struct WasmModule;
 
 struct CompilationStateDeleter {
   void operator()(CompilationState* compilation_state) const;
@@ -31,7 +41,9 @@ struct CompilationStateDeleter {
 // Wrapper to create a CompilationState exists in order to avoid having
 // the the CompilationState in the header file.
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
-    Isolate* isolate);
+    Isolate* isolate, ModuleEnv& env);
+
+ModuleEnv* GetModuleEnv(CompilationState* compilation_state);
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
     Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
@@ -45,7 +57,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 
 V8_EXPORT_PRIVATE
 void CompileJsToWasmWrappers(Isolate* isolate,
-                             Handle<WasmCompiledModule> compiled_module,
+                             Handle<WasmModuleObject> module_object,
                              Counters* counters);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
@@ -92,17 +104,17 @@ class AsyncCompileJob {
   class DecodeFail;
   class PrepareAndStartCompile;
   class CompileFailed;
-  class WaitForBackgroundTasks;
-  class FinishCompilationUnits;
-  class FinishCompile;
   class CompileWrappers;
   class FinishModule;
   class AbortCompilation;
+  class UpdateToTopTierCompiledCode;
 
   const std::shared_ptr<Counters>& async_counters() const {
     return async_counters_;
   }
   Counters* counters() const { return async_counters().get(); }
+
+  void FinishCompile();
 
   void AsyncCompileFailed(Handle<Object> error_reason);
 
@@ -137,12 +149,11 @@ class AsyncCompileJob {
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
   Handle<JSPromise> module_promise_;
-  std::unique_ptr<compiler::ModuleEnv> module_env_;
   std::unique_ptr<WasmModule> module_;
 
   std::vector<DeferredHandles*> deferred_handles_;
-  Handle<WasmModuleObject> module_object_;
   Handle<WasmCompiledModule> compiled_module_;
+  Handle<WasmModuleObject> module_object_;
 
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
@@ -171,6 +182,8 @@ class AsyncCompileJob {
   // compilation. The AsyncCompileJob does not actively use the
   // StreamingDecoder.
   std::shared_ptr<StreamingDecoder> stream_;
+
+  bool tiering_completed_ = false;
 };
 }  // namespace wasm
 }  // namespace internal
