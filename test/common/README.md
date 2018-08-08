@@ -121,12 +121,6 @@ Tests whether `name`, `expected`, and `code` are part of a raised warning. If
 an expected warning does not have a code then `common.noWarnCode` can be used
 to indicate this.
 
-### fileExists(pathname)
-* pathname [&lt;string>]
-* return [&lt;boolean>]
-
-Checks if `pathname` exists
-
 ### getArrayBufferViews(buf)
 * `buf` [&lt;Buffer>]
 * return [&lt;ArrayBufferView&#91;&#93;>]
