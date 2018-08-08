@@ -41,11 +41,11 @@ assert(!fs.existsSync(d));
   if (common.isWindows) {
     assert.throws(function() {
       fs.rmdirSync(f);
-    }, /ENOENT: not a directory, rmdir/);
+    }, /ENOENT/);
   } else {
     assert.throws(function() {
       fs.rmdirSync(f);
-    }, /ENOTDIR: not a directory, rmdir/);
+    }, /ENOTDIR/);
   }
 }
 
