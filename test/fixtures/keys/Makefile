@@ -370,13 +370,13 @@ rsa_private_4096.pem:
 	openssl genrsa -out rsa_private_4096.pem 4096
 
 rsa_public_1024.pem: rsa_private_1024.pem
-	openssl rsa -in rsa_private_1024.pem -out rsa_public_1024.pem
+	openssl rsa -in rsa_private_1024.pem -pubout -out rsa_public_1024.pem
 
 rsa_public_2048.pem: rsa_private_2048.pem
-	openssl rsa -in rsa_private_2048.pem -out rsa_public_2048.pem
+	openssl rsa -in rsa_private_2048.pem -pubout -out rsa_public_2048.pem
 
 rsa_public_4096.pem: rsa_private_4096.pem
-	openssl rsa -in rsa_private_4096.pem -out rsa_public_4096.pem
+	openssl rsa -in rsa_private_4096.pem -pubout -out rsa_public_4096.pem
 
 clean:
 	rm -f *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial
