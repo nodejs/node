@@ -37,10 +37,10 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
 // static
 MaybeHandle<FixedArray> KeyAccumulator::GetKeys(
     Handle<JSReceiver> object, KeyCollectionMode mode, PropertyFilter filter,
-    GetKeysConversion keys_conversion, bool is_for_in) {
+    GetKeysConversion keys_conversion, bool is_for_in, bool skip_indices) {
   Isolate* isolate = object->GetIsolate();
-  FastKeyAccumulator accumulator(isolate, object, mode, filter);
-  accumulator.set_is_for_in(is_for_in);
+  FastKeyAccumulator accumulator(isolate, object, mode, filter, is_for_in,
+                                 skip_indices);
   return accumulator.GetKeys(keys_conversion);
 }
 
@@ -356,7 +356,8 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
 template <bool fast_properties>
 MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
                                                Handle<JSObject> object,
-                                               GetKeysConversion convert) {
+                                               GetKeysConversion convert,
+                                               bool skip_indices) {
   Handle<FixedArray> keys;
   ElementsAccessor* accessor = object->GetElementsAccessor();
   if (fast_properties) {
@@ -365,8 +366,13 @@ MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
     // TODO(cbruni): preallocate big enough array to also hold elements.
     keys = KeyAccumulator::GetOwnEnumPropertyKeys(isolate, object);
   }
-  MaybeHandle<FixedArray> result =
-      accessor->PrependElementIndices(object, keys, convert, ONLY_ENUMERABLE);
+  MaybeHandle<FixedArray> result;
+  if (skip_indices) {
+    result = keys;
+  } else {
+    result =
+        accessor->PrependElementIndices(object, keys, convert, ONLY_ENUMERABLE);
+  }
 
   if (FLAG_trace_for_in_enumerate) {
     PrintF("| strings=%d symbols=0 elements=%u || prototypes>=1 ||\n",
@@ -404,7 +410,8 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
 
   // Do not try to use the enum-cache for dict-mode objects.
   if (map->is_dictionary_map()) {
-    return GetOwnKeysWithElements<false>(isolate_, object, keys_conversion);
+    return GetOwnKeysWithElements<false>(isolate_, object, keys_conversion,
+                                         skip_indices_);
   }
   int enum_length = receiver_->map()->EnumLength();
   if (enum_length == kInvalidEnumCacheSentinel) {
@@ -422,7 +429,8 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
   }
   // The properties-only case failed because there were probably elements on the
   // receiver.
-  return GetOwnKeysWithElements<true>(isolate_, object, keys_conversion);
+  return GetOwnKeysWithElements<true>(isolate_, object, keys_conversion,
+                                      skip_indices_);
 }
 
 MaybeHandle<FixedArray>
@@ -451,6 +459,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysSlow(
     GetKeysConversion keys_conversion) {
   KeyAccumulator accumulator(isolate_, mode_, filter_);
   accumulator.set_is_for_in(is_for_in_);
+  accumulator.set_skip_indices(skip_indices_);
   accumulator.set_last_non_empty_prototype(last_non_empty_prototype_);
 
   MAYBE_RETURN(accumulator.CollectKeys(receiver_, receiver_),
@@ -698,13 +707,15 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
 Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
     Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
     Handle<JSObject> object) {
-  MAYBE_RETURN((CollectInterceptorKeysInternal(
-                   receiver, object,
-                   handle(InterceptorInfo::cast(
-                              access_check_info->indexed_interceptor()),
-                          isolate_),
-                   this, kIndexed)),
-               Nothing<bool>());
+  if (!skip_indices_) {
+    MAYBE_RETURN((CollectInterceptorKeysInternal(
+                    receiver, object,
+                    handle(InterceptorInfo::cast(
+                                access_check_info->indexed_interceptor()),
+                            isolate_),
+                    this, kIndexed)),
+                Nothing<bool>());
+  }
   MAYBE_RETURN(
       (CollectInterceptorKeysInternal(
           receiver, object,
@@ -935,8 +946,9 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyTargetKeys(
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, keys,
-      KeyAccumulator::GetKeys(target, KeyCollectionMode::kOwnOnly, filter_,
-                              GetKeysConversion::kConvertToString, is_for_in_),
+      KeyAccumulator::GetKeys(
+          target, KeyCollectionMode::kOwnOnly, filter_,
+          GetKeysConversion::kConvertToString, is_for_in_, skip_indices_),
       Nothing<bool>());
   Maybe<bool> result = AddKeysFromJSProxy(proxy, keys);
   return result;
