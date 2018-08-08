@@ -51,28 +51,28 @@ connect({
 
   assert.ok(peerCert.issuerCertificate);
   assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
-  assert.strictEqual(peerCert.serialNumber, '9A84ABCFB8A72AC0');
+  assert.strictEqual(peerCert.serialNumber, '85C7EBF3D34DC356');
   assert.strictEqual(peerCert.exponent, '0x10001');
   assert.strictEqual(
     peerCert.fingerprint,
-    '8D:06:3A:B3:E5:8B:85:29:72:4F:7D:1B:54:CD:95:19:3C:EF:6F:AA'
+    '98:AC:1D:27:A8:50:60:5B:4B:79:F5:02:C2:84:1D:E0:4C:41:CD:36'
   );
   assert.strictEqual(
     peerCert.fingerprint256,
-    'A1:DC:01:1A:EC:A3:7B:86:A8:C2:3E:26:9F:EB:EE:5C:A9:3B:BE:06' +
-    ':4C:A4:00:53:93:A9:66:07:A7:BC:13:32'
+    '45:31:DB:0F:7B:0C:7D:CB:5D:1E:BC:57:8A:BA:29:99:5B:D5:BC:12:73:D3:F6:33:' +
+    '28:77:7A:E2:3F:55:60:AD'
   );
 
   // SHA256 fingerprint of the public key
   assert.strictEqual(
     sha256(peerCert.pubkey).digest('hex'),
-    'fa5152e4407bad1e7537ef5bfc3f19fa9a62ee04432fd75e109b1803704c31ba'
+    '957b44fc84e34c9c262f6ffed31b470395f96e24c16aefc5cfe4110d621136df'
   );
 
   // HPKP / RFC7469 "pin-sha256" of the public key
   assert.strictEqual(
     sha256(peerCert.pubkey).digest('base64'),
-    '+lFS5EB7rR51N+9b/D8Z+ppi7gRDL9deEJsYA3BMMbo='
+    'lXtE/ITjTJwmL2/+0xtHA5X5biTBau/Fz+QRDWIRNt8='
   );
 
   assert.deepStrictEqual(peerCert.infoAccess['OCSP - URI'],
@@ -80,7 +80,7 @@ connect({
 
   const issuer = peerCert.issuerCertificate;
   assert.strictEqual(issuer.issuerCertificate, issuer);
-  assert.strictEqual(issuer.serialNumber, '8DF21C01468AF393');
+  assert.strictEqual(issuer.serialNumber, '80530D47F2900BD5');
 
   return cleanup();
 });

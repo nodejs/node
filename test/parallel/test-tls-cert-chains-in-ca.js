@@ -30,16 +30,16 @@ connect({
 
   const peer = pair.client.conn.getPeerCertificate();
   debug('peer:\n', peer);
-  assert.strictEqual(peer.serialNumber, 'C4CD893EF9A75DCC');
+  assert.strictEqual(peer.serialNumber, 'B751EA0953A9AA93');
 
   const next = pair.client.conn.getPeerCertificate(true).issuerCertificate;
   const root = next.issuerCertificate;
   delete next.issuerCertificate;
   debug('next:\n', next);
-  assert.strictEqual(next.serialNumber, '9A84ABCFB8A72ABF');
+  assert.strictEqual(next.serialNumber, '85C7EBF3D34DC357');
 
   debug('root:\n', root);
-  assert.strictEqual(root.serialNumber, '8DF21C01468AF393');
+  assert.strictEqual(root.serialNumber, '80530D47F2900BD5');
 
   return cleanup();
 });
