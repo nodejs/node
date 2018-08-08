@@ -368,6 +368,10 @@ assertOnlyDeepEqual(
   new Map([[undefined, null]])
 );
 assertOnlyDeepEqual(
+  new Map([[1, {}]]),
+  new Map([[true, {}]])
+);
+assertOnlyDeepEqual(
   new Set([null]),
   new Set([undefined])
 );
@@ -547,10 +551,9 @@ assertOnlyDeepEqual([1, , , 3], [1, , , 3, , , ]);
 // Handle different error messages
 {
   const err1 = new Error('foo1');
-  const err2 = new Error('foo2');
-  const err3 = new TypeError('foo1');
-  assertNotDeepOrStrict(err1, err2, assert.AssertionError);
-  assertNotDeepOrStrict(err1, err3, assert.AssertionError);
+  assertNotDeepOrStrict(err1, new Error('foo2'), assert.AssertionError);
+  assertNotDeepOrStrict(err1, new TypeError('foo1'), assert.AssertionError);
+  assertDeepAndStrictEqual(err1, new Error('foo1'));
   // TODO: evaluate if this should throw or not. The same applies for RegExp
   // Date and any object that has the same keys but not the same prototype.
   assertOnlyDeepEqual(err1, {}, assert.AssertionError);
@@ -928,4 +931,11 @@ assert.throws(() => assert.deepStrictEqual(new Boolean(true), {}),
                '  [\n    1,\n+   2\n-   2,\n-   3\n  ]' }
   );
   util.inspect.defaultOptions = tmp;
+}
+
+// Basic valueOf check.
+{
+  const a = new String(1);
+  a.valueOf = undefined;
+  assertNotDeepOrStrict(a, new String(1), assert.AssertionError);
 }
