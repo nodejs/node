@@ -2600,6 +2600,64 @@ void Init(std::vector<std::string>* argv,
   node_is_initialized = true;
 }
 
+NODE_EXTERN void ResetArgumentsToDefault() {
+  print_eval = false;
+  force_repl = false;
+  syntax_check_only = false;
+  trace_deprecation = false;
+  throw_deprecation = false;
+  trace_sync_io = false;
+  no_force_async_hooks_checks = false;
+  track_heap_objects = false;
+  eval_string = nullptr;
+  preload_modules.clear();
+  v8_thread_pool_size = v8_default_thread_pool_size;
+  prof_process = false;
+  v8_is_profiling = false;
+  node_is_initialized = false;
+  modpending = nullptr;
+  modlist_builtin = nullptr;
+  modlist_internal = nullptr;
+  modlist_linked = nullptr;
+  modlist_addon = nullptr;
+  trace_enabled_categories.clear();
+  trace_file_pattern = "node_trace.${rotation}.log";
+  abort_on_uncaught_exception = false;
+  reverted = 0;
+  #if defined(NODE_HAVE_I18N_SUPPORT)
+  icu_data_dir.clear();
+  #endif
+  no_deprecation = false;
+  #if HAVE_OPENSSL
+    ssl_openssl_cert_store =
+  #if defined(NODE_OPENSSL_CERT_STORE)
+      true;
+  #else
+      false;
+  #endif
+  # if NODE_FIPS_MODE
+    enable_fips_crypto = false;
+    force_fips_crypto = false;
+  # endif  // NODE_FIPS_MODE
+    openssl_config.clear();
+  #endif  // HAVE_OPENSSL
+  no_process_warnings = false;
+  trace_warnings = false;
+  config_preserve_symlinks = false;
+  config_preserve_symlinks_main = false;
+  config_experimental_modules = false;
+  config_experimental_vm_modules = false;
+  config_experimental_worker = false;
+  config_experimental_repl_await = false;
+  config_userland_loader.clear();
+  config_pending_deprecation = false;
+  config_warning_file.clear();
+  config_expose_internals = false;
+  config_process_title.clear();
+  v8_initialized = false;
+  linux_at_secure = false;
+  debug_options = node::DebugOptions();
+}
 // TODO(addaleax): Deprecate and eventually remove this.
 void Init(int* argc,
           const char** argv,
