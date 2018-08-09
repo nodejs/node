@@ -283,19 +283,14 @@ synchronous use libuv's threadpool, which can have surprising and negative
 performance implications for some applications. See the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
-## Class: fs.DirectoryEntry
+## Class: fs.Dirent
 <!-- YAML
 added: REPLACEME
 -->
 
 When [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with the
 `withFileTypes` option set to `true`, the resulting array is filled with
-`fs.DirectoryEntry` objects, rather than strings or `Buffers`.
-
-Note that on some systems, getting file types at the same time as `readdir` is
-not supported. On those systems, only `dirent.isUnknown()` will return true, and
-all other `DirectoryEntry` methods will return false. To get file types on those
-systems, use [`fs.stat()`][].
+`fs.Dirent` objects, rather than strings or `Buffers`.
 
 ### dirent.isBlockDevice()
 <!-- YAML
@@ -304,7 +299,7 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Returns `true` if the `fs.DirectoryEntry` object describes a block device.
+Returns `true` if the `fs.Dirent` object describes a block device.
 
 ### dirent.isCharacterDevice()
 <!-- YAML
@@ -313,7 +308,7 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Returns `true` if the `fs.DirectoryEntry` object describes a character device.
+Returns `true` if the `fs.Dirent` object describes a character device.
 
 ### dirent.isDirectory()
 <!-- YAML
@@ -322,7 +317,7 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Returns `true` if the `fs.DirectoryEntry` object describes a file system
+Returns `true` if the `fs.Dirent` object describes a file system
 directory.
 
 ### dirent.isFIFO()
@@ -332,7 +327,7 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Returns `true` if the `fs.DirectoryEntry` object describes a first-in-first-out
+Returns `true` if the `fs.Dirent` object describes a first-in-first-out
 (FIFO) pipe.
 
 ### dirent.isFile()
@@ -342,7 +337,7 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Returns `true` if the `fs.DirectoryEntry` object describes a regular file.
+Returns `true` if the `fs.Dirent` object describes a regular file.
 
 ### dirent.isSocket()
 <!-- YAML
@@ -351,7 +346,7 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Returns `true` if the `fs.DirectoryEntry` object describes a socket.
+Returns `true` if the `fs.Dirent` object describes a socket.
 
 ### dirent.isSymbolicLink()
 <!-- YAML
@@ -360,7 +355,7 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Returns `true` if the `fs.DirectoryEntry` object describes a symbolic link.
+Returns `true` if the `fs.Dirent` object describes a symbolic link.
 
 
 ### dirent.name
@@ -370,7 +365,7 @@ added: REPLACEME
 
 * {string|Buffer}
 
-The file name that this `fs.DirectoryEntry` object refers to. The type of this
+The file name that this `fs.Dirent` object refers to. The type of this
 value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 [`fs.readdirSync()`][].
 
@@ -2413,7 +2408,7 @@ changes:
   * `withFileTypes` {boolean} **Default:** `false`
 * `callback` {Function}
   * `err` {Error}
-  * `files` {string[]|Buffer[]|fs.DirectoryEntry[]}
+  * `files` {string[]|Buffer[]|fs.Dirent[]}
 
 Asynchronous readdir(3). Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
@@ -2425,7 +2420,7 @@ the filenames passed to the callback. If the `encoding` is set to `'buffer'`,
 the filenames returned will be passed as `Buffer` objects.
 
 If `options.withFileTypes` is set to `true`, the `files` array will contain
-[`fs.DirectoryEntry`][] objects.
+[`fs.Dirent`][] objects.
 
 ## fs.readdirSync(path[, options])
 <!-- YAML
@@ -2441,7 +2436,7 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
-* Returns: {string[]|Buffer[]|fs.DirectoryEntry[]}
+* Returns: {string[]|Buffer[]|fs.Dirent[]}
 
 Synchronous readdir(3).
 
@@ -2451,7 +2446,7 @@ the filenames returned. If the `encoding` is set to `'buffer'`,
 the filenames returned will be passed as `Buffer` objects.
 
 If `options.withFileTypes` is set to `true`, the result will contain
-[`fs.DirectoryEntry`][] objects.
+[`fs.Dirent`][] objects.
 
 ## fs.readFile(path[, options], callback)
 <!-- YAML
@@ -4736,7 +4731,7 @@ the file contents.
 [`WriteStream`]: #fs_class_fs_writestream
 [`EventEmitter`]: events.html
 [`event ports`]: http://illumos.org/man/port_create
-[`fs.DirectoryEntry`]: #fs_class_fs_directoryentry
+[`fs.Dirent`]: #fs_class_fs_dirent
 [`fs.FSWatcher`]: #fs_class_fs_fswatcher
 [`fs.Stats`]: #fs_class_fs_stats
 [`fs.access()`]: #fs_fs_access_path_mode_callback

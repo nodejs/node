@@ -35,7 +35,7 @@ files.forEach(function(currentFile) {
 function assertDirents(dirents) {
   assert.strictEqual(files.length, dirents.length);
   for (const [i, dirent] of dirents.entries()) {
-    assert(dirent instanceof fs.DirectoryEntry);
+    assert(dirent instanceof fs.Dirent);
     assert.strictEqual(dirent.name, files[i]);
     assert.strictEqual(dirent.isFile(), true);
     assert.strictEqual(dirent.isUnknown(), false);
@@ -88,9 +88,9 @@ fs.readdir(readdirDir, {
   assertDirents(dirents);
 }));
 
-// DirectoryEntry types
+// Dirent types
 for (const method of typeMethods) {
-  const dirent = new fs.DirectoryEntry('foo', types[method]);
+  const dirent = new fs.Dirent('foo', types[method]);
   for (const testMethod of typeMethods) {
     assert.strictEqual(dirent[testMethod](), testMethod === method);
   }
