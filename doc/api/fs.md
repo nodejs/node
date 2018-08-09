@@ -2139,7 +2139,7 @@ changes:
 
 Synchronous lstat(2).
 
-## fs.mkdir(path[, mode], callback)
+## fs.mkdir(path[, options], callback)
 <!-- YAML
 added: v0.1.8
 changes:
@@ -2158,16 +2158,29 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer} Not supported on Windows. **Default:** `0o777`.
+* `options` {Object|integer}
+  * `recursive` {boolean} **Default:** `false`
+  * `mode` {integer} Not supported on Windows. **Default:** `0o777`.
 * `callback` {Function}
   * `err` {Error}
 
 Asynchronously creates a directory. No arguments other than a possible exception
 are given to the completion callback.
 
+The optional `options` argument can be an integer specifying mode (permission
+and sticky bits), or an object with a `mode` property and a `recursive`
+property indicating whether parent folders should be created.
+
+```js
+// Creates /tmp/a/apple, regardless of whether `/tmp` and /tmp/a exist.
+fs.mkdir('/tmp/a/apple', { recursive: true }, (err) => {
+  if (err) throw err;
+});
+```
+
 See also: mkdir(2).
 
-## fs.mkdirSync(path[, mode])
+## fs.mkdirSync(path[, options])
 <!-- YAML
 added: v0.1.21
 changes:
@@ -2178,7 +2191,9 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer} Not supported on Windows. **Default:** `0o777`.
+* `options` {Object|integer}
+  * `recursive` {boolean} **Default:** `false`
+  * `mode` {integer} Not supported on Windows. **Default:** `0o777`.
 
 Synchronously creates a directory. Returns `undefined`.
 This is the synchronous version of [`fs.mkdir()`][].
@@ -4100,17 +4115,23 @@ changes:
 Asynchronous lstat(2). The `Promise` is resolved with the [`fs.Stats`][] object
 for the given symbolic link `path`.
 
-### fsPromises.mkdir(path[, mode])
+### fsPromises.mkdir(path[, options])
 <!-- YAML
 added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `0o777`
+* `options` {Object|integer}
+  * `recursive` {boolean} **Default:** `false`
+  * `mode` {integer} Not supported on Windows. **Default:** `0o777`.
 * Returns: {Promise}
 
 Asynchronously creates a directory then resolves the `Promise` with no
 arguments upon success.
+
+The optional `options` argument can be an integer specifying mode (permission
+and sticky bits), or an object with a `mode` property and a `recursive`
+property indicating whether parent folders should be created.
 
 ### fsPromises.mkdtemp(prefix[, options])
 <!-- YAML
@@ -4749,7 +4770,7 @@ the file contents.
 [`fs.ftruncate()`]: #fs_fs_ftruncate_fd_len_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.lstat()`]: #fs_fs_lstat_path_options_callback
-[`fs.mkdir()`]: #fs_fs_mkdir_path_mode_callback
+[`fs.mkdir()`]: #fs_fs_mkdir_path_options_callback
 [`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_options_callback
 [`fs.open()`]: #fs_fs_open_path_flags_mode_callback
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
