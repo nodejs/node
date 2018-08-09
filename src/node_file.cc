@@ -76,6 +76,16 @@ using v8::Value;
 # define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
+#ifndef S_ISDIR
+# define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
+#endif
+
+#ifdef __POSIX__
+const char* kPathSeparator = "/";
+#else
+const char* kPathSeparator = "\\/";
+#endif
+
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a).As<Integer>()->Value() : -1)
 #define TRACE_NAME(name) "fs.sync." #name
 #define GET_TRACE_ENABLED                                                  \
@@ -1236,11 +1246,137 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+int MKDirpSync(uv_loop_t* loop, uv_fs_t* req, const std::string& path, int mode,
+               uv_fs_cb cb = nullptr) {
+  FSContinuationData continuation_data(req, mode, cb);
+  continuation_data.PushPath(std::move(path));
+
+  while (continuation_data.paths.size() > 0) {
+    std::string next_path = continuation_data.PopPath();
+    int err = uv_fs_mkdir(loop, req, next_path.c_str(), mode, nullptr);
+    while (true) {
+      switch (err) {
+        case 0:
+          if (continuation_data.paths.size() == 0) {
+            return 0;
+          }
+          break;
+        case UV_ENOENT: {
+          std::string dirname = next_path.substr(0,
+                                        next_path.find_last_of(kPathSeparator));
+          if (dirname != next_path) {
+            continuation_data.PushPath(std::move(next_path));
+            continuation_data.PushPath(std::move(dirname));
+          } else if (continuation_data.paths.size() == 0) {
+            err = UV_EEXIST;
+            continue;
+          }
+          break;
+        }
+        case UV_EPERM: {
+          return err;
+        }
+        default:
+          uv_fs_req_cleanup(req);
+          err = uv_fs_stat(loop, req, next_path.c_str(), nullptr);
+          if (err == 0 && !S_ISDIR(req->statbuf.st_mode)) return UV_EEXIST;
+          if (err < 0) return err;
+          break;
+      }
+      break;
+    }
+    uv_fs_req_cleanup(req);
+  }
+
+  return 0;
+}
+
+int MKDirpAsync(uv_loop_t* loop,
+                uv_fs_t* req,
+                const char* path,
+                int mode,
+                uv_fs_cb cb) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  // on the first iteration of algorithm, stash state information.
+  if (req_wrap->continuation_data == nullptr) {
+    req_wrap->continuation_data = std::unique_ptr<FSContinuationData>{
+      new FSContinuationData(req, mode, cb)};
+    req_wrap->continuation_data->PushPath(std::move(path));
+  }
+
+  // on each iteration of algorithm, mkdir directory on top of stack.
+  std::string next_path = req_wrap->continuation_data->PopPath();
+  int err = uv_fs_mkdir(loop, req, next_path.c_str(), mode,
+                        uv_fs_callback_t{[](uv_fs_t* req) {
+    FSReqBase* req_wrap = FSReqBase::from_req(req);
+    Environment* env = req_wrap->env();
+    uv_loop_t* loop = env->event_loop();
+    std::string path = req->path;
+    int err = req->result;
+
+    while (true) {
+      switch (err) {
+        case 0: {
+          if (req_wrap->continuation_data->paths.size() == 0) {
+            req_wrap->continuation_data->Done(0);
+          } else {
+            uv_fs_req_cleanup(req);
+            MKDirpAsync(loop, req, path.c_str(),
+                        req_wrap->continuation_data->mode, nullptr);
+          }
+          break;
+        }
+        case UV_ENOENT: {
+          std::string dirname = path.substr(0,
+                                            path.find_last_of(kPathSeparator));
+          if (dirname != path) {
+            req_wrap->continuation_data->PushPath(std::move(path));
+            req_wrap->continuation_data->PushPath(std::move(dirname));
+          } else if (req_wrap->continuation_data->paths.size() == 0) {
+            err = UV_EEXIST;
+            continue;
+          }
+          uv_fs_req_cleanup(req);
+          MKDirpAsync(loop, req, path.c_str(),
+                      req_wrap->continuation_data->mode, nullptr);
+          break;
+        }
+        case UV_EPERM: {
+          req_wrap->continuation_data->Done(err);
+          break;
+        }
+        default:
+          if (err == UV_EEXIST &&
+              req_wrap->continuation_data->paths.size() > 0) {
+            uv_fs_req_cleanup(req);
+            MKDirpAsync(loop, req, path.c_str(),
+                        req_wrap->continuation_data->mode, nullptr);
+          } else {
+            // verify that the path pointed to is actually a directory.
+            uv_fs_req_cleanup(req);
+            int err = uv_fs_stat(loop, req, path.c_str(),
+                                 uv_fs_callback_t{[](uv_fs_t* req) {
+              FSReqBase* req_wrap = FSReqBase::from_req(req);
+              int err = req->result;
+              if (err == 0 && !S_ISDIR(req->statbuf.st_mode)) err = UV_EEXIST;
+              req_wrap->continuation_data->Done(err);
+            }});
+            if (err < 0) req_wrap->continuation_data->Done(err);
+          }
+          break;
+      }
+      break;
+    }
+  }});
+
+  return err;
+}
+
 static void MKDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 3);
+  CHECK_GE(argc, 4);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
@@ -1248,16 +1384,24 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsInt32());
   const int mode = args[1].As<Int32>()->Value();
 
-  FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
+  CHECK(args[2]->IsBoolean());
+  bool mkdirp = args[2]->IsTrue();
+
+  FSReqBase* req_wrap_async = GetReqWrap(env, args[3]);
   if (req_wrap_async != nullptr) {  // mkdir(path, mode, req)
-    AsyncCall(env, req_wrap_async, args, "mkdir", UTF8, AfterNoArgs,
-              uv_fs_mkdir, *path, mode);
+    AsyncCall(env, req_wrap_async, args, "mkdir", UTF8,
+              AfterNoArgs, mkdirp ? MKDirpAsync : uv_fs_mkdir, *path, mode);
   } else {  // mkdir(path, mode, undefined, ctx)
-    CHECK_EQ(argc, 4);
+    CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(mkdir);
-    SyncCall(env, args[3], &req_wrap_sync, "mkdir",
-             uv_fs_mkdir, *path, mode);
+    if (mkdirp) {
+      SyncCall(env, args[4], &req_wrap_sync, "mkdir",
+               MKDirpSync, *path, mode);
+    } else {
+      SyncCall(env, args[4], &req_wrap_sync, "mkdir",
+               uv_fs_mkdir, *path, mode);
+    }
     FS_SYNC_TRACE_END(mkdir);
   }
 }
