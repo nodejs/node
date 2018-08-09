@@ -4,10 +4,9 @@ const common = require('../common');
 
 // This test ensures that if we have both 'readable' and 'data'
 // listeners on Readable instance once all of the 'readable' listeners
-// are gone and there are still 'data' listeners stream will try
-// to flow to satisfy the 'data' listeners.
+// are gone and there are still 'data' listeners stream will *not*
+// try to flow if it was explicitly paused.
 
-const assert = require('assert');
 const { Readable } = require('stream');
 
 const r = new Readable({
@@ -16,12 +15,11 @@ const r = new Readable({
 
 const data = ['foo', 'bar', 'baz'];
 
-let receivedData = '';
+r.pause();
+
+r.on('data', common.mustNotCall());
+r.on('end', common.mustNotCall());
 r.once('readable', common.mustCall());
-r.on('data', (chunk) => receivedData += chunk);
-r.once('end', common.mustCall(() => {
-  assert.strictEqual(receivedData, data.join(''));
-}));
 
 for (const d of data)
   r.push(d);
