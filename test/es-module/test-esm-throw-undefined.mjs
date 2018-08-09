@@ -1,5 +1,5 @@
 // Flags: --experimental-modules
-import '../common';
+import '../common/index.mjs';
 import assert from 'assert';
 
 async function doTest() {

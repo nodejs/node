@@ -605,8 +605,8 @@ Maybe<URL> ResolveMain(Environment* env, const URL& search) {
   Maybe<URL> file = ResolveExtensions<TRY_EXACT_NAME>(resolved);
   if (!file.IsNothing())
     return file;
-  if (resolved.back() != '/') {
-    resolved = URL(resolved + "/", search);
+  if (pjson.main.back() != '/') {
+    resolved = URL(pjson.main + "/", search);
   }
   return ResolveIndex(resolved);
 }
