@@ -342,8 +342,7 @@ struct PackageConfig {
   V(performance_entry_callback, v8::Function)                                 \
   V(performance_entry_template, v8::Function)                                 \
   V(process_object, v8::Object)                                               \
-  V(promise_reject_handled_function, v8::Function)                            \
-  V(promise_reject_unhandled_function, v8::Function)                          \
+  V(promise_handler_function, v8::Function)                                   \
   V(promise_wrap_template, v8::ObjectTemplate)                                \
   V(push_values_to_array_function, v8::Function)                              \
   V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)           \
