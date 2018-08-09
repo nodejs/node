@@ -94,13 +94,17 @@ $(NODE_G_EXE): config.gypi out/Makefile
 CODE_CACHE_DIR ?= out/$(BUILDTYPE)/obj/gen
 CODE_CACHE_FILE ?= $(CODE_CACHE_DIR)/node_code_cache.cc
 
+ifeq ($(BUILDTYPE),Debug)
+CONFIG_FLAGS += --debug
+endif
 .PHONY: with-code-cache
 with-code-cache:
-	$(PYTHON) ./configure
+	@echo $(CONFIG_FLAGS)
+	$(PYTHON) ./configure $(CONFIG_FLAGS)
 	$(MAKE)
 	mkdir -p $(CODE_CACHE_DIR)
 	out/$(BUILDTYPE)/$(NODE_EXE) --expose-internals tools/generate_code_cache.js $(CODE_CACHE_FILE)
-	$(PYTHON) ./configure --code-cache-path $(CODE_CACHE_FILE)
+	$(PYTHON) ./configure --code-cache-path $(CODE_CACHE_FILE) $(CONFIG_FLAGS)
 	$(MAKE)
 
 .PHONY: test-code-cache
