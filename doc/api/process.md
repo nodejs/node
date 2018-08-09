@@ -97,6 +97,60 @@ the child process.
 The message goes through serialization and parsing. The resulting message might
 not be the same as what is originally sent.
 
+### Event: 'multipleResolves'
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string} The error type. One of `'resolveAfterResolved'` or
+  `'rejectAfterResolved'`.
+* `promise` {Promise} The promise that resolved or rejected more than once.
+* `value` {any} The value with which the promise was either resolved or
+  rejected after the original resolve.
+* `message` {string} A short description of what happened.
+
+The `'multipleResolves'` event is emitted whenever a `Promise` has been either:
+
+* Resolved more than once.
+* Rejected after resolve.
+
+This is useful for tracking errors in your application while using the promise
+constructor. Otherwise such mistakes are silently swallowed due to being in a
+dead zone.
+
+It is recommended to end the process on such errors, since the process could be
+in an undefined state.
+
+```js
+process.on('multipleResolves', (type, promise, reason, message) => {
+  console.error(`${type}: ${message}`);
+  console.error(promise, reason);
+  process.exit(1);
+});
+
+async function main() {
+  try {
+    return await new Promise((resolve, reject) => {
+      resolve('First call');
+      resolve('Swallowed resolve');
+      reject(new Error('Swallowed reject'));
+    });
+  } catch {
+    throw new Error('Failed');
+  }
+}
+
+main().then(console.log);
+// resolveAfterResolved: Resolve was called more than once.
+// Promise { 'First call' } 'Swallowed resolve'
+// rejectAfterResolved: Reject was called after resolve.
+// Promise { 'First call' } Error: Swallowed reject
+//     at Promise (*)
+//     at new Promise (<anonymous>)
+//     at main (*)
+// First call
+```
+
 ### Event: 'rejectionHandled'
 <!-- YAML
 added: v1.4.1
