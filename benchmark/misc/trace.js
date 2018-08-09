@@ -35,9 +35,7 @@ function main({ n, method }) {
 
   const {
     trace,
-    isTraceCategoryEnabled,
-    emit,
-    categoryGroupEnabled
+    isTraceCategoryEnabled
   } = internalBinding('trace_events');
 
   switch (method) {

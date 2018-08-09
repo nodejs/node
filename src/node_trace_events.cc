@@ -13,7 +13,6 @@ using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Int32;
 using v8::Local;
 using v8::Object;
 using v8::String;
