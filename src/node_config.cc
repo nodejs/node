@@ -29,6 +29,18 @@ using v8::Value;
                               True(isolate), ReadOnly).FromJust();            \
   } while (0)
 
+#define READONLY_STRING_PROPERTY(obj, str, val)                                \
+  do {                                                                         \
+    (obj)->DefineOwnProperty(context,                                          \
+                             FIXED_ONE_BYTE_STRING(isolate, str),              \
+                             String::NewFromUtf8(                              \
+                                 isolate,                                      \
+                                 val.data(),                                   \
+                                 v8::NewStringType::kNormal).ToLocalChecked(), \
+                             ReadOnly).FromJust();                             \
+  } while (0)
+
+
 #define READONLY_PROPERTY(obj, name, value)                                   \
   do {                                                                        \
     obj->DefineOwnProperty(env->context(),                                    \
@@ -60,13 +72,7 @@ static void Initialize(Local<Object> target,
   READONLY_BOOLEAN_PROPERTY("hasTracing");
 #endif
 
-  target->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "icuDataDir"),
-      String::NewFromUtf8(isolate,
-                          icu_data_dir.data(),
-                          v8::NewStringType::kNormal).ToLocalChecked(),
-      ReadOnly).FromJust();
+  READONLY_STRING_PROPERTY(target, "icuDataDir", icu_data_dir);
 
 #endif  // NODE_HAVE_I18N_SUPPORT
 
@@ -78,13 +84,7 @@ static void Initialize(Local<Object> target,
   if (config_experimental_modules) {
     READONLY_BOOLEAN_PROPERTY("experimentalModules");
     if (!config_userland_loader.empty()) {
-      target->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(isolate, "userLoader"),
-          String::NewFromUtf8(isolate,
-                              config_userland_loader.data(),
-                              v8::NewStringType::kNormal).ToLocalChecked(),
-          ReadOnly).FromJust();
+      READONLY_STRING_PROPERTY(target, "userLoader",  config_userland_loader);
     }
   }
 
@@ -111,41 +111,21 @@ static void Initialize(Local<Object> target,
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
 
   if (!config_warning_file.empty()) {
-    target->DefineOwnProperty(
-        context,
-        FIXED_ONE_BYTE_STRING(isolate, "warningFile"),
-        String::NewFromUtf8(isolate,
-                            config_warning_file.data(),
-                            v8::NewStringType::kNormal).ToLocalChecked(),
-        ReadOnly).FromJust();
+    READONLY_STRING_PROPERTY(target, "warningFile", config_warning_file);
   }
 
   Local<Object> debugOptions = Object::New(isolate);
+  READONLY_PROPERTY(target, "debugOptions", debugOptions);
 
-  target->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "debugOptions"),
-      debugOptions, ReadOnly).FromJust();
+  READONLY_STRING_PROPERTY(debugOptions, "host", debug_options.host_name());
 
-  debugOptions->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "host"),
-      String::NewFromUtf8(isolate,
-                          debug_options.host_name().c_str(),
-                          v8::NewStringType::kNormal).ToLocalChecked(),
-      ReadOnly).FromJust();
+  READONLY_PROPERTY(debugOptions,
+                    "port",
+                    Integer::New(isolate, debug_options.port()));
 
-  debugOptions->DefineOwnProperty(
-      context,
-      env->port_string(),
-      Integer::New(isolate, debug_options.port()),
-      ReadOnly).FromJust();
-
-  debugOptions->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "inspectorEnabled"),
-      Boolean::New(isolate, debug_options.inspector_enabled()), ReadOnly)
-          .FromJust();
+  READONLY_PROPERTY(debugOptions,
+                    "inspectorEnabled",
+                    Boolean::New(isolate, debug_options.inspector_enabled()));
 }  // InitConfig
 
 }  // namespace node
