@@ -14,10 +14,12 @@ the following tiers.
   suite for the tool/API is not green. To be considered for inclusion
   in this tier it must have a good test suite and that test suite and a job
   must exist in the Node.js CI so that it can be run as part of the release
-  process.  Tests on master will be run nightly when possible to provide early warning
-  of potential issues.  No commit to the current and LTS release branches should break this
-  tool/API if the next major release is within 1 month. In addition:
-    * The maintainers of the tool must remain responsive when there are problems;
+  process.  Tests on master will be run nightly when possible to provide
+  early warning of potential issues.  No commit to the current and LTS
+  release branches should break this tool/API if the next major release
+  is within 1 month. In addition:
+    * The maintainers of the tool must remain responsive when there
+      are problems;
     * The tool must be actively used by the ecosystem;
     * The tool must be heavily depended on;
     * The tool must have a guide or other documentation in the Node.js GitHub
@@ -33,7 +35,8 @@ the following tiers.
   in this tier it must have a good test suite and that test suite and a job
   must exist in the Node.js CI so that it can be run as part of the release
   process. In addition:
-    * The maintainers of the tool must remain responsive when there are problems;
+    * The maintainers of the tool must remain responsive when
+      there are problems;
     * The tool must be actively used by the ecosystem;
     * The tool must be heavily depended on;
     * The tool must have a guide or other documentation in the Node.js GitHub
@@ -76,13 +79,15 @@ The current categories of tools/APIs that fall under these Tiers are:
   
 ## Adding a tool to this list
 
-Any tool that might be used to investigate issues when running Node.js can be added to the
-list. If there is a new tool that should be added to the list, it should start by being
-added to the "Not yet classified" or "Tier 4" lists. Once it has been added to the list
-"promotion" to Tier 3 through Tier 1 requires that the requirements listed above be met
-AND have agreement from Diagnostics WG and Release WG based on the criteria listed above.
+Any tool that might be used to investigate issues when running Node.js can
+be added to the list. If there is a new tool that should be added to the
+list, it should start by being added to the "Not yet classified" or
+"Tier 4" lists. Once it has been added to the list "promotion" to Tier 3
+through Tier 1 requires that the requirements listed above be met AND
+have agreement from Diagnostics WG and Release WG based on the criteria
+listed above.
  
-# Tiers
+## Tiers
  
 The tools are currently assigned to Tiers as follows:
  
