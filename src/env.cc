@@ -617,7 +617,7 @@ Local<Value> Environment::GetNow() {
   CHECK_GE(now, timer_base());
   now -= timer_base();
   if (now <= 0xffffffff)
-    return Integer::New(isolate(), static_cast<uint32_t>(now));
+    return Integer::NewFromUnsigned(isolate(), static_cast<uint32_t>(now));
   else
     return Number::New(isolate(), static_cast<double>(now));
 }
