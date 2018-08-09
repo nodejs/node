@@ -29,10 +29,16 @@ const {
   symlink,
   truncate,
   unlink,
-  utimes
+  utimes,
+  writeFile
 } = fsPromises;
 
 const tmpDir = tmpdir.path;
+
+let dirc = 0;
+function nextdir() {
+  return `test${++dirc}`;
+}
 
 // fs.promises should not be enumerable as long as it causes a warning to be
 // emitted.
@@ -201,11 +207,48 @@ function verifyStatObject(stat) {
     await mkdir(newdir);
     stats = await stat(newdir);
     assert(stats.isDirectory());
-
     const list = await readdir(tmpDir);
     assert.deepStrictEqual(list, ['baz2.js', 'dir']);
-
     await rmdir(newdir);
+
+    // mkdirp when folder does not yet exist.
+    {
+      const dir = path.join(tmpDir, nextdir(), nextdir());
+      await mkdir(dir, { recursive: true });
+      stats = await stat(dir);
+      assert(stats.isDirectory());
+    }
+
+    // mkdirp when path is a file.
+    {
+      const dir = path.join(tmpDir, nextdir(), nextdir());
+      await mkdir(path.dirname(dir));
+      await writeFile(dir);
+      try {
+        await mkdir(dir, { recursive: true });
+        throw new Error('unreachable');
+      } catch (err) {
+        assert.notStrictEqual(err.message, 'unreachable');
+        assert.strictEqual(err.code, 'EEXIST');
+        assert.strictEqual(err.syscall, 'mkdir');
+      }
+    }
+
+    // mkdirp ./
+    {
+      const dir = path.resolve(tmpDir, `${nextdir()}/./${nextdir()}`);
+      await mkdir(dir, { recursive: true });
+      stats = await stat(dir);
+      assert(stats.isDirectory());
+    }
+
+    // mkdirp ../
+    {
+      const dir = path.resolve(tmpDir, `${nextdir()}/../${nextdir()}`);
+      await mkdir(dir, { recursive: true });
+      stats = await stat(dir);
+      assert(stats.isDirectory());
+    }
 
     await mkdtemp(path.resolve(tmpDir, 'FOO'));
     assert.rejects(
