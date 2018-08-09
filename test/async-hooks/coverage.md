@@ -1,4 +1,4 @@
-## AsyncHooks Coverage Overview
+# AsyncHooks Coverage Overview
 
 Showing which kind of async resource is covered by which test:
 
