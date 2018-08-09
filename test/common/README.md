@@ -57,6 +57,13 @@ On non-Windows platforms, this always returns `true`.
 
 Platform normalizes the `dd` command
 
+### debuglog([fmt, ]msg[, msgs])
+* `fmt` [&lt;string>] Optional format string
+* `msg` [&lt;string>] The string to be printed to stderr
+* `msgs` [&lt;string>] Additional arguments to the function
+
+Prints messages (optionally, formatted using `fmt`) to `process.stderr`, using `util.debuglog('test')`.
+
 ### disableCrashOnUnhandledRejection()
 
 Removes the `process.on('unhandledRejection')` handler that crashes the process

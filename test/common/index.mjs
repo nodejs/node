@@ -51,7 +51,8 @@ const {
   getBufferSources,
   disableCrashOnUnhandledRejection,
   getTTYfd,
-  runWithInvalidFD
+  runWithInvalidFD,
+  debuglog,
 } = common;
 
 export {
@@ -103,5 +104,6 @@ export {
   getBufferSources,
   disableCrashOnUnhandledRejection,
   getTTYfd,
-  runWithInvalidFD
+  runWithInvalidFD,
+  debuglog,
 };
