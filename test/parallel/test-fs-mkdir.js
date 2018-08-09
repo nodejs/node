@@ -23,12 +23,18 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
+let dirc = 0;
+function nextdir() {
+  return `test${++dirc}`;
+}
+
 {
-  const pathname = `${tmpdir.path}/test1`;
+  const pathname = path.join(tmpdir.path, nextdir());
 
   fs.mkdir(pathname, common.mustCall(function(err) {
     assert.strictEqual(err, null);
@@ -37,7 +43,7 @@ tmpdir.refresh();
 }
 
 {
-  const pathname = `${tmpdir.path}/test2`;
+  const pathname = path.join(tmpdir.path, nextdir());
 
   fs.mkdir(pathname, 0o777, common.mustCall(function(err) {
     assert.strictEqual(err, null);
@@ -46,7 +52,7 @@ tmpdir.refresh();
 }
 
 {
-  const pathname = `${tmpdir.path}/test3`;
+  const pathname = path.join(tmpdir.path, nextdir());
 
   fs.mkdirSync(pathname);
 
@@ -70,6 +76,101 @@ tmpdir.refresh();
     }
   );
 });
+
+// mkdirpSync when both top-level, and sub-folders do not exist.
+{
+  const pathname = path.join(tmpdir.path, nextdir(), nextdir());
+
+  fs.mkdirSync(pathname, { recursive: true });
+
+  const exists = fs.existsSync(pathname);
+  assert.strictEqual(exists, true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+}
+
+// mkdirpSync when folder already exists.
+{
+  const pathname = path.join(tmpdir.path, nextdir(), nextdir());
+
+  fs.mkdirSync(pathname, { recursive: true });
+  // should not cause an error.
+  fs.mkdirSync(pathname, { recursive: true });
+
+  const exists = fs.existsSync(pathname);
+  assert.strictEqual(exists, true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+}
+
+// mkdirpSync ../
+{
+  const pathname = `${tmpdir.path}/${nextdir()}/../${nextdir()}/${nextdir()}`;
+  fs.mkdirSync(pathname, { recursive: true });
+  const exists = fs.existsSync(pathname);
+  assert.strictEqual(exists, true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+}
+
+// mkdirpSync when path is a file.
+{
+  const pathname = path.join(tmpdir.path, nextdir(), nextdir());
+
+  fs.mkdirSync(path.dirname(pathname));
+  fs.writeFileSync(pathname, '', 'utf8');
+
+  try {
+    fs.mkdirSync(pathname, { recursive: true });
+    throw new Error('unreachable');
+  } catch (err) {
+    assert.notStrictEqual(err.message, 'unreachable');
+    assert.strictEqual(err.code, 'EEXIST');
+    assert.strictEqual(err.syscall, 'mkdir');
+  }
+}
+
+// mkdirp when folder does not yet exist.
+{
+  const pathname = path.join(tmpdir.path, nextdir(), nextdir());
+
+  fs.mkdir(pathname, { recursive: true }, common.mustCall(function(err) {
+    assert.strictEqual(err, null);
+    assert.strictEqual(fs.existsSync(pathname), true);
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+  }));
+}
+
+// mkdirp when path is a file.
+{
+  const pathname = path.join(tmpdir.path, nextdir(), nextdir());
+
+  fs.mkdirSync(path.dirname(pathname));
+  fs.writeFileSync(pathname, '', 'utf8');
+  fs.mkdir(pathname, { recursive: true }, (err) => {
+    assert.strictEqual(err.code, 'EEXIST');
+    assert.strictEqual(err.syscall, 'mkdir');
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), false);
+  });
+}
+
+// mkdirpSync dirname loop
+// XXX: windows and smartos have issues removing a directory that you're in.
+if (common.isMainThread && (common.isLinux || common.isOSX)) {
+  const pathname = path.join(tmpdir.path, nextdir());
+  fs.mkdirSync(pathname);
+  process.chdir(pathname);
+  fs.rmdirSync(pathname);
+  try {
+    fs.mkdirSync('X', { recursive: true });
+    throw new Error('unreachable');
+  } catch (err) {
+    assert.notStrictEqual(err.message, 'unreachable');
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'mkdir');
+  }
+  fs.mkdir('X', { recursive: true }, (err) => {
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'mkdir');
+  });
+}
 
 // Keep the event loop alive so the async mkdir() requests
 // have a chance to run (since they don't ref the event loop).
