@@ -2420,4 +2420,4 @@ static void Initialize(Local<Object> target,
 }  // namespace url
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(url, node::url::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(url, node::url::Initialize)
