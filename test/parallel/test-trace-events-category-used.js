@@ -8,9 +8,9 @@ if (!common.isMainThread)
 
 const CODE = `
   const { internalBinding } = require('internal/test/binding');
-  const { categoryGroupEnabled } = internalBinding('trace_events');
+  const { isTraceCategoryEnabled } = internalBinding('trace_events');
   console.log(
-    categoryGroupEnabled("custom")
+    isTraceCategoryEnabled("custom")
   );
 `;
 
@@ -21,6 +21,7 @@ process.chdir(tmpdir.path);
 const procEnabled = cp.spawn(
   process.execPath,
   [ '--trace-event-categories', 'custom',
+    '--no-warnings',
     '--expose-internals',
     '-e', CODE ]
 );
@@ -35,6 +36,7 @@ procEnabled.once('exit', common.mustCall(() => {
 const procDisabled = cp.spawn(
   process.execPath,
   [ '--trace-event-categories', 'other',
+    '--no-warnings',
     '--expose-internals',
     '-e', CODE ]
 );
