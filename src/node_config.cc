@@ -29,15 +29,15 @@ using v8::Value;
                               True(isolate), ReadOnly).FromJust();            \
   } while (0)
 
-#define READONLY_STRING_PROPERTY(obj, str, val)                               \
-  do {                                                                        \
-    obj->DefineOwnProperty(context,                                           \
-                           FIXED_ONE_BYTE_STRING(isolate, str),               \
-                           String::NewFromUtf8(                               \
-                             isolate,                                         \
-                             val.data(),                                      \
-                             v8::NewStringType::kNormal).ToLocalChecked(),    \
-                           ReadOnly).FromJust();                              \
+#define READONLY_STRING_PROPERTY(obj, str, val)                                \
+  do {                                                                         \
+    (obj)->DefineOwnProperty(context,                                          \
+                             FIXED_ONE_BYTE_STRING(isolate, str),              \
+                             String::NewFromUtf8(                              \
+                                 isolate,                                      \
+                                 val.data(),                                   \
+                                 v8::NewStringType::kNormal).ToLocalChecked(), \
+                             ReadOnly).FromJust();                             \
   } while (0)
 
 
