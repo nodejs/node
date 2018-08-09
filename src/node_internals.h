@@ -195,9 +195,9 @@ extern bool config_experimental_modules;
 // that is used by lib/vm.js
 extern bool config_experimental_vm_modules;
 
-// Set in node.cc by ParseArgs when --experimental-vm-modules is used.
+// Set in node.cc by ParseArgs when --experimental-worker is used.
 // Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/vm.js
+// that is used by the module loader.
 extern bool config_experimental_worker;
 
 // Set in node.cc by ParseArgs when --experimental-repl-await is used.
