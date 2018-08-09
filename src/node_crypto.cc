@@ -4850,10 +4850,11 @@ void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
   SSLPointer ssl(SSL_new(ctx.get()));
   CHECK(ssl);
 
-  Local<Array> arr = Array::New(env->isolate());
   STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(ssl.get());
+  int n = sk_SSL_CIPHER_num(ciphers);
+  Local<Array> arr = Array::New(env->isolate(), n);
 
-  for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); ++i) {
+  for (int i = 0; i < n; ++i) {
     const SSL_CIPHER* cipher = sk_SSL_CIPHER_value(ciphers, i);
     arr->Set(env->context(),
              i,
