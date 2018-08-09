@@ -1081,7 +1081,7 @@ else
 	@echo "Skipping Markdown linter on docs (no crypto)"
 endif
 
-LINT_MD_TARGETS = src lib benchmark tools/doc tools/icu
+LINT_MD_TARGETS = src lib benchmark test tools/doc tools/icu
 LINT_MD_ROOT_DOCS := $(wildcard *.md)
 LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
   -not -path '*node_modules*' -name '*.md') $(LINT_MD_ROOT_DOCS)
