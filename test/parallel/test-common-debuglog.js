@@ -1,21 +1,18 @@
 'use strict';
 
-const common = require('../common');
+const common = require('../common'); // eslint-disable-line no-unused-vars
 const assert = require('assert');
+const path = require('path');
+const { spawnSync } = require('child_process');
 
-const message = 'message';
-const debugEnv = (process.env.NODE_DEBUG || '').split(',');
+{
+  const message = 'message';
+  process.env.NODE_DEBUG = 'test';
+  const { stderr } = spawnSync(process.execPath, [
+    path.resolve(__dirname, 'test-common-debuglog-dummy.js'),
+    message
+  ], { encoding: 'utf8' });
 
-if (!debugEnv.includes('test')) {
-  process.env.NODE_DEBUG = 'test,' + (process.env.NODE_DEBUG || '');
+  assert.ok(stderr.startsWith('TEST'));
+  assert.ok(stderr.endsWith(`${message}\n`));
 }
-
-const listener = common.mustCallAtLeast((data) => {
-  assert.ok(data.startsWith('TEST'));
-  assert.ok(data.endsWith(message + '\n'));
-}, 1);
-
-common.hijackStderr(listener);
-common.debuglog(message);
-assert.ok(process.stderr.writeTimes, 'not called!');
-common.restoreStderr();
