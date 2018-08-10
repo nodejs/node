@@ -214,6 +214,11 @@ class V8_EXPORT V8InspectorClient {
   virtual bool canExecuteScripts(int contextGroupId) { return true; }
 
   virtual void maxAsyncCallStackDepthChanged(int depth) {}
+
+  virtual std::unique_ptr<StringBuffer> resourceNameToUrl(
+      const StringView& resourceName) {
+    return nullptr;
+  }
 };
 
 // These stack trace ids are intended to be passed between debuggers and be

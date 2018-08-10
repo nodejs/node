@@ -76,6 +76,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   void FireContextCreated(v8::Local<v8::Context> context, int context_group_id);
   void FireContextDestroyed(v8::Local<v8::Context> context);
   void FreeContext(v8::Local<v8::Context> context);
+  void SetResourceNamePrefix(v8::Local<v8::String> prefix);
 
  private:
   struct VectorCompare {
@@ -114,6 +115,8 @@ class IsolateData : public v8_inspector::V8InspectorClient {
                          v8_inspector::V8StackTrace*) override;
   bool isInspectableHeapObject(v8::Local<v8::Object>) override;
   void maxAsyncCallStackDepthChanged(int depth) override;
+  std::unique_ptr<v8_inspector::StringBuffer> resourceNameToUrl(
+      const v8_inspector::StringView& resourceName) override;
 
   // The isolate gets deleted by its {Dispose} method, not by the default
   // deleter. Therefore we have to define a custom deleter for the unique_ptr to
@@ -141,6 +144,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   bool log_console_api_message_calls_ = false;
   bool log_max_async_call_stack_depth_changed_ = false;
   v8::Global<v8::Private> not_inspectable_private_;
+  v8::Global<v8::String> resource_name_prefix_;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
