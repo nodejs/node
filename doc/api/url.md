@@ -305,6 +305,31 @@ to percent-encode may vary somewhat from what the [`url.parse()`][] and
 
 Gets and sets the port portion of the URL.
 
+The port value may be a number or a string containing a number in the range
+`0` to `65535` (inclusive). Setting the value to the default port of the
+`URL` objects given `protocol` will result in the `port` value becoming
+the empty string (`''`).
+
+The port value can be an empty string in which case the port depends on
+the protocol/scheme:
+
+| protocol | port |
+| :------- | :--- |
+| "ftp"    | 21   |
+| "file"   |      |
+| "gopher" | 70   |
+| "http"   | 80   |
+| "https"  | 443  |
+| "ws"     | 80   |
+| "wss"    | 443  |
+
+Upon assigning a value to the port, the value will first be converted to a
+string using `.toString()`.
+
+If that string is invalid but it begins with a number, the leading number is
+assigned to `port`.
+If the number lies outside the range denoted above, it is ignored.
+
 ```js
 const myURL = new URL('https://example.org:8888');
 console.log(myURL.port);
@@ -345,19 +370,6 @@ myURL.port = 1e10; // 10000000000, will be range-checked as described below
 console.log(myURL.port);
 // Prints 1234
 ```
-
-The port value may be set as either a number or as a string containing a number
-in the range `0` to `65535` (inclusive). Setting the value to the default port
-of the `URL` objects given `protocol` will result in the `port` value becoming
-the empty string (`''`).
-
-Upon assigning a value to the port, the value will first be converted to a
-string using `.toString()`.
-
-If that string is invalid but it begins with a number, the leading number is
-assigned to `port`.
-Otherwise, or if the number lies outside the range denoted above,
-it is ignored.
 
 Note that numbers which contain a decimal point,
 such as floating-point numbers or numbers in scientific notation,
