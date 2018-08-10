@@ -901,3 +901,10 @@ assert.deepStrictEqual(obj1, obj2);
   a.valueOf = undefined;
   assertNotDeepOrStrict(a, new String(1));
 }
+
+// Basic array out of bounds check.
+{
+  const arr = [1, 2, 3];
+  arr[2 ** 32] = true;
+  assertNotDeepOrStrict(arr, [1, 2, 3]);
+}
