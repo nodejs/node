@@ -39,7 +39,7 @@ function getall() {
       pathname: '/',
       port: server.address().port
     }, cb);
-    req.on('error', cb);
+
     req.setTimeout(10, function() {
       console.log('timeout (expected)');
     });
