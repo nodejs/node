@@ -112,9 +112,10 @@ comment that explains why the PR does not require a CI run.
 
 ### Code Reviews
 
-All pull requests must be reviewed and accepted by two Collaborators with
-sufficient expertise who are able to take full responsibility for the change.
-Approval must be from Collaborators who are not authors of the proposed changes.
+All pull requests must be reviewed and accepted by at least two Collaborators
+with sufficient expertise who are able to take full responsibility for the
+change. Approval must be from Collaborators who are not authors of the proposed
+changes.
 
 In some cases, it may be necessary to summon a GitHub team to a pull request for
 review by @-mention.
