@@ -18,8 +18,7 @@ const types = {
   isCharacterDevice: constants.UV_DIRENT_CHAR,
   isSymbolicLink: constants.UV_DIRENT_LINK,
   isFIFO: constants.UV_DIRENT_FIFO,
-  isSocket: constants.UV_DIRENT_SOCKET,
-  isUnknown: constants.UV_DIRENT_UNKNOWN
+  isSocket: constants.UV_DIRENT_SOCKET
 };
 const typeMethods = Object.keys(types);
 
@@ -38,7 +37,6 @@ function assertDirents(dirents) {
     assert(dirent instanceof fs.Dirent);
     assert.strictEqual(dirent.name, files[i]);
     assert.strictEqual(dirent.isFile(), true);
-    assert.strictEqual(dirent.isUnknown(), false);
     assert.strictEqual(dirent.isDirectory(), false);
     assert.strictEqual(dirent.isSocket(), false);
     assert.strictEqual(dirent.isBlockDevice(), false);
