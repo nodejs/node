@@ -7,8 +7,7 @@ const http2 = require('http2');
 const Countdown = require('../common/countdown');
 
 // Check that destroying the Http2ServerResponse stream produces
-// the expected result, including the ability to throw an error
-// which is emitted on server.streamError
+// the expected result.
 
 const errors = [
   'test-error',
