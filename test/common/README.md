@@ -59,11 +59,20 @@ Platform normalizes the `dd` command
 
 ### debuglog([fmt, ]msg[, msgs])
 * `fmt` [&lt;string>] Optional format string
-* `msg` [&lt;string>] The string to be printed to stderr
+* `msg` [&lt;string>] The string to be printed
 * `msgs` [&lt;string>] Additional arguments to the function
 
-Prints messages (optionally, formatted using `fmt`) to `process.stderr`,
-using `util.debuglog('test')`.
+Prints messages (optionally, formatted using `fmt`). Since [`util.debuglog()`]
+is used internally (invoked as `util.debuglog('test')`), these messages will be
+visible only when `NODE_DEBUG` environment variable is set with `test`.
+
+```sh
+// when NODE_DEBUG is not set, or doesn\'t contain `test`, prints nothing.
+$ NODE_DEBUG=fs,net ./node test/fixtures/common-debuglog.js hello world
+// when NODE_DEBUG contains `test`, messages are printed to `process.stderr`
+$ NODE_DEBUG=test,fs,net ./node test/fixtures/common-debuglog.js hello world
+TEST 89440: hello world
+```
 
 ### disableCrashOnUnhandledRejection()
 
@@ -810,3 +819,4 @@ implementation with tests from
 [`hijackstdio.hijackStdErr()`]: #hijackstderrlistener
 [`hijackstdio.hijackStdOut()`]: #hijackstdoutlistener
 [internationalization]: https://github.com/nodejs/node/wiki/Intl
+[`util.debuglog()`]: https://nodejs.org/api/util.html#util_util_debuglog_section
