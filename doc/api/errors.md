@@ -775,6 +775,12 @@ required to send an acknowledgment that it has received and applied the new
 be sent at any given time. This error code is used when that limit has been
 reached.
 
+<a id="ERR_HTTP2_NESTED_PUSH"></a>
+### ERR_HTTP2_NESTED_PUSH
+
+An attempt was made to initiate a new push stream from within a push stream.
+Nested push streams are not permitted.
+
 <a id="ERR_HTTP2_NO_SOCKET_MANIPULATION"></a>
 ### ERR_HTTP2_NO_SOCKET_MANIPULATION
 
