@@ -695,6 +695,12 @@ NAPI_EXTERN napi_status napi_get_value_bigint_words(napi_env env,
                                                     int* sign_bit,
                                                     size_t* word_count,
                                                     uint64_t* words);
+NAPI_EXTERN napi_status napi_add_finalizer(napi_env env,
+                                           napi_value js_object,
+                                           void* native_object,
+                                           napi_finalize finalize_cb,
+                                           void* finalize_hint,
+                                           napi_ref* result);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END
