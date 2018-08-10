@@ -608,11 +608,14 @@ class NodeInspectorClient : public V8InspectorClient {
   std::unique_ptr<MainThreadInterface> interface_;
 };
 
-Agent::Agent(Environment* env) : parent_env_(env) {}
+Agent::Agent(Environment* env)
+  : parent_env_(env),
+    debug_options_(env->options()->debug_options) {}
 
 Agent::~Agent() = default;
 
-bool Agent::Start(const std::string& path, const DebugOptions& options) {
+bool Agent::Start(const std::string& path,
+                  std::shared_ptr<DebugOptions> options) {
   path_ = path;
   debug_options_ = options;
   client_ = std::make_shared<NodeInspectorClient>(parent_env_);
@@ -626,8 +629,8 @@ bool Agent::Start(const std::string& path, const DebugOptions& options) {
     StartDebugSignalHandler();
   }
 
-  bool wait_for_connect = options.wait_for_connect();
-  if (!options.inspector_enabled() || !StartIoThread()) {
+  bool wait_for_connect = options->wait_for_connect();
+  if (!options->inspector_enabled || !StartIoThread()) {
     return false;
   }
   if (wait_for_connect) {
@@ -789,7 +792,7 @@ void Agent::ContextCreated(Local<Context> context, const ContextInfo& info) {
 }
 
 bool Agent::WillWaitForConnect() {
-  return debug_options_.wait_for_connect();
+  return debug_options_->wait_for_connect();
 }
 
 bool Agent::IsActive() {
