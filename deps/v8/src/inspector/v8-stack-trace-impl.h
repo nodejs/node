@@ -33,7 +33,8 @@ class StackFrame {
   const String16& sourceURL() const;
   int lineNumber() const;    // 0-based.
   int columnNumber() const;  // 0-based.
-  std::unique_ptr<protocol::Runtime::CallFrame> buildInspectorObject() const;
+  std::unique_ptr<protocol::Runtime::CallFrame> buildInspectorObject(
+      V8InspectorClient* client) const;
   bool isEqual(StackFrame* frame) const;
 
  private:
@@ -42,6 +43,7 @@ class StackFrame {
   String16 m_sourceURL;
   int m_lineNumber;    // 0-based.
   int m_columnNumber;  // 0-based.
+  bool m_hasSourceURLComment;
 };
 
 class V8StackTraceImpl : public V8StackTrace {
