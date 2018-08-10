@@ -1396,7 +1396,7 @@ void V8DebuggerAgentImpl::didParseSource(
         protocol::StringUtil::parseJSON(inspected->auxData()));
   }
   bool isLiveEdit = script->isLiveEdit();
-  bool hasSourceURL = script->hasSourceURL();
+  bool hasSourceURLComment = script->hasSourceURLComment();
   bool isModule = script->isModule();
   String16 scriptId = script->scriptId();
   String16 scriptURL = script->sourceURL();
@@ -1416,7 +1416,8 @@ void V8DebuggerAgentImpl::didParseSource(
   Maybe<protocol::DictionaryValue> executionContextAuxDataParam(
       std::move(executionContextAuxData));
   const bool* isLiveEditParam = isLiveEdit ? &isLiveEdit : nullptr;
-  const bool* hasSourceURLParam = hasSourceURL ? &hasSourceURL : nullptr;
+  const bool* hasSourceURLParam =
+      hasSourceURLComment ? &hasSourceURLComment : nullptr;
   const bool* isModuleParam = isModule ? &isModule : nullptr;
   std::unique_ptr<V8StackTraceImpl> stack =
       V8StackTraceImpl::capture(m_inspector->debugger(), contextGroupId, 1);
