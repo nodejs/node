@@ -536,11 +536,12 @@ process will be made the leader of a new process group and session. Note that
 child processes may continue running after the parent exits regardless of
 whether they are detached or not. See setsid(2) for more information.
 
-By default, the parent will wait for the detached child to exit. To prevent
-the parent from waiting for a given `subprocess`, use the `subprocess.unref()`
-method. Doing so will cause the parent's event loop to not include the child in
-its reference count, allowing the parent to exit independently of the child,
-unless there is an established IPC channel between the child and parent.
+By default, the parent will wait for the detached child to exit. To prevent the
+parent from waiting for a given `subprocess` to exit, use the
+`subprocess.unref()` method. Doing so will cause the parent's event loop to not
+include the child in its reference count, allowing the parent to exit
+independently of the child, unless there is an established IPC channel between
+the child and the parent.
 
 When using the `detached` option to start a long-running process, the process
 will not stay running in the background after the parent exits unless it is
@@ -1094,6 +1095,27 @@ console.log(`Spawned child pid: ${grep.pid}`);
 grep.stdin.end();
 ```
 
+### subprocess.ref()
+<!-- YAML
+added: v0.7.10
+-->
+
+Calling `subprocess.ref()` after making a call to `subprocess.unref()` will
+restore the removed reference count for the child process, forcing the parent
+to wait for the child to exit before exiting itself.
+
+```js
+const { spawn } = require('child_process');
+
+const subprocess = spawn(process.argv[0], ['child_program.js'], {
+  detached: true,
+  stdio: 'ignore'
+});
+
+subprocess.unref();
+subprocess.ref();
+```
+
 ### subprocess.send(message[, sendHandle[, options]][, callback])
 <!-- YAML
 added: v0.5.9
@@ -1361,6 +1383,29 @@ then this will be `null`.
 
 `subprocess.stdout` is an alias for `subprocess.stdio[1]`. Both properties will
 refer to the same value.
+
+### subprocess.unref()
+<!-- YAML
+added: v0.7.10
+-->
+
+By default, the parent will wait for the detached child to exit. To prevent the
+parent from waiting for a given `subprocess` to exit, use the
+`subprocess.unref()` method. Doing so will cause the parent's event loop to not
+include the child in its reference count, allowing the parent to exit
+independently of the child, unless there is an established IPC channel between
+the child and the parent.
+
+```js
+const { spawn } = require('child_process');
+
+const subprocess = spawn(process.argv[0], ['child_program.js'], {
+  detached: true,
+  stdio: 'ignore'
+});
+
+subprocess.unref();
+```
 
 ## `maxBuffer` and Unicode
 
