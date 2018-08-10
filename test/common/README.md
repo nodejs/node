@@ -62,7 +62,8 @@ Platform normalizes the `dd` command
 * `msg` [&lt;string>] The string to be printed to stderr
 * `msgs` [&lt;string>] Additional arguments to the function
 
-Prints messages (optionally, formatted using `fmt`) to `process.stderr`, using `util.debuglog('test')`.
+Prints messages (optionally, formatted using `fmt`) to `process.stderr`,
+using `util.debuglog('test')`.
 
 ### disableCrashOnUnhandledRejection()
 
