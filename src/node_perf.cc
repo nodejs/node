@@ -272,6 +272,9 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
                               v8::GCCallbackFlags flags,
                               void* data) {
   Environment* env = static_cast<Environment*>(data);
+  // If no one is listening to gc performance entries, do not create them.
+  if (!env->performance_state()->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC])
+    return;
   GCPerformanceEntry* entry =
       new GCPerformanceEntry(env,
                              static_cast<PerformanceGCKind>(type),
