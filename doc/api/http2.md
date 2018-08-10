@@ -108,6 +108,11 @@ have occasion to work with the `Http2Session` object directly, with most
 actions typically taken through interactions with either the `Http2Server` or
 `Http2Stream` objects.
 
+User code will not create `Http2Session` instances directly. Server-side
+`Http2Session` instances are created by the `Http2Server` instance when a
+new HTTP/2 connection is received. Client-side `Http2Session` instances are
+created using the `http2.connect()` method.
+
 #### Http2Session and Sockets
 
 Every `Http2Session` instance is associated with exactly one [`net.Socket`][] or
@@ -1505,6 +1510,10 @@ added: v8.4.0
 
 * Extends: {net.Server}
 
+Instances of `Http2Server` are created using the `http2.createServer()`
+function. The `Http2Server` class is not exported directly by the `http2`
+module.
+
 #### Event: 'checkContinue'
 <!-- YAML
 added: v8.5.0
@@ -1611,6 +1620,10 @@ added: v8.4.0
 -->
 
 * Extends: {tls.Server}
+
+Instances of `Http2SecureServer` are created using the
+`http2.createSecureServer()` function. The `Http2SecureServer` class is not
+exported directly by the `http2` module.
 
 #### Event: 'checkContinue'
 <!-- YAML
