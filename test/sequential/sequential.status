@@ -10,10 +10,6 @@ prefix sequential
 test-fs-readfile-tostring-fail: PASS, FLAKY
 
 [$system==win32]
-test-inspector-async-call-stack          : PASS, FLAKY
-test-inspector-async-hook-setup-at-signal:  PASS, FLAKY
-test-inspector-bindings                  : PASS, FLAKY
-test-inspector-debug-end                 : PASS, FLAKY
 
 [$system==linux]
 
