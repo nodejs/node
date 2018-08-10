@@ -2,7 +2,6 @@
 #define SRC_INSPECTOR_IO_H_
 
 #include "inspector_socket_server.h"
-#include "node_debug_options.h"
 #include "node_mutex.h"
 #include "uv.h"
 
@@ -46,19 +45,20 @@ class InspectorIo {
   // Returns empty pointer if thread was not started
   static std::unique_ptr<InspectorIo> Start(
       std::shared_ptr<MainThreadHandle> main_thread, const std::string& path,
-      const DebugOptions& options);
+      std::shared_ptr<DebugOptions> options);
 
   // Will block till the transport thread shuts down
   ~InspectorIo();
 
   void StopAcceptingNewConnections();
-  std::string host() const { return options_.host_name(); }
+  const std::string& host() const { return options_->host(); }
   int port() const { return port_; }
   std::vector<std::string> GetTargetIds() const;
 
  private:
   InspectorIo(std::shared_ptr<MainThreadHandle> handle,
-              const std::string& path, const DebugOptions& options);
+              const std::string& path,
+              std::shared_ptr<DebugOptions> options);
 
   // Wrapper for agent->ThreadMain()
   static void ThreadMain(void* agent);
@@ -72,7 +72,7 @@ class InspectorIo {
   // Used to post on a frontend interface thread, lives while the server is
   // running
   std::shared_ptr<RequestQueue> request_queue_;
-  const DebugOptions options_;
+  std::shared_ptr<DebugOptions> options_;
 
   // The IO thread runs its own uv_loop to implement the TCP server off
   // the main thread.

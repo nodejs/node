@@ -34,6 +34,7 @@
 #include "uv.h"
 #include "v8.h"
 #include "node.h"
+#include "node_options.h"
 #include "node_http2_state.h"
 
 #include <list>
@@ -364,6 +365,7 @@ class IsolateData {
   inline uv_loop_t* event_loop() const;
   inline uint32_t* zero_fill_field() const;
   inline MultiIsolatePlatform* platform() const;
+  inline std::shared_ptr<PerIsolateOptions> options();
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
@@ -397,6 +399,7 @@ class IsolateData {
   uv_loop_t* const event_loop_;
   uint32_t* const zero_fill_field_;
   MultiIsolatePlatform* platform_;
+  std::shared_ptr<PerIsolateOptions> options_;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
@@ -584,10 +587,8 @@ class Environment {
               tracing::AgentWriterHandle* tracing_agent_writer);
   ~Environment();
 
-  void Start(int argc,
-             const char* const* argv,
-             int exec_argc,
-             const char* const* exec_argv,
+  void Start(const std::vector<std::string>& args,
+             const std::vector<std::string>& exec_args,
              bool start_profiler_idle_notifier);
 
   typedef void (*HandleCleanupCb)(Environment* env,
@@ -858,6 +859,8 @@ class Environment {
                                  v8::EmbedderGraph* graph,
                                  void* data);
 
+  inline std::shared_ptr<EnvironmentOptions> options();
+
  private:
   inline void CreateImmediate(native_immediate_callback cb,
                               void* data,
@@ -886,6 +889,8 @@ class Environment {
   bool emit_env_nonstring_warning_;
   size_t makecallback_cntr_;
   std::vector<double> destroy_async_id_list_;
+
+  std::shared_ptr<EnvironmentOptions> options_;
 
   AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;

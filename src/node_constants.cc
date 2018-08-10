@@ -51,10 +51,6 @@ namespace node {
 using v8::Local;
 using v8::Object;
 
-#if HAVE_OPENSSL
-const char* default_cipher_list = DEFAULT_CIPHER_LIST_CORE;
-#endif
-
 namespace {
 
 void DefineErrnoConstants(Local<Object> target) {
@@ -1240,7 +1236,7 @@ void DefineCryptoConstants(Local<Object> target) {
                               DEFAULT_CIPHER_LIST_CORE);
   NODE_DEFINE_STRING_CONSTANT(target,
                               "defaultCipherList",
-                              default_cipher_list);
+                              per_process_opts->tls_cipher_list.c_str());
 #endif
   NODE_DEFINE_CONSTANT(target, INT_MAX);
 }

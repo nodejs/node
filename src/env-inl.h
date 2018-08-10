@@ -559,6 +559,14 @@ Environment::file_handle_read_wrap_freelist() {
   return file_handle_read_wrap_freelist_;
 }
 
+inline std::shared_ptr<EnvironmentOptions> Environment::options() {
+  return options_;
+}
+
+inline std::shared_ptr<PerIsolateOptions> IsolateData::options() {
+  return options_;
+}
+
 void Environment::CreateImmediate(native_immediate_callback cb,
                                   void* data,
                                   v8::Local<v8::Object> obj,
