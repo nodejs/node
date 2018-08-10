@@ -6,13 +6,15 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const http2 = require('http2');
 
-const msecs = common.platformTimeout(1);
+// Set the timeout to 10ms since ending the response stream resets the timer.
+const msecs = common.platformTimeout(10);
 const server = http2.createServer();
 
 server.on('request', (req, res) => {
   req.setTimeout(msecs, common.mustCall(() => {
     res.end();
   }));
+  res.on('timeout', common.mustCall());
   res.on('finish', common.mustCall(() => {
     req.setTimeout(msecs, common.mustNotCall());
     process.nextTick(() => {
