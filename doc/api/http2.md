@@ -1256,6 +1256,9 @@ Setting the weight of a push stream is not allowed in the `HEADERS` frame. Pass
 a `weight` value to `http2stream.priority` with the `silent` option set to
 `true` to enable server-side bandwidth balancing between concurrent streams.
 
+Calling `http2stream.pushStream()` from within a pushed stream is not permitted
+and will throw an error.
+
 #### http2stream.respond([headers[, options]])
 <!-- YAML
 added: v8.4.0
