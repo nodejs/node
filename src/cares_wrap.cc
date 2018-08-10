@@ -594,22 +594,28 @@ void ChannelWrap::EnsureServers() {
   Setup();
 }
 
+typedef void ares_function(ares_channel channel,
+                           const char* name,
+                           int dnsclass,
+                           int type,
+                           ares_callback callback,
+                           void* arg);
 
 class QueryWrap : public AsyncWrap {
  public:
-  QueryWrap(ChannelWrap* channel, Local<Object> req_wrap_obj, const char* name)
+  QueryWrap(ChannelWrap* channel, Local<Object> req_wrap_obj,
+            const char* name, ares_function* fn)
       : AsyncWrap(channel->env(), req_wrap_obj, AsyncWrap::PROVIDER_QUERYWRAP),
         channel_(channel),
-        trace_name_(name) {
+        trace_name_(name),
+        function_(fn) {
     // Make sure the channel object stays alive during the query lifetime.
     req_wrap_obj->Set(env()->context(),
                       env()->channel_string(),
                       channel->object()).FromJust();
   }
 
-  ~QueryWrap() override {
-    CHECK_EQ(false, persistent().IsEmpty());
-  }
+  ~QueryWrap() override { CHECK_EQ(false, persistent().IsEmpty()); }
 
   // Subclasses should implement the appropriate Send method.
   virtual int Send(const char* name) {
@@ -630,8 +636,12 @@ class QueryWrap : public AsyncWrap {
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
       TRACING_CATEGORY_NODE2(dns, native), trace_name_, this,
       "name", TRACE_STR_COPY(name));
-    ares_query(channel_->cares_channel(), name, dnsclass, type, Callback,
-               static_cast<void*>(this));
+    function_(channel_->cares_channel(),
+              name,
+              dnsclass,
+              type,
+              Callback,
+              static_cast<void*>(this));
   }
 
   static void CaresAsyncClose(uv_async_t* async) {
@@ -757,8 +767,8 @@ class QueryWrap : public AsyncWrap {
 
  private:
   const char* trace_name_;
+  ares_function* function_;
 };
-
 
 template <typename T>
 Local<Array> AddrTTLToArray(Environment* env,
@@ -1186,9 +1196,10 @@ int ParseSoaReply(Environment* env,
 
 class QueryAnyWrap: public QueryWrap {
  public:
-  QueryAnyWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-    : QueryWrap(channel, req_wrap_obj, "resolveAny") {
-  }
+  QueryAnyWrap(ChannelWrap* channel,
+               Local<Object> req_wrap_obj,
+               ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolveAny", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_any);
@@ -1364,12 +1375,12 @@ class QueryAnyWrap: public QueryWrap {
   }
 };
 
-
 class QueryAWrap: public QueryWrap {
  public:
-  QueryAWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolve4") {
-  }
+  QueryAWrap(ChannelWrap* channel,
+             Local<Object> req_wrap_obj,
+             ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolve4", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_a);
@@ -1415,9 +1426,10 @@ class QueryAWrap: public QueryWrap {
 
 class QueryAaaaWrap: public QueryWrap {
  public:
-  QueryAaaaWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolve6") {
-  }
+  QueryAaaaWrap(ChannelWrap* channel,
+                Local<Object> req_wrap_obj,
+                ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolve6", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_aaaa);
@@ -1460,12 +1472,12 @@ class QueryAaaaWrap: public QueryWrap {
   }
 };
 
-
 class QueryCnameWrap: public QueryWrap {
  public:
-  QueryCnameWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolveCname") {
-  }
+  QueryCnameWrap(ChannelWrap* channel,
+                 Local<Object> req_wrap_obj,
+                 ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolveCname", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_cname);
@@ -1498,9 +1510,10 @@ class QueryCnameWrap: public QueryWrap {
 
 class QueryMxWrap: public QueryWrap {
  public:
-  QueryMxWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolveMx") {
-  }
+  QueryMxWrap(ChannelWrap* channel,
+              Local<Object> req_wrap_obj,
+              ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolveMx", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_mx);
@@ -1533,9 +1546,10 @@ class QueryMxWrap: public QueryWrap {
 
 class QueryNsWrap: public QueryWrap {
  public:
-  QueryNsWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolveNs") {
-  }
+  QueryNsWrap(ChannelWrap* channel,
+              Local<Object> req_wrap_obj,
+              ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolveNs", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_ns);
@@ -1568,9 +1582,10 @@ class QueryNsWrap: public QueryWrap {
 
 class QueryTxtWrap: public QueryWrap {
  public:
-  QueryTxtWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolveTxt") {
-  }
+  QueryTxtWrap(ChannelWrap* channel,
+               Local<Object> req_wrap_obj,
+               ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolveTxt", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_txt);
@@ -1602,9 +1617,10 @@ class QueryTxtWrap: public QueryWrap {
 
 class QuerySrvWrap: public QueryWrap {
  public:
-  explicit QuerySrvWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolveSrv") {
-  }
+  explicit QuerySrvWrap(ChannelWrap* channel,
+                        Local<Object> req_wrap_obj,
+                        ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolveSrv", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_srv);
@@ -1635,9 +1651,10 @@ class QuerySrvWrap: public QueryWrap {
 
 class QueryPtrWrap: public QueryWrap {
  public:
-  explicit QueryPtrWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolvePtr") {
-  }
+  explicit QueryPtrWrap(ChannelWrap* channel,
+                        Local<Object> req_wrap_obj,
+                        ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolvePtr", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_ptr);
@@ -1670,9 +1687,10 @@ class QueryPtrWrap: public QueryWrap {
 
 class QueryNaptrWrap: public QueryWrap {
  public:
-  explicit QueryNaptrWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolveNaptr") {
-  }
+  explicit QueryNaptrWrap(ChannelWrap* channel,
+                          Local<Object> req_wrap_obj,
+                          ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolveNaptr", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_naptr);
@@ -1704,9 +1722,10 @@ class QueryNaptrWrap: public QueryWrap {
 
 class QuerySoaWrap: public QueryWrap {
  public:
-  QuerySoaWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "resolveSoa") {
-  }
+  QuerySoaWrap(ChannelWrap* channel,
+               Local<Object> req_wrap_obj,
+               ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "resolveSoa", fn) {}
 
   int Send(const char* name) override {
     AresQuery(name, ns_c_in, ns_t_soa);
@@ -1769,9 +1788,10 @@ class QuerySoaWrap: public QueryWrap {
 
 class GetHostByAddrWrap: public QueryWrap {
  public:
-  explicit GetHostByAddrWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj, "reverse") {
-  }
+  explicit GetHostByAddrWrap(ChannelWrap* channel,
+                             Local<Object> req_wrap_obj,
+                             ares_function* fn)
+      : QueryWrap(channel, req_wrap_obj, "reverse", fn) {}
 
   int Send(const char* name) override {
     int length, family;
@@ -1825,10 +1845,14 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(false, args.IsConstructCall());
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
+  CHECK(args[2]->IsBoolean());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   Local<String> string = args[1].As<String>();
-  Wrap* wrap = new Wrap(channel, req_wrap_obj);
+  bool is_search = args[2]->IsTrue();
+  ares_function* ares_fn_ = ares_query;
+  if (is_search) ares_fn_ = ares_search;
+  Wrap* wrap = new Wrap(channel, req_wrap_obj, ares_fn_);
 
   node::Utf8Value name(env->isolate(), string);
   channel->ModifyActivityQueryCount(1);

@@ -98,8 +98,22 @@ TEST(async function test_resolve4_ttl(done) {
     ttl: true
   }));
 
-  const req = dns.resolve4(addresses.INET4_HOST, {
+  validateResult(await dnsPromises.resolve4(addresses.INET4_HOST, {
+    ttl: true, search: true
+  }));
+
+  let req = dns.resolve4(addresses.INET4_HOST, {
     ttl: true
+  }, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
+    done();
+  });
+
+  checkWrap(req);
+
+  req = dns.resolve4(addresses.INET4_HOST, {
+    ttl: true, search: true
   }, function(err, result) {
     assert.ifError(err);
     validateResult(result);
@@ -128,8 +142,22 @@ TEST(async function test_resolve6_ttl(done) {
     ttl: true
   }));
 
-  const req = dns.resolve6(addresses.INET6_HOST, {
+  validateResult(await dnsPromises.resolve6(addresses.INET6_HOST, {
+    ttl: true, search: true
+  }));
+
+  let req = dns.resolve6(addresses.INET6_HOST, {
     ttl: true
+  }, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
+    done();
+  });
+
+  checkWrap(req);
+
+  req = dns.resolve6(addresses.INET6_HOST, {
+    ttl: true, search: true
   }, function(err, result) {
     assert.ifError(err);
     validateResult(result);

@@ -276,6 +276,9 @@ On error, `err` is an [`Error`][] object, where `err.code` is one of the
 <!-- YAML
 added: v0.1.16
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22226
+    description: The `options.search` parameter is now supported.
   - version: v7.2.0
     pr-url: https://github.com/nodejs/node/pull/9296
     description: This method now supports passing `options`,
@@ -287,6 +290,10 @@ changes:
     When `true`, the callback receives an array of
     `{ address: '1.2.3.4', ttl: 60 }` objects rather than an array of strings,
     with the TTL expressed in seconds.
+  - `search` {boolean} Resolve the hostname using the local domain name or the
+    search list for host-name lookup.
+    When `true`, the resolver will use the search list, which can create extra
+    DNS queries. **Default:** `false`.
 * `callback` {Function}
   - `err` {Error}
   - `addresses` {string[] | Object[]}
@@ -300,6 +307,9 @@ will contain an array of IPv4 addresses (e.g.
 <!-- YAML
 added: v0.1.16
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22226
+    description: The `options.search` parameter is now supported.
   - version: v7.2.0
     pr-url: https://github.com/nodejs/node/pull/9296
     description: This method now supports passing `options`,
@@ -311,6 +321,10 @@ changes:
     When `true`, the callback receives an array of
     `{ address: '0:1:2:3:4:5:6:7', ttl: 60 }` objects rather than an array of
     strings, with the TTL expressed in seconds.
+  - `search` {boolean} Resolve the hostname using the local domain name or the
+    search list for host-name lookup.
+    When `true`, the resolver will use the search list, which can create extra
+    DNS queries. **Default:** `false`.
 * `callback` {Function}
   - `err` {Error}
   - `addresses` {string[] | Object[]}
