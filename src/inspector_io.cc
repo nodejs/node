@@ -242,7 +242,7 @@ class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
 std::unique_ptr<InspectorIo> InspectorIo::Start(
     std::shared_ptr<MainThreadHandle> main_thread,
     const std::string& path,
-    const DebugOptions& options) {
+    std::shared_ptr<DebugOptions> options) {
   auto io = std::unique_ptr<InspectorIo>(
       new InspectorIo(main_thread, path, options));
   if (io->request_queue_->Expired()) {  // Thread is not running
@@ -253,7 +253,7 @@ std::unique_ptr<InspectorIo> InspectorIo::Start(
 
 InspectorIo::InspectorIo(std::shared_ptr<MainThreadHandle> main_thread,
                          const std::string& path,
-                         const DebugOptions& options)
+                         std::shared_ptr<DebugOptions> options)
                          : main_thread_(main_thread), options_(options),
                            thread_(), script_name_(path), id_(GenerateID()) {
   Mutex::ScopedLock scoped_lock(thread_start_lock_);
@@ -288,7 +288,8 @@ void InspectorIo::ThreadMain() {
       new InspectorIoDelegate(queue, main_thread_, id_,
                               script_path, script_name_));
   InspectorSocketServer server(std::move(delegate), &loop,
-                               options_.host_name(), options_.port());
+                               options_->host().c_str(),
+                               options_->port());
   request_queue_ = queue->handle();
   // Its lifetime is now that of the server delegate
   queue.reset();

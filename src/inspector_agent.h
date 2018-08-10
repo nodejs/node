@@ -9,7 +9,7 @@
 #error("This header can only be used when inspector is enabled")
 #endif
 
-#include "node_debug_options.h"
+#include "node_options.h"
 #include "node_persistent.h"
 #include "v8.h"
 
@@ -45,7 +45,7 @@ class Agent {
   ~Agent();
 
   // Create client_, may create io_ if option enabled
-  bool Start(const std::string& path, const DebugOptions& options);
+  bool Start(const std::string& path, std::shared_ptr<DebugOptions> options);
   // Stop and destroy io_
   void Stop();
 
@@ -96,7 +96,7 @@ class Agent {
   // Calls StartIoThread() from off the main thread.
   void RequestIoThreadStart();
 
-  DebugOptions& options() { return debug_options_; }
+  std::shared_ptr<DebugOptions> options() { return debug_options_; }
   void ContextCreated(v8::Local<v8::Context> context, const ContextInfo& info);
 
  private:
@@ -109,7 +109,7 @@ class Agent {
   // Interface for transports, e.g. WebSocket server
   std::unique_ptr<InspectorIo> io_;
   std::string path_;
-  DebugOptions debug_options_;
+  std::shared_ptr<DebugOptions> debug_options_;
 
   bool pending_enable_async_hook_ = false;
   bool pending_disable_async_hook_ = false;

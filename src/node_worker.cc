@@ -104,7 +104,9 @@ Worker::Worker(Environment* env, Local<Object> wrap)
     env_->set_worker_context(this);
     env_->set_thread_id(thread_id_);
 
-    env_->Start(0, nullptr, 0, nullptr, env->profiler_idle_notifier_started());
+    env_->Start(std::vector<std::string>{},
+                std::vector<std::string>{},
+                env->profiler_idle_notifier_started());
   }
 
   // The new isolate won't be bothered on this thread again.
