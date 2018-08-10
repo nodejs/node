@@ -2,7 +2,6 @@
 #include "node_i18n.h"
 #include "env-inl.h"
 #include "util-inl.h"
-#include "node_debug_options.h"
 
 namespace node {
 
@@ -56,6 +55,7 @@ static void Initialize(Local<Object> target,
 
 #ifdef NODE_FIPS_MODE
   READONLY_BOOLEAN_PROPERTY("fipsMode");
+  // TODO(addaleax): Use options parser variable instead.
   if (force_fips_crypto)
     READONLY_BOOLEAN_PROPERTY("fipsForced");
 #endif
@@ -72,35 +72,38 @@ static void Initialize(Local<Object> target,
   READONLY_BOOLEAN_PROPERTY("hasTracing");
 #endif
 
-  READONLY_STRING_PROPERTY(target, "icuDataDir", icu_data_dir);
+  // TODO(addaleax): This seems to be an unused, private API. Remove it?
+  READONLY_STRING_PROPERTY(target, "icuDataDir",
+      per_process_opts->icu_data_dir);
 
 #endif  // NODE_HAVE_I18N_SUPPORT
 
-  if (config_preserve_symlinks)
+  if (env->options()->preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
-  if (config_preserve_symlinks_main)
+  if (env->options()->preserve_symlinks_main)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinksMain");
 
-  if (config_experimental_modules) {
+  if (env->options()->experimental_modules) {
     READONLY_BOOLEAN_PROPERTY("experimentalModules");
-    if (!config_userland_loader.empty()) {
-      READONLY_STRING_PROPERTY(target, "userLoader",  config_userland_loader);
+    const std::string& userland_loader = env->options()->userland_loader;
+    if (!userland_loader.empty()) {
+      READONLY_STRING_PROPERTY(target, "userLoader",  userland_loader);
     }
   }
 
-  if (config_experimental_vm_modules)
+  if (env->options()->experimental_vm_modules)
     READONLY_BOOLEAN_PROPERTY("experimentalVMModules");
 
-  if (config_experimental_worker)
+  if (env->options()->experimental_worker)
     READONLY_BOOLEAN_PROPERTY("experimentalWorker");
 
-  if (config_experimental_repl_await)
+  if (env->options()->experimental_repl_await)
     READONLY_BOOLEAN_PROPERTY("experimentalREPLAwait");
 
-  if (config_pending_deprecation)
+  if (env->options()->pending_deprecation)
     READONLY_BOOLEAN_PROPERTY("pendingDeprecation");
 
-  if (config_expose_internals)
+  if (env->options()->expose_internals)
     READONLY_BOOLEAN_PROPERTY("exposeInternals");
 
   if (env->abort_on_uncaught_exception())
@@ -110,22 +113,25 @@ static void Initialize(Local<Object> target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
 
-  if (!config_warning_file.empty()) {
-    READONLY_STRING_PROPERTY(target, "warningFile", config_warning_file);
+  const std::string& warning_file = env->options()->redirect_warnings;
+  if (!warning_file.empty()) {
+    READONLY_STRING_PROPERTY(target, "warningFile", warning_file);
   }
 
-  Local<Object> debugOptions = Object::New(isolate);
-  READONLY_PROPERTY(target, "debugOptions", debugOptions);
+  std::shared_ptr<DebugOptions> debug_options = env->options()->debug_options;
+  Local<Object> debug_options_obj = Object::New(isolate);
+  READONLY_PROPERTY(target, "debugOptions", debug_options_obj);
 
-  READONLY_STRING_PROPERTY(debugOptions, "host", debug_options.host_name());
+  READONLY_STRING_PROPERTY(debug_options_obj, "host",
+                           debug_options->host());
 
-  READONLY_PROPERTY(debugOptions,
+  READONLY_PROPERTY(debug_options_obj,
                     "port",
-                    Integer::New(isolate, debug_options.port()));
+                    Integer::New(isolate, debug_options->port()));
 
-  READONLY_PROPERTY(debugOptions,
+  READONLY_PROPERTY(debug_options_obj,
                     "inspectorEnabled",
-                    Boolean::New(isolate, debug_options.inspector_enabled()));
+                    Boolean::New(isolate, debug_options->inspector_enabled));
 }  // InitConfig
 
 }  // namespace node
