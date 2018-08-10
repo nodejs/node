@@ -881,7 +881,12 @@ int Http2Session::OnHeaderCallback(nghttp2_session* handle,
   Http2Session* session = static_cast<Http2Session*>(user_data);
   int32_t id = GetFrameID(frame);
   Http2Stream* stream = session->FindStream(id);
-  CHECK_NOT_NULL(stream);
+  // If stream is null at this point, either something odd has happened
+  // or the stream was closed locally while header processing was occurring.
+  // either way, do not proceed and close the stream.
+  if (stream == nullptr)
+    return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+
   // If the stream has already been destroyed, ignore.
   if (!stream->IsDestroyed() && !stream->AddHeader(name, value, flags)) {
     // This will only happen if the connected peer sends us more
