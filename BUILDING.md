@@ -502,3 +502,14 @@ To make `./myModule.js` available via `require('myModule')` and
 ```console
 > .\vcbuild link-module './myModule.js' link-module './myModule2.js'
 ```
+
+## Note for downstream distributors of Node.js
+
+The Node.js ecosystem is reliant on ABI compatibility within a major
+release. To maintain ABI compatibility it is required that production
+builds of Node.js will be built against the same version of dependencies as the
+project vendors. If Node.js is to be built against a different version of a
+dependency please create a custom `NODE_MODULE_VERSION` to ensure ecosystem
+compatibility. Please consult with the TSC by opening an issue at
+https://github.com/nodejs/tsc/issues if you decide to create a custom
+`NODE_MODULE_VERSION` so we can avoid duplication in the ecosystem.
