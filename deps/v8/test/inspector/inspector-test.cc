@@ -712,6 +712,9 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
         ToV8String(isolate, "setAllowCodeGenerationFromStrings"),
         v8::FunctionTemplate::New(
             isolate, &InspectorExtension::SetAllowCodeGenerationFromStrings));
+    inspector->Set(ToV8String(isolate, "setResourceNamePrefix"),
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::SetResourceNamePrefix));
     global->Set(ToV8String(isolate, "inspector"), inspector);
   }
 
@@ -972,6 +975,18 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     }
     args.GetIsolate()->GetCurrentContext()->AllowCodeGenerationFromStrings(
         args[0].As<v8::Boolean>()->Value());
+  }
+
+  static void SetResourceNamePrefix(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsString()) {
+      fprintf(stderr, "Internal error: setResourceNamePrefix('prefix').");
+      Exit();
+    }
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    IsolateData* data = IsolateData::FromContext(context);
+    data->SetResourceNamePrefix(v8::Local<v8::String>::Cast(args[0]));
   }
 };
 
