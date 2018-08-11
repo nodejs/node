@@ -2508,6 +2508,9 @@ encoding to another. Returns a new `Buffer` instance.
 Throws if the `fromEnc` or `toEnc` specify invalid character encodings or if
 conversion from `fromEnc` to `toEnc` is not permitted.
 
+Encodings supported by `buffer.transcode()` are: `'ascii'`, `'utf8'`,
+`'utf16le'`, `'ucs2'`, `'latin1'`, and `'binary'`.
+
 The transcoding process will use substitution characters if a given byte
 sequence cannot be adequately represented in the target encoding. For instance:
 
