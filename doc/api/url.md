@@ -391,8 +391,8 @@ Invalid URL protocol values assigned to the `protocol` property are ignored.
 
 ##### Special Schemes
 
-The WHATWG URL Standard considers a handful of URL protocol schemes to be
-"special" in terms of how those are parsed and serialized. When a URL is
+The [WHATWG URL Standard][] considers a handful of URL protocol schemes to be
+_special_ in terms of how they are parsed and serialized. When a URL is
 parsed using one of these special protocols, the `url.protocol` property
 may be changed to another special protocol but cannot be changed to a
 non-special protocol, and vice versa.
@@ -407,7 +407,7 @@ console.log(u.href);
 ```
 
 However, changing from `http` to a hypothetical `fish` protocol does not
-because the new protocol is not considered "special".
+because the new protocol is not special.
 
 ```js
 const u = new URL('http://example.org');
