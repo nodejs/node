@@ -2592,16 +2592,12 @@ static void PrintHelp() {
 #if HAVE_OPENSSL && NODE_FIPS_MODE
          "  --enable-fips              enable FIPS crypto at startup\n"
 #endif  // NODE_FIPS_MODE && NODE_FIPS_MODE
-#if defined(NODE_HAVE_I18N_SUPPORT)
          "  --experimental-modules     experimental ES Module support\n"
          "                             and caching modules\n"
-#endif  // defined(NODE_HAVE_I18N_SUPPORT)
          "  --experimental-repl-await  experimental await keyword support\n"
          "                             in REPL\n"
-#if defined(NODE_HAVE_I18N_SUPPORT)
          "  --experimental-vm-modules  experimental ES Module support\n"
          "                             in vm module\n"
-#endif  // defined(NODE_HAVE_I18N_SUPPORT)
          "  --experimental-worker      experimental threaded Worker support\n"
 #if HAVE_OPENSSL && NODE_FIPS_MODE
          "  --force-fips               force FIPS crypto (cannot be disabled)\n"
@@ -2634,11 +2630,9 @@ static void PrintHelp() {
          "                             OPENSSL_CONF)\n"
 #endif  // HAVE_OPENSSL
          "  --pending-deprecation      emit pending deprecation warnings\n"
-#if defined(NODE_HAVE_I18N_SUPPORT)
          "  --preserve-symlinks        preserve symbolic links when resolving\n"
          "  --preserve-symlinks-main   preserve symbolic links when resolving\n"
          "                             the main module\n"
-#endif
          "  --prof                     generate V8 profiler output\n"
          "  --prof-process             process V8 profiler output generated\n"
          "                             using --prof\n"
@@ -2719,10 +2713,8 @@ static void PrintHelp() {
          "                             prefixed to the module search path\n"
          "NODE_PENDING_DEPRECATION     set to 1 to emit pending deprecation\n"
          "                             warnings\n"
-#if defined(NODE_HAVE_I18N_SUPPORT)
          "NODE_PRESERVE_SYMLINKS       set to 1 to preserve symbolic links\n"
          "                             when resolving and caching modules\n"
-#endif
          "NODE_REDIRECT_WARNINGS       write warnings to path instead of\n"
          "                             stderr\n"
          "NODE_REPL_HISTORY            path to the persistent REPL history\n"
