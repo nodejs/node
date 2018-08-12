@@ -179,7 +179,6 @@ for (const showHidden of [true, false]) {
                      '  y: 1337 }');
 }
 
-
 [ Float32Array,
   Float64Array,
   Int16Array,
@@ -195,7 +194,7 @@ for (const showHidden of [true, false]) {
   array[0] = 65;
   array[1] = 97;
   assert.strictEqual(
-    util.inspect(array, true),
+    util.inspect(array, { showHidden: true }),
     `${constructor.name} [\n` +
       '  65,\n' +
       '  97,\n' +
@@ -1422,6 +1421,107 @@ util.inspect(process);
   out = util.inspect(o, { compact: false, breakLength: 3 });
   expect = "{\n  a: '12 45 78 01 34 ' +\n    '67 90 23'\n}";
   assert.strictEqual(out, expect);
+}
+
+// Check compact indentation.
+{
+  const typed = new Uint8Array();
+  typed.buffer.foo = true;
+  const set = new Set([[1, 2]]);
+  const promise = Promise.resolve([[1, set]]);
+  const map = new Map([[promise, typed]]);
+  map.set(set.values(), map.values());
+
+  let out = util.inspect(map, { compact: false, showHidden: true, depth: 9 });
+  let expected = [
+    'Map {',
+    '  Promise {',
+    '    [',
+    '      [',
+    '        1,',
+    '        Set {',
+    '          [',
+    '            1,',
+    '            2,',
+    '            [length]: 2',
+    '          ],',
+    '          [size]: 1',
+    '        },',
+    '        [length]: 2',
+    '      ],',
+    '      [length]: 1',
+    '    ]',
+    '  } => Uint8Array [',
+    '    [BYTES_PER_ELEMENT]: 1,',
+    '    [length]: 0,',
+    '    [byteLength]: 0,',
+    '    [byteOffset]: 0,',
+    '    [buffer]: ArrayBuffer {',
+    '      byteLength: 0,',
+    '      foo: true',
+    '    }',
+    '  ],',
+    '  [Set Iterator] {',
+    '    [',
+    '      1,',
+    '      2,',
+    '      [length]: 2',
+    '    ]',
+    '  } => [Map Iterator] {',
+    '    Uint8Array [',
+    '      [BYTES_PER_ELEMENT]: 1,',
+    '      [length]: 0,',
+    '      [byteLength]: 0,',
+    '      [byteOffset]: 0,',
+    '      [buffer]: ArrayBuffer {',
+    '        byteLength: 0,',
+    '        foo: true',
+    '      }',
+    '    ],',
+    '    [Circular]',
+    '  },',
+    '  [size]: 2',
+    '}'
+  ].join('\n');
+
+  assert.strict.equal(out, expected);
+
+  out = util.inspect(map, { showHidden: true, depth: 9, breakLength: 4 });
+  expected = [
+    'Map {',
+    '  Promise {',
+    '    [ [ 1,',
+    '        Set {',
+    '          [ 1,',
+    '            2,',
+    '            [length]: 2 ],',
+    '          [size]: 1 },',
+    '        [length]: 2 ],',
+    '      [length]: 1 ] } => Uint8Array [',
+    '    [BYTES_PER_ELEMENT]: 1,',
+    '    [length]: 0,',
+    '    [byteLength]: 0,',
+    '    [byteOffset]: 0,',
+    '    [buffer]: ArrayBuffer {',
+    '      byteLength: 0,',
+    '      foo: true } ],',
+    '  [Set Iterator] {',
+    '    [ 1,',
+    '      2,',
+    '      [length]: 2 ] } => [Map Iterator] {',
+    '    Uint8Array [',
+    '      [BYTES_PER_ELEMENT]: 1,',
+    '      [length]: 0,',
+    '      [byteLength]: 0,',
+    '      [byteOffset]: 0,',
+    '      [buffer]: ArrayBuffer {',
+    '        byteLength: 0,',
+    '        foo: true } ],',
+    '    [Circular] },',
+    '  [size]: 2 }'
+  ].join('\n');
+
+  assert.strict.equal(out, expected);
 }
 
 { // Test WeakMap
