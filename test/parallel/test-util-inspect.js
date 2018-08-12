@@ -344,6 +344,19 @@ assert.strictEqual(
                      "[ <2 empty items>, '00': 1, '01': 2 ]");
   assert.strictEqual(util.inspect(arr2, { showHidden: true }),
                      "[ <2 empty items>, [length]: 2, '00': 1, '01': 2 ]");
+  delete arr2['00'];
+  arr2[0] = 0;
+  assert.strictEqual(util.inspect(arr2),
+                     "[ 0, <1 empty item>, '01': 2 ]");
+  assert.strictEqual(util.inspect(arr2, { showHidden: true }),
+                     "[ 0, <1 empty item>, [length]: 2, '01': 2 ]");
+  delete arr2['01'];
+  arr2[2 ** 32 - 2] = 'max';
+  arr2[2 ** 32 - 1] = 'too far';
+  assert.strictEqual(
+    util.inspect(arr2),
+    "[ 0, <4294967293 empty items>, 'max', '4294967295': 'too far' ]"
+  );
 
   const arr3 = [];
   arr3[-1] = -1;
