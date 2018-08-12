@@ -1647,3 +1647,30 @@ assert.strictEqual(inspect(new BigUint64Array([0n])), 'BigUint64Array [ 0n ]');
     '{ [Non\\nenumerable\\tkey]: true }'
   );
 }
+
+// Check for special colors.
+{
+  const special = inspect.colors[inspect.styles.special];
+  const string = inspect.colors[inspect.styles.string];
+
+  assert.strictEqual(
+    inspect(new WeakSet(), { colors: true }),
+    `WeakSet { \u001b[${special[0]}m<items unknown>\u001b[${special[1]}m }`
+  );
+  assert.strictEqual(
+    inspect(new WeakMap(), { colors: true }),
+    `WeakMap { \u001b[${special[0]}m<items unknown>\u001b[${special[1]}m }`
+  );
+  assert.strictEqual(
+    inspect(new Promise(() => {}), { colors: true }),
+    `Promise { \u001b[${special[0]}m<pending>\u001b[${special[1]}m }`
+  );
+
+  const rejection = Promise.reject('Oh no!');
+  assert.strictEqual(
+    inspect(rejection, { colors: true }),
+    `Promise { \u001b[${special[0]}m<rejected>\u001b[${special[1]}m ` +
+    `\u001b[${string[0]}m'Oh no!'\u001b[${string[1]}m }`
+  );
+  rejection.catch(() => {});
+}
