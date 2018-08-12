@@ -872,7 +872,7 @@ if (typeof Symbol !== 'undefined') {
   const set = new Set(['foo']);
   set.bar = 42;
   assert.strictEqual(
-    util.inspect(set, true),
+    util.inspect(set, { showHidden: true }),
     "Set { 'foo', [size]: 1, bar: 42 }"
   );
 }
