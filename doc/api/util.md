@@ -1026,10 +1026,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a `BigInt64Array` instance. The
-`--harmony-bigint` command line flag is required in order to use the
-`BigInt64Array` type, but it is not required in order to use
-`isBigInt64Array()`.
+Returns `true` if the value is a `BigInt64Array` instance.
 
 For example:
 
@@ -1046,10 +1043,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is a `BigUint64Array` instance. The
-`--harmony-bigint` command line flag is required in order to use the
-`BigUint64Array` type, but it is not required in order to use
-`isBigUint64Array()`.
+Returns `true` if the value is a `BigUint64Array` instance.
 
 For example:
 
