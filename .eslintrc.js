@@ -110,6 +110,7 @@ module.exports = {
     'no-invalid-regexp': 'error',
     'no-irregular-whitespace': 'error',
     'no-lonely-if': 'error',
+    'no-misleading-character-class': 'error',
     'no-mixed-requires': 'error',
     'no-mixed-spaces-and-tabs': 'error',
     'no-multi-spaces': ['error', { ignoreEOLComments: true }],
