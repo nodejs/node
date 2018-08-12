@@ -572,7 +572,7 @@ one listed below. (`heap.validateSnapshotNodes(...)` is a shortcut for
 
 Create a heap dump and an embedder graph copy and validate occurrences.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/required-modules -->
 ```js
 validateSnapshotNodes('TLSWRAP', [
   {
@@ -590,7 +590,7 @@ validateSnapshotNodes('TLSWRAP', [
 The http2.js module provides a handful of utilities for creating mock HTTP/2
 frames for testing of HTTP/2 endpoints
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-unused-vars, node-core/required-modules -->
 ```js
 const http2 = require('../common/http2');
 ```
@@ -600,7 +600,7 @@ const http2 = require('../common/http2');
 The `http2.Frame` is a base class that creates a `Buffer` containing a
 serialized HTTP/2 frame header.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/required-modules -->
 ```js
 // length is a 24-bit unsigned integer
 // type is an 8-bit unsigned integer identifying the frame type
@@ -619,7 +619,7 @@ The serialized `Buffer` may be retrieved using the `frame.data` property.
 The `http2.DataFrame` is a subclass of `http2.Frame` that serializes a `DATA`
 frame.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/required-modules -->
 ```js
 // id is the 32-bit stream identifier
 // payload is a Buffer containing the DATA payload
@@ -636,7 +636,7 @@ socket.write(frame.data);
 The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
 `HEADERS` frame.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/required-modules -->
 ```js
 // id is the 32-bit stream identifier
 // payload is a Buffer containing the HEADERS payload (see either
@@ -654,7 +654,7 @@ socket.write(frame.data);
 The `http2.SettingsFrame` is a subclass of `http2.Frame` that serializes an
 empty `SETTINGS` frame.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/required-modules -->
 ```js
 // ack is a boolean indicating whether or not to set the ACK flag.
 const frame = new http2.SettingsFrame(ack);
@@ -667,7 +667,7 @@ socket.write(frame.data);
 Set to a `Buffer` instance that contains a minimal set of serialized HTTP/2
 request headers to be used as the payload of a `http2.HeadersFrame`.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/required-modules -->
 ```js
 const frame = new http2.HeadersFrame(1, http2.kFakeRequestHeaders, 0, true);
 
@@ -679,7 +679,7 @@ socket.write(frame.data);
 Set to a `Buffer` instance that contains a minimal set of serialized HTTP/2
 response headers to be used as the payload a `http2.HeadersFrame`.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/required-modules -->
 ```js
 const frame = new http2.HeadersFrame(1, http2.kFakeResponseHeaders, 0, true);
 
@@ -691,7 +691,7 @@ socket.write(frame.data);
 Set to a `Buffer` containing the preamble bytes an HTTP/2 client must send
 upon initial establishment of a connection.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/required-modules -->
 ```js
 socket.write(http2.kClientMagic);
 ```
