@@ -8,3 +8,4 @@ const assert = require('assert');
 // process.binding().
 assert(process.binding('uv'));
 assert(process.binding('http_parser'));
+assert(process.binding('v8'));
