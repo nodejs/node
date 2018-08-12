@@ -266,6 +266,8 @@ module.exports = {
     DTRACE_HTTP_SERVER_REQUEST: false,
     DTRACE_HTTP_SERVER_RESPONSE: false,
     DTRACE_NET_SERVER_CONNECTION: false,
-    DTRACE_NET_STREAM_END: false
+    DTRACE_NET_STREAM_END: false,
+    TextEncoder: false,
+    TextDecoder: false
   },
 };

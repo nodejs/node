@@ -841,6 +841,13 @@ The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
 is not supported.
 
 ### new TextDecoder([encoding[, options]])
+<!-- YAML
+added: v8.3.0
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The class is now available on the global object.
+-->
 
 * `encoding` {string} Identifies the `encoding` that this `TextDecoder` instance
   supports. **Default:** `'utf-8'`.
@@ -855,6 +862,8 @@ is not supported.
 
 Creates an new `TextDecoder` instance. The `encoding` may specify one of the
 supported encodings or an alias.
+
+The `TextDecoder` class is also available on the global object.
 
 ### textDecoder.decode([input[, options]])
 
@@ -895,6 +904,10 @@ mark.
 ## Class: util.TextEncoder
 <!-- YAML
 added: v8.3.0
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The class is now available on the global object.
 -->
 
 An implementation of the [WHATWG Encoding Standard][] `TextEncoder` API. All
@@ -904,6 +917,8 @@ instances of `TextEncoder` only support UTF-8 encoding.
 const encoder = new TextEncoder();
 const uint8array = encoder.encode('this is some data');
 ```
+
+The `TextEncoder` class is also available on the global object.
 
 ### textEncoder.encode([input])
 

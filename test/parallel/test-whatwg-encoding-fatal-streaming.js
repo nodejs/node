@@ -8,10 +8,6 @@ if (!common.hasIntl)
   common.skip('missing Intl');
 
 const assert = require('assert');
-const {
-  TextDecoder
-} = require('util');
-
 
 {
   [
