@@ -111,10 +111,15 @@ comment that explains why the PR does not require a CI run.
 
 ### Code Reviews
 
-All pull requests must be reviewed and accepted by a Collaborator with
-sufficient expertise who is able to take full responsibility for the
-change. In the case of pull requests proposed by an existing
-Collaborator, an additional Collaborator is required for sign-off.
+All pull requests should be reviewed and accepted by at least two Collaborators
+with sufficient expertise to take responsibility for the change. Pull requests
+with only a single approval may land if: (a) a request for review from other
+individual Collaborators or teams has been made, (b) there are no objections
+after a period of 72 hours (3 days) from the time of that request, and (c) all
+other conditions to land have been met.
+
+In the case of pull requests proposed by an existing Collaborator, an additional
+Collaborator is required for sign-off.
 
 In some cases, it may be necessary to summon a GitHub team to a pull request for
 review by @-mention.
@@ -168,11 +173,17 @@ agenda.
 
 ### Waiting for Approvals
 
-Before landing pull requests, sufficient time should be left for input
-from other Collaborators. In general, leave at least 48 hours during the
-week and 72 hours over weekends to account for international time
-differences and work schedules. However, certain types of pull requests
-can be fast-tracked and may be landed after a shorter delay. For example:
+To provide enough time for pull requests to receive adequate review,
+all pull requests not approved for fast-tracking must remain open for at 48
+hours from either the time it was opened, or from the most recent request for
+review from specific individuals or teams.
+
+To qualify for fast-tracking, the changes proposed by a pull request must: (a)
+be labeled `fast-track`, (b) must have 2 or more Collaborators approving both
+the pull request and the fast-tracking request, and (c) must have the necessary
+CI testing complete.
+
+Example changes that qualify for `fast-track` include:
 
 * Focused changes that affect only documentation and/or the test suite:
   * `code-and-learn` tasks typically fall into this category.
@@ -180,11 +191,6 @@ can be fast-tracked and may be landed after a shorter delay. For example:
 * Changes that fix regressions:
   * Regressions that break the workflow (red CI or broken compilation).
   * Regressions that happen right before a release, or reported soon after.
-
-When a pull request is deemed suitable to be fast-tracked, label it with
-`fast-track`. The pull request can be landed once 2 or more Collaborators
-approve both the pull request and the fast-tracking request, and the necessary
-CI testing is done.
 
 ### Testing and CI
 
