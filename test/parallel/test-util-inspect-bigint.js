@@ -1,7 +1,5 @@
 'use strict';
 
-// Flags: --harmony-bigint
-
 require('../common');
 const assert = require('assert');
 
