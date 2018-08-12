@@ -78,7 +78,7 @@ assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': 2 } } }, false, 1),
                    '{ a: { b: [Object] } }');
 assert.strictEqual(util.inspect({ 'a': { 'b': ['c'] } }, false, 1),
                    '{ a: { b: [Array] } }');
-assert.strictEqual(util.inspect(new Uint8Array(0)), 'Uint8Array [  ]');
+assert.strictEqual(util.inspect(new Uint8Array(0)), 'Uint8Array []');
 assert.strictEqual(
   util.inspect(
     Object.create(
