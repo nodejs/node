@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --experimental-vm-modules --experimental-modules --harmony-dynamic-import
+// Flags: --experimental-vm-modules --experimental-modules
 
 const common = require('../common');
 
