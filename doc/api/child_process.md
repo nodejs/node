@@ -830,6 +830,8 @@ changes:
   * `cwd` {string} Current working directory of the child process.
   * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
     to the spawned process. Supplying this value will override `stdio[0]`.
+  * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
+    process. This will be set to `command` if not specified.
   * `stdio` {string|Array} Child's stdio configuration.
   * `env` {Object} Environment key-value pairs.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
