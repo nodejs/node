@@ -74,6 +74,11 @@ const listenOnPort = [
   shouldFailToListen({ fd: -1 });
   // Invalid path in listen(options)
   shouldFailToListen({ path: -1 });
-  // Host without port
+
+  // Neither port or path are specified in options
+  shouldFailToListen({});
   shouldFailToListen({ host: 'localhost' });
+  shouldFailToListen({ host: 'localhost:3000' });
+  shouldFailToListen({ host: { port: 3000 } });
+  shouldFailToListen({ exclusive: true });
 }
