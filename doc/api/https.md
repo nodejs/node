@@ -116,7 +116,7 @@ https.createServer(options, (req, res) => {
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: REPLACEME
+  - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21616
     description: allow both url and options to be passed to `https.get()`
   - version: v7.5.0
@@ -164,7 +164,7 @@ Global instance of [`https.Agent`][] for all HTTPS client requests.
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: REPLACEME
+  - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21616
     description: allow both url and options to be passed to `https.request()`
   - version: v9.3.0
