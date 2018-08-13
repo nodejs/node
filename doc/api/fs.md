@@ -2087,7 +2087,7 @@ fs.mkdir('/tmp/a/apple', { recursive: true }, (err) => {
 ```
 
 The `util.features` symbol can be used to feature detect if
-recusion is available.
+recursion is available.
 
 ```js
 fs.mkdir[util.features].recursive;
@@ -2115,7 +2115,7 @@ Synchronously creates a directory. Returns `undefined`.
 This is the synchronous version of [`fs.mkdir()`][].
 
 The `util.features` symbol can be used to feature detect if
-recusion is available.
+recursion is available.
 
 ```js
 fs.mkdirSync[util.features].recursive;
