@@ -24,6 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { features } = require('util');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -174,18 +175,10 @@ if (common.isMainThread && (common.isLinux || common.isOSX)) {
 
 // mkdirp and mkdirSyncp feature detection
 {
-  assert.strictEqual(Object.getOwnPropertySymbols(fs.mkdir).map((sym) => {
-    return sym.toString();
-  }).includes('Symbol(recursive)'), true);
-  assert.strictEqual(Object.getOwnPropertySymbols(fs.mkdirSync).map((sym) => {
-    return sym.toString();
-  }).includes('Symbol(recursive)'), true);
-  assert.strictEqual(Object.getOwnPropertySymbols(fs.mkdir).map((sym) => {
-    return sym.toString();
-  }).includes('Symbol(fhwdgads)'), false);
-  assert.strictEqual(Object.getOwnPropertySymbols(fs.mkdirSync).map((sym) => {
-    return sym.toString();
-  }).includes('Symbol(fhwdgads)'), false);
+  assert.strictEqual(fs.mkdir[features].includes('recursive'), true);
+  assert.strictEqual(fs.mkdir[features].includes('fhwdgads'), false);
+  assert.strictEqual(fs.mkdirSync[features].includes('recursive'), true);
+  assert.strictEqual(fs.mkdirSync[features].includes('fhwdgads'), false);
 }
 
 // Keep the event loop alive so the async mkdir() requests

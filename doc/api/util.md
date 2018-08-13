@@ -179,6 +179,13 @@ The `--throw-deprecation` command line flag and `process.throwDeprecation`
 property take precedence over `--trace-deprecation` and
 `process.traceDeprecation`.
 
+### util.features
+<!-- YAML
+added: REPlACEME
+-->
+
+* {symbol} that can be used to do feature detection.
+
 ## util.format(format[, ...args])
 <!-- YAML
 added: v0.5.3

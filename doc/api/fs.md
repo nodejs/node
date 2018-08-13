@@ -2086,13 +2086,11 @@ fs.mkdir('/tmp/a/apple', { recursive: true }, (err) => {
 });
 ```
 
-`fs.mkdir` has non-enumerable non-writable property `Symbol('recursive')` that
-can be used to detect if the recursive feature is available
+The `util.features` symbol can be used to feature detect if
+recusion is available.
 
 ```js
-Object.getOwnPropertySymbols(fs.mkdir).map((sym) => {
-  return sym.toString();
-}).includes('Symbol(recursive)');
+fs.mkdir[util.features].includes('recursive');
 // true
 ```
 
@@ -2116,13 +2114,11 @@ changes:
 Synchronously creates a directory. Returns `undefined`.
 This is the synchronous version of [`fs.mkdir()`][].
 
-`fs.mkdirSync` has non-enumerable non-writable property `Symbol('recursive')`
-that can be used to detect if the recursive feature is available
+The `util.features` symbol can be used to feature detect if
+recusion is available.
 
 ```js
-Object.getOwnPropertySymbols(fs.mkdirSync).map((sym) => {
-  return sym.toString();
-}).includes('Symbol(recursive)');
+fs.mkdirSync[util.features].includes('recursive');
 // true
 ```
 
