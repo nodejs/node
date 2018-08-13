@@ -266,8 +266,8 @@ jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
 test: all ## Runs default tests, linters, and builds docs.
-	# Build the addons before running the tests so the test results
-	# can be displayed together
+	@echo "Build the addons before running the tests so the test results"
+	@echo "can be displayed together"
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-addons-napi
 	$(MAKE) -s cctest
@@ -275,8 +275,8 @@ test: all ## Runs default tests, linters, and builds docs.
 
 .PHONY: test-only
 test-only: all  ## For a quick test, does not run linter or build docs.
-	# Build the addons before running the tests so the test results
-	# can be displayed together
+	@echo "Build the addons before running the tests so the test results"
+	@echo "can be displayed together"
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	$(MAKE) cctest
@@ -284,8 +284,8 @@ test-only: all  ## For a quick test, does not run linter or build docs.
 
 # Used by `make coverage-test`
 test-cov: all
-	# Build the addons before running the tests so the test results
-	# can be displayed together
+	@echo "Build the addons before running the tests so the test results"
+	@echo "can be displayed together"
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	# $(MAKE) cctest
@@ -399,7 +399,7 @@ build-addons-napi: | $(NODE_EXE) test/addons-napi/.buildstamp
 
 .PHONY: clear-stalled
 clear-stalled:
-	# Clean up any leftover processes but don't error if found.
+	@echo "Clean up any leftover processes but don't error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
@@ -437,7 +437,7 @@ test-ci-js: | clear-stalled
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
-	# Clean up any leftover processes, error if found.
+	@echo "Clean up any leftover processes, error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
@@ -452,7 +452,7 @@ test-ci: | clear-stalled build-addons build-addons-napi doc-only
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
-	# Clean up any leftover processes, error if found.
+	@echo "Clean up any leftover processes, error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
