@@ -890,22 +890,22 @@ if (typeof Symbol !== 'undefined') {
   const options = { showHidden: true };
   let subject = {};
 
-  subject[Symbol('symbol')] = 42;
+  subject[Symbol('sym\nbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject), '{ [Symbol(symbol)]: 42 }');
+  assert.strictEqual(util.inspect(subject), '{ [Symbol(sym\\nbol)]: 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
-    '{ [Symbol(symbol)]: 42 }'
+    '{ [Symbol(sym\\nbol)]: 42 }'
   );
 
   Object.defineProperty(
     subject,
     Symbol(),
     { enumerable: false, value: 'non-enum' });
-  assert.strictEqual(util.inspect(subject), '{ [Symbol(symbol)]: 42 }');
+  assert.strictEqual(util.inspect(subject), '{ [Symbol(sym\\nbol)]: 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
-    "{ [Symbol(symbol)]: 42, [Symbol()]: 'non-enum' }"
+    "{ [Symbol(sym\\nbol)]: 42, [Symbol()]: 'non-enum' }"
   );
 
   subject = [1, 2, 3];
@@ -1678,3 +1678,13 @@ util.inspect(process);
 assert.strictEqual(inspect(1n), '1n');
 assert.strictEqual(inspect(Object(-1n)), '[BigInt: -1n]');
 assert.strictEqual(inspect(Object(13n)), '[BigInt: 13n]');
+
+// Verify non-enumerable keys get escaped.
+{
+  const obj = {};
+  Object.defineProperty(obj, 'Non\nenumerable\tkey', { value: true });
+  assert.strictEqual(
+    util.inspect(obj, { showHidden: true }),
+    '{ [Non\\nenumerable\\tkey]: true }'
+  );
+}
