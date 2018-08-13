@@ -268,6 +268,7 @@ jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
 test: all ## Runs default tests, linters, and builds docs.
 	@echo "Build the addons before running the tests so the test results"
 	@echo "can be displayed together"
+	$(MAKE) -s test-doc
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-addons-napi
 	$(MAKE) -s cctest
