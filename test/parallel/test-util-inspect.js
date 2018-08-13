@@ -26,6 +26,7 @@ const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
 const { previewEntries } = process.binding('util');
+const { inspect } = util;
 
 assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
@@ -79,6 +80,7 @@ assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': 2 } } }, false, 1),
 assert.strictEqual(util.inspect({ 'a': { 'b': ['c'] } }, false, 1),
                    '{ a: { b: [Array] } }');
 assert.strictEqual(util.inspect(new Uint8Array(0)), 'Uint8Array []');
+assert(inspect(new Uint8Array(0), { showHidden: true }).includes('[buffer]'));
 assert.strictEqual(
   util.inspect(
     Object.create(
