@@ -1,3 +1,4 @@
+// Flags: --expose-gc
 'use strict';
 
 const common = require('../../common');
@@ -35,10 +36,13 @@ common.expectsError(function() {
   type: Error
 });
 
+// FIXME: Free the memory early to avoid OOM.
+// REF: https://github.com/nodejs/reliability/issues/12#issuecomment-412619655
+global.gc();
 let maxString = buf.toString('latin1', 1);
 assert.strictEqual(maxString.length, kStringMaxLength);
-// Free the memory early instead of at the end of the next assignment
 maxString = undefined;
+global.gc();
 
 maxString = buf.toString('latin1', 0, kStringMaxLength);
 assert.strictEqual(maxString.length, kStringMaxLength);
