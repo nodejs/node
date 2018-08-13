@@ -4,10 +4,6 @@
 const common = require('../common');
 const assert = require('assert');
 
-common.expectWarning(
-  'DeprecationWarning',
-  'Use of process.binding(\'uv\') is deprecated.',
-  'DEP0111'
-);
-
+// Assert that whitelisted internalBinding modules are accessible via
+// process.binding().
 assert(process.binding('uv'));
