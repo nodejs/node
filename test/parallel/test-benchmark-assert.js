@@ -10,6 +10,7 @@ const runBenchmark = require('../common/benchmark');
 runBenchmark(
   'assert',
   [
+    'strict=1',
     'len=1',
     'method=',
     'n=1',
