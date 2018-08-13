@@ -172,6 +172,22 @@ if (common.isMainThread && (common.isLinux || common.isOSX)) {
   });
 }
 
+// mkdirp and mkdirSyncp feature detection
+{
+  assert.strictEqual(Object.getOwnPropertySymbols(fs.mkdir).map((sym) => {
+    return sym.toString();
+  }).includes('Symbol(recursive)'), true);
+  assert.strictEqual(Object.getOwnPropertySymbols(fs.mkdirSync).map((sym) => {
+    return sym.toString();
+  }).includes('Symbol(recursive)'), true);
+  assert.strictEqual(Object.getOwnPropertySymbols(fs.mkdir).map((sym) => {
+    return sym.toString();
+  }).includes('Symbol(fhwdgads)'), false);
+  assert.strictEqual(Object.getOwnPropertySymbols(fs.mkdirSync).map((sym) => {
+    return sym.toString();
+  }).includes('Symbol(fhwdgads)'), false);
+}
+
 // Keep the event loop alive so the async mkdir() requests
 // have a chance to run (since they don't ref the event loop).
 process.nextTick(() => {});
