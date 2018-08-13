@@ -175,10 +175,10 @@ if (common.isMainThread && (common.isLinux || common.isOSX)) {
 
 // mkdirp and mkdirSyncp feature detection
 {
-  assert.strictEqual(fs.mkdir[features].includes('recursive'), true);
-  assert.strictEqual(fs.mkdir[features].includes('fhwdgads'), false);
-  assert.strictEqual(fs.mkdirSync[features].includes('recursive'), true);
-  assert.strictEqual(fs.mkdirSync[features].includes('fhwdgads'), false);
+  assert.strictEqual(fs.mkdir[features].recursive, true);
+  assert.strictEqual(fs.mkdir[features].fhwdgads, undefined);
+  assert.strictEqual(fs.mkdirSync[features].recursive, true);
+  assert.strictEqual(fs.mkdirSync[features].fhwdgads, undefined);
 }
 
 // Keep the event loop alive so the async mkdir() requests

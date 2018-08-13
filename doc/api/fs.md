@@ -2090,7 +2090,7 @@ The `util.features` symbol can be used to feature detect if
 recusion is available.
 
 ```js
-fs.mkdir[util.features].includes('recursive');
+fs.mkdir[util.features].recursive;
 // true
 ```
 
@@ -2118,7 +2118,7 @@ The `util.features` symbol can be used to feature detect if
 recusion is available.
 
 ```js
-fs.mkdirSync[util.features].includes('recursive');
+fs.mkdirSync[util.features].recursive;
 // true
 ```
 
