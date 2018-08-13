@@ -26,6 +26,7 @@ const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
 const { previewEntries } = process.binding('util');
+const { inspect } = util;
 
 assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
@@ -1516,3 +1517,9 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   value.foo = 'bar';
   assert.notStrictEqual(util.inspect(value), expected);
 });
+
+assert.strictEqual(inspect(1n), '1n');
+assert.strictEqual(inspect(Object(-1n)), '[BigInt: -1n]');
+assert.strictEqual(inspect(Object(13n)), '[BigInt: 13n]');
+assert.strictEqual(inspect(new BigInt64Array([0n])), 'BigInt64Array [ 0n ]');
+assert.strictEqual(inspect(new BigUint64Array([0n])), 'BigUint64Array [ 0n ]');
