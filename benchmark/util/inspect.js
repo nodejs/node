@@ -9,7 +9,7 @@ const opts = {
   none: undefined
 };
 const bench = common.createBenchmark(main, {
-  n: [2e6],
+  n: [2e4],
   method: [
     'Object',
     'Object_empty',
@@ -81,7 +81,7 @@ function main({ method, n, option }) {
       benchmark(n, new Error('error'), options);
       break;
     case 'Array':
-      benchmark(n, Array(20).fill().map((_, i) => i), options);
+      benchmark(n, Array(50).fill().map((_, i) => i), options);
       break;
     case 'TypedArray':
       obj = new Uint8Array(Array(50).fill().map((_, i) => i));
