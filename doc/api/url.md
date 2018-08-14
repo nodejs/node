@@ -929,7 +929,7 @@ For example: `'user:pass'`.
 #### urlObject.hash
 
 The `hash` property consists of the "fragment" portion of the URL including
-the leading ASCII hash (`#`) character.
+the leading `#` character.
 
 For example: `'#hash'`.
 
