@@ -161,6 +161,16 @@ common.expectsError(
   }
 );
 
+common.expectsError(
+  () => new StringDecoder('utf8').write(null),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "buf" argument must be one of type Buffer, Uint8Array, or' +
+      ' ArrayBufferView. Received type object'
+  }
+);
+
 // test verifies that StringDecoder will correctly decode the given input
 // buffer with the given encoding to the expected output. It will attempt all
 // possible ways to write() the input buffer, see writeSequences(). The
