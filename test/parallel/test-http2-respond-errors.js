@@ -5,7 +5,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
-const { Http2Stream } = process.binding('http2');
+const { internalBinding } = require('internal/test/binding');
+const { Http2Stream } = internalBinding('http2');
 
 const server = http2.createServer();
 

@@ -9,7 +9,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const { mapToHeaders, toHeaderObject } = require('internal/http2/util');
-
+const { internalBinding } = require('internal/test/binding');
 const {
   HTTP2_HEADER_STATUS,
   HTTP2_HEADER_METHOD,
@@ -88,7 +88,7 @@ const {
   HTTP2_HEADER_HOST,
   HTTP2_HEADER_KEEP_ALIVE,
   HTTP2_HEADER_PROXY_CONNECTION
-} = process.binding('http2').constants;
+} = internalBinding('http2').constants;
 
 {
   const headers = {

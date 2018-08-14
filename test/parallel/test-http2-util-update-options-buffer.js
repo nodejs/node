@@ -9,7 +9,8 @@ if (!common.hasCrypto)
 // by the http2 implementation.
 
 const { updateOptionsBuffer } = require('internal/http2/util');
-const { optionsBuffer } = process.binding('http2');
+const { internalBinding } = require('internal/test/binding');
+const { optionsBuffer } = internalBinding('http2');
 const { ok, strictEqual } = require('assert');
 
 const IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE = 0;
