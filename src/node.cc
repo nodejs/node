@@ -200,6 +200,7 @@ static std::string trace_enabled_categories;  // NOLINT(runtime/string)
 static std::string trace_file_pattern =  // NOLINT(runtime/string)
   "node_trace.${rotation}.log";
 static bool abort_on_uncaught_exception = false;
+static std::string report_events;  // NOLINT(runtime/string)
 
 // Bit flag used to track security reverts (see node_revert.h)
 unsigned int reverted = 0;
@@ -2569,6 +2570,14 @@ void LoadEnvironment(Environment* env) {
     return;
   }
 
+#if defined(NODE_REPORT)
+  fprintf(stderr, "report events: %s \n", report_events.c_str());
+  if (!report_events.empty()) {
+    nodereport::InitializeNodeReport();
+    nodereport::SetEvents(env->isolate(), report_events.c_str());
+  }
+#endif
+
   // Bootstrap Node.js
   Local<Object> bootstrapper = Object::New(env->isolate());
   SetupBootstrapObject(env, bootstrapper);
@@ -3044,6 +3053,22 @@ static void ParseArgs(int* argc,
       // Also a V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
       new_v8_argc += 1;
+    } else if (strcmp(arg, "--report-events") == 0) {
+      const char* events = argv[index + 1];
+      if (events == nullptr) {
+        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        exit(9);
+      }
+      args_consumed += 1;
+      report_events = events;
+  fprintf(stderr, "parsed events %s \n", report_events.c_str());
+      // Replace ',' with '+' separators
+      std::size_t c = report_events.find_first_of(",");
+      while (c != std::string::npos) {
+        report_events.replace(c, 1, "+");
+        c = report_events.find_first_of(",", c + 1);
+      }
+  fprintf(stderr, "filtered events %s \n", report_events.c_str());
     } else {
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
@@ -3690,11 +3715,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   }
 
   env.set_trace_sync_io(trace_sync_io);
-
-#if defined(NODE_REPORT)
-  nodereport::InitializeNodeReport();
-  nodereport::SetEvents(isolate, "fatalerror+signal");
-#endif
 
   {
     SealHandleScope seal(isolate);
