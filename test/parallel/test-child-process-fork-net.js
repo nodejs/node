@@ -122,7 +122,7 @@ if (process.argv[2] === 'child') {
     while (j--) {
       const client = net.connect(this.address().port, '127.0.0.1');
       client.on('error', function() {
-        // This can happen if we kill the child too early.
+        // This can happen if we kill the subprocess too early.
         // The client should still get a close event afterwards.
         console.error('[m] CLIENT: error event');
       });
