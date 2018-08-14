@@ -3,7 +3,7 @@
 
 const common = require('../common');
 
-if (!common.hasTracing)
+if (!process.binding('config').hasTracing)
   common.skip('missing trace events');
 if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
