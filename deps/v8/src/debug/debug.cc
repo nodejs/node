@@ -364,16 +364,21 @@ char* Debug::RestoreDebug(char* storage) {
   MemCopy(reinterpret_cast<char*>(&thread_local_), storage,
           ArchiveSpacePerThread());
 
-  // Enter the debugger.
-  DebugScope debug_scope(this);
+  if (in_debug_scope()) {
+    // If this thread was in a DebugScope when we archived it, restore the
+    // previous debugging state now. Note that in_debug_scope() returns
+    // true when thread_local_.current_debug_scope_ (restored by MemCopy
+    // above) is non-null.
 
-  // Clear any one-shot breakpoints that may have been set by the other
-  // thread, and reapply breakpoints for this thread.
-  ClearOneShot();
+    // Clear any one-shot breakpoints that may have been set by the other
+    // thread, and reapply breakpoints for this thread.
+    HandleScope scope(isolate_);
+    ClearOneShot();
 
-  if (thread_local_.last_step_action_ != StepNone) {
-    // Reset the previous step action for this thread.
-    PrepareStep(thread_local_.last_step_action_);
+    if (thread_local_.last_step_action_ != StepNone) {
+      // Reset the previous step action for this thread.
+      PrepareStep(thread_local_.last_step_action_);
+    }
   }
 
   return storage + ArchiveSpacePerThread();
