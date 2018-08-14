@@ -75,7 +75,6 @@ struct MarkPopErrorOnReturn {
 using X509Pointer = DeleteFnPtr<X509, X509_free>;
 using BIOPointer = DeleteFnPtr<BIO, BIO_free_all>;
 using SSLCtxPointer = DeleteFnPtr<SSL_CTX, SSL_CTX_free>;
-using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
 using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
 using EVPKeyPointer = DeleteFnPtr<EVP_PKEY, EVP_PKEY_free>;
 using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
@@ -88,15 +87,33 @@ using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using DHPointer = DeleteFnPtr<DH, DH_free>;
 
+struct StackOfX509Deleter {
+  void operator()(STACK_OF(X509)* p) const { sk_X509_pop_free(p, X509_free); }
+};
+using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
+
+struct StackOfXASN1Deleter {
+  void operator()(STACK_OF(ASN1_OBJECT)* p) const {
+    sk_ASN1_OBJECT_pop_free(p, ASN1_OBJECT_free);
+  }
+};
+using StackOfASN1 = std::unique_ptr<STACK_OF(ASN1_OBJECT), StackOfXASN1Deleter>;
+
+// OPENSSL_free is a macro, so we need a wrapper function.
+struct OpenSSLBufferDeleter {
+  void operator()(char* pointer) const { OPENSSL_free(pointer); }
+};
+using OpenSSLBuffer = std::unique_ptr<char[], OpenSSLBufferDeleter>;
+
 enum CheckResult {
   CHECK_CERT_REVOKED = 0,
   CHECK_OK = 1
 };
 
-extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
-
 extern void UseExtraCaCerts(const std::string& file);
-
+void ThrowCryptoError(Environment* env,
+                      unsigned long err,  // NOLINT(runtime/int)
+                      const char* message = nullptr);
 void InitCryptoOnce();
 
 class SecureContext : public BaseObject {
@@ -203,142 +220,6 @@ class SecureContext : public BaseObject {
     cert_.reset();
     issuer_.reset();
   }
-};
-
-// SSLWrap implicitly depends on the inheriting class' handle having an
-// internal pointer to the Base class.
-template <class Base>
-class SSLWrap {
- public:
-  enum Kind {
-    kClient,
-    kServer
-  };
-
-  SSLWrap(Environment* env, SecureContext* sc, Kind kind)
-      : env_(env),
-        kind_(kind),
-        next_sess_(nullptr),
-        session_callbacks_(false),
-        new_session_wait_(false),
-        cert_cb_(nullptr),
-        cert_cb_arg_(nullptr),
-        cert_cb_running_(false) {
-    ssl_.reset(SSL_new(sc->ctx_.get()));
-    CHECK(ssl_);
-    env_->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
-  }
-
-  virtual ~SSLWrap() {
-    DestroySSL();
-  }
-
-  inline void enable_session_callbacks() { session_callbacks_ = true; }
-  inline bool is_server() const { return kind_ == kServer; }
-  inline bool is_client() const { return kind_ == kClient; }
-  inline bool is_waiting_new_session() const { return new_session_wait_; }
-  inline bool is_waiting_cert_cb() const { return cert_cb_ != nullptr; }
-
- protected:
-  typedef void (*CertCb)(void* arg);
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  // Size allocated by OpenSSL: one for SSL structure, one for SSL3_STATE and
-  // some for buffers.
-  // NOTE: Actually it is much more than this
-  static const int64_t kExternalSize =
-      sizeof(SSL) + sizeof(SSL3_STATE) + 42 * 1024;
-#else
-  // OpenSSL 1.1.0 has opaque structures. This is an estimate based on the size
-  // as of OpenSSL 1.1.0f.
-  static const int64_t kExternalSize = 4448 + 1024 + 42 * 1024;
-#endif
-
-  static void ConfigureSecureContext(SecureContext* sc);
-  static void AddMethods(Environment* env, v8::Local<v8::FunctionTemplate> t);
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  static SSL_SESSION* GetSessionCallback(SSL* s,
-                                         unsigned char* key,
-                                         int len,
-                                         int* copy);
-#else
-  static SSL_SESSION* GetSessionCallback(SSL* s,
-                                         const unsigned char* key,
-                                         int len,
-                                         int* copy);
-#endif
-  static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
-  static void OnClientHello(void* arg,
-                            const ClientHelloParser::ClientHello& hello);
-
-  static void GetPeerCertificate(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPeerFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void LoadSession(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsSessionReused(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsInitFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetCurrentCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EndParser(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Renegotiate(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetTLSTicket(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void NewSessionDone(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetOCSPResponse(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void RequestOCSP(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetEphemeralKeyInfo(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetProtocol(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-#ifdef SSL_set_max_send_fragment
-  static void SetMaxSendFragment(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-#endif  // SSL_set_max_send_fragment
-
-  static void GetALPNNegotiatedProto(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetALPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static int SelectALPNCallback(SSL* s,
-                                const unsigned char** out,
-                                unsigned char* outlen,
-                                const unsigned char* in,
-                                unsigned int inlen,
-                                void* arg);
-  static int TLSExtStatusCallback(SSL* s, void* arg);
-  static int SSLCertCallback(SSL* s, void* arg);
-
-  void DestroySSL();
-  void WaitForCertCb(CertCb cb, void* arg);
-  void SetSNIContext(SecureContext* sc);
-  int SetCACerts(SecureContext* sc);
-
-  inline Environment* ssl_env() const {
-    return env_;
-  }
-
-  Environment* const env_;
-  Kind kind_;
-  SSLSessionPointer next_sess_;
-  SSLPointer ssl_;
-  bool session_callbacks_;
-  bool new_session_wait_;
-
-  // SSL_set_cert_cb
-  CertCb cert_cb_;
-  void* cert_cb_arg_;
-  bool cert_cb_running_;
-
-  ClientHelloParser hello_parser_;
-
-  Persistent<v8::Object> ocsp_response_;
-  Persistent<v8::Value> sni_context_;
-
-  friend class SecureContext;
 };
 
 class CipherBase : public BaseObject {
