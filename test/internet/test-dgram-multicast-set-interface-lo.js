@@ -89,7 +89,7 @@ if (process.argv[2] !== 'child') {
                   TIMEOUT);
     console.error('[PARENT] Skip');
 
-    killChildren(workers);
+    killSubprocesses(workers);
     common.skip('Check filter policy');
 
     process.exit(1);
@@ -132,7 +132,7 @@ if (process.argv[2] !== 'child') {
         console.error('[PARENT] All workers have died.');
         console.error('[PARENT] Fail');
 
-        killChildren(workers);
+        killSubprocesses(workers);
 
         process.exit(1);
       }
@@ -187,7 +187,7 @@ if (process.argv[2] !== 'child') {
 
           clearTimeout(timer);
           console.error('[PARENT] Success');
-          killChildren(workers);
+          killSubprocesses(workers);
         }
       }
     });
@@ -239,9 +239,9 @@ if (process.argv[2] !== 'child') {
     );
   };
 
-  function killChildren(children) {
-    for (const i in children)
-      children[i].kill();
+  function killSubprocesses(subprocesses) {
+    for (const i in subprocesses)
+      subprocesses[i].kill();
   }
 }
 
