@@ -2114,7 +2114,7 @@ changes:
 Synchronously creates a directory. Returns `undefined`.
 This is the synchronous version of [`fs.mkdir()`][].
 
-The `util.features` symbol can be used to feature detect if
+The [`util.features`][] symbol can be used to feature detect if
 recursion is available.
 
 ```js
@@ -4682,6 +4682,7 @@ the file contents.
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`net.Socket`]: net.html#net_class_net_socket
 [`stat()`]: fs.html#fs_fs_stat_path_options_callback
+[`util.features`]: util.html#util_util_features
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
