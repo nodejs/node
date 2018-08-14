@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -269,6 +269,8 @@ struct ec_key_st {
 
 struct ec_point_st {
     const EC_METHOD *meth;
+    /* NID for the curve if known */
+    int curve_name;
     /*
      * All members except 'meth' are handled by the method functions, even if
      * they appear generic
@@ -280,6 +282,20 @@ struct ec_point_st {
     int Z_is_one;               /* enable optimized point arithmetics for
                                  * special case */
 };
+
+
+static ossl_inline int ec_point_is_compat(const EC_POINT *point,
+                                          const EC_GROUP *group)
+{
+    if (group->meth != point->meth
+        || (group->curve_name != 0
+            && point->curve_name != 0
+            && group->curve_name != point->curve_name))
+        return 0;
+
+    return 1;
+}
+
 
 NISTP224_PRE_COMP *EC_nistp224_pre_comp_dup(NISTP224_PRE_COMP *);
 NISTP256_PRE_COMP *EC_nistp256_pre_comp_dup(NISTP256_PRE_COMP *);

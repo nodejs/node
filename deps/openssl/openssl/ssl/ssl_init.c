@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,6 +12,7 @@
 #include "internal/err.h"
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
+#include <openssl/conf.h>
 #include <assert.h>
 #include "ssl_locl.h"
 #include "internal/thread_once.h"
@@ -126,8 +127,8 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_load_ssl_strings)
             "ERR_load_SSL_strings()\n");
 # endif
     ERR_load_SSL_strings();
-#endif
     ssl_strings_inited = 1;
+#endif
     return 1;
 }
 
@@ -191,11 +192,13 @@ int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS * settings)
         return 0;
     }
 
-    if (!RUN_ONCE(&ssl_base, ossl_init_ssl_base))
+    if (!OPENSSL_init_crypto(opts
+                             | OPENSSL_INIT_ADD_ALL_CIPHERS
+                             | OPENSSL_INIT_ADD_ALL_DIGESTS,
+                             settings))
         return 0;
 
-    if (!OPENSSL_init_crypto(opts | OPENSSL_INIT_ADD_ALL_CIPHERS
-                             | OPENSSL_INIT_ADD_ALL_DIGESTS, settings))
+    if (!RUN_ONCE(&ssl_base, ossl_init_ssl_base))
         return 0;
 
     if ((opts & OPENSSL_INIT_NO_LOAD_SSL_STRINGS)

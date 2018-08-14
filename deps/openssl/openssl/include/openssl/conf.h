@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -191,6 +191,7 @@ int ERR_load_CONF_strings(void);
 # define CONF_F_NCONF_LOAD_BIO                            110
 # define CONF_F_NCONF_LOAD_FP                             114
 # define CONF_F_NCONF_NEW                                 111
+# define CONF_F_SSL_MODULE_INIT                           123
 # define CONF_F_STR_COPY                                  101
 
 /* Reason codes. */
@@ -206,6 +207,10 @@ int ERR_load_CONF_strings(void);
 # define CONF_R_NO_SECTION                                107
 # define CONF_R_NO_SUCH_FILE                              114
 # define CONF_R_NO_VALUE                                  108
+# define CONF_R_SSL_COMMAND_SECTION_EMPTY                 117
+# define CONF_R_SSL_COMMAND_SECTION_NOT_FOUND             118
+# define CONF_R_SSL_SECTION_EMPTY                         119
+# define CONF_R_SSL_SECTION_NOT_FOUND                     120
 # define CONF_R_UNABLE_TO_CREATE_NEW_SECTION              103
 # define CONF_R_UNKNOWN_MODULE_NAME                       113
 # define CONF_R_VARIABLE_EXPANSION_TOO_LONG               116

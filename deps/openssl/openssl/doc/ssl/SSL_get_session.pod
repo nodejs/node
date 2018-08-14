@@ -28,6 +28,11 @@ count of the B<SSL_SESSION> is incremented by one.
 The ssl session contains all information required to re-establish the
 connection without a new handshake.
 
+A session will be automatically removed from the session cache and marked as
+non-resumable if the connection is not closed down cleanly, e.g. if a fatal
+error occurs on the connection or L<SSL_shutdown(3)> is not called prior to
+L<SSL_free(3)>.
+
 SSL_get0_session() returns a pointer to the actual session. As the
 reference counter is not incremented, the pointer is only valid while
 the connection is in use. If L<SSL_clear(3)> or
@@ -72,7 +77,7 @@ L<SSL_SESSION_free(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

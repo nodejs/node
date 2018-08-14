@@ -19,7 +19,7 @@ $n = 1;
 $V = $V = 119;
 $template = q{The value of $V is <<$V>>.};
 $result = q{The value of $V is 119.};
-$template1 = Text::Template->new(TYPE => STRING,
+$template1 = Text::Template->new(TYPE => STRING, 
 				 SOURCE => $template,
 				 DELIMITERS => ['<<', '>>']
 				)
@@ -37,7 +37,7 @@ $n++;
 # (3) Now we'll try using regex metacharacters
 # First with the delimiters specified at object creation time
 $template = q{The value of $V is [$V].};
-$template1 = Text::Template->new(TYPE => STRING,
+$template1 = Text::Template->new(TYPE => STRING, 
 				 SOURCE => $template,
 				 DELIMITERS => ['[', ']']
 				)
@@ -63,10 +63,10 @@ my @tests = ('{""}' => '',	# (5)
 	     '{"}"}' => undef,
 	     '{"\\}"}' => undef,	# One backslash
 	     '{"\\\\}"}' => undef, # Two backslashes
-	     '{"\\\\\\}"}' => undef, # Three backslashes
+	     '{"\\\\\\}"}' => undef, # Three backslashes 
 	     '{"\\\\\\\\}"}' => undef, # Four backslashes (10)
 	     '{"\\\\\\\\\\}"}' => undef, # Five backslashes
-
+	     
 	     # Backslashes are always passed directly to Perl
 	     '{"x20"}' => 'x20',
 	     '{"\\x20"}' => ' ',	# One backslash
@@ -96,3 +96,4 @@ for ($i=0; $i<@tests; $i+=2) {
 
 
 exit;
+

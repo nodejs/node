@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -639,7 +639,6 @@ int ocsp_main(int argc, char **argv)
                    OCSP_response_status_str(i), i);
         if (ignore_err)
             goto redo_accept;
-        ret = 0;
         goto end;
     }
 

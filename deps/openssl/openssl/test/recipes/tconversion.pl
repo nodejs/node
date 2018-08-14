@@ -23,7 +23,7 @@ my %conversionforms = (
 sub tconversion {
     my $testtype = shift;
     my $t = shift;
-    my @conversionforms =
+    my @conversionforms = 
 	defined($conversionforms{$testtype}) ?
 	@{$conversionforms{$testtype}} :
 	@{$conversionforms{"*"}};

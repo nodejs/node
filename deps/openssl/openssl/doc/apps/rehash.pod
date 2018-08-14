@@ -99,6 +99,12 @@ Note that current versions will not use the old style.
 Do not remove existing links.
 This is needed when keeping new and old-style links in the same directory.
 
+=item B<-compat>
+
+Generate links for both old-style (MD5) and new-style (SHA1) hashing.
+This allows releases before 1.0.0 to use these links along-side newer
+releases.
+
 =item B<-v>
 
 Print messages about old links removed and new links created.
@@ -130,7 +136,7 @@ L<x509(1)>.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

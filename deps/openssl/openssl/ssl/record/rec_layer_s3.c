@@ -368,7 +368,7 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, int len)
      * promptly send beyond the end of the users buffer ... so we trap and
      * report the error in a way the user will notice
      */
-    if (((unsigned int)len < s->rlayer.wnum)
+    if (((unsigned int)len < s->rlayer.wnum) 
         || ((wb->left != 0) && ((unsigned int)len < (s->rlayer.wnum + s->rlayer.wpend_tot)))) {
         SSLerr(SSL_F_SSL3_WRITE_BYTES, SSL_R_BAD_LENGTH);
         return -1;

@@ -49,14 +49,15 @@ if ($@ =~ /^\QIllegal value `WLUNCH' for TYPE parameter/) {
 $n++;
 
 # (4-5) File does not exist
-my $o = Text::Template->new(TYPE => 'file',
+my $o = Text::Template->new(TYPE => 'file', 
                             SOURCE => 'this file does not exist');
 print $o ? "not ok $n\n" : "ok $n\n";
 $n++;
-print defined($Text::Template::ERROR)
+print defined($Text::Template::ERROR) 
       && $Text::Template::ERROR =~ /^Couldn't open file/
   ? "ok $n\n" : "not ok $n\n";
 $n++;
 
 
 exit;
+

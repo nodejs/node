@@ -190,10 +190,10 @@ resources should be freed at an earlier time, or under the circumstances
 described in the NOTES section below.
 
 The B<OPENSSL_INIT_LOAD_CONFIG> flag will load a default configuration
-file.  To specify a different file, an B<OPENSSL_INIT_SETTINGS> must
-be created and used. The routines
-OPENSSL_init_new() and OPENSSL_INIT_set_config_appname() can be used to
-allocate the object and set the application name, and then the
+file. For optional configuration file settings, an B<OPENSSL_INIT_SETTINGS>
+must be created and used.
+The routines OPENSSL_init_new() and OPENSSL_INIT_set_config_appname() can
+be used to allocate the object and set the application name, and then the
 object can be released with OPENSSL_INIT_free() when done.
 
 =head1 NOTES
@@ -235,7 +235,7 @@ and OPENSSL_INIT_free() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

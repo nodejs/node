@@ -23,29 +23,97 @@
 extern unsigned int OPENSSL_ia32cap_P[4];
 
 # if defined(OPENSSL_CPUID_OBJ) && !defined(OPENSSL_NO_ASM) && !defined(I386_ONLY)
-#include <stdio.h>
+
+/*
+ * Purpose of these minimalistic and character-type-agnostic subroutines
+ * is to break dependency on MSVCRT (on Windows) and locale. This makes
+ * OPENSSL_cpuid_setup safe to use as "constructor". "Character-type-
+ * agnostic" means that they work with either wide or 8-bit characters,
+ * exploiting the fact that first 127 characters can be simply casted
+ * between the sets, while the rest would be simply rejected by ossl_is*
+ * subroutines.
+ */
+#  ifdef _WIN32
+typedef WCHAR variant_char;
+
+static variant_char *ossl_getenv(const char *name)
+{
+    /*
+     * Since we pull only one environment variable, it's simpler to
+     * to just ignore |name| and use equivalent wide-char L-literal.
+     * As well as to ignore excessively long values...
+     */
+    static WCHAR value[48];
+    DWORD len = GetEnvironmentVariableW(L"OPENSSL_ia32cap", value, 48);
+
+    return (len > 0 && len < 48) ? value : NULL;
+}
+#  else
+typedef char variant_char;
+#   define ossl_getenv getenv
+#  endif
+
+static int todigit(variant_char c)
+{
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    else if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    else if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+
+    /* return largest base value to make caller terminate the loop */
+    return 16;
+}
+
+static uint64_t ossl_strtouint64(const variant_char *str)
+{
+    uint64_t ret = 0;
+    unsigned int digit, base = 10;
+
+    if (*str == '0') {
+        base = 8, str++;
+        if (*str == 'x' || *str == 'X')
+            base = 16, str++;
+    }
+
+    while((digit = todigit(*str++)) < base)
+        ret = ret * base + digit;
+
+    return ret;
+}
+
+static variant_char *ossl_strchr(const variant_char *str, char srch)
+{   variant_char c;
+
+    while((c = *str)) {
+        if (c == srch)
+	    return (variant_char *)str;
+        str++;
+    }
+
+    return NULL;
+}
+
 #  define OPENSSL_CPUID_SETUP
 typedef uint64_t IA32CAP;
+
 void OPENSSL_cpuid_setup(void)
 {
     static int trigger = 0;
     IA32CAP OPENSSL_ia32_cpuid(unsigned int *);
     IA32CAP vec;
-    char *env;
+    const variant_char *env;
 
     if (trigger)
         return;
 
     trigger = 1;
-    if ((env = getenv("OPENSSL_ia32cap"))) {
+    if ((env = ossl_getenv("OPENSSL_ia32cap")) != NULL) {
         int off = (env[0] == '~') ? 1 : 0;
-#  if defined(_WIN32)
-        if (!sscanf(env + off, "%I64i", &vec))
-            vec = strtoul(env + off, NULL, 0);
-#  else
-        if (!sscanf(env + off, "%lli", (long long *)&vec))
-            vec = strtoul(env + off, NULL, 0);
-#  endif
+
+        vec = ossl_strtouint64(env + off);
+
         if (off) {
             IA32CAP mask = vec;
             vec = OPENSSL_ia32_cpuid(OPENSSL_ia32cap_P) & ~mask;
@@ -64,15 +132,17 @@ void OPENSSL_cpuid_setup(void)
             vec = OPENSSL_ia32_cpuid(OPENSSL_ia32cap_P);
         }
 
-        if ((env = strchr(env, ':'))) {
-            unsigned int vecx;
+        if ((env = ossl_strchr(env, ':')) != NULL) {
+            IA32CAP vecx;
+
             env++;
             off = (env[0] == '~') ? 1 : 0;
-            vecx = strtoul(env + off, NULL, 0);
-            if (off)
-                OPENSSL_ia32cap_P[2] &= ~vecx;
-            else
-                OPENSSL_ia32cap_P[2] = vecx;
+            vecx = ossl_strtouint64(env + off);
+            if (off) {
+                OPENSSL_ia32cap_P[2] &= ~(unsigned int)vecx;
+            } else {
+                OPENSSL_ia32cap_P[2] = (unsigned int)vecx;
+            }
         } else {
             OPENSSL_ia32cap_P[2] = 0;
         }
@@ -128,10 +198,14 @@ int OPENSSL_isservice(void)
 
     if (_OPENSSL_isservice.p == NULL) {
         HANDLE mod = GetModuleHandle(NULL);
+        FARPROC f;
+
         if (mod != NULL)
-            _OPENSSL_isservice.f = GetProcAddress(mod, "_OPENSSL_isservice");
-        if (_OPENSSL_isservice.p == NULL)
+            f = GetProcAddress(mod, "_OPENSSL_isservice");
+        if (f == NULL)
             _OPENSSL_isservice.p = (void *)-1;
+        else
+            _OPENSSL_isservice.f = f;
     }
 
     if (_OPENSSL_isservice.p != (void *)-1)

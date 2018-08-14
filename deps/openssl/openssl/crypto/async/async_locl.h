@@ -74,3 +74,4 @@ void async_start_func(void);
 async_ctx *async_get_ctx(void);
 
 void async_wait_ctx_reset_counts(ASYNC_WAIT_CTX *ctx);
+

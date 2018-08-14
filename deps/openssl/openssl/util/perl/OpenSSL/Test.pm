@@ -21,7 +21,8 @@ $VERSION = "0.8";
 @EXPORT_OK = (@Test::More::EXPORT_OK, qw(bldtop_dir bldtop_file
                                          srctop_dir srctop_file
                                          data_file
-                                         pipe with cmdstr quotify));
+                                         pipe with cmdstr quotify
+                                         openssl_versions));
 
 =head1 NAME
 
@@ -693,6 +694,32 @@ sub quotify {
     }
 
     return map { $arg_formatter->($_) } @_;
+}
+
+=over 4
+
+=item B<openssl_versions>
+
+Returns a list of two numbers, the first representing the build version,
+the second representing the library version.  See opensslv.h for more
+information on those numbers.
+
+= back
+
+=cut
+
+my @versions = ();
+sub openssl_versions {
+    unless (@versions) {
+        my %lines =
+            map { s/\R$//;
+                  /^(.*): (0x[[:xdigit:]]{8})$/;
+                  die "Weird line: $_" unless defined $1;
+                  $1 => hex($2) }
+            run(test(['versions']), capture => 1);
+        @versions = ( $lines{'Build version'}, $lines{'Library version'} );
+    }
+    return @versions;
 }
 
 ######################################################################

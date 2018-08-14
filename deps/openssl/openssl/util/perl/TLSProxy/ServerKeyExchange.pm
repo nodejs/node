@@ -20,7 +20,7 @@ sub new
         $records,
         $startoffset,
         $message_frag_lens) = @_;
-
+    
     my $self = $class->SUPER::new(
         $server,
         TLSProxy::Message::MT_SERVER_KEY_EXCHANGE,
