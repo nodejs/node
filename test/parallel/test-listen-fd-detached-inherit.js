@@ -53,7 +53,7 @@ function test() {
   function next() {
     console.error('output from parent = %s', json);
     const child = JSON.parse(json);
-    // now make sure that we can request to the child, then kill it.
+    // now make sure that we can request to the subprocess, then kill it.
     http.get({
       server: 'localhost',
       port: child.port,
@@ -64,7 +64,7 @@ function test() {
         s += c.toString();
       });
       res.on('end', function() {
-        // kill the child before we start doing asserts.
+        // kill the subprocess before we start doing asserts.
         // it's really annoying when tests leave orphans!
         process.kill(child.pid, 'SIGKILL');
         try {
