@@ -129,13 +129,6 @@
 #define BUFSIZE (1024*16+1)
 #define MAX_MISALIGNMENT 63
 
-#define ALGOR_NUM       30
-#define SIZE_NUM        6
-#define PRIME_NUM       3
-#define RSA_NUM         7
-#define DSA_NUM         3
-
-#define EC_NUM          17
 #define MAX_ECDH_SIZE   256
 #define MISALIGN        64
 
@@ -143,37 +136,6 @@ static volatile int run = 0;
 
 static int mr = 0;
 static int usertime = 1;
-
-typedef void *(*kdf_fn) (
-        const void *in, size_t inlen, void *out, size_t *xoutlen);
-
-typedef struct loopargs_st {
-    ASYNC_JOB *inprogress_job;
-    ASYNC_WAIT_CTX *wait_ctx;
-    unsigned char *buf;
-    unsigned char *buf2;
-    unsigned char *buf_malloc;
-    unsigned char *buf2_malloc;
-    unsigned int siglen;
-#ifndef OPENSSL_NO_RSA
-    RSA *rsa_key[RSA_NUM];
-#endif
-#ifndef OPENSSL_NO_DSA
-    DSA *dsa_key[DSA_NUM];
-#endif
-#ifndef OPENSSL_NO_EC
-    EC_KEY *ecdsa[EC_NUM];
-    EC_KEY *ecdh_a[EC_NUM];
-    EC_KEY *ecdh_b[EC_NUM];
-    unsigned char *secret_a;
-    unsigned char *secret_b;
-    size_t      outlen;
-    kdf_fn      kdf;
-#endif
-    EVP_CIPHER_CTX *ctx;
-    HMAC_CTX *hctx;
-    GCM128_CONTEXT *gcm_ctx;
-} loopargs_t;
 
 #ifndef OPENSSL_NO_MD2
 static int EVP_Digest_MD2_loop(void *args);
@@ -227,7 +189,6 @@ static int ECDSA_sign_loop(void *args);
 static int ECDSA_verify_loop(void *args);
 static int ECDH_compute_key_loop(void *args);
 #endif
-static int run_benchmark(int async_jobs, int (*loop_function)(void *), loopargs_t *loopargs);
 
 static double Time_F(int s);
 static void print_message(const char *s, long num, int length);
@@ -238,32 +199,10 @@ static void print_result(int alg, int run_no, int count, double time_used);
 static int do_multi(int multi);
 #endif
 
-static const char *names[ALGOR_NUM] = {
-    "md2", "mdc2", "md4", "md5", "hmac(md5)", "sha1", "rmd160", "rc4",
-    "des cbc", "des ede3", "idea cbc", "seed cbc",
-    "rc2 cbc", "rc5-32/12 cbc", "blowfish cbc", "cast cbc",
-    "aes-128 cbc", "aes-192 cbc", "aes-256 cbc",
-    "camellia-128 cbc", "camellia-192 cbc", "camellia-256 cbc",
-    "evp", "sha256", "sha512", "whirlpool",
-    "aes-128 ige", "aes-192 ige", "aes-256 ige", "ghash"
-};
-
-static double results[ALGOR_NUM][SIZE_NUM];
-
-static const int lengths[SIZE_NUM] = {
+static const int lengths[] = {
     16, 64, 256, 1024, 8 * 1024, 16 * 1024
 };
-
-#ifndef OPENSSL_NO_RSA
-static double rsa_results[RSA_NUM][2];
-#endif
-#ifndef OPENSSL_NO_DSA
-static double dsa_results[DSA_NUM][2];
-#endif
-#ifndef OPENSSL_NO_EC
-static double ecdsa_results[EC_NUM][2];
-static double ecdh_results[EC_NUM][1];
-#endif
+#define SIZE_NUM       OSSL_NELEM(lengths)
 
 #if !defined(OPENSSL_NO_DSA) || !defined(OPENSSL_NO_EC)
 static const char rnd_seed[] =
@@ -348,9 +287,14 @@ static double Time_F(int s)
 
 static void multiblock_speed(const EVP_CIPHER *evp_cipher);
 
-static int found(const char *name, const OPT_PAIR *pairs, int *result)
+#define found(value, pairs, result)\
+    opt_found(value, result, pairs, OSSL_NELEM(pairs))
+static int opt_found(const char *name, unsigned int *result,
+                     const OPT_PAIR pairs[], unsigned int nbelem)
 {
-    for (; pairs->name; pairs++)
+    unsigned int idx;
+
+    for (idx = 0; idx < nbelem; ++idx, pairs++)
         if (strcmp(name, pairs->name) == 0) {
             *result = pairs->retval;
             return 1;
@@ -387,7 +331,7 @@ OPTIONS speed_options[] = {
 #ifndef OPENSSL_NO_ENGINE
     {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
 #endif
-    {NULL},
+    {NULL}
 };
 
 #define D_MD2           0
@@ -420,7 +364,19 @@ OPTIONS speed_options[] = {
 #define D_IGE_192_AES   27
 #define D_IGE_256_AES   28
 #define D_GHASH         29
-static OPT_PAIR doit_choices[] = {
+/* name of algorithms to test */
+static const char *names[] = {
+    "md2", "mdc2", "md4", "md5", "hmac(md5)", "sha1", "rmd160", "rc4",
+    "des cbc", "des ede3", "idea cbc", "seed cbc",
+    "rc2 cbc", "rc5-32/12 cbc", "blowfish cbc", "cast cbc",
+    "aes-128 cbc", "aes-192 cbc", "aes-256 cbc",
+    "camellia-128 cbc", "camellia-192 cbc", "camellia-256 cbc",
+    "evp", "sha256", "sha512", "whirlpool",
+    "aes-128 ige", "aes-192 ige", "aes-256 ige", "ghash"
+};
+#define ALGOR_NUM       OSSL_NELEM(names)
+/* list of configured algorithm (remaining) */
+static const OPT_PAIR doit_choices[] = {
 #ifndef OPENSSL_NO_MD2
     {"md2", D_MD2},
 #endif
@@ -484,21 +440,24 @@ static OPT_PAIR doit_choices[] = {
     {"cast", D_CBC_CAST},
     {"cast5", D_CBC_CAST},
 #endif
-    {"ghash", D_GHASH},
-    {NULL}
+    {"ghash", D_GHASH}
 };
+
+static double results[ALGOR_NUM][SIZE_NUM];
 
 #ifndef OPENSSL_NO_DSA
 # define R_DSA_512       0
 # define R_DSA_1024      1
 # define R_DSA_2048      2
-static OPT_PAIR dsa_choices[] = {
+static const OPT_PAIR dsa_choices[] = {
     {"dsa512", R_DSA_512},
     {"dsa1024", R_DSA_1024},
-    {"dsa2048", R_DSA_2048},
-    {NULL},
+    {"dsa2048", R_DSA_2048}
 };
-#endif
+# define DSA_NUM         OSSL_NELEM(dsa_choices)
+
+static double dsa_results[DSA_NUM][2];  /* 2 ops: sign then verify */
+#endif  /* OPENSSL_NO_DSA */
 
 #define R_RSA_512       0
 #define R_RSA_1024      1
@@ -507,16 +466,18 @@ static OPT_PAIR dsa_choices[] = {
 #define R_RSA_4096      4
 #define R_RSA_7680      5
 #define R_RSA_15360     6
-static OPT_PAIR rsa_choices[] = {
+static const OPT_PAIR rsa_choices[] = {
     {"rsa512", R_RSA_512},
     {"rsa1024", R_RSA_1024},
     {"rsa2048", R_RSA_2048},
     {"rsa3072", R_RSA_3072},
     {"rsa4096", R_RSA_4096},
     {"rsa7680", R_RSA_7680},
-    {"rsa15360", R_RSA_15360},
-    {NULL}
+    {"rsa15360", R_RSA_15360}
 };
+# define RSA_NUM OSSL_NELEM(rsa_choices)
+
+static double rsa_results[RSA_NUM][2];  /* 2 ops: sign then verify */
 
 #define R_EC_P160    0
 #define R_EC_P192    1
@@ -536,7 +497,7 @@ static OPT_PAIR rsa_choices[] = {
 #define R_EC_B571    15
 #define R_EC_X25519  16
 #ifndef OPENSSL_NO_EC
-static OPT_PAIR ecdsa_choices[] = {
+static const OPT_PAIR ecdsa_choices[] = {
     {"ecdsap160", R_EC_P160},
     {"ecdsap192", R_EC_P192},
     {"ecdsap224", R_EC_P224},
@@ -552,11 +513,13 @@ static OPT_PAIR ecdsa_choices[] = {
     {"ecdsab233", R_EC_B233},
     {"ecdsab283", R_EC_B283},
     {"ecdsab409", R_EC_B409},
-    {"ecdsab571", R_EC_B571},
-    {NULL}
+    {"ecdsab571", R_EC_B571}
 };
+# define ECDSA_NUM       OSSL_NELEM(ecdsa_choices)
 
-static OPT_PAIR ecdh_choices[] = {
+static double ecdsa_results[ECDSA_NUM][2];    /* 2 ops: sign then verify */
+
+static const OPT_PAIR ecdh_choices[] = {
     {"ecdhp160", R_EC_P160},
     {"ecdhp192", R_EC_P192},
     {"ecdhp224", R_EC_P224},
@@ -576,7 +539,10 @@ static OPT_PAIR ecdh_choices[] = {
     {"ecdhx25519", R_EC_X25519},
     {NULL}
 };
-#endif
+# define EC_NUM       OSSL_NELEM(ecdh_choices)
+
+static double ecdh_results[EC_NUM][1];  /* 1 op: derivation */
+#endif /* OPENSSL_NO_EC */
 
 #ifndef SIGALRM
 # define COND(d) (count < (d))
@@ -586,7 +552,40 @@ static OPT_PAIR ecdh_choices[] = {
 # define COUNT(d) (count)
 #endif                         /* SIGALRM */
 
-static int testnum;
+static unsigned int testnum;
+typedef void *(*kdf_fn) (const void *in, size_t inlen, void *out,
+                         size_t *xoutlen);
+
+typedef struct loopargs_st {
+    ASYNC_JOB *inprogress_job;
+    ASYNC_WAIT_CTX *wait_ctx;
+    unsigned char *buf;
+    unsigned char *buf2;
+    unsigned char *buf_malloc;
+    unsigned char *buf2_malloc;
+    unsigned int siglen;
+#ifndef OPENSSL_NO_RSA
+    RSA *rsa_key[RSA_NUM];
+#endif
+#ifndef OPENSSL_NO_DSA
+    DSA *dsa_key[DSA_NUM];
+#endif
+#ifndef OPENSSL_NO_EC
+    EC_KEY *ecdsa[ECDSA_NUM];
+    EC_KEY *ecdh_a[EC_NUM];
+    EC_KEY *ecdh_b[EC_NUM];
+    unsigned char *secret_a;
+    unsigned char *secret_b;
+    size_t      outlen;
+    kdf_fn      kdf;
+#endif
+    EVP_CIPHER_CTX *ctx;
+    HMAC_CTX *hctx;
+    GCM128_CONTEXT *gcm_ctx;
+} loopargs_t;
+
+static int run_benchmark(int async_jobs, int (*loop_function) (void *),
+                         loopargs_t * loopargs);
 
 /* Nb of iterations to do per algorithm and key-size */
 static long c[ALGOR_NUM][SIZE_NUM];
@@ -995,7 +994,7 @@ static int DSA_verify_loop(void *args)
 #endif
 
 #ifndef OPENSSL_NO_EC
-static long ecdsa_c[EC_NUM][2];
+static long ecdsa_c[ECDSA_NUM][2];
 static int ECDSA_sign_loop(void *args)
 {
     loopargs_t *tempargs = *(loopargs_t **)args;
@@ -1188,8 +1187,8 @@ static int run_benchmark(int async_jobs,
                 continue;
 #endif
 
-            ret = ASYNC_start_job(&loopargs[i].inprogress_job,
-                    loopargs[i].wait_ctx, &job_op_count, loop_function,
+            ret = ASYNC_start_job(&loopargs[i].inprogress_job, 
+                    loopargs[i].wait_ctx, &job_op_count, loop_function, 
                     (void *)(loopargs + i), sizeof(loopargs_t));
             switch (ret) {
             case ASYNC_PAUSE:
@@ -1222,26 +1221,23 @@ int speed_main(int argc, char **argv)
 {
     ENGINE *e = NULL;
     loopargs_t *loopargs = NULL;
-    int async_init = 0;
-    int loopargs_len = 0;
-    char *prog;
+    const char *prog;
     const char *engine_id = NULL;
     const EVP_CIPHER *evp_cipher = NULL;
     double d = 0.0;
     OPTION_CHOICE o;
-    int multiblock = 0, pr_header = 0;
+    int async_init = 0, multiblock = 0, pr_header = 0;
     int doit[ALGOR_NUM] = { 0 };
-    int ret = 1, i, k, misalign = 0;
+    int ret = 1, misalign = 0;
     long count = 0;
+    unsigned int i, k, loop, loopargs_len = 0, async_jobs = 0;
 #ifndef NO_FORK
     int multi = 0;
 #endif
-    unsigned int async_jobs = 0;
 #if !defined(OPENSSL_NO_RSA) || !defined(OPENSSL_NO_DSA) \
     || !defined(OPENSSL_NO_EC)
     long rsa_count = 1;
 #endif
-    size_t loop;
 
     /* What follows are the buffers and key material. */
 #ifndef OPENSSL_NO_RC5
@@ -1325,7 +1321,7 @@ int speed_main(int argc, char **argv)
     /*
      * We only test over the following curves as they are representative, To
      * add tests over more curves, simply add the curve NID and curve name to
-     * the following arrays and increase the EC_NUM value accordingly.
+     * the following arrays and increase the |ecdh_choices| list accordingly.
      */
     static const unsigned int test_curves[EC_NUM] = {
         /* Prime Curves */
@@ -1360,7 +1356,7 @@ int speed_main(int argc, char **argv)
         571, 253 /* X25519 */
     };
 
-    int ecdsa_doit[EC_NUM] = { 0 };
+    int ecdsa_doit[ECDSA_NUM] = { 0 };
     int ecdh_doit[EC_NUM] = { 0 };
 #endif                          /* ndef OPENSSL_NO_EC */
 
@@ -1418,9 +1414,7 @@ int speed_main(int argc, char **argv)
                 goto opterr;
             }
             if (async_jobs > 99999) {
-                BIO_printf(bio_err,
-                           "%s: too many async_jobs\n",
-                           prog);
+                BIO_printf(bio_err, "%s: too many async_jobs\n", prog);
                 goto opterr;
             }
 #endif
@@ -1471,10 +1465,8 @@ int speed_main(int argc, char **argv)
         if (strcmp(*argv, "openssl") == 0)
             continue;
         if (strcmp(*argv, "rsa") == 0) {
-            rsa_doit[R_RSA_512] = rsa_doit[R_RSA_1024] =
-                rsa_doit[R_RSA_2048] = rsa_doit[R_RSA_3072] =
-                rsa_doit[R_RSA_4096] = rsa_doit[R_RSA_7680] =
-                rsa_doit[R_RSA_15360] = 1;
+            for (loop = 0; loop < OSSL_NELEM(rsa_doit); loop++)
+                rsa_doit[loop] = 1;
             continue;
         }
         if (found(*argv, rsa_choices, &i)) {
@@ -1507,8 +1499,8 @@ int speed_main(int argc, char **argv)
 #endif
 #ifndef OPENSSL_NO_EC
         if (strcmp(*argv, "ecdsa") == 0) {
-            for (loop = 0; loop < OSSL_NELEM(ecdsa_choices); loop++)
-                ecdsa_doit[ecdsa_choices[loop].retval] = 1;
+            for (loop = 0; loop < OSSL_NELEM(ecdsa_doit); loop++)
+                ecdsa_doit[loop] = 1;
             continue;
         }
         if (found(*argv, ecdsa_choices, &i)) {
@@ -1516,8 +1508,8 @@ int speed_main(int argc, char **argv)
             continue;
         }
         if (strcmp(*argv, "ecdh") == 0) {
-            for (loop = 0; loop < OSSL_NELEM(ecdh_choices); loop++)
-                ecdh_doit[ecdh_choices[loop].retval] = 1;
+            for (loop = 0; loop < OSSL_NELEM(ecdh_doit); loop++)
+                ecdh_doit[loop] = 1;
             continue;
         }
         if (found(*argv, ecdh_choices, &i)) {
@@ -1584,10 +1576,10 @@ int speed_main(int argc, char **argv)
             dsa_doit[i] = 1;
 #endif
 #ifndef OPENSSL_NO_EC
-        for (loop = 0; loop < OSSL_NELEM(ecdsa_choices); loop++)
-            ecdsa_doit[ecdsa_choices[loop].retval] = 1;
-        for (loop = 0; loop < OSSL_NELEM(ecdh_choices); loop++)
-            ecdh_doit[ecdh_choices[loop].retval] = 1;
+        for (loop = 0; loop < OSSL_NELEM(ecdsa_doit); loop++)
+            ecdsa_doit[loop] = 1;
+        for (loop = 0; loop < OSSL_NELEM(ecdh_doit); loop++)
+            ecdh_doit[loop] = 1;
 #endif
     }
     for (i = 0; i < ALGOR_NUM; i++)
@@ -1850,6 +1842,8 @@ int speed_main(int argc, char **argv)
             }
         }
     }
+    /* default iteration count for the last EC Curve */
+    ecdh_c[R_EC_X25519][0] = count / 1800;
 #  endif
 
 # else
@@ -2472,7 +2466,7 @@ int speed_main(int argc, char **argv)
     if (RAND_status() != 1) {
         RAND_seed(rnd_seed, sizeof(rnd_seed));
     }
-    for (testnum = 0; testnum < EC_NUM; testnum++) {
+    for (testnum = 0; testnum < ECDSA_NUM; testnum++) {
         int st = 1;
 
         if (!ecdsa_doit[testnum])
@@ -2584,7 +2578,7 @@ int speed_main(int argc, char **argv)
                     ecdh_checks = 0;
                     rsa_count = 1;
                 } else {
-                    int secret_size_a, secret_size_b;
+                    int secret_size_a, secret_size_b, j;
                     /*
                      * If field size is not more than 24 octets, then use SHA-1
                      * hash of result; otherwise, use result (see section 4.8 of
@@ -2613,8 +2607,8 @@ int speed_main(int argc, char **argv)
                     else
                         ecdh_checks = 1;
 
-                    for (k = 0; k < secret_size_a && ecdh_checks == 1; k++) {
-                        if (loopargs[i].secret_a[k] != loopargs[i].secret_b[k])
+                    for (j = 0; j < secret_size_a && ecdh_checks == 1; j++) {
+                        if (loopargs[i].secret_a[j] != loopargs[i].secret_b[j])
                             ecdh_checks = 0;
                     }
 
@@ -2644,7 +2638,7 @@ int speed_main(int argc, char **argv)
 
         if (rsa_count <= 1) {
             /* if longer than 10s, don't do any more */
-            for (testnum++; testnum < EC_NUM; testnum++)
+            for (testnum++; testnum < OSSL_NELEM(ecdh_doit); testnum++)
                 ecdh_doit[testnum] = 0;
         }
     }
@@ -2693,7 +2687,7 @@ int speed_main(int argc, char **argv)
         if (!doit[k])
             continue;
         if (mr)
-            printf("+F:%d:%s", k, names[k]);
+            printf("+F:%u:%s", k, names[k]);
         else
             printf("%-13s", names[k]);
         for (testnum = 0; testnum < SIZE_NUM; testnum++) {
@@ -2742,7 +2736,7 @@ int speed_main(int argc, char **argv)
 #endif
 #ifndef OPENSSL_NO_EC
     testnum = 1;
-    for (k = 0; k < EC_NUM; k++) {
+    for (k = 0; k < OSSL_NELEM(ecdsa_doit); k++) {
         if (!ecdsa_doit[k])
             continue;
         if (testnum && !mr) {
@@ -2800,8 +2794,9 @@ int speed_main(int argc, char **argv)
             DSA_free(loopargs[i].dsa_key[k]);
 #endif
 #ifndef OPENSSL_NO_EC
-        for (k = 0; k < EC_NUM; k++) {
+        for (k = 0; k < ECDSA_NUM; k++)
             EC_KEY_free(loopargs[i].ecdsa[k]);
+        for (k = 0; k < EC_NUM; k++) {
             EC_KEY_free(loopargs[i].ecdh_a[k]);
             EC_KEY_free(loopargs[i].ecdh_b[k]);
         }
@@ -2950,7 +2945,7 @@ static int do_multi(int multi)
             printf("Got: %s from %d\n", buf, n);
             if (strncmp(buf, "+F:", 3) == 0) {
                 int alg;
-                int j;
+                unsigned int j;
 
                 p = buf + 3;
                 alg = atoi(sstrsep(&p, sep));

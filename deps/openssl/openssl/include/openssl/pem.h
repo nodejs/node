@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -322,7 +322,8 @@ int PEM_SignUpdate(EVP_MD_CTX *ctx, unsigned char *d, unsigned int cnt);
 int PEM_SignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
                   unsigned int *siglen, EVP_PKEY *pkey);
 
-int PEM_def_callback(char *buf, int num, int w, void *key);
+/* The default pem_password_cb that's used internally */
+int PEM_def_callback(char *buf, int num, int rwflag, void *userdata);
 void PEM_proc_type(char *buf, int type);
 void PEM_dek_info(char *buf, const char *type, int len, char *str);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -163,6 +163,8 @@
 # define l2n3(l,c)       (((c)[0]=(unsigned char)(((l)>>16)&0xff), \
                            (c)[1]=(unsigned char)(((l)>> 8)&0xff), \
                            (c)[2]=(unsigned char)(((l)    )&0xff)),(c)+=3)
+
+# define SSL_MAX_2_BYTE_LEN     (0xffff)
 
 /*
  * DTLS version numbers are strange because they're inverted. Except for
@@ -346,6 +348,9 @@
 # define SSL_NOT_DEFAULT         0x00000020U
 
 /* we have used 0000003f - 26 bits left to go */
+
+# define SSL_IS_FIRST_HANDSHAKE(S) ((s)->s3->tmp.finish_md_len == 0 \
+                                    || (s)->s3->tmp.peer_finish_md_len == 0)
 
 /* Check if an SSL structure is using DTLS */
 # define SSL_IS_DTLS(s)  (s->method->ssl3_enc->enc_flags & SSL_ENC_FLAG_DTLS)
@@ -537,7 +542,7 @@ struct ssl_session_st {
     const SSL_CIPHER *cipher;
     unsigned long cipher_id;    /* when ASN.1 loaded, this needs to be used to
                                  * load the 'cipher' structure */
-    STACK_OF(SSL_CIPHER) *ciphers; /* shared ciphers? */
+    STACK_OF(SSL_CIPHER) *ciphers; /* ciphers offered by the client */
     CRYPTO_EX_DATA ex_data;     /* application specific data */
     /*
      * These are used to make removal of session-ids more efficient and to

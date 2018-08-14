@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -75,7 +75,7 @@ int DH_meth_set1_name(DH_METHOD *dhm, const char *name)
     return 1;
 }
 
-int DH_meth_get_flags(DH_METHOD *dhm)
+int DH_meth_get_flags(const DH_METHOD *dhm)
 {
     return dhm->flags;
 }

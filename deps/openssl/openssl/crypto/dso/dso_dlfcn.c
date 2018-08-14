@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,7 +26,7 @@
 #  endif
 #  include <dlfcn.h>
 #  define HAVE_DLINFO 1
-#  if defined(_AIX) || defined(__CYGWIN__) || \
+#  if defined(__CYGWIN__) || \
      defined(__SCO_VERSION__) || defined(_SCO_ELF) || \
      (defined(__osf__) && !defined(RTLD_NEXT))     || \
      (defined(__OpenBSD__) && !defined(RTLD_SELF)) || \
@@ -308,6 +308,76 @@ static int dladdr(void *address, Dl_info *dl)
 }
 # endif                         /* __sgi */
 
+# ifdef _AIX
+/*-
+ * See IBM's AIX Version 7.2, Technical Reference:
+ *  Base Operating System and Extensions, Volume 1 and 2
+ *  https://www.ibm.com/support/knowledgecenter/ssw_aix_72/com.ibm.aix.base/technicalreferences.htm
+ */
+#  include <sys/ldr.h>
+#  include <errno.h>
+/* ~ 64 * (sizeof(struct ld_info) + _XOPEN_PATH_MAX + _XOPEN_NAME_MAX) */
+#  define DLFCN_LDINFO_SIZE 86976
+typedef struct Dl_info {
+    const char *dli_fname;
+} Dl_info;
+/*
+ * This dladdr()-implementation will also find the ptrgl (Pointer Glue) virtual
+ * address of a function, which is just located in the DATA segment instead of
+ * the TEXT segment.
+ */
+static int dladdr(void *ptr, Dl_info *dl)
+{
+    uintptr_t addr = (uintptr_t)ptr;
+    unsigned int found = 0;
+    struct ld_info *ldinfos, *next_ldi, *this_ldi;
+
+    if ((ldinfos = (struct ld_info *)OPENSSL_malloc(DLFCN_LDINFO_SIZE)) == NULL) {
+        errno = ENOMEM;
+        dl->dli_fname = NULL;
+        return 0;
+    }
+
+    if ((loadquery(L_GETINFO, (void *)ldinfos, DLFCN_LDINFO_SIZE)) < 0) {
+        /*-
+         * Error handling is done through errno and dlerror() reading errno:
+         *  ENOMEM (ldinfos buffer is too small),
+         *  EINVAL (invalid flags),
+         *  EFAULT (invalid ldinfos ptr)
+         */
+        OPENSSL_free((void *)ldinfos);
+        dl->dli_fname = NULL;
+        return 0;
+    }
+    next_ldi = ldinfos;
+
+    do {
+        this_ldi = next_ldi;
+        if (((addr >= (uintptr_t)this_ldi->ldinfo_textorg)
+             && (addr < ((uintptr_t)this_ldi->ldinfo_textorg +
+                         this_ldi->ldinfo_textsize)))
+            || ((addr >= (uintptr_t)this_ldi->ldinfo_dataorg)
+                && (addr < ((uintptr_t)this_ldi->ldinfo_dataorg +
+                            this_ldi->ldinfo_datasize)))) {
+            found = 1;
+            /*
+             * Ignoring the possibility of a member name and just returning
+             * the path name. See docs: sys/ldr.h, loadquery() and
+             * dlopen()/RTLD_MEMBER.
+             */
+            if ((dl->dli_fname =
+                 OPENSSL_strdup(this_ldi->ldinfo_filename)) == NULL)
+                errno = ENOMEM;
+        } else {
+            next_ldi =
+                (struct ld_info *)((uintptr_t)this_ldi + this_ldi->ldinfo_next);
+        }
+    } while (this_ldi->ldinfo_next && !found);
+    OPENSSL_free((void *)ldinfos);
+    return (found && dl->dli_fname != NULL);
+}
+# endif                         /* _AIX */
+
 static int dlfcn_pathbyaddr(void *addr, char *path, int sz)
 {
 # ifdef HAVE_DLINFO
@@ -326,12 +396,19 @@ static int dlfcn_pathbyaddr(void *addr, char *path, int sz)
 
     if (dladdr(addr, &dli)) {
         len = (int)strlen(dli.dli_fname);
-        if (sz <= 0)
+        if (sz <= 0) {
+#  ifdef _AIX
+            OPENSSL_free((void *)dli.dli_fname);
+#  endif
             return len + 1;
+        }
         if (len >= sz)
             len = sz - 1;
         memcpy(path, dli.dli_fname, len);
         path[len++] = 0;
+#  ifdef _AIX
+        OPENSSL_free((void *)dli.dli_fname);
+#  endif
         return len;
     }
 

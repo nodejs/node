@@ -15,7 +15,9 @@ SSL_get_version, SSL_is_dtls - get the protocol information of a connection
 =head1 DESCRIPTION
 
 SSL_get_version() returns the name of the protocol used for the
-connection B<ssl>.
+connection B<ssl>. It should only be called after the initial handshake has been
+completed. Prior to that the results returned from this function may be
+unreliable.
 
 SSL_is_dtls() returns one if the connection is using DTLS, zero if not.
 
@@ -43,7 +45,7 @@ The connection uses the TLSv1.2 protocol.
 
 =item unknown
 
-This indicates that no version has been set (no connection established).
+This indicates an unknown protocol version.
 
 =back
 
@@ -57,7 +59,7 @@ SSL_is_dtls() was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

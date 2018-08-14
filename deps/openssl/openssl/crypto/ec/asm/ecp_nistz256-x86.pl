@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -443,7 +443,7 @@ for(1..37) {
 	&mov	(&DWP(20,"esp"),"eax");
 	&mov	(&DWP(24,"esp"),"eax");
 	&mov	(&DWP(28,"esp"),"eax");
-
+	
 	&call	("_ecp_nistz256_sub");
 
 	&stack_pop(8);
@@ -1179,7 +1179,7 @@ for ($i=0;$i<7;$i++) {
 	&mov	("esi",&wparam(1));
 	&mov	("ebp",&wparam(2));
 
-	&lea	("edi",&DWP(-1,"edi","ebp"));
+	&lea	("edi",&DWP(0,"edi","ebp"));
 	&mov	("ebp",64/4);
 &set_label("scatter_w7_loop");
 	&mov	("eax",&DWP(0,"esi"));

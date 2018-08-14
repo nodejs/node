@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -157,7 +157,7 @@ $code.=<<___;
 	teq	$t0,#$magic
 
 	ldr	$t3,[sp,#$Coff+0]	@ c.lo
-#if __ARM_ARCH__>=7
+#ifdef	__thumb2__
 	it	eq			@ Thumb2 thing, sanity check in ARM
 #endif
 	orreq	$Ktbl,$Ktbl,#1
@@ -411,7 +411,7 @@ $code.=<<___;
 ___
 	&BODY_00_15(0x17);
 $code.=<<___;
-#if __ARM_ARCH__>=7
+#ifdef	__thumb2__
 	ittt	eq			@ Thumb2 thing, sanity check in ARM
 #endif
 	ldreq	$t0,[sp,#`$Xoff+8*(16-1)`+0]

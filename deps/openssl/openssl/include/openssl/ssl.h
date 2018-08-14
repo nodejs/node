@@ -381,7 +381,7 @@ typedef int (*SSL_verify_cb)(int preverify_ok, X509_STORE_CTX *x509_ctx);
 # define SSL_OP_PKCS1_CHECK_1                            0x0
 /* Removed from OpenSSL 1.0.1. Was 0x10000000L */
 # define SSL_OP_PKCS1_CHECK_2                            0x0
-/* Removed from OpenSSL 1.1.0. Was 0x20000000L */
+/* Removed from OpenSSL 1.1.0. Was 0x20000000L */ 
 # define SSL_OP_NETSCAPE_CA_DN_BUG                       0x0
 /* Removed from OpenSSL 1.1.0. Was 0x40000000L */
 # define SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG          0x0
@@ -967,8 +967,8 @@ size_t SSL_get_peer_finished(const SSL *s, void *buf, size_t count);
 # define SSL_VERIFY_FAIL_IF_NO_PEER_CERT 0x02
 # define SSL_VERIFY_CLIENT_ONCE          0x04
 
-# define OpenSSL_add_ssl_algorithms()    SSL_library_init()
 # if OPENSSL_API_COMPAT < 0x10100000L
+#  define OpenSSL_add_ssl_algorithms()   SSL_library_init()
 #  define SSLeay_add_ssl_algorithms()    SSL_library_init()
 # endif
 
@@ -1358,7 +1358,7 @@ __owur int SSL_get_fd(const SSL *s);
 __owur int SSL_get_rfd(const SSL *s);
 __owur int SSL_get_wfd(const SSL *s);
 __owur const char *SSL_get_cipher_list(const SSL *s, int n);
-__owur char *SSL_get_shared_ciphers(const SSL *s, char *buf, int len);
+__owur char *SSL_get_shared_ciphers(const SSL *s, char *buf, int size);
 __owur int SSL_get_read_ahead(const SSL *s);
 __owur int SSL_pending(const SSL *s);
 __owur int SSL_has_pending(const SSL *s);

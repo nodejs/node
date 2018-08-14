@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -660,7 +660,7 @@ __ecp_nistz256_div_by_2:
 	adc	$ap,xzr,xzr		// zap $ap
 	tst	$acc0,#1		// is a even?
 
-	csel	$acc0,$acc0,$t0,eq	// ret = even ? a : a+modulus
+	csel	$acc0,$acc0,$t0,eq	// ret = even ? a : a+modulus 
 	csel	$acc1,$acc1,$t1,eq
 	csel	$acc2,$acc2,$t2,eq
 	csel	$acc3,$acc3,$t3,eq
@@ -1477,21 +1477,21 @@ ecp_nistz256_scatter_w7:
 	prfm	pstl1strm,[$out,#4096+64*5]
 	prfm	pstl1strm,[$out,#4096+64*6]
 	prfm	pstl1strm,[$out,#4096+64*7]
-	strb	w3,[$out,#64*0-1]
+	strb	w3,[$out,#64*0]
 	lsr	x3,x3,#8
-	strb	w3,[$out,#64*1-1]
+	strb	w3,[$out,#64*1]
 	lsr	x3,x3,#8
-	strb	w3,[$out,#64*2-1]
+	strb	w3,[$out,#64*2]
 	lsr	x3,x3,#8
-	strb	w3,[$out,#64*3-1]
+	strb	w3,[$out,#64*3]
 	lsr	x3,x3,#8
-	strb	w3,[$out,#64*4-1]
+	strb	w3,[$out,#64*4]
 	lsr	x3,x3,#8
-	strb	w3,[$out,#64*5-1]
+	strb	w3,[$out,#64*5]
 	lsr	x3,x3,#8
-	strb	w3,[$out,#64*6-1]
+	strb	w3,[$out,#64*6]
 	lsr	x3,x3,#8
-	strb	w3,[$out,#64*7-1]
+	strb	w3,[$out,#64*7]
 	add	$out,$out,#64*8
 	b.ne	.Loop_scatter_w7
 

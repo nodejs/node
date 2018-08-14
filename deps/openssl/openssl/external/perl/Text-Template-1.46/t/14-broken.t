@@ -68,7 +68,7 @@ Aborting"
 # (5) BROKEN sub passed correct args when called in ->fill_in?
 { my $r = Text::Template->new(TYPE => 'string',
                               SOURCE => '{1/0}',
-                             )->fill_in(BROKEN =>
+                             )->fill_in(BROKEN => 
                                         sub { my %a = @_;
                                               qq{$a{lineno},$a{error},$a{text}}
                                             });
@@ -79,3 +79,4 @@ Aborting"
   }
   $n++;
 }
+
