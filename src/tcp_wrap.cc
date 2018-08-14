@@ -225,8 +225,11 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
-void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
+template <typename T>
+void TCPWrap::Bind(
+    const FunctionCallbackInfo<Value>& args,
+    int family,
+    std::function<int(const char* ip_address, int port, T* addr)> uv_ip_addr) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
@@ -234,37 +237,31 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   Environment* env = wrap->env();
   node::Utf8Value ip_address(env->isolate(), args[0]);
   int port;
+  unsigned int flags = 0;
   if (!args[1]->Int32Value(env->context()).To(&port)) return;
-  sockaddr_in addr;
-  int err = uv_ip4_addr(*ip_address, port, &addr);
-  if (err == 0) {
-    err = uv_tcp_bind(&wrap->handle_,
-                      reinterpret_cast<const sockaddr*>(&addr),
-                      0);
+  if (family == AF_INET6 &&
+      !args[2]->Uint32Value(env->context()).To(&flags)) {
+    return;
   }
-  args.GetReturnValue().Set(err);
-}
 
+  T addr;
+  int err = uv_ip_addr(*ip_address, port, &addr);
 
-void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
-  TCPWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
-  Environment* env = wrap->env();
-  node::Utf8Value ip6_address(env->isolate(), args[0]);
-  int port;
-  unsigned int flags;
-  if (!args[1]->Int32Value(env->context()).To(&port)) return;
-  if (!args[2]->Uint32Value(env->context()).To(&flags)) return;
-  sockaddr_in6 addr;
-  int err = uv_ip6_addr(*ip6_address, port, &addr);
   if (err == 0) {
     err = uv_tcp_bind(&wrap->handle_,
                       reinterpret_cast<const sockaddr*>(&addr),
                       flags);
   }
   args.GetReturnValue().Set(err);
+}
+
+void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
+  Bind<sockaddr_in>(args, AF_INET, uv_ip4_addr);
+}
+
+
+void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
+  Bind<sockaddr_in6>(args, AF_INET6, uv_ip6_addr);
 }
 
 
