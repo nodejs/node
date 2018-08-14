@@ -6,6 +6,7 @@ const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const path = require('path');
 const fs = require('fs');
+const { features } = require('util');
 const fsPromises = fs.promises;
 const {
   access,
@@ -248,6 +249,12 @@ function verifyStatObject(stat) {
       await mkdir(dir, { recursive: true });
       stats = await stat(dir);
       assert(stats.isDirectory());
+    }
+
+    // mkdirp and mkdirSyncp feature detection
+    {
+      assert.strictEqual(mkdir[features].recursive, true);
+      assert.strictEqual(mkdir[features].fhwdgads, undefined);
     }
 
     await mkdtemp(path.resolve(tmpDir, 'FOO'));

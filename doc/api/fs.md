@@ -2086,7 +2086,7 @@ fs.mkdir('/tmp/a/apple', { recursive: true }, (err) => {
 });
 ```
 
-The `util.features` symbol can be used to feature detect if
+The [`util.features`][] symbol can be used to feature detect if
 recursion is available.
 
 ```js
@@ -4027,6 +4027,14 @@ arguments upon success.
 The optional `options` argument can be an integer specifying mode (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
 property indicating whether parent folders should be created.
+
+The [`util.features`][] symbol can be used to feature detect if
+recursion is available.
+
+```js
+fs.mkdir[util.features].recursive;
+// true
+```
 
 ### fsPromises.mkdtemp(prefix[, options])
 <!-- YAML
