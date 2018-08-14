@@ -8,7 +8,7 @@
 OPENSSL_fpu_probe:
 .localentry	OPENSSL_fpu_probe,0
 	fmr	0,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	OPENSSL_fpu_probe,.-OPENSSL_fpu_probe
@@ -19,7 +19,7 @@ OPENSSL_ppc64_probe:
 .localentry	OPENSSL_ppc64_probe,0
 	fcfid	1,1
 	rldicl	0,0,32,32
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	OPENSSL_ppc64_probe,.-OPENSSL_ppc64_probe
@@ -30,7 +30,7 @@ OPENSSL_ppc64_probe:
 OPENSSL_altivec_probe:
 .localentry	OPENSSL_altivec_probe,0
 .long	0x10000484
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	OPENSSL_altivec_probe,.-OPENSSL_altivec_probe
@@ -42,7 +42,7 @@ OPENSSL_crypto207_probe:
 .localentry	OPENSSL_crypto207_probe,0
 	.long	0x7C000E99
 	.long	0x10000508
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	OPENSSL_crypto207_probe,.-OPENSSL_crypto207_probe
@@ -55,7 +55,7 @@ OPENSSL_madd300_probe:
 	xor	0,0,0
 	.long	0x10600033
 	.long	0x10600031
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -89,7 +89,7 @@ OPENSSL_wipe_cpu:
 	xor	12,12,12
 	fmr	12,31
 	fmr	13,31
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	OPENSSL_wipe_cpu,.-OPENSSL_wipe_cpu
@@ -104,7 +104,7 @@ OPENSSL_atomic_add:
 	stwcx.	0,0,3
 	bne-	.Ladd
 	extsw	3,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -116,7 +116,7 @@ OPENSSL_atomic_add:
 OPENSSL_rdtsc:
 .localentry	OPENSSL_rdtsc,0
 	mftb	3
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	OPENSSL_rdtsc,.-OPENSSL_rdtsc
@@ -135,7 +135,7 @@ OPENSSL_cleanse:
 	stb	0,0(3)
 	addi	3,3,1
 	bdnz	$-8
-	blr
+	blr	
 .Lot:	andi.	5,3,3
 	beq	.Laligned
 	stb	0,0(3)
@@ -150,7 +150,7 @@ OPENSSL_cleanse:
 	bdnz	$-8
 	andi.	4,4,3
 	bne	.Little
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -178,7 +178,7 @@ CRYPTO_memcmp:
 	li	3,0
 	sub	3,3,0
 	extrwi	3,3,1,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -211,7 +211,7 @@ OPENSSL_instrument_bus:
 	bdnz	.Loop
 
 	mr	3,4
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -265,7 +265,7 @@ OPENSSL_instrument_bus2:
 .Ldone2:
 	srwi	4,4,2
 	sub	3,0,4
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0

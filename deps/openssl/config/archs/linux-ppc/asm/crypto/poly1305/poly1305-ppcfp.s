@@ -146,7 +146,7 @@ poly1305_init_fpu:
 .Lno_key:
 	xor	3,3,3
 	addi	1,1,24
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,0,2,0
 .size	poly1305_init_fpu,.-poly1305_init_fpu
@@ -462,7 +462,7 @@ poly1305_blocks_fpu:
 	lfd	31,208(1)
 	addi	1,1,216
 .Labort:
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,0,4,0
 .size	poly1305_blocks_fpu,.-poly1305_blocks_fpu
@@ -547,7 +547,7 @@ poly1305_emit_fpu:
 	lwz	30,32(1)
 	lwz	31,36(1)
 	addi	1,1,40
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,4,3,0
 .size	poly1305_emit_fpu,.-poly1305_emit_fpu
@@ -558,7 +558,7 @@ poly1305_emit_fpu:
 	mflr	5
 	addi	5,5,56
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .space	28

@@ -165,14 +165,15 @@ bn_mul_mont:
 	mov	r4,sp			@ "rewind" r4
 	sub	r2,r2,r5		@ "rewind" r2
 
-	and	r1,r4,r14
-	bic	r3,r2,r14
-	orr	r1,r1,r3		@ ap=borrow?tp:rp
-
-.Lcopy:	ldr	r7,[r1],#4		@ copy or in-place refresh
+.Lcopy:	ldr	r7,[r4]		@ conditional copy
+	ldr	r5,[r2]
 	str	sp,[r4],#4		@ zap tp
-	str	r7,[r2],#4
-	cmp	r4,r0
+#ifdef	__thumb2__
+	it	cc
+#endif
+	movcc	r5,r7
+	str	r5,[r2],#4
+	teq	r4,r0		@ preserve carry
 	bne	.Lcopy
 
 	mov	sp,r0

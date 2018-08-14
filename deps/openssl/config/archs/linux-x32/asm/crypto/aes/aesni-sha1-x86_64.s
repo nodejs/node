@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	aesni_cbc_sha1_enc

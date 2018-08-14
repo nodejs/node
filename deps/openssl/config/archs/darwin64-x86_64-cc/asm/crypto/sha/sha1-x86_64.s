@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	_sha1_block_data_order

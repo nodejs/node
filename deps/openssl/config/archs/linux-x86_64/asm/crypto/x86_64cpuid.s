@@ -6,7 +6,7 @@
 .hidden	OPENSSL_ia32cap_P
 .comm	OPENSSL_ia32cap_P,16,4
 
-.text
+.text	
 
 .globl	OPENSSL_atomic_add
 .type	OPENSSL_atomic_add,@function

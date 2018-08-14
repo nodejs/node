@@ -187,15 +187,16 @@ bn_mul_mont_int:
 	li	21,0
 	mtctr	8
 	subfe	3,21,3
-	and	4,22,3
-	andc	6,9,3
-	or	4,4,6
 
 .align	4
 .Lcopy:
-	ldx	12,4,21
-	stdx	12,9,21
+	ldx	12,22,21
+	ldx	10,9,21
+	and	12,12,3
+	andc	10,10,3
 	stdx	21,22,21
+	or	10,10,12
+	stdx	10,9,21
 	addi	21,21,8
 	bdnz	.Lcopy
 
@@ -214,7 +215,7 @@ bn_mul_mont_int:
 	ld	30,-16(12)
 	ld	31,-8(12)
 	mr	1,12
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,12,6,0
 .long	0

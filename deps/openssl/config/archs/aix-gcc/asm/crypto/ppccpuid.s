@@ -5,7 +5,7 @@
 .align	4
 .OPENSSL_fpu_probe:
 	fmr	0,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -14,7 +14,7 @@
 .OPENSSL_ppc64_probe:
 	fcfid	1,1
 	rldicl	0,0,32,32
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -23,7 +23,7 @@
 .align	4
 .OPENSSL_altivec_probe:
 .long	0x10000484
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -33,7 +33,7 @@
 .OPENSSL_crypto207_probe:
 	.long	0x7C000E99
 	.long	0x10000508
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -44,7 +44,7 @@
 	xor	0,0,0
 	.long	0x10600033
 	.long	0x10600031
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -76,7 +76,7 @@
 	xor	12,12,12
 	fmr	12,31
 	fmr	13,31
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -89,7 +89,7 @@ Ladd:	lwarx	5,0,3
 	stwcx.	0,0,3
 	bne-	Ladd
 	mr	3,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -104,7 +104,7 @@ Loop_rdtsc:
 	mftbu	4
 	cmplw	0,4,5
 	bne	Loop_rdtsc
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 
@@ -121,7 +121,7 @@ Little:	mtctr	4
 	stb	0,0(3)
 	addi	3,3,1
 	bc	16,0,$-8
-	blr
+	blr	
 Lot:	andi.	5,3,3
 	beq	Laligned
 	stb	0,0(3)
@@ -136,7 +136,7 @@ Laligned:
 	bc	16,0,$-8
 	andi.	4,4,3
 	bne	Little
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -162,7 +162,7 @@ Lno_data:
 	li	3,0
 	sub	3,3,0
 	extrwi	3,3,1,0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
@@ -193,7 +193,7 @@ Loop:	mftb	6
 	bc	16,0,Loop
 
 	mr	3,4
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,2,0
 .long	0
@@ -245,7 +245,8 @@ Loop2:
 Ldone2:
 	srwi	4,4,2
 	sub	3,0,4
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,3,0
 .long	0
+

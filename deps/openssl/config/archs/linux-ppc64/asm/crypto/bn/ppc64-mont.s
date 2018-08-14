@@ -686,16 +686,14 @@ bn_mul_mont_fpu64:
 
 	li	12,0
 	subfe	3,12,3
-	and	4,10,3
-	andc	6,9,3
-	or	4,4,6
-	addi	31,4,8
 	mtctr	11
 
 .align	4
 .Lcopy:
-	ldx	24,4,12
-	ldx	25,31,12
+	ldx	24,10,12
+	ldx	25,28,12
+	ldx	26,9,12
+	ldx	27,30,12
 	std	12,8(22)
 	std	12,16(22)
 	std	12,24(22)
@@ -704,6 +702,12 @@ bn_mul_mont_fpu64:
 	std	12,48(22)
 	std	12,56(22)
 	stdu	12,64(22)
+	and	24,24,3
+	and	25,25,3
+	andc	26,26,3
+	andc	27,27,3
+	or	24,24,26
+	or	25,25,27
 	stdx	24,9,12
 	stdx	25,30,12
 	stdx	12,10,12
@@ -738,7 +742,7 @@ bn_mul_mont_fpu64:
 	lfd	30,-16(12)
 	lfd	31,-8(12)
 	mr	1,12
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x8c,13,6,0
 .long	0

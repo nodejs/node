@@ -10,7 +10,7 @@ global	_BF_encrypt
 align	16
 _BF_encrypt:
 L$_BF_encrypt_begin:
-	;
+	; 
 	push	ebp
 	push	ebx
 	mov	ebx,DWORD [12+esp]
@@ -24,7 +24,7 @@ L$_BF_encrypt_begin:
 	mov	ebx,DWORD [ebp]
 	xor	ecx,ecx
 	xor	edi,ebx
-	;
+	; 
 	; Round 0
 	mov	edx,DWORD [4+ebp]
 	mov	ebx,edi
@@ -44,7 +44,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 1
 	mov	edx,DWORD [8+ebp]
 	mov	ebx,esi
@@ -64,7 +64,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 2
 	mov	edx,DWORD [12+ebp]
 	mov	ebx,edi
@@ -84,7 +84,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 3
 	mov	edx,DWORD [16+ebp]
 	mov	ebx,esi
@@ -104,7 +104,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 4
 	mov	edx,DWORD [20+ebp]
 	mov	ebx,edi
@@ -124,7 +124,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 5
 	mov	edx,DWORD [24+ebp]
 	mov	ebx,esi
@@ -144,7 +144,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 6
 	mov	edx,DWORD [28+ebp]
 	mov	ebx,edi
@@ -164,7 +164,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 7
 	mov	edx,DWORD [32+ebp]
 	mov	ebx,esi
@@ -184,7 +184,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 8
 	mov	edx,DWORD [36+ebp]
 	mov	ebx,edi
@@ -204,7 +204,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 9
 	mov	edx,DWORD [40+ebp]
 	mov	ebx,esi
@@ -224,7 +224,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 10
 	mov	edx,DWORD [44+ebp]
 	mov	ebx,edi
@@ -244,7 +244,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 11
 	mov	edx,DWORD [48+ebp]
 	mov	ebx,esi
@@ -264,7 +264,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 12
 	mov	edx,DWORD [52+ebp]
 	mov	ebx,edi
@@ -284,7 +284,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 13
 	mov	edx,DWORD [56+ebp]
 	mov	ebx,esi
@@ -304,7 +304,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 14
 	mov	edx,DWORD [60+ebp]
 	mov	ebx,edi
@@ -324,7 +324,7 @@ L$_BF_encrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 15
 	mov	edx,DWORD [64+ebp]
 	mov	ebx,esi
@@ -358,7 +358,7 @@ global	_BF_decrypt
 align	16
 _BF_decrypt:
 L$_BF_decrypt_begin:
-	;
+	; 
 	push	ebp
 	push	ebx
 	mov	ebx,DWORD [12+esp]
@@ -372,7 +372,7 @@ L$_BF_decrypt_begin:
 	mov	ebx,DWORD [68+ebp]
 	xor	ecx,ecx
 	xor	edi,ebx
-	;
+	; 
 	; Round 16
 	mov	edx,DWORD [64+ebp]
 	mov	ebx,edi
@@ -392,7 +392,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 15
 	mov	edx,DWORD [60+ebp]
 	mov	ebx,esi
@@ -412,7 +412,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 14
 	mov	edx,DWORD [56+ebp]
 	mov	ebx,edi
@@ -432,7 +432,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 13
 	mov	edx,DWORD [52+ebp]
 	mov	ebx,esi
@@ -452,7 +452,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 12
 	mov	edx,DWORD [48+ebp]
 	mov	ebx,edi
@@ -472,7 +472,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 11
 	mov	edx,DWORD [44+ebp]
 	mov	ebx,esi
@@ -492,7 +492,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 10
 	mov	edx,DWORD [40+ebp]
 	mov	ebx,edi
@@ -512,7 +512,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 9
 	mov	edx,DWORD [36+ebp]
 	mov	ebx,esi
@@ -532,7 +532,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 8
 	mov	edx,DWORD [32+ebp]
 	mov	ebx,edi
@@ -552,7 +552,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 7
 	mov	edx,DWORD [28+ebp]
 	mov	ebx,esi
@@ -572,7 +572,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 6
 	mov	edx,DWORD [24+ebp]
 	mov	ebx,edi
@@ -592,7 +592,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 5
 	mov	edx,DWORD [20+ebp]
 	mov	ebx,esi
@@ -612,7 +612,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 4
 	mov	edx,DWORD [16+ebp]
 	mov	ebx,edi
@@ -632,7 +632,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 3
 	mov	edx,DWORD [12+ebp]
 	mov	ebx,esi
@@ -652,7 +652,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	edi,ebx
-	;
+	; 
 	; Round 2
 	mov	edx,DWORD [8+ebp]
 	mov	ebx,edi
@@ -672,7 +672,7 @@ L$_BF_decrypt_begin:
 	add	ebx,edx
 	xor	eax,eax
 	xor	esi,ebx
-	;
+	; 
 	; Round 1
 	mov	edx,DWORD [4+ebp]
 	mov	ebx,esi
@@ -706,7 +706,7 @@ global	_BF_cbc_encrypt
 align	16
 _BF_cbc_encrypt:
 L$_BF_cbc_encrypt_begin:
-	;
+	; 
 	push	ebp
 	push	ebx
 	push	esi
