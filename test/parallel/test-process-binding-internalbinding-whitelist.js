@@ -1,7 +1,7 @@
 // Flags: --no-warnings
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 // Assert that whitelisted internalBinding modules are accessible via
