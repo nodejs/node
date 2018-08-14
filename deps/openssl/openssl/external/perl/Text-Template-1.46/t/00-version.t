@@ -8,3 +8,4 @@ if ($Text::Template::VERSION == 1.46) {
 } else {
         print "not ok 1\n";
 }
+

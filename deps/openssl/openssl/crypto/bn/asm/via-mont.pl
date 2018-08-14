@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -213,18 +213,15 @@ $sp=&DWP(28,"esp");
 
 	&mov	("eax",&DWP(0,"esi","edx",4));	# upmost overflow bit
 	&sbb	("eax",0);
-	&and	("esi","eax");
-	&not	("eax");
-	&mov	("ebp","edi");
-	&and	("ebp","eax");
-	&or	("esi","ebp");			# tp=carry?tp:rp
 
 	&mov	("ecx","edx");			# num
-	&xor	("edx","edx");			# i=0
+	&mov	("edx",0);			# i=0
 
 &set_label("copy",8);
-	&mov	("eax",&DWP(0,"esi","edx",4));
-	&mov	(&DWP(64,"esp","edx",4),"ecx");	# zap tp
+	&mov	("ebx",&DWP(0,"esi","edx",4));
+	&mov	("eax",&DWP(0,"edi","edx",4));
+	&mov	(&DWP(0,"esi","edx",4),"ecx");	# zap tp
+	&cmovc	("eax","ebx");
 	&mov	(&DWP(0,"edi","edx",4),"eax");
 	&lea	("edx",&DWP(1,"edx"));		# i++
 	&loop	(&label("copy"));

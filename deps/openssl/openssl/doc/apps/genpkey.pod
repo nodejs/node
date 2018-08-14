@@ -12,7 +12,7 @@ B<openssl> B<genpkey>
 [B<-out filename>]
 [B<-outform PEM|DER>]
 [B<-pass arg>]
-[B<-cipher>]
+[B<-I<cipher>>]
 [B<-engine id>]
 [B<-paramfile file>]
 [B<-algorithm alg>]
@@ -39,21 +39,21 @@ standard output is used.
 
 =item B<-outform DER|PEM>
 
-This specifies the output format DER or PEM.
+This specifies the output format DER or PEM. The default format is PEM.
 
 =item B<-pass arg>
 
-the output file password source. For more information about the format of B<arg>
+The output file password source. For more information about the format of B<arg>
 see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
-=item B<-cipher>
+=item B<-I<cipher>>
 
 This option encrypts the private key with the supplied cipher. Any algorithm
 name accepted by EVP_get_cipherbyname() is acceptable such as B<des3>.
 
 =item B<-engine id>
 
-specifying an engine (by its unique B<id> string) will cause B<genpkey>
+Specifying an engine (by its unique B<id> string) will cause B<genpkey>
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms. If used this option should precede all other
@@ -61,19 +61,32 @@ options.
 
 =item B<-algorithm alg>
 
-public key algorithm to use such as RSA, DSA or DH. If used this option must
+Public key algorithm to use such as RSA, DSA or DH. If used this option must
 precede any B<-pkeyopt> options. The options B<-paramfile> and B<-algorithm>
-are mutually exclusive.
+are mutually exclusive. Engines may add algorithms in addition to the standard
+built-in ones.
+
+Valid built-in algorithm names for private key generation are RSA and EC.
+
+Valid built-in algorithm names for parameter generation (see the B<-genparam>
+option) are DH, DSA and EC.
+
+Note that the algorithm name X9.42 DH may be used as a synonym for the DH
+algorithm. These are identical and do not indicate the type of parameters that
+will be generated. Use the B<dh_paramgen_type> option to indicate whether PKCS#3
+or X9.42 DH parameters are required. See L<DH Parameter Generation Options>
+below for more details.
 
 =item B<-pkeyopt opt:value>
 
-set the public key algorithm option B<opt> to B<value>. The precise set of
+Set the public key algorithm option B<opt> to B<value>. The precise set of
 options supported depends on the public key algorithm used and its
-implementation. See B<KEY GENERATION OPTIONS> below for more details.
+implementation. See L<KEY GENERATION OPTIONS> and
+L<PARAMETER GENERATION OPTIONS> below for more details.
 
 =item B<-genparam>
 
-generate a set of parameters instead of a private key. If used this option must
+Generate a set of parameters instead of a private key. If used this option must
 precede any B<-algorithm>, B<-paramfile> or B<-pkeyopt> options.
 
 =item B<-paramfile filename>
@@ -97,7 +110,7 @@ The options supported by each algorithm and indeed each implementation of an
 algorithm can vary. The options for the OpenSSL implementations are detailed
 below.
 
-=head1 RSA KEY GENERATION OPTIONS
+=head2 RSA Key Generation Options
 
 =over 4
 
@@ -112,91 +125,92 @@ hexadecimal value if preceded by B<0x>. Default value is 65537.
 
 =back
 
-=head1 DSA PARAMETER GENERATION OPTIONS
+=head2 EC Key Generation Options
 
-=over 4
-
-=item B<dsa_paramgen_bits:numbits>
-
-The number of bits in the generated parameters. If not specified 1024 is used.
-
-=back
-
-=head1 DH PARAMETER GENERATION OPTIONS
-
-=over 4
-
-=item B<dh_paramgen_prime_len:numbits>
-
-The number of bits in the prime parameter B<p>.
-
-=item B<dh_paramgen_generator:value>
-
-The value to use for the generator B<g>.
-
-=item B<dh_rfc5114:num>
-
-If this option is set then the appropriate RFC5114 parameters are used
-instead of generating new parameters. The value B<num> can take the
-values 1, 2 or 3 corresponding to RFC5114 DH parameters consisting of
-1024 bit group with 160 bit subgroup, 2048 bit group with 224 bit subgroup
-and 2048 bit group with 256 bit subgroup as mentioned in RFC5114 sections
-2.1, 2.2 and 2.3 respectively.
-
-=back
-
-=head1 EC PARAMETER GENERATION OPTIONS
-
-The EC parameter generation options below can also
-be supplied as EC key generation options. This can (for example) generate a
-key from a named curve without the need to use an explicit parameter file.
+The EC key generation options can also be used for parameter generation.
 
 =over 4
 
 =item B<ec_paramgen_curve:curve>
 
-the EC curve to use. OpenSSL supports NIST curve names such as "P-256".
+The EC curve to use. OpenSSL supports NIST curve names such as "P-256".
 
 =item B<ec_param_enc:encoding>
 
-the encoding to use for parameters. The "encoding" parameter must be either
-"named_curve" or "explicit".
+The encoding to use for parameters. The "encoding" parameter must be either
+"named_curve" or "explicit". The default value is "named_curve".
 
 =back
 
-=head1 GOST2001 KEY GENERATION AND PARAMETER OPTIONS
+=head1 PARAMETER GENERATION OPTIONS
 
-Gost 2001 support is not enabled by default. To enable this algorithm,
-one should load the ccgost engine in the OpenSSL configuration file.
-See README.gost file in the engines/ccgost directory of the source
-distribution for more details.
+The options supported by each algorithm and indeed each implementation of an
+algorithm can vary. The options for the OpenSSL implementations are detailed
+below.
 
-Use of a parameter file for the GOST R 34.10 algorithm is optional.
-Parameters can be specified during key generation directly as well as
-during generation of parameter file.
+=head2 DSA Parameter Generation Options
 
 =over 4
 
-=item B<paramset:name>
+=item B<dsa_paramgen_bits:numbits>
 
-Specifies GOST R 34.10-2001 parameter set according to RFC 4357.
-Parameter set can be specified using abbreviated name, object short name or
-numeric OID. Following parameter sets are supported:
+The number of bits in the generated prime. If not specified 1024 is used.
 
-  paramset   OID               Usage
-  A          1.2.643.2.2.35.1  Signature
-  B          1.2.643.2.2.35.2  Signature
-  C          1.2.643.2.2.35.3  Signature
-  XA         1.2.643.2.2.36.0  Key exchange
-  XB         1.2.643.2.2.36.1  Key exchange
-  test       1.2.643.2.2.35.0  Test purposes
+=item B<dsa_paramgen_q_bits:numbits>
+
+The number of bits in the q parameter. Must be one of 160, 224 or 256. If not
+specified 160 is used.
+
+=item B<dsa_paramgen_md:digest>
+
+The digest to use during parameter generation. Must be one of B<sha1>, B<sha224>
+or B<sha256>. If set, then the number of bits in B<q> will match the output size
+of the specified digest and the B<dsa_paramgen_q_bits> parameter will be
+ignored. If not set, then a digest will be used that gives an output matching
+the number of bits in B<q>, i.e. B<sha1> if q length is 160, B<sha224> if it 224
+or B<sha256> if it is 256.
 
 =back
 
-=head1 X25519 KEY GENERATION OPTIONS
+=head2 DH Parameter Generation Options
 
-The X25519 algorithm does not currently support any key generation options.
+=over 4
 
+=item B<dh_paramgen_prime_len:numbits>
+
+The number of bits in the prime parameter B<p>. The default is 1024.
+
+=item B<dh_paramgen_subprime_len:numbits>
+
+The number of bits in the sub prime parameter B<q>. The default is 256 if the
+prime is at least 2048 bits long or 160 otherwise. Only relevant if used in
+conjunction with the B<dh_paramgen_type> option to generate X9.42 DH parameters.
+
+=item B<dh_paramgen_generator:value>
+
+The value to use for the generator B<g>. The default is 2.
+
+=item B<dh_paramgen_type:value>
+
+The type of DH parameters to generate. Use 0 for PKCS#3 DH and 1 for X9.42 DH.
+The default is 0.
+
+=item B<dh_rfc5114:num>
+
+If this option is set, then the appropriate RFC5114 parameters are used
+instead of generating new parameters. The value B<num> can take the
+values 1, 2 or 3 corresponding to RFC5114 DH parameters consisting of
+1024 bit group with 160 bit subgroup, 2048 bit group with 224 bit subgroup
+and 2048 bit group with 256 bit subgroup as mentioned in RFC5114 sections
+2.1, 2.2 and 2.3 respectively. If present this overrides all other DH parameter
+options.
+
+=back
+
+=head2 EC Parameter Generation Options
+
+The EC parameter generation options are the same as for key generation. See
+L<EC Key Generation Options> above.
 
 =head1 NOTES
 
@@ -219,19 +233,25 @@ Generate a 2048 bit RSA key using 3 as the public exponent:
  openssl genpkey -algorithm RSA -out key.pem -pkeyopt rsa_keygen_bits:2048 \
                                                 -pkeyopt rsa_keygen_pubexp:3
 
-Generate 1024 bit DSA parameters:
+Generate 2048 bit DSA parameters:
 
  openssl genpkey -genparam -algorithm DSA -out dsap.pem \
-                                                -pkeyopt dsa_paramgen_bits:1024
+                                                -pkeyopt dsa_paramgen_bits:2048
 
 Generate DSA key from parameters:
 
  openssl genpkey -paramfile dsap.pem -out dsakey.pem
 
-Generate 1024 bit DH parameters:
+Generate 2048 bit DH parameters:
 
  openssl genpkey -genparam -algorithm DH -out dhp.pem \
-                                        -pkeyopt dh_paramgen_prime_len:1024
+                                        -pkeyopt dh_paramgen_prime_len:2048
+
+Generate 2048 bit X9.42 DH parameters:
+
+ openssl genpkey -genparam -algorithm DH -out dhpx.pem \
+                                        -pkeyopt dh_paramgen_prime_len:2048 \
+                                        -pkeyopt dh_paramgen_type:1
 
 Output RFC5114 2048 bit DH parameters with 224 bit subgroup:
 
@@ -264,11 +284,12 @@ Generate an X25519 private key:
 =head1 HISTORY
 
 The ability to use NIST curve names, and to generate an EC key directly,
-were added in OpenSSL 1.0.2.
+were added in OpenSSL 1.0.2. The ability to generate X25519 keys was added in
+OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

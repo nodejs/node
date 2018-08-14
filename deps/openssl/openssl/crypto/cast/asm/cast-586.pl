@@ -7,7 +7,7 @@
 # https://www.openssl.org/source/license.html
 
 
-# This flag makes the inner loop one cycle longer, but generates
+# This flag makes the inner loop one cycle longer, but generates 
 # code that runs %30 faster on the pentium pro/II, 44% faster
 # of PIII, while only %7 slower on the pentium.
 # By default, this flag is on.

@@ -14,7 +14,7 @@ Aborting"
 print "1..6\n";
 
 $n=1;
-$Q::n = $Q::n = 119;
+$Q::n = $Q::n = 119; 
 
 # (1) Test fill_in_string
 $out = fill_in_string('The value of $n is {$n}.', PACKAGE => 'Q' );
@@ -26,7 +26,7 @@ $TEMPFILE = "tt$$";
 open F, "> $TEMPFILE" or die "Couldn't open test file: $!; aborting";
 print F 'The value of $n is {$n}.', "\n";
 close F or die "Couldn't write test file: $!; aborting";
-$R::n = $R::n = 8128;
+$R::n = $R::n = 8128; 
 
 $out = fill_in_file($TEMPFILE, PACKAGE => 'R');
 print +($out eq "The value of \$n is 8128.\n" ? '' : 'not '), "ok $n\n";
@@ -42,7 +42,7 @@ print +($out eq "With a message here? It is good!\n" ? '' : 'not '), "ok $n\n";
 $n++;
 
 # (4) It probably occurs in fill_this_in also:
-$out =
+$out = 
   Text::Template->fill_this_in("With a message here? [% \$var %]\n",
                       DELIMITERS => ['[%', '%]'],
                       HASH => { "var" => \"It is good!" });
@@ -50,7 +50,7 @@ print +($out eq "With a message here? It is good!\n" ? '' : 'not '), "ok $n\n";
 $n++;
 
 # (5) This test failed in 1.25.  It was supplied by Donald L. Greer Jr.
-# Note that it's different from (1)  in that there's no explicit
+# Note that it's different from (1)  in that there's no explicit 
 # package=> argument.
 use vars qw($string $foo $r);
 $string='Hello {$foo}';
@@ -72,3 +72,4 @@ package main;
 END { $TEMPFILE && unlink $TEMPFILE }
 
 exit;
+

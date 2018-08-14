@@ -226,25 +226,28 @@ int dsaparam_main(int argc, char **argv)
 
         data = app_malloc(len + 20, "BN space");
 
-        BIO_printf(bio_out, "DSA *get_dsa%d()\n{\n", bits_p);
-        print_bignum_var(bio_out, p, "dsap", len, data);
-        print_bignum_var(bio_out, q, "dsaq", len, data);
-        print_bignum_var(bio_out, g, "dsag", len, data);
+        BIO_printf(bio_out, "static DSA *get_dsa%d(void)\n{\n", bits_p);
+        print_bignum_var(bio_out, p, "dsap", bits_p, data);
+        print_bignum_var(bio_out, q, "dsaq", bits_p, data);
+        print_bignum_var(bio_out, g, "dsag", bits_p, data);
         BIO_printf(bio_out, "    DSA *dsa = DSA_new();\n"
+                            "    BIGNUM *p, *q, *g;\n"
                             "\n");
         BIO_printf(bio_out, "    if (dsa == NULL)\n"
                             "        return NULL;\n");
-        BIO_printf(bio_out, "    dsa->p = BN_bin2bn(dsap_%d, sizeof(dsap_%d), NULL);\n",
-               bits_p, bits_p);
-        BIO_printf(bio_out, "    dsa->q = BN_bin2bn(dsaq_%d, sizeof(dsaq_%d), NULL);\n",
-               bits_p, bits_p);
-        BIO_printf(bio_out, "    dsa->g = BN_bin2bn(dsag_%d, sizeof(dsag_%d), NULL);\n",
-               bits_p, bits_p);
-        BIO_printf(bio_out, "    if (!dsa->p || !dsa->q || !dsa->g) {\n"
-                            "        DSA_free(dsa);\n"
+        BIO_printf(bio_out, "    if (!DSA_set0_pqg(dsa, p = BN_bin2bn(dsap_%d, sizeof(dsap_%d), NULL),\n",
+                   bits_p, bits_p);
+        BIO_printf(bio_out, "                           q = BN_bin2bn(dsaq_%d, sizeof(dsaq_%d), NULL),\n",
+                   bits_p, bits_p);
+        BIO_printf(bio_out, "                           g = BN_bin2bn(dsag_%d, sizeof(dsag_%d), NULL))) {\n",
+                   bits_p, bits_p);
+        BIO_printf(bio_out, "        DSA_free(dsa);\n"
+                            "        BN_free(p);\n"
+                            "        BN_free(q);\n"
+                            "        BN_free(g);\n"
                             "        return NULL;\n"
                             "    }\n"
-                            "    return(dsa);\n}\n");
+                            "    return dsa;\n}\n");
         OPENSSL_free(data);
     }
 

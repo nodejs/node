@@ -11,7 +11,9 @@ X509_VERIFY_PARAM_get_auth_level, X509_VERIFY_PARAM_set_time,
 X509_VERIFY_PARAM_get_time,
 X509_VERIFY_PARAM_add0_policy, X509_VERIFY_PARAM_set1_policies,
 X509_VERIFY_PARAM_set1_host, X509_VERIFY_PARAM_add1_host,
-X509_VERIFY_PARAM_set_hostflags, X509_VERIFY_PARAM_get0_peername,
+X509_VERIFY_PARAM_set_hostflags,
+X509_VERIFY_PARAM_get_hostflags,
+X509_VERIFY_PARAM_get0_peername,
 X509_VERIFY_PARAM_set1_email, X509_VERIFY_PARAM_set1_ip,
 X509_VERIFY_PARAM_set1_ip_asc
 - X509 verification parameters
@@ -54,6 +56,7 @@ X509_VERIFY_PARAM_set1_ip_asc
                                  const char *name, size_t namelen);
  void X509_VERIFY_PARAM_set_hostflags(X509_VERIFY_PARAM *param,
                                       unsigned int flags);
+ unsigned int X509_VERIFY_PARAM_get_hostflags(const X509_VERIFY_PARAM *param);
  char *X509_VERIFY_PARAM_get0_peername(X509_VERIFY_PARAM *param);
  int X509_VERIFY_PARAM_set1_email(X509_VERIFY_PARAM *param,
                                  const char *email, size_t emaillen);
@@ -130,14 +133,32 @@ B<name> clearing any previously specified host name or names.  If
 B<name> is NULL, or empty the list of hostnames is cleared, and
 name checks are not performed on the peer certificate.  If B<name>
 is NUL-terminated, B<namelen> may be zero, otherwise B<namelen>
-must be set to the length of B<name>.  When a hostname is specified,
+must be set to the length of B<name>.
+
+When a hostname is specified,
 certificate verification automatically invokes L<X509_check_host(3)>
 with flags equal to the B<flags> argument given to
 X509_VERIFY_PARAM_set_hostflags() (default zero).  Applications
 are strongly advised to use this interface in preference to explicitly
-calling L<X509_check_host(3)>, hostname checks are out of scope
+calling L<X509_check_host(3)>, hostname checks may be out of scope
 with the DANE-EE(3) certificate usage, and the internal check will
-be suppressed as appropriate when DANE support is added to OpenSSL.
+be suppressed as appropriate when DANE verification is enabled.
+
+When the subject CommonName will not be ignored, whether as a result of the
+B<X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT> host flag, or because no DNS subject
+alternative names are present in the certificate, any DNS name constraints in
+issuer certificates apply to the subject CommonName as well as the subject
+alternative name extension.
+
+When the subject CommonName will be ignored, whether as a result of the
+B<X509_CHECK_FLAG_NEVER_CHECK_SUBJECT> host flag, or because some DNS subject
+alternative names are present in the certificate, DNS name constraints in
+issuer certificates will not be applied to the subject DN.
+As described in X509_check_host(3) the B<X509_CHECK_FLAG_NEVER_CHECK_SUBJECT>
+flag takes precendence over the B<X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT> flag.
+
+X509_VERIFY_PARAM_get_hostflags() returns any host flags previously set via a
+call to X509_VERIFY_PARAM_set_hostflags().
 
 X509_VERIFY_PARAM_add1_host() adds B<name> as an additional reference
 identifier that can match the peer's certificate.  Any previous names
@@ -185,6 +206,8 @@ X509_VERIFY_PARAM_set1_ip_asc() return 1 for success and 0 for
 failure.
 
 X509_VERIFY_PARAM_get_flags() returns the current verification flags.
+
+X509_VERIFY_PARAM_get_hostflags() returns any current host flags.
 
 X509_VERIFY_PARAM_get_inh_flags() returns the current inheritance flags.
 
@@ -346,6 +369,8 @@ L<x509(1)>
 The B<X509_V_FLAG_NO_ALT_CHAINS> flag was added in OpenSSL 1.1.0
 The legacy B<X509_V_FLAG_CB_ISSUER_CHECK> flag is deprecated as of
 OpenSSL 1.1.0, and has no effect.
+
+X509_VERIFY_PARAM_get_hostflags() was added in OpenSSL 1.1.0i.
 
 =head1 COPYRIGHT
 

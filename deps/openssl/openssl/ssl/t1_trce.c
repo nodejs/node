@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -725,6 +725,8 @@ static int ssl_print_extensions(BIO *bio, int indent, int server,
         BIO_puts(bio, "No Extensions\n");
         return 1;
     }
+    if (msglen < 2)
+        return 0;
     extslen = (msg[0] << 8) | msg[1];
     if (extslen != msglen - 2)
         return 0;
@@ -1092,6 +1094,8 @@ static int ssl_print_cert_request(BIO *bio, int indent, SSL *s,
     msglen -= xlen + 2;
 
  skip_sig:
+    if (msglen < 2)
+        return 0;
     xlen = (msg[0] << 8) | msg[1];
     BIO_indent(bio, indent, 80);
     if (msglen < xlen + 2)
@@ -1271,7 +1275,16 @@ void SSL_trace(int write_p, int version, int content_type,
     switch (content_type) {
     case SSL3_RT_HEADER:
         {
-            int hvers = msg[1] << 8 | msg[2];
+            int hvers;
+
+            /* avoid overlapping with length at the end of buffer */
+            if (msglen < (size_t)(SSL_IS_DTLS(ssl) ?
+                         DTLS1_RT_HEADER_LENGTH : SSL3_RT_HEADER_LENGTH)) {
+                BIO_puts(bio, write_p ? "Sent" : "Received");
+                ssl_print_hex(bio, 0, " too short message", msg, msglen);
+                break;
+            }
+            hvers = msg[1] << 8 | msg[2];
             BIO_puts(bio, write_p ? "Sent" : "Received");
             BIO_printf(bio, " Record\nHeader:\n  Version = %s (0x%x)\n",
                        ssl_trace_str(hvers, ssl_version_tbl), hvers);

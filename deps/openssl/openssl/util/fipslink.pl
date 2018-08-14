@@ -20,7 +20,7 @@ sub check_env
 
 my ($fips_cc,$fips_cc_args, $fips_link,$fips_target, $fips_libdir, $sha1_exe)
 	 = check_env("FIPS_CC", "FIPS_CC_ARGS", "FIPS_LINK", "FIPS_TARGET",
-		"FIPSLIB_D", "FIPS_SHA1_EXE");
+	 	"FIPSLIB_D", "FIPS_SHA1_EXE");
 
 
 
@@ -109,5 +109,7 @@ sub check_hash
 	$hashval =~ s/^.*=\s+//;
 	die "Invalid hash syntax in file" if (length($hashfile) != 40);
 	die "Invalid hash received for file" if (length($hashval) != 40);
-	die "***HASH VALUE MISMATCH FOR FILE $filename ***" if ($hashval ne $hashfile);
+	die "***HASH VALUE MISMATCH FOR FILE $filename ***" if ($hashval ne $hashfile); 
 	}
+
+

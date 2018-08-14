@@ -953,8 +953,10 @@ int ERR_load_ASN1_strings(void);
 # define ASN1_F_D2I_AUTOPRIVATEKEY                        207
 # define ASN1_F_D2I_PRIVATEKEY                            154
 # define ASN1_F_D2I_PUBLICKEY                             155
+# define ASN1_F_DO_BUF                                    142
 # define ASN1_F_DO_TCREATE                                222
 # define ASN1_F_I2D_ASN1_BIO_STREAM                       211
+# define ASN1_F_I2D_ASN1_OBJECT                           143
 # define ASN1_F_I2D_DSA_PUBKEY                            161
 # define ASN1_F_I2D_EC_PUBKEY                             181
 # define ASN1_F_I2D_PRIVATEKEY                            163

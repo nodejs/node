@@ -5,7 +5,7 @@ This is a library for generating form letters, building HTML pages, or
 filling in templates generally.  A `template' is a piece of text that
 has little Perl programs embedded in it here and there.  When you
 `fill in' a template, you evaluate the little programs and replace
-them with their values.
+them with their values.  
 
 Here's an example of a template:
 
@@ -45,7 +45,7 @@ encourages functional separation.
 You can fill in the template in a `Safe' compartment.  This means that
 if you don't trust the person who wrote the code in the template, you
 won't have to worry that they are tampering with your program when you
-execute it.
+execute it.  
 
 ----------------------------------------------------------------
 
@@ -87,7 +87,7 @@ What's new in v1.46 since v1.44:
         parameter to ->new is omitted.
 
 ----------------------------------------------------------------
-What's new in v1.44 since v1.43:
+What's new in v1.44 since v1.43: 
 
 This is a maintentance release.  There are no feature changes.
 
@@ -182,7 +182,7 @@ What's new in v1.40 since v1.31:
 ----------------------------------------------------------------
 What's new in v1.31 since v1.23:
 
-	Just bug fixes---fill_in_string was failing.  Thanks to
+	Just bug fixes---fill_in_string was failing.  Thanks to 
         Donald L. Greer Jr. for the test case.
 
 ----------------------------------------------------------------
@@ -252,7 +252,7 @@ What's new in v1.10 since v1.03:
 
 	New OUTPUT option delivers template results directly to a
 	filehandle instead of making them into a string.  Saves space
-	and time.
+	and time. 
 
 	PACKAGE and HASH now work intelligently with SAFE.
 
@@ -263,16 +263,16 @@ What's new in v1.10 since v1.03:
 			{ my $blist = '';
 		          foreach $i (@items) {
 		            $blist .= qq{  * $i\n};
-		          }
+		          }    
 		          $blist;
-		        }
+		        } 
 
 	You can now write this instead, because $OUT is special.
 
 			{ foreach $i (@items) {
 		            $OUT.= "  * $i\n";
-		          }
-		        }
+		          }    
+		        } 
 
 	(`A spoonful of sugar makes the medicine go down.')
 
@@ -281,7 +281,7 @@ What's new in v1.10 since v1.03:
 
 	More documentation.  Errors fixed.
 
-	Lots more tests.
+	Lots more tests.  
 
 ----------------------------------------------------------------
 
@@ -289,22 +289,22 @@ What's new in v1.03 since v1.0:
 
 	Code added to support HASH option to fill_in.
 	(Incl. `_gensym' function.)
-
+	
 	Documentation for HASH.
-
+	
 	New test file for HASH.
-
+	
 	Note about failure of lexical variables to propagate into
-	templates.  Why does this surprise people?
-
+ 	templates.  Why does this surprise people?
+	
 	Bug fix: program fragments are evaluated in an environment with
-	`no strict' by default.  Otherwise, you get a lot of `Global
-	symbol "$v" requires explicit package name' failures.  Why didn't
-	the test program pick this up?  Because the only variable the test
-	program ever used was `$a', which is exempt.  Duhhhhh.
-
+ 	`no strict' by default.  Otherwise, you get a lot of `Global
+ 	symbol "$v" requires explicit package name' failures.  Why didn't
+ 	the test program pick this up?  Because the only variable the test
+ 	program ever used was `$a', which is exempt.  Duhhhhh.
+	
 	Fixed the test program.
-
+	
 	Various minor documentation fixes.
 
 
@@ -315,24 +315,25 @@ Improvements of 1.0 over the old 0.1beta:
 
 New features:
 
-      At least twice as fast
+      At least twice as fast 
 
-      Better support for filling out the same template more than once
+      Better support for filling out the same template more than once 
 
       Now supports evaluation of program fragments in Safe
-      compartments. (Thanks, Jonathan!)
+      compartments. (Thanks, Jonathan!)  
 
-      Better argument syntax
+      Better argument syntax 
 
-      More convenience functions
+      More convenience functions 
 
-      The parser is much better and simpler.
+      The parser is much better and simpler. 
 
       Once a template is parsed, the parsed version is stored so that
-      it needn't be parsed again.
+      it needn't be parsed again.  
 
       BROKEN function behavior is rationalized. You can now pass an
       arbitrary argument to your BROKEN function, or return a value
-      from it to the main program.
+      from it to the main program.  
 
-      Documentation overhauled.
+      Documentation overhauled. 
+

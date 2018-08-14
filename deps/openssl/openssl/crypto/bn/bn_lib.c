@@ -12,6 +12,7 @@
 #include "internal/cryptlib.h"
 #include "bn_lcl.h"
 #include <openssl/opensslconf.h>
+#include "internal/constant_time_locl.h"
 
 /* This stuff appears to be completely unused, so is deprecated */
 #if OPENSSL_API_COMPAT < 0x00908000L
@@ -222,8 +223,6 @@ static BN_ULONG *bn_expand_internal(const BIGNUM *b, int words)
     const BN_ULONG *B;
     int i;
 
-    bn_check_top(b);
-
     if (words > (INT_MAX / (4 * BN_BITS2))) {
         BNerr(BN_F_BN_EXPAND_INTERNAL, BN_R_BIGNUM_TOO_LONG);
         return NULL;
@@ -298,8 +297,6 @@ static BN_ULONG *bn_expand_internal(const BIGNUM *b, int words)
 
 BIGNUM *bn_expand2(BIGNUM *b, int words)
 {
-    bn_check_top(b);
-
     if (words > b->dmax) {
         BN_ULONG *a = bn_expand_internal(b, words);
         if (!a)
@@ -312,7 +309,6 @@ BIGNUM *bn_expand2(BIGNUM *b, int words)
         b->dmax = words;
     }
 
-    bn_check_top(b);
     return b;
 }
 
@@ -379,11 +375,18 @@ BIGNUM *BN_copy(BIGNUM *a, const BIGNUM *b)
     memcpy(a->d, b->d, sizeof(b->d[0]) * b->top);
 #endif
 
-    a->top = b->top;
     a->neg = b->neg;
+    a->top = b->top;
+    a->flags |= b->flags & BN_FLG_FIXED_TOP;
     bn_check_top(a);
     return (a);
 }
+
+#define FLAGS_DATA(flags) ((flags) & (BN_FLG_STATIC_DATA \
+                                    | BN_FLG_CONSTTIME   \
+                                    | BN_FLG_SECURE      \
+                                    | BN_FLG_FIXED_TOP))
+#define FLAGS_STRUCT(flags) ((flags) & (BN_FLG_MALLOCED))
 
 void BN_swap(BIGNUM *a, BIGNUM *b)
 {
@@ -412,10 +415,8 @@ void BN_swap(BIGNUM *a, BIGNUM *b)
     b->dmax = tmp_dmax;
     b->neg = tmp_neg;
 
-    a->flags =
-        (flags_old_a & BN_FLG_MALLOCED) | (flags_old_b & BN_FLG_STATIC_DATA);
-    b->flags =
-        (flags_old_b & BN_FLG_MALLOCED) | (flags_old_a & BN_FLG_STATIC_DATA);
+    a->flags = FLAGS_STRUCT(flags_old_a) | FLAGS_DATA(flags_old_b);
+    b->flags = FLAGS_STRUCT(flags_old_b) | FLAGS_DATA(flags_old_a);
     bn_check_top(a);
     bn_check_top(b);
 }
@@ -425,8 +426,9 @@ void BN_clear(BIGNUM *a)
     bn_check_top(a);
     if (a->d != NULL)
         OPENSSL_cleanse(a->d, sizeof(*a->d) * a->dmax);
-    a->top = 0;
     a->neg = 0;
+    a->top = 0;
+    a->flags &= ~BN_FLG_FIXED_TOP;
 }
 
 BN_ULONG BN_get_word(const BIGNUM *a)
@@ -447,6 +449,7 @@ int BN_set_word(BIGNUM *a, BN_ULONG w)
     a->neg = 0;
     a->d[0] = w;
     a->top = (w ? 1 : 0);
+    a->flags &= ~BN_FLG_FIXED_TOP;
     bn_check_top(a);
     return (1);
 }
@@ -499,24 +502,29 @@ BIGNUM *BN_bin2bn(const unsigned char *s, int len, BIGNUM *ret)
 /* ignore negative */
 static int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen)
 {
-    int i;
+    int n;
+    size_t i, inc, lasti, j;
     BN_ULONG l;
 
-    bn_check_top(a);
-    i = BN_num_bytes(a);
+    n = BN_num_bytes(a);
     if (tolen == -1)
-        tolen = i;
-    else if (tolen < i)
+        tolen = n;
+    else if (tolen < n)
         return -1;
-    /* Add leading zeroes if necessary */
-    if (tolen > i) {
-        memset(to, 0, tolen - i);
-        to += tolen - i;
+
+    if (n == 0) {
+        OPENSSL_cleanse(to, tolen);
+        return tolen;
     }
-    while (i--) {
+
+    lasti = n - 1;
+    for (i = 0, inc = 1, j = tolen; j > 0;) {
         l = a->d[i / BN_BYTES];
-        *(to++) = (unsigned char)(l >> (8 * (i % BN_BYTES))) & 0xff;
+        to[--j] = (unsigned char)(l >> (8 * (i % BN_BYTES)) & (0 - inc));
+        inc = (i - lasti) >> (8 * sizeof(i) - 1);
+        i += inc; /* stay on top limb */
     }
+
     return tolen;
 }
 
@@ -683,6 +691,7 @@ int BN_set_bit(BIGNUM *a, int n)
         for (k = a->top; k < i + 1; k++)
             a->d[k] = 0;
         a->top = i + 1;
+        a->flags &= ~BN_FLG_FIXED_TOP;
     }
 
     a->d[i] |= (((BN_ULONG)1) << j);
@@ -824,6 +833,34 @@ void BN_consttime_swap(BN_ULONG condition, BIGNUM *a, BIGNUM *b, int nwords)
     a->top ^= t;
     b->top ^= t;
 
+    t = (a->neg ^ b->neg) & condition;
+    a->neg ^= t;
+    b->neg ^= t;
+
+    /*-
+     * Idea behind BN_FLG_STATIC_DATA is actually to
+     * indicate that data may not be written to.
+     * Intention is actually to treat it as it's
+     * read-only data, and some (if not most) of it does
+     * reside in read-only segment. In other words
+     * observation of BN_FLG_STATIC_DATA in
+     * BN_consttime_swap should be treated as fatal
+     * condition. It would either cause SEGV or
+     * effectively cause data corruption.
+     * BN_FLG_MALLOCED refers to BN structure itself,
+     * and hence must be preserved. Remaining flags are
+     * BN_FLG_CONSTIME and BN_FLG_SECURE. Latter must be
+     * preserved, because it determines how x->d was
+     * allocated and hence how to free it. This leaves
+     * BN_FLG_CONSTTIME that one can do something about.
+     * To summarize it's sufficient to mask and swap
+     * BN_FLG_CONSTTIME alone. BN_FLG_STATIC_DATA should
+     * be treated as fatal.
+     */
+    t = ((a->flags ^ b->flags) & BN_FLG_CONSTTIME) & condition;
+    a->flags ^= t;
+    b->flags ^= t;
+
 #define BN_CONSTTIME_SWAP(ind) \
         do { \
                 t = (a->d[ind] ^ b->d[ind]) & condition; \
@@ -887,8 +924,9 @@ int BN_security_bits(int L, int N)
 
 void BN_zero_ex(BIGNUM *a)
 {
-    a->top = 0;
     a->neg = 0;
+    a->top = 0;
+    a->flags &= ~BN_FLG_FIXED_TOP;
 }
 
 int BN_abs_is_word(const BIGNUM *a, const BN_ULONG w)
@@ -1012,5 +1050,6 @@ void bn_correct_top(BIGNUM *a)
     }
     if (a->top == 0)
         a->neg = 0;
+    a->flags &= ~BN_FLG_FIXED_TOP;
     bn_pollute(a);
 }

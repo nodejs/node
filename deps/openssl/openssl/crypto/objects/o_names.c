@@ -202,7 +202,7 @@ const char *OBJ_NAME_get(const char *name, int type)
         }
     }
 
-    CRYPTO_THREAD_unlock(lock);
+    CRYPTO_THREAD_unlock(lock);    
     return value;
 }
 
@@ -212,7 +212,7 @@ int OBJ_NAME_add(const char *name, int type, const char *data)
     int alias, ok = 0;
 
     if (!OBJ_NAME_init())
-        return 0;
+        return 0;    
 
     CRYPTO_THREAD_write_lock(lock);
 

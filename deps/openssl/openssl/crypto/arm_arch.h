@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -69,7 +69,7 @@
 #  endif
 # endif
 
-# if !__ASSEMBLER__
+# ifndef __ASSEMBLER__
 extern unsigned int OPENSSL_armcap_P;
 # endif
 

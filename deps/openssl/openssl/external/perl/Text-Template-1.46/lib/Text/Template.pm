@@ -5,7 +5,7 @@
 #
 # Copyright 2013 M. J. Dominus.
 # You may copy and distribute this program under the
-# same terms as Perl iteself.
+# same terms as Perl iteself.  
 # If in doubt, write to mjd-perl-template+@plover.com for a license.
 #
 # Version 1.46
@@ -44,7 +44,7 @@ sub always_prepend
 
 {
   my %LEGAL_TYPE;
-  BEGIN {
+  BEGIN { 
     %LEGAL_TYPE = map {$_=>1} qw(FILE FILEHANDLE STRING ARRAY);
   }
   sub new {
@@ -78,7 +78,7 @@ sub always_prepend
 
     bless $self => $pack;
     return unless $self->_acquire_data;
-
+    
     $self;
   }
 }
@@ -89,7 +89,7 @@ sub _acquire_data {
   my ($self) = @_;
   my $type = $self->{TYPE};
   if ($type eq 'STRING') {
-    # nothing necessary
+    # nothing necessary    
   } elsif ($type eq 'FILE') {
     my $data = _load_text($self->{SOURCE});
     unless (defined $data) {
@@ -115,7 +115,7 @@ sub _acquire_data {
     }
     $self->{SOURCE} = $data;
   } else {
-    # This should have been caught long ago, so it represents a
+    # This should have been caught long ago, so it represents a 
     # drastic `can't-happen' sort of failure
     my $pack = ref $self;
     die "Can only acquire data for $pack objects of subtype STRING, but this is $type; aborting";
@@ -145,7 +145,7 @@ sub compile {
   return undef unless $self->_acquire_data;
   unless ($self->{TYPE} eq 'STRING') {
     my $pack = ref $self;
-    # This should have been caught long ago, so it represents a
+    # This should have been caught long ago, so it represents a 
     # drastic `can't-happen' sort of failure
     die "Can only compile $pack objects of subtype STRING, but this is $self->{TYPE}; aborting";
   }
@@ -153,7 +153,7 @@ sub compile {
   my @tokens;
   my $delim_pats = shift() || $self->{DELIM};
 
-
+  
 
   my ($t_open, $t_close) = ('{', '}');
   my $DELIM;			# Regex matches a delimiter if $delim_pats
@@ -215,7 +215,7 @@ sub compile {
   } else {
     die "Can't happen error #1";
   }
-
+  
   $self->{TYPE} = 'PREPARSED';
   $self->{SOURCE} = \@content;
   1;
@@ -247,7 +247,7 @@ sub fill_in {
 
   my $fi_varhash = _param('hash', %fi_a);
   my $fi_package = _param('package', %fi_a) ;
-  my $fi_broken  =
+  my $fi_broken  = 
     _param('broken', %fi_a)  || $fi_self->{BROKEN} || \&_default_broken;
   my $fi_broken_arg = _param('broken_arg', %fi_a) || [];
   my $fi_safe = _param('safe', %fi_a);
@@ -305,7 +305,7 @@ sub fill_in {
     } elsif ($fi_type eq 'PROG') {
       no strict;
       my $fi_lcomment = "#line $fi_lineno $fi_filename";
-      my $fi_progtext =
+      my $fi_progtext = 
         "package $fi_eval_package; $fi_prepend;\n$fi_lcomment\n$fi_text;";
       my $fi_res;
       my $fi_eval_err = '';
@@ -445,7 +445,7 @@ sub _unconditionally_untaint {
     }
   }
 }
-
+  
 # Given a hashful of variables (or a list of such hashes)
 # install the variables into the specified package,
 # overwriting whatever variables were there before.
@@ -467,7 +467,7 @@ sub _install_hash {
       } elsif (ref $val) {
 	*SYM = $val;
       } else {
-	*SYM = \$val;
+ 	*SYM = \$val;
       }
     }
   }
@@ -478,7 +478,7 @@ sub TTerror { $ERROR }
 1;
 
 
-=head1 NAME
+=head1 NAME 
 
 Text::Template - Expand template text with embedded Perl
 
@@ -539,7 +539,7 @@ This file documents C<Text::Template> version B<1.46>
  $text = fill_in_string( <<EOM, PACKAGE => 'T', ...);
  Dear {$recipient},
  Pay me at once.
-        Love,
+        Love, 
          G.V.
  EOM
 
@@ -555,7 +555,7 @@ This is a library for generating form letters, building HTML pages, or
 filling in templates generally.  A `template' is a piece of text that
 has little Perl programs embedded in it here and there.  When you
 `fill in' a template, you evaluate the little programs and replace
-them with their values.
+them with their values.  
 
 You can store a template in a file outside your program.  People can
 modify the template without modifying the program.  You can separate
@@ -683,16 +683,16 @@ The fragments are evaluated in order, and side effects from earlier
 fragments will persist into later fragments:
 
 	{$x = @things; ''}The Lord High Chamberlain has gotten {$x}
-	things for me this year.
-	{ $diff = $x - 17;
+	things for me this year.  
+	{ $diff = $x - 17; 
 	  $more = 'more'
 	  if ($diff == 0) {
 	    $diff = 'no';
 	  } elsif ($diff < 0) {
 	    $more = 'fewer';
-	  }
+	  } 
           '';
-	}
+	} 
 	That is {$diff} {$more} than he gave me last year.
 
 The value of C<$x> set in the first line will persist into the next
@@ -701,11 +701,11 @@ C<$more> set in the second fragment will persist and be interpolated
 into the last line.  The output will look something like this:
 
 	The Lord High Chamberlain has gotten 42
-	things for me this year.
+	things for me this year.  
 
 	That is 25 more than he gave me last year.
 
-That is all the syntax there is.
+That is all the syntax there is.  
 
 =head2 The C<$OUT> variable
 
@@ -726,9 +726,9 @@ One way to do it is with a template like this:
 	{ my $blist = '';
           foreach $i (@items) {
             $blist .= qq{  * $i\n};
-          }
+          }    
           $blist;
-        }
+        } 
 
 Here we construct the list in a variable called C<$blist>, which we
 return at the end.  This is a little cumbersome.  There is a shortcut.
@@ -743,11 +743,11 @@ This means that you can write the template above like this:
 	Here is a list of the things I have got for you since 1907:
 	{ foreach $i (@items) {
             $OUT .= "  * $i\n";
-          }
-        }
+          }    
+        } 
 
 C<$OUT> is reinitialized to the empty string at the start of each
-program fragment.  It is private to C<Text::Template>, so
+program fragment.  It is private to C<Text::Template>, so 
 you can't use a variable named C<$OUT> in your template without
 invoking the special behavior.
 
@@ -780,15 +780,15 @@ else that makes sense with C<open>.
 The C<TYPE> can also be C<STRING>, in which case the C<SOURCE> should
 be a string:
 
-	new Text::Template ( TYPE => 'STRING',
+	new Text::Template ( TYPE => 'STRING', 
                              SOURCE => "This is the actual template!" );
 
 The C<TYPE> can be C<ARRAY>, in which case the source should be a
 reference to an array of strings.  The concatenation of these strings
 is the template:
 
-	new Text::Template ( TYPE => 'ARRAY',
-                             SOURCE => [ "This is ", "the actual",
+	new Text::Template ( TYPE => 'ARRAY', 
+                             SOURCE => [ "This is ", "the actual", 
                                          " template!",
                                        ]
                            );
@@ -800,7 +800,7 @@ C<Text::Template> will read the text from the filehandle up to
 end-of-file, and that text is the template:
 
 	# Read template source code from STDIN:
-	new Text::Template ( TYPE => 'FILEHANDLE',
+	new Text::Template ( TYPE => 'FILEHANDLE', 
                              SOURCE => \*STDIN  );
 
 
@@ -870,7 +870,7 @@ overridden in the arguments to C<fill_in>.  See L<C<BROKEN>> below.
 Loads all the template text from the template's source, parses and
 compiles it.  If successful, returns true; otherwise returns false and
 sets C<$Text::Template::ERROR>.  If the template is already compiled,
-it returns true and does nothing.
+it returns true and does nothing.  
 
 You don't usually need to invoke this function, because C<fill_in>
 (see below) compiles the template if it isn't compiled already.
@@ -977,10 +977,10 @@ variables.
 
 You may not want to put the template variables into a package.
 Packages can be hard to manage:  You can't copy them, for example.
-C<HASH> provides an alternative.
+C<HASH> provides an alternative.  
 
 The value for C<HASH> should be a reference to a hash that maps
-variable names to values.  For example,
+variable names to values.  For example, 
 
 	$template->fill_in(HASH => { recipient => "The King",
 				     items => ['gold', 'frankincense', 'myrrh'],
@@ -996,19 +996,19 @@ should be passed by reference.
 We also want to pass an object, which is in C<$self>; note that we
 pass a reference to the object, C<\$self> instead.  Since we've passed
 a reference to a scalar, inside the template the object appears as
-C<$object>.
+C<$object>.  
 
 The full details of how it works are a little involved, so you might
 want to skip to the next section.
 
-Suppose the key in the hash is I<key> and the value is I<value>.
+Suppose the key in the hash is I<key> and the value is I<value>.  
 
 =over 4
 
 =item *
 
 If the I<value> is C<undef>, then any variables named C<$key>,
-C<@key>, C<%key>, etc., are undefined.
+C<@key>, C<%key>, etc., are undefined.  
 
 =item *
 
@@ -1032,7 +1032,7 @@ and
 
 have almost exactly the same effect.  (The difference is that in the
 former case, the value is copied, and in the latter case it is
-aliased.)
+aliased.)  
 
 =item *
 
@@ -1074,7 +1074,7 @@ You can also use this to set two variables with the same name:
 	                           ]
                           );
 
-This sets C<$v> to C<"The King"> and C<@v> to C<(1,2,3)>.
+This sets C<$v> to C<"The King"> and C<@v> to C<(1,2,3)>.	
 
 =item C<BROKEN>
 
@@ -1082,13 +1082,13 @@ If any of the program fragments fails to compile or aborts for any
 reason, and you have set the C<BROKEN> option to a function reference,
 C<Text::Template> will invoke the function.  This function is called
 the I<C<BROKEN> function>.  The C<BROKEN> function will tell
-C<Text::Template> what to do next.
+C<Text::Template> what to do next.  
 
 If the C<BROKEN> function returns C<undef>, C<Text::Template> will
 immediately abort processing the template and return the text that it
 has accumulated so far.  If your function does this, it should set a
 flag that you can examine after C<fill_in> returns so that you can
-tell whether there was a premature return or not.
+tell whether there was a premature return or not. 
 
 If the C<BROKEN> function returns any other value, that value will be
 interpolated into the template as if that value had been the return
@@ -1150,7 +1150,7 @@ If you supply the C<BROKEN_ARG> option to C<fill_in>, the value of the
 option is passed to the C<BROKEN> function whenever it is called.  The
 default C<BROKEN> function ignores the C<BROKEN_ARG>, but you can
 write a custom C<BROKEN> function that uses the C<BROKEN_ARG> to get
-more information about what went wrong.
+more information about what went wrong. 
 
 The C<BROKEN> function could also use the C<BROKEN_ARG> as a reference
 to store an error message or some other information that it wants to
@@ -1158,7 +1158,7 @@ communicate back to the caller.  For example:
 
 	$error = '';
 
-	sub my_broken {
+	sub my_broken {	
 	   my %args = @_;
 	   my $err_ref = $args{arg};
 	   ...
@@ -1191,7 +1191,7 @@ operations that can be performed in them.
 
 If you use the C<PACKAGE> option with C<SAFE>, the package you specify
 will be placed into the safe compartment and evaluation will take
-place in that package as usual.
+place in that package as usual.  
 
 If not, C<SAFE> operation is a little different from the default.
 Usually, if you don't specify a package, evaluation of program
@@ -1235,11 +1235,11 @@ If this option is present, its value should be a reference to a list
 of two strings.  The first string is the string that signals the
 beginning of each program fragment, and the second string is the
 string that signals the end of each program fragment.  See
-L<"Alternative Delimiters">, below.
+L<"Alternative Delimiters">, below.  
 
 If you specify C<DELIMITERS> in the call to C<fill_in>, they override
 any delimiters you set when you created the template object with
-C<new>.
+C<new>. 
 
 =back
 
@@ -1266,7 +1266,7 @@ An example:
 
 	$text = Text::Template->fill_this_in( <<'EOM', PACKAGE => Q);
 	Dear {$name},
-	You owe me \\${sprintf('%.2f', $amount)}.
+	You owe me \\${sprintf('%.2f', $amount)}.  
 	Pay or I will break your {$part}.
 		Love,
 		Grand Vizopteryx of Irkutsk.
@@ -1371,7 +1371,7 @@ The text C<The King> doesn't get into the form letter.  Why not?
 Because C<$recipient> is a C<my> variable, and the whole point of
 C<my> variables is that they're private and inaccessible except in the
 scope in which they're declared.  The template is not part of that
-scope, so the template can't see C<$recipient>.
+scope, so the template can't see C<$recipient>.  
 
 If that's not the behavior you want, don't use C<my>.  C<my> means a
 private variable, and in this case you don't want the variable to be
@@ -1380,7 +1380,7 @@ package, and use the C<PACKAGE> option to C<fill_in>:
 
 	$Q::recipient = $recipient;
 	my $text = fill_in_file('formletter.tmpl', PACKAGE => 'Q');
-
+	
 
 or pass the names and values in a hash with the C<HASH> option:
 
@@ -1397,8 +1397,8 @@ rest of your program and wreck something.
 Nevertheless, there's really no way (except with C<Safe>) to protect
 against a template that says
 
-	{ $Important::Secret::Security::Enable = 0;
-	  # Disable security checks in this program
+	{ $Important::Secret::Security::Enable = 0; 
+	  # Disable security checks in this program 
 	}
 
 or
@@ -1462,12 +1462,12 @@ you may be able to make it work by doing this instead:
 	--@]
 
 It may be safer to choose delimiters that begin with a newline
-character.
+character.  
 
 Because the parsing of templates is simplified by the absence of
 backslash escapes, using alternative C<DELIMITERS> may speed up the
 parsing process by 20-25%.  This shows that my original choice of C<{>
-and C<}> was very bad.
+and C<}> was very bad. 
 
 =head2 C<PREPEND> feature and using C<strict> in templates
 
@@ -1492,11 +1492,11 @@ each and every code fragment:
 Because we didn't put C<use strict> at the top of the second fragment,
 it was only active in the first fragment, and we didn't get any
 C<strict> checking in the second fragment.  Then we mispelled C<$foo>
-and the error wasn't caught.
+and the error wasn't caught.  
 
 C<Text::Template> version 1.22 and higher has a new feature to make
 this easier.  You can specify that any text at all be automatically
-added to the beginning of each program fragment.
+added to the beginning of each program fragment.  
 
 When you make a call to C<fill_in>, you can specify a
 
@@ -1541,7 +1541,7 @@ except where overridden by C<PREPEND> options to C<new> or C<fill_in>.
 =head2 Prepending in Derived Classes
 
 This section is technical, and you should skip it on the first few
-readings.
+readings. 
 
 Normally there are three places that prepended text could come from.
 It could come from the C<PREPEND> option in the C<fill_in> call, from
@@ -1551,12 +1551,12 @@ C<Text::Template> looks for these three things in order and takes the
 first one that it finds.
 
 In a subclass of C<Text::Template>, this last possibility is
-ambiguous.  Suppose C<S> is a subclass of C<Text::Template>.  Should
+ambiguous.  Suppose C<S> is a subclass of C<Text::Template>.  Should 
 
 	Text::Template->always_prepend(...);
 
 affect objects in class C<Derived>?  The answer is that you can have it
-either way.
+either way.  
 
 The C<always_prepend> value for C<Text::Template> is normally stored
 in  a hash variable named C<%GLOBAL_PREPEND> under the key
@@ -1587,7 +1587,7 @@ method to get an arbitrary effect.
 Jennifer D. St Clair asks:
 
 	> Most of my pages contain JavaScript and Stylesheets.
-        > How do I change the template identifier?
+        > How do I change the template identifier?  
 
 Jennifer is worried about the braces in the JavaScript being taken as
 the delimiters of the Perl program fragments.  Of course, disaster
@@ -1600,13 +1600,13 @@ some reason, there are  two easy workarounds:
 1. You can put C<\> in front of C<{>, C<}>, or C<\> to remove its
 special meaning.  So, for example, instead of
 
-	    if (br== "n3") {
+	    if (br== "n3") { 
 		// etc.
 	    }
 
 you can put
 
-	    if (br== "n3") \{
+	    if (br== "n3") \{ 
 		// etc.
 	    \}
 
@@ -1627,21 +1627,21 @@ So if we wrote
 
 	    {q{foo}}
 
-it would turn into
+it would turn into 
 
 	    foo
 
 So for your JavaScript, just write
 
-	    {q{if (br== "n3") {
-		 // etc.
+	    {q{if (br== "n3") { 
+	  	 // etc.
 	       }}
 	    }
 
 and it'll come out as
 
-	      if (br== "n3") {
-		  // etc.
+	      if (br== "n3") { 
+	  	  // etc.
 	      }
 
 which is what you want.
@@ -1657,7 +1657,7 @@ their templates, like this:
 	}
 
 Then they complain because there is a C<17> at the top of the output
-that they didn't want to have there.
+that they didn't want to have there.  
 
 Remember that a program fragment is replaced with its own return
 value, and that in Perl the return value of a code block is the value
@@ -1723,14 +1723,14 @@ complicated to remember, but probably easier to use.  The rule is now:
 Backslashes are always passed to Perl unchanged I<unless> they occur
 as part of a sequence like C<\\\\\\{> or C<\\\\\\}>.  In these
 contexts, they are special; C<\\> is replaced with C<\>, and C<\{> and
-C<\}> signal a literal brace.
+C<\}> signal a literal brace. 
 
 Examples:
 
 	\{ foo \}
 
 is I<not> evaluated, because the C<\> before the braces signals that
-they should be taken literally.  The result in the output looks like this:
+they should be taken literally.  The result in the output looks like this: 
 
 	{ foo }
 
@@ -1797,7 +1797,7 @@ It's totally straightforward.  Just call the C<CGI> functions from
 inside the template:
 
 	{ $q->checkbox_group(NAME => 'toppings',
-			     LINEBREAK => true,
+		  	     LINEBREAK => true,
 			     COLUMNS => 3,
 			     VALUES => \@toppings,
 			    );
@@ -1864,7 +1864,7 @@ of the mailing list.  The mailing list address is a secret.)
 =head1 THANKS
 
 Many thanks to the following people for offering support,
-encouragement, advice, bug reports, and all the other good stuff.
+encouragement, advice, bug reports, and all the other good stuff.  
 
 David H. Adler /
 Joel Appelbaum /
@@ -1895,7 +1895,7 @@ Matt X. Hunter /
 Robert M. Ioffe /
 Daniel LaLiberte /
 Reuven M. Lerner /
-Trip Lilley /
+Trip Lilley / 
 Yannis Livassof /
 Val Luck /
 Kevin Madsen /
@@ -1941,12 +1941,12 @@ Special thanks to:
 
 =over 2
 
-=item Jonathan Roy
+=item Jonathan Roy 
 
 for telling me how to do the C<Safe> support (I spent two years
 worrying about it, and then Jonathan pointed out that it was trivial.)
 
-=item Ranjit Bhatnagar
+=item Ranjit Bhatnagar 
 
 for demanding less verbose fragments like they have in ASP, for
 helping me figure out the Right Thing, and, especially, for talking me

@@ -506,10 +506,6 @@ Set supported curves to P-256, P-384:
 
  SSL_CONF_cmd(ctx, "Curves", "P-256:P-384");
 
-Set automatic support for any elliptic curve for key exchange:
-
- SSL_CONF_cmd(ctx, "ECDHParameters", "Automatic");
-
 =head1 RETURN VALUES
 
 SSL_CONF_cmd() returns 1 if the value of B<cmd> is recognised and B<value> is

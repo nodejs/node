@@ -54,6 +54,7 @@
                 (arglist-close . c-lineup-arglist)           ; From "gnu" style
                 (inline-open . 0)                            ; From "gnu" style
                 (brace-list-open . +)                        ; From "gnu" style
+                (inextern-lang . 0)     ; Don't indent inside extern block
                 (topmost-intro-cont first c-lineup-topmost-intro-cont
                                     c-lineup-gnu-DEFUN-intro-cont) ; From "gnu" style
                 )

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -20,7 +20,7 @@ use configdata;
 
 plan skip_all => "Test only supported in a shared build" if disabled("shared");
 
-plan tests => 3;
+plan tests => 4;
 
 my $libcrypto_idx = $unified_info{rename}->{libcrypto} // "libcrypto";
 my $libssl_idx = $unified_info{rename}->{libssl} // "libssl";
@@ -35,3 +35,6 @@ ok(run(test(["shlibloadtest", "-ssl_first", $libcrypto, $libssl])),
    "running shlibloadtest -ssl_first");
 ok(run(test(["shlibloadtest", "-just_crypto", $libcrypto, $libssl])),
    "running shlibloadtest -just_crypto");
+ok(run(test(["shlibloadtest", "-dso_ref", $libcrypto, $libssl])),
+   "running shlibloadtest -dso_ref");
+

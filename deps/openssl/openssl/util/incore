@@ -65,7 +65,7 @@
 
 	# put aside e_machine in case one has to treat specific
 	# platforms differently, see EM_ constants in elf.h for
-	# assortment...
+	# assortment... 
 	$self->{e_machine} = $elf_ehdr{e_machine};
 
 	#################################################
@@ -131,12 +131,12 @@
 	    my $name;
 	    #                 (STT_OBJECT  || STT_FUNC)
 	    if ($st_bind<3 && ($st_type==1 || $st_type==2)
-		&& $st_secn <= $#sections 		# sane st_shndx
+	    	&& $st_secn <= $#sections 		# sane st_shndx
 		&& @sections[$st_secn]->{sh_type}	# not SHN_UNDEF
 		&& ($name=(split(chr(0),substr($strings,$elf_sym{st_name},128)))[0])
 		) {
 		# synthesize st_offset, ...
-		$elf_sym{st_offset}  = $elf_sym{st_value}
+	    	$elf_sym{st_offset}  = $elf_sym{st_value}
 				- @sections[$st_secn]->{sh_addr}
 				+ @sections[$st_secn]->{sh_offset};
 		$elf_sym{st_name}    = $name;
