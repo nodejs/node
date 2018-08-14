@@ -2999,4 +2999,4 @@ HTTP_STATUS_CODES(V)
 }  // namespace http2
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(http2, node::http2::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(http2, node::http2::Initialize)
