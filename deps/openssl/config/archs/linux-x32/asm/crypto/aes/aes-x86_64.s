@@ -1,4 +1,4 @@
-.text
+.text	
 .type	_x86_64_AES_encrypt,@function
 .align	16
 _x86_64_AES_encrypt:

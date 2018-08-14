@@ -889,11 +889,8 @@ bn_mul_mont_fpu64:
 
 	li	12,0
 	subfe	3,12,3
-	addi	10,1,196
+	addi	4,1,196
 	subf	9,8,9
-	and	4,10,3
-	andc	6,9,3
-	or	4,4,6
 	addi	10,1,192
 	mtctr	11
 
@@ -903,6 +900,10 @@ bn_mul_mont_fpu64:
 	lwz	25,8(4)
 	lwz	26,12(4)
 	lwzu	27,16(4)
+	lwz	28,4(9)
+	lwz	29,8(9)
+	lwz	30,12(9)
+	lwz	31,16(9)
 	std	12,8(22)
 	std	12,16(22)
 	std	12,24(22)
@@ -911,6 +912,18 @@ bn_mul_mont_fpu64:
 	std	12,48(22)
 	std	12,56(22)
 	stdu	12,64(22)
+	and	24,24,3
+	and	25,25,3
+	and	26,26,3
+	and	27,27,3
+	andc	28,28,3
+	andc	29,29,3
+	andc	30,30,3
+	andc	31,31,3
+	or	24,24,28
+	or	25,25,29
+	or	26,26,30
+	or	27,27,31
 	stw	24,4(9)
 	stw	25,8(9)
 	stw	26,12(9)
@@ -946,7 +959,7 @@ bn_mul_mont_fpu64:
 	lfd	30,-16(12)
 	lfd	31,-8(12)
 	mr	1,12
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x8c,13,6,0
 .long	0

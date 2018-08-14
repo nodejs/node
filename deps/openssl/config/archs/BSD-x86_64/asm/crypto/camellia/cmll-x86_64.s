@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	Camellia_EncryptBlock

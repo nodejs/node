@@ -951,7 +951,7 @@ _DES_encrypt1:
 L$_DES_encrypt1_begin:
 	push	esi
 	push	edi
-	;
+	; 
 	; Load the 2 words
 	mov	esi,DWORD [12+esp]
 	xor	ecx,ecx
@@ -960,7 +960,7 @@ L$_DES_encrypt1_begin:
 	mov	eax,DWORD [esi]
 	mov	ebx,DWORD [28+esp]
 	mov	edi,DWORD [4+esi]
-	;
+	; 
 	; IP
 	rol	eax,4
 	mov	esi,eax
@@ -968,35 +968,35 @@ L$_DES_encrypt1_begin:
 	and	eax,0xf0f0f0f0
 	xor	esi,eax
 	xor	edi,eax
-	;
+	; 
 	rol	edi,20
 	mov	eax,edi
 	xor	edi,esi
 	and	edi,0xfff0000f
 	xor	eax,edi
 	xor	esi,edi
-	;
+	; 
 	rol	eax,14
 	mov	edi,eax
 	xor	eax,esi
 	and	eax,0x33333333
 	xor	edi,eax
 	xor	esi,eax
-	;
+	; 
 	rol	esi,22
 	mov	eax,esi
 	xor	esi,edi
 	and	esi,0x03fc03fc
 	xor	eax,esi
 	xor	edi,esi
-	;
+	; 
 	rol	eax,9
 	mov	esi,eax
 	xor	eax,edi
 	and	eax,0xaaaaaaaa
 	xor	esi,eax
 	xor	edi,eax
-	;
+	; 
 	rol	edi,1
 	call	L$000pic_point
 L$000pic_point:
@@ -1010,7 +1010,7 @@ L$000pic_point:
 L$001decrypt:
 	call	__x86_DES_decrypt
 L$002done:
-	;
+	; 
 	; FP
 	mov	edx,DWORD [20+esp]
 	ror	esi,1
@@ -1019,35 +1019,35 @@ L$002done:
 	and	edi,0xaaaaaaaa
 	xor	eax,edi
 	xor	esi,edi
-	;
+	; 
 	rol	eax,23
 	mov	edi,eax
 	xor	eax,esi
 	and	eax,0x03fc03fc
 	xor	edi,eax
 	xor	esi,eax
-	;
+	; 
 	rol	edi,10
 	mov	eax,edi
 	xor	edi,esi
 	and	edi,0x33333333
 	xor	eax,edi
 	xor	esi,edi
-	;
+	; 
 	rol	esi,18
 	mov	edi,esi
 	xor	esi,eax
 	and	esi,0xfff0000f
 	xor	edi,esi
 	xor	eax,esi
-	;
+	; 
 	rol	edi,12
 	mov	esi,edi
 	xor	edi,eax
 	and	edi,0xf0f0f0f0
 	xor	esi,edi
 	xor	eax,edi
-	;
+	; 
 	ror	eax,4
 	mov	DWORD [edx],eax
 	mov	DWORD [4+edx],esi
@@ -1062,7 +1062,7 @@ _DES_encrypt2:
 L$_DES_encrypt2_begin:
 	push	esi
 	push	edi
-	;
+	; 
 	; Load the 2 words
 	mov	eax,DWORD [12+esp]
 	xor	ecx,ecx
@@ -1085,7 +1085,7 @@ L$003pic_point:
 L$004decrypt:
 	call	__x86_DES_decrypt
 L$005done:
-	;
+	; 
 	; Fixup
 	ror	edi,3
 	mov	eax,DWORD [20+esp]
@@ -1106,12 +1106,12 @@ L$_DES_encrypt3_begin:
 	push	ebp
 	push	esi
 	push	edi
-	;
+	; 
 	; Load the data words
 	mov	edi,DWORD [ebx]
 	mov	esi,DWORD [4+ebx]
 	sub	esp,12
-	;
+	; 
 	; IP
 	rol	edi,4
 	mov	edx,edi
@@ -1119,35 +1119,35 @@ L$_DES_encrypt3_begin:
 	and	edi,0xf0f0f0f0
 	xor	edx,edi
 	xor	esi,edi
-	;
+	; 
 	rol	esi,20
 	mov	edi,esi
 	xor	esi,edx
 	and	esi,0xfff0000f
 	xor	edi,esi
 	xor	edx,esi
-	;
+	; 
 	rol	edi,14
 	mov	esi,edi
 	xor	edi,edx
 	and	edi,0x33333333
 	xor	esi,edi
 	xor	edx,edi
-	;
+	; 
 	rol	edx,22
 	mov	edi,edx
 	xor	edx,esi
 	and	edx,0x03fc03fc
 	xor	edi,edx
 	xor	esi,edx
-	;
+	; 
 	rol	edi,9
 	mov	edx,edi
 	xor	edi,esi
 	and	edi,0xaaaaaaaa
 	xor	edx,edi
 	xor	esi,edi
-	;
+	; 
 	ror	edx,3
 	ror	esi,2
 	mov	DWORD [4+ebx],esi
@@ -1170,7 +1170,7 @@ L$_DES_encrypt3_begin:
 	add	esp,12
 	mov	edi,DWORD [ebx]
 	mov	esi,DWORD [4+ebx]
-	;
+	; 
 	; FP
 	rol	esi,2
 	rol	edi,3
@@ -1179,35 +1179,35 @@ L$_DES_encrypt3_begin:
 	and	edi,0xaaaaaaaa
 	xor	eax,edi
 	xor	esi,edi
-	;
+	; 
 	rol	eax,23
 	mov	edi,eax
 	xor	eax,esi
 	and	eax,0x03fc03fc
 	xor	edi,eax
 	xor	esi,eax
-	;
+	; 
 	rol	edi,10
 	mov	eax,edi
 	xor	edi,esi
 	and	edi,0x33333333
 	xor	eax,edi
 	xor	esi,edi
-	;
+	; 
 	rol	esi,18
 	mov	edi,esi
 	xor	esi,eax
 	and	esi,0xfff0000f
 	xor	edi,esi
 	xor	eax,esi
-	;
+	; 
 	rol	edi,12
 	mov	esi,edi
 	xor	edi,eax
 	and	edi,0xf0f0f0f0
 	xor	esi,edi
 	xor	eax,edi
-	;
+	; 
 	ror	eax,4
 	mov	DWORD [ebx],eax
 	mov	DWORD [4+ebx],esi
@@ -1225,12 +1225,12 @@ L$_DES_decrypt3_begin:
 	push	ebp
 	push	esi
 	push	edi
-	;
+	; 
 	; Load the data words
 	mov	edi,DWORD [ebx]
 	mov	esi,DWORD [4+ebx]
 	sub	esp,12
-	;
+	; 
 	; IP
 	rol	edi,4
 	mov	edx,edi
@@ -1238,35 +1238,35 @@ L$_DES_decrypt3_begin:
 	and	edi,0xf0f0f0f0
 	xor	edx,edi
 	xor	esi,edi
-	;
+	; 
 	rol	esi,20
 	mov	edi,esi
 	xor	esi,edx
 	and	esi,0xfff0000f
 	xor	edi,esi
 	xor	edx,esi
-	;
+	; 
 	rol	edi,14
 	mov	esi,edi
 	xor	edi,edx
 	and	edi,0x33333333
 	xor	esi,edi
 	xor	edx,edi
-	;
+	; 
 	rol	edx,22
 	mov	edi,edx
 	xor	edx,esi
 	and	edx,0x03fc03fc
 	xor	edi,edx
 	xor	esi,edx
-	;
+	; 
 	rol	edi,9
 	mov	edx,edi
 	xor	edi,esi
 	and	edi,0xaaaaaaaa
 	xor	edx,edi
 	xor	esi,edi
-	;
+	; 
 	ror	edx,3
 	ror	esi,2
 	mov	DWORD [4+ebx],esi
@@ -1289,7 +1289,7 @@ L$_DES_decrypt3_begin:
 	add	esp,12
 	mov	edi,DWORD [ebx]
 	mov	esi,DWORD [4+ebx]
-	;
+	; 
 	; FP
 	rol	esi,2
 	rol	edi,3
@@ -1298,35 +1298,35 @@ L$_DES_decrypt3_begin:
 	and	edi,0xaaaaaaaa
 	xor	eax,edi
 	xor	esi,edi
-	;
+	; 
 	rol	eax,23
 	mov	edi,eax
 	xor	eax,esi
 	and	eax,0x03fc03fc
 	xor	edi,eax
 	xor	esi,eax
-	;
+	; 
 	rol	edi,10
 	mov	eax,edi
 	xor	edi,esi
 	and	edi,0x33333333
 	xor	eax,edi
 	xor	esi,edi
-	;
+	; 
 	rol	esi,18
 	mov	edi,esi
 	xor	esi,eax
 	and	esi,0xfff0000f
 	xor	edi,esi
 	xor	eax,esi
-	;
+	; 
 	rol	edi,12
 	mov	esi,edi
 	xor	edi,eax
 	and	edi,0xf0f0f0f0
 	xor	esi,edi
 	xor	eax,edi
-	;
+	; 
 	ror	eax,4
 	mov	DWORD [ebx],eax
 	mov	DWORD [4+ebx],esi
@@ -1339,7 +1339,7 @@ global	_DES_ncbc_encrypt
 align	16
 _DES_ncbc_encrypt:
 L$_DES_ncbc_encrypt_begin:
-	;
+	; 
 	push	ebp
 	push	ebx
 	push	esi
@@ -1517,7 +1517,7 @@ global	_DES_ede3_cbc_encrypt
 align	16
 _DES_ede3_cbc_encrypt:
 L$_DES_ede3_cbc_encrypt_begin:
-	;
+	; 
 	push	ebp
 	push	ebx
 	push	esi

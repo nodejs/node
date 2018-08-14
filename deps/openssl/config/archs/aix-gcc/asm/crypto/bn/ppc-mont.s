@@ -9,7 +9,7 @@
 	li	3,0
 	bclr	12,0
 	cmpwi	8,32
-	bgelr
+	bgelr	
 	slwi	8,8,2
 	li	12,-4096
 	addi	3,8,256
@@ -182,15 +182,16 @@ Lsub:	lwzx	12,22,21
 	li	21,0
 	mtctr	8
 	subfe	3,21,3
-	and	4,22,3
-	andc	6,9,3
-	or	4,4,6
 
 .align	4
 Lcopy:
-	lwzx	12,4,21
-	stwx	12,9,21
+	lwzx	12,22,21
+	lwzx	10,9,21
+	and	12,12,3
+	andc	10,10,3
 	stwx	21,22,21
+	or	10,10,12
+	stwx	10,9,21
 	addi	21,21,4
 	bc	16,0,Lcopy
 
@@ -209,7 +210,7 @@ Lcopy:
 	lwz	30,-8(12)
 	lwz	31,-4(12)
 	mr	1,12
-	blr
+	blr	
 .long	0
 .byte	0,12,4,0,0x80,12,6,0
 .long	0

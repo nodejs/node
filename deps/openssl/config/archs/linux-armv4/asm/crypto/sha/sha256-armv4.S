@@ -1,4 +1,4 @@
-@ Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+@ Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
 @
 @ Licensed under the OpenSSL license (the "License").  You may not use
 @ this file except in compliance with the License.  You can obtain a copy
@@ -1831,7 +1831,7 @@ sha256_block_data_order:
 	eor	r12,r12,r6			@ Maj(a,b,c)
 	add	r4,r4,r0,ror#2	@ h+=Sigma0(a)
 	@ add	r4,r4,r12			@ h+=Maj(a,b,c)
-#if __ARM_ARCH__>=7
+#ifdef	__thumb2__
 	ite	eq			@ Thumb2 thing, sanity check in ARM
 #endif
 	ldreq	r3,[sp,#16*4]		@ pull ctx

@@ -3,16 +3,13 @@
 .text
 #if defined(__thumb2__) || defined(__clang__)
 .syntax	unified
+#define ldrplb  ldrbpl
+#define ldrneb  ldrbne
 #endif
 #if defined(__thumb2__)
 .thumb
 #else
 .code	32
-#endif
-
-#ifdef  __clang__
-#define ldrplb  ldrbpl
-#define ldrneb  ldrbne
 #endif
 
 .type	rem_4bit,%object

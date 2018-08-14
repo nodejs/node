@@ -2765,7 +2765,7 @@ __ecp_nistz256_sqr_mont:
 	// *|  |  |  |  |  |  |  | 2|
 	// +|a3*a3|a2*a2|a1*a1|a0*a0|
 	//  |--+--+--+--+--+--+--+--|
-	//  |A7|A6|A5|A4|A3|A2|A1|A0|, where Ax is , i.e. follow
+	//  |A7|A6|A5|A4|A3|A2|A1|A0|, where Ax is , i.e. follow 
 	//
 	//  "can't overflow" below mark carrying into high part of
 	//  multiplication result, which can't overflow, because it
@@ -3752,21 +3752,21 @@ ecp_nistz256_scatter_w7:
 	prfm	pstl1strm,[x0,#4096+64*5]
 	prfm	pstl1strm,[x0,#4096+64*6]
 	prfm	pstl1strm,[x0,#4096+64*7]
-	strb	w3,[x0,#64*0-1]
+	strb	w3,[x0,#64*0]
 	lsr	x3,x3,#8
-	strb	w3,[x0,#64*1-1]
+	strb	w3,[x0,#64*1]
 	lsr	x3,x3,#8
-	strb	w3,[x0,#64*2-1]
+	strb	w3,[x0,#64*2]
 	lsr	x3,x3,#8
-	strb	w3,[x0,#64*3-1]
+	strb	w3,[x0,#64*3]
 	lsr	x3,x3,#8
-	strb	w3,[x0,#64*4-1]
+	strb	w3,[x0,#64*4]
 	lsr	x3,x3,#8
-	strb	w3,[x0,#64*5-1]
+	strb	w3,[x0,#64*5]
 	lsr	x3,x3,#8
-	strb	w3,[x0,#64*6-1]
+	strb	w3,[x0,#64*6]
 	lsr	x3,x3,#8
-	strb	w3,[x0,#64*7-1]
+	strb	w3,[x0,#64*7]
 	add	x0,x0,#64*8
 	b.ne	.Loop_scatter_w7
 
