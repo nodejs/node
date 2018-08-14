@@ -206,7 +206,7 @@ bn_GF2m_mul_2x2:
 	xgr	%r4,%r7
 	xgr	%r3,%r6
 	xgr	%r4,%r8
-	xgr	%r3,%r9
+	xgr	%r3,%r9	
 	xgr	%r4,%r9
 	xgr	%r3,%r4
 	stg	%r4,16(%r2)

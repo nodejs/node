@@ -1,4 +1,4 @@
-.text
+.text	
 
 .type	_aesni_ctr32_ghash_6x,@function
 .align	32

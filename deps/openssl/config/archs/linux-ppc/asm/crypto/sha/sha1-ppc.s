@@ -101,7 +101,7 @@ sha1_block_data_order:
 	lwz	31,156(1)
 	mtlr	0
 	addi	1,1,160
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,3,0
 .long	0
@@ -1109,7 +1109,7 @@ sha1_block_data_order:
 	mr	11,20
 	addi	4,4,64
 	bdnz	.Lsha1_block_private
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	sha1_block_data_order,.-sha1_block_data_order

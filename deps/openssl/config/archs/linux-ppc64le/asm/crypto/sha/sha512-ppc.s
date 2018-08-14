@@ -123,7 +123,7 @@ sha512_block_ppc:
 	ld	31,376(1)
 	mtlr	0
 	addi	1,1,384
-	blr
+	blr	
 .long	0
 .byte	0,12,4,1,0x80,18,3,0
 .long	0
@@ -1417,7 +1417,7 @@ sha512_block_ppc:
 	cmpld	31,5
 	std	15,56(3)
 	bne	.Lsha2_block_private
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .size	sha512_block_ppc,.-sha512_block_ppc
@@ -1428,7 +1428,7 @@ sha512_block_ppc:
 	mflr	7
 	addi	7,7,56
 	mtlr	0
-	blr
+	blr	
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 .space	28

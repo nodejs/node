@@ -41,7 +41,7 @@ gcm_ghash_4bit:
 	lg	%r0,0+1(%r2)
 	lghi	%r12,0
 .Louter:
-	xg	%r0,0(%r4)		# Xi ^= inp
+	xg	%r0,0(%r4)		# Xi ^= inp 
 	xg	%r1,8(%r4)
 	xgr	%r0,%r12
 	stg	%r1,8+1(%r2)

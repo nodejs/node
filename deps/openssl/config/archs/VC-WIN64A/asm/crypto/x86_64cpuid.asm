@@ -456,3 +456,4 @@ $L$tail_rdseed_bytes:
 
 $L$done_rdseed_bytes:
 	DB	0F3h,0C3h		;repret
+

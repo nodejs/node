@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 
@@ -393,18 +393,19 @@ bn_mul_mont_gather5:
 	jnz	.Lsub
 
 	sbbq	$0,%rax
+	movq	$-1,%rbx
+	xorq	%rax,%rbx
 	xorq	%r14,%r14
-	andq	%rax,%rsi
-	notq	%rax
-	movq	%rdi,%rcx
-	andq	%rax,%rcx
 	movq	%r9,%r15
-	orq	%rcx,%rsi
-.align	16
+
 .Lcopy:
-	movq	(%rsi,%r14,8),%rax
+	movq	(%rdi,%r14,8),%rcx
+	movq	(%rsp,%r14,8),%rdx
+	andq	%rbx,%rcx
+	andq	%rax,%rdx
 	movq	%r14,(%rsp,%r14,8)
-	movq	%rax,(%rdi,%r14,8)
+	orq	%rcx,%rdx
+	movq	%rdx,(%rdi,%r14,8)
 	leaq	1(%r14),%r14
 	subq	$1,%r15
 	jnz	.Lcopy
