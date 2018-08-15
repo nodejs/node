@@ -1,7 +1,8 @@
 'use strict';
-// Flags: --expose-gc
+// Flags: --expose-gc --expose-internals
 
 const common = require('../common');
+const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');
 const fs = require('fs');
 const fsPromises = fs.promises;
@@ -146,7 +147,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 
 {
-  const HTTPParser = process.binding('http_parser').HTTPParser;
+  const { HTTPParser } = internalBinding('http_parser');
   testInitialized(new HTTPParser(), 'HTTPParser');
 }
 

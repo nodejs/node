@@ -775,4 +775,4 @@ void Initialize(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(http_parser, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(http_parser, node::Initialize)

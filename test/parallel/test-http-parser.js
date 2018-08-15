@@ -19,11 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --expose-internals
+
 'use strict';
 const { mustCall, mustNotCall } = require('../common');
 const assert = require('assert');
 
-const { methods, HTTPParser } = process.binding('http_parser');
+const { internalBinding } = require('internal/test/binding');
+const { methods, HTTPParser } = internalBinding('http_parser');
 const { REQUEST, RESPONSE } = HTTPParser;
 
 const kOnHeaders = HTTPParser.kOnHeaders | 0;
