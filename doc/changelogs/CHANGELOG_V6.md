@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.14.4">6.14.4</a><br/>
 <a href="#6.14.3">6.14.3</a><br/>
 <a href="#6.14.2">6.14.2</a><br/>
 <a href="#6.14.1">6.14.1</a><br/>
@@ -70,6 +71,41 @@
 *Note*: Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.14.4"></a>
+## 2018-08-15, Version 6.14.4 'Boron' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at:
+
+  https://nodejs.org/en/blog/vulnerability/august-2018-security-releases/
+
+for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+  * CVE-2018-0732 (OpenSSL)
+  * CVE-2018-12115 (Node.js)
+
+### Notable Changes
+
+* **buffer**: Fix out-of-bounds (OOB) write in `Buffer.write()` for UCS-2 encoding (CVE-2018-12115)
+* **deps**: Upgrade to OpenSSL 1.0.2p, fixing:
+  * Client DoS due to large DH parameter (CVE-2018-0732)
+  * ECDSA key extraction via local side-channel (CVE not assigned)
+
+### Commits
+
+* [[`0052926476`](https://github.com/nodejs/node/commit/0052926476)] - **buffer**: avoid overrun on UCS-2 string write (Rod Vagg) [nodejs-private/node-private#138](https://github.com/nodejs-private/node-private/pull/138)
+* [[`dbe6551b89`](https://github.com/nodejs/node/commit/dbe6551b89)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [#1836](https://github.com/nodejs/node/pull/1836)
+* [[`7829bbcacb`](https://github.com/nodejs/node/commit/7829bbcacb)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [#1389](https://github.com/nodejs/node/pull/1389)
+* [[`cddca629b5`](https://github.com/nodejs/node/commit/cddca629b5)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [#1389](https://github.com/nodejs/node/pull/1389)
+* [[`e6014aed52`](https://github.com/nodejs/node/commit/e6014aed52)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#22320](https://github.com/nodejs/node/pull/22320)
+* [[`37ddce514d`](https://github.com/nodejs/node/commit/37ddce514d)] - **deps**: upgrade openssl sources to 1.0.2p (Shigeki Ohtsu) [#22320](https://github.com/nodejs/node/pull/22320)
+* [[`08a150fcca`](https://github.com/nodejs/node/commit/08a150fcca)] - **inspector**: don't bind to 0.0.0.0 by default (Ben Noordhuis) [#21376](https://github.com/nodejs/node/pull/21376)
+* [[`19b9d7fd77`](https://github.com/nodejs/node/commit/19b9d7fd77)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [#1389](https://github.com/nodejs/node/pull/1389)
+* [[`7ccb0422fc`](https://github.com/nodejs/node/commit/7ccb0422fc)] - **test**: fix error messages for OpenSSL-1.0.2p (Shigeki Ohtsu) [#22320](https://github.com/nodejs/node/pull/22320)
+* [[`58b9497ca8`](https://github.com/nodejs/node/commit/58b9497ca8)] - **test**: update certificates and private keys (Fedor Indutny) [#22184](https://github.com/nodejs/node/pull/22184)
+* [[`9863e11ea8`](https://github.com/nodejs/node/commit/9863e11ea8)] - **test**: update keys/Makefile to clean and build all (Daniel Bevenius) [#19975](https://github.com/nodejs/node/pull/19975)
 
 <a id="6.14.3"></a>
 ## 2018-06-12, Version 6.14.3 'Boron' (LTS), @evanlucas
