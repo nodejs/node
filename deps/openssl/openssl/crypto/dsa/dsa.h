@@ -249,10 +249,12 @@ int DSAparams_print_fp(FILE *fp, const DSA *x);
 int DSA_print_fp(FILE *bp, const DSA *x, int off);
 # endif
 
-# define DSS_prime_checks 50
+# define DSS_prime_checks 64
 /*
- * Primality test according to FIPS PUB 186[-1], Appendix 2.1: 50 rounds of
- * Rabin-Miller
+ * Primality test according to FIPS PUB 186-4, Appendix C.3. Since we only
+ * have one value here we set the number of checks to 64 which is the 128 bit
+ * security level that is the highest level and valid for creating a 3072 bit
+ * DSA key.
  */
 # define DSA_is_prime(n, callback, cb_arg) \
         BN_is_prime(n, DSS_prime_checks, callback, NULL, cb_arg)
@@ -307,6 +309,7 @@ void ERR_load_DSA_strings(void);
 # define DSA_F_I2D_DSA_SIG                                111
 # define DSA_F_OLD_DSA_PRIV_DECODE                        122
 # define DSA_F_PKEY_DSA_CTRL                              120
+# define DSA_F_PKEY_DSA_CTRL_STR                          127
 # define DSA_F_PKEY_DSA_KEYGEN                            121
 # define DSA_F_SIG_CB                                     114
 

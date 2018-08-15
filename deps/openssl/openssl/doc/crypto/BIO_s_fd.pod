@@ -60,7 +60,7 @@ BIO_s_fd() returns the file descriptor BIO method.
 
 BIO_reset() returns zero for success and -1 if an error occurred.
 BIO_seek() and BIO_tell() return the current file position or -1
-is an error occurred. These values reflect the underlying lseek()
+if an error occurred. These values reflect the underlying lseek()
 behaviour.
 
 BIO_set_fd() always returns 1.

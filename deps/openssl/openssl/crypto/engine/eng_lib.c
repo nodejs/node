@@ -4,7 +4,7 @@
  * 2000.
  */
 /* ====================================================================
- * Copyright (c) 1999-2001 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -188,8 +188,10 @@ void engine_cleanup_add_last(ENGINE_CLEANUP_CB *cb)
     if (!int_cleanup_check(1))
         return;
     item = int_cleanup_item(cb);
-    if (item)
-        sk_ENGINE_CLEANUP_ITEM_push(cleanup_stack, item);
+    if (item != NULL) {
+        if (sk_ENGINE_CLEANUP_ITEM_push(cleanup_stack, item) <= 0)
+            OPENSSL_free(item);
+    }
 }
 
 /* The API function that performs all cleanup */

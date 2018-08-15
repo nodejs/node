@@ -4,7 +4,7 @@
  * for the OpenSSL project.
  */
 /* ====================================================================
- * Copyright (c) 1998-2000 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -149,16 +149,71 @@ int BN_mod_add(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, const BIGNUM *m,
 
 /*
  * BN_mod_add variant that may be used if both a and b are non-negative and
- * less than m
+ * less than m. The original algorithm was
+ *
+ *    if (!BN_uadd(r, a, b))
+ *       return 0;
+ *    if (BN_ucmp(r, m) >= 0)
+ *       return BN_usub(r, r, m);
+ *
+ * which is replaced with addition, subtracting modulus, and conditional
+ * move depending on whether or not subtraction borrowed.
  */
+int bn_mod_add_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
+                         const BIGNUM *m)
+{
+    size_t i, ai, bi, mtop = m->top;
+    BN_ULONG storage[1024 / BN_BITS2];
+    BN_ULONG carry, temp, mask, *rp, *tp = storage;
+    const BN_ULONG *ap, *bp;
+
+    if (bn_wexpand(r, m->top) == NULL)
+        return 0;
+
+    if (mtop > sizeof(storage) / sizeof(storage[0])
+        && (tp = OPENSSL_malloc(mtop * sizeof(BN_ULONG))) == NULL)
+	return 0;
+
+    ap = a->d != NULL ? a->d : tp;
+    bp = b->d != NULL ? b->d : tp;
+
+    for (i = 0, ai = 0, bi = 0, carry = 0; i < mtop;) {
+        mask = (BN_ULONG)0 - ((i - a->top) >> (8 * sizeof(i) - 1));
+        temp = ((ap[ai] & mask) + carry) & BN_MASK2;
+        carry = (temp < carry);
+
+        mask = (BN_ULONG)0 - ((i - b->top) >> (8 * sizeof(i) - 1));
+        tp[i] = ((bp[bi] & mask) + temp) & BN_MASK2;
+        carry += (tp[i] < temp);
+
+        i++;
+        ai += (i - a->dmax) >> (8 * sizeof(i) - 1);
+        bi += (i - b->dmax) >> (8 * sizeof(i) - 1);
+    }
+    rp = r->d;
+    carry -= bn_sub_words(rp, tp, m->d, mtop);
+    for (i = 0; i < mtop; i++) {
+        rp[i] = (carry & tp[i]) | (~carry & rp[i]);
+        ((volatile BN_ULONG *)tp)[i] = 0;
+    }
+    r->top = mtop;
+    r->neg = 0;
+
+    if (tp != storage)
+        OPENSSL_free(tp);
+
+    return 1;
+}
+
 int BN_mod_add_quick(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
                      const BIGNUM *m)
 {
-    if (!BN_uadd(r, a, b))
-        return 0;
-    if (BN_ucmp(r, m) >= 0)
-        return BN_usub(r, r, m);
-    return 1;
+    int ret = bn_mod_add_fixed_top(r, a, b, m);
+
+    if (ret)
+        bn_correct_top(r);
+
+    return ret;
 }
 
 int BN_mod_sub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, const BIGNUM *m,

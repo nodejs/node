@@ -13,7 +13,9 @@ SSL_get_version - get the protocol version of a connection.
 =head1 DESCRIPTION
 
 SSL_get_version() returns the name of the protocol used for the
-connection B<ssl>.
+connection B<ssl>. It should only be called after the initial handshake has been
+completed. Prior to that the results returned from this function may be
+unreliable.
 
 =head1 RETURN VALUES
 
@@ -43,7 +45,7 @@ The connection uses the TLSv1.2 protocol.
 
 =item unknown
 
-This indicates that no version has been set (no connection established).
+This indicates an unknown protocol version.
 
 =back
 

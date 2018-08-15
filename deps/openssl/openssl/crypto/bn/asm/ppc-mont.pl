@@ -294,15 +294,16 @@ Lsub:	$LDX	$tj,$tp,$j
 	li	$j,0
 	mtctr	$num
 	subfe	$ovf,$j,$ovf	; handle upmost overflow bit
-	and	$ap,$tp,$ovf
-	andc	$np,$rp,$ovf
-	or	$ap,$ap,$np	; ap=borrow?tp:rp
 
 .align	4
-Lcopy:				; copy or in-place refresh
-	$LDX	$tj,$ap,$j
-	$STX	$tj,$rp,$j
+Lcopy:				; conditional copy
+	$LDX	$tj,$tp,$j
+	$LDX	$aj,$rp,$j
+	and	$tj,$tj,$ovf
+	andc	$aj,$aj,$ovf
 	$STX	$j,$tp,$j	; zap at once
+	or	$aj,$aj,$tj
+	$STX	$aj,$rp,$j
 	addi	$j,$j,$BNSZ
 	bdnz	Lcopy
 

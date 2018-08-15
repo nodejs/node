@@ -295,7 +295,7 @@ int MAIN(int argc, char **argv)
             ASN1_TYPE *atmp;
             int typ;
             j = atoi(sk_OPENSSL_STRING_value(osk, i));
-            if (j == 0) {
+            if (j <= 0 || j >= tmplen) {
                 BIO_printf(bio_err, "'%s' is an invalid number\n",
                            sk_OPENSSL_STRING_value(osk, i));
                 continue;
@@ -327,14 +327,14 @@ int MAIN(int argc, char **argv)
         num = tmplen;
     }
 
-    if (offset >= num) {
-        BIO_printf(bio_err, "Error: offset too large\n");
+    if (offset < 0 || offset >= num) {
+        BIO_printf(bio_err, "Error: offset out of range\n");
         goto end;
     }
 
     num -= offset;
 
-    if ((length == 0) || ((long)length > num))
+    if (length == 0 || length > (unsigned int)num)
         length = (unsigned int)num;
     if (derout) {
         if (BIO_write(derout, str + offset, length) != (int)length) {

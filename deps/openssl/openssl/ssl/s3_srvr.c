@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2007 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1959,11 +1959,12 @@ int ssl3_send_server_key_exchange(SSL *s)
 
 #ifndef OPENSSL_NO_PSK
         if (type & SSL_kPSK) {
+            size_t len = strlen(s->ctx->psk_identity_hint);
+
             /* copy PSK identity hint */
-            s2n(strlen(s->ctx->psk_identity_hint), p);
-            strncpy((char *)p, s->ctx->psk_identity_hint,
-                    strlen(s->ctx->psk_identity_hint));
-            p += strlen(s->ctx->psk_identity_hint);
+            s2n(len, p);
+            memcpy(p, s->ctx->psk_identity_hint, len);
+            p += len;
         }
 #endif
 
@@ -2090,6 +2091,11 @@ int ssl3_send_certificate_request(SSL *s)
         if (SSL_USE_SIGALGS(s)) {
             const unsigned char *psigs;
             nl = tls12_get_psigalgs(s, 1, &psigs);
+            if (nl > SSL_MAX_2_BYTE_LEN) {
+                SSLerr(SSL_F_SSL3_SEND_CERTIFICATE_REQUEST,
+                       SSL_R_LENGTH_TOO_LONG);
+                goto err;
+            }
             s2n(nl, p);
             memcpy(p, psigs, nl);
             p += nl;
@@ -2106,6 +2112,11 @@ int ssl3_send_certificate_request(SSL *s)
             for (i = 0; i < sk_X509_NAME_num(sk); i++) {
                 name = sk_X509_NAME_value(sk, i);
                 j = i2d_X509_NAME(name, NULL);
+                if (j > SSL_MAX_2_BYTE_LEN) {
+                    SSLerr(SSL_F_SSL3_SEND_CERTIFICATE_REQUEST,
+                           SSL_R_LENGTH_TOO_LONG);
+                    goto err;
+                }
                 if (!BUF_MEM_grow_clean
                     (buf, SSL_HM_HEADER_LENGTH(s) + n + j + 2)) {
                     SSLerr(SSL_F_SSL3_SEND_CERTIFICATE_REQUEST,
@@ -2126,6 +2137,11 @@ int ssl3_send_certificate_request(SSL *s)
                     j += 2;
                     n += j;
                     nl += j;
+                }
+                if (nl > SSL_MAX_2_BYTE_LEN) {
+                    SSLerr(SSL_F_SSL3_SEND_CERTIFICATE_REQUEST,
+                           SSL_R_LENGTH_TOO_LONG);
+                    goto err;
                 }
             }
         }

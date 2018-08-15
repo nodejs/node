@@ -342,7 +342,7 @@ for it twice) if B<rwflag> is 1. The B<u> parameter has the same
 value as the B<u> parameter passed to the PEM routine. It allows
 arbitrary data to be passed to the callback by the application
 (for example a window handle in a GUI application). The callback
-B<must> return the number of characters in the passphrase or 0 if
+B<must> return the number of characters in the passphrase or -1 if
 an error occurred.
 
 =head1 EXAMPLES
@@ -354,84 +354,77 @@ Read a certificate in PEM format from a BIO:
 
  X509 *x;
  x = PEM_read_bio_X509(bp, NULL, 0, NULL);
- if (x == NULL)
-	{
-	/* Error */
-	}
+ if (x == NULL)	{
+     /* Error */
+ }
 
 Alternative method:
 
  X509 *x = NULL;
- if (!PEM_read_bio_X509(bp, &x, 0, NULL))
-	{
-	/* Error */
-	}
+ if (!PEM_read_bio_X509(bp, &x, 0, NULL)) {
+     /* Error */
+ }
 
 Write a certificate to a BIO:
 
- if (!PEM_write_bio_X509(bp, x))
-	{
-	/* Error */
-	}
+ if (!PEM_write_bio_X509(bp, x)) {
+     /* Error */
+ }
 
 Write an unencrypted private key to a FILE pointer:
 
- if (!PEM_write_PrivateKey(fp, key, NULL, NULL, 0, 0, NULL))
-	{
-	/* Error */
-	}
+ if (!PEM_write_PrivateKey(fp, key, NULL, NULL, 0, 0, NULL)) {
+     /* Error */
+ }
 
 Write a private key (using traditional format) to a BIO using
 triple DES encryption, the pass phrase is prompted for:
 
- if (!PEM_write_bio_PrivateKey(bp, key, EVP_des_ede3_cbc(), NULL, 0, 0, NULL))
-	{
-	/* Error */
-	}
+ if (!PEM_write_bio_PrivateKey(bp, key, EVP_des_ede3_cbc(), NULL, 0, 0, NULL)) {
+     /* Error */
+ }
 
 Write a private key (using PKCS#8 format) to a BIO using triple
 DES encryption, using the pass phrase "hello":
 
- if (!PEM_write_bio_PKCS8PrivateKey(bp, key, EVP_des_ede3_cbc(), NULL, 0, 0, "hello"))
-	{
-	/* Error */
-	}
+ if (!PEM_write_bio_PKCS8PrivateKey(bp, key, EVP_des_ede3_cbc(), NULL, 0, 0, "hello")) {
+     /* Error */
+ }
 
 Read a private key from a BIO using the pass phrase "hello":
 
  key = PEM_read_bio_PrivateKey(bp, NULL, 0, "hello");
- if (key == NULL)
-	{
-	/* Error */
-	}
+ if (key == NULL) {
+     /* Error */
+ }
 
 Read a private key from a BIO using a pass phrase callback:
 
  key = PEM_read_bio_PrivateKey(bp, NULL, pass_cb, "My Private Key");
- if (key == NULL)
-	{
-	/* Error */
-	}
+ if (key == NULL) {
+     /* Error */
+ }
 
 Skeleton pass phrase callback:
 
- int pass_cb(char *buf, int size, int rwflag, void *u);
-	{
-	int len;
-	char *tmp;
-	/* We'd probably do something else if 'rwflag' is 1 */
-	printf("Enter pass phrase for \"%s\"\n", u);
+ int pass_cb(char *buf, int size, int rwflag, void *u)
+ {
 
-	/* get pass phrase, length 'len' into 'tmp' */
-	tmp = "hello";
-	len = strlen(tmp);
+     /* We'd probably do something else if 'rwflag' is 1 */
+     printf("Enter pass phrase for \"%s\"\n", u);
 
-	if (len <= 0) return 0;
-	/* if too long, truncate */
-	if (len > size) len = size;
-	memcpy(buf, tmp, len);
-	return len;
-	}
+     /* get pass phrase, length 'len' into 'tmp' */
+     char *tmp = "hello";
+     if (tmp == NULL) /* An error occurred */
+         return -1;
+
+     size_t len = strlen(tmp);
+
+     if (len > size)
+         len = size;
+     memcpy(buf, tmp, len);
+     return len;
+ }
 
 =head1 NOTES
 

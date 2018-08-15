@@ -31,6 +31,10 @@ in newly allocated B<BIGNUM>s at *B<kinvp> and *B<rp>, after freeing
 the old ones unless *B<kinvp> and *B<rp> are NULL. These values may
 be passed to DSA_sign() in B<dsa-E<gt>kinv> and B<dsa-E<gt>r>.
 B<ctx> is a pre-allocated B<BN_CTX> or NULL.
+The precomputed values from DSA_sign_setup() B<MUST NOT be used> for
+more than one signature: using the same B<dsa-E<gt>kinv> and
+B<dsa-E<gt>r> pair twice under the same private key on different
+plaintexts will result in permanently exposing the DSA private key.
 
 DSA_verify() verifies that the signature B<sigbuf> of size B<siglen>
 matches a given message digest B<dgst> of size B<len>.

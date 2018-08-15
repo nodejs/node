@@ -141,8 +141,9 @@ pauses 1 second between each read and write call.
 
 =item B<-showcerts>
 
-display the whole server certificate chain: normally only the server
-certificate itself is displayed.
+Displays the server certificate list as sent by the server: it only consists of
+certificates the server has sent (in the order the server has sent them). It is
+B<not> a verified chain.
 
 =item B<-prexit>
 
@@ -354,7 +355,8 @@ a client certificate. Therefor merely including a client certificate
 on the command line is no guarantee that the certificate works.
 
 If there are problems verifying a server certificate then the
-B<-showcerts> option can be used to show the whole chain.
+B<-showcerts> option can be used to show all the certificates sent by the
+server.
 
 Since the SSLv23 client hello cannot include compression methods or extensions
 these will only be supported if its use is disabled, for example by using the

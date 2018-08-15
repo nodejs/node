@@ -3,7 +3,7 @@
 # project.
 #
 # ====================================================================
-# Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+# Copyright (c) 2008-2018 The OpenSSL Project.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -99,6 +99,13 @@ my $no_ec;
 my $no_ec2m;
 my $no_ecdh;
 my $ossl8 = `$ossl_path version -v` =~ /0\.9\.8/;
+
+system ("$ossl_path no-cms > $null_path");
+if ($? == 0)
+	{
+	print STDERR "CMS disabled.  skipping...\n";
+	exit 0;
+	}
 
 system ("$ossl_path no-ec > $null_path");
 if ($? == 0)

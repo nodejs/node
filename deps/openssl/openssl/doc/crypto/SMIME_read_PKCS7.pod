@@ -57,7 +57,7 @@ streaming single pass option should be available.
 =head1 RETURN VALUES
 
 SMIME_read_PKCS7() returns a valid B<PKCS7> structure or B<NULL>
-is an error occurred. The error can be obtained from ERR_get_error(3).
+if an error occurred. The error can be obtained from ERR_get_error(3).
 
 =head1 SEE ALSO
 

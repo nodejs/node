@@ -3,7 +3,7 @@
  * Originally written by Bodo Moeller for the OpenSSL project.
  */
 /* ====================================================================
- * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -319,12 +319,16 @@ int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
         BN_zero(&group->cofactor);
 
     /*
-     * We ignore the return value because some groups have an order with
+     * Some groups have an order with
      * factors of two, which makes the Montgomery setup fail.
      * |group->mont_data| will be NULL in this case.
      */
-    ec_precompute_mont_data(group);
+    if (BN_is_odd(&group->order)) {
+        return ec_precompute_mont_data(group);
+    }
 
+    BN_MONT_CTX_free(group->mont_data);
+    group->mont_data = NULL;
     return 1;
 }
 

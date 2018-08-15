@@ -20,8 +20,8 @@ digest B<dgst> using the private key B<dsa> and returns it in a
 newly allocated B<DSA_SIG> structure.
 
 L<DSA_sign_setup(3)|DSA_sign_setup(3)> may be used to precompute part
-of the signing operation in case signature generation is
-time-critical.
+of the signing operation for each signature in case signature generation
+is time-critical.
 
 DSA_do_verify() verifies that the signature B<sig> matches a given
 message digest B<dgst> of size B<len>.  B<dsa> is the signer's public
