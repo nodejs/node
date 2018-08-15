@@ -143,6 +143,10 @@ for (const showHidden of [true, false]) {
                      '  byteOffset: 1,\n' +
                      '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\n' +
                      '  y: 1337 }');
+  Object.defineProperty(dv, 'buffer', { value: true, enumerable: true });
+  assert.strictEqual(util.inspect(dv, showHidden),
+                     'DataView { byteLength: 2, byteOffset: 1, y: 1337, ' +
+                       'buffer: true }');
 }
 
 // Now do the same checks but from a different context.
@@ -856,8 +860,17 @@ if (typeof Symbol !== 'undefined') {
   const set = new Set(['foo']);
   set.bar = 42;
   assert.strictEqual(
-    util.inspect(set, true),
+    util.inspect(set, { showHidden: true }),
     "Set { 'foo', [size]: 1, bar: 42 }"
+  );
+  Object.defineProperty(set, 'size', { value: null, enumerable: true });
+  assert.strictEqual(
+    util.inspect(set),
+    "Set { 'foo', bar: 42, size: null }"
+  );
+  assert.strictEqual(
+    util.inspect(set, { showHidden: true }),
+    "Set { 'foo', bar: 42, size: null }"
   );
 }
 
