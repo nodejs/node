@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2007 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -4228,8 +4228,13 @@ int ssl3_get_req_cert_type(SSL *s, unsigned char *p)
 #ifndef OPENSSL_NO_ECDSA
     int have_ecdsa_sign = 0;
 #endif
+#if !defined(OPENSSL_NO_DH) || !defined(OPENSSL_NO_ECDH)
     int nostrict = 1;
+#endif
+#if !defined(OPENSSL_NO_GOST) || !defined(OPENSSL_NO_DH) || \
+    !defined(OPENSSL_NO_ECDH)
     unsigned long alg_k;
+#endif
 
     /* If we have custom certificate types set, use them */
     if (s->cert->ctypes) {
@@ -4238,8 +4243,10 @@ int ssl3_get_req_cert_type(SSL *s, unsigned char *p)
     }
     /* get configured sigalgs */
     siglen = tls12_get_psigalgs(s, 1, &sig);
+#if !defined(OPENSSL_NO_DH) || !defined(OPENSSL_NO_ECDH)
     if (s->cert->cert_flags & SSL_CERT_FLAGS_CHECK_TLS_STRICT)
         nostrict = 0;
+#endif
     for (i = 0; i < siglen; i += 2, sig += 2) {
         switch (sig[1]) {
         case TLSEXT_signature_rsa:
@@ -4257,7 +4264,10 @@ int ssl3_get_req_cert_type(SSL *s, unsigned char *p)
         }
     }
 
+#if !defined(OPENSSL_NO_GOST) || !defined(OPENSSL_NO_DH) || \
+    !defined(OPENSSL_NO_ECDH)
     alg_k = s->s3->tmp.new_cipher->algorithm_mkey;
+#endif
 
 #ifndef OPENSSL_NO_GOST
     if (s->version >= TLS1_VERSION) {

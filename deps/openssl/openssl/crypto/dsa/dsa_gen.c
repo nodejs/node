@@ -146,9 +146,16 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
         /* invalid q size */
         return 0;
 
-    if (evpmd == NULL)
-        /* use SHA1 as default */
-        evpmd = EVP_sha1();
+    if (evpmd == NULL) {
+        if (qsize == SHA_DIGEST_LENGTH)
+            evpmd = EVP_sha1();
+        else if (qsize == SHA224_DIGEST_LENGTH)
+            evpmd = EVP_sha224();
+        else
+            evpmd = EVP_sha256();
+    } else {
+        qsize = EVP_MD_size(evpmd);
+    }
 
     if (bits < 512)
         bits = 512;

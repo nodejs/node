@@ -335,6 +335,9 @@ When encrypting a message this option may be used multiple times to specify
 each recipient. This form B<must> be used if customised parameters are
 required (for example to specify RSA-OAEP).
 
+Only certificates carrying RSA, Diffie-Hellman or EC keys are supported by this
+option.
+
 =item B<-keyid>
 
 use subject key identifier to identify certificates instead of issuer name and
@@ -648,17 +651,14 @@ No revocation checking is done on the signer's certificate.
 =head1 HISTORY
 
 The use of multiple B<-signer> options and the B<-resign> command were first
-added in OpenSSL 1.0.0
+added in OpenSSL 1.0.0.
 
-The B<keyopt> option was first added in OpenSSL 1.1.0
+The B<keyopt> option was first added in OpenSSL 1.0.2.
 
-The use of B<-recip> to specify the recipient when encrypting mail was first
-added to OpenSSL 1.1.0
-
-Support for RSA-OAEP and RSA-PSS was first added to OpenSSL 1.1.0. 
+Support for RSA-OAEP and RSA-PSS was first added to OpenSSL 1.0.2.
 
 The use of non-RSA keys with B<-encrypt> and B<-decrypt> was first added
-to OpenSSL 1.1.0.
+to OpenSSL 1.0.2.
 
 The -no_alt_chains options was first added to OpenSSL 1.0.2b.
 

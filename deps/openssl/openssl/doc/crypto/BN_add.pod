@@ -91,7 +91,9 @@ BN_exp() raises I<a> to the I<p>-th power and places the result in I<r>
 BN_mul().
 
 BN_mod_exp() computes I<a> to the I<p>-th power modulo I<m> (C<r=a^p %
-m>). This function uses less time and space than BN_exp().
+m>). This function uses less time and space than BN_exp(). Do not call this
+function when B<m> is even and any of the parameters have the
+B<BN_FLG_CONSTTIME> flag set.
 
 BN_gcd() computes the greatest common divisor of I<a> and I<b> and
 places the result in I<r>. I<r> may be the same B<BIGNUM> as I<a> or

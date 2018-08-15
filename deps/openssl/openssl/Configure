@@ -1173,6 +1173,7 @@ foreach (sort (keys %disabled))
 				$depflags .= " -DOPENSSL_NO_$ALGO";
 				}
 			}
+                        if (/^comp$/)	{ $zlib = 0; }
 		}
 
 	print "\n";
@@ -1671,6 +1672,13 @@ while (<PIPE>) {
 }
 close(PIPE);
 
+# Xcode did not handle $cc -M before clang support
+my $cc_as_makedepend = 0;
+if ($predefined{__GNUC__} >= 3 && !(defined($predefined{__APPLE_CC__})
+                                    && !defined($predefined{__clang__}))) {
+  $cc_as_makedepend = 1;
+}
+
 if ($strict_warnings)
 	{
 	my $wopt;
@@ -1730,14 +1738,14 @@ while (<IN>)
 		s/^NM=\s*/NM= \$\(CROSS_COMPILE\)/;
 		s/^RANLIB=\s*/RANLIB= \$\(CROSS_COMPILE\)/;
 		s/^RC=\s*/RC= \$\(CROSS_COMPILE\)/;
-		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= \$\(CROSS_COMPILE\)$cc/ if $predefined{__GNUC__} >= 3;
+		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= \$\(CROSS_COMPILE\)$cc/ if $cc_as_makedepend;
 		}
 	else	{
 		s/^CC=.*$/CC= $cc/;
 		s/^AR=\s*ar/AR= $ar/;
 		s/^RANLIB=.*/RANLIB= $ranlib/;
 		s/^RC=.*/RC= $windres/;
-		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= $cc/ if $predefined{__GNUC__} >= 3;
+		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= $cc/ if $cc_as_makedepend;
 		}
 	s/^CFLAG=.*$/CFLAG= $cflags/;
 	s/^DEPFLAG=.*$/DEPFLAG=$depflags/;

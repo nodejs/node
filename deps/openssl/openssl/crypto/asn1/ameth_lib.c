@@ -3,7 +3,7 @@
  * 2006.
  */
 /* ====================================================================
- * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2006-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -304,6 +304,18 @@ EVP_PKEY_ASN1_METHOD *EVP_PKEY_asn1_new(int id, int flags,
             goto err;
     } else
         ameth->info = NULL;
+
+    /*
+     * One of the following must be true:
+     *
+     * pem_str == NULL AND ASN1_PKEY_ALIAS is set
+     * pem_str != NULL AND ASN1_PKEY_ALIAS is clear
+     *
+     * Anything else is an error and may lead to a corrupt ASN1 method table
+     */
+    if (!((pem_str == NULL && (flags & ASN1_PKEY_ALIAS) != 0)
+          || (pem_str != NULL && (flags & ASN1_PKEY_ALIAS) == 0)))
+        goto err;
 
     if (pem_str) {
         ameth->pem_str = BUF_strdup(pem_str);

@@ -1,6 +1,6 @@
 /* crypto/dsa/dsa_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2013 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -95,6 +95,7 @@ static ERR_STRING_DATA DSA_str_functs[] = {
     {ERR_FUNC(DSA_F_I2D_DSA_SIG), "i2d_DSA_SIG"},
     {ERR_FUNC(DSA_F_OLD_DSA_PRIV_DECODE), "OLD_DSA_PRIV_DECODE"},
     {ERR_FUNC(DSA_F_PKEY_DSA_CTRL), "PKEY_DSA_CTRL"},
+    {ERR_FUNC(DSA_F_PKEY_DSA_CTRL_STR), "PKEY_DSA_CTRL_STR"},
     {ERR_FUNC(DSA_F_PKEY_DSA_KEYGEN), "PKEY_DSA_KEYGEN"},
     {ERR_FUNC(DSA_F_SIG_CB), "SIG_CB"},
     {0, NULL}

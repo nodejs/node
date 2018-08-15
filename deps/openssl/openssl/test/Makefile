@@ -74,7 +74,7 @@ BADDTLSTEST=	bad_dtls_test
 SSLV2CONFTEST = 	sslv2conftest
 DTLSTEST =	dtlstest
 FATALERRTEST =	fatalerrtest
-
+X509TIMETEST = x509_time_test
 TESTS=		alltests
 
 EXE=	$(BNTEST)$(EXE_EXT) $(ECTEST)$(EXE_EXT)  $(ECDSATEST)$(EXE_EXT) $(ECDHTEST)$(EXE_EXT) $(IDEATEST)$(EXE_EXT) \
@@ -88,7 +88,7 @@ EXE=	$(BNTEST)$(EXE_EXT) $(ECTEST)$(EXE_EXT)  $(ECDSATEST)$(EXE_EXT) $(ECDHTEST)
 	$(ASN1TEST)$(EXE_EXT) $(V3NAMETEST)$(EXE_EXT) $(HEARTBEATTEST)$(EXE_EXT) \
 	$(CONSTTIMETEST)$(EXE_EXT) $(VERIFYEXTRATEST)$(EXE_EXT) \
 	$(CLIENTHELLOTEST)$(EXE_EXT) $(SSLV2CONFTEST)$(EXE_EXT) $(DTLSTEST)$(EXE_EXT) \
-	$(BADDTLSTEST)$(EXE_EXT) $(FATALERRTEST)$(EXE_EXT)
+	$(BADDTLSTEST)$(EXE_EXT) $(FATALERRTEST)$(EXE_EXT) $(X509TIMETEST)$(EXE_EXT)
 
 # $(METHTEST)$(EXE_EXT)
 
@@ -103,7 +103,7 @@ OBJ=	$(BNTEST).o $(ECTEST).o  $(ECDSATEST).o $(ECDHTEST).o $(IDEATEST).o \
 	$(EVPTEST).o $(EVPEXTRATEST).o $(IGETEST).o $(JPAKETEST).o $(ASN1TEST).o $(V3NAMETEST).o \
 	$(HEARTBEATTEST).o $(CONSTTIMETEST).o $(VERIFYEXTRATEST).o \
 	$(CLIENTHELLOTEST).o  $(SSLV2CONFTEST).o $(DTLSTEST).o ssltestlib.o \
-	$(BADDTLSTEST).o $(FATALERRTEST).o
+	$(BADDTLSTEST).o $(FATALERRTEST).o $(X509TIMETEST).o
 
 SRC=	$(BNTEST).c $(ECTEST).c  $(ECDSATEST).c $(ECDHTEST).c $(IDEATEST).c \
 	$(MD2TEST).c  $(MD4TEST).c $(MD5TEST).c \
@@ -115,7 +115,7 @@ SRC=	$(BNTEST).c $(ECTEST).c  $(ECDSATEST).c $(ECDHTEST).c $(IDEATEST).c \
 	$(EVPTEST).c $(EVPEXTRATEST).c $(IGETEST).c $(JPAKETEST).c $(SRPTEST).c $(ASN1TEST).c \
 	$(V3NAMETEST).c $(HEARTBEATTEST).c $(CONSTTIMETEST).c $(VERIFYEXTRATEST).c \
 	$(CLIENTHELLOTEST).c  $(SSLV2CONFTEST).c $(DTLSTEST).c ssltestlib.c \
-	$(BADDTLSTEST).c $(FATALERRTEST).c
+	$(BADDTLSTEST).c $(FATALERRTEST).c $(X509TIMETEST).c
 
 EXHEADER= 
 HEADER=	testutil.h ssltestlib.h $(EXHEADER)
@@ -160,7 +160,7 @@ alltests: \
 	test_ss test_ca test_engine test_evp test_evp_extra test_ssl test_tsa test_ige \
 	test_jpake test_srp test_cms test_ocsp test_v3name test_heartbeat \
 	test_constant_time test_verify_extra test_clienthello test_sslv2conftest \
-	test_dtls test_bad_dtls test_fatalerr
+	test_dtls test_bad_dtls test_fatalerr test_x509_time
 
 test_evp: $(EVPTEST)$(EXE_EXT) evptests.txt
 	../util/shlib_wrap.sh ./$(EVPTEST) evptests.txt
@@ -378,6 +378,10 @@ test_fatalerr: $(FATALERRTEST)$(EXE_EXT)
 	@echo $(START) $@
 	../util/shlib_wrap.sh ./$(FATALERRTEST) ../apps/server.pem ../apps/server.pem
 
+test_x509_time: $(X509TIMETEST)$(EXE_EXT)
+	@echo $(START) $@
+	../util/shlib_wrap.sh ./$(X509TIMETEST)
+
 test_sslv2conftest: $(SSLV2CONFTEST)$(EXE_EXT)
 	@echo $(START) $@
 	../util/shlib_wrap.sh ./$(SSLV2CONFTEST)
@@ -568,6 +572,9 @@ $(BADDTLSTEST)$(EXE_EXT): $(BADDTLSTEST).o
 
 $(FATALERRTEST)$(EXE_EXT): $(FATALERRTEST).o ssltestlib.o $(DLIBSSL) $(DLIBCRYPTO)
 	@target=$(FATALERRTEST); exobj=ssltestlib.o; $(BUILD_CMD)
+
+$(X509TIMETEST)$(EXE_EXT): $(X509TIMETEST).o
+	@target=$(X509TIMETEST) $(BUILD_CMD)
 
 $(SSLV2CONFTEST)$(EXE_EXT): $(SSLV2CONFTEST).o
 	@target=$(SSLV2CONFTEST) $(BUILD_CMD)
@@ -1012,3 +1019,15 @@ wp_test.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 wp_test.o: ../include/openssl/ossl_typ.h ../include/openssl/safestack.h
 wp_test.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
 wp_test.o: ../include/openssl/whrlpool.h wp_test.c
+x509_time_test.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
+x509_time_test.o: ../include/openssl/buffer.h ../include/openssl/crypto.h
+x509_time_test.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
+x509_time_test.o: ../include/openssl/ecdh.h ../include/openssl/ecdsa.h
+x509_time_test.o: ../include/openssl/evp.h ../include/openssl/lhash.h
+x509_time_test.o: ../include/openssl/obj_mac.h ../include/openssl/objects.h
+x509_time_test.o: ../include/openssl/opensslconf.h
+x509_time_test.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
+x509_time_test.o: ../include/openssl/pkcs7.h ../include/openssl/safestack.h
+x509_time_test.o: ../include/openssl/sha.h ../include/openssl/stack.h
+x509_time_test.o: ../include/openssl/symhacks.h ../include/openssl/x509.h
+x509_time_test.o: ../include/openssl/x509_vfy.h testutil.h x509_time_test.c

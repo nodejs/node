@@ -112,6 +112,8 @@ using the public key B<eckey>.
 
 =head1 RETURN VALUES
 
+ECDSA_SIG_new() returns NULL if the allocation fails.
+
 ECDSA_size() returns the maximum length signature or 0 on error.
 
 ECDSA_sign_setup() and ECDSA_sign() return 1 if successful or 0

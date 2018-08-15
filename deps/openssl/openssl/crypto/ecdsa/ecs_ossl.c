@@ -3,7 +3,7 @@
  * Written by Nils Larsch for the OpenSSL project
  */
 /* ====================================================================
- * Copyright (c) 1998-2004 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,6 +60,7 @@
 #include <openssl/err.h>
 #include <openssl/obj_mac.h>
 #include <openssl/bn.h>
+#include "bn_int.h"
 
 static ECDSA_SIG *ecdsa_do_sign(const unsigned char *dgst, int dlen,
                                 const BIGNUM *, const BIGNUM *,
@@ -251,13 +252,14 @@ static ECDSA_SIG *ecdsa_do_sign(const unsigned char *dgst, int dgst_len,
                                 EC_KEY *eckey)
 {
     int ok = 0, i;
-    BIGNUM *kinv = NULL, *s, *m = NULL, *tmp = NULL, *order = NULL;
+    BIGNUM *kinv = NULL, *s, *m = NULL, *order = NULL;
     const BIGNUM *ckinv;
     BN_CTX *ctx = NULL;
     const EC_GROUP *group;
     ECDSA_SIG *ret;
     ECDSA_DATA *ecdsa;
     const BIGNUM *priv_key;
+    BN_MONT_CTX *mont_data;
 
     ecdsa = ecdsa_check(eckey);
     group = EC_KEY_get0_group(eckey);
@@ -276,7 +278,7 @@ static ECDSA_SIG *ecdsa_do_sign(const unsigned char *dgst, int dgst_len,
     s = ret->s;
 
     if ((ctx = BN_CTX_new()) == NULL || (order = BN_new()) == NULL ||
-        (tmp = BN_new()) == NULL || (m = BN_new()) == NULL) {
+        (m = BN_new()) == NULL) {
         ECDSAerr(ECDSA_F_ECDSA_DO_SIGN, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -285,6 +287,8 @@ static ECDSA_SIG *ecdsa_do_sign(const unsigned char *dgst, int dgst_len,
         ECDSAerr(ECDSA_F_ECDSA_DO_SIGN, ERR_R_EC_LIB);
         goto err;
     }
+    mont_data = EC_GROUP_get_mont_data(group);
+
     i = BN_num_bits(order);
     /*
      * Need to truncate digest if it is too long: first truncate whole bytes.
@@ -315,15 +319,27 @@ static ECDSA_SIG *ecdsa_do_sign(const unsigned char *dgst, int dgst_len,
             }
         }
 
-        if (!BN_mod_mul(tmp, priv_key, ret->r, order, ctx)) {
+        /*
+         * With only one multiplicant being in Montgomery domain
+         * multiplication yields real result without post-conversion.
+         * Also note that all operations but last are performed with
+         * zero-padded vectors. Last operation, BN_mod_mul_montgomery
+         * below, returns user-visible value with removed zero padding.
+         */
+        if (!bn_to_mont_fixed_top(s, ret->r, mont_data, ctx)
+            || !bn_mul_mont_fixed_top(s, s, priv_key, mont_data, ctx)) {
+            goto err;
+        }
+        if (!bn_mod_add_fixed_top(s, s, m, order)) {
             ECDSAerr(ECDSA_F_ECDSA_DO_SIGN, ERR_R_BN_LIB);
             goto err;
         }
-        if (!BN_mod_add_quick(s, tmp, m, order)) {
-            ECDSAerr(ECDSA_F_ECDSA_DO_SIGN, ERR_R_BN_LIB);
-            goto err;
-        }
-        if (!BN_mod_mul(s, s, ckinv, order, ctx)) {
+        /*
+         * |s| can still be larger than modulus, because |m| can be. In
+         * such case we count on Montgomery reduction to tie it up.
+         */
+        if (!bn_to_mont_fixed_top(s, s, mont_data, ctx)
+            || !BN_mod_mul_montgomery(s, s, ckinv, mont_data, ctx)) {
             ECDSAerr(ECDSA_F_ECDSA_DO_SIGN, ERR_R_BN_LIB);
             goto err;
         }
@@ -353,8 +369,6 @@ static ECDSA_SIG *ecdsa_do_sign(const unsigned char *dgst, int dgst_len,
         BN_CTX_free(ctx);
     if (m)
         BN_clear_free(m);
-    if (tmp)
-        BN_clear_free(tmp);
     if (order)
         BN_free(order);
     if (kinv)

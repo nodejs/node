@@ -277,6 +277,7 @@ static int check(X509_STORE *ctx, char *file,
     X509_STORE_set_flags(ctx, vflags);
     if (!X509_STORE_CTX_init(csc, ctx, x, uchain)) {
         ERR_print_errors(bio_err);
+        X509_STORE_CTX_free(csc);
         goto end;
     }
     if (tchain)

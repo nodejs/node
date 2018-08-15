@@ -90,7 +90,17 @@ If B<do_trial_division == 0>, this test is skipped.
 Both BN_is_prime_ex() and BN_is_prime_fasttest_ex() perform a Miller-Rabin
 probabilistic primality test with B<nchecks> iterations. If
 B<nchecks == BN_prime_checks>, a number of iterations is used that
-yields a false positive rate of at most 2^-80 for random input.
+yields a false positive rate of at most 2^-64 for random input.
+The error rate depends on the size of the prime and goes down for bigger primes.
+The rate is 2^-80 starting at 308 bits, 2^-112 at 852 bits, 2^-128 at 1080 bits,
+2^-192 at 3747 bits and 2^-256 at 6394 bits.
+
+When the source of the prime is not random or not trusted, the number
+of checks needs to be much higher to reach the same level of assurance:
+It should equal half of the targeted security level in bits (rounded up to the
+next integer if necessary).
+For instance, to reach the 128 bit security level, B<nchecks> should be set to
+64.
 
 If B<cb> is not B<NULL>, B<BN_GENCB_call(cb, 1, j)> is called
 after the j-th iteration (j = 0, 1, ...). B<ctx> is a

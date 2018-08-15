@@ -878,19 +878,17 @@ $code.=<<___;
 	sub	$tp,	$num,	$tp
 	sub	$rp,	$num,	$rp
 
-	subc	$ovf,	%g0,	$ovf	! handle upmost overflow bit
-	and	$tp,	$ovf,	$ap
-	andn	$rp,	$ovf,	$np
-	or	$np,	$ap,	$ap	! ap=borrow?tp:rp
+	subccc	$ovf,	%g0,	$ovf	! handle upmost overflow bit
 	ba	.Lcopy
 	sub	$num,	8,	$cnt
 
 .align	16
-.Lcopy:					! copy or in-place refresh
-	ldx	[$ap+0],	$t2
-	add	$ap,	8,	$ap
+.Lcopy:					! conditional copy
+	ldx	[$tp],		$tj
+	ldx	[$rp+0],	$t2
 	stx	%g0,	[$tp]		! zap
 	add	$tp,	8,	$tp
+	movcs	%icc,	$tj,	$t2
 	stx	$t2,	[$rp+0]
 	add	$rp,	8,	$rp
 	brnz	$cnt,	.Lcopy
@@ -1126,19 +1124,17 @@ $code.=<<___;
 	sub	$tp,	$num,	$tp
 	sub	$rp,	$num,	$rp
 
-	subc	$ovf,	%g0,	$ovf	! handle upmost overflow bit
-	and	$tp,	$ovf,	$ap
-	andn	$rp,	$ovf,	$np
-	or	$np,	$ap,	$ap	! ap=borrow?tp:rp
+	subccc	$ovf,	%g0,	$ovf	! handle upmost overflow bit
 	ba	.Lcopy_g5
 	sub	$num,	8,	$cnt
 
 .align	16
-.Lcopy_g5:				! copy or in-place refresh
-	ldx	[$ap+0],	$t2
-	add	$ap,	8,	$ap
+.Lcopy_g5:				! conditional copy
+	ldx	[$tp],		$tj
+	ldx	[$rp+0],	$t2
 	stx	%g0,	[$tp]		! zap
 	add	$tp,	8,	$tp
+	movcs	%icc,	$tj,	$t2
 	stx	$t2,	[$rp+0]
 	add	$rp,	8,	$rp
 	brnz	$cnt,	.Lcopy_g5

@@ -290,6 +290,8 @@ CONF_VALUE *_CONF_new_section(CONF *conf, const char *section)
 
     vv = lh_CONF_VALUE_insert(conf->data, v);
     OPENSSL_assert(vv == NULL);
+    if (lh_CONF_VALUE_error(conf->data) > 0)
+        goto err;
     ok = 1;
  err:
     if (!ok) {

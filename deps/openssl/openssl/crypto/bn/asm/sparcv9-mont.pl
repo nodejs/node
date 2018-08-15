@@ -255,7 +255,6 @@ $fname:
 .Ltail:
 	add	$np,$num,$np
 	add	$rp,$num,$rp
-	mov	$tp,$ap
 	sub	%g0,$num,%o7		! k=-num
 	ba	.Lsub
 	subcc	%g0,%g0,%g0		! clear %icc.c
@@ -268,15 +267,14 @@ $fname:
 	add	%o7,4,%o7
 	brnz	%o7,.Lsub
 	st	%o1,[$i]
-	subc	$car2,0,$car2		! handle upmost overflow bit
-	and	$tp,$car2,$ap
-	andn	$rp,$car2,$np
-	or	$ap,$np,$ap
+	subccc	$car2,0,$car2		! handle upmost overflow bit
 	sub	%g0,$num,%o7
 
 .Lcopy:
-	ld	[$ap+%o7],%o0		! copy or in-place refresh
+	ld	[$tp+%o7],%o1		! conditional copy
+	ld	[$rp+%o7],%o0
 	st	%g0,[$tp+%o7]		! zap tp
+	movcs	%icc,%o1,%o0
 	st	%o0,[$rp+%o7]
 	add	%o7,4,%o7
 	brnz	%o7,.Lcopy
@@ -485,6 +483,9 @@ $code.=<<___;
 	mulx	$npj,$mul1,$acc1
 	add	$tpj,$car1,$car1
 	ld	[$np+$j],$npj			! np[j]
+	srlx	$car1,32,$tmp0
+	and	$car1,$mask,$car1
+	add	$tmp0,$sbit,$sbit
 	add	$acc0,$car1,$car1
 	ld	[$tp+8],$tpj			! tp[j]
 	add	$acc1,$car1,$car1

@@ -299,23 +299,23 @@ $code.=<<___;
 	sub	$anp,	$num,	$anp
 	sub	$rp,	$num,	$rp
 
-	subc	$ovf,	%g0,	$ovf	! handle upmost overflow bit
-	and	$tp,	$ovf,	$ap
-	andn	$rp,	$ovf,	$np
-	or	$np,	$ap,	$ap	! ap=borrow?tp:rp
+	subccc	$ovf,	%g0,	$ovf	! handle upmost overflow bit
 	ba	.Lcopy
 	sub	$num,	8,	$cnt
 
 .align	16
-.Lcopy:					! copy or in-place refresh
-	ld	[$ap+0],	$t2
-	ld	[$ap+4],	$t3
-	add	$ap,	8,	$ap
+.Lcopy:					! conditional copy
+	ld	[$tp+0],	$t0
+	ld	[$tp+4],	$t1
+	ld	[$rp+0],	$t2
+	ld	[$rp+4],	$t3
 	stx	%g0,	[$tp]		! zap
 	add	$tp,	8,	$tp
 	stx	%g0,	[$anp]		! zap
 	stx	%g0,	[$anp+8]
 	add	$anp,	16,	$anp
+	movcs	%icc,	$t0,	$t2
+	movcs	%icc,	$t1,	$t3
 	st	$t3,	[$rp+0]		! flip order
 	st	$t2,	[$rp+4]
 	add	$rp,	8,	$rp

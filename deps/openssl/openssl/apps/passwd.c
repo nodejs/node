@@ -306,9 +306,9 @@ static char *md5crypt(const char *passwd, const char *magic, const char *salt)
     out_buf[0] = '$';
     out_buf[1] = 0;
     assert(strlen(magic) <= 4); /* "1" or "apr1" */
-    strncat(out_buf, magic, 4);
-    strncat(out_buf, "$", 1);
-    strncat(out_buf, salt, 8);
+    BUF_strlcat(out_buf, magic, sizeof(out_buf));
+    BUF_strlcat(out_buf, "$", sizeof(out_buf));
+    BUF_strlcat(out_buf, salt, sizeof(out_buf));
     assert(strlen(out_buf) <= 6 + 8); /* "$apr1$..salt.." */
     salt_out = out_buf + 2 + strlen(magic);
     salt_len = strlen(salt_out);

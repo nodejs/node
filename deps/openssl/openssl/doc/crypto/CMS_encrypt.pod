@@ -18,9 +18,8 @@ B<cipher> is the symmetric cipher to use. B<flags> is an optional set of flags.
 
 =head1 NOTES
 
-Only certificates carrying RSA keys are supported so the recipient certificates
-supplied to this function must all contain RSA public keys, though they do not
-have to be signed using the RSA algorithm.
+Only certificates carrying RSA, Diffie-Hellman or EC keys are supported by this
+function.
 
 EVP_des_ede3_cbc() (triple DES) is the algorithm of choice for S/MIME use
 because most clients will support it.
