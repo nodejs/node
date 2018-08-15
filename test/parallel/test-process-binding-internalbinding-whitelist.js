@@ -12,3 +12,4 @@ assert(process.binding('v8'));
 assert(process.binding('stream_wrap'));
 assert(process.binding('signal_wrap'));
 assert(process.binding('contextify'));
+assert(process.binding('url'));
