@@ -7,8 +7,12 @@ prefix async-hooks
 [true] # This section applies to all platforms
 
 [$system==win32]
+# https://github.com/nodejs/node/issues/21425
+test-statwatcher: PASS,FLAKY
 
 [$system==linux]
+# https://github.com/nodejs/node/issues/21425
+test-statwatcher: PASS,FLAKY
 
 [$system==macos]
 
