@@ -196,13 +196,11 @@ class TLSWrap : public AsyncWrap,
   static void SetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsSessionReused(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsInitFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetCurrentCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EndParser(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Renegotiate(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetTLSTicket(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void NewSessionDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetOCSPResponse(const v8::FunctionCallbackInfo<v8::Value>& args);
