@@ -245,16 +245,16 @@ $code.=<<___;
 	brct	$count,.Lsub
 	lghi	$ahi,0
 	slbgr	$AHI,$ahi	# handle upmost carry
-
-	ngr	$ap,$AHI
-	lghi	$np,-1
-	xgr	$np,$AHI
-	ngr	$np,$rp
-	ogr	$ap,$np		# ap=borrow?tp:rp
+	lghi	$NHI,-1
+	xgr	$NHI,$AHI
 
 	la	$j,0(%r0)
 	lgr	$count,$num
-.Lcopy:	lg	$alo,0($j,$ap)		# copy or in-place refresh
+.Lcopy:	lg	$ahi,$stdframe($j,$sp)	# conditional copy
+	lg	$alo,0($j,$rp)
+	ngr	$ahi,$AHI
+	ngr	$alo,$NHI
+	ogr	$alo,$ahi
 	_dswap	$alo
 	stg	$j,$stdframe($j,$sp)	# zap tp
 	stg	$alo,0($j,$rp)

@@ -5,6 +5,11 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.2o and OpenSSL 1.0.2p [14 Aug 2018]
+
+      o Client DoS due to large DH parameter (CVE-2018-0732)
+      o Cache timing vulnerability in RSA Key Generation (CVE-2018-0737)
+
   Major changes between OpenSSL 1.0.2n and OpenSSL 1.0.2o [27 Mar 2018]
 
       o Constructed ASN.1 types with a recursive definition could exceed the

@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2000 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -113,6 +113,7 @@
 # define HEADER_BN_LCL_H
 
 # include <openssl/bn.h>
+# include "bn_int.h"
 
 #ifdef  __cplusplus
 extern "C" {

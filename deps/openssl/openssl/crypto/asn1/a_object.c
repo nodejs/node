@@ -66,7 +66,7 @@
 
 int i2d_ASN1_OBJECT(ASN1_OBJECT *a, unsigned char **pp)
 {
-    unsigned char *p;
+    unsigned char *p, *allocated = NULL;
     int objsize;
 
     if ((a == NULL) || (a->data == NULL))
@@ -76,13 +76,24 @@ int i2d_ASN1_OBJECT(ASN1_OBJECT *a, unsigned char **pp)
     if (pp == NULL || objsize == -1)
         return objsize;
 
-    p = *pp;
+    if (*pp == NULL) {
+        if ((p = allocated = OPENSSL_malloc(objsize)) == NULL) {
+            ASN1err(ASN1_F_I2D_ASN1_OBJECT, ERR_R_MALLOC_FAILURE);
+            return 0;
+        }
+    } else {
+        p = *pp;
+    }
+
     ASN1_put_object(&p, 0, a->length, V_ASN1_OBJECT, V_ASN1_UNIVERSAL);
     memcpy(p, a->data, a->length);
-    p += a->length;
 
-    *pp = p;
-    return (objsize);
+    /*
+     * If a new buffer was allocated, just return it back.
+     * If not, return the incremented buffer pointer.
+     */
+    *pp = allocated != NULL ? allocated : p + a->length;
+    return objsize;
 }
 
 int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)

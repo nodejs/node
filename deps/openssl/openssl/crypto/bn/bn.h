@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -375,25 +375,76 @@ int BN_GENCB_call(BN_GENCB *cb, int a, int b);
                                  * on the size of the number */
 
 /*
- * number of Miller-Rabin iterations for an error rate of less than 2^-80 for
- * random 'b'-bit input, b >= 100 (taken from table 4.4 in the Handbook of
- * Applied Cryptography [Menezes, van Oorschot, Vanstone; CRC Press 1996];
- * original paper: Damgaard, Landrock, Pomerance: Average case error
- * estimates for the strong probable prime test. -- Math. Comp. 61 (1993)
- * 177-194)
+ * BN_prime_checks_for_size() returns the number of Miller-Rabin iterations
+ * that will be done for checking that a random number is probably prime. The
+ * error rate for accepting a composite number as prime depends on the size of
+ * the prime |b|. The error rates used are for calculating an RSA key with 2 primes,
+ * and so the level is what you would expect for a key of double the size of the
+ * prime.
+ *
+ * This table is generated using the algorithm of FIPS PUB 186-4
+ * Digital Signature Standard (DSS), section F.1, page 117.
+ * (https://dx.doi.org/10.6028/NIST.FIPS.186-4)
+ *
+ * The following magma script was used to generate the output:
+ * securitybits:=125;
+ * k:=1024;
+ * for t:=1 to 65 do
+ *   for M:=3 to Floor(2*Sqrt(k-1)-1) do
+ *     S:=0;
+ *     // Sum over m
+ *     for m:=3 to M do
+ *       s:=0;
+ *       // Sum over j
+ *       for j:=2 to m do
+ *         s+:=(RealField(32)!2)^-(j+(k-1)/j);
+ *       end for;
+ *       S+:=2^(m-(m-1)*t)*s;
+ *     end for;
+ *     A:=2^(k-2-M*t);
+ *     B:=8*(Pi(RealField(32))^2-6)/3*2^(k-2)*S;
+ *     pkt:=2.00743*Log(2)*k*2^-k*(A+B);
+ *     seclevel:=Floor(-Log(2,pkt));
+ *     if seclevel ge securitybits then
+ *       printf "k: %5o, security: %o bits  (t: %o, M: %o)\n",k,seclevel,t,M;
+ *       break;
+ *     end if;
+ *   end for;
+ *   if seclevel ge securitybits then break; end if;
+ * end for;
+ *
+ * It can be run online at:
+ * http://magma.maths.usyd.edu.au/calc
+ *
+ * And will output:
+ * k:  1024, security: 129 bits  (t: 6, M: 23)
+ *
+ * k is the number of bits of the prime, securitybits is the level we want to
+ * reach.
+ *
+ * prime length | RSA key size | # MR tests | security level
+ * -------------+--------------|------------+---------------
+ *  (b) >= 6394 |     >= 12788 |          3 |        256 bit
+ *  (b) >= 3747 |     >=  7494 |          3 |        192 bit
+ *  (b) >= 1345 |     >=  2690 |          4 |        128 bit
+ *  (b) >= 1080 |     >=  2160 |          5 |        128 bit
+ *  (b) >=  852 |     >=  1704 |          5 |        112 bit
+ *  (b) >=  476 |     >=   952 |          5 |         80 bit
+ *  (b) >=  400 |     >=   800 |          6 |         80 bit
+ *  (b) >=  347 |     >=   694 |          7 |         80 bit
+ *  (b) >=  308 |     >=   616 |          8 |         80 bit
+ *  (b) >=   55 |     >=   110 |         27 |         64 bit
+ *  (b) >=    6 |     >=    12 |         34 |         64 bit
  */
-# define BN_prime_checks_for_size(b) ((b) >= 1300 ?  2 : \
-                                (b) >=  850 ?  3 : \
-                                (b) >=  650 ?  4 : \
-                                (b) >=  550 ?  5 : \
-                                (b) >=  450 ?  6 : \
-                                (b) >=  400 ?  7 : \
-                                (b) >=  350 ?  8 : \
-                                (b) >=  300 ?  9 : \
-                                (b) >=  250 ? 12 : \
-                                (b) >=  200 ? 15 : \
-                                (b) >=  150 ? 18 : \
-                                /* b >= 100 */ 27)
+
+# define BN_prime_checks_for_size(b) ((b) >= 3747 ?  3 : \
+                                (b) >=  1345 ?  4 : \
+                                (b) >=  476 ?  5 : \
+                                (b) >=  400 ?  6 : \
+                                (b) >=  347 ?  7 : \
+                                (b) >=  308 ?  8 : \
+                                (b) >=  55  ? 27 : \
+                                /* b >= 6 */ 34)
 
 # define BN_num_bytes(a) ((BN_num_bits(a)+7)/8)
 
@@ -773,6 +824,16 @@ BIGNUM *bn_dup_expand(const BIGNUM *a, int words); /* unused */
 /* We only need assert() when debugging */
 #  include <assert.h>
 
+/*
+ * The new BN_FLG_FIXED_TOP flag marks vectors that were not treated with
+ * bn_correct_top, in other words such vectors are permitted to have zeros
+ * in most significant limbs. Such vectors are used internally to achieve
+ * execution time invariance for critical operations with private keys.
+ * It's BN_DEBUG-only flag, because user application is not supposed to
+ * observe it anyway. Moreover, optimizing compiler would actually remove
+ * all operations manipulating the bit in question in non-BN_DEBUG build.
+ */
+#  define BN_FLG_FIXED_TOP 0x10000
 #  ifdef BN_DEBUG_RAND
 /* To avoid "make update" cvs wars due to BN_DEBUG, use some tricks */
 #   ifndef RAND_pseudo_bytes
@@ -805,8 +866,10 @@ int RAND_pseudo_bytes(unsigned char *buf, int num);
         do { \
                 const BIGNUM *_bnum2 = (a); \
                 if (_bnum2 != NULL) { \
-                        assert((_bnum2->top == 0) || \
-                                (_bnum2->d[_bnum2->top - 1] != 0)); \
+                        int _top = _bnum2->top; \
+                        assert((_top == 0) || \
+                               (_bnum2->flags & BN_FLG_FIXED_TOP) || \
+                               (_bnum2->d[_top - 1] != 0)); \
                         bn_pollute(_bnum2); \
                 } \
         } while(0)
@@ -824,6 +887,7 @@ int RAND_pseudo_bytes(unsigned char *buf, int num);
 
 # else                          /* !BN_DEBUG */
 
+#  define BN_FLG_FIXED_TOP 0
 #  define bn_pollute(a)
 #  define bn_check_top(a)
 #  define bn_fix_top(a)           bn_correct_top(a)

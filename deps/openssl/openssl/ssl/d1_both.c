@@ -4,7 +4,7 @@
  * (nagendra@cs.stanford.edu) for the OpenSSL project 2005.
  */
 /* ====================================================================
- * Copyright (c) 1998-2005 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -656,7 +656,8 @@ static int dtls1_retrieve_buffered_fragment(SSL *s, long max, int *ok)
 
         al = dtls1_preprocess_fragment(s, &frag->msg_header, max);
 
-        if (al == 0) {          /* no alert */
+        /* al will be 0 if no alert */
+        if (al == 0  && frag->msg_header.frag_len > 0) {
             unsigned char *p =
                 (unsigned char *)s->init_buf->data + DTLS1_HM_HEADER_LENGTH;
             memcpy(&p[frag->msg_header.frag_off], frag->fragment,

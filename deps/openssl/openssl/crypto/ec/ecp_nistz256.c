@@ -1118,23 +1118,32 @@ static int ecp_nistz256_set_from_affine(EC_POINT *out, const EC_GROUP *group,
                                         const P256_POINT_AFFINE *in,
                                         BN_CTX *ctx)
 {
-    BIGNUM x, y;
-    BN_ULONG d_x[P256_LIMBS], d_y[P256_LIMBS];
+    BIGNUM x, y, z;
     int ret = 0;
 
-    memcpy(d_x, in->X, sizeof(d_x));
-    x.d = d_x;
+    /*
+     * |const| qualifier omission is compensated by BN_FLG_STATIC_DATA
+     * flag, which effectively means "read-only data".
+     */
+    x.d = (BN_ULONG *)in->X;
     x.dmax = x.top = P256_LIMBS;
     x.neg = 0;
     x.flags = BN_FLG_STATIC_DATA;
 
-    memcpy(d_y, in->Y, sizeof(d_y));
-    y.d = d_y;
+    y.d = (BN_ULONG *)in->Y;
     y.dmax = y.top = P256_LIMBS;
     y.neg = 0;
     y.flags = BN_FLG_STATIC_DATA;
 
-    ret = EC_POINT_set_affine_coordinates_GFp(group, out, &x, &y, ctx);
+    z.d = (BN_ULONG *)ONE;
+    z.dmax = z.top = P256_LIMBS;
+    z.neg = 0;
+    z.flags = BN_FLG_STATIC_DATA;
+
+    if ((ret = (BN_copy(&out->X, &x) != NULL))
+        && (ret = (BN_copy(&out->Y, &y) != NULL))
+        && (ret = (BN_copy(&out->Z, &z) != NULL)))
+        out->Z_is_one = 1;
 
     return ret;
 }

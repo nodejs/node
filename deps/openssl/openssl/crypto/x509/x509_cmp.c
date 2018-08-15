@@ -219,7 +219,7 @@ int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b)
 
     ret = a->canon_enclen - b->canon_enclen;
 
-    if (ret)
+    if (ret != 0 || a->canon_enclen == 0)
         return ret;
 
     return memcmp(a->canon_enc, b->canon_enc, a->canon_enclen);

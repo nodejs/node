@@ -48,7 +48,7 @@ CMS_verify().
 CMS_ReceiptRequest_create0() returns a signed receipt request structure or 
 NULL if an error occurred.
 
-CMS_add1_ReceiptRequest() returns 1 for success or 0 is an error occurred.
+CMS_add1_ReceiptRequest() returns 1 for success or 0 if an error occurred.
 
 CMS_get1_ReceiptRequest() returns 1 is a signed receipt request is found and
 decoded. It returns 0 if a signed receipt request is not present and -1 if

@@ -98,6 +98,27 @@ int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
     const unsigned char *p;
 
     p = from;
+
+    /*
+     * The format is
+     * 00 || 01 || PS || 00 || D
+     * PS - padding string, at least 8 bytes of FF
+     * D  - data.
+     */
+
+    if (num < 11)
+        return -1;
+
+    /* Accept inputs with and without the leading 0-byte. */
+    if (num == flen) {
+        if ((*p++) != 0x00) {
+            RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_1,
+                   RSA_R_INVALID_PADDING);
+            return -1;
+        }
+        flen--;
+    }
+
     if ((num != (flen + 1)) || (*(p++) != 01)) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_1,
                RSA_R_BLOCK_TYPE_IS_NOT_01);
@@ -203,28 +224,31 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
     if (num < 11)
         goto err;
 
-    em = OPENSSL_malloc(num);
-    if (em == NULL) {
-        RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2, ERR_R_MALLOC_FAILURE);
-        return -1;
+    if (flen != num) {
+        em = OPENSSL_malloc(num);
+        if (em == NULL) {
+            RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2, ERR_R_MALLOC_FAILURE);
+            return -1;
+        }
+        /*
+         * Caller is encouraged to pass zero-padded message created with
+         * BN_bn2binpad, but if it doesn't, we do this zero-padding copy
+         * to avoid leaking that information. The copy still leaks some
+         * side-channel information, but it's impossible to have a fixed
+         * memory access pattern since we can't read out of the bounds of
+         * |from|.
+         */
+        memset(em, 0, num);
+        memcpy(em + num - flen, from, flen);
+        from = em;
     }
-    memset(em, 0, num);
-    /*
-     * Always do this zero-padding copy (even when num == flen) to avoid
-     * leaking that information. The copy still leaks some side-channel
-     * information, but it's impossible to have a fixed  memory access
-     * pattern since we can't read out of the bounds of |from|.
-     *
-     * TODO(emilia): Consider porting BN_bn2bin_padded from BoringSSL.
-     */
-    memcpy(em + num - flen, from, flen);
 
-    good = constant_time_is_zero(em[0]);
-    good &= constant_time_eq(em[1], 2);
+    good = constant_time_is_zero(from[0]);
+    good &= constant_time_eq(from[1], 2);
 
     found_zero_byte = 0;
     for (i = 2; i < num; i++) {
-        unsigned int equals0 = constant_time_is_zero(em[i]);
+        unsigned int equals0 = constant_time_is_zero(from[i]);
         zero_index =
             constant_time_select_int(~found_zero_byte & equals0, i,
                                      zero_index);
@@ -232,7 +256,7 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
     }
 
     /*
-     * PS must be at least 8 bytes long, and it starts two bytes into |em|.
+     * PS must be at least 8 bytes long, and it starts two bytes into |from|.
      * If we never found a 0-byte, then |zero_index| is 0 and the check
      * also fails.
      */
@@ -261,7 +285,7 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
         goto err;
     }
 
-    memcpy(to, em + msg_index, mlen);
+    memcpy(to, from + msg_index, mlen);
 
  err:
     if (em != NULL) {

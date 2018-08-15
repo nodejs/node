@@ -311,7 +311,11 @@ int X509_STORE_get_by_subject(X509_STORE_CTX *vs, int type, X509_NAME *name,
     X509_OBJECT stmp, *tmp;
     int i, j;
 
+    if (ctx == NULL)
+        return 0;
+
     CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
+
     tmp = X509_OBJECT_retrieve_by_subject(ctx->objs, type, name);
     CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
 
@@ -506,6 +510,10 @@ STACK_OF(X509) *X509_STORE_get1_certs(X509_STORE_CTX *ctx, X509_NAME *nm)
     STACK_OF(X509) *sk;
     X509 *x;
     X509_OBJECT *obj;
+
+    if (ctx->ctx == NULL)
+        return NULL;
+
     sk = sk_X509_new_null();
     CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
     idx = x509_object_idx_cnt(ctx->ctx->objs, X509_LU_X509, nm, &cnt);
@@ -551,6 +559,11 @@ STACK_OF(X509_CRL) *X509_STORE_get1_crls(X509_STORE_CTX *ctx, X509_NAME *nm)
     STACK_OF(X509_CRL) *sk;
     X509_CRL *x;
     X509_OBJECT *obj, xobj;
+
+
+    if (ctx->ctx == NULL)
+        return NULL;
+
     sk = sk_X509_CRL_new_null();
     CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
 
@@ -650,6 +663,9 @@ int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x)
         return 1;
     }
     X509_OBJECT_free_contents(&obj);
+
+    if (ctx->ctx == NULL)
+        return 0;
 
     /* Else find index of first cert accepted by 'check_issued' */
     ret = 0;

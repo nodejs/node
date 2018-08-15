@@ -51,7 +51,7 @@ CMS_SignerInfo_set1_signer_cert().
 
 Once all signer certificates have been set CMS_verify() can be used.
 
-Although CMS_get0_SignerInfos() can return NULL is an error occur B<or> if
+Although CMS_get0_SignerInfos() can return NULL if an error occurs B<or> if
 there are no signers this is not a problem in practice because the only
 error which can occur is if the B<cms> structure is not of type signedData
 due to application error.

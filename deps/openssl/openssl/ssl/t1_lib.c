@@ -2408,8 +2408,7 @@ static int ssl_scan_clienthello_tlsext(SSL *s, unsigned char **p,
                 goto err;
             if (!tls1_save_sigalgs(s, data, dsize))
                 goto err;
-        } else if (type == TLSEXT_TYPE_status_request) {
-
+        } else if (type == TLSEXT_TYPE_status_request && !s->hit) {
             if (size < 5)
                 goto err;
 
@@ -3166,7 +3165,7 @@ int tls1_set_server_sigalgs(SSL *s)
         if (!s->cert->shared_sigalgs) {
             SSLerr(SSL_F_TLS1_SET_SERVER_SIGALGS,
                    SSL_R_NO_SHARED_SIGATURE_ALGORITHMS);
-            al = SSL_AD_ILLEGAL_PARAMETER;
+            al = SSL_AD_HANDSHAKE_FAILURE;
             goto err;
         }
     } else

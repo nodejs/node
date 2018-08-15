@@ -42,7 +42,7 @@ constants.
 
 OBJ_nid2obj(), OBJ_nid2ln() and OBJ_nid2sn() convert the NID B<n> to 
 an ASN1_OBJECT structure, its long name and its short name respectively,
-or B<NULL> is an error occurred.
+or B<NULL> if an error occurred.
 
 OBJ_obj2nid(), OBJ_ln2nid(), OBJ_sn2nid() return the corresponding NID
 for the object B<o>, the long name <ln> or the short name <sn> respectively

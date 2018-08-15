@@ -21,7 +21,7 @@ started or end of file is reached. A section name can consist of
 alphanumeric characters and underscores.
 
 The first section of a configuration file is special and is referred
-to as the B<default> section this is usually unnamed and is from the
+to as the B<default> section. This section is usually unnamed and spans from the
 start of file until the first named section. When a name is being looked up
 it is first looked up in a named section (if any) and then the
 default section.

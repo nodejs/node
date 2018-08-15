@@ -332,19 +332,19 @@ bn_mul_mont_general:
 { .mmb;	sub	rptr=rptr,len		// rewind
 	sub	tptr=tptr,len
 	clrrrb.pr			};;
-{ .mmi;	and	aptr=tptr,topbit
-	andcm	bptr=rptr,topbit
+{ .mmi;	mov	aptr=rptr
+	mov	bptr=tptr
 	mov	pr.rot=1<<16		};;
-{ .mii;	or	nptr=aptr,bptr
+{ .mii;	cmp.eq	p0,p6=topbit,r0
 	mov	ar.lc=lc
-	mov	ar.ec=3			};;
+	mov	ar.ec=2			};;
 
 .Lcopy_ctop:
-{ .mmb;	(p16)	ld8	n[0]=[nptr],8
-	(p18)	st8	[tptr]=r0,8
-	(p16)	nop.b	0		}
-{ .mmb;	(p16)	nop.m	0
-	(p18)	st8	[rptr]=n[2],8
+{ .mmi;	(p16)	ld8	a[0]=[aptr],8
+	(p16)	ld8	t[0]=[bptr],8
+	(p6)	mov	a[1]=t[1]	};;	// (p17)
+{ .mmb;	(p17)	st8	[rptr]=a[1],8
+	(p17)	st8	[tptr]=r0,8
 	br.ctop.sptk	.Lcopy_ctop	};;
 .Lcopy_cend:
 
