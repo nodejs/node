@@ -1,11 +1,13 @@
 // This test is designed to fail with a segmentation fault in Node.js 4.1.0 and
 // execute without issues in Node.js 4.1.1 and up.
 
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const httpCommon = require('_http_common');
-const HTTPParser = process.binding('http_parser').HTTPParser;
+const { internalBinding } = require('internal/test/binding');
+const { HTTPParser } = internalBinding('http_parser');
 const net = require('net');
 
 const COUNT = httpCommon.parsers.max + 1;
