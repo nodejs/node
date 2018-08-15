@@ -101,7 +101,7 @@ module.exports = warner(class Parser extends EE {
   }
 
   [CONSUMEHEADER] (chunk, position) {
-    const header = new Header(chunk, position)
+    const header = new Header(chunk, position, this[EX], this[GEX])
 
     if (header.nullBlock)
       this[EMIT]('nullBlock')

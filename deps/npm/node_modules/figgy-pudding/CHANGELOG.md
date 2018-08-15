@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="3.2.0"></a>
+# [3.2.0](https://github.com/zkat/figgy-pudding/compare/v3.1.0...v3.2.0) (2018-07-26)
+
+
+### Bug Fixes
+
+* **concat:** have concat spit out a proxy, too ([64e3495](https://github.com/zkat/figgy-pudding/commit/64e3495))
+
+
+### Features
+
+* **default:** pass the pudding itself to default fns ([d9d9e09](https://github.com/zkat/figgy-pudding/commit/d9d9e09))
+
+
+
 <a name="3.1.0"></a>
 # [3.1.0](https://github.com/zkat/figgy-pudding/compare/v3.0.0...v3.1.0) (2018-04-08)
 

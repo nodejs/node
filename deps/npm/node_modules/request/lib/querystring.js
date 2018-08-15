@@ -1,8 +1,7 @@
 'use strict'
 
 var qs = require('qs')
-  , querystring = require('querystring')
-
+var querystring = require('querystring')
 
 function Querystring (request) {
   this.request = request
@@ -13,7 +12,7 @@ function Querystring (request) {
 }
 
 Querystring.prototype.init = function (options) {
-  if (this.lib) {return}
+  if (this.lib) { return }
 
   this.useQuerystring = options.useQuerystring
   this.lib = (this.useQuerystring ? querystring : qs)

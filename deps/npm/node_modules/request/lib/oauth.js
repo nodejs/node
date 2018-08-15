@@ -1,13 +1,12 @@
 'use strict'
 
 var url = require('url')
-  , qs = require('qs')
-  , caseless = require('caseless')
-  , uuid = require('uuid')
-  , oauth = require('oauth-sign')
-  , crypto = require('crypto')
-  , Buffer = require('safe-buffer').Buffer
-
+var qs = require('qs')
+var caseless = require('caseless')
+var uuid = require('uuid')
+var oauth = require('oauth-sign')
+var crypto = require('crypto')
+var Buffer = require('safe-buffer').Buffer
 
 function OAuth (request) {
   this.request = request
@@ -23,7 +22,7 @@ OAuth.prototype.buildParams = function (_oauth, uri, method, query, form, qsLib)
     oa.oauth_version = '1.0'
   }
   if (!oa.oauth_timestamp) {
-    oa.oauth_timestamp = Math.floor( Date.now() / 1000 ).toString()
+    oa.oauth_timestamp = Math.floor(Date.now() / 1000).toString()
   }
   if (!oa.oauth_nonce) {
     oa.oauth_nonce = uuid().replace(/-/g, '')
@@ -32,11 +31,11 @@ OAuth.prototype.buildParams = function (_oauth, uri, method, query, form, qsLib)
     oa.oauth_signature_method = 'HMAC-SHA1'
   }
 
-  var consumer_secret_or_private_key = oa.oauth_consumer_secret || oa.oauth_private_key
+  var consumer_secret_or_private_key = oa.oauth_consumer_secret || oa.oauth_private_key // eslint-disable-line camelcase
   delete oa.oauth_consumer_secret
   delete oa.oauth_private_key
 
-  var token_secret = oa.oauth_token_secret
+  var token_secret = oa.oauth_token_secret // eslint-disable-line camelcase
   delete oa.oauth_token_secret
 
   var realm = oa.oauth_realm
@@ -51,8 +50,9 @@ OAuth.prototype.buildParams = function (_oauth, uri, method, query, form, qsLib)
     method,
     baseurl,
     params,
-    consumer_secret_or_private_key,
-    token_secret)
+    consumer_secret_or_private_key, // eslint-disable-line camelcase
+    token_secret // eslint-disable-line camelcase
+  )
 
   if (realm) {
     oa.realm = realm
@@ -61,7 +61,7 @@ OAuth.prototype.buildParams = function (_oauth, uri, method, query, form, qsLib)
   return oa
 }
 
-OAuth.prototype.buildBodyHash = function(_oauth, body) {
+OAuth.prototype.buildBodyHash = function (_oauth, body) {
   if (['HMAC-SHA1', 'RSA-SHA1'].indexOf(_oauth.signature_method || 'HMAC-SHA1') < 0) {
     this.request.emit('error', new Error('oauth: ' + _oauth.signature_method +
       ' signature_method not supported with body_hash signing.'))
@@ -71,7 +71,7 @@ OAuth.prototype.buildBodyHash = function(_oauth, body) {
   shasum.update(body || '')
   var sha1 = shasum.digest('hex')
 
-  return Buffer.from(sha1).toString('base64')
+  return Buffer.from(sha1, 'hex').toString('base64')
 }
 
 OAuth.prototype.concatParams = function (oa, sep, wrap) {
@@ -96,16 +96,16 @@ OAuth.prototype.onRequest = function (_oauth) {
   self.params = _oauth
 
   var uri = self.request.uri || {}
-    , method = self.request.method || ''
-    , headers = caseless(self.request.headers)
-    , body = self.request.body || ''
-    , qsLib = self.request.qsLib || qs
+  var method = self.request.method || ''
+  var headers = caseless(self.request.headers)
+  var body = self.request.body || ''
+  var qsLib = self.request.qsLib || qs
 
   var form
-    , query
-    , contentType = headers.get('content-type') || ''
-    , formContentType = 'application/x-www-form-urlencoded'
-    , transport = _oauth.transport_method || 'header'
+  var query
+  var contentType = headers.get('content-type') || ''
+  var formContentType = 'application/x-www-form-urlencoded'
+  var transport = _oauth.transport_method || 'header'
 
   if (contentType.slice(0, formContentType.length) === formContentType) {
     contentType = formContentType

@@ -232,7 +232,9 @@ namespace VisualStudioConfiguration
                     string[] parts = id.Substring(Win10SDKPrefix.Length).Split('.');
                     if (parts.Length > 1 && parts[1] != "Desktop")
                         continue;
-                    Win10SDKVer = Math.Max(Win10SDKVer, UInt32.Parse(parts[0]));
+                    uint foundSdkVer;
+                    if (UInt32.TryParse(parts[0], out foundSdkVer))
+                        Win10SDKVer = Math.Max(Win10SDKVer, foundSdkVer);
                 } else if (id == "Microsoft.VisualStudio.Component.Windows81SDK")
                     hasWin8SDK = true;
                 else

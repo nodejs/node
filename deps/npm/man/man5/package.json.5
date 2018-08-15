@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "July 2018" "" ""
+.TH "PACKAGE\.JSON" "5" "August 2018" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -123,7 +123,7 @@ Ideally you should pick one that is
 OSI \fIhttps://opensource\.org/licenses/alphabetical\fR approved\.
 .P
 If your package is licensed under multiple common licenses, use an SPDX license
-expression syntax version 2\.0 string \fIhttps://npmjs\.com/package/spdx\fR, like this:
+expression syntax version 2\.0 string \fIhttps://www\.npmjs\.com/package/spdx\fR, like this:
 .P
 .RS 2
 .nf
@@ -447,15 +447,15 @@ Do it like this:
 .P
 .RS 2
 .nf
-"repository" :
-  { "type" : "git"
-  , "url" : "https://github\.com/npm/cli\.git"
-  }
+"repository": {
+  "type" : "git",
+  "url" : "https://github\.com/npm/cli\.git"
+}
 
-"repository" :
-  { "type" : "svn"
-  , "url" : "https://v8\.googlecode\.com/svn/trunk/"
-  }
+"repository": {
+  "type" : "svn",
+  "url" : "https://v8\.googlecode\.com/svn/trunk/"
+}
 .fi
 .RE
 .P
@@ -745,7 +745,7 @@ Trying to install another plugin with a conflicting requirement will cause an
 error\. For this reason, make sure your plugin requirement is as broad as
 possible, and not to lock it down to specific patch versions\.
 .P
-Assuming the host complies with semver \fIhttp://semver\.org/\fR, only changes in
+Assuming the host complies with semver \fIhttps://semver\.org/\fR, only changes in
 the host package's major version will break your plugin\. Thus, if you've worked
 with every 1\.x version of the host package, use \fB"^1\.0"\fP or \fB"1\.x"\fP to express
 this\. If you depend on features introduced in 1\.5\.2, use \fB">= 1\.5\.2 < 2"\fP\|\.

@@ -1,5 +1,6 @@
 {
-  "id": "entry.json#",
+  "$id": "entry.json#",
+  "$schema": "http://json-schema.org/draft-06/schema#",
   "type": "object",
   "optional": true,
   "required": [
