@@ -38,3 +38,10 @@ assert.throws(
     }
   );
 });
+
+assert.throws(() => {
+  process.setgroups([1, 'fhqwhgadshgnsdhjsdbkhsdabkfabkveyb']);
+}, {
+  name: 'Error',
+  message: 'group name not found'
+});
