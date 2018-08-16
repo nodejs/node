@@ -693,5 +693,5 @@ greater than `4` (its current default value). For more information, see the
 [REPL]: repl.html
 [debugger]: debugger.html
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
-[libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [experimental ECMAScript Module]: esm.html#esm_loader_hooks
+[libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
