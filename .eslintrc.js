@@ -187,7 +187,7 @@ module.exports = {
         message: 'Use new keyword when throwing an Error.',
       }
     ],
-    /* eslint-enable max-len, quotes */
+    /* eslint-enable max-len */
     'no-return-await': 'error',
     'no-self-assign': 'error',
     'no-self-compare': 'error',
