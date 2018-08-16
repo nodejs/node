@@ -843,6 +843,7 @@ Decompress a chunk of data with [`Unzip`][].
 [`InflateRaw`]: #zlib_class_zlib_inflateraw
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Unzip`]: #zlib_class_zlib_unzip
+[`stream.Transform`]: stream.html#stream_class_stream_transform
 [`zlib.bytesWritten`]: #zlib_zlib_byteswritten
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
 [pool size]: cli.html#cli_uv_threadpool_size_size
