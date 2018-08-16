@@ -374,5 +374,5 @@ void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(stream_wrap,
-                                  node::LibuvStreamWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(stream_wrap,
+                                   node::LibuvStreamWrap::Initialize)
