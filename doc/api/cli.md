@@ -137,7 +137,7 @@ tcp port and communicate using the [Chrome DevTools Protocol][].
 added: v9.0.0
 -->
 
-Specify the `file` as a custom loader, to load [ECMAScript Modules][].
+Specify the `file` of the custom [experimental ECMAScript Module][] loader.
 
 ### `--napi-modules`
 <!-- YAML
@@ -694,4 +694,4 @@ greater than `4` (its current default value). For more information, see the
 [debugger]: debugger.html
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
-[ECMAScript Modules]: esm.html#esm_loader_hooks
+[experimental ECMAScript Module]: esm.html#esm_loader_hooks
