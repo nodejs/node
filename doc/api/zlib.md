@@ -397,6 +397,9 @@ added: v0.5.8
 Not exported by the `zlib` module. It is documented here because it is the base
 class of the compressor/decompressor classes.
 
+This class inherits from [`stream.Transform`][], allowing `zlib` objects to be
+used in pipes and similar stream operations.
+
 ### zlib.bytesRead
 <!-- YAML
 added: v8.1.0
