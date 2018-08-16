@@ -194,6 +194,7 @@ struct PackageConfig {
   V(message_port_string, "messagePort")                                       \
   V(message_port_constructor_string, "MessagePort")                           \
   V(minttl_string, "minttl")                                                  \
+  V(module_string, "Module")                                                  \
   V(modulus_string, "modulus")                                                \
   V(name_string, "name")                                                      \
   V(netmask_string, "netmask")                                                \
@@ -288,6 +289,7 @@ struct PackageConfig {
   V(valid_from_string, "valid_from")                                          \
   V(valid_to_string, "valid_to")                                              \
   V(value_string, "value")                                                    \
+  V(webassembly_string, "WebAssembly")                                        \
   V(verify_error_string, "verifyError")                                       \
   V(version_string, "version")                                                \
   V(weight_string, "weight")                                                  \

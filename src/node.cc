@@ -3728,6 +3728,37 @@ bool AllowWasmCodeGenerationCallback(
   return wasm_code_gen->IsUndefined() || wasm_code_gen->IsTrue();
 }
 
+void WasmCreateModule(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Local<Context> context = env->context();
+  Local<Value> buffer = info[0];
+  CHECK(!buffer.IsEmpty());
+
+  Local<Object> wasm = Local<Object>::Cast(
+      context->Global()->Get(context, env->webassembly_string())
+      .ToLocalChecked());
+  Local<Function> module = Local<Function>::Cast(wasm->Get(context,
+        env->module_string()).ToLocalChecked());
+  Local<Value> args[] = {buffer};
+  Local<Value> module_instance = module->NewInstance(context, 1, args)
+      .ToLocalChecked();
+  info.GetReturnValue().Set(module_instance);
+}
+
+void WasmInstantiateStreamingCallback(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Local<Context> context = env->context();
+  CHECK(!info[0]->IsUndefined());
+  CHECK(info[0]->IsPromise());
+  Local<Promise> buffer_promise = info[0].As<Promise>();
+
+  Local<Function> create_module = Function::New(context, WasmCreateModule)
+      .ToLocalChecked();
+  Local<Promise> module_promise = buffer_promise->Then(context, create_module)
+      .ToLocalChecked();
+  info.GetReturnValue().Set(module_promise);
+}
+
 Isolate* NewIsolate(ArrayBufferAllocator* allocator) {
   Isolate::CreateParams params;
   params.array_buffer_allocator = allocator;
@@ -3744,6 +3775,7 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator) {
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   isolate->SetFatalErrorHandler(OnFatalError);
   isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
+  isolate->SetWasmCompileStreamingCallback(WasmInstantiateStreamingCallback);
 
   return isolate;
 }
