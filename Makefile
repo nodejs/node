@@ -1074,6 +1074,7 @@ lint-md-build: tools/remark-cli/node_modules \
 tools/doc/node_modules: tools/doc/package.json
 ifeq ($(node_use_openssl),true)
 	cd tools/doc && $(call available-node,$(run-npm-install))
+	@touch $@
 else
 	@echo "Skipping tools/doc/node_modules (no crypto)"
 endif
