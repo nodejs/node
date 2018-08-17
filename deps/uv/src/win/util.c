@@ -1530,3 +1530,97 @@ int uv_os_gethostname(char* buffer, size_t* size) {
   *size = len;
   return 0;
 }
+
+
+static int uv__get_handle(uv_pid_t pid, int access, HANDLE* handle) {
+  int r;
+
+  if (pid == 0)
+    *handle = GetCurrentProcess();
+  else
+    *handle = OpenProcess(access, FALSE, pid);
+
+  if (*handle == NULL) {
+    r = GetLastError();
+
+    if (r == ERROR_INVALID_PARAMETER)
+      return UV_ESRCH;
+    else
+      return uv_translate_sys_error(r);
+  }
+
+  return 0;
+}
+
+
+int uv_os_getpriority(uv_pid_t pid, int* priority) {
+  HANDLE handle;
+  int r;
+
+  if (priority == NULL)
+    return UV_EINVAL;
+
+  r = uv__get_handle(pid, PROCESS_QUERY_LIMITED_INFORMATION, &handle);
+
+  if (r != 0)
+    return r;
+
+  r = GetPriorityClass(handle);
+
+  if (r == 0) {
+    r = uv_translate_sys_error(GetLastError());
+  } else {
+    /* Map Windows priority classes to Unix nice values. */
+    if (r == REALTIME_PRIORITY_CLASS)
+      *priority = UV_PRIORITY_HIGHEST;
+    else if (r == HIGH_PRIORITY_CLASS)
+      *priority = UV_PRIORITY_HIGH;
+    else if (r == ABOVE_NORMAL_PRIORITY_CLASS)
+      *priority = UV_PRIORITY_ABOVE_NORMAL;
+    else if (r == NORMAL_PRIORITY_CLASS)
+      *priority = UV_PRIORITY_NORMAL;
+    else if (r == BELOW_NORMAL_PRIORITY_CLASS)
+      *priority = UV_PRIORITY_BELOW_NORMAL;
+    else  /* IDLE_PRIORITY_CLASS */
+      *priority = UV_PRIORITY_LOW;
+
+    r = 0;
+  }
+
+  CloseHandle(handle);
+  return r;
+}
+
+
+int uv_os_setpriority(uv_pid_t pid, int priority) {
+  HANDLE handle;
+  int priority_class;
+  int r;
+
+  /* Map Unix nice values to Windows priority classes. */
+  if (priority < UV_PRIORITY_HIGHEST || priority > UV_PRIORITY_LOW)
+    return UV_EINVAL;
+  else if (priority < UV_PRIORITY_HIGH)
+    priority_class = REALTIME_PRIORITY_CLASS;
+  else if (priority < UV_PRIORITY_ABOVE_NORMAL)
+    priority_class = HIGH_PRIORITY_CLASS;
+  else if (priority < UV_PRIORITY_NORMAL)
+    priority_class = ABOVE_NORMAL_PRIORITY_CLASS;
+  else if (priority < UV_PRIORITY_BELOW_NORMAL)
+    priority_class = NORMAL_PRIORITY_CLASS;
+  else if (priority < UV_PRIORITY_LOW)
+    priority_class = BELOW_NORMAL_PRIORITY_CLASS;
+  else
+    priority_class = IDLE_PRIORITY_CLASS;
+
+  r = uv__get_handle(pid, PROCESS_SET_INFORMATION, &handle);
+
+  if (r != 0)
+    return r;
+
+  if (SetPriorityClass(handle, priority_class) == 0)
+    r = uv_translate_sys_error(GetLastError());
+
+  CloseHandle(handle);
+  return r;
+}

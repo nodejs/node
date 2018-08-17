@@ -61,10 +61,15 @@ extern UV_THREAD_LOCAL int uv__crt_assert_enabled;
  * TCP
  */
 
+typedef enum {
+  UV__IPC_SOCKET_XFER_NONE = 0,
+  UV__IPC_SOCKET_XFER_TCP_CONNECTION,
+  UV__IPC_SOCKET_XFER_TCP_SERVER
+} uv__ipc_socket_xfer_type_t;
+
 typedef struct {
   WSAPROTOCOL_INFOW socket_info;
   uint32_t delayed_error;
-  uint32_t flags; /* Either zero or UV_HANDLE_CONNECTION. */
 } uv__ipc_socket_xfer_info_t;
 
 int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
@@ -89,8 +94,11 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle);
 
 int uv__tcp_xfer_export(uv_tcp_t* handle,
                         int pid,
+                        uv__ipc_socket_xfer_type_t* xfer_type,
                         uv__ipc_socket_xfer_info_t* xfer_info);
-int uv__tcp_xfer_import(uv_tcp_t* tcp, uv__ipc_socket_xfer_info_t* xfer_info);
+int uv__tcp_xfer_import(uv_tcp_t* tcp,
+                        uv__ipc_socket_xfer_type_t xfer_type,
+                        uv__ipc_socket_xfer_info_t* xfer_info);
 
 
 /*

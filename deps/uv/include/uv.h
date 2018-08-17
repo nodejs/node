@@ -1065,6 +1065,7 @@ UV_EXTERN int uv_set_process_title(const char* title);
 UV_EXTERN int uv_resident_set_memory(size_t* rss);
 UV_EXTERN int uv_uptime(double* uptime);
 UV_EXTERN uv_os_fd_t uv_get_osfhandle(int fd);
+UV_EXTERN int uv_open_osfhandle(uv_os_fd_t os_fd);
 
 typedef struct {
   long tv_sec;
@@ -1098,6 +1099,16 @@ UV_EXTERN int uv_os_get_passwd(uv_passwd_t* pwd);
 UV_EXTERN void uv_os_free_passwd(uv_passwd_t* pwd);
 UV_EXTERN uv_pid_t uv_os_getpid(void);
 UV_EXTERN uv_pid_t uv_os_getppid(void);
+
+#define UV_PRIORITY_LOW 19
+#define UV_PRIORITY_BELOW_NORMAL 10
+#define UV_PRIORITY_NORMAL 0
+#define UV_PRIORITY_ABOVE_NORMAL -7
+#define UV_PRIORITY_HIGH -14
+#define UV_PRIORITY_HIGHEST -20
+
+UV_EXTERN int uv_os_getpriority(uv_pid_t pid, int* priority);
+UV_EXTERN int uv_os_setpriority(uv_pid_t pid, int priority);
 
 UV_EXTERN int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count);
 UV_EXTERN void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count);
