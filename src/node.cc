@@ -2632,6 +2632,9 @@ static void PrintHelp() {
          "  --inspect[=[host:]port]    activate inspector on host:port\n"
          "                             (default: 127.0.0.1:9229)\n"
 #endif  // HAVE_INSPECTOR
+         "  --loader=file              (with --experimental-modules) use the \n"
+         "                             specified file as a custom loader\n"
+         "                             for ECMAScript Modules \n"
          "  --napi-modules             load N-API modules (no-op - option\n"
          "                             kept for compatibility)\n"
          "  --no-deprecation           silence deprecation warnings\n"
