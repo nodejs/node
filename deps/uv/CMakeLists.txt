@@ -98,6 +98,7 @@ set(uv_test_sources
     test/test-poll-closesocket.c
     test/test-poll-oob.c
     test/test-poll.c
+    test/test-process-priority.c
     test/test-process-title-threadsafe.c
     test/test-process-title.c
     test/test-queue-foreach-delete.c

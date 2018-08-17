@@ -3069,6 +3069,52 @@ TEST_IMPL(get_osfhandle_valid_handle) {
   return 0;
 }
 
+TEST_IMPL(open_osfhandle_valid_handle) {
+  int r;
+  uv_os_fd_t handle;
+  int fd;
+
+  /* Setup. */
+  unlink("test_file");
+
+  loop = uv_default_loop();
+
+  r = uv_fs_open(NULL,
+                 &open_req1,
+                 "test_file",
+                 O_RDWR | O_CREAT,
+                 S_IWUSR | S_IRUSR,
+                 NULL);
+  ASSERT(r >= 0);
+  ASSERT(open_req1.result >= 0);
+  uv_fs_req_cleanup(&open_req1);
+
+  handle = uv_get_osfhandle(open_req1.result);
+#ifdef _WIN32
+  ASSERT(handle != INVALID_HANDLE_VALUE);
+#else
+  ASSERT(handle >= 0);
+#endif
+
+  fd = uv_open_osfhandle(handle);
+#ifdef _WIN32
+  ASSERT(fd > 0);
+#else
+  ASSERT(fd == open_req1.result);
+#endif
+
+  r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
+  ASSERT(r == 0);
+  ASSERT(close_req.result == 0);
+  uv_fs_req_cleanup(&close_req);
+
+  /* Cleanup. */
+  unlink("test_file");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
 TEST_IMPL(fs_file_pos_after_op_with_offset) {
   int r;
 

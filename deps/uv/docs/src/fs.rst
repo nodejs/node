@@ -403,6 +403,15 @@ Helper functions
 
     .. versionadded:: 1.12.0
 
+.. c:function:: int uv_open_osfhandle(uv_os_fd_t os_fd)
+
+   For a OS-dependent handle, get the file descriptor in the C runtime.
+   On UNIX, returns the ``os_fd`` intact. On Windows, this calls `_open_osfhandle <https://msdn.microsoft.com/en-us/library/bdts1c9x.aspx>`_.
+   Note that the return value is still owned by the CRT,
+   any attempts to close it or to use it after closing the handle may lead to malfunction.
+
+    .. versionadded:: 1.23.0
+
 File open constants
 -------------------
 
