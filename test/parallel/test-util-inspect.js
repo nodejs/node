@@ -979,7 +979,7 @@ if (typeof Symbol !== 'undefined') {
       const npos = line.search(numRE);
       if (npos !== -1) {
         if (pos !== undefined) {
-          assert.strictEqual(pos, npos, 'container items not aligned');
+          assert.strictEqual(pos, npos);
         }
         pos = npos;
       }
