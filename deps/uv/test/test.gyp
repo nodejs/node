@@ -80,6 +80,7 @@
         'test-poll-close-doesnt-corrupt-stack.c',
         'test-poll-closesocket.c',
         'test-poll-oob.c',
+        'test-process-priority.c',
         'test-process-title.c',
         'test-process-title-threadsafe.c',
         'test-queue-foreach-delete.c',
