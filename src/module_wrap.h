@@ -17,6 +17,17 @@ enum PackageMainCheck : bool {
     IgnoreMain = false
 };
 
+enum ScriptType : int {
+  kScript,
+  kModule,
+};
+
+enum HostDefinedOptions : int {
+  kType = 8,
+  kID = 9,
+  kLength = 10,
+};
+
 v8::Maybe<url::URL> Resolve(Environment* env,
                             const std::string& specifier,
                             const url::URL& base,
@@ -37,6 +48,9 @@ class ModuleWrap : public BaseObject {
     tracker->TrackField("url", url_);
     tracker->TrackField("resolve_cache", resolve_cache_);
   }
+
+  inline uint32_t id() { return id_; }
+  static ModuleWrap* GetFromID(node::Environment*, uint32_t id);
 
   SET_MEMORY_INFO_NAME(ModuleWrap)
   SET_SELF_SIZE(ModuleWrap)
@@ -69,12 +83,12 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Module> referrer);
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
-
   Persistent<v8::Module> module_;
   Persistent<v8::String> url_;
   bool linked_ = false;
   std::unordered_map<std::string, Persistent<v8::Promise>> resolve_cache_;
   Persistent<v8::Context> context_;
+  uint32_t id_;
 };
 
 }  // namespace loader
