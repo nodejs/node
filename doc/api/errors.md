@@ -1779,6 +1779,11 @@ The V8 `BreakIterator` API was used but the full ICU data set is not installed.
 While using the Performance Timing API (`perf_hooks`), no valid performance
 entry types were found.
 
+<a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING"></a>
+### ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING
+
+A dynamic import callback was not specified.
+
 <a id="ERR_VM_MODULE_ALREADY_LINKED"></a>
 ### ERR_VM_MODULE_ALREADY_LINKED
 
