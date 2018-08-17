@@ -5,6 +5,7 @@ prefix sequential
 # sample-test                       : PASS,FLAKY
 
 [true] # This section applies to all platforms
+test-timers-throw-reschedule          : PASS, FLAKY
 
 [$system==win32]
 test-inspector-async-call-stack       : PASS, FLAKY
