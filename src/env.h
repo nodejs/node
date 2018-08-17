@@ -47,6 +47,10 @@ struct nghttp2_rcbuf;
 
 namespace node {
 
+namespace contextify {
+class ContextifyScript;
+}
+
 namespace fs {
 class FileHandleReadWrap;
 }
@@ -674,7 +678,13 @@ class Environment {
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
 
-  std::unordered_multimap<int, loader::ModuleWrap*> module_map;
+  std::unordered_multimap<int, loader::ModuleWrap*> hash_to_module_map;
+  std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
+  std::unordered_map<uint32_t, contextify::ContextifyScript*>
+      id_to_script_map;
+
+  inline uint32_t get_next_module_id();
+  inline uint32_t get_next_script_id();
 
   std::unordered_map<std::string, const loader::PackageConfig>
       package_json_cache;
@@ -923,6 +933,9 @@ class Environment {
   std::vector<double> destroy_async_id_list_;
 
   std::shared_ptr<EnvironmentOptions> options_;
+
+  uint32_t module_id_counter_ = 0;
+  uint32_t script_id_counter_ = 0;
 
   AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;

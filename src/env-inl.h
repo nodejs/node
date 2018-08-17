@@ -446,6 +446,13 @@ Environment::trace_category_state() {
   return trace_category_state_;
 }
 
+inline uint32_t Environment::get_next_module_id() {
+  return module_id_counter_++;
+}
+inline uint32_t Environment::get_next_script_id() {
+  return script_id_counter_++;
+}
+
 Environment::ShouldNotAbortOnUncaughtScope::ShouldNotAbortOnUncaughtScope(
     Environment* env)
     : env_(env) {
