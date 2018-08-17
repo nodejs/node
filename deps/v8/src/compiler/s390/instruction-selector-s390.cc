@@ -318,12 +318,12 @@ ArchOpcode SelectLoadOpcode(Node* node) {
   /* Float unary op*/              \
   V(BitcastFloat32ToInt32)         \
   /* V(TruncateFloat64ToWord32) */ \
-  /* V(RoundFloat64ToInt32)     */ \
-  /* V(TruncateFloat32ToInt32)  */ \
-  /* V(TruncateFloat32ToUint32) */ \
-  /* V(TruncateFloat64ToUint32) */ \
-  /* V(ChangeFloat64ToInt32)    */ \
-  /* V(ChangeFloat64ToUint32)   */ \
+  V(RoundFloat64ToInt32)           \
+  V(TruncateFloat32ToInt32)        \
+  V(TruncateFloat32ToUint32)       \
+  V(TruncateFloat64ToUint32)       \
+  V(ChangeFloat64ToInt32)          \
+  V(ChangeFloat64ToUint32)         \
   /* Word32 unary op */            \
   V(Word32Clz)                     \
   V(Word32Popcnt)                  \

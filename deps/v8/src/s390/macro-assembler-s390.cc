@@ -704,6 +704,9 @@ void TurboAssembler::ConvertDoubleToInt32(const Register dst,
       UNIMPLEMENTED();
       break;
   }
+#ifdef V8_TARGET_ARCH_S390X
+  lghi(dst, Operand::Zero());
+#endif
   cfdbr(m, dst, double_input);
 }
 
@@ -728,6 +731,9 @@ void TurboAssembler::ConvertFloat32ToInt32(const Register result,
       UNIMPLEMENTED();
       break;
   }
+#ifdef V8_TARGET_ARCH_S390X
+  lghi(result, Operand::Zero());
+#endif
   cfebr(m, result, double_input);
 }
 
@@ -752,6 +758,9 @@ void TurboAssembler::ConvertFloat32ToUnsignedInt32(
       UNIMPLEMENTED();
       break;
   }
+#ifdef V8_TARGET_ARCH_S390X
+  lghi(result, Operand::Zero());
+#endif
   clfebr(m, Condition(0), result, double_input);
 }
 
@@ -824,6 +833,9 @@ void TurboAssembler::ConvertDoubleToUnsignedInt32(
       UNIMPLEMENTED();
       break;
   }
+#ifdef V8_TARGET_ARCH_S390X
+  lghi(dst, Operand::Zero());
+#endif
   clfdbr(m, Condition(0), dst, double_input);
 }
 
