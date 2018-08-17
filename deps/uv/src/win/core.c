@@ -249,8 +249,10 @@ int uv_loop_init(uv_loop_t* loop) {
   loop->endgame_handles = NULL;
 
   loop->timer_heap = timer_heap = uv__malloc(sizeof(*timer_heap));
-  if (timer_heap == NULL)
+  if (timer_heap == NULL) {
+    err = UV_ENOMEM;
     goto fail_timers_alloc;
+  }
 
   heap_init(timer_heap);
 

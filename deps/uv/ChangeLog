@@ -1,3 +1,25 @@
+2018.08.18, Version 1.23.0 (Stable), 7ebb26225f2eaae6db22f4ef34ce76fa16ff89ec
+
+Changes since version 1.22.0:
+
+* win,pipe: restore compatibility with the old IPC framing protocol (Bert
+  Belder)
+
+* fs: add uv_open_osfhandle (Bartosz Sosnowski)
+
+* doc: update Visual C++ Build Tools URL (Michał Kozakiewicz)
+
+* unix: loop starvation on successful write complete (jBarz)
+
+* win: add uv__getnameinfo_work() error handling (A. Hauptmann)
+
+* win: return UV_ENOMEM from uv_loop_init() (cjihrig)
+
+* unix,win: add uv_os_{get,set}priority() (cjihrig)
+
+* test: fix warning in test-tcp-open (Santiago Gimeno)
+
+
 2018.07.11, Version 1.22.0 (Stable), 8568f78a777d79d35eb7d6994617267b9fb33967
 
 Changes since version 1.21.0:
