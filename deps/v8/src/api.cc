@@ -1803,10 +1803,6 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
     Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
-  // Either intercept attributes or descriptor.
-  DCHECK(query == nullptr || descriptor == nullptr);
-  // Only use descriptor callback with definer callback.
-  DCHECK(query == nullptr || definer == nullptr);
   auto obj = i::Handle<i::InterceptorInfo>::cast(
       isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE, i::TENURED));
   obj->set_flags(0);
