@@ -909,16 +909,16 @@
       # When building executable in Mac OS/X, in order to avoid overwriting
       # the executable while it it running, build it with a different name
       # and then rename it back to node.
-      'target_name': 'rename_node_bin_mac',
+      'target_name': 'rename_node_bin_unix',
       'type': 'none',
       'dependencies': [
         '<(node_core_target_name)',
       ],
       'conditions': [
-        [ 'OS=="mac"', {
+        [ 'OS=="mac" or OS=="linux"', {
           'actions': [
             {
-              'action_name': 'rename_node_bin_mac',
+              'action_name': 'rename_node_bin_unix',
               'inputs': [
                 '<(PRODUCT_DIR)/<(node_core_target_name)-unix'
               ],
@@ -968,6 +968,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'rename_node_bin_win',
+        'rename_node_bin_unix',
         'deps/gtest/gtest.gyp:gtest',
         'node_js2c#host',
         'node_dtrace_header',
