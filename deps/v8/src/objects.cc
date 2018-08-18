@@ -7672,41 +7672,42 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
     }
   }
 
-  if (it->state() == LookupIterator::INTERCEPTOR) {
-    Isolate* isolate = it->isolate();
-    Handle<InterceptorInfo> interceptor = it->GetInterceptor();
-    if (!interceptor->descriptor()->IsUndefined(isolate)) {
-      Handle<Object> result;
-      Handle<JSObject> holder = it->GetHolder<JSObject>();
+  if (it->state() != LookupIterator::INTERCEPTOR) return Just(false);
 
-      Handle<Object> receiver = it->GetReceiver();
-      if (!receiver->IsJSReceiver()) {
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, receiver, Object::ConvertReceiver(isolate, receiver),
-            Nothing<bool>());
-      }
+  Isolate* isolate = it->isolate();
+  Handle<InterceptorInfo> interceptor = it->GetInterceptor();
+  if (interceptor->descriptor()->IsUndefined(isolate)) return Just(false);
 
-      PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                     *holder, kDontThrow);
-      if (it->IsElement()) {
-        result = args.CallIndexedDescriptor(interceptor, it->index());
-      } else {
-        result = args.CallNamedDescriptor(interceptor, it->name());
-      }
-      if (!result.is_null()) {
-        // Request successfully intercepted, try to set the property
-        // descriptor.
-        Utils::ApiCheck(
-            PropertyDescriptor::ToPropertyDescriptor(isolate, result, desc),
-            it->IsElement() ? "v8::IndexedPropertyDescriptorCallback"
-                            : "v8::NamedPropertyDescriptorCallback",
-            "Invalid property descriptor.");
+  Handle<Object> result;
+  Handle<JSObject> holder = it->GetHolder<JSObject>();
 
-        return Just(true);
-      }
-      it->Next();
-    }
+  Handle<Object> receiver = it->GetReceiver();
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
+                                     Object::ConvertReceiver(isolate, receiver),
+                                     Nothing<bool>());
   }
+
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *holder, kDontThrow);
+  if (it->IsElement()) {
+    result = args.CallIndexedDescriptor(interceptor, it->index());
+  } else {
+    result = args.CallNamedDescriptor(interceptor, it->name());
+  }
+  if (!result.is_null()) {
+    // Request successfully intercepted, try to set the property
+    // descriptor.
+    Utils::ApiCheck(
+        PropertyDescriptor::ToPropertyDescriptor(isolate, result, desc),
+        it->IsElement() ? "v8::IndexedPropertyDescriptorCallback"
+                        : "v8::NamedPropertyDescriptorCallback",
+        "Invalid property descriptor.");
+
+    return Just(true);
+  }
+
+  it->Next();
   return Just(false);
 }
 }  // namespace
