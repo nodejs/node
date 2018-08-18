@@ -439,7 +439,7 @@ if not defined doc (
 if exist "tools\doc\node_modules\unified\package.json" goto skip-install-doctools
 SETLOCAL
 cd tools\doc
-%npm_exe% install
+%npm_exe% ci
 cd ..\..
 if errorlevel 1 goto exit
 ENDLOCAL

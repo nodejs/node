@@ -642,11 +642,7 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
 	@cp $< $@
 
 
-run-npm-install = $(PWD)/$(NPM) install --production --no-package-lock
 run-npm-ci = $(PWD)/$(NPM) ci
-
-tools/doc/node_modules/js-yaml/package.json:
-	cd tools/doc && $(call available-node,$(run-npm-install))
 
 gen-api = tools/doc/generate.js --node-version=$(FULLVERSION) \
 		--analytics=$(DOCS_ANALYTICS) $< --output-directory=out/doc/api
@@ -1074,8 +1070,7 @@ lint-md-build: tools/remark-cli/node_modules \
 
 tools/doc/node_modules: tools/doc/package.json
 ifeq ($(node_use_openssl),true)
-	cd tools/doc && $(call available-node,$(run-npm-install))
-	@touch $@
+	cd tools/doc && $(call available-node,$(run-npm-ci))
 else
 	@echo "Skipping tools/doc/node_modules (no crypto)"
 endif
@@ -1184,7 +1179,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 ADDON_DOC_LINT_FLAGS=-whitespace/ending_newline,-build/header_guard
 
 format-cpp-build:
-	cd tools/clang-format && $(call available-node,$(run-npm-install))
+	cd tools/clang-format && $(call available-node,$(run-npm-ci))
 
 format-cpp-clean:
 	$(RM) -r tools/clang-format/node_modules
