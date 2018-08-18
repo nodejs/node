@@ -110,6 +110,10 @@ class BackgroundTaskRunner : public v8::TaskRunner {
   size_t NumberOfAvailableBackgroundThreads() const;
  private:
   TaskQueue<v8::Task> background_tasks_;
+
+  class DelayedTaskScheduler;
+  std::unique_ptr<DelayedTaskScheduler> delayed_task_scheduler_;
+
   std::vector<std::unique_ptr<uv_thread_t>> threads_;
 };
 
