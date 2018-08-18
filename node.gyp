@@ -301,7 +301,7 @@
           # the executable and rename it back to node.exe later
           'product_name': '<(node_core_target_name)-win',
         }],
-        [ 'OS=="mac" or OS=="linux"', {
+        [ 'OS!="win"', {
           # On Unix builds, the build may replace the executable while it is
           # running.  To avoid this, we provide a different PRODUCT_NAME for
           # the executable and rename it back to node later
@@ -906,16 +906,35 @@
       ]
     },
     {
-      # When building executable in Mac OS/X, in order to avoid overwriting
-      # the executable while it it running, build it with a different name
-      # and then rename it back to node.
-      'target_name': 'rename_node_bin_unix',
+      'target_name': 'rename_node_bin',
       'type': 'none',
       'dependencies': [
         '<(node_core_target_name)',
       ],
       'conditions': [
-        [ 'OS=="mac" or OS=="linux"', {
+        # When using shared lib to build executable in Windows, in order to
+        # avoid filename collision, the executable name is node-win.exe. Need
+        # to rename it back to node.exe
+        [ 'OS=="win" and node_intermediate_lib_type=="shared_library"', {
+          'actions': [
+            {
+              'action_name': 'rename_node_bin_win',
+              'inputs': [
+                '<(PRODUCT_DIR)/<(node_core_target_name)-win.exe'
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/<(node_core_target_name).exe',
+              ],
+              'action': [
+                'mv', '<@(_inputs)', '<@(_outputs)',
+              ],
+            },
+          ],
+        } ],
+        # When building executable on Unix operating systems, in order to
+        # avoid overwriting the executable while it it running, build it with
+        # a different name and then rename it back to node.
+        [ 'OS!="win"', {
           'actions': [
             {
               'action_name': 'rename_node_bin_unix',
@@ -934,41 +953,12 @@
       ]
     },
     {
-      # When using shared lib to build executable in Windows, in order to avoid
-      # filename collision, the executable name is node-win.exe. Need to rename
-      # it back to node.exe
-      'target_name': 'rename_node_bin_win',
-      'type': 'none',
-      'dependencies': [
-        '<(node_core_target_name)',
-      ],
-      'conditions': [
-        [ 'OS=="win" and node_intermediate_lib_type=="shared_library"', {
-          'actions': [
-            {
-              'action_name': 'rename_node_bin_win',
-              'inputs': [
-                '<(PRODUCT_DIR)/<(node_core_target_name)-win.exe'
-              ],
-              'outputs': [
-                '<(PRODUCT_DIR)/<(node_core_target_name).exe',
-              ],
-              'action': [
-                'mv', '<@(_inputs)', '<@(_outputs)',
-              ],
-            },
-          ],
-        } ],
-      ]
-    },
-    {
       'target_name': 'cctest',
       'type': 'executable',
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'rename_node_bin_win',
-        'rename_node_bin_unix',
+        'rename_node_bin',
         'deps/gtest/gtest.gyp:gtest',
         'node_js2c#host',
         'node_dtrace_header',
