@@ -112,6 +112,12 @@ static const char* GetName(const v8::HeapGraphNode* node) {
       ->name();
 }
 
+static const char* GetName(const v8::HeapGraphEdge* edge) {
+  return const_cast<i::HeapGraphEdge*>(
+             reinterpret_cast<const i::HeapGraphEdge*>(edge))
+      ->name();
+}
+
 static size_t GetSize(const v8::HeapGraphNode* node) {
   return const_cast<i::HeapEntry*>(reinterpret_cast<const i::HeapEntry*>(node))
       ->self_size();
@@ -123,6 +129,18 @@ static const v8::HeapGraphNode* GetChildByName(const v8::HeapGraphNode* node,
     const v8::HeapGraphNode* child = node->GetChild(i)->GetToNode();
     if (!strcmp(name, GetName(child))) {
       return child;
+    }
+  }
+  return nullptr;
+}
+
+static const v8::HeapGraphEdge* GetEdgeByChildName(
+    const v8::HeapGraphNode* node, const char* name) {
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* edge = node->GetChild(i);
+    const v8::HeapGraphNode* child = edge->GetToNode();
+    if (!strcmp(name, GetName(child))) {
+      return edge;
     }
   }
   return nullptr;
@@ -2984,6 +3002,71 @@ TEST(EmbedderGraph) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   CheckEmbedderGraphSnapshot(env->GetIsolate(), snapshot);
+}
+
+void BuildEmbedderGraphWithNamedEdges(v8::Isolate* v8_isolate,
+                                      v8::EmbedderGraph* graph, void* data) {
+  using Node = v8::EmbedderGraph::Node;
+  Node* global_node = graph->V8Node(*global_object_pointer);
+  Node* embedder_node_A = graph->AddNode(
+      std::unique_ptr<Node>(new EmbedderNode("EmbedderNodeA", 10)));
+  Node* embedder_node_B = graph->AddNode(
+      std::unique_ptr<Node>(new EmbedderNode("EmbedderNodeB", 20)));
+  Node* embedder_node_C = graph->AddNode(
+      std::unique_ptr<Node>(new EmbedderNode("EmbedderNodeC", 30)));
+  graph->AddEdge(global_node, embedder_node_A, "global_to_a");
+  graph->AddEdge(embedder_node_A, embedder_node_B, "a_to_b");
+  graph->AddEdge(embedder_node_B, embedder_node_C);
+}
+
+void CheckEmbedderGraphWithNamedEdges(v8::Isolate* isolate,
+                                      const v8::HeapSnapshot* snapshot) {
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphEdge* global_to_a =
+      GetEdgeByChildName(global, "EmbedderNodeA");
+  CHECK(global_to_a);
+  CHECK_EQ(v8::HeapGraphEdge::kInternal, global_to_a->GetType());
+  CHECK(global_to_a->GetName()->IsString());
+  CHECK_EQ(0, strcmp("global_to_a", GetName(global_to_a)));
+  const v8::HeapGraphNode* embedder_node_A = global_to_a->GetToNode();
+  CHECK_EQ(0, strcmp("EmbedderNodeA", GetName(embedder_node_A)));
+  CHECK_EQ(10, GetSize(embedder_node_A));
+
+  const v8::HeapGraphEdge* a_to_b =
+      GetEdgeByChildName(embedder_node_A, "EmbedderNodeB");
+  CHECK(a_to_b);
+  CHECK(a_to_b->GetName()->IsString());
+  CHECK_EQ(0, strcmp("a_to_b", GetName(a_to_b)));
+  CHECK_EQ(v8::HeapGraphEdge::kInternal, a_to_b->GetType());
+  const v8::HeapGraphNode* embedder_node_B = a_to_b->GetToNode();
+  CHECK_EQ(0, strcmp("EmbedderNodeB", GetName(embedder_node_B)));
+  CHECK_EQ(20, GetSize(embedder_node_B));
+
+  const v8::HeapGraphEdge* b_to_c =
+      GetEdgeByChildName(embedder_node_B, "EmbedderNodeC");
+  CHECK(b_to_c);
+  CHECK(b_to_c->GetName()->IsNumber());
+  CHECK_EQ(v8::HeapGraphEdge::kElement, b_to_c->GetType());
+  const v8::HeapGraphNode* embedder_node_C = b_to_c->GetToNode();
+  CHECK_EQ(0, strcmp("EmbedderNodeC", GetName(embedder_node_C)));
+  CHECK_EQ(30, GetSize(embedder_node_C));
+}
+
+TEST(EmbedderGraphWithNamedEdges) {
+  i::FLAG_heap_profiler_use_embedder_graph = true;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
+  v8::Local<v8::Value> global_object =
+      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+          (isolate->context()->native_context()->global_object()), isolate));
+  global_object_pointer = &global_object;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  heap_profiler->AddBuildEmbedderGraphCallback(BuildEmbedderGraphWithNamedEdges,
+                                               nullptr);
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  CheckEmbedderGraphWithNamedEdges(env->GetIsolate(), snapshot);
 }
 
 struct GraphBuildingContext {
