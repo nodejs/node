@@ -21,6 +21,10 @@ struct HostPort {
   }
 };
 
+// These options are currently essentially per-Environment, but it can be nice
+// to keep them separate since they are a group of options applying to a very
+// specific part of Node. It might also make more sense for them to be
+// per-Isolate, rather than per-Environment.
 class DebugOptions {
  public:
   bool inspector_enabled = false;
