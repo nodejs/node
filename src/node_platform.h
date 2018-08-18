@@ -109,6 +109,10 @@ class WorkerThreadsTaskRunner {
 
  private:
   TaskQueue<v8::Task> pending_worker_tasks_;
+
+  class DelayedTaskScheduler;
+  std::unique_ptr<DelayedTaskScheduler> delayed_task_scheduler_;
+
   std::vector<std::unique_ptr<uv_thread_t>> threads_;
 };
 
