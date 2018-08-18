@@ -916,6 +916,48 @@ within which it can operate. The process of creating the V8 Context and
 associating it with the `sandbox` object is what this document refers to as
 "contextifying" the `sandbox`.
 
+## vm module and Proxy object
+
+Leveraging a `Proxy` object as the sandbox of a VM context could result in a
+very powerful runtime environment that intercepts all accesses to the global
+object. However, there are some restrictions in the JavaScript engine that one
+needs to be aware of to prevent unexpected results. In particular, providing a
+`Proxy` object with a `get` handler could disallow any access to the original
+global properties of the new VM context, as the `get` hook does not distinguish
+between the `undefined` value and "requested property is not present" &ndash;
+the latter of which would ordinarily trigger a lookup on the context global
+object.
+
+Included below is a sample for how to work around this restriction. It
+initializes the sandbox as a `Proxy` object without any hooks, only to add them
+after the relevant properties have been saved.
+
+```js
+'use strict';
+const { createContext, runInContext } = require('vm');
+
+function createProxySandbox(handlers) {
+  // Create a VM context with a Proxy object with no hooks specified.
+  const sandbox = {};
+  const proxyHandlers = {};
+  const contextifiedProxy = createContext(new Proxy(sandbox, proxyHandlers));
+
+  // Save the initial globals onto our sandbox object.
+  const contextThis = runInContext('this', contextifiedProxy);
+  for (const prop of Reflect.ownKeys(contextThis)) {
+    const descriptor = Object.getOwnPropertyDescriptor(contextThis, prop);
+    Object.defineProperty(sandbox, prop, descriptor);
+  }
+
+  // Now that `sandbox` contains all the initial global properties, assign the
+  // provided handlers to the handlers we used to create the Proxy.
+  Object.assign(proxyHandlers, handlers);
+
+  // Return the created contextified Proxy object.
+  return contextifiedProxy;
+}
+```
+
 [`Error`]: errors.html#errors_class_error
 [`URL`]: url.html#url_class_url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval

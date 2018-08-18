@@ -65,6 +65,9 @@ class ContextifyContext {
       v8::Local<v8::Name> property,
       v8::Local<v8::Value> value,
       const v8::PropertyCallbackInfo<v8::Value>& args);
+  static void PropertyQueryCallback(
+      v8::Local<v8::Name> property,
+      const v8::PropertyCallbackInfo<v8::Integer>& args);
   static void PropertyDescriptorCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Value>& args);
@@ -84,6 +87,9 @@ class ContextifyContext {
       uint32_t index,
       v8::Local<v8::Value> value,
       const v8::PropertyCallbackInfo<v8::Value>& args);
+  static void IndexedPropertyQueryCallback(
+      uint32_t index,
+      const v8::PropertyCallbackInfo<v8::Integer>& args);
   static void IndexedPropertyDescriptorCallback(
       uint32_t index,
       const v8::PropertyCallbackInfo<v8::Value>& args);
