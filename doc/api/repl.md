@@ -433,7 +433,7 @@ buffered but not yet executed. This method is primarily intended to be
 called from within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
-### replServer.parseREPLKeyword(keyword, [rest])
+### replServer.parseREPLKeyword(keyword[, rest])
 <!-- YAML
 added: v0.8.9
 deprecated: v9.0.0
