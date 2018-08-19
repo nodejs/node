@@ -435,7 +435,7 @@ added: v0.9.4
 
 Close the underlying handle.
 
-### zlib.flush([kind], callback)
+### zlib.flush([kind, ]callback)
 <!-- YAML
 added: v0.5.8
 -->

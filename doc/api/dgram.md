@@ -265,7 +265,7 @@ Calling `socket.ref()` multiples times will have no additional effect.
 The `socket.ref()` method returns a reference to the socket so calls can be
 chained.
 
-### socket.send(msg, [offset, length,] port [, address] [, callback])
+### socket.send(msg[, offset, length], port[, address][, callback])
 <!-- YAML
 added: v0.1.99
 changes:
