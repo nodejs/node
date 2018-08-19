@@ -3,7 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const join = require('path').join;
-const debuglog = require('util').debuglog('test');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -23,13 +22,16 @@ const s = '南越国是前203年至前111年存在于岭南地区的一个国家
 const inputBuffer = Buffer.from(s.repeat(8), 'utf8');
 
 for (const expectView of common.getArrayBufferViews(inputBuffer)) {
-  debuglog('Running test for: ', expectView[Symbol.toStringTag]);
+  console.log('Sync test for ', expectView[Symbol.toStringTag]);
   fs.writeFileSync(filename, expectView);
   assert.strictEqual(
     fs.readFileSync(filename, 'utf8'),
     inputBuffer.toString('utf8')
   );
+}
 
+for (const expectView of common.getArrayBufferViews(inputBuffer)) {
+  console.log('Async test for ', expectView[Symbol.toStringTag]);
   fs.writeFile(filename, expectView, common.mustCall((e) => {
     assert.ifError(e);
 
