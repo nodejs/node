@@ -40,6 +40,7 @@ let filename = null;
 let nodeVersion = null;
 let analytics = null;
 let outputDir = null;
+let apilinks = {};
 
 args.forEach(function(arg) {
   if (!arg.startsWith('--')) {
@@ -50,6 +51,10 @@ args.forEach(function(arg) {
     analytics = arg.replace(/^--analytics=/, '');
   } else if (arg.startsWith('--output-directory=')) {
     outputDir = arg.replace(/^--output-directory=/, '');
+  } else if (arg.startsWith('--apilinks=')) {
+    apilinks = JSON.parse(
+      fs.readFileSync(arg.replace(/^--apilinks=/, ''), 'utf8')
+    );
   }
 });
 
@@ -71,7 +76,7 @@ fs.readFile(filename, 'utf8', (er, input) => {
     .use(json.jsonAPI, { filename })
     .use(html.firstHeader)
     .use(html.preprocessElements, { filename })
-    .use(html.buildToc, { filename })
+    .use(html.buildToc, { filename, apilinks })
     .use(remark2rehype, { allowDangerousHTML: true })
     .use(raw)
     .use(htmlStringify)

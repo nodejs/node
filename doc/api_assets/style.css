@@ -283,6 +283,11 @@ h2, h3, h4, h5 {
   padding-right: 40px;
 }
 
+.srclink {
+  float: right;
+  font-size: smaller;
+}
+
 h1 span, h2 span, h3 span, h4 span {
   position: absolute;
   display: block;
