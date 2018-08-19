@@ -349,7 +349,7 @@ Will be `true` if this `Http2Session` instance is still connecting, will be set
 to `false` before emitting `connect` event and/or calling the `http2.connect`
 callback.
 
-#### http2session.destroy([error,][code])
+#### http2session.destroy([error][, code])
 <!-- YAML
 added: v8.4.0
 -->
@@ -392,7 +392,7 @@ connected, `true` if the `Http2Session` is connected with a `TLSSocket`,
 and `false` if the `Http2Session` is connected to any other kind of socket
 or stream.
 
-#### http2session.goaway([code, [lastStreamID, [opaqueData]]])
+#### http2session.goaway([code[, lastStreamID[, opaqueData]]])
 <!-- YAML
 added: v9.4.0
 -->
