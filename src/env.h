@@ -148,10 +148,12 @@ struct PackageConfig {
   V(dns_soa_string, "SOA")                                                    \
   V(dns_srv_string, "SRV")                                                    \
   V(dns_txt_string, "TXT")                                                    \
+  V(duration_string, "duration")                                              \
   V(emit_warning_string, "emitWarning")                                       \
   V(exchange_string, "exchange")                                              \
   V(encoding_string, "encoding")                                              \
   V(entries_string, "entries")                                                \
+  V(entry_type_string, "entryType")                                           \
   V(env_pairs_string, "envPairs")                                             \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
@@ -187,6 +189,7 @@ struct PackageConfig {
   V(issuer_string, "issuer")                                                  \
   V(issuercert_string, "issuerCertificate")                                   \
   V(kill_signal_string, "killSignal")                                         \
+  V(kind_string, "kind")                                                      \
   V(mac_string, "mac")                                                        \
   V(main_string, "main")                                                      \
   V(max_buffer_string, "maxBuffer")                                           \
@@ -270,6 +273,7 @@ struct PackageConfig {
   V(sni_context_string, "sni_context")                                        \
   V(source_string, "source")                                                  \
   V(stack_string, "stack")                                                    \
+  V(start_time_string, "startTime")                                           \
   V(status_string, "status")                                                  \
   V(stdio_string, "stdio")                                                    \
   V(subject_string, "subject")                                                \
