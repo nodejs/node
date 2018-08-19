@@ -43,8 +43,10 @@ function doRequest() {
     const duration = Date.now() - start;
     // The timeout event cannot be precisely timed. It will delay
     // some number of milliseconds.
-    assert.ok(duration >= HTTP_CLIENT_TIMEOUT,
-              `${duration} < ${HTTP_CLIENT_TIMEOUT}`);
+    assert.ok(
+      duration >= HTTP_CLIENT_TIMEOUT,
+      `duration ${duration}ms less than timeout ${HTTP_CLIENT_TIMEOUT}ms`
+    );
   }));
   req.end();
 
