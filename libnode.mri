@@ -1,0 +1,19 @@
+create libnode.a
+addlib ./out/Release/obj.target/deps/cares/libcares.a
+addlib ./out/Release/obj.target/deps/gtest/libgtest.a
+addlib ./out/Release/obj.target/deps/http_parser/libhttp_parser.a
+addlib ./out/Release/obj.target/deps/llhttp/libllhttp.a
+addlib ./out/Release/obj.target/deps/nghttp2/libnghttp2.a
+addlib ./out/Release/obj.target/deps/openssl/libopenssl.a
+addlib ./out/Release/obj.target/deps/uv/libuv.a
+addlib ./out/Release/obj.target/deps/v8/gypfiles/libv8_base.a
+addlib ./out/Release/obj.target/deps/v8/gypfiles/libv8_init.a
+addlib ./out/Release/obj.target/deps/v8/gypfiles/libv8_initializers.a
+addlib ./out/Release/obj.target/deps/v8/gypfiles/libv8_libbase.a
+addlib ./out/Release/obj.target/deps/v8/gypfiles/libv8_libplatform.a
+addlib ./out/Release/obj.target/deps/v8/gypfiles/libv8_libsampler.a
+addlib ./out/Release/obj.target/deps/v8/gypfiles/libv8_nosnapshot.a
+addlib ./out/Release/obj.target/deps/zlib/libzlib.a
+addlib ./out/Release/obj.target/libnode.a
+save
+end

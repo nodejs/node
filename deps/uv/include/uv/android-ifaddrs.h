@@ -45,6 +45,9 @@ struct ifaddrs {
 #endif
 
 #include <sys/cdefs.h>
+#include <sys/socket.h>
+#include <netpacket/packet.h>
+#include <net/ethernet.h>
 
 __BEGIN_DECLS
 extern int getifaddrs(struct ifaddrs **ifap);

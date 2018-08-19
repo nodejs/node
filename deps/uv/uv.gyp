@@ -173,6 +173,8 @@
             'src/unix/thread.c',
             'src/unix/tty.c',
             'src/unix/udp.c',
+            'src/android_file.c',
+            'src/murmur3.c',
           ],
           'link_settings': {
             'libraries': [ '-lm' ],

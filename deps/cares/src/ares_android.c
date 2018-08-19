@@ -12,6 +12,8 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  */
+#undef ANDROID
+#undef __ANDROID__
 #if defined(ANDROID) || defined(__ANDROID__)
 
 #include <jni.h>

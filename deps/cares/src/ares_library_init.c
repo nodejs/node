@@ -15,6 +15,9 @@
  * without express or implied warranty.
  */
 
+#undef ANDROID
+#undef __ANDROID__
+
 #include "ares_setup.h"
 
 #include "ares.h"
