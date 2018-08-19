@@ -28,7 +28,7 @@ function toHTML({ input, filename, nodeVersion, analytics }, cb) {
     .use(html.firstHeader)
     .use(html.preprocessText)
     .use(html.preprocessElements, { filename })
-    .use(html.buildToc, { filename })
+    .use(html.buildToc, { filename, apilinks: {} })
     .use(remark2rehype, { allowDangerousHTML: true })
     .use(raw)
     .use(htmlStringify)

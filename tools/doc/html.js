@@ -329,7 +329,7 @@ function versionSort(a, b) {
   return +b.match(numberRe)[0] - +a.match(numberRe)[0];
 }
 
-function buildToc({ filename }) {
+function buildToc({ filename, apilinks }) {
   return (tree, file) => {
     const startIncludeRefRE = /^\s*<!-- \[start-include:(.+)\] -->\s*$/;
     const endIncludeRefRE = /^\s*<!-- \[end-include:.+\] -->\s*$/;
@@ -374,6 +374,11 @@ function buildToc({ filename }) {
       if (realFilename === 'errors' && headingText.startsWith('ERR_')) {
         anchor += `<span><a class="mark" href="#${headingText}" ` +
                   `id="${headingText}">#</a></span>`;
+      }
+
+      const api = headingText.replace(/^.*:\s+/, '').replace(/\(.*/, '');
+      if (apilinks[api]) {
+        anchor = `<a class="srclink" href=${apilinks[api]}>[src]</a>${anchor}`;
       }
 
       node.children.push({ type: 'html', value: anchor });
