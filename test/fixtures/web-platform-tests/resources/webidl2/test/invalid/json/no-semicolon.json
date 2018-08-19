@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `partial interface NoSemicolon`: Missing semicolon after interface",
+    "line": 5
+}

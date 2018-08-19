@@ -1,0 +1,22 @@
+interface Animal {
+
+  // A simple attribute that can be set to any string value.
+  readonly attribute DOMString name;
+};
+
+interface Person : Animal {
+
+  // An attribute whose value cannot be assigned to.
+  readonly attribute unsigned short age;
+
+  // An attribute that can raise an exception if it is set to an invalid value.
+  // Its getter behavior is inherited from Animal, and need not be specified
+  // the description of Person.
+  inherit attribute DOMString name;
+};
+
+interface Ghost : Person {
+
+  // An attribute that only inherits the getter behavior
+  inherit readonly attribute DOMString name;
+};

@@ -1,0 +1,25 @@
+[
+    {
+        "type": "interface",
+        "name": "LegacyIterable",
+        "partial": false,
+        "members": [
+            {
+                "type": "legacyiterable",
+                "idlType": [
+                    {
+                        "type": null,
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "long",
+                        "extAttrs": []
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

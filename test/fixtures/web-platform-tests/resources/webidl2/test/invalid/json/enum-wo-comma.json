@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `enum NoComma`: No comma between enum values",
+    "line": 1
+}

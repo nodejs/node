@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `interface X`: Promise type cannot be nullable",
+    "line": 2
+}

@@ -1,0 +1,49 @@
+[
+    {
+        "type": "interface",
+        "name": "A",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": true,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "DOMString",
+                    "extAttrs": []
+                },
+                "name": null,
+                "escapedName": null,
+                "arguments": [],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "B",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": true,
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

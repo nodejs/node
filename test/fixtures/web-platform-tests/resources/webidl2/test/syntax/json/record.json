@@ -1,0 +1,220 @@
+[
+    {
+        "type": "interface",
+        "name": "Foo",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "void",
+                    "extAttrs": []
+                },
+                "name": "foo",
+                "escapedName": "foo",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": "sequence",
+                            "nullable": false,
+                            "union": false,
+                            "idlType": {
+                                "type": "argument-type",
+                                "generic": "record",
+                                "nullable": false,
+                                "union": false,
+                                "idlType": [
+                                    {
+                                        "type": "argument-type",
+                                        "generic": null,
+                                        "nullable": false,
+                                        "union": false,
+                                        "idlType": "ByteString",
+                                        "extAttrs": []
+                                    },
+                                    {
+                                        "type": "argument-type",
+                                        "generic": null,
+                                        "nullable": false,
+                                        "union": false,
+                                        "idlType": "any",
+                                        "extAttrs": []
+                                    }
+                                ],
+                                "extAttrs": []
+                            },
+                            "extAttrs": []
+                        },
+                        "name": "param",
+                        "escapedName": "param"
+                    }
+                ],
+                "extAttrs": []
+            },
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": "record",
+                    "nullable": false,
+                    "union": false,
+                    "idlType": [
+                        {
+                            "type": "return-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "DOMString",
+                            "extAttrs": []
+                        },
+                        {
+                            "type": "return-type",
+                            "generic": null,
+                            "nullable": true,
+                            "union": true,
+                            "idlType": [
+                                {
+                                    "type": null,
+                                    "generic": null,
+                                    "nullable": false,
+                                    "union": false,
+                                    "idlType": "float",
+                                    "extAttrs": []
+                                },
+                                {
+                                    "type": null,
+                                    "generic": null,
+                                    "nullable": false,
+                                    "union": false,
+                                    "idlType": "DOMString",
+                                    "extAttrs": []
+                                }
+                            ],
+                            "extAttrs": []
+                        }
+                    ],
+                    "extAttrs": []
+                },
+                "name": "bar",
+                "escapedName": "bar",
+                "arguments": [],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": [
+            {
+                "name": "Constructor",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": "record",
+                            "nullable": false,
+                            "union": false,
+                            "idlType": [
+                                {
+                                    "type": "argument-type",
+                                    "generic": null,
+                                    "nullable": false,
+                                    "union": false,
+                                    "idlType": "USVString",
+                                    "extAttrs": []
+                                },
+                                {
+                                    "type": "argument-type",
+                                    "generic": null,
+                                    "nullable": false,
+                                    "union": false,
+                                    "idlType": "USVString",
+                                    "extAttrs": []
+                                }
+                            ],
+                            "extAttrs": []
+                        },
+                        "name": "init",
+                        "escapedName": "init"
+                    }
+                ],
+                "type": "extended-attribute",
+                "rhs": null
+            }
+        ]
+    },
+    {
+        "type": "interface",
+        "name": "Bar",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": "record",
+                    "nullable": false,
+                    "union": false,
+                    "idlType": [
+                        {
+                            "type": "return-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "DOMString",
+                            "extAttrs": []
+                        },
+                        {
+                            "type": "return-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "float",
+                            "extAttrs": [
+                                {
+                                    "name": "XAttr",
+                                    "arguments": null,
+                                    "type": "extended-attribute",
+                                    "rhs": null
+                                }
+                            ]
+                        }
+                    ],
+                    "extAttrs": []
+                },
+                "name": "bar",
+                "escapedName": "bar",
+                "arguments": [],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

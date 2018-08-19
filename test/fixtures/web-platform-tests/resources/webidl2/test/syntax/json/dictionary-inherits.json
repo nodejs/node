@@ -1,0 +1,89 @@
+[
+    {
+        "type": "dictionary",
+        "name": "PaintOptions",
+        "partial": false,
+        "members": [
+            {
+                "type": "field",
+                "name": "fillPattern",
+                "escapedName": "fillPattern",
+                "required": false,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": null,
+                    "nullable": true,
+                    "union": false,
+                    "idlType": "DOMString",
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": {
+                    "type": "string",
+                    "value": "black"
+                }
+            },
+            {
+                "type": "field",
+                "name": "strokePattern",
+                "escapedName": "strokePattern",
+                "required": false,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": null,
+                    "nullable": true,
+                    "union": false,
+                    "idlType": "DOMString",
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": {
+                    "type": "null"
+                }
+            },
+            {
+                "type": "field",
+                "name": "position",
+                "escapedName": "position",
+                "required": false,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Point",
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": null
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "dictionary",
+        "name": "WetPaintOptions",
+        "partial": false,
+        "members": [
+            {
+                "type": "field",
+                "name": "hydrometry",
+                "escapedName": "hydrometry",
+                "required": false,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "float",
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": null
+            }
+        ],
+        "inheritance": "PaintOptions",
+        "extAttrs": []
+    }
+]

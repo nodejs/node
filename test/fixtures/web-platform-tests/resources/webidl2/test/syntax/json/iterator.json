@@ -1,0 +1,276 @@
+[
+    {
+        "type": "interface",
+        "name": "SessionManager",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Session"
+                },
+                "name": "getSessionForUser",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "extAttrs": [],
+                        "idlType": {
+                            "sequence": false,
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "DOMString"
+                        },
+                        "name": "username"
+                    }
+                ],
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "unsigned long"
+                },
+                "name": "sessionCount",
+                "extAttrs": []
+            },
+            {
+                "type": "iterator",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Session"
+                },
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "Session",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "DOMString"
+                },
+                "name": "username",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "SessionManager2",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Session2"
+                },
+                "name": "getSessionForUser",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "extAttrs": [],
+                        "idlType": {
+                            "sequence": false,
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "DOMString"
+                        },
+                        "name": "username"
+                    }
+                ],
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "unsigned long"
+                },
+                "name": "sessionCount",
+                "extAttrs": []
+            },
+            {
+                "type": "iterator",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Session2"
+                },
+                "iteratorObject": "SessionIterator",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "Session2",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "DOMString"
+                },
+                "name": "username",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "SessionIterator",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "unsigned long"
+                },
+                "name": "remainingSessions",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "NodeList",
+        "partial": false,
+        "members": [
+            {
+                "type": "iterator",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Node"
+                },
+                "iteratorObject": "NodeIterator",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "NodeIterator",
+        "partial": false,
+        "members": [
+            {
+                "type": "iterator",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Node"
+                },
+                "iteratorObject": "object",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

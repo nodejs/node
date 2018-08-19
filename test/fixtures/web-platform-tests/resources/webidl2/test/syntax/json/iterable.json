@@ -1,0 +1,86 @@
+[
+    {
+        "type": "interface",
+        "name": "IterableOne",
+        "partial": false,
+        "members": [
+            {
+                "type": "iterable",
+                "idlType": [
+                    {
+                        "type": null,
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "long",
+                        "extAttrs": []
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "IterableTwo",
+        "partial": false,
+        "members": [
+            {
+                "type": "iterable",
+                "idlType": [
+                    {
+                        "type": null,
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "short",
+                        "extAttrs": []
+                    },
+                    {
+                        "type": null,
+                        "generic": null,
+                        "nullable": true,
+                        "union": false,
+                        "idlType": "double",
+                        "extAttrs": []
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "IterableThree",
+        "partial": false,
+        "members": [
+            {
+                "type": "iterable",
+                "idlType": [
+                    {
+                        "type": null,
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "long",
+                        "extAttrs": [
+                            {
+                                "name": "XAttr",
+                                "arguments": null,
+                                "type": "extended-attribute",
+                                "rhs": null
+                            }
+                        ]
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

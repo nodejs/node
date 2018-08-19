@@ -1,0 +1,4 @@
+{
+    "message": "Got an error before parsing any named definition: At least two types are expected in a union type but found less",
+    "line": 1
+}

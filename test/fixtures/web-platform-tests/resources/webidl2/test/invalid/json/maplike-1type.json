@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `interface MapLikeOneType`: Missing second type argument in maplike declaration",
+    "line": 2
+}

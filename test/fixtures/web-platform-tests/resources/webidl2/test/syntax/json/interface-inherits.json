@@ -1,0 +1,83 @@
+[
+    {
+        "type": "interface",
+        "name": "Animal",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "DOMString",
+                    "extAttrs": []
+                },
+                "name": "name",
+                "escapedName": "name",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "Human",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Dog",
+                    "extAttrs": []
+                },
+                "name": "pet",
+                "escapedName": "pet",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": "Animal",
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "Dog",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Human",
+                    "extAttrs": []
+                },
+                "name": "owner",
+                "escapedName": "owner",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": "Animal",
+        "extAttrs": []
+    }
+]

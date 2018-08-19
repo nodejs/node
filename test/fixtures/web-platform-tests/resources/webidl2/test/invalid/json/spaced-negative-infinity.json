@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `interface X`: No value for const",
+    "line": 2
+}

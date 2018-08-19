@@ -1,0 +1,134 @@
+html.fail {
+    background: #f66;
+}
+html.pass {
+    background: #6f6;
+}
+html.needs_check {
+    background: #99f;
+}
+
+body {
+    font-size: small;
+    font-family: sans-serif;
+    color: black;
+}
+
+a:link {
+    color: #00c;
+}
+a:visited {
+    color: #808;
+}
+
+body.framed {
+    font-size: x-small;
+}
+
+h1 {
+    font-size: larger;
+    margin: 0;
+    padding-left: 0.5em;
+    text-indent: -0.5em;
+}
+
+p {
+    margin: 0;
+}
+
+p.notes {
+    margin-bottom: 0.5em;
+    font-style: italic;
+}
+
+ul {
+    margin: 0;
+    margin-bottom: 0.5em;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.refs {
+    font-style: italic;
+    margin-bottom: 0.5em;
+}
+
+.refs ul {
+    display: inline;
+    margin: 0;
+    padding: 0;
+}
+
+.refs li {
+    display: inline;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+canvas {
+    display: none;
+    visibility: hidden;
+    border: 2px #f0f solid;
+    background: url(../images/background.png);
+}
+
+img.expected {
+    display: none;
+    border: 2px #f0f solid;
+    background: url(../images/background.png);
+}
+
+iframe {
+    border: 2px #f0f solid;
+}
+
+.output {
+    display: none;
+}
+
+.show_output .output, .needs_check .output  {
+    display: block !important;
+    visibility: visible !important;
+}
+
+.show_output #show_output {
+    display: none;
+}
+
+.resource {
+    visibility: hidden;
+    height: 0;
+}
+
+.fallback {
+    font-size: 2em;
+    font-weight: bold;
+    color: #a00;
+}
+
+
+html.minimal body {
+    color: white;
+}
+html.fail.minimal {
+    background: #f00;
+}
+html.pass.minimal {
+    background: #080;
+}
+html.needs_check.minimal {
+    background: #008;
+}
+.minimal #d {
+    display: none !important;
+}
+.minimal .expectedtext {
+    visibility: hidden !important;
+}
+#passtext, #failtext {
+    display: none;
+}
+.minimal.pass #passtext, .minimal.fail #failtext {
+    display: block;
+}

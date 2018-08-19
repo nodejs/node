@@ -1,0 +1,317 @@
+[
+    {
+        "type": "interface",
+        "name": "Primitives",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "boolean",
+                    "extAttrs": []
+                },
+                "name": "truth",
+                "escapedName": "truth",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "byte",
+                    "extAttrs": []
+                },
+                "name": "character",
+                "escapedName": "character",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "octet",
+                    "extAttrs": []
+                },
+                "name": "value",
+                "escapedName": "value",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "short",
+                    "extAttrs": []
+                },
+                "name": "number",
+                "escapedName": "number",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "unsigned short",
+                    "extAttrs": []
+                },
+                "name": "positive",
+                "escapedName": "positive",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "long",
+                    "extAttrs": []
+                },
+                "name": "big",
+                "escapedName": "big",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "unsigned long",
+                    "extAttrs": []
+                },
+                "name": "bigpositive",
+                "escapedName": "bigpositive",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "long long",
+                    "extAttrs": []
+                },
+                "name": "bigbig",
+                "escapedName": "bigbig",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "unsigned long long",
+                    "extAttrs": []
+                },
+                "name": "bigbigpositive",
+                "escapedName": "bigbigpositive",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "float",
+                    "extAttrs": []
+                },
+                "name": "real",
+                "escapedName": "real",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "double",
+                    "extAttrs": []
+                },
+                "name": "bigreal",
+                "escapedName": "bigreal",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "unrestricted float",
+                    "extAttrs": []
+                },
+                "name": "realwithinfinity",
+                "escapedName": "realwithinfinity",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "unrestricted double",
+                    "extAttrs": []
+                },
+                "name": "bigrealwithinfinity",
+                "escapedName": "bigrealwithinfinity",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "DOMString",
+                    "extAttrs": []
+                },
+                "name": "string",
+                "escapedName": "string",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "ByteString",
+                    "extAttrs": []
+                },
+                "name": "bytes",
+                "escapedName": "bytes",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Date",
+                    "extAttrs": []
+                },
+                "name": "date",
+                "escapedName": "date",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "RegExp",
+                    "extAttrs": []
+                },
+                "name": "regexp",
+                "escapedName": "regexp",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

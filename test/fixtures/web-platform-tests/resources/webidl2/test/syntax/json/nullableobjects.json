@@ -1,0 +1,101 @@
+[
+    {
+        "type": "interface",
+        "name": "A",
+        "partial": false,
+        "members": [],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "B",
+        "partial": false,
+        "members": [],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "C",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "void",
+                    "extAttrs": []
+                },
+                "name": "f",
+                "escapedName": "f",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": true,
+                            "union": false,
+                            "idlType": "A",
+                            "extAttrs": []
+                        },
+                        "name": "x",
+                        "escapedName": "x"
+                    }
+                ],
+                "extAttrs": []
+            },
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "void",
+                    "extAttrs": []
+                },
+                "name": "f",
+                "escapedName": "f",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": true,
+                            "union": false,
+                            "idlType": "B",
+                            "extAttrs": []
+                        },
+                        "name": "x",
+                        "escapedName": "x"
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

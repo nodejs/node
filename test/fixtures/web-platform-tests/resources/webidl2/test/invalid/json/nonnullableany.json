@@ -1,0 +1,4 @@
+{
+    "message":  "Got an error during or right after parsing `interface NonNullable`: Type any cannot be made nullable"
+,   "line":     2
+}

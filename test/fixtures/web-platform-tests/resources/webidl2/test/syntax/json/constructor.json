@@ -1,0 +1,113 @@
+[
+    {
+        "type": "interface",
+        "name": "Circle",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "float",
+                    "extAttrs": []
+                },
+                "name": "r",
+                "escapedName": "r",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "float",
+                    "extAttrs": []
+                },
+                "name": "cx",
+                "escapedName": "cx",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "float",
+                    "extAttrs": []
+                },
+                "name": "cy",
+                "escapedName": "cy",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "float",
+                    "extAttrs": []
+                },
+                "name": "circumference",
+                "escapedName": "circumference",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": [
+            {
+                "name": "Constructor",
+                "arguments": null,
+                "type": "extended-attribute",
+                "rhs": null
+            },
+            {
+                "name": "Constructor",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "float",
+                            "extAttrs": []
+                        },
+                        "name": "radius",
+                        "escapedName": "radius"
+                    }
+                ],
+                "type": "extended-attribute",
+                "rhs": null
+            }
+        ]
+    }
+]

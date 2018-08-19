@@ -1,0 +1,160 @@
+[
+    {
+        "type": "interface",
+        "name": "Point",
+        "partial": false,
+        "members": [],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "Circle",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "float",
+                    "extAttrs": []
+                },
+                "name": "cx",
+                "escapedName": "cx",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "float",
+                    "extAttrs": []
+                },
+                "name": "cy",
+                "escapedName": "cy",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "float",
+                    "extAttrs": []
+                },
+                "name": "radius",
+                "escapedName": "radius",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": true,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "long",
+                    "extAttrs": []
+                },
+                "name": "triangulationCount",
+                "escapedName": "triangulationCount",
+                "extAttrs": []
+            },
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": true,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Point",
+                    "extAttrs": []
+                },
+                "name": "triangulate",
+                "escapedName": "triangulate",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "Circle",
+                            "extAttrs": []
+                        },
+                        "name": "c1",
+                        "escapedName": "c1"
+                    },
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "Circle",
+                            "extAttrs": []
+                        },
+                        "name": "c2",
+                        "escapedName": "c2"
+                    },
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "Circle",
+                            "extAttrs": []
+                        },
+                        "name": "c3",
+                        "escapedName": "c3"
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

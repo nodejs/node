@@ -1,0 +1,146 @@
+[
+    {
+        "type": "dictionary",
+        "name": "PaintOptions",
+        "partial": false,
+        "members": [
+            {
+                "type": "field",
+                "name": "fillPattern",
+                "escapedName": "fillPattern",
+                "required": false,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": null,
+                    "nullable": true,
+                    "union": false,
+                    "idlType": "DOMString",
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": {
+                    "type": "string",
+                    "value": "black"
+                }
+            },
+            {
+                "type": "field",
+                "name": "strokePattern",
+                "escapedName": "strokePattern",
+                "required": false,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": null,
+                    "nullable": true,
+                    "union": false,
+                    "idlType": "DOMString",
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": {
+                    "type": "null"
+                }
+            },
+            {
+                "type": "field",
+                "name": "position",
+                "escapedName": "position",
+                "required": false,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Point",
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": null
+            },
+            {
+                "type": "field",
+                "name": "seq",
+                "escapedName": "seq",
+                "required": false,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": "sequence",
+                    "nullable": false,
+                    "union": false,
+                    "idlType": {
+                        "type": "dictionary-type",
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "long",
+                        "extAttrs": []
+                    },
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": {
+                    "type": "sequence",
+                    "value": []
+                }
+            },
+            {
+                "type": "field",
+                "name": "reqSeq",
+                "escapedName": "reqSeq",
+                "required": true,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "long",
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": null
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "dictionary",
+        "name": "A",
+        "partial": true,
+        "members": [
+            {
+                "type": "field",
+                "name": "h",
+                "escapedName": "h",
+                "required": false,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "long",
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": null
+            },
+            {
+                "type": "field",
+                "name": "d",
+                "escapedName": "d",
+                "required": false,
+                "idlType": {
+                    "type": "dictionary-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "long",
+                    "extAttrs": []
+                },
+                "extAttrs": [],
+                "default": null
+            }
+        ],
+        "extAttrs": []
+    }
+]

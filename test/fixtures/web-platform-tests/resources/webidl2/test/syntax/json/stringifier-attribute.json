@@ -1,0 +1,54 @@
+[
+    {
+        "type": "interface",
+        "name": "Student",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "unsigned long",
+                    "extAttrs": []
+                },
+                "name": "id",
+                "escapedName": "id",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": true,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "DOMString",
+                    "extAttrs": []
+                },
+                "name": "name",
+                "escapedName": "name",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": [
+            {
+                "name": "Constructor",
+                "arguments": null,
+                "type": "extended-attribute",
+                "rhs": null
+            }
+        ]
+    }
+]

@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `interface Foo`: Record key must be a string type",
+    "line": 2
+}

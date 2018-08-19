@@ -1,0 +1,81 @@
+[
+    {
+        "type": "interface",
+        "name": "SetLike",
+        "partial": false,
+        "members": [
+            {
+                "type": "setlike",
+                "idlType": [
+                    {
+                        "type": null,
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "long",
+                        "extAttrs": []
+                    }
+                ],
+                "readonly": false,
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "ReadOnlySetLike",
+        "partial": false,
+        "members": [
+            {
+                "type": "setlike",
+                "idlType": [
+                    {
+                        "type": null,
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "long",
+                        "extAttrs": []
+                    }
+                ],
+                "readonly": true,
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "SetLikeExt",
+        "partial": false,
+        "members": [
+            {
+                "type": "setlike",
+                "idlType": [
+                    {
+                        "type": null,
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "long",
+                        "extAttrs": [
+                            {
+                                "name": "XAttr",
+                                "arguments": null,
+                                "type": "extended-attribute",
+                                "rhs": null
+                            }
+                        ]
+                    }
+                ],
+                "readonly": false,
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

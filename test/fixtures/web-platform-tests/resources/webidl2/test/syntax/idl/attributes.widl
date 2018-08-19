@@ -1,0 +1,11 @@
+// Extracted from http://dev.w3.org/2006/webapi/WebIDL/ on 2011-05-06
+
+interface Person {
+
+  // A simple attribute that can be set to any value the range an unsigned
+  // short can take.
+  attribute unsigned short age;
+
+  // required is an allowed attribute name
+  attribute any required;
+};

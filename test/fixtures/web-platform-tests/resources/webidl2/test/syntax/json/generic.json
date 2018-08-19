@@ -1,0 +1,176 @@
+[
+    {
+        "type": "interface",
+        "name": "Foo",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": "Promise",
+                    "nullable": false,
+                    "union": false,
+                    "idlType": {
+                        "type": "return-type",
+                        "generic": "Promise",
+                        "nullable": false,
+                        "union": false,
+                        "idlType": {
+                            "type": "return-type",
+                            "generic": "sequence",
+                            "nullable": false,
+                            "union": false,
+                            "idlType": {
+                                "type": "return-type",
+                                "generic": null,
+                                "nullable": true,
+                                "union": false,
+                                "idlType": "DOMString",
+                                "extAttrs": []
+                            },
+                            "extAttrs": []
+                        },
+                        "extAttrs": []
+                    },
+                    "extAttrs": []
+                },
+                "name": "bar",
+                "escapedName": "bar",
+                "arguments": [],
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": "Promise",
+                    "nullable": false,
+                    "union": false,
+                    "idlType": {
+                        "type": "attribute-type",
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "DOMString",
+                        "extAttrs": []
+                    },
+                    "extAttrs": []
+                },
+                "name": "baz",
+                "escapedName": "baz",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "ServiceWorkerClients",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": "Promise",
+                    "nullable": false,
+                    "union": false,
+                    "idlType": {
+                        "type": "return-type",
+                        "generic": null,
+                        "nullable": true,
+                        "union": false,
+                        "idlType": "Client",
+                        "extAttrs": []
+                    },
+                    "extAttrs": []
+                },
+                "name": "getServiced",
+                "escapedName": "getServiced",
+                "arguments": [],
+                "extAttrs": []
+            },
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": "Promise",
+                    "nullable": false,
+                    "union": false,
+                    "idlType": {
+                        "type": "return-type",
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "any",
+                        "extAttrs": []
+                    },
+                    "extAttrs": []
+                },
+                "name": "reloadAll",
+                "escapedName": "reloadAll",
+                "arguments": [],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "FetchEvent",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": "Promise",
+                    "nullable": false,
+                    "union": false,
+                    "idlType": {
+                        "type": "return-type",
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "any",
+                        "extAttrs": []
+                    },
+                    "extAttrs": []
+                },
+                "name": "default",
+                "escapedName": "default",
+                "arguments": [],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": "Event",
+        "extAttrs": []
+    }
+]

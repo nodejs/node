@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `interface NonNullable`: Can't nullable more than once",
+    "line": 4
+}

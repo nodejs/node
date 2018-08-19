@@ -1,0 +1,36 @@
+[
+    {
+        "type": "interface",
+        "name": "Cat",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": "Promise",
+                    "nullable": false,
+                    "union": false,
+                    "idlType": {
+                        "type": "return-type",
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "void",
+                        "extAttrs": []
+                    },
+                    "extAttrs": []
+                },
+                "name": "meow",
+                "escapedName": "meow",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]
