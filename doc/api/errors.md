@@ -1259,8 +1259,8 @@ For example when a function is expected to return a promise.
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
 
-A `Buffer`, `Uint8Array` or `string` was provided as stdio input to a
-synchronous fork. See the documentation for the [`child_process`][] module
+A `Buffer`, `TypedArray`, `DataView` or `string` was provided as stdio input to
+an asynchronous fork. See the documentation for the [`child_process`][] module
 for more information.
 
 <a id="ERR_INVALID_THIS"></a>
