@@ -1131,7 +1131,7 @@
               'action': [
                 'python',
                 '<(protocol_path)/CodeGenerator.py',
-                '--jinja_dir', '<@(protocol_path)/..',
+                '--jinja_dir', 'tools/jinja2',
                 '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/',
                 '--config', '<(SHARED_INTERMEDIATE_DIR)/node_protocol_config.json',
               ],
