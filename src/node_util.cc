@@ -21,17 +21,20 @@ static void GetOwnNonIndexProperties(
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
 
-  if (!args[0]->IsObject())
+  if (!args[0]->IsObject() || !args[1]->IsUint32())
     return;
 
-  v8::Local<v8::Object> object = args[0].As<v8::Object>();
+  Local<Object> object = args[0].As<Object>();
 
-  // Return only non-enumerable properties by default.
-  v8::Local<v8::Array> properties;
+  Local<Array> properties;
+
+  v8::PropertyFilter filter =
+    static_cast<v8::PropertyFilter>(
+      args[1]->Uint32Value(env->context()).FromJust());
 
   if (!object->GetPropertyNames(
         context, v8::KeyCollectionMode::kOwnOnly,
-        v8::ONLY_ENUMERABLE,
+        filter,
         v8::IndexFilter::kSkipIndices)
           .ToLocal(&properties)) {
     return;
