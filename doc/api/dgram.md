@@ -384,6 +384,9 @@ socket is not connected.
 <!-- YAML
 added: v0.1.99
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22413
+    description: The `msg` parameter can now be any `TypedArray` or `DataView`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11985
     description: The `msg` parameter can be an `Uint8Array` now.
@@ -403,7 +406,7 @@ changes:
     description: Added support for sending data on connected sockets.
 -->
 
-* `msg` {Buffer|Uint8Array|string|Array} Message to be sent.
+* `msg` {Buffer|TypedArray|DataView|string|Array} Message to be sent.
 * `offset` {integer} Offset in the buffer where the message starts.
 * `length` {integer} Number of bytes in the message.
 * `port` {integer} Destination port.
@@ -416,8 +419,8 @@ specified. Connected sockets, on the other hand, will use their associated
 remote endpoint, so the `port` and `address` arguments must not be set.
 
 The `msg` argument contains the message to be sent.
-Depending on its type, different behavior can apply. If `msg` is a `Buffer`
-or `Uint8Array`,
+Depending on its type, different behavior can apply. If `msg` is a `Buffer`,
+any `TypedArray` or a `DataView`,
 the `offset` and `length` specify the offset within the `Buffer` where the
 message begins and the number of bytes in the message, respectively.
 If `msg` is a `String`, then it is automatically converted to a `Buffer`
@@ -446,7 +449,8 @@ passed as the first argument to the `callback`. If a `callback` is not given,
 the error is emitted as an `'error'` event on the `socket` object.
 
 Offset and length are optional but both *must* be set if either are used.
-They are supported only when the first argument is a `Buffer` or `Uint8Array`.
+They are supported only when the first argument is a `Buffer`, a `TypedArray`,
+or a `DataView`.
 
 Example of sending a UDP packet to a port on `localhost`;
 
