@@ -170,6 +170,9 @@ struct sockaddr;
 
 namespace node {
 
+extern Mutex process_mutex;
+extern Mutex environ_mutex;
+
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;
 
@@ -887,6 +890,26 @@ void StartProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
 void StopProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Umask(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Uptime(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+void EnvDeleter(v8::Local<v8::Name> property,
+                const v8::PropertyCallbackInfo<v8::Boolean>& info);
+void EnvGetter(v8::Local<v8::Name> property,
+               const v8::PropertyCallbackInfo<v8::Value>& info);
+void EnvSetter(v8::Local<v8::Name> property,
+               v8::Local<v8::Value> value,
+               const v8::PropertyCallbackInfo<v8::Value>& info);
+void EnvQuery(v8::Local<v8::Name> property,
+              const v8::PropertyCallbackInfo<v8::Integer>& info);
+void EnvEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info);
+
+void GetParentProcessId(v8::Local<v8::Name> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info);
+
+void ProcessTitleGetter(v8::Local<v8::Name> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info);
+void ProcessTitleSetter(v8::Local<v8::Name> property,
+                        v8::Local<v8::Value> value,
+                        const v8::PropertyCallbackInfo<void>& info);
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 void SetGid(const v8::FunctionCallbackInfo<v8::Value>& args);
