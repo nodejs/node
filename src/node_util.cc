@@ -4,24 +4,24 @@
 namespace node {
 namespace util {
 
+using v8::ALL_PROPERTIES;
 using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::ONLY_CONFIGURABLE;
+using v8::ONLY_ENUMERABLE;
+using v8::ONLY_WRITABLE;
 using v8::Private;
 using v8::Promise;
 using v8::Proxy;
+using v8::SKIP_STRINGS;
+using v8::SKIP_SYMBOLS;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
-using v8::ALL_PROPERTIES;
-using v8::ONLY_WRITABLE;
-using v8::ONLY_ENUMERABLE;
-using v8::ONLY_CONFIGURABLE;
-using v8::SKIP_STRINGS;
-using v8::SKIP_SYMBOLS;
 
 static void GetOwnNonIndexProperties(
     const FunctionCallbackInfo<Value>& args) {
