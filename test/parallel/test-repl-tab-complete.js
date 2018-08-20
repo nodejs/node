@@ -393,12 +393,6 @@ testMe.complete('obj.', common.mustCall((error, data) => {
   assert(data[0].includes('obj.key'));
 }));
 
-// tab completion for large buffer
-const warningRegEx = new RegExp(
-  '\\(node:\\d+\\) REPLWarning: The current array, Buffer or TypedArray has ' +
-  'too many entries\\. Certain properties may be missing from completion ' +
-  'output\\.');
-
 [
   Array,
   Buffer,
@@ -428,11 +422,7 @@ const warningRegEx = new RegExp(
     putIn.run([`var ele = new ${type.name}(1e6 + 1); ele.biu = 1;`]);
   }
 
-  common.hijackStderr(common.mustCall((err) => {
-    process.nextTick(() => {
-      assert.ok(warningRegEx.test(err));
-    });
-  }));
+  common.hijackStderr(common.mustNotCall());
   testMe.complete('ele.', common.mustCall((err, data) => {
     common.restoreStderr();
     assert.ifError(err);
@@ -443,13 +433,12 @@ const warningRegEx = new RegExp(
         Buffer.alloc(0) :
         new type(0));
 
+    assert.strictEqual(data[0].includes('ele.biu'), true);
+
     data[0].forEach((key) => {
-      if (!key) return;
+      if (!key || key === 'ele.biu') return;
       assert.notStrictEqual(ele[key.substr(4)], undefined);
     });
-
-    // no `biu`
-    assert.strictEqual(data.includes('ele.biu'), false);
   }));
 });
 
