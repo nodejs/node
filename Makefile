@@ -58,6 +58,18 @@ BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 # or set the V environment variable to an empty string.
 V ?= 1
 
+# Use -e to double check in case it's a broken link
+# Use $(PWD) so we can cd to anywhere before calling this
+available-node = \
+  if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
+		$(PWD)/$(NODE) $(1); \
+	elif [ -x `which node` ] && [ -e `which node` ] && [ `which node` ]; then \
+		`which node` $(1); \
+	else \
+		echo "No available node, cannot run \"node $(1)\""; \
+		exit 1; \
+	fi;
+
 .PHONY: all
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
@@ -629,17 +641,6 @@ out/doc/api/assets:
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
 	@cp $< $@
 
-# Use -e to double check in case it's a broken link
-# Use $(PWD) so we can cd to anywhere before calling this
-available-node = \
-  if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
-		$(PWD)/$(NODE) $(1); \
-	elif [ -x `which node` ] && [ -e `which node` ] && [ `which node` ]; then \
-		`which node` $(1); \
-	else \
-		echo "No available node, cannot run \"node $(1)\""; \
-		exit 1; \
-	fi;
 
 run-npm-install = $(PWD)/$(NPM) install --production --no-package-lock
 run-npm-ci = $(PWD)/$(NPM) ci
