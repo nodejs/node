@@ -24,6 +24,17 @@
 
     'openssl_fips%': '',
 
+    'v8_extra_library_files': [
+      './lib/v8_extras/ByteLengthQueuingStrategy.js',
+      './lib/v8_extras/CommonOperations.js',
+      './lib/v8_extras/CommonStrings.js',
+      './lib/v8_extras/CountQueuingStragety.js',
+      './lib/v8_extras/ReadableStream.js',
+      './lib/v8_extras/SimpleQueue.js',
+      './lib/v8_extras/TransformStream.js',
+      './lib/v8_extras/WritableStream.js',
+    ],
+
     # Default to -O0 for debug builds.
     'v8_optimized_debug%': 0,
 
