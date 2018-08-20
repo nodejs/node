@@ -36,7 +36,7 @@ function checkArgs(connected) {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "buffer" argument must be of type string or an instance ' +
-      'of Buffer or Uint8Array. Received undefined'
+      'of Buffer, TypedArray, or DataView. Received undefined'
     }
   );
 
@@ -90,7 +90,7 @@ function checkArgs(connected) {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "buffer" argument must be of type string or an instance ' +
-      'of Buffer or Uint8Array. Received type number (23)'
+      'of Buffer, TypedArray, or DataView. Received type number (23)'
     }
   );
 
@@ -101,7 +101,8 @@ function checkArgs(connected) {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "buffer list arguments" argument must be of type string ' +
-      'or an instance of Buffer. Received an instance of Array'
+      'or an instance of Buffer, TypedArray, or DataView. ' +
+      'Received an instance of Array'
     }
   );
 }
