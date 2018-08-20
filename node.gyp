@@ -1044,7 +1044,7 @@
     }], # end aix section
     [ 'v8_enable_inspector==1', {
       'variables': {
-        'protocol_path': 'tools/inspector_protocol',
+        'protocol_path': 'deps/inspector_protocol',
         'node_inspector_path': 'src/inspector',
         'node_inspector_generated_sources': [
           '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Forward.h',
@@ -1104,7 +1104,7 @@
               ],
               'action': [
                 'python',
-                'tools/inspector_protocol/ConvertProtocolToJSON.py',
+                'deps/inspector_protocol/ConvertProtocolToJSON.py',
                 '<@(_inputs)',
                 '<@(_outputs)',
               ],
@@ -1130,7 +1130,7 @@
               'action': [
                 'python',
                 '<(protocol_path)/CodeGenerator.py',
-                '--jinja_dir', '<@(protocol_path)/..',
+                '--jinja_dir', 'tools/jinja2',
                 '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/',
                 '--config', '<(SHARED_INTERMEDIATE_DIR)/node_protocol_config.json',
               ],
@@ -1159,7 +1159,7 @@
               ],
               'action': [
                 'python',
-                'tools/inspector_protocol/ConvertProtocolToJSON.py',
+                'deps/inspector_protocol/ConvertProtocolToJSON.py',
                 '<@(_inputs)',
                 '<@(_outputs)',
               ],
@@ -1175,7 +1175,7 @@
               ],
               'action': [
                 'python',
-                'tools/inspector_protocol/ConcatenateProtocols.py',
+                'deps/inspector_protocol/ConcatenateProtocols.py',
                 '<@(_inputs)',
                 '<@(_outputs)',
               ],
