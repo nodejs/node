@@ -2346,7 +2346,7 @@ this API: [`fs.open()`][].
 added: v0.0.2
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray`, or a
                  `DataView`.
   - version: v7.4.0
@@ -2629,7 +2629,7 @@ the link path returned will be passed as a `Buffer` object.
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray` or a
                  `DataView`.
   - version: v6.0.0
@@ -3363,7 +3363,7 @@ This happens when:
 added: v0.0.2
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray` or a
                  `DataView`
   - version: v10.0.0
@@ -3466,7 +3466,7 @@ the end of the file.
 added: v0.1.29
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
     description: The `data` parameter can now be any `TypedArray` or a
                  `DataView`.
   - version: v10.0.0
@@ -3529,7 +3529,7 @@ automatically.
 added: v0.1.29
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
     description: The `data` parameter can now be any `TypedArray` or a
                  `DataView`.
   - version: v7.4.0
@@ -3557,7 +3557,7 @@ this API: [`fs.writeFile()`][].
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray` or a
                  `DataView`.
   - version: v7.4.0
