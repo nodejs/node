@@ -3,21 +3,24 @@ compiler:
   - clang
 sudo: false
 cache: ccache
+os: linux
 matrix:
   include:
-    - os: linux
+    - name: "Linter"
       node_js: "latest"
+      env: 
+        - NODE=$(which node)
       install:
-        - NODE=$(which node) make lint-md-build
+        - make lint-md-build
       script:
-        - NODE=$(which node) make lint-ci
-    - os: linux
+        - make lint
+    - name: "Test Suite"
       install:
         - ./configure
         - make -j2 V=
       script:
-        - make -j2 test-ci
-before_install:
-  - export CXX="ccache clang++ -Qunused-arguments"
-  - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
-  - export JOBS=2
+        - make -j2 test
+      before_install:
+        - export CXX="ccache clang++ -Qunused-arguments"
+        - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
+        - export JOBS=2
