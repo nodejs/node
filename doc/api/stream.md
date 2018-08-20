@@ -341,6 +341,23 @@ reader.pipe(writer);
 reader.unpipe(writer);
 ```
 
+##### writable.acquireStandardStream()
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {WritableStream} to feed this stream.
+
+```js
+const fs = require('fs');
+
+const stream = fs.createWriteStream('file').acquireStandardStream();
+const writer = stream.getWriter();
+writer.write('hi!');
+```
+
 ##### writable.cork()
 <!-- YAML
 added: v0.11.2
@@ -827,6 +844,22 @@ If both `'readable'` and [`'data'`][]  are used at the same time, `'readable'`
 takes precedence in controlling the flow, i.e. `'data'` will be emitted
 only when [`stream.read()`][stream-read] is called.
 
+##### readable.acquireStandardStream()
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {ReadableStream} to fully consume the stream.
+
+```js
+const fs = require('fs');
+
+const stream = fs.createReadStream('file').acquireStandardStream();
+const reader = stream.getReader();
+```
+
 ##### readable.destroy([error])
 <!-- YAML
 added: v8.0.0
@@ -1265,6 +1298,26 @@ Examples of `Duplex` streams include:
 * [TCP sockets][]
 * [zlib streams][zlib]
 * [crypto streams][crypto]
+
+##### duplex.acquireStandardStream
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns {Object}
+  * `readable` {ReadableStream}
+  * `writable` {WritableStream}
+
+Creates a WHATWG stream pair to represent this duplex stream.
+
+```js
+const stream = getDuplexSomehow();
+const { readable, writable } = stream.acquireStandardStream();
+readable.getReader();
+writable.getWriter();
+```
 
 #### Class: stream.Transform
 <!-- YAML
@@ -2199,6 +2252,15 @@ after [`stream.end()`][stream-end] is called and all chunks have been processed
 by [`stream._transform()`][stream-_transform]. The `'end'` event is emitted
 after all data has been output, which occurs after the callback in
 [`transform._flush()`][stream-_flush] has been called.
+
+##### transform.acquireStandardStream()
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {TransformStream}
 
 #### transform.\_flush(callback)
 
