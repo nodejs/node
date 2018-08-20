@@ -689,6 +689,10 @@ configuration at startup.
 added: v0.11.12
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22409
+    description: The `input` option can now be any `TypedArray` or a
+                 `DataView`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
@@ -706,8 +710,9 @@ changes:
 * `args` {string[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
-  * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
-    to the spawned process. Supplying this value will override `stdio[0]`.
+  * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
+    as stdin to the spawned process. Supplying this value will override
+    `stdio[0]`.
   * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
@@ -754,6 +759,10 @@ arbitrary command execution.**
 added: v0.11.12
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22409
+    description: The `input` option can now be any `TypedArray` or a
+                 `DataView`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
@@ -767,8 +776,9 @@ changes:
 * `command` {string} The command to run.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
-  * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
-    to the spawned process. Supplying this value will override `stdio[0]`.
+  * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
+    as stdin to the spawned process. Supplying this value will override
+    `stdio[0]`.
   * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
@@ -811,6 +821,10 @@ metacharacters may be used to trigger arbitrary command execution.**
 added: v0.11.12
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22409
+    description: The `input` option can now be any `TypedArray` or a
+                 `DataView`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/21316
     description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
@@ -831,8 +845,9 @@ changes:
 * `args` {string[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
-  * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
-    to the spawned process. Supplying this value will override `stdio[0]`.
+  * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
+    as stdin to the spawned process. Supplying this value will override
+    `stdio[0]`.
   * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
     process. This will be set to `command` if not specified.
   * `stdio` {string|Array} Child's stdio configuration.
