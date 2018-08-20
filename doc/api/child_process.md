@@ -689,7 +689,7 @@ configuration at startup.
 added: v0.11.12
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
   - version: REPLACEME
@@ -759,7 +759,7 @@ arbitrary command execution.**
 added: v0.11.12
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
   - version: REPLACEME
@@ -821,7 +821,7 @@ metacharacters may be used to trigger arbitrary command execution.**
 added: v0.11.12
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
   - version: REPLACEME
