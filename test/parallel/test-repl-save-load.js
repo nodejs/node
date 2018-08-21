@@ -20,7 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const join = require('path').join;
 const fs = require('fs');
@@ -32,7 +33,7 @@ const repl = require('repl');
 
 const works = [['inner.one'], 'inner.o'];
 
-const putIn = new common.ArrayStream();
+const putIn = new ArrayStream();
 const testMe = repl.start('', putIn);
 
 
@@ -59,7 +60,7 @@ assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
     'return "saved";',
     '}'
   ];
-  const putIn = new common.ArrayStream();
+  const putIn = new ArrayStream();
   const replServer = repl.start('', putIn);
 
   putIn.run(['.editor']);
