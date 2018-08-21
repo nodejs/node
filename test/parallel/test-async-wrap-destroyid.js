@@ -1,7 +1,9 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
-const async_wrap = process.binding('async_wrap');
+const { internalBinding } = require('internal/test/binding');
+const async_wrap = internalBinding('async_wrap');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const RUNS = 5;
