@@ -20,13 +20,19 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
 let bytesRead = 0;
 let bytesWritten = 0;
 let count = 0;
+
+const writeFoo = ['foo'];
+writeFoo.push(...common.getArrayBufferViews(Buffer.from(writeFoo[0])));
+const writeBar = ['bar'];
+writeBar.push(...common.getArrayBufferViews(Buffer.from(writeBar[0])));
+const maxReconnects = writeFoo.length - 1;
 
 const tcp = net.Server(function(s) {
   console.log('tcp server connection');
@@ -48,9 +54,9 @@ tcp.listen(0, function doTest() {
     count++;
     console.error('CLIENT connect #%d', count);
 
-    socket.write('foo', function() {
+    socket.write(writeFoo[count - 1], function() {
       console.error('CLIENT: write cb');
-      socket.end('bar');
+      socket.end(writeBar[count - 1]);
     });
   });
 
@@ -63,7 +69,7 @@ tcp.listen(0, function doTest() {
     console.error('CLIENT close event #%d', count);
     console.log(`Bytes read: ${bytesRead}`);
     console.log(`Bytes written: ${bytesWritten}`);
-    if (count < 2) {
+    if (count < maxReconnects) {
       console.error('RECONNECTING');
       socket.connect(tcp.address().port);
     } else {
@@ -73,6 +79,6 @@ tcp.listen(0, function doTest() {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(bytesRead, 12);
-  assert.strictEqual(bytesWritten, 12);
+  assert.strictEqual(bytesRead, 24);
+  assert.strictEqual(bytesWritten, 24);
 });
