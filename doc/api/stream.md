@@ -1503,6 +1503,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18438
     description: >
       Add `emitClose` option to specify if `'close'` is emitted on destroy
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22795
+    description: >
+      Add `autoDestroy` option to automatically `destroy()` the stream
+      when it emits `'finish'` or errors
 -->
 
 * `options` {Object}
@@ -1531,6 +1536,8 @@ changes:
     [`stream._destroy()`][writable-_destroy] method.
   * `final` {Function} Implementation for the
     [`stream._final()`][stream-_final] method.
+  * `autoDestroy` {boolean} Whether this stream should automatically call
+    `.destroy()` on itself after ending. **Default:** `false`.
 
 <!-- eslint-disable no-useless-constructor -->
 ```js
@@ -1762,6 +1769,14 @@ Custom `Readable` streams *must* call the `new stream.Readable([options])`
 constructor and implement the `readable._read()` method.
 
 #### new stream.Readable([options])
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22795
+    description: >
+      Add `autoDestroy` option to automatically `destroy()` the stream
+      when it emits `'end'` or errors
+-->
 
 * `options` {Object}
   * `highWaterMark` {number} The maximum [number of bytes][hwm-gotcha] to store
@@ -1776,6 +1791,8 @@ constructor and implement the `readable._read()` method.
     method.
   * `destroy` {Function} Implementation for the
     [`stream._destroy()`][readable-_destroy] method.
+  * `autoDestroy` {boolean} Whether this stream should automatically call
+    `.destroy()` on itself after ending. **Default:** `false`.
 
 <!-- eslint-disable no-useless-constructor -->
 ```js
