@@ -376,6 +376,10 @@ but instead implement [`writable._destroy()`][writable-_destroy].
 <!-- YAML
 added: v0.9.4
 changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The `chunk` argument can now be any `TypedArray` or a
+                 `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18780
     description: This method now returns a reference to `writable`.
@@ -384,8 +388,8 @@ changes:
     description: The `chunk` argument can now be a `Uint8Array` instance.
 -->
 
-* `chunk` {string|Buffer|Uint8Array|any} Optional data to write. For streams
-  not operating in object mode, `chunk` must be a string, `Buffer` or
+* `chunk` {string|Buffer|TypedArray|DataView|any} Optional data to write. For
+  streams not operating in object mode, `chunk` must be a string, `Buffer` or
   `Uint8Array`. For object mode streams, `chunk` may be any JavaScript value
   other than `null`.
 * `encoding` {string} The encoding if `chunk` is a string
@@ -486,6 +490,10 @@ the status of the `highWaterMark`.
 <!-- YAML
 added: v0.9.4
 changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The `chunk` argument can now be any `TypedArray` or a
+                 `DataView`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11608
     description: The `chunk` argument can now be a `Uint8Array` instance.
@@ -495,8 +503,8 @@ changes:
                  considered invalid now, even in object mode.
 -->
 
-* `chunk` {string|Buffer|Uint8Array|any} Optional data to write. For streams
-  not operating in object mode, `chunk` must be a string, `Buffer` or
+* `chunk` {string|Buffer|TypedArray|DataView|any} Optional data to write. For
+  streams not operating in object mode, `chunk` must be a string, `Buffer` or
   `Uint8Array`. For object mode streams, `chunk` may be any JavaScript value
   other than `null`.
 * `encoding` {string} The encoding, if `chunk` is a string
@@ -1130,13 +1138,17 @@ setTimeout(() => {
 <!-- YAML
 added: v0.9.11
 changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The `chunk` argument can now be any `TypedArray` or a
+                 `DataView`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11608
     description: The `chunk` argument can now be a `Uint8Array` instance.
 -->
 
-* `chunk` {Buffer|Uint8Array|string|any} Chunk of data to unshift onto the
-  read queue. For streams not operating in object mode, `chunk` must be a
+* `chunk` {Buffer|TypedArray|DataView|string|any} Chunk of data to unshift onto
+  the read queue. For streams not operating in object mode, `chunk` must be a
   string, `Buffer` or `Uint8Array`. For object mode streams, `chunk` may be
   any JavaScript value other than `null`.
 
@@ -1881,15 +1893,19 @@ It can be overridden by child classes but it **must not** be called directly.
 #### readable.push(chunk[, encoding])
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The `chunk` argument can now be any `TypedArray` or a
+                 `DataView`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11608
     description: The `chunk` argument can now be a `Uint8Array` instance.
 -->
 
-* `chunk` {Buffer|Uint8Array|string|null|any} Chunk of data to push into the
-  read queue. For streams not operating in object mode, `chunk` must be a
-  string, `Buffer` or `Uint8Array`. For object mode streams, `chunk` may be
-  any JavaScript value.
+* `chunk` {Buffer|TypedArray|DataView|string|null|any} Chunk of data to push
+  into the read queue. For streams not operating in object mode, `chunk` must
+  be a string, `Buffer` or `Uint8Array`. For object mode streams, `chunk` may
+  be any JavaScript value.
 * `encoding` {string} Encoding of string chunks. Must be a valid
   `Buffer` encoding, such as `'utf8'` or `'ascii'`.
 * Returns: {boolean} `true` if additional chunks of data may continue to be
