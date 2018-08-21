@@ -7,7 +7,7 @@ const read = promisify(readFile);
 const common = require('../common.js');
 const {
   createHook,
-  currentResource,
+  executionAsyncResource,
   executionAsyncId
 } = require('async_hooks');
 const { createServer } = require('http');
@@ -18,7 +18,7 @@ const connections = 500;
 const path = '/';
 
 const bench = common.createBenchmark(main, {
-  type: ['current-resource', 'destroy'],
+  type: ['async-resource', 'destroy'],
   method: ['callbacks', 'async'],
   n: [1e6]
 });
@@ -27,7 +27,6 @@ function buildCurrentResource(getServe) {
   const server = createServer(getServe(getCLS, setCLS));
   const hook = createHook({ init });
   const cls = Symbol('cls');
-  let closed = false;
   hook.enable();
 
   return {
@@ -36,26 +35,18 @@ function buildCurrentResource(getServe) {
   };
 
   function getCLS() {
-    // we need to protect this, as once the hook is
-    // disabled currentResource will return null
-    if (closed) {
-      return;
-    }
-
-    const resource = currentResource();
-    if (!resource[cls]) {
+    const resource = executionAsyncResource();
+    if (resource === null || !resource[cls]) {
       return null;
     }
     return resource[cls].state;
   }
 
   function setCLS(state) {
-    // we need to protect this, as once the hook is
-    // disabled currentResource will return null
-    if (closed) {
+    const resource = executionAsyncResource();
+    if (resource === null) {
       return;
     }
-    const resource = currentResource();
     if (!resource[cls]) {
       resource[cls] = { state };
     } else {
@@ -64,16 +55,13 @@ function buildCurrentResource(getServe) {
   }
 
   function init(asyncId, type, triggerAsyncId, resource) {
-    if (type === 'TIMERWRAP') return;
-
-    var cr = currentResource();
-    if (cr) {
+    var cr = executionAsyncResource();
+    if (cr !== null) {
       resource[cls] = cr[cls];
     }
   }
 
   function close() {
-    closed = true;
     hook.disable();
     server.close();
   }
@@ -101,8 +89,6 @@ function buildDestroy(getServe) {
   }
 
   function init(asyncId, type, triggerAsyncId, resource) {
-    if (type === 'TIMERWRAP') return;
-
     transactions.set(asyncId, getCLS());
   }
 
@@ -139,7 +125,7 @@ function getServeCallbacks(getCLS, setCLS) {
 }
 
 const types = {
-  'current-resource': buildCurrentResource,
+  'async-resource': buildCurrentResource,
   'destroy': buildDestroy
 };
 
