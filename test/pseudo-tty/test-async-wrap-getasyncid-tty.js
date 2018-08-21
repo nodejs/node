@@ -1,3 +1,4 @@
+// Flags: --expose-internals --no-warnings
 'use strict';
 
 // see also test/sequential/test-async-wrap-getasyncid.js
@@ -5,7 +6,8 @@
 const common = require('../common');
 const assert = require('assert');
 const tty_wrap = process.binding('tty_wrap');
-const { TTYWRAP } = process.binding('async_wrap').Providers;
+const { internalBinding } = require('internal/test/binding');
+const { TTYWRAP } = internalBinding('async_wrap').Providers;
 const providers = { TTYWRAP };
 
 // Make sure that the TTYWRAP Provider is tested.

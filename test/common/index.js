@@ -79,7 +79,8 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
   const destroydIdsList = {};
   const destroyListList = {};
   const initHandles = {};
-  const async_wrap = process.binding('async_wrap');
+  const { internalBinding } = require('internal/test/binding');
+  const async_wrap = internalBinding('async_wrap');
 
   process.on('exit', () => {
     // iterate through handles to make sure nothing crashes
