@@ -8816,13 +8816,14 @@ void CodeStubAssembler::EmitBigTypedArrayElementStore(
     TNode<JSTypedArray> object, TNode<FixedTypedArrayBase> elements,
     TNode<IntPtrT> intptr_key, TNode<Object> value, TNode<Context> context,
     Label* opt_if_neutered) {
+  TNode<BigInt> bigint_value = ToBigInt(context, value);
+
   if (opt_if_neutered != nullptr) {
-    // Check if buffer has been neutered.
+    // Check if buffer has been neutered. Must happen after {ToBigInt}!
     Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
     GotoIf(IsDetachedBuffer(buffer), opt_if_neutered);
   }
 
-  TNode<BigInt> bigint_value = ToBigInt(context, value);
   TNode<RawPtrT> backing_store = LoadFixedTypedArrayBackingStore(elements);
   TNode<IntPtrT> offset = ElementOffsetFromIndex(intptr_key, BIGINT64_ELEMENTS,
                                                  INTPTR_PARAMETERS, 0);
