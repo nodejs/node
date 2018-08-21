@@ -1,5 +1,7 @@
 'use strict';
 
+// Tests below are not from WPT.
+
 const common = require('../common');
 if (!common.hasIntl) {
   // A handful of the tests fail when ICU is not included.
@@ -10,7 +12,6 @@ const URL = require('url').URL;
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 
-// Tests below are not from WPT.
 const tests = require(fixtures.path('url-tests'));
 
 const originalFailures = tests.filter((test) => test.failure);

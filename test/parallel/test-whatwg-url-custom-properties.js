@@ -1,12 +1,13 @@
 // Flags: --expose-internals
 'use strict';
 
+// Tests below are not from WPT.
+
 require('../common');
 const URL = require('url').URL;
 const assert = require('assert');
 const urlToOptions = require('internal/url').urlToOptions;
 
-// Tests below are not from WPT.
 const url = new URL('http://user:pass@foo.bar.com:21/aaa/zzz?l=24#test');
 const oldParams = url.searchParams;  // for test of [SameObject]
 

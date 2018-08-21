@@ -1,5 +1,7 @@
 'use strict';
 
+// Tests below are not from WPT.
+
 const common = require('../common');
 if (!common.hasIntl) {
   // A handful of the tests fail when ICU is not included.
@@ -10,7 +12,6 @@ const util = require('util');
 const URL = require('url').URL;
 const assert = require('assert');
 
-// Tests below are not from WPT.
 const url = new URL('https://username:password@host.name:8080/path/name/?que=ry#hash');
 
 assert.strictEqual(
