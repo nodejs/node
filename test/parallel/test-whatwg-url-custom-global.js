@@ -1,5 +1,7 @@
 'use strict';
 
+// Tests below are not from WPT.
+
 require('../common');
 const assert = require('assert');
 const { URL, URLSearchParams } = require('url');
