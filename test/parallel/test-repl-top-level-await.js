@@ -1,6 +1,7 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const { stripVTControlCharacters } = require('internal/readline');
 const repl = require('repl');
@@ -9,7 +10,7 @@ const repl = require('repl');
 
 const PROMPT = 'await repl > ';
 
-class REPLStream extends common.ArrayStream {
+class REPLStream extends ArrayStream {
   constructor() {
     super();
     this.waitingForResponse = false;

@@ -27,7 +27,6 @@ const fs = require('fs');
 const assert = require('assert');
 const os = require('os');
 const { exec, execSync, spawn, spawnSync } = require('child_process');
-const stream = require('stream');
 const util = require('util');
 const { fixturesDir } = require('./fixtures');
 const tmpdir = require('./tmpdir');
@@ -510,23 +509,6 @@ exports.skip = function(msg) {
   exports.printSkipMessage(msg);
   process.exit(0);
 };
-
-// A stream to push an array into a REPL
-function ArrayStream() {
-  this.run = function(data) {
-    data.forEach((line) => {
-      this.emit('data', `${line}\n`);
-    });
-  };
-}
-
-util.inherits(ArrayStream, stream.Stream);
-exports.ArrayStream = ArrayStream;
-ArrayStream.prototype.readable = true;
-ArrayStream.prototype.writable = true;
-ArrayStream.prototype.pause = noop;
-ArrayStream.prototype.resume = noop;
-ArrayStream.prototype.write = noop;
 
 // Returns true if the exit code "exitCode" and/or signal name "signal"
 // represent the exit code and/or signal name of a node process that aborted,

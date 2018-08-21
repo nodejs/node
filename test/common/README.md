@@ -38,9 +38,6 @@ tasks.
 
 Takes `whitelist` and concats that with predefined `knownGlobals`.
 
-### arrayStream
-A stream to push an array into a REPL
-
 ### busyLoop(time)
 * `time` [&lt;number>]
 
@@ -412,6 +409,20 @@ Platform normalizes the `pwd` command.
 * return [&lt;Object>]
 
 Synchronous version of `spawnPwd`.
+
+## ArrayStream Module
+
+The `ArrayStream` module provides a simple `Stream` that pushes elements from
+a given array.
+
+<!-- eslint-disable no-undef, node-core/required-modules -->
+```js
+const ArrayStream = require('../common/arraystream');
+const stream = new ArrayStream();
+stream.run(['a', 'b', 'c']);
+```
+
+It can be used within tests as a simple mock stream.
 
 ## Countdown Module
 
