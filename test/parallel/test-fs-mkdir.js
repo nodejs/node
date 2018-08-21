@@ -63,7 +63,8 @@ function nextdir() {
   assert.strictEqual(exists, true);
 }
 
-// mkdirSync and mkdir require path to be a string, buffer or url. Anything else generates an error
+// mkdirSync and mkdir require path to be a string, buffer or url.
+// Anything else generates an error
 [false, 1, {}, [], null, undefined].forEach((i) => {
   common.expectsError(
     () => fs.mkdir(i, common.mustNotCall()),
