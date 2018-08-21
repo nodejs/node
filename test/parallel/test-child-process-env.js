@@ -26,23 +26,21 @@ const os = require('os');
 
 const spawn = require('child_process').spawn;
 
-const env = {
+const env = Object.assign({}, process.env, {
   'HELLO': 'WORLD',
   'UNDEFINED': undefined,
   'NULL': null,
   'EMPTY': ''
-};
+});
 Object.setPrototypeOf(env, {
   'FOO': 'BAR'
 });
 
 let child;
 if (common.isWindows) {
-  child = spawn('cmd.exe', ['/c', 'set'],
-                Object.assign({}, process.env, { env }));
+  child = spawn('cmd.exe', ['/c', 'set'], { env });
 } else {
-  child = spawn('/usr/bin/env', [],
-                Object.assign({}, process.env, { env }));
+  child = spawn('/usr/bin/env', [], { env });
 }
 
 
