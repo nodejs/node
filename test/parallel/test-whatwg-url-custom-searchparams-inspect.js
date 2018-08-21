@@ -1,11 +1,12 @@
 'use strict';
 
+// Tests below are not from WPT.
+
 require('../common');
 const assert = require('assert');
 const util = require('util');
 const URLSearchParams = require('url').URLSearchParams;
 
-// Tests below are not from WPT.
 const sp = new URLSearchParams('?a=a&b=b&b=c');
 assert.strictEqual(util.inspect(sp),
                    "URLSearchParams { 'a' => 'a', 'b' => 'b', 'b' => 'c' }");

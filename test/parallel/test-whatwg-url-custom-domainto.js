@@ -1,4 +1,7 @@
 'use strict';
+
+// Tests below are not from WPT.
+
 const common = require('../common');
 
 if (!common.hasIntl)
@@ -7,9 +10,8 @@ if (!common.hasIntl)
 const assert = require('assert');
 const { domainToASCII, domainToUnicode } = require('url');
 
-// Tests below are not from WPT.
-const tests = require('../fixtures/url-idna.js');
-const wptToASCIITests = require('../fixtures/url-toascii.js');
+const tests = require('../fixtures/url-idna');
+const wptToASCIITests = require('../fixtures/url-toascii');
 
 {
   const expectedError = common.expectsError(
