@@ -3,7 +3,7 @@
 const common = require('../common');
 const sleep = require('util').promisify(setTimeout);
 const assert = require('assert');
-const { currentResource, createHook } = require('async_hooks');
+const { executionAsyncResource, createHook } = require('async_hooks');
 const { createServer, get } = require('http');
 const sym = Symbol('cls');
 const id = Symbol('id');
@@ -13,7 +13,7 @@ const id = Symbol('id');
 
 createHook({
   init(asyncId, type, triggerAsyncId, resource) {
-    const cr = currentResource();
+    const cr = executionAsyncResource();
     resource[id] = asyncId;
     if (cr) {
       resource[sym] = cr[sym];
@@ -22,9 +22,9 @@ createHook({
 }).enable();
 
 async function handler(req, res) {
-  currentResource()[sym] = { state: req.url };
+  executionAsyncResource()[sym] = { state: req.url };
   await sleep(10);
-  const { state } = currentResource()[sym];
+  const { state } = executionAsyncResource()[sym];
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify({ state }));
 }
