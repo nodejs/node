@@ -750,6 +750,9 @@ Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is free again.
 
+When `write` function is called with empty string or buffer, it does
+nothing and waits for more input.
+
 ## Class: http.Server
 <!-- YAML
 added: v0.1.17
