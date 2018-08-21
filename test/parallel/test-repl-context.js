@@ -1,11 +1,12 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
 const vm = require('vm');
 
 // Create a dummy stream that does nothing.
-const stream = new common.ArrayStream();
+const stream = new ArrayStream();
 
 // Test context when useGlobal is false.
 {
