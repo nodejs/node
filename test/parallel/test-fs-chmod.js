@@ -63,7 +63,7 @@ function closeSync() {
 
 
 // On Windows chmod is only able to manipulate write permission
-if (common.isWindows) {
+if (process.platform === 'win32') {
   mode_async = 0o400;   // read-only
   mode_sync = 0o600;    // read-write
 } else {
@@ -83,14 +83,14 @@ fs.closeSync(fs.openSync(file1, 'w'));
 fs.chmod(file1, mode_async.toString(8), common.mustCall((err) => {
   assert.ifError(err);
 
-  if (common.isWindows) {
+  if (process.platform === 'win32') {
     assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
   } else {
     assert.strictEqual(mode_async, fs.statSync(file1).mode & 0o777);
   }
 
   fs.chmodSync(file1, mode_sync);
-  if (common.isWindows) {
+  if (process.platform === 'win32') {
     assert.ok((fs.statSync(file1).mode & 0o777) & mode_sync);
   } else {
     assert.strictEqual(mode_sync, fs.statSync(file1).mode & 0o777);
@@ -103,7 +103,7 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
   fs.fchmod(fd, mode_async.toString(8), common.mustCall((err) => {
     assert.ifError(err);
 
-    if (common.isWindows) {
+    if (process.platform === 'win32') {
       assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
     } else {
       assert.strictEqual(mode_async, fs.fstatSync(fd).mode & 0o777);
@@ -120,7 +120,7 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
     );
 
     fs.fchmodSync(fd, mode_sync);
-    if (common.isWindows) {
+    if (process.platform === 'win32') {
       assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_sync);
     } else {
       assert.strictEqual(mode_sync, fs.fstatSync(fd).mode & 0o777);

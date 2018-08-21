@@ -21,7 +21,7 @@
 
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 // changes in environment should be visible to child processes
@@ -93,7 +93,7 @@ process.env.TEST = 'test';
 assert.strictEqual(process.env.TEST, 'test');
 // Check both mixed case and lower case, to avoid any regressions that might
 // simply convert input to lower case.
-if (common.isWindows) {
+if (process.platform === 'win32') {
   assert.strictEqual(process.env.test, 'test');
   assert.strictEqual(process.env.teST, 'test');
 } else {

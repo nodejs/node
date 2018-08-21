@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const exec = require('child_process').exec;
 
-const command = common.isWindows ? 'dir' : 'ls';
+const command = process.platform === 'win32' ? 'dir' : 'ls';
 
 exec(command).stdout.on('data', common.mustCallAtLeast());
 

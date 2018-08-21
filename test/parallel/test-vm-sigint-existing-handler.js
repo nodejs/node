@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-if (common.isWindows) {
+if (process.platform === 'win32') {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
 }

@@ -4,7 +4,7 @@
 // Ref: https://github.com/nodejs/node/issues/4205
 
 const common = require('../common');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('This test does not apply to Windows.');
 
 const assert = require('assert');

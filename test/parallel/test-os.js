@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const os = require('os');
 const path = require('path');
@@ -46,7 +46,7 @@ const flatten = (arr) =>
 process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
 process.env.TEMP = '/temp';
-if (common.isWindows) {
+if (process.platform === 'win32') {
   assert.strictEqual(os.tmpdir(), '/temp');
   process.env.TEMP = '';
   assert.strictEqual(os.tmpdir(), '/tmp');
@@ -101,7 +101,7 @@ const release = os.release();
 is.string(release);
 assert.ok(release.length > 0);
 // TODO: Check format on more than just AIX
-if (common.isAIX)
+if (process.platform === 'aix')
   assert.ok(/^\d+\.\d+$/.test(release));
 
 const platform = os.platform();
@@ -112,7 +112,7 @@ const arch = os.arch();
 is.string(arch);
 assert.ok(arch.length > 0);
 
-if (!common.isSunOS) {
+if (process.platform !== 'sunos') {
   // not implemented yet
   assert.ok(os.loadavg().length > 0);
   assert.ok(os.freemem() > 0);
@@ -172,7 +172,7 @@ flatten(Object.values(interfaces))
   });
 
 const EOL = os.EOL;
-if (common.isWindows) {
+if (process.platform === 'win32') {
   assert.strictEqual(EOL, '\r\n');
 } else {
   assert.strictEqual(EOL, '\n');
@@ -182,12 +182,12 @@ const home = os.homedir();
 is.string(home);
 assert.ok(home.includes(path.sep));
 
-if (common.isWindows && process.env.USERPROFILE) {
+if (process.platform === 'win32' && process.env.USERPROFILE) {
   assert.strictEqual(home, process.env.USERPROFILE);
   delete process.env.USERPROFILE;
   assert.ok(os.homedir().includes(path.sep));
   process.env.USERPROFILE = home;
-} else if (!common.isWindows && process.env.HOME) {
+} else if (process.platform !== 'win32' && process.env.HOME) {
   assert.strictEqual(home, process.env.HOME);
   delete process.env.HOME;
   assert.ok(os.homedir().includes(path.sep));
@@ -198,7 +198,7 @@ const pwd = os.userInfo();
 is.object(pwd);
 const pwdBuf = os.userInfo({ encoding: 'buffer' });
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   assert.strictEqual(pwd.uid, -1);
   assert.strictEqual(pwd.gid, -1);
   assert.strictEqual(pwd.shell, null);

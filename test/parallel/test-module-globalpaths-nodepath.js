@@ -20,14 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const mod = require('module');
 
 let partA, partB;
 const partC = '';
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   partA = 'C:\\Users\\Rocko Artischocko\\AppData\\Roaming\\npm';
   partB = 'C:\\Program Files (x86)\\nodejs\\';
   process.env.NODE_PATH = `${partA};${partB};${partC}`;

@@ -31,7 +31,7 @@ function execAndClose() {
   socket.on('error', (e) => {
     // If SmartOS and ECONNREFUSED, then retry. See
     // https://github.com/nodejs/node/issues/2663.
-    if (common.isSunOS && e.code === 'ECONNREFUSED') {
+    if (process.platform === 'sunos' && e.code === 'ECONNREFUSED') {
       parsers.push(parser);
       socket.destroy();
       setImmediate(execAndClose);

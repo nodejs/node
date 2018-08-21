@@ -11,7 +11,7 @@ if (!common.isMainThread)
 
 let mask;
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   mask = 0o600;
 } else {
   mask = 0o664;

@@ -43,7 +43,7 @@ process.umask(0o000);
 
 // On Windows chmod is only able to manipulate read-only bit. Test if creating
 // the file in read-only mode works.
-if (common.isWindows) {
+if (process.platform === 'win32') {
   mode = 0o444;
 } else {
   mode = 0o755;

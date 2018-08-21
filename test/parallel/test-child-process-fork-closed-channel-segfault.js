@@ -18,7 +18,7 @@ if (!cluster.isMaster) {
 
 const server = net
   .createServer(function(s) {
-    if (common.isWindows) {
+    if (process.platform === 'win32') {
       s.on('error', function(err) {
         // Prevent possible ECONNRESET errors from popping up
         if (err.code !== 'ECONNRESET') throw err;

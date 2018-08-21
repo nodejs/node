@@ -5,7 +5,7 @@ const spawn = require('child_process').spawn;
 const fs = require('fs');
 const fixtures = require('../common/fixtures');
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   if (process.argv[2] === 'child') {
     process.stdin;
     process.stdout;

@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   // TODO: Similar checks on *nix-like systems (e.g using chmod or the like)
   common.skip('test only runs on Windows');
 }

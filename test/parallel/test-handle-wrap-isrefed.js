@@ -7,7 +7,7 @@ const strictEqual = require('assert').strictEqual;
 // child_process
 {
   const spawn = require('child_process').spawn;
-  const cmd = common.isWindows ? 'rundll32' : 'ls';
+  const cmd = process.platform === 'win32' ? 'rundll32' : 'ls';
   const cp = spawn(cmd);
   strictEqual(Object.getPrototypeOf(cp._handle).hasOwnProperty('hasRef'),
               true, 'process_wrap: hasRef() missing');

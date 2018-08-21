@@ -21,7 +21,7 @@
 
 'use strict';
 const common = require('../common');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('dgram clustering is currently not supported on Windows.');
 
 const NUM_WORKERS = 4;

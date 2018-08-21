@@ -3,7 +3,7 @@
 
 const common = require('../common');
 
-if (common.isSunOS)
+if (process.platform === 'sunos')
   common.skip(`Unsupported platform [${process.platform}]`);
 
 const assert = require('assert');

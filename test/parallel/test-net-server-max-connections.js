@@ -94,7 +94,7 @@ function makeConnection(index) {
   c.on('error', function(e) {
     // Retry if SmartOS and ECONNREFUSED. See
     // https://github.com/nodejs/node/issues/2663.
-    if (common.isSunOS && (e.code === 'ECONNREFUSED')) {
+    if (process.platform === 'sunos' && (e.code === 'ECONNREFUSED')) {
       c.connect(server.address().port);
     }
     console.error(`error ${index}: ${e}`);

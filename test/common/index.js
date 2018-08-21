@@ -53,18 +53,15 @@ exports.isMainThread = (() => {
   }
 })();
 
-exports.isWindows = process.platform === 'win32';
-exports.isWOW64 = exports.isWindows &&
-                  (process.env.PROCESSOR_ARCHITEW6432 !== undefined);
-exports.isAIX = process.platform === 'aix';
-exports.isLinuxPPCBE = (process.platform === 'linux') &&
-                       (process.arch === 'ppc64') &&
-                       (os.endianness() === 'BE');
-exports.isSunOS = process.platform === 'sunos';
-exports.isFreeBSD = process.platform === 'freebsd';
-exports.isOpenBSD = process.platform === 'openbsd';
-exports.isLinux = process.platform === 'linux';
-exports.isOSX = process.platform === 'darwin';
+const isWindows = process.platform === 'win32';
+const isAIX = process.platform === 'aix';
+const isSunOS = process.platform === 'sunos';
+const isFreeBSD = process.platform === 'freebsd';
+const isLinux = process.platform === 'linux';
+
+const isLinuxPPCBE = (process.platform === 'linux') &&
+                     (process.arch === 'ppc64') &&
+                     (os.endianness() === 'BE');
 
 let isGlibc;
 exports.isGlibc = () => {
@@ -88,7 +85,7 @@ const cpus = os.cpus();
 exports.enoughTestCpu = Array.isArray(cpus) &&
                         (cpus.length > 1 || cpus[0].speed > 999);
 
-exports.rootDir = exports.isWindows ? 'c:\\' : '/';
+exports.rootDir = isWindows ? 'c:\\' : '/';
 
 exports.buildType = process.config.target_defaults.default_configuration;
 
@@ -144,7 +141,7 @@ let inFreeBSDJail = null;
 let localhostIPv4 = null;
 
 exports.localIPv6Hosts = ['localhost'];
-if (exports.isLinux) {
+if (isLinux) {
   exports.localIPv6Hosts = [
     // Debian/Ubuntu
     'ip6-localhost',
@@ -163,7 +160,7 @@ Object.defineProperty(exports, 'inFreeBSDJail', {
   get: function() {
     if (inFreeBSDJail !== null) return inFreeBSDJail;
 
-    if (exports.isFreeBSD &&
+    if (isFreeBSD &&
       execSync('sysctl -n security.jail.jailed').toString() ===
       '1\n') {
       inFreeBSDJail = true;
@@ -209,7 +206,7 @@ Object.defineProperty(exports, 'opensslCli', { get: function() {
     opensslCli = path.join(path.dirname(process.execPath), 'openssl-cli');
   }
 
-  if (exports.isWindows) opensslCli += '.exe';
+  if (isWindows) opensslCli += '.exe';
 
   const opensslCmd = spawnSync(opensslCli, ['version']);
   if (opensslCmd.status !== 0 || opensslCmd.error !== undefined) {
@@ -233,14 +230,14 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
 
 {
   const localRelative = path.relative(process.cwd(), `${tmpdir.path}/`);
-  const pipePrefix = exports.isWindows ? '\\\\.\\pipe\\' : localRelative;
+  const pipePrefix = isWindows ? '\\\\.\\pipe\\' : localRelative;
   const pipeName = `node-test.${process.pid}.sock`;
   exports.PIPE = path.join(pipePrefix, pipeName);
 }
 
 {
   const iFaces = os.networkInterfaces();
-  const re = exports.isWindows ? /Loopback Pseudo-Interface/ : /lo/;
+  const re = isWindows ? /Loopback Pseudo-Interface/ : /lo/;
   exports.hasIPv6 = Object.keys(iFaces).some(function(name) {
     return re.test(name) && iFaces[name].some(function(info) {
       return info.family === 'IPv6';
@@ -255,7 +252,7 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
  */
 exports.childShouldThrowAndAbort = function() {
   let testCmd = '';
-  if (!exports.isWindows) {
+  if (!isWindows) {
     // Do not create core files, as it can take a lot of disk space on
     // continuous testing and developers' machines
     testCmd += 'ulimit -c 0 && ';
@@ -272,7 +269,7 @@ exports.childShouldThrowAndAbort = function() {
 };
 
 exports.ddCommand = function(filename, kilobytes) {
-  if (exports.isWindows) {
+  if (isWindows) {
     const p = path.resolve(fixturesDir, 'create-file.js');
     return `"${process.argv[0]}" "${p}" "${filename}" ${kilobytes * 1024}`;
   } else {
@@ -282,7 +279,7 @@ exports.ddCommand = function(filename, kilobytes) {
 
 
 exports.spawnPwd = function(options) {
-  if (exports.isWindows) {
+  if (isWindows) {
     return spawn('cmd.exe', ['/d', '/c', 'cd'], options);
   } else {
     return spawn('pwd', [], options);
@@ -291,7 +288,7 @@ exports.spawnPwd = function(options) {
 
 
 exports.spawnSyncPwd = function(options) {
-  if (exports.isWindows) {
+  if (isWindows) {
     return spawnSync('cmd.exe', ['/d', '/c', 'cd'], options);
   } else {
     return spawnSync('pwd', [], options);
@@ -305,7 +302,7 @@ exports.platformTimeout = function(ms) {
   if (global.__coverage__)
     ms = 4 * ms;
 
-  if (exports.isAIX)
+  if (isAIX)
     return 2 * ms; // default localhost speed is slower on AIX
 
   if (process.arch !== 'arm')
@@ -481,7 +478,7 @@ exports.canCreateSymLink = function() {
   // On Windows, creating symlinks requires admin privileges.
   // We'll only try to run symlink test if we have enough privileges.
   // On other platforms, creating symlinks shouldn't need admin privileges
-  if (exports.isWindows) {
+  if (isWindows) {
     // whoami.exe needs to be the one from System32
     // If unix tools are in the path, they can shadow the one we want,
     // so use the full path while executing whoami
@@ -565,7 +562,7 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
   // which corresponds to exit code 3221225477 (0xC0000005)
   // (ii) Otherwise, _exit(134) which is called in place of abort() due to
   // raising SIGABRT exiting with ambiguous exit code '3' by default
-  if (exports.isWindows)
+  if (isWindows)
     expectedExitCodes = [0xC0000005, 134];
 
   // When using --abort-on-uncaught-exception, V8 will use
@@ -862,11 +859,11 @@ exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
 exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
 exports.restoreStdout = restoreWritable.bind(null, 'stdout');
 exports.restoreStderr = restoreWritable.bind(null, 'stderr');
-exports.isCPPSymbolsNotMapped = exports.isWindows ||
-                                exports.isSunOS ||
-                                exports.isAIX ||
-                                exports.isLinuxPPCBE ||
-                                exports.isFreeBSD;
+exports.isCPPSymbolsNotMapped = isWindows ||
+                                isSunOS ||
+                                isAIX ||
+                                isLinuxPPCBE ||
+                                isFreeBSD;
 
 const gcTrackerMap = new WeakMap();
 const gcTrackerTag = 'NODE_TEST_COMMON_GC_TRACKER';

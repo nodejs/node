@@ -3,7 +3,7 @@
 const common = require('../common');
 const fixtures = require('../common/fixtures');
 // Refs: https://github.com/nodejs/node/pull/2253
-if (common.isSunOS)
+if (process.platform === 'sunos')
   common.skip('unreliable on SunOS');
 if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');

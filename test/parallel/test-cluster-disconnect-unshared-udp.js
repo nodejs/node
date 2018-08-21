@@ -23,7 +23,7 @@
 
 const common = require('../common');
 
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('on windows, because clustered dgram is ENOTSUP');
 
 const cluster = require('cluster');

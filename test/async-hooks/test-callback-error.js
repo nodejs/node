@@ -87,7 +87,7 @@ assert.ok(!arg);
 
   child.on('close', (code, signal) => {
     clearTimeout(tO);
-    if (common.isWindows) {
+    if (process.platform === 'win32') {
       assert.strictEqual(code, 134);
       assert.strictEqual(signal, null);
     } else {

@@ -20,12 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const exec = require('child_process').exec;
 
 let SLEEP3_COMMAND;
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   // Unix.
   SLEEP3_COMMAND = 'sleep 3';
 } else {

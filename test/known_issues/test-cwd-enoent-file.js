@@ -2,10 +2,12 @@
 // Refs: https://github.com/nodejs/node/pull/12022
 // If the cwd is deleted, Node cannot run files because the module system
 // relies on uv_cwd(). The -e and -p flags still work though.
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
-if (common.isSunOS || common.isWindows || common.isAIX) {
+if (process.platform === 'sunos' ||
+    process.platform === 'win32' ||
+    process.platform === 'aix') {
   // The current working directory cannot be removed on these platforms.
   // Change this to common.skip() when this is no longer a known issue test.
   assert.fail('cannot rmdir current working directory');

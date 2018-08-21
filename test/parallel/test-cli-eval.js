@@ -143,7 +143,7 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 // Regression test for https://github.com/nodejs/node/issues/3574.
 {
   let emptyFile = fixtures.path('empty.js');
-  if (common.isWindows) {
+  if (process.platform === 'win32') {
     emptyFile = emptyFile.replace(/\\/g, '\\\\');
   }
 

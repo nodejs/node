@@ -58,12 +58,12 @@ if (cluster.isMaster) {
     messages++;
     ports[rinfo.port] = true;
 
-    if (common.isWindows && messages === 2) {
+    if (process.platform === 'win32' && messages === 2) {
       assert.strictEqual(Object.keys(ports).length, 2);
       done();
     }
 
-    if (!common.isWindows && messages === 4) {
+    if (process.platform !== 'win32' && messages === 4) {
       assert.strictEqual(Object.keys(ports).length, 3);
       done();
     }
@@ -72,7 +72,7 @@ if (cluster.isMaster) {
   target.on('listening', function() {
     cluster.fork({ PORT: target.address().port });
     cluster.fork({ PORT: target.address().port });
-    if (!common.isWindows) {
+    if (process.platform !== 'win32') {
       cluster.fork({ BOUND: 'y', PORT: target.address().port });
       cluster.fork({ BOUND: 'y', PORT: target.address().port });
     }

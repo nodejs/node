@@ -35,7 +35,7 @@ fork(__filename, opts)
   .on('close', common.mustCall(function() {
     // TODO(addaleax): Make `SafeGetenv` work like `process.env`
     // encoding-wise
-    if (!common.isWindows) {
+    if (process.platform !== 'win32') {
       const re = /Warning: Ignoring extra certs from.*no-such-file-exists-🐢.* load failed:.*No such file or directory/;
       assert(re.test(stderr), stderr);
     }

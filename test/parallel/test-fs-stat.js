@@ -98,7 +98,7 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     'atime', 'mtime', 'ctime', 'birthtime',
     'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'
   ];
-  if (!common.isWindows) {
+  if (process.platform !== 'win32') {
     keys.push('blocks', 'blksize');
   }
   const numberFields = [

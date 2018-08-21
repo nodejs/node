@@ -20,16 +20,17 @@ assert.throws(
 );
 
 {
-  const info = {
-    code: common.isWindows ? 'EBADF' : 'EINVAL',
-    message: common.isWindows ? 'bad file descriptor' : 'invalid argument',
-    errno: common.isWindows ? UV_EBADF : UV_EINVAL,
-    syscall: 'uv_tty_init'
-  };
+  const code = process.platform === 'win32' ? 'EBADF' : 'EINVAL';
+  const message =
+    process.platform === 'win32' ?
+      'bad file descriptor' :
+      'invalid argument';
+  const errno = process.platform === 'win32' ? UV_EBADF : UV_EINVAL;
+  const info = { code, message, errno, syscall: 'uv_tty_init' };
 
-  const suffix = common.isWindows ?
+  const suffix = process.platform === 'win32' ?
     'EBADF (bad file descriptor)' : 'EINVAL (invalid argument)';
-  const message = `TTY initialization failed: uv_tty_init returned ${suffix}`;
+  const msg = `TTY initialization failed: uv_tty_init returned ${suffix}`;
 
   assert.throws(
     () => {
@@ -39,7 +40,7 @@ assert.throws(
     }, {
       code: 'ERR_TTY_INIT_FAILED',
       name: 'SystemError [ERR_TTY_INIT_FAILED]',
-      message,
+      message: msg,
       info
     }
   );
@@ -52,7 +53,7 @@ assert.throws(
     }, {
       code: 'ERR_TTY_INIT_FAILED',
       name: 'SystemError [ERR_TTY_INIT_FAILED]',
-      message,
+      message: msg,
       info
     });
 }

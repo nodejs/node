@@ -23,7 +23,7 @@
 
 const common = require('../common');
 
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('SIGUSR1 and SIGHUP signals are not supported');
 if (!common.isMainThread)
   common.skip('Signal handling in Workers is not supported');

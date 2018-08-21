@@ -4,15 +4,6 @@ import common from './index.js';
 
 const {
   isMainThread,
-  isWindows,
-  isWOW64,
-  isAIX,
-  isLinuxPPCBE,
-  isSunOS,
-  isFreeBSD,
-  isOpenBSD,
-  isLinux,
-  isOSX,
   isGlibc,
   enoughTestMem,
   enoughTestCpu,
@@ -62,15 +53,6 @@ const {
 
 export {
   isMainThread,
-  isWindows,
-  isWOW64,
-  isAIX,
-  isLinuxPPCBE,
-  isSunOS,
-  isFreeBSD,
-  isOpenBSD,
-  isLinux,
-  isOSX,
   isGlibc,
   enoughTestMem,
   enoughTestCpu,

@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../../common');
 
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('dlopen global symbol loading is not supported on this os.');
 
 const assert = require('assert');

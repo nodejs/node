@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('Unix-specific test');
 
 const assert = require('assert');

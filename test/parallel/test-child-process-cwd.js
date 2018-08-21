@@ -58,7 +58,7 @@ function testCwd(options, forCode, forData) {
 
 // Assume these exist, and 'pwd' gives us the right directory back
 testCwd({ cwd: common.rootDir }, 0, common.rootDir);
-if (common.isWindows) {
+if (process.platform === 'win32') {
   testCwd({ cwd: process.env.windir }, 0, process.env.windir);
 } else {
   testCwd({ cwd: '/dev' }, 0, '/dev');

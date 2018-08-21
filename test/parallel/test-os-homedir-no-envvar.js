@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 const os = require('os');
@@ -7,7 +7,7 @@ const path = require('path');
 
 
 if (process.argv[2] === 'child') {
-  if (common.isWindows)
+  if (process.platform === 'win32')
     assert.strictEqual(process.env.USERPROFILE, undefined);
   else
     assert.strictEqual(process.env.HOME, undefined);
@@ -17,7 +17,7 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(typeof home, 'string');
   assert(home.includes(path.sep));
 } else {
-  if (common.isWindows)
+  if (process.platform === 'win32')
     delete process.env.USERPROFILE;
   else
     delete process.env.HOME;

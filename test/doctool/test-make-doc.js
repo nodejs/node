@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-if (common.isWindows) {
+if (process.platform === 'win32') {
   common.skip('`make doc` does not run on Windows');
 }
 

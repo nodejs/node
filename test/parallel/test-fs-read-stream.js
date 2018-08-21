@@ -180,7 +180,7 @@ common.expectsError(
   }));
 }
 
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   // Verify that end works when start is not specified, and we do not try to
   // use positioned reads. This makes sure that this keeps working for
   // non-seekable file descriptors.

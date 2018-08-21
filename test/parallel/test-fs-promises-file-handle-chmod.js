@@ -24,7 +24,7 @@ async function validateFilePermission() {
   let expectedAccess;
   const newPermissions = 0o765;
 
-  if (common.isWindows) {
+  if (process.platform === 'win32') {
     // chmod in Windows will only toggle read only/write access. the
     // fs.Stats.mode in Windows is computed using read/write
     // bits (not exec). read only at best returns 444; r/w 666.

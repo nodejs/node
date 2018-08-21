@@ -49,10 +49,10 @@ if (process.argv[2] === 'child') {
   //         Close callback: 0x7f2df31de220 CloseCallback(uv_handle_s*) [...]
   //         Data: 0x42
 
-  if (!(common.isFreeBSD ||
-        common.isAIX ||
-        (common.isLinux && !common.isGlibc()) ||
-        common.isWindows)) {
+  if (!(process.platform === 'freebsd' ||
+        process.platform === 'aix' ||
+        (process.platform === 'linux' && !common.isGlibc()) ||
+        process.platform === 'win32')) {
     assert(stderr.includes('ExampleOwnerClass'), stderr);
     assert(stderr.includes('CloseCallback'), stderr);
     assert(stderr.includes('example_instance'), stderr);

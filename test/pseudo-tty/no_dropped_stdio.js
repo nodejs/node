@@ -1,7 +1,7 @@
 // https://github.com/nodejs/node/issues/6456#issuecomment-219320599
 // https://gist.github.com/isaacs/1495b91ec66b21d30b10572d72ad2cdd
 'use strict';
-const common = require('../common');
+require('../common');
 
 // 1000 bytes wrapped at 50 columns
 // \n turns into a double-byte character
@@ -16,4 +16,4 @@ out += `${'o'.repeat(24)}O`;
 setTimeout(function() {
   process.stdout.write(out);
   process.exit(0);
-}, common.isAIX ? 200 : 0);
+}, process.platform === 'aix' ? 200 : 0);

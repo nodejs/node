@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const os = require('os');
 const spawn = require('child_process').spawn;
@@ -30,7 +30,7 @@ const spawn = require('child_process').spawn;
 
 let grep, sed, echo;
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   grep = spawn('grep', ['--binary', 'o']),
   sed = spawn('sed', ['--binary', 's/o/O/']),
   echo = spawn('cmd.exe',

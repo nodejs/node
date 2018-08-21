@@ -7,7 +7,7 @@ const common = require('../common');
 
 common.skipIfInspectorDisabled();
 
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('test does not apply to Windows');
 
 common.expectWarning('Warning',

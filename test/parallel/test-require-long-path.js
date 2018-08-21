@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-if (!common.isWindows)
+if (process.platform !== 'win32')
   common.skip('this test is Windows-specific.');
 
 const fs = require('fs');

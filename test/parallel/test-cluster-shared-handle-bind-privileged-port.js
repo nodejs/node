@@ -21,7 +21,7 @@
 
 'use strict';
 const common = require('../common');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('not reliable on Windows');
 
 if (process.getuid() === 0)

@@ -15,10 +15,10 @@ const args = [
     getSharedLibPath() : process.execPath
 ];
 
-if (common.isAIX)
+if (process.platform === 'aix')
   args.unshift('-Xany', '-B');
 
-if (common.isOpenBSD)
+if (process.platform === 'openbsd')
   common.skip('no v8 debug symbols on OpenBSD');
 
 const nm = spawnSync('nm', args);

@@ -50,7 +50,7 @@ const { promises } = fs;
   });
 });
 
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   const testFile = path.join(tmpdir.path, path.basename(__filename));
   const uid = process.geteuid();
   const gid = process.getegid();

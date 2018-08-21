@@ -27,7 +27,7 @@ const stream = require('stream');
 const path = require('path');
 let buildPath = path.join(__dirname, 'build', common.buildType, 'binding');
 // On Windows, escape backslashes in the path before passing it to REPL.
-if (common.isWindows)
+if (process.platform === 'win32')
   buildPath = buildPath.replace(/\\/g, '/');
 let cb_ran = false;
 

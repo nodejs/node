@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const path = require('path');
@@ -21,7 +21,7 @@ if (process.argv[2] === 'child') {
   const prefixPath = path.join(tmpdir.path, 'install');
   fs.mkdirSync(prefixPath);
   let testExecPath;
-  if (common.isWindows) {
+  if (process.platform === 'win32') {
     testExecPath = path.join(prefixPath, path.basename(process.execPath));
   } else {
     const prefixBinPath = path.join(prefixPath, 'bin');

@@ -38,7 +38,7 @@ function stat_resource(resource) {
     const stats = fs.fstatSync(resource);
     // ensure mtime has been written to disk
     // except for directories on AIX where it cannot be synced
-    if (common.isAIX && stats.isDirectory())
+    if (process.platform === 'aix' && stats.isDirectory())
       return stats;
     fs.fsyncSync(resource);
     return fs.fstatSync(resource);
@@ -124,7 +124,7 @@ function testIt(atime, mtime, callback) {
       expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
 
       // don't close this fd
-      if (common.isWindows) {
+      if (process.platform === 'win32') {
         fd = fs.openSync(tmpdir.path, 'r+');
       } else {
         fd = fs.openSync(tmpdir.path, 'r');
@@ -187,7 +187,9 @@ const path = `${tmpdir.path}/test-utimes-precision`;
 fs.writeFileSync(path, '');
 
 // test Y2K38 for all platforms [except 'arm', 'OpenBSD' and 'SunOS']
-if (!process.arch.includes('arm') && !common.isOpenBSD && !common.isSunOS) {
+if (!process.arch.includes('arm') &&
+    process.platform !== 'openbsd' &&
+    process.platform !== 'sunos') {
   // because 2 ** 31 doesn't look right
   // eslint-disable-next-line space-infix-ops
   const Y2K38_mtime = 2**31;
@@ -196,7 +198,7 @@ if (!process.arch.includes('arm') && !common.isOpenBSD && !common.isSunOS) {
   assert.strictEqual(Y2K38_mtime, Y2K38_stats.mtime.getTime() / 1000);
 }
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   // this value would get converted to (double)1713037251359.9998
   const truncate_mtime = 1713037251360;
   fs.utimesSync(path, truncate_mtime / 1000, truncate_mtime / 1000);

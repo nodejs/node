@@ -26,7 +26,7 @@ const exec = require('child_process').exec;
 
 let pwdcommand, dir;
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   pwdcommand = 'echo %cd%';
   dir = 'c:\\windows';
 } else {

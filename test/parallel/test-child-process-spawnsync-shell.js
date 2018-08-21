@@ -13,7 +13,7 @@ assert.notStrictEqual(doesNotExist.file, 'does-not-exist');
 assert.strictEqual(doesNotExist.error, undefined);
 assert.strictEqual(doesNotExist.signal, null);
 
-if (common.isWindows)
+if (process.platform === 'win32')
   assert.strictEqual(doesNotExist.status, 1);    // Exit code of cmd.exe
 else
   assert.strictEqual(doesNotExist.status, 127);  // Exit code of /bin/sh

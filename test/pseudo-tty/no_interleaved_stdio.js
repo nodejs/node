@@ -1,7 +1,7 @@
 // https://github.com/nodejs/node/issues/6456#issuecomment-219320599
 // https://gist.github.com/isaacs/1495b91ec66b21d30b10572d72ad2cdd
 'use strict';
-const common = require('../common');
+require('../common');
 
 // 1000 bytes wrapped at 50 columns
 // \n turns into a double-byte character
@@ -18,4 +18,4 @@ const err = '__This is some stderr__';
 setTimeout(function() {
   process.stdout.write(out);
   process.stderr.write(err);
-}, common.isAIX ? 200 : 0);
+}, process.platform === 'aix' ? 200 : 0);

@@ -67,7 +67,7 @@ assert.strictEqual(path.win32.delimiter, ';');
 // posix
 assert.strictEqual(path.posix.delimiter, ':');
 
-if (common.isWindows)
+if (process.platform === 'win32')
   assert.strictEqual(path, path.win32);
 else
   assert.strictEqual(path, path.posix);

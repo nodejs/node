@@ -199,51 +199,11 @@ the number of calls.
 
 Checks whether free BSD Jail is true or false.
 
-### isAIX
-* [&lt;boolean>]
-
-Platform check for Advanced Interactive eXecutive (AIX).
-
 ### isAlive(pid)
 * `pid` [&lt;number>]
 * return [&lt;boolean>]
 
 Attempts to 'kill' `pid`
-
-### isFreeBSD
-* [&lt;boolean>]
-
-Platform check for Free BSD.
-
-### isLinux
-* [&lt;boolean>]
-
-Platform check for Linux.
-
-### isLinuxPPCBE
-* [&lt;boolean>]
-
-Platform check for Linux on PowerPC.
-
-### isOSX
-* [&lt;boolean>]
-
-Platform check for macOS.
-
-### isSunOS
-* [&lt;boolean>]
-
-Platform check for SunOS.
-
-### isWindows
-* [&lt;boolean>]
-
-Platform check for Windows.
-
-### isWOW64
-* [&lt;boolean>]
-
-Platform check for Windows 32-bit on Windows 64-bit.
 
 ### isCPPSymbolsNotMapped
 * [&lt;boolean>]

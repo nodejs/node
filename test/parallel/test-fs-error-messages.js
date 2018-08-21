@@ -585,7 +585,7 @@ function re(literals, ...values) {
 }
 
 // chown
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
     assert.strictEqual(
@@ -608,7 +608,7 @@ if (!common.isWindows) {
 }
 
 // utimes
-if (!common.isAIX) {
+if (process.platform !== 'aix') {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
     assert.strictEqual(
@@ -769,7 +769,7 @@ if (!common.isAIX) {
 }
 
 // fchown
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   const validateError = (err) => {
     assert.strictEqual(err.message, 'EBADF: bad file descriptor, fchown');
     assert.strictEqual(err.errno, UV_EBADF);
@@ -832,7 +832,7 @@ if (!common.isWindows) {
 
 
 // futimes
-if (!common.isAIX) {
+if (process.platform !== 'aix') {
   const validateError = (err) => {
     assert.strictEqual(err.message, 'EBADF: bad file descriptor, futime');
     assert.strictEqual(err.errno, UV_EBADF);

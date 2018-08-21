@@ -31,10 +31,10 @@ const tmpdir = require('../common/tmpdir');
 if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
 
-const expectFilePath = common.isWindows ||
-                       common.isLinux ||
-                       common.isOSX ||
-                       common.isAIX;
+const expectFilePath = process.platform === 'win32' ||
+                       process.platform === 'linux' ||
+                       process.platform === 'darwin' ||
+                       process.platform === 'aix';
 
 const testDir = tmpdir.path;
 
@@ -88,7 +88,8 @@ tmpdir.refresh();
 
   const watcher =
     fs.watch(testsubdir, common.mustCall(function(event, filename) {
-      const renameEv = common.isSunOS || common.isAIX ? 'change' : 'rename';
+      const renameEv = process.platform === 'sunos' ||
+                       process.platform === 'aix' ? 'change' : 'rename';
       assert.strictEqual(event, renameEv);
       if (expectFilePath) {
         assert.strictEqual(filename, 'newfile.txt');

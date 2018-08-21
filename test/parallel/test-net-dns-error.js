@@ -26,7 +26,7 @@ const assert = require('assert');
 const net = require('net');
 
 const host = '*'.repeat(64);
-const errCode = common.isOpenBSD ? 'EAI_FAIL' : 'ENOTFOUND';
+const errCode = process.platform === 'openbsd' ? 'EAI_FAIL' : 'ENOTFOUND';
 
 const socket = net.connect(42, host, common.mustNotCall());
 socket.on('error', common.mustCall(function(err) {

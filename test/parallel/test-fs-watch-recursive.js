@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-if (!(common.isOSX || common.isWindows))
+if (!(process.platform === 'darwin' || process.platform === 'win32'))
   common.skip('recursive option is darwin/windows specific');
 
 const assert = require('assert');
@@ -30,7 +30,7 @@ watcher.on('change', function(event, filename) {
   if (filename !== relativePathOne)
     return;
 
-  if (common.isOSX) {
+  if (process.platform === 'darwin') {
     clearInterval(interval);
   }
   watcher.close();
@@ -38,7 +38,7 @@ watcher.on('change', function(event, filename) {
 });
 
 let interval;
-if (common.isOSX) {
+if (process.platform === 'darwin') {
   interval = setInterval(function() {
     fs.writeFileSync(filepathOne, 'world');
   }, 10);

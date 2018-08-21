@@ -11,7 +11,7 @@ doesNotExist.on('error', common.mustNotCall());
 doesNotExist.on('exit', common.mustCall((code, signal) => {
   assert.strictEqual(signal, null);
 
-  if (common.isWindows)
+  if (process.platform === 'win32')
     assert.strictEqual(code, 1);    // Exit code of cmd.exe
   else
     assert.strictEqual(code, 127);  // Exit code of /bin/sh

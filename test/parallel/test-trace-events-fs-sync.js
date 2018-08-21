@@ -14,7 +14,7 @@ const traceFile = 'node_trace.1.log';
 let gid = 1;
 let uid = 1;
 
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   gid = process.getgid();
   uid = process.getuid();
 }
@@ -128,10 +128,9 @@ for (const tr in tests) {
                               '-e', tests[tr] ],
                             { encoding: 'utf8' });
   // Some AIX versions don't support futimes or utimes, so skip.
-  if (common.isAIX && proc.status !== 0 && tr === 'fs.sync.futimes') {
-    continue;
-  }
-  if (common.isAIX && proc.status !== 0 && tr === 'fs.sync.utimes') {
+  if (process.platform === 'aix' &&
+      proc.status !== 0 &&
+      (tr === 'fs.sync.futimes' || tr === 'fs.sync.utimes')) {
     continue;
   }
 

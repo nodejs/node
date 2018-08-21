@@ -21,14 +21,19 @@ class WatchTestCase {
 const cases = [
   // Watch on a directory should callback with a filename on supported systems
   new WatchTestCase(
-    common.isLinux || common.isOSX || common.isWindows || common.isAIX,
+    process.platform === 'linux' ||
+      process.platform === 'darwin' ||
+      process.platform === 'win32' ||
+      process.platform === 'aix',
     'watch1',
     'foo',
     'filePath'
   ),
   // Watch on a file should callback with a filename on supported systems
   new WatchTestCase(
-    common.isLinux || common.isOSX || common.isWindows,
+    process.platform === 'linux' ||
+      process.platform === 'darwin' ||
+      process.platform === 'win32',
     'watch2',
     'bar',
     'dirPath'
@@ -65,7 +70,7 @@ for (const testCase of cases) {
       clearInterval(interval);
       interval = null;
     }
-    if (common.isOSX)
+    if (process.platform === 'darwin')
       assert.strictEqual(['rename', 'change'].includes(eventType), true);
     else
       assert.strictEqual(eventType, 'change');

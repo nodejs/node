@@ -21,7 +21,7 @@ const UDP = process.binding('udp_wrap').UDP;
   assert(handle instanceof UDP);
   assert.strictEqual(typeof handle.fd, 'number');
 
-  if (!common.isWindows)
+  if (process.platform !== 'win32')
     assert(handle.fd > 0);
 }
 

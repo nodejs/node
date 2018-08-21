@@ -24,7 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const { spawn, fork, execFile } = require('child_process');
 const fixtures = require('../common/fixtures');
-const cmd = common.isWindows ? 'rundll32' : 'ls';
+const cmd = process.platform === 'win32' ? 'rundll32' : 'ls';
 const invalidcmd = 'hopefully_you_dont_have_this_on_your_machine';
 
 const empty = fixtures.path('empty.js');

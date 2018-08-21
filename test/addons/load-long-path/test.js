@@ -1,7 +1,9 @@
 'use strict';
 const common = require('../../common');
-if (common.isWOW64)
-  common.skip('doesn\'t work on WOW64');
+if (process.platform === 'win32' &&
+    (process.env.PROCESSOR_ARCHITEW6432 !== undefined)) {
+  common.skip('test does not work on WOW64');
+}
 
 const fs = require('fs');
 const path = require('path');

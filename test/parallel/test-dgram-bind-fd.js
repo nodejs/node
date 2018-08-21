@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('Does not support binding fd on Windows');
 
 const assert = require('assert');
@@ -75,7 +75,7 @@ const BUFFER_SIZE = 4096;
         const sendBufferSize = socket.getSendBufferSize();
 
         // note: linux will double the buffer size
-        const expectedBufferSize = common.isLinux ?
+        const expectedBufferSize = process.platform === 'linux' ?
           BUFFER_SIZE * 2 : BUFFER_SIZE;
         assert.strictEqual(recvBufferSize, expectedBufferSize);
         assert.strictEqual(sendBufferSize, expectedBufferSize);

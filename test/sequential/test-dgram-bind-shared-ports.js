@@ -34,7 +34,7 @@ const WORKER2_NAME = 'wrker2';
 if (cluster.isMaster) {
   const worker1 = cluster.fork();
 
-  if (common.isWindows) {
+  if (process.platform === 'win32') {
     worker1.on('error', common.mustCall((err) => {
       console.log(err);
       assert.strictEqual(err.code, 'ENOTSUP');

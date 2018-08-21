@@ -38,10 +38,10 @@ const expectedStatObject = new fs.Stats(
   0,                                        // uid
   0,                                        // gid
   0,                                        // rdev
-  common.isWindows ? undefined : 0,         // blksize
+  process.platform === 'win32' ? undefined : 0,         // blksize
   0,                                        // ino
   0,                                        // size
-  common.isWindows ? undefined : 0,         // blocks
+  process.platform === 'win32' ? undefined : 0,         // blocks
   Date.UTC(1970, 0, 1, 0, 0, 0),            // atime
   Date.UTC(1970, 0, 1, 0, 0, 0),            // mtime
   Date.UTC(1970, 0, 1, 0, 0, 0),            // ctime
@@ -86,7 +86,9 @@ watcher.start();  // starting a started watcher should be a noop
 
 // Watch events should callback with a filename on supported systems.
 // Omitting AIX. It works but not reliably.
-if (common.isLinux || common.isOSX || common.isWindows) {
+if (process.platform === 'linux' ||
+    process.platform === 'darwin' ||
+    process.platform === 'win32') {
   const dir = path.join(tmpdir.path, 'watch');
 
   fs.mkdir(dir, common.mustCall(function(err) {

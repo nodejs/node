@@ -96,7 +96,7 @@ assert.strictEqual(ret, `${msg}\n`);
 // See https://github.com/nodejs/node-v0.x-archive/issues/7824.
 {
   const cwd = common.rootDir;
-  const cmd = common.isWindows ? 'echo %cd%' : 'pwd';
+  const cmd = process.platform === 'win32' ? 'echo %cd%' : 'pwd';
   const response = execSync(cmd, { cwd });
 
   assert.strictEqual(response.toString().trim(), cwd);

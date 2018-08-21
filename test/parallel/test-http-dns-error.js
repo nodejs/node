@@ -33,7 +33,7 @@ const host = '*'.repeat(64);
 const MAX_TRIES = 5;
 
 let errCode = 'ENOTFOUND';
-if (common.isOpenBSD)
+if (process.platform === 'openbsd')
   errCode = 'EAI_FAIL';
 
 function tryGet(mod, tries) {

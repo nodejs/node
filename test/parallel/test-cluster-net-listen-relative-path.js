@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('On Windows named pipes live in their own ' +
               'filesystem and don\'t have a ~100 byte limit');
 if (!common.isMainThread)

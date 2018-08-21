@@ -43,7 +43,7 @@ const options = {
   encoding: 'utf-8',
 };
 
-if (!common.isLinux)
+if (process.platform !== 'linux')
   common.skip('only testing Linux for now');
 
 const perf = spawnSync('perf', perfArgs, options);

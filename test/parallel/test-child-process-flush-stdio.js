@@ -5,7 +5,7 @@ const assert = require('assert');
 
 // Windows' `echo` command is a built-in shell command and not an external
 // executable like on *nix
-const opts = { shell: common.isWindows };
+const opts = { shell: process.platform === 'win32' };
 
 const p = cp.spawn('echo', [], opts);
 
