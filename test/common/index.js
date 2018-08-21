@@ -180,6 +180,10 @@ Object.defineProperty(exports, 'localhostIPv4', {
   }
 });
 
+Object.defineProperty(exports, 'localhostIPv6', {
+  get: () => '::1'
+});
+
 // opensslCli defined lazily to reduce overhead of spawnSync
 Object.defineProperty(exports, 'opensslCli', { get: function() {
   if (opensslCli !== null) return opensslCli;
