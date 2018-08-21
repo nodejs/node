@@ -462,6 +462,57 @@ init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
   after 6
 ```
 
+#### async_hooks.currentResource()
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object} The resource that triggered the current
+  execution context.
+  Useful to store data within the resource.
+
+```js
+const { open } = require('fs');
+const { executionAsyncId, currentResource } = require('async_hooks');
+
+console.log(executionAsyncId(), currentResource());  // 1 null
+open(__filename, 'r', (err, fd) => {
+  console.log(executionAsyncId(), currentResource());  // 7 FSReqWrap
+});
+```
+
+This can be used to implement continuation local storage without the
+using of a tracking `Map` to store the metadata:
+
+```js
+const { createServer } = require('http');
+const {
+  executionAsyncId,
+  currentResource,
+  createHook
+} = require('async_hooks');
+const sym = Symbol('state'); // private symbol to avoid pollution
+
+createHook({
+  init(asyncId, type, triggerAsyncId, resource) {
+    const cr = currentResource();
+    if (cr) {
+      resource[sym] = cr[sym];
+    }
+  }
+}).enable();
+
+const server = createServer(function(req, res) {
+  currentResource()[sym] = { state: req.url };
+  setTimeout(function() {
+    res.end(JSON.stringify(currentResource()[sym]));
+  }, 100);
+}).listen(3000);
+```
+
+`currentResource()` will return `null` during application bootstrap.
+
 #### async_hooks.executionAsyncId()
 
 <!-- YAML
