@@ -5262,4 +5262,4 @@ void Initialize(Local<Object> target,
 }  // namespace crypto
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(crypto, node::crypto::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(crypto, node::crypto::Initialize)
