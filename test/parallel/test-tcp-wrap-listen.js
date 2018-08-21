@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 
 const { internalBinding } = require('internal/test/binding');
-const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
+const { TCP, constants: TCPConstants } = internalBinding('tcp_wrap');
 const { WriteWrap } = internalBinding('stream_wrap');
 
 const server = new TCP(TCPConstants.SOCKET);
