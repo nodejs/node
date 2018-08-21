@@ -805,30 +805,3 @@ exports.isCPPSymbolsNotMapped = exports.isWindows ||
                                 exports.isAIX ||
                                 exports.isLinuxPPCBE ||
                                 exports.isFreeBSD;
-
-const gcTrackerMap = new WeakMap();
-const gcTrackerTag = 'NODE_TEST_COMMON_GC_TRACKER';
-
-exports.onGC = function(obj, gcListener) {
-  const async_hooks = require('async_hooks');
-
-  const onGcAsyncHook = async_hooks.createHook({
-    init: exports.mustCallAtLeast(function(id, type, trigger, resource) {
-      if (this.trackedId === undefined) {
-        assert.strictEqual(type, gcTrackerTag);
-        this.trackedId = id;
-      }
-    }),
-    destroy(id) {
-      assert.notStrictEqual(this.trackedId, -1);
-      if (id === this.trackedId) {
-        this.gcListener.ongc();
-        onGcAsyncHook.disable();
-      }
-    }
-  }).enable();
-  onGcAsyncHook.gcListener = gcListener;
-
-  gcTrackerMap.set(obj, new async_hooks.AsyncResource(gcTrackerTag));
-  obj = null;
-};
