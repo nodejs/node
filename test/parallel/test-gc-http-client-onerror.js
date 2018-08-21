@@ -3,7 +3,8 @@
 // just like test-gc-http-client.js,
 // but with an on('error') handler that does nothing.
 
-const common = require('../common');
+require('../common');
+const onGC = require('../common/ongc');
 
 function serverHandler(req, res) {
   req.resume();
@@ -42,7 +43,7 @@ function getall() {
     }, cb).on('error', onerror);
 
     count++;
-    common.onGC(req, { ongc });
+    onGC(req, { ongc });
   })();
 
   setImmediate(getall);

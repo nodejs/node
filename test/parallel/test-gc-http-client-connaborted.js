@@ -3,7 +3,8 @@
 // just like test-gc-http-client.js,
 // but aborting every connection that comes in.
 
-const common = require('../common');
+require('../common');
+const onGC = require('../common/ongc');
 
 function serverHandler(req, res) {
   res.connection.destroy();
@@ -36,7 +37,7 @@ function getall() {
     }, cb).on('error', cb);
 
     count++;
-    common.onGC(req, { ongc });
+    onGC(req, { ongc });
   })();
 
   setImmediate(getall);
