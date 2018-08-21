@@ -132,7 +132,11 @@ const errorTests = [
   // Uncaught error throws and prints out
   {
     send: 'throw new Error(\'test error\');',
-    expect: /^Error: test error/
+    expect: 'Error: test error'
+  },
+  {
+    send: "throw { foo: 'bar' };",
+    expect: "Thrown: { foo: 'bar' }"
   },
   // Common syntax error is treated as multiline command
   {
@@ -526,7 +530,7 @@ const errorTests = [
   {
     send: 'require("internal/repl")',
     expect: [
-      /^Error: Cannot find module 'internal\/repl'/,
+      /^{ Error: Cannot find module 'internal\/repl'/,
       /^    at .*/,
       /^    at .*/,
       /^    at .*/,
