@@ -33,6 +33,7 @@ function nextdir() {
   return `test${++dirc}`;
 }
 
+// mkdir creates directory using assigned path
 {
   const pathname = path.join(tmpdir.path, nextdir());
 
@@ -42,6 +43,7 @@ function nextdir() {
   }));
 }
 
+// mkdir creates directory with assigned mode value
 {
   const pathname = path.join(tmpdir.path, nextdir());
 
@@ -51,6 +53,7 @@ function nextdir() {
   }));
 }
 
+// mkdirSync successfully creates directory from given path
 {
   const pathname = path.join(tmpdir.path, nextdir());
 
@@ -60,6 +63,8 @@ function nextdir() {
   assert.strictEqual(exists, true);
 }
 
+// mkdirSync and mkdir require path to be a string, buffer or url.
+// Anything else generates an error.
 [false, 1, {}, [], null, undefined].forEach((i) => {
   common.expectsError(
     () => fs.mkdir(i, common.mustNotCall()),
