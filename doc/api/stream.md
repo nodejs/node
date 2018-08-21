@@ -377,7 +377,7 @@ but instead implement [`writable._destroy()`][writable-_destroy].
 added: v0.9.4
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22427
     description: The `chunk` argument can now be any `TypedArray` or a
                  `DataView`.
   - version: v10.0.0
@@ -491,7 +491,7 @@ the status of the `highWaterMark`.
 added: v0.9.4
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22427
     description: The `chunk` argument can now be any `TypedArray` or a
                  `DataView`.
   - version: v8.0.0
@@ -1139,7 +1139,7 @@ setTimeout(() => {
 added: v0.9.11
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22427
     description: The `chunk` argument can now be any `TypedArray` or a
                  `DataView`.
   - version: v8.0.0
@@ -1894,7 +1894,7 @@ It can be overridden by child classes but it **must not** be called directly.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22427
     description: The `chunk` argument can now be any `TypedArray` or a
                  `DataView`.
   - version: v8.0.0
