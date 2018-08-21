@@ -266,7 +266,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const credentials = require('tls').createSecureContext({ ca, cert, key });
 
   // TLSWrap is exposed, but needs to be instantiated via tls_wrap.wrap().
-  const tls_wrap = process.binding('tls_wrap');
+  const tls_wrap = internalBinding('tls_wrap');
   testInitialized(
     tls_wrap.wrap(tcp._externalStream, credentials.context, true), 'TLSWrap');
 }
