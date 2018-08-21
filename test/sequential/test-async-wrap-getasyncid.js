@@ -122,7 +122,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
     testInitialized(this, 'AsyncWrap');
   }));
 
-  if (typeof process.binding('crypto').scrypt === 'function') {
+  if (typeof internalBinding('crypto').scrypt === 'function') {
     crypto.scrypt('password', 'salt', 8, common.mustCall(function() {
       testInitialized(this, 'AsyncWrap');
     }));
