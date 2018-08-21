@@ -599,6 +599,8 @@ class Parser : public AsyncWrap, public StreamListener {
     size_t nparsed =
       http_parser_execute(&parser_, &settings, data, len);
 
+    enum http_errno err = HTTP_PARSER_ERRNO(&parser_);
+
     Save();
 
     // Unassign the 'buffer_' variable
@@ -613,9 +615,7 @@ class Parser : public AsyncWrap, public StreamListener {
     Local<Integer> nparsed_obj = Integer::New(env()->isolate(), nparsed);
     // If there was a parse error in one of the callbacks
     // TODO(bnoordhuis) What if there is an error on EOF?
-    if (!parser_.upgrade && nparsed != len) {
-      enum http_errno err = HTTP_PARSER_ERRNO(&parser_);
-
+    if ((!parser_.upgrade && nparsed != len) || err != HPE_OK) {
       Local<Value> e = Exception::Error(env()->parse_error_string());
       Local<Object> obj = e->ToObject(env()->isolate()->GetCurrentContext())
         .ToLocalChecked();
