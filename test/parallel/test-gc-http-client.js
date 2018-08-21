@@ -3,6 +3,7 @@
 // just a simple http server and client.
 
 const common = require('../common');
+const onGC = require('../common/ongc');
 
 function serverHandler(req, res) {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -34,7 +35,7 @@ function getall() {
   }, cb);
 
   count++;
-  common.onGC(req, { ongc });
+  onGC(req, { ongc });
 
   setImmediate(getall);
 }

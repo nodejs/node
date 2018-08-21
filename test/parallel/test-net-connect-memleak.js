@@ -23,6 +23,7 @@
 // Flags: --expose-gc
 
 const common = require('../common');
+const onGC = require('../common/ongc');
 const assert = require('assert');
 const net = require('net');
 
@@ -36,7 +37,7 @@ const gcListener = { ongc() { collected = true; } };
 
 {
   const gcObject = {};
-  common.onGC(gcObject, gcListener);
+  onGC(gcObject, gcListener);
 
   const sock = net.createConnection(
     server.address().port,

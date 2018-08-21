@@ -26,6 +26,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const onGC = require('../common/ongc');
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
@@ -43,7 +44,7 @@ const gcListener = { ongc() { collected = true; } };
 
 {
   const gcObject = {};
-  common.onGC(gcObject, gcListener);
+  onGC(gcObject, gcListener);
 
   const sock = tls.connect(
     server.address().port,
