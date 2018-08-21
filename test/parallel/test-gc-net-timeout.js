@@ -3,7 +3,8 @@
 // just like test-gc-http-client-timeout.js,
 // but using a net server/client instead
 
-const common = require('../common');
+require('../common');
+const onGC = require('../common/ongc');
 
 function serverHandler(sock) {
   sock.setTimeout(120000);
@@ -44,7 +45,7 @@ function getall() {
   });
 
   count++;
-  common.onGC(req, { ongc });
+  onGC(req, { ongc });
 
   setImmediate(getall);
 }
