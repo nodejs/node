@@ -20,14 +20,15 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
 let terminalExit = 0;
 let regularExit = 0;
 
 // Create a dummy stream that does nothing
-const stream = new common.ArrayStream();
+const stream = new ArrayStream();
 
 function testTerminalMode() {
   const r1 = repl.start({

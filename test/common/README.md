@@ -413,6 +413,19 @@ Platform normalizes the `pwd` command.
 
 Synchronous version of `spawnPwd`.
 
+## ArrayStream Module
+
+The `ArrayStream` module provides a simple `Stream` that pushes elements from
+a given array.
+
+```js
+const ArrayStream = require('../common/arraystream');
+const stream = new ArrayStream();
+stream.run(['a', 'b', 'c']);
+```
+
+It can be used within tests as a simple mock stream.
+
 ## Countdown Module
 
 The `Countdown` module provides a simple countdown mechanism for tests that
