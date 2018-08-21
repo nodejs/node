@@ -9,9 +9,9 @@ const buffer = fixtures.readSync('test.wasm');
 assert.ok(WebAssembly.validate(buffer), 'Buffer should be valid WebAssembly');
 
 WebAssembly.instantiate(buffer, {}).then((results) => {
+  // Exported function should add two numbers.
   assert.strictEqual(
     results.instance.exports.addTwo(10, 20),
-    30,
-    'Exported function should add two numbers.',
+    30
   );
 });
