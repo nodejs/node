@@ -52,10 +52,6 @@ const {
   disableCrashOnUnhandledRejection,
   getTTYfd,
   runWithInvalidFD,
-  hijackStdout,
-  hijackStderr,
-  restoreStdout,
-  restoreStderr,
   isCPPSymbolsNotMapped
 } = common;
 
@@ -109,9 +105,5 @@ export {
   disableCrashOnUnhandledRejection,
   getTTYfd,
   runWithInvalidFD,
-  hijackStdout,
-  hijackStderr,
-  restoreStdout,
-  restoreStderr,
   isCPPSymbolsNotMapped
 };

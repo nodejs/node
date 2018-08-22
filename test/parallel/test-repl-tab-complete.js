@@ -23,6 +23,10 @@
 
 const common = require('../common');
 const ArrayStream = require('../common/arraystream');
+const {
+  hijackStderr,
+  restoreStderr
+} = require('../common/hijackstdio');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const hasInspector = process.config.variables.v8_enable_inspector === 1;
@@ -423,9 +427,9 @@ testMe.complete('obj.', common.mustCall((error, data) => {
     putIn.run([`var ele = new ${type.name}(1e6 + 1); ele.biu = 1;`]);
   }
 
-  common.hijackStderr(common.mustNotCall());
+  hijackStderr(common.mustNotCall());
   testMe.complete('ele.', common.mustCall((err, data) => {
-    common.restoreStderr();
+    restoreStderr();
     assert.ifError(err);
 
     const ele = (type === Array) ?
