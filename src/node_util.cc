@@ -4,16 +4,23 @@
 namespace node {
 namespace util {
 
+using v8::ALL_PROPERTIES;
 using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::ONLY_CONFIGURABLE;
+using v8::ONLY_ENUMERABLE;
+using v8::ONLY_WRITABLE;
 using v8::Private;
 using v8::Promise;
 using v8::Proxy;
+using v8::SKIP_STRINGS;
+using v8::SKIP_SYMBOLS;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 static void GetOwnNonIndexProperties(
@@ -21,17 +28,19 @@ static void GetOwnNonIndexProperties(
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
 
-  if (!args[0]->IsObject())
-    return;
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsUint32());
 
-  v8::Local<v8::Object> object = args[0].As<v8::Object>();
+  Local<Object> object = args[0].As<Object>();
 
-  // Return only non-enumerable properties by default.
-  v8::Local<v8::Array> properties;
+  Local<Array> properties;
+
+  v8::PropertyFilter filter =
+    static_cast<v8::PropertyFilter>(args[1].As<Uint32>()->Value());
 
   if (!object->GetPropertyNames(
         context, v8::KeyCollectionMode::kOwnOnly,
-        v8::ONLY_ENUMERABLE,
+        filter,
         v8::IndexFilter::kSkipIndices)
           .ToLocal(&properties)) {
     return;
@@ -209,6 +218,17 @@ void Initialize(Local<Object> target,
                              WatchdogHasPendingSigint);
 
   env->SetMethod(target, "safeGetenv", SafeGetenv);
+
+  Local<Object> constants = Object::New(env->isolate());
+  NODE_DEFINE_CONSTANT(constants, ALL_PROPERTIES);
+  NODE_DEFINE_CONSTANT(constants, ONLY_WRITABLE);
+  NODE_DEFINE_CONSTANT(constants, ONLY_ENUMERABLE);
+  NODE_DEFINE_CONSTANT(constants, ONLY_CONFIGURABLE);
+  NODE_DEFINE_CONSTANT(constants, SKIP_STRINGS);
+  NODE_DEFINE_CONSTANT(constants, SKIP_SYMBOLS);
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "propertyFilter"),
+              constants).FromJust();
 }
 
 }  // namespace util
