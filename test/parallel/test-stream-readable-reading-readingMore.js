@@ -143,7 +143,7 @@ const Readable = require('stream').Readable;
   readable.push('pushed');
 
   // we are still not flowing, we will be resuming in the next tick
-  assert.strictEqual(state.flowing, false);
+  assert.strictEqual(state.flowing, null);
 
   // wait for nextTick, so the readableListener flag resets
   process.nextTick(function() {
