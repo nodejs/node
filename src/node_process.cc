@@ -33,6 +33,7 @@ using v8::BigUint64Array;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::HeapStatistics;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -437,6 +438,30 @@ void SetEUid(const FunctionCallbackInfo<Value>& args) {
     env->ThrowErrnoException(errno, "seteuid");
   } else {
     args.GetReturnValue().Set(0);
+  }
+}
+
+
+void Nice(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->is_main_thread());
+
+  CHECK_EQ(args.Length(), 1);
+
+  int inc = 0;
+  // ..only check type if argument is int32
+  if (!args[0]->IsUndefined()) {
+    CHECK(args[0]->IsInt32());
+    inc = args[0].As<Int32>()->Value();
+  }
+
+  errno = 0;
+  int nice_result = nice(inc);
+
+  if (errno != 0) {
+    env->ThrowErrnoException(errno, "nice");
+  } else {
+    args.GetReturnValue().Set(nice_result);
   }
 }
 
