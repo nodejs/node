@@ -799,9 +799,3 @@ exports.runWithInvalidFD = function(func) {
 
   exports.printSkipMessage('Could not generate an invalid fd');
 };
-
-exports.isCPPSymbolsNotMapped = exports.isWindows ||
-                                exports.isSunOS ||
-                                exports.isAIX ||
-                                exports.isLinuxPPCBE ||
-                                exports.isFreeBSD;
