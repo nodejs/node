@@ -5,6 +5,7 @@
 
 #include "node_options.h"
 #include "util.h"
+#include <cstdlib>
 
 namespace node {
 
