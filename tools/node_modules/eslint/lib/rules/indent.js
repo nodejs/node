@@ -1333,7 +1333,9 @@ module.exports = {
                 node.expressions.forEach((expression, index) => {
                     const previousQuasi = node.quasis[index];
                     const nextQuasi = node.quasis[index + 1];
-                    const tokenToAlignFrom = previousQuasi.loc.start.line === previousQuasi.loc.end.line ? sourceCode.getFirstToken(previousQuasi) : null;
+                    const tokenToAlignFrom = previousQuasi.loc.start.line === previousQuasi.loc.end.line
+                        ? sourceCode.getFirstToken(previousQuasi)
+                        : null;
 
                     offsets.setDesiredOffsets([previousQuasi.range[1], nextQuasi.range[0]], tokenToAlignFrom, 1);
                     offsets.setDesiredOffset(sourceCode.getFirstToken(nextQuasi), tokenToAlignFrom, 0);
@@ -1341,7 +1343,9 @@ module.exports = {
             },
 
             VariableDeclaration(node) {
-                const variableIndent = options.VariableDeclarator.hasOwnProperty(node.kind) ? options.VariableDeclarator[node.kind] : DEFAULT_VARIABLE_INDENT;
+                const variableIndent = Object.prototype.hasOwnProperty.call(options.VariableDeclarator, node.kind)
+                    ? options.VariableDeclarator[node.kind]
+                    : DEFAULT_VARIABLE_INDENT;
 
                 if (node.declarations[node.declarations.length - 1].loc.start.line > node.loc.start.line) {
 

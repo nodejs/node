@@ -322,7 +322,7 @@ module.exports = {
                     }
 
                     // check tag preferences
-                    if (prefer.hasOwnProperty(tag.title) && tag.title !== prefer[tag.title]) {
+                    if (Object.prototype.hasOwnProperty.call(prefer, tag.title) && tag.title !== prefer[tag.title]) {
                         const entireTagRange = getAbsoluteRange(jsdocNode, tag);
 
                         context.report({
