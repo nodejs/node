@@ -1,2 +1,2 @@
-process.send({ env: process.env })
-process.exit(0)
+process.send({ env: process.env });
+process.exit(0);

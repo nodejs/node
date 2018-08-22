@@ -1,5 +1,5 @@
 /**
- * fork should parse options correclty if args is undefined or null
+ * fork should parse options correctly if args is undefined or null
  */
 
 'use strict';
