@@ -1,5 +1,11 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const {
+  hijackStdout,
+  hijackStderr,
+  restoreStdout,
+  restoreStderr
+} = require('../common/hijackstdio');
 
 const assert = require('assert');
 const Console = require('console').Console;
@@ -8,12 +14,12 @@ let c, stdout, stderr;
 
 function setup() {
   stdout = '';
-  common.hijackStdout(function(data) {
+  hijackStdout(function(data) {
     stdout += data;
   });
 
   stderr = '';
-  common.hijackStderr(function(data) {
+  hijackStderr(function(data) {
     stderr += data;
   });
 
@@ -21,8 +27,8 @@ function setup() {
 }
 
 function teardown() {
-  common.restoreStdout();
-  common.restoreStderr();
+  restoreStdout();
+  restoreStderr();
 }
 
 // Basic group() functionality

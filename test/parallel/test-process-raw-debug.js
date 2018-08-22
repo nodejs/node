@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const { hijackStderr } = require('../common/hijackstdio');
 const assert = require('assert');
 const os = require('os');
 
@@ -63,7 +64,7 @@ function child() {
     throw new Error('No ticking!');
   };
 
-  common.hijackStderr(common.mustNotCall('stderr.write must not be called.'));
+  hijackStderr(common.mustNotCall('stderr.write must not be called.'));
 
   process._rawDebug('I can still %s!', 'debug');
 }

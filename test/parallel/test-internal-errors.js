@@ -1,7 +1,10 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
-
+const {
+  hijackStdout,
+  restoreStdout,
+} = require('../common/hijackstdio');
 const assert = require('assert');
 const errors = require('internal/errors');
 
@@ -246,22 +249,22 @@ assert.strictEqual(
 // browser. Note that `message` remains non-enumerable after being assigned.
 {
   let initialConsoleLog = '';
-  common.hijackStdout((data) => { initialConsoleLog += data; });
+  hijackStdout((data) => { initialConsoleLog += data; });
   const myError = new errors.codes.ERR_TLS_HANDSHAKE_TIMEOUT();
   assert.deepStrictEqual(Object.keys(myError), []);
   const initialToString = myError.toString();
   console.log(myError);
   assert.notStrictEqual(initialConsoleLog, '');
 
-  common.restoreStdout();
+  restoreStdout();
 
   let subsequentConsoleLog = '';
-  common.hijackStdout((data) => { subsequentConsoleLog += data; });
+  hijackStdout((data) => { subsequentConsoleLog += data; });
   myError.message = 'Fhqwhgads';
   assert.deepStrictEqual(Object.keys(myError), []);
   assert.notStrictEqual(myError.toString(), initialToString);
   console.log(myError);
   assert.strictEqual(subsequentConsoleLog, initialConsoleLog);
 
-  common.restoreStdout();
+  restoreStdout();
 }
