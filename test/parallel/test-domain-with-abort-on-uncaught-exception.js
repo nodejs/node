@@ -93,7 +93,7 @@ if (process.argv[2] === 'child') {
       throwInDomainErrHandlerOpt = 'throwInDomainErrHandler';
 
     let cmdToExec = '';
-    if (!common.isWindows) {
+    if (process.platform !== 'win32') {
       // Do not create core files, as it can take a lot of disk space on
       // continuous testing and developers' machines
       cmdToExec += 'ulimit -c 0 && ';

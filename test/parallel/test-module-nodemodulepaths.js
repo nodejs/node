@@ -21,7 +21,7 @@
 
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const _module = require('module');
 
@@ -118,7 +118,7 @@ node-gyp/node_modules/glob/node_modules',
   }]
 };
 
-const platformCases = common.isWindows ? cases.WIN : cases.POSIX;
+const platformCases = process.platform === 'win32' ? cases.WIN : cases.POSIX;
 platformCases.forEach((c) => {
   const paths = _module._nodeModulePaths(c.file);
   assert.deepStrictEqual(

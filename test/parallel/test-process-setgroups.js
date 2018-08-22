@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (common.isWindows || !common.isMainThread) {
+if (process.platform === 'win32' || !common.isMainThread) {
   assert.strictEqual(process.setgroups, undefined);
   return;
 }

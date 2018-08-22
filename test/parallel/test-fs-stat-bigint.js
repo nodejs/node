@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const promiseFs = require('fs').promises;
@@ -58,7 +58,8 @@ function verifyStats(bigintStats, numStats) {
         bigintStats.isSymbolicLink(),
         numStats.isSymbolicLink()
       );
-    } else if (common.isWindows && (key === 'blksize' || key === 'blocks')) {
+    } else if (process.platform === 'win32' &&
+               (key === 'blksize' || key === 'blocks')) {
       assert.strictEqual(bigintStats[key], undefined);
       assert.strictEqual(numStats[key], undefined);
     } else if (Number.isSafeInteger(val)) {
@@ -79,7 +80,7 @@ function verifyStats(bigintStats, numStats) {
   verifyStats(bigintStats, numStats);
 }
 
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   const filename = getFilename();
   const link = `${filename}-link`;
   fs.symlinkSync(filename, link);
@@ -106,7 +107,7 @@ if (!common.isWindows) {
   });
 }
 
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   const filename = getFilename();
   const link = `${filename}-link`;
   fs.symlinkSync(filename, link);
@@ -135,7 +136,7 @@ if (!common.isWindows) {
   verifyStats(bigintStats, numStats);
 })();
 
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   (async function() {
     const filename = getFilename();
     const link = `${filename}-link`;

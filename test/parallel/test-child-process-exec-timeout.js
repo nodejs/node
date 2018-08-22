@@ -19,7 +19,7 @@ cp.exec(cmd, { timeout: 1 }, common.mustCall((err, stdout, stderr) => {
   let sigterm = 'SIGTERM';
   assert.strictEqual(err.killed, true);
   // TODO OpenBSD returns a null signal and 143 for code
-  if (common.isOpenBSD) {
+  if (process.platform === 'openbsd') {
     assert.strictEqual(err.code, 143);
     sigterm = null;
   } else {
@@ -28,7 +28,7 @@ cp.exec(cmd, { timeout: 1 }, common.mustCall((err, stdout, stderr) => {
   // At least starting with Darwin Kernel Version 16.4.0, sending a SIGTERM to a
   // process that is still starting up kills it with SIGKILL instead of SIGTERM.
   // See: https://github.com/libuv/libuv/issues/1226
-  if (common.isOSX)
+  if (process.platform === 'darwin')
     assert.ok(err.signal === 'SIGTERM' || err.signal === 'SIGKILL');
   else
     assert.strictEqual(err.signal, sigterm);

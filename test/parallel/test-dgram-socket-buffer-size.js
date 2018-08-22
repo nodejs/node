@@ -13,12 +13,12 @@ const {
 } = internalBinding('uv');
 
 function getExpectedError(type) {
-  const code = common.isWindows ? 'ENOTSOCK' : 'EBADF';
-  const message = common.isWindows ?
+  const code = process.platform === 'win32' ? 'ENOTSOCK' : 'EBADF';
+  const message = process.platform === 'win32' ?
     'socket operation on non-socket' : 'bad file descriptor';
-  const errno = common.isWindows ? UV_ENOTSOCK : UV_EBADF;
+  const errno = process.platform === 'win32' ? UV_ENOTSOCK : UV_EBADF;
   const syscall = `uv_${type}_buffer_size`;
-  const suffix = common.isWindows ?
+  const suffix = process.platform === 'win32' ?
     'ENOTSOCK (socket operation on non-socket)' : 'EBADF (bad file descriptor)';
   const error = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
@@ -99,7 +99,7 @@ function getExpectedError(type) {
     socket.setSendBufferSize(10000);
 
     // note: linux will double the buffer size
-    const expectedBufferSize = common.isLinux ? 20000 : 10000;
+    const expectedBufferSize = process.platform === 'linux' ? 20000 : 10000;
     assert.strictEqual(socket.getRecvBufferSize(), expectedBufferSize);
     assert.strictEqual(socket.getSendBufferSize(), expectedBufferSize);
     socket.close();

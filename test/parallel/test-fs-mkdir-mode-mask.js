@@ -9,7 +9,7 @@ const fs = require('fs');
 
 let mode;
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   common.skip('mode is not supported in mkdir on Windows');
   return;
 } else {

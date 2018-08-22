@@ -23,7 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
-const cat = spawn(common.isWindows ? 'cmd' : 'cat');
+const cat = spawn(process.platform === 'win32' ? 'cmd' : 'cat');
 
 cat.stdout.on('end', common.mustCall());
 cat.stderr.on('data', common.mustNotCall());

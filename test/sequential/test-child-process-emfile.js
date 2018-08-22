@@ -21,7 +21,7 @@
 
 'use strict';
 const common = require('../common');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('no RLIMIT_NOFILE on Windows');
 
 const assert = require('assert');

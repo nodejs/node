@@ -1,10 +1,11 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const path = require('path');
 
 assert.strictEqual(path.dirname(__filename).substr(-13),
-                   common.isWindows ? 'test\\parallel' : 'test/parallel');
+                   process.platform === 'win32' ?
+                     'test\\parallel' : 'test/parallel');
 
 assert.strictEqual(path.posix.dirname('/a/b/'), '/a');
 assert.strictEqual(path.posix.dirname('/a/b'), '/a');

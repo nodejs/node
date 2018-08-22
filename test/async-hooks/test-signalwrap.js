@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('no signals in Windows');
 if (!common.isMainThread)
   common.skip('No signal handling available in Workers');

@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('Win32 does not support signals.');
 
 const assert = require('assert');

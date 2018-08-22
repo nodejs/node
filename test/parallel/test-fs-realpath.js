@@ -40,7 +40,7 @@ tmpdir.refresh();
 
 let root = '/';
 let assertEqualPath = assert.strictEqual;
-if (common.isWindows) {
+if (process.platform === 'win32') {
   // something like "C:\\"
   root = process.cwd().substr(0, 3);
   assertEqualPath = function(path_left, path_right, message) {
@@ -283,7 +283,7 @@ function test_relative_input_cwd(realpath, realpathSync, callback) {
 
 function test_deep_symlink_mix(realpath, realpathSync, callback) {
   console.log('test_deep_symlink_mix');
-  if (common.isWindows) {
+  if (process.platform === 'win32') {
     // This one is a mix of files and directories, and it's quite tricky
     // to get the file/dir links sorted out correctly.
     common.printSkipMessage('symlink test (no privs)');

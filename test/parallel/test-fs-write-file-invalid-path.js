@@ -5,7 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-if (!common.isWindows)
+if (process.platform !== 'win32')
   common.skip('This test is for Windows only.');
 
 const tmpdir = require('../common/tmpdir');

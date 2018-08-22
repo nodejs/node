@@ -6,7 +6,7 @@
 
 const common = require('../common');
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   common.skip('Win32 uses ACLs for file permissions, ' +
               'modes are always 0666 and says nothing about group/other ' +
               'read access.');

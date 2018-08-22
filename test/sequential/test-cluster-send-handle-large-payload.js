@@ -43,7 +43,7 @@ if (cluster.isMaster) {
     // Send a second message after a delay on macOS.
     //
     // Refs: https://github.com/nodejs/node/issues/14747
-    if (common.isOSX)
+    if (process.platform === 'darwin')
       setTimeout(() => { process.send({ payload }, handle); }, 1000);
     else
       process.send({ payload }, handle);

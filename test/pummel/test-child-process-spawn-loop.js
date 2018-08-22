@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const spawn = require('child_process').spawn;
@@ -44,7 +44,7 @@ function doSpawn(i) {
 
   child.on('close', () => {
     // + 1 for \n or + 2 for \r\n on Windows
-    assert.strictEqual(SIZE + (common.isWindows ? 2 : 1), count);
+    assert.strictEqual(SIZE + (process.platform === 'win32' ? 2 : 1), count);
     if (i < N) {
       doSpawn(i + 1);
     } else {

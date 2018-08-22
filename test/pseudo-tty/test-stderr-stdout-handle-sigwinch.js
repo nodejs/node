@@ -13,7 +13,7 @@ const wrap = (fn, ioStream, string) => {
       fn.call(ioStream);
     } catch (e) {
       // EINVAL happens on SmartOS if emulation is incomplete
-      if (!common.isSunOS || e.code !== 'EINVAL')
+      if (process.platform !== 'sunos' || e.code !== 'EINVAL')
         throw e;
     }
   });
@@ -31,4 +31,4 @@ process.stdout._refreshSize = wrap(originalRefreshSizeStdout,
 // can setup the readloop. Provide a reasonable delay.
 setTimeout(function() {
   process.emit('SIGWINCH');
-}, common.isAIX ? 200 : 0);
+}, process.platform === 'aix' ? 200 : 0);

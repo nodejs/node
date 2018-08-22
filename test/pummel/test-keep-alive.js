@@ -23,7 +23,7 @@
 
 // This test requires the program 'wrk'
 const common = require('../common');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('no `wrk` on windows');
 
 const assert = require('assert');

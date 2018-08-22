@@ -3,7 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('no mkfifo on Windows');
 const child_process = require('child_process');
 const path = require('path');

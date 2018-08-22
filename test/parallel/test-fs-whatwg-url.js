@@ -11,7 +11,7 @@ const URL = require('url').URL;
 function pathToFileURL(p) {
   if (!path.isAbsolute(p))
     throw new Error('Path must be absolute');
-  if (common.isWindows && p.startsWith('\\\\'))
+  if (process.platform === 'win32' && p.startsWith('\\\\'))
     p = p.slice(2);
   return new URL(`file://${p}`);
 }
@@ -41,7 +41,7 @@ common.expectsError(
   });
 
 // pct-encoded characters in the path will be decoded and checked
-if (common.isWindows) {
+if (process.platform === 'win32') {
   // encoded back and forward slashes are not permitted on windows
   ['%2f', '%2F', '%5c', '%5C'].forEach((i) => {
     common.expectsError(

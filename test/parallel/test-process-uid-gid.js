@@ -24,7 +24,7 @@ const common = require('../common');
 
 const assert = require('assert');
 
-if (common.isWindows || !common.isMainThread) {
+if (process.platform === 'win32' || !common.isMainThread) {
   // uid/gid functions are POSIX only, setters are main-thread only.
   if (common.isMainThread) {
     assert.strictEqual(process.getuid, undefined);

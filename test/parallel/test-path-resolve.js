@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const child = require('child_process');
@@ -44,9 +44,9 @@ resolveTests.forEach((test) => {
     const actual = resolve.apply(null, test[0]);
     let actualAlt;
     const os = resolve === path.win32.resolve ? 'win32' : 'posix';
-    if (resolve === path.win32.resolve && !common.isWindows)
+    if (resolve === path.win32.resolve && process.platform !== 'win32')
       actualAlt = actual.replace(backslashRE, '/');
-    else if (resolve !== path.win32.resolve && common.isWindows)
+    else if (resolve !== path.win32.resolve && process.platform === 'win32')
       actualAlt = actual.replace(slashRE, '\\');
 
     const expected = test[1];
@@ -59,7 +59,7 @@ resolveTests.forEach((test) => {
 });
 assert.strictEqual(failures.length, 0, failures.join(''));
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   // Test resolving the current Windows drive letter from a spawned process.
   // See https://github.com/nodejs/node/issues/7215
   const currentDriveLetter = path.parse(process.cwd()).root.substring(0, 2);

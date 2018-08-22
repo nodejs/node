@@ -16,7 +16,7 @@ const common = require('../common');
 // The testcase makes use of folder watching, and causes
 // hang. This behavior is documented. Skip this for AIX.
 
-if (common.isAIX)
+if (process.platform === 'aix')
   common.skip('folder watch capability is limited in AIX.');
 
 const fs = require('fs');

@@ -27,7 +27,7 @@ if (!common.isMainThread)
 
 // Note in Windows one can only set the "user" bits.
 let mask;
-if (common.isWindows) {
+if (process.platform === 'win32') {
   mask = '0600';
 } else {
   mask = '0664';

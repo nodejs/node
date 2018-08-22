@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const exec = require('child_process').exec;
 let success_count = 0;
@@ -41,7 +41,7 @@ function after(err, stdout, stderr) {
   }
 }
 
-if (!common.isWindows) {
+if (process.platform !== 'win32') {
   child = exec('/usr/bin/env', { env: { 'HELLO': 'WORLD' } }, after);
 } else {
   child = exec('set',

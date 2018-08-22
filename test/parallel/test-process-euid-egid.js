@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (common.isWindows || !common.isMainThread) {
+if (process.platform === 'win32' || !common.isMainThread) {
   if (common.isMainThread) {
     assert.strictEqual(process.geteuid, undefined);
     assert.strictEqual(process.getegid, undefined);

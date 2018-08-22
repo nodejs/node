@@ -143,7 +143,7 @@ TEST(function test_lookup_ipv6_hint(done) {
   }, common.mustCall((err, ip, family) => {
     if (err) {
       // FreeBSD does not support V4MAPPED
-      if (common.isFreeBSD) {
+      if (process.platform === 'freebsd') {
         assert(err instanceof Error);
         assert.strictEqual(err.code, 'EAI_BADFLAGS');
         assert.strictEqual(err.hostname, addresses.INET_HOST);

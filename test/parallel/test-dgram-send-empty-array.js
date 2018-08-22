@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-if (common.isOSX)
+if (process.platform === 'darwin')
   common.skip('because of 17894467 Apple bug');
 
 const assert = require('assert');

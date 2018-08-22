@@ -1,10 +1,10 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const os = require('os');
 
-const eol = common.isWindows ? '\r\n' : '\n';
+const eol = process.platform === 'win32' ? '\r\n' : '\n';
 
 assert.strictEqual(os.EOL, eol);
 

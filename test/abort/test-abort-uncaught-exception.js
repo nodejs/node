@@ -26,7 +26,7 @@ function run(flags, argv2, signals) {
 
   const child = spawn(node, args);
   child.on('exit', common.mustCall(function(code, sig) {
-    if (common.isWindows) {
+    if (process.platform === 'win32') {
       if (signals)
         assert.strictEqual(code, 0xC0000005);
       else

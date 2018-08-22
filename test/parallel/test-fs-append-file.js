@@ -140,7 +140,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     assert.ifError(e);
 
     // windows permissions aren't unix
-    if (!common.isWindows) {
+    if (process.platform !== 'win32') {
       const st = fs.statSync(filename);
       assert.strictEqual(st.mode & 0o700, m);
     }
@@ -162,7 +162,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
   fs.promises.appendFile(filename, n, { mode: m })
     .then(common.mustCall(() => {
       // windows permissions aren't unix
-      if (!common.isWindows) {
+      if (process.platform !== 'win32') {
         const st = fs.statSync(filename);
         assert.strictEqual(st.mode & 0o700, m);
       }

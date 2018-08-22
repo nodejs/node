@@ -24,7 +24,7 @@ const putIn = new common.ArrayStream();
 repl.start('', putIn);
 let file = fixtures.path('syntax', 'bad_syntax');
 
-if (common.isWindows)
+if (process.platform === 'win32')
   file = file.replace(/\\/g, '\\\\');
 
 putIn.run(['.clear']);

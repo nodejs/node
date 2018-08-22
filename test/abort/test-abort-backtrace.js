@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 
@@ -18,7 +18,7 @@ if (process.argv[2] === 'child') {
       assert.fail(`Each frame should start with a frame number:\n${stderr}`);
     }
 
-    if (!common.isWindows) {
+    if (process.platform !== 'win32') {
       const { getBinaryPath } = require('../common/shared-lib-util');
       if (!frames.some((frame) => frame.includes(`[${getBinaryPath()}]`))) {
         assert.fail(`Some frames should include the binary name:\n${stderr}`);

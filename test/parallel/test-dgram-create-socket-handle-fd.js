@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('Does not support binding fd on Windows');
 
 const assert = require('assert');

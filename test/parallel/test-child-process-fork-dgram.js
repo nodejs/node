@@ -28,7 +28,7 @@
  */
 
 const common = require('../common');
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('Sending dgram sockets to child processes is not supported');
 
 const dgram = require('dgram');

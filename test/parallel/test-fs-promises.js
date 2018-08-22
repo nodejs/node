@@ -115,7 +115,7 @@ function verifyStatObject(stat) {
     await chmod(dest, (0o10777));
     await handle.chmod(0o10777);
 
-    if (!common.isWindows) {
+    if (process.platform !== 'win32') {
       await chown(dest, process.getuid(), process.getgid());
       await handle.chown(process.getuid(), process.getgid());
     }
@@ -165,7 +165,7 @@ function verifyStatObject(stat) {
     if (common.canCreateSymLink()) {
       const newLink = path.resolve(tmpDir, 'baz3.js');
       await symlink(newPath, newLink);
-      if (!common.isWindows) {
+      if (process.platform !== 'win32') {
         await lchown(newLink, process.getuid(), process.getgid());
       }
       stats = await lstat(newLink);
@@ -177,7 +177,7 @@ function verifyStatObject(stat) {
                          (await readlink(newLink)).toLowerCase());
 
       const newMode = 0o666;
-      if (common.isOSX) {
+      if (process.platform === 'darwin') {
         // lchmod is only available on macOS
         await lchmod(newLink, newMode);
         stats = await lstat(newLink);

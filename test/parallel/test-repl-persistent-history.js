@@ -113,7 +113,7 @@ const tests = [
   },
   {
     before: function before() {
-      if (common.isWindows) {
+      if (process.platform === 'win32') {
         const execSync = require('child_process').execSync;
         execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`, (err) => {
           assert.ifError(err);
@@ -126,7 +126,7 @@ const tests = [
   },
   {
     before: function before() {
-      if (!common.isWindows)
+      if (process.platform !== 'win32')
         fs.symlinkSync('/dev/null', devNullHistoryPath);
     },
     env: { NODE_REPL_HISTORY: devNullHistoryPath },

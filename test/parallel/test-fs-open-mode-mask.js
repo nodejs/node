@@ -9,7 +9,7 @@ const fs = require('fs');
 
 let mode;
 
-if (common.isWindows) {
+if (process.platform === 'win32') {
   mode = 0o444;
 } else {
   mode = 0o644;

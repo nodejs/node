@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
-const expected = common.isWindows ? '%foo%' : '$foo';
+const expected = process.platform === 'win32' ? '%foo%' : '$foo';
 
 if (process.argv[2] === undefined) {
   const child = cp.fork(__filename, [expected], {

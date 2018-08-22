@@ -70,7 +70,7 @@ fs.writeFile(filename3, n, { mode: m }, common.mustCall(function(e) {
   assert.ifError(e);
 
   // windows permissions aren't unix
-  if (!common.isWindows) {
+  if (process.platform !== 'win32') {
     const st = fs.statSync(filename3);
     assert.strictEqual(st.mode & 0o700, m);
   }

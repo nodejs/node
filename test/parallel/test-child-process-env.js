@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const os = require('os');
 
@@ -37,7 +37,7 @@ Object.setPrototypeOf(env, {
 });
 
 let child;
-if (common.isWindows) {
+if (process.platform === 'win32') {
   child = spawn('cmd.exe', ['/c', 'set'],
                 Object.assign({}, process.env, { env }));
 } else {

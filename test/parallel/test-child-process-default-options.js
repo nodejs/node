@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const spawn = require('child_process').spawn;
@@ -28,7 +28,7 @@ const spawn = require('child_process').spawn;
 process.env.HELLO = 'WORLD';
 
 let child;
-if (common.isWindows) {
+if (process.platform === 'win32') {
   child = spawn('cmd.exe', ['/c', 'set'], {});
 } else {
   child = spawn('/usr/bin/env', [], {});

@@ -16,7 +16,7 @@ if (common.inFreeBSDJail) {
 // $ echo hi |socat STDIO \
 //   UDP4-DATAGRAM:224.0.0.115:12356,ip-multicast-if=127.0.0.1
 
-if (common.isSunOS) {
+if (process.platform === 'sunos') {
   common.skip('SunOs is not correctly delivering to loopback multicast.');
   return;
 }
@@ -34,7 +34,8 @@ const FAM = 'IPv4';
 // Windows wont bind on multicasts so its filtering is by port.
 const PORTS = {};
 for (let i = 0; i < MULTICASTS[FAM].length; i++) {
-  PORTS[MULTICASTS[FAM][i]] = common.PORT + (common.isWindows ? i : 0);
+  PORTS[MULTICASTS[FAM][i]] =
+    common.PORT + (process.platform === 'win32' ? i : 0);
 }
 
 const UDP = { IPv4: 'udp4', IPv6: 'udp6' };
@@ -285,7 +286,7 @@ if (process.argv[2] === 'child') {
     process.send({ listening: true });
   });
 
-  if (common.isWindows)
+  if (process.platform === 'win32')
     listenSocket.bind(PORTS[MULTICAST], ANY[FAM]);
   else
     listenSocket.bind(common.PORT, MULTICAST);

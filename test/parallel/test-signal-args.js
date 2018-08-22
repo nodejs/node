@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (common.isWindows)
+if (process.platform === 'win32')
   common.skip('Sending signals with process.kill is not supported on Windows');
 if (!common.isMainThread)
   common.skip('No signal handling available in Workers');

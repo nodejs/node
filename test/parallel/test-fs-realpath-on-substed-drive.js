@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-if (!common.isWindows)
+if (process.platform !== 'win32')
   common.skip('Test for Windows only');
 
 const fixtures = require('../common/fixtures');

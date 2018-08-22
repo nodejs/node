@@ -9,7 +9,7 @@ const fs = require('fs');
 
 let mode;
 // On Windows chmod is only able to manipulate write permission
-if (common.isWindows) {
+if (process.platform === 'win32') {
   mode = 0o444;  // read-only
 } else {
   mode = 0o777;

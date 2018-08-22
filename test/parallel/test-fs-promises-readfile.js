@@ -32,7 +32,7 @@ async function validateReadFileProc() {
   // - https://github.com/nodejs/node/issues/21331
 
   // Test is Linux-specific.
-  if (!common.isLinux)
+  if (process.platform !== 'linux')
     return;
 
   const hostname = await readFile('/proc/sys/kernel/hostname');

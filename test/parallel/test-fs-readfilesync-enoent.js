@@ -2,7 +2,7 @@
 const common = require('../common');
 
 // This test is only relevant on Windows.
-if (!common.isWindows)
+if (process.platform !== 'win32')
   common.skip('Windows specific test.');
 
 // This test ensures fs.realpathSync works on properly on Windows without

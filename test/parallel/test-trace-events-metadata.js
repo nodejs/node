@@ -64,7 +64,7 @@ proc.once('exit', common.mustCall(() => {
         (!process.release.lts ||
           trace.args.process.release.lts === process.release.lts)));
 
-    if (!common.isSunOS) {
+    if (process.platform !== 'sunos') {
       // Changing process.title is currently unsupported on SunOS/SmartOS
       assert(traces.some((trace) =>
         trace.name === 'process_name' && trace.args.name === 'foo'));

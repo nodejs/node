@@ -33,21 +33,21 @@ interfacer.on('line', function(line) {
       break;
     case 2:
       // Doesn't currently work on Windows.
-      if (!common.isWindows) {
+      if (process.platform !== 'win32') {
         expected = "Target process: 655555 doesn't exist.";
         assert.strictEqual(line, expected);
       }
       break;
 
     default:
-      if (!common.isWindows)
+      if (process.platform !== 'win32')
         assert.fail(`unexpected line received: ${line}`);
   }
 });
 
 interfacer.on('exit', function(code, signal) {
   assert.strictEqual(code, 1, `Got unexpected code: ${code}`);
-  if (!common.isWindows) {
+  if (process.platform !== 'win32') {
     assert.strictEqual(lineCount, 2);
   }
 });

@@ -21,7 +21,7 @@
 
 'use strict';
 const common = require('../common');
-if (!common.isSunOS)
+if (process.platform !== 'sunos')
   common.skip('no DTRACE support');
 
 const assert = require('assert');

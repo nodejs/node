@@ -38,7 +38,7 @@ const errorMessages = errorMessagesByPlatform[process.platform] || [''];
 // On Windows, error messages are MUI dependent
 // Ref: https://github.com/nodejs/node/issues/13376
 let localeOk = true;
-if (common.isWindows) {
+if (process.platform === 'win32') {
   const powerShellFindMUI =
     'powershell -NoProfile -ExecutionPolicy Unrestricted -c ' +
     '"(Get-UICulture).TwoLetterISOLanguageName"';

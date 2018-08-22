@@ -22,7 +22,7 @@
 'use strict';
 
 const common = require('../common');
-if (common.isWindows) {
+if (process.platform === 'win32') {
   common.skip(
     'It is not possible to send pipe handles over the IPC pipe on Windows');
 }
