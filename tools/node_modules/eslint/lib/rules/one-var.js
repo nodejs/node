@@ -74,19 +74,19 @@ module.exports = {
             options.let = { uninitialized: mode, initialized: mode };
             options.const = { uninitialized: mode, initialized: mode };
         } else if (typeof mode === "object") { // options configuration is an object
-            if (mode.hasOwnProperty("separateRequires")) {
+            if (Object.prototype.hasOwnProperty.call(mode, "separateRequires")) {
                 options.separateRequires = !!mode.separateRequires;
             }
-            if (mode.hasOwnProperty("var")) {
+            if (Object.prototype.hasOwnProperty.call(mode, "var")) {
                 options.var = { uninitialized: mode.var, initialized: mode.var };
             }
-            if (mode.hasOwnProperty("let")) {
+            if (Object.prototype.hasOwnProperty.call(mode, "let")) {
                 options.let = { uninitialized: mode.let, initialized: mode.let };
             }
-            if (mode.hasOwnProperty("const")) {
+            if (Object.prototype.hasOwnProperty.call(mode, "const")) {
                 options.const = { uninitialized: mode.const, initialized: mode.const };
             }
-            if (mode.hasOwnProperty("uninitialized")) {
+            if (Object.prototype.hasOwnProperty.call(mode, "uninitialized")) {
                 if (!options.var) {
                     options.var = {};
                 }
@@ -100,7 +100,7 @@ module.exports = {
                 options.let.uninitialized = mode.uninitialized;
                 options.const.uninitialized = mode.uninitialized;
             }
-            if (mode.hasOwnProperty("initialized")) {
+            if (Object.prototype.hasOwnProperty.call(mode, "initialized")) {
                 if (!options.var) {
                     options.var = {};
                 }

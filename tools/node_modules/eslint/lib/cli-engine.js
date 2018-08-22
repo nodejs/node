@@ -30,7 +30,6 @@ const fs = require("fs"),
     pkg = require("../package.json");
 
 const debug = require("debug")("eslint:cli-engine");
-
 const resolver = new ModuleResolver();
 
 //------------------------------------------------------------------------------
@@ -469,7 +468,7 @@ class CLIEngine {
      * @returns {void}
      */
     static outputFixes(report) {
-        report.results.filter(result => result.hasOwnProperty("output")).forEach(result => {
+        report.results.filter(result => Object.prototype.hasOwnProperty.call(result, "output")).forEach(result => {
             fs.writeFileSync(result.filePath, result.output);
         });
     }
