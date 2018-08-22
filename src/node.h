@@ -257,19 +257,11 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
 // Environments that use this `IsolateData` will not work.
-// TODO(helloshuangzi): switch to default parameters.
-NODE_EXTERN IsolateData* CreateIsolateData(
-    v8::Isolate* isolate,
-    struct uv_loop_s* loop);
 NODE_EXTERN IsolateData* CreateIsolateData(
     v8::Isolate* isolate,
     struct uv_loop_s* loop,
-    MultiIsolatePlatform* platform);
-NODE_EXTERN IsolateData* CreateIsolateData(
-    v8::Isolate* isolate,
-    struct uv_loop_s* loop,
-    MultiIsolatePlatform* platform,
-    ArrayBufferAllocator* allocator);
+    MultiIsolatePlatform* platform = nullptr,
+    ArrayBufferAllocator* allocator = nullptr);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
 // TODO(addaleax): Add an official variant using STL containers, and move
