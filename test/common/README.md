@@ -418,6 +418,7 @@ Synchronous version of `spawnPwd`.
 The `ArrayStream` module provides a simple `Stream` that pushes elements from
 a given array.
 
+<!-- eslint-disable no-undef, node-core/required-modules -->
 ```js
 const ArrayStream = require('../common/arraystream');
 const stream = new ArrayStream();
