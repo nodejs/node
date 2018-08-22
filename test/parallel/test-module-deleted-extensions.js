@@ -23,18 +23,21 @@ fs.writeFileSync(file, '', 'utf8');
 }
 
 {
-  require.extensions['.bar'] = common.mustNotCall();
-  require.extensions['.foo.bar'] = common.mustNotCall();
   delete require.extensions['.bar'];
+  require.extensions['.foo.bar'] = common.mustNotCall();
   const modulePath = path.join(tmpdir.path, 'test-extensions');
   assert.throws(
     () => require(modulePath),
     new Error(`Cannot find module '${modulePath}'`)
   );
+  assert.throws(
+    () => require(modulePath + '.foo'),
+    new Error(`Cannot find module '${modulePath}.foo'`)
+  );
 }
 
 {
-  require.extensions['.foo.bar'] = common.mustNotCall();
+  delete require.extensions['.bar'];
   delete require.extensions['.foo.bar'];
   const modulePath = path.join(tmpdir.path, 'test-extensions');
   assert.throws(
@@ -44,6 +47,7 @@ fs.writeFileSync(file, '', 'utf8');
 }
 
 {
+  delete require.extensions['.foo.bar'];
   require.extensions['.bar'] = common.mustCall((module, path) => {
     assert.strictEqual(module.id, file);
     assert.strictEqual(path, file);
