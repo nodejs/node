@@ -717,7 +717,7 @@ variable `NODE_TEST_INET_HOST` to a specified host.
 
 ## ongc Module
 
-The `ongc` module allows a garbage colleciton listener to be installed. The
+The `ongc` module allows a garbage collection listener to be installed. The
 module exports a single `onGC()` function.
 
 ```js
