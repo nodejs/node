@@ -20,7 +20,7 @@ const optionsIPv6 = {
   localAddress: common.localhostIPv6
 };
 
-const onError = (err, options) => {
+function onError(err, options) {
   assert.ok(expectedErrorCodes.includes(err.code));
   assert.strictEqual(err.syscall, 'connect');
   assert.strictEqual(err.localPort, options.localPort);
@@ -30,7 +30,7 @@ const onError = (err, options) => {
     `connect ${err.code} ${err.address}:${err.port} ` +
     `- Local (${err.localAddress}:${err.localPort})`
   );
-};
+}
 
 const clientIPv4 = net.connect(optionsIPv4);
 clientIPv4.on('error', common.mustCall((err) => onError(err, optionsIPv4)));
