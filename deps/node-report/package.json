@@ -1,0 +1,29 @@
+{
+  "name": "node-report",
+  "version": "2.2.1",
+  "description": "Diagnostic Report for Node.js",
+  "homepage": "https://github.com/nodejs/node-report#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nodejs/node-report.git"
+  },
+  "engines": {
+    "node": ">=4.0.0"
+  },
+  "dependencies": {
+    "nan": "^2.3.5"
+  },
+  "license": "MIT",
+  "contributors": [
+    "Richard Chamberlain <richard_chamberlain@uk.ibm.com> (https://github.com/rnchamberlain)"
+  ],
+  "scripts": {
+    "test": "tap --timeout=300 test/test*.js"
+  },
+  "bugs": {
+    "url": "https://github.com/nodejs/node-report/issues"
+  },
+  "devDependencies": {
+    "tap": "^8.0.0"
+  }
+}

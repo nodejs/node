@@ -91,6 +91,10 @@
 #include <unicode/uvernum.h>
 #endif
 
+#if defined(NODE_REPORT)
+#include "../deps/node-report/src/node_report.h"
+#endif
+
 #if defined(LEAK_SANITIZER)
 #include <sanitizer/lsan_interface.h>
 #endif
@@ -197,6 +201,7 @@ static std::string trace_enabled_categories;  // NOLINT(runtime/string)
 static std::string trace_file_pattern =  // NOLINT(runtime/string)
   "node_trace.${rotation}.log";
 static bool abort_on_uncaught_exception = false;
+static std::string report_events;  // NOLINT(runtime/string)
 
 // Bit flag used to track security reverts (see node_revert.h)
 unsigned int reverted = 0;
@@ -2017,6 +2022,13 @@ static Local<Object> GetFeatures(Environment* env) {
   // TODO(bnoordhuis) ping libuv
   obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ipv6"), True(env->isolate()));
 
+#if defined(NODE_REPORT)
+  Local<Value> node_report = True(env->isolate());
+#else
+  Local<Value> node_report = False(env->isolate());
+#endif
+  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "node_report"), node_report);
+
 #ifdef HAVE_OPENSSL
   Local<Boolean> have_openssl = True(env->isolate());
 #else
@@ -2573,6 +2585,14 @@ void LoadEnvironment(Environment* env) {
     return;
   }
 
+#if defined(NODE_REPORT)
+  fprintf(stderr, "report events: %s \n", report_events.c_str());
+  if (!report_events.empty()) {
+    nodereport::InitializeNodeReport();
+    nodereport::SetEvents(env->isolate(), report_events.c_str());
+  }
+#endif
+
   // Bootstrap Node.js
   Local<Object> bootstrapper = Object::New(env->isolate());
   SetupBootstrapObject(env, bootstrapper);
@@ -3039,6 +3059,22 @@ static void ParseArgs(int* argc,
       // Also a V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
       new_v8_argc += 1;
+    } else if (strcmp(arg, "--report-events") == 0) {
+      const char* events = argv[index + 1];
+      if (events == nullptr) {
+        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        exit(9);
+      }
+      args_consumed += 1;
+      report_events = events;
+  fprintf(stderr, "parsed events %s \n", report_events.c_str());
+      // Replace ',' with '+' separators
+      std::size_t c = report_events.find_first_of(",");
+      while (c != std::string::npos) {
+        report_events.replace(c, 1, "+");
+        c = report_events.find_first_of(",", c + 1);
+      }
+  fprintf(stderr, "filtered events %s \n", report_events.c_str());
     } else {
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;

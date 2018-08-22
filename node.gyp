@@ -520,6 +520,36 @@
         }, {
           'defines': [ 'HAVE_INSPECTOR=0' ]
         }],
+        [ 'node_report=="true"', {
+          'sources': [
+            'deps/node-report/src/node_report.cc',
+            'deps/node-report/src/module.cc',
+            'deps/node-report/src/utilities.cc',
+          ],
+          'include_dirs': [
+            'deps/node-report/node_modules/nan/',
+          ],
+          'defines': [
+            'NODE_REPORT',
+            'NODEREPORT_VERSION="<!(python tools/getnodereportversion.py)"',
+          ],
+          'conditions': [
+            ['OS=="win"', {
+              'libraries': [
+                'dbghelp.lib',
+                'Netapi32.lib',
+                'PsApi.lib',
+                'Ws2_32.lib',
+              ],
+              'dll_files': [
+                'dbghelp.dll',
+                'Netapi32.dll',
+                'PsApi.dll',
+                'Ws2_32.dll',
+              ],
+            }],
+          ],
+        }],
         [ 'OS=="win"', {
           'conditions': [
             [ 'node_intermediate_lib_type!="static_library"', {
