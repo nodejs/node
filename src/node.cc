@@ -3229,25 +3229,16 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
 }
 
 
-IsolateData* CreateIsolateData(Isolate* isolate, uv_loop_t* loop) {
-  return new IsolateData(isolate, loop, nullptr);
-}
-
-
-IsolateData* CreateIsolateData(
-    Isolate* isolate,
-    uv_loop_t* loop,
-    MultiIsolatePlatform* platform) {
-  return new IsolateData(isolate, loop, platform);
-}
-
-
 IsolateData* CreateIsolateData(
     Isolate* isolate,
     uv_loop_t* loop,
     MultiIsolatePlatform* platform,
     ArrayBufferAllocator* allocator) {
-  return new IsolateData(isolate, loop, platform, allocator->zero_fill_field());
+  return new IsolateData(
+        isolate,
+        loop,
+        platform,
+        allocator != nullptr ? allocator->zero_fill_field() : nullptr);
 }
 
 
