@@ -124,12 +124,13 @@ process.argv.slice(2).forEach((file) => {
         name = `${objectName}.${name}`;
       }
 
-      definition[name] = `${link}#L${statement.start.line}`;
+      definition[name] = `${link}#L${statement.loc.start.line}`;
     } else if (statement.type === 'FunctionDeclaration') {
       const name = statement.id.name;
       if (!exported.identifiers.includes(name)) return;
       if (basename.startsWith('_')) return;
-      definition[`${basename}.${name}`] = `${link}#L${statement.start.line}`;
+      definition[`${basename}.${name}`] =
+        `${link}#L${statement.loc.start.line}`;
     }
   });
 });
