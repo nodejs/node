@@ -23,6 +23,17 @@ fs.writeFileSync(file, '', 'utf8');
 }
 
 {
+  require.extensions['.bar'] = common.mustNotCall();
+  require.extensions['.foo.bar'] = common.mustNotCall();
+  delete require.extensions['.bar'];
+  const modulePath = path.join(tmpdir.path, 'test-extensions');
+  assert.throws(
+    () => require(modulePath),
+    new Error(`Cannot find module '${modulePath}'`)
+  );
+}
+
+{
   require.extensions['.foo.bar'] = common.mustNotCall();
   delete require.extensions['.foo.bar'];
   const modulePath = path.join(tmpdir.path, 'test-extensions');
