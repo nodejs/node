@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const hijackstdio = require('../common/hijackstdio');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { execFile } = require('child_process');
@@ -95,7 +96,7 @@ const HIJACK_TEST_ARRAY = [ 'foo\n', 'bar\n', 'baz\n' ];
   const stream = process[`std${txt}`];
   const originalWrite = stream.write;
 
-  common[`hijackStd${txt}`](common.mustCall(function(data) {
+  hijackstdio[`hijackStd${txt}`](common.mustCall(function(data) {
     assert.strictEqual(data, HIJACK_TEST_ARRAY[stream.writeTimes]);
   }, HIJACK_TEST_ARRAY.length));
   assert.notStrictEqual(originalWrite, stream.write);
@@ -105,14 +106,14 @@ const HIJACK_TEST_ARRAY = [ 'foo\n', 'bar\n', 'baz\n' ];
   });
 
   assert.strictEqual(HIJACK_TEST_ARRAY.length, stream.writeTimes);
-  common[`restoreStd${txt}`]();
+  hijackstdio[`restoreStd${txt}`]();
   assert.strictEqual(originalWrite, stream.write);
 });
 
 // hijackStderr and hijackStdout again
 // for console
 [[ 'err', 'error' ], [ 'out', 'log' ]].forEach(([ type, method ]) => {
-  common[`hijackStd${type}`](common.mustCall(function(data) {
+  hijackstdio[`hijackStd${type}`](common.mustCall(function(data) {
     assert.strictEqual(data, 'test\n');
 
     // throw an error
@@ -120,7 +121,7 @@ const HIJACK_TEST_ARRAY = [ 'foo\n', 'bar\n', 'baz\n' ];
   }));
 
   console[method]('test');
-  common[`restoreStd${type}`]();
+  hijackstdio[`restoreStd${type}`]();
 });
 
 let uncaughtTimes = 0;

@@ -24,6 +24,13 @@ const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 
+const {
+  hijackStdout,
+  hijackStderr,
+  restoreStdout,
+  restoreStderr
+} = require('../common/hijackstdio');
+
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 // Support legacy API
@@ -60,11 +67,11 @@ const custom_inspect = { foo: 'bar', [util.inspect.custom]: () => 'inspect' };
 const strings = [];
 const errStrings = [];
 process.stdout.isTTY = false;
-common.hijackStdout(function(data) {
+hijackStdout(function(data) {
   strings.push(data);
 });
 process.stderr.isTTY = false;
-common.hijackStderr(function(data) {
+hijackStderr(function(data) {
   errStrings.push(data);
 });
 
@@ -163,8 +170,8 @@ console.assert(true, 'this should not throw');
 
 assert.strictEqual(strings.length, process.stdout.writeTimes);
 assert.strictEqual(errStrings.length, process.stderr.writeTimes);
-common.restoreStdout();
-common.restoreStderr();
+restoreStdout();
+restoreStderr();
 
 // verify that console.timeEnd() doesn't leave dead links
 const timesMapSize = console._times.size;
@@ -234,8 +241,8 @@ assert.strictEqual(errStrings.shift().split('\n').shift(),
 
 // hijack stderr to catch `process.emitWarning` which is using
 // `process.nextTick`
-common.hijackStderr(common.mustCall(function(data) {
-  common.restoreStderr();
+hijackStderr(common.mustCall(function(data) {
+  restoreStderr();
 
   // stderr.write will catch sync error, so use `process.nextTick` here
   process.nextTick(function() {

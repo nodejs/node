@@ -173,24 +173,6 @@ Indicates whether `IPv6` is supported on this platform.
 
 Indicates if there are multiple localhosts available.
 
-### hijackStderr(listener)
-* `listener` [&lt;Function>]: a listener with a single parameter
-  called `data`.
-
-Eavesdrop to `process.stderr.write` calls. Once `process.stderr.write` is
-called, `listener` will also be called and the `data` of `write` function will
-be passed to `listener`. What's more, `process.stderr.writeTimes` is a count of
-the number of calls.
-
-### hijackStdout(listener)
-* `listener` [&lt;Function>]: a listener with a single parameter
-  called `data`.
-
-Eavesdrop to `process.stdout.write` calls. Once `process.stdout.write` is
-called, `listener` will also be called and the `data` of `write` function will
-be passed to `listener`. What's more, `process.stdout.writeTimes` is a count of
-the number of calls.
-
 ### inFreeBSDJail
 * [&lt;boolean>]
 
@@ -354,16 +336,6 @@ A port number for tests to use if one is needed.
 * `msg` [&lt;string>]
 
 Logs '1..0 # Skipped: ' + `msg`
-
-### restoreStderr()
-
-Restore the original `process.stderr.write`. Used to restore `stderr` to its
-original state after calling [`common.hijackStdErr()`][].
-
-### restoreStdout()
-
-Restore the original `process.stdout.write`. Used to restore `stdout` to its
-original state after calling [`common.hijackStdOut()`][].
 
 ### rootDir
 * [&lt;string>]
@@ -596,6 +568,52 @@ validateSnapshotNodes('TLSWRAP', [
 ]);
 ```
 
+## hijackstdio Module
+
+The `hijackstdio` module provides utility functions for temporarily redirecting
+`stdout` and `stderr` output.
+
+<!-- eslint-disable no-undef, node-core/required-modules -->
+```js
+const { hijackStdout, restoreStdout } = require('../common/hijackstdio');
+
+hijackStdout((data) => {
+  /* Do something with data */
+  restoreStdout();
+});
+
+console.log('this is sent to the hijacked listener');
+```
+
+### hijackStderr(listener)
+* `listener` [&lt;Function>]: a listener with a single parameter
+  called `data`.
+
+Eavesdrop to `process.stderr.write()` calls. Once `process.stderr.write()` is
+called, `listener` will also be called and the `data` of `write` function will
+be passed to `listener`. What's more, `process.stderr.writeTimes` is a count of
+the number of calls.
+
+### hijackStdout(listener)
+* `listener` [&lt;Function>]: a listener with a single parameter
+  called `data`.
+
+Eavesdrop to `process.stdout.write()` calls. Once `process.stdout.write()` is
+called, `listener` will also be called and the `data` of `write` function will
+be passed to `listener`. What's more, `process.stdout.writeTimes` is a count of
+the number of calls.
+
+### restoreStderr()
+
+Restore the original `process.stderr.write()`. Used to restore `stderr` to its
+original state after calling [`hijackstdio.hijackStdErr()`][].
+
+### restoreStdout()
+
+Restore the original `process.stdout.write()`. Used to restore `stdout` to its
+original state after calling [`hijackstdio.hijackStdOut()`][].
+
+
 ## HTTP/2 Module
 
 The http2.js module provides a handful of utilities for creating mock HTTP/2
@@ -773,6 +791,6 @@ implementation with tests from
 [&lt;boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
 [&lt;number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [&lt;string>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
-[`common.hijackStdErr()`]: #hijackstderrlistener
-[`common.hijackStdOut()`]: #hijackstdoutlistener
+[`hijackstdio.hijackStdErr()`]: #hijackstderrlistener
+[`hijackstdio.hijackStdOut()`]: #hijackstdoutlistener
 [internationalization]: https://github.com/nodejs/node/wiki/Intl
