@@ -90,18 +90,20 @@ help: ## Print help for targets with comments.
 # to check for changes.
 .PHONY: $(NODE_EXE) $(NODE_G_EXE)
 
+define build_node_exe
+$(MAKE) -C out BUILDTYPE=$1 V=$(V)
 # The -r/-L check stops it recreating the link if it is already in place,
 # otherwise $(NODE_EXE) being a .PHONY target means it is always re-run.
 # Without the check there is a race condition between the link being deleted
 # and recreated which can break the addons build when running test-ci
 # See comments on the build-addons target for some more info
+if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/$1/$(NODE_EXE) $@; fi
+endef
 $(NODE_EXE): config.gypi out/Makefile
-	$(MAKE) -C out BUILDTYPE=Release V=$(V)
-	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
+	@$(call build_node_exe,"Release")
 
 $(NODE_G_EXE): config.gypi out/Makefile
-	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
-	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
+	@$(call build_node_exe,"Debug")
 
 CODE_CACHE_DIR ?= out/$(BUILDTYPE)/obj/gen
 CODE_CACHE_FILE ?= $(CODE_CACHE_DIR)/node_code_cache.cc
