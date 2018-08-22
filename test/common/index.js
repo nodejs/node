@@ -787,30 +787,6 @@ exports.getTTYfd = function getTTYfd() {
   return ttyFd;
 };
 
-// Hijack stdout and stderr
-const stdWrite = {};
-function hijackStdWritable(name, listener) {
-  const stream = process[name];
-  const _write = stdWrite[name] = stream.write;
-
-  stream.writeTimes = 0;
-  stream.write = function(data, callback) {
-    try {
-      listener(data);
-    } catch (e) {
-      process.nextTick(() => { throw e; });
-    }
-
-    _write.call(stream, data, callback);
-    stream.writeTimes++;
-  };
-}
-
-function restoreWritable(name) {
-  process[name].write = stdWrite[name];
-  delete process[name].writeTimes;
-}
-
 exports.runWithInvalidFD = function(func) {
   let fd = 1 << 30;
   // Get first known bad file descriptor. 1 << 30 is usually unlikely to
@@ -824,10 +800,6 @@ exports.runWithInvalidFD = function(func) {
   exports.printSkipMessage('Could not generate an invalid fd');
 };
 
-exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
-exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
-exports.restoreStdout = restoreWritable.bind(null, 'stdout');
-exports.restoreStderr = restoreWritable.bind(null, 'stderr');
 exports.isCPPSymbolsNotMapped = exports.isWindows ||
                                 exports.isSunOS ||
                                 exports.isAIX ||
