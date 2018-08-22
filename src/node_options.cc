@@ -1,4 +1,5 @@
 #include "node_options-inl.h"
+#include <errno.h>
 
 namespace node {
 

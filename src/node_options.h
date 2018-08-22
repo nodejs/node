@@ -252,6 +252,7 @@ class OptionsParser {
   // Represents a field within `Options`.
   class BaseOptionField {
    public:
+    virtual ~BaseOptionField() {}
     virtual void* LookupImpl(Options* options) const = 0;
   };
 
