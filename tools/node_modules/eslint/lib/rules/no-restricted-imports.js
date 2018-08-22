@@ -83,7 +83,7 @@ module.exports = {
         const options = Array.isArray(context.options) ? context.options : [];
         const isPathAndPatternsObject =
             typeof options[0] === "object" &&
-            (options[0].hasOwnProperty("paths") || options[0].hasOwnProperty("patterns"));
+            (Object.prototype.hasOwnProperty.call(options[0], "paths") || Object.prototype.hasOwnProperty.call(options[0], "patterns"));
 
         const restrictedPaths = (isPathAndPatternsObject ? options[0].paths : context.options) || [];
         const restrictedPatterns = (isPathAndPatternsObject ? options[0].patterns : []) || [];

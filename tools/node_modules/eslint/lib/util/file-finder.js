@@ -89,7 +89,7 @@ class FileFinder {
             ? path.resolve(this.cwd, relativeDirectory)
             : this.cwd;
 
-        if (cache.hasOwnProperty(initialDirectory)) {
+        if (Object.prototype.hasOwnProperty.call(cache, initialDirectory)) {
             yield* cache[initialDirectory];
             return; // to avoid doing the normal loop afterwards
         }
@@ -130,7 +130,7 @@ class FileFinder {
                 return;
             }
 
-        } while (!cache.hasOwnProperty(directory));
+        } while (!Object.prototype.hasOwnProperty.call(cache, directory));
 
         // Add what has been cached previously to the cache of each directory searched.
         for (let i = 0; i < searched; i++) {

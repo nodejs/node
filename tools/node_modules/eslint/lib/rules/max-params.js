@@ -57,10 +57,10 @@ module.exports = {
         const option = context.options[0];
         let numParams = 3;
 
-        if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
+        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "maximum") && typeof option.maximum === "number") {
             numParams = option.maximum;
         }
-        if (typeof option === "object" && option.hasOwnProperty("max") && typeof option.max === "number") {
+        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "max") && typeof option.max === "number") {
             numParams = option.max;
         }
         if (typeof option === "number") {

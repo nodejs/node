@@ -58,7 +58,7 @@ module.exports = {
         },
 
         messages: {
-            unexpected: "Gratuitous parentheses around expression."
+            unexpected: "Unnecessary parentheses around expression."
         }
     },
 

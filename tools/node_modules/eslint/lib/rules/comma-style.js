@@ -58,7 +58,7 @@ module.exports = {
             NewExpression: true
         };
 
-        if (context.options.length === 2 && context.options[1].hasOwnProperty("exceptions")) {
+        if (context.options.length === 2 && Object.prototype.hasOwnProperty.call(context.options[1], "exceptions")) {
             const keys = Object.keys(context.options[1].exceptions);
 
             for (let i = 0; i < keys.length; i++) {
