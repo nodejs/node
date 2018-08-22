@@ -104,7 +104,7 @@ function supportsColor(stream) {
 		return 2;
 	}
 
-	if (/^screen|^xterm|^vt100|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+	if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
 		return 1;
 	}
 

@@ -265,7 +265,7 @@ const NEGATIVE_REPLACERS = [
 ]
 
 // A simple cache, because an ignore rule only has only one certain meaning
-const cache = {}
+const cache = Object.create(null)
 
 // @param {pattern}
 const make_regex = (pattern, negative, ignorecase) => {
@@ -335,7 +335,7 @@ class IgnoreBase {
   }
 
   _initCache () {
-    this._cache = {}
+    this._cache = Object.create(null)
   }
 
   // @param {Array.<string>|string|Ignore} pattern

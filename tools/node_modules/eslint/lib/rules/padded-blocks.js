@@ -58,13 +58,13 @@ module.exports = {
             options.switches = shouldHavePadding;
             options.classes = shouldHavePadding;
         } else {
-            if (config.hasOwnProperty("blocks")) {
+            if (Object.prototype.hasOwnProperty.call(config, "blocks")) {
                 options.blocks = config.blocks === "always";
             }
-            if (config.hasOwnProperty("switches")) {
+            if (Object.prototype.hasOwnProperty.call(config, "switches")) {
                 options.switches = config.switches === "always";
             }
-            if (config.hasOwnProperty("classes")) {
+            if (Object.prototype.hasOwnProperty.call(config, "classes")) {
                 options.classes = config.classes === "always";
             }
         }
@@ -225,7 +225,7 @@ module.exports = {
 
         const rule = {};
 
-        if (options.hasOwnProperty("switches")) {
+        if (Object.prototype.hasOwnProperty.call(options, "switches")) {
             rule.SwitchStatement = function(node) {
                 if (node.cases.length === 0) {
                     return;
@@ -234,7 +234,7 @@ module.exports = {
             };
         }
 
-        if (options.hasOwnProperty("blocks")) {
+        if (Object.prototype.hasOwnProperty.call(options, "blocks")) {
             rule.BlockStatement = function(node) {
                 if (node.body.length === 0) {
                     return;
@@ -243,7 +243,7 @@ module.exports = {
             };
         }
 
-        if (options.hasOwnProperty("classes")) {
+        if (Object.prototype.hasOwnProperty.call(options, "classes")) {
             rule.ClassBody = function(node) {
                 if (node.body.length === 0) {
                     return;

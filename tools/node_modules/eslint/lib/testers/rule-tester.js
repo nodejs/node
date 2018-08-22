@@ -533,19 +533,19 @@ class RuleTester {
                             assert.strictEqual(message.nodeType, error.type, `Error type should be ${error.type}, found ${message.nodeType}`);
                         }
 
-                        if (error.hasOwnProperty("line")) {
+                        if (Object.prototype.hasOwnProperty.call(error, "line")) {
                             assert.strictEqual(message.line, error.line, `Error line should be ${error.line}`);
                         }
 
-                        if (error.hasOwnProperty("column")) {
+                        if (Object.prototype.hasOwnProperty.call(error, "column")) {
                             assert.strictEqual(message.column, error.column, `Error column should be ${error.column}`);
                         }
 
-                        if (error.hasOwnProperty("endLine")) {
+                        if (Object.prototype.hasOwnProperty.call(error, "endLine")) {
                             assert.strictEqual(message.endLine, error.endLine, `Error endLine should be ${error.endLine}`);
                         }
 
-                        if (error.hasOwnProperty("endColumn")) {
+                        if (Object.prototype.hasOwnProperty.call(error, "endColumn")) {
                             assert.strictEqual(message.endColumn, error.endColumn, `Error endColumn should be ${error.endColumn}`);
                         }
                     } else {
@@ -556,7 +556,7 @@ class RuleTester {
                 }
             }
 
-            if (item.hasOwnProperty("output")) {
+            if (Object.prototype.hasOwnProperty.call(item, "output")) {
                 if (item.output === null) {
                     assert.strictEqual(
                         messages.filter(message => message.fix).length,
