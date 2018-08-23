@@ -88,7 +88,7 @@ function testInitialized(req, ctor_name) {
 
 
 {
-  const FSEvent = process.binding('fs_event_wrap').FSEvent;
+  const FSEvent = internalBinding('fs_event_wrap').FSEvent;
   testInitialized(new FSEvent(), 'FSEvent');
 }
 
