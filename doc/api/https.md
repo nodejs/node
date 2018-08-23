@@ -23,6 +23,12 @@ added: v0.3.4
 This class is a subclass of `tls.Server` and emits events same as
 [`http.Server`][]. See [`http.Server`][] for more information.
 
+### server.headersTimeout
+
+- {number} **Default:** `40000`
+
+See [`http.Server#headersTimeout`][].
+
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.11.2
@@ -233,6 +239,7 @@ const req = https.request(options, (res) => {
 [`Buffer`]: buffer.html#buffer_buffer
 [`globalAgent`]: #https_https_globalagent
 [`http.Agent`]: http.html#http_class_http_agent
+[`http.Server#headersTimeout`]: http.html#http_server_headerstimeout
 [`http.close()`]: http.html#http_server_close_callback
 [`http.get()`]: http.html#http_http_get_options_callback
 [`http.listen()`]: http.html#http_server_listen_port_hostname_backlog_callback
