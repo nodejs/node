@@ -5,6 +5,8 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# https://github.com/nodejs/node/issues/21038
+test-trace-events-fs-sync: PASS,FLAKY
 
 [$system==win32]
 
@@ -17,7 +19,5 @@ prefix parallel
 [$system==solaris] # Also applies to SmartOS
 
 [$system==freebsd]
-# https://github.com/nodejs/node/issues/21038
-test-trace-events-fs-sync: PASS,FLAKY
 
 [$system==aix]
