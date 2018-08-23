@@ -2238,4 +2238,4 @@ void Initialize(Local<Object> target,
 }  // namespace cares_wrap
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(cares_wrap, node::cares_wrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, node::cares_wrap::Initialize)

@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -22,6 +23,7 @@
 'use strict';
 const common = require('../common');
 const { addresses } = require('../common/internet');
+const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');
@@ -674,7 +676,7 @@ let getaddrinfoCallbackCalled = false;
 
 console.log(`looking up ${addresses.INET4_HOST}..`);
 
-const cares = process.binding('cares_wrap');
+const cares = internalBinding('cares_wrap');
 const req = new cares.GetAddrInfoReqWrap();
 cares.getaddrinfo(req, addresses.INET4_HOST, 4,
   /* hints */ 0, /* verbatim */ true);

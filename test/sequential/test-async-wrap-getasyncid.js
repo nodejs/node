@@ -69,7 +69,7 @@ function testInitialized(req, ctor_name) {
 
 
 {
-  const cares = process.binding('cares_wrap');
+  const cares = internalBinding('cares_wrap');
   const dns = require('dns');
 
   testUninitialized(new cares.GetAddrInfoReqWrap(), 'GetAddrInfoReqWrap');
