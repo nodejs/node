@@ -11,4 +11,4 @@ const list = process.moduleLoadList.slice();
 
 const assert = require('assert');
 
-assert(list.length <= 73, list);
+assert(list.length <= 74, list);
