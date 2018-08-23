@@ -73,6 +73,10 @@ static void Initialize(Local<Object> target,
   READONLY_BOOLEAN_PROPERTY("hasTracing");
 #endif
 
+#if !defined(NODE_WITHOUT_NODE_OPTIONS)
+  READONLY_BOOLEAN_PROPERTY("hasNodeOptions");
+#endif
+
   // TODO(addaleax): This seems to be an unused, private API. Remove it?
   READONLY_STRING_PROPERTY(target, "icuDataDir",
       per_process_opts->icu_data_dir);

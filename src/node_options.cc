@@ -253,11 +253,19 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
             &PerProcessOptions::tls_cipher_list,
             kAllowedInEnvironment);
   AddOption("--use-openssl-ca",
-            "use OpenSSL's default CA store",
+            "use OpenSSL's default CA store"
+#if defined(NODE_OPENSSL_CERT_STORE)
+            " (default)"
+#endif
+            ,
             &PerProcessOptions::use_openssl_ca,
             kAllowedInEnvironment);
   AddOption("--use-bundled-ca",
-            "use bundled CA store",
+            "use bundled CA store"
+#if !defined(NODE_OPENSSL_CERT_STORE)
+            " (default)"
+#endif
+            ,
             &PerProcessOptions::use_bundled_ca,
             kAllowedInEnvironment);
   // Similar to [has_eval_string] above, except that the separation between
