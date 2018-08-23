@@ -25,7 +25,6 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
-#include "node_counters.h"
 #include "pipe_wrap.h"
 #include "req_wrap-inl.h"
 #include "tcp_wrap.h"
@@ -206,12 +205,6 @@ void LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
   CHECK_EQ(persistent().IsEmpty(), false);
 
   if (nread > 0) {
-    if (is_tcp()) {
-      NODE_COUNT_NET_BYTES_RECV(nread);
-    } else if (is_named_pipe()) {
-      NODE_COUNT_PIPE_BYTES_RECV(nread);
-    }
-
     Local<Object> pending_obj;
 
     if (type == UV_TCP) {
@@ -351,11 +344,6 @@ int LibuvStreamWrap::DoWrite(WriteWrap* req_wrap,
     size_t bytes = 0;
     for (size_t i = 0; i < count; i++)
       bytes += bufs[i].len;
-    if (stream()->type == UV_TCP) {
-      NODE_COUNT_NET_BYTES_SENT(bytes);
-    } else if (stream()->type == UV_NAMED_PIPE) {
-      NODE_COUNT_PIPE_BYTES_SENT(bytes);
-    }
   }
 
   return r;

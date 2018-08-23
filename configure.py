@@ -455,11 +455,6 @@ http2_optgroup.add_option('--debug-nghttp2',
 
 parser.add_option_group(http2_optgroup)
 
-parser.add_option('--with-perfctr',
-    action='store_true',
-    dest='with_perfctr',
-    help='build with performance counters (default is true on Windows)')
-
 parser.add_option('--without-dtrace',
     action='store_true',
     dest='without_dtrace',
@@ -474,11 +469,6 @@ parser.add_option('--without-npm',
     action='store_true',
     dest='without_npm',
     help='do not install the bundled npm (package manager)')
-
-parser.add_option('--without-perfctr',
-    action='store_true',
-    dest='without_perfctr',
-    help='build without performance counters')
 
 # Dummy option for backwards compatibility
 parser.add_option('--with-snapshot',
@@ -1017,14 +1007,6 @@ def configure_node(o):
     raise Exception('ETW is only supported on Windows.')
   else:
     o['variables']['node_use_etw'] = 'false'
-
-  # By default, enable Performance counters on Windows.
-  if flavor == 'win':
-    o['variables']['node_use_perfctr'] = b(not options.without_perfctr)
-  elif options.with_perfctr:
-    raise Exception('Performance counter is only supported on Windows.')
-  else:
-    o['variables']['node_use_perfctr'] = 'false'
 
   o['variables']['node_with_ltcg'] = b(options.with_ltcg)
   if flavor != 'win' and options.with_ltcg:

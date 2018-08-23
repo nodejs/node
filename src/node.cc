@@ -31,10 +31,6 @@
 #include "node_context_data.h"
 #include "tracing/traced_value.h"
 
-#if defined HAVE_PERFCTR
-#include "node_counters.h"
-#endif
-
 #if HAVE_OPENSSL
 #include "node_crypto.h"
 #endif
@@ -2227,10 +2223,6 @@ void LoadEnvironment(Environment* env) {
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
   InitDTrace(env, global);
-#endif
-
-#if defined HAVE_PERFCTR
-  InitPerfCounters(env, global);
 #endif
 
   // Enable handling of uncaught exceptions

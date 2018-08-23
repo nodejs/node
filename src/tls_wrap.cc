@@ -26,7 +26,6 @@
 #include "node_crypto_bio.h"  // NodeBIO
 // ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
-#include "node_counters.h"
 #include "node_internals.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
@@ -282,8 +281,6 @@ void TLSWrap::EncOut() {
     InvokeQueued(res.err);
     return;
   }
-
-  NODE_COUNT_NET_BYTES_SENT(write_size_);
 
   if (!res.async) {
     HandleScope handle_scope(env()->isolate());
