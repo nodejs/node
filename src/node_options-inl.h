@@ -21,73 +21,88 @@ EnvironmentOptions* PerIsolateOptions::get_per_env_options() {
   return per_env.get();
 }
 
+namespace options_parser {
+
 template <typename Options>
 void OptionsParser<Options>::AddOption(const std::string& name,
+                                       const std::string& help_text,
                                        bool Options::* field,
                                        OptionEnvvarSettings env_setting) {
-  options_.emplace(name, OptionInfo {
-    kBoolean,
-    std::make_shared<SimpleOptionField<bool>>(field),
-    env_setting
-  });
+  options_.emplace(name,
+                   OptionInfo{kBoolean,
+                              std::make_shared<SimpleOptionField<bool>>(field),
+                              env_setting,
+                              help_text});
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const std::string& name,
+                                       const std::string& help_text,
                                        int64_t Options::* field,
                                        OptionEnvvarSettings env_setting) {
-  options_.emplace(name, OptionInfo {
-    kInteger,
-    std::make_shared<SimpleOptionField<int64_t>>(field),
-    env_setting
-  });
+  options_.emplace(
+      name,
+      OptionInfo{kInteger,
+                 std::make_shared<SimpleOptionField<int64_t>>(field),
+                 env_setting,
+                 help_text});
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const std::string& name,
+                                       const std::string& help_text,
                                        std::string Options::* field,
                                        OptionEnvvarSettings env_setting) {
-  options_.emplace(name, OptionInfo {
-    kString,
-    std::make_shared<SimpleOptionField<std::string>>(field),
-    env_setting
-  });
+  options_.emplace(
+      name,
+      OptionInfo{kString,
+                 std::make_shared<SimpleOptionField<std::string>>(field),
+                 env_setting,
+                 help_text});
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(
     const std::string& name,
+    const std::string& help_text,
     std::vector<std::string> Options::* field,
     OptionEnvvarSettings env_setting) {
   options_.emplace(name, OptionInfo {
     kStringList,
     std::make_shared<SimpleOptionField<std::vector<std::string>>>(field),
-    env_setting
+    env_setting,
+    help_text
   });
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const std::string& name,
+                                       const std::string& help_text,
                                        HostPort Options::* field,
                                        OptionEnvvarSettings env_setting) {
-  options_.emplace(name, OptionInfo {
-    kHostPort,
-    std::make_shared<SimpleOptionField<HostPort>>(field),
-    env_setting
-  });
-}
-
-template <typename Options>
-void OptionsParser<Options>::AddOption(const std::string& name, NoOp no_op_tag,
-                                       OptionEnvvarSettings env_setting) {
-  options_.emplace(name, OptionInfo { kNoOp, nullptr, env_setting });
+  options_.emplace(
+      name,
+      OptionInfo{kHostPort,
+                 std::make_shared<SimpleOptionField<HostPort>>(field),
+                 env_setting,
+                 help_text});
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const std::string& name,
+                                       const std::string& help_text,
+                                       NoOp no_op_tag,
+                                       OptionEnvvarSettings env_setting) {
+  options_.emplace(name, OptionInfo{kNoOp, nullptr, env_setting, help_text});
+}
+
+template <typename Options>
+void OptionsParser<Options>::AddOption(const std::string& name,
+                                       const std::string& help_text,
                                        V8Option v8_option_tag,
                                        OptionEnvvarSettings env_setting) {
-  options_.emplace(name, OptionInfo { kV8Option, nullptr, env_setting });
+  options_.emplace(name,
+                   OptionInfo{kV8Option, nullptr, env_setting, help_text});
 }
 
 template <typename Options>
@@ -161,11 +176,10 @@ template <typename ChildOptions>
 auto OptionsParser<Options>::Convert(
     typename OptionsParser<ChildOptions>::OptionInfo original,
     ChildOptions* (Options::* get_child)()) {
-  return OptionInfo {
-    original.type,
-    Convert(original.field, get_child),
-    original.env_setting
-  };
+  return OptionInfo{original.type,
+                    Convert(original.field, get_child),
+                    original.env_setting,
+                    original.help_text};
 }
 
 template <typename Options>
@@ -385,24 +399,21 @@ void OptionsParser<Options>::Parse(
 
     switch (info.type) {
       case kBoolean:
-        *std::static_pointer_cast<OptionField<bool>>(info.field)
-            ->Lookup(options) = true;
+        *Lookup<bool>(info.field, options) = true;
         break;
       case kInteger:
-        *std::static_pointer_cast<OptionField<int64_t>>(info.field)
-            ->Lookup(options) = std::atoll(value.c_str());
+        *Lookup<int64_t>(info.field, options) = std::atoll(value.c_str());
         break;
       case kString:
-        *std::static_pointer_cast<OptionField<std::string>>(info.field)
-            ->Lookup(options) = value;
+        *Lookup<std::string>(info.field, options) = value;
         break;
       case kStringList:
-        std::static_pointer_cast<OptionField<std::vector<std::string>>>(
-            info.field)->Lookup(options)->emplace_back(std::move(value));
+        Lookup<std::vector<std::string>>(info.field, options)
+            ->emplace_back(std::move(value));
         break;
       case kHostPort:
-        std::static_pointer_cast<OptionField<HostPort>>(info.field)
-            ->Lookup(options)->Update(SplitHostPort(value, error));
+        Lookup<HostPort>(info.field, options)
+            ->Update(SplitHostPort(value, error));
         break;
       case kNoOp:
         break;
@@ -415,6 +426,7 @@ void OptionsParser<Options>::Parse(
   }
 }
 
+}  // namespace options_parser
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
