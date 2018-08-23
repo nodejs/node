@@ -38,9 +38,6 @@ tasks.
 
 Takes `whitelist` and concats that with predefined `knownGlobals`.
 
-### arrayStream
-A stream to push an array into a REPL
-
 ### busyLoop(time)
 * `time` [&lt;number>]
 
