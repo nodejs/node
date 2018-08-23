@@ -141,7 +141,10 @@ class PerProcessOptions {
 
 // The actual options parser, as opposed to the structs containing them:
 
+namespace options_parser {
+
 HostPort SplitHostPort(const std::string& arg, std::string* error);
+void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 enum OptionEnvvarSettings {
   kAllowedInEnvironment,
@@ -176,24 +179,31 @@ class OptionsParser {
   // specified whether the option should be allowed from environment variable
   // sources (i.e. NODE_OPTIONS).
   void AddOption(const std::string& name,
+                 const std::string& help_text,
                  bool Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
   void AddOption(const std::string& name,
+                 const std::string& help_text,
                  int64_t Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
   void AddOption(const std::string& name,
+                 const std::string& help_text,
                  std::string Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
   void AddOption(const std::string& name,
+                 const std::string& help_text,
                  std::vector<std::string> Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
   void AddOption(const std::string& name,
+                 const std::string& help_text,
                  HostPort Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
   void AddOption(const std::string& name,
+                 const std::string& help_text,
                  NoOp no_op_tag,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
   void AddOption(const std::string& name,
+                 const std::string& help_text,
                  V8Option v8_option_tag,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
 
@@ -281,6 +291,12 @@ class OptionsParser {
     T Options::* field_;
   };
 
+  template <typename T>
+  inline T* Lookup(std::shared_ptr<BaseOptionField> field,
+                   Options* options) const {
+    return std::static_pointer_cast<OptionField<T>>(field)->Lookup(options);
+  }
+
   // An option consists of:
   // - A type.
   // - A way to store/access the property value.
@@ -289,6 +305,7 @@ class OptionsParser {
     OptionType type;
     std::shared_ptr<BaseOptionField> field;
     OptionEnvvarSettings env_setting;
+    std::string help_text;
   };
 
   // An implied option is composed of the information on where to store a
@@ -319,6 +336,8 @@ class OptionsParser {
 
   template <typename OtherOptions>
   friend class OptionsParser;
+
+  friend void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 class DebugOptionsParser : public OptionsParser<DebugOptions> {
@@ -349,6 +368,7 @@ class PerProcessOptionsParser : public OptionsParser<PerProcessOptions> {
   static PerProcessOptionsParser instance;
 };
 
+}  // namespace options_parser
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

@@ -119,6 +119,7 @@ struct sockaddr;
     V(js_stream)                                                              \
     V(messaging)                                                              \
     V(module_wrap)                                                            \
+    V(options)                                                                \
     V(os)                                                                     \
     V(performance)                                                            \
     V(pipe_wrap)                                                              \
@@ -176,6 +177,7 @@ extern Mutex environ_mutex;
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;
 
+extern Mutex per_process_opts_mutex;
 extern std::shared_ptr<PerProcessOptions> per_process_opts;
 
 extern const char* const environment_flags[];

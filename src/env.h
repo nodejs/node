@@ -118,6 +118,7 @@ struct PackageConfig {
 // for the sake of convenience.  Strings should be ASCII-only.
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
   V(address_string, "address")                                                \
+  V(aliases_string, "aliases")                                                \
   V(args_string, "args")                                                      \
   V(async, "async")                                                           \
   V(async_ids_stack_string, "async_ids_stack")                                \
@@ -156,6 +157,7 @@ struct PackageConfig {
   V(entries_string, "entries")                                                \
   V(entry_type_string, "entryType")                                           \
   V(env_pairs_string, "envPairs")                                             \
+  V(env_var_settings_string, "envVarSettings")                                \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
   V(exit_code_string, "exitCode")                                             \
@@ -176,6 +178,7 @@ struct PackageConfig {
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
+  V(help_text_string, "helpText")                                             \
   V(homedir_string, "homedir")                                                \
   V(host_string, "host")                                                      \
   V(hostmaster_string, "hostmaster")                                          \
@@ -233,6 +236,7 @@ struct PackageConfig {
   V(onunpipe_string, "onunpipe")                                              \
   V(onwrite_string, "onwrite")                                                \
   V(openssl_error_stack, "opensslErrorStack")                                 \
+  V(options_string, "options")                                                \
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
   V(parse_error_string, "Parse Error")                                        \

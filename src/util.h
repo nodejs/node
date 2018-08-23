@@ -34,9 +34,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <string>
 #include <functional>  // std::function
 #include <set>
+#include <string>
+#include <unordered_map>
 
 namespace node {
 
@@ -478,6 +479,15 @@ template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
 std::set<std::string> ParseCommaSeparatedSet(const std::string& in);
+
+inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                           const std::string& str);
+template <typename T>
+inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                           const std::vector<T>& vec);
+template <typename T, typename U>
+inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                           const std::unordered_map<T, U>& map);
 
 }  // namespace node
 
