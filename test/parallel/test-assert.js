@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,6 +27,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { inspect } = require('util');
+const { internalBinding } = require('internal/test/binding');
 const a = assert;
 
 // Disable colored output to prevent color codes from breaking assertion
@@ -658,7 +660,7 @@ common.expectsError(
 
 {
   // Test caching.
-  const fs = process.binding('fs');
+  const fs = internalBinding('fs');
   const tmp = fs.close;
   fs.close = common.mustCall(tmp, 1);
   function throwErr() {

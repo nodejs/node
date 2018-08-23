@@ -1,7 +1,9 @@
+// Flags: --expose-internals
 'use strict';
 require('../common');
 const fixtures = require('../common/fixtures');
-const { internalModuleReadJSON } = process.binding('fs');
+const { internalBinding } = require('internal/test/binding');
+const { internalModuleReadJSON } = internalBinding('fs');
 const { readFileSync } = require('fs');
 const { strictEqual } = require('assert');
 
