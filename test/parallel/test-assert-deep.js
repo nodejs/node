@@ -369,13 +369,13 @@ assertDeepAndStrictEqual(
   new Map([[null, 3]])
 );
 assertOnlyDeepEqual(
-  new Map([[null, undefined]]),
-  new Map([[undefined, null]])
+  new Map([[undefined, null], ['+000', 2n]]),
+  new Map([[null, undefined], [false, '2']]),
 );
 
 assertOnlyDeepEqual(
-  new Set([null, '']),
-  new Set([undefined, 0])
+  new Set([null, '', 1n, 5, 2n, false]),
+  new Set([undefined, 0, 5n, true, '2', '-000'])
 );
 assertNotDeepOrStrict(
   new Set(['']),
