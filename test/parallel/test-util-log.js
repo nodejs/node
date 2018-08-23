@@ -62,4 +62,5 @@ tests.forEach(function(test) {
 
 assert.strictEqual(process.stdout.writeTimes, tests.length);
 
-restoreStdout();
+common.restoreStdout();
+common.restoreStderr();
