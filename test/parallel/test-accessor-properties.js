@@ -12,7 +12,7 @@ const assert = require('assert');
 // their prototype
 const { internalBinding } = require('internal/test/binding');
 const TTY = internalBinding('tty_wrap').TTY;
-const UDP = process.binding('udp_wrap').UDP;
+const UDP = internalBinding('udp_wrap').UDP;
 
 {
   // Should throw instead of raise assertions

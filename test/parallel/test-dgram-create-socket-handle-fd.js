@@ -6,8 +6,8 @@ if (common.isWindows)
 
 const assert = require('assert');
 const dgram = require('dgram');
-const { UDP } = process.binding('udp_wrap');
 const { internalBinding } = require('internal/test/binding');
+const { UDP } = internalBinding('udp_wrap');
 const { TCP, constants } = internalBinding('tcp_wrap');
 const _createSocketHandle = dgram._createSocketHandle;
 

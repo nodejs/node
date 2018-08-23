@@ -3,7 +3,8 @@
 const common = require('../common');
 const assert = require('assert');
 const { _createSocketHandle } = require('internal/dgram');
-const UDP = process.binding('udp_wrap').UDP;
+const { internalBinding } = require('internal/test/binding');
+const UDP = internalBinding('udp_wrap').UDP;
 
 {
   // Create a handle that is not bound.

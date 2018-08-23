@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (common.isWindows)
@@ -9,7 +10,6 @@ const PACKETS_PER_WORKER = 10;
 const assert = require('assert');
 const cluster = require('cluster');
 const dgram = require('dgram');
-const { UDP } = process.binding('udp_wrap');
 
 if (cluster.isMaster)
   master();
@@ -18,6 +18,9 @@ else
 
 
 function master() {
+  const { internalBinding } = require('internal/test/binding');
+  const { UDP } = internalBinding('udp_wrap');
+
   // Create a handle and use its fd.
   const rawHandle = new UDP();
   const err = rawHandle.bind(common.localhostIPv4, 0, 0);

@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (common.isWindows)
@@ -5,7 +6,8 @@ if (common.isWindows)
 
 const assert = require('assert');
 const dgram = require('dgram');
-const { UDP } = process.binding('udp_wrap');
+const { internalBinding } = require('internal/test/binding');
+const { UDP } = internalBinding('udp_wrap');
 const { UV_UDP_REUSEADDR } = process.binding('constants').os;
 
 const BUFFER_SIZE = 4096;

@@ -272,7 +272,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 }
 
 {
-  const binding = process.binding('udp_wrap');
+  const binding = internalBinding('udp_wrap');
   const handle = new binding.UDP();
   const req = new binding.SendWrap();
   testInitialized(handle, 'UDP');
