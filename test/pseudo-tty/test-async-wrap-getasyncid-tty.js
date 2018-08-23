@@ -5,9 +5,9 @@
 
 const common = require('../common');
 const assert = require('assert');
-const tty_wrap = process.binding('tty_wrap');
 const { internalBinding } = require('internal/test/binding');
 const { TTYWRAP } = internalBinding('async_wrap').Providers;
+const tty_wrap = internalBinding('tty_wrap');
 const providers = { TTYWRAP };
 
 // Make sure that the TTYWRAP Provider is tested.

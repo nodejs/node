@@ -1,8 +1,10 @@
+// Flags: --expose-internals --no-warnings
 'use strict';
 
 require('../common');
 
-const { TTY, isTTY } = process.binding('tty_wrap');
+const { internalBinding } = require('internal/test/binding');
+const { TTY, isTTY } = internalBinding('tty_wrap');
 const strictEqual = require('assert').strictEqual;
 
 strictEqual(isTTY(0), true, 'fd 0 is not a TTY');

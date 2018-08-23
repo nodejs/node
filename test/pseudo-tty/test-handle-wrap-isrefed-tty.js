@@ -1,3 +1,4 @@
+// Flags: --expose-internals --no-warnings
 'use strict';
 
 // see also test/parallel/test-handle-wrap-isrefed.js
@@ -6,7 +7,8 @@ const common = require('../common');
 const strictEqual = require('assert').strictEqual;
 const ReadStream = require('tty').ReadStream;
 const tty = new ReadStream(0);
-const isTTY = process.binding('tty_wrap').isTTY;
+const { internalBinding } = require('internal/test/binding');
+const isTTY = internalBinding('tty_wrap').isTTY;
 strictEqual(isTTY(0), true, 'tty_wrap: stdin is not a TTY');
 strictEqual(Object.getPrototypeOf(tty._handle).hasOwnProperty('hasRef'),
             true, 'tty_wrap: hasRef() missing');

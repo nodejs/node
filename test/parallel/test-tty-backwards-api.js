@@ -1,8 +1,10 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 
 const noop = () => {};
-const TTY = process.binding('tty_wrap').TTY = function() {};
+const { internalBinding } = require('internal/test/binding');
+const TTY = internalBinding('tty_wrap').TTY = function() {};
 
 TTY.prototype = {
   setBlocking: noop,

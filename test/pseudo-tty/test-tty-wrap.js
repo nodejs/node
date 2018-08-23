@@ -3,7 +3,7 @@
 require('../common');
 
 const { internalBinding } = require('internal/test/binding');
-const { TTY } = process.binding('tty_wrap');
+const { TTY } = internalBinding('tty_wrap');
 const { WriteWrap } = internalBinding('stream_wrap');
 
 const handle = new TTY(1);

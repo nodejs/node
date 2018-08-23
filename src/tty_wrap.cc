@@ -173,4 +173,4 @@ TTYWrap::TTYWrap(Environment* env,
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(tty_wrap, node::TTYWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(tty_wrap, node::TTYWrap::Initialize)
