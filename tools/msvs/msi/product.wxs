@@ -76,13 +76,6 @@
       <ComponentRef Id="InstallToolsTxt" />
       <ComponentGroupRef Id="Product.Generated"/>
 
-      <Feature Id="NodePerfCtrSupport"
-               Level="1"
-               Title="!(loc.NodePerfCtrSupport_Title)"
-               Description="!(loc.NodePerfCtrSupport_Description)">
-        <ComponentRef Id="NodePerfCtrSupport"/>
-      </Feature>
-
       <Feature Id="NodeEtwSupport"
                Level="1"
                Title="!(loc.NodeEtwSupport_Title)"
@@ -171,14 +164,6 @@
       <Component Id="InstallToolsTxt">
         <File Id="InstallToolsTxt" Source="$(var.RepoDir)\tools\msvs\install_tools\install_tools.txt"/>
       </Component>
-
-      <?if $(var.NoPerfCtr) != 1 ?>
-      <Component Id="NodePerfCtrSupport">
-        <File Id="node_perfctr_provider_man" Name="node_perfctr_provider.man" Source="$(var.RepoDir)\src\res\node_perfctr_provider.man">
-          <util:PerfCounterManifest ResourceFileDirectory="[INSTALLDIR]"/>
-        </File>
-      </Component>
-      <?endif?>
 
       <?if $(var.NoETW) != 1 ?>
       <Component Id="NodeEtwSupport">
