@@ -431,6 +431,8 @@ For more information about the governance of the Node.js project, see
 **Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
 * [lucamaraschi](https://github.com/lucamaraschi) -
 **Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
+* [lundibundi](https://github.com/lundibundi) -
+**Denys Otrishko** &lt;shishugi@gmail.com&gt; (he/him)
 * [maclover7](https://github.com/maclover7) -
 **Jon Moss** &lt;me@jonathanmoss.me&gt; (he/him)
 * [mafintosh](https://github.com/mafintosh)
