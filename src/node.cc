@@ -126,6 +126,8 @@ typedef int mode_t;
 
 namespace node {
 
+using options_parser::kAllowedInEnvironment;
+using options_parser::kDisallowedInEnvironment;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
@@ -183,6 +185,7 @@ bool linux_at_secure = false;
 // process-relative uptime base, initialized at start-up
 double prog_start_time;
 
+Mutex per_process_opts_mutex;
 std::shared_ptr<PerProcessOptions> per_process_opts {
     new PerProcessOptions() };
 
@@ -2346,8 +2349,6 @@ void LoadEnvironment(Environment* env) {
 }
 
 static void PrintHelp() {
-  // XXX: If you add an option here, please also add it to doc/node.1 and
-  // doc/api/cli.md
   printf("Usage: node [options] [ -e script | script.js | - ] [arguments]\n"
          "       node inspect script.js [arguments]\n"
          "\n"
@@ -2747,13 +2748,20 @@ void ProcessArgv(std::vector<std::string>* args,
   // Parse a few arguments which are specific to Node.
   std::vector<std::string> v8_args;
   std::string error;
-  PerProcessOptionsParser::instance.Parse(
-      args,
-      exec_args,
-      &v8_args,
-      per_process_opts.get(),
-      is_env ? kAllowedInEnvironment : kDisallowedInEnvironment,
-      &error);
+
+  {
+    // TODO(addaleax): The mutex here should ideally be held during the
+    // entire function, but that doesn't play well with the exit() calls below.
+    Mutex::ScopedLock lock(per_process_opts_mutex);
+    options_parser::PerProcessOptionsParser::instance.Parse(
+        args,
+        exec_args,
+        &v8_args,
+        per_process_opts.get(),
+        is_env ? kAllowedInEnvironment : kDisallowedInEnvironment,
+        &error);
+  }
+
   if (!error.empty()) {
     fprintf(stderr, "%s: %s\n", args->at(0).c_str(), error.c_str());
     exit(9);
