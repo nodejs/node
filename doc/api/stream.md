@@ -501,6 +501,7 @@ changes:
   other than `null`.
 * `encoding` {string} The encoding, if `chunk` is a string
 * `callback` {Function} Callback for when this chunk of data is flushed
+  (only called when `chunk` is non-empty)
 * Returns: {boolean} `false` if the stream wishes for the calling code to
   wait for the `'drain'` event to be emitted before continuing to write
   additional data; otherwise `true`.
@@ -1569,6 +1570,7 @@ const myWritable = new Writable({
   stream is operating in object mode, `encoding` may be ignored.
 * `callback` {Function} Call this function (optionally with an error
   argument) when processing is complete for the supplied chunk.
+  Do not call if `chunk` is empty.
 
 All `Writable` stream implementations must provide a
 [`writable._write()`][stream-_write] method to send data to the underlying
