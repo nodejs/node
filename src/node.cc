@@ -2729,12 +2729,14 @@ void ProcessArgv(std::vector<std::string>* args,
     exit(9);
   }
 
+#if HAVE_OPENSSL
   if (per_process_opts->use_openssl_ca && per_process_opts->use_bundled_ca) {
     fprintf(stderr, "%s: either --use-openssl-ca or --use-bundled-ca can be "
                     "used, not both\n",
             args->at(0).c_str());
     exit(9);
   }
+#endif
 
   if (std::find(v8_args.begin(), v8_args.end(),
                 "--abort-on-uncaught-exception") != v8_args.end() ||
