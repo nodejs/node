@@ -1033,6 +1033,12 @@ The `Http2Session` settings canceled.
 An attempt was made to connect a `Http2Session` object to a `net.Socket` or
 `tls.TLSSocket` that had already been bound to another `Http2Session` object.
 
+<a id="ERR_HTTP2_SOCKET_UNBOUND"></a>
+### ERR_HTTP2_SOCKET_UNBOUND
+
+An attempt was made to use the `socket` property of an `Http2Session` that
+has already been closed.
+
 <a id="ERR_HTTP2_STATUS_101"></a>
 ### ERR_HTTP2_STATUS_101
 
