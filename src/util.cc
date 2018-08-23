@@ -19,12 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "string_bytes.h"
-#include "node_buffer.h"
-#include "node_internals.h"
-#include "uv.h"
 #include <stdio.h>
 #include <sstream>
+#include "node_buffer.h"
+#include "node_errors.h"
+#include "node_internals.h"
+#include "string_bytes.h"
+#include "uv.h"
 
 namespace node {
 
@@ -131,6 +132,10 @@ std::set<std::string> ParseCommaSeparatedSet(const std::string& in) {
     out.emplace(std::move(item));
   }
   return out;
+}
+
+void ThrowErrStringTooLong(v8::Isolate* isolate) {
+  isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
 }
 
 }  // namespace node
