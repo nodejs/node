@@ -242,4 +242,4 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(pipe_wrap, node::PipeWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(pipe_wrap, node::PipeWrap::Initialize)

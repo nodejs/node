@@ -158,7 +158,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 }
 
 {
-  const binding = process.binding('pipe_wrap');
+  const binding = internalBinding('pipe_wrap');
   const handle = new binding.Pipe(binding.constants.IPC);
   testInitialized(handle, 'Pipe');
 }
@@ -169,7 +169,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const server = net.createServer(common.mustCall((socket) => {
     server.close();
   })).listen(common.PIPE, common.mustCall(() => {
-    const binding = process.binding('pipe_wrap');
+    const binding = internalBinding('pipe_wrap');
     const handle = new binding.Pipe(binding.constants.SOCKET);
     testInitialized(handle, 'Pipe');
     const req = new binding.PipeConnectWrap();

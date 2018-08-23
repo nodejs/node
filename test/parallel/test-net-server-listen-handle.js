@@ -8,7 +8,7 @@ const fs = require('fs');
 const { getSystemErrorName } = require('util');
 const { internalBinding } = require('internal/test/binding');
 const { TCP, constants: TCPConstants } = internalBinding('tcp_wrap');
-const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
+const { Pipe, constants: PipeConstants } = internalBinding('pipe_wrap');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();

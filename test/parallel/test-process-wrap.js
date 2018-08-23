@@ -25,7 +25,7 @@ require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
 const Process = internalBinding('process_wrap').Process;
-const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
+const { Pipe, constants: PipeConstants } = internalBinding('pipe_wrap');
 const pipe = new Pipe(PipeConstants.SOCKET);
 const p = new Process();
 

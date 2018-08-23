@@ -3,6 +3,7 @@
 
 const common = require('../common');
 const strictEqual = require('assert').strictEqual;
+const { internalBinding } = require('internal/test/binding');
 
 // child_process
 {
@@ -72,7 +73,7 @@ const { kStateSymbol } = require('internal/dgram');
 
 // pipe
 {
-  const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
+  const { Pipe, constants: PipeConstants } = internalBinding('pipe_wrap');
   const handle = new Pipe(PipeConstants.SOCKET);
   strictEqual(Object.getPrototypeOf(handle).hasOwnProperty('hasRef'),
               true, 'pipe_wrap: hasRef() missing');
