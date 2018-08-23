@@ -203,6 +203,9 @@ Pull Request, use "Resume Build" in the left navigation of the relevant
 that preserves all the green results from the current job but re-runs everything
 else.
 
+PRs with infrastructure failures (disk space, Jenkins crashes) can land
+after opening an issue at https://github.com/nodejs/build.
+
 #### Useful CI Jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
