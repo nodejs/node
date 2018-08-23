@@ -182,7 +182,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 }
 
 {
-  const Process = process.binding('process_wrap').Process;
+  const Process = internalBinding('process_wrap').Process;
   testInitialized(new Process(), 'Process');
 }
 
