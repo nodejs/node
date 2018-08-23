@@ -132,7 +132,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 
 {
-  const binding = process.binding('fs');
+  const binding = internalBinding('fs');
   const path = require('path');
 
   const FSReqCallback = binding.FSReqCallback;
