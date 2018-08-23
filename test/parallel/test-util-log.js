@@ -25,6 +25,7 @@ const {
   hijackStdout,
   hijackStderr,
   restoreStdout,
+  restoreStderr,
 } = require('../common/hijackstdio');
 const assert = require('assert');
 const util = require('util');
@@ -63,3 +64,4 @@ tests.forEach(function(test) {
 assert.strictEqual(process.stdout.writeTimes, tests.length);
 
 restoreStdout();
+restoreStderr();
