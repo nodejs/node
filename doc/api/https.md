@@ -36,6 +36,12 @@ See [`server.close()`][`http.close()`] from the HTTP module for details.
 Starts the HTTPS server listening for encrypted connections.
 This method is identical to [`server.listen()`][] from [`net.Server`][].
 
+### server.headersTimeout
+
+- {number} **Default:** `40000`
+
+See [`http.Server#headersTimeout`][].
+
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.11.2
@@ -253,6 +259,7 @@ const req = https.request(options, (res) => {
 [`URL`]: url.html#url_the_whatwg_url_api
 [`http.Agent`]: http.html#http_class_http_agent
 [`http.Server#keepAliveTimeout`]: http.html#http_server_keepalivetimeout
+[`http.Server#headersTimeout`]: http.html#http_server_headerstimeout
 [`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
 [`http.Server#timeout`]: http.html#http_server_timeout
 [`http.Server`]: http.html#http_class_http_server
