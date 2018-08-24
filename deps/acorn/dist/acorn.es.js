@@ -869,7 +869,7 @@ pp$1.parseDoStatement = function(node) {
 
 pp$1.parseForStatement = function(node) {
   this.next();
-  var awaitAt = (this.options.ecmaVersion >= 9 && this.inAsync && this.eatContextual("await")) ? this.lastTokStart : -1;
+  var awaitAt = (this.options.ecmaVersion >= 9 && (this.inAsync || (!this.inFunction && this.options.allowAwaitOutsideFunction)) && this.eatContextual("await")) ? this.lastTokStart : -1;
   this.labels.push(loopLabel);
   this.enterLexicalScope();
   this.expect(types.parenL);
@@ -1075,7 +1075,7 @@ pp$1.parseLabeledStatement = function(node, maybeName, expr) {
   node.body = this.parseStatement(true);
   if (node.body.type === "ClassDeclaration" ||
       node.body.type === "VariableDeclaration" && node.body.kind !== "var" ||
-      node.body.type === "FunctionDeclaration" && (this.strict || node.body.generator))
+      node.body.type === "FunctionDeclaration" && (this.strict || node.body.generator || node.body.async))
     { this.raiseRecoverable(node.body.start, "Invalid labeled declaration"); }
   this.labels.pop();
   node.label = expr;
@@ -1193,7 +1193,7 @@ pp$1.parseFunction = function(node, isStatement, allowExpressionBody, isAsync) {
   if (isStatement) {
     node.id = isStatement === "nullableID" && this.type !== types.name ? null : this.parseIdent();
     if (node.id) {
-      this.checkLVal(node.id, "var");
+      this.checkLVal(node.id, this.inModule && !this.inFunction ? "let" : "var");
     }
   }
 
@@ -5268,7 +5268,7 @@ pp$8.readWord = function() {
 // [dammit]: acorn_loose.js
 // [walk]: util/walk.js
 
-var version = "5.7.1";
+var version = "5.7.2";
 
 // The main exported interface (under `self.acorn` when in the
 // browser) is a `parse` function that takes a code string and

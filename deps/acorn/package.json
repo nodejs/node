@@ -4,7 +4,7 @@
   "homepage": "https://github.com/acornjs/acorn",
   "main": "dist/acorn.js",
   "module": "dist/acorn.es.js",
-  "version": "5.7.1",
+  "version": "5.7.2",
   "engines": {
     "node": ">=0.4.0"
   },
@@ -18,6 +18,10 @@
       "name": "Ingvar Stepanyan",
       "email": "me@rreverser.com",
       "web": "http://rreverser.com/"
+    },
+    {
+      "name": "Adrian Heine",
+      "email": "http://adrianheine.de"
     }
   ],
   "repository": {

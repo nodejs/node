@@ -1,3 +1,13 @@
+## 5.7.2 (2018-08-24)
+
+### Bug fixes
+
+Properly handle `allowAwaitOutsideFunction` in for statements.
+
+Treat function declarations at the top level of modules like let bindings.
+
+Don't allow async function declarations as the only statement under a label.
+
 ## 5.7.1 (2018-06-15)
 
 ### Bug fixes
