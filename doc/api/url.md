@@ -921,15 +921,13 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 // Prints 'https://你好你好/?abc'
 ```
 
-## File URL Utility Functions
+### url.pathToFileURL(path)
 
-When working with `file:///` URLs in Node.js (eg when working with ES modules
-which are keyed in the module map by File URL), the utility functions
-`pathToFileURL` and `fileURLToPath` are provided to convert to and from file
-paths.
+* `path` {string} The absolute path to convert to a File URL.
+* Returns: {URL} The file URL object.
 
-The edge cases handled by these functions include percent-encoding and decoding
-as well as cross-platform support.
+This function ensures the correct encodings of URL control characters in file
+paths when converting into File URLs.
 
 For example, the following errors can occur when converting from paths to URLs:
 
@@ -950,10 +948,18 @@ new URL(`sfile:${'/some/path%.js'}`);
 
 where using `pathToFileURL` we can get the correct results above.
 
+### url.fileURLToPath(url)
+
+* `url` {URL} | {string} The file URL string or URL object to convert to a path.
+* Returns: {URL} The fully-resolved platform-specific Node.js file path.
+
+This function ensures the correct decodings of percent-encoded characters as
+well as ensuring a cross-platform valid absolute path string.
+
 When converting from URL to path, the following common errors can occur:
 
 ```js
-// '/C:/path/' instead of 'C:\path\'
+// '/C:/path/' instead of 'C:\path\' (Windows)
 new URL('file:///C:/path/').pathname;
 
 // '/foo.txt' instead of '\\nas\foo.txt' (Windows)
@@ -962,27 +968,11 @@ new URL('file://nas/foo.txt').pathname;
 // '/%E4%BD%A0%E5%A5%BD.txt' instead of '/你好.txt' (posix)
 new URL('file:///你好.txt').pathname;
 
-// '/hello%20world.txt' instead of '/hello world.txt'
+// '/hello%20world.txt' instead of '/hello world.txt' (posix)
 new URL('file:///hello world.txt').pathname;
 ```
 
 where using `fileURLToPath` we can get the correct results above.
-
-### pathToFileURL(path)
-
-* `path` {string} The absolute path to convert to a File URL.
-* Returns: {URL} The file URL object.
-
-This function ensures the correct encodings of URL control characters in file
-paths when converting into File URLs.
-
-### fileURLToPath(url)
-
-* `url` {URL} | {string} The file URL string or URL object to convert to a path.
-* Returns: {URL} The fully-resolved platform-specific Node.js file path.
-
-This function ensures the correct decodings of percent-encoded characters as
-well as ensuring a cross-platform valid absolute path string.
 
 ## Legacy URL API
 
