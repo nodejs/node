@@ -165,8 +165,13 @@ const { promisify } = require('util');
 
 {
   const server = http.createServer((req, res) => {
+    let sent = false;
     const rs = new Readable({
       read() {
+        if (sent) {
+          return;
+        }
+        sent = true;
         rs.push('hello');
       },
       destroy: common.mustCall((err, cb) => {
@@ -195,8 +200,12 @@ const { promisify } = require('util');
 
 {
   const server = http.createServer((req, res) => {
+    let sent = 0;
     const rs = new Readable({
       read() {
+        if (sent++ > 10) {
+          return;
+        }
         rs.push('hello');
       },
       destroy: common.mustCall((err, cb) => {
@@ -242,8 +251,12 @@ const { promisify } = require('util');
       port: server.address().port
     });
 
+    let sent = 0;
     const rs = new Readable({
       read() {
+        if (sent++ > 10) {
+          return;
+        }
         rs.push('hello');
       }
     });
