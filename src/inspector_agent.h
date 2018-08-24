@@ -1,6 +1,8 @@
 #ifndef SRC_INSPECTOR_AGENT_H_
 #define SRC_INSPECTOR_AGENT_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include <memory>
 
 #include <stddef.h>
@@ -119,5 +121,7 @@ class Agent {
 
 }  // namespace inspector
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_INSPECTOR_AGENT_H_
