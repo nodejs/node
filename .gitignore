@@ -110,6 +110,9 @@ deps/npm/node_modules/.bin/
 # api docs artifacts
 tools/doc/node_modules
 
+# clang-format artifacts
+tools/clang-format/node_modules
+
 # test artifacts
 tools/remark-cli/node_modules
 tools/remark-preset-lint-node/node_modules
