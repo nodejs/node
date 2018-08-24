@@ -226,7 +226,7 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
     if (prepend.IsEmpty()) {
       return body;
     } else {
-      return String::Concat(prepend, body);
+      return String::Concat(isolate, prepend, body);
     }
   } else {
     CHECK(Encoding() == ASCII || Encoding() == HEX || Encoding() == LATIN1);

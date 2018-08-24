@@ -6637,10 +6637,10 @@ MaybeLocal<String> String::NewFromTwoByte(Isolate* isolate,
   return result;
 }
 
-
-Local<String> v8::String::Concat(Local<String> left, Local<String> right) {
+Local<String> v8::String::Concat(Isolate* v8_isolate, Local<String> left,
+                                 Local<String> right) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::Handle<i::String> left_string = Utils::OpenHandle(*left);
-  i::Isolate* isolate = left_string->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   LOG_API(isolate, String, Concat);
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
@@ -6654,6 +6654,11 @@ Local<String> v8::String::Concat(Local<String> left, Local<String> right) {
   return Utils::ToLocal(result);
 }
 
+Local<String> v8::String::Concat(Local<String> left, Local<String> right) {
+  i::Handle<i::String> left_string = Utils::OpenHandle(*left);
+  i::Isolate* isolate = left_string->GetIsolate();
+  return Concat(reinterpret_cast<Isolate*>(isolate), left, right);
+}
 
 MaybeLocal<String> v8::String::NewExternalTwoByte(
     Isolate* isolate, v8::String::ExternalStringResource* resource) {
