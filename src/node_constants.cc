@@ -51,10 +51,6 @@ namespace node {
 using v8::Local;
 using v8::Object;
 
-#if HAVE_OPENSSL
-const char* default_cipher_list = DEFAULT_CIPHER_LIST_CORE;
-#endif
-
 namespace {
 
 void DefineErrnoConstants(Local<Object> target) {
@@ -758,6 +754,44 @@ void DefineSignalConstants(Local<Object> target) {
 #endif
 }
 
+void DefinePriorityConstants(Local<Object> target) {
+#ifdef UV_PRIORITY_LOW
+# define PRIORITY_LOW UV_PRIORITY_LOW
+  NODE_DEFINE_CONSTANT(target, PRIORITY_LOW);
+# undef PRIORITY_LOW
+#endif
+
+#ifdef UV_PRIORITY_BELOW_NORMAL
+# define PRIORITY_BELOW_NORMAL UV_PRIORITY_BELOW_NORMAL
+  NODE_DEFINE_CONSTANT(target, PRIORITY_BELOW_NORMAL);
+# undef PRIORITY_BELOW_NORMAL
+#endif
+
+#ifdef UV_PRIORITY_NORMAL
+# define PRIORITY_NORMAL UV_PRIORITY_NORMAL
+  NODE_DEFINE_CONSTANT(target, PRIORITY_NORMAL);
+# undef PRIORITY_NORMAL
+#endif
+
+#ifdef UV_PRIORITY_ABOVE_NORMAL
+# define PRIORITY_ABOVE_NORMAL UV_PRIORITY_ABOVE_NORMAL
+  NODE_DEFINE_CONSTANT(target, PRIORITY_ABOVE_NORMAL);
+# undef PRIORITY_ABOVE_NORMAL
+#endif
+
+#ifdef UV_PRIORITY_HIGH
+# define PRIORITY_HIGH UV_PRIORITY_HIGH
+  NODE_DEFINE_CONSTANT(target, PRIORITY_HIGH);
+# undef PRIORITY_HIGH
+#endif
+
+#ifdef UV_PRIORITY_HIGHEST
+# define PRIORITY_HIGHEST UV_PRIORITY_HIGHEST
+  NODE_DEFINE_CONSTANT(target, PRIORITY_HIGHEST);
+# undef PRIORITY_HIGHEST
+#endif
+}
+
 void DefineOpenSSLConstants(Local<Object> target) {
 #ifdef OPENSSL_VERSION_NUMBER
     NODE_DEFINE_CONSTANT(target, OPENSSL_VERSION_NUMBER);
@@ -1202,7 +1236,7 @@ void DefineCryptoConstants(Local<Object> target) {
                               DEFAULT_CIPHER_LIST_CORE);
   NODE_DEFINE_STRING_CONSTANT(target,
                               "defaultCipherList",
-                              default_cipher_list);
+                              per_process_opts->tls_cipher_list.c_str());
 #endif
   NODE_DEFINE_CONSTANT(target, INT_MAX);
 }
@@ -1338,6 +1372,10 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   CHECK(sig_constants->SetPrototype(env->context(),
                                     Null(env->isolate())).FromJust());
 
+  Local<Object> priority_constants = Object::New(isolate);
+  CHECK(priority_constants->SetPrototype(env->context(),
+                                         Null(env->isolate())).FromJust());
+
   Local<Object> fs_constants = Object::New(isolate);
   CHECK(fs_constants->SetPrototype(env->context(),
                                    Null(env->isolate())).FromJust());
@@ -1361,6 +1399,7 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   DefineErrnoConstants(err_constants);
   DefineWindowsErrorConstants(err_constants);
   DefineSignalConstants(sig_constants);
+  DefinePriorityConstants(priority_constants);
   DefineSystemConstants(fs_constants);
   DefineOpenSSLConstants(crypto_constants);
   DefineCryptoConstants(crypto_constants);
@@ -1374,6 +1413,7 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   os_constants->Set(OneByteString(isolate, "dlopen"), dlopen_constants);
   os_constants->Set(OneByteString(isolate, "errno"), err_constants);
   os_constants->Set(OneByteString(isolate, "signals"), sig_constants);
+  os_constants->Set(OneByteString(isolate, "priority"), priority_constants);
   target->Set(OneByteString(isolate, "os"), os_constants);
   target->Set(OneByteString(isolate, "fs"), fs_constants);
   target->Set(OneByteString(isolate, "crypto"), crypto_constants);

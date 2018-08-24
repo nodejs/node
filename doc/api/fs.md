@@ -3422,7 +3422,7 @@ changes:
 * `fd` {integer}
 * `string` {string}
 * `position` {integer}
-* `encoding` {string}
+* `encoding` {string} **Default:** `'utf8'`
 * `callback` {Function}
   * `err` {Error}
   * `written` {integer}
@@ -3548,7 +3548,10 @@ changes:
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
-* Returns: {number}
+* Returns: {number} The number of bytes written.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.write(fd, buffer...)`][].
 
 ## fs.writeSync(fd, string[, position[, encoding]])
 <!-- YAML
@@ -3563,12 +3566,10 @@ changes:
 * `string` {string}
 * `position` {integer}
 * `encoding` {string}
-* Returns: {number}
-
-Returns the number of bytes written.
+* Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
-this API: [`fs.write()`][].
+this API: [`fs.write(fd, string...)`][].
 
 ## fs Promises API
 
@@ -4757,7 +4758,8 @@ the file contents.
 [`fs.symlink()`]: #fs_fs_symlink_target_path_type_callback
 [`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
 [`fs.watch()`]: #fs_fs_watch_filename_options_listener
-[`fs.write()`]: #fs_fs_write_fd_buffer_offset_length_position_callback
+[`fs.write(fd, buffer...)`]: #fs_fs_write_fd_buffer_offset_length_position_callback
+[`fs.write(fd, string...)`]: #fs_fs_write_fd_string_position_encoding_callback
 [`fs.writeFile()`]: #fs_fs_writefile_file_data_options_callback
 [`inotify(7)`]: http://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2

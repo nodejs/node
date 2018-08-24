@@ -9,10 +9,10 @@
 #include "inspector_agent.h"
 #include "node_mutex.h"
 
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace v8_inspector {
 class StringBuffer;
@@ -21,31 +21,41 @@ class StringView;
 
 namespace node {
 namespace inspector {
+class MainThreadInterface;
+
 class Request {
  public:
-  virtual void Call() = 0;
+  virtual void Call(MainThreadInterface*) = 0;
   virtual ~Request() {}
+};
+
+class Deletable {
+ public:
+  virtual ~Deletable() {}
 };
 
 std::unique_ptr<v8_inspector::StringBuffer> Utf8ToStringView(
     const std::string& message);
 
 using MessageQueue = std::deque<std::unique_ptr<Request>>;
-class MainThreadInterface;
 
 class MainThreadHandle : public std::enable_shared_from_this<MainThreadHandle> {
  public:
   explicit MainThreadHandle(MainThreadInterface* main_thread)
-                            : main_thread_(main_thread) {}
+                            : main_thread_(main_thread) {
+  }
   ~MainThreadHandle() {
     CHECK_NULL(main_thread_);  // main_thread_ should have called Reset
   }
   std::unique_ptr<InspectorSession> Connect(
       std::unique_ptr<InspectorSessionDelegate> delegate,
       bool prevent_shutdown);
+  int newObjectId() {
+    return ++next_object_id_;
+  }
   bool Post(std::unique_ptr<Request> request);
   Agent* GetInspectorAgent();
-  std::unique_ptr<InspectorSessionDelegate> MakeThreadSafeDelegate(
+  std::unique_ptr<InspectorSessionDelegate> MakeDelegateThreadSafe(
       std::unique_ptr<InspectorSessionDelegate> delegate);
   bool Expired();
 
@@ -55,6 +65,7 @@ class MainThreadHandle : public std::enable_shared_from_this<MainThreadHandle> {
   MainThreadInterface* main_thread_;
   Mutex block_lock_;
   int next_session_id_ = 0;
+  std::atomic_int next_object_id_ = {1};
 
   friend class MainThreadInterface;
 };
@@ -72,6 +83,9 @@ class MainThreadInterface {
   Agent* inspector_agent() {
     return agent_;
   }
+  void AddObject(int handle, std::unique_ptr<Deletable> object);
+  Deletable* GetObject(int id);
+  void RemoveObject(int handle);
 
  private:
   using AsyncAndInterface = std::pair<uv_async_t, MainThreadInterface*>;
@@ -92,6 +106,7 @@ class MainThreadInterface {
   v8::Platform* const platform_;
   DeleteFnPtr<AsyncAndInterface, CloseAsync> main_thread_request_;
   std::shared_ptr<MainThreadHandle> handle_;
+  std::unordered_map<int, std::unique_ptr<Deletable>> managed_objects_;
 };
 
 }  // namespace inspector

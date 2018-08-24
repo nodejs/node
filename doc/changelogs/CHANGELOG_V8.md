@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#8.11.4">8.11.4</a><br/>
 <a href="#8.11.3">8.11.3</a><br/>
 <a href="#8.11.2">8.11.2</a><br/>
 <a href="#8.11.1">8.11.1</a><br/>
@@ -57,6 +58,40 @@
 *Note*: Node.js v8 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2019 and maintained until December 2019.
+
+<a id="8.11.4"></a>
+## 2018-08-15, Version 8.11.4 'Carbon' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at:
+
+  https://nodejs.org/en/blog/vulnerability/august-2018-security-releases/
+
+for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+  * CVE-2018-0732 (OpenSSL)
+  * CVE-2018-12115 (Node.js)
+
+### Notable Changes
+
+* **buffer**: Fix out-of-bounds (OOB) write in `Buffer.write()` for UCS-2 encoding (CVE-2018-12115)
+* **deps**: Upgrade to OpenSSL 1.0.2p, fixing:
+  * Client DoS due to large DH parameter (CVE-2018-0732)
+  * ECDSA key extraction via local side-channel (CVE not assigned)
+
+### Commits
+
+* [[`fc14d812b7`](https://github.com/nodejs/node/commit/fc14d812b7)] - **buffer**: avoid overrun on UCS-2 string write (Rod Vagg) [nodejs-private/node-private#138](https://github.com/nodejs-private/node-private/pull/138)
+* [[`8f59838ae7`](https://github.com/nodejs/node/commit/8f59838ae7)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [#1836](https://github.com/nodejs/node/pull/1836)
+* [[`97607f8622`](https://github.com/nodejs/node/commit/97607f8622)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [#1389](https://github.com/nodejs/node/pull/1389)
+* [[`46e4917d98`](https://github.com/nodejs/node/commit/46e4917d98)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [#1389](https://github.com/nodejs/node/pull/1389)
+* [[`1b93677a81`](https://github.com/nodejs/node/commit/1b93677a81)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#22320](https://github.com/nodejs/node/pull/22320)
+* [[`ebf399473b`](https://github.com/nodejs/node/commit/ebf399473b)] - **deps**: upgrade openssl sources to 1.0.2p (Shigeki Ohtsu) [#22320](https://github.com/nodejs/node/pull/22320)
+* [[`131c5ed438`](https://github.com/nodejs/node/commit/131c5ed438)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [#1389](https://github.com/nodejs/node/pull/1389)
+* [[`3139897ff5`](https://github.com/nodejs/node/commit/3139897ff5)] - **test**: fix error messages for OpenSSL-1.0.2p (Shigeki Ohtsu) [#22320](https://github.com/nodejs/node/pull/22320)
+* [[`0c047c4d9a`](https://github.com/nodejs/node/commit/0c047c4d9a)] - **test**: update certificates and private keys (Fedor Indutny) [#22184](https://github.com/nodejs/node/pull/22184)
+* [[`7c6d0f604b`](https://github.com/nodejs/node/commit/7c6d0f604b)] - **test**: update keys/Makefile to clean and build all (Daniel Bevenius) [#19975](https://github.com/nodejs/node/pull/19975)
 
 <a id="8.11.3"></a>
 ## 2018-06-12, Version 8.11.3 'Carbon' (LTS), @evanlucas

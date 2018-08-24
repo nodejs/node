@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2009-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -517,7 +517,6 @@ L\$sub
 	stws,ma		$hi1,4($rp)
 
 	subb		$ti0,%r0,$hi1
-	ldo		-4($tp),$tp
 ___
 $code.=<<___ if ($BN_SZ==8);
 	ldd,ma		8($tp),$ti0
@@ -532,21 +531,19 @@ L\$sub
 
 	extrd,u		$ti0,31,32,$ti0		; carry in flipped word order
 	sub,db		$ti0,%r0,$hi1
-	ldo		-8($tp),$tp
 ___
 $code.=<<___;
-	and		$tp,$hi1,$ap
-	andcm		$rp,$hi1,$bp
-	or		$ap,$bp,$np
-
+	ldo		`$LOCALS+32`($fp),$tp
 	sub		$rp,$arrsz,$rp		; rewind rp
 	subi		0,$arrsz,$idx
-	ldo		`$LOCALS+32`($fp),$tp
 L\$copy
-	ldd		$idx($np),$hi0
+	ldd		0($tp),$ti0
+	ldd		0($rp),$hi0
 	std,ma		%r0,8($tp)
-	addib,<>	8,$idx,.-8		; L\$copy
-	std,ma		$hi0,8($rp)	
+	comiclr,=	0,$hi1,%r0
+	copy		$ti0,$hi0
+	addib,<>	8,$idx,L\$copy
+	std,ma		$hi0,8($rp)
 ___
 
 if ($BN_SZ==4) {				# PA-RISC 1.1 code-path
@@ -856,17 +853,16 @@ L\$sub_pa11
 	stws,ma		$hi1,4($rp)
 
 	subb		$ti0,%r0,$hi1
-	ldo		-4($tp),$tp
-	and		$tp,$hi1,$ap
-	andcm		$rp,$hi1,$bp
-	or		$ap,$bp,$np
 
+	ldo		`$LOCALS+32`($fp),$tp
 	sub		$rp,$arrsz,$rp		; rewind rp
 	subi		0,$arrsz,$idx
-	ldo		`$LOCALS+32`($fp),$tp
 L\$copy_pa11
-	ldwx		$idx($np),$hi0
+	ldw		0($tp),$ti0
+	ldw		0($rp),$hi0
 	stws,ma		%r0,4($tp)
+	comiclr,=	0,$hi1,%r0
+	copy		$ti0,$hi0
 	addib,<>	4,$idx,L\$copy_pa11
 	stws,ma		$hi0,4($rp)	
 

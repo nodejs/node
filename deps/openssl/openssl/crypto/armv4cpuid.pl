@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -125,7 +125,7 @@ CRYPTO_memcmp:
 
 	ldmia	sp!,{r4,r5}
 .Lno_data:
-	neg	r0,ip
+	rsb	r0,ip,#0
 	mov	r0,r0,lsr#31
 #if __ARM_ARCH__>=5
 	bx	lr

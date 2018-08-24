@@ -56,8 +56,8 @@ our %config = (
   shlib_version_number => "1.1",
   sourcedir => ".",
   target => "aix64-gcc",
-  version => "1.1.0h",
-  version_num => "0x1010008fL",
+  version => "1.1.0i",
+  version_num => "0x1010009fL",
 );
 
 our %target = (
@@ -1078,6 +1078,10 @@ our %unified_info = (
                 [
                     "libcrypto",
                 ],
+            "test/errtest" =>
+                [
+                    "libcrypto",
+                ],
             "test/evp_extra_test" =>
                 [
                     "libcrypto",
@@ -1244,7 +1248,19 @@ our %unified_info = (
                 [
                     "libcrypto",
                 ],
+            "test/versions" =>
+                [
+                    "libcrypto",
+                ],
             "test/wp_test" =>
+                [
+                    "libcrypto",
+                ],
+            "test/x509_dup_cert_test" =>
+                [
+                    "libcrypto",
+                ],
+            "test/x509_time_test" =>
                 [
                     "libcrypto",
                 ],
@@ -3934,6 +3950,12 @@ our %unified_info = (
                     "crypto/include",
                     "include",
                 ],
+            "crypto/conf/conf_ssl.o" =>
+                [
+                    ".",
+                    "crypto/include",
+                    "include",
+                ],
             "crypto/cpt_err.o" =>
                 [
                     ".",
@@ -6212,6 +6234,12 @@ our %unified_info = (
                     "crypto/include",
                     "include",
                 ],
+            "crypto/x509/x509_meth.o" =>
+                [
+                    ".",
+                    "crypto/include",
+                    "include",
+                ],
             "crypto/x509/x509_obj.o" =>
                 [
                     ".",
@@ -7199,6 +7227,10 @@ our %unified_info = (
                 [
                     "include",
                 ],
+            "test/errtest.o" =>
+                [
+                    "include",
+                ],
             "test/evp_extra_test.o" =>
                 [
                     "include",
@@ -7393,8 +7425,21 @@ our %unified_info = (
                 [
                     "include",
                 ],
+            "test/versions.o" =>
+                [
+                    "include",
+                ],
             "test/wp_test.o" =>
                 [
+                    "include",
+                ],
+            "test/x509_dup_cert_test.o" =>
+                [
+                    "include",
+                ],
+            "test/x509_time_test.o" =>
+                [
+                    ".",
                     "include",
                 ],
             "test/x509aux.o" =>
@@ -7552,6 +7597,7 @@ our %unified_info = (
             "test/ecdsatest",
             "test/ectest",
             "test/enginetest",
+            "test/errtest",
             "test/evp_extra_test",
             "test/evp_test",
             "test/exdatatest",
@@ -7592,7 +7638,10 @@ our %unified_info = (
             "test/v3ext",
             "test/v3nametest",
             "test/verify_extra_test",
+            "test/versions",
             "test/wp_test",
+            "test/x509_dup_cert_test",
+            "test/x509_time_test",
             "test/x509aux",
         ],
     "rawlines" =>
@@ -7974,6 +8023,9 @@ our %unified_info = (
             "test/enginetest" =>
                 [
                 ],
+            "test/errtest" =>
+                [
+                ],
             "test/evp_extra_test" =>
                 [
                 ],
@@ -8094,7 +8146,16 @@ our %unified_info = (
             "test/verify_extra_test" =>
                 [
                 ],
+            "test/versions" =>
+                [
+                ],
             "test/wp_test" =>
+                [
+                ],
+            "test/x509_dup_cert_test" =>
+                [
+                ],
+            "test/x509_time_test" =>
                 [
                 ],
             "test/x509aux" =>
@@ -9084,6 +9145,10 @@ our %unified_info = (
             "crypto/conf/conf_sap.o" =>
                 [
                     "crypto/conf/conf_sap.c",
+                ],
+            "crypto/conf/conf_ssl.o" =>
+                [
+                    "crypto/conf/conf_ssl.c",
                 ],
             "crypto/cpt_err.o" =>
                 [
@@ -10525,6 +10590,10 @@ our %unified_info = (
                 [
                     "crypto/x509/x509_lu.c",
                 ],
+            "crypto/x509/x509_meth.o" =>
+                [
+                    "crypto/x509/x509_meth.c",
+                ],
             "crypto/x509/x509_obj.o" =>
                 [
                     "crypto/x509/x509_obj.c",
@@ -11044,6 +11113,7 @@ our %unified_info = (
                     "crypto/conf/conf_mall.o",
                     "crypto/conf/conf_mod.o",
                     "crypto/conf/conf_sap.o",
+                    "crypto/conf/conf_ssl.o",
                     "crypto/cpt_err.o",
                     "crypto/cryptlib.o",
                     "crypto/ct/ct_b64.o",
@@ -11404,6 +11474,7 @@ our %unified_info = (
                     "crypto/x509/x509_err.o",
                     "crypto/x509/x509_ext.o",
                     "crypto/x509/x509_lu.o",
+                    "crypto/x509/x509_meth.o",
                     "crypto/x509/x509_obj.o",
                     "crypto/x509/x509_r2x.o",
                     "crypto/x509/x509_req.o",
@@ -12407,6 +12478,15 @@ our %unified_info = (
                 [
                     "test/enginetest.c",
                 ],
+            "test/errtest" =>
+                [
+                    "test/errtest.o",
+                    "test/testutil.o",
+                ],
+            "test/errtest.o" =>
+                [
+                    "test/errtest.c",
+                ],
             "test/evp_extra_test" =>
                 [
                     "test/evp_extra_test.o",
@@ -12756,6 +12836,14 @@ our %unified_info = (
                 [
                     "test/verify_extra_test.c",
                 ],
+            "test/versions" =>
+                [
+                    "test/versions.o",
+                ],
+            "test/versions.o" =>
+                [
+                    "test/versions.c",
+                ],
             "test/wp_test" =>
                 [
                     "test/wp_test.o",
@@ -12763,6 +12851,23 @@ our %unified_info = (
             "test/wp_test.o" =>
                 [
                     "test/wp_test.c",
+                ],
+            "test/x509_dup_cert_test" =>
+                [
+                    "test/x509_dup_cert_test.o",
+                ],
+            "test/x509_dup_cert_test.o" =>
+                [
+                    "test/x509_dup_cert_test.c",
+                ],
+            "test/x509_time_test" =>
+                [
+                    "test/testutil.o",
+                    "test/x509_time_test.o",
+                ],
+            "test/x509_time_test.o" =>
+                [
+                    "test/x509_time_test.c",
                 ],
             "test/x509aux" =>
                 [

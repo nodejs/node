@@ -51,6 +51,8 @@ class AgentWriterHandle {
 
   inline Agent* agent() { return agent_; }
 
+  inline v8::TracingController* GetTracingController();
+
  private:
   inline AgentWriterHandle(Agent* agent, int id) : agent_(agent), id_(id) {}
 
@@ -153,6 +155,10 @@ void AgentWriterHandle::Enable(const std::set<std::string>& categories) {
 
 void AgentWriterHandle::Disable(const std::set<std::string>& categories) {
   if (agent_ != nullptr) agent_->Disable(id_, categories);
+}
+
+inline v8::TracingController* AgentWriterHandle::GetTracingController() {
+  return agent_ != nullptr ? agent_->GetTracingController() : nullptr;
 }
 
 }  // namespace tracing

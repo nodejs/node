@@ -1,4 +1,3 @@
-{- use File::Spec::Functions qw/catdir catfile/; -}
 LIBS=../libcrypto
 SOURCE[../libcrypto]=\
         cryptlib.c mem.c mem_dbg.c cversion.c ex_data.c cpt_err.c \

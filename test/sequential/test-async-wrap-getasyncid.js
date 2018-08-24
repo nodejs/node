@@ -1,7 +1,8 @@
 'use strict';
-// Flags: --expose-gc
+// Flags: --expose-gc --expose-internals --no-warnings
 
 const common = require('../common');
+const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');
 const fs = require('fs');
 const fsPromises = fs.promises;
@@ -121,7 +122,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
     testInitialized(this, 'AsyncWrap');
   }));
 
-  if (typeof process.binding('crypto').scrypt === 'function') {
+  if (typeof internalBinding('crypto').scrypt === 'function') {
     crypto.scrypt('password', 'salt', 8, common.mustCall(function() {
       testInitialized(this, 'AsyncWrap');
     }));
@@ -146,7 +147,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 
 {
-  const HTTPParser = process.binding('http_parser').HTTPParser;
+  const { HTTPParser } = internalBinding('http_parser');
   testInitialized(new HTTPParser(), 'HTTPParser');
 }
 
@@ -186,7 +187,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 }
 
 {
-  const Signal = process.binding('signal_wrap').Signal;
+  const { Signal } = internalBinding('signal_wrap');
   testInitialized(new Signal(), 'Signal');
 }
 
@@ -200,12 +201,12 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 }
 
 {
-  const binding = process.binding('stream_wrap');
+  const binding = internalBinding('stream_wrap');
   testUninitialized(new binding.WriteWrap(), 'WriteWrap');
 }
 
 {
-  const stream_wrap = process.binding('stream_wrap');
+  const stream_wrap = internalBinding('stream_wrap');
   const tcp_wrap = process.binding('tcp_wrap');
   const server = net.createServer(common.mustCall((socket) => {
     server.close();

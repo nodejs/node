@@ -36,3 +36,4 @@ print +($t eq "My process ID is $$" ? '' : 'not '), "ok $n\n";
 $n++;
 
 exit;
+

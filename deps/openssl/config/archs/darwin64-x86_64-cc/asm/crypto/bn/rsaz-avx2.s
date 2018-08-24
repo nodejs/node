@@ -1,4 +1,4 @@
-.text
+.text	
 
 .globl	_rsaz_1024_sqr_avx2
 

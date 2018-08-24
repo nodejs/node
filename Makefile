@@ -58,6 +58,18 @@ BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 # or set the V environment variable to an empty string.
 V ?= 1
 
+# Use -e to double check in case it's a broken link
+# Use $(PWD) so we can cd to anywhere before calling this
+available-node = \
+  if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
+		$(PWD)/$(NODE) $(1); \
+	elif [ -x `which node` ] && [ -e `which node` ] && [ `which node` ]; then \
+		`which node` $(1); \
+	else \
+		echo "No available node, cannot run \"node $(1)\""; \
+		exit 1; \
+	fi;
+
 .PHONY: all
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
@@ -266,8 +278,9 @@ jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
 test: all ## Runs default tests, linters, and builds docs.
-	# Build the addons before running the tests so the test results
-	# can be displayed together
+	@echo "Build the addons before running the tests so the test results"
+	@echo "can be displayed together"
+	$(MAKE) -s test-doc
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-addons-napi
 	$(MAKE) -s cctest
@@ -275,8 +288,8 @@ test: all ## Runs default tests, linters, and builds docs.
 
 .PHONY: test-only
 test-only: all  ## For a quick test, does not run linter or build docs.
-	# Build the addons before running the tests so the test results
-	# can be displayed together
+	@echo "Build the addons before running the tests so the test results"
+	@echo "can be displayed together"
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	$(MAKE) cctest
@@ -284,8 +297,8 @@ test-only: all  ## For a quick test, does not run linter or build docs.
 
 # Used by `make coverage-test`
 test-cov: all
-	# Build the addons before running the tests so the test results
-	# can be displayed together
+	@echo "Build the addons before running the tests so the test results"
+	@echo "can be displayed together"
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	# $(MAKE) cctest
@@ -399,7 +412,7 @@ build-addons-napi: | $(NODE_EXE) test/addons-napi/.buildstamp
 
 .PHONY: clear-stalled
 clear-stalled:
-	# Clean up any leftover processes but don't error if found.
+	@echo "Clean up any leftover processes but don't error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
@@ -437,7 +450,7 @@ test-ci-js: | clear-stalled
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
-	# Clean up any leftover processes, error if found.
+	@echo "Clean up any leftover processes, error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
@@ -452,7 +465,7 @@ test-ci: | clear-stalled build-addons build-addons-napi doc-only
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
-	# Clean up any leftover processes, error if found.
+	@echo "Clean up any leftover processes, error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
@@ -628,23 +641,8 @@ out/doc/api/assets:
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
 	@cp $< $@
 
-# Use -e to double check in case it's a broken link
-# Use $(PWD) so we can cd to anywhere before calling this
-available-node = \
-  if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
-		$(PWD)/$(NODE) $(1); \
-	elif [ -x `which node` ] && [ -e `which node` ] && [ `which node` ]; then \
-		`which node` $(1); \
-	else \
-		echo "No available node, cannot run \"node $(1)\""; \
-		exit 1; \
-	fi;
 
-run-npm-install = $(PWD)/$(NPM) install --production --no-package-lock
 run-npm-ci = $(PWD)/$(NPM) ci
-
-tools/doc/node_modules/js-yaml/package.json:
-	cd tools/doc && $(call available-node,$(run-npm-install))
 
 gen-api = tools/doc/generate.js --node-version=$(FULLVERSION) \
 		--analytics=$(DOCS_ANALYTICS) $< --output-directory=out/doc/api
@@ -1072,7 +1070,7 @@ lint-md-build: tools/remark-cli/node_modules \
 
 tools/doc/node_modules: tools/doc/package.json
 ifeq ($(node_use_openssl),true)
-	cd tools/doc && $(call available-node,$(run-npm-install))
+	cd tools/doc && $(call available-node,$(run-npm-ci))
 else
 	@echo "Skipping tools/doc/node_modules (no crypto)"
 endif
@@ -1120,7 +1118,7 @@ endif
 LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
 
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
-	--ext=.js,.mjs,.md $(LINT_JS_TARGETS) --ignore-pattern '!.eslintrc.js'
+	--ext=.js,.mjs,.md $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
 .PHONY: lint-js-fix
@@ -1181,7 +1179,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 ADDON_DOC_LINT_FLAGS=-whitespace/ending_newline,-build/header_guard
 
 format-cpp-build:
-	cd tools/clang-format && $(call available-node,$(run-npm-install))
+	cd tools/clang-format && $(call available-node,$(run-npm-ci))
 
 format-cpp-clean:
 	$(RM) -r tools/clang-format/node_modules

@@ -93,6 +93,9 @@ consider the subject DN even if the certificate contains no subject alternative
 names of the right type (DNS name or email address as appropriate); the default
 is to use the subject DN when no corresponding subject alternative names are
 present.
+If both B<X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT> and
+B<X509_CHECK_FLAG_NEVER_CHECK_SUBJECT> are specified, the latter takes
+precedence and the subject DN is not checked for matching names.
 
 If set, B<X509_CHECK_FLAG_NO_WILDCARDS> disables wildcard
 expansion; this only applies to B<X509_check_host>.
@@ -128,9 +131,9 @@ NULs.
 
 Applications are encouraged to use X509_VERIFY_PARAM_set1_host()
 rather than explicitly calling L<X509_check_host(3)>. Host name
-checks are out of scope with the DANE-EE(3) certificate usage,
+checks may be out of scope with the DANE-EE(3) certificate usage,
 and the internal checks will be suppressed as appropriate when
-DANE support is added to OpenSSL.
+DANE support is enabled.
 
 =head1 SEE ALSO
 
@@ -147,7 +150,7 @@ These functions were added in OpenSSL 1.0.2.
 
 =head1 COPYRIGHT
 
-Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

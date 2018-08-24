@@ -113,7 +113,7 @@ User code will not create `Http2Session` instances directly. Server-side
 new HTTP/2 connection is received. Client-side `Http2Session` instances are
 created using the `http2.connect()` method.
 
-#### `Http2Session` and Sockets
+#### Http2Session and Sockets
 
 Every `Http2Session` instance is associated with exactly one [`net.Socket`][] or
 [`tls.TLSSocket`][] when it is created. When either the `Socket` or the
@@ -349,7 +349,7 @@ Will be `true` if this `Http2Session` instance is still connecting, will be set
 to `false` before emitting `connect` event and/or calling the `http2.connect`
 callback.
 
-#### http2session.destroy([error,][code])
+#### http2session.destroy([error][, code])
 <!-- YAML
 added: v8.4.0
 -->
@@ -392,7 +392,7 @@ connected, `true` if the `Http2Session` is connected with a `TLSSocket`,
 and `false` if the `Http2Session` is connected to any other kind of socket
 or stream.
 
-#### http2session.goaway([code, [lastStreamID, [opaqueData]]])
+#### http2session.goaway([code[, lastStreamID[, opaqueData]]])
 <!-- YAML
 added: v9.4.0
 -->
@@ -2711,8 +2711,8 @@ added: v8.4.0
 This object is created internally by an HTTP server — not by the user. It is
 passed as the second parameter to the [`'request'`][] event.
 
-The response implements, but does not inherit from, the [Writable Stream][]
-interface. This is an [`EventEmitter`][] with the following events:
+The response inherits from [Stream][], and additionally implements the
+following:
 
 #### Event: 'close'
 <!-- YAML
@@ -3150,13 +3150,17 @@ will result in a [`TypeError`][] being thrown.
 added: v8.4.0
 -->
 * `headers` {HTTP/2 Headers Object} An object describing the headers
-* `callback` {Function}
+* `callback` {Function} Called once `http2stream.pushStream()` is finished,
+  or either when the attempt to create the pushed `Http2Stream` has failed or
+  has been rejected, or the state of `Http2ServerRequest` is closed prior to
+  calling the `http2stream.pushStream()` method
+  * `err` {Error}
+  * `stream` {ServerHttp2Stream} The newly-created `ServerHttp2Stream` object
 
-Call [`http2stream.pushStream()`][] with the given headers, and wraps the
-given newly created [`Http2Stream`] on `Http2ServerResponse`.
-
-The callback will be called with an error with code `ERR_HTTP2_INVALID_STREAM`
-if the stream is closed.
+Call [`http2stream.pushStream()`][] with the given headers, and wrap the
+given [`Http2Stream`] on a newly created `Http2ServerResponse` as the callback
+parameter if successful. When `Http2ServerRequest` is closed, the callback is
+called with an error `ERR_HTTP2_INVALID_STREAM`.
 
 ## Collecting HTTP/2 Performance Metrics
 
@@ -3231,13 +3235,11 @@ following additional properties:
 [Readable Stream]: stream.html#stream_class_stream_readable
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
 [Using `options.selectPadding()`]: #http2_using_options_selectpadding
-[Writable Stream]: stream.html#stream_writable_streams
 [`'checkContinue'`]: #http2_event_checkcontinue
 [`'request'`]: #http2_event_request
 [`'unknownProtocol'`]: #http2_event_unknownprotocol
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
 [`Duplex`]: stream.html#stream_class_stream_duplex
-[`EventEmitter`]: events.html#events_class_eventemitter
 [`Http2ServerRequest`]: #http2_class_http2_http2serverrequest
 [`Http2Session` and Sockets]: #http2_http2session_and_sockets
 [`Http2Stream`]: #http2_class_http2stream

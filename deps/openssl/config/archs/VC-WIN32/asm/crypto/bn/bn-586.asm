@@ -108,7 +108,7 @@ L$000maw_non_sse2:
 	push	ebx
 	push	esi
 	push	edi
-	;
+	; 
 	xor	esi,esi
 	mov	edi,DWORD [20+esp]
 	mov	ecx,DWORD [28+esp]
@@ -191,7 +191,7 @@ L$006maw_loop:
 	adc	edx,0
 	mov	DWORD [28+edi],eax
 	mov	esi,edx
-	;
+	; 
 	sub	ecx,8
 	lea	ebx,[32+ebx]
 	lea	edi,[32+edi]
@@ -317,7 +317,7 @@ L$009mw_non_sse2:
 	push	ebx
 	push	esi
 	push	edi
-	;
+	; 
 	xor	esi,esi
 	mov	edi,DWORD [20+esp]
 	mov	ebx,DWORD [24+esp]
@@ -382,7 +382,7 @@ L$012mw_loop:
 	adc	edx,0
 	mov	DWORD [28+edi],eax
 	mov	esi,edx
-	;
+	; 
 	add	ebx,32
 	add	edi,32
 	sub	ebp,8
@@ -489,7 +489,7 @@ L$015sqr_non_sse2:
 	push	ebx
 	push	esi
 	push	edi
-	;
+	; 
 	mov	esi,DWORD [20+esp]
 	mov	edi,DWORD [24+esp]
 	mov	ebx,DWORD [28+esp]
@@ -536,7 +536,7 @@ L$018sw_loop:
 	mul	eax
 	mov	DWORD [56+esi],eax
 	mov	DWORD [60+esi],edx
-	;
+	; 
 	add	edi,32
 	add	esi,64
 	sub	ebx,8
@@ -615,7 +615,7 @@ L$_bn_add_words_begin:
 	push	ebx
 	push	esi
 	push	edi
-	;
+	; 
 	mov	ebx,DWORD [20+esp]
 	mov	esi,DWORD [24+esp]
 	mov	edi,DWORD [28+esp]
@@ -696,7 +696,7 @@ L$021aw_loop:
 	add	ecx,edx
 	adc	eax,0
 	mov	DWORD [28+ebx],ecx
-	;
+	; 
 	add	esi,32
 	add	edi,32
 	add	ebx,32
@@ -795,7 +795,7 @@ L$_bn_sub_words_begin:
 	push	ebx
 	push	esi
 	push	edi
-	;
+	; 
 	mov	ebx,DWORD [20+esp]
 	mov	esi,DWORD [24+esp]
 	mov	edi,DWORD [28+esp]
@@ -876,7 +876,7 @@ L$024aw_loop:
 	sub	ecx,edx
 	adc	eax,0
 	mov	DWORD [28+ebx],ecx
-	;
+	; 
 	add	esi,32
 	add	edi,32
 	add	ebx,32
@@ -975,7 +975,7 @@ L$_bn_sub_part_words_begin:
 	push	ebx
 	push	esi
 	push	edi
-	;
+	; 
 	mov	ebx,DWORD [20+esp]
 	mov	esi,DWORD [24+esp]
 	mov	edi,DWORD [28+esp]
@@ -1056,7 +1056,7 @@ L$027aw_loop:
 	sub	ecx,edx
 	adc	eax,0
 	mov	DWORD [28+ebx],ecx
-	;
+	; 
 	add	esi,32
 	add	edi,32
 	add	ebx,32
@@ -1248,7 +1248,7 @@ L$032pw_neg_loop:
 	sub	ecx,edx
 	adc	eax,0
 	mov	DWORD [28+ebx],ecx
-	;
+	; 
 	add	edi,32
 	add	ebx,32
 	sub	ebp,8
@@ -1379,7 +1379,7 @@ L$034pw_pos_loop:
 	sub	ecx,eax
 	mov	DWORD [28+ebx],ecx
 	jnc	NEAR L$042pw_nc7
-	;
+	; 
 	add	esi,32
 	add	ebx,32
 	sub	ebp,8
@@ -1462,7 +1462,7 @@ L$041pw_nc6:
 	mov	ecx,DWORD [28+esi]
 	mov	DWORD [28+ebx],ecx
 L$042pw_nc7:
-	;
+	; 
 	add	esi,32
 	add	ebx,32
 	sub	ebp,8

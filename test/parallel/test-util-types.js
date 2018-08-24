@@ -1,4 +1,4 @@
-// Flags: --harmony-bigint --experimental-vm-modules
+// Flags: --experimental-vm-modules
 'use strict';
 require('../common');
 const fixtures = require('../common/fixtures');

@@ -31,6 +31,8 @@ using v8::TryCatch;
 using v8::Value;
 using worker::Worker;
 
+#define kTraceCategoryCount 1
+
 int const Environment::kNodeContextTag = 0x6e6f64;
 void* Environment::kNodeContextTagPtr = const_cast<void*>(
     static_cast<const void*>(&Environment::kNodeContextTag));
@@ -45,6 +47,8 @@ IsolateData::IsolateData(Isolate* isolate,
     platform_(platform) {
   if (platform_ != nullptr)
     platform_->RegisterIsolate(this, event_loop);
+
+  options_.reset(new PerIsolateOptions(*per_process_opts->per_isolate));
 
   // Create string and private symbol properties as internalized one byte
   // strings after the platform is properly initialized.
@@ -103,6 +107,21 @@ void InitThreadLocalOnce() {
   CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
 }
 
+void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
+  env_->trace_category_state()[0] =
+      *TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACING_CATEGORY_NODE1(async_hooks));
+
+  Isolate* isolate = env_->isolate();
+  Local<Function> cb = env_->trace_category_state_function();
+  if (cb.IsEmpty())
+    return;
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  cb->Call(env_->context(), v8::Undefined(isolate),
+           0, nullptr).ToLocalChecked();
+}
+
 Environment::Environment(IsolateData* isolate_data,
                          Local<Context> context,
                          tracing::AgentWriterHandle* tracing_agent_writer)
@@ -118,9 +137,7 @@ Environment::Environment(IsolateData* isolate_data,
       emit_env_nonstring_warning_(true),
       makecallback_cntr_(0),
       should_abort_on_uncaught_toggle_(isolate_, 1),
-#if HAVE_INSPECTOR
-      inspector_agent_(new inspector::Agent(this)),
-#endif
+      trace_category_state_(isolate_, kTraceCategoryCount),
       http_parser_buffer_(nullptr),
       fs_stats_field_array_(isolate_, kFsStatsFieldsLength * 2),
       fs_stats_field_bigint_array_(isolate_, kFsStatsFieldsLength * 2),
@@ -130,7 +147,28 @@ Environment::Environment(IsolateData* isolate_data,
   v8::Context::Scope context_scope(context);
   set_as_external(v8::External::New(isolate(), this));
 
+  // We create new copies of the per-Environment option sets, so that it is
+  // easier to modify them after Environment creation. The defaults are
+  // part of the per-Isolate option set, for which in turn the defaults are
+  // part of the per-process option set.
+  options_.reset(new EnvironmentOptions(*isolate_data->options()->per_env));
+  options_->debug_options.reset(new DebugOptions(*options_->debug_options));
+
+#if HAVE_INSPECTOR
+  // We can only create the inspector agent after having cloned the options.
+  inspector_agent_ =
+      std::unique_ptr<inspector::Agent>(new inspector::Agent(this));
+#endif
+
   AssignToContext(context, ContextInfo(""));
+
+  if (tracing_agent_writer_ != nullptr) {
+    trace_state_observer_.reset(new TrackingTraceStateObserver(this));
+    v8::TracingController* tracing_controller =
+        tracing_agent_writer_->GetTracingController();
+    if (tracing_controller != nullptr)
+      tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
+  }
 
   destroy_async_id_list_.reserve(512);
   performance_state_.reset(new performance::performance_state(isolate()));
@@ -173,15 +211,20 @@ Environment::~Environment() {
   context()->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kEnvironment, nullptr);
 
+  if (tracing_agent_writer_ != nullptr) {
+    v8::TracingController* tracing_controller =
+        tracing_agent_writer_->GetTracingController();
+    if (tracing_controller != nullptr)
+      tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
+  }
+
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
 }
 
-void Environment::Start(int argc,
-                        const char* const* argv,
-                        int exec_argc,
-                        const char* const* exec_argv,
+void Environment::Start(const std::vector<std::string>& args,
+                        const std::vector<std::string>& exec_args,
                         bool start_profiler_idle_notifier) {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
@@ -227,7 +270,7 @@ void Environment::Start(int argc,
       process_template->GetFunction()->NewInstance(context()).ToLocalChecked();
   set_process_object(process_object);
 
-  SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
+  SetupProcessObject(this, args, exec_args);
 
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitThreadLocalOnce);

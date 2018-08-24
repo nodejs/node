@@ -3432,13 +3432,13 @@ ecp_nistz256_scatter_w7:
 .Loop_scatter_w7:
 	ldr	r3,[r1],#4
 	subs	r2,r2,#1
-	strb	r3,[r0,#64*0-1]
+	strb	r3,[r0,#64*0]
 	mov	r3,r3,lsr#8
-	strb	r3,[r0,#64*1-1]
+	strb	r3,[r0,#64*1]
 	mov	r3,r3,lsr#8
-	strb	r3,[r0,#64*2-1]
+	strb	r3,[r0,#64*2]
 	mov	r3,r3,lsr#8
-	strb	r3,[r0,#64*3-1]
+	strb	r3,[r0,#64*3]
 	add	r0,r0,#64*4
 	bne	.Loop_scatter_w7
 
@@ -4114,7 +4114,7 @@ ecp_nistz256_point_add:
 	stmia	r0!,{r4,r5}
 .Ladd_done:
 	add	sp,sp,#32*18+16+16	@ +16 means "skip even over saved r0-r3"
-#if __ARM_ARCH__>=5 || defined(__thumb__)
+#if __ARM_ARCH__>=5 || !defined(__thumb__)
 	ldmia	sp!,{r4,r5,r6,r7,r8,r9,r10,r11,r12,pc}
 #else
 	ldmia	sp!,{r4,r5,r6,r7,r8,r9,r10,r11,r12,lr}

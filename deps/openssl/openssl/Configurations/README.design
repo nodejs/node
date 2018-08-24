@@ -90,7 +90,7 @@ depends on the library 'libssl' to function properly.
     LIBS=../libcrypto
     SOURCE[../libcrypto]=aes.c evp.c cversion.c
     DEPEND[cversion.o]=buildinf.h
-
+    
     GENERATE[buildinf.h]=../util/mkbuildinf.pl "$(CC) $(CFLAGS)" "$(PLATFORM)"
     DEPEND[buildinf.h]=../Makefile
     DEPEND[../util/mkbuildinf.pl]=../util/Foo.pm
@@ -105,7 +105,7 @@ show that duplicate information isn't an issue.
 This build.info file informs us that 'libcrypto' is built from a few
 source files, 'crypto/aes.c', 'crypto/evp.c' and 'crypto/cversion.c'.
 It also shows us that building the object file inferred from
-'crypto/cversion.c' depends on 'crypto/buildinf.h'.  Finally, it
+'crypto/cversion.c' depends on 'crypto/buildinf.h'.  Finally, it 
 also shows the possibility to declare how some files are generated
 using some script, in this case a perl script, and how such scripts
 can be declared to depend on other files, in this case a perl module.
@@ -157,7 +157,7 @@ information comes down to this:
     SOURCE[libssl]=ssl/tls.c
     INCLUDE[libssl]=include
     DEPEND[libssl]=libcrypto
-
+    
     PROGRAMS=apps/openssl
     SOURCE[apps/openssl]=apps/openssl.c
     INCLUDE[apps/openssl]=. include
@@ -172,7 +172,7 @@ information comes down to this:
     SOURCE[engines/ossltest]=engines/e_ossltest.c
     DEPEND[engines/ossltest]=libcrypto
     INCLUDE[engines/ossltest]=include
-
+    
     GENERATE[crypto/buildinf.h]=util/mkbuildinf.pl "$(CC) $(CFLAGS)" "$(PLATFORM)"
     DEPEND[crypto/buildinf.h]=Makefile
     DEPEND[util/mkbuildinf.pl]=util/Foo.pm

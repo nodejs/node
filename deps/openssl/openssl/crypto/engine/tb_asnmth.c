@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -170,7 +170,8 @@ static void look_str_cb(int nid, STACK_OF(ENGINE) *sk, ENGINE *def, void *arg)
         ENGINE *e = sk_ENGINE_value(sk, i);
         EVP_PKEY_ASN1_METHOD *ameth;
         e->pkey_asn1_meths(e, &ameth, NULL, nid);
-        if (((int)strlen(ameth->pem_str) == lk->len)
+        if (ameth != NULL
+                && ((int)strlen(ameth->pem_str) == lk->len)
                 && strncasecmp(ameth->pem_str, lk->str, lk->len) == 0) {
             lk->e = e;
             lk->ameth = ameth;

@@ -61,7 +61,7 @@ matrix:
                   sources:
                       - ubuntu-toolchain-r-test
           compiler: gcc-5
-          env: CONFIG_OPTS="no-asm enable-ubsan enable-rc5 enable-md2 -DPEDANTIC"
+          env: UBUNTU_GCC_HACK="yes" CONFIG_OPTS="no-asm enable-ubsan enable-rc5 enable-md2 -DPEDANTIC"
         - os: linux
           addons:
               apt:
@@ -69,7 +69,7 @@ matrix:
                       - binutils-mingw-w64
                       - gcc-mingw-w64
           compiler: i686-w64-mingw32-gcc
-          env: CONFIG_OPTS="no-pic" TESTS="-test_fuzz"
+          env: CONFIG_OPTS="no-pic"
         - os: linux
           addons:
               apt:
@@ -85,7 +85,7 @@ matrix:
                       - binutils-mingw-w64
                       - gcc-mingw-w64
           compiler: x86_64-w64-mingw32-gcc
-          env: CONFIG_OPTS="no-pic" TESTS="-test_fuzz"
+          env: CONFIG_OPTS="no-pic"
         - os: linux
           addons:
               apt:
@@ -111,6 +111,10 @@ before_script:
       else
           srcdir=.;
           top=.;
+      fi
+    - if [ -n "$UBUNTU_GCC_HACK" ]; then
+          $CC -dumpspecs | sed "s/--push-state//g; s/--pop-state/--as-needed/g" > gcc-specs.txt;
+          CC="$CC -specs=gcc-specs.txt";
       fi
     - if [ "$CC" == i686-w64-mingw32-gcc ]; then
           export CROSS_COMPILE=${CC%%gcc}; unset CC;
@@ -186,7 +190,7 @@ script:
       fi
     - if [ -n "$DESTDIR" ]; then
           mkdir "../$DESTDIR";
-          if $make install install_docs DESTDIR="../$DESTDIR"; then
+          if $make install DESTDIR="../$DESTDIR"; then
               echo -e '+\057\057\057\057\057 MAKE INSTALL_DOCS OK';
           else
               echo -e '+\057\057\057\057\057 MAKE INSTALL_DOCS FAILED'; false;

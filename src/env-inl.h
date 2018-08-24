@@ -432,6 +432,11 @@ Environment::should_abort_on_uncaught_toggle() {
   return should_abort_on_uncaught_toggle_;
 }
 
+inline AliasedBuffer<uint8_t, v8::Uint8Array>&
+Environment::trace_category_state() {
+  return trace_category_state_;
+}
+
 Environment::ShouldNotAbortOnUncaughtScope::ShouldNotAbortOnUncaughtScope(
     Environment* env)
     : env_(env) {
@@ -557,6 +562,14 @@ Environment::fs_stats_field_bigint_array() {
 inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
 Environment::file_handle_read_wrap_freelist() {
   return file_handle_read_wrap_freelist_;
+}
+
+inline std::shared_ptr<EnvironmentOptions> Environment::options() {
+  return options_;
+}
+
+inline std::shared_ptr<PerIsolateOptions> IsolateData::options() {
+  return options_;
 }
 
 void Environment::CreateImmediate(native_immediate_callback cb,

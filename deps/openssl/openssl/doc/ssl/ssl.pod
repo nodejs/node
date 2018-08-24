@@ -91,12 +91,6 @@ includes both more private SSL headers and headers from the B<crypto> library.
 Whenever you need hard-core details on the internals of the SSL API, look
 inside this header file.
 
-OPENSSL_VERSION_AT_LEAST(major,minor) can be
-used in C<#if> statements in order to determine which version of the library is
-being used. This can be used to either enable optional features at compile
-time, or work around issues with a previous version.
-See L<OPENSSL_VERSION_NUMBER(3)>.
-
 =item B<ssl2.h>
 
 Unused. Present for backwards compatibility only.
@@ -574,7 +568,7 @@ fresh handle for each connection.
 
 =item SSL_SESSION *B<SSL_get_session>(const SSL *ssl);
 
-=item char *B<SSL_get_shared_ciphers>(const SSL *ssl, char *buf, int len);
+=item char *B<SSL_get_shared_ciphers>(const SSL *ssl, char *buf, int size);
 
 =item int B<SSL_get_shutdown>(const SSL *ssl);
 

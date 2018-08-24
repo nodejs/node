@@ -48,7 +48,7 @@ CMS_verify().
 CMS_ReceiptRequest_create0() returns a signed receipt request structure or
 NULL if an error occurred.
 
-CMS_add1_ReceiptRequest() returns 1 for success or 0 is an error occurred.
+CMS_add1_ReceiptRequest() returns 1 for success or 0 if an error occurred.
 
 CMS_get1_ReceiptRequest() returns 1 is a signed receipt request is found and
 decoded. It returns 0 if a signed receipt request is not present and -1 if
@@ -62,7 +62,7 @@ L<CMS_verify_receipt(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

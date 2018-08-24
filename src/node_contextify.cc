@@ -958,4 +958,4 @@ void Initialize(Local<Object> target,
 }  // namespace contextify
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(contextify, node::contextify::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(contextify, node::contextify::Initialize)

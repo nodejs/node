@@ -517,3 +517,31 @@ API
     storage required to hold the value.
 
     .. versionadded:: 1.12.0
+
+.. c:function:: int uv_os_getpriority(uv_pid_t pid, int* priority)
+
+    Retrieves the scheduling priority of the process specified by `pid`. The
+    returned value of `priority` is between -20 (high priority) and 19 (low
+    priority).
+
+    .. note::
+        On Windows, the returned priority will equal one of the `UV_PRIORITY`
+        constants.
+
+    .. versionadded:: 1.23.0
+
+.. c:function:: int uv_os_setpriority(uv_pid_t pid, int priority)
+
+    Sets the scheduling priority of the process specified by `pid`. The
+    `priority` value range is between -20 (high priority) and 19 (low priority).
+    The constants `UV_PRIORITY_LOW`, `UV_PRIORITY_BELOW_NORMAL`,
+    `UV_PRIORITY_NORMAL`, `UV_PRIORITY_ABOVE_NORMAL`, `UV_PRIORITY_HIGH`, and
+    `UV_PRIORITY_HIGHEST` are also provided for convenience.
+
+    .. note::
+        On Windows, this function utilizes `SetPriorityClass()`. The `priority`
+        argument is mapped to a Windows priority class. When retrieving the
+        process priority, the result will equal one of the `UV_PRIORITY`
+        constants, and not necessarily the exact value of `priority`.
+
+    .. versionadded:: 1.23.0

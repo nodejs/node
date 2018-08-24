@@ -8,6 +8,7 @@
 namespace node {
 
 void DefineCodeCache(Environment* env, v8::Local<v8::Object> target);
+void DefineCodeCacheHash(Environment* env, v8::Local<v8::Object> target);
 
 }  // namespace node
 

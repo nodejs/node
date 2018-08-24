@@ -27,7 +27,6 @@ const fs = require('fs');
 const assert = require('assert');
 const os = require('os');
 const { exec, execSync, spawn, spawnSync } = require('child_process');
-const stream = require('stream');
 const util = require('util');
 const { fixturesDir } = require('./fixtures');
 const tmpdir = require('./tmpdir');
@@ -65,23 +64,6 @@ exports.isFreeBSD = process.platform === 'freebsd';
 exports.isOpenBSD = process.platform === 'openbsd';
 exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
-
-let isGlibc;
-exports.isGlibc = () => {
-  if (isGlibc !== undefined)
-    return isGlibc;
-  try {
-    const lddOut = spawnSync('ldd', [process.execPath]).stdout;
-    const libcInfo = lddOut.toString().split('\n').map(
-      (line) => line.match(/libc\.so.+=>\s*(\S+)\s/)).filter((info) => info);
-    if (libcInfo.length === 0)
-      return isGlibc = false;
-    const nmOut = spawnSync('nm', ['-D', libcInfo[0][1]]).stdout;
-    if (/gnu_get_libc_version/.test(nmOut))
-      return isGlibc = true;
-  } catch {}
-  return isGlibc = false;
-};
 
 exports.enoughTestMem = os.totalmem() > 0x70000000; /* 1.75 Gb */
 const cpus = os.cpus();
@@ -527,23 +509,6 @@ exports.skip = function(msg) {
   exports.printSkipMessage(msg);
   process.exit(0);
 };
-
-// A stream to push an array into a REPL
-function ArrayStream() {
-  this.run = function(data) {
-    data.forEach((line) => {
-      this.emit('data', `${line}\n`);
-    });
-  };
-}
-
-util.inherits(ArrayStream, stream.Stream);
-exports.ArrayStream = ArrayStream;
-ArrayStream.prototype.readable = true;
-ArrayStream.prototype.writable = true;
-ArrayStream.prototype.pause = noop;
-ArrayStream.prototype.resume = noop;
-ArrayStream.prototype.write = noop;
 
 // Returns true if the exit code "exitCode" and/or signal name "signal"
 // represent the exit code and/or signal name of a node process that aborted,

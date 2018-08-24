@@ -1,9 +1,11 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 
+const { internalBinding } = require('internal/test/binding');
 const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
-const WriteWrap = process.binding('stream_wrap').WriteWrap;
+const { WriteWrap } = internalBinding('stream_wrap');
 
 const server = new TCP(TCPConstants.SOCKET);
 

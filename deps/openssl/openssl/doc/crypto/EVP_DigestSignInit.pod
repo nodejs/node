@@ -21,7 +21,48 @@ EVP_DigestSignInit() sets up signing context B<ctx> to use digest B<type> from
 ENGINE B<impl> and private key B<pkey>. B<ctx> must be created with
 EVP_MD_CTX_new() before calling this function. If B<pctx> is not NULL the
 EVP_PKEY_CTX of the signing operation will be written to B<*pctx>: this can
-be used to set alternative signing options.
+be used to set alternative signing options. The digest B<type> may be NULL if
+the signing algorithm supports it.
+
+Only EVP_PKEY types that support signing can be used with these functions. This
+includes MAC algorithms where the MAC generation is considered as a form of
+"signing." Built-in EVP_PKEY types supported by these functions are CMAC, DSA,
+ECDSA, HMAC and RSA.
+
+Not all digests can be used for all key types. The following combinations apply.
+
+=over 4
+
+=item DSA
+
+Supports SHA1, SHA224, SHA256, SHA384 and SHA512
+
+=item ECDSA
+
+Supports SHA1, SHA224, SHA256, SHA384 and SHA512
+
+=item RSA with no padding
+
+Supports no digests (the digest B<type> must be NULL)
+
+=item RSA with X931 padding
+
+Supports SHA1, SHA256, SHA384 and SHA512
+
+=item All other RSA padding types
+
+Support SHA1, SHA224, SHA256, SHA384, SHA512, MD5, MD5_SHA1, MD2, MD4, MDC2,
+RIPEMD160
+
+=item HMAC
+
+Supports any digest
+
+=item CMAC
+
+Will ignore any digest provided.
+
+=back
 
 EVP_DigestSignUpdate() hashes B<cnt> bytes of data at B<d> into the
 signature context B<ctx>. This function can be called several times on the
@@ -86,7 +127,7 @@ were first added to OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

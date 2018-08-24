@@ -1,4 +1,4 @@
-.text
+.text	
 
 .globl	rsaz_1024_sqr_avx2
 .type	rsaz_1024_sqr_avx2,@function

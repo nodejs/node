@@ -34,6 +34,7 @@
 #include "uv.h"
 #include "v8.h"
 #include "node.h"
+#include "node_options.h"
 #include "node_http2_state.h"
 
 #include <list>
@@ -148,10 +149,12 @@ struct PackageConfig {
   V(dns_soa_string, "SOA")                                                    \
   V(dns_srv_string, "SRV")                                                    \
   V(dns_txt_string, "TXT")                                                    \
+  V(duration_string, "duration")                                              \
   V(emit_warning_string, "emitWarning")                                       \
   V(exchange_string, "exchange")                                              \
   V(encoding_string, "encoding")                                              \
   V(entries_string, "entries")                                                \
+  V(entry_type_string, "entryType")                                           \
   V(env_pairs_string, "envPairs")                                             \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
@@ -187,6 +190,7 @@ struct PackageConfig {
   V(issuer_string, "issuer")                                                  \
   V(issuercert_string, "issuerCertificate")                                   \
   V(kill_signal_string, "killSignal")                                         \
+  V(kind_string, "kind")                                                      \
   V(mac_string, "mac")                                                        \
   V(main_string, "main")                                                      \
   V(max_buffer_string, "maxBuffer")                                           \
@@ -270,6 +274,7 @@ struct PackageConfig {
   V(sni_context_string, "sni_context")                                        \
   V(source_string, "source")                                                  \
   V(stack_string, "stack")                                                    \
+  V(start_time_string, "startTime")                                           \
   V(status_string, "status")                                                  \
   V(stdio_string, "stdio")                                                    \
   V(subject_string, "subject")                                                \
@@ -344,6 +349,7 @@ struct PackageConfig {
   V(tick_callback_function, v8::Function)                                     \
   V(timers_callback_function, v8::Function)                                   \
   V(tls_wrap_constructor_function, v8::Function)                              \
+  V(trace_category_state_function, v8::Function)                              \
   V(tty_constructor_template, v8::FunctionTemplate)                           \
   V(udp_constructor_function, v8::Function)                                   \
   V(url_constructor_function, v8::Function)                                   \
@@ -360,6 +366,7 @@ class IsolateData {
   inline uv_loop_t* event_loop() const;
   inline uint32_t* zero_fill_field() const;
   inline MultiIsolatePlatform* platform() const;
+  inline std::shared_ptr<PerIsolateOptions> options();
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
@@ -393,6 +400,7 @@ class IsolateData {
   uv_loop_t* const event_loop_;
   uint32_t* const zero_fill_field_;
   MultiIsolatePlatform* platform_;
+  std::shared_ptr<PerIsolateOptions> options_;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
@@ -577,10 +585,8 @@ class Environment {
               tracing::AgentWriterHandle* tracing_agent_writer);
   ~Environment();
 
-  void Start(int argc,
-             const char* const* argv,
-             int exec_argc,
-             const char* const* exec_argv,
+  void Start(const std::vector<std::string>& args,
+             const std::vector<std::string>& exec_args,
              bool start_profiler_idle_notifier);
 
   typedef void (*HandleCleanupCb)(Environment* env,
@@ -648,6 +654,8 @@ class Environment {
   // passed to Node. If the flag was not passed, it is ignored.
   inline AliasedBuffer<uint32_t, v8::Uint32Array>&
   should_abort_on_uncaught_toggle();
+
+  inline AliasedBuffer<uint8_t, v8::Uint8Array>& trace_category_state();
 
   // The necessary API for async_hooks.
   inline double new_async_id();
@@ -830,6 +838,25 @@ class Environment {
   // This needs to be available for the JS-land setImmediate().
   void ToggleImmediateRef(bool ref);
 
+  class TrackingTraceStateObserver :
+      public v8::TracingController::TraceStateObserver {
+   public:
+    explicit TrackingTraceStateObserver(Environment* env) : env_(env) {}
+
+    void OnTraceEnabled() override {
+      UpdateTraceCategoryState();
+    }
+
+    void OnTraceDisabled() override {
+      UpdateTraceCategoryState();
+    }
+
+   private:
+    void UpdateTraceCategoryState();
+
+    Environment* env_;
+  };
+
   class ShouldNotAbortOnUncaughtScope {
    public:
     explicit inline ShouldNotAbortOnUncaughtScope(Environment* env);
@@ -855,6 +882,8 @@ class Environment {
   static void BuildEmbedderGraph(v8::Isolate* isolate,
                                  v8::EmbedderGraph* graph,
                                  void* data);
+
+  inline std::shared_ptr<EnvironmentOptions> options();
 
  private:
   inline void CreateImmediate(native_immediate_callback cb,
@@ -886,8 +915,14 @@ class Environment {
   size_t makecallback_cntr_;
   std::vector<double> destroy_async_id_list_;
 
+  std::shared_ptr<EnvironmentOptions> options_;
+
   AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;
+
+  // Attached to a Uint8Array that tracks the state of trace category
+  AliasedBuffer<uint8_t, v8::Uint8Array> trace_category_state_;
+  std::unique_ptr<TrackingTraceStateObserver> trace_state_observer_;
 
   std::unique_ptr<performance::performance_state> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;

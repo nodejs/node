@@ -68,13 +68,13 @@ my $WARNINGS = 0;
   local $^W = 1;       # Make sure this is on for this test
   $template8 = 'We will put value of $v (which is "good") here -> {defined $v ? "bad" : "good"}';
   $result8 = 'We will put value of $v (which is "good") here -> good';
-  my $template =
+  my $template = 
     new Text::Template ('type' => 'STRING', 'source' => $template8);
   my $text = $template->fill_in(HASH => {'v' => undef});
   # (8) Did we generate a warning?
   print +($WARNINGS == 0 ? '' : 'not '), "ok $n\n";
   $n++;
-
+  
   # (9) Was the output correct?
   print +($text eq $result8 ? '' : 'not '), "ok $n\n";
   $n++;
@@ -85,7 +85,7 @@ my $WARNINGS = 0;
   # (10) Did we generate a warning?
   print +($WARNINGS == 0 ? '' : 'not '), "ok $n\n";
   $n++;
-
+  
   # (11) Was the output correct?
   if ($] < 5.005) {
     print "ok $n # skipped -- not supported before 5.005\n";
@@ -98,7 +98,7 @@ my $WARNINGS = 0;
 
 # (12) Now we'll test the multiple-hash option  (Added for 1.20.)
 $text = Text::Template::fill_in_string(q{$v: {$v}.  @v: [{"@v"}].},
-				       HASH => [{'v' => 17},
+				       HASH => [{'v' => 17}, 
 						{'v' => ['a', 'b', 'c']},
 						{'v' => \23},
 					       ]);
@@ -108,3 +108,4 @@ $n++;
 
 
 exit;
+

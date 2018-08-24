@@ -33,7 +33,6 @@
 #include "v8.h"
 #include "tracing/trace_event.h"
 #include "node_perf_common.h"
-#include "node_debug_options.h"
 #include "node_api.h"
 
 #include <stdint.h>
@@ -171,67 +170,13 @@ struct sockaddr;
 
 namespace node {
 
-// Set in node.cc by ParseArgs with the value of --openssl-config.
-// Used in node_crypto.cc when initializing OpenSSL.
-extern std::string openssl_config;
-
-// Set in node.cc by ParseArgs when --preserve-symlinks is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/module.js
-extern bool config_preserve_symlinks;
-
-// Set in node.cc by ParseArgs when --preserve-symlinks-main is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/module.js
-extern bool config_preserve_symlinks_main;
-
-// Set in node.cc by ParseArgs when --experimental-modules is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/module.js
-extern bool config_experimental_modules;
-
-// Set in node.cc by ParseArgs when --experimental-vm-modules is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/vm.js
-extern bool config_experimental_vm_modules;
-
-// Set in node.cc by ParseArgs when --experimental-worker is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by the module loader.
-extern bool config_experimental_worker;
-
-// Set in node.cc by ParseArgs when --experimental-repl-await is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/repl.js.
-extern bool config_experimental_repl_await;
-
-// Set in node.cc by ParseArgs when --loader is used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap/node.js
-extern std::string config_userland_loader;
-
-// Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
-// used.
-// Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap/node.js
-extern bool config_expose_internals;
-
-// Set in node.cc by ParseArgs when --redirect-warnings= is used.
-// Used to redirect warning output to a file rather than sending
-// it to stderr.
-extern std::string config_warning_file;  // NOLINT(runtime/string)
-
-// Set in node.cc by ParseArgs when --pending-deprecation or
-// NODE_PENDING_DEPRECATION is used
-extern bool config_pending_deprecation;
+extern Mutex process_mutex;
+extern Mutex environ_mutex;
 
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;
 
-// Contains initial debug options.
-// Set in node.cc.
-// Used in node_config.cc.
-extern node::DebugOptions debug_options;
+extern std::shared_ptr<PerProcessOptions> per_process_opts;
 
 // Forward declaration
 class Environment;
@@ -415,10 +360,8 @@ inline v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,
 void SetupBootstrapObject(Environment* env,
                           v8::Local<v8::Object> bootstrapper);
 void SetupProcessObject(Environment* env,
-                        int argc,
-                        const char* const* argv,
-                        int exec_argc,
-                        const char* const* exec_argv);
+                        const std::vector<std::string>& args,
+                        const std::vector<std::string>& exec_args);
 
 // Call _register<module_name> functions for all of
 // the built-in modules. Because built-in modules don't
@@ -947,6 +890,26 @@ void StartProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
 void StopProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Umask(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Uptime(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+void EnvDeleter(v8::Local<v8::Name> property,
+                const v8::PropertyCallbackInfo<v8::Boolean>& info);
+void EnvGetter(v8::Local<v8::Name> property,
+               const v8::PropertyCallbackInfo<v8::Value>& info);
+void EnvSetter(v8::Local<v8::Name> property,
+               v8::Local<v8::Value> value,
+               const v8::PropertyCallbackInfo<v8::Value>& info);
+void EnvQuery(v8::Local<v8::Name> property,
+              const v8::PropertyCallbackInfo<v8::Integer>& info);
+void EnvEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info);
+
+void GetParentProcessId(v8::Local<v8::Name> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info);
+
+void ProcessTitleGetter(v8::Local<v8::Name> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info);
+void ProcessTitleSetter(v8::Local<v8::Name> property,
+                        v8::Local<v8::Value> value,
+                        const v8::PropertyCallbackInfo<void>& info);
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 void SetGid(const v8::FunctionCallbackInfo<v8::Value>& args);

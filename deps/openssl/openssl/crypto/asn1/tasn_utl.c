@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -76,7 +76,7 @@ int asn1_do_lock(ASN1_VALUE **pval, int op, const ASN1_ITEM *it)
         }
         return 1;
     }
-    if (CRYPTO_atomic_add(lck, op, &ret, *lock) < 0)
+    if (!CRYPTO_atomic_add(lck, op, &ret, *lock))
         return -1;  /* failed */
 #ifdef REF_PRINT
     fprintf(stderr, "%p:%4d:%s\n", it, *lck, it->sname);

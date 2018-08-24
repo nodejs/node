@@ -1,4 +1,4 @@
-@ Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+@ Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
 @
 @ Licensed under the OpenSSL license (the "License").  You may not use
 @ this file except in compliance with the License.  You can obtain a copy
@@ -265,7 +265,7 @@ sha512_block_data_order:
 	teq	r9,#148
 
 	ldr	r12,[sp,#16+0]	@ c.lo
-#if __ARM_ARCH__>=7
+#ifdef	__thumb2__
 	it	eq			@ Thumb2 thing, sanity check in ARM
 #endif
 	orreq	r14,r14,#1
@@ -405,7 +405,7 @@ sha512_block_data_order:
 	teq	r9,#23
 
 	ldr	r12,[sp,#16+0]	@ c.lo
-#if __ARM_ARCH__>=7
+#ifdef	__thumb2__
 	it	eq			@ Thumb2 thing, sanity check in ARM
 #endif
 	orreq	r14,r14,#1
@@ -442,7 +442,7 @@ sha512_block_data_order:
 	adc	r6,r6,r4		@ h += T
 	tst	r14,#1
 	add	r14,r14,#8
-#if __ARM_ARCH__>=7
+#ifdef	__thumb2__
 	ittt	eq			@ Thumb2 thing, sanity check in ARM
 #endif
 	ldreq	r9,[sp,#184+0]

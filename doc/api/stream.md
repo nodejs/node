@@ -618,6 +618,12 @@ instance, when the `readable.resume()` method is called without a listener
 attached to the `'data'` event, or when a `'data'` event handler is removed
 from the stream.
 
+Adding a [`'readable'`][] event handler automatically make the stream to
+stop flowing, and the data to be consumed via
+[`readable.read()`][stream-read]. If the [`'readable'`] event handler is
+removed, then the stream will start flowing again if there is a
+[`'data'`][] event handler.
+
 #### Three States
 
 The "two modes" of operation for a `Readable` stream are a simplified
@@ -666,12 +672,15 @@ within the streams internal buffer.
 The `Readable` stream API evolved across multiple Node.js versions and provides
 multiple methods of consuming stream data. In general, developers should choose
 *one* of the methods of consuming data and *should never* use multiple methods
-to consume data from a single stream.
+to consume data from a single stream. Specifically, using a combination
+of `on('data')`, `on('readable')`, `pipe()` or async iterators could
+lead to unintuitive behavior.
 
 Use of the `readable.pipe()` method is recommended for most users as it has been
 implemented to provide the easiest way of consuming stream data. Developers that
 require more fine-grained control over the transfer and generation of data can
-use the [`EventEmitter`][] and `readable.pause()`/`readable.resume()` APIs.
+use the [`EventEmitter`][] and `readable.on('readable')`/`readable.read()`
+or the `readable.pause()`/`readable.resume()` APIs.
 
 #### Class: stream.Readable
 <!-- YAML
@@ -825,7 +834,11 @@ result in increased throughput.
 
 If both `'readable'` and [`'data'`][]  are used at the same time, `'readable'`
 takes precedence in controlling the flow, i.e. `'data'` will be emitted
-only when [`stream.read()`][stream-read] is called.
+only when [`stream.read()`][stream-read] is called. The
+`readableFlowing` property would become `false`.
+If there are `'data'` listeners when `'readable'` is removed, the stream
+will start flowing, i.e. `'data'` events will be emitted without calling
+`.resume()`.
 
 ##### readable.destroy([error])
 <!-- YAML
@@ -887,6 +900,9 @@ readable.on('data', (chunk) => {
 });
 ```
 
+The `readable.pause()` method has no effect if there is a `'readable'`
+event listener.
+
 ##### readable.pipe(destination[, options])
 <!-- YAML
 added: v0.9.4
@@ -895,8 +911,8 @@ added: v0.9.4
 * `destination` {stream.Writable} The destination for writing data
 * `options` {Object} Pipe options
   * `end` {boolean} End the writer when the reader ends. **Default:** `true`.
-* Returns: {stream.Writable} making it possible to set up chains of piped
-  streams
+* Returns: {stream.Writable} The *destination*, allowing for a chain of pipes if
+  it is a [`Duplex`][] or a [`Transform`][] stream
 
 The `readable.pipe()` method attaches a [`Writable`][] stream to the `readable`,
 causing it to switch automatically into flowing mode and push all of its data
@@ -1294,12 +1310,21 @@ implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
 The default implementation of `_destroy()` for `Transform` also emit `'close'`.
 
-### stream.finished(stream, callback)
+### stream.finished(stream[, options], callback)
 <!-- YAML
 added: v10.0.0
 -->
 
 * `stream` {Stream} A readable and/or writable stream.
+* `options` {Object}
+  * `error` {boolean} If set to `false`, then a call to `emit('error', err)` is
+    not treated as finished. **Default**: `true`.
+  * `readable` {boolean} When set to `false`, the callback will be called when
+    the stream ends even though the stream might still be readable.
+    **Default**: `true`.
+  * `writable` {boolean} When set to `false`, the callback will be called when
+    the stream ends even though the stream might still be writable.
+    **Default**: `true`.
 * `callback` {Function} A callback function that takes an optional error
   argument.
 
@@ -2438,7 +2463,7 @@ contain multi-byte characters.
 [zlib]: zlib.html
 [hwm-gotcha]: #stream_highwatermark_discrepancy_after_calling_readable_setencoding
 [pipeline]: #stream_stream_pipeline_streams_callback
-[finished]: #stream_stream_finished_stream_callback
+[finished]: #stream_stream_finished_stream_options_callback
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback

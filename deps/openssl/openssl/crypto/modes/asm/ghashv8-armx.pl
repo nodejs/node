@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -64,6 +64,7 @@ my ($t0,$t1,$t2,$xC2,$H,$Hhl,$H2)=map("q$_",(8..14));
 $code=<<___;
 #include "arm_arch.h"
 
+#if __ARM_MAX_ARCH__>=7
 .text
 ___
 $code.=".arch	armv8-a+crypto\n"	if ($flavour =~ /64/);
@@ -351,6 +352,7 @@ ___
 $code.=<<___;
 .asciz  "GHASH for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
 .align  2
+#endif
 ___
 
 if ($flavour =~ /64/) {			######## 64-bit code

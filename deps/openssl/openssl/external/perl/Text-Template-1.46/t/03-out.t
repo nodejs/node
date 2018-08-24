@@ -46,10 +46,11 @@ $textOUT = $templateOUT->fill_in()
 print +($text eq $textOUT ? '' : 'not '), "ok $n\n";
 $n++;
 
-# Missing:  Test this feature in Safe compartments;
+# Missing:  Test this feature in Safe compartments; 
 # it's a totally different code path.
 # Decision: Put that into safe.t, because that file should
 # be skipped when Safe.pm is unavailable.
 
 
 exit;
+

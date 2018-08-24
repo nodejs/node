@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,10 +22,9 @@ int TS_ASN1_INTEGER_print_bio(BIO *bio, const ASN1_INTEGER *num)
     int result = 0;
     char *hex;
 
-    num_bn = BN_new();
+    num_bn = ASN1_INTEGER_to_BN(num, NULL);
     if (num_bn == NULL)
         return -1;
-    ASN1_INTEGER_to_BN(num, num_bn);
     if ((hex = BN_bn2hex(num_bn))) {
         result = BIO_write(bio, "0x", 2) > 0;
         result = result && BIO_write(bio, hex, strlen(hex)) > 0;

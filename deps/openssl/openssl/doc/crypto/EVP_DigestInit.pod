@@ -3,11 +3,12 @@
 =head1 NAME
 
 EVP_MD_CTX_new, EVP_MD_CTX_reset, EVP_MD_CTX_free, EVP_MD_CTX_copy_ex,
+EVP_MD_CTX_set_flags, EVP_MD_CTX_clear_flags, EVP_MD_CTX_test_flags,
 EVP_DigestInit_ex, EVP_DigestUpdate, EVP_DigestFinal_ex,
 EVP_DigestInit, EVP_DigestFinal, EVP_MD_CTX_copy, EVP_MD_type,
 EVP_MD_pkey_type, EVP_MD_size, EVP_MD_block_size, EVP_MD_CTX_md, EVP_MD_CTX_size,
-EVP_MD_CTX_block_size, EVP_MD_CTX_type, EVP_md_null, EVP_md2, EVP_md5, EVP_sha1,
-EVP_sha224, EVP_sha256, EVP_sha384, EVP_sha512, EVP_mdc2,
+EVP_MD_CTX_block_size, EVP_MD_CTX_type, EVP_MD_CTX_md_data, EVP_md_null, EVP_md2,
+EVP_md5, EVP_sha1, EVP_sha224, EVP_sha256, EVP_sha384, EVP_sha512, EVP_mdc2,
 EVP_ripemd160, EVP_blake2b512, EVP_blake2s256, EVP_get_digestbyname,
 EVP_get_digestbynid, EVP_get_digestbyobj - EVP digest routines
 
@@ -18,6 +19,9 @@ EVP_get_digestbynid, EVP_get_digestbyobj - EVP digest routines
  EVP_MD_CTX *EVP_MD_CTX_new(void);
  int EVP_MD_CTX_reset(EVP_MD_CTX *ctx);
  void EVP_MD_CTX_free(EVP_MD_CTX *ctx);
+ void EVP_MD_CTX_set_flags(EVP_MD_CTX *ctx, int flags);
+ void EVP_MD_CTX_clear_flags(EVP_MD_CTX *ctx, int flags);
+ int EVP_MD_CTX_test_flags(const EVP_MD_CTX *ctx, int flags);
 
  int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl);
  int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *d, size_t cnt);
@@ -41,6 +45,7 @@ EVP_get_digestbynid, EVP_get_digestbyobj - EVP digest routines
  int EVP_MD_CTX_size(const EVP_MD *ctx);
  int EVP_MD_CTX_block_size(const EVP_MD *ctx);
  int EVP_MD_CTX_type(const EVP_MD *ctx);
+ void *EVP_MD_CTX_md_data(const EVP_MD_CTX *ctx);
 
  const EVP_MD *EVP_md_null(void);
  const EVP_MD *EVP_md2(void);
@@ -72,6 +77,9 @@ to reuse an already existing context.
 
 EVP_MD_CTX_free() cleans up digest context B<ctx> and frees up the
 space allocated to it.
+
+EVP_MD_CTX_set_flags(), EVP_MD_CTX_clear_flags() and EVP_MD_CTX_test_flags()
+sets, clears and tests B<ctx> flags.  See L</FLAGS> below for more information.
 
 EVP_DigestInit_ex() sets up digest context B<ctx> to use a digest
 B<type> from ENGINE B<impl>. B<ctx> must be initialized before calling this
@@ -117,6 +125,11 @@ representing the given message digest when passed an B<EVP_MD> structure.
 For example EVP_MD_type(EVP_sha1()) returns B<NID_sha1>. This function is
 normally used when setting ASN1 OIDs.
 
+EVP_MD_CTX_md_data() return the digest method private data for the passed
+B<EVP_MD_CTX>.
+The space is allocated by OpenSSL and has the size originally set with
+EVP_MD_meth_set_app_datasize().
+
 EVP_MD_CTX_md() returns the B<EVP_MD> structure corresponding to the passed
 B<EVP_MD_CTX>.
 
@@ -138,6 +151,38 @@ returns is of zero length.
 EVP_get_digestbyname(), EVP_get_digestbynid() and EVP_get_digestbyobj()
 return an B<EVP_MD> structure when passed a digest name, a digest NID or
 an ASN1_OBJECT structure respectively.
+
+=head1 FLAGS
+
+EVP_MD_CTX_set_flags(), EVP_MD_CTX_clear_flags() and EVP_MD_CTX_test_flags()
+can be used the manipulate and test these B<EVP_MD_CTX> flags:
+
+=over 4
+
+=item EVP_MD_CTX_FLAG_ONESHOT
+
+This flag instructs the digest to optimize for one update only, if possible.
+
+=for comment EVP_MD_CTX_FLAG_CLEANED is internal, don't mention it
+
+=for comment EVP_MD_CTX_FLAG_REUSE is internal, don't mention it
+
+=for comment We currently avoid documenting flags that are only bit holder:
+EVP_MD_CTX_FLAG_NON_FIPS_ALLOW, EVP_MD_CTX_FLAGS_PAD_*
+
+=item EVP_MD_CTX_FLAG_NO_INIT
+
+This flag instructs EVP_DigestInit() and similar not to initialise the
+implementation specific data.
+
+=item EVP_MD_CTX_FLAG_FINALISE
+
+Some functions such as EVP_DigestSign only finalise copies of internal
+contexts so additional data can be included after the finalisation call.
+This is inefficient if this functionality is not required, and can be
+disabled with this flag.
+
+=back
 
 =head1 RETURN VALUES
 
@@ -249,7 +294,7 @@ was removed in OpenSSL 1.1.0
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

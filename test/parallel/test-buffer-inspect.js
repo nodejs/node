@@ -33,7 +33,7 @@ b.fill('1234');
 let s = buffer.SlowBuffer(4);
 s.fill('1234');
 
-let expected = '<Buffer 31 32 ... >';
+let expected = '<Buffer 31 32 ... 2 more bytes>';
 
 assert.strictEqual(util.inspect(b), expected);
 assert.strictEqual(util.inspect(s), expected);

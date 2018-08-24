@@ -599,8 +599,7 @@ For convenience, `options.stdio` may be one of the following strings:
 
 * `'pipe'` - equivalent to `['pipe', 'pipe', 'pipe']` (the default)
 * `'ignore'` - equivalent to `['ignore', 'ignore', 'ignore']`
-* `'inherit'` - equivalent to `[process.stdin, process.stdout, process.stderr]`
-   or `[0,1,2]`
+* `'inherit'` - equivalent to `['inherit', 'inherit', 'inherit']` or `[0, 1, 2]`
 
 Otherwise, the value of `options.stdio` is an array where each index corresponds
 to an fd in the child. The fds 0, 1, and 2 correspond to stdin, stdout,
@@ -626,16 +625,20 @@ pipes between the parent and child. The value is one of the following:
    will always open fds 0 - 2 for the processes it spawns, setting the fd to
    `'ignore'` will cause Node.js to open `/dev/null` and attach it to the
    child's fd.
-4. {Stream} object - Share a readable or writable stream that refers to a tty,
+4. `'inherit'` - Pass through the corresponding stdio stream to/from the
+   parent process.  In the first three positions, this is equivalent to
+   `process.stdin`, `process.stdout`, and `process.stderr`, respectively.  In
+   any other position, equivalent to `'ignore'`.
+5. {Stream} object - Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
    file descriptor is duplicated in the child process to the fd that
    corresponds to the index in the `stdio` array. Note that the stream must
    have an underlying descriptor (file streams do not until the `'open'`
    event has occurred).
-5. Positive integer - The integer value is interpreted as a file descriptor
+6. Positive integer - The integer value is interpreted as a file descriptor
    that is currently open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared.
-6. `null`, `undefined` - Use default value. For stdio fds 0, 1, and 2 (in other
+7. `null`, `undefined` - Use default value. For stdio fds 0, 1, and 2 (in other
    words, stdin, stdout, and stderr) a pipe is created. For fd 3 and up, the
    default is `'ignore'`.
 

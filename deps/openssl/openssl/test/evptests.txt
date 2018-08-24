@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -15,7 +15,7 @@
 # Which is currently unsupported by OpenSSL.  They were generated using the
 # reference implementation.  RFC7693 also mentions the 616263 / "abc" values.
 Digest = BLAKE2s256
-Input =
+Input = 
 Output = 69217a3079908094e11121d042354a7c1f55b6482ca1a51e1b250dfd1ed0eef9
 
 Digest = BLAKE2s256
@@ -51,7 +51,7 @@ Input = 000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F20212223
 Output = C80ABEEBB669AD5DEEB5F5EC8EA6B7A05DDF7D31EC4C0A2EE20B0B98CAEC6746
 
 Digest = BLAKE2b512
-Input =
+Input = 
 Output = 786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce
 
 Digest = BLAKE2b512
@@ -19144,6 +19144,35 @@ PeerKey=KAS-ECC-CDH_B-571_C24-Peer-PUBLIC
 Ctrl=ecdh_cofactor_mode:1
 SharedSecret=02da266a269bdc8d8b2a0c6bb5762f102fc801c8d5394a9271539136bd81d4b69cfbb7525cd0a983fb7f7e9deec583b8f8e574c6184b2d79831ec770649e484dc006fa35b0bffd0b
 
+# for cofactor-order points, ECC CDH (co-factor ECDH) should fail. Test that.
+
+PrivateKey=ALICE_cf_sect283k1
+-----BEGIN PRIVATE KEY-----
+MIGQAgEAMBAGByqGSM49AgEGBSuBBAAQBHkwdwIBAQQkAHtPwRfQZ9pWgSctyHdt
+xt3pd8ESMI3ugVx8MDLkiVB8GkCRoUwDSgAEA+xpY5sDcgM2yYxoWOrzH7WUH+b3
+n68A32kODgcKu8PXRYEKBH8Xzbr974982ZJW1sGrDs+P81sIFH8tdp45Jkr+OtfM
+8uKr
+-----END PRIVATE KEY-----
+
+PublicKey=ALICE_cf_sect283k1_PUB
+-----BEGIN PUBLIC KEY-----
+MF4wEAYHKoZIzj0CAQYFK4EEABADSgAEA+xpY5sDcgM2yYxoWOrzH7WUH+b3n68A
+32kODgcKu8PXRYEKBH8Xzbr974982ZJW1sGrDs+P81sIFH8tdp45Jkr+OtfM8uKr
+-----END PUBLIC KEY-----
+
+PublicKey=BOB_cf_sect283k1_PUB
+-----BEGIN PUBLIC KEY-----
+MF4wEAYHKoZIzj0CAQYFK4EEABADSgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB
+-----END PUBLIC KEY-----
+
+PrivPubKeyPair = ALICE_cf_sect283k1:ALICE_cf_sect283k1_PUB
+
+# ECDH Alice with Bob peer
+Derive=ALICE_cf_sect283k1
+PeerKey=BOB_cf_sect283k1_PUB
+Ctrl=ecdh_cofactor_mode:1
+Result = DERIVE_ERROR
 
 # Test mismatches
 PrivPubKeyPair = Alice-25519:Bob-25519-PUBLIC

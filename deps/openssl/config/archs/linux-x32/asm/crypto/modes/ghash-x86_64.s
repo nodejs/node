@@ -1,4 +1,4 @@
-.text
+.text	
 
 
 .globl	gcm_gmult_4bit

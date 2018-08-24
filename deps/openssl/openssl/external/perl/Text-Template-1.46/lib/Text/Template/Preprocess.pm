@@ -28,7 +28,7 @@ sub preprocessor {
 1;
 
 
-=head1 NAME
+=head1 NAME 
 
 Text::Template::Preprocess - Expand template text with embedded Perl
 
@@ -82,8 +82,8 @@ this:
         Plain text here...
         { perl code }
         <script language=JavaScript>
-	      if (br== "n3") {
-		  // etc.
+     	      if (br== "n3") { 
+	  	  // etc.
 	      }
         </script>
         { more perl code }
@@ -96,7 +96,7 @@ JavaScript program with executable Perl code.  One strategy:
           s(<script(.*?)</script>)(q{$1})gsi;
         }
 
-Then use C<PREPROCESSOR =E<gt> \&quote_scripts>.  This will transform
+Then use C<PREPROCESSOR =E<gt> \&quote_scripts>.  This will transform 
 
 
 
@@ -141,3 +141,4 @@ For updates, visit C<http://www.plover.com/~mjd/perl/Template/>.
 
 
 =cut
+

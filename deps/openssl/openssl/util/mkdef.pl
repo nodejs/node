@@ -252,6 +252,7 @@ $crypto.=" include/internal/o_dir.h";
 $crypto.=" include/internal/o_str.h";
 $crypto.=" include/internal/err.h";
 $crypto.=" include/internal/asn1t.h";
+$crypto.=" include/internal/sslconf.h";
 $crypto.=" include/openssl/des.h" ; # unless $no_des;
 $crypto.=" include/openssl/idea.h" ; # unless $no_idea;
 $crypto.=" include/openssl/rc4.h" ; # unless $no_rc4;
@@ -1335,7 +1336,7 @@ EOF
 	} elsif ($VMS) {
             print OUT ")\n";
             (my $libvmaj, my $libvmin, my $libvedit) =
-                $currversion =~ /^(\d+)_(\d+)_(\d+)$/;
+                $currversion =~ /^(\d+)_(\d+)_(\d+)[a-z]{0,2}$/;
             # The reason to multiply the edit number with 100 is to make space
             # for the possibility that we want to encode the patch letters
             print OUT "GSMATCH=LEQUAL,",($libvmaj * 100 + $libvmin),",",($libvedit * 100),"\n";

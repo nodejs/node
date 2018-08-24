@@ -448,7 +448,7 @@ my ($mode,$opcode) = @_;
 	&mov	("esi",&wparam(1));
 	&mov	("ecx",&wparam(2));
     if ($::win32 or $::coff) {
-	&push	(&::islabel("_win32_segv_handler"));
+    	&push	(&::islabel("_win32_segv_handler"));
 	&data_byte(0x64,0xff,0x30);		# push	%fs:(%eax)
 	&data_byte(0x64,0x89,0x20);		# mov	%esp,%fs:(%eax)
     }
@@ -499,7 +499,7 @@ my ($mode,$opcode) = @_;
 	&mov	("edi",&wparam(0));
 	&movups	(&QWP(0,"edi"),"xmm0");		# copy-out context
 	&mov	(&DWP(16,"edi"),"eax");
-	&pop	("esi");
+ 	&pop	("esi");
 	&pop	("edi");
 	&ret	();
 &function_end_B("padlock_sha1_blocks");
@@ -512,7 +512,7 @@ my ($mode,$opcode) = @_;
 	&mov	("esi",&wparam(1));
 	&mov	("ecx",&wparam(2));
     if ($::win32 or $::coff) {
-	&push	(&::islabel("_win32_segv_handler"));
+    	&push	(&::islabel("_win32_segv_handler"));
 	&data_byte(0x64,0xff,0x30);		# push	%fs:(%eax)
 	&data_byte(0x64,0x89,0x20);		# mov	%esp,%fs:(%eax)
     }

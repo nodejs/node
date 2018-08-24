@@ -21,7 +21,7 @@ Detailed documentation is at the bottom of the lib/Text/Template.pm
 file.  You may be able to view it with the following command:
 
         perldoc Text::Template
-
+ 
 Or:
 
         perldoc lib/Text/Template.pm

@@ -313,8 +313,8 @@ the data is read it will consume memory that can eventually lead to a
 Node.js does not check whether Content-Length and the length of the
 body which has been transmitted are equal or not.
 
-The request implements the [Writable Stream][] interface. This is an
-[`EventEmitter`][] with the following events:
+The request inherits from [Stream][], and additionally implements the
+following:
 
 ### Event: 'abort'
 <!-- YAML
@@ -744,11 +744,14 @@ The `encoding` argument is optional and only applies when `chunk` is a string.
 Defaults to `'utf8'`.
 
 The `callback` argument is optional and will be called when this chunk of data
-is flushed.
+is flushed, but only if the chunk is non-empty.
 
 Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is free again.
+
+When `write` function is called with empty string or buffer, it does
+nothing and waits for more input.
 
 ## Class: http.Server
 <!-- YAML
@@ -1013,8 +1016,8 @@ added: v0.1.17
 This object is created internally by an HTTP server — not by the user. It is
 passed as the second parameter to the [`'request'`][] event.
 
-The response implements, but does not inherit from, the [Writable Stream][]
-interface. This is an [`EventEmitter`][] with the following events:
+The response inherits from [Stream][], and additionally implements the
+following:
 
 ### Event: 'close'
 <!-- YAML
@@ -1802,7 +1805,7 @@ added to the [`'request'`][] event.
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: REPLACEME
+  - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21616
     description: allow both url and options to be passed to `http.get()`
   - version: v7.5.0
@@ -1879,7 +1882,7 @@ requests.
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: REPLACEME
+  - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21616
     description: allow both url and options to be passed to `http.request()`
   - version: v7.5.0
@@ -2066,7 +2069,6 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`'upgrade'`]: #http_event_upgrade
 [`Agent`]: #http_class_http_agent
 [`Duplex`]: stream.html#stream_class_stream_duplex
-[`EventEmitter`]: events.html#events_class_eventemitter
 [`TypeError`]: errors.html#errors_class_typeerror
 [`URL`]: url.html#url_the_whatwg_url_api
 [`agent.createConnection()`]: #http_agent_createconnection_options_callback
@@ -2110,4 +2112,3 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`socket.unref()`]: net.html#net_socket_unref
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [Readable Stream]: stream.html#stream_class_stream_readable
-[Writable Stream]: stream.html#stream_class_stream_writable

@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto)
@@ -6,7 +7,8 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-if (typeof process.binding('crypto').scrypt !== 'function')
+const { internalBinding } = require('internal/test/binding');
+if (typeof internalBinding('crypto').scrypt !== 'function')
   common.skip('no scrypt support');
 
 const good = [
@@ -95,8 +97,6 @@ const good = [
 const bad = [
   { N: 1, p: 1, r: 1 },         // N < 2
   { N: 3, p: 1, r: 1 },         // Not power of 2.
-  { N: 2 ** 16, p: 1, r: 1 },   // N >= 2**(r*16)
-  { N: 2, p: 2 ** 30, r: 1 },   // p > (2**30-1)/r
   { N: 1, cost: 1 },            // both N and cost
   { p: 1, parallelization: 1 }, // both p and parallelization
   { r: 1, blockSize: 1 }        // both r and blocksize
@@ -104,6 +104,8 @@ const bad = [
 
 // Test vectors where 128*N*r exceeds maxmem.
 const toobig = [
+  { N: 2 ** 16, p: 1, r: 1 },   // N >= 2**(r*16)
+  { N: 2, p: 2 ** 30, r: 1 },   // p > (2**30-1)/r
   { N: 2 ** 20, p: 1, r: 8 },
   { N: 2 ** 10, p: 1, r: 8, maxmem: 2 ** 20 },
 ];

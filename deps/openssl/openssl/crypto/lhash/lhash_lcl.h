@@ -21,7 +21,7 @@ struct lhash_st {
     /*
      * some stats are updated on lookup, which callers aren't expecting to have
      * to take an exclusive lock around. This lock protects them on platforms
-     * without atomics, and their types are int rather than unsigned long below
+     * without atomics, and their types are int rather than unsigned long below 
      * so they can be adjusted with CRYPTO_atomic_add.
      */
     CRYPTO_RWLOCK *retrieve_stats_lock;

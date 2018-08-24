@@ -43,6 +43,7 @@ BIO_METHOD *BIO_meth_new(int type, const char *name)
         BIOerr(BIO_F_BIO_METH_NEW, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
+    biom->type = type;
     return biom;
 }
 
@@ -54,7 +55,7 @@ void BIO_meth_free(BIO_METHOD *biom)
     }
 }
 
-int (*BIO_meth_get_write(BIO_METHOD *biom)) (BIO *, const char *, int)
+int (*BIO_meth_get_write(const BIO_METHOD *biom)) (BIO *, const char *, int)
 {
     return biom->bwrite;
 }
@@ -66,7 +67,7 @@ int BIO_meth_set_write(BIO_METHOD *biom,
     return 1;
 }
 
-int (*BIO_meth_get_read(BIO_METHOD *biom)) (BIO *, char *, int)
+int (*BIO_meth_get_read(const BIO_METHOD *biom)) (BIO *, char *, int)
 {
     return biom->bread;
 }
@@ -78,7 +79,7 @@ int BIO_meth_set_read(BIO_METHOD *biom,
     return 1;
 }
 
-int (*BIO_meth_get_puts(BIO_METHOD *biom)) (BIO *, const char *)
+int (*BIO_meth_get_puts(const BIO_METHOD *biom)) (BIO *, const char *)
 {
     return biom->bputs;
 }
@@ -90,7 +91,7 @@ int BIO_meth_set_puts(BIO_METHOD *biom,
     return 1;
 }
 
-int (*BIO_meth_get_gets(BIO_METHOD *biom)) (BIO *, char *, int)
+int (*BIO_meth_get_gets(const BIO_METHOD *biom)) (BIO *, char *, int)
 {
     return biom->bgets;
 }
@@ -102,7 +103,7 @@ int BIO_meth_set_gets(BIO_METHOD *biom,
     return 1;
 }
 
-long (*BIO_meth_get_ctrl(BIO_METHOD *biom)) (BIO *, int, long, void *)
+long (*BIO_meth_get_ctrl(const BIO_METHOD *biom)) (BIO *, int, long, void *)
 {
     return biom->ctrl;
 }
@@ -114,7 +115,7 @@ int BIO_meth_set_ctrl(BIO_METHOD *biom,
     return 1;
 }
 
-int (*BIO_meth_get_create(BIO_METHOD *biom)) (BIO *)
+int (*BIO_meth_get_create(const BIO_METHOD *biom)) (BIO *)
 {
     return biom->create;
 }
@@ -125,7 +126,7 @@ int BIO_meth_set_create(BIO_METHOD *biom, int (*create) (BIO *))
     return 1;
 }
 
-int (*BIO_meth_get_destroy(BIO_METHOD *biom)) (BIO *)
+int (*BIO_meth_get_destroy(const BIO_METHOD *biom)) (BIO *)
 {
     return biom->destroy;
 }
@@ -136,7 +137,7 @@ int BIO_meth_set_destroy(BIO_METHOD *biom, int (*destroy) (BIO *))
     return 1;
 }
 
-long (*BIO_meth_get_callback_ctrl(BIO_METHOD *biom)) (BIO *, int, BIO_info_cb *)
+long (*BIO_meth_get_callback_ctrl(const BIO_METHOD *biom)) (BIO *, int, BIO_info_cb *)
 {
     return biom->callback_ctrl;
 }

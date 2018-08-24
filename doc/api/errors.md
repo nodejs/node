@@ -1694,6 +1694,12 @@ A `Transform` stream finished with data still in the write buffer.
 
 The initialization of a TTY failed due to a system error.
 
+<a id="ERR_TTY_WRITABLE_NOT_READABLE"></a>
+### ERR_TTY_WRITABLE_NOT_READABLE
+
+This `Error` is thrown when a read is attempted on a TTY `WriteStream`,
+such as `process.stdout.on('data')`.
+
 <a id="ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET"></a>
 ### ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET
 

@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
 const { Worker } = require('worker_threads');
+const { spawnSync } = require('child_process');
 
 // This is a sibling test to test/addons/uv-handle-leak.
 
@@ -49,9 +50,25 @@ if (process.argv[2] === 'child') {
   //         Close callback: 0x7f2df31de220 CloseCallback(uv_handle_s*) [...]
   //         Data: 0x42
 
+  function isGlibc() {
+    try {
+      const lddOut = spawnSync('ldd', [process.execPath]).stdout;
+      const libcInfo = lddOut.toString().split('\n').map(
+        (line) => line.match(/libc\.so.+=>\s*(\S+)\s/)).filter((info) => info);
+      if (libcInfo.length === 0)
+        return false;
+      const nmOut = spawnSync('nm', ['-D', libcInfo[0][1]]).stdout;
+      if (/gnu_get_libc_version/.test(nmOut))
+        return true;
+    } catch {
+      return false;
+    }
+  }
+
+
   if (!(common.isFreeBSD ||
         common.isAIX ||
-        (common.isLinux && !common.isGlibc()) ||
+        (common.isLinux && !isGlibc()) ||
         common.isWindows)) {
     assert(stderr.includes('ExampleOwnerClass'), stderr);
     assert(stderr.includes('CloseCallback'), stderr);

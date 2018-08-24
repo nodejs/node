@@ -12,18 +12,21 @@ const bench = common.createBenchmark(main, {
   len: [102400, 1024 * 1024 * 16],
   type: ['utf', 'asc', 'buf'],
   dur: [5]
+}, {
+  flags: [ '--expose-internals', '--no-warnings' ]
 });
 
-function fail(err, syscall) {
-  throw util._errnoException(err, syscall);
-}
-
-const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
-const TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
-const WriteWrap = process.binding('stream_wrap').WriteWrap;
-const PORT = common.PORT;
-
 function main({ dur, len, type }) {
+  const { internalBinding } = require('internal/test/binding');
+  const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
+  const { TCPConnectWrap } = process.binding('tcp_wrap');
+  const { WriteWrap } = internalBinding('stream_wrap');
+  const PORT = common.PORT;
+
+  function fail(err, syscall) {
+    throw util._errnoException(err, syscall);
+  }
+
   // Server
   const serverHandle = new TCP(TCPConstants.SERVER);
   var err = serverHandle.bind('127.0.0.1', PORT);

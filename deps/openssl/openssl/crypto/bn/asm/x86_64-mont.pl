@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -302,30 +302,30 @@ $code.=<<___;
 
 	xor	$i,$i			# i=0 and clear CF!
 	mov	(%rsp),%rax		# tp[0]
-	lea	(%rsp),$ap		# borrow ap for tp
 	mov	$num,$j			# j=num
-	jmp	.Lsub
+
 .align	16
 .Lsub:	sbb	($np,$i,8),%rax
 	mov	%rax,($rp,$i,8)		# rp[i]=tp[i]-np[i]
-	mov	8($ap,$i,8),%rax	# tp[i+1]
+	mov	8(%rsp,$i,8),%rax	# tp[i+1]
 	lea	1($i),$i		# i++
 	dec	$j			# doesnn't affect CF!
 	jnz	.Lsub
 
 	sbb	\$0,%rax		# handle upmost overflow bit
+	mov	\$-1,%rbx
+	xor	%rax,%rbx		# not %rax
 	xor	$i,$i
-	and	%rax,$ap
-	not	%rax
-	mov	$rp,$np
-	and	%rax,$np
 	mov	$num,$j			# j=num
-	or	$np,$ap			# ap=borrow?tp:rp
-.align	16
-.Lcopy:					# copy or in-place refresh
-	mov	($ap,$i,8),%rax
-	mov	$i,(%rsp,$i,8)		# zap temporary vector
-	mov	%rax,($rp,$i,8)		# rp[i]=tp[i]
+
+.Lcopy:					# conditional copy
+	mov	($rp,$i,8),%rcx
+	mov	(%rsp,$i,8),%rdx
+	and	%rbx,%rcx
+	and	%rax,%rdx
+	mov	$num,(%rsp,$i,8)	# zap temporary vector
+	or	%rcx,%rdx
+	mov	%rdx,($rp,$i,8)		# rp[i]=tp[i]
 	lea	1($i),$i
 	sub	\$1,$j
 	jnz	.Lcopy
@@ -695,10 +695,10 @@ ___
 my @ri=("%rax","%rdx",$m0,$m1);
 $code.=<<___;
 	mov	16(%rsp,$num,8),$rp	# restore $rp
+	lea	-4($num),$j
 	mov	0(%rsp),@ri[0]		# tp[0]
-	pxor	%xmm0,%xmm0
 	mov	8(%rsp),@ri[1]		# tp[1]
-	shr	\$2,$num		# num/=4
+	shr	\$2,$j			# j=num/4-1
 	lea	(%rsp),$ap		# borrow ap for tp
 	xor	$i,$i			# i=0 and clear CF!
 
@@ -706,9 +706,7 @@ $code.=<<___;
 	mov	16($ap),@ri[2]		# tp[2]
 	mov	24($ap),@ri[3]		# tp[3]
 	sbb	8($np),@ri[1]
-	lea	-1($num),$j		# j=num/4-1
-	jmp	.Lsub4x
-.align	16
+
 .Lsub4x:
 	mov	@ri[0],0($rp,$i,8)	# rp[i]=tp[i]-np[i]
 	mov	@ri[1],8($rp,$i,8)	# rp[i]=tp[i]-np[i]
@@ -735,34 +733,35 @@ $code.=<<___;
 
 	sbb	\$0,@ri[0]		# handle upmost overflow bit
 	mov	@ri[3],24($rp,$i,8)	# rp[i]=tp[i]-np[i]
-	xor	$i,$i			# i=0
-	and	@ri[0],$ap
-	not	@ri[0]
-	mov	$rp,$np
-	and	@ri[0],$np
-	lea	-1($num),$j
-	or	$np,$ap			# ap=borrow?tp:rp
+	pxor	%xmm0,%xmm0
+	movq	@ri[0],%xmm4
+	pcmpeqd	%xmm5,%xmm5
+	pshufd	\$0,%xmm4,%xmm4
+	mov	$num,$j
+	pxor	%xmm4,%xmm5
+	shr	\$2,$j			# j=num/4
+	xor	%eax,%eax		# i=0
 
-	movdqu	($ap),%xmm1
-	movdqa	%xmm0,(%rsp)
-	movdqu	%xmm1,($rp)
 	jmp	.Lcopy4x
 .align	16
-.Lcopy4x:					# copy or in-place refresh
-	movdqu	16($ap,$i),%xmm2
-	movdqu	32($ap,$i),%xmm1
-	movdqa	%xmm0,16(%rsp,$i)
-	movdqu	%xmm2,16($rp,$i)
-	movdqa	%xmm0,32(%rsp,$i)
-	movdqu	%xmm1,32($rp,$i)
-	lea	32($i),$i
+.Lcopy4x:				# conditional copy
+	movdqa	(%rsp,%rax),%xmm1
+	movdqu	($rp,%rax),%xmm2
+	pand	%xmm4,%xmm1
+	pand	%xmm5,%xmm2
+	movdqa	16(%rsp,%rax),%xmm3
+	movdqa	%xmm0,(%rsp,%rax)
+	por	%xmm2,%xmm1
+	movdqu	16($rp,%rax),%xmm2
+	movdqu	%xmm1,($rp,%rax)
+	pand	%xmm4,%xmm3
+	pand	%xmm5,%xmm2
+	movdqa	%xmm0,16(%rsp,%rax)
+	por	%xmm2,%xmm3
+	movdqu	%xmm3,16($rp,%rax)
+	lea	32(%rax),%rax
 	dec	$j
 	jnz	.Lcopy4x
-
-	shl	\$2,$num
-	movdqu	16($ap,$i),%xmm2
-	movdqa	%xmm0,16(%rsp,$i)
-	movdqu	%xmm2,16($rp,$i)
 ___
 }
 $code.=<<___;

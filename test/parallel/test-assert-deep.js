@@ -893,6 +893,17 @@ assert.deepStrictEqual(obj1, obj2);
                '  [\n    1,\n+   2\n-   2,\n-   3\n  ]' }
   );
   util.inspect.defaultOptions = tmp;
+
+  const invalidTrap = new Proxy([1, 2, 3], {
+    ownKeys() { return []; }
+  });
+  assert.throws(
+    () => assert.deepStrictEqual(invalidTrap, [1, 2, 3]),
+    {
+      name: 'TypeError',
+      message: "'ownKeys' on proxy: trap result did not include 'length'"
+    }
+  );
 }
 
 // Basic valueOf check.
@@ -900,4 +911,11 @@ assert.deepStrictEqual(obj1, obj2);
   const a = new String(1);
   a.valueOf = undefined;
   assertNotDeepOrStrict(a, new String(1));
+}
+
+// Basic array out of bounds check.
+{
+  const arr = [1, 2, 3];
+  arr[2 ** 32] = true;
+  assertNotDeepOrStrict(arr, [1, 2, 3]);
 }
