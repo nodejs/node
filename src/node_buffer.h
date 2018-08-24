@@ -27,8 +27,9 @@
 
 namespace node {
 
-// TODO(addaleax): Deprecate and remove this ASAP.
-extern bool zero_fill_all_buffers;
+// TODO(addaleax): Remove this.
+NODE_DEPRECATED("use command-line flags",
+                extern bool zero_fill_all_buffers);
 
 namespace Buffer {
 
