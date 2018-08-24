@@ -103,7 +103,7 @@ declare namespace ajv {
     * @param  {object} options optional options with properties `separator` and `dataVar`.
     * @return {string} human readable string with all errors descriptions
     */
-    errorsText(errors?: Array<ErrorObject>, options?: ErrorsTextOptions): string;
+    errorsText(errors?: Array<ErrorObject> | null, options?: ErrorsTextOptions): string;
     errors?: Array<ErrorObject>;
   }
 
