@@ -1037,7 +1037,7 @@ release.
 Type: Runtime
 
 The `crypto._toBuf()` function was not designed to be used by modules outside
-of Node.js core and will become unavailable in the future.
+of Node.js core and will be removed in the future.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
