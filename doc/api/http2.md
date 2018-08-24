@@ -4,7 +4,7 @@ added: v8.4.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22466
-    description: HTTP/2 has graduated from experimental status.
+    description: HTTP/2 is now Stable. Previously, it had been Experimental.
 -->
 <!--introduced_in=v8.4.0-->
 
