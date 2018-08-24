@@ -6,7 +6,7 @@ const http = require('http');
 const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
 const { parse: parseURL } = require('url');
-const { getURLFromFilePath } = require('internal/url');
+const { pathToFileURL } = require('internal/url');
 const { EventEmitter } = require('events');
 
 const _MAINSCRIPT = fixtures.path('loop.js');
@@ -174,7 +174,7 @@ class InspectorSession {
         const { scriptId, url } = message.params;
         this._scriptsIdsByUrl.set(scriptId, url);
         const fileUrl = url.startsWith('file:') ?
-          url : getURLFromFilePath(url).toString();
+          url : pathToFileURL(url).toString();
         if (fileUrl === this.scriptURL().toString()) {
           this.mainScriptId = scriptId;
         }
@@ -309,7 +309,7 @@ class InspectorSession {
   }
 
   scriptURL() {
-    return getURLFromFilePath(this.scriptPath());
+    return pathToFileURL(this.scriptPath());
   }
 }
 
