@@ -953,7 +953,10 @@ where using `pathToFileURL` we can get the correct results above.
 When converting from URL to path, the following common errors can occur:
 
 ```js
-// '/foo.txt' instead of '//nas/foo.txt' (Windows)
+// '/C:/path/' instead of 'C:\path\'
+new URL('file:///C:/path/').pathname;
+
+// '/foo.txt' instead of '\\nas\foo.txt' (Windows)
 new URL('file://nas/foo.txt').pathname;
 
 // '/%E4%BD%A0%E5%A5%BD.txt' instead of '/你好.txt' (posix)
