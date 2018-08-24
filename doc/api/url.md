@@ -925,7 +925,7 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 
 When working with `file:///` URLs in Node.js (eg when working with ES modules
 which are keyed in the registry by File URL), the utility functions
-`urlToFilePath` and `fileURLToPath` are provided to convert to and from file
+`pathToFileURL` and `fileURLToPath` are provided to convert to and from file
 paths.
 
 The edge cases handled by these functions include percent-encoding and decoding
@@ -942,10 +942,10 @@ new URL(__filename);
 new URL('./foo#1', 'file:///');
 
 // 'file:///nas/foo.txt' instead of the correct 'file:///foo.txt' (posix)
-new URL('file://' + '//nas/foo.txt');
+new URL(`file://${'//nas/foo.txt'}`);
 
 // 'file:///some/path%' instead of the correct 'file:///some/path%25' (posix)
-new URL('file:' + '/some/path%.js');
+new URL(`sfile:${'/some/path%.js'}`);
 ```
 
 where using `pathToFileURL` we can get the correct results above.
