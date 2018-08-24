@@ -924,7 +924,7 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 ## File URL Utility Functions
 
 When working with `file:///` URLs in Node.js (eg when working with ES modules
-which are keyed in the registry by File URL), the utility functions
+which are keyed in the module map by File URL), the utility functions
 `pathToFileURL` and `fileURLToPath` are provided to convert to and from file
 paths.
 
