@@ -1949,24 +1949,6 @@ removed: v10.0.0
 Used when an invalid character is found in an HTTP response status message
 (reason phrase).
 
-<a id="ERR_INVALID_ARRAY_LENGTH"></a>
-### ERR_INVALID_ARRAY_LENGTH
-<!-- YAML
-added: v9.0.0
-removed: REPLACEME
--->
-
-Used when an Array is not of the expected length or in a valid range.
-
-<a id="ERR_INVALID_DOMAIN_NAME"></a>
-### ERR_INVALID_DOMAIN_NAME
-<!-- YAML
-added: v9.0.0
-removed: REPLACEME
--->
-
-Used when `hostname` cannot be parsed from a provided URL.
-
 <a id="ERR_INVALID_REPL_HISTORY"></a>
 ### ERR_INVALID_REPL_HISTORY
 <!-- YAML
