@@ -1,6 +1,7 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
+const { addresses } = require('../common/internet');
 const assert = require('assert');
 const cares = process.binding('cares_wrap');
 const dns = require('dns');
@@ -95,6 +96,30 @@ common.expectsError(() => {
     all: false
   });
   assert.deepStrictEqual(res, { address: '127.0.0.1', family: 4 });
+
+  assert.rejects(
+    dnsPromises.lookup(addresses.INVALID_HOST, {
+      hints: 0,
+      family: 0,
+      all: false
+    }),
+    {
+      code: 'ENOTFOUND',
+      message: `getaddrinfo ENOTFOUND ${addresses.INVALID_HOST}`
+    }
+  );
+
+  assert.rejects(
+    dnsPromises.lookup(addresses.INVALID_HOST, {
+      hints: 0,
+      family: 0,
+      all: true
+    }),
+    {
+      code: 'ENOTFOUND',
+      message: `getaddrinfo ENOTFOUND ${addresses.INVALID_HOST}`
+    }
+  );
 })();
 
 dns.lookup(false, {
