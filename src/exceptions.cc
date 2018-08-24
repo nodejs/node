@@ -26,32 +26,32 @@ Local<Value> ErrnoException(Isolate* isolate,
   Environment* env = Environment::GetCurrent(isolate);
 
   Local<Value> e;
-  Local<String> estring = OneByteString(env->isolate(), errno_string(errorno));
+  Local<String> estring = OneByteString(isolate, errno_string(errorno));
   if (msg == nullptr || msg[0] == '\0') {
     msg = strerror(errorno);
   }
-  Local<String> message = OneByteString(env->isolate(), msg);
+  Local<String> message = OneByteString(isolate, msg);
 
   Local<String> cons =
-      String::Concat(estring, FIXED_ONE_BYTE_STRING(env->isolate(), ", "));
-  cons = String::Concat(cons, message);
+      String::Concat(isolate, estring, FIXED_ONE_BYTE_STRING(isolate, ", "));
+  cons = String::Concat(isolate, cons, message);
 
   Local<String> path_string;
   if (path != nullptr) {
     // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
-    path_string = String::NewFromUtf8(env->isolate(), path,
-        v8::NewStringType::kNormal).ToLocalChecked();
+    path_string = String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
+                      .ToLocalChecked();
   }
 
   if (path_string.IsEmpty() == false) {
-    cons = String::Concat(cons, FIXED_ONE_BYTE_STRING(env->isolate(), " '"));
-    cons = String::Concat(cons, path_string);
-    cons = String::Concat(cons, FIXED_ONE_BYTE_STRING(env->isolate(), "'"));
+    cons = String::Concat(isolate, cons, FIXED_ONE_BYTE_STRING(isolate, " '"));
+    cons = String::Concat(isolate, cons, path_string);
+    cons = String::Concat(isolate, cons, FIXED_ONE_BYTE_STRING(isolate, "'"));
   }
   e = Exception::Error(cons);
 
   Local<Object> obj = e.As<Object>();
-  obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
+  obj->Set(env->errno_string(), Integer::New(isolate, errorno));
   obj->Set(env->code_string(), estring);
 
   if (path_string.IsEmpty() == false) {
@@ -59,7 +59,7 @@ Local<Value> ErrnoException(Isolate* isolate,
   }
 
   if (syscall != nullptr) {
-    obj->Set(env->syscall_string(), OneByteString(env->isolate(), syscall));
+    obj->Set(env->syscall_string(), OneByteString(isolate, syscall));
   }
 
   return e;
@@ -68,10 +68,11 @@ Local<Value> ErrnoException(Isolate* isolate,
 static Local<String> StringFromPath(Isolate* isolate, const char* path) {
 #ifdef _WIN32
   if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
-    return String::Concat(FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
-                          String::NewFromUtf8(isolate, path + 8,
-                                              v8::NewStringType::kNormal)
-                              .ToLocalChecked());
+    return String::Concat(
+        isolate,
+        FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
+        String::NewFromUtf8(isolate, path + 8, v8::NewStringType::kNormal)
+            .ToLocalChecked());
   } else if (strncmp(path, "\\\\?\\", 4) == 0) {
     return String::NewFromUtf8(isolate, path + 4, v8::NewStringType::kNormal)
         .ToLocalChecked();
@@ -109,25 +110,31 @@ Local<Value> UVException(Isolate* isolate,
   Local<String> js_dest;
 
   Local<String> js_msg = js_code;
-  js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, ": "));
-  js_msg = String::Concat(js_msg, OneByteString(isolate, msg));
-  js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, ", "));
-  js_msg = String::Concat(js_msg, js_syscall);
+  js_msg =
+      String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, ": "));
+  js_msg = String::Concat(isolate, js_msg, OneByteString(isolate, msg));
+  js_msg =
+      String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, ", "));
+  js_msg = String::Concat(isolate, js_msg, js_syscall);
 
   if (path != nullptr) {
     js_path = StringFromPath(isolate, path);
 
-    js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, " '"));
-    js_msg = String::Concat(js_msg, js_path);
-    js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, "'"));
+    js_msg =
+        String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, " '"));
+    js_msg = String::Concat(isolate, js_msg, js_path);
+    js_msg =
+        String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, "'"));
   }
 
   if (dest != nullptr) {
     js_dest = StringFromPath(isolate, dest);
 
-    js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, " -> '"));
-    js_msg = String::Concat(js_msg, js_dest);
-    js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, "'"));
+    js_msg = String::Concat(
+        isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, " -> '"));
+    js_msg = String::Concat(isolate, js_msg, js_dest);
+    js_msg =
+        String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, "'"));
   }
 
   Local<Object> e = Exception::Error(js_msg)->ToObject(isolate);
@@ -182,17 +189,18 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
   if (!msg || !msg[0]) {
     msg = winapi_strerror(errorno, &must_free);
   }
-  Local<String> message = OneByteString(env->isolate(), msg);
+  Local<String> message = OneByteString(isolate, msg);
 
   if (path) {
     Local<String> cons1 =
-        String::Concat(message, FIXED_ONE_BYTE_STRING(isolate, " '"));
-    Local<String> cons2 =
-        String::Concat(cons1,
-            String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
-                .ToLocalChecked());
+        String::Concat(isolate, message, FIXED_ONE_BYTE_STRING(isolate, " '"));
+    Local<String> cons2 = String::Concat(
+        isolate,
+        cons1,
+        String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
+            .ToLocalChecked());
     Local<String> cons3 =
-        String::Concat(cons2, FIXED_ONE_BYTE_STRING(isolate, "'"));
+        String::Concat(isolate, cons2, FIXED_ONE_BYTE_STRING(isolate, "'"));
     e = Exception::Error(cons3);
   } else {
     e = Exception::Error(message);
