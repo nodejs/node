@@ -1926,7 +1926,7 @@ added: v9.0.0
 removed: v10.0.0
 -->
 
-HTTP/2 Informational headers must only be sent *prior* to calling the
+HTTP/2 informational headers must only be sent *prior* to calling the
 `Http2Stream.prototype.respond()` method.
 
 <a id="ERR_HTTP2_STREAM_CLOSED"></a>
@@ -1965,7 +1965,7 @@ added: v9.0.0
 removed: REPLACEME
 -->
 
-Used when `hostname` can not be parsed from a provided URL.
+Used when `hostname` cannot be parsed from a provided URL.
 
 <a id="ERR_INVALID_REPL_HISTORY"></a>
 ### ERR_INVALID_REPL_HISTORY
@@ -2013,7 +2013,7 @@ added: v9.0.0
 removed: v10.0.0
 -->
 
-The `repl` module was unable parse data from the REPL history file.
+The `repl` module was unable to parse data from the REPL history file.
 
 <a id="ERR_STREAM_HAS_STRINGDECODER"></a>
 ### ERR_STREAM_HAS_STRINGDECODER
@@ -2024,12 +2024,11 @@ removed: v9.0.0
 
 Used to prevent an abort if a string decoder was set on the Socket.
 
-Example
 ```js
 const Socket = require('net').Socket;
 const instance = new Socket();
 
-instance.setEncoding('utf-8');
+instance.setEncoding('utf8');
 ```
 
 <a id="ERR_STREAM_READ_NOT_IMPLEMENTED"></a>
