@@ -253,6 +253,44 @@ To install this version of Node.js into a system directory:
 $ [sudo] make install
 ```
 
+#### Building a debug build
+
+If you run into an issue where the information provided by the JS stack trace
+is not enough, or if you suspect the error happens outside of the JS VM, you
+can try to build a debug enabled binary:
+
+```console
+$ ./configure --debug
+$ make -j4
+```
+
+`make` with `./configure --debug` generates two binaries, the regular release
+one in `out/Release/node` and a debug binary in `out/Debug/node`, only the
+release version is actually installed when you run `make install`.
+
+To use the debug build with all the normal dependencies overwrite the release
+version in the install directory:
+
+``` console
+$ make install --prefix=/opt/node-debug/
+$ cp -a -f out/Debug/node /opt/node-debug/node
+```
+
+When using the debug binary, core dumps will be generated in case of crashes.
+These core dumps are useful for debugging when provided with the
+corresponding original debug binary and system information.
+
+Reading the core dump requires `gdb` built on the same platform the core dump
+was captured on (i.e. 64 bit `gdb` for `node` built on a 64 bit system, Linux
+`gdb` for `node` built on Linux) otherwise you will get errors like
+`not in executable format: File format not recognized`.
+
+Example of generating a backtrace from the core dump:
+
+``` console
+$ gdb /opt/node-debug/node core.node.8.1535359906
+$ backtrace
+```
 
 ### Windows
 
