@@ -59,7 +59,8 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     AsyncWrap::EmitBefore(env, asyncContext.async_id);
   }
 
-  if (!IsInnerMakeCallback()) {
+  CHECK_GE(env->makecallback_depth(), 1);
+  if (env->makecallback_depth() == 1) {
     env->tick_info()->set_has_thrown(false);
   }
 
