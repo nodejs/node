@@ -24,8 +24,8 @@
 require('../common');
 const assert = require('assert');
 
-const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
 const { internalBinding } = require('internal/test/binding');
+const { TCP, constants: TCPConstants } = internalBinding('tcp_wrap');
 const { UV_EINVAL } = internalBinding('uv');
 
 const handle = new TCP(TCPConstants.SOCKET);

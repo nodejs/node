@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (common.isWindows)
@@ -6,7 +7,8 @@ if (common.isWindows)
 const assert = require('assert');
 const dgram = require('dgram');
 const { UDP } = process.binding('udp_wrap');
-const { TCP, constants } = process.binding('tcp_wrap');
+const { internalBinding } = require('internal/test/binding');
+const { TCP, constants } = internalBinding('tcp_wrap');
 const _createSocketHandle = dgram._createSocketHandle;
 
 // Return a negative number if the "existing fd" is invalid.

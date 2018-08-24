@@ -7,7 +7,8 @@ if (common.isWindows)
 const dgram = require('dgram');
 const assert = require('assert');
 const { kStateSymbol } = require('internal/dgram');
-const { TCP, constants } = process.binding('tcp_wrap');
+const { internalBinding } = require('internal/test/binding');
+const { TCP, constants } = internalBinding('tcp_wrap');
 const TYPE = 'udp4';
 
 // Throw when the fd is occupied according to https://github.com/libuv/libuv/pull/1851.

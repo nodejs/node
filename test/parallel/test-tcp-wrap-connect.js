@@ -3,8 +3,11 @@
 require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
-const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
-const { TCPConnectWrap } = process.binding('tcp_wrap');
+const {
+  TCP,
+  constants: TCPConstants,
+  TCPConnectWrap
+} = internalBinding('tcp_wrap');
 const { ShutdownWrap } = internalBinding('stream_wrap');
 
 function makeConnection() {
