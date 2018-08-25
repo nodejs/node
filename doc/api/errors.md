@@ -1854,43 +1854,6 @@ A module file could not be resolved while attempting a [`require()`][] or
 > Stability: 0 - Deprecated. These error codes are either inconsistent, or have
 > been removed.
 
-<a id="ERR_FS_WATCHER_ALREADY_STARTED"></a>
-### ERR_FS_WATCHER_ALREADY_STARTED
-<!-- YAML
-added: v10.0.0
-removed: v10.0.0
--->
-An attempt was made to start a watcher returned by `fs.watch()` that has
-already been started.
-
-<a id="ERR_FS_WATCHER_NOT_STARTED"></a>
-### ERR_FS_WATCHER_NOT_STARTED
-<!-- YAML
-added: v10.0.0
-removed: v10.0.0
--->
-
-An attempt was made to initiate operations on a watcher returned by
-`fs.watch()` that has not yet been started.
-
-<a id="ERR_HTTP2_ALREADY_SHUTDOWN"></a>
-### ERR_HTTP2_ALREADY_SHUTDOWN
-<!-- YAML
-added: v10.0.0
-removed: v10.0.0
--->
-
-Occurs with multiple attempts to shutdown an HTTP/2 session.
-
-<a id="ERR_HTTP2_ERROR"></a>
-### ERR_HTTP2_ERROR
-<!-- YAML
-added: v9.0.0
-removed: v9.0.0
--->
-
-A non-specific HTTP/2 error has occurred.
-
 <a id="ERR_HTTP2_FRAME_ERROR"></a>
 ### ERR_HTTP2_FRAME_ERROR
 <!-- YAML
@@ -1949,26 +1912,6 @@ removed: v10.0.0
 Used when an invalid character is found in an HTTP response status message
 (reason phrase).
 
-<a id="ERR_INVALID_REPL_HISTORY"></a>
-### ERR_INVALID_REPL_HISTORY
-<!-- YAML
-added: v9.0.0
-removed: v9.0.0
--->
-
-Used in the `repl` in case the old history file is used and an error occurred
-while trying to read and parse it.
-
-<a id="ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK"></a>
-### ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK
-<!-- YAML
-added: v10.0.0
-removed: v10.0.0
--->
-
-Used when an [ES6 module][] loader hook specifies `format: 'dynamic'` but does
-not provide a `dynamicInstantiate` hook.
-
 <a id="ERR_NAPI_CONS_PROTOTYPE_OBJECT"></a>
 ### ERR_NAPI_CONS_PROTOTYPE_OBJECT
 <!-- YAML
@@ -1997,22 +1940,6 @@ removed: v10.0.0
 
 The `repl` module was unable to parse data from the REPL history file.
 
-<a id="ERR_STREAM_HAS_STRINGDECODER"></a>
-### ERR_STREAM_HAS_STRINGDECODER
-<!-- YAML
-added: v9.0.0
-removed: v9.0.0
--->
-
-Used to prevent an abort if a string decoder was set on the Socket.
-
-```js
-const Socket = require('net').Socket;
-const instance = new Socket();
-
-instance.setEncoding('utf8');
-```
-
 <a id="ERR_STREAM_READ_NOT_IMPLEMENTED"></a>
 ### ERR_STREAM_READ_NOT_IMPLEMENTED
 <!-- YAML
@@ -2022,16 +1949,6 @@ removed: v10.0.0
 
 Used when an attempt is made to use a readable stream that has not implemented
 [`readable._read()`][].
-
-<a id="ERR_STRING_TOO_LARGE"></a>
-### ERR_STRING_TOO_LARGE
-<!-- YAML
-added: v10.0.0
-removed: v10.0.0
--->
-
-An attempt has been made to create a string larger than the maximum allowed
-size.
 
 <a id="ERR_TLS_RENEGOTIATION_FAILED"></a>
 ### ERR_TLS_RENEGOTIATION_FAILED
@@ -2072,6 +1989,64 @@ removed: v10.0.0
 
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
+
+<a id="unreleased_error_codes">
+### Other error codes
+
+These errors have never been released, but had been present on master between
+releases.
+
+<a id="ERR_FS_WATCHER_ALREADY_STARTED"></a>
+#### ERR_FS_WATCHER_ALREADY_STARTED
+
+An attempt was made to start a watcher returned by `fs.watch()` that has
+already been started.
+
+<a id="ERR_FS_WATCHER_NOT_STARTED"></a>
+#### ERR_FS_WATCHER_NOT_STARTED
+
+An attempt was made to initiate operations on a watcher returned by
+`fs.watch()` that has not yet been started.
+
+<a id="ERR_HTTP2_ALREADY_SHUTDOWN"></a>
+#### ERR_HTTP2_ALREADY_SHUTDOWN
+
+Occurs with multiple attempts to shutdown an HTTP/2 session.
+
+<a id="ERR_HTTP2_ERROR"></a>
+#### ERR_HTTP2_ERROR
+
+A non-specific HTTP/2 error has occurred.
+
+<a id="ERR_INVALID_REPL_HISTORY"></a>
+#### ERR_INVALID_REPL_HISTORY
+
+Used in the `repl` in case the old history file is used and an error occurred
+while trying to read and parse it.
+
+<a id="ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK"></a>
+#### ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK
+
+Used when an [ES6 module][] loader hook specifies `format: 'dynamic'` but does
+not provide a `dynamicInstantiate` hook.
+
+<a id="ERR_STREAM_HAS_STRINGDECODER"></a>
+#### ERR_STREAM_HAS_STRINGDECODER
+
+Used to prevent an abort if a string decoder was set on the Socket.
+
+```js
+const Socket = require('net').Socket;
+const instance = new Socket();
+
+instance.setEncoding('utf8');
+```
+
+<a id="ERR_STRING_TOO_LARGE"></a>
+#### ERR_STRING_TOO_LARGE
+
+An attempt has been made to create a string larger than the maximum allowed
+size.
 
 [`--force-fips`]: cli.html#cli_force_fips
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
