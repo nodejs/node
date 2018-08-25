@@ -367,7 +367,7 @@ set of APIs that are used by the native code. Instead of using the V8
 or [Native Abstractions for Node.js][] APIs, the functions available
 in the N-API are used.
 
-Creating and maintaining an add-on that benefits from the ABI stability
+Creating and maintaining an addon that benefits from the ABI stability
 provided by N-API carries with it certain
 [implementation considerations](n-api.html#n_api_implications_of_abi_stability).
 
