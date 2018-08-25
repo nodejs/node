@@ -65,9 +65,9 @@ badge.
 
 For first-time contributors, check if the commit author is the same as the
 pull request author, and ask if they have configured their git
-username and email to their liking as per [this guide][git-username].
-This is to make sure they would be promoted to "contributor" once
-their pull request lands.
+[username][git-username] and [email][git-email] to their liking.
+This is to make sure they would be promoted to "contributor" once their
+pull request lands.
 
 ### Closing Issues and Pull Requests
 
@@ -889,5 +889,6 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 [git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
+[git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
