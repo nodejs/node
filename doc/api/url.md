@@ -904,7 +904,7 @@ new URL('file:///你好.txt').pathname;
 new URL('file:///hello world.txt').pathname;
 ```
 
-where using `url.fileURLToPath` we can get the correct results above.
+where using `url.fileURLToPath(fileURL)` can get the correct results above.
 
 ### url.format(URL[, options])
 <!-- YAML
@@ -962,17 +962,17 @@ For example, the following errors can occur when converting from paths to URLs:
 // (in Windows the drive letter is detected as the protocol)
 new URL(__filename);
 
-// 'file:///foo' instead of the correct 'file:///foo%231' (POSIX)
-new URL('./foo#1', 'file:///');
+// 'file:///foo#' instead of the correct 'file:///foo%231' (POSIX)
+new URL('/foo#1', 'file:');
 
 // 'file:///nas/foo.txt' instead of the correct 'file:///foo.txt' (POSIX)
-new URL(`file://${'//nas/foo.txt'}`);
+new URL('//nas/foo.txt', 'file:');
 
 // 'file:///some/path%' instead of the correct 'file:///some/path%25' (POSIX)
-new URL(`file:${'/some/path%.js'}`);
+new URL('/some/path%.js', 'file:');
 ```
 
-where using `url.pathToFileURL` we can get the correct results above.
+where using `url.pathToFileURL(path)` can get the correct results above.
 
 ## Legacy URL API
 
