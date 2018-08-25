@@ -65,9 +65,9 @@ badge.
 
 For first-time contributors, check if the commit author is the same as the
 pull request author, and ask if they have configured their git
-username and email to their liking as per [this][git-username] and
-[this][git-email] guides. This is to make sure they would be promoted to
-"contributor" once their pull request lands.
+[username][git-username] and [email][git-email] to their liking.
+This is to make sure they would be promoted to "contributor" once their
+pull request lands.
 
 ### Closing Issues and Pull Requests
 
