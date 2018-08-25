@@ -26,7 +26,7 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 const os = require('os');
-const { exec, execSync, spawn, spawnSync } = require('child_process');
+const { exec, execSync, spawnSync } = require('child_process');
 const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
 const { fixturesDir } = require('./fixtures');
@@ -268,22 +268,10 @@ exports.ddCommand = function(filename, kilobytes) {
 };
 
 
-exports.spawnPwd = function(options) {
-  if (exports.isWindows) {
-    return spawn('cmd.exe', ['/d', '/c', 'cd'], options);
-  } else {
-    return spawn('pwd', [], options);
-  }
-};
+exports.pwdCommand = exports.isWindows ?
+  ['cmd.exe', ['/d', '/c', 'cd']] :
+  ['pwd', []];
 
-
-exports.spawnSyncPwd = function(options) {
-  if (exports.isWindows) {
-    return spawnSync('cmd.exe', ['/d', '/c', 'cd'], options);
-  } else {
-    return spawnSync('pwd', [], options);
-  }
-};
 
 exports.platformTimeout = function(ms) {
   if (process.features.debug)

@@ -317,6 +317,17 @@ A port number for tests to use if one is needed.
 
 Logs '1..0 # Skipped: ' + `msg`
 
+### pwdCommand
+* [&lt;array>] First two argument for the `spawn`/`exec` functions.
+
+Platform normalized `pwd` command options. Usage example:
+```js
+const common = require('../common');
+const { spawn } = require('child_process');
+
+spawn(...common.pwdCommand, { stdio: ['pipe'] });
+```
+
 ### rootDir
 * [&lt;string>]
 
@@ -349,18 +360,6 @@ was disabled at compile time.
 
 Skip the rest of the tests in the current file when the Node.js executable
 was compiled with a pointer size smaller than 64 bits.
-
-### spawnPwd(options)
-* `options` [&lt;Object>]
-* return [&lt;Object>]
-
-Platform normalizes the `pwd` command.
-
-### spawnSyncPwd(options)
-* `options` [&lt;Object>]
-* return [&lt;Object>]
-
-Synchronous version of `spawnPwd`.
 
 ## ArrayStream Module
 
