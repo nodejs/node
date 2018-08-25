@@ -880,6 +880,32 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 // Prints an empty string
 ```
 
+### url.fileURLToPath(url)
+
+* `url` {URL | string} The file URL string or URL object to convert to a path.
+* Returns: {URL} The fully-resolved platform-specific Node.js file path.
+
+This function ensures the correct decodings of percent-encoded characters as
+well as ensuring a cross-platform valid absolute path string.
+
+When converting from URL to path, the following common errors can occur:
+
+```js
+// '/C:/path/' instead of 'C:\path\' (Windows)
+new URL('file:///C:/path/').pathname;
+
+// '/foo.txt' instead of '\\nas\foo.txt' (Windows)
+new URL('file://nas/foo.txt').pathname;
+
+// '/%E4%BD%A0%E5%A5%BD.txt' instead of '/你好.txt' (POSIX)
+new URL('file:///你好.txt').pathname;
+
+// '/hello%20world.txt' instead of '/hello world.txt' (POSIX)
+new URL('file:///hello world.txt').pathname;
+```
+
+where using `url.fileURLToPath` we can get the correct results above.
+
 ### url.format(URL[, options])
 <!-- YAML
 added: v7.6.0
@@ -932,47 +958,21 @@ paths when converting into File URLs.
 For example, the following errors can occur when converting from paths to URLs:
 
 ```js
-// throws for missing schema (posix)
+// throws for missing schema (POSIX)
 // (in Windows the drive letter is detected as the protocol)
 new URL(__filename);
 
-// 'file:///foo' instead of the correct 'file:///foo%231' (posix)
+// 'file:///foo' instead of the correct 'file:///foo%231' (POSIX)
 new URL('./foo#1', 'file:///');
 
-// 'file:///nas/foo.txt' instead of the correct 'file:///foo.txt' (posix)
+// 'file:///nas/foo.txt' instead of the correct 'file:///foo.txt' (POSIX)
 new URL(`file://${'//nas/foo.txt'}`);
 
-// 'file:///some/path%' instead of the correct 'file:///some/path%25' (posix)
-new URL(`sfile:${'/some/path%.js'}`);
+// 'file:///some/path%' instead of the correct 'file:///some/path%25' (POSIX)
+new URL(`file:${'/some/path%.js'}`);
 ```
 
-where using `pathToFileURL` we can get the correct results above.
-
-### url.fileURLToPath(url)
-
-* `url` {URL} | {string} The file URL string or URL object to convert to a path.
-* Returns: {URL} The fully-resolved platform-specific Node.js file path.
-
-This function ensures the correct decodings of percent-encoded characters as
-well as ensuring a cross-platform valid absolute path string.
-
-When converting from URL to path, the following common errors can occur:
-
-```js
-// '/C:/path/' instead of 'C:\path\' (Windows)
-new URL('file:///C:/path/').pathname;
-
-// '/foo.txt' instead of '\\nas\foo.txt' (Windows)
-new URL('file://nas/foo.txt').pathname;
-
-// '/%E4%BD%A0%E5%A5%BD.txt' instead of '/你好.txt' (posix)
-new URL('file:///你好.txt').pathname;
-
-// '/hello%20world.txt' instead of '/hello world.txt' (posix)
-new URL('file:///hello world.txt').pathname;
-```
-
-where using `fileURLToPath` we can get the correct results above.
+where using `url.pathToFileURL` we can get the correct results above.
 
 ## Legacy URL API
 
