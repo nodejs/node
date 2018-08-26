@@ -21,7 +21,7 @@ void CallWithString(const FunctionCallbackInfo<Value>& args) {
     Local<String> str = args[0].As<String>();
     const int32_t length = str->Utf8Length() + 1;
     char* buf = new char[length];
-    str->WriteUtf8(buf, length);
+    str->WriteUtf8(args.GetIsolate(), buf, length);
     delete [] buf;
   }
 }

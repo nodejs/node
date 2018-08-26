@@ -257,8 +257,8 @@ static size_t hex_decode(char* buf,
   return i;
 }
 
-
-size_t StringBytes::WriteUCS2(char* buf,
+size_t StringBytes::WriteUCS2(Isolate* isolate,
+                              char* buf,
                               size_t buflen,
                               Local<String> str,
                               int flags,
@@ -273,7 +273,7 @@ size_t StringBytes::WriteUCS2(char* buf,
   size_t nchars;
   size_t alignment = reinterpret_cast<uintptr_t>(dst) % sizeof(*dst);
   if (alignment == 0) {
-    nchars = str->Write(dst, 0, max_chars, flags);
+    nchars = str->Write(isolate, dst, 0, max_chars, flags);
     *chars_written = nchars;
     return nchars * sizeof(*dst);
   }
@@ -283,14 +283,15 @@ size_t StringBytes::WriteUCS2(char* buf,
   CHECK_EQ(reinterpret_cast<uintptr_t>(aligned_dst) % sizeof(*dst), 0);
 
   // Write all but the last char
-  nchars = str->Write(aligned_dst, 0, max_chars - 1, flags);
+  nchars = str->Write(isolate, aligned_dst, 0, max_chars - 1, flags);
 
   // Shift everything to unaligned-left
   memmove(dst, aligned_dst, nchars * sizeof(*dst));
 
   // One more char to be written
   uint16_t last;
-  if (nchars == max_chars - 1 && str->Write(&last, nchars, 1, flags) != 0) {
+  if (nchars == max_chars - 1 &&
+      str->Write(isolate, &last, nchars, 1, flags) != 0) {
     memcpy(buf + nchars * sizeof(*dst), &last, sizeof(last));
     nchars++;
   }
@@ -329,20 +330,20 @@ size_t StringBytes::Write(Isolate* isolate,
         memcpy(buf, ext->data(), nbytes);
       } else {
         uint8_t* const dst = reinterpret_cast<uint8_t*>(buf);
-        nbytes = str->WriteOneByte(dst, 0, buflen, flags);
+        nbytes = str->WriteOneByte(isolate, dst, 0, buflen, flags);
       }
       *chars_written = nbytes;
       break;
 
     case BUFFER:
     case UTF8:
-      nbytes = str->WriteUtf8(buf, buflen, chars_written, flags);
+      nbytes = str->WriteUtf8(isolate, buf, buflen, chars_written, flags);
       break;
 
     case UCS2: {
       size_t nchars;
 
-      nbytes = WriteUCS2(buf, buflen, str, flags, &nchars);
+      nbytes = WriteUCS2(isolate, buf, buflen, str, flags, &nchars);
       *chars_written = static_cast<int>(nchars);
 
       // Node's "ucs2" encoding wants LE character data stored in
