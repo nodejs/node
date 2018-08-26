@@ -762,8 +762,6 @@ Note that:
 * The defaults above apply to the first call only, the defaults for later
   calls is the current value at the time of `cluster.setupMaster()` is called.
 
-Example:
-
 ```js
 const cluster = require('cluster');
 cluster.setupMaster({

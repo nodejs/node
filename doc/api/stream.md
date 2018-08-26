@@ -37,14 +37,14 @@ the elements of the API that are required to *implement* new types of streams.
 
 There are four fundamental stream types within Node.js:
 
-* [`Writable`][] - streams to which data can be written (for example
+* [`Writable`][] - streams to which data can be written (for example,
   [`fs.createWriteStream()`][]).
-* [`Readable`][] - streams from which data can be read (for example
+* [`Readable`][] - streams from which data can be read (for example,
   [`fs.createReadStream()`][]).
-* [`Duplex`][] - streams that are both `Readable` and `Writable` (for example
+* [`Duplex`][] - streams that are both `Readable` and `Writable` (for example,
   [`net.Socket`][]).
 * [`Transform`][] - `Duplex` streams that can modify or transform the data as it
-  is written and read (for example [`zlib.createDeflate()`][]).
+  is written and read (for example, [`zlib.createDeflate()`][]).
 
 Additionally this module includes the utility functions [pipeline][] and
 [finished][].
@@ -947,8 +947,7 @@ r.pipe(z).pipe(w);
 By default, [`stream.end()`][stream-end] is called on the destination `Writable`
 stream when the source `Readable` stream emits [`'end'`][], so that the
 destination is no longer writable. To disable this default behavior, the `end`
-option can be passed as `false`, causing the destination stream to remain open,
-as illustrated in the following example:
+option can be passed as `false`, causing the destination stream to remain open:
 
 ```js
 reader.pipe(writer, { end: false });
@@ -1048,8 +1047,7 @@ The `readable.resume()` method causes an explicitly paused `Readable` stream to
 resume emitting [`'data'`][] events, switching the stream into flowing mode.
 
 The `readable.resume()` method can be used to fully consume the data from a
-stream without actually processing any of that data as illustrated in the
-following example:
+stream without actually processing any of that data:
 
 ```js
 getReadableStreamSomehow()
@@ -1881,7 +1879,7 @@ When the `Readable` is operating in flowing mode, the data added with
 The `readable.push()` method is designed to be as flexible as possible. For
 example, when wrapping a lower-level source that provides some form of
 pause/resume mechanism, and a data callback, the low-level source can be wrapped
-by the custom `Readable` instance as illustrated in the following example:
+by the custom `Readable` instance:
 
 ```js
 // source is an object with readStop() and readStart() methods,

@@ -953,8 +953,6 @@ Returns `true` if the value is a built-in [`ArrayBuffer`][] or
 See also [`util.types.isArrayBuffer()`][] and
 [`util.types.isSharedArrayBuffer()`][].
 
-For example:
-
 ```js
 util.types.isAnyArrayBuffer(new ArrayBuffer());  // Returns true
 util.types.isAnyArrayBuffer(new SharedArrayBuffer());  // Returns true
@@ -969,8 +967,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is an `arguments` object.
-
-For example:
 
 <!-- eslint-disable prefer-rest-params -->
 ```js
@@ -991,8 +987,6 @@ Returns `true` if the value is a built-in [`ArrayBuffer`][] instance.
 This does *not* include [`SharedArrayBuffer`][] instances. Usually, it is
 desirable to test for both; See [`util.types.isAnyArrayBuffer()`][] for that.
 
-For example:
-
 ```js
 util.types.isArrayBuffer(new ArrayBuffer());  // Returns true
 util.types.isArrayBuffer(new SharedArrayBuffer());  // Returns false
@@ -1011,8 +1005,6 @@ Note that this only reports back what the JavaScript engine is seeing;
 in particular, the return value may not match the original source code if
 a transpilation tool was used.
 
-For example:
-
 ```js
 util.types.isAsyncFunction(function foo() {});  // Returns false
 util.types.isAsyncFunction(async function foo() {});  // Returns true
@@ -1027,8 +1019,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a `BigInt64Array` instance.
-
-For example:
 
 ```js
 util.types.isBigInt64Array(new BigInt64Array());   // Returns true
@@ -1045,8 +1035,6 @@ added: v10.0.0
 
 Returns `true` if the value is a `BigUint64Array` instance.
 
-For example:
-
 ```js
 util.types.isBigUint64Array(new BigInt64Array());   // Returns false
 util.types.isBigUint64Array(new BigUint64Array());  // Returns true
@@ -1062,8 +1050,6 @@ added: v10.0.0
 
 Returns `true` if the value is a boolean object, e.g. created
 by `new Boolean()`.
-
-For example:
 
 ```js
 util.types.isBooleanObject(false);  // Returns false
@@ -1084,8 +1070,6 @@ added: v10.0.0
 
 Returns `true` if the value is a built-in [`DataView`][] instance.
 
-For example:
-
 ```js
 const ab = new ArrayBuffer(20);
 util.types.isDataView(new DataView(ab));  // Returns true
@@ -1103,8 +1087,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Date`][] instance.
-
-For example:
 
 ```js
 util.types.isDate(new Date());  // Returns true
@@ -1130,8 +1112,6 @@ added: v10.0.0
 
 Returns `true` if the value is a built-in [`Float32Array`][] instance.
 
-For example:
-
 ```js
 util.types.isFloat32Array(new ArrayBuffer());  // Returns false
 util.types.isFloat32Array(new Float32Array());  // Returns true
@@ -1147,8 +1127,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Float64Array`][] instance.
-
-For example:
 
 ```js
 util.types.isFloat64Array(new ArrayBuffer());  // Returns false
@@ -1169,8 +1147,6 @@ Note that this only reports back what the JavaScript engine is seeing;
 in particular, the return value may not match the original source code if
 a transpilation tool was used.
 
-For example:
-
 ```js
 util.types.isGeneratorFunction(function foo() {});  // Returns false
 util.types.isGeneratorFunction(function* foo() {});  // Returns true
@@ -1190,8 +1166,6 @@ Note that this only reports back what the JavaScript engine is seeing;
 in particular, the return value may not match the original source code if
 a transpilation tool was used.
 
-For example:
-
 ```js
 function* foo() {}
 const generator = foo();
@@ -1207,8 +1181,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Int8Array`][] instance.
-
-For example:
 
 ```js
 util.types.isInt8Array(new ArrayBuffer());  // Returns false
@@ -1226,8 +1198,6 @@ added: v10.0.0
 
 Returns `true` if the value is a built-in [`Int16Array`][] instance.
 
-For example:
-
 ```js
 util.types.isInt16Array(new ArrayBuffer());  // Returns false
 util.types.isInt16Array(new Int16Array());  // Returns true
@@ -1243,8 +1213,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Int32Array`][] instance.
-
-For example:
 
 ```js
 util.types.isInt32Array(new ArrayBuffer());  // Returns false
@@ -1262,8 +1230,6 @@ added: v10.0.0
 
 Returns `true` if the value is a built-in [`Map`][] instance.
 
-For example:
-
 ```js
 util.types.isMap(new Map());  // Returns true
 ```
@@ -1278,8 +1244,6 @@ added: v10.0.0
 
 Returns `true` if the value is an iterator returned for a built-in
 [`Map`][] instance.
-
-For example:
 
 ```js
 const map = new Map();
@@ -1299,8 +1263,6 @@ added: v10.0.0
 
 Returns `true` if the value is an instance of a [Module Namespace Object][].
 
-For example:
-
 <!-- eslint-skip -->
 ```js
 import * as ns from './a.js';
@@ -1317,8 +1279,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is an instance of a built-in [`Error`][] type.
-
-For example:
 
 ```js
 util.types.isNativeError(new Error());  // Returns true
@@ -1337,8 +1297,6 @@ added: v10.0.0
 Returns `true` if the value is a number object, e.g. created
 by `new Number()`.
 
-For example:
-
 ```js
 util.types.isNumberObject(0);  // Returns false
 util.types.isNumberObject(new Number(0));   // Returns true
@@ -1354,8 +1312,6 @@ added: v10.0.0
 
 Returns `true` if the value is a built-in [`Promise`][].
 
-For example:
-
 ```js
 util.types.isPromise(Promise.resolve(42));  // Returns true
 ```
@@ -1369,8 +1325,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a [`Proxy`][] instance.
-
-For example:
 
 ```js
 const target = {};
@@ -1389,8 +1343,6 @@ added: v10.0.0
 
 Returns `true` if the value is a regular expression object.
 
-For example:
-
 ```js
 util.types.isRegExp(/abc/);  // Returns true
 util.types.isRegExp(new RegExp('abc'));  // Returns true
@@ -1406,8 +1358,6 @@ added: v10.0.0
 
 Returns `true` if the value is a built-in [`Set`][] instance.
 
-For example:
-
 ```js
 util.types.isSet(new Set());  // Returns true
 ```
@@ -1422,8 +1372,6 @@ added: v10.0.0
 
 Returns `true` if the value is an iterator returned for a built-in
 [`Set`][] instance.
-
-For example:
 
 ```js
 const set = new Set();
@@ -1445,8 +1393,6 @@ Returns `true` if the value is a built-in [`SharedArrayBuffer`][] instance.
 This does *not* include [`ArrayBuffer`][] instances. Usually, it is
 desirable to test for both; See [`util.types.isAnyArrayBuffer()`][] for that.
 
-For example:
-
 ```js
 util.types.isSharedArrayBuffer(new ArrayBuffer());  // Returns false
 util.types.isSharedArrayBuffer(new SharedArrayBuffer());  // Returns true
@@ -1462,8 +1408,6 @@ added: v10.0.0
 
 Returns `true` if the value is a string object, e.g. created
 by `new String()`.
-
-For example:
 
 ```js
 util.types.isStringObject('foo');  // Returns false
@@ -1481,8 +1425,6 @@ added: v10.0.0
 Returns `true` if the value is a symbol object, created
 by calling `Object()` on a `Symbol` primitive.
 
-For example:
-
 ```js
 const symbol = Symbol('foo');
 util.types.isSymbolObject(symbol);  // Returns false
@@ -1498,8 +1440,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`TypedArray`][] instance.
-
-For example:
 
 ```js
 util.types.isTypedArray(new ArrayBuffer());  // Returns false
@@ -1519,8 +1459,6 @@ added: v10.0.0
 
 Returns `true` if the value is a built-in [`Uint8Array`][] instance.
 
-For example:
-
 ```js
 util.types.isUint8Array(new ArrayBuffer());  // Returns false
 util.types.isUint8Array(new Uint8Array());  // Returns true
@@ -1536,8 +1474,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Uint8ClampedArray`][] instance.
-
-For example:
 
 ```js
 util.types.isUint8ClampedArray(new ArrayBuffer());  // Returns false
@@ -1555,8 +1491,6 @@ added: v10.0.0
 
 Returns `true` if the value is a built-in [`Uint16Array`][] instance.
 
-For example:
-
 ```js
 util.types.isUint16Array(new ArrayBuffer());  // Returns false
 util.types.isUint16Array(new Uint16Array());  // Returns true
@@ -1572,8 +1506,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Uint32Array`][] instance.
-
-For example:
 
 ```js
 util.types.isUint32Array(new ArrayBuffer());  // Returns false
@@ -1591,8 +1523,6 @@ added: v10.0.0
 
 Returns `true` if the value is a built-in [`WeakMap`][] instance.
 
-For example:
-
 ```js
 util.types.isWeakMap(new WeakMap());  // Returns true
 ```
@@ -1607,8 +1537,6 @@ added: v10.0.0
 
 Returns `true` if the value is a built-in [`WeakSet`][] instance.
 
-For example:
-
 ```js
 util.types.isWeakSet(new WeakSet());  // Returns true
 ```
@@ -1622,8 +1550,6 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`WebAssembly.Module`][] instance.
-
-For example:
 
 ```js
 const module = new WebAssembly.Module(wasmBuffer);

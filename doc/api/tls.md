@@ -618,8 +618,6 @@ If the full certificate chain was requested, each certificate will include an
 `issuerCertificate` property containing an object representing its issuer's
 certificate.
 
-For example:
-
 ```text
 { subject:
    { C: 'UK',
@@ -1242,8 +1240,6 @@ added: v0.10.2
 * Returns: {string[]}
 
 Returns an array with the names of the supported SSL ciphers.
-
-For example:
 
 ```js
 console.log(tls.getCiphers()); // ['AES128-SHA', 'AES256-SHA', ...]
