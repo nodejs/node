@@ -561,7 +561,7 @@ s.bind(1234);
 s.addMembership('224.0.0.114');
 ```
 
-Must be changed to pass a callback function to the [`dgram.Socket#bind()`][]
+must be changed to pass a callback function to the [`dgram.Socket#bind()`][]
 function:
 
 ```js

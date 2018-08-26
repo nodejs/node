@@ -1235,8 +1235,7 @@ type for one of its returned object properties on execution.
 ### ERR_INVALID_RETURN_VALUE
 
 Thrown in case a function option does not return an expected value
-type on execution.
-For example when a function is expected to return a promise.
+type on execution. For example, when a function is expected to return a promise.
 
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
@@ -1249,8 +1248,6 @@ for more information.
 ### ERR_INVALID_THIS
 
 A Node.js API function was called with an incompatible `this` value.
-
-Example:
 
 ```js
 const urlSearchParams = new URLSearchParams('foo=bar&baz=new');
@@ -1582,7 +1579,6 @@ emitted.
 Prevents an abort if a string decoder was set on the Socket or if the decoder
 is in `objectMode`.
 
-Example
 ```js
 const Socket = require('net').Socket;
 const instance = new Socket();

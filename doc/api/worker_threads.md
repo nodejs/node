@@ -20,8 +20,6 @@ Workers, unlike child processes or when using the `cluster` module, can also
 share memory efficiently by transferring `ArrayBuffer` instances or sharing
 `SharedArrayBuffer` instances between them.
 
-## Example
-
 ```js
 const {
   Worker, isMainThread, parentPort, workerData
@@ -280,8 +278,6 @@ pre-existing channel, such as the global one.
 See [`port.postMessage()`][] for more information on how messages are passed,
 and what kind of JavaScript values can be successfully transported through
 the thread barrier.
-
-For example:
 
 ```js
 const assert = require('assert');

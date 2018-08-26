@@ -708,7 +708,7 @@ this, assign the desired export object to `module.exports`. Note that assigning
 the desired object to `exports` will simply rebind the local `exports` variable,
 which is probably not what is desired.
 
-For example suppose we were making a module called `a.js`:
+For example, suppose we were making a module called `a.js`:
 
 ```js
 const EventEmitter = require('events');

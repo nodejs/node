@@ -124,8 +124,6 @@ as reported by the operating system if listening on an IP socket
 For a server listening on a pipe or UNIX domain socket, the name is returned
 as a string.
 
-Example:
-
 ```js
 const server = net.createServer((socket) => {
   socket.end('goodbye\n');
@@ -716,8 +714,7 @@ connects on `'192.168.1.1'`, the value of `socket.localAddress` would be
 added: v0.9.6
 -->
 
-The numeric representation of the local port. For example,
-`80` or `21`.
+The numeric representation of the local port. For example, `80` or `21`.
 
 ### socket.pause()
 
@@ -758,8 +755,7 @@ The string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 added: v0.5.10
 -->
 
-The numeric representation of the remote port. For example,
-`80` or `21`.
+The numeric representation of the remote port. For example, `80` or `21`.
 
 ### socket.resume()
 

@@ -1678,8 +1678,6 @@ added: v0.9.3
 * Returns: {string[]} An array with the names of the supported cipher
   algorithms.
 
-Example:
-
 ```js
 const ciphers = crypto.getCiphers();
 console.log(ciphers); // ['aes-128-cbc', 'aes-128-ccm', ...]
@@ -1690,8 +1688,6 @@ console.log(ciphers); // ['aes-128-cbc', 'aes-128-ccm', ...]
 added: v2.3.0
 -->
 * Returns: {string[]} An array with the names of the supported elliptic curves.
-
-Example:
 
 ```js
 const curves = crypto.getCurves();
@@ -1711,7 +1707,7 @@ supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
 `'modp16'`, `'modp17'`, `'modp18'` (defined in [RFC 3526][]). The
 returned object mimics the interface of objects created by
 [`crypto.createDiffieHellman()`][], but will not allow changing
-the keys (with [`diffieHellman.setPublicKey()`][] for example). The
+the keys (with [`diffieHellman.setPublicKey()`][], for example). The
 advantage of using this method is that the parties do not have to
 generate nor exchange a group modulus beforehand, saving both processor
 and communication time.
@@ -1746,8 +1742,6 @@ added: v0.9.3
 -->
 * Returns: {string[]} An array of the names of the supported hash algorithms,
   such as `'RSA-SHA256'`.
-
-Example:
 
 ```js
 const hashes = crypto.getHashes();
@@ -1796,8 +1790,6 @@ but will take a longer amount of time to complete.
 
 The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
-
-Example:
 
 ```js
 const crypto = require('crypto');
@@ -1861,8 +1853,6 @@ but will take a longer amount of time to complete.
 
 The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
-
-Example:
 
 ```js
 const crypto = require('crypto');
