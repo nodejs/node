@@ -476,21 +476,19 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   void FatalException(Local<Value> error, Local<v8::Message> message) {
+    Isolate* isolate = env_->isolate();
     Local<Context> context = env_->context();
 
     int script_id = message->GetScriptOrigin().ScriptID()->Value();
 
     Local<v8::StackTrace> stack_trace = message->GetStackTrace();
 
-    if (!stack_trace.IsEmpty() &&
-        stack_trace->GetFrameCount() > 0 &&
-        script_id == stack_trace->GetFrame(0)->GetScriptId()) {
+    if (!stack_trace.IsEmpty() && stack_trace->GetFrameCount() > 0 &&
+        script_id == stack_trace->GetFrame(isolate, 0)->GetScriptId()) {
       script_id = 0;
     }
 
     const uint8_t DETAILS[] = "Uncaught";
-
-    Isolate* isolate = context->GetIsolate();
 
     client_->exceptionThrown(
         context,
