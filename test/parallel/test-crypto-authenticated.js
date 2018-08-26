@@ -577,3 +577,29 @@ for (const test of TEST_CASES) {
   encrypt.update('boom');  // Should not throw 'Message exceeds maximum size'.
   encrypt.final();
 }
+
+// Test that the authentication tag can be set at any point before calling
+// final() in GCM mode.
+{
+  const plain = Buffer.from('Hello world', 'utf8');
+  const key = Buffer.from('0123456789abcdef', 'utf8');
+  const iv = Buffer.from('0123456789ab', 'utf8');
+
+  const cipher = crypto.createCipheriv('aes-128-gcm', key, iv);
+  const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  for (const authTagBeforeUpdate of [true, false]) {
+    const decipher = crypto.createDecipheriv('aes-128-gcm', key, iv);
+    if (authTagBeforeUpdate) {
+      decipher.setAuthTag(authTag);
+    }
+    const resultUpdate = decipher.update(ciphertext);
+    if (!authTagBeforeUpdate) {
+      decipher.setAuthTag(authTag);
+    }
+    const resultFinal = decipher.final();
+    const result = Buffer.concat([resultUpdate, resultFinal]);
+    assert(result.equals(plain));
+  }
+}
