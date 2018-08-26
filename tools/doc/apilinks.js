@@ -3,27 +3,27 @@
 // Scan API sources for definitions.
 //
 // Note the output is produced based on a world class parser, adherence to
-// conventions, and a bit of guess work.  Examples:
+// conventions, and a bit of guess work. Examples:
 //
 //  * We scan for top level module.exports statements, and determine what
 //    is exported by looking at the source code only (i.e., we don't do
-//    an eval).  If exports include `Foo`, it probably is a class, whereas
+//    an eval). If exports include `Foo`, it probably is a class, whereas
 //    if what is exported is `constants` it probably is prefixed by the
-//    by the basename of the source file (e.g., `zlib`), unless that
-//    source file is `buffer.js`, in which case the name is just `buf`.
-//    unless the constant is `kMaxLength`, in which case it is `buffer`.
+//    basename of the source file (e.g., `zlib`), unless that source file is
+//    `buffer.js`, in which case the name is just `buf`.  unless the constant
+//    is `kMaxLength`, in which case it is `buffer`.
 //
 //  * We scan for top level definitions for those exports, handling
 //    most common cases (e.g., `X.prototype.foo =`, `X.foo =`,
-//    `function X(...) {...}`).  Over time, we expect to handle more
+//    `function X(...) {...}`). Over time, we expect to handle more
 //    cases (example: ES2015 class definitions).
 
-const acorn = require('acorn');
+const acorn = require('../../deps/acorn');
 const fs = require('fs');
 const path = require('path');
 const child_process = require('child_process');
 
-// determine orign repo and most recent commit
+// Determine orign repo and most recent commit.
 const repo = (
   child_process.execSync(
     'git config remote.origin.url',
@@ -37,7 +37,7 @@ let hash = child_process.execSync(
 ).toString().trim() || 'master';
 
 try {
-  // replace hash with tag name, if tagged
+  // Replace hash with tag name, if tagged.
   hash = child_process.execSync(
     `git describe --contains ${hash}`,
     { stdio: ['ignore', null, 'ignore'] }
@@ -49,38 +49,12 @@ const definition = {};
 process.argv.slice(2).forEach((file) => {
   const basename = path.basename(file, '.js');
 
-  // parse source
+  // Parse source.
   const source = fs.readFileSync(file, 'utf8');
-  const ast = acorn.parse(source, { ecmaVersion: 10 });
+  const ast = acorn.parse(source, { ecmaVersion: 10, locations: true });
   const program = ast.body;
 
-  // scan for line termination characters
-  const eol = /\n/g;
-  let match;
-  const lineends = [0];
-  while (match = eol.exec(source)) {
-    lineends.push(match.index);
-  }
-
-  // Binary search lineends to find the line number.  Note that line numbers
-  // start with one (that's why lineends has an extra zero prepended to the
-  // list), and that the end of the loop, min and max point to the line ends
-  // immediately before and immediately after the indicated position.
-  function lineno(position) {
-    var min = 0;
-    var max = lineends.length;
-    while (max - 1 > min) {
-      const mid = Math.floor((min + max) / 2);
-      if (position > lineends[mid]) {
-        min = mid;
-      } else {
-        max = mid;
-      }
-    }
-    return max;
-  }
-
-  // scan for exports
+  // Scan for exports.
   const exported = { constructors: [], identifiers: [] };
   program.forEach((statement) => {
     if (statement.type !== 'ExpressionStatement') return;
@@ -112,7 +86,7 @@ process.argv.slice(2).forEach((file) => {
     }
   });
 
-  // scan for definitions matching those exports; currently supports:
+  // Scan for definitions matching those exports; currently supports:
   //
   //   ClassName.foo = ...;
   //   ClassName.prototype.foo = ...;
@@ -150,12 +124,12 @@ process.argv.slice(2).forEach((file) => {
         name = `${objectName}.${name}`;
       }
 
-      definition[name] = `${link}#L${lineno(statement.start)}`;
+      definition[name] = `${link}#L${statement.start.line}`;
     } else if (statement.type === 'FunctionDeclaration') {
       const name = statement.id.name;
       if (!exported.identifiers.includes(name)) return;
       if (basename.startsWith('_')) return;
-      definition[`${basename}.${name}`] = `${link}#L${lineno(statement.start)}`;
+      definition[`${basename}.${name}`] = `${link}#L${statement.start.line}`;
     }
   });
 });
