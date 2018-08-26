@@ -5476,6 +5476,9 @@ bool String::ContainsOnlyOneByte() const {
   return helper.Check(*str);
 }
 
+int String::Utf8Length(Isolate* isolate) const {
+  return Utf8Length();
+}
 
 int String::Utf8Length() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
