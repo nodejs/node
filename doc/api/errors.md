@@ -1848,7 +1848,6 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 A module file could not be resolved while attempting a [`require()`][] or
 `import` operation.
 
-<a id="legacy-nodejs-error-codes"></a>
 ## Legacy Node.js Error Codes
 
 > Stability: 0 - Deprecated. These error codes are either inconsistent, or have
@@ -1990,7 +1989,6 @@ removed: v10.0.0
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
 
-<a id="unreleased_error_codes">
 ### Other error codes
 
 These errors have never been released, but had been present on master between
