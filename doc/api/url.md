@@ -950,14 +950,14 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 * `path` {string} The path to convert to a File URL.
 * Returns: {URL} The file URL object.
 
-This function ensures that `path` is resolved absolutely, and that the URL control
-characters are correctly encoded when converting into a File URL.
+This function ensures that `path` is resolved absolutely, and that the URL
+control characters are correctly encoded when converting into a File URL.
 
 For example:
 
 ```js
-new URL(__filename);                // Incorrect: throws in POSIX or detects drive
-                                    //            letter as the schema in Windows
+new URL(__filename);                // Incorrect: throws (POSIX) or detects
+                                    // drive letter as the schema in Windows
 pathToFileURL(__filename);          // Correct:   file:///...
 
 new URL('/foo#1', 'file:');         // Incorrect: file:///foo# (POSIX)
