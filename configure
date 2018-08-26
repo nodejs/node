@@ -1575,7 +1575,7 @@ write('config.gypi', do_not_edit +
 
 write('config.status', '#!/bin/sh\nset -x\nexec ./configure ' +
       ' '.join([pipes.quote(arg) for arg in original_argv]) + '\n')
-os.chmod('config.status', 0775)
+os.chmod('config.status', 0o775)
 
 config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
