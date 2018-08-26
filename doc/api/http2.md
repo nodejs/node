@@ -746,10 +746,10 @@ is emitted immediately after queuing the last chunk of payload data to be sent.
 The `http2stream.sendTrailers()` method can then be called to send trailing
 headers to the peer.
 
-It is important to note that when `options.waitForTrailers` is set, the
-`Http2Stream` will *not* automatically close when the final `DATA` frame is
-transmitted. User code *must* call either `http2stream.sendTrailers()` or
-`http2stream.close()` to close the `Http2Stream`.
+When `options.waitForTrailers` is set, the `Http2Stream` will not automatically
+close when the final `DATA` frame is transmitted. User code must call either
+`http2stream.sendTrailers()` or `http2stream.close()` to close the
+`Http2Stream`.
 
 The `:method` and `:path` pseudo-headers are not specified within `headers`,
 they respectively default to:
@@ -1285,10 +1285,10 @@ will be emitted immediately after queuing the last chunk of payload data to be
 sent. The `http2stream.sendTrailers()` method can then be used to sent trailing
 header fields to the peer.
 
-It is important to note that when `options.waitForTrailers` is set, the
-`Http2Stream` will *not* automatically close when the final `DATA` frame is
-transmitted. User code *must* call either `http2stream.sendTrailers()` or
-`http2stream.close()` to close the `Http2Stream`.
+When `options.waitForTrailers` is set, the `Http2Stream` will not automatically
+close when the final `DATA` frame is transmitted. User code must call either
+`http2stream.sendTrailers()` or `http2stream.close()` to close the
+`Http2Stream`.
 
 ```js
 const http2 = require('http2');
@@ -1369,10 +1369,10 @@ will be emitted immediately after queuing the last chunk of payload data to be
 sent. The `http2stream.sendTrailers()` method can then be used to sent trailing
 header fields to the peer.
 
-It is important to note that when `options.waitForTrailers` is set, the
-`Http2Stream` will *not* automatically close when the final `DATA` frame is
-transmitted. User code *must* call either `http2stream.sendTrailers()` or
-`http2stream.close()` to close the `Http2Stream`.
+When `options.waitForTrailers` is set, the `Http2Stream` will not automatically
+close when the final `DATA` frame is transmitted. User code *must* call either
+`http2stream.sendTrailers()` or `http2stream.close()` to close the
+`Http2Stream`.
 
 ```js
 const http2 = require('http2');
@@ -1493,10 +1493,10 @@ will be emitted immediately after queuing the last chunk of payload data to be
 sent. The `http2stream.sendTrilers()` method can then be used to sent trailing
 header fields to the peer.
 
-It is important to note that when `options.waitForTrailers` is set, the
-`Http2Stream` will *not* automatically close when the final `DATA` frame is
-transmitted. User code *must* call either `http2stream.sendTrailers()` or
-`http2stream.close()` to close the `Http2Stream`.
+When `options.waitForTrailers` is set, the `Http2Stream` will not automatically
+close when the final `DATA` frame is transmitted. User code must call either
+`http2stream.sendTrailers()` or `http2stream.close()` to close the
+`Http2Stream`.
 
 ```js
 const http2 = require('http2');
