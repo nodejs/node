@@ -320,7 +320,7 @@ void Environment::PrintSyncTrace() const {
           uv_os_getpid());
 
   for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
-    Local<StackFrame> stack_frame = stack->GetFrame(i);
+    Local<StackFrame> stack_frame = stack->GetFrame(isolate(), i);
     node::Utf8Value fn_name_s(isolate(), stack_frame->GetFunctionName());
     node::Utf8Value script_name(isolate(), stack_frame->GetScriptName());
     const int line_number = stack_frame->GetLineNumber();
