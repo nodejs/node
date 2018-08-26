@@ -112,7 +112,8 @@ class StringBytes {
                                           v8::Local<v8::Value>* error);
 
  private:
-  static size_t WriteUCS2(char* buf,
+  static size_t WriteUCS2(v8::Isolate* isolate,
+                          char* buf,
                           size_t buflen,
                           v8::Local<v8::String> str,
                           int flags,

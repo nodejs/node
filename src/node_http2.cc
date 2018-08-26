@@ -381,10 +381,12 @@ Headers::Headers(Isolate* isolate,
   nghttp2_nv* const nva = reinterpret_cast<nghttp2_nv*>(start);
 
   CHECK_LE(header_contents + header_string_len, *buf_ + buf_.length());
-  CHECK_EQ(header_string.As<String>()
-              ->WriteOneByte(reinterpret_cast<uint8_t*>(header_contents),
-                             0, header_string_len,
-                             String::NO_NULL_TERMINATION),
+  CHECK_EQ(header_string.As<String>()->WriteOneByte(
+               isolate,
+               reinterpret_cast<uint8_t*>(header_contents),
+               0,
+               header_string_len,
+               String::NO_NULL_TERMINATION),
            header_string_len);
 
   size_t n = 0;
@@ -2633,8 +2635,8 @@ void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
 
   MaybeStackBuffer<uint8_t> origin(origin_len);
   MaybeStackBuffer<uint8_t> value(value_len);
-  origin_str->WriteOneByte(*origin);
-  value_str->WriteOneByte(*value);
+  origin_str->WriteOneByte(env->isolate(), *origin);
+  value_str->WriteOneByte(env->isolate(), *value);
 
   session->AltSvc(id, *origin, origin_len, *value, value_len);
 }
