@@ -956,9 +956,10 @@ control characters are correctly encoded when converting into a File URL.
 For example:
 
 ```js
-new URL(__filename);                // Incorrect: throws (POSIX) or detects
-                                    // drive letter as the schema in Windows
-pathToFileURL(__filename);          // Correct:   file:///...
+new URL(__filename);                // Incorrect: throws (POSIX)
+new URL(__filename);                // Incorrect: C:\... (Windows)
+pathToFileURL(__filename);          // Correct:   file:///... (POSIX)
+pathToFileURL(__filename);          // Correct:   file:///C:/... (Windows)
 
 new URL('/foo#1', 'file:');         // Incorrect: file:///foo#
 pathToFileURL('/foo#');             // Correct:   file:///foo%231 (POSIX)
