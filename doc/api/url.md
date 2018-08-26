@@ -891,11 +891,11 @@ well as ensuring a cross-platform valid absolute path string.
 For example:
 
 ```js
-new URL('file:///C:/path/').pathname;    // Incorrect: /C:/path/ (Windows)
-fileURLToPath('file:///C:/path/');       // Correct:   C:\path\
+new URL('file:///C:/path/').pathname;    // Incorrect: /C:/path/
+fileURLToPath('file:///C:/path/');       // Correct:   C:\path\ (Windows)
 
-new URL('file://nas/foo.txt').pathname;  // Incorrect: /foo.txt (Windows)
-fileURLToPath('file://nas/foo.txt');     // Correct:   \\nas\foo.txt
+new URL('file://nas/foo.txt').pathname;  // Incorrect: /foo.txt
+fileURLToPath('file://nas/foo.txt');     // Correct:   \\nas\foo.txt (Windows)
 
 new URL('file:///你好.txt').pathname;    // Incorrect: /%E4%BD%A0%E5%A5%BD.txt
 fileURLToPath('file:///你好.txt');       // Correct:   /你好.txt (POSIX)
@@ -960,14 +960,14 @@ new URL(__filename);                // Incorrect: throws (POSIX) or detects
                                     // drive letter as the schema in Windows
 pathToFileURL(__filename);          // Correct:   file:///...
 
-new URL('/foo#1', 'file:');         // Incorrect: file:///foo# (POSIX)
-pathToFileURL('/foo#');             // Correct:   file:///foo%231
+new URL('/foo#1', 'file:');         // Incorrect: file:///foo#
+pathToFileURL('/foo#');             // Correct:   file:///foo%231 (POSIX)
 
-new URL('//nas/foo.txt', 'file:');  // Incorrect: file:///nas/foo.txt (Windows)
-pathToFileURL('//nas/foo.txt');     // Correct:   file://nas/foo.txt
+new URL('//nas/foo.txt', 'file:');  // Incorrect: file:///nas/foo.txt
+pathToFileURL('//nas/foo.txt');     // Correct:   file://nas/foo.txt (Windows)
 
-new URL('/some/path%.js', 'file:'); // Incorrect: file:///some/path% (POSIX)
-pathToFileURL('/some/path%.js');    // Correct:   file:///some/path%25
+new URL('/some/path%.js', 'file:'); // Incorrect: file:///some/path%
+pathToFileURL('/some/path%.js');    // Correct:   file:///some/path%25 (POSIX)
 ```
 
 ## Legacy URL API
