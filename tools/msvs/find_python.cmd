@@ -2,7 +2,7 @@
 echo Looking for Python 2.x
 SETLOCAL
 :: If python.exe is in %Path%, just validate
-FOR /F "delims=" %%a IN ('where python 2^> NUL') DO (
+FOR /F "delims=" %%a IN ('where python.exe 2^> NUL') DO (
   SET need_path=0
   SET p=%%~dpa
   IF NOT ERRORLEVEL 1 GOTO :validate
