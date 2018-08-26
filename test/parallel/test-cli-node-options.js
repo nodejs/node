@@ -14,7 +14,9 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 process.chdir(tmpdir.path);
 
-expect(`-r ${require.resolve('../fixtures/printA.js')}`, 'A\nB\n');
+const printA = require.resolve('../fixtures/printA.js');
+expect(`-r ${printA}`, 'A\nB\n');
+expect(`-r ${printA} -r ${printA}`, 'A\nB\n');
 expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
 expect('--trace-warnings', 'B\n');
@@ -29,6 +31,9 @@ expect('--v8-pool-size=10', 'B\n');
 expect('--trace-event-categories node', 'B\n');
 // eslint-disable-next-line no-template-curly-in-string
 expect('--trace-event-file-pattern {pid}-${rotation}.trace_events', 'B\n');
+// eslint-disable-next-line no-template-curly-in-string
+expect('--trace-event-file-pattern {pid}-${rotation}.trace_events ' +
+       '--trace-event-categories node.async_hooks', 'B\n');
 
 if (!common.isWindows) {
   expect('--perf-basic-prof', 'B\n');
