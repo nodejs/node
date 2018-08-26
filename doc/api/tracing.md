@@ -68,7 +68,7 @@ tab of Chrome.
 The logging file is by default called `node_trace.${rotation}.log`, where
 `${rotation}` is an incrementing log-rotation id. The filepath pattern can
 be specified with `--trace-event-file-pattern` that accepts a template
-string that supports `${rotation}` and `${pid}`. For example:
+string that supports `${rotation}` and `${pid}`:
 
 ```txt
 node --trace-event-categories v8 --trace-event-file-pattern '${pid}-${rotation}.log' server.js

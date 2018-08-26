@@ -906,8 +906,6 @@ string serializations of the URL. These are not, however, customizable in
 any way. The `url.format(URL[, options])` method allows for basic customization
 of the output.
 
-For example:
-
 ```js
 const myURL = new URL('https://a:b@你好你好?abc#foo');
 
@@ -982,7 +980,7 @@ is everything following the `host` (including the `port`) and before the start
 of the `query` or `hash` components, delimited by either the ASCII question
 mark (`?`) or hash (`#`) characters.
 
-For example `'/p/a/t/h'`.
+For example: `'/p/a/t/h'`.
 
 No decoding of the path string is performed.
 
@@ -1164,8 +1162,6 @@ changes:
 The `url.resolve()` method resolves a target URL relative to a base URL in a
 manner similar to that of a Web browser resolving an anchor tag HREF.
 
-For example:
-
 ```js
 const url = require('url');
 url.resolve('/one/two/three', 'four');         // '/one/two/four'
@@ -1223,7 +1219,7 @@ specific conditions, in addition to all other cases.
 
 When non-ASCII characters appear within a hostname, the hostname is encoded
 using the [Punycode][] algorithm. Note, however, that a hostname *may* contain
-*both* Punycode encoded and percent-encoded characters. For example:
+*both* Punycode encoded and percent-encoded characters:
 
 ```js
 const myURL = new URL('https://%CF%80.com/foo');

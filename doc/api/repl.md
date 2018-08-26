@@ -323,7 +323,7 @@ the default evaluator and the `repl.REPLServer` instance was created with the
 reference to the `context` object as the only argument.
 
 This can be used primarily to re-initialize REPL context to some pre-defined
-state as illustrated in the following simple example:
+state:
 
 ```js
 const repl = require('repl');

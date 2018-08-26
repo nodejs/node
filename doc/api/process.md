@@ -943,8 +943,6 @@ Assigning a property on `process.env` will implicitly convert the value
 to a string. **This behavior is deprecated.** Future versions of Node.js may
 throw an error when the value is not a string, number, or boolean.
 
-Example:
-
 ```js
 process.env.test = null;
 console.log(process.env.test);
@@ -956,8 +954,6 @@ console.log(process.env.test);
 
 Use `delete` to delete a property from `process.env`.
 
-Example:
-
 ```js
 process.env.TEST = 1;
 delete process.env.TEST;
@@ -966,8 +962,6 @@ console.log(process.env.TEST);
 ```
 
 On Windows operating systems, environment variables are case-insensitive.
-
-Example:
 
 ```js
 process.env.TEST = 1;
@@ -1283,7 +1277,7 @@ the group access list, using all groups of which the user is a member. This is
 a privileged operation that requires that the Node.js process either have `root`
 access or the `CAP_SETGID` capability.
 
-Note that care must be taken when dropping privileges. Example:
+Note that care must be taken when dropping privileges:
 
 ```js
 console.log(process.getgroups());         // [ 0 ]
