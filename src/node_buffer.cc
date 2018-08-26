@@ -599,7 +599,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   // Can't use StringBytes::Write() in all cases. For example if attempting
   // to write a two byte character into a one byte Buffer.
   if (enc == UTF8) {
-    str_length = str_obj->Utf8Length();
+    str_length = str_obj->Utf8Length(env->isolate());
     node::Utf8Value str(env->isolate(), args[1]);
     memcpy(ts_obj_data + start, *str, MIN(str_length, fill_length));
 
@@ -689,10 +689,11 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 }
 
 void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
+  Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
 
   // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
-  args.GetReturnValue().Set(args[0].As<String>()->Utf8Length());
+  args.GetReturnValue().Set(args[0].As<String>()->Utf8Length(env->isolate()));
 }
 
 // Normalize val to be an integer in the range of [1, -1] since
@@ -1062,7 +1063,7 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   Local<String> str = args[0].As<String>();
-  size_t length = str->Utf8Length();
+  size_t length = str->Utf8Length(isolate);
   char* data = node::UncheckedMalloc(length);
   str->WriteUtf8(isolate,
                  data,

@@ -465,7 +465,7 @@ size_t StringBytes::Size(Isolate* isolate,
 
     case BUFFER:
     case UTF8:
-      return str->Utf8Length();
+      return str->Utf8Length(isolate);
 
     case UCS2:
       return str->Length() * sizeof(uint16_t);
