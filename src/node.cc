@@ -2921,7 +2921,8 @@ void Init(std::vector<std::string>* argv,
       index = node_options.find(' ', index + 1);
       if (index - prev_index == 1) continue;
 
-      const std::string option = node_options.substr(prev_index + 1, index);
+      const std::string option = node_options.substr(
+          prev_index + 1, index - prev_index - 1);
       if (!option.empty())
         env_argv.emplace_back(std::move(option));
     } while (index != std::string::npos);
