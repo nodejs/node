@@ -53,7 +53,7 @@ The externally maintained libraries used by Node.js are:
 
 - Acorn, located at deps/acorn, is licensed as follows:
   """
-    Copyright (C) 2012-2017 by various contributors (see AUTHORS)
+    Copyright (C) 2012-2018 by various contributors (see AUTHORS)
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal

@@ -1,6 +1,6 @@
 # Acorn
 
-[![Build Status](https://travis-ci.org/ternjs/acorn.svg?branch=master)](https://travis-ci.org/ternjs/acorn)
+[![Build Status](https://travis-ci.org/acornjs/acorn.svg?branch=master)](https://travis-ci.org/acornjs/acorn)
 [![NPM version](https://img.shields.io/npm/v/acorn.svg)](https://www.npmjs.com/package/acorn)
 [![CDNJS](https://img.shields.io/cdnjs/v/acorn.svg)](https://cdnjs.com/libraries/acorn)  
 [Author funding status: ![maintainer happiness](https://marijnhaverbeke.nl/fund/status_s.png?force)](https://marijnhaverbeke.nl/fund/)
@@ -10,11 +10,11 @@ A tiny, fast JavaScript parser, written completely in JavaScript.
 ## Community
 
 Acorn is open source software released under an
-[MIT license](https://github.com/ternjs/acorn/blob/master/LICENSE).
+[MIT license](https://github.com/acornjs/acorn/blob/master/LICENSE).
 
 You are welcome to
-[report bugs](https://github.com/ternjs/acorn/issues) or create pull
-requests on [github](https://github.com/ternjs/acorn). For questions
+[report bugs](https://github.com/acornjs/acorn/issues) or create pull
+requests on [github](https://github.com/acornjs/acorn). For questions
 and discussion, please use the
 [Tern discussion forum](https://discuss.ternjs.net).
 
@@ -28,10 +28,13 @@ The easiest way to install acorn is with [`npm`][npm].
 npm install acorn
 ```
 
-Alternately, download the source.
+Alternately, you can download the source and build acorn yourself:
 
 ```sh
-git clone https://github.com/ternjs/acorn.git
+git clone https://github.com/acornjs/acorn.git
+cd acorn
+npm install
+npm run build
 ```
 
 ## Components
@@ -63,7 +66,7 @@ object referring to that same position.
 [estree]: https://github.com/estree/estree
 
 - **ecmaVersion**: Indicates the ECMAScript version to parse. Must be
-  either 3, 5, 6 (2015), 7 (2016), 8 (2017), or 9 (2018, partial
+  either 3, 5, 6 (2015), 7 (2016), 8 (2017), 9 (2018) or 10 (2019, partial
   support). This influences support for strict mode, the set of
   reserved words, and support for new syntax features. Default is 7.
 
@@ -96,6 +99,8 @@ object referring to that same position.
 - **allowImportExportEverywhere**: By default, `import` and `export`
   declarations can only appear at a program's top level. Setting this
   option to `true` allows them anywhere where a statement is allowed.
+  
+- **allowAwaitOutsideFunction**: By default, `await` expressions can only appear inside `async` functions. Setting this option to `true` allows to have top-level `await` expressions. They are still not allowed in non-`async` functions, though.
 
 - **allowHashBang**: When this is enabled (off by default), if the
   code starts with the characters `#!` (as in a shellscript), the
@@ -351,7 +356,7 @@ The `bin/acorn` utility can be used to parse a file from the command
 line. It accepts as arguments its input file and the following
 options:
 
-- `--ecma3|--ecma5|--ecma6|--ecma7|--ecma8|--ecma9`: Sets the ECMAScript version
+- `--ecma3|--ecma5|--ecma6|--ecma7|--ecma8|--ecma9|--ecma10`: Sets the ECMAScript version
   to parse. Default is version 7.
 
 - `--module`: Sets the parsing mode to `"module"`. Is set to `"script"` otherwise.
@@ -443,10 +448,20 @@ looseParser.extend("readToken", function(nextMethod) {
 ### Existing plugins
 
  - [`acorn-jsx`](https://github.com/RReverser/acorn-jsx): Parse [Facebook JSX syntax extensions](https://github.com/facebook/jsx)
- - [`acorn-es7-plugin`](https://github.com/MatAtBread/acorn-es7-plugin/): Parse [async/await syntax proposal](https://github.com/tc39/ecmascript-asyncawait)
- - [`acorn-object-spread`](https://github.com/UXtemple/acorn-object-spread): Parse [object spread syntax proposal](https://github.com/sebmarkbage/ecmascript-rest-spread)
- - [`acorn-es7`](https://www.npmjs.com/package/acorn-es7): Parse [decorator syntax proposal](https://github.com/wycats/javascript-decorators)
- - [`acorn-objj`](https://www.npmjs.com/package/acorn-objj): [Objective-J](http://www.cappuccino-project.org/learn/objective-j.html) language parser built as Acorn plugin
- - [`acorn-object-rest-spread`](https://github.com/victor-homyakov/acorn-object-rest-spread) Parse [Object Rest/Spread Properties proposal](https://github.com/tc39/proposal-object-rest-spread), works with latest Acorn version (5.0.3)
- - [`acorn-static-class-property-initializer`](https://github.com/victor-homyakov/acorn-static-class-property-initializer) Partial support for static class properties from [ES Class Fields & Static Properties Proposal](https://github.com/tc39/proposal-class-public-fields) to support static property initializers in [React components written as ES6+ classes](https://babeljs.io/blog/2015/06/07/react-on-es6-plus)
+ - [`acorn-objj`](https://github.com/cappuccino/acorn-objj): [Objective-J](http://www.cappuccino-project.org/learn/objective-j.html) language parser built as Acorn plugin
  
+ Plugins for ECMAScript proposals:
+ 
+ - [`acorn-stage3`](https://github.com/acornjs/acorn-stage3): Parse most stage 3 proposals, bundling:
+   - [`acorn-async-iteration`](https://github.com/acornjs/acorn-async-iteration): Parse [async iteration proposal](https://github.com/tc39/proposal-async-iteration)
+   - [`acorn-bigint`](https://github.com/acornjs/acorn-bigint): Parse [BigInt proposal](https://github.com/tc39/proposal-bigint)
+   - [`acorn-class-fields`](https://github.com/acornjs/acorn-class-fields): Parse [class fields proposal](https://github.com/tc39/proposal-class-fields)
+   - [`acorn-dynamic-import`](https://github.com/kesne/acorn-dynamic-import): Parse [import() proposal](https://github.com/tc39/proposal-dynamic-import)
+   - [`acorn-import-meta`](https://github.com/acornjs/acorn-import-meta): Parse [import.meta proposal](https://github.com/tc39/proposal-import-meta)
+   - [`acorn-numeric-separator`](https://github.com/acornjs/acorn-numeric-separator): Parse [numeric separator proposal](https://github.com/tc39/proposal-numeric-separator)
+   - [`acorn-optional-catch-binding`](https://github.com/acornjs/acorn-optional-catch-binding): Parse [optional catch binding proposal](https://github.com/tc39/proposal-optional-catch-binding)
+   - [`acorn-private-methods`](https://github.com/acornjs/acorn-private-methods): parse [private methods, getters and setters proposal](https://github.com/tc39/proposal-private-methods)
+   - [`acorn5-object-spread`](https://github.com/adrianheine/acorn5-object-spread): Parse [Object Rest/Spread Properties proposal](https://github.com/tc39/proposal-object-rest-spread)
+ - [`acorn-object-rest-spread`](https://github.com/victor-homyakov/acorn-object-rest-spread): Parse [Object Rest/Spread Properties proposal](https://github.com/tc39/proposal-object-rest-spread)
+ - [`acorn-es7`](https://github.com/angelozerr/acorn-es7): Parse [decorator syntax proposal](https://github.com/wycats/javascript-decorators)
+ - [`acorn-static-class-property-initializer`](https://github.com/victor-homyakov/acorn-static-class-property-initializer): Partial support for static class properties from [ES Class Fields & Static Properties Proposal](https://github.com/tc39/proposal-class-public-fields) to support static property initializers in [React components written as ES6+ classes](https://babeljs.io/blog/2015/06/07/react-on-es6-plus)
