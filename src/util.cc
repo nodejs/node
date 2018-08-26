@@ -45,7 +45,8 @@ static void MakeUtf8String(Isolate* isolate,
   target->AllocateSufficientStorage(storage);
   const int flags =
       String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
-  const int length = string->WriteUtf8(target->out(), storage, 0, flags);
+  const int length =
+      string->WriteUtf8(isolate, target->out(), storage, 0, flags);
   target->SetLengthAndZeroTerminate(length);
 }
 
@@ -71,7 +72,7 @@ TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
   AllocateSufficientStorage(storage);
 
   const int flags = String::NO_NULL_TERMINATION;
-  const int length = string->Write(out(), 0, storage, flags);
+  const int length = string->Write(isolate, out(), 0, storage, flags);
   SetLengthAndZeroTerminate(length);
 }
 
