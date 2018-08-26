@@ -888,8 +888,6 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 This function ensures the correct decodings of percent-encoded characters as
 well as ensuring a cross-platform valid absolute path string.
 
-For example:
-
 ```js
 new URL('file:///C:/path/').pathname;    // Incorrect: /C:/path/
 fileURLToPath('file:///C:/path/');       // Correct:   C:\path\ (Windows)
