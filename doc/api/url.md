@@ -930,8 +930,6 @@ string serializations of the URL. These are not, however, customizable in
 any way. The `url.format(URL[, options])` method allows for basic customization
 of the output.
 
-For example:
-
 ```js
 const myURL = new URL('https://a:b@你好你好?abc#foo');
 
@@ -953,19 +951,14 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 This function ensures that `path` is resolved absolutely, and that the URL
 control characters are correctly encoded when converting into a File URL.
 
-For example:
-
 ```js
 new URL(__filename);                // Incorrect: throws (POSIX)
 new URL(__filename);                // Incorrect: C:\... (Windows)
 pathToFileURL(__filename);          // Correct:   file:///... (POSIX)
 pathToFileURL(__filename);          // Correct:   file:///C:/... (Windows)
 
-new URL('/foo#1', 'file:');         // Incorrect: file:///foo#
-pathToFileURL('/foo#');             // Correct:   file:///foo%231 (POSIX)
-
-new URL('//nas/foo.txt', 'file:');  // Incorrect: file:///nas/foo.txt
-pathToFileURL('//nas/foo.txt');     // Correct:   file://nas/foo.txt (Windows)
+new URL('/foo#1', 'file:');         // Incorrect: file:///foo#1
+pathToFileURL('/foo#1');            // Correct:   file:///foo%231 (POSIX)
 
 new URL('/some/path%.js', 'file:'); // Incorrect: file:///some/path%
 pathToFileURL('/some/path%.js');    // Correct:   file:///some/path%25 (POSIX)
