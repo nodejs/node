@@ -19,21 +19,25 @@ server.on('stream', (stream) => {
 server.listen(0, common.mustCall(() => {
   let remaining = 1e8;
   const chunk = 1e6;
-  const client = http2.connect(`http://localhost:${server.address().port}`,
-                               { settings: { initialWindowSize: 6553500 } });
-  const request = client.request({ ':method': 'POST' });
-  function writeChunk() {
-    if (remaining > 0) {
-      remaining -= chunk;
-      request.write(Buffer.alloc(chunk, 'a'), writeChunk);
-    } else {
-      request.end();
+  http2.connect(
+    `http://localhost:${server.address().port}`,
+    { settings: { initialWindowSize: 6553500 } },
+    (client) => {
+      const request = client.request({ ':method': 'POST' });
+      function writeChunk() {
+        if (remaining > 0) {
+          remaining -= chunk;
+          request.write(Buffer.alloc(chunk, 'a'), writeChunk);
+        } else {
+          request.end();
+        }
+      }
+      writeChunk();
+      request.on('close', common.mustCall(() => {
+        client.close();
+        server.close();
+      }));
+      request.resume();
     }
-  }
-  writeChunk();
-  request.on('close', common.mustCall(() => {
-    client.close();
-    server.close();
-  }));
-  request.resume();
+  );
 }));
