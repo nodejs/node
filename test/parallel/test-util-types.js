@@ -57,7 +57,8 @@ for (const [ value, _method ] of [
 
   for (const key of Object.keys(types)) {
     if ((types.isArrayBufferView(value) ||
-         types.isAnyArrayBuffer(value)) && key.includes('Array')) {
+         types.isAnyArrayBuffer(value)) && key.includes('Array') ||
+         key === 'isBoxedPrimitive') {
       continue;
     }
 
@@ -67,6 +68,15 @@ for (const [ value, _method ] of [
                        `${method}, ${types[key](value)}`);
   }
 }
+
+// Check boxed primitives.
+[
+  new Boolean(),
+  new Number(),
+  new String(),
+  Object(Symbol()),
+  Object(BigInt(0))
+].forEach((entry) => assert(types.isBoxedPrimitive(entry)));
 
 {
   assert(!types.isUint8Array({ [Symbol.toStringTag]: 'Uint8Array' }));
