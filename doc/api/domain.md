@@ -311,8 +311,6 @@ The returned function will be a wrapper around the supplied callback
 function. When the returned function is called, any errors that are
 thrown will be routed to the domain's `'error'` event.
 
-#### Example
-
 ```js
 const d = domain.create();
 
@@ -370,8 +368,6 @@ objects sent as the first argument to the function.
 In this way, the common `if (err) return callback(err);` pattern can be replaced
 with a single error handler in a single place.
 
-#### Example
-
 ```js
 const d = domain.create();
 
@@ -414,8 +410,6 @@ created in that context. Optionally, arguments can be passed to
 the function.
 
 This is the most basic way to use a domain.
-
-Example:
 
 ```js
 const domain = require('domain');

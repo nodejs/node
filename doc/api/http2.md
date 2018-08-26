@@ -2493,7 +2493,6 @@ added: v8.4.0
 The request/response headers object.
 
 Key-value pairs of header names and values. Header names are lower-cased.
-Example:
 
 ```js
 // Prints something like:
@@ -2538,8 +2537,7 @@ added: v8.4.0
 
 * {string}
 
-The request method as a string. Read-only. Example:
-`'GET'`, `'DELETE'`.
+The request method as a string. Read-only. Examples: `'GET'`, `'DELETE'`.
 
 #### request.rawHeaders
 <!-- YAML
@@ -2666,7 +2664,7 @@ Then `request.url` will be:
 ```
 
 To parse the url into its parts `require('url').parse(request.url)`
-can be used. Example:
+can be used:
 
 ```txt
 $ node
@@ -2689,7 +2687,6 @@ Url {
 To extract the parameters from the query string, the
 `require('querystring').parse` function can be used, or
 `true` can be passed as the second argument to `require('url').parse`.
-Example:
 
 ```txt
 $ node
@@ -2807,8 +2804,6 @@ added: v8.4.0
 Reads out a header that has already been queued but not sent to the client.
 Note that the name is case insensitive.
 
-Example:
-
 ```js
 const contentType = response.getHeader('content-type');
 ```
@@ -2822,8 +2817,6 @@ added: v8.4.0
 
 Returns an array containing the unique names of the current outgoing headers.
 All header names are lowercase.
-
-Example:
 
 ```js
 response.setHeader('Foo', 'bar');
@@ -2851,8 +2844,6 @@ prototypically inherit from the JavaScript `Object`. This means that typical
 `Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
 are not defined and *will not work*.
 
-Example:
-
 ```js
 response.setHeader('Foo', 'bar');
 response.setHeader('Set-Cookie', ['foo=bar', 'bar=baz']);
@@ -2871,8 +2862,6 @@ added: v8.4.0
 
 Returns `true` if the header identified by `name` is currently set in the
 outgoing headers. Note that the header name matching is case-insensitive.
-
-Example:
 
 ```js
 const hasContentType = response.hasHeader('content-type');
@@ -2895,8 +2884,6 @@ added: v8.4.0
 * `name` {string}
 
 Removes a header that has been queued for implicit sending.
-
-Example:
 
 ```js
 response.removeHeader('Content-Encoding');
@@ -2926,8 +2913,6 @@ added: v8.4.0
 Sets a single header value for implicit headers. If this header already exists
 in the to-be-sent headers, its value will be replaced. Use an array of strings
 here to send multiple headers with the same name.
-
-Example:
 
 ```js
 response.setHeader('Content-Type', 'text/html');
@@ -2998,8 +2983,6 @@ more information.
 
 All other interactions will be routed directly to the socket.
 
-Example:
-
 ```js
 const http2 = require('http2');
 const server = http2.createServer((req, res) => {
@@ -3019,8 +3002,6 @@ added: v8.4.0
 When using implicit headers (not calling [`response.writeHead()`][] explicitly),
 this property controls the status code that will be sent to the client when
 the headers get flushed.
-
-Example:
 
 ```js
 response.statusCode = 404;
@@ -3111,8 +3092,6 @@ For compatibility with [HTTP/1][], a human-readable `statusMessage` may be
 passed as the second argument. However, because the `statusMessage` has no
 meaning within HTTP/2, the argument will have no effect and a process warning
 will be emitted.
-
-Example:
 
 ```js
 const body = 'hello world';

@@ -633,8 +633,6 @@ pipes between the parent and child. The value is one of the following:
    words, stdin, stdout, and stderr) a pipe is created. For fd 3 and up, the
    default is `'ignore'`.
 
-Example:
-
 ```js
 const { spawn } = require('child_process');
 
@@ -1042,8 +1040,7 @@ See kill(2) for reference.
 
 Also note: on Linux, child processes of child processes will not be terminated
 when attempting to kill their parent. This is likely to happen when running a
-new process in a shell or with use of the `shell` option of `ChildProcess`, such
-as in this example:
+new process in a shell or with use of the `shell` option of `ChildProcess`:
 
 ```js
 'use strict';
@@ -1086,8 +1083,6 @@ added: v0.1.90
 * {integer}
 
 Returns the process identifier (PID) of the child process.
-
-Example:
 
 ```js
 const { spawn } = require('child_process');

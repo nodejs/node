@@ -510,8 +510,7 @@ rl.on('line', (line) => {
 ## Example: Read File Stream Line-by-Line
 
 A common use case for `readline` is to consume input from a filesystem
-[Readable][] stream one line at a time, as illustrated in the following
-example:
+[Readable][] stream one line at a time:
 
 ```js
 const readline = require('readline');

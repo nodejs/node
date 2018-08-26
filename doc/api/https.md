@@ -76,8 +76,6 @@ added: v0.3.4
  [`tls.createSecureContext()`][] and [`http.createServer()`][].
 * `requestListener` {Function} A listener to be added to the `'request'` event.
 
-Example:
-
 ```js
 // curl -k https://localhost:8000/
 const https = require('https');
@@ -133,8 +131,6 @@ Like [`http.get()`][] but for HTTPS.
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
 string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
-
-Example:
 
 ```js
 const https = require('https');
@@ -193,8 +189,6 @@ The following additional `options` from [`tls.connect()`][] are also accepted:
 string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
 
-Example:
-
 ```js
 const https = require('https');
 
@@ -238,8 +232,6 @@ const req = https.request(options, (res) => {
 ```
 
 Alternatively, opt out of connection pooling by not using an [`Agent`][].
-
-Example:
 
 ```js
 const options = {

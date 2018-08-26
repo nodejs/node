@@ -58,7 +58,7 @@ path.posix.basename('/tmp/myfile.html');
 
 *Note:* On Windows Node.js follows the concept of per-drive working directory.
 This behavior can be observed when using a drive path without a backslash. For
-example `path.resolve('c:\\')` can potentially return a different result than
+example, `path.resolve('c:\\')` can potentially return a different result than
 `path.resolve('c:')`. For more information, see
 [this MSDN page][MSDN-Rel-Path].
 
@@ -258,7 +258,7 @@ The `path.isAbsolute()` method determines if `path` is an absolute path.
 
 If the given `path` is a zero-length string, `false` will be returned.
 
-For example on POSIX:
+For example, on POSIX:
 
 ```js
 path.isAbsolute('/foo/bar'); // true
@@ -325,7 +325,7 @@ instance of the platform specific path segment separator (`/` on POSIX and
 If the `path` is a zero-length string, `'.'` is returned, representing the
 current working directory.
 
-For example on POSIX:
+For example, on POSIX:
 
 ```js
 path.normalize('/foo/bar//baz/asdf/quux/..');
@@ -369,7 +369,7 @@ The returned object will have the following properties:
 * `name` {string}
 * `ext` {string}
 
-For example on POSIX:
+For example, on POSIX:
 
 ```js
 path.parse('/home/user/dir/file.txt');
@@ -446,7 +446,7 @@ path (after calling `path.resolve()` on each), a zero-length string is returned.
 If a zero-length string is passed as `from` or `to`, the current working
 directory will be used instead of the zero-length strings.
 
-For example on POSIX:
+For example, on POSIX:
 
 ```js
 path.relative('/data/orandea/test/aaa', '/data/orandea/impl/bbb');
@@ -515,7 +515,7 @@ Provides the platform-specific path segment separator:
 * `\` on Windows
 * `/` on POSIX
 
-For example on POSIX:
+For example, on POSIX:
 
 ```js
 'foo/bar/baz'.split(path.sep);
