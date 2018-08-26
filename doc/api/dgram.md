@@ -552,7 +552,7 @@ chained.
 ### Change to asynchronous `socket.bind()` behavior
 
 As of Node.js v0.10, [`dgram.Socket#bind()`][] changed to an asynchronous
-execution model. Legacy code would use syncrhronous behavior:
+execution model. Legacy code would use synchronous behavior:
 
 ```js
 const s = dgram.createSocket('udp4');
