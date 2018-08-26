@@ -1828,7 +1828,9 @@ class V8_EXPORT StackTrace {
   /**
    * Returns a StackFrame at a particular index.
    */
-  Local<StackFrame> GetFrame(uint32_t index) const;
+  V8_DEPRECATE_SOON("Use Isolate version",
+                    Local<StackFrame> GetFrame(uint32_t index) const);
+  Local<StackFrame> GetFrame(Isolate* isolate, uint32_t index) const;
 
   /**
    * Returns the number of StackFrames.
