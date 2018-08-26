@@ -888,23 +888,21 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 This function ensures the correct decodings of percent-encoded characters as
 well as ensuring a cross-platform valid absolute path string.
 
-When converting from URL to path, the following common errors can occur:
+For example:
 
 ```js
-// '/C:/path/' instead of 'C:\path\' (Windows)
-new URL('file:///C:/path/').pathname;
+new URL('file:///C:/path/').pathname;    // Incorrect: /C:/path/ (Windows)
+fileURLToPath('file:///C:/path/');       // Correct:   C:\path\
 
-// '/foo.txt' instead of '\\nas\foo.txt' (Windows)
-new URL('file://nas/foo.txt').pathname;
+new URL('file://nas/foo.txt').pathname;  // Incorrect: /foo.txt (Windows)
+fileURLToPath('file://nas/foo.txt');     // Correct:   \\nas\foo.txt
 
-// '/%E4%BD%A0%E5%A5%BD.txt' instead of '/你好.txt' (POSIX)
-new URL('file:///你好.txt').pathname;
+new URL('file:///你好.txt').pathname;    // Incorrect: /%E4%BD%A0%E5%A5%BD.txt
+fileURLToPath('file:///你好.txt');       // Correct:   /你好.txt (POSIX)
 
-// '/hello%20world.txt' instead of '/hello world.txt' (POSIX)
-new URL('file:///hello world.txt').pathname;
+new URL('file:///hello world').pathname; // Incorrect: /hello%20world
+fileURLToPath('file:///hello world');    // Correct:   /hello world (POSIX)
 ```
-
-where using `url.fileURLToPath(fileURL)` can get the correct results above.
 
 ### url.format(URL[, options])
 <!-- YAML
@@ -949,30 +947,28 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 
 ### url.pathToFileURL(path)
 
-* `path` {string} The absolute path to convert to a File URL.
+* `path` {string} The path to convert to a File URL.
 * Returns: {URL} The file URL object.
 
-This function ensures the correct encodings of URL control characters in file
-paths when converting into File URLs.
+This function ensures that `path` is resolved absolutely, and that the URL control
+characters are correctly encoded when converting into a File URL.
 
-For example, the following errors can occur when converting from paths to URLs:
+For example:
 
 ```js
-// throws for missing schema (POSIX)
-// (in Windows the drive letter is detected as the protocol)
-new URL(__filename);
+new URL(__filename);                // Incorrect: throws in POSIX or detects drive
+                                    //            letter as the schema in Windows
+pathToFileURL(__filename);          // Correct:   file:///...
 
-// 'file:///foo#' instead of the correct 'file:///foo%231' (POSIX)
-new URL('/foo#1', 'file:');
+new URL('/foo#1', 'file:');         // Incorrect: file:///foo# (POSIX)
+pathToFileURL('/foo#');             // Correct:   file:///foo%231
 
-// 'file:///nas/foo.txt' instead of the correct 'file:///foo.txt' (POSIX)
-new URL('//nas/foo.txt', 'file:');
+new URL('//nas/foo.txt', 'file:');  // Incorrect: file:///nas/foo.txt (Windows)
+pathToFileURL('//nas/foo.txt');     // Correct:   file://nas/foo.txt
 
-// 'file:///some/path%' instead of the correct 'file:///some/path%25' (POSIX)
-new URL('/some/path%.js', 'file:');
+new URL('/some/path%.js', 'file:'); // Incorrect: file:///some/path% (POSIX)
+pathToFileURL('/some/path%.js');    // Correct:   file:///some/path%25
 ```
-
-where using `url.pathToFileURL(path)` can get the correct results above.
 
 ## Legacy URL API
 
