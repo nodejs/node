@@ -2399,7 +2399,7 @@ napi_status napi_get_value_string_utf8(napi_env env,
 
   if (!buf) {
     CHECK_ARG(env, result);
-    *result = val.As<v8::String>()->Utf8Length();
+    *result = val.As<v8::String>()->Utf8Length(env->isolate);
   } else {
     int copied = val.As<v8::String>()->WriteUtf8(
         env->isolate,
