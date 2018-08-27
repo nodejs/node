@@ -581,7 +581,7 @@ found [here][online].
 <a id="ERR_AMBIGUOUS_ARGUMENT"></a>
 ### ERR_AMBIGUOUS_ARGUMENT
 
-An function argument is being used in a way that suggests that the function
+A function argument is being used in a way that suggests that the function
 signature may be misunderstood. This is thrown by the `assert` module when the
 `message` parameter in `assert.throws(block, message)` matches the error message
 thrown by `block` because that usage suggests that the user believes `message`
