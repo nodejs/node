@@ -581,10 +581,12 @@ found [here][online].
 <a id="ERR_AMBIGUOUS_ARGUMENT"></a>
 ### ERR_AMBIGUOUS_ARGUMENT
 
-This is triggered by the `assert` module in case e.g.,
-`assert.throws(fn, message)` is used in a way that the message is the thrown
-error message. This is ambiguous because the message is not verifying the error
-message and will only be thrown in case no error is thrown.
+A function argument is being used in a way that suggests that the function
+signature may be misunderstood. This is thrown by the `assert` module when the
+`message` parameter in `assert.throws(block, message)` matches the error message
+thrown by `block` because that usage suggests that the user believes `message`
+is the expected message rather than the message the `AssertionError` will
+display if `block` does not throw.
 
 <a id="ERR_ARG_NOT_ITERABLE"></a>
 ### ERR_ARG_NOT_ITERABLE
