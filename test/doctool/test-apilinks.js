@@ -14,8 +14,7 @@ fs.readdirSync(apilinks).forEach((fixture) => {
   if (!fixture.endsWith('.js')) return;
   const file = path.join(apilinks, fixture);
 
-  const fixtureContent = fs.readFileSync(file, 'utf8');
-  const expectedContent = fs.readFileSync(file+'on', 'utf8');
+  const expectedContent = fs.readFileSync(file + 'on', 'utf8');
 
   const output = execFileSync(
     process.execPath,
