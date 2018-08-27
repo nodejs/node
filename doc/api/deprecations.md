@@ -1045,7 +1045,7 @@ of Node.js core and will be removed in the future.
 Type: Runtime
 
 In recent versions of Node.js, there is no difference between
-[`crypto.randomBytes()`][] and `crypto.pseudoRandomBytes()`. The latter has been
+[`crypto.randomBytes()`][] and `crypto.pseudoRandomBytes()`. The latter is
 deprecated along with the undocumented aliases `crypto.prng()` and
 `crypto.rng()` in favor of [`crypto.randomBytes()`][] and will be removed in a
 future release.
