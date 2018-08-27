@@ -1003,7 +1003,7 @@ as arguments instead of options.
 A port or host option, if specified, will take precedence over any port or host
 argument.
 
-## tls.createSecureContext(options)
+## tls.createSecureContext([options])
 <!-- YAML
 added: v0.11.13
 changes:
