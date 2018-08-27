@@ -14,24 +14,27 @@ fs.readdirSync(apilinks).forEach((fixture) => {
   if (!fixture.endsWith('.js')) return;
   const file = path.join(apilinks, fixture);
 
-  let expected = {};
-  eval(/(expected\s*=.*?);/s.exec(fs.readFileSync(file, 'utf8'))[1]);
+  const fixtureContent = fs.readFileSync(file, 'utf8');
+  const expectedContent = fs.readFileSync(file+'on', 'utf8');
 
-  const links = JSON.parse(execFileSync(
+  const output = execFileSync(
     process.execPath,
     [script, file],
     { encoding: 'utf-8' }
-  ));
+  );
 
-  for (const [k, v] of Object.entries(expected)) {
-    assert.ok(k in links, `link not found: ${k}`);
-    assert.ok(links[k].endsWith('/' + v),
-              `link ${links[k]} expected to end with ${v}`);
-    delete links[k];
+  const expectedLinks = JSON.parse(expectedContent);
+  const actualLinks = JSON.parse(output);
+
+  for (const [k, v] of Object.entries(expectedLinks)) {
+    assert.ok(k in actualLinks, `link not found: ${k}`);
+    assert.ok(actualLinks[k].endsWith('/' + v),
+              `link ${actualLinks[k]} expected to end with ${v}`);
+    delete expectedLinks[k];
   }
 
   assert.strictEqual(
-    Object.keys(links).length, 0,
-    `unexpected links returned ${JSON.stringify(Object.keys(links))}`
+    Object.keys(expectedLinks).length, 0,
+    `unexpected links returned ${JSON.stringify(Object.keys(expectedLinks))}`
   );
 });

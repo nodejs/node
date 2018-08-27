@@ -19,8 +19,3 @@ Object.defineProperty(exports, 'constants', {
   enumerable: true,
   value: {k1: 1}
 });
-
-const expected = {
-  "Known.classField": "known1.js#L7",
-  "known1.createKnown": "known1.js#L9"
-};
