@@ -998,7 +998,7 @@ deprecated and support will be removed in the future.
 
 Type: Documentation-only
 
-The option `produceCachedData` is deprecated. Use
+The `produceCachedData` option is deprecated. Use
 [`script.createCachedData()`][] instead.
 
 <a id="DEP0111"></a>
