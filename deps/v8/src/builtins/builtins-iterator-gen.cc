@@ -4,43 +4,69 @@
 
 #include "src/builtins/builtins-iterator-gen.h"
 
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 
 namespace v8 {
 namespace internal {
 
 using compiler::Node;
 
+Node* IteratorBuiltinsAssembler::GetIteratorMethod(Node* context,
+                                                   Node* object) {
+  return GetProperty(context, object, factory()->iterator_symbol());
+}
+
 IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
                                                       Node* object,
                                                       Label* if_exception,
                                                       Variable* exception) {
-  Node* method = GetProperty(context, object, factory()->iterator_symbol());
+  Node* method = GetIteratorMethod(context, object);
+  return GetIterator(context, object, method, if_exception, exception);
+}
+
+IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
+                                                      Node* object,
+                                                      Node* method,
+                                                      Label* if_exception,
+                                                      Variable* exception) {
   GotoIfException(method, if_exception, exception);
 
-  Callable callable = CodeFactory::Call(isolate());
-  Node* iterator = CallJS(callable, context, method, object);
-  GotoIfException(iterator, if_exception, exception);
+  Label if_not_callable(this, Label::kDeferred), if_callable(this);
+  GotoIf(TaggedIsSmi(method), &if_not_callable);
+  Branch(IsCallable(method), &if_callable, &if_not_callable);
 
-  Label get_next(this), if_notobject(this, Label::kDeferred);
-  GotoIf(TaggedIsSmi(iterator), &if_notobject);
-  Branch(IsJSReceiver(iterator), &get_next, &if_notobject);
-
-  BIND(&if_notobject);
+  BIND(&if_not_callable);
   {
-    Node* ret =
-        CallRuntime(Runtime::kThrowTypeError, context,
-                    SmiConstant(MessageTemplate::kNotAnIterator), iterator);
+    Node* ret = CallRuntime(Runtime::kThrowTypeError, context,
+                            SmiConstant(MessageTemplate::kNotIterable), object);
     GotoIfException(ret, if_exception, exception);
     Unreachable();
   }
 
-  BIND(&get_next);
-  Node* const next = GetProperty(context, iterator, factory()->next_string());
-  GotoIfException(next, if_exception, exception);
+  BIND(&if_callable);
+  {
+    Callable callable = CodeFactory::Call(isolate());
+    Node* iterator = CallJS(callable, context, method, object);
+    GotoIfException(iterator, if_exception, exception);
 
-  return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator),
-                        TNode<Object>::UncheckedCast(next)};
+    Label get_next(this), if_notobject(this, Label::kDeferred);
+    GotoIf(TaggedIsSmi(iterator), &if_notobject);
+    Branch(IsJSReceiver(iterator), &get_next, &if_notobject);
+
+    BIND(&if_notobject);
+    {
+      Node* ret = CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
+      GotoIfException(ret, if_exception, exception);
+      Unreachable();
+    }
+
+    BIND(&get_next);
+    Node* const next = GetProperty(context, iterator, factory()->next_string());
+    GotoIfException(next, if_exception, exception);
+
+    return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator),
+                          TNode<Object>::UncheckedCast(next)};
+  }
 }
 
 Node* IteratorBuiltinsAssembler::IteratorStep(

@@ -14,7 +14,6 @@
 #include "src/globals.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
-#include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/utils.h"
@@ -27,7 +26,6 @@ namespace internal {
 
 class ConsumedPreParsedScopeData;
 class ParseInfo;
-class ScriptData;
 class ParserTarget;
 class ParserTargetScope;
 class PendingCompilationErrorHandler;
@@ -76,47 +74,6 @@ class FunctionEntry BASE_EMBEDDED {
   Vector<unsigned> backing_;
 };
 
-
-// Wrapper around ScriptData to provide parser-specific functionality.
-class ParseData {
- public:
-  static ParseData* FromCachedData(ScriptData* cached_data) {
-    ParseData* pd = new ParseData(cached_data);
-    if (pd->IsSane()) return pd;
-    cached_data->Reject();
-    delete pd;
-    return nullptr;
-  }
-
-  void Initialize();
-  FunctionEntry GetFunctionEntry(int start);
-  int FunctionCount();
-
-  unsigned* Data() {  // Writable data as unsigned int array.
-    return reinterpret_cast<unsigned*>(const_cast<byte*>(script_data_->data()));
-  }
-
-  void Reject() { script_data_->Reject(); }
-
-  bool rejected() const { return script_data_->rejected(); }
-
- private:
-  explicit ParseData(ScriptData* script_data) : script_data_(script_data) {}
-
-  bool IsSane();
-  unsigned Magic();
-  unsigned Version();
-  int FunctionsSize();
-  int Length() const {
-    // Script data length is already checked to be a multiple of unsigned size.
-    return script_data_->length() / sizeof(unsigned);
-  }
-
-  ScriptData* script_data_;
-  int function_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(ParseData);
-};
 
 // ----------------------------------------------------------------------------
 // JAVASCRIPT PARSING
@@ -192,8 +149,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = nullptr;
-    delete cached_parse_data_;
-    cached_parse_data_ = nullptr;
   }
 
   static bool IsPreParser() { return false; }
@@ -276,19 +231,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   ZoneList<const AstRawString*>* PrepareWrappedArguments(ParseInfo* info,
                                                          Zone* zone);
 
-  void SetCachedData(ParseInfo* info);
-
   void StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate);
-
-  ScriptCompiler::CompileOptions compile_options() const {
-    return compile_options_;
-  }
-  bool consume_cached_parse_data() const {
-    return compile_options_ == ScriptCompiler::kConsumeParserCache;
-  }
-  bool produce_cached_parse_data() const {
-    return compile_options_ == ScriptCompiler::kProduceParserCache;
-  }
 
   PreParser* reusable_preparser() {
     if (reusable_preparser_ == nullptr) {
@@ -299,7 +242,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
       SET_ALLOW(harmony_do_expressions);
-      SET_ALLOW(harmony_function_sent);
       SET_ALLOW(harmony_public_fields);
       SET_ALLOW(harmony_static_fields);
       SET_ALLOW(harmony_dynamic_import);
@@ -307,6 +249,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       SET_ALLOW(harmony_bigint);
       SET_ALLOW(harmony_optional_catch_binding);
       SET_ALLOW(harmony_private_fields);
+      SET_ALLOW(eval_cache);
 #undef SET_ALLOW
     }
     return reusable_preparser_;
@@ -377,6 +320,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       int class_token_pos, bool* ok);
   V8_INLINE void DeclareClassProperty(const AstRawString* class_name,
                                       ClassLiteralProperty* property,
+                                      const AstRawString* property_name,
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       bool is_computed_name,
@@ -456,6 +400,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // hoisted over such a scope.
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
 
+  bool IsPropertyWithPrivateFieldKey(Expression* property);
+
   // Insert initializer statements for var-bindings shadowing parameter bindings
   // from a non-simple parameter list.
   void InsertShadowingVarBindingInitializers(Block* block);
@@ -506,7 +452,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope, int* num_parameters,
       int* function_length, bool* has_duplicate_parameters,
-      int* expected_property_count,
+      int* expected_property_count, int* suspend_count,
       ZoneList<const AstRawString*>* arguments_for_wrapped_function, bool* ok);
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);
@@ -555,9 +501,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                              Expression* expression);
   Expression* CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                    Expression* tag);
-  int32_t ComputeTemplateLiteralHash(const TemplateLiteral* lit);
 
-  ZoneList<Expression*>* PrepareSpreadArguments(ZoneList<Expression*>* list);
+  ArrayLiteral* ArrayLiteralFromListWithSpread(ZoneList<Expression*>* list);
   Expression* SpreadCall(Expression* function, ZoneList<Expression*>* args,
                          int pos, Call::PossiblyEval is_possibly_eval);
   Expression* SpreadCallNew(Expression* function, ZoneList<Expression*>* args,
@@ -761,6 +706,15 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
   }
 
+  // A shortcut for performing a ToString operation
+  V8_INLINE Expression* ToString(Expression* expr) {
+    if (expr->IsStringLiteral()) return expr;
+    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+    args->Add(expr, zone());
+    return factory()->NewCallRuntime(Runtime::kInlineToString, args,
+                                     expr->position());
+  }
+
   // Returns true if we have a binary expression between two numeric
   // literals. In that case, *x will be changed to an expression which is the
   // computed value.
@@ -883,12 +837,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* NewSuperPropertyReference(int pos);
   Expression* NewSuperCallReference(int pos);
   Expression* NewTargetExpression(int pos);
-  Expression* FunctionSentExpression(int pos);
   Expression* ImportMetaExpression(int pos);
 
   Literal* ExpressionFromLiteral(Token::Value token, int pos);
 
-  V8_INLINE Expression* ExpressionFromIdentifier(
+  V8_INLINE VariableProxy* ExpressionFromIdentifier(
       const AstRawString* name, int start_position,
       InferName infer = InferName::kYes) {
     if (infer == InferName::kYes) {
@@ -1144,7 +1097,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   ParserTarget* target_stack_;  // for break, continue statements
 
   ScriptCompiler::CompileOptions compile_options_;
-  ParseData* cached_parse_data_;
 
   // Other information which will be stored in Parser and moved to Isolate after
   // parsing.
@@ -1152,7 +1104,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   int total_preparse_skipped_;
   bool allow_lazy_;
   bool temp_zoned_;
-  ParserLogger* log_;
   ConsumedPreParsedScopeData* consumed_preparsed_scope_data_;
 
   // If not kNoSourcePosition, indicates that the first function literal

@@ -20,8 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
+const fs = require('fs');
 const fixtures = require('../common/fixtures');
 
 // A module with an error in it should throw
@@ -52,5 +53,5 @@ function assertModuleNotFound(path) {
 }
 
 function assertExists(fixture) {
-  assert(common.fileExists(fixtures.path(fixture)));
+  assert(fs.existsSync(fixtures.path(fixture)));
 }

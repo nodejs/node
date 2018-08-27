@@ -28,8 +28,7 @@ const net = require('net');
 const isIPv4 = net.isIPv4;
 const isIPv6 = net.isIPv6;
 const util = require('util');
-
-common.crashOnUnhandledRejection();
+const dnsPromises = dns.promises;
 
 let expected = 0;
 let completed = 0;
@@ -68,17 +67,18 @@ function checkWrap(req) {
 
 
 TEST(function test_reverse_bogus(done) {
+  dnsPromises.reverse('bogus ip')
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ errno: 'EINVAL' }));
+
   assert.throws(() => {
     dns.reverse('bogus ip', common.mustNotCall());
-  }, /^Error: getHostByAddr EINVAL$/);
+  }, /^Error: getHostByAddr EINVAL bogus ip$/);
   done();
 });
 
-TEST(function test_resolve4_ttl(done) {
-  const req = dns.resolve4(addresses.INET4_HOST, {
-    ttl: true
-  }, function(err, result) {
-    assert.ifError(err);
+TEST(async function test_resolve4_ttl(done) {
+  function validateResult(result) {
     assert.ok(result.length > 0);
 
     for (let i = 0; i < result.length; i++) {
@@ -90,18 +90,25 @@ TEST(function test_resolve4_ttl(done) {
       assert.ok(item.ttl > 0);
       assert.ok(isIPv4(item.address));
     }
+  }
 
+  validateResult(await dnsPromises.resolve4(addresses.INET4_HOST, {
+    ttl: true
+  }));
+
+  const req = dns.resolve4(addresses.INET4_HOST, {
+    ttl: true
+  }, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
     done();
   });
 
   checkWrap(req);
 });
 
-TEST(function test_resolve6_ttl(done) {
-  const req = dns.resolve6(addresses.INET6_HOST, {
-    ttl: true
-  }, function(err, result) {
-    assert.ifError(err);
+TEST(async function test_resolve6_ttl(done) {
+  function validateResult(result) {
     assert.ok(result.length > 0);
 
     for (let i = 0; i < result.length; i++) {
@@ -113,29 +120,42 @@ TEST(function test_resolve6_ttl(done) {
       assert.ok(item.ttl > 0);
       assert.ok(isIPv6(item.address));
     }
+  }
 
+  validateResult(await dnsPromises.resolve6(addresses.INET6_HOST, {
+    ttl: true
+  }));
+
+  const req = dns.resolve6(addresses.INET6_HOST, {
+    ttl: true
+  }, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
     done();
   });
 
   checkWrap(req);
 });
 
-TEST(function test_resolveMx(done) {
-  const req = dns.resolveMx(addresses.MX_HOST, function(err, result) {
-    assert.ifError(err);
+TEST(async function test_resolveMx(done) {
+  function validateResult(result) {
     assert.ok(result.length > 0);
 
     for (let i = 0; i < result.length; i++) {
       const item = result[i];
       assert.ok(item);
       assert.strictEqual(typeof item, 'object');
-
       assert.ok(item.exchange);
       assert.strictEqual(typeof item.exchange, 'string');
-
       assert.strictEqual(typeof item.priority, 'number');
     }
+  }
 
+  validateResult(await dnsPromises.resolveMx(addresses.MX_HOST));
+
+  const req = dns.resolveMx(addresses.MX_HOST, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
     done();
   });
 
@@ -143,6 +163,10 @@ TEST(function test_resolveMx(done) {
 });
 
 TEST(function test_resolveMx_failure(done) {
+  dnsPromises.resolveMx(addresses.INVALID_HOST)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ errno: 'ENOTFOUND' }));
+
   const req = dns.resolveMx(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
@@ -155,17 +179,23 @@ TEST(function test_resolveMx_failure(done) {
   checkWrap(req);
 });
 
-TEST(function test_resolveNs(done) {
+TEST(async function test_resolveNs(done) {
+  function validateResult(result) {
+    assert.ok(result.length > 0);
+
+    for (let i = 0; i < result.length; i++) {
+      const item = result[i];
+
+      assert.ok(item);
+      assert.strictEqual(typeof item, 'string');
+    }
+  }
+
+  validateResult(await dnsPromises.resolveNs(addresses.NS_HOST));
+
   const req = dns.resolveNs(addresses.NS_HOST, function(err, names) {
     assert.ifError(err);
-    assert.ok(names.length > 0);
-
-    for (let i = 0; i < names.length; i++) {
-      const name = names[i];
-      assert.ok(name);
-      assert.strictEqual(typeof name, 'string');
-    }
-
+    validateResult(names);
     done();
   });
 
@@ -173,6 +203,10 @@ TEST(function test_resolveNs(done) {
 });
 
 TEST(function test_resolveNs_failure(done) {
+  dnsPromises.resolveNs(addresses.INVALID_HOST)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ errno: 'ENOTFOUND' }));
+
   const req = dns.resolveNs(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
@@ -185,9 +219,8 @@ TEST(function test_resolveNs_failure(done) {
   checkWrap(req);
 });
 
-TEST(function test_resolveSrv(done) {
-  const req = dns.resolveSrv(addresses.SRV_HOST, function(err, result) {
-    assert.ifError(err);
+TEST(async function test_resolveSrv(done) {
+  function validateResult(result) {
     assert.ok(result.length > 0);
 
     for (let i = 0; i < result.length; i++) {
@@ -202,7 +235,13 @@ TEST(function test_resolveSrv(done) {
       assert.strictEqual(typeof item.priority, 'number');
       assert.strictEqual(typeof item.weight, 'number');
     }
+  }
 
+  validateResult(await dnsPromises.resolveSrv(addresses.SRV_HOST));
+
+  const req = dns.resolveSrv(addresses.SRV_HOST, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
     done();
   });
 
@@ -210,6 +249,10 @@ TEST(function test_resolveSrv(done) {
 });
 
 TEST(function test_resolveSrv_failure(done) {
+  dnsPromises.resolveSrv(addresses.INVALID_HOST)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ errno: 'ENOTFOUND' }));
+
   const req = dns.resolveSrv(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
@@ -222,9 +265,8 @@ TEST(function test_resolveSrv_failure(done) {
   checkWrap(req);
 });
 
-TEST(function test_resolvePtr(done) {
-  const req = dns.resolvePtr(addresses.PTR_HOST, function(err, result) {
-    assert.ifError(err);
+TEST(async function test_resolvePtr(done) {
+  function validateResult(result) {
     assert.ok(result.length > 0);
 
     for (let i = 0; i < result.length; i++) {
@@ -232,7 +274,13 @@ TEST(function test_resolvePtr(done) {
       assert.ok(item);
       assert.strictEqual(typeof item, 'string');
     }
+  }
 
+  validateResult(await dnsPromises.resolvePtr(addresses.PTR_HOST));
+
+  const req = dns.resolvePtr(addresses.PTR_HOST, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
     done();
   });
 
@@ -240,6 +288,10 @@ TEST(function test_resolvePtr(done) {
 });
 
 TEST(function test_resolvePtr_failure(done) {
+  dnsPromises.resolvePtr(addresses.INVALID_HOST)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ errno: 'ENOTFOUND' }));
+
   const req = dns.resolvePtr(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
@@ -252,16 +304,14 @@ TEST(function test_resolvePtr_failure(done) {
   checkWrap(req);
 });
 
-TEST(function test_resolveNaptr(done) {
-  const req = dns.resolveNaptr(addresses.NAPTR_HOST, function(err, result) {
-    assert.ifError(err);
+TEST(async function test_resolveNaptr(done) {
+  function validateResult(result) {
     assert.ok(result.length > 0);
 
     for (let i = 0; i < result.length; i++) {
       const item = result[i];
       assert.ok(item);
       assert.strictEqual(typeof item, 'object');
-
       assert.strictEqual(typeof item.flags, 'string');
       assert.strictEqual(typeof item.service, 'string');
       assert.strictEqual(typeof item.regexp, 'string');
@@ -269,7 +319,13 @@ TEST(function test_resolveNaptr(done) {
       assert.strictEqual(typeof item.order, 'number');
       assert.strictEqual(typeof item.preference, 'number');
     }
+  }
 
+  validateResult(await dnsPromises.resolveNaptr(addresses.NAPTR_HOST));
+
+  const req = dns.resolveNaptr(addresses.NAPTR_HOST, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
     done();
   });
 
@@ -277,6 +333,10 @@ TEST(function test_resolveNaptr(done) {
 });
 
 TEST(function test_resolveNaptr_failure(done) {
+  dnsPromises.resolveNaptr(addresses.INVALID_HOST)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ errno: 'ENOTFOUND' }));
+
   const req = dns.resolveNaptr(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
@@ -289,33 +349,31 @@ TEST(function test_resolveNaptr_failure(done) {
   checkWrap(req);
 });
 
-TEST(function test_resolveSoa(done) {
-  const req = dns.resolveSoa(addresses.SOA_HOST, function(err, result) {
-    assert.ifError(err);
+TEST(async function test_resolveSoa(done) {
+  function validateResult(result) {
     assert.ok(result);
     assert.strictEqual(typeof result, 'object');
-
     assert.strictEqual(typeof result.nsname, 'string');
     assert.ok(result.nsname.length > 0);
-
     assert.strictEqual(typeof result.hostmaster, 'string');
     assert.ok(result.hostmaster.length > 0);
-
     assert.strictEqual(typeof result.serial, 'number');
     assert.ok((result.serial > 0) && (result.serial < 4294967295));
-
     assert.strictEqual(typeof result.refresh, 'number');
     assert.ok((result.refresh > 0) && (result.refresh < 2147483647));
-
     assert.strictEqual(typeof result.retry, 'number');
     assert.ok((result.retry > 0) && (result.retry < 2147483647));
-
     assert.strictEqual(typeof result.expire, 'number');
     assert.ok((result.expire > 0) && (result.expire < 2147483647));
-
     assert.strictEqual(typeof result.minttl, 'number');
     assert.ok((result.minttl >= 0) && (result.minttl < 2147483647));
+  }
 
+  validateResult(await dnsPromises.resolveSoa(addresses.SOA_HOST));
+
+  const req = dns.resolveSoa(addresses.SOA_HOST, function(err, result) {
+    assert.ifError(err);
+    validateResult(result);
     done();
   });
 
@@ -323,6 +381,10 @@ TEST(function test_resolveSoa(done) {
 });
 
 TEST(function test_resolveSoa_failure(done) {
+  dnsPromises.resolveSoa(addresses.INVALID_HOST)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ errno: 'ENOTFOUND' }));
+
   const req = dns.resolveSoa(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
@@ -335,17 +397,22 @@ TEST(function test_resolveSoa_failure(done) {
   checkWrap(req);
 });
 
-TEST(function test_resolveCname(done) {
-  const req = dns.resolveCname(addresses.CNAME_HOST, function(err, names) {
-    assert.ifError(err);
-    assert.ok(names.length > 0);
+TEST(async function test_resolveCname(done) {
+  function validateResult(result) {
+    assert.ok(result.length > 0);
 
-    for (let i = 0; i < names.length; i++) {
-      const name = names[i];
+    for (let i = 0; i < result.length; i++) {
+      const name = result[i];
       assert.ok(name);
       assert.strictEqual(typeof name, 'string');
     }
+  }
 
+  validateResult(await dnsPromises.resolveCname(addresses.CNAME_HOST));
+
+  const req = dns.resolveCname(addresses.CNAME_HOST, function(err, names) {
+    assert.ifError(err);
+    validateResult(names);
     done();
   });
 
@@ -353,6 +420,10 @@ TEST(function test_resolveCname(done) {
 });
 
 TEST(function test_resolveCname_failure(done) {
+  dnsPromises.resolveCname(addresses.INVALID_HOST)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ errno: 'ENOTFOUND' }));
+
   const req = dns.resolveCname(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
@@ -366,12 +437,18 @@ TEST(function test_resolveCname_failure(done) {
 });
 
 
-TEST(function test_resolveTxt(done) {
+TEST(async function test_resolveTxt(done) {
+  function validateResult(result) {
+    assert.ok(Array.isArray(result[0]));
+    assert.strictEqual(result.length, 1);
+    assert(result[0][0].startsWith('v=spf1'));
+  }
+
+  validateResult(await dnsPromises.resolveTxt(addresses.TXT_HOST));
+
   const req = dns.resolveTxt(addresses.TXT_HOST, function(err, records) {
     assert.ifError(err);
-    assert.strictEqual(records.length, 1);
-    assert.ok(util.isArray(records[0]));
-    assert(records[0][0].startsWith('v=spf1'));
+    validateResult(records);
     done();
   });
 
@@ -379,6 +456,10 @@ TEST(function test_resolveTxt(done) {
 });
 
 TEST(function test_resolveTxt_failure(done) {
+  dnsPromises.resolveTxt(addresses.INVALID_HOST)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ errno: 'ENOTFOUND' }));
+
   const req = dns.resolveTxt(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
@@ -393,6 +474,10 @@ TEST(function test_resolveTxt_failure(done) {
 
 
 TEST(function test_lookup_failure(done) {
+  dnsPromises.lookup(addresses.INVALID_HOST, 4)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ errno: dns.NOTFOUND }));
+
   const req = dns.lookup(addresses.INVALID_HOST, 4, (err, ip, family) => {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, dns.NOTFOUND);
@@ -407,17 +492,23 @@ TEST(function test_lookup_failure(done) {
 });
 
 
-TEST(function test_lookup_ip_all(done) {
+TEST(async function test_lookup_ip_all(done) {
+  function validateResult(result) {
+    assert.ok(Array.isArray(result));
+    assert.ok(result.length > 0);
+    assert.strictEqual(result[0].address, '127.0.0.1');
+    assert.strictEqual(result[0].family, 4);
+  }
+
+  validateResult(await dnsPromises.lookup('127.0.0.1', { all: true }));
+
   const req = dns.lookup(
     '127.0.0.1',
     { all: true },
     function(err, ips, family) {
       assert.ifError(err);
-      assert.ok(Array.isArray(ips));
-      assert.ok(ips.length > 0);
-      assert.strictEqual(ips[0].address, '127.0.0.1');
-      assert.strictEqual(ips[0].family, 4);
-
+      assert.strictEqual(family, undefined);
+      validateResult(ips);
       done();
     }
   );
@@ -452,7 +543,9 @@ TEST(function test_lookup_ip_promise(done) {
 });
 
 
-TEST(function test_lookup_null_all(done) {
+TEST(async function test_lookup_null_all(done) {
+  assert.deepStrictEqual(await dnsPromises.lookup(null, { all: true }), []);
+
   const req = dns.lookup(null, { all: true }, function(err, ips, family) {
     assert.ifError(err);
     assert.ok(Array.isArray(ips));
@@ -465,15 +558,12 @@ TEST(function test_lookup_null_all(done) {
 });
 
 
-TEST(function test_lookup_all_mixed(done) {
-  const req = dns.lookup(addresses.INET_HOST, {
-    all: true
-  }, function(err, ips) {
-    assert.ifError(err);
-    assert.ok(Array.isArray(ips));
-    assert.ok(ips.length > 0);
+TEST(async function test_lookup_all_mixed(done) {
+  function validateResult(result) {
+    assert.ok(Array.isArray(result));
+    assert.ok(result.length > 0);
 
-    ips.forEach(function(ip) {
+    result.forEach(function(ip) {
       if (isIPv4(ip.address))
         assert.strictEqual(ip.family, 4);
       else if (isIPv6(ip.address))
@@ -481,7 +571,15 @@ TEST(function test_lookup_all_mixed(done) {
       else
         assert.fail('unexpected IP address');
     });
+  }
 
+  validateResult(await dnsPromises.lookup(addresses.INET_HOST, { all: true }));
+
+  const req = dns.lookup(addresses.INET_HOST, {
+    all: true
+  }, function(err, ips) {
+    assert.ifError(err);
+    validateResult(ips);
     done();
   });
 
@@ -490,6 +588,10 @@ TEST(function test_lookup_all_mixed(done) {
 
 
 TEST(function test_lookupservice_invalid(done) {
+  dnsPromises.lookupService('1.2.3.4', 80)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({ code: 'ENOTFOUND' }));
+
   const req = dns.lookupService('1.2.3.4', 80, function(err, host, service) {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
@@ -503,6 +605,13 @@ TEST(function test_lookupservice_invalid(done) {
 
 
 TEST(function test_reverse_failure(done) {
+  dnsPromises.reverse('203.0.113.0')
+    .then(common.mustNotCall())
+    .catch(common.expectsError({
+      code: 'ENOTFOUND',
+      hostname: '203.0.113.0'
+    }));
+
   // 203.0.113.0/24 are addresses reserved for (RFC) documentation use only
   const req = dns.reverse('203.0.113.0', function(err) {
     assert(err instanceof Error);
@@ -518,6 +627,13 @@ TEST(function test_reverse_failure(done) {
 
 
 TEST(function test_lookup_failure(done) {
+  dnsPromises.lookup(addresses.INVALID_HOST)
+    .then(common.mustNotCall())
+    .catch(common.expectsError({
+      code: 'ENOTFOUND',
+      hostname: addresses.INVALID_HOST
+    }));
+
   const req = dns.lookup(addresses.INVALID_HOST, (err) => {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
@@ -584,3 +700,7 @@ dns.lookup(addresses.INET6_HOST, 6, common.mustCall());
 dns.lookup(addresses.INET_HOST, {}, common.mustCall());
 dns.lookupService('0.0.0.0', '0', common.mustCall());
 dns.lookupService('0.0.0.0', 0, common.mustCall());
+(async function() {
+  await dnsPromises.lookup(addresses.INET6_HOST, 6);
+  await dnsPromises.lookup(addresses.INET_HOST, {});
+})();

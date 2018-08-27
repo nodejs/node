@@ -27,6 +27,7 @@ class JSGraph;
 class Graph;
 class Schedule;
 class SourcePositionTable;
+class NodeOriginTable;
 
 class V8_EXPORT_PRIVATE EffectControlLinearizer {
  public:
@@ -34,6 +35,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
 
   EffectControlLinearizer(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                           SourcePositionTable* source_positions,
+                          NodeOriginTable* node_origins,
                           MaskArrayIndexEnable mask_array_index);
 
   void Run();
@@ -56,14 +58,13 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerChangeTaggedToUint32(Node* node);
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
   Node* LowerCheckBounds(Node* node, Node* frame_state);
-  Node* LowerMaskIndexWithBound(Node* node);
+  Node* LowerPoisonIndex(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);
   Node* LowerCheckNumber(Node* node, Node* frame_state);
   Node* LowerCheckReceiver(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
-  Node* LowerCheckSeqString(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
@@ -98,6 +99,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerObjectIsDetectableCallable(Node* node);
   Node* LowerObjectIsMinusZero(Node* node);
   Node* LowerObjectIsNaN(Node* node);
+  Node* LowerNumberIsNaN(Node* node);
   Node* LowerObjectIsNonCallable(Node* node);
   Node* LowerObjectIsNumber(Node* node);
   Node* LowerObjectIsReceiver(Node* node);
@@ -106,6 +108,12 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerObjectIsSymbol(Node* node);
   Node* LowerObjectIsUndetectable(Node* node);
   Node* LowerNumberIsFloat64Hole(Node* node);
+  Node* LowerNumberIsFinite(Node* node);
+  Node* LowerObjectIsFiniteNumber(Node* node);
+  Node* LowerNumberIsInteger(Node* node);
+  Node* LowerObjectIsInteger(Node* node);
+  Node* LowerNumberIsSafeInteger(Node* node);
+  Node* LowerObjectIsSafeInteger(Node* node);
   Node* LowerArgumentsFrame(Node* node);
   Node* LowerArgumentsLength(Node* node);
   Node* LowerNewDoubleElements(Node* node);
@@ -116,16 +124,14 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerSameValue(Node* node);
   Node* LowerDeadValue(Node* node);
   Node* LowerStringToNumber(Node* node);
-  Node* LowerStringCharAt(Node* node);
   Node* LowerStringCharCodeAt(Node* node);
-  Node* LowerSeqStringCharCodeAt(Node* node);
-  Node* LowerStringCodePointAt(Node* node);
-  Node* LowerSeqStringCodePointAt(Node* node, UnicodeEncoding encoding);
+  Node* LowerStringCodePointAt(Node* node, UnicodeEncoding encoding);
   Node* LowerStringToLowerCaseIntl(Node* node);
   Node* LowerStringToUpperCaseIntl(Node* node);
-  Node* LowerStringFromCharCode(Node* node);
-  Node* LowerStringFromCodePoint(Node* node);
+  Node* LowerStringFromSingleCharCode(Node* node);
+  Node* LowerStringFromSingleCodePoint(Node* node);
   Node* LowerStringIndexOf(Node* node);
+  Node* LowerStringSubstring(Node* node);
   Node* LowerStringLength(Node* node);
   Node* LowerStringEqual(Node* node);
   Node* LowerStringLessThan(Node* node);
@@ -136,7 +142,6 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   void LowerCheckEqualsInternalizedString(Node* node, Node* frame_state);
   void LowerCheckEqualsSymbol(Node* node, Node* frame_state);
   Node* LowerTypeOf(Node* node);
-  Node* LowerClassOf(Node* node);
   Node* LowerToBoolean(Node* node);
   Node* LowerPlainPrimitiveToNumber(Node* node);
   Node* LowerPlainPrimitiveToWord32(Node* node);
@@ -155,6 +160,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   void LowerTransitionAndStoreNonNumberElement(Node* node);
   void LowerRuntimeAbort(Node* node);
   Node* LowerConvertReceiver(Node* node);
+  Node* LowerDateNow(Node* node);
 
   // Lowering of optional operators.
   Maybe<Node*> LowerFloat64RoundUp(Node* node);
@@ -171,18 +177,20 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                                  Node* value,
                                                  Node* frame_state);
   Node* BuildFloat64RoundDown(Node* value);
+  Node* BuildFloat64RoundTruncate(Node* input);
   Node* ComputeIntegerHash(Node* value);
   Node* LowerStringComparison(Callable const& callable, Node* node);
   Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
   Node* ChangeInt32ToSmi(Node* value);
+  Node* ChangeInt32ToIntPtr(Node* value);
   Node* ChangeIntPtrToInt32(Node* value);
   Node* ChangeUint32ToUintPtr(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
   Node* ChangeSmiToIntPtr(Node* value);
   Node* ChangeSmiToInt32(Node* value);
   Node* ObjectIsSmi(Node* value);
-  Node* LoadFromString(Node* receiver, Node* position, Node* is_one_byte);
+  Node* LoadFromSeqString(Node* receiver, Node* position, Node* is_one_byte);
 
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
@@ -207,6 +215,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   MaskArrayIndexEnable mask_array_index_;
   RegionObservability region_observability_ = RegionObservability::kObservable;
   SourcePositionTable* source_positions_;
+  NodeOriginTable* node_origins_;
   GraphAssembler graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
 };

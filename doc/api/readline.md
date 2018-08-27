@@ -56,7 +56,7 @@ The `'close'` event is emitted when one of the following occur:
 * The `input` stream receives its `'end'` event;
 * The `input` stream receives `<ctrl>-D` to signal end-of-transmission (EOT);
 * The `input` stream receives `<ctrl>-C` to signal `SIGINT` and there is no
-  `SIGINT` event listener registered on the `readline.Interface` instance.
+  `'SIGINT'` event listener registered on the `readline.Interface` instance.
 
 The listener function is called without passing any arguments.
 
@@ -89,8 +89,8 @@ added: v0.7.5
 The `'pause'` event is emitted when one of the following occur:
 
 * The `input` stream is paused.
-* The `input` stream is not paused and receives the `SIGCONT` event. (See
-  events [`SIGTSTP`][] and [`SIGCONT`][])
+* The `input` stream is not paused and receives the `'SIGCONT'` event. (See
+  events [`'SIGTSTP'`][] and [`'SIGCONT'`][].)
 
 The listener function is called without passing any arguments.
 
@@ -164,11 +164,11 @@ added: v0.7.5
 -->
 
 The `'SIGTSTP'` event is emitted when the `input` stream receives a `<ctrl>-Z`
-input, typically known as `SIGTSTP`. If there are no `SIGTSTP` event listeners
+input, typically known as `SIGTSTP`. If there are no `'SIGTSTP'` event listeners
 registered when the `input` stream receives a `SIGTSTP`, the Node.js process
 will be sent to the background.
 
-When the program is resumed using fg(1p), the `'pause'` and `SIGCONT` events
+When the program is resumed using fg(1p), the `'pause'` and `'SIGCONT'` events
 will be emitted. These can be used to resume the `input` stream.
 
 The `'pause'` and `'SIGCONT'` events will not be emitted if the `input` was
@@ -285,7 +285,7 @@ added: v0.1.98
   * `shift` {boolean} `true` to indicate the `<Shift>` key.
   * `name` {string} The name of the a key.
 
-The `rl.write()` method will write either `data` or a key sequence  identified
+The `rl.write()` method will write either `data` or a key sequence identified
 by `key` to the `output`. The `key` argument is supported only if `output` is
 a [TTY][] text terminal.
 
@@ -303,7 +303,7 @@ rl.write('Delete this!');
 rl.write(null, { ctrl: true, name: 'u' });
 ```
 
-The `rl.write()` method will write the data to the `readline` Interface's
+The `rl.write()` method will write the data to the `readline` `Interface`'s
 `input` *as if it were provided by the user*.
 
 ## readline.clearLine(stream, dir)
@@ -319,7 +319,6 @@ added: v0.7.7
 
 The `readline.clearLine()` method clears current line of given [TTY][] stream
 in a specified direction identified by `dir`.
-
 
 ## readline.clearScreenDown(stream)
 <!-- YAML
@@ -357,22 +356,22 @@ changes:
   * `completer` {Function} An optional function used for Tab autocompletion.
   * `terminal` {boolean} `true` if the `input` and `output` streams should be
     treated like a TTY, and have ANSI/VT100 escape codes written to it.
-    Defaults to checking `isTTY` on the `output` stream upon instantiation.
+    **Default:** checking `isTTY` on the `output` stream upon instantiation.
   * `historySize` {number} Maximum number of history lines retained. To disable
     the history set this value to `0`. This option makes sense only if
     `terminal` is set to `true` by the user or by an internal `output` check,
     otherwise the history caching mechanism is not initialized at all.
-    **Default:** `30`
-  * `prompt` {string} The prompt string to use. **Default:** `'> '`
+    **Default:** `30`.
+  * `prompt` {string} The prompt string to use. **Default:** `'> '`.
   * `crlfDelay` {number} If the delay between `\r` and `\n` exceeds
     `crlfDelay` milliseconds, both `\r` and `\n` will be treated as separate
     end-of-line input. `crlfDelay` will be coerced to a number no less than
     `100`. It can be set to `Infinity`, in which case `\r` followed by `\n`
     will always be considered a single newline (which may be reasonable for
-    [reading files][] with `\r\n` line delimiter). **Default:** `100`
+    [reading files][] with `\r\n` line delimiter). **Default:** `100`.
   * `removeHistoryDuplicates` {boolean} If `true`, when a new input line added
     to the history list duplicates an older one, this removes the older line
-    from the list. **Default:** `false`
+    from the list. **Default:** `false`.
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
@@ -402,9 +401,9 @@ a `'resize'` event on the `output` if or when the columns ever change
 ### Use of the `completer` Function
 
 The `completer` function takes the current line entered by the user
-as an argument, and returns an Array with 2 entries:
+as an argument, and returns an `Array` with 2 entries:
 
-* An Array with matching entries for the completion.
+* An `Array` with matching entries for the completion.
 * The substring that was used for the matching.
 
 For instance: `[[substr1, substr2, ...], originalsubstring]`.
@@ -448,7 +447,7 @@ added: v0.7.7
 * `interface` {readline.Interface}
 
 The `readline.emitKeypressEvents()` method causes the given [Readable][]
-`stream` to begin emitting `'keypress'` events corresponding to received input.
+stream to begin emitting `'keypress'` events corresponding to received input.
 
 Optionally, `interface` specifies a `readline.Interface` instance for which
 autocompletion is disabled when copy-pasted input is detected.
@@ -476,7 +475,6 @@ added: v0.7.7
 
 The `readline.moveCursor()` method moves the cursor *relative* to its current
 position in a given [TTY][] `stream`.
-
 
 ## Example: Tiny CLI
 
@@ -529,8 +527,8 @@ rl.on('line', (line) => {
 });
 ```
 
-[`SIGCONT`]: readline.html#readline_event_sigcont
-[`SIGTSTP`]: readline.html#readline_event_sigtstp
+[`'SIGCONT'`]: readline.html#readline_event_sigcont
+[`'SIGTSTP'`]: readline.html#readline_event_sigtstp
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
 [Readable]: stream.html#stream_readable_streams

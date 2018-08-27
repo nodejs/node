@@ -5,7 +5,7 @@
 #include "src/v8.h"
 
 #include "src/api.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
@@ -143,8 +143,8 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
     CHECK_EQ(bytecodes()->at(i), expected_bytes[i]);
   }
 
-  Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 0, 0, factory()->empty_fixed_array());
+  Handle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
   CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
 
   PositionTableEntry expected_positions[] = {
@@ -232,8 +232,8 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
              static_cast<int>(expected_bytes[i]));
   }
 
-  Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 0, 0, factory()->empty_fixed_array());
+  Handle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
   SourcePositionTableIterator source_iterator(
       bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
@@ -284,8 +284,8 @@ TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
              static_cast<int>(expected_bytes[i]));
   }
 
-  Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 0, 0, factory()->empty_fixed_array());
+  Handle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
   SourcePositionTableIterator source_iterator(
       bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
@@ -350,8 +350,8 @@ TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
              static_cast<int>(expected_bytes[i]));
   }
 
-  Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
-      isolate(), 0, 0, factory()->empty_fixed_array());
+  Handle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
   SourcePositionTableIterator source_iterator(
       bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {

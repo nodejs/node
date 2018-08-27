@@ -77,9 +77,10 @@ load('reduce.js');
 load('reduce-right.js');
 load('find.js');
 load('find-index.js');
-load('of.js');
 
 // Other Array builtins.
+load('from.js');
+load('of.js');
 load('join.js');
 load('to-string.js');
 

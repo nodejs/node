@@ -8,21 +8,54 @@ smime - S/MIME utility
 =head1 SYNOPSIS
 
 B<openssl> B<smime>
+[B<-help>]
 [B<-encrypt>]
 [B<-decrypt>]
 [B<-sign>]
 [B<-resign>]
 [B<-verify>]
 [B<-pk7out>]
+[B<-binary>]
+[B<-crlfeol>]
 [B<-[cipher]>]
 [B<-in file>]
+[B<-CAfile file>]
+[B<-CApath dir>]
+[B<-no-CAfile>]
+[B<-no-CApath>]
+[B<-attime timestamp>]
+[B<-check_ss_sig>]
+[B<-crl_check>]
+[B<-crl_check_all>]
+[B<-explicit_policy>]
+[B<-extended_crl>]
+[B<-ignore_critical>]
+[B<-inhibit_any>]
+[B<-inhibit_map>]
+[B<-partial_chain>]
+[B<-policy arg>]
+[B<-policy_check>]
+[B<-policy_print>]
+[B<-purpose purpose>]
+[B<-suiteB_128>]
+[B<-suiteB_128_only>]
+[B<-suiteB_192>]
+[B<-trusted_first>]
 [B<-no_alt_chains>]
+[B<-use_deltas>]
+[B<-auth_level num>]
+[B<-verify_depth num>]
+[B<-verify_email email>]
+[B<-verify_hostname hostname>]
+[B<-verify_ip ip>]
+[B<-verify_name name>]
+[B<-x509_strict>]
 [B<-certfile file>]
 [B<-signer file>]
 [B<-recip  file>]
 [B<-inform SMIME|PEM|DER>]
 [B<-passin arg>]
-[B<-inkey file>]
+[B<-inkey file_or_id>]
 [B<-out file>]
 [B<-outform SMIME|PEM|DER>]
 [B<-content file>]
@@ -42,12 +75,16 @@ B<openssl> B<smime>
 The B<smime> command handles S/MIME mail. It can encrypt, decrypt, sign and
 verify S/MIME messages.
 
-=head1 COMMAND OPTIONS
+=head1 OPTIONS
 
 There are six operation options that set the type of operation to be performed.
 The meaning of the other options varies according to the operation type.
 
 =over 4
+
+=item B<-help>
+
+Print out a usage message.
 
 =item B<-encrypt>
 
@@ -137,7 +174,7 @@ is S/MIME and it uses the multipart/signed MIME content type.
 
 this option adds plain text (text/plain) MIME headers to the supplied
 message if encrypting or signing. If decrypting or verifying it strips
-off text headers: if the decrypted or verified message is not of MIME 
+off text headers: if the decrypted or verified message is not of MIME
 type text/plain then an error occurs.
 
 =item B<-CAfile file>
@@ -151,6 +188,14 @@ B<-verify>. This directory must be a standard certificate directory: that
 is a hash of each subject name (using B<x509 -hash>) should be linked
 to each certificate.
 
+=item B<-no-CAfile>
+
+Do not load the trusted CA certificates from the default file location
+
+=item B<-no-CApath>
+
+Do not load the trusted CA certificates from the default directory location
+
 =item B<-md digest>
 
 digest algorithm to use when signing or resigning. If not present then the
@@ -160,8 +205,8 @@ default digest algorithm for the signing key will be used (usually SHA1).
 
 the encryption algorithm to use. For example DES  (56 bits) - B<-des>,
 triple DES (168 bits) - B<-des3>,
-EVP_get_cipherbyname() function) can also be used preceded by a dash, for 
-example B<-aes_128_cbc>. See L<B<enc>|enc(1)> for list of ciphers
+EVP_get_cipherbyname() function) can also be used preceded by a dash, for
+example B<-aes-128-cbc>. See L<B<enc>|enc(1)> for list of ciphers
 supported by your version of OpenSSL.
 
 If not specified triple DES is used. Only used with B<-encrypt>.
@@ -206,6 +251,11 @@ effectively using CR and LF as end of line: as required by the S/MIME
 specification. When this option is present no translation occurs. This
 is useful when handling binary data which may not be in MIME format.
 
+=item B<-crlfeol>
+
+normally the output file uses a single B<LF> as end of line. When this
+option is present B<CRLF> is used instead.
+
 =item B<-nodetach>
 
 when signing a message use opaque signing: this form is more resistant
@@ -231,31 +281,33 @@ verification was successful.
 the recipients certificate when decrypting a message. This certificate
 must match one of the recipients of the message or an error occurs.
 
-=item B<-inkey file>
+=item B<-inkey file_or_id>
 
 the private key to use when signing or decrypting. This must match the
 corresponding certificate. If this option is not specified then the
 private key must be included in the certificate file specified with
 the B<-recip> or B<-signer> file. When signing this option can be used
 multiple times to specify successive keys.
+If no engine is used, the argument is taken as a file; if an engine is
+specified, the argument is given to the engine as a key identifier.
 
 =item B<-passin arg>
 
 the private key password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-rand file(s)>
 
 a file or files containing random data used to seed the random number
-generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
-Multiple files can be specified separated by a OS-dependent character.
+generator, or an EGD socket (see L<RAND_egd(3)>).
+Multiple files can be specified separated by an OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others.
 
 =item B<cert.pem...>
 
 one or more certificates of message recipients: used when encrypting
-a message. 
+a message.
 
 =item B<-to, -from, -subject>
 
@@ -264,10 +316,16 @@ portion of a message so they may be included manually. If signing
 then many S/MIME mail clients check the signers certificate's email
 address matches that specified in the From: address.
 
-=item B<-purpose, -ignore_critical, -issuer_checks, -crl_check, -crl_check_all, -policy_check, -extended_crl, -x509_strict, -policy -check_ss_sig -no_alt_chains>
+=item B<-attime>, B<-check_ss_sig>, B<-crl_check>, B<-crl_check_all>,
+B<-explicit_policy>, B<-extended_crl>, B<-ignore_critical>, B<-inhibit_any>,
+B<-inhibit_map>, B<-no_alt_chains>, B<-partial_chain>, B<-policy>,
+B<-policy_check>, B<-policy_print>, B<-purpose>, B<-suiteB_128>,
+B<-suiteB_128_only>, B<-suiteB_192>, B<-trusted_first>, B<-use_deltas>,
+B<-auth_level>, B<-verify_depth>, B<-verify_email>, B<-verify_hostname>,
+B<-verify_ip>, B<-verify_name>, B<-x509_strict>
 
 Set various options of certificate chain verification. See
-L<B<verify>|verify(1)> manual page for details.
+L<verify(1)> manual page for details.
 
 =back
 
@@ -279,7 +337,7 @@ a blank line. Piping the mail directly to sendmail is one way to
 achieve the correct format.
 
 The supplied message to be signed or encrypted must include the
-necessary MIME headers or many S/MIME clients wont display it
+necessary MIME headers or many S/MIME clients won't display it
 properly (if at all). You can use the B<-text> option to automatically
 add plain text headers.
 
@@ -300,7 +358,7 @@ The B<-resign> option uses an existing message digest when adding a new
 signer. This means that attributes must be present in at least one existing
 signer using the same message digest or this operation will fail.
 
-The B<-stream> and B<-indef> options enable experimental streaming I/O support.
+The B<-stream> and B<-indef> options enable streaming I/O support.
 As a result the encoding is BER using indefinite length constructed encoding
 and no longer DER. Streaming is supported for the B<-encrypt> operation and the
 B<-sign> operation if the content is not detached.
@@ -346,29 +404,29 @@ the signers certificates.
 Create a cleartext signed message:
 
  openssl smime -sign -in message.txt -text -out mail.msg \
-	-signer mycert.pem
+        -signer mycert.pem
 
 Create an opaque signed message:
 
  openssl smime -sign -in message.txt -text -out mail.msg -nodetach \
-	-signer mycert.pem
+        -signer mycert.pem
 
 Create a signed message, include some additional certificates and
 read the private key from another file:
 
  openssl smime -sign -in in.txt -text -out mail.msg \
-	-signer mycert.pem -inkey mykey.pem -certfile mycerts.pem
+        -signer mycert.pem -inkey mykey.pem -certfile mycerts.pem
 
 Create a signed message with two signers:
 
  openssl smime -sign -in message.txt -text -out mail.msg \
-	-signer mycert.pem -signer othercert.pem
+        -signer mycert.pem -signer othercert.pem
 
 Send a signed message under Unix directly to sendmail, including headers:
 
  openssl smime -sign -in in.txt -text -signer mycert.pem \
-	-from steve@openssl.org -to someone@somewhere \
-	-subject "Signed message" | sendmail someone@somewhere
+        -from steve@openssl.org -to someone@somewhere \
+        -subject "Signed message" | sendmail someone@somewhere
 
 Verify a message and extract the signer's certificate if successful:
 
@@ -377,15 +435,15 @@ Verify a message and extract the signer's certificate if successful:
 Send encrypted mail using triple DES:
 
  openssl smime -encrypt -in in.txt -from steve@openssl.org \
-	-to someone@somewhere -subject "Encrypted message" \
-	-des3 user.pem -out mail.msg
+        -to someone@somewhere -subject "Encrypted message" \
+        -des3 user.pem -out mail.msg
 
 Sign and encrypt mail:
 
  openssl smime -sign -in ml.txt -signer my.pem -text \
-	| openssl smime -encrypt -out mail.msg \
-	-from steve@openssl.org -to someone@somewhere \
-	-subject "Signed and Encrypted message" -des3 user.pem
+        | openssl smime -encrypt -out mail.msg \
+        -from steve@openssl.org -to someone@somewhere \
+        -subject "Signed and Encrypted message" -des3 user.pem
 
 Note: the encryption command does not include the B<-text> option because the
 message being encrypted already has MIME headers.
@@ -402,7 +460,7 @@ it with:
  -----BEGIN PKCS7-----
  -----END PKCS7-----
 
-and using the command: 
+and using the command:
 
  openssl smime -verify -inform PEM -in signature.pem -content content.txt
 
@@ -446,6 +504,15 @@ structures may cause parsing errors.
 The use of multiple B<-signer> options and the B<-resign> command were first
 added in OpenSSL 1.0.0
 
-The -no_alt_chains options was first added to OpenSSL 1.0.2b.
+The -no_alt_chains options was first added to OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

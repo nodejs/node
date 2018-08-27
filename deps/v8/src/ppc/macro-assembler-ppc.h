@@ -15,20 +15,24 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = r3;
-const Register kReturnRegister1 = r4;
-const Register kReturnRegister2 = r5;
-const Register kJSFunctionRegister = r4;
-const Register kContextRegister = r30;
-const Register kAllocateSizeRegister = r4;
-const Register kInterpreterAccumulatorRegister = r3;
-const Register kInterpreterBytecodeOffsetRegister = r15;
-const Register kInterpreterBytecodeArrayRegister = r16;
-const Register kInterpreterDispatchTableRegister = r17;
-const Register kJavaScriptCallArgCountRegister = r3;
-const Register kJavaScriptCallNewTargetRegister = r6;
-const Register kRuntimeCallFunctionRegister = r4;
-const Register kRuntimeCallArgCountRegister = r3;
+constexpr Register kReturnRegister0 = r3;
+constexpr Register kReturnRegister1 = r4;
+constexpr Register kReturnRegister2 = r5;
+constexpr Register kJSFunctionRegister = r4;
+constexpr Register kContextRegister = r30;
+constexpr Register kAllocateSizeRegister = r4;
+constexpr Register kSpeculationPoisonRegister = r14;
+constexpr Register kInterpreterAccumulatorRegister = r3;
+constexpr Register kInterpreterBytecodeOffsetRegister = r15;
+constexpr Register kInterpreterBytecodeArrayRegister = r16;
+constexpr Register kInterpreterDispatchTableRegister = r17;
+constexpr Register kJavaScriptCallArgCountRegister = r3;
+constexpr Register kJavaScriptCallNewTargetRegister = r6;
+constexpr Register kJavaScriptCallCodeStartRegister = r5;
+constexpr Register kOffHeapTrampolineRegister = ip;
+constexpr Register kRuntimeCallFunctionRegister = r4;
+constexpr Register kRuntimeCallArgCountRegister = r3;
+constexpr Register kWasmInstanceRegister = r10;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -172,9 +176,8 @@ class TurboAssembler : public Assembler {
   void PushCommonFrame(Register marker_reg = no_reg);
 
   // Generates function and stub prologue code.
-  void StubPrologue(StackFrame::Type type, Register base = no_reg,
-                    int prologue_offset = 0);
-  void Prologue(Register base, int prologue_offset = 0);
+  void StubPrologue(StackFrame::Type type);
+  void Prologue();
 
   // Push a standard frame, consisting of lr, fp, constant pool,
   // context and JS function
@@ -214,6 +217,11 @@ class TurboAssembler : public Assembler {
                   Register scratch = no_reg);
   void LoadSingleU(DoubleRegister dst, const MemOperand& mem,
                    Register scratch = no_reg);
+  void LoadPC(Register dst);
+  void ComputeCodeStartAddress(Register dst);
+
+  bool root_array_available() const { return root_array_available_; }
+  void set_root_array_available(bool v) { root_array_available_ = v; }
 
   void StoreDouble(DoubleRegister src, const MemOperand& mem,
                    Register scratch = no_reg);
@@ -397,6 +405,7 @@ class TurboAssembler : public Assembler {
   void CallCFunction(Register function, int num_reg_arguments,
                      int num_double_arguments);
 
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
   void MovFromFloatParameter(DoubleRegister dst);
@@ -427,6 +436,13 @@ class TurboAssembler : public Assembler {
   void ShiftRightAlgPair(Register dst_low, Register dst_high, Register src_low,
                          Register src_high, uint32_t shift);
 #endif
+
+#ifdef V8_EMBEDDED_BUILTINS
+  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupExternalReference(Register destination,
+                               ExternalReference reference);
+#endif  // V8_EMBEDDED_BUILTINS
+
   // Returns the size of a call in instructions. Note, the value returned is
   // only valid as long as no entries are added to the constant pool between
   // checking the call size and emitting the actual call.
@@ -499,13 +515,22 @@ class TurboAssembler : public Assembler {
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> value);
+  void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
 
-  void SmiUntag(Register reg, RCBit rc = LeaveRC) { SmiUntag(reg, reg, rc); }
+  void SmiUntag(Register reg, RCBit rc = LeaveRC, int scale = 0) {
+    SmiUntag(reg, reg, rc, scale);
+  }
 
-  void SmiUntag(Register dst, Register src, RCBit rc = LeaveRC) {
-    ShiftRightArithImm(dst, src, kSmiShift, rc);
+  void SmiUntag(Register dst, Register src, RCBit rc = LeaveRC, int scale = 0) {
+    if (scale > kSmiShift) {
+      ShiftLeftImm(dst, src, Operand(scale - kSmiShift), rc);
+    } else if (scale < kSmiShift) {
+      ShiftRightArithImm(dst, src, kSmiShift - scale, rc);
+    } else {
+      // do nothing
+    }
   }
   // ---------------------------------------------------------------------------
   // Bit testing/extraction
@@ -632,14 +657,17 @@ class TurboAssembler : public Assembler {
   // Only public for the test code in test-code-stubs-arm.cc.
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
                                   Label* done);
-  void TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                DoubleRegister double_input);
+  void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
+                         DoubleRegister double_input);
 
   // Call a code stub.
   void CallStubDelayed(CodeStub* stub);
 
   void LoadConstantPoolPointerRegister();
-  void LoadConstantPoolPointerRegister(Register base, int code_entry_delta = 0);
+
+  // Loads the constant pool pointer (kConstantPoolRegister).
+  void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
+      Register code_target_address);
   void AbortConstantPoolBuilding() {
 #ifdef DEBUG
     // Avoid DCHECK(!is_linked()) failure in ~Label()
@@ -647,13 +675,18 @@ class TurboAssembler : public Assembler {
 #endif
   }
 
+  void ResetSpeculationPoisonRegister();
+
+ protected:
+  // This handle will be patched with the code object on installation.
+  Handle<HeapObject> code_object_;
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
   bool has_frame_ = false;
+  bool root_array_available_ = true;
   Isolate* const isolate_;
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
 
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
@@ -731,10 +764,6 @@ class MacroAssembler : public TurboAssembler {
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
-
-  // Loads the constant pool pointer (kConstantPoolRegister).
-  void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
-      Register code_target_address);
 
   // Flush the I-cache from asm code. You should use CpuFeatures::FlushICache
   // from C.
@@ -827,10 +856,6 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& actual, InvokeFlag flag);
 
   void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
   void DebugBreak();
@@ -933,6 +958,13 @@ class MacroAssembler : public TurboAssembler {
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
 
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(Address entry);
+
+  // ---------------------------------------------------------------------------
+  // In-place weak references.
+  void LoadWeakValue(Register out, Register in, Label* target_if_cleared);
+
   // ---------------------------------------------------------------------------
   // StatsCounter support
 
@@ -993,6 +1025,10 @@ class MacroAssembler : public TurboAssembler {
   // Abort execution if argument is not a FixedArray, enabled via --debug-code.
   void AssertFixedArray(Register object);
 
+  // Abort execution if argument is not a Constructor, enabled via --debug-code.
+  void AssertConstructor(Register object);
+
+  // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,

@@ -41,6 +41,7 @@ namespace internal {
   V(NotAJavaScriptObject, "not a JavaScript object")                           \
   V(NotANumberOrOddball, "not a Number or Oddball")                            \
   V(NotASmi, "not a Smi")                                                      \
+  V(NotAString, "not a String")                                                \
   V(NotASymbol, "not a Symbol")                                                \
   V(OutOfBounds, "out of bounds")                                              \
   V(Overflow, "overflow")                                                      \
@@ -53,7 +54,8 @@ namespace internal {
   V(WrongInstanceType, "wrong instance type")                                  \
   V(WrongMap, "wrong map")                                                     \
   V(WrongName, "wrong name")                                                   \
-  V(WrongValue, "wrong value")
+  V(WrongValue, "wrong value")                                                 \
+  V(NoInitialElement, "no initial element")
 
 enum class DeoptimizeReason : uint8_t {
 #define DEOPTIMIZE_REASON(Name, message) k##Name,

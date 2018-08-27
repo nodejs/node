@@ -77,7 +77,7 @@ writable.data = '';
 common.expectsError(
   () => readline.cursorTo(writable, 'a', 1),
   {
-    type: Error,
+    type: TypeError,
     code: 'ERR_INVALID_CURSOR_POS',
     message: 'Cannot set cursor row without setting its column'
   });

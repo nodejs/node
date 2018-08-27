@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   method: ['withoutdefaults', 'withdefaults'],
-  millions: [100]
+  n: [1e8]
 });
 
 function oldStyleDefaults(x, y) {
@@ -20,29 +20,29 @@ function defaultParams(x = 1, y = 2) {
   assert.strictEqual(y, 2);
 }
 
-function runOldStyleDefaults(millions) {
+function runOldStyleDefaults(n) {
   bench.start();
-  for (var i = 0; i < millions * 1e6; i++)
+  for (var i = 0; i < n; i++)
     oldStyleDefaults();
-  bench.end(millions);
+  bench.end(n);
 }
 
-function runDefaultParams(millions) {
+function runDefaultParams(n) {
   bench.start();
-  for (var i = 0; i < millions * 1e6; i++)
+  for (var i = 0; i < n; i++)
     defaultParams();
-  bench.end(millions);
+  bench.end(n);
 }
 
-function main({ millions, method }) {
+function main({ n, method }) {
   switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'withoutdefaults':
-      runOldStyleDefaults(millions);
+      runOldStyleDefaults(n);
       break;
     case 'withdefaults':
-      runDefaultParams(millions);
+      runDefaultParams(n);
       break;
     default:
       throw new Error(`Unexpected method "${method}"`);

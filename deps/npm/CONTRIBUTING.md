@@ -6,7 +6,7 @@
 * [Roles](#roles)
   * [Community Members](#community-members)
   * [Collaborators](#collaborators)
-  * [npm, Inc Employeees](#npm-inc-employees)
+  * [npm, Inc Employees](#npm-inc-employees)
 
 
 ## Introduction
@@ -59,15 +59,15 @@ Collaborators who become inactive for 3 months or longer may have their collabor
 * Only answer questions when they know the answer, and provide a reference to the answer.
 * If collaborators aren't totally confident about their answer, please leave the issue and try another one.
 * If they've responded to an issue, it becomes their responsibility to see it to resolution.
-* Close issues if there's no response within a month.
 * Defer to fellow Collaborators & npm employees for answers (Again, please don't @ collaborators or npm employees, thank you!)
-* Make sure to search for [the troubleshooting doc](./TROUBLESHOOTING.md) and search on the issue tracker for similar issues before opening a new one.
+* Make sure to search [the troubleshooting posts on npm.community](https://npm.community/c/support/troubleshooting) and search the rest of the forum for similar topics.
 
 ### npm, Inc Employees
 
 Folks who work at npm, Inc, who have a responsibility to ensure the stability and functionality of the tools npm offers.
 
 #### Abilities
+
 * Label/triage new issues
 * Respond to ongoing issues
 * Close resolved issues

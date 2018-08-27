@@ -219,49 +219,14 @@ module.exports = {
                     data: reference.identifier
                 });
             });
+
+            scope.childScopes.forEach(findVariablesInScope);
         }
 
-        /**
-         * Validates variables inside of a node's scope.
-         * @param {ASTNode} node The node to check.
-         * @returns {void}
-         * @private
-         */
-        function findVariables() {
-            const scope = context.getScope();
-
-            findVariablesInScope(scope);
-        }
-
-        const ruleDefinition = {
-            "Program:exit"(node) {
-                const scope = context.getScope(),
-                    ecmaFeatures = context.parserOptions.ecmaFeatures || {};
-
-                findVariablesInScope(scope);
-
-                // both Node.js and Modules have an extra scope
-                if (ecmaFeatures.globalReturn || node.sourceType === "module") {
-                    findVariablesInScope(scope.childScopes[0]);
-                }
+        return {
+            Program() {
+                findVariablesInScope(context.getScope());
             }
         };
-
-        if (context.parserOptions.ecmaVersion >= 6) {
-            ruleDefinition["BlockStatement:exit"] =
-                ruleDefinition["SwitchStatement:exit"] = findVariables;
-
-            ruleDefinition["ArrowFunctionExpression:exit"] = function(node) {
-                if (node.body.type !== "BlockStatement") {
-                    findVariables();
-                }
-            };
-        } else {
-            ruleDefinition["FunctionExpression:exit"] =
-                ruleDefinition["FunctionDeclaration:exit"] =
-                ruleDefinition["ArrowFunctionExpression:exit"] = findVariables;
-        }
-
-        return ruleDefinition;
     }
 };

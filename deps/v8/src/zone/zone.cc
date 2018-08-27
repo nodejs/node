@@ -6,37 +6,22 @@
 
 #include <cstring>
 
+#include "src/asan.h"
 #include "src/utils.h"
 #include "src/v8.h"
-
-#ifdef V8_USE_ADDRESS_SANITIZER
-#include <sanitizer/asan_interface.h>
-#endif  // V8_USE_ADDRESS_SANITIZER
 
 namespace v8 {
 namespace internal {
 
 namespace {
 
-#if V8_USE_ADDRESS_SANITIZER
+#ifdef V8_USE_ADDRESS_SANITIZER
 
-const size_t kASanRedzoneBytes = 24;  // Must be a multiple of 8.
+constexpr size_t kASanRedzoneBytes = 24;  // Must be a multiple of 8.
 
-#else
+#else  // !V8_USE_ADDRESS_SANITIZER
 
-#define ASAN_POISON_MEMORY_REGION(start, size) \
-  do {                                         \
-    USE(start);                                \
-    USE(size);                                 \
-  } while (false)
-
-#define ASAN_UNPOISON_MEMORY_REGION(start, size) \
-  do {                                           \
-    USE(start);                                  \
-    USE(size);                                   \
-  } while (false)
-
-const size_t kASanRedzoneBytes = 0;
+constexpr size_t kASanRedzoneBytes = 0;
 
 #endif  // V8_USE_ADDRESS_SANITIZER
 
@@ -74,18 +59,17 @@ void* Zone::New(size_t size) {
   Address result = position_;
 
   const size_t size_with_redzone = size + kASanRedzoneBytes;
-  const uintptr_t limit = reinterpret_cast<uintptr_t>(limit_);
-  const uintptr_t position = reinterpret_cast<uintptr_t>(position_);
-  // position_ > limit_ can be true after the alignment correction above.
-  if (limit < position || size_with_redzone > limit - position) {
+  DCHECK(limit_ >= position_);
+  if (size_with_redzone > limit_ - position_) {
     result = NewExpand(size_with_redzone);
   } else {
     position_ += size_with_redzone;
   }
 
   Address redzone_position = result + size;
-  DCHECK(redzone_position + kASanRedzoneBytes == position_);
-  ASAN_POISON_MEMORY_REGION(redzone_position, kASanRedzoneBytes);
+  DCHECK_EQ(redzone_position + kASanRedzoneBytes, position_);
+  ASAN_POISON_MEMORY_REGION(reinterpret_cast<void*>(redzone_position),
+                            kASanRedzoneBytes);
 
   // Check that the result has the proper alignment and return it.
   DCHECK(IsAddressAligned(result, kAlignmentInBytes, 0));
@@ -100,7 +84,8 @@ void Zone::DeleteAll() {
     size_t size = current->size();
 
     // Un-poison the segment content so we can re-use or zap it later.
-    ASAN_UNPOISON_MEMORY_REGION(current->start(), current->capacity());
+    ASAN_UNPOISON_MEMORY_REGION(reinterpret_cast<void*>(current->start()),
+                                current->capacity());
 
     segment_bytes_allocated_ -= size;
     allocator_->ReturnSegment(current);
@@ -130,10 +115,7 @@ Address Zone::NewExpand(size_t size) {
   // Make sure the requested size is already properly aligned and that
   // there isn't enough room in the Zone to satisfy the request.
   DCHECK_EQ(size, RoundDown(size, kAlignmentInBytes));
-  DCHECK(limit_ < position_ ||
-         reinterpret_cast<uintptr_t>(limit_) -
-                 reinterpret_cast<uintptr_t>(position_) <
-             size);
+  DCHECK(limit_ - position_ < size);
 
   // Compute the new segment size. We use a 'high water mark'
   // strategy, where we increase the segment size every time we expand
@@ -147,8 +129,8 @@ Address Zone::NewExpand(size_t size) {
   const size_t min_new_size = kSegmentOverhead + size;
   // Guard against integer overflow.
   if (new_size_no_overhead < size || new_size < kSegmentOverhead) {
-    V8::FatalProcessOutOfMemory("Zone");
-    return nullptr;
+    V8::FatalProcessOutOfMemory(nullptr, "Zone");
+    return kNullAddress;
   }
   if (segment_size_ == SegmentSize::kLarge) {
     new_size = kMaximumSegmentSize;
@@ -163,13 +145,13 @@ Address Zone::NewExpand(size_t size) {
     new_size = Max(min_new_size, kMaximumSegmentSize);
   }
   if (new_size > INT_MAX) {
-    V8::FatalProcessOutOfMemory("Zone");
-    return nullptr;
+    V8::FatalProcessOutOfMemory(nullptr, "Zone");
+    return kNullAddress;
   }
   Segment* segment = NewSegment(new_size);
   if (segment == nullptr) {
-    V8::FatalProcessOutOfMemory("Zone");
-    return nullptr;
+    V8::FatalProcessOutOfMemory(nullptr, "Zone");
+    return kNullAddress;
   }
 
   // Recompute 'top' and 'limit' based on the new segment.
@@ -178,8 +160,7 @@ Address Zone::NewExpand(size_t size) {
   // Check for address overflow.
   // (Should not happen since the segment is guaranteed to accommodate
   // size bytes + header and alignment padding)
-  DCHECK(reinterpret_cast<uintptr_t>(position_) >=
-         reinterpret_cast<uintptr_t>(result));
+  DCHECK(position_ >= result);
   limit_ = segment->end();
   DCHECK(position_ <= limit_);
   return result;

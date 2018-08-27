@@ -7,20 +7,13 @@
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/wasm-translation.h"
+#include "src/utils.h"
 
 namespace v8_inspector {
 
 namespace {
 
-const char hexDigits[17] = "0123456789ABCDEF";
-
-void appendUnsignedAsHex(uint64_t number, String16Builder* destination) {
-  for (size_t i = 0; i < 8; ++i) {
-    UChar c = hexDigits[number & 0xF];
-    destination->append(c);
-    number >>= 4;
-  }
-}
+const char kGlobalDebuggerScriptHandleLabel[] = "DevTools debugger";
 
 // Hash algorithm for substrings is described in "Über die Komplexität der
 // Multiplikation in
@@ -43,11 +36,13 @@ String16 calculateHash(const String16& str) {
   const uint32_t* data = nullptr;
   size_t sizeInBytes = sizeof(UChar) * str.length();
   data = reinterpret_cast<const uint32_t*>(str.characters16());
-  for (size_t i = 0; i < sizeInBytes / 4; i += 4) {
+  for (size_t i = 0; i < sizeInBytes / 4; ++i) {
+    uint32_t d = v8::internal::ReadUnalignedUInt32(
+        reinterpret_cast<v8::internal::Address>(data + i));
 #if V8_TARGET_LITTLE_ENDIAN
-    uint32_t v = data[i];
+    uint32_t v = d;
 #else
-    uint32_t v = (data[i] << 16) | (data[i] >> 16);
+    uint32_t v = (d << 16) | (d >> 16);
 #endif
     uint64_t xi = v * randomOdd[current] & 0x7FFFFFFF;
     hashes[current] = (hashes[current] + zi[current] * xi) % prime[current];
@@ -56,15 +51,16 @@ String16 calculateHash(const String16& str) {
   }
   if (sizeInBytes % 4) {
     uint32_t v = 0;
+    const uint8_t* data_8b = reinterpret_cast<const uint8_t*>(data);
     for (size_t i = sizeInBytes - sizeInBytes % 4; i < sizeInBytes; ++i) {
       v <<= 8;
 #if V8_TARGET_LITTLE_ENDIAN
-      v |= reinterpret_cast<const uint8_t*>(data)[i];
+      v |= data_8b[i];
 #else
       if (i % 2) {
-        v |= reinterpret_cast<const uint8_t*>(data)[i - 1];
+        v |= data_8b[i - 1];
       } else {
-        v |= reinterpret_cast<const uint8_t*>(data)[i + 1];
+        v |= data_8b[i + 1];
       }
 #endif
     }
@@ -78,7 +74,8 @@ String16 calculateHash(const String16& str) {
     hashes[i] = (hashes[i] + zi[i] * (prime[i] - 1)) % prime[i];
 
   String16Builder hash;
-  for (size_t i = 0; i < hashesSize; ++i) appendUnsignedAsHex(hashes[i], &hash);
+  for (size_t i = 0; i < hashesSize; ++i)
+    hash.appendUnsignedAsHex((uint32_t)hashes[i]);
   return hash.toString();
 }
 
@@ -147,10 +144,18 @@ class ActualScript : public V8DebuggerScript {
     m_isModule = script->IsModule();
 
     m_script.Reset(m_isolate, script);
+    m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
   }
 
   bool isLiveEdit() const override { return m_isLiveEdit; }
   bool isModule() const override { return m_isModule; }
+
+  const String16& source() const override { return m_source; }
+  int startLine() const override { return m_startLine; }
+  int startColumn() const override { return m_startColumn; }
+  int endLine() const override { return m_endLine; }
+  int endColumn() const override { return m_endColumn; }
+  bool isSourceLoadedLazily() const override { return false; }
 
   const String16& sourceMappingURL() const override {
     return m_sourceMappingURL;
@@ -236,6 +241,12 @@ class ActualScript : public V8DebuggerScript {
                                    id);
   }
 
+  const String16& hash() const override {
+    if (m_hash.isEmpty()) m_hash = calculateHash(source());
+    DCHECK(!m_hash.isEmpty());
+    return m_hash;
+  }
+
  private:
   String16 GetNameOrSourceUrl(v8::Local<v8::debug::Script> script) {
     v8::Local<v8::String> name;
@@ -251,6 +262,12 @@ class ActualScript : public V8DebuggerScript {
   String16 m_sourceMappingURL;
   bool m_isLiveEdit = false;
   bool m_isModule = false;
+  String16 m_source;
+  mutable String16 m_hash;
+  int m_startLine = 0;
+  int m_startColumn = 0;
+  int m_endLine = 0;
+  int m_endColumn = 0;
   v8::Global<v8::debug::Script> m_script;
 };
 
@@ -260,21 +277,12 @@ class WasmVirtualScript : public V8DebuggerScript {
  public:
   WasmVirtualScript(v8::Isolate* isolate, WasmTranslation* wasmTranslation,
                     v8::Local<v8::debug::WasmScript> script, String16 id,
-                    String16 url, String16 source)
+                    String16 url, int functionIndex)
       : V8DebuggerScript(isolate, std::move(id), std::move(url)),
         m_script(isolate, script),
-        m_wasmTranslation(wasmTranslation) {
-    int num_lines = 0;
-    int last_newline = -1;
-    size_t next_newline = source.find('\n', last_newline + 1);
-    while (next_newline != String16::kNotFound) {
-      last_newline = static_cast<int>(next_newline);
-      next_newline = source.find('\n', last_newline + 1);
-      ++num_lines;
-    }
-    m_endLine = num_lines;
-    m_endColumn = static_cast<int>(source.length()) - last_newline - 1;
-    m_source = std::move(source);
+        m_wasmTranslation(wasmTranslation),
+        m_functionIndex(functionIndex) {
+    m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
     m_executionContextId = script->ContextId().ToChecked();
   }
 
@@ -283,6 +291,22 @@ class WasmVirtualScript : public V8DebuggerScript {
   bool isModule() const override { return false; }
   void setSourceMappingURL(const String16&) override {}
   void setSource(const String16&, bool, bool*) override { UNREACHABLE(); }
+  bool isSourceLoadedLazily() const override { return true; }
+  const String16& source() const override {
+    return m_wasmTranslation->GetSource(m_id, m_functionIndex);
+  }
+  int startLine() const override {
+    return m_wasmTranslation->GetStartLine(m_id, m_functionIndex);
+  }
+  int startColumn() const override {
+    return m_wasmTranslation->GetStartColumn(m_id, m_functionIndex);
+  }
+  int endLine() const override {
+    return m_wasmTranslation->GetEndLine(m_id, m_functionIndex);
+  }
+  int endColumn() const override {
+    return m_wasmTranslation->GetEndColumn(m_id, m_functionIndex);
+  }
 
   bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
@@ -341,6 +365,13 @@ class WasmVirtualScript : public V8DebuggerScript {
     return true;
   }
 
+  const String16& hash() const override {
+    if (m_hash.isEmpty()) {
+      m_hash = m_wasmTranslation->GetHash(m_id, m_functionIndex);
+    }
+    return m_hash;
+  }
+
  private:
   static const String16& emptyString() {
     static const String16 singleEmptyString;
@@ -353,6 +384,8 @@ class WasmVirtualScript : public V8DebuggerScript {
 
   v8::Global<v8::debug::WasmScript> m_script;
   WasmTranslation* m_wasmTranslation;
+  int m_functionIndex;
+  mutable String16 m_hash;
 };
 
 }  // namespace
@@ -367,10 +400,10 @@ std::unique_ptr<V8DebuggerScript> V8DebuggerScript::Create(
 std::unique_ptr<V8DebuggerScript> V8DebuggerScript::CreateWasm(
     v8::Isolate* isolate, WasmTranslation* wasmTranslation,
     v8::Local<v8::debug::WasmScript> underlyingScript, String16 id,
-    String16 url, String16 source) {
+    String16 url, int functionIndex) {
   return std::unique_ptr<WasmVirtualScript>(
       new WasmVirtualScript(isolate, wasmTranslation, underlyingScript,
-                            std::move(id), std::move(url), std::move(source)));
+                            std::move(id), std::move(url), functionIndex));
 }
 
 V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate, String16 id,
@@ -381,12 +414,6 @@ V8DebuggerScript::~V8DebuggerScript() {}
 
 const String16& V8DebuggerScript::sourceURL() const {
   return m_sourceURL.isEmpty() ? m_url : m_sourceURL;
-}
-
-const String16& V8DebuggerScript::hash() const {
-  if (m_hash.isEmpty()) m_hash = calculateHash(source());
-  DCHECK(!m_hash.isEmpty());
-  return m_hash;
 }
 
 void V8DebuggerScript::setSourceURL(const String16& sourceURL) {

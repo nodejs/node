@@ -235,7 +235,7 @@ Running test: testDebug
     result : {
         result : {
             className : Function
-            description : function debug(function) { [Command Line API] }
+            description : function debug(function, condition) { [Command Line API] }
             objectId : <objectId>
             type : function
         }
@@ -255,13 +255,39 @@ Running test: testDebug
 foo (:0:16)
 (anonymous) (:0:0)
 [
-    [0] : 5:0:12:<scriptId>
+    [0] : 5:1
 ]
+debugCommand
 foo (:0:16)
 (anonymous) (:0:0)
 [
-    [0] : 5:0:12:<scriptId>
+    [0] : 5:1
 ]
+debugCommand
+toUpper (:0:31)
+(anonymous) (:0:0)
+[
+    [0] : 5:2
+]
+debugCommand
+callSetTimeout (:0:28)
+(anonymous) (:0:0)
+[
+    [0] : 5:3
+]
+debugCommand
+callSetTimeout (:0:28)
+(anonymous) (:0:0)
+[
+    [0] : 5:3
+]
+debugCommand
+fromCharCode (:0:40)
+(anonymous) (:0:0)
+[
+    [0] : 5:4
+]
+debugCommand
 
 Running test: testMonitor
 {
@@ -291,6 +317,7 @@ after first call
 store functions..
 function foo called
 after first call
+function fromCharCode called with arguments: 1, 2, 3
 
 Running test: testProfile
 {

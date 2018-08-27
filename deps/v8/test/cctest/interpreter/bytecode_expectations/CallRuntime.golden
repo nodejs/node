@@ -65,24 +65,3 @@ constant pool: [
 handlers: [
 ]
 
----
-snippet: "
-  function f() { return %spread_iterable([1]) }
-  f();
-"
-frame size: 1
-parameter count: 1
-bytecode array length: 12
-bytecodes: [
-  /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
-                B(Star), R(0),
-                B(CallJSRuntime), U8(%spread_iterable), R(0), U8(1),
-  /*   43 S> */ B(Return),
-]
-constant pool: [
-  TUPLE2_TYPE,
-]
-handlers: [
-]
-

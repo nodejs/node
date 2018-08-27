@@ -55,6 +55,9 @@ after packing it up into a tarball (b).
     is set to `production`), npm will not install modules listed in
     `devDependencies`.
 
+    > NOTE: The `--production` flag has no particular meaning when adding a
+    dependency to a project.
+
 * `npm install <folder>`:
 
     Install the package in the directory as a symlink in the current project.
@@ -66,8 +69,13 @@ after packing it up into a tarball (b).
 
     Install a package that is sitting on the filesystem.  Note: if you just want
     to link a dev directory into your npm root, you can do this more easily by
-    using `npm link`. The filename *must* use `.tar`, `.tar.gz`, or `.tgz` as
+    using `npm link`.
+
+    Tarball requirements:
+    * The filename *must* use `.tar`, `.tar.gz`, or `.tgz` as
     the extension.
+    * The package contents should reside in a subfolder inside the tarball (usually it is called `package/`). npm strips one directory layer when installing the package (an equivalent of `tar x --strip-components=1` is run).
+    * The package must contain a `package.json` file with `name` and `version` properties.
 
     Example:
 
@@ -215,11 +223,11 @@ after packing it up into a tarball (b).
 
     Examples:
 
-          npm install git+ssh://git@github.com:npm/npm.git#v1.0.27
-          npm install git+ssh://git@github.com:npm/npm#semver:^5.0
-          npm install git+https://isaacs@github.com/npm/npm.git
-          npm install git://github.com/npm/npm.git#v1.0.27
-          GIT_SSH_COMMAND='ssh -i ~/.ssh/custom_ident' npm install git+ssh://git@github.com:npm/npm.git
+          npm install git+ssh://git@github.com:npm/cli.git#v1.0.27
+          npm install git+ssh://git@github.com:npm/cli#semver:^5.0
+          npm install git+https://isaacs@github.com/npm/cli.git
+          npm install git://github.com/npm/cli.git#v1.0.27
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/custom_ident' npm install git+ssh://git@github.com:npm/cli.git
 
 * `npm install <githubname>/<githubrepo>[#<commit-ish>]`:
 * `npm install github:<githubname>/<githubrepo>[#<commit-ish>]`:
@@ -347,13 +355,17 @@ The `--no-shrinkwrap` argument, which will ignore an available
 package lock or shrinkwrap file and use the package.json instead.
 
 The `--no-package-lock` argument will prevent npm from creating a
-`package-lock.json` file.
+`package-lock.json` file.  When running with package-lock's disabled npm
+will not automatically prune your node modules when installing.
 
 The `--nodedir=/path/to/node/source` argument will allow npm to find the
 node source code so that npm can compile native modules.
 
 The `--only={prod[uction]|dev[elopment]}` argument will cause either only
 `devDependencies` or only non-`devDependencies` to be installed regardless of the `NODE_ENV`.
+
+The `--no-audit` argument can be used to disable sending of audit reports to
+the configured registries.  See `npm-audit(1)` for details on what is sent.
 
 See `npm-config(7)`.  Many of the configuration params have some
 effect on installation, since that's most of what npm does.
@@ -430,6 +442,7 @@ affects a real use-case, it will be investigated.
 
 * npm-folders(5)
 * npm-update(1)
+* npm-audit(1)
 * npm-link(1)
 * npm-rebuild(1)
 * npm-scripts(7)

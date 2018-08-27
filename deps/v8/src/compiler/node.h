@@ -65,12 +65,12 @@ class V8_EXPORT_PRIVATE Node final {
 
 #ifdef DEBUG
   void Verify();
-#define BOUNDS_CHECK(index)                                                  \
-  do {                                                                       \
-    if (index < 0 || index >= InputCount()) {                                \
-      V8_Fatal(__FILE__, __LINE__, "Node #%d:%s->InputAt(%d) out of bounds", \
-               id(), op()->mnemonic(), index);                               \
-    }                                                                        \
+#define BOUNDS_CHECK(index)                                                   \
+  do {                                                                        \
+    if (index < 0 || index >= InputCount()) {                                 \
+      FATAL("Node #%d:%s->InputAt(%d) out of bounds", id(), op()->mnemonic(), \
+            index);                                                           \
+    }                                                                         \
   } while (false)
 #else
   // No bounds checks or verification in release mode.
@@ -264,8 +264,8 @@ class V8_EXPORT_PRIVATE Node final {
   void set_op(const Operator* op) { op_ = op; }
 
   // Only NodeProperties should manipulate the type.
-  Type* type() const { return type_; }
-  void set_type(Type* type) { type_ = type; }
+  Type type() const { return type_; }
+  void set_type(Type type) { type_ = type; }
 
   // Only NodeMarkers should manipulate the marks on nodes.
   Mark mark() const { return mark_; }
@@ -285,7 +285,7 @@ class V8_EXPORT_PRIVATE Node final {
   static const int kMaxInlineCapacity = InlineCapacityField::kMax - 1;
 
   const Operator* op_;
-  Type* type_;
+  Type type_;
   Mark mark_;
   uint32_t bit_field_;
   Use* first_use_;
@@ -312,12 +312,6 @@ typedef ZoneSet<Node*> NodeSet;
 typedef ZoneVector<Node*> NodeVector;
 typedef ZoneVector<NodeVector> NodeVectorVector;
 
-
-// Helper to extract parameters from Operator1<*> nodes.
-template <typename T>
-static inline const T& OpParameter(const Node* node) {
-  return OpParameter<T>(node->op());
-}
 
 class Node::InputEdges final {
  public:

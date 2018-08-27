@@ -105,10 +105,6 @@ function doTest(testOptions, callback) {
       '-reconnect'
     ].concat(testOptions.tickets ? [] : '-no_ticket');
 
-    // for the performance and stability issue in s_client on Windows
-    if (common.isWindows)
-      args.push('-no_rand_screen');
-
     function spawnClient() {
       const client = spawn(common.opensslCli, args, {
         stdio: [ 0, 1, 'pipe' ]

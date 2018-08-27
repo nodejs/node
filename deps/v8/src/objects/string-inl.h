@@ -8,7 +8,7 @@
 #include "src/objects/string.h"
 
 #include "src/conversions-inl.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/objects/name-inl.h"
 #include "src/string-hasher-inl.h"
 
@@ -529,7 +529,7 @@ HeapObject* ThinString::unchecked_actual() const {
   return reinterpret_cast<HeapObject*>(READ_FIELD(this, kActualOffset));
 }
 
-bool ExternalString::is_short() {
+bool ExternalString::is_short() const {
   InstanceType type = map()->instance_type();
   return (type & kShortExternalStringMask) == kShortExternalStringTag;
 }
@@ -539,7 +539,7 @@ Address ExternalString::resource_as_address() {
 }
 
 void ExternalString::set_address_as_resource(Address address) {
-  DCHECK(IsAligned(reinterpret_cast<intptr_t>(address), kPointerSize));
+  DCHECK(IsAligned(address, kPointerSize));
   *reinterpret_cast<Address*>(FIELD_ADDR(this, kResourceOffset)) = address;
   if (IsExternalOneByteString()) {
     ExternalOneByteString::cast(this)->update_data_cache();

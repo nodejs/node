@@ -136,16 +136,19 @@ ConversionResult convertUTF16ToUTF8(const UChar** sourceStart,
       result = targetExhausted;
       break;
     }
-    switch (bytesToWrite) {  // note: everything falls through.
+    switch (bytesToWrite) {
       case 4:
         *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
+        V8_FALLTHROUGH;
       case 3:
         *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
+        V8_FALLTHROUGH;
       case 2:
         *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
+        V8_FALLTHROUGH;
       case 1:
         *--target = static_cast<char>(ch | firstByteMark[bytesToWrite]);
     }
@@ -210,8 +213,10 @@ static bool isLegalUTF8(const unsigned char* source, int length) {
     // Everything else falls through when "true"...
     case 4:
       if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
+      V8_FALLTHROUGH;
     case 3:
       if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
+      V8_FALLTHROUGH;
     case 2:
       if ((a = (*--srcptr)) > 0xBF) return false;
 
@@ -232,6 +237,7 @@ static bool isLegalUTF8(const unsigned char* source, int length) {
         default:
           if (a < 0x80) return false;
       }
+      V8_FALLTHROUGH;
 
     case 1:
       if (*source >= 0x80 && *source < 0xC2) return false;
@@ -258,18 +264,23 @@ static inline UChar32 readUTF8Sequence(const char*& sequence, size_t length) {
     case 6:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
+      V8_FALLTHROUGH;
     case 5:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
+      V8_FALLTHROUGH;
     case 4:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
+      V8_FALLTHROUGH;
     case 3:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
+      V8_FALLTHROUGH;
     case 2:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
+      V8_FALLTHROUGH;
     case 1:
       character += static_cast<unsigned char>(*sequence++);
   }
@@ -482,22 +493,39 @@ void String16Builder::append(const char* characters, size_t length) {
 }
 
 void String16Builder::appendNumber(int number) {
-  const int kBufferSize = 11;
+  constexpr int kBufferSize = 11;
   char buffer[kBufferSize];
   int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%d", number);
-  DCHECK_GT(kBufferSize, chars);
+  DCHECK_LE(0, chars);
   m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
 }
 
 void String16Builder::appendNumber(size_t number) {
-  const int kBufferSize = 20;
+  constexpr int kBufferSize = 20;
   char buffer[kBufferSize];
 #if !defined(_WIN32) && !defined(_WIN64)
   int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%zu", number);
 #else
   int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%Iu", number);
 #endif
-  DCHECK_GT(kBufferSize, chars);
+  DCHECK_LE(0, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
+}
+
+void String16Builder::appendUnsignedAsHex(uint64_t number) {
+  constexpr int kBufferSize = 17;
+  char buffer[kBufferSize];
+  int chars =
+      v8::base::OS::SNPrintF(buffer, kBufferSize, "%016" PRIx64, number);
+  DCHECK_LE(0, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
+}
+
+void String16Builder::appendUnsignedAsHex(uint32_t number) {
+  constexpr int kBufferSize = 9;
+  char buffer[kBufferSize];
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%08" PRIx32, number);
+  DCHECK_LE(0, chars);
   m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
 }
 

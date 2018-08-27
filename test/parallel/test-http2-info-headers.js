@@ -36,7 +36,7 @@ function onStream(stream, headers, flags) {
     () => stream.additionalHeaders({ ':method': 'POST' }),
     {
       code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
-      type: Error,
+      type: TypeError,
       message: '":method" is an invalid pseudoheader or is used incorrectly'
     }
   );

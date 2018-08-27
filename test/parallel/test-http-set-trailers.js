@@ -54,7 +54,10 @@ server.on('listening', function() {
 
   c.on('end', function() {
     c.end();
-    assert.ok(!/x-foo/.test(res_buffer), 'Trailer in HTTP/1.0 response.');
+    assert.ok(
+      !/x-foo/.test(res_buffer),
+      `Trailer in HTTP/1.0 response. Response buffer: ${res_buffer}`
+    );
     outstanding_reqs--;
     if (outstanding_reqs === 0) {
       server.close();
@@ -84,7 +87,7 @@ server.on('listening', function() {
       clearTimeout(tid);
       assert.ok(
         /0\r\nx-foo: bar\r\n\r\n$/.test(res_buffer),
-        'No trailer in HTTP/1.1 response.'
+        `No trailer in HTTP/1.1 response. Response buffer: ${res_buffer}`
       );
       if (outstanding_reqs === 0) {
         server.close();

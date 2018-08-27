@@ -56,6 +56,10 @@ const six = BigInt(6);
   assertSame(BigInt(42n), 42n);
   assertSame(BigInt(Object(42n)), 42n);
   assertSame(BigInt(2**53 - 1), 9007199254740991n);
+  assertSame(BigInt(2**53), 9007199254740992n);
+  assertSame(BigInt(2**1000), 2n ** 1000n);
+  assertSame(BigInt(3.0755851989071915e29), 307558519890719151276406341632n);
+  assertSame(BigInt(-1e50), -0x446c3b15f992680000000000000000000000000000n);
   assertSame(BigInt(Object(2**53 - 1)), 9007199254740991n);
   assertSame(BigInt([]), 0n);
 }{
@@ -64,8 +68,6 @@ const six = BigInt(6);
   assertThrows(() => BigInt(+Infinity), RangeError);
   assertThrows(() => BigInt(4.00000001), RangeError);
   assertThrows(() => BigInt(Object(4.00000001)), RangeError);
-  assertThrows(() => BigInt(2**53), RangeError);
-  assertThrows(() => BigInt(2**1000), RangeError);
 }
 
 // BigInt.prototype[Symbol.toStringTag]
@@ -197,6 +199,28 @@ const six = BigInt(6);
   // Multi-digit BigInts.
   // Test parseInt/toString round trip on a list of randomly generated
   // string representations of numbers in various bases.
+
+  // Userland polyfill while we wait for BigInt.fromString (see:
+  // https://mathiasbynens.github.io/proposal-number-fromstring/ ).
+  // This intentionally only implements what the tests below need.
+  function ParseBigInt(str, radix) {
+    const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
+    var result = 0n;
+    var base = BigInt(radix);
+    var index = 0;
+    var negative = false;
+    if (str[0] === "-") {
+      negative = true;
+      index++;
+    }
+    for (; index < str.length; index++) {
+      var digit = alphabet.indexOf(str[index]);
+      assertTrue(digit >= 0 && digit < radix);
+      result = result * base + BigInt(digit);
+    }
+    if (negative) result = -result;
+    return result;
+  }
   var positive = [0, 0,  // Skip base 0 and 1.
     "1100110001100010110011110110010010001011100111100101111000111101100001000",
     "1001200022210010220101120212021002011002201122200002211102120120021011020",
@@ -273,26 +297,10 @@ const six = BigInt(6);
   ];
   for (var base = 2; base <= 36; base++) {
     var input = positive[base];
-    assertEquals(input, BigInt.parseInt(input, base).toString(base));
+    assertEquals(input, ParseBigInt(input, base).toString(base));
     input = negative[base];
-    assertEquals(input, BigInt.parseInt(input, base).toString(base));
+    assertEquals(input, ParseBigInt(input, base).toString(base));
   }
-}
-
-// .parseInt
-{
-  assertEquals("hellobigint", BigInt.parseInt("hellobigint", 32).toString(32));
-  assertEquals("abc", BigInt.parseInt("101010111100", 2).toString(16));
-  // Detect "0x" prefix.
-  assertEquals("f00dcafe", BigInt.parseInt("0xf00dcafe").toString(16));
-  // Default base is 10, trailing junk is skipped.
-  assertEquals("abc", BigInt.parseInt("2748junk").toString(16));
-  // Objects are converted to string.
-  let obj = {toString: () => "0x12345"};
-  assertEquals("12345", BigInt.parseInt(obj).toString(16));
-  // Empty and invalid strings throw.
-  assertThrows("BigInt.parseInt('')", SyntaxError);
-  assertThrows("BigInt.parseInt('nope', 2)", SyntaxError);
 }
 
 // .valueOf

@@ -10,7 +10,6 @@ const http2 = require('http2');
 
 const optionsToTest = {
   endStream: 'boolean',
-  getTrailers: 'function',
   weight: 'number',
   parent: 'number',
   exclusive: 'boolean',

@@ -5,11 +5,8 @@
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
-#include "src/allocation.h"
 #include "src/base/atomicops.h"
 #include "src/globals.h"
-#include "src/objects/code.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -29,21 +26,18 @@ class Execution final : public AllStatic {
   // When the function called is not in strict mode, receiver is
   // converted to an object.
   //
-  V8_EXPORT_PRIVATE MUST_USE_RESULT static MaybeHandle<Object> Call(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Call(
       Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
       int argc, Handle<Object> argv[]);
 
   // Construct object from function, the caller supplies an array of
   // arguments.
-  MUST_USE_RESULT static MaybeHandle<Object> New(Isolate* isolate,
-                                                 Handle<Object> constructor,
-                                                 int argc,
-                                                 Handle<Object> argv[]);
-  MUST_USE_RESULT static MaybeHandle<Object> New(Isolate* isolate,
-                                                 Handle<Object> constructor,
-                                                 Handle<Object> new_target,
-                                                 int argc,
-                                                 Handle<Object> argv[]);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> New(
+      Isolate* isolate, Handle<Object> constructor, int argc,
+      Handle<Object> argv[]);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> New(
+      Isolate* isolate, Handle<Object> constructor, Handle<Object> new_target,
+      int argc, Handle<Object> argv[]);
 
   // Call a function, just like Call(), but handle don't report exceptions
   // externally.
@@ -66,8 +60,7 @@ class Execution final : public AllStatic {
 
 
 class ExecutionAccess;
-class PostponeInterruptsScope;
-
+class InterruptsScope;
 
 // StackGuard contains the handling of the limits that are used to limit the
 // number of nested invocations of JavaScript and the stack size used in each
@@ -142,7 +135,6 @@ class V8_EXPORT_PRIVATE StackGuard final {
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
   Object* HandleInterrupts();
-  void HandleGCInterrupt();
 
  private:
   StackGuard();
@@ -176,8 +168,8 @@ class V8_EXPORT_PRIVATE StackGuard final {
   static const uintptr_t kIllegalLimit = 0xfffffff8;
 #endif
 
-  void PushPostponeInterruptsScope(PostponeInterruptsScope* scope);
-  void PopPostponeInterruptsScope();
+  void PushInterruptsScope(InterruptsScope* scope);
+  void PopInterruptsScope();
 
   class ThreadLocal final {
    public:
@@ -221,7 +213,7 @@ class V8_EXPORT_PRIVATE StackGuard final {
                                  static_cast<base::AtomicWord>(limit));
     }
 
-    PostponeInterruptsScope* postpone_interrupts_;
+    InterruptsScope* interrupt_scopes_;
     int interrupt_flags_;
   };
 
@@ -232,7 +224,7 @@ class V8_EXPORT_PRIVATE StackGuard final {
 
   friend class Isolate;
   friend class StackLimitCheck;
-  friend class PostponeInterruptsScope;
+  friend class InterruptsScope;
 
   DISALLOW_COPY_AND_ASSIGN(StackGuard);
 };

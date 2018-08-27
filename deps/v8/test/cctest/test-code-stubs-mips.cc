@@ -31,7 +31,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips/constants-mips.h"
 #include "src/objects-inl.h"
@@ -54,9 +54,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       v8::internal::CodeObjectRequired::kYes);
 
-  DoubleToIStub stub(isolate, destination_reg);
-
-  byte* start = stub.GetCode()->instruction_start();
+  Handle<Code> code = BUILTIN_CODE(isolate, DoubleToI);
+  Address start = code->InstructionStart();
 
   // Save callee save registers.
   __ MultiPush(kCalleeSaved | ra.bit());
@@ -93,6 +92,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Call through to the actual stub
   __ Call(start, RelocInfo::EXTERNAL_REFERENCE);
+  __ lw(destination_reg, MemOperand(sp, 0));
 
   __ Addu(sp, sp, Operand(kDoubleSize));
 
@@ -129,7 +129,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
-  Assembler::FlushICache(isolate, buffer, allocated);
+  Assembler::FlushICache(buffer, allocated);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
 }

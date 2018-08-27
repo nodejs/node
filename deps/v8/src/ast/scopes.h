@@ -587,10 +587,12 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // scope, and stopping when reaching the outer_scope_end scope. If the code is
   // executed because of a call to 'eval', the context parameter should be set
   // to the calling context of 'eval'.
-  Variable* LookupRecursive(VariableProxy* proxy, Scope* outer_scope_end);
+  Variable* LookupRecursive(ParseInfo* info, VariableProxy* proxy,
+                            Scope* outer_scope_end);
   void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
-  void ResolveVariable(ParseInfo* info, VariableProxy* proxy);
-  void ResolveVariablesRecursively(ParseInfo* info);
+  V8_WARN_UNUSED_RESULT bool ResolveVariable(ParseInfo* info,
+                                             VariableProxy* proxy);
+  V8_WARN_UNUSED_RESULT bool ResolveVariablesRecursively(ParseInfo* info);
 
   // Finds free variables of this scope. This mutates the unresolved variables
   // list along the way, so full resolution cannot be done afterwards.
@@ -849,7 +851,12 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
-  static void Analyze(ParseInfo* info);
+  //
+  // Returns false if private fields can not be resolved and
+  // ParseInfo's pending_error_handler will be populated with an
+  // error. Otherwise, returns true.
+  V8_WARN_UNUSED_RESULT
+  static bool Analyze(ParseInfo* info);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope contents for lazily compiled functions. In particular,
@@ -895,6 +902,14 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     is_skipped_function_ = is_skipped_function;
   }
 
+  bool has_inferred_function_name() const {
+    return has_inferred_function_name_;
+  }
+  void set_has_inferred_function_name(bool value) {
+    DCHECK(is_function_scope());
+    has_inferred_function_name_ = value;
+  }
+
   // Save data describing the context allocation of the variables in this scope
   // and its subscopes (except scopes at the laziness boundary). The data is
   // saved in produced_preparsed_scope_data_.
@@ -920,7 +935,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  void AllocateVariables(ParseInfo* info);
+  //
+  // Returns false if private fields can not be resolved.
+  bool AllocateVariables(ParseInfo* info);
 
   void SetDefaults();
 
@@ -944,6 +961,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool is_being_lazily_parsed_ : 1;
 #endif
   bool is_skipped_function_ : 1;
+  bool has_inferred_function_name_ : 1;
 
   // Parameter list in source order.
   ZoneList<Variable*> params_;

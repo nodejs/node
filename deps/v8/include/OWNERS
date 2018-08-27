@@ -1,5 +1,9 @@
+set noparent
+
 adamk@chromium.org
 danno@chromium.org
+ulan@chromium.org
+yangguo@chromium.org
 
 per-file v8-inspector.h=dgozman@chromium.org
 per-file v8-inspector.h=pfeldman@chromium.org

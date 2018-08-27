@@ -12,6 +12,7 @@ node ./bin/npm-cli.js pack --loglevel error >/dev/null
 mv *.tgz release
 cd release
 tar xzf *.tgz
+cp -r ../test package/
 
 mkdir node_modules
 mv package node_modules/npm
@@ -31,6 +32,8 @@ mv "node_modules/$tarname" .
 
 rm -rf *.cmd
 rm -rf node_modules
+
+cd ..
 
 echo "release/$tarname"
 echo "release/$zipname"

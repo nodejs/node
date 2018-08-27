@@ -22,8 +22,8 @@ function edit (args, cb) {
     ))
   }
   p = p.split('/')
-       .join('/node_modules/')
-       .replace(/(\/node_modules)+/, '/node_modules')
+    .join('/node_modules/')
+    .replace(/(\/node_modules)+/, '/node_modules')
   var f = path.resolve(npm.dir, p)
   fs.lstat(f, function (er) {
     if (er) return cb(er)

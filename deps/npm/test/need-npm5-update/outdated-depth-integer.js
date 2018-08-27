@@ -45,8 +45,8 @@ test('outdated depth integer', function (t) {
     pkg,
     'underscore',
     undefined, // no version installed
-    '1.3.1',   // wanted
-    '1.5.1',   // latest
+    '1.3.1', // wanted
+    '1.5.1', // latest
     '1.3.1',
     null
   ]]
@@ -58,7 +58,7 @@ test('outdated depth integer', function (t) {
       registry: common.registry,
       depth: 5
     }
-    , function () {
+      , function () {
       npm.install('request@0.9.0', function (er) {
         if (er) throw new Error(er)
         npm.outdated(function (err, d) {

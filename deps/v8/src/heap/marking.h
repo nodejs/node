@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MARKING_H
-#define V8_MARKING_H
+#ifndef V8_HEAP_MARKING_H_
+#define V8_HEAP_MARKING_H_
 
 #include "src/base/atomic-utils.h"
 #include "src/utils.h"
@@ -141,6 +141,8 @@ class V8_EXPORT_PRIVATE Bitmap {
   }
 
   void Clear();
+
+  void MarkAllBits();
 
   // Clears bits in the given cell. The mask specifies bits to clear: if a
   // bit is set in the mask then the corresponding bit is cleared in the cell.
@@ -316,4 +318,4 @@ class Marking : public AllStatic {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_MARKING_H_
+#endif  // V8_HEAP_MARKING_H_

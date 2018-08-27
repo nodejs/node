@@ -21,6 +21,7 @@
 
 #include "node_watchdog.h"
 #include "node_internals.h"
+#include "debug_utils.h"
 #include <algorithm>
 
 namespace node {
@@ -60,8 +61,7 @@ Watchdog::~Watchdog() {
   // UV_RUN_DEFAULT so that libuv has a chance to clean up.
   uv_run(loop_, UV_RUN_DEFAULT);
 
-  int rc = uv_loop_close(loop_);
-  CHECK_EQ(0, rc);
+  CheckedUvLoopClose(loop_);
   delete loop_;
   loop_ = nullptr;
 }

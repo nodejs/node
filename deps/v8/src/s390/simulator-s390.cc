@@ -640,7 +640,7 @@ void S390Debugger::Debug() {
 #undef XSTR
 }
 
-static bool ICacheMatch(void* one, void* two) {
+bool Simulator::ICacheMatch(void* one, void* two) {
   DCHECK_EQ(reinterpret_cast<intptr_t>(one) & CachePage::kPageMask, 0);
   DCHECK_EQ(reinterpret_cast<intptr_t>(two) & CachePage::kPageMask, 0);
   return one == two;
@@ -1488,11 +1488,6 @@ void Simulator::EvalTableInit() {
 }  // NOLINT
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
-  i_cache_ = isolate_->simulator_i_cache();
-  if (i_cache_ == nullptr) {
-    i_cache_ = new base::CustomMatcherHashMap(&ICacheMatch);
-    isolate_->set_simulator_i_cache(i_cache_);
-  }
   static base::OnceType once = V8_ONCE_INIT;
   base::CallOnce(&once, &Simulator::EvalTableInit);
 // Set up simulator support first. Some of this information is needed to
@@ -1910,17 +1905,18 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             case ExternalReference::BUILTIN_FP_FP_CALL:
             case ExternalReference::BUILTIN_COMPARE_CALL:
               PrintF("Call to host function at %p with args %f, %f",
-                     static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                     dval1);
+                     reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     dval0, dval1);
               break;
             case ExternalReference::BUILTIN_FP_CALL:
               PrintF("Call to host function at %p with arg %f",
-                     static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0);
+                     reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     dval0);
               break;
             case ExternalReference::BUILTIN_FP_INT_CALL:
               PrintF("Call to host function at %p with args %f, %" V8PRIdPTR,
-                     static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                     ival);
+                     reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     dval0, ival);
               break;
             default:
               UNREACHABLE();
@@ -2063,8 +2059,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
               "\t\t\t\targs %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR,
-              static_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1], arg[2],
-              arg[3], arg[4], arg[5], arg[6], arg[7], arg[8]);
+              reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1],
+              arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8]);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
                    static_cast<intptr_t>(get_register(sp)));
@@ -2332,7 +2328,7 @@ void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
   icount_++;
 
   if (v8::internal::FLAG_check_icache) {
-    CheckICache(isolate_->simulator_i_cache(), instr);
+    CheckICache(i_cache(), instr);
   }
 
   pc_modified_ = false;
@@ -2395,7 +2391,7 @@ void Simulator::Execute() {
   }
 }
 
-void Simulator::CallInternal(byte* entry, int reg_arg_count) {
+void Simulator::CallInternal(Address entry, int reg_arg_count) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
@@ -2405,7 +2401,7 @@ void Simulator::CallInternal(byte* entry, int reg_arg_count) {
     set_pc(*(reinterpret_cast<intptr_t*>(entry)));
   } else {
     // entry is the instruction address
-    set_pc(reinterpret_cast<intptr_t>(entry));
+    set_pc(static_cast<intptr_t>(entry));
   }
   // Remember the values of non-volatile registers.
   int64_t r6_val = get_register(r6);
@@ -2480,7 +2476,7 @@ void Simulator::CallInternal(byte* entry, int reg_arg_count) {
   set_register(r13, r13_val);
 }
 
-intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+intptr_t Simulator::CallImpl(Address entry, int argument_count,
                              const intptr_t* arguments) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
@@ -2527,7 +2523,7 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   set_pc(*(reinterpret_cast<intptr_t*>(entry)));
 #else
   // entry is the instruction address
-  set_pc(reinterpret_cast<intptr_t>(entry));
+  set_pc(static_cast<intptr_t>(entry));
 #endif
 
   // Put target address in ip (for JS prologue).
@@ -2602,19 +2598,19 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   return get_register(r2);
 }
 
-void Simulator::CallFP(byte* entry, double d0, double d1) {
+void Simulator::CallFP(Address entry, double d0, double d1) {
   set_d_register_from_double(0, d0);
   set_d_register_from_double(1, d1);
   CallInternal(entry);
 }
 
-int32_t Simulator::CallFPReturnsInt(byte* entry, double d0, double d1) {
+int32_t Simulator::CallFPReturnsInt(Address entry, double d0, double d1) {
   CallFP(entry, d0, d1);
   int32_t result = get_register(r2);
   return result;
 }
 
-double Simulator::CallFPReturnsDouble(byte* entry, double d0, double d1) {
+double Simulator::CallFPReturnsDouble(Address entry, double d0, double d1) {
   CallFP(entry, d0, d1);
   return get_double_from_d_register(0);
 }
@@ -7143,9 +7139,13 @@ EVALUATE(LLGCR) {
 }
 
 EVALUATE(LLGHR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLGHR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  uint64_t r2_val = get_low_register<uint64_t>(r2);
+  r2_val <<= 48;
+  r2_val >>= 48;
+  set_register(r1, r2_val);
+  return length;
 }
 
 EVALUATE(MLGR) {

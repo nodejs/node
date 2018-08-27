@@ -10,7 +10,7 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     return map(
         self._create_test,
         ['bananaflakes'],
@@ -24,8 +24,8 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return 'd8_mocked.py'
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     return [self.name]
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

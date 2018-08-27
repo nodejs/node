@@ -39,7 +39,7 @@ MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
       for dotted in [x for x in dirs if x.startswith('.')]:
@@ -57,13 +57,6 @@ class TestSuite(testsuite.TestSuite):
 
   def _test_class(self):
     return TestCase
-
-  def CreateLegacyVariantsGenerator(self, variants):
-    return super(TestSuite, self).CreateLegacyVariantsGenerator(
-        variants + ["preparser"])
-
-  def create_variant_proc(self, variants):
-    return super(TestSuite, self).create_variant_proc(variants + ['preparser'])
 
 
 class TestCase(testcase.TestCase):
@@ -90,11 +83,11 @@ class TestCase(testcase.TestCase):
       path = head
     return False
 
-  def _get_cmd_params(self, ctx):
-    params = super(TestCase, self)._get_cmd_params(ctx)
+  def _get_cmd_params(self):
+    params = super(TestCase, self)._get_cmd_params()
     return [p for p in params if p not in INVALID_FLAGS]
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     return self._source_files
 
   def _get_source_flags(self):
@@ -110,5 +103,5 @@ class TestCase(testcase.TestCase):
                            self._expected_fail())
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

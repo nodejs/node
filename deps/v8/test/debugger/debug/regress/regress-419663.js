@@ -23,7 +23,7 @@ var p = Debug.findScriptSourcePosition(script, 8, 0);
 var q = Debug.setBreakPointByScriptIdAndPosition(script.id, p).actual_position;
 
 function assertLocation(p, l, c) {
-  var location = script.locationFromPosition(p, false);
+  var location = %ScriptPositionInfo(script, p, false);
   assertEquals(l, location.line);
   assertEquals(c, location.column);
 }

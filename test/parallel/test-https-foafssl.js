@@ -72,10 +72,6 @@ server.listen(0, function() {
                 '-cert', fixtures.path('foafssl.crt'),
                 '-key', fixtures.path('foafssl.key')];
 
-  // for the performance and stability issue in s_client on Windows
-  if (common.isWindows)
-    args.push('-no_rand_screen');
-
   const client = spawn(common.opensslCli, args);
 
   client.stdout.on('data', function(data) {

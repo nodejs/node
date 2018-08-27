@@ -1,4 +1,5 @@
 {
+  "owners": ["jarin@chromium.org", "mvstanston@chromium.org"],
   "name": "JSTests",
   "run_count": 3,
   "run_count_arm": 1,
@@ -56,8 +57,32 @@
       "path": ["Generators"],
       "main": "run.js",
       "resources": ["generators.js"],
-      "flags": ["--harmony-function-sent"],
       "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
+      "name": "ArrayLiteralSpread",
+      "path": ["ArrayLiteralSpread"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralSpread\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Babel"},
+        {"name": "ForOfPush"},
+        {"name": "ForOfSet"},
+        {"name": "Spread"}
+      ]
+    },
+    {
+      "name": "SpreadCallsGeneral",
+      "path": ["SpreadCallsGeneral"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-SpreadCallsGeneral\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ApplySpreadLiteral"},
+        {"name": "SpreadCall"},
+        {"name": "SpreadCallSpreadLiteral"}
+      ]
     },
     {
       "name": "RestParameters",
@@ -179,18 +204,152 @@
     {
       "name": "Strings",
       "path": ["Strings"],
-      "main": "run.js",
-      "resources": ["harmony-string.js", "string-indexof.js"],
-      "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
       "run_count": 1,
       "timeout": 240,
       "timeout_arm": 420,
+      "units": "score",
       "tests": [
-        {"name": "StringFunctions"},
-        {"name": "StringIndexOfConstant"},
-        {"name": "StringIndexOfNonConstant"},
-        {"name": "StringCharCodeAtConstant"},
-        {"name": "StringCharCodeAtNonConstant"}
+        {
+          "name": "StringFunctions",
+          "main": "run.js",
+          "resources": [ "harmony-string.js" ],
+          "test_flags": [ "harmony-string" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringRepeat"},
+            {"name": "StringStartsWith"},
+            {"name": "StringEndsWith"},
+            {"name": "StringIncludes"},
+            {"name": "StringFromCodePoint"},
+            {"name": "StringCodePointAt"},
+            {"name": "StringCodePointAtSum"}
+          ]
+        },
+        {
+          "name": "StringIndexOf",
+          "main": "run.js",
+          "resources": [ "string-indexof.js" ],
+          "test_flags": [ "string-indexof" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringIndexOfConstant"},
+            {"name": "StringIndexOfNonConstant"}
+          ]
+        },
+        {
+          "name": "StringSplit",
+          "main": "run.js",
+          "resources": [ "string-split.js" ],
+          "test_flags": [ "string-split" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "ShortSubjectEmptySeparator"},
+            {"name": "LongSubjectEmptySeparator"},
+            {"name": "ShortTwoBytesSubjectEmptySeparator"},
+            {"name": "LongTwoBytesSubjectEmptySeparator"},
+            {"name": "ShortSubject"},
+            {"name": "LongSubject"},
+            {"name": "ShortTwoBytesSubject"},
+            {"name": "LongTwoBytesSubject"}
+          ]
+        },
+        {
+          "name": "StringAt",
+          "main": "run.js",
+          "resources": [ "string-stringat.js" ],
+          "test_flags": [ "string-stringat" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringCharCodeAtConstant"},
+            {"name": "StringCharCodeAtNonConstant"},
+            {"name": "StringCharCodeAtConstantInbounds"},
+            {"name": "StringCharCodeAtNonConstantInbounds"},
+            {"name": "StringCodePointAtConstant"},
+            {"name": "StringCodePointAtNonConstant"},
+            {"name": "StringCodePointAtConstantInbounds"},
+            {"name": "StringCodePointAtNonConstantInbounds"}
+          ]
+        },
+        {
+          "name": "StringAtComparison",
+          "main": "run.js",
+          "resources": [ "string-stringat-comp.js" ],
+          "test_flags": [ "string-stringat-comp" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "charCodeAt_const"},
+            {"name": "charCodeAt_both"},
+            {"name": "charAt_const"},
+            {"name": "charAt_never"},
+            {"name": "charAt_both"},
+            {"name": "stringIndex_const"}
+          ]
+        },
+        {
+          "name": "StringMatchAll",
+          "main": "run.js",
+          "resources": [ "string-matchall.js" ],
+          "flags": [
+            "--harmony-string-matchall"
+          ],
+          "test_flags": [ "string-matchall" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringMatchAllBuiltinRegExpIteratorCreation"},
+            {"name": "StringMatchAllBuiltinStringIteratorCreation"},
+            {"name": "StringMatchAllBuiltinString"},
+            {"name": "StringMatchAllManualString"},
+            {"name": "StringMatchAllBuiltinRegExp"},
+            {"name": "StringMatchAllManualRegExp"},
+            {"name": "StringMatchAllBuiltinZeroWidth"},
+            {"name": "StringMatchAllBuiltinZeroWidthUnicode"}
+          ]
+        },
+        {
+          "name": "StringStartsEndsWithComparison",
+          "main": "run.js",
+          "resources": [ "string-startsendswith-comp.js" ],
+          "test_flags": [ "string-startsendswith-comp" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "startsWith"},
+            {"name": "startsIndex"},
+            {"name": "endsWith"},
+            {"name": "endsIndex"}
+          ]
+        },
+        {
+          "name": "StringSubstring",
+          "main": "run.js",
+          "resources": [ "string-substring.js" ],
+          "test_flags": [ "string-substring" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringDropFirstSlice"},
+            {"name": "StringDropFirstSubstr"},
+            {"name": "StringDropFirstSubstring"},
+            {"name": "StringTakeFirstSlice"},
+            {"name": "StringTakeFirstSubstr"},
+            {"name": "StringTakeFirstSubstring"},
+            {"name": "StringDropLastSlice"},
+            {"name": "StringDropLastSubstr"},
+            {"name": "StringDropLastSubstring"},
+            {"name": "StringTakeLastSlice"},
+            {"name": "StringTakeLastSubstr"},
+            {"name": "StringTakeLastSubstring"},
+            {"name": "StringDropFirstSlice"},
+            {"name": "StringDropFirstSubstr"},
+            {"name": "StringDropFirstSubstring"}
+          ]
+        }
       ]
     },
     {
@@ -244,6 +403,21 @@
         {"name": "EntriesMegamorphic"},
         {"name": "Values"},
         {"name": "ValuesMegamorphic"}
+      ]
+    },
+    {
+      "name": "ObjectLiteralSpread",
+      "path": ["ObjectLiteralSpread"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ObjectLiteralSpread\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Babel"},
+        {"name": "BabelAndOverwrite"},
+        {"name": "ObjectAssign"},
+        {"name": "ObjectAssignAndOverwrite"},
+        {"name": "ObjectSpread"},
+        {"name": "ObjectSpreadAndOverwrite"}
       ]
     },
     {
@@ -303,6 +477,19 @@
         {"name": "Object.hasOwnProperty--el"},
         {"name": "Object.hasOwnProperty--el-str"},
         {"name": "Object.hasOwnProperty--NE-el"}
+      ]
+    },
+    {
+      "name": "DataView",
+      "path": ["DataView"],
+      "main": "run.js",
+      "resources": ["dataviewtest.js"],
+      "results_regexp": "^DataView\\-%s\\(Score\\): (.+)$",
+      "tests": [
+	{"name": "DataViewTest-DataView-BigEndian"},
+	{"name": "DataViewTest-DataView-LittleEndian"},
+	{"name": "DataViewTest-TypedArray-BigEndian"},
+	{"name": "DataViewTest-TypedArray-LittleEndian"}
       ]
     },
     {
@@ -377,10 +564,40 @@
           "test_flags": ["slice-nospecies"]
         },
         {
-          "name": "Sort",
+          "name": "SortIntTypes",
           "main": "run.js",
-          "resources": ["sort.js"],
-          "test_flags": ["sort"]
+          "resources": ["sort.js", "sort-int.js"],
+          "test_flags": ["sort-int"]
+        },
+        {
+          "name": "SortBigIntTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-bigint.js"],
+          "test_flags": ["sort-bigint"]
+        },
+        {
+          "name": "SortFloatTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-float.js"],
+          "test_flags": ["sort-float"]
+        },
+        {
+          "name": "SortCustomCompareFnIntTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-cmpfn-int.js"],
+          "test_flags": ["sort-cmpfn-int"]
+        },
+        {
+          "name": "SortCustomCompareFnBigIntTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-cmpfn-bigint.js"],
+          "test_flags": ["sort-cmpfn-bigint"]
+        },
+        {
+          "name": "SortCustomCompareFnFloatTypes",
+          "main": "run.js",
+          "resources": ["sort.js", "sort-cmpfn-float.js"],
+          "test_flags": ["sort-cmpfn-float"]
         },
         {
           "name": "SubarrayNoSpecies",
@@ -397,7 +614,7 @@
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js",
         "reduce.js", "reduce-right.js", "to-string.js", "find.js",
-        "find-index.js", "of.js"
+        "find-index.js", "from.js", "of.js", "for-each.js"
       ],
       "flags": [
         "--allow-natives-syntax"
@@ -473,7 +690,104 @@
         {"name": "SmallTransplantedArrayOf"},
         {"name": "SmallDoubleArrayOf"},
         {"name": "SmallStringArrayOf"},
-        {"name": "SmallMixedArrayOf"}
+        {"name": "SmallMixedArrayOf"},
+        {"name": "SmiFrom"},
+        {"name": "SmallSmiFrom"},
+        {"name": "SmiNoMapFrom"},
+        {"name": "SmiNoIteratorFrom"},
+        {"name": "TransplantedFrom"},
+        {"name": "DoubleFrom"},
+        {"name": "StringFrom"},
+        {"name": "StringNoMapFrom"},
+        {"name": "MixedFrom"}
+      ]
+    },
+    {
+      "name": "ArraySort",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort.js"],
+      "test_flags": ["sort"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmi"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElement"},
+        {"name": "HoleySmi"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElement"},
+        {"name": "Dictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortCompareFns",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-cmpfn.js"],
+      "test_flags": ["sort-cmpfn"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmi"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElement"},
+        {"name": "HoleySmi"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElement"},
+        {"name": "Dictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortCompareFnKindChange",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-cmpfn-kindchange.js"],
+      "test_flags": ["sort-cmpfn-kindchange"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmiToPackedDouble"},
+        {"name": "HoleySmiToHoleyDouble"},
+        {"name": "PackedDoubleToHoleyDouble"},
+        {"name": "PackedElementToDictionary"},
+        {"name": "HoleyElementToDictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortPreSorted",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-presorted.js"],
+      "test_flags": ["sort-presorted"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmiPreSorted"},
+        {"name": "PackedSmiPreSortedReversed"}
+      ]
+    },
+    {
+      "name": "ArraySortMegamorphic",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-megamorphic.js"],
+      "test_flags": ["sort-megamorphic"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "Base"},
+        {"name": "MultipleCompareFns"}
       ]
     },
     {

@@ -14,7 +14,6 @@ static const char CLIENT_CLOSE_FRAME[] = "\x88\x80\x2D\x0E\x1E\xFA";
 static const char SERVER_CLOSE_FRAME[] = "\x88\x00";
 
 static const char MAIN_TARGET_ID[] = "main-target";
-static const char UNCONNECTABLE_TARGET_ID[] = "unconnectable-target";
 
 static const char WS_HANDSHAKE_RESPONSE[] =
     "HTTP/1.1 101 Switching Protocols\r\n"
@@ -82,78 +81,6 @@ class InspectorSocketServerTest : public ::testing::Test {
     }
     EXPECT_EQ(0, err);
   }
-};
-
-class TestInspectorServerDelegate : public SocketServerDelegate {
- public:
-  TestInspectorServerDelegate() : connected(0), disconnected(0), done(false),
-                                  targets_({ MAIN_TARGET_ID,
-                                             UNCONNECTABLE_TARGET_ID }),
-                                  session_id_(0) {}
-
-  void Connect(InspectorSocketServer* server) {
-    server_ = server;
-  }
-
-  void StartSession(int session_id, const std::string& target_id) override {
-    buffer_.clear();
-    CHECK_NE(targets_.end(),
-             std::find(targets_.begin(), targets_.end(), target_id));
-    if (target_id == UNCONNECTABLE_TARGET_ID) {
-      server_->DeclineSession(session_id);
-      return;
-    }
-    connected++;
-    session_id_ = session_id;
-    server_->AcceptSession(session_id);
-  }
-
-  void MessageReceived(int session_id, const std::string& message) override {
-    CHECK_EQ(session_id_, session_id);
-    buffer_.insert(buffer_.end(), message.begin(), message.end());
-  }
-
-  void EndSession(int session_id) override {
-    CHECK_EQ(session_id_, session_id);
-    disconnected++;
-  }
-
-  std::vector<std::string> GetTargetIds() override {
-    return targets_;
-  }
-
-  std::string GetTargetTitle(const std::string& id) override {
-    return id + " Target Title";
-  }
-
-  std::string GetTargetUrl(const std::string& id) override {
-    return "file://" + id + "/script.js";
-  }
-
-  void Expect(const std::string& expects) {
-    SPIN_WHILE(buffer_.size() < expects.length());
-    ASSERT_STREQ(std::string(buffer_.data(), expects.length()).c_str(),
-                 expects.c_str());
-    buffer_.erase(buffer_.begin(), buffer_.begin() + expects.length());
-  }
-
-  void Write(const std::string& message) {
-    server_->Send(session_id_, message);
-  }
-
-  void ServerDone() override {
-    done = true;
-  }
-
-  int connected;
-  int disconnected;
-  bool done;
-
- private:
-  const std::vector<std::string> targets_;
-  InspectorSocketServer* server_;
-  int session_id_;
-  std::vector<char> buffer_;
 };
 
 class SocketWrapper {
@@ -312,75 +239,126 @@ class SocketWrapper {
 
 class ServerHolder {
  public:
-  template <typename Delegate>
-  ServerHolder(Delegate* delegate, uv_loop_t* loop, int port)
-               : ServerHolder(delegate, loop, HOST, port, nullptr) { }
+  ServerHolder(bool has_targets, uv_loop_t* loop, int port)
+               : ServerHolder(has_targets, loop, HOST, port, nullptr) { }
 
-  template <typename Delegate>
-  ServerHolder(Delegate* delegate, uv_loop_t* loop, const std::string host,
-               int port, FILE* out)
-               : closed(false), paused(false),
-                 server_(delegate, loop, host, port, out) {
-    delegate->Connect(&server_);
-  }
+  ServerHolder(bool has_targets, uv_loop_t* loop,
+               const std::string host, int port, FILE* out);
 
   InspectorSocketServer* operator->() {
-    return &server_;
+    return server_.get();
   }
 
   int port() {
-    return server_.Port();
+    return server_->Port();
   }
 
-  static void CloseCallback(InspectorSocketServer* server) {
-    ServerHolder* holder = node::ContainerOf(&ServerHolder::server_, server);
-    holder->closed = true;
+  bool done() {
+    return server_->done();
   }
 
-  static void PausedCallback(InspectorSocketServer* server) {
-    ServerHolder* holder = node::ContainerOf(&ServerHolder::server_, server);
-    holder->paused = true;
+  void Disconnected() {
+    disconnected++;
   }
 
-  bool closed;
-  bool paused;
+  void Done() {
+    delegate_done = true;
+  }
+
+  void Connected(int id) {
+    buffer_.clear();
+    session_id_ = id;
+    connected++;
+  }
+
+  void Received(const std::string& message) {
+    buffer_.insert(buffer_.end(), message.begin(), message.end());
+  }
+
+  void Write(const std::string& message) {
+    server_->Send(session_id_, message);
+  }
+
+  void Expect(const std::string& expects) {
+    SPIN_WHILE(buffer_.size() < expects.length());
+    ASSERT_STREQ(std::string(buffer_.data(), expects.length()).c_str(),
+                 expects.c_str());
+    buffer_.erase(buffer_.begin(), buffer_.begin() + expects.length());
+  }
+
+  int connected = 0;
+  int disconnected = 0;
+  bool delegate_done = false;
 
  private:
-  InspectorSocketServer server_;
+  std::unique_ptr<InspectorSocketServer> server_;
+  std::vector<char> buffer_;
+  int session_id_;
 };
 
-class ServerDelegateNoTargets : public SocketServerDelegate {
+class TestSocketServerDelegate : public SocketServerDelegate {
  public:
-  ServerDelegateNoTargets() : server_(nullptr) { }
-  void Connect(InspectorSocketServer* server) { }
-  void MessageReceived(int session_id, const std::string& message) override { }
-  void EndSession(int session_id) override { }
+  explicit TestSocketServerDelegate(
+      ServerHolder* server,
+      const std::vector<std::string>& target_ids)
+      : harness_(server),
+        targets_(target_ids),
+        session_id_(0) {}
+
+  ~TestSocketServerDelegate() {
+    harness_->Done();
+  }
+
+  void AssignServer(InspectorSocketServer* server) override {
+    server_ = server;
+  }
 
   void StartSession(int session_id, const std::string& target_id) override {
-    server_->DeclineSession(session_id);
+    session_id_ = session_id;
+    CHECK_NE(targets_.end(),
+             std::find(targets_.begin(), targets_.end(), target_id));
+    harness_->Connected(session_id_);
+  }
+
+  void MessageReceived(int session_id, const std::string& message) override {
+    CHECK_EQ(session_id_, session_id);
+    harness_->Received(message);
+  }
+
+  void EndSession(int session_id) override {
+    CHECK_EQ(session_id_, session_id);
+    harness_->Disconnected();
   }
 
   std::vector<std::string> GetTargetIds() override {
-    return std::vector<std::string>();
+    return targets_;
   }
 
   std::string GetTargetTitle(const std::string& id) override {
-    return "";
+    return id + " Target Title";
   }
 
   std::string GetTargetUrl(const std::string& id) override {
-    return "";
+    return "file://" + id + "/script.js";
   }
-
-  void ServerDone() override {
-    done = true;
-  }
-
-  bool done = false;
 
  private:
+  ServerHolder* harness_;
+  const std::vector<std::string> targets_;
   InspectorSocketServer* server_;
+  int session_id_;
 };
+
+ServerHolder::ServerHolder(bool has_targets, uv_loop_t* loop,
+                           const std::string host, int port, FILE* out) {
+  std::vector<std::string> targets;
+  if (has_targets)
+    targets = { MAIN_TARGET_ID };
+  std::unique_ptr<TestSocketServerDelegate> delegate(
+      new TestSocketServerDelegate(this, targets));
+  server_.reset(
+      new InspectorSocketServer(std::move(delegate), loop, host, port, out));
+}
 
 static void TestHttpRequest(int port, const std::string& path,
                             const std::string& expected_body) {
@@ -402,8 +380,7 @@ static const std::string WsHandshakeRequest(const std::string& target_id) {
 
 
 TEST_F(InspectorSocketServerTest, InspectorSessions) {
-  TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, &loop, 0);
+  ServerHolder server(true, &loop, 0);
   ASSERT_TRUE(server->Start());
 
   SocketWrapper well_behaved_socket(&loop);
@@ -412,29 +389,20 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   well_behaved_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   well_behaved_socket.Expect(WS_HANDSHAKE_RESPONSE);
 
-  EXPECT_EQ(1, delegate.connected);
+  EXPECT_EQ(1, server.connected);
 
   well_behaved_socket.Write("\x81\x84\x7F\xC2\x66\x31\x4E\xF0\x55\x05");
 
-  delegate.Expect("1234");
-  delegate.Write("5678");
+  server.Expect("1234");
+  server.Write("5678");
 
   well_behaved_socket.Expect("\x81\x4" "5678");
   well_behaved_socket.Write(CLIENT_CLOSE_FRAME);
   well_behaved_socket.Expect(SERVER_CLOSE_FRAME);
 
-  EXPECT_EQ(1, delegate.disconnected);
+  EXPECT_EQ(1, server.disconnected);
 
   well_behaved_socket.Close();
-
-  // Declined connection
-  SocketWrapper declined_target_socket(&loop);
-  declined_target_socket.Connect(HOST, server.port());
-  declined_target_socket.Write(WsHandshakeRequest(UNCONNECTABLE_TARGET_ID));
-  declined_target_socket.Expect("HTTP/1.0 400 Bad Request");
-  declined_target_socket.ExpectEOF();
-  EXPECT_EQ(1, delegate.connected);
-  EXPECT_EQ(1, delegate.disconnected);
 
   // Bogus target - start session callback should not even be invoked
   SocketWrapper bogus_target_socket(&loop);
@@ -442,8 +410,8 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   bogus_target_socket.Write(WsHandshakeRequest("bogus_target"));
   bogus_target_socket.Expect("HTTP/1.0 400 Bad Request");
   bogus_target_socket.ExpectEOF();
-  EXPECT_EQ(1, delegate.connected);
-  EXPECT_EQ(1, delegate.disconnected);
+  EXPECT_EQ(1, server.connected);
+  EXPECT_EQ(1, server.disconnected);
 
   // Drop connection (no proper close frames)
   SocketWrapper dropped_connection_socket(&loop);
@@ -451,13 +419,13 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   dropped_connection_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   dropped_connection_socket.Expect(WS_HANDSHAKE_RESPONSE);
 
-  EXPECT_EQ(2, delegate.connected);
+  EXPECT_EQ(2, server.connected);
 
-  delegate.Write("5678");
+  server.Write("5678");
   dropped_connection_socket.Expect("\x81\x4" "5678");
 
   dropped_connection_socket.Close();
-  SPIN_WHILE(delegate.disconnected < 2);
+  SPIN_WHILE(server.disconnected < 2);
 
   // Reconnect regular connection
   SocketWrapper stays_till_termination_socket(&loop);
@@ -465,41 +433,38 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   stays_till_termination_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   stays_till_termination_socket.Expect(WS_HANDSHAKE_RESPONSE);
 
-  SPIN_WHILE(3 != delegate.connected);
+  SPIN_WHILE(3 != server.connected);
 
-  delegate.Write("5678");
+  server.Write("5678");
   stays_till_termination_socket.Expect("\x81\x4" "5678");
 
   stays_till_termination_socket
       .Write("\x81\x84\x7F\xC2\x66\x31\x4E\xF0\x55\x05");
-  delegate.Expect("1234");
+  server.Expect("1234");
 
-  server->Stop(ServerHolder::CloseCallback);
+  server->Stop();
   server->TerminateConnections();
 
   stays_till_termination_socket.Write(CLIENT_CLOSE_FRAME);
   stays_till_termination_socket.Expect(SERVER_CLOSE_FRAME);
 
-  SPIN_WHILE(3 != delegate.disconnected);
-
-  SPIN_WHILE(!server.closed);
+  SPIN_WHILE(3 != server.disconnected);
+  SPIN_WHILE(!server.done());
   stays_till_termination_socket.ExpectEOF();
 }
 
 TEST_F(InspectorSocketServerTest, ServerDoesNothing) {
-  TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, &loop, 0);
+  ServerHolder server(true, &loop, 0);
   ASSERT_TRUE(server->Start());
-
-  server->Stop(ServerHolder::CloseCallback);
+  server->Stop();
   server->TerminateConnections();
-  SPIN_WHILE(!server.closed);
-  ASSERT_TRUE(delegate.done);
+  SPIN_WHILE(!server.done());
+  ASSERT_TRUE(server.delegate_done);
+  SPIN_WHILE(uv_loop_alive(&loop));
 }
 
 TEST_F(InspectorSocketServerTest, ServerWithoutTargets) {
-  ServerDelegateNoTargets delegate;
-  ServerHolder server(&delegate, &loop, 0);
+  ServerHolder server(false, &loop, 0);
   ASSERT_TRUE(server->Start());
   TestHttpRequest(server.port(), "/json/list", "[ ]");
   TestHttpRequest(server.port(), "/json", "[ ]");
@@ -507,92 +472,84 @@ TEST_F(InspectorSocketServerTest, ServerWithoutTargets) {
   // Declined connection
   SocketWrapper socket(&loop);
   socket.Connect(HOST, server.port());
-  socket.Write(WsHandshakeRequest(UNCONNECTABLE_TARGET_ID));
+  socket.Write(WsHandshakeRequest("any target id"));
   socket.Expect("HTTP/1.0 400 Bad Request");
   socket.ExpectEOF();
-  server->Stop(ServerHolder::CloseCallback);
+  server->Stop();
   server->TerminateConnections();
-  SPIN_WHILE(!server.closed);
+  SPIN_WHILE(!server.done());
+  SPIN_WHILE(uv_loop_alive(&loop));
 }
 
 TEST_F(InspectorSocketServerTest, ServerCannotStart) {
-  ServerDelegateNoTargets delegate1, delegate2;
-  ServerHolder server1(&delegate1, &loop, 0);
+  ServerHolder server1(false, &loop, 0);
   ASSERT_TRUE(server1->Start());
-  ServerHolder server2(&delegate2, &loop, server1.port());
+  ServerHolder server2(false, &loop, server1.port());
   ASSERT_FALSE(server2->Start());
-  server1->Stop(ServerHolder::CloseCallback);
+  server1->Stop();
   server1->TerminateConnections();
-  SPIN_WHILE(!server1.closed);
-  ASSERT_TRUE(delegate1.done);
+  SPIN_WHILE(!server1.done());
+  ASSERT_TRUE(server1.delegate_done);
+  SPIN_WHILE(uv_loop_alive(&loop));
 }
 
 TEST_F(InspectorSocketServerTest, StoppingServerDoesNotKillConnections) {
-  ServerDelegateNoTargets delegate;
-  ServerHolder server(&delegate, &loop, 0);
+  ServerHolder server(false, &loop, 0);
   ASSERT_TRUE(server->Start());
   SocketWrapper socket1(&loop);
   socket1.Connect(HOST, server.port());
   socket1.TestHttpRequest("/json/list", "[ ]");
-  server->Stop(ServerHolder::CloseCallback);
-  SPIN_WHILE(!server.closed);
+  server->Stop();
   socket1.TestHttpRequest("/json/list", "[ ]");
   socket1.Close();
   uv_run(&loop, UV_RUN_DEFAULT);
-  ASSERT_TRUE(delegate.done);
+  ASSERT_TRUE(server.delegate_done);
 }
 
 TEST_F(InspectorSocketServerTest, ClosingConnectionReportsDone) {
-  ServerDelegateNoTargets delegate;
-  ServerHolder server(&delegate, &loop, 0);
+  ServerHolder server(false, &loop, 0);
   ASSERT_TRUE(server->Start());
   SocketWrapper socket1(&loop);
   socket1.Connect(HOST, server.port());
   socket1.TestHttpRequest("/json/list", "[ ]");
-  server->Stop(ServerHolder::CloseCallback);
-  SPIN_WHILE(!server.closed);
+  server->Stop();
   socket1.TestHttpRequest("/json/list", "[ ]");
   socket1.Close();
   uv_run(&loop, UV_RUN_DEFAULT);
-  ASSERT_TRUE(delegate.done);
+  ASSERT_TRUE(server.delegate_done);
 }
 
 TEST_F(InspectorSocketServerTest, ClosingSocketReportsDone) {
-  TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, &loop, 0);
+  ServerHolder server(true, &loop, 0);
   ASSERT_TRUE(server->Start());
   SocketWrapper socket1(&loop);
   socket1.Connect(HOST, server.port());
   socket1.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   socket1.Expect(WS_HANDSHAKE_RESPONSE);
-  server->Stop(ServerHolder::CloseCallback);
-  SPIN_WHILE(!server.closed);
-  ASSERT_FALSE(delegate.done);
+  server->Stop();
+  ASSERT_FALSE(server.delegate_done);
   socket1.Close();
-  SPIN_WHILE(!delegate.done);
+  SPIN_WHILE(!server.delegate_done);
 }
 
 TEST_F(InspectorSocketServerTest, TerminatingSessionReportsDone) {
-  TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, &loop, 0);
+  ServerHolder server(true, &loop, 0);
   ASSERT_TRUE(server->Start());
   SocketWrapper socket1(&loop);
   socket1.Connect(HOST, server.port());
   socket1.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   socket1.Expect(WS_HANDSHAKE_RESPONSE);
-  server->Stop(ServerHolder::CloseCallback);
-  SPIN_WHILE(!server.closed);
-  ASSERT_FALSE(delegate.done);
+  server->Stop();
+  ASSERT_FALSE(server.delegate_done);
   server->TerminateConnections();
   socket1.Expect(SERVER_CLOSE_FRAME);
   socket1.Write(CLIENT_CLOSE_FRAME);
   socket1.ExpectEOF();
-  SPIN_WHILE(!delegate.done);
+  SPIN_WHILE(!server.delegate_done);
 }
 
 TEST_F(InspectorSocketServerTest, FailsToBindToNodejsHost) {
-  TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, &loop, "nodejs.org", 80, nullptr);
+  ServerHolder server(true, &loop, "nodejs.org", 80, nullptr);
   ASSERT_FALSE(server->Start());
   SPIN_WHILE(uv_loop_alive(&loop));
 }
@@ -619,17 +576,14 @@ TEST_F(InspectorSocketServerTest, BindsToIpV6) {
     fprintf(stderr, "No IPv6 network detected\n");
     return;
   }
-  TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, &loop, "::", 0, nullptr);
+  ServerHolder server(true, &loop, "::", 0, nullptr);
   ASSERT_TRUE(server->Start());
-
   SocketWrapper socket1(&loop);
   socket1.Connect("::1", server.port(), true);
   socket1.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   socket1.Expect(WS_HANDSHAKE_RESPONSE);
-  server->Stop(ServerHolder::CloseCallback);
-  SPIN_WHILE(!server.closed);
-  ASSERT_FALSE(delegate.done);
+  server->Stop();
+  ASSERT_FALSE(server.delegate_done);
   socket1.Close();
-  SPIN_WHILE(!delegate.done);
+  SPIN_WHILE(!server.delegate_done);
 }

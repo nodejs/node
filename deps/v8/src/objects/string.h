@@ -7,6 +7,7 @@
 
 #include "src/base/bits.h"
 #include "src/objects/name.h"
+#include "src/unicode-decoder.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -229,8 +230,8 @@ class String : public Name {
   // for strings containing supplementary characters, lexicographic ordering on
   // sequences of UTF-16 code unit values differs from that on sequences of code
   // point values.
-  MUST_USE_RESULT static ComparisonResult Compare(Handle<String> x,
-                                                  Handle<String> y);
+  V8_WARN_UNUSED_RESULT static ComparisonResult Compare(Handle<String> x,
+                                                        Handle<String> y);
 
   // Perform ES6 21.1.3.8, including checking arguments.
   static Object* IndexOf(Isolate* isolate, Handle<Object> receiver,
@@ -271,7 +272,7 @@ class String : public Name {
   // the result.
   // A {start_index} can be passed to specify where to start scanning the
   // replacement string.
-  MUST_USE_RESULT static MaybeHandle<String> GetSubstitution(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> GetSubstitution(
       Isolate* isolate, Match* match, Handle<String> replacement,
       int start_index = 0);
 
@@ -314,7 +315,7 @@ class String : public Name {
   uint32_t inline ToValidIndex(Object* number);
 
   // Trimming.
-  enum TrimMode { kTrim, kTrimLeft, kTrimRight };
+  enum TrimMode { kTrim, kTrimStart, kTrimEnd };
   static Handle<String> Trim(Handle<String> string, TrimMode mode);
 
   DECL_CAST(String)
@@ -355,6 +356,8 @@ class String : public Name {
 
   // See include/v8.h for the definition.
   static const int kMaxLength = v8::String::kMaxLength;
+  static_assert(kMaxLength <= (Smi::kMaxValue / 2 - kSize),
+                "Unexpected max String length");
 
   // Max length for computing hash. For strings longer than this limit the
   // string length is used as the hash value.
@@ -471,8 +474,8 @@ class SeqString : public String {
   // Truncate the string in-place if possible and return the result.
   // In case of new_length == 0, the empty string is returned without
   // truncating the original string.
-  MUST_USE_RESULT static Handle<String> Truncate(Handle<SeqString> string,
-                                                 int new_length);
+  V8_WARN_UNUSED_RESULT static Handle<String> Truncate(Handle<SeqString> string,
+                                                       int new_length);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqString);
@@ -717,7 +720,9 @@ class ExternalString : public String {
   static const int kSize = kResourceDataOffset + kPointerSize;
 
   // Return whether external string is short (data pointer is not cached).
-  inline bool is_short();
+  inline bool is_short() const;
+  // Size in bytes of the external payload.
+  int ExternalPayloadSize() const;
 
   // Used in the serializer/deserializer.
   inline Address resource_as_address();

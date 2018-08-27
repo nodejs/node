@@ -3,7 +3,7 @@
 =head1 NAME
 
 ASN1_TIME_set, ASN1_TIME_adj, ASN1_TIME_check, ASN1_TIME_set_string,
-ASN1_TIME_print, ASN1_TIME_diff - ASN.1 Time functions.
+ASN1_TIME_print, ASN1_TIME_diff - ASN.1 Time functions
 
 =head1 SYNOPSIS
 
@@ -100,7 +100,7 @@ Determine if one time is later or sooner than the current time:
  int day, sec;
 
  if (!ASN1_TIME_diff(&day, &sec, NULL, to))
-	/* Invalid time format */
+        /* Invalid time format */
 
  if (day > 0 || sec > 0)
    printf("Later\n");
@@ -123,7 +123,16 @@ otherwise.
 ASN1_TIME_print() returns 1 if the time is successfully printed out and 0 if
 an error occurred (I/O error or invalid time format).
 
-ASN1_TIME_diff() returns 1 for sucess and 0 for failure. It can fail if the
+ASN1_TIME_diff() returns 1 for success and 0 for failure. It can fail if the
 pass ASN1_TIME structure has invalid syntax for example.
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

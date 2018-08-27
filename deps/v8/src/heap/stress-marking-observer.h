@@ -23,4 +23,4 @@ class StressMarkingObserver : public AllocationObserver {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_HEAP_STRESS_MARKING_OBSERVER_H_

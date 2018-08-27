@@ -9,8 +9,8 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-platform.h"
+#include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/semaphore.h"
 
 namespace v8 {
 namespace platform {
@@ -25,11 +25,11 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
 
   void Terminate();
 
-  std::unique_ptr<Task> PopTaskFromQueue();
+  std::unique_ptr<Task> PopTaskFromQueue(MessageLoopBehavior wait_for_work);
 
   std::unique_ptr<IdleTask> PopTaskFromIdleQueue();
 
-  void WaitForTask();
+  void WaitForTaskLocked(const base::LockGuard<base::Mutex>&);
 
   double MonotonicallyIncreasingTime();
 
@@ -47,16 +47,16 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
   // The same as PostTask, but the lock is already held by the caller. The
   // {guard} parameter should make sure that the caller is holding the lock.
   void PostTaskLocked(std::unique_ptr<Task> task,
-                      const base::LockGuard<base::Mutex>& guard);
+                      const base::LockGuard<base::Mutex>&);
 
   // A caller of this function has to hold {lock_}. The {guard} parameter should
   // make sure that the caller is holding the lock.
   std::unique_ptr<Task> PopTaskFromDelayedQueueLocked(
-      const base::LockGuard<base::Mutex>& guard);
+      const base::LockGuard<base::Mutex>&);
 
   bool terminated_ = false;
   base::Mutex lock_;
-  base::Semaphore event_loop_control_;
+  base::ConditionVariable event_loop_control_;
   std::queue<std::unique_ptr<Task>> task_queue_;
   IdleTaskSupport idle_task_support_;
   std::queue<std::unique_ptr<IdleTask>> idle_task_queue_;

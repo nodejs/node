@@ -46,11 +46,10 @@ const server = http.createServer(function(req, res) {
 
 server.listen(0, options.host, function() {
   options.port = this.address().port;
-  let req;
 
   for (requests_sent = 0; requests_sent < 30; requests_sent += 1) {
     options.path = `/${requests_sent}`;
-    req = http.request(options);
+    const req = http.request(options);
     req.id = requests_sent;
     req.on('response', function(res) {
       res.on('data', function(data) {
@@ -59,6 +58,7 @@ server.listen(0, options.host, function() {
       res.on('end', function(data) {
         console.log(`res#${this.req.id} end`);
         requests_done += 1;
+        req.destroy();
       });
     });
     req.on('close', function() {
@@ -89,6 +89,6 @@ server.listen(0, options.host, function() {
 
 process.on('exit', function() {
   console.error(`done=${requests_done} sent=${requests_sent}`);
-  assert.strictEqual(requests_done, requests_sent,
-                     'timeout on http request called too much');
+  // check that timeout on http request was not called too much
+  assert.strictEqual(requests_done, requests_sent);
 });

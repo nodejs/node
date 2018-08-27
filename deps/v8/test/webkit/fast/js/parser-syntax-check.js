@@ -331,7 +331,7 @@ invalid("try {} catch(e)");
 invalid("try {} finally");
 invalid("try {} finally {} catch(e) {}");
 invalid("try {} catch (...) {}");
-invalid("try {} catch {}");
+valid  ("try {} catch {}");
 valid  ("if (a) try {} finally {} else b;");
 valid  ("if (--a()) do with(1) try {} catch(ke) { f() ; g() } while (a in b) else {}");
 invalid("if (a) try {} else b; catch (e) { }");

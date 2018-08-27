@@ -7,7 +7,6 @@
 
 #include "src/objects.h"
 #include "src/objects/map.h"
-#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

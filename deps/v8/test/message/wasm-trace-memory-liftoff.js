@@ -2,6 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-stress-opt --expose-wasm --wasm-trace-memory --liftoff
+// Flags: --no-stress-opt --wasm-trace-memory --liftoff --no-future
 
 load("test/message/wasm-trace-memory.js");

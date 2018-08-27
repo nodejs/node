@@ -9,8 +9,10 @@
 
 #include "src/field-type.h"
 #include "src/objects-inl.h"
+#include "src/objects/api-callbacks-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/templates-inl.h"
 #include "src/property.h"
 #include "src/transitions.h"
 
@@ -29,7 +31,7 @@ CAST_ACCESSOR(Map)
 ACCESSORS(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
 ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
                   kLayoutDescriptorOffset, FLAG_unbox_double_fields)
-ACCESSORS(Map, raw_transitions, Object, kTransitionsOrPrototypeInfoOffset)
+WEAK_ACCESSORS(Map, raw_transitions, kTransitionsOrPrototypeInfoOffset)
 
 // |bit_field| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field, has_non_instance_prototype,
@@ -49,6 +51,8 @@ BIT_FIELD_ACCESSORS(Map, bit_field, has_prototype_slot,
 // |bit_field2| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field2, is_extensible, Map::IsExtensibleBit)
 BIT_FIELD_ACCESSORS(Map, bit_field2, is_prototype_map, Map::IsPrototypeMapBit)
+BIT_FIELD_ACCESSORS(Map, bit_field2, is_in_retained_map_list,
+                    Map::IsInRetainedMapListBit)
 
 // |bit_field3| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors, Map::OwnsDescriptorsBit)
@@ -484,25 +488,26 @@ void Map::NotifyLeafMapLayoutChange() {
   }
 }
 
+bool Map::IsJSObject(InstanceType type) {
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
+  return type >= FIRST_JS_OBJECT_TYPE;
+}
+
 bool Map::CanTransition() const {
   // Only JSObject and subtypes have map transitions and back pointers.
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
-  return instance_type() >= FIRST_JS_OBJECT_TYPE;
+  return IsJSObject(instance_type());
 }
 
 bool Map::IsBooleanMap() const { return this == GetHeap()->boolean_map(); }
 bool Map::IsPrimitiveMap() const {
-  STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }
 bool Map::IsJSReceiverMap() const {
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   return instance_type() >= FIRST_JS_RECEIVER_TYPE;
 }
-bool Map::IsJSObjectMap() const {
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  return instance_type() >= FIRST_JS_OBJECT_TYPE;
-}
+bool Map::IsJSObjectMap() const { return IsJSObject(instance_type()); }
+bool Map::IsJSPromiseMap() const { return instance_type() == JS_PROMISE_TYPE; }
 bool Map::IsJSArrayMap() const { return instance_type() == JS_ARRAY_TYPE; }
 bool Map::IsJSFunctionMap() const {
   return instance_type() == JS_FUNCTION_TYPE;
@@ -659,8 +664,16 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
 
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, weak_cell_cache, Object, kWeakCellCacheOffset)
+ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
 ACCESSORS(Map, constructor_or_backpointer, Object,
           kConstructorOrBackPointerOffset)
+
+bool Map::IsPrototypeValidityCellValid() const {
+  Object* validity_cell = prototype_validity_cell();
+  Object* value = validity_cell->IsSmi() ? Smi::cast(validity_cell)
+                                         : Cell::cast(validity_cell)->value();
+  return value == Smi::FromInt(Map::kPrototypeChainValid);
+}
 
 Object* Map::GetConstructor() const {
   Object* maybe_constructor = constructor_or_backpointer();

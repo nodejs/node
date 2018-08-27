@@ -7,13 +7,13 @@ npm(1) -- a JavaScript package manager
 
 This is just enough info to get you up and running.
 
-Much more info available via `npm help` once it's installed.
+Much more info will be available via `npm help` once it's installed.
 
 ## IMPORTANT
 
-**You need node v4 or higher to run this program.**
+**You need node v6 or higher to run this program.**
 
-To install an old **and unsupported** version of npm that works on node v0.12
+To install an old **and unsupported** version of npm that works on node v5
 and prior, clone the git repo and dig through the old tags and branches.
 
 **npm is configured to use npm, Inc.'s public package registry at
@@ -153,7 +153,7 @@ you should [read this](https://docs.npmjs.com/misc/developers).
 When you find issues, please report them:
 
 * web:
-  <https://github.com/npm/npm/issues>
+  <https://npm.community/c/bugs>
 
 Be sure to include *all* of the output from the npm command that didn't work
 as expected.  The `npm-debug.log` file is also helpful to provide.

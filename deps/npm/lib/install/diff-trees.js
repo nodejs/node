@@ -8,6 +8,7 @@ var log = require('npmlog')
 var path = require('path')
 var ssri = require('ssri')
 var moduleName = require('../utils/module-name.js')
+var isOnlyOptional = require('./is-only-optional.js')
 
 // we don't use get-requested because we're operating on files on disk, and
 // we don't want to extropolate from what _should_ be there.
@@ -50,7 +51,7 @@ function pkgIntegrity (pkg) {
     if (Object.keys(integrity).length === 0) return
     return integrity
   } catch (ex) {
-    return
+
   }
 }
 
@@ -70,6 +71,9 @@ function sriMatch (aa, bb) {
 function pkgAreEquiv (aa, bb) {
   // coming in we know they share a path…
 
+  // if one is inside a link and the other is not, then they are not equivalent
+  // this happens when we're replacing a linked dep with a non-linked version
+  if (aa.isInLink !== bb.isInLink) return false
   // if they share package metadata _identity_, they're the same thing
   if (aa.package === bb.package) return true
   // if they share integrity information, they're the same thing
@@ -162,6 +166,11 @@ var sortActions = module.exports.sortActions = function (differences) {
     sorted.unshift(action)
   }
 
+  // safety net, anything excluded above gets tacked on the end
+  differences.forEach((_) => {
+    if (sorted.indexOf(_) === -1) sorted.push(_)
+  })
+
   return sorted
 }
 
@@ -213,9 +222,8 @@ var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
         pkg.fromPath = toMv.pkg.path
         setAction(differences, 'move', pkg)
         delete toRemove[toMv.flatname]
-      // we don't generate add actions for things found in links (which already exist on disk) or
-      // for bundled modules (which will be installed when we install their parent)
-      } else if (!(pkg.isInLink && pkg.fromBundle)) {
+      // we don't generate add actions for things found in links (which already exist on disk)
+      } else if (!pkg.isInLink || !(pkg.fromBundle && pkg.fromBundle.isLink)) {
         setAction(differences, 'add', pkg)
       }
     }
@@ -227,18 +235,26 @@ var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
     .map((flatname) => toRemove[flatname])
     .forEach((pkg) => setAction(differences, 'remove', pkg))
 
+  return filterActions(differences)
+}
+
+function filterActions (differences) {
+  const includeOpt = npm.config.get('optional')
   const includeDev = npm.config.get('dev') ||
     (!/^prod(uction)?$/.test(npm.config.get('only')) && !npm.config.get('production')) ||
     /^dev(elopment)?$/.test(npm.config.get('only')) ||
     /^dev(elopment)?$/.test(npm.config.get('also'))
   const includeProd = !/^dev(elopment)?$/.test(npm.config.get('only'))
-  if (!includeProd || !includeDev) {
-    log.silly('diff-trees', 'filtering actions:', 'includeDev', includeDev, 'includeProd', includeProd)
-    differences = differences.filter((diff) => {
-      const pkg = diff[1]
-      const pkgIsOnlyDev = isOnlyDev(pkg)
-      return (!includeProd && pkgIsOnlyDev) || (includeDev && pkgIsOnlyDev) || (includeProd && !pkgIsOnlyDev)
-    })
-  }
-  return differences
+  if (includeProd && includeDev && includeOpt) return differences
+
+  log.silly('diff-trees', 'filtering actions:', 'includeDev', includeDev, 'includeProd', includeProd, 'includeOpt', includeOpt)
+  return differences.filter((diff) => {
+    const pkg = diff[1]
+    const pkgIsOnlyDev = isOnlyDev(pkg)
+    const pkgIsOnlyOpt = isOnlyOptional(pkg)
+    if (!includeProd && pkgIsOnlyDev) return true
+    if (includeDev && pkgIsOnlyDev) return true
+    if (includeProd && !pkgIsOnlyDev && (includeOpt || !pkgIsOnlyOpt)) return true
+    return false
+  })
 }

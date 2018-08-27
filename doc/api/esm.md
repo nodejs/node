@@ -1,6 +1,7 @@
 # ECMAScript Modules
 
 <!--introduced_in=v8.5.0-->
+<!-- type=misc -->
 
 > Stability: 1 - Experimental
 
@@ -36,11 +37,14 @@ Only the CLI argument for the main entry point to the program can be an entry
 point into an ESM graph. Dynamic import can also be used to create entry points
 into ESM graphs at runtime.
 
-#### `import.meta`
+#### import.meta
+
+* {Object}
 
 The `import.meta` metaproperty is an `Object` that contains the following
 property:
-* `url` {string} The absolute `file:` URL of the module
+
+* `url` {string} The absolute `file:` URL of the module.
 
 ### Unsupported
 
@@ -91,14 +95,41 @@ When loaded via `import` these modules will provide a single `default` export
 representing the value of `module.exports` at the time they finished evaluating.
 
 ```js
-import fs from 'fs';
-fs.readFile('./foo.txt', (err, body) => {
+// foo.js
+module.exports = { one: 1 };
+
+// bar.js
+import foo from './foo.js';
+foo.one === 1; // true
+```
+
+Builtin modules will provide named exports of their public API, as well as a
+default export which can be used for, among other things, modifying the named
+exports. Named exports of builtin modules are updated when the corresponding
+exports property is accessed, redefined, or deleted.
+
+```js
+import EventEmitter from 'events';
+const e = new EventEmitter();
+```
+
+```js
+import { readFile } from 'fs';
+readFile('./foo.txt', (err, source) => {
   if (err) {
     console.error(err);
   } else {
-    console.log(body);
+    console.log(source);
   }
 });
+```
+
+```js
+import fs, { readFileSync } from 'fs';
+
+fs.readFileSync = () => Buffer.from('Hello, ESM');
+
+fs.readFileSync === readFileSync;
 ```
 
 ## Loader hooks
@@ -130,8 +161,8 @@ export async function resolve(specifier,
 }
 ```
 
-The parentURL is provided as `undefined` when performing main Node.js load
-itself.
+The `parentModuleURL` is provided as `undefined` when performing main Node.js
+load itself.
 
 The default Node.js ES module resolution function is provided as a third
 argument to the resolver for easy compatibility workflows.
@@ -142,12 +173,12 @@ module. This can be one of the following:
 
 | `format` | Description |
 | --- | --- |
-| `"esm"` | Load a standard JavaScript module |
-| `"cjs"` | Load a node-style CommonJS module |
-| `"builtin"` | Load a node builtin CommonJS module |
-| `"json"` | Load a JSON file |
-| `"addon"` | Load a [C++ Addon][addons] |
-| `"dynamic"` | Use a [dynamic instantiate hook][] |
+| `'esm'` | Load a standard JavaScript module |
+| `'cjs'` | Load a node-style CommonJS module |
+| `'builtin'` | Load a node builtin CommonJS module |
+| `'json'` | Load a JSON file |
+| `'addon'` | Load a [C++ Addon][addons] |
+| `'dynamic'` | Use a [dynamic instantiate hook][] |
 
 For example, a dummy loader to load JavaScript restricted to browser resolution
 rules with only JS file extension and Node.js builtin modules support could
@@ -203,7 +234,7 @@ would load the module `x.js` as an ES module with relative resolution support
 
 To create a custom dynamic module that doesn't correspond to one of the
 existing `format` interpretations, the `dynamicInstantiate` hook can be used.
-This hook is called only for modules that return `format: "dynamic"` from
+This hook is called only for modules that return `format: 'dynamic'` from
 the `resolve` hook.
 
 ```js

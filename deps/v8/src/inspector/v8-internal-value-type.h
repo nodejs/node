@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8INTERNALVALUETYPE_H_
-#define V8_INSPECTOR_V8INTERNALVALUETYPE_H_
+#ifndef V8_INSPECTOR_V8_INTERNAL_VALUE_TYPE_H_
+#define V8_INSPECTOR_V8_INTERNAL_VALUE_TYPE_H_
 
 #include "include/v8.h"
 
@@ -20,4 +20,4 @@ v8::Local<v8::Value> v8InternalValueTypeFrom(v8::Local<v8::Context>,
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8INTERNALVALUETYPE_H_
+#endif  // V8_INSPECTOR_V8_INTERNAL_VALUE_TYPE_H_

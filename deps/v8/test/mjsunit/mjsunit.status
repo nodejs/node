@@ -87,7 +87,7 @@
   'array-constructor': [PASS, SLOW, ['arch == arm and simulator == True', SKIP]],
 
   # Very slow test
-  'regress/regress-crbug-808192' : [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
+  'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
   'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
@@ -104,6 +104,8 @@
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
   'migrations': [SKIP],
   'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug', SKIP]],
+  'compiler/regress-808472': [PASS, ['mode == debug', SKIP]],
+  'es6/promise-all-overflow-*': [PASS, SLOW, ['mode == debug or arch != x64', SKIP]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
@@ -118,10 +120,11 @@
   'tools/dumpcpp': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
 
   ##############################################################################
-  # This test generates a file in the test directory, so we cannot run several
-  # variants of the test simultaneously. Additionally the test should not be
-  # affected by variants.
+  # These tests generate files in the test directory, so we cannot run several
+  # variants of them simultaneously. Additionally they should not be affected by
+  # variants.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
+  'tools/compiler-trace-flags': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Long running test that reproduces memory leak and should be run manually.
@@ -150,6 +153,8 @@
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
 
   # Slow tests.
+  'compiler/osr-one': [PASS, SLOW],
+  'compiler/osr-two': [PASS, SLOW],
   'copy-on-write-assert': [PASS, SLOW],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
@@ -159,8 +164,8 @@
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
-  'regress/regress-crbug-474297': [PASS, ['gc_stress == False', SKIP]],
   'wasm/embenchen/*': [PASS, SLOW],
+  'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
@@ -180,6 +185,11 @@
   # noi18n cannot turn on ICU backend for Date
   'icu-date-to-string': [PASS, ['no_i18n == True', SKIP]],
   'icu-date-lord-howe': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-apia': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-lord-howe': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-moscow': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-new-york': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-seoul': [PASS, ['no_i18n == True', SKIP]],
 
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
@@ -194,6 +204,12 @@
 
   # Allocates a huge string and then flattens it, very slow in debug mode.
   'regress/regress-752764': [PASS, ['mode == debug', SLOW]],
+
+  # https://crbug.com/v8/7682
+  'regress/regress-v8-7682': [FAIL],
+
+  # https://crbug.com/v8/7697
+  'array-literal-feedback': [PASS, FAIL],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -241,6 +257,10 @@
   'stack-traces-overflow': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
+
+  # Unsuitable for GC stress because coverage information is lost on GC.
+  'code-coverage-ad-hoc': [SKIP],
+  'code-coverage-precise': [SKIP],
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
@@ -313,6 +333,10 @@
   'regress/regress-91010': [SKIP],
   'regress/regress-91013': [SKIP],
   'regress/regress-99167': [SKIP],
+
+  # Sometimes fails because the hard-coded timeout in the test is exceeded when
+  # dcheck_always_on = true.
+  'regress/regress-165637': [SKIP],
 
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
@@ -409,14 +433,10 @@
 
   # Too slow.
   'harmony/regexp-property-lu-ui': [SKIP],
+  'regress/regress-165637': [SKIP],
 
   # Flaky with baseline?
   'regress/regress-2185-2': [SKIP],
-
-  # Slow tests with --noopt.
-  'compiler/osr-one': [PASS, SLOW],
-  'compiler/osr-two': [PASS, SLOW],
-  'wasm/grow-memory': [PASS, SLOW],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
@@ -536,6 +556,7 @@
   # Requires too much memory on MIPS.
   'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
+  'harmony/bigint/regressions': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -602,6 +623,13 @@
   'icu-date-to-string': [SKIP],
   'icu-date-lord-howe': [SKIP],
   'regress/regress-6288': [SKIP],
+  'tzoffset-transition-apia': [SKIP],
+  'tzoffset-transition-lord-howe': [SKIP],
+  'tzoffset-transition-moscow': [SKIP],
+  'tzoffset-transition-new-york': [SKIP],
+  'tzoffset-transition-new-york-noi18n': [SKIP],
+  'tzoffset-seoul': [SKIP],
+  'tzoffset-seoul-noi18n': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -637,12 +665,52 @@
 }],  # 'deopt_fuzzer == True'
 
 ##############################################################################
-['gc_fuzzer == True', {
+['gc_fuzzer', {
   'regress/regress-336820': [SKIP],
   'regress/regress-748069': [SKIP],
   'regress/regress-778668': [SKIP],
   'ignition/regress-672027': [PASS, ['tsan', SKIP]],
-}],  # 'gc_fuzzer == True'
+  'string-replace-gc': [PASS, SLOW, ['mode == debug', SKIP]],
+
+  # Unsuitable for GC fuzzing because coverage information is lost on GC.
+  'code-coverage-ad-hoc': [SKIP],
+  'code-coverage-precise': [SKIP],
+
+  # Fails allocation on tsan.
+  'es6/classes': [PASS, ['tsan', SKIP]],
+
+  # Tests that fail some assertions due to checking internal state sensitive
+  # to GC. We mark PASS,FAIL to not skip those tests on the endurance fuzzer.
+  'array-literal-feedback': [PASS, FAIL],
+  'compiler/native-context-specialization-hole-check': [PASS, FAIL],
+  'elements-transition-hoisting': [PASS, FAIL],
+  'es6/collections-constructor-custom-iterator': [PASS, FAIL],
+  'keyed-load-with-symbol-key': [PASS, FAIL],
+  'object-seal': [PASS, FAIL],
+  'regress/regress-3709': [PASS, FAIL],
+  'regress/regress-7510': [PASS, FAIL],
+  'regress/regress-trap-allocation-memento': [PASS, FAIL],
+  'regress/regress-unlink-closures-on-deopt': [PASS, FAIL],
+  'shared-function-tier-up-turbo': [PASS, FAIL],
+}],  # 'gc_fuzzer'
+
+##############################################################################
+['endurance_fuzzer', {
+  # BUG(v8:7400).
+  'wasm/lazy-compilation': [SKIP],
+
+  # BUG(v8:7429).
+  'regress/regress-599414-array-concat-fast-path': [SKIP],
+
+  # Often crashes due to memory consumption.
+  'regress/regress-655573': [SKIP],
+
+  # TSAN allocation failures.
+  'deep-recursion': [PASS, ['tsan', SKIP]],
+  'regress/regress-430201b': [PASS, ['tsan', SKIP]],
+  'regress/regress-crbug-493779': [PASS, ['tsan', SKIP]],
+  'regress/wasm/regress-763439': [PASS, ['tsan', SKIP]],
+}],  # 'endurance_fuzzer'
 
 ##############################################################################
 ['predictable == True', {
@@ -654,6 +722,8 @@
 
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
+  # Relies on async compilation which requires background tasks.
+  'wasm/streaming-error-position': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
@@ -666,7 +736,6 @@
   'regress/regress-91008': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
-  'wasm/grow-memory': [PASS, SLOW],
 }],  # 'arch == ppc and simulator_run'
 
 ##############################################################################
@@ -680,12 +749,10 @@
 ##############################################################################
 ['arch == ppc64 or arch == ppc or arch == s390 or arch == s390x', {
 
-  # TODO(ppc/s390): implement atomic operations
-  'wasm/atomics': [SKIP],
-  'wasm/shared-memory': [SKIP],
   # TODO(ppc/s390): fix constant pool issue and implement tagging for reloc
   'wasm/compiled-module-serialization': [SKIP],
   'regress/wasm/regress-808980': [SKIP],
+  'regress/wasm/regress-808848': [SKIP],
 }],  # 'arch == ppc64 or arch == ppc or arch == s390 or arch == s390x'
 
 ##############################################################################
@@ -695,6 +762,9 @@
   'array-natives-elements': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
+
+  # Flaky crash on Odroid devices: https://crbug.com/v8/7678
+  'regress/regress-336820': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
   # Slow tests.
   'regress/regress-2185-2': [SKIP],
@@ -716,7 +786,7 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   # Skip stuff uninteresting for wasm traps
   'bugs/*': [SKIP],
   'compiler/*': [SKIP],
@@ -732,13 +802,7 @@
   'math-*': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
-}],  # variant == wasm_traps
-
-['variant == wasm_traps and gc_stress == True', {
-  # TODO(eholk): these tests are disabled due to address space exhaustion.
-  # Re-enable them once Wasm address space limits are in place.
-  '*': [SKIP],
-}],  # variant == wasm_traps and gc_stress == True
+}],  # variant == no_wasm_traps
 
 ##############################################################################
 ['no_harness', {
@@ -761,9 +825,9 @@
 }], # arch != x64 and arch != ia32
 
 ##############################################################################
-['variant == liftoff', {
-  # In the liftoff variant, liftoff compilation happens even though the test
-  # does not explicitly enable it.
+['variant == liftoff or variant == future', {
+  # In the liftoff and future variant, liftoff compilation happens even
+  # though the test does not explicitly enable it.
   'wasm/default-liftoff-setting': [SKIP],
 }], # variant == liftoff
 

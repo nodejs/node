@@ -106,8 +106,7 @@ static void recv_cb(uv_udp_t* handle,
   }
 
   if (nread == 0) {
-    /* Returning unused buffer */
-    /* Don't count towards sv_recv_cb_called */
+    /* Returning unused buffer. Don't count towards sv_recv_cb_called */
     ASSERT(addr == NULL);
     return;
   }
@@ -164,6 +163,20 @@ TEST_IMPL(udp_open) {
                   (const struct sockaddr*) &addr,
                   send_cb);
   ASSERT(r == 0);
+
+#ifndef _WIN32
+  {
+    uv_udp_t client2;
+
+    r = uv_udp_init(uv_default_loop(), &client2);
+    ASSERT(r == 0);
+
+    r = uv_udp_open(&client2, sock);
+    ASSERT(r == UV_EEXIST);
+
+    uv_close((uv_handle_t*) &client2, NULL);
+  }
+#endif  /* !_WIN32 */
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 

@@ -65,18 +65,30 @@ inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
     const v8::Local<v8::String> symbol,
     int argc,
     v8::Local<v8::Value>* argv) {
-  v8::Local<v8::Value> cb_v = object()->Get(symbol);
-  CHECK(cb_v->IsFunction());
-  return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
+  return MakeCallback(symbol.As<v8::Name>(), argc, argv);
 }
 
 
 inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
-    uint32_t index,
+    const v8::Local<v8::Symbol> symbol,
     int argc,
     v8::Local<v8::Value>* argv) {
-  v8::Local<v8::Value> cb_v = object()->Get(index);
-  CHECK(cb_v->IsFunction());
+  return MakeCallback(symbol.As<v8::Name>(), argc, argv);
+}
+
+
+inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
+    const v8::Local<v8::Name> symbol,
+    int argc,
+    v8::Local<v8::Value>* argv) {
+  v8::Local<v8::Value> cb_v;
+  if (!object()->Get(env()->context(), symbol).ToLocal(&cb_v))
+    return v8::MaybeLocal<v8::Value>();
+  if (!cb_v->IsFunction()) {
+    // TODO(addaleax): We should throw an error here to fulfill the
+    // `MaybeLocal<>` API contract.
+    return v8::MaybeLocal<v8::Value>();
+  }
   return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
 }
 

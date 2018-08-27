@@ -1,0 +1,13 @@
+IF[{- !$disabled{"engine"} -}]
+  IF[{- !$disabled{afalg} -}]
+    IF[{- $disabled{"dynamic-engine"} -}]
+      LIBS=../../libcrypto
+      SOURCE[../../libcrypto]=e_afalg.c e_afalg_err.c
+    ELSE
+      ENGINES=afalg
+      SOURCE[afalg]=e_afalg.c e_afalg_err.c
+      DEPEND[afalg]=../../libcrypto
+      INCLUDE[afalg]= ../../include
+    ENDIF
+  ENDIF
+ENDIF

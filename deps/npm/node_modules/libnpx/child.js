@@ -74,13 +74,13 @@ function exec (cmd, args, opts) {
 module.exports.escapeArg = escapeArg
 function escapeArg (str, asPath) {
   return process.platform === 'win32' && asPath
-  ? path.normalize(str)
-  .split(/\\/)
-  .map(s => s.match(/\s+/) ? `"${s}"` : s)
-  .join('\\')
-  : process.platform === 'win32'
-  ? `"${str}"`
-  : str.match(/[^-_.~/\w]/)
-  ? `'${str.replace(/'/g, "'\"'\"'")}'`
-  : str
+    ? path.normalize(str)
+      .split(/\\/)
+      .map(s => s.match(/\s+/) ? `"${s}"` : s)
+      .join('\\')
+    : process.platform === 'win32'
+      ? `"${str}"`
+      : str.match(/[^-_.~/\w]/)
+        ? `'${str.replace(/'/g, "'\"'\"'")}'`
+        : str
 }

@@ -83,7 +83,9 @@ TEST(PersistentMap, Zip) {
 
   // Provoke hash collisions to stress the iterator.
   struct bad_hash {
-    size_t operator()(int key) { return static_cast<size_t>(key) % 1000; }
+    size_t operator()(int key) {
+      return base::hash_value(static_cast<size_t>(key) % 1000);
+    }
   };
   PersistentMap<int, int, bad_hash> a(&zone);
   PersistentMap<int, int, bad_hash> b(&zone);
@@ -116,7 +118,13 @@ TEST(PersistentMap, Zip) {
   ASSERT_EQ(0, sum_b);
 
   for (auto triple : a.Zip(b)) {
-    sum -= std::get<1>(triple) + std::get<2>(triple);
+    int key = std::get<0>(triple);
+    int value_a = std::get<1>(triple);
+    int value_b = std::get<2>(triple);
+    ASSERT_EQ(value_a, a.Get(key));
+    ASSERT_EQ(value_b, b.Get(key));
+    sum -= value_a;
+    sum -= value_b;
   }
   ASSERT_EQ(0, sum);
 }

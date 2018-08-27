@@ -9,6 +9,10 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, type }) {
+  // Default value for tests.
+  if (type === '')
+    type = 'extend';
+
   let fn;
   if (type === 'extend') {
     fn = util._extend;

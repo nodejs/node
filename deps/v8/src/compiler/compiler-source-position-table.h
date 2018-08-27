@@ -53,7 +53,7 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
     current_position_ = pos;
   }
 
-  void Print(std::ostream& os) const;
+  void PrintJson(std::ostream& os) const;
 
  private:
   class Decorator;

@@ -13,6 +13,17 @@ Running test: testArguments
     }
 }
 
+Running test: testUnserializableArguments
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : true|true|true|true|bigint
+        }
+    }
+}
+
 Running test: testComplexArguments
 {
     id : <messageId>

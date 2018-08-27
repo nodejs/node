@@ -19,7 +19,7 @@ void PrintBuiltinSize(Bytecode bytecode, OperandScale operand_scale,
                       Handle<Code> code) {
   PrintF(stdout, "Ignition Handler, %s, %d\n",
          Bytecodes::ToString(bytecode, operand_scale).c_str(),
-         code->instruction_size());
+         code->InstructionSize());
 }
 }  // namespace
 
@@ -51,7 +51,7 @@ void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
   size_t illegal_index = Interpreter::GetDispatchTableIndex(
       Bytecode::kIllegal, OperandScale::kSingle);
   for (size_t index = 0; index < Interpreter::kDispatchTableSize; ++index) {
-    if (dispatch_table[index] == nullptr) {
+    if (dispatch_table[index] == kNullAddress) {
       dispatch_table[index] = dispatch_table[illegal_index];
     }
   }

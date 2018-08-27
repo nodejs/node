@@ -1,63 +1,17 @@
-/* apps/rsa.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <openssl/opensslconf.h>
-#ifndef OPENSSL_NO_RSA
+#ifdef OPENSSL_NO_RSA
+NON_EMPTY_TRANSLATION_UNIT
+#else
+
 # include <stdio.h>
 # include <stdlib.h>
 # include <string.h>
@@ -71,200 +25,146 @@
 # include <openssl/pem.h>
 # include <openssl/bn.h>
 
-# undef PROG
-# define PROG    rsa_main
+typedef enum OPTION_choice {
+    OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
+    OPT_INFORM, OPT_OUTFORM, OPT_ENGINE, OPT_IN, OPT_OUT,
+    OPT_PUBIN, OPT_PUBOUT, OPT_PASSOUT, OPT_PASSIN,
+    OPT_RSAPUBKEY_IN, OPT_RSAPUBKEY_OUT,
+    /* Do not change the order here; see case statements below */
+    OPT_PVK_NONE, OPT_PVK_WEAK, OPT_PVK_STRONG,
+    OPT_NOOUT, OPT_TEXT, OPT_MODULUS, OPT_CHECK, OPT_CIPHER
+} OPTION_CHOICE;
 
-/*-
- * -inform arg  - input format - default PEM (one of DER, NET or PEM)
- * -outform arg - output format - default PEM
- * -in arg      - input file - default stdin
- * -out arg     - output file - default stdout
- * -des         - encrypt output if PEM format with DES in cbc mode
- * -des3        - encrypt output if PEM format
- * -idea        - encrypt output if PEM format
- * -seed        - encrypt output if PEM format
- * -aes128      - encrypt output if PEM format
- * -aes192      - encrypt output if PEM format
- * -aes256      - encrypt output if PEM format
- * -camellia128 - encrypt output if PEM format
- * -camellia192 - encrypt output if PEM format
- * -camellia256 - encrypt output if PEM format
- * -text        - print a text version
- * -modulus     - print the RSA key modulus
- * -check       - verify key consistency
- * -pubin       - Expect a public key in input file.
- * -pubout      - Output a public key.
- */
+OPTIONS rsa_options[] = {
+    {"help", OPT_HELP, '-', "Display this summary"},
+    {"inform", OPT_INFORM, 'f', "Input format, one of DER NET PEM"},
+    {"outform", OPT_OUTFORM, 'f', "Output format, one of DER NET PEM PVK"},
+    {"in", OPT_IN, 's', "Input file"},
+    {"out", OPT_OUT, '>', "Output file"},
+    {"pubin", OPT_PUBIN, '-', "Expect a public key in input file"},
+    {"pubout", OPT_PUBOUT, '-', "Output a public key"},
+    {"passout", OPT_PASSOUT, 's', "Output file pass phrase source"},
+    {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
+    {"RSAPublicKey_in", OPT_RSAPUBKEY_IN, '-', "Input is an RSAPublicKey"},
+    {"RSAPublicKey_out", OPT_RSAPUBKEY_OUT, '-', "Output is an RSAPublicKey"},
+    {"noout", OPT_NOOUT, '-', "Don't print key out"},
+    {"text", OPT_TEXT, '-', "Print the key in text"},
+    {"modulus", OPT_MODULUS, '-', "Print the RSA key modulus"},
+    {"check", OPT_CHECK, '-', "Verify key consistency"},
+    {"", OPT_CIPHER, '-', "Any supported cipher"},
+# if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_RC4)
+    {"pvk-strong", OPT_PVK_STRONG, '-', "Enable 'Strong' PVK encoding level (default)"},
+    {"pvk-weak", OPT_PVK_WEAK, '-', "Enable 'Weak' PVK encoding level"},
+    {"pvk-none", OPT_PVK_NONE, '-', "Don't enforce PVK encoding"},
+# endif
+# ifndef OPENSSL_NO_ENGINE
+    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+# endif
+    {NULL}
+};
 
-int MAIN(int, char **);
-
-int MAIN(int argc, char **argv)
+int rsa_main(int argc, char **argv)
 {
     ENGINE *e = NULL;
-    int ret = 1;
-    RSA *rsa = NULL;
-    int i, badops = 0, sgckey = 0;
-    const EVP_CIPHER *enc = NULL;
     BIO *out = NULL;
-    int informat, outformat, text = 0, check = 0, noout = 0;
-    int pubin = 0, pubout = 0;
-    char *infile, *outfile, *prog;
-    char *passargin = NULL, *passargout = NULL;
-    char *passin = NULL, *passout = NULL;
-    char *engine = NULL;
-    int modulus = 0;
-
+    RSA *rsa = NULL;
+    const EVP_CIPHER *enc = NULL;
+    char *infile = NULL, *outfile = NULL, *prog;
+    char *passin = NULL, *passout = NULL, *passinarg = NULL, *passoutarg = NULL;
+    int i, private = 0;
+    int informat = FORMAT_PEM, outformat = FORMAT_PEM, text = 0, check = 0;
+    int noout = 0, modulus = 0, pubin = 0, pubout = 0, ret = 1;
+# if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_RC4)
     int pvk_encr = 2;
-
-    apps_startup();
-
-    if (bio_err == NULL)
-        if ((bio_err = BIO_new(BIO_s_file())) != NULL)
-            BIO_set_fp(bio_err, stderr, BIO_NOCLOSE | BIO_FP_TEXT);
-
-    if (!load_config(bio_err, NULL))
-        goto end;
-
-    infile = NULL;
-    outfile = NULL;
-    informat = FORMAT_PEM;
-    outformat = FORMAT_PEM;
-
-    prog = argv[0];
-    argc--;
-    argv++;
-    while (argc >= 1) {
-        if (strcmp(*argv, "-inform") == 0) {
-            if (--argc < 1)
-                goto bad;
-            informat = str2fmt(*(++argv));
-        } else if (strcmp(*argv, "-outform") == 0) {
-            if (--argc < 1)
-                goto bad;
-            outformat = str2fmt(*(++argv));
-        } else if (strcmp(*argv, "-in") == 0) {
-            if (--argc < 1)
-                goto bad;
-            infile = *(++argv);
-        } else if (strcmp(*argv, "-out") == 0) {
-            if (--argc < 1)
-                goto bad;
-            outfile = *(++argv);
-        } else if (strcmp(*argv, "-passin") == 0) {
-            if (--argc < 1)
-                goto bad;
-            passargin = *(++argv);
-        } else if (strcmp(*argv, "-passout") == 0) {
-            if (--argc < 1)
-                goto bad;
-            passargout = *(++argv);
-        }
-# ifndef OPENSSL_NO_ENGINE
-        else if (strcmp(*argv, "-engine") == 0) {
-            if (--argc < 1)
-                goto bad;
-            engine = *(++argv);
-        }
 # endif
-        else if (strcmp(*argv, "-sgckey") == 0)
-            sgckey = 1;
-        else if (strcmp(*argv, "-pubin") == 0)
+    OPTION_CHOICE o;
+
+    prog = opt_init(argc, argv, rsa_options);
+    while ((o = opt_next()) != OPT_EOF) {
+        switch (o) {
+        case OPT_EOF:
+        case OPT_ERR:
+ opthelp:
+            BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
+            goto end;
+        case OPT_HELP:
+            opt_help(rsa_options);
+            ret = 0;
+            goto end;
+        case OPT_INFORM:
+            if (!opt_format(opt_arg(), OPT_FMT_ANY, &informat))
+                goto opthelp;
+            break;
+        case OPT_IN:
+            infile = opt_arg();
+            break;
+        case OPT_OUTFORM:
+            if (!opt_format(opt_arg(), OPT_FMT_ANY, &outformat))
+                goto opthelp;
+            break;
+        case OPT_OUT:
+            outfile = opt_arg();
+            break;
+        case OPT_PASSIN:
+            passinarg = opt_arg();
+            break;
+        case OPT_PASSOUT:
+            passoutarg = opt_arg();
+            break;
+        case OPT_ENGINE:
+            e = setup_engine(opt_arg(), 0);
+            break;
+        case OPT_PUBIN:
             pubin = 1;
-        else if (strcmp(*argv, "-pubout") == 0)
+            break;
+        case OPT_PUBOUT:
             pubout = 1;
-        else if (strcmp(*argv, "-RSAPublicKey_in") == 0)
+            break;
+        case OPT_RSAPUBKEY_IN:
             pubin = 2;
-        else if (strcmp(*argv, "-RSAPublicKey_out") == 0)
+            break;
+        case OPT_RSAPUBKEY_OUT:
             pubout = 2;
-        else if (strcmp(*argv, "-pvk-strong") == 0)
-            pvk_encr = 2;
-        else if (strcmp(*argv, "-pvk-weak") == 0)
-            pvk_encr = 1;
-        else if (strcmp(*argv, "-pvk-none") == 0)
-            pvk_encr = 0;
-        else if (strcmp(*argv, "-noout") == 0)
+            break;
+        case OPT_PVK_STRONG:    /* pvk_encr:= 2 */
+        case OPT_PVK_WEAK:      /* pvk_encr:= 1 */
+        case OPT_PVK_NONE:      /* pvk_encr:= 0 */
+# if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_RC4)
+            pvk_encr = (o - OPT_PVK_NONE);
+# endif
+            break;
+        case OPT_NOOUT:
             noout = 1;
-        else if (strcmp(*argv, "-text") == 0)
+            break;
+        case OPT_TEXT:
             text = 1;
-        else if (strcmp(*argv, "-modulus") == 0)
+            break;
+        case OPT_MODULUS:
             modulus = 1;
-        else if (strcmp(*argv, "-check") == 0)
+            break;
+        case OPT_CHECK:
             check = 1;
-        else if ((enc = EVP_get_cipherbyname(&(argv[0][1]))) == NULL) {
-            BIO_printf(bio_err, "unknown option %s\n", *argv);
-            badops = 1;
+            break;
+        case OPT_CIPHER:
+            if (!opt_cipher(opt_unknown(), &enc))
+                goto opthelp;
             break;
         }
-        argc--;
-        argv++;
     }
+    argc = opt_num_rest();
+    if (argc != 0)
+        goto opthelp;
 
-    if (badops) {
- bad:
-        BIO_printf(bio_err, "%s [options] <infile >outfile\n", prog);
-        BIO_printf(bio_err, "where options are\n");
-        BIO_printf(bio_err,
-                   " -inform arg     input format - one of DER NET PEM\n");
-        BIO_printf(bio_err,
-                   " -outform arg    output format - one of DER NET PEM\n");
-        BIO_printf(bio_err, " -in arg         input file\n");
-        BIO_printf(bio_err, " -sgckey         Use IIS SGC key format\n");
-        BIO_printf(bio_err,
-                   " -passin arg     input file pass phrase source\n");
-        BIO_printf(bio_err, " -out arg        output file\n");
-        BIO_printf(bio_err,
-                   " -passout arg    output file pass phrase source\n");
-        BIO_printf(bio_err,
-                   " -des            encrypt PEM output with cbc des\n");
-        BIO_printf(bio_err,
-                   " -des3           encrypt PEM output with ede cbc des using 168 bit key\n");
-# ifndef OPENSSL_NO_IDEA
-        BIO_printf(bio_err,
-                   " -idea           encrypt PEM output with cbc idea\n");
-# endif
-# ifndef OPENSSL_NO_SEED
-        BIO_printf(bio_err,
-                   " -seed           encrypt PEM output with cbc seed\n");
-# endif
-# ifndef OPENSSL_NO_AES
-        BIO_printf(bio_err, " -aes128, -aes192, -aes256\n");
-        BIO_printf(bio_err,
-                   "                 encrypt PEM output with cbc aes\n");
-# endif
-# ifndef OPENSSL_NO_CAMELLIA
-        BIO_printf(bio_err, " -camellia128, -camellia192, -camellia256\n");
-        BIO_printf(bio_err,
-                   "                 encrypt PEM output with cbc camellia\n");
-# endif
-        BIO_printf(bio_err, " -text           print the key in text\n");
-        BIO_printf(bio_err, " -noout          don't print key out\n");
-        BIO_printf(bio_err, " -modulus        print the RSA key modulus\n");
-        BIO_printf(bio_err, " -check          verify key consistency\n");
-        BIO_printf(bio_err,
-                   " -pubin          expect a public key in input file\n");
-        BIO_printf(bio_err, " -pubout         output a public key\n");
-# ifndef OPENSSL_NO_ENGINE
-        BIO_printf(bio_err,
-                   " -engine e       use engine e, possibly a hardware device.\n");
-# endif
-        goto end;
-    }
+    private = (text && !pubin) || (!pubout && !noout) ? 1 : 0;
 
-    ERR_load_crypto_strings();
-
-    e = setup_engine(bio_err, engine, 0);
-
-    if (!app_passwd(bio_err, passargin, passargout, &passin, &passout)) {
+    if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
         goto end;
     }
-
     if (check && pubin) {
         BIO_printf(bio_err, "Only private keys can be checked\n");
         goto end;
     }
-
-    out = BIO_new(BIO_s_file());
 
     {
         EVP_PKEY *pkey;
@@ -276,18 +176,12 @@ int MAIN(int argc, char **argv)
                     tmpformat = FORMAT_PEMRSA;
                 else if (informat == FORMAT_ASN1)
                     tmpformat = FORMAT_ASN1RSA;
-            } else if (informat == FORMAT_NETSCAPE && sgckey)
-                tmpformat = FORMAT_IISSGC;
-            else
+            } else
                 tmpformat = informat;
 
-            pkey = load_pubkey(bio_err, infile, tmpformat, 1,
-                               passin, e, "Public Key");
+            pkey = load_pubkey(infile, tmpformat, 1, passin, e, "Public Key");
         } else
-            pkey = load_key(bio_err, infile,
-                            (informat == FORMAT_NETSCAPE && sgckey ?
-                             FORMAT_IISSGC : informat), 1,
-                            passin, e, "Private Key");
+            pkey = load_key(infile, informat, 1, passin, e, "Private Key");
 
         if (pkey != NULL)
             rsa = EVP_PKEY_get1_RSA(pkey);
@@ -299,36 +193,29 @@ int MAIN(int argc, char **argv)
         goto end;
     }
 
-    if (outfile == NULL) {
-        BIO_set_fp(out, stdout, BIO_NOCLOSE);
-# ifdef OPENSSL_SYS_VMS
-        {
-            BIO *tmpbio = BIO_new(BIO_f_linebuffer());
-            out = BIO_push(tmpbio, out);
-        }
-# endif
-    } else {
-        if (BIO_write_filename(out, outfile) <= 0) {
-            perror(outfile);
-            goto end;
-        }
-    }
+    out = bio_open_owner(outfile, outformat, private);
+    if (out == NULL)
+        goto end;
 
-    if (text)
+    if (text) {
+        assert(pubin || private);
         if (!RSA_print(out, rsa, 0)) {
             perror(outfile);
             ERR_print_errors(bio_err);
             goto end;
         }
+    }
 
     if (modulus) {
+        const BIGNUM *n;
+        RSA_get0_key(rsa, &n, NULL, NULL);
         BIO_printf(out, "Modulus=");
-        BN_print(out, rsa->n);
+        BN_print(out, n);
         BIO_printf(out, "\n");
     }
 
     if (check) {
-        int r = RSA_check_key(rsa);
+        int r = RSA_check_key_ex(rsa, NULL);
 
         if (r == 1)
             BIO_printf(out, "RSA key ok\n");
@@ -337,16 +224,13 @@ int MAIN(int argc, char **argv)
 
             while ((err = ERR_peek_error()) != 0 &&
                    ERR_GET_LIB(err) == ERR_LIB_RSA &&
-                   ERR_GET_FUNC(err) == RSA_F_RSA_CHECK_KEY &&
+                   ERR_GET_FUNC(err) == RSA_F_RSA_CHECK_KEY_EX &&
                    ERR_GET_REASON(err) != ERR_R_MALLOC_FAILURE) {
                 BIO_printf(out, "RSA key error: %s\n",
                            ERR_reason_error_string(err));
                 ERR_get_error(); /* remove e from error stack */
             }
-        }
-
-        if (r == -1 || ERR_peek_error() != 0) { /* should happen only if r ==
-                                                 * -1 */
+        } else if (r == -1) {
             ERR_print_errors(bio_err);
             goto end;
         }
@@ -363,46 +247,47 @@ int MAIN(int argc, char **argv)
                 i = i2d_RSAPublicKey_bio(out, rsa);
             else
                 i = i2d_RSA_PUBKEY_bio(out, rsa);
-        } else
+        } else {
+            assert(private);
             i = i2d_RSAPrivateKey_bio(out, rsa);
-    }
-# ifndef OPENSSL_NO_RC4
-    else if (outformat == FORMAT_NETSCAPE) {
-        unsigned char *p, *pp;
-        int size;
-
-        i = 1;
-        size = i2d_RSA_NET(rsa, NULL, NULL, sgckey);
-        if ((p = (unsigned char *)OPENSSL_malloc(size)) == NULL) {
-            BIO_printf(bio_err, "Memory allocation failure\n");
-            goto end;
         }
-        pp = p;
-        i2d_RSA_NET(rsa, &p, NULL, sgckey);
-        BIO_write(out, (char *)pp, size);
-        OPENSSL_free(pp);
     }
-# endif
     else if (outformat == FORMAT_PEM) {
         if (pubout || pubin) {
             if (pubout == 2)
                 i = PEM_write_bio_RSAPublicKey(out, rsa);
             else
                 i = PEM_write_bio_RSA_PUBKEY(out, rsa);
-        } else
+        } else {
+            assert(private);
             i = PEM_write_bio_RSAPrivateKey(out, rsa,
                                             enc, NULL, 0, NULL, passout);
-# if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_RC4)
+        }
+# ifndef OPENSSL_NO_DSA
     } else if (outformat == FORMAT_MSBLOB || outformat == FORMAT_PVK) {
         EVP_PKEY *pk;
         pk = EVP_PKEY_new();
         EVP_PKEY_set1_RSA(pk, rsa);
-        if (outformat == FORMAT_PVK)
+        if (outformat == FORMAT_PVK) {
+            if (pubin) {
+                BIO_printf(bio_err, "PVK form impossible with public key input\n");
+                EVP_PKEY_free(pk);
+                goto end;
+            }
+            assert(private);
+#  ifdef OPENSSL_NO_RC4
+            BIO_printf(bio_err, "PVK format not supported\n");
+            EVP_PKEY_free(pk);
+            goto end;
+#  else
             i = i2b_PVK_bio(out, pk, pvk_encr, 0, passout);
-        else if (pubin || pubout)
+#  endif
+        } else if (pubin || pubout) {
             i = i2b_PublicKey_bio(out, pk);
-        else
+        } else {
+            assert(private);
             i = i2b_PrivateKey_bio(out, pk);
+        }
         EVP_PKEY_free(pk);
 # endif
     } else {
@@ -416,21 +301,10 @@ int MAIN(int argc, char **argv)
         ret = 0;
  end:
     release_engine(e);
-    if (out != NULL)
-        BIO_free_all(out);
-    if (rsa != NULL)
-        RSA_free(rsa);
-    if (passin)
-        OPENSSL_free(passin);
-    if (passout)
-        OPENSSL_free(passout);
-    apps_shutdown();
-    OPENSSL_EXIT(ret);
+    BIO_free_all(out);
+    RSA_free(rsa);
+    OPENSSL_free(passin);
+    OPENSSL_free(passout);
+    return (ret);
 }
-#else                           /* !OPENSSL_NO_RSA */
-
-# if PEDANTIC
-static void *dummy = &dummy;
-# endif
-
 #endif

@@ -14,7 +14,7 @@ EXPECTED_SUFFIX = "-expected.txt"
 RESOURCES_FOLDER = "resources"
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for dirname, dirs, files in os.walk(
         os.path.join(self.root), followlinks=True):
@@ -43,7 +43,7 @@ class TestCase(testcase.TestCase):
 
     self._source_flags = self._parse_source_flags()
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     return [
       os.path.join(self.suite.root, PROTOCOL_TEST_JS),
       os.path.join(self.suite.root, self.path + self._get_suffix()),
@@ -65,5 +65,5 @@ class TestCase(testcase.TestCase):
         os.path.join(self.suite.root, self.path) + EXPECTED_SUFFIX)
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

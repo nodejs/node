@@ -39,7 +39,7 @@ class Builtins {
   void IterateBuiltins(RootVisitor* v);
 
   // Disassembler support.
-  const char* Lookup(byte* pc);
+  const char* Lookup(Address pc);
 
   enum Name : int32_t {
 #define DEF_ENUM(Name, ...) k##Name,
@@ -72,7 +72,7 @@ class Builtins {
   Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> JSConstructStubGeneric();
 
-  // Used by BuiltinDeserializer.
+  // Used by BuiltinDeserializer and CreateOffHeapTrampolines in isolate.cc.
   void set_builtin(int index, HeapObject* builtin);
 
   Code* builtin(int index) {
@@ -109,10 +109,21 @@ class Builtins {
   static bool IsCpp(int index);
   static bool HasCppImplementation(int index);
 
+  // True, iff the given code object is a builtin. Note that this does not
+  // necessarily mean that its kind is Code::BUILTIN.
+  static bool IsBuiltin(const Code* code);
+
+  // True, iff the given code object is a builtin with off-heap embedded code.
+  static bool IsEmbeddedBuiltin(const Code* code);
+
   // Returns true iff the given builtin can be lazy-loaded from the snapshot.
   // This is true in general for most builtins with the exception of a few
   // special cases such as CompileLazy and DeserializeLazy.
   static bool IsLazy(int index);
+
+  // Helper methods used for testing isolate-independent builtins.
+  // TODO(jgruber,v8:6666): Remove once all builtins have been migrated.
+  static bool IsIsolateIndependent(int index);
 
   bool is_initialized() const { return initialized_; }
 
@@ -122,7 +133,7 @@ class Builtins {
     initialized_ = true;
   }
 
-  MUST_USE_RESULT static MaybeHandle<Object> InvokeApiFunction(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> InvokeApiFunction(
       Isolate* isolate, bool is_construct, Handle<HeapObject> function,
       Handle<Object> receiver, int argc, Handle<Object> args[],
       Handle<HeapObject> new_target);
@@ -132,11 +143,23 @@ class Builtins {
   static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address,
                                ExitFrameType exit_frame_type);
 
+  static void Generate_CEntry(MacroAssembler* masm, int result_size,
+                              SaveFPRegsMode save_doubles, ArgvMode argv_mode,
+                              bool builtin_exit_frame);
+
   static bool AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                    Handle<JSObject> target_global_proxy);
 
  private:
   Builtins();
+
+#ifdef V8_EMBEDDED_BUILTINS
+  // Creates a trampoline code object that jumps to the given off-heap entry.
+  // The result should not be used directly, but only from the related Factory
+  // function.
+  static Handle<Code> GenerateOffHeapTrampolineFor(Isolate* isolate,
+                                                   Address off_heap_entry);
+#endif
 
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);
@@ -176,6 +199,7 @@ class Builtins {
   Object* builtins_[builtin_count];
   bool initialized_;
 
+  friend class Factory;  // For GenerateOffHeapTrampolineFor.
   friend class Isolate;
   friend class SetupIsolateDelegate;
 

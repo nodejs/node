@@ -13,11 +13,11 @@ npm install bail
 ## Usage
 
 ```js
-var bail = require('bail');
+var bail = require('bail')
 
-bail();
+bail()
 
-bail(new Error('failure'));
+bail(new Error('failure'))
 // Error: failure
 //     at repl:1:6
 //     at REPLServer.defaultEval (repl.js:154:27)

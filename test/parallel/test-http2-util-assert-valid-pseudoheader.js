@@ -17,7 +17,7 @@ function isNotError(val) {
 function isError(val) {
   common.expectsError({
     code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
-    type: Error,
+    type: TypeError,
     message: '":foo" is an invalid pseudoheader or is used incorrectly'
   })(val);
 }

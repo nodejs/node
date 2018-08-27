@@ -2,8 +2,10 @@
 
 =head1 NAME
 
-d2i_Private_key, d2i_AutoPrivateKey, i2d_PrivateKey - decode and encode
-functions for reading and saving EVP_PKEY structures.
+d2i_PrivateKey, d2i_PublicKey, d2i_AutoPrivateKey,
+i2d_PrivateKey, i2d_PublicKey,
+d2i_PrivateKey_bio, d2i_PrivateKey_fp
+- decode and encode functions for reading and saving EVP_PKEY structures
 
 =head1 SYNOPSIS
 
@@ -11,9 +13,15 @@ functions for reading and saving EVP_PKEY structures.
 
  EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, const unsigned char **pp,
                           long length);
+ EVP_PKEY *d2i_PublicKey(int type, EVP_PKEY **a, const unsigned char **pp,
+                         long length);
  EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **a, const unsigned char **pp,
                               long length);
  int i2d_PrivateKey(EVP_PKEY *a, unsigned char **pp);
+ int i2d_PublicKey(EVP_PKEY *a, unsigned char **pp);
+
+ EVP_PKEY *d2i_PrivateKey_bio(BIO *bp, EVP_PKEY **a);
+ EVP_PKEY *d2i_PrivateKey_fp(FILE *fp, EVP_PKEY **a)
 
 =head1 DESCRIPTION
 
@@ -21,15 +29,16 @@ d2i_PrivateKey() decodes a private key using algorithm B<type>. It attempts to
 use any key specific format or PKCS#8 unencrypted PrivateKeyInfo format. The
 B<type> parameter should be a public key algorithm constant such as
 B<EVP_PKEY_RSA>. An error occurs if the decoded key does not match B<type>.
+d2i_PublicKey() does the same for public keys.
 
 d2i_AutoPrivateKey() is similar to d2i_PrivateKey() except it attempts to
 automatically detect the private key format.
 
 i2d_PrivateKey() encodes B<key>. It uses a key specific format or, if none is
 defined for that key type, PKCS#8 unencrypted PrivateKeyInfo format.
+i2d_PublicKey() does the same for public keys.
 
-These functions are similar to the d2i_X509() functions, and you should refer to
-that page for a detailed description (see L<d2i_X509(3)>).
+These functions are similar to the d2i_X509() functions; see L<d2i_X509(3)>.
 
 =head1 NOTES
 
@@ -53,7 +62,16 @@ L<ERR_get_error(3)>.
 
 =head1 SEE ALSO
 
-L<crypto(3)>,
-L<d2i_PKCS8PrivateKey(3)>
+L<crypto(7)>,
+L<d2i_PKCS8PrivateKey_bio(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

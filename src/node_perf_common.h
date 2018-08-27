@@ -24,15 +24,8 @@ extern uint64_t performance_v8_start;
   V(V8_START, "v8Start")                                                      \
   V(LOOP_START, "loopStart")                                                  \
   V(LOOP_EXIT, "loopExit")                                                    \
-  V(BOOTSTRAP_COMPLETE, "bootstrapComplete")                                  \
-  V(THIRD_PARTY_MAIN_START, "thirdPartyMainStart")                            \
-  V(THIRD_PARTY_MAIN_END, "thirdPartyMainEnd")                                \
-  V(CLUSTER_SETUP_START, "clusterSetupStart")                                 \
-  V(CLUSTER_SETUP_END, "clusterSetupEnd")                                     \
-  V(MODULE_LOAD_START, "moduleLoadStart")                                     \
-  V(MODULE_LOAD_END, "moduleLoadEnd")                                         \
-  V(PRELOAD_MODULE_LOAD_START, "preloadModulesLoadStart")                     \
-  V(PRELOAD_MODULE_LOAD_END, "preloadModulesLoadEnd")
+  V(BOOTSTRAP_COMPLETE, "bootstrapComplete")
+
 
 #define NODE_PERFORMANCE_ENTRY_TYPES(V)                                       \
   V(NODE, "node")                                                             \

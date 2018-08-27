@@ -13,19 +13,18 @@ namespace v8 {
 namespace internal {
 
 class AccountingAllocator;
-class CompilationInfo;
-class CompilationJob;
 class FunctionLiteral;
 class JSArrayBuffer;
 class ParseInfo;
 class SharedFunctionInfo;
+class UnoptimizedCompilationJob;
 
 // Interface to compile and instantiate for asm.js modules.
 class AsmJs {
  public:
-  static CompilationJob* NewCompilationJob(ParseInfo* parse_info,
-                                           FunctionLiteral* literal,
-                                           AccountingAllocator* allocator);
+  static UnoptimizedCompilationJob* NewCompilationJob(
+      ParseInfo* parse_info, FunctionLiteral* literal,
+      AccountingAllocator* allocator);
   static MaybeHandle<Object> InstantiateAsmWasm(Isolate* isolate,
                                                 Handle<SharedFunctionInfo>,
                                                 Handle<FixedArray> wasm_data,

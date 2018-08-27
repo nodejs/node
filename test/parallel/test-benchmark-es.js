@@ -7,7 +7,6 @@ const runBenchmark = require('../common/benchmark');
 runBenchmark('es',
              [
                'method=',
-               'millions=0.000001',
                'count=1',
                'context=null',
                'rest=0',

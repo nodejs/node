@@ -86,7 +86,7 @@ class Script : public Struct {
 
   // [shared_function_infos]: weak fixed array containing all shared
   // function infos created from this script.
-  DECL_ACCESSORS(shared_function_infos, FixedArray)
+  DECL_ACCESSORS(shared_function_infos, WeakFixedArray)
 
   // [flags]: Holds an exciting bitfield.
   DECL_INT_ACCESSORS(flags)
@@ -97,9 +97,9 @@ class Script : public Struct {
   // [source_mapping_url]: sourceMappingURL magic comment
   DECL_ACCESSORS(source_mapping_url, Object)
 
-  // [wasm_compiled_module]: the compiled wasm module this script belongs to.
+  // [wasm_module_object]: the wasm module object this script belongs to.
   // This must only be called if the type of this script is TYPE_WASM.
-  DECL_ACCESSORS(wasm_compiled_module, Object)
+  DECL_ACCESSORS(wasm_module_object, Object)
 
   // [host_defined_options]: Options defined by the embedder.
   DECL_ACCESSORS(host_defined_options, FixedArray)
@@ -185,7 +185,7 @@ class Script : public Struct {
     Script* Next();
 
    private:
-    WeakFixedArray::Iterator iterator_;
+    FixedArrayOfWeakCells::Iterator iterator_;
     DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 

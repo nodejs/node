@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -19,6 +26,7 @@
 # Sandy Bridge	(8.16	+5.15=13.3)/n	4.99	5.98		+80%
 # Ivy Bridge	(8.08	+5.14=13.2)/n	4.60	5.54		+68%
 # Haswell(iii)	(8.96	+5.00=14.0)/n	3.57	4.55		+160%
+# Skylake	(8.70	+5.00=13.7)/n	3.64	4.20		+145%
 # Bulldozer	(9.76	+5.76=15.5)/n	5.95	6.37		+64%
 #
 # (i)	multi-block CBC encrypt with 128-bit key;
@@ -62,7 +70,7 @@ if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([
 	$avx = ($2>=3.0) + ($2>3.0);
 }
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 # void sha1_multi_block (
@@ -478,7 +486,7 @@ $code.=<<___;
 	jnz	.Loop_grande
 
 .Ldone:
-	mov	`$REG_SZ*17`(%rsp),%rax		# orignal %rsp
+	mov	`$REG_SZ*17`(%rsp),%rax		# original %rsp
 ___
 $code.=<<___ if ($win64);
 	movaps	-0xb8(%rax),%xmm6
@@ -538,7 +546,7 @@ $code.=<<___;
 	movdqa	K_XX_XX+0x80(%rip),$BSWAP	# byte-n-word swap
 
 .Loop_grande_shaext:
-	mov	$num,`$REG_SZ*17+8`(%rsp)	# orignal $num
+	mov	$num,`$REG_SZ*17+8`(%rsp)	# original $num
 	xor	$num,$num
 ___
 for($i=0;$i<2;$i++) {
@@ -1116,7 +1124,7 @@ $code.=<<___;
 	jnz	.Loop_grande_avx
 
 .Ldone_avx:
-	mov	`$REG_SZ*17`(%rsp),%rax		# orignal %rsp
+	mov	`$REG_SZ*17`(%rsp),%rax		# original %rsp
 	vzeroupper
 ___
 $code.=<<___ if ($win64);
@@ -1271,7 +1279,7 @@ $code.=<<___;
 	#jnz	.Loop_grande_avx2
 
 .Ldone_avx2:
-	mov	`$REG_SZ*17`(%rsp),%rax		# orignal %rsp
+	mov	`$REG_SZ*17`(%rsp),%rax		# original %rsp
 	vzeroupper
 ___
 $code.=<<___ if ($win64);

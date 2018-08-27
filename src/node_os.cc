@@ -52,6 +52,7 @@ using v8::Context;
 using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::Int32;
 using v8::Integer;
 using v8::Local;
 using v8::MaybeLocal;
@@ -257,14 +258,13 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   for (i = 0; i < count; i++) {
     const char* const raw_name = interfaces[i].name;
 
-    // On Windows, the interface name is the UTF8-encoded friendly name and may
-    // contain non-ASCII characters.  On UNIX, it's just a binary string with
-    // no particular encoding but we treat it as a one-byte Latin-1 string.
-#ifdef _WIN32
-    name = String::NewFromUtf8(env->isolate(), raw_name);
-#else
-    name = OneByteString(env->isolate(), raw_name);
-#endif
+    // Use UTF-8 on both Windows and Unixes (While it may be true that UNIX
+    // systems are somewhat encoding-agnostic here, it’s more than reasonable
+    // to assume UTF8 as the default as well. It’s what people will expect if
+    // they name the interface from any input that uses UTF-8, which should be
+    // the most frequent case by far these days.)
+    name = String::NewFromUtf8(env->isolate(), raw_name,
+        v8::NewStringType::kNormal).ToLocalChecked();
 
     if (ret->Has(env->context(), name).FromJust()) {
       ifarr = Local<Array>::Cast(ret->Get(name));
@@ -335,8 +335,8 @@ static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> home = String::NewFromUtf8(env->isolate(),
                                            buf,
-                                           String::kNormalString,
-                                           len);
+                                           v8::NewStringType::kNormal,
+                                           len).ToLocalChecked();
   args.GetReturnValue().Set(home);
 }
 
@@ -406,6 +406,46 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void SetPriority(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 3);
+  CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsInt32());
+
+  const int pid = args[0].As<Int32>()->Value();
+  const int priority = args[1].As<Int32>()->Value();
+  const int err = uv_os_setpriority(pid, priority);
+
+  if (err) {
+    CHECK(args[2]->IsObject());
+    env->CollectUVExceptionInfo(args[2], err, "uv_os_setpriority");
+  }
+
+  args.GetReturnValue().Set(err);
+}
+
+
+static void GetPriority(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[0]->IsInt32());
+
+  const int pid = args[0].As<Int32>()->Value();
+  int priority;
+  const int err = uv_os_getpriority(pid, &priority);
+
+  if (err) {
+    CHECK(args[1]->IsObject());
+    env->CollectUVExceptionInfo(args[1], err, "uv_os_getpriority");
+    return;
+  }
+
+  args.GetReturnValue().Set(priority);
+}
+
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
@@ -421,6 +461,8 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getInterfaceAddresses", GetInterfaceAddresses);
   env->SetMethod(target, "getHomeDirectory", GetHomeDirectory);
   env->SetMethod(target, "getUserInfo", GetUserInfo);
+  env->SetMethod(target, "setPriority", SetPriority);
+  env->SetMethod(target, "getPriority", GetPriority);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
               Boolean::New(env->isolate(), IsBigEndian()));
 }

@@ -9,8 +9,8 @@
 // which will start execution in the Simulator or forwards to the real entry
 // on a MIPS HW platform.
 
-#ifndef V8_MIPS_SIMULATOR_MIPS_H_
-#define V8_MIPS_SIMULATOR_MIPS_H_
+#ifndef V8_MIPS64_SIMULATOR_MIPS64_H_
+#define V8_MIPS64_SIMULATOR_MIPS64_H_
 
 #include "src/allocation.h"
 #include "src/mips64/constants-mips64.h"
@@ -228,9 +228,7 @@ class Simulator : public SimulatorBase {
   void set_pc(int64_t value);
   int64_t get_pc() const;
 
-  Address get_sp() const {
-    return reinterpret_cast<Address>(static_cast<intptr_t>(get_register(sp)));
-  }
+  Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
   // Accessor to the internal simulator stack area.
   uintptr_t StackLimit(uintptr_t c_limit) const;
@@ -239,12 +237,12 @@ class Simulator : public SimulatorBase {
   void Execute();
 
   template <typename Return, typename... Args>
-  Return Call(byte* entry, Args... args) {
+  Return Call(Address entry, Args... args) {
     return VariadicCall<Return>(this, &Simulator::CallImpl, entry, args...);
   }
 
   // Alternative: call a 2-argument double function.
-  double CallFP(byte* entry, double d0, double d1);
+  double CallFP(Address entry, double d0, double d1);
 
   // Push an address onto the JS stack.
   uintptr_t PushAddress(uintptr_t address);
@@ -260,6 +258,7 @@ class Simulator : public SimulatorBase {
   static void SetRedirectInstruction(Instruction* instruction);
 
   // ICache checking.
+  static bool ICacheMatch(void* one, void* two);
   static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
                           size_t size);
 
@@ -281,7 +280,7 @@ class Simulator : public SimulatorBase {
     Unpredictable = 0xbadbeaf
   };
 
-  V8_EXPORT_PRIVATE intptr_t CallImpl(byte* entry, int argument_count,
+  V8_EXPORT_PRIVATE intptr_t CallImpl(Address entry, int argument_count,
                                       const intptr_t* arguments);
 
   // Unsupported instructions use Format to print an error and stop execution.
@@ -472,10 +471,10 @@ class Simulator : public SimulatorBase {
     Instruction* instr_after_compact_branch =
         reinterpret_cast<Instruction*>(current_pc + Instruction::kInstrSize);
     if (instr_after_compact_branch->IsForbiddenAfterBranch()) {
-      V8_Fatal(__FILE__, __LINE__,
-               "Error: Unexpected instruction 0x%08x immediately after a "
-               "compact branch instruction.",
-               *reinterpret_cast<uint32_t*>(instr_after_compact_branch));
+      FATAL(
+          "Error: Unexpected instruction 0x%08x immediately after a "
+          "compact branch instruction.",
+          *reinterpret_cast<uint32_t*>(instr_after_compact_branch));
     }
   }
 
@@ -502,9 +501,8 @@ class Simulator : public SimulatorBase {
     }
 
     if (instr->IsForbiddenAfterBranch()) {
-      V8_Fatal(__FILE__, __LINE__,
-               "Eror:Unexpected %i opcode in a branch delay slot.",
-               instr->OpcodeValue());
+      FATAL("Eror:Unexpected %i opcode in a branch delay slot.",
+            instr->OpcodeValue());
     }
     InstructionDecode(instr);
     SNPrintF(trace_buf_, " ");
@@ -533,7 +531,7 @@ class Simulator : public SimulatorBase {
   void GetFpArgs(double* x, double* y, int32_t* z);
   void SetFpResult(const double& result);
 
-  void CallInternal(byte* entry);
+  void CallInternal(Address entry);
 
   // Architecture state.
   // Registers.
@@ -559,9 +557,6 @@ class Simulator : public SimulatorBase {
   // Debugger input.
   char* last_debugger_input_;
 
-  // Icache simulation.
-  base::CustomMatcherHashMap* i_cache_;
-
   v8::internal::Isolate* isolate_;
 
   // Registered breakpoints.
@@ -586,4 +581,4 @@ class Simulator : public SimulatorBase {
 }  // namespace v8
 
 #endif  // defined(USE_SIMULATOR)
-#endif  // V8_MIPS_SIMULATOR_MIPS_H_
+#endif  // V8_MIPS64_SIMULATOR_MIPS64_H_

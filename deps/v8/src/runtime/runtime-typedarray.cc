@@ -6,21 +6,13 @@
 
 #include "src/arguments.h"
 #include "src/elements.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
-
-RUNTIME_FUNCTION(Runtime_ArrayBufferGetByteLength) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSArrayBuffer, holder, 0);
-  return holder->byte_length();
-}
-
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   HandleScope scope(isolate);
@@ -56,7 +48,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, source, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 2);
 
   size_t length;
@@ -66,19 +58,12 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   return accessor->CopyElements(source, target, length);
 }
 
-#define BUFFER_VIEW_GETTER(Type, getter, accessor)   \
-  RUNTIME_FUNCTION(Runtime_##Type##Get##getter) {    \
-    HandleScope scope(isolate);                      \
-    DCHECK_EQ(1, args.length());                     \
-    CONVERT_ARG_HANDLE_CHECKED(JS##Type, holder, 0); \
-    return holder->accessor();                       \
-  }
-
-BUFFER_VIEW_GETTER(ArrayBufferView, ByteLength, byte_length)
-BUFFER_VIEW_GETTER(ArrayBufferView, ByteOffset, byte_offset)
-BUFFER_VIEW_GETTER(TypedArray, Length, length)
-
-#undef BUFFER_VIEW_GETTER
+RUNTIME_FUNCTION(Runtime_TypedArrayGetLength) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
+  return holder->length();
+}
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferViewWasNeutered) {
   HandleScope scope(isolate);
@@ -160,58 +145,6 @@ RUNTIME_FUNCTION(Runtime_IsTypedArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   return isolate->heap()->ToBoolean(args[0]->IsJSTypedArray());
-}
-
-RUNTIME_FUNCTION(Runtime_IsSharedTypedArray) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(
-      args[0]->IsJSTypedArray() &&
-      JSTypedArray::cast(args[0])->GetBuffer()->is_shared());
-}
-
-
-RUNTIME_FUNCTION(Runtime_IsSharedIntegerTypedArray) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  if (!args[0]->IsJSTypedArray()) {
-    return isolate->heap()->false_value();
-  }
-
-  Handle<JSTypedArray> obj(JSTypedArray::cast(args[0]));
-  return isolate->heap()->ToBoolean(obj->GetBuffer()->is_shared() &&
-                                    obj->type() != kExternalFloat32Array &&
-                                    obj->type() != kExternalFloat64Array &&
-                                    obj->type() != kExternalUint8ClampedArray);
-}
-
-
-RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  if (!args[0]->IsJSTypedArray()) {
-    return isolate->heap()->false_value();
-  }
-
-  Handle<JSTypedArray> obj(JSTypedArray::cast(args[0]));
-  return isolate->heap()->ToBoolean(obj->GetBuffer()->is_shared() &&
-                                    obj->type() == kExternalInt32Array);
-}
-
-RUNTIME_FUNCTION(Runtime_TypedArraySpeciesCreateByLength) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 2);
-  Handle<JSTypedArray> exemplar = args.at<JSTypedArray>(0);
-  Handle<Object> length = args.at(1);
-  int argc = 1;
-  ScopedVector<Handle<Object>> argv(argc);
-  argv[0] = length;
-  Handle<JSTypedArray> result_array;
-  // TODO(tebbi): Pass correct method name.
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result_array,
-      JSTypedArray::SpeciesCreate(isolate, exemplar, argc, argv.start(), ""));
-  return *result_array;
 }
 
 // 22.2.3.23 %TypedArray%.prototype.set ( overloaded [ , offset ] )

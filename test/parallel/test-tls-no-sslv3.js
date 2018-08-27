@@ -23,10 +23,6 @@ server.listen(0, '127.0.0.1', function() {
                 '-ssl3',
                 '-connect', address];
 
-  // for the performance and stability issue in s_client on Windows
-  if (common.isWindows)
-    args.push('-no_rand_screen');
-
   const client = spawn(common.opensslCli, args, { stdio: 'pipe' });
   client.stdout.pipe(process.stdout);
   client.stderr.pipe(process.stderr);

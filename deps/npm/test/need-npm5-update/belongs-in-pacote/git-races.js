@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 var execFile = require('child_process').execFile
 var path = require('path')
 var zlib = require('zlib')

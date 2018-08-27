@@ -14,20 +14,24 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = r2;
-const Register kReturnRegister1 = r3;
-const Register kReturnRegister2 = r4;
-const Register kJSFunctionRegister = r3;
-const Register kContextRegister = r13;
-const Register kAllocateSizeRegister = r3;
-const Register kInterpreterAccumulatorRegister = r2;
-const Register kInterpreterBytecodeOffsetRegister = r6;
-const Register kInterpreterBytecodeArrayRegister = r7;
-const Register kInterpreterDispatchTableRegister = r8;
-const Register kJavaScriptCallArgCountRegister = r2;
-const Register kJavaScriptCallNewTargetRegister = r5;
-const Register kRuntimeCallFunctionRegister = r3;
-const Register kRuntimeCallArgCountRegister = r2;
+constexpr Register kReturnRegister0 = r2;
+constexpr Register kReturnRegister1 = r3;
+constexpr Register kReturnRegister2 = r4;
+constexpr Register kJSFunctionRegister = r3;
+constexpr Register kContextRegister = r13;
+constexpr Register kAllocateSizeRegister = r3;
+constexpr Register kSpeculationPoisonRegister = r9;
+constexpr Register kInterpreterAccumulatorRegister = r2;
+constexpr Register kInterpreterBytecodeOffsetRegister = r6;
+constexpr Register kInterpreterBytecodeArrayRegister = r7;
+constexpr Register kInterpreterDispatchTableRegister = r8;
+constexpr Register kJavaScriptCallArgCountRegister = r2;
+constexpr Register kJavaScriptCallNewTargetRegister = r5;
+constexpr Register kJavaScriptCallCodeStartRegister = r4;
+constexpr Register kOffHeapTrampolineRegister = ip;
+constexpr Register kRuntimeCallFunctionRegister = r3;
+constexpr Register kRuntimeCallArgCountRegister = r2;
+constexpr Register kWasmInstanceRegister = r6;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -175,12 +179,18 @@ class TurboAssembler : public Assembler {
     return code_object_;
   }
 
+#ifdef V8_EMBEDDED_BUILTINS
+  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupExternalReference(Register destination,
+                               ExternalReference reference);
+#endif  // V8_EMBEDDED_BUILTINS
+
   // Returns the size of a call in instructions.
   static int CallSize(Register target);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
-  void Jump(Register target);
+  void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
@@ -218,6 +228,7 @@ class TurboAssembler : public Assembler {
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> value);
+  void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
 
@@ -388,6 +399,7 @@ class TurboAssembler : public Assembler {
   void CmpP(Register dst, const Operand& opnd);
   void Cmp32(Register dst, const MemOperand& opnd);
   void CmpP(Register dst, const MemOperand& opnd);
+  void CmpAndSwap(Register old_val, Register new_val, const MemOperand& opnd);
 
   // Compare Logical
   void CmpLogical32(Register src1, Register src2);
@@ -756,6 +768,8 @@ class TurboAssembler : public Assembler {
 
   void StoreW(Register src, const MemOperand& mem, Register scratch = no_reg);
 
+  void LoadHalfWordP(Register dst, Register src);
+
   void LoadHalfWordP(Register dst, const MemOperand& mem,
                      Register scratch = no_reg);
 
@@ -821,6 +835,7 @@ class TurboAssembler : public Assembler {
   void CallStubDelayed(CodeStub* stub);
 
   // Call a runtime routine.
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
@@ -863,8 +878,8 @@ class TurboAssembler : public Assembler {
 
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged and ip gets clobbered. Dividend and result must be different.
-  void TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                DoubleRegister double_input);
+  void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
+                         DoubleRegister double_input);
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister double_input,
                                   Label* done);
 
@@ -986,10 +1001,16 @@ class TurboAssembler : public Assembler {
     // High bits must be identical to fit into an 32-bit integer
     cgfr(value, value);
   }
-  void SmiUntag(Register reg) { SmiUntag(reg, reg); }
+  void SmiUntag(Register reg, int scale = 0) { SmiUntag(reg, reg, scale); }
 
-  void SmiUntag(Register dst, Register src) {
-    ShiftRightArithP(dst, src, Operand(kSmiShift));
+  void SmiUntag(Register dst, Register src, int scale = 0) {
+    if (scale > kSmiShift) {
+      ShiftLeftP(dst, src, Operand(scale - kSmiShift));
+    } else if (scale < kSmiShift) {
+      ShiftRightArithP(dst, src, Operand(kSmiShift - scale));
+    } else {
+      // do nothing
+    }
   }
 
   // Activation support.
@@ -1000,6 +1021,16 @@ class TurboAssembler : public Assembler {
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
+
+  void ResetSpeculationPoisonRegister();
+  void ComputeCodeStartAddress(Register dst);
+
+  bool root_array_available() const { return root_array_available_; }
+  void set_root_array_available(bool v) { root_array_available_ = v; }
+
+ protected:
+  // This handle will be patched with the code object on installation.
+  Handle<HeapObject> code_object_;
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1013,9 +1044,8 @@ class TurboAssembler : public Assembler {
                                 int num_double_arguments);
 
   bool has_frame_ = false;
+  bool root_array_available_ = true;
   Isolate* isolate_;
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
 };
 
 // MacroAssembler implements a collection of frequently used macros.
@@ -1082,6 +1112,9 @@ class MacroAssembler : public TurboAssembler {
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
 
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(Address entry);
+
   // Compare the object in a register to a value and jump if they are equal.
   void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal) {
     CompareRoot(with, index);
@@ -1099,6 +1132,10 @@ class MacroAssembler : public TurboAssembler {
   // CR_EQ in cr7 is set and result assigned if the conversion is exact.
   void TryDoubleToInt32Exact(Register result, DoubleRegister double_input,
                              Register scratch, DoubleRegister double_scratch);
+
+  // ---------------------------------------------------------------------------
+  // In-place weak references.
+  void LoadWeakValue(Register out, Register in, Label* target_if_cleared);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support
@@ -1137,10 +1174,6 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& actual, InvokeFlag flag);
 
   void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
   // Frame restart support
@@ -1224,6 +1257,10 @@ class MacroAssembler : public TurboAssembler {
   // Abort execution if argument is not a FixedArray, enabled via --debug-code.
   void AssertFixedArray(Register object);
 
+  // Abort execution if argument is not a Constructor, enabled via --debug-code.
+  void AssertConstructor(Register object, Register scratch);
+
+  // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,

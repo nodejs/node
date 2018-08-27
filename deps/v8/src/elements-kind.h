@@ -49,17 +49,19 @@ enum ElementsKind {
   FLOAT32_ELEMENTS,
   FLOAT64_ELEMENTS,
   UINT8_CLAMPED_ELEMENTS,
+  BIGUINT64_ELEMENTS,
+  BIGINT64_ELEMENTS,
 
   // Sentinel ElementsKind for objects with no elements.
   NO_ELEMENTS,
 
   // Derived constants from ElementsKind.
   FIRST_ELEMENTS_KIND = PACKED_SMI_ELEMENTS,
-  LAST_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
+  LAST_ELEMENTS_KIND = BIGINT64_ELEMENTS,
   FIRST_FAST_ELEMENTS_KIND = PACKED_SMI_ELEMENTS,
   LAST_FAST_ELEMENTS_KIND = HOLEY_DOUBLE_ELEMENTS,
   FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_ELEMENTS,
-  LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
+  LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = BIGINT64_ELEMENTS,
   TERMINAL_FAST_ELEMENTS_KIND = HOLEY_ELEMENTS
 };
 
@@ -229,6 +231,8 @@ inline bool UnionElementsKindUptoPackedness(ElementsKind* a_out,
   return false;
 }
 
+bool UnionElementsKindUptoSize(ElementsKind* a_out, ElementsKind b);
+
 inline ElementsKind FastSmiToObjectElementsKind(ElementsKind from_kind) {
   DCHECK(IsSmiElementsKind(from_kind));
   return (from_kind == PACKED_SMI_ELEMENTS) ? PACKED_ELEMENTS : HOLEY_ELEMENTS;
@@ -260,6 +264,7 @@ inline bool IsTransitionableFastElementsKind(ElementsKind from_kind) {
          from_kind != TERMINAL_FAST_ELEMENTS_KIND;
 }
 
+inline bool ElementsKindEqual(ElementsKind a, ElementsKind b) { return a == b; }
 
 }  // namespace internal
 }  // namespace v8

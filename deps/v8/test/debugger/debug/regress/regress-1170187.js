@@ -31,8 +31,8 @@
 
 Debug = debug.Debug
 
-listenerCalled = false;
-exception = false;
+let listenerCalled = false;
+let exceptionThrown = false;
 
 
 function checkName(name) {
@@ -64,7 +64,7 @@ function listener(event, exec_state, event_data, data) {
       listenerCalled = true;
     }
   } catch (e) {
-    exception = e;
+    exceptionThrown = true;
   };
 };
 
@@ -77,4 +77,4 @@ Debug.setListener(listener);
 
 // Make sure that the debug event listener vas invoked (again).
 assertTrue(listenerCalled);
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener")

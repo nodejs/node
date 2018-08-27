@@ -12,6 +12,7 @@
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
 #include "src/objects-inl.h"
+#include "src/objects/templates.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +26,11 @@ bool CanInlineElementAccess(Handle<Map> map) {
   if (map->has_indexed_interceptor()) return false;
   ElementsKind const elements_kind = map->elements_kind();
   if (IsFastElementsKind(elements_kind)) return true;
-  if (IsFixedTypedArrayElementsKind(elements_kind)) return true;
+  if (IsFixedTypedArrayElementsKind(elements_kind) &&
+      elements_kind != BIGUINT64_ELEMENTS &&
+      elements_kind != BIGINT64_ELEMENTS) {
+    return true;
+  }
   return false;
 }
 
@@ -81,7 +86,7 @@ PropertyAccessInfo PropertyAccessInfo::DataConstant(
 PropertyAccessInfo PropertyAccessInfo::DataField(
     PropertyConstness constness, MapHandles const& receiver_maps,
     FieldIndex field_index, MachineRepresentation field_representation,
-    Type* field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
+    Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
   Kind kind = constness == kConst ? kDataConstantField : kDataField;
   return PropertyAccessInfo(kind, holder, transition_map, field_index,
@@ -129,7 +134,7 @@ PropertyAccessInfo::PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
 PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, MachineRepresentation field_representation,
-    Type* field_type, MaybeHandle<Map> field_map,
+    Type field_type, MaybeHandle<Map> field_map,
     MapHandles const& receiver_maps)
     : kind_(kind),
       receiver_maps_(receiver_maps),
@@ -362,7 +367,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           Representation details_representation = details.representation();
           FieldIndex field_index =
               FieldIndex::ForPropertyIndex(*map, index, details_representation);
-          Type* field_type = Type::NonInternal();
+          Type field_type = Type::NonInternal();
           MachineRepresentation field_representation =
               MachineRepresentation::kTagged;
           MaybeHandle<Map> field_map;
@@ -533,6 +538,18 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
   return false;
 }
 
+bool AccessInfoFactory::ComputePropertyAccessInfo(
+    MapHandles const& maps, Handle<Name> name, AccessMode access_mode,
+    PropertyAccessInfo* access_info) {
+  ZoneVector<PropertyAccessInfo> access_infos(zone());
+  if (ComputePropertyAccessInfos(maps, name, access_mode, &access_infos) &&
+      access_infos.size() == 1) {
+    *access_info = access_infos.front();
+    return true;
+  }
+  return false;
+}
+
 bool AccessInfoFactory::ComputePropertyAccessInfos(
     MapHandles const& maps, Handle<Name> name, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* access_infos) {
@@ -602,7 +619,7 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
   // Check for special JSObject field accessors.
   FieldIndex field_index;
   if (Accessors::IsJSObjectFieldAccessor(map, name, &field_index)) {
-    Type* field_type = Type::NonInternal();
+    Type field_type = Type::NonInternal();
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (map->IsStringMap()) {
       DCHECK(Name::Equals(factory()->length_string(), name));
@@ -657,7 +674,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
   Representation details_representation = details.representation();
   FieldIndex field_index = FieldIndex::ForPropertyIndex(*transition_map, index,
                                                         details_representation);
-  Type* field_type = Type::NonInternal();
+  Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
   MachineRepresentation field_representation = MachineRepresentation::kTagged;
   if (details_representation.IsSmi()) {

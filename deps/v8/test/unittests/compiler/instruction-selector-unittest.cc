@@ -43,8 +43,11 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   SourcePositionTable source_position_table(graph());
   InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
                                schedule, &source_position_table, nullptr,
+                               InstructionSelector::kEnableSwitchJumpTable,
                                source_position_mode, features,
-                               InstructionSelector::kDisableScheduling);
+                               InstructionSelector::kDisableScheduling,
+                               InstructionSelector::kDisableSerialization,
+                               PoisoningMitigationLevel::kPoisonAll);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
@@ -361,7 +364,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   ZoneVector<MachineType> int32_type(1, MachineType::Int32(), zone());
   ZoneVector<MachineType> empty_types(zone());
 
-  CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
+  auto call_descriptor = Linkage::GetJSCallDescriptor(
       zone(), false, 1, CallDescriptor::kNeedsFrameState);
 
   // Build frame state for the state before the call.
@@ -382,7 +385,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   // Build the call.
   Node* nodes[] = {function_node,      receiver, m.UndefinedConstant(),
                    m.Int32Constant(1), context,  state_node};
-  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
+  Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -418,7 +421,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   ZoneVector<MachineType> tagged_type(1, MachineType::AnyTagged(), zone());
 
   Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
-  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 1,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
 
@@ -443,7 +446,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   // Build the call.
   Node* stub_code = m.HeapConstant(callable.code());
   Node* nodes[] = {stub_code, function_node, receiver, context, state_node};
-  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
+  Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -461,8 +464,8 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_EQ(kArchCallCodeObject, call_instr->arch_opcode());
   size_t num_operands =
       1 +  // Code object.
-      1 +
-      5 +  // Frame state deopt id + one input for each value in frame state.
+      1 +  // Poison index
+      6 +  // Frame state deopt id + one input for each value in frame state.
       1 +  // Function.
       1;   // Context.
   ASSERT_EQ(num_operands, call_instr->InputCount());
@@ -471,23 +474,23 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_TRUE(call_instr->InputAt(0)->IsImmediate());
 
   // Deoptimization id.
-  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(1));
+  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(2));
   FrameStateDescriptor* desc_before =
       s.GetFrameStateDescriptor(deopt_id_before);
   EXPECT_EQ(bailout_id_before, desc_before->bailout_id());
   EXPECT_EQ(1u, desc_before->parameters_count());
   EXPECT_EQ(1u, desc_before->locals_count());
   EXPECT_EQ(1u, desc_before->stack_count());
-  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(3)));
-  EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(4)));  // This should be a context.
+  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(4)));
+  EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(5)));  // This should be a context.
                                                     // We inserted 0 here.
-  EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(5)));
-  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined(isolate()));
+  EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(6)));
+  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(7))->IsUndefined(isolate()));
 
   // Function.
-  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(7)));
+  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(8)));
   // Context.
-  EXPECT_EQ(s.ToVreg(context), s.ToVreg(call_instr->InputAt(8)));
+  EXPECT_EQ(s.ToVreg(context), s.ToVreg(call_instr->InputAt(9)));
 
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
 
@@ -513,7 +516,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   ZoneVector<MachineType> float64_type(1, MachineType::Float64(), zone());
 
   Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
-  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 1,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
 
@@ -552,7 +555,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   // Build the call.
   Node* stub_code = m.HeapConstant(callable.code());
   Node* nodes[] = {stub_code, function_node, receiver, context2, state_node};
-  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
+  Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -570,6 +573,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(kArchCallCodeObject, call_instr->arch_opcode());
   size_t num_operands =
       1 +  // Code object.
+      1 +  // Poison index.
       1 +  // Frame state deopt id
       6 +  // One input for each value in frame state + context.
       5 +  // One input for each value in the parent frame state + context.
@@ -580,7 +584,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_TRUE(call_instr->InputAt(0)->IsImmediate());
 
   // Deoptimization id.
-  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(1));
+  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(2));
   FrameStateDescriptor* desc_before =
       s.GetFrameStateDescriptor(deopt_id_before);
   FrameStateDescriptor* desc_before_outer = desc_before->outer_state();
@@ -589,25 +593,25 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(1u, desc_before_outer->locals_count());
   EXPECT_EQ(1u, desc_before_outer->stack_count());
   // Values from parent environment.
-  EXPECT_EQ(63, s.ToInt32(call_instr->InputAt(3)));
+  EXPECT_EQ(63, s.ToInt32(call_instr->InputAt(4)));
   // Context:
-  EXPECT_EQ(66, s.ToInt32(call_instr->InputAt(4)));
-  EXPECT_EQ(64, s.ToInt32(call_instr->InputAt(5)));
-  EXPECT_EQ(65, s.ToInt32(call_instr->InputAt(6)));
+  EXPECT_EQ(66, s.ToInt32(call_instr->InputAt(5)));
+  EXPECT_EQ(64, s.ToInt32(call_instr->InputAt(6)));
+  EXPECT_EQ(65, s.ToInt32(call_instr->InputAt(7)));
   // Values from the nested frame.
   EXPECT_EQ(1u, desc_before->parameters_count());
   EXPECT_EQ(1u, desc_before->locals_count());
   EXPECT_EQ(2u, desc_before->stack_count());
-  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(8)));
-  EXPECT_EQ(46, s.ToInt32(call_instr->InputAt(9)));
-  EXPECT_EQ(0.25, s.ToFloat64(call_instr->InputAt(10)));
-  EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(11)));
-  EXPECT_EQ(45, s.ToInt32(call_instr->InputAt(12)));
+  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(9)));
+  EXPECT_EQ(46, s.ToInt32(call_instr->InputAt(10)));
+  EXPECT_EQ(0.25, s.ToFloat64(call_instr->InputAt(11)));
+  EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(12)));
+  EXPECT_EQ(45, s.ToInt32(call_instr->InputAt(13)));
 
   // Function.
-  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(13)));
+  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(14)));
   // Context.
-  EXPECT_EQ(s.ToVreg(context2), s.ToVreg(call_instr->InputAt(14)));
+  EXPECT_EQ(s.ToVreg(context2), s.ToVreg(call_instr->InputAt(15)));
   // Continuation.
 
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());

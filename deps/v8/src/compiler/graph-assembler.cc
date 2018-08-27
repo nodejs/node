@@ -86,10 +86,13 @@ CHECKED_ASSEMBLER_MACH_BINOP_LIST(CHECKED_BINOP_DEF)
 #undef CHECKED_BINOP_DEF
 
 Node* GraphAssembler::Float64RoundDown(Node* value) {
-  if (machine()->Float64RoundDown().IsSupported()) {
-    return graph()->NewNode(machine()->Float64RoundDown().op(), value);
-  }
-  return nullptr;
+  CHECK(machine()->Float64RoundDown().IsSupported());
+  return graph()->NewNode(machine()->Float64RoundDown().op(), value);
+}
+
+Node* GraphAssembler::Float64RoundTruncate(Node* value) {
+  CHECK(machine()->Float64RoundTruncate().IsSupported());
+  return graph()->NewNode(machine()->Float64RoundTruncate().op(), value);
 }
 
 Node* GraphAssembler::Projection(int index, Node* value) {
@@ -175,6 +178,12 @@ Node* GraphAssembler::BitcastWordToTagged(Node* value) {
                               current_effect_, current_control_);
 }
 
+Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {
+  return current_effect_ =
+             graph()->NewNode(machine()->Word32PoisonOnSpeculation(), value,
+                              current_effect_, current_control_);
+}
+
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
                                    VectorSlotPair const& feedback,
                                    Node* condition, Node* frame_state) {
@@ -183,20 +192,14 @@ Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
              condition, frame_state, current_effect_, current_control_);
 }
 
-Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeKind kind,
-                                      DeoptimizeReason reason,
-                                      VectorSlotPair const& feedback,
-                                      Node* condition, Node* frame_state) {
-  return current_control_ = current_effect_ = graph()->NewNode(
-             common()->DeoptimizeUnless(kind, reason, feedback), condition,
-             frame_state, current_effect_, current_control_);
-}
-
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
                                       VectorSlotPair const& feedback,
-                                      Node* condition, Node* frame_state) {
-  return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, feedback, condition,
-                         frame_state);
+                                      Node* condition, Node* frame_state,
+                                      IsSafetyCheck is_safety_check) {
+  return current_control_ = current_effect_ = graph()->NewNode(
+             common()->DeoptimizeUnless(DeoptimizeKind::kEager, reason,
+                                        feedback, is_safety_check),
+             condition, frame_state, current_effect_, current_control_);
 }
 
 void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
@@ -244,10 +247,10 @@ Operator const* GraphAssembler::ToNumberOperator() {
     Callable callable =
         Builtins::CallableFor(jsgraph()->isolate(), Builtins::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         jsgraph()->isolate(), graph()->zone(), callable.descriptor(), 0, flags,
         Operator::kEliminatable);
-    to_number_operator_.set(common()->Call(desc));
+    to_number_operator_.set(common()->Call(call_descriptor));
   }
   return to_number_operator_.get();
 }

@@ -2,11 +2,10 @@
 README  This file
 
 fingerprints.txt
-        PGP fingerprints of authoried release signers
+        PGP fingerprints of authorised release signers
 
 standards.txt
-        Pointers to standards, RFC's and IETF Drafts that are
-        related to OpenSSL.  Incomplete.
+        Moved to the web, https://www.openssl.org/docs/standards.html
 
 HOWTO/
         A few how-to documents; not necessarily up-to-date

@@ -5,6 +5,9 @@ const assert = require('assert');
 const internalCp = require('internal/child_process');
 const oldSpawnSync = internalCp.spawnSync;
 
+if (!common.isMainThread)
+  common.skip('stdio is not associated with file descriptors in Workers');
+
 // Verify that customFds is used if stdio is not provided.
 {
   const msg = 'child_process: options.customFds option is deprecated. ' +

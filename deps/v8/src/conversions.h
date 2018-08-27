@@ -32,12 +32,13 @@ inline int FastD2IChecked(double x) {
   return static_cast<int>(x);
 }
 
-
 // The fast double-to-(unsigned-)int conversion routine does not guarantee
 // rounding towards zero.
-// The result is unspecified if x is infinite or NaN, or if the rounded
+// The result is undefined if x is infinite or NaN, or if the rounded
 // integer value is outside the range of type int.
 inline int FastD2I(double x) {
+  DCHECK(x <= INT_MAX);
+  DCHECK(x >= INT_MIN);
   return static_cast<int32_t>(x);
 }
 
@@ -105,9 +106,6 @@ double StringToDouble(UnicodeCache* unicode_cache,
 
 double StringToInt(Isolate* isolate, Handle<String> string, int radix);
 
-// This follows BigInt.parseInt semantics: "" => SyntaxError.
-MaybeHandle<BigInt> BigIntParseInt(Isolate* isolate, Handle<String> string,
-                                   int radix);
 // This follows https://tc39.github.io/proposal-bigint/#sec-string-to-bigint
 // semantics: "" => 0n.
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string);

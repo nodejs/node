@@ -97,8 +97,7 @@ LibuvStreamWrap::LibuvStreamWrap(Environment* env,
 
 
 void LibuvStreamWrap::AddMethods(Environment* env,
-                                 v8::Local<v8::FunctionTemplate> target,
-                                 int flags) {
+                                 v8::Local<v8::FunctionTemplate> target) {
   Local<FunctionTemplate> get_write_queue_size =
       FunctionTemplate::New(env->isolate(),
                             GetWriteQueueSize,
@@ -110,17 +109,19 @@ void LibuvStreamWrap::AddMethods(Environment* env,
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete));
   env->SetProtoMethod(target, "setBlocking", SetBlocking);
-  StreamBase::AddMethods<LibuvStreamWrap>(env, target, flags);
+  StreamBase::AddMethods<LibuvStreamWrap>(env, target);
 }
 
 
 int LibuvStreamWrap::GetFD() {
+#ifdef _WIN32
+  return fd_;
+#else
   int fd = -1;
-#if !defined(_WIN32)
   if (stream() != nullptr)
     uv_fileno(reinterpret_cast<uv_handle_t*>(stream()), &fd);
-#endif
   return fd;
+#endif
 }
 
 
@@ -275,17 +276,14 @@ WriteWrap* LibuvStreamWrap::CreateWriteWrap(Local<Object> object) {
 
 int LibuvStreamWrap::DoShutdown(ShutdownWrap* req_wrap_) {
   LibuvShutdownWrap* req_wrap = static_cast<LibuvShutdownWrap*>(req_wrap_);
-  int err;
-  err = uv_shutdown(req_wrap->req(), stream(), AfterUvShutdown);
-  req_wrap->Dispatched();
-  return err;
+  return req_wrap->Dispatch(uv_shutdown, stream(), AfterUvShutdown);
 }
 
 
 void LibuvStreamWrap::AfterUvShutdown(uv_shutdown_t* req, int status) {
   LibuvShutdownWrap* req_wrap = static_cast<LibuvShutdownWrap*>(
       LibuvShutdownWrap::from_req(req));
-  CHECK_NE(req_wrap, nullptr);
+  CHECK_NOT_NULL(req_wrap);
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);
@@ -339,9 +337,14 @@ int LibuvStreamWrap::DoWrite(WriteWrap* req_wrap,
   LibuvWriteWrap* w = static_cast<LibuvWriteWrap*>(req_wrap);
   int r;
   if (send_handle == nullptr) {
-    r = uv_write(w->req(), stream(), bufs, count, AfterUvWrite);
+    r = w->Dispatch(uv_write, stream(), bufs, count, AfterUvWrite);
   } else {
-    r = uv_write2(w->req(), stream(), bufs, count, send_handle, AfterUvWrite);
+    r = w->Dispatch(uv_write2,
+                    stream(),
+                    bufs,
+                    count,
+                    send_handle,
+                    AfterUvWrite);
   }
 
   if (!r) {
@@ -355,8 +358,6 @@ int LibuvStreamWrap::DoWrite(WriteWrap* req_wrap,
     }
   }
 
-  w->Dispatched();
-
   return r;
 }
 
@@ -365,7 +366,7 @@ int LibuvStreamWrap::DoWrite(WriteWrap* req_wrap,
 void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
   LibuvWriteWrap* req_wrap = static_cast<LibuvWriteWrap*>(
       LibuvWriteWrap::from_req(req));
-  CHECK_NE(req_wrap, nullptr);
+  CHECK_NOT_NULL(req_wrap);
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);
@@ -373,5 +374,5 @@ void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(stream_wrap,
-                                  node::LibuvStreamWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(stream_wrap,
+                                   node::LibuvStreamWrap::Initialize)

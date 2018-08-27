@@ -28,8 +28,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef V8_INSPECTOR_INJECTEDSCRIPT_H_
-#define V8_INSPECTOR_INJECTEDSCRIPT_H_
+#ifndef V8_INSPECTOR_INJECTED_SCRIPT_H_
+#define V8_INSPECTOR_INJECTED_SCRIPT_H_
 
 #include <unordered_map>
 #include <unordered_set>
@@ -120,6 +120,7 @@ class InjectedScript final {
     void installCommandLineAPI();
     void ignoreExceptionsAndMuteConsole();
     void pretendUserGesture();
+    void allowCodeGenerationFromStrings();
     v8::Local<v8::Context> context() const { return m_context; }
     InjectedScript* injectedScript() const { return m_injectedScript; }
     const v8::TryCatch& tryCatch() const { return m_tryCatch; }
@@ -144,6 +145,7 @@ class InjectedScript final {
     bool m_ignoreExceptionsAndMuteConsole;
     v8::debug::ExceptionBreakState m_previousPauseOnExceptionsState;
     bool m_userGesture;
+    bool m_allowEval;
     int m_contextGroupId;
     int m_sessionId;
   };
@@ -220,4 +222,4 @@ class InjectedScript final {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_INJECTEDSCRIPT_H_
+#endif  // V8_INSPECTOR_INJECTED_SCRIPT_H_

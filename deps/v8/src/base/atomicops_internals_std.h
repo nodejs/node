@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_ATOMICOPS_INTERNALS_STD_H_
-#define BASE_ATOMICOPS_INTERNALS_STD_H_
+#ifndef V8_BASE_ATOMICOPS_INTERNALS_STD_H_
+#define V8_BASE_ATOMICOPS_INTERNALS_STD_H_
 
 #include <atomic>
 

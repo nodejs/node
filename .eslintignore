@@ -5,7 +5,6 @@ test/addons/??_*
 test/es-module/test-esm-dynamic-import.js
 test/fixtures
 test/message/esm_display_syntax_error.mjs
-tools/node_modules
 tools/icu
 tools/remark-*
 node_modules

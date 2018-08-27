@@ -1,0 +1,85 @@
+{
+  "_from": "supports-color@^5.3.0",
+  "_id": "supports-color@5.4.0",
+  "_inBundle": false,
+  "_integrity": "sha512-zjaXglF5nnWpsq470jSv6P9DwPvgLkuapYmfDm3JWOm0vkNTVF2tI4UrN2r6jH1qM/uc/WtxYY1hYoA2dOKj5w==",
+  "_location": "/supports-color",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "supports-color@^5.3.0",
+    "name": "supports-color",
+    "escapedName": "supports-color",
+    "rawSpec": "^5.3.0",
+    "saveSpec": null,
+    "fetchSpec": "^5.3.0"
+  },
+  "_requiredBy": [
+    "/chalk"
+  ],
+  "_resolved": "https://registry.npmjs.org/supports-color/-/supports-color-5.4.0.tgz",
+  "_shasum": "1c6b337402c2137605efe19f10fec390f6faab54",
+  "_spec": "supports-color@^5.3.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/chalk",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "browser": "browser.js",
+  "bugs": {
+    "url": "https://github.com/chalk/supports-color/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "has-flag": "^3.0.0"
+  },
+  "deprecated": false,
+  "description": "Detect whether a terminal supports color",
+  "devDependencies": {
+    "ava": "*",
+    "import-fresh": "^2.0.0",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js",
+    "browser.js"
+  ],
+  "homepage": "https://github.com/chalk/supports-color#readme",
+  "keywords": [
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "cli",
+    "ansi",
+    "styles",
+    "tty",
+    "rgb",
+    "256",
+    "shell",
+    "xterm",
+    "command-line",
+    "support",
+    "supports",
+    "capability",
+    "detect",
+    "truecolor",
+    "16m"
+  ],
+  "license": "MIT",
+  "name": "supports-color",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chalk/supports-color.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "5.4.0"
+}

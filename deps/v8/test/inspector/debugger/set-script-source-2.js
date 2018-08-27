@@ -7,10 +7,10 @@ let {session, contextGroup, Protocol} =
 
 session.setupScriptMap();
 
-function foo() {
-var x = 1;
+function foo(a,b,c) {
+var x = a;
 debugger;
-return x + 2;
+return x + b;
 }
 
 function boo() {
@@ -25,7 +25,7 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Runtime.evaluate({expression: foo.toString()});
     let {params:{scriptId}} = await Protocol.Debugger.onceScriptParsed();
     Protocol.Runtime.evaluate({
-      expression: 'setTimeout(foo, 0)//# sourceURL=test.js'});
+      expression: 'setTimeout(() => foo(1,2,3), 0)//# sourceURL=test.js'});
     let {params:{callFrames}} = await Protocol.Debugger.oncePaused();
     await session.logSourceLocation(callFrames[0].location);
     await replaceInSource(scriptId, 'debugger;', 'debugger;\nvar x = 3;');

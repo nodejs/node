@@ -4,7 +4,7 @@ require('../common');
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('string_decoder', ['chunk=16',
+runBenchmark('string_decoder', ['chunkLen=16',
                                 'encoding=utf8',
-                                'inlen=32',
+                                'inLen=32',
                                 'n=1']);

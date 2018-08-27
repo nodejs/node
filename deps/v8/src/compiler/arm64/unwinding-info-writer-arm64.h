@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_ARM64_UNWINDING_INFO_WRITER_H_
-#define V8_COMPILER_ARM64_UNWINDING_INFO_WRITER_H_
+#ifndef V8_COMPILER_ARM64_UNWINDING_INFO_WRITER_ARM64_H_
+#define V8_COMPILER_ARM64_UNWINDING_INFO_WRITER_ARM64_H_
 
 #include "src/eh-frame.h"
 
@@ -69,4 +69,4 @@ class UnwindingInfoWriter {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_COMPILER_ARM64_UNWINDING_INFO_WRITER_ARM64_H_

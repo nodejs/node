@@ -1,70 +1,20 @@
-/* ocsp_srv.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2001.
- */
-/* ====================================================================
- * Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved.
+ * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include <cryptlib.h>
+#include "internal/cryptlib.h"
 #include <openssl/objects.h>
-#include <openssl/rand.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
 #include <openssl/ocsp.h>
+#include "ocsp_lcl.h"
 
 /*
  * Utility functions related to sending OCSP responses and extracting
@@ -73,12 +23,12 @@
 
 int OCSP_request_onereq_count(OCSP_REQUEST *req)
 {
-    return sk_OCSP_ONEREQ_num(req->tbsRequest->requestList);
+    return sk_OCSP_ONEREQ_num(req->tbsRequest.requestList);
 }
 
 OCSP_ONEREQ *OCSP_request_onereq_get0(OCSP_REQUEST *req, int i)
 {
-    return sk_OCSP_ONEREQ_value(req->tbsRequest->requestList, i);
+    return sk_OCSP_ONEREQ_value(req->tbsRequest.requestList, i);
 }
 
 OCSP_CERTID *OCSP_onereq_get0_id(OCSP_ONEREQ *one)
@@ -93,13 +43,13 @@ int OCSP_id_get0_info(ASN1_OCTET_STRING **piNameHash, ASN1_OBJECT **pmd,
     if (!cid)
         return 0;
     if (pmd)
-        *pmd = cid->hashAlgorithm->algorithm;
+        *pmd = cid->hashAlgorithm.algorithm;
     if (piNameHash)
-        *piNameHash = cid->issuerNameHash;
+        *piNameHash = &cid->issuerNameHash;
     if (pikeyHash)
-        *pikeyHash = cid->issuerKeyHash;
+        *pikeyHash = &cid->issuerKeyHash;
     if (pserial)
-        *pserial = cid->serialNumber;
+        *pserial = &cid->serialNumber;
     return 1;
 }
 
@@ -115,13 +65,13 @@ OCSP_RESPONSE *OCSP_response_create(int status, OCSP_BASICRESP *bs)
 {
     OCSP_RESPONSE *rsp = NULL;
 
-    if (!(rsp = OCSP_RESPONSE_new()))
+    if ((rsp = OCSP_RESPONSE_new()) == NULL)
         goto err;
     if (!(ASN1_ENUMERATED_set(rsp->responseStatus, status)))
         goto err;
     if (!bs)
         return rsp;
-    if (!(rsp->responseBytes = OCSP_RESPBYTES_new()))
+    if ((rsp->responseBytes = OCSP_RESPBYTES_new()) == NULL)
         goto err;
     rsp->responseBytes->responseType = OBJ_nid2obj(NID_id_pkix_OCSP_basic);
     if (!ASN1_item_pack
@@ -129,8 +79,7 @@ OCSP_RESPONSE *OCSP_response_create(int status, OCSP_BASICRESP *bs)
          goto err;
     return rsp;
  err:
-    if (rsp)
-        OCSP_RESPONSE_free(rsp);
+    OCSP_RESPONSE_free(rsp);
     return NULL;
 }
 
@@ -145,11 +94,12 @@ OCSP_SINGLERESP *OCSP_basic_add1_status(OCSP_BASICRESP *rsp,
     OCSP_CERTSTATUS *cs;
     OCSP_REVOKEDINFO *ri;
 
-    if (!rsp->tbsResponseData->responses &&
-        !(rsp->tbsResponseData->responses = sk_OCSP_SINGLERESP_new_null()))
+    if (rsp->tbsResponseData.responses == NULL
+        && (rsp->tbsResponseData.responses
+                = sk_OCSP_SINGLERESP_new_null()) == NULL)
         goto err;
 
-    if (!(single = OCSP_SINGLERESP_new()))
+    if ((single = OCSP_SINGLERESP_new()) == NULL)
         goto err;
 
     if (!ASN1_TIME_to_generalizedtime(thisupd, &single->thisUpdate))
@@ -160,7 +110,7 @@ OCSP_SINGLERESP *OCSP_basic_add1_status(OCSP_BASICRESP *rsp,
 
     OCSP_CERTID_free(single->certId);
 
-    if (!(single->certId = OCSP_CERTID_dup(cid)))
+    if ((single->certId = OCSP_CERTID_dup(cid)) == NULL)
         goto err;
 
     cs = single->certStatus;
@@ -170,12 +120,12 @@ OCSP_SINGLERESP *OCSP_basic_add1_status(OCSP_BASICRESP *rsp,
             OCSPerr(OCSP_F_OCSP_BASIC_ADD1_STATUS, OCSP_R_NO_REVOKED_TIME);
             goto err;
         }
-        if (!(cs->value.revoked = ri = OCSP_REVOKEDINFO_new()))
+        if ((cs->value.revoked = ri = OCSP_REVOKEDINFO_new()) == NULL)
             goto err;
         if (!ASN1_TIME_to_generalizedtime(revtime, &ri->revocationTime))
             goto err;
         if (reason != OCSP_REVOKED_STATUS_NOSTATUS) {
-            if (!(ri->revocationReason = ASN1_ENUMERATED_new()))
+            if ((ri->revocationReason = ASN1_ENUMERATED_new()) == NULL)
                 goto err;
             if (!(ASN1_ENUMERATED_set(ri->revocationReason, reason)))
                 goto err;
@@ -183,18 +133,20 @@ OCSP_SINGLERESP *OCSP_basic_add1_status(OCSP_BASICRESP *rsp,
         break;
 
     case V_OCSP_CERTSTATUS_GOOD:
-        cs->value.good = ASN1_NULL_new();
+        if ((cs->value.good = ASN1_NULL_new()) == NULL)
+            goto err;
         break;
 
     case V_OCSP_CERTSTATUS_UNKNOWN:
-        cs->value.unknown = ASN1_NULL_new();
+        if ((cs->value.unknown = ASN1_NULL_new()) == NULL)
+            goto err;
         break;
 
     default:
         goto err;
 
     }
-    if (!(sk_OCSP_SINGLERESP_push(rsp->tbsResponseData->responses, single)))
+    if (!(sk_OCSP_SINGLERESP_push(rsp->tbsResponseData.responses, single)))
         goto err;
     return single;
  err:
@@ -206,12 +158,13 @@ OCSP_SINGLERESP *OCSP_basic_add1_status(OCSP_BASICRESP *rsp,
 
 int OCSP_basic_add1_cert(OCSP_BASICRESP *resp, X509 *cert)
 {
-    if (!resp->certs && !(resp->certs = sk_X509_new_null()))
+    if (resp->certs == NULL
+        && (resp->certs = sk_X509_new_null()) == NULL)
         return 0;
 
     if (!sk_X509_push(resp->certs, cert))
         return 0;
-    CRYPTO_add(&cert->references, 1, CRYPTO_LOCK_X509);
+    X509_up_ref(cert);
     return 1;
 }
 
@@ -238,23 +191,16 @@ int OCSP_basic_sign(OCSP_BASICRESP *brsp,
         }
     }
 
-    rid = brsp->tbsResponseData->responderId;
+    rid = &brsp->tbsResponseData.responderId;
     if (flags & OCSP_RESPID_KEY) {
-        unsigned char md[SHA_DIGEST_LENGTH];
-        X509_pubkey_digest(signer, EVP_sha1(), md, NULL);
-        if (!(rid->value.byKey = ASN1_OCTET_STRING_new()))
+        if (!OCSP_RESPID_set_by_key(rid, signer))
             goto err;
-        if (!(ASN1_OCTET_STRING_set(rid->value.byKey, md, SHA_DIGEST_LENGTH)))
-            goto err;
-        rid->type = V_OCSP_RESPID_KEY;
-    } else {
-        if (!X509_NAME_set(&rid->value.byName, X509_get_subject_name(signer)))
-            goto err;
-        rid->type = V_OCSP_RESPID_NAME;
+    } else if (!OCSP_RESPID_set_by_name(rid, signer)) {
+        goto err;
     }
 
     if (!(flags & OCSP_NOTIME) &&
-        !X509_gmtime_adj(brsp->tbsResponseData->producedAt, 0))
+        !X509_gmtime_adj(brsp->tbsResponseData.producedAt, 0))
         goto err;
 
     /*
@@ -267,5 +213,65 @@ int OCSP_basic_sign(OCSP_BASICRESP *brsp,
 
     return 1;
  err:
+    return 0;
+}
+
+int OCSP_RESPID_set_by_name(OCSP_RESPID *respid, X509 *cert)
+{
+    if (!X509_NAME_set(&respid->value.byName, X509_get_subject_name(cert)))
+        return 0;
+
+    respid->type = V_OCSP_RESPID_NAME;
+
+    return 1;
+}
+
+int OCSP_RESPID_set_by_key(OCSP_RESPID *respid, X509 *cert)
+{
+    ASN1_OCTET_STRING *byKey = NULL;
+    unsigned char md[SHA_DIGEST_LENGTH];
+
+    /* RFC2560 requires SHA1 */
+    if (!X509_pubkey_digest(cert, EVP_sha1(), md, NULL))
+        return 0;
+
+    byKey = ASN1_OCTET_STRING_new();
+    if (byKey == NULL)
+        return 0;
+
+    if (!(ASN1_OCTET_STRING_set(byKey, md, SHA_DIGEST_LENGTH))) {
+        ASN1_OCTET_STRING_free(byKey);
+        return 0;
+    }
+
+    respid->type = V_OCSP_RESPID_KEY;
+    respid->value.byKey = byKey;
+
+    return 1;
+}
+
+int OCSP_RESPID_match(OCSP_RESPID *respid, X509 *cert)
+{
+    if (respid->type == V_OCSP_RESPID_KEY) {
+        unsigned char md[SHA_DIGEST_LENGTH];
+
+        if (respid->value.byKey == NULL)
+            return 0;
+
+        /* RFC2560 requires SHA1 */
+        if (!X509_pubkey_digest(cert, EVP_sha1(), md, NULL))
+            return 0;
+
+        return (ASN1_STRING_length(respid->value.byKey) == SHA_DIGEST_LENGTH)
+            && (memcmp(ASN1_STRING_get0_data(respid->value.byKey), md,
+                       SHA_DIGEST_LENGTH) == 0);
+    } else if(respid->type == V_OCSP_RESPID_NAME) {
+        if (respid->value.byName == NULL)
+            return 0;
+
+        return X509_NAME_cmp(respid->value.byName,
+                             X509_get_subject_name(cert)) == 0;
+    }
+
     return 0;
 }

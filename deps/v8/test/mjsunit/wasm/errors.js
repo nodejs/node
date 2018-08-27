@@ -160,15 +160,22 @@ function assertConversionError(bytes, imports, msg) {
 
 (function TestConversionError() {
   let b = builder();
-  b.addImport("foo", "bar", kSig_v_l);
-  assertConversionError(b.addFunction("run", kSig_v_v).addBody([
-    kExprI64Const, 0, kExprCallFunction, 0
-  ]).exportFunc().end().toBuffer(), {foo:{bar: (l)=>{}}}, "invalid type");
+  b.addImport('foo', 'bar', kSig_v_l);
+  let buffer = b.addFunction('run', kSig_v_v)
+                   .addBody([kExprI64Const, 0, kExprCallFunction, 0])
+                   .exportFunc()
+                   .end()
+                   .toBuffer();
+  assertConversionError(
+      buffer, {foo: {bar: (l) => {}}}, kTrapMsgs[kTrapTypeError]);
 
-  b = builder()
-  assertConversionError(builder().addFunction("run", kSig_l_v).addBody([
-    kExprI64Const, 0
-  ]).exportFunc().end().toBuffer(), {}, "invalid type");
+  buffer = builder()
+               .addFunction('run', kSig_l_v)
+               .addBody([kExprI64Const, 0])
+               .exportFunc()
+               .end()
+               .toBuffer();
+  assertConversionError(buffer, {}, kTrapMsgs[kTrapTypeError]);
 })();
 
 
@@ -178,7 +185,7 @@ function assertConversionError(bytes, imports, msg) {
   builder.addImport("mod", "func", sig);
   builder.addFunction("main", sig)
     .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprCallFunction, 0])
-    .exportAs("main")
+    .exportAs("main");
   var main = builder.instantiate({
     mod: {
       func: ()=>{%DebugTrace();}

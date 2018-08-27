@@ -36,7 +36,8 @@ static const byte kCodeGetLocal1[] = {kExprGetLocal, 1};
 static const byte kCodeSetLocal0[] = {WASM_SET_LOCAL(0, WASM_ZERO)};
 static const byte kCodeTeeLocal0[] = {WASM_TEE_LOCAL(0, WASM_ZERO)};
 
-static const ValueType kValueTypes[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64};
+static const ValueType kValueTypes[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
+                                        kWasmAnyRef};
 static const MachineType machineTypes[] = {
     MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
     MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
@@ -207,7 +208,8 @@ class TestModuleBuilder {
     mod.set_origin(origin);
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
-    mod.globals.push_back({type, mutability, WasmInitExpr(), 0, false, false});
+    mod.globals.push_back(
+        {type, mutability, WasmInitExpr(), {0}, false, false});
     CHECK_LE(mod.globals.size(), kMaxByteSizedLeb128);
     return static_cast<byte>(mod.globals.size() - 1);
   }
@@ -220,7 +222,6 @@ class TestModuleBuilder {
     mod.functions.push_back({sig,      // sig
                              0,        // func_index
                              0,        // sig_index
-                             {0, 0},   // name
                              {0, 0},   // code
                              false,    // import
                              false});  // export
@@ -259,6 +260,12 @@ TEST_F(FunctionBodyDecoderTest, Int32Const1) {
     code[1] = static_cast<byte>(i & 0x7F);
     EXPECT_VERIFIES_C(i_i, code);
   }
+}
+
+TEST_F(FunctionBodyDecoderTest, RefNull) {
+  FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, true);
+  byte code[] = {kExprRefNull};
+  EXPECT_VERIFIES_C(r_v, code);
 }
 
 TEST_F(FunctionBodyDecoderTest, EmptyFunction) {
@@ -300,7 +307,7 @@ TEST_F(FunctionBodyDecoderTest, Int64Const) {
 
 TEST_F(FunctionBodyDecoderTest, Float32Const) {
   byte code[] = {kExprF32Const, 0, 0, 0, 0};
-  float* ptr = reinterpret_cast<float*>(code + 1);
+  Address ptr = reinterpret_cast<Address>(code + 1);
   for (int i = 0; i < 30; i++) {
     WriteLittleEndianValue<float>(ptr, i * -7.75f);
     EXPECT_VERIFIES_C(f_ff, code);
@@ -309,7 +316,7 @@ TEST_F(FunctionBodyDecoderTest, Float32Const) {
 
 TEST_F(FunctionBodyDecoderTest, Float64Const) {
   byte code[] = {kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0};
-  double* ptr = reinterpret_cast<double*>(code + 1);
+  Address ptr = reinterpret_cast<Address>(code + 1);
   for (int i = 0; i < 30; i++) {
     WriteLittleEndianValue<double>(ptr, i * 33.45);
     EXPECT_VERIFIES_C(d_dd, code);
@@ -929,6 +936,7 @@ TEST_F(FunctionBodyDecoderTest, ReturnVoid3) {
   EXPECT_FAILURE(v_v, kExprI64Const, 0);
   EXPECT_FAILURE(v_v, kExprF32Const, 0, 0, 0, 0);
   EXPECT_FAILURE(v_v, kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0);
+  EXPECT_FAILURE(v_v, kExprRefNull);
 
   EXPECT_FAILURE(v_i, kExprGetLocal, 0);
 }
@@ -1228,6 +1236,8 @@ TEST_F(FunctionBodyDecoderTest, MacrosInt64) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AllSimpleExpressions) {
+  EXPERIMENTAL_FLAG_SCOPE(se);
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
 // Test all simple expressions which are described by a signature.
 #define DECODE_TEST(name, opcode, sig)                      \
   {                                                         \
@@ -1378,7 +1388,7 @@ TEST_F(FunctionBodyDecoderTest, AllLoadMemCombinations) {
       MachineType mem_type = machineTypes[j];
       byte code[] = {WASM_LOAD_MEM(mem_type, WASM_ZERO)};
       FunctionSig sig(1, 0, &local_type);
-      if (local_type == WasmOpcodes::ValueTypeFor(mem_type)) {
+      if (local_type == ValueTypes::ValueTypeFor(mem_type)) {
         EXPECT_VERIFIES_SC(&sig, code);
       } else {
         EXPECT_FAILURE_SC(&sig, code);
@@ -1397,7 +1407,7 @@ TEST_F(FunctionBodyDecoderTest, AllStoreMemCombinations) {
       MachineType mem_type = machineTypes[j];
       byte code[] = {WASM_STORE_MEM(mem_type, WASM_ZERO, WASM_GET_LOCAL(0))};
       FunctionSig sig(0, 1, &local_type);
-      if (local_type == WasmOpcodes::ValueTypeFor(mem_type)) {
+      if (local_type == ValueTypes::ValueTypeFor(mem_type)) {
         EXPECT_VERIFIES_SC(&sig, code);
       } else {
         EXPECT_FAILURE_SC(&sig, code);
@@ -2682,14 +2692,14 @@ class BranchTableIteratorTest : public TestWithZone {
   BranchTableIteratorTest() : TestWithZone() {}
   void CheckBrTableSize(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableOperand<Decoder::kValidate> operand(&decoder, start);
+    BranchTableImmediate<Decoder::kValidate> operand(&decoder, start);
     BranchTableIterator<Decoder::kValidate> iterator(&decoder, operand);
     EXPECT_EQ(end - start - 1u, iterator.length());
     EXPECT_TRUE(decoder.ok());
   }
   void CheckBrTableError(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableOperand<Decoder::kValidate> operand(&decoder, start);
+    BranchTableImmediate<Decoder::kValidate> operand(&decoder, start);
     BranchTableIterator<Decoder::kValidate> iterator(&decoder, operand);
     iterator.length();
     EXPECT_FALSE(decoder.ok());
@@ -2777,6 +2787,7 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
 TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   EXPECT_LENGTH(5, kExprF32Const);
   EXPECT_LENGTH(9, kExprF64Const);
+  EXPECT_LENGTH(1, kExprRefNull);
   EXPECT_LENGTH(2, kExprGetLocal);
   EXPECT_LENGTH(2, kExprSetLocal);
   EXPECT_LENGTH(2, kExprGetGlobal);
@@ -2964,6 +2975,7 @@ TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
   EXPECT_LENGTH(1, kExprF64ReinterpretI64);
   EXPECT_LENGTH(1, kExprI32ReinterpretF32);
   EXPECT_LENGTH(1, kExprI64ReinterpretF64);
+  EXPECT_LENGTH(1, kExprRefEq);
 }
 
 TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
@@ -3013,10 +3025,11 @@ TEST_F(LocalDeclDecoderTest, NoLocals) {
 }
 
 TEST_F(LocalDeclDecoderTest, OneLocal) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
-    const byte data[] = {
-        1, 1, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(type))};
+    const byte data[] = {1, 1,
+                         static_cast<byte>(ValueTypes::ValueTypeCodeFor(type))};
     BodyLocalDecls decls(zone());
     bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
@@ -3028,10 +3041,11 @@ TEST_F(LocalDeclDecoderTest, OneLocal) {
 }
 
 TEST_F(LocalDeclDecoderTest, FiveLocals) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
-    const byte data[] = {
-        1, 5, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(type))};
+    const byte data[] = {1, 5,
+                         static_cast<byte>(ValueTypes::ValueTypeCodeFor(type))};
     BodyLocalDecls decls(zone());
     bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
     EXPECT_TRUE(result);

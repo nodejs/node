@@ -45,6 +45,8 @@ the IPC channel is closed.
 added: v0.1.7
 -->
 
+* `code` {integer}
+
 The `'exit'` event is emitted when the Node.js process is about to exit as a
 result of either:
 
@@ -56,7 +58,7 @@ all `'exit'` listeners have finished running the Node.js process will terminate.
 
 The listener callback function is invoked with the exit code specified either
 by the [`process.exitCode`][] property, or the `exitCode` argument passed to the
-[`process.exit()`] method, as the only argument.
+[`process.exit()`] method.
 
 ```js
 process.on('exit', (code) => {
@@ -82,15 +84,15 @@ process.on('exit', (code) => {
 added: v0.5.10
 -->
 
+* `message` { Object | boolean | number | string | null } a parsed JSON object
+  or a serializable primitive value.
+* `sendHandle` {net.Server|net.Socket} a [`net.Server`][] or [`net.Socket`][]
+  object, or undefined.
+
 If the Node.js process is spawned with an IPC channel (see the [Child Process][]
 and [Cluster][] documentation), the `'message'` event is emitted whenever a
 message sent by a parent process using [`childprocess.send()`][] is received by
 the child process.
-
-The listener callback is invoked with the following arguments:
-* `message` {Object} a parsed JSON object or primitive value.
-* `sendHandle` {Handle object} a [`net.Socket`][] or [`net.Server`][] object, or
-  undefined.
 
 The message goes through serialization and parsing. The resulting message might
 not be the same as what is originally sent.
@@ -100,12 +102,11 @@ not be the same as what is originally sent.
 added: v1.4.1
 -->
 
+* `promise` {Promise} The late handled promise.
+
 The `'rejectionHandled'` event is emitted whenever a `Promise` has been rejected
 and an error handler was attached to it (using [`promise.catch()`][], for
 example) later than one turn of the Node.js event loop.
-
-The listener callback is invoked with a reference to the rejected `Promise` as
-the only argument.
 
 The `Promise` object would have previously been emitted in an
 `'unhandledRejection'` event, but during the course of processing gained a
@@ -129,11 +130,11 @@ when the list of unhandled rejections shrinks.
 
 ```js
 const unhandledRejections = new Map();
-process.on('unhandledRejection', (reason, p) => {
-  unhandledRejections.set(p, reason);
+process.on('unhandledRejection', (reason, promise) => {
+  unhandledRejections.set(promise, reason);
 });
-process.on('rejectionHandled', (p) => {
-  unhandledRejections.delete(p);
+process.on('rejectionHandled', (promise) => {
+  unhandledRejections.delete(promise);
 });
 ```
 
@@ -150,9 +151,13 @@ added: v0.1.18
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
-handles such exceptions by printing the stack trace to `stderr` and exiting.
+handles such exceptions by printing the stack trace to `stderr` and exiting
+with code 1, overriding any previously set [`process.exitCode`][].
 Adding a handler for the `'uncaughtException'` event overrides this default
-behavior.
+behavior. You may also change the [`process.exitCode`][] in
+`'uncaughtException'` handler which will result in process exiting with
+provided exit code, otherwise in the presence of such handler the process will
+exit with 0.
 
 The listener function is called with the `Error` object passed as the only
 argument.
@@ -185,7 +190,7 @@ process will exit with a non-zero exit code and the stack trace will be printed.
 This is to avoid infinite recursion.
 
 Attempting to resume normally after an uncaught exception can be similar to
-pulling out of the power cord when upgrading a computer -- nine out of ten
+pulling out of the power cord when upgrading a computer — nine out of ten
 times nothing happens - but the 10th time, the system becomes corrupted.
 
 The correct use of `'uncaughtException'` is to perform synchronous cleanup
@@ -194,7 +199,7 @@ down the process. **It is not safe to resume normal operation after
 `'uncaughtException'`.**
 
 To restart a crashed application in a more reliable way, whether
-`uncaughtException` is emitted or not, an external monitor should be employed
+`'uncaughtException'` is emitted or not, an external monitor should be employed
 in a separate process to detect application failures and recover or restart as
 needed.
 
@@ -204,10 +209,10 @@ added: v1.4.1
 changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/8217
-    description: Not handling Promise rejections has been deprecated.
+    description: Not handling `Promise` rejections is deprecated.
   - version: v6.6.0
     pr-url: https://github.com/nodejs/node/pull/8223
-    description: Unhandled Promise rejections will now emit
+    description: Unhandled `Promise` rejections will now emit
                  a process warning.
 -->
 
@@ -233,7 +238,7 @@ process.on('unhandledRejection', (reason, p) => {
 
 somePromise.then((res) => {
   return reportToUser(JSON.pasre(res)); // note the typo (`pasre`)
-}); // no `.catch` or `.then`
+}); // no `.catch()` or `.then()`
 ```
 
 The following will also trigger the `'unhandledRejection'` event to be
@@ -261,6 +266,12 @@ being emitted. Alternatively, the [`'rejectionHandled'`][] event may be used.
 added: v6.0.0
 -->
 
+* `warning` {Error} Key properties of the warning are:
+  * `name` {string} The name of the warning. **Default:** `'Warning'`.
+  * `message` {string} A system-provided description of the warning.
+  * `stack` {string} A stack trace to the location in the code where the warning
+    was issued.
+
 The `'warning'` event is emitted whenever Node.js emits a process warning.
 
 A process warning is similar to an error in that it describes exceptional
@@ -268,14 +279,6 @@ conditions that are being brought to the user's attention. However, warnings
 are not part of the normal Node.js and JavaScript error handling flow.
 Node.js can emit warnings whenever it detects bad coding practices that could
 lead to sub-optimal application performance, bugs, or security vulnerabilities.
-
-The listener function is called with a single `warning` argument whose value is
-an `Error` object. There are three key properties that describe the warning:
-
-* `name` {string} The name of the warning (currently `Warning` by default).
-* `message` {string} A system-provided description of the warning.
-* `stack` {string} A stack trace to the location in the code where the warning
-  was issued.
 
 ```js
 process.on('warning', (warning) => {
@@ -290,7 +293,7 @@ command-line option can be used to suppress the default console output but the
 `'warning'` event will still be emitted by the `process` object.
 
 The following example illustrates the warning that is printed to `stderr` when
-too many listeners have been added to an event
+too many listeners have been added to an event:
 
 ```txt
 $ node
@@ -326,7 +329,7 @@ Using the `--no-deprecation` command line flag will suppress all reporting
 of the custom deprecation.
 
 The `*-deprecation` command line flags only affect warnings that use the name
-`DeprecationWarning`.
+`'DeprecationWarning'`.
 
 #### Emitting custom warnings
 
@@ -340,7 +343,7 @@ custom or application-specific warnings.
 
 Signal events will be emitted when the Node.js process receives a signal. Please
 refer to signal(7) for a listing of standard POSIX signal names such as
-`SIGINT`, `SIGHUP`, etc.
+`'SIGINT'`, `'SIGHUP'`, etc.
 
 The signal handler will receive the signal's name (`'SIGINT'`,
  `'SIGTERM'`, etc.) as the first argument.
@@ -353,7 +356,7 @@ The name of each event will be the uppercase common name for the signal (e.g.
 process.stdin.resume();
 
 process.on('SIGINT', () => {
-  console.log('Received SIGINT.  Press Control-D to exit.');
+  console.log('Received SIGINT. Press Control-D to exit.');
 });
 
 // Using a single function to handle multiple signals
@@ -365,37 +368,38 @@ process.on('SIGINT', handle);
 process.on('SIGTERM', handle);
 ```
 
-* `SIGUSR1` is reserved by Node.js to start the [debugger][]. It's possible to
+* `'SIGUSR1'` is reserved by Node.js to start the [debugger][]. It's possible to
   install a listener but doing so might interfere with the debugger.
-* `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that
+* `'SIGTERM'` and `'SIGINT'` have default handlers on non-Windows platforms that
   reset the terminal mode before exiting with code `128 + signal number`. If one
   of these signals has a listener installed, its default behavior will be
   removed (Node.js will no longer exit).
-* `SIGPIPE` is ignored by default. It can have a listener installed.
-* `SIGHUP` is generated on Windows when the console window is closed, and on
+* `'SIGPIPE'` is ignored by default. It can have a listener installed.
+* `'SIGHUP'` is generated on Windows when the console window is closed, and on
   other platforms under various similar conditions, see signal(7). It can have a
   listener installed, however Node.js will be unconditionally terminated by
   Windows about 10 seconds later. On non-Windows platforms, the default
   behavior of `SIGHUP` is to terminate Node.js, but once a listener has been
   installed its default behavior will be removed.
-* `SIGTERM` is not supported on Windows, it can be listened on.
-* `SIGINT` from the terminal is supported on all platforms, and can usually be
+* `'SIGTERM'` is not supported on Windows, it can be listened on.
+* `'SIGINT'` from the terminal is supported on all platforms, and can usually be
   generated with `<Ctrl>+C` (though this may be configurable). It is not
   generated when terminal raw mode is enabled.
-* `SIGBREAK` is delivered on Windows when `<Ctrl>+<Break>` is pressed, on
+* `'SIGBREAK'` is delivered on Windows when `<Ctrl>+<Break>` is pressed, on
   non-Windows platforms it can be listened on, but there is no way to send or
   generate it.
-* `SIGWINCH` is delivered when the console has been resized. On Windows, this
+* `'SIGWINCH'` is delivered when the console has been resized. On Windows, this
   will only happen on write to the console when the cursor is being moved, or
   when a readable tty is used in raw mode.
-* `SIGKILL` cannot have a listener installed, it will unconditionally terminate
-  Node.js on all platforms.
-* `SIGSTOP` cannot have a listener installed.
-* `SIGBUS`, `SIGFPE`, `SIGSEGV` and `SIGILL`, when not raised artificially
-   using kill(2), inherently leave the process in a state from which it is not
-   safe to attempt to call JS listeners. Doing so might lead to the process
-   hanging in an endless loop, since listeners attached using `process.on()` are
-   called asynchronously and therefore unable to correct the underlying problem.
+* `'SIGKILL'` cannot have a listener installed, it will unconditionally
+  terminate Node.js on all platforms.
+* `'SIGSTOP'` cannot have a listener installed.
+* `'SIGBUS'`, `'SIGFPE'`, `'SIGSEGV'` and `'SIGILL'`, when not raised
+   artificially using kill(2), inherently leave the process in a state from
+   which it is not safe to attempt to call JS listeners. Doing so might lead to
+   the process hanging in an endless loop, since listeners attached using
+   `process.on()` are called asynchronously and therefore unable to correct the
+   underlying problem.
 
 Windows does not support sending signals, but Node.js offers some emulation
 with [`process.kill()`][], and [`subprocess.kill()`][]. Sending signal `0` can
@@ -409,6 +413,57 @@ added: v0.7.0
 
 The `process.abort()` method causes the Node.js process to exit immediately and
 generate a core file.
+
+This feature is not available in [`Worker`][] threads.
+
+## process.allowedNodeEnvironmentFlags
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Set}
+
+The `process.allowedNodeEnvironmentFlags` property is a special,
+read-only `Set` of flags allowable within the [`NODE_OPTIONS`][]
+environment variable.
+
+`process.allowedNodeEnvironmentFlags` extends `Set`, but overrides
+`Set.prototype.has` to recognize several different possible flag
+representations.  `process.allowedNodeEnvironmentFlags.has()` will
+return `true` in the following cases:
+
+- Flags may omit leading single (`-`) or double (`--`) dashes; e.g.,
+  `inspect-brk` for `--inspect-brk`, or `r` for `-r`.
+- Flags passed through to V8 (as listed in `--v8-options`) may replace
+  one or more *non-leading* dashes for an underscore, or vice-versa;
+  e.g., `--perf_basic_prof`, `--perf-basic-prof`, `--perf_basic-prof`,
+  etc.
+- Flags may contain one or more equals (`=`) characters; all
+  characters after and including the first equals will be ignored;
+  e.g., `--stack-trace-limit=100`.
+- Flags *must* be allowable within [`NODE_OPTIONS`][].
+
+When iterating over `process.allowedNodeEnvironmentFlags`, flags will
+appear only *once*; each will begin with one or more dashes. Flags
+passed through to V8 will contain underscores instead of non-leading
+dashes:
+
+```js
+process.allowedNodeEnvironmentFlags.forEach((flag) => {
+  // -r
+  // --inspect-brk
+  // --abort_on_uncaught_exception
+  // ...
+});
+```
+
+The methods `add()`, `clear()`, and `delete()` of
+`process.allowedNodeEnvironmentFlags` do nothing, and will fail
+silently.
+
+If Node.js was compiled *without* [`NODE_OPTIONS`][] support (shown in
+[`process.config`][]), `process.allowedNodeEnvironmentFlags` will
+contain what *would have* been allowable.
 
 ## process.arch
 <!-- YAML
@@ -432,12 +487,12 @@ console.log(`This processor architecture is ${process.arch}`);
 added: v0.1.27
 -->
 
-* {Array}
+* {string[]}
 
 The `process.argv` property returns an array containing the command line
 arguments passed when the Node.js process was launched. The first element will
 be [`process.execPath`]. See `process.argv0` if access to the original value of
-`argv[0]` is needed.  The second element will be the path to the JavaScript
+`argv[0]` is needed. The second element will be the path to the JavaScript
 file being executed. The remaining elements will be any additional command line
 arguments.
 
@@ -517,6 +572,8 @@ try {
 }
 ```
 
+This feature is not available in [`Worker`][] threads.
+
 ## process.config
 <!-- YAML
 added: v0.7.7
@@ -524,7 +581,7 @@ added: v0.7.7
 
 * {Object}
 
-The `process.config` property returns an Object containing the JavaScript
+The `process.config` property returns an `Object` containing the JavaScript
 representation of the configure options used to compile the current Node.js
 executable. This is the same as the `config.gypi` file that was produced when
 running the `./configure` script.
@@ -661,7 +718,7 @@ changes:
 
 * `module` {Object}
 * `filename` {string}
-* `flags` {os.constants.dlopen} Defaults to `os.constants.dlopen.RTLD_LAZY`.
+* `flags` {os.constants.dlopen} **Default:** `os.constants.dlopen.RTLD_LAZY`
 
 The `process.dlopen()` method allows to dynamically load shared
 objects. It is primarily used by `require()` to load
@@ -699,17 +756,17 @@ added: v8.0.0
 
 * `warning` {string|Error} The warning to emit.
 * `options` {Object}
-  * `type` {string} When `warning` is a String, `type` is the name to use
-    for the *type* of warning being emitted. Default: `Warning`.
+  * `type` {string} When `warning` is a `String`, `type` is the name to use
+    for the *type* of warning being emitted. **Default:** `'Warning'`.
   * `code` {string} A unique identifier for the warning instance being emitted.
-  * `ctor` {Function} When `warning` is a String, `ctor` is an optional
-    function used to limit the generated stack trace. Default
-    `process.emitWarning`
+  * `ctor` {Function} When `warning` is a `String`, `ctor` is an optional
+    function used to limit the generated stack trace. **Default:**
+    `process.emitWarning`.
   * `detail` {string} Additional text to include with the error.
 
 The `process.emitWarning()` method can be used to emit custom or application
 specific process warnings. These can be listened for by adding a handler to the
-[`process.on('warning')`][process_warning] event.
+[`'warning'`][process_warning] event.
 
 ```js
 // Emit a warning with a code and additional detail.
@@ -724,7 +781,7 @@ process.emitWarning('Something happened!', {
 
 In this example, an `Error` object is generated internally by
 `process.emitWarning()` and passed through to the
-[`process.on('warning')`][process_warning] event.
+[`'warning'`][process_warning] handler.
 
 ```js
 process.on('warning', (warning) => {
@@ -744,16 +801,16 @@ added: v6.0.0
 -->
 
 * `warning` {string|Error} The warning to emit.
-* `type` {string} When `warning` is a String, `type` is the name to use
-  for the *type* of warning being emitted. Default: `Warning`.
+* `type` {string} When `warning` is a `String`, `type` is the name to use
+  for the *type* of warning being emitted. **Default:** `'Warning'`.
 * `code` {string} A unique identifier for the warning instance being emitted.
-* `ctor` {Function} When `warning` is a String, `ctor` is an optional
-  function used to limit the generated stack trace. Default
-  `process.emitWarning`
+* `ctor` {Function} When `warning` is a `String`, `ctor` is an optional
+  function used to limit the generated stack trace. **Default:**
+  `process.emitWarning`.
 
 The `process.emitWarning()` method can be used to emit custom or application
 specific process warnings. These can be listened for by adding a handler to the
-[`process.on('warning')`][process_warning] event.
+[`'warning'`][process_warning] event.
 
 ```js
 // Emit a warning using a string.
@@ -773,8 +830,8 @@ process.emitWarning('Something happened!', 'CustomWarning', 'WARN001');
 ```
 
 In each of the previous examples, an `Error` object is generated internally by
-`process.emitWarning()` and passed through to the
-[`process.on('warning')`][process_warning] event.
+`process.emitWarning()` and passed through to the [`'warning'`][process_warning]
+handler.
 
 ```js
 process.on('warning', (warning) => {
@@ -786,7 +843,7 @@ process.on('warning', (warning) => {
 ```
 
 If `warning` is passed as an `Error` object, it will be passed through to the
-`process.on('warning')` event handler unmodified (and the optional `type`,
+`'warning'` event handler unmodified (and the optional `type`,
 `code` and `ctor` arguments will be ignored):
 
 ```js
@@ -807,7 +864,7 @@ Note that while process warnings use `Error` objects, the process warning
 mechanism is **not** a replacement for normal error handling mechanisms.
 
 The following additional handling is implemented if the warning `type` is
-`DeprecationWarning`:
+`'DeprecationWarning'`:
 
 * If the `--throw-deprecation` command-line flag is used, the deprecation
   warning is thrown as an exception rather than being emitted as an event.
@@ -839,7 +896,7 @@ emitMyWarning();
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18990
     description: Implicit conversion of variable value to string is deprecated.
 -->
@@ -918,12 +975,14 @@ console.log(process.env.test);
 // => 1
 ```
 
+`process.env` is read-only in [`Worker`][] threads.
+
 ## process.execArgv
 <!-- YAML
 added: v0.7.7
 -->
 
-* {Array}
+* {string[]}
 
 The `process.execArgv` property returns the set of Node.js-specific command-line
 options passed when the Node.js process was launched. These options do not
@@ -965,18 +1024,17 @@ that started the Node.js process.
 '/usr/local/bin/node'
 ```
 
-
 ## process.exit([code])
 <!-- YAML
 added: v0.1.13
 -->
 
-* `code` {integer} The exit code. Defaults to `0`.
+* `code` {integer} The exit code. **Default:** `0`.
 
 The `process.exit()` method instructs Node.js to terminate the process
 synchronously with an exit status of `code`. If `code` is omitted, exit uses
 either the 'success' code `0` or the value of `process.exitCode` if it has been
-set.  Node.js will not terminate until all the [`'exit'`] event listeners are
+set. Node.js will not terminate until all the [`'exit'`] event listeners are
 called.
 
 To exit with a 'failure' code:
@@ -1031,6 +1089,9 @@ If it is necessary to terminate the Node.js process due to an error condition,
 throwing an *uncaught* error and allowing the process to terminate accordingly
 is safer than calling `process.exit()`.
 
+In [`Worker`][] threads, this function stops the current thread rather
+than the current process.
+
 ## process.exitCode
 <!-- YAML
 added: v0.11.8
@@ -1044,7 +1105,6 @@ a code.
 
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
 previous setting of `process.exitCode`.
-
 
 ## process.getegid()
 <!-- YAML
@@ -1106,7 +1166,7 @@ Android).
 added: v0.9.4
 -->
 
-* Returns: {Array}
+* Returns: {integer[]}
 
 The `process.getgroups()` method returns an array with the supplementary group
 IDs. POSIX leaves it unspecified if the effective group ID is included but
@@ -1149,16 +1209,19 @@ Indicates whether a callback has been set using
 added: v0.7.6
 -->
 
-* `time` {Array} The result of a previous call to `process.hrtime()`
-* Returns: {Array}
+* `time` {integer[]} The result of a previous call to `process.hrtime()`
+* Returns: {integer[]}
+
+This is the legacy version of [`process.hrtime.bigint()`][]
+before `bigint` was introduced in JavaScript.
 
 The `process.hrtime()` method returns the current high-resolution real time
-in a `[seconds, nanoseconds]` tuple Array, where `nanoseconds` is the
+in a `[seconds, nanoseconds]` tuple `Array`, where `nanoseconds` is the
 remaining part of the real time that can't be represented in second precision.
 
 `time` is an optional parameter that must be the result of a previous
 `process.hrtime()` call to diff with the current time. If the parameter
-passed in is not a tuple Array, a `TypeError` will be thrown. Passing in a
+passed in is not a tuple `Array`, a `TypeError` will be thrown. Passing in a
 user-defined array instead of the result of a previous call to
 `process.hrtime()` will lead to undefined behavior.
 
@@ -1180,14 +1243,40 @@ setTimeout(() => {
 }, 1000);
 ```
 
+## process.hrtime.bigint()
+<!-- YAML
+added: v10.7.0
+-->
 
-## process.initgroups(user, extra_group)
+* Returns: {bigint}
+
+The `bigint` version of the [`process.hrtime()`][] method returning the
+current high-resolution real time in a `bigint`.
+
+Unlike [`process.hrtime()`][], it does not support an additional `time`
+argument since the difference can just be computed directly
+by subtraction of the two `bigint`s.
+
+```js
+const start = process.hrtime.bigint();
+// 191051479007711n
+
+setTimeout(() => {
+  const end = process.hrtime.bigint();
+  // 191052633396993n
+
+  console.log(`Benchmark took ${end - start} nanoseconds`);
+  // Benchmark took 1154389282 nanoseconds
+}, 1000);
+```
+
+## process.initgroups(user, extraGroup)
 <!-- YAML
 added: v0.9.4
 -->
 
 * `user` {string|number} The user name or numeric identifier.
-* `extra_group` {string|number} A group name or numeric identifier.
+* `extraGroup` {string|number} A group name or numeric identifier.
 
 The `process.initgroups()` method reads the `/etc/group` file and initializes
 the group access list, using all groups of which the user is a member. This is
@@ -1206,6 +1295,7 @@ console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
 
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
+This feature is not available in [`Worker`][] threads.
 
 ## process.kill(pid[, signal])
 <!-- YAML
@@ -1214,7 +1304,7 @@ added: v0.0.6
 
 * `pid` {number} A process ID
 * `signal` {string|number} The signal to send, either as a string or number.
-  Defaults to `'SIGTERM'`.
+  **Default:** `'SIGTERM'`.
 
 The `process.kill()` method sends the `signal` to the process identified by
 `pid`.
@@ -1228,7 +1318,7 @@ Windows platforms will throw an error if the `pid` is used to kill a process
 group.
 
 Even though the name of this function is `process.kill()`, it is really just a
-signal sender, like the `kill` system call.  The signal sent may do something
+signal sender, like the `kill` system call. The signal sent may do something
 other than kill the target process.
 
 ```js
@@ -1309,6 +1399,9 @@ The _heap_ is where objects, strings, and closures are stored. Variables are
 stored in the _stack_ and the actual JavaScript code resides in the
 _code segment_.
 
+When using [`Worker`][] threads, `rss` will be a value that is valid for the
+entire process, while the other fields will only refer to the current thread.
+
 ## process.nextTick(callback[, ...args])
 <!-- YAML
 added: v0.1.26
@@ -1326,7 +1419,7 @@ Once the current turn of the event loop turn runs to completion, all callbacks
 currently in the next tick queue will be called.
 
 This is *not* a simple alias to [`setTimeout(fn, 0)`][]. It is much more
-efficient.  It runs before any additional I/O events (including
+efficient. It runs before any additional I/O events (including
 timers) fire in subsequent ticks of the event loop.
 
 ```js
@@ -1361,7 +1454,7 @@ thing.getReadyForStuff();
 ```
 
 It is very important for APIs to be either 100% synchronous or 100%
-asynchronous.  Consider this example:
+asynchronous. Consider this example:
 
 ```js
 // WARNING!  DO NOT USE!  BAD UNSAFE HAZARD!
@@ -1403,8 +1496,8 @@ function definitelyAsync(arg, cb) {
 ```
 
 The next tick queue is completely drained on each pass of the event loop
-**before** additional I/O is processed.  As a result, recursively setting
-nextTick callbacks will block any I/O from happening, just like a
+**before** additional I/O is processed. As a result, recursively setting
+`nextTick()` callbacks will block any I/O from happening, just like a
 `while(true);` loop.
 
 ## process.noDeprecation
@@ -1416,8 +1509,8 @@ added: v0.8.0
 
 The `process.noDeprecation` property indicates whether the `--no-deprecation`
 flag is set on the current Node.js process. See the documentation for
-the [`warning` event][process_warning] and the
-[`emitWarning` method][process_emit_warning] for more information about this
+the [`'warning'` event][process_warning] and the
+[`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
 ## process.pid
@@ -1485,8 +1578,8 @@ changes:
 
 * {Object}
 
-The `process.release` property returns an Object containing metadata related to
-the current release, including URLs for the source tarball and headers-only
+The `process.release` property returns an `Object` containing metadata related
+to the current release, including URLs for the source tarball and headers-only
 tarball.
 
 `process.release` contains the following properties:
@@ -1505,7 +1598,7 @@ tarball.
   builds of Node.js and will be missing on all other platforms._
 * `lts` {string} a string label identifying the [LTS][] label for this release.
   This property only exists for LTS releases and is `undefined` for all other
-  release types, including _Current_ releases.  Currently the valid values are:
+  release types, including _Current_ releases. Currently the valid values are:
   - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
   - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
   - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
@@ -1531,7 +1624,7 @@ added: v0.5.9
 -->
 
 * `message` {Object}
-* `sendHandle` {Handle object}
+* `sendHandle` {net.Server|net.Socket}
 * `options` {Object}
 * `callback` {Function}
 * Returns: {boolean}
@@ -1572,7 +1665,7 @@ if (process.getegid && process.setegid) {
 
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
-
+This feature is not available in [`Worker`][] threads.
 
 ## process.seteuid(id)
 <!-- YAML
@@ -1583,7 +1676,7 @@ added: v2.0.0
 
 The `process.seteuid()` method sets the effective user identity of the process.
 (See seteuid(2).) The `id` can be passed as either a numeric ID or a username
-string.  If a username is specified, the method blocks while resolving the
+string. If a username is specified, the method blocks while resolving the
 associated numeric ID.
 
 ```js
@@ -1600,6 +1693,7 @@ if (process.geteuid && process.seteuid) {
 
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
+This feature is not available in [`Worker`][] threads.
 
 ## process.setgid(id)
 <!-- YAML
@@ -1609,7 +1703,7 @@ added: v0.1.31
 * `id` {string|number} The group name or ID
 
 The `process.setgid()` method sets the group identity of the process. (See
-setgid(2).)  The `id` can be passed as either a numeric ID or a group name
+setgid(2).) The `id` can be passed as either a numeric ID or a group name
 string. If a group name is specified, this method blocks while resolving the
 associated numeric ID.
 
@@ -1627,13 +1721,14 @@ if (process.getgid && process.setgid) {
 
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
+This feature is not available in [`Worker`][] threads.
 
 ## process.setgroups(groups)
 <!-- YAML
 added: v0.9.4
 -->
 
-* `groups` {Array}
+* `groups` {integer[]}
 
 The `process.setgroups()` method sets the supplementary group IDs for the
 Node.js process. This is a privileged operation that requires the Node.js
@@ -1643,14 +1738,16 @@ The `groups` array can contain numeric group IDs, group names or both.
 
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
+This feature is not available in [`Worker`][] threads.
 
 ## process.setuid(id)
 <!-- YAML
 added: v0.1.28
 -->
+* `id` {integer | string}
 
 The `process.setuid(id)` method sets the user identity of the process. (See
-setuid(2).)  The `id` can be passed as either a numeric ID or a username string.
+setuid(2).) The `id` can be passed as either a numeric ID or a username string.
 If a username is specified, the method blocks while resolving the associated
 numeric ID.
 
@@ -1668,6 +1765,7 @@ if (process.getuid && process.setuid) {
 
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
+This feature is not available in [`Worker`][] threads.
 
 ## process.setUncaughtExceptionCaptureCallback(fn)
 <!-- YAML
@@ -1676,18 +1774,19 @@ added: v9.3.0
 
 * `fn` {Function|null}
 
-The `process.setUncaughtExceptionCapture` function sets a function that will
-be invoked when an uncaught exception occurs, which will receive the exception
-value itself as its first argument.
+The `process.setUncaughtExceptionCaptureCallback()` function sets a function
+that will be invoked when an uncaught exception occurs, which will receive the
+exception value itself as its first argument.
 
-If such a function is set, the [`process.on('uncaughtException')`][] event will
+If such a function is set, the [`'uncaughtException'`][] event will
 not be emitted. If `--abort-on-uncaught-exception` was passed from the
 command line or set through [`v8.setFlagsFromString()`][], the process will
 not abort.
 
-To unset the capture function, `process.setUncaughtExceptionCapture(null)`
-may be used. Calling this method with a non-`null` argument while another
-capture function is set will throw an error.
+To unset the capture function,
+`process.setUncaughtExceptionCaptureCallback(null)` may be used. Calling this
+method with a non-`null` argument while another capture function is set will
+throw an error.
 
 Using this function is mutually exclusive with using the deprecated
 [`domain`][] built-in module.
@@ -1703,6 +1802,8 @@ a [Writable][] stream.
 
 `process.stderr` differs from other Node.js streams in important ways, see
 [note on process I/O][] for more information.
+
+This feature is not available in [`Worker`][] threads.
 
 ## process.stdin
 
@@ -1736,6 +1837,8 @@ In "old" streams mode the `stdin` stream is paused by default, so one
 must call `process.stdin.resume()` to read from it. Note also that calling
 `process.stdin.resume()` itself would switch stream to "old" mode.
 
+This feature is not available in [`Worker`][] threads.
+
 ## process.stdout
 
 * {Stream}
@@ -1745,7 +1848,7 @@ The `process.stdout` property returns a stream connected to
 stream) unless fd `1` refers to a file, in which case it is
 a [Writable][] stream.
 
-For example, to copy process.stdin to process.stdout:
+For example, to copy `process.stdin` to `process.stdout`:
 
 ```js
 process.stdin.pipe(process.stdout);
@@ -1753,6 +1856,8 @@ process.stdin.pipe(process.stdout);
 
 `process.stdout` differs from other Node.js streams in important ways, see
 [note on process I/O][] for more information.
+
+This feature is not available in [`Worker`][] threads.
 
 ### A note on process I/O
 
@@ -1812,8 +1917,8 @@ added: v0.9.12
 
 The `process.throwDeprecation` property indicates whether the
 `--throw-deprecation` flag is set on the current Node.js process. See the
-documentation for the [`warning` event][process_warning] and the
-[`emitWarning` method][process_emit_warning] for more information about this
+documentation for the [`'warning'` event][process_warning] and the
+[`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
 ## process.title
@@ -1831,7 +1936,7 @@ When a new value is assigned, different platforms will impose different maximum
 length restrictions on the title. Usually such restrictions are quite limited.
 For instance, on Linux and macOS, `process.title` is limited to the size of the
 binary name plus the length of the command line arguments because setting the
-`process.title` overwrites the `argv` memory of the process.  Node.js v0.8
+`process.title` overwrites the `argv` memory of the process. Node.js v0.8
 allowed for longer process title strings by also overwriting the `environ`
 memory but that was potentially insecure and confusing in some (rather obscure)
 cases.
@@ -1845,8 +1950,8 @@ added: v0.8.0
 
 The `process.traceDeprecation` property indicates whether the
 `--trace-deprecation` flag is set on the current Node.js process. See the
-documentation for the [`warning` event][process_warning] and the
-[`emitWarning` method][process_emit_warning] for more information about this
+documentation for the [`'warning'` event][process_warning] and the
+[`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
 ## process.umask([mask])
@@ -1869,6 +1974,7 @@ console.log(
 );
 ```
 
+This feature is not available in [`Worker`][] threads.
 
 ## process.uptime()
 <!-- YAML
@@ -1942,7 +2048,7 @@ Will generate an object similar to:
 ## Exit Codes
 
 Node.js will normally exit with a `0` status code when no more async
-operations are pending.  The following status codes are used in other
+operations are pending. The following status codes are used in other
 cases:
 
 * `1` **Uncaught Fatal Exception** - There was an uncaught exception,
@@ -1950,12 +2056,12 @@ cases:
   handler.
 * `2` - Unused (reserved by Bash for builtin misuse)
 * `3` **Internal JavaScript Parse Error** - The JavaScript source code
-  internal in Node.js's bootstrapping process caused a parse error.  This
+  internal in Node.js's bootstrapping process caused a parse error. This
   is extremely rare, and generally can only happen during development
   of Node.js itself.
 * `4` **Internal JavaScript Evaluation Failure** - The JavaScript
   source code internal in Node.js's bootstrapping process failed to
-  return a function value when evaluated.  This is extremely rare, and
+  return a function value when evaluated. This is extremely rare, and
   generally can only happen during development of Node.js itself.
 * `5` **Fatal Error** - There was a fatal unrecoverable error in V8.
   Typically a message will be printed to stderr with the prefix `FATAL
@@ -1965,27 +2071,26 @@ cases:
   function was somehow set to a non-function, and could not be called.
 * `7` **Internal Exception Handler Run-Time Failure** - There was an
   uncaught exception, and the internal fatal exception handler
-  function itself threw an error while attempting to handle it.  This
-  can happen, for example, if a [`'uncaughtException'`][] or
+  function itself threw an error while attempting to handle it. This
+  can happen, for example, if an [`'uncaughtException'`][] or
   `domain.on('error')` handler throws an error.
-* `8` - Unused.  In previous versions of Node.js, exit code 8 sometimes
+* `8` - Unused. In previous versions of Node.js, exit code 8 sometimes
   indicated an uncaught exception.
 * `9` - **Invalid Argument** - Either an unknown option was specified,
   or an option requiring a value was provided without a value.
 * `10` **Internal JavaScript Run-Time Failure** - The JavaScript
   source code internal in Node.js's bootstrapping process threw an error
-  when the bootstrapping function was called.  This is extremely rare,
+  when the bootstrapping function was called. This is extremely rare,
   and generally can only happen during development of Node.js itself.
 * `12` **Invalid Debug Argument** - The `--inspect` and/or `--inspect-brk`
   options were set, but the port number chosen was invalid or unavailable.
 * `>128` **Signal Exits** - If Node.js receives a fatal signal such as
   `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
-  value of the signal code.  This is a standard POSIX practice, since
+  value of the signal code. This is a standard POSIX practice, since
   exit codes are defined to be 7-bit integers, and signal exits set
   the high-order bit, and then contain the value of the signal code.
   For example, signal `SIGABRT` has value `6`, so the expected exit
   code will be `128` + `6`, or `134`.
-
 
 [`'exit'`]: #process_event_exit
 [`'finish'`]: stream.html#stream_event_finish
@@ -1998,19 +2103,23 @@ cases:
 [`ChildProcess`]: child_process.html#child_process_class_childprocess
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`Worker`]: worker_threads.html#worker_threads_class_worker
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
 [`domain`]: domain.html
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
+[`NODE_OPTIONS`]: cli.html#cli_node_options_options
 [`os.constants.dlopen`]: os.html#os_dlopen_constants
 [`process.argv`]: #process_process_argv
+[`process.config`]: #process_process_config
 [`process.execPath`]: #process_process_execpath
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
+[`process.hrtime()`]: #process_process_hrtime_time
+[`process.hrtime.bigint()`]: #process_process_hrtime_bigint
 [`process.kill()`]: #process_process_kill_pid_signal
-[`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require()`]: globals.html#globals_require
@@ -2023,7 +2132,7 @@ cases:
 [Cluster]: cluster.html
 [debugger]: debugger.html
 [Duplex]: stream.html#stream_duplex_and_transform_streams
-[LTS]: https://github.com/nodejs/LTS/
+[LTS]: https://github.com/nodejs/Release
 [note on process I/O]: process.html#process_a_note_on_process_i_o
 [process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning

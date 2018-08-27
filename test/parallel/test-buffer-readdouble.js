@@ -99,7 +99,12 @@ assert.strictEqual(buffer.readDoubleBE(0), 3.04814e-319);
 assert.strictEqual(buffer.readDoubleLE(0), -Infinity);
 
 ['readDoubleLE', 'readDoubleBE'].forEach((fn) => {
-  ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((off) => {
+
+  // Verify that default offset works fine.
+  buffer[fn](undefined);
+  buffer[fn]();
+
+  ['', '0', null, {}, [], () => {}, true, false].forEach((off) => {
     assert.throws(
       () => buffer[fn](off),
       { code: 'ERR_INVALID_ARG_TYPE' }

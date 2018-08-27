@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PARSING_PREPARSER_H
-#define V8_PARSING_PREPARSER_H
+#ifndef V8_PARSING_PREPARSER_H_
+#define V8_PARSING_PREPARSER_H_
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
@@ -51,6 +51,9 @@ class PreParserIdentifier {
   static PreParserIdentifier Name() {
     return PreParserIdentifier(kNameIdentifier);
   }
+  static PreParserIdentifier PrivateName() {
+    return PreParserIdentifier(kPrivateNameIdentifier);
+  }
   bool IsNull() const { return type_ == kNullIdentifier; }
   bool IsEval() const { return type_ == kEvalIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
@@ -58,6 +61,7 @@ class PreParserIdentifier {
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
   bool IsAwait() const { return type_ == kAwaitIdentifier; }
   bool IsName() const { return type_ == kNameIdentifier; }
+  bool IsPrivateName() const { return type_ == kPrivateNameIdentifier; }
 
  private:
   enum Type {
@@ -68,7 +72,8 @@ class PreParserIdentifier {
     kConstructorIdentifier,
     kAwaitIdentifier,
     kAsyncIdentifier,
-    kNameIdentifier
+    kNameIdentifier,
+    kPrivateNameIdentifier
   };
 
   explicit PreParserIdentifier(Type type) : type_(type), string_(nullptr) {}
@@ -169,6 +174,12 @@ class PreParserExpression {
                                variables);
   }
 
+  static PreParserExpression ThisPropertyWithPrivateFieldKey() {
+    return PreParserExpression(TypeField::encode(kExpression) |
+                               ExpressionTypeField::encode(
+                                   kThisPropertyExpressionWithPrivateFieldKey));
+  }
+
   static PreParserExpression ThisProperty() {
     return PreParserExpression(
         TypeField::encode(kExpression) |
@@ -179,6 +190,12 @@ class PreParserExpression {
     return PreParserExpression(
         TypeField::encode(kExpression) |
         ExpressionTypeField::encode(kPropertyExpression));
+  }
+
+  static PreParserExpression PropertyWithPrivateFieldKey() {
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kPropertyExpressionWithPrivateFieldKey));
   }
 
   static PreParserExpression Call() {
@@ -254,13 +271,27 @@ class PreParserExpression {
 
   bool IsThisProperty() const {
     return TypeField::decode(code_) == kExpression &&
-           ExpressionTypeField::decode(code_) == kThisPropertyExpression;
+           (ExpressionTypeField::decode(code_) == kThisPropertyExpression ||
+            ExpressionTypeField::decode(code_) ==
+                kThisPropertyExpressionWithPrivateFieldKey);
   }
 
   bool IsProperty() const {
     return TypeField::decode(code_) == kExpression &&
            (ExpressionTypeField::decode(code_) == kPropertyExpression ||
-            ExpressionTypeField::decode(code_) == kThisPropertyExpression);
+            ExpressionTypeField::decode(code_) == kThisPropertyExpression ||
+            ExpressionTypeField::decode(code_) ==
+                kPropertyExpressionWithPrivateFieldKey ||
+            ExpressionTypeField::decode(code_) ==
+                kThisPropertyExpressionWithPrivateFieldKey);
+  }
+
+  bool IsPropertyWithPrivateFieldKey() const {
+    return TypeField::decode(code_) == kExpression &&
+           (ExpressionTypeField::decode(code_) ==
+                kPropertyExpressionWithPrivateFieldKey ||
+            ExpressionTypeField::decode(code_) ==
+                kThisPropertyExpressionWithPrivateFieldKey);
   }
 
   bool IsCall() const {
@@ -298,12 +329,22 @@ class PreParserExpression {
   // and PreParser.
   PreParserExpression* operator->() { return this; }
 
+  void set_is_private_field() {
+    if (variables_ != nullptr) {
+      DCHECK(IsIdentifier());
+      DCHECK(AsIdentifier().IsPrivateName());
+      DCHECK_EQ(1, variables_->length());
+      variables_->first()->set_is_private_field();
+    }
+  }
+
   // More dummy implementations of things PreParser doesn't need to track:
   void SetShouldEagerCompile() {}
 
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
   void set_scope(Scope* scope) {}
+  void set_suspend_count(int suspend_count) {}
 
  private:
   enum Type {
@@ -319,7 +360,9 @@ class PreParserExpression {
   enum ExpressionType {
     kThisExpression,
     kThisPropertyExpression,
+    kThisPropertyExpressionWithPrivateFieldKey,
     kPropertyExpression,
+    kPropertyExpressionWithPrivateFieldKey,
     kCallExpression,
     kCallEvalExpression,
     kCallTaggedTemplateExpression,
@@ -580,8 +623,16 @@ class PreParserFactory {
   PreParserExpression NewVariableProxy(void* variable) {
     return PreParserExpression::Default();
   }
+
   PreParserExpression NewProperty(const PreParserExpression& obj,
                                   const PreParserExpression& key, int pos) {
+    if (key.IsIdentifier() && key.AsIdentifier().IsPrivateName()) {
+      if (obj.IsThis()) {
+        return PreParserExpression::ThisPropertyWithPrivateFieldKey();
+      }
+      return PreParserExpression::PropertyWithPrivateFieldKey();
+    }
+
     if (obj.IsThis()) {
       return PreParserExpression::ThisProperty();
     }
@@ -984,6 +1035,10 @@ class PreParser : public ParserBase<PreParser> {
       TemplateLiteralState* state, int start, const PreParserExpression& tag) {
     return PreParserExpression::Default();
   }
+  V8_INLINE bool IsPropertyWithPrivateFieldKey(
+      const PreParserExpression& expression) {
+    return expression.IsPropertyWithPrivateFieldKey();
+  }
   V8_INLINE void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
 
   V8_INLINE void SetLanguageMode(Scope* scope, LanguageMode mode) {
@@ -1142,15 +1197,22 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void DeclareClassProperty(const PreParserIdentifier& class_name,
                                       const PreParserExpression& property,
+                                      const PreParserIdentifier& property_name,
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       bool is_computed_name,
                                       ClassInfo* class_info, bool* ok) {
-    if (kind == ClassLiteralProperty::FIELD && is_computed_name) {
+    if (kind == ClassLiteralProperty::PUBLIC_FIELD && is_computed_name) {
       scope()->DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           CONST);
+    }
+
+    if (kind == ClassLiteralProperty::PRIVATE_FIELD &&
+        property_name.string_ != nullptr) {
+      DCHECK(track_unresolved_variables_);
+      scope()->DeclareVariableName(property_name.string_, CONST);
     }
   }
 
@@ -1528,10 +1590,6 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::NewTargetExpression();
   }
 
-  V8_INLINE PreParserExpression FunctionSentExpression(int pos) {
-    return PreParserExpression::Default();
-  }
-
   V8_INLINE PreParserExpression ImportMetaExpression(int pos) {
     return PreParserExpression::Default();
   }
@@ -1707,4 +1765,4 @@ PreParserExpression PreParser::SpreadCallNew(
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PARSING_PREPARSER_H
+#endif  // V8_PARSING_PREPARSER_H_

@@ -65,7 +65,6 @@ CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbort(
   return kTaskRemoved;
 }
 
-
 void CancelableTaskManager::CancelAndWait() {
   // Clean up all cancelable fore- and background tasks. Tasks are canceled on
   // the way if possible, i.e., if they have not started yet.  After each round

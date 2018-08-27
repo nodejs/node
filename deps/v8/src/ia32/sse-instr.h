@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SSE_INSTR_H_
-#define V8_SSE_INSTR_H_
+#ifndef V8_IA32_SSE_INSTR_H_
+#define V8_IA32_SSE_INSTR_H_
 
 #define SSE2_INSTRUCTION_LIST(V) \
+  V(packsswb, 66, 0F, 63)        \
+  V(packssdw, 66, 0F, 6B)        \
+  V(packuswb, 66, 0F, 67)        \
   V(paddb, 66, 0F, FC)           \
   V(paddw, 66, 0F, FD)           \
   V(paddd, 66, 0F, FE)           \
@@ -44,12 +47,15 @@
   V(pxor, 66, 0F, EF)
 
 #define SSSE3_INSTRUCTION_LIST(V) \
+  V(phaddd, 66, 0F, 38, 02)       \
+  V(phaddw, 66, 0F, 38, 01)       \
   V(pshufb, 66, 0F, 38, 00)       \
   V(psignb, 66, 0F, 38, 08)       \
   V(psignw, 66, 0F, 38, 09)       \
   V(psignd, 66, 0F, 38, 0A)
 
 #define SSE4_INSTRUCTION_LIST(V) \
+  V(packusdw, 66, 0F, 38, 2B)    \
   V(pminsb, 66, 0F, 38, 38)      \
   V(pminsd, 66, 0F, 38, 39)      \
   V(pminuw, 66, 0F, 38, 3A)      \
@@ -60,4 +66,4 @@
   V(pmaxud, 66, 0F, 38, 3F)      \
   V(pmulld, 66, 0F, 38, 40)
 
-#endif  // V8_SSE_INSTR_H_
+#endif  // V8_IA32_SSE_INSTR_H_

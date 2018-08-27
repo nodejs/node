@@ -1,14 +1,22 @@
-#!/usr/local/bin/perl -w
+#! /usr/bin/env perl
+# Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
 
 my $config = "crypto/err/openssl.ec";
-my $hprefix = "openssl/";
 my $debug = 0;
+my $unref = 0;
 my $rebuild = 0;
 my $static = 1;
 my $recurse = 0;
 my $reindex = 0;
 my $dowrite = 0;
 my $staticloader = "";
+my @t = localtime();
+my $YEAR = @t[5] + 1900;
 
 my $pack_errcode;
 my $load_errcode;
@@ -26,6 +34,7 @@ while (@ARGV) {
 		$hprefix = shift @ARGV;
 	} elsif($arg eq "-debug") {
 		$debug = 1;
+		$unref = 1;
 		shift @ARGV;
 	} elsif($arg eq "-rebuild") {
 		$rebuild = 1;
@@ -42,6 +51,9 @@ while (@ARGV) {
 	} elsif($arg eq "-staticloader") {
 		$staticloader = "static ";
 		shift @ARGV;
+	} elsif($arg eq "-unref") {
+		$unref = 1;
+		shift @ARGV;
 	} elsif($arg eq "-write") {
 		$dowrite = 1;
 		shift @ARGV;
@@ -57,6 +69,8 @@ Options:
   -hprefix P    Prepend the filenames in generated #include <header>
                 statements with prefix P. Default: 'openssl/' (without
                 the quotes, naturally)
+                NOTE: not used any more because our include directory
+                structure has changed.
 
   -debug        Turn on debugging verbose output on stderr.
 
@@ -89,7 +103,7 @@ Options:
                   void ERR_load_<LIB>_strings(void);
                   void ERR_unload_<LIB>_strings(void);
                   void ERR_<LIB>_error(int f, int r, char *fn, int ln);
-                  #define <LIB>err(f,r) ERR_<LIB>_error(f,r,__FILE__,__LINE__)
+                  #define <LIB>err(f,r) ERR_<LIB>_error(f,r,OPENSSL_FILE,OPENSSL_LINE)
                 while the code facilitates the use of these in an environment
                 where the error support routines are dynamically loaded at 
                 runtime.
@@ -97,6 +111,8 @@ Options:
 
   -staticloader Prefix generated functions with the 'static' scope modifier.
                 Default: don't write any scope modifier prefix.
+
+  -unref        Print out unreferenced function and reason codes.
 
   -write        Actually (over)write the generated code to the header and C 
                 source files as assigned to each library through the config 
@@ -116,7 +132,7 @@ EOF
 }
 
 if($recurse) {
-	@source = (<crypto/*.c>, <crypto/*/*.c>, <ssl/*.c>);
+	@source = ( <crypto/*.c>, <crypto/*/*.c>, <ssl/*.c>, <ssl/*/*.c> )
 } else {
 	@source = @ARGV;
 }
@@ -328,9 +344,18 @@ foreach $file (@source) {
 	next if exists $cskip{$file};
 	print STDERR "File loaded: ".$file."\r" if $debug;
 	open(IN, "<$file") || die "Can't open source file $file\n";
+	my $func;
+	my $linenr = 0;
 	while(<IN>) {
 		# skip obsoleted source files entirely!
 		last if(/^#error\s+obsolete/);
+		$linenr++;
+		if (!/;$/ && /^\**([a-zA-Z_].*[\s*])?([A-Za-z_0-9]+)\(.*([),]|$)/)
+			{
+			/^([^()]*(\([^()]*\)[^()]*)*)\(/;
+			$1 =~ /([A-Za-z_0-9]*)$/;
+			$func = $1;
+			}
 
 		if(/(([A-Z0-9]+)_F_([A-Z0-9_]+))/) {
 			next unless exists $csrc{$2};
@@ -340,7 +365,11 @@ foreach $file (@source) {
 				$fcodes{$1} = "X";
 				$fnew{$2}++;
 			}
-			$notrans{$1} = 1 unless exists $ftrans{$3};
+			$ftrans{$3} = $func unless exists $ftrans{$3};
+            if (uc $func ne $3) {
+                print STDERR "ERROR: mismatch $file:$linenr $func:$3\n";
+                $errcount++;
+            }
 			print STDERR "Function: $1\t= $fcodes{$1} (lib: $2, name: $3)\n" if $debug; 
 		}
 		if(/(([A-Z0-9]+)_R_[A-Z0-9_]+)/) {
@@ -364,7 +393,6 @@ foreach $lib (keys %csrc)
 	my $hfile = $hinc{$lib};
 	my $cfile = $csrc{$lib};
 	if(!$fnew{$lib} && !$rnew{$lib}) {
-		print STDERR "$lib:\t\tNo new error codes\n";
 		next unless $rebuild;
 	} else {
 		print STDERR "$lib:\t\t$fnew{$lib} New Functions,";
@@ -398,58 +426,13 @@ foreach $lib (keys %csrc)
 	    $cpp = 1;
 	    $cplusplus = 1;
 	    push @out,
-"/* ====================================================================\n",
-" * Copyright (c) 2001-$year The OpenSSL Project.  All rights reserved.\n",
+"/*\n",
+" * Copyright 1995-$YEAR The OpenSSL Project Authors. All Rights Reserved.\n",
 " *\n",
-" * Redistribution and use in source and binary forms, with or without\n",
-" * modification, are permitted provided that the following conditions\n",
-" * are met:\n",
-" *\n",
-" * 1. Redistributions of source code must retain the above copyright\n",
-" *    notice, this list of conditions and the following disclaimer. \n",
-" *\n",
-" * 2. Redistributions in binary form must reproduce the above copyright\n",
-" *    notice, this list of conditions and the following disclaimer in\n",
-" *    the documentation and/or other materials provided with the\n",
-" *    distribution.\n",
-" *\n",
-" * 3. All advertising materials mentioning features or use of this\n",
-" *    software must display the following acknowledgment:\n",
-" *    \"This product includes software developed by the OpenSSL Project\n",
-" *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)\"\n",
-" *\n",
-" * 4. The names \"OpenSSL Toolkit\" and \"OpenSSL Project\" must not be used to\n",
-" *    endorse or promote products derived from this software without\n",
-" *    prior written permission. For written permission, please contact\n",
-" *    openssl-core\@openssl.org.\n",
-" *\n",
-" * 5. Products derived from this software may not be called \"OpenSSL\"\n",
-" *    nor may \"OpenSSL\" appear in their names without prior written\n",
-" *    permission of the OpenSSL Project.\n",
-" *\n",
-" * 6. Redistributions of any form whatsoever must retain the following\n",
-" *    acknowledgment:\n",
-" *    \"This product includes software developed by the OpenSSL Project\n",
-" *    for use in the OpenSSL Toolkit (http://www.openssl.org/)\"\n",
-" *\n",
-" * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY\n",
-" * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\n",
-" * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR\n",
-" * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR\n",
-" * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\n",
-" * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT\n",
-" * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;\n",
-" * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)\n",
-" * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,\n",
-" * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)\n",
-" * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED\n",
-" * OF THE POSSIBILITY OF SUCH DAMAGE.\n",
-" * ====================================================================\n",
-" *\n",
-" * This product includes cryptographic software written by Eric Young\n",
-" * (eay\@cryptsoft.com).  This product includes software written by Tim\n",
-" * Hudson (tjh\@cryptsoft.com).\n",
-" *\n",
+" * Licensed under the OpenSSL license (the \"License\").  You may not use\n",
+" * this file except in compliance with the License.  You can obtain a copy\n",
+" * in the file LICENSE in the source distribution or at\n",
+" * https://www.openssl.org/source/license.html\n",
 " */\n",
 "\n",
 "#ifndef HEADER_${lib}_ERR_H\n",
@@ -474,15 +457,15 @@ foreach $lib (keys %csrc)
 EOF
 	if($static) {
 		print OUT <<"EOF";
-${staticloader}void ERR_load_${lib}_strings(void);
+${staticloader}int ERR_load_${lib}_strings(void);
 
 EOF
 	} else {
 		print OUT <<"EOF";
-${staticloader}void ERR_load_${lib}_strings(void);
+${staticloader}int ERR_load_${lib}_strings(void);
 ${staticloader}void ERR_unload_${lib}_strings(void);
 ${staticloader}void ERR_${lib}_error(int function, int reason, char *file, int line);
-# define ${lib}err(f,r) ERR_${lib}_error((f),(r),__FILE__,__LINE__)
+# define ${lib}err(f,r) ERR_${lib}_error((f),(r),OPENSSL_FILE,OPENSSL_LINE)
 
 EOF
 	}
@@ -551,7 +534,7 @@ EOF
 	if (open(IN,"<$cfile")) {
 		my $line = "";
 		while (<IN>) {
-			chomp;
+			s|\R$||; # Better chomp
 			$_ = $line . $_;
 			$line = "";
 			if (/{ERR_(FUNC|REASON)\(/) {
@@ -574,8 +557,12 @@ EOF
 	my $hincf;
 	if($static) {
 		$hincf = $hfile;
-		$hincf =~ s|.*/||g;
-		$hincf = "<${hprefix}${hincf}>";
+		$hincf =~ s|.*include/||;
+		if ($hincf =~ m|^openssl/|) {
+			$hincf = "<${hincf}>";
+		} else {
+			$hincf = "\"${hincf}\"";
+		}
 	} else {
 		$hincf = "\"$hfile\"";
 	}
@@ -598,65 +585,14 @@ EOF
 	open (OUT,">$cfile") || die "Can't open $cfile for writing";
 
 	print OUT <<"EOF";
-/* $cfile */
-/* ====================================================================
- * Copyright (c) 1999-$year The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core\@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay\@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh\@cryptsoft.com).
- *
- */
-
 /*
- * NOTE: this file was auto generated by the mkerr.pl script: any changes
- * made to it will be overwritten when the script next updates this file,
- * only reason strings will be preserved.
+ * Generated by util/mkerr.pl DO NOT EDIT
+ * Copyright 1995-$YEAR The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
@@ -716,7 +652,7 @@ if($static) {
 
 #endif
 
-${staticloader}void ERR_load_${lib}_strings(void)
+${staticloader}int ERR_load_${lib}_strings(void)
 {
 #ifndef OPENSSL_NO_ERR
 
@@ -725,6 +661,7 @@ ${staticloader}void ERR_load_${lib}_strings(void)
         ERR_load_strings($load_errcode, ${lib}_str_reasons);
     }
 #endif
+    return 1;
 }
 EOF
 } else {
@@ -744,7 +681,7 @@ static ERR_STRING_DATA ${lib}_lib_name[] = {
 static int ${lib}_lib_error_code = 0;
 static int ${lib}_error_init = 1;
 
-${staticloader}void ERR_load_${lib}_strings(void)
+${staticloader}int ERR_load_${lib}_strings(void)
 {
     if (${lib}_lib_error_code == 0)
         ${lib}_lib_error_code = ERR_get_next_error_library();
@@ -761,6 +698,7 @@ ${staticloader}void ERR_load_${lib}_strings(void)
         ERR_load_strings(0, ${lib}_lib_name);
 #endif
     }
+    return 1;
 }
 
 ${staticloader}void ERR_unload_${lib}_strings(void)
@@ -810,7 +748,7 @@ foreach (keys %rcodes) {
 	push (@runref, $_) unless exists $urcodes{$_};
 }
 
-if($debug && @funref) {
+if($unref && @funref) {
 	print STDERR "The following function codes were not referenced:\n";
 	foreach(sort @funref)
 	{
@@ -818,7 +756,7 @@ if($debug && @funref) {
 	}
 }
 
-if($debug && @runref) {
+if($unref && @runref) {
 	print STDERR "The following reason codes were not referenced:\n";
 	foreach(sort @runref)
 	{

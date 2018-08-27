@@ -3,7 +3,7 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 
 #include "umutex.h"
 #include "ucln_cmn.h"
@@ -32,6 +32,7 @@ UBool U_CALLCONV cleanupDefaultCurrencySpacing() {
     UNISET_DIGIT = nullptr;
     delete UNISET_NOTS;
     UNISET_NOTS = nullptr;
+    gDefaultCurrencySpacingInitOnce.reset();
     return TRUE;
 }
 
@@ -48,6 +49,9 @@ void U_CALLCONV initDefaultCurrencySpacing(UErrorCode &status) {
 }
 
 }  // namespace
+
+
+Modifier::~Modifier() = default;
 
 
 int32_t ConstantAffixModifier::apply(NumberStringBuilder &output, int leftIndex, int rightIndex,

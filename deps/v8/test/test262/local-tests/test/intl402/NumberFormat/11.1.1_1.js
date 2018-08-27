@@ -31,12 +31,5 @@ testWithIntlConstructors(function (Constructor) {
       $ERROR("NumberFormat object created with \"new\" was not ignored as this-value.");
     }
 
-    // variant 2: use constructor as a function
-    obj = Constructor();
-    newObj = Intl.NumberFormat.call(obj);
-    if (obj === newObj) {
-      $ERROR("NumberFormat object created with constructor as function was not ignored as this-value.");
-    }
-
     return true;
 });

@@ -11,42 +11,8 @@
 #include "src/base/hashmap.h"
 #include "src/collector.h"
 #include "src/messages.h"
-#include "src/parsing/preparse-data-format.h"
-
 namespace v8 {
 namespace internal {
-
-class ScriptData {
- public:
-  ScriptData(const byte* data, int length);
-  ~ScriptData() {
-    if (owns_data_) DeleteArray(data_);
-  }
-
-  const byte* data() const { return data_; }
-  int length() const { return length_; }
-  bool rejected() const { return rejected_; }
-
-  void Reject() { rejected_ = true; }
-
-  void AcquireDataOwnership() {
-    DCHECK(!owns_data_);
-    owns_data_ = true;
-  }
-
-  void ReleaseDataOwnership() {
-    DCHECK(owns_data_);
-    owns_data_ = false;
-  }
-
- private:
-  bool owns_data_ : 1;
-  bool rejected_ : 1;
-  const byte* data_;
-  int length_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScriptData);
-};
 
 class PreParserLogger final {
  public:
@@ -72,25 +38,6 @@ class PreParserLogger final {
   // For function entries.
   int num_parameters_;
   int num_inner_functions_;
-};
-
-class ParserLogger final {
- public:
-  ParserLogger();
-
-  void LogFunction(int start, int end, int num_parameters,
-                   LanguageMode language_mode, bool uses_super_property,
-                   int num_inner_functions);
-
-  ScriptData* GetScriptData();
-
- private:
-  Collector<unsigned> function_store_;
-  unsigned preamble_[PreparseDataConstants::kHeaderSize];
-
-#ifdef DEBUG
-  int prev_start_;
-#endif
 };
 
 class PreParseData final {

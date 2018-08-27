@@ -164,137 +164,150 @@ You need the following ingredients:
 
 Here is some skeleton code you can fill in:
 
-  /* In this example, I will use a view of granted rights as a bit
-     array, one bit for each possible right.  */
+  #include <string.h>
+  #include <netdb.h>
+  #include <openssl/x509.h>
+  #include <openssl/x509v3.h>
+
+  #define total_rights 25
+
+  /*
+   * In this example, I will use a view of granted rights as a bit
+   * array, one bit for each possible right.
+   */
   typedef struct your_rights {
-    unsigned char rights[total_rights / 8];
+      unsigned char rights[(total_rights + 7) / 8];
   } YOUR_RIGHTS;
 
-  /* The following procedure will create an index for the ex_data
-     store in the X509 validation context the first time it's called.
-     Subsequent calls will return the same index.  */
-  static int get_proxy_auth_ex_data_idx(void)
+  /*
+   * The following procedure will create an index for the ex_data
+   * store in the X509 validation context the first time it's called.
+   * Subsequent calls will return the same index.  */
+  static int get_proxy_auth_ex_data_idx(X509_STORE_CTX *ctx)
   {
-    static volatile int idx = -1;
-    if (idx < 0)
-      {
-        CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
-        if (idx < 0)
-          {
-            idx = X509_STORE_CTX_get_ex_new_index(0,
-                                                  "for verify callback",
-                                                  NULL,NULL,NULL);
+      static volatile int idx = -1;
+      if (idx < 0) {
+          X509_STORE_lock(X509_STORE_CTX_get0_store(ctx));
+          if (idx < 0) {
+              idx = X509_STORE_CTX_get_ex_new_index(0,
+                                                    "for verify callback",
+                                                    NULL,NULL,NULL);
           }
-        CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
+          X509_STORE_unlock(X509_STORE_CTX_get0_store(ctx));
       }
-    return idx;
+      return idx;
   }
 
   /* Callback to be given to the X509 validation procedure.  */
   static int verify_callback(int ok, X509_STORE_CTX *ctx)
   {
-    if (ok == 1) /* It's REALLY important you keep the proxy policy
-                    check within this section.  It's important to know
-                    that when ok is 1, the certificates are checked
-                    from top to bottom.  You get the CA root first,
-                    followed by the possible chain of intermediate
-                    CAs, followed by the EE certificate, followed by
-                    the possible proxy certificates.  */
-      {
-        X509 *xs = ctx->current_cert;
+      if (ok == 1) {
+          /*
+           * It's REALLY important you keep the proxy policy
+           * check within this section.  It's important to know
+           * that when ok is 1, the certificates are checked
+           * from top to bottom.  You get the CA root first,
+           * followed by the possible chain of intermediate
+           * CAs, followed by the EE certificate, followed by
+           * the possible proxy certificates.
+           */
+          X509 *xs = X509_STORE_CTX_get_current_cert(ctx);
 
-        if (xs->ex_flags & EXFLAG_PROXY)
-          {
-            YOUR_RIGHTS *rights =
-              (YOUR_RIGHTS *)X509_STORE_CTX_get_ex_data(ctx,
-                get_proxy_auth_ex_data_idx());
-            PROXY_CERT_INFO_EXTENSION *pci =
-              X509_get_ext_d2i(xs, NID_proxyCertInfo, NULL, NULL);
+          if (X509_get_extension_flags(xs) & EXFLAG_PROXY) {
+              YOUR_RIGHTS *rights =
+                  (YOUR_RIGHTS *)X509_STORE_CTX_get_ex_data(ctx,
+                      get_proxy_auth_ex_data_idx(ctx));
+              PROXY_CERT_INFO_EXTENSION *pci =
+                  X509_get_ext_d2i(xs, NID_proxyCertInfo, NULL, NULL);
 
-            switch (OBJ_obj2nid(pci->proxyPolicy->policyLanguage))
-              {
+              switch (OBJ_obj2nid(pci->proxyPolicy->policyLanguage)) {
               case NID_Independent:
-                /* Do whatever you need to grant explicit rights to
-                   this particular proxy certificate, usually by
-                   pulling them from some database.  If there are none
-                   to be found, clear all rights (making this and any
-                   subsequent proxy certificate void of any rights).
-                */
-                memset(rights->rights, 0, sizeof(rights->rights));
-                break;
+                  /*
+                   * Do whatever you need to grant explicit rights to
+                   * this particular proxy certificate, usually by
+                   * pulling them from some database.  If there are none
+                   * to be found, clear all rights (making this and any
+                   * subsequent proxy certificate void of any rights).
+                   */
+                  memset(rights->rights, 0, sizeof(rights->rights));
+                  break;
               case NID_id_ppl_inheritAll:
-                /* This is basically a NOP, we simply let the current
-                   rights stand as they are. */
-                break;
+                  /*
+                   * This is basically a NOP, we simply let the current
+                   * rights stand as they are.
+                   */
+                  break;
               default:
-                /* This is usually the most complex section of code.
-                   You really do whatever you want as long as you
-                   follow RFC 3820.  In the example we use here, the
-                   simplest thing to do is to build another, temporary
-                   bit array and fill it with the rights granted by
-                   the current proxy certificate, then use it as a
-                   mask on the accumulated rights bit array, and
-                   voilà, you now have a new accumulated rights bit
-                   array.  */
-                {
-                  int i;
-                  YOUR_RIGHTS tmp_rights;
-                  memset(tmp_rights.rights, 0, sizeof(tmp_rights.rights));
+                  /* This is usually the most complex section of code.
+                   * You really do whatever you want as long as you
+                   * follow RFC 3820.  In the example we use here, the
+                   * simplest thing to do is to build another, temporary
+                   * bit array and fill it with the rights granted by
+                   * the current proxy certificate, then use it as a
+                   * mask on the accumulated rights bit array, and
+                   * voilà, you now have a new accumulated rights bit
+                   * array.
+                   */
+                  {
+                      int i;
+                      YOUR_RIGHTS tmp_rights;
+                      memset(tmp_rights.rights, 0, sizeof(tmp_rights.rights));
 
-                  /* process_rights() is supposed to be a procedure
-                     that takes a string and it's length, interprets
-                     it and sets the bits in the YOUR_RIGHTS pointed
-                     at by the third argument.  */
-                  process_rights((char *) pci->proxyPolicy->policy->data,
-                                 pci->proxyPolicy->policy->length,
-                                 &tmp_rights);
+                      /*
+                       * process_rights() is supposed to be a procedure
+                       * that takes a string and it's length, interprets
+                       * it and sets the bits in the YOUR_RIGHTS pointed
+                       * at by the third argument.
+                       */
+                      process_rights((char *) pci->proxyPolicy->policy->data,
+                                     pci->proxyPolicy->policy->length,
+                                     &tmp_rights);
 
-                  for(i = 0; i < total_rights / 8; i++)
-                    rights->rights[i] &= tmp_rights.rights[i];
-                }
-                break;
+                      for(i = 0; i < total_rights / 8; i++)
+                          rights->rights[i] &= tmp_rights.rights[i];
+                  }
+                  break;
               }
-            PROXY_CERT_INFO_EXTENSION_free(pci);
-          }
-        else if (!(xs->ex_flags & EXFLAG_CA))
-          {
-            /* We have a EE certificate, let's use it to set default!
-            */
-            YOUR_RIGHTS *rights =
-              (YOUR_RIGHTS *)X509_STORE_CTX_get_ex_data(ctx,
-                get_proxy_auth_ex_data_idx());
+              PROXY_CERT_INFO_EXTENSION_free(pci);
+          } else if (!(X509_get_extension_flags(xs) & EXFLAG_CA)) {
+              /* We have an EE certificate, let's use it to set default! */
+              YOUR_RIGHTS *rights =
+                  (YOUR_RIGHTS *)X509_STORE_CTX_get_ex_data(ctx,
+                      get_proxy_auth_ex_data_idx(ctx));
 
-            /* The following procedure finds out what rights the owner
-               of the current certificate has, and sets them in the
-               YOUR_RIGHTS structure pointed at by the second
-               argument.  */
-            set_default_rights(xs, rights);
+              /* The following procedure finds out what rights the owner
+               * of the current certificate has, and sets them in the
+               * YOUR_RIGHTS structure pointed at by the second
+               * argument.
+               */
+              set_default_rights(xs, rights);
           }
       }
-    return ok;
+      return ok;
   }
 
   static int my_X509_verify_cert(X509_STORE_CTX *ctx,
                                  YOUR_RIGHTS *needed_rights)
   {
-    int i;
-    int (*save_verify_cb)(int ok,X509_STORE_CTX *ctx) = ctx->verify_cb;
-    YOUR_RIGHTS rights;
+      int ok;
+      int (*save_verify_cb)(int ok,X509_STORE_CTX *ctx) =
+          X509_STORE_CTX_get_verify_cb(ctx);
+      YOUR_RIGHTS rights;
 
-    X509_STORE_CTX_set_verify_cb(ctx, verify_callback);
-    X509_STORE_CTX_set_ex_data(ctx, get_proxy_auth_ex_data_idx(), &rights);
-    X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_ALLOW_PROXY_CERTS);
-    ok = X509_verify_cert(ctx);
+      X509_STORE_CTX_set_verify_cb(ctx, verify_callback);
+      X509_STORE_CTX_set_ex_data(ctx, get_proxy_auth_ex_data_idx(ctx), &rights);
+      X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_ALLOW_PROXY_CERTS);
+      ok = X509_verify_cert(ctx);
 
-    if (ok == 1)
-      {
-        ok = check_needed_rights(rights, needed_rights);
+      if (ok == 1) {
+          ok = check_needed_rights(rights, needed_rights);
       }
 
-    X509_STORE_CTX_set_verify_cb(ctx, save_verify_cb);
+      X509_STORE_CTX_set_verify_cb(ctx, save_verify_cb);
 
-    return ok;
+      return ok;
   }
+
 
 If you use SSL or TLS, you can easily set up a callback to have the
 certificates checked properly, using the code above:

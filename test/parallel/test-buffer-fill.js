@@ -2,7 +2,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const errors = require('internal/errors');
+const { codes: { ERR_INDEX_OUT_OF_RANGE } } = require('internal/errors');
 const SIZE = 28;
 
 const buf1 = Buffer.allocUnsafe(SIZE);
@@ -214,12 +214,10 @@ function genBuffer(size, args) {
   return b.fill(0).fill.apply(b, args);
 }
 
-
 function bufReset() {
   buf1.fill(0);
   buf2.fill(0);
 }
-
 
 // This is mostly accurate. Except write() won't write partial bytes to the
 // string while fill() blindly copies bytes into memory. To account for that an
@@ -237,8 +235,9 @@ function writeToFill(string, offset, end, encoding) {
     end = buf2.length;
   }
 
+  // Should never be reached.
   if (offset < 0 || end > buf2.length)
-    throw new errors.RangeError('ERR_INDEX_OUT_OF_RANGE');
+    throw new ERR_INDEX_OUT_OF_RANGE();
 
   if (end <= offset)
     return buf2;
@@ -265,7 +264,6 @@ function writeToFill(string, offset, end, encoding) {
 
   return buf2;
 }
-
 
 function testBufs(string, offset, length, encoding) {
   bufReset();

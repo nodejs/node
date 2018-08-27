@@ -34,6 +34,9 @@ const path = require('path');
 const fixtures = require('../common/fixtures');
 const nodejs = `"${process.execPath}"`;
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 if (process.argv.length > 2) {
   console.log(process.argv.slice(2).join(' '));
   process.exit(0);

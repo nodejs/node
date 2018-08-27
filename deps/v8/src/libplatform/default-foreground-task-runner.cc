@@ -12,9 +12,7 @@ namespace platform {
 
 DefaultForegroundTaskRunner::DefaultForegroundTaskRunner(
     IdleTaskSupport idle_task_support, TimeFunction time_function)
-    : event_loop_control_(0),
-      idle_task_support_(idle_task_support),
-      time_function_(time_function) {}
+    : idle_task_support_(idle_task_support), time_function_(time_function) {}
 
 void DefaultForegroundTaskRunner::Terminate() {
   base::LockGuard<base::Mutex> guard(&lock_);
@@ -27,10 +25,10 @@ void DefaultForegroundTaskRunner::Terminate() {
 }
 
 void DefaultForegroundTaskRunner::PostTaskLocked(
-    std::unique_ptr<Task> task, const base::LockGuard<base::Mutex>& guard) {
+    std::unique_ptr<Task> task, const base::LockGuard<base::Mutex>&) {
   if (terminated_) return;
   task_queue_.push(std::move(task));
-  event_loop_control_.Signal();
+  event_loop_control_.NotifyOne();
 }
 
 void DefaultForegroundTaskRunner::PostTask(std::unique_ptr<Task> task) {
@@ -62,7 +60,8 @@ bool DefaultForegroundTaskRunner::IdleTasksEnabled() {
   return idle_task_support_ == IdleTaskSupport::kEnabled;
 }
 
-std::unique_ptr<Task> DefaultForegroundTaskRunner::PopTaskFromQueue() {
+std::unique_ptr<Task> DefaultForegroundTaskRunner::PopTaskFromQueue(
+    MessageLoopBehavior wait_for_work) {
   base::LockGuard<base::Mutex> guard(&lock_);
   // Move delayed tasks that hit their deadline to the main queue.
   std::unique_ptr<Task> task = PopTaskFromDelayedQueueLocked(guard);
@@ -71,7 +70,10 @@ std::unique_ptr<Task> DefaultForegroundTaskRunner::PopTaskFromQueue() {
     task = PopTaskFromDelayedQueueLocked(guard);
   }
 
-  if (task_queue_.empty()) return {};
+  while (task_queue_.empty()) {
+    if (wait_for_work == MessageLoopBehavior::kDoNotWait) return {};
+    WaitForTaskLocked(guard);
+  }
 
   task = std::move(task_queue_.front());
   task_queue_.pop();
@@ -81,7 +83,7 @@ std::unique_ptr<Task> DefaultForegroundTaskRunner::PopTaskFromQueue() {
 
 std::unique_ptr<Task>
 DefaultForegroundTaskRunner::PopTaskFromDelayedQueueLocked(
-    const base::LockGuard<base::Mutex>& guard) {
+    const base::LockGuard<base::Mutex>&) {
   if (delayed_task_queue_.empty()) return {};
 
   double now = MonotonicallyIncreasingTime();
@@ -109,7 +111,10 @@ std::unique_ptr<IdleTask> DefaultForegroundTaskRunner::PopTaskFromIdleQueue() {
   return task;
 }
 
-void DefaultForegroundTaskRunner::WaitForTask() { event_loop_control_.Wait(); }
+void DefaultForegroundTaskRunner::WaitForTaskLocked(
+    const base::LockGuard<base::Mutex>&) {
+  event_loop_control_.Wait(&lock_);
+}
 
 }  // namespace platform
 }  // namespace v8

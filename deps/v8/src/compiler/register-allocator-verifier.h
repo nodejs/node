@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_REGISTER_ALLOCATOR_VERIFIER_H_
-#define V8_REGISTER_ALLOCATOR_VERIFIER_H_
+#ifndef V8_COMPILER_REGISTER_ALLOCATOR_VERIFIER_H_
+#define V8_COMPILER_REGISTER_ALLOCATOR_VERIFIER_H_
 
 #include "src/compiler/instruction.h"
 #include "src/zone/zone-containers.h"
@@ -185,8 +185,9 @@ class RegisterAllocatorVerifier final : public ZoneObject {
     kFixedFPRegister,
     kSlot,
     kFixedSlot,
-    kNone,
-    kNoneFP,
+    kRegisterOrSlot,
+    kRegisterOrSlotFP,
+    kRegisterOrSlotOrConstant,
     kExplicit,
     kSameAsFirst,
     kRegisterAndSlot
@@ -270,4 +271,4 @@ class RegisterAllocatorVerifier final : public ZoneObject {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_COMPILER_REGISTER_ALLOCATOR_VERIFIER_H_

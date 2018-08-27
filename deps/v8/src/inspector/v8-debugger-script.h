@@ -27,8 +27,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef V8_INSPECTOR_V8DEBUGGERSCRIPT_H_
-#define V8_INSPECTOR_V8DEBUGGERSCRIPT_H_
+#ifndef V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
+#define V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
 
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
@@ -50,7 +50,7 @@ class V8DebuggerScript {
   static std::unique_ptr<V8DebuggerScript> CreateWasm(
       v8::Isolate* isolate, WasmTranslation* wasmTranslation,
       v8::Local<v8::debug::WasmScript> underlyingScript, String16 id,
-      String16 url, String16 source);
+      String16 url, int functionIndex);
 
   virtual ~V8DebuggerScript();
 
@@ -59,15 +59,16 @@ class V8DebuggerScript {
   bool hasSourceURL() const { return !m_sourceURL.isEmpty(); }
   const String16& sourceURL() const;
   virtual const String16& sourceMappingURL() const = 0;
-  const String16& source() const { return m_source; }
-  const String16& hash() const;
-  int startLine() const { return m_startLine; }
-  int startColumn() const { return m_startColumn; }
-  int endLine() const { return m_endLine; }
-  int endColumn() const { return m_endColumn; }
+  virtual const String16& source() const = 0;
+  virtual const String16& hash() const = 0;
+  virtual int startLine() const = 0;
+  virtual int startColumn() const = 0;
+  virtual int endLine() const = 0;
+  virtual int endColumn() const = 0;
   int executionContextId() const { return m_executionContextId; }
   virtual bool isLiveEdit() const = 0;
   virtual bool isModule() const = 0;
+  virtual bool isSourceLoadedLazily() const = 0;
 
   void setSourceURL(const String16&);
   virtual void setSourceMappingURL(const String16&) = 0;
@@ -95,12 +96,6 @@ class V8DebuggerScript {
   String16 m_id;
   String16 m_url;
   String16 m_sourceURL;
-  String16 m_source;
-  mutable String16 m_hash;
-  int m_startLine = 0;
-  int m_startColumn = 0;
-  int m_endLine = 0;
-  int m_endColumn = 0;
   int m_executionContextId = 0;
 
   v8::Isolate* m_isolate;
@@ -111,4 +106,4 @@ class V8DebuggerScript {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8DEBUGGERSCRIPT_H_
+#endif  // V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_

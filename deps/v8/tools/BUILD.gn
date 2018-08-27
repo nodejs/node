@@ -2,59 +2,46 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("../gni/isolate.gni")
+import("//build/config/sanitizers/sanitizers.gni")
+import("../gni/v8.gni")
 
 group("gn_all") {
   testonly = true
 
-  if (v8_test_isolation_mode != "noop") {
-    deps = [
-      ":check-static-initializers_run",
-      ":jsfunfuzz_run",
-      ":run-deopt-fuzzer_run",
-      ":run-gcmole_run",
-      ":run-num-fuzzer_run",
+  data_deps = [
+    ":v8_check_static_initializers",
+    "gcmole:v8_run_gcmole",
+    "jsfunfuzz:v8_jsfunfuzz",
+  ]
+}
+
+group("v8_check_static_initializers") {
+  data_deps = [
+    "..:d8",
+  ]
+
+  data = [
+    "check-static-initializers.sh",
+  ]
+}
+
+group("v8_testrunner") {
+  data_deps = [
+    "..:v8_dump_build_config",
+  ]
+
+  data = [
+    # Also add the num-fuzzer wrapper script in order to be able to run the
+    # num-fuzzer on all existing isolated V8 test suites.
+    "run-num-fuzzer.py",
+    "run-tests.py",
+    "testrunner/",
+  ]
+
+  if (v8_code_coverage && sanitizer_coverage_flags == "bb,trace-pc-guard") {
+    data += [
+      "sanitizers/sancov_merger.py",
+      "../third_party/llvm/projects/compiler-rt/lib/sanitizer_common/scripts/sancov.py",
     ]
   }
-}
-
-v8_isolate_run("check-static-initializers") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "check-static-initializers.isolate"
-}
-
-v8_isolate_run("jsfunfuzz") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "jsfunfuzz/jsfunfuzz.isolate"
-}
-
-v8_isolate_run("run-deopt-fuzzer") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "run-deopt-fuzzer.isolate"
-}
-
-v8_isolate_run("run-gcmole") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "gcmole/run-gcmole.isolate"
-}
-
-# TODO(machenbach): Add tests as dependencies.
-v8_isolate_run("run-num-fuzzer") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "run-num-fuzzer.isolate"
 }

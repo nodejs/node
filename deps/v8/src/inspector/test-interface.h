@@ -16,4 +16,4 @@ V8_EXPORT void DumpAsyncTaskStacksStateForTest(V8Inspector* inspector);
 
 }  //  v8_inspector
 
-#endif  //  V8_INSPECTOR_TEST_INTERFACE_H_
+#endif  // V8_INSPECTOR_TEST_INTERFACE_H_

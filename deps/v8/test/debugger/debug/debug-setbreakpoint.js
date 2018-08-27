@@ -129,8 +129,7 @@ assertTrue(breakListenerCalled, "Break listener not called on breakpoint set by 
 function SetBreakpointInI1Script() {
   var i_script = Debug.findScript(i1);
   assertTrue(!!i_script, "invalid script for i1");
-  Debug.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
-                            i_script.id, 4);
+  Debug.setScriptBreakPointById(i_script.id, 4);
 }
 
 // Creates the eval script and tries to set the breakpoint.

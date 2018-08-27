@@ -191,6 +191,8 @@ domain Debugger
       experimental optional boolean generatePreview
       # Whether to throw an exception if side effect cannot be ruled out during evaluation.
       optional boolean throwOnSideEffect
+      # Terminate execution after timing out (number of milliseconds).
+      experimental optional Runtime.TimeDelta timeout
     returns
       # Object wrapper for the evaluation result.
       Runtime.RemoteObject result
@@ -342,6 +344,20 @@ domain Debugger
       BreakpointId breakpointId
       # List of the locations this breakpoint resolved into upon addition.
       array of Location locations
+
+  # Sets JavaScript breakpoint before each call to the given function.
+  # If another function was created from the same source as a given one,
+  # calling it will also trigger the breakpoint.
+  experimental command setBreakpointOnFunctionCall
+    parameters
+      # Function object id.
+      Runtime.RemoteObjectId objectId
+      # Expression to use as a breakpoint condition. When specified, debugger will
+      # stop on the breakpoint if this expression evaluates to true.
+      optional string condition
+    returns
+      # Id of the created breakpoint for further reference.
+      BreakpointId breakpointId
 
   # Activates / deactivates all breakpoints on the page.
   command setBreakpointsActive
@@ -823,13 +839,9 @@ domain Runtime
   # Unique object identifier.
   type RemoteObjectId extends string
 
-  # Primitive value which cannot be JSON-stringified.
+  # Primitive value which cannot be JSON-stringified. Includes values `-0`, `NaN`, `Infinity`,
+  # `-Infinity`, and bigint literals.
   type UnserializableValue extends string
-    enum
-      Infinity
-      NaN
-      -Infinity
-      -0
 
   # Mirror object referencing original JavaScript object.
   type RemoteObject extends object
@@ -843,6 +855,7 @@ domain Runtime
         number
         boolean
         symbol
+        bigint
       # Object subtype hint. Specified for `object` type values only.
       optional enum subtype
         array
@@ -895,6 +908,7 @@ domain Runtime
         number
         boolean
         symbol
+        bigint
       # Object subtype hint. Specified for `object` type values only.
       optional enum subtype
         array
@@ -932,6 +946,7 @@ domain Runtime
         boolean
         symbol
         accessor
+        bigint
       # User-friendly property value string.
       optional string value
       # Nested value preview.
@@ -1046,6 +1061,9 @@ domain Runtime
 
   # Number of milliseconds since epoch.
   type Timestamp extends number
+
+  # Number of milliseconds.
+  type TimeDelta extends number
 
   # Stack entry for runtime errors and assertions.
   type CallFrame extends object
@@ -1188,11 +1206,30 @@ domain Runtime
       # Whether execution should `await` for resulting value and return once awaited promise is
       # resolved.
       optional boolean awaitPromise
+      # Whether to throw an exception if side effect cannot be ruled out during evaluation.
+      experimental optional boolean throwOnSideEffect
+      # Terminate execution after timing out (number of milliseconds).
+      experimental optional TimeDelta timeout
     returns
       # Evaluation result.
       RemoteObject result
       # Exception details.
       optional ExceptionDetails exceptionDetails
+
+  # Returns the isolate id.
+  experimental command getIsolateId
+    returns
+      # The isolate id.
+      string id
+
+  # Returns the JavaScript heap usage.
+  # It is the total usage of the corresponding isolate not scoped to a particular Runtime.
+  experimental command getHeapUsage
+    returns
+      # Used heap size in bytes.
+      number usedSize
+      # Allocated heap size in bytes.
+      number totalSize
 
   # Returns properties of a given object. Object group of the result is inherited from the target
   # object.
@@ -1228,6 +1265,8 @@ domain Runtime
     parameters
       # Identifier of the prototype to return objects for.
       RemoteObjectId prototypeObjectId
+      # Symbolic group name that can be used to release the results.
+      optional string objectGroup
     returns
       # Array with objects.
       RemoteObject objects
@@ -1278,6 +1317,10 @@ domain Runtime
   experimental command setCustomObjectFormatterEnabled
     parameters
       boolean enabled
+
+  # Terminate current or next JavaScript execution.
+  # Will cancel the termination when the outer-most script execution ends.
+  experimental command terminateExecution
 
   # Issued when console API was called.
   event consoleAPICalled

@@ -105,9 +105,7 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   LoopBuilder(BytecodeArrayBuilder* builder,
               BlockCoverageBuilder* block_coverage_builder, AstNode* node)
       : BreakableControlFlowBuilder(builder, block_coverage_builder, node),
-        continue_labels_(builder->zone()),
-        generator_jump_table_location_(nullptr),
-        parent_generator_jump_table_(nullptr) {
+        continue_labels_(builder->zone()) {
     if (block_coverage_builder_ != nullptr) {
       set_needs_continuation_counter();
       block_coverage_body_slot_ =
@@ -118,8 +116,6 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   ~LoopBuilder();
 
   void LoopHeader();
-  void LoopHeaderInGenerator(BytecodeJumpTable** parent_generator_jump_table,
-                             int first_resume_id, int resume_count);
   void LoopBody();
   void JumpToHeader(int loop_depth);
   void BindContinueTarget();
@@ -137,13 +133,6 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   // Unbound labels that identify jumps for continue statements in the code and
   // jumps from checking the loop condition to the header for do-while loops.
   BytecodeLabels continue_labels_;
-
-  // While we're in the loop, we want to have a different jump table for
-  // generator switch statements. We restore it at the end of the loop.
-  // TODO(leszeks): Storing a pointer to the BytecodeGenerator's jump table
-  // field is ugly, figure out a better way to do this.
-  BytecodeJumpTable** generator_jump_table_location_;
-  BytecodeJumpTable* parent_generator_jump_table_;
 
   int block_coverage_body_slot_;
 };

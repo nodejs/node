@@ -4,8 +4,8 @@
 #include <sstream>
 #include <queue>
 
-#include "node_mutex.h"
 #include "libplatform/v8-tracing.h"
+#include "tracing/agent.h"
 #include "uv.h"
 
 namespace node {
@@ -14,35 +14,32 @@ namespace tracing {
 using v8::platform::tracing::TraceObject;
 using v8::platform::tracing::TraceWriter;
 
-class NodeTraceWriter : public TraceWriter {
+class NodeTraceWriter : public AsyncTraceWriter {
  public:
-  explicit NodeTraceWriter(const std::string& log_file_pattern,
-                           uv_loop_t* tracing_loop);
+  explicit NodeTraceWriter(const std::string& log_file_pattern);
   ~NodeTraceWriter();
 
+  void InitializeOnThread(uv_loop_t* loop) override;
   void AppendTraceEvent(TraceObject* trace_event) override;
-  void Flush() override;
-  void Flush(bool blocking);
+  void Flush(bool blocking) override;
 
   static const int kTracesPerFile = 1 << 19;
 
  private:
   struct WriteRequest {
-    uv_fs_t req;
-    NodeTraceWriter* writer;
     std::string str;
     int highest_request_id;
   };
 
-  static void WriteCb(uv_fs_t* req);
+  void AfterWrite();
+  void StartWrite(uv_buf_t buf);
   void OpenNewFileForStreaming();
   void WriteToFile(std::string&& str, int highest_request_id);
   void WriteSuffix();
-  static void FlushSignalCb(uv_async_t* signal);
   void FlushPrivate();
   static void ExitSignalCb(uv_async_t* signal);
 
-  uv_loop_t* tracing_loop_;
+  uv_loop_t* tracing_loop_ = nullptr;
   // Triggers callback to initiate writing the contents of stream_ to disk.
   uv_async_t flush_signal_;
   // Triggers callback to close async objects, ending the tracing thread.
@@ -58,14 +55,15 @@ class NodeTraceWriter : public TraceWriter {
   // Used to wait until async handles have been closed.
   ConditionVariable exit_cond_;
   int fd_ = -1;
-  std::queue<WriteRequest*> write_req_queue_;
+  uv_fs_t write_req_;
+  std::queue<WriteRequest> write_req_queue_;
   int num_write_requests_ = 0;
   int highest_request_id_completed_ = 0;
   int total_traces_ = 0;
   int file_num_ = 0;
   const std::string& log_file_pattern_;
   std::ostringstream stream_;
-  TraceWriter* json_trace_writer_ = nullptr;
+  std::unique_ptr<TraceWriter> json_trace_writer_;
   bool exited_ = false;
 };
 

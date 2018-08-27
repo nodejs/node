@@ -29,7 +29,6 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckNotTaggedHole:
     case IrOpcode::kCheckNumber:
     case IrOpcode::kCheckReceiver:
-    case IrOpcode::kCheckSeqString:
     case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
     case IrOpcode::kCheckSymbol:
@@ -256,7 +255,7 @@ Reduction RedundancyElimination::TryReuseBoundsCheckForFirstInput(Node* node) {
     if (Node* bounds_check = checks->LookupBoundsCheckFor(left)) {
       // Only use the bounds checked type if it is better.
       if (NodeProperties::GetType(bounds_check)
-              ->Is(NodeProperties::GetType(left))) {
+              .Is(NodeProperties::GetType(left))) {
         node->ReplaceInput(0, bounds_check);
       }
     }

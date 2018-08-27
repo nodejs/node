@@ -18,5 +18,6 @@ runBenchmark('url',
                'to=ascii',
                'prop=href',
                'n=1',
+               'param=one'
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

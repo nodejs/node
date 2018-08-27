@@ -7,6 +7,7 @@
 
 #include "src/assembler.h"
 #include "src/frames.h"
+#include "src/heap/heap.h"
 
 // Helper types to make boolean flag easier to read at call-site.
 enum InvokeFlag {
@@ -186,6 +187,22 @@ class NoCurrentFrameScope {
  private:
   MacroAssembler* masm_;
   bool saved_;
+};
+
+// Prevent the use of the RootArray during the lifetime of this
+// scope object.
+class NoRootArrayScope {
+ public:
+  explicit NoRootArrayScope(MacroAssembler* masm)
+      : masm_(masm), old_value_(masm->root_array_available()) {
+    masm->set_root_array_available(false);
+  }
+
+  ~NoRootArrayScope() { masm_->set_root_array_available(old_value_); }
+
+ private:
+  MacroAssembler* masm_;
+  bool old_value_;
 };
 
 // Wrapper class for passing expected and actual parameter counts as

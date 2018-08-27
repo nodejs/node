@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
   for filename in filenames:
     for line in open(filename).readlines():
-      name, _, meta, _ = re.split('\s+', line)
+      name, _, _, meta, _ = re.split('\s+', line)
       if any(map(lambda p: p.match(name), excludes)): continue
       meta = meta.split(':')
       assert meta[0] in ('EXIST', 'NOEXIST')

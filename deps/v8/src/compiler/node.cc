@@ -60,8 +60,8 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
   // Verify that none of the inputs are {nullptr}.
   for (int i = 0; i < input_count; i++) {
     if (inputs[i] == nullptr) {
-      V8_Fatal(__FILE__, __LINE__, "Node::New() Error: #%d:%s[%d] is nullptr",
-               static_cast<int>(id), op->mnemonic(), i);
+      FATAL("Node::New() Error: #%d:%s[%d] is nullptr", static_cast<int>(id),
+            op->mnemonic(), i);
     }
   }
 #endif
@@ -337,7 +337,6 @@ std::ostream& operator<<(std::ostream& os, const Node& n) {
 
 Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
     : op_(op),
-      type_(nullptr),
       mark_(0),
       bit_field_(IdField::encode(id) | InlineCountField::encode(inline_count) |
                  InlineCapacityField::encode(inline_capacity)),

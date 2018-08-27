@@ -19,6 +19,7 @@
 namespace v8 {
 namespace internal {
 
+class BigInt;
 class HeapNumber;
 class Isolate;
 class JSArrayBuffer;
@@ -55,7 +56,7 @@ class ValueSerializer {
   /*
    * Serializes a V8 object into the buffer.
    */
-  Maybe<bool> WriteObject(Handle<Object> object) WARN_UNUSED_RESULT;
+  Maybe<bool> WriteObject(Handle<Object> object) V8_WARN_UNUSED_RESULT;
 
   /*
    * Returns the stored data. This serializer should not be used once the buffer
@@ -107,30 +108,33 @@ class ValueSerializer {
   void WriteZigZag(T value);
   void WriteOneByteString(Vector<const uint8_t> chars);
   void WriteTwoByteString(Vector<const uc16> chars);
+  void WriteBigIntContents(BigInt* bigint);
   Maybe<uint8_t*> ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
   void WriteOddball(Oddball* oddball);
   void WriteSmi(Smi* smi);
   void WriteHeapNumber(HeapNumber* number);
+  void WriteBigInt(BigInt* bigint);
   void WriteString(Handle<String> string);
-  Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver) WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSObject(Handle<JSObject> object) WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSObjectSlow(Handle<JSObject> object) WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSArray(Handle<JSArray> array) WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver)
+      V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSObjectSlow(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSArray(Handle<JSArray> array) V8_WARN_UNUSED_RESULT;
   void WriteJSDate(JSDate* date);
-  Maybe<bool> WriteJSValue(Handle<JSValue> value) WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSValue(Handle<JSValue> value) V8_WARN_UNUSED_RESULT;
   void WriteJSRegExp(JSRegExp* regexp);
-  Maybe<bool> WriteJSMap(Handle<JSMap> map) WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSSet(Handle<JSSet> map) WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSMap(Handle<JSMap> map) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSSet(Handle<JSSet> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)
-      WARN_UNUSED_RESULT;
+      V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView* array_buffer);
   Maybe<bool> WriteWasmModule(Handle<WasmModuleObject> object)
-      WARN_UNUSED_RESULT;
+      V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteWasmMemory(Handle<WasmMemoryObject> object)
-      WARN_UNUSED_RESULT;
-  Maybe<bool> WriteHostObject(Handle<JSObject> object) WARN_UNUSED_RESULT;
+      V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteHostObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
 
   /*
    * Reads the specified keys from the object and writes key-value pairs to the
@@ -138,7 +142,7 @@ class ValueSerializer {
    * if some keys are not own properties when accessed.
    */
   Maybe<uint32_t> WriteJSObjectPropertiesSlow(
-      Handle<JSObject> object, Handle<FixedArray> keys) WARN_UNUSED_RESULT;
+      Handle<JSObject> object, Handle<FixedArray> keys) V8_WARN_UNUSED_RESULT;
 
   /*
    * Asks the delegate to handle an error that occurred during data cloning, by
@@ -184,7 +188,7 @@ class ValueDeserializer {
   /*
    * Runs version detection logic, which may fail if the format is invalid.
    */
-  Maybe<bool> ReadHeader() WARN_UNUSED_RESULT;
+  Maybe<bool> ReadHeader() V8_WARN_UNUSED_RESULT;
 
   /*
    * Reads the underlying wire format version. Likely mostly to be useful to
@@ -196,7 +200,7 @@ class ValueDeserializer {
   /*
    * Deserializes a V8 object from the buffer.
    */
-  MaybeHandle<Object> ReadObject() WARN_UNUSED_RESULT;
+  MaybeHandle<Object> ReadObject() V8_WARN_UNUSED_RESULT;
 
   /*
    * Reads an object, consuming the entire buffer.
@@ -206,7 +210,7 @@ class ValueDeserializer {
    * deserializing, with the contents of objects and arrays provided first.
    */
   MaybeHandle<Object> ReadObjectUsingEntireBufferForLegacyFormat()
-      WARN_UNUSED_RESULT;
+      V8_WARN_UNUSED_RESULT;
 
   /*
    * Accepts the array buffer corresponding to the one passed previously to
@@ -219,62 +223,64 @@ class ValueDeserializer {
    * Publicly exposed wire format writing methods.
    * These are intended for use within the delegate's WriteHostObject method.
    */
-  bool ReadUint32(uint32_t* value) WARN_UNUSED_RESULT;
-  bool ReadUint64(uint64_t* value) WARN_UNUSED_RESULT;
-  bool ReadDouble(double* value) WARN_UNUSED_RESULT;
-  bool ReadRawBytes(size_t length, const void** data) WARN_UNUSED_RESULT;
+  bool ReadUint32(uint32_t* value) V8_WARN_UNUSED_RESULT;
+  bool ReadUint64(uint64_t* value) V8_WARN_UNUSED_RESULT;
+  bool ReadDouble(double* value) V8_WARN_UNUSED_RESULT;
+  bool ReadRawBytes(size_t length, const void** data) V8_WARN_UNUSED_RESULT;
   void set_expect_inline_wasm(bool expect_inline_wasm) {
     expect_inline_wasm_ = expect_inline_wasm;
   }
 
  private:
   // Reading the wire format.
-  Maybe<SerializationTag> PeekTag() const WARN_UNUSED_RESULT;
+  Maybe<SerializationTag> PeekTag() const V8_WARN_UNUSED_RESULT;
   void ConsumeTag(SerializationTag peeked_tag);
-  Maybe<SerializationTag> ReadTag() WARN_UNUSED_RESULT;
+  Maybe<SerializationTag> ReadTag() V8_WARN_UNUSED_RESULT;
   template <typename T>
-  Maybe<T> ReadVarint() WARN_UNUSED_RESULT;
+  Maybe<T> ReadVarint() V8_WARN_UNUSED_RESULT;
   template <typename T>
-  Maybe<T> ReadZigZag() WARN_UNUSED_RESULT;
-  Maybe<double> ReadDouble() WARN_UNUSED_RESULT;
-  Maybe<Vector<const uint8_t>> ReadRawBytes(int size) WARN_UNUSED_RESULT;
+  Maybe<T> ReadZigZag() V8_WARN_UNUSED_RESULT;
+  Maybe<double> ReadDouble() V8_WARN_UNUSED_RESULT;
+  Maybe<Vector<const uint8_t>> ReadRawBytes(int size) V8_WARN_UNUSED_RESULT;
   bool expect_inline_wasm() const { return expect_inline_wasm_; }
 
   // Reads a string if it matches the one provided.
   // Returns true if this was the case. Otherwise, nothing is consumed.
-  bool ReadExpectedString(Handle<String> expected) WARN_UNUSED_RESULT;
+  bool ReadExpectedString(Handle<String> expected) V8_WARN_UNUSED_RESULT;
 
   // Like ReadObject, but skips logic for special cases in simulating the
   // "stack machine".
-  MaybeHandle<Object> ReadObjectInternal() WARN_UNUSED_RESULT;
+  MaybeHandle<Object> ReadObjectInternal() V8_WARN_UNUSED_RESULT;
 
   // Reads a string intended to be part of a more complicated object.
   // Before v12, these are UTF-8 strings. After, they can be any encoding
   // permissible for a string (with the relevant tag).
-  MaybeHandle<String> ReadString() WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadString() V8_WARN_UNUSED_RESULT;
 
   // Reading V8 objects of specific kinds.
   // The tag is assumed to have already been read.
-  MaybeHandle<String> ReadUtf8String() WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadOneByteString() WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadTwoByteString() WARN_UNUSED_RESULT;
-  MaybeHandle<JSObject> ReadJSObject() WARN_UNUSED_RESULT;
-  MaybeHandle<JSArray> ReadSparseJSArray() WARN_UNUSED_RESULT;
-  MaybeHandle<JSArray> ReadDenseJSArray() WARN_UNUSED_RESULT;
-  MaybeHandle<JSDate> ReadJSDate() WARN_UNUSED_RESULT;
-  MaybeHandle<JSValue> ReadJSValue(SerializationTag tag) WARN_UNUSED_RESULT;
-  MaybeHandle<JSRegExp> ReadJSRegExp() WARN_UNUSED_RESULT;
-  MaybeHandle<JSMap> ReadJSMap() WARN_UNUSED_RESULT;
-  MaybeHandle<JSSet> ReadJSSet() WARN_UNUSED_RESULT;
-  MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer() WARN_UNUSED_RESULT;
-  MaybeHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer(bool is_shared)
-      WARN_UNUSED_RESULT;
+  MaybeHandle<BigInt> ReadBigInt() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadUtf8String() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadOneByteString() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadTwoByteString() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSObject> ReadJSObject() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSArray> ReadSparseJSArray() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSArray> ReadDenseJSArray() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSDate> ReadJSDate() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSValue> ReadJSValue(SerializationTag tag) V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSRegExp> ReadJSRegExp() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSMap> ReadJSMap() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSSet> ReadJSSet() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer(bool is_shared)
+      V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer()
+      V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
-      Handle<JSArrayBuffer> buffer) WARN_UNUSED_RESULT;
-  MaybeHandle<JSObject> ReadWasmModule() WARN_UNUSED_RESULT;
-  MaybeHandle<JSObject> ReadWasmModuleTransfer() WARN_UNUSED_RESULT;
-  MaybeHandle<WasmMemoryObject> ReadWasmMemory() WARN_UNUSED_RESULT;
-  MaybeHandle<JSObject> ReadHostObject() WARN_UNUSED_RESULT;
+      Handle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSObject> ReadWasmModule() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<WasmMemoryObject> ReadWasmMemory() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSObject> ReadHostObject() V8_WARN_UNUSED_RESULT;
 
   /*
    * Reads key-value pairs into the object until the specified end tag is
@@ -300,7 +306,7 @@ class ValueDeserializer {
 
   // Always global handles.
   Handle<FixedArray> id_map_;
-  MaybeHandle<NumberDictionary> array_buffer_transfer_map_;
+  MaybeHandle<SimpleNumberDictionary> array_buffer_transfer_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueDeserializer);
 };

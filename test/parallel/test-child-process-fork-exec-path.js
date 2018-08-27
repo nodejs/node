@@ -23,6 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const { COPYFILE_FICLONE } = fs.constants;
 const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const msg = { test: 'this' };
@@ -44,7 +45,7 @@ if (process.env.FORK) {
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }
-  fs.writeFileSync(copyPath, fs.readFileSync(nodePath));
+  fs.copyFileSync(nodePath, copyPath, COPYFILE_FICLONE);
   fs.chmodSync(copyPath, '0755');
 
   // slow but simple

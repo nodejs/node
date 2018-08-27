@@ -45,7 +45,6 @@ if (cluster.isMaster) {
 http.createServer(common.mustCall((req, res) => {
   assert.strictEqual(req.connection.remoteAddress, undefined);
   assert.strictEqual(req.connection.localAddress, undefined);
-  // TODO common.PIPE?
 
   res.writeHead(200);
   res.end('OK');

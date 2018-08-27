@@ -99,7 +99,8 @@ class HeapEntry BASE_EMBEDDED {
     kSynthetic = v8::HeapGraphNode::kSynthetic,
     kConsString = v8::HeapGraphNode::kConsString,
     kSlicedString = v8::HeapGraphNode::kSlicedString,
-    kSymbol = v8::HeapGraphNode::kSymbol
+    kSymbol = v8::HeapGraphNode::kSymbol,
+    kBigInt = v8::HeapGraphNode::kBigInt
   };
   static const int kNoEntry;
 
@@ -113,6 +114,7 @@ class HeapEntry BASE_EMBEDDED {
 
   HeapSnapshot* snapshot() { return snapshot_; }
   Type type() const { return static_cast<Type>(type_); }
+  void set_type(Type type) { type_ = type; }
   const char* name() const { return name_; }
   void set_name(const char* name) { name_ = name; }
   SnapshotObjectId id() const { return id_; }
@@ -165,8 +167,8 @@ class HeapSnapshot {
   HeapProfiler* profiler() { return profiler_; }
   HeapEntry* root() { return &entries_[root_index_]; }
   HeapEntry* gc_roots() { return &entries_[gc_roots_index_]; }
-  HeapEntry* gc_subroot(int index) {
-    return &entries_[gc_subroot_indexes_[index]];
+  HeapEntry* gc_subroot(Root root) {
+    return &entries_[gc_subroot_indexes_[static_cast<int>(root)]];
   }
   std::vector<HeapEntry>& entries() { return entries_; }
   std::deque<HeapGraphEdge>& edges() { return edges_; }
@@ -191,12 +193,12 @@ class HeapSnapshot {
  private:
   HeapEntry* AddRootEntry();
   HeapEntry* AddGcRootsEntry();
-  HeapEntry* AddGcSubrootEntry(int tag, SnapshotObjectId id);
+  HeapEntry* AddGcSubrootEntry(Root root, SnapshotObjectId id);
 
   HeapProfiler* profiler_;
   int root_index_;
   int gc_roots_index_;
-  int gc_subroot_indexes_[VisitorSynchronization::kNumberOfSyncTags];
+  int gc_subroot_indexes_[static_cast<int>(Root::kNumberOfRoots)];
   std::vector<HeapEntry> entries_;
   std::deque<HeapGraphEdge> edges_;
   std::deque<HeapGraphEdge*> children_;
@@ -263,6 +265,7 @@ class HeapObjectsMap {
   };
 
   SnapshotObjectId next_id_;
+  // TODO(jkummerow): Use a map that uses {Address} as the key type.
   base::HashMap entries_map_;
   std::vector<EntryInfo> entries_;
   std::vector<TimeInterval> time_intervals_;
@@ -354,7 +357,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   typedef bool (V8HeapExplorer::*ExtractReferencesMethod)(int entry,
                                                           HeapObject* object);
 
-  void MarkVisitedField(HeapObject* obj, int offset);
+  void MarkVisitedField(int offset);
 
   HeapEntry* AddEntry(HeapObject* object);
   HeapEntry* AddEntry(HeapObject* object,
@@ -384,12 +387,17 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
   void ExtractCodeReferences(int entry, Code* code);
   void ExtractCellReferences(int entry, Cell* cell);
+  void ExtractFeedbackCellReferences(int entry, FeedbackCell* feedback_cell);
   void ExtractWeakCellReferences(int entry, WeakCell* weak_cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
   void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
   void ExtractJSPromiseReferences(int entry, JSPromise* promise);
   void ExtractFixedArrayReferences(int entry, FixedArray* array);
+  void ExtractFeedbackVectorReferences(int entry,
+                                       FeedbackVector* feedback_vector);
+  template <typename T>
+  void ExtractWeakArrayReferences(int header_size, int entry, T* array);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
   void ExtractAccessorPairProperty(JSObject* js_obj, int entry, Name* key,
                                    Object* callback_obj, int field_offset = -1);
@@ -445,9 +453,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   void SetUserGlobalReference(Object* user_global);
   void SetRootGcRootsReference();
-  void SetGcRootsReference(VisitorSynchronization::SyncTag tag);
-  void SetGcSubrootReference(
-      VisitorSynchronization::SyncTag tag, bool is_weak, Object* child);
+  void SetGcRootsReference(Root root);
+  void SetGcSubrootReference(Root root, const char* description, bool is_weak,
+                             Object* child);
   const char* GetStrongGcSubrootName(Object* object);
   void TagObject(Object* obj, const char* tag);
   void TagFixedArraySubType(const FixedArray* array,
@@ -467,7 +475,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   std::unordered_map<const FixedArray*, FixedArraySubInstanceType> array_types_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
-  std::vector<bool> marks_;
+  std::vector<bool> visited_fields_;
 
   friend class IndexedReferencesExtractor;
   friend class RootsReferencesExtractor;
@@ -499,31 +507,36 @@ class NativeObjectsExplorer {
                                       v8::RetainedObjectInfo* info);
   void VisitSubtreeWrapper(Object** p, uint16_t class_id);
 
-  static uint32_t InfoHash(v8::RetainedObjectInfo* info) {
-    return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()));
-  }
-  static bool RetainedInfosMatch(void* key1, void* key2) {
-    return key1 == key2 ||
-        (reinterpret_cast<v8::RetainedObjectInfo*>(key1))->IsEquivalent(
-            reinterpret_cast<v8::RetainedObjectInfo*>(key2));
-  }
-  INLINE(static bool StringsMatch(void* key1, void* key2)) {
-    return strcmp(reinterpret_cast<char*>(key1),
-                  reinterpret_cast<char*>(key2)) == 0;
-  }
+  struct RetainedInfoHasher {
+    std::size_t operator()(v8::RetainedObjectInfo* info) const {
+      return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()));
+    }
+  };
+  struct RetainedInfoEquals {
+    bool operator()(v8::RetainedObjectInfo* info1,
+                    v8::RetainedObjectInfo* info2) const {
+      return info1 == info2 || info1->IsEquivalent(info2);
+    }
+  };
 
   NativeGroupRetainedObjectInfo* FindOrAddGroupInfo(const char* label);
+
+  HeapEntry* EntryForEmbedderGraphNode(EmbedderGraph::Node* node);
 
   Isolate* isolate_;
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
   bool embedder_queried_;
   HeapObjectsSet in_groups_;
-  // RetainedObjectInfo* -> std::vector<HeapObject*>*
-  base::CustomMatcherHashMap objects_by_info_;
-  base::CustomMatcherHashMap native_groups_;
-  HeapEntriesAllocator* synthetic_entries_allocator_;
-  HeapEntriesAllocator* native_entries_allocator_;
+  std::unordered_map<v8::RetainedObjectInfo*, std::vector<HeapObject*>*,
+                     RetainedInfoHasher, RetainedInfoEquals>
+      objects_by_info_;
+  std::unordered_map<const char*, NativeGroupRetainedObjectInfo*,
+                     SeededStringHasher, StringEquals>
+      native_groups_;
+  std::unique_ptr<HeapEntriesAllocator> synthetic_entries_allocator_;
+  std::unique_ptr<HeapEntriesAllocator> native_entries_allocator_;
+  std::unique_ptr<HeapEntriesAllocator> embedder_graph_entries_allocator_;
   // Used during references extraction.
   SnapshotFiller* filler_;
   v8::HeapProfiler::RetainerEdges edges_;

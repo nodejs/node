@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+class BreakPoint;
 class BytecodeArray;
 
 // The DebugInfo class holds additional information for a function being
@@ -23,9 +24,13 @@ class DebugInfo : public Struct {
   enum Flag {
     kNone = 0,
     kHasBreakInfo = 1 << 0,
-    kPreparedForBreakpoints = 1 << 1,
-    kHasCoverageInfo = 2 << 1,
+    kPreparedForDebugExecution = 1 << 1,
+    kHasCoverageInfo = 1 << 2,
+    kBreakAtEntry = 1 << 3,
+    kCanBreakAtEntry = 1 << 4,
+    kDebugExecutionMode = 1 << 5
   };
+
   typedef base::Flags<Flag> Flags;
 
   // A bitfield that lists uses of the current instance.
@@ -40,16 +45,36 @@ class DebugInfo : public Struct {
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
   bool IsEmpty() const;
 
+  // --- Debug execution ---
+  // -----------------------
+
+  enum ExecutionMode { kBreakpoints = 0, kSideEffects = kDebugExecutionMode };
+
+  // Returns current debug execution mode. Debug execution mode defines by
+  // applied to bytecode patching. False for breakpoints, true for side effect
+  // checks.
+  ExecutionMode DebugExecutionMode() const;
+  void SetDebugExecutionMode(ExecutionMode value);
+
+  inline bool HasDebugBytecodeArray();
+
+  inline BytecodeArray* OriginalBytecodeArray();
+  inline BytecodeArray* DebugBytecodeArray();
+
   // --- Break points ---
   // --------------------
 
   bool HasBreakInfo() const;
 
-  bool IsPreparedForBreakpoints() const;
-
   // Clears all fields related to break points. Returns true iff the
   // DebugInfo is now empty.
   bool ClearBreakInfo();
+
+  // Accessors to flag whether to break before entering the function.
+  // This is used to break for functions with no source, e.g. builtins.
+  void SetBreakAtEntry();
+  void ClearBreakAtEntry();
+  bool BreakAtEntry() const;
 
   // The instrumented bytecode array for functions with break points.
   DECL_ACCESSORS(debug_bytecode_array, Object)
@@ -61,22 +86,21 @@ class DebugInfo : public Struct {
   bool HasBreakPoint(int source_position);
   // Attempt to clear a break point. Return true if successful.
   static bool ClearBreakPoint(Handle<DebugInfo> debug_info,
-                              Handle<Object> break_point_object);
+                              Handle<BreakPoint> break_point);
   // Set a break point.
   static void SetBreakPoint(Handle<DebugInfo> debug_info, int source_position,
-                            Handle<Object> break_point_object);
+                            Handle<BreakPoint> break_point);
   // Get the break point objects for a source position.
-  Handle<Object> GetBreakPointObjects(int source_position);
+  Handle<Object> GetBreakPoints(int source_position);
   // Find the break point info holding this break point object.
   static Handle<Object> FindBreakPointInfo(Handle<DebugInfo> debug_info,
-                                           Handle<Object> break_point_object);
+                                           Handle<BreakPoint> break_point);
   // Get the number of break points for this function.
   int GetBreakPointCount();
 
-  inline bool HasDebugBytecodeArray();
-
-  inline BytecodeArray* OriginalBytecodeArray();
-  inline BytecodeArray* DebugBytecodeArray();
+  // Returns whether we should be able to break before entering the function.
+  // This is true for functions with no source, e.g. builtins.
+  bool CanBreakAtEntry() const;
 
   // --- Block Coverage ---
   // ----------------------
@@ -122,17 +146,17 @@ class BreakPointInfo : public Tuple2 {
   // The position in the source for the break position.
   DECL_INT_ACCESSORS(source_position)
   // List of related JavaScript break points.
-  DECL_ACCESSORS(break_point_objects, Object)
+  DECL_ACCESSORS(break_points, Object)
 
   // Removes a break point.
   static void ClearBreakPoint(Handle<BreakPointInfo> info,
-                              Handle<Object> break_point_object);
+                              Handle<BreakPoint> break_point);
   // Set a break point.
   static void SetBreakPoint(Handle<BreakPointInfo> info,
-                            Handle<Object> break_point_object);
-  // Check if break point info has this break point object.
-  static bool HasBreakPointObject(Handle<BreakPointInfo> info,
-                                  Handle<Object> break_point_object);
+                            Handle<BreakPoint> break_point);
+  // Check if break point info has this break point.
+  static bool HasBreakPoint(Handle<BreakPointInfo> info,
+                            Handle<BreakPoint> break_point);
   // Get the number of break points for this code offset.
   int GetBreakPointCount();
 
@@ -141,7 +165,7 @@ class BreakPointInfo : public Tuple2 {
   DECL_CAST(BreakPointInfo)
 
   static const int kSourcePositionOffset = kValue1Offset;
-  static const int kBreakPointObjectsOffset = kValue2Offset;
+  static const int kBreakPointsOffset = kValue2Offset;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPointInfo);
@@ -167,7 +191,7 @@ class CoverageInfo : public FixedArray {
   DECL_CAST(CoverageInfo)
 
   // Print debug info.
-  void Print(String* function_name);
+  void Print(std::unique_ptr<char[]> function_name);
 
  private:
   static int FirstIndexForSlot(int slot_index) {

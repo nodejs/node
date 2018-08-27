@@ -366,6 +366,12 @@ class Scanner {
   void set_allow_harmony_private_fields(bool allow) {
     allow_harmony_private_fields_ = allow;
   }
+  bool allow_harmony_numeric_separator() const {
+    return allow_harmony_numeric_separator_;
+  }
+  void set_allow_harmony_numeric_separator(bool allow) {
+    allow_harmony_numeric_separator_ = allow;
+  }
 
  private:
   // Scoped helper for saving & restoring scanner error state.
@@ -490,12 +496,21 @@ class Scanner {
     Token::Value contextual_token;
   };
 
+  enum NumberKind {
+    BINARY,
+    OCTAL,
+    IMPLICIT_OCTAL,
+    HEX,
+    DECIMAL,
+    DECIMAL_WITH_LEADING_ZERO
+  };
+
   static const int kCharacterLookaheadBufferSize = 1;
   const int kMaxAscii = 127;
 
   // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
   template <bool capture_raw>
-  uc32 ScanOctalEscape(uc32 c, int length);
+  uc32 ScanOctalEscape(uc32 c, int length, bool in_template_literal);
 
   // Call this after setting source_ to the input.
   void Init() {
@@ -720,7 +735,18 @@ class Scanner {
   // Scans a possible HTML comment -- begins with '<!'.
   Token::Value ScanHtmlComment();
 
-  void ScanDecimalDigits();
+  bool ScanDigitsWithNumericSeparators(bool (*predicate)(uc32 ch),
+                                       bool is_check_first_digit);
+  bool ScanDecimalDigits();
+  // Optimized function to scan decimal number as Smi.
+  bool ScanDecimalAsSmi(uint64_t* value);
+  bool ScanDecimalAsSmiWithNumericSeparators(uint64_t* value);
+  bool ScanHexDigits();
+  bool ScanBinaryDigits();
+  bool ScanSignedInteger();
+  bool ScanOctalDigits();
+  bool ScanImplicitOctalDigits(int start_pos, NumberKind* kind);
+
   Token::Value ScanNumber(bool seen_period);
   Token::Value ScanIdentifierOrKeyword();
   Token::Value ScanIdentifierOrKeywordInner(LiteralScope* literal);
@@ -811,6 +837,7 @@ class Scanner {
   // Harmony flags to allow ESNext features.
   bool allow_harmony_bigint_;
   bool allow_harmony_private_fields_;
+  bool allow_harmony_numeric_separator_;
 
   MessageTemplate::Template scanner_error_;
   Location scanner_error_location_;

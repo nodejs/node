@@ -20,7 +20,7 @@
  */
 
 #include "uv.h"
-#include "tree.h"
+#include "uv/tree.h"
 #include "internal.h"
 #include "heap-inl.h"
 #include <stdlib.h>
@@ -38,13 +38,14 @@ int uv_loop_init(uv_loop_t* loop) {
 
   heap_init((struct heap*) &loop->timer_heap);
   QUEUE_INIT(&loop->wq);
-  QUEUE_INIT(&loop->active_reqs);
   QUEUE_INIT(&loop->idle_handles);
   QUEUE_INIT(&loop->async_handles);
   QUEUE_INIT(&loop->check_handles);
   QUEUE_INIT(&loop->prepare_handles);
   QUEUE_INIT(&loop->handle_queue);
 
+  loop->active_handles = 0;
+  loop->active_reqs.count = 0;
   loop->nfds = 0;
   loop->watchers = NULL;
   loop->nwatchers = 0;
@@ -73,7 +74,7 @@ int uv_loop_init(uv_loop_t* loop) {
     goto fail_signal_init;
 
   uv__handle_unref(&loop->child_watcher);
-  loop->child_watcher.flags |= UV__HANDLE_INTERNAL;
+  loop->child_watcher.flags |= UV_HANDLE_INTERNAL;
   QUEUE_INIT(&loop->process_handles);
 
   err = uv_rwlock_init(&loop->cloexec_lock);
@@ -89,7 +90,7 @@ int uv_loop_init(uv_loop_t* loop) {
     goto fail_async_init;
 
   uv__handle_unref(&loop->wq_async);
-  loop->wq_async.flags |= UV__HANDLE_INTERNAL;
+  loop->wq_async.flags |= UV_HANDLE_INTERNAL;
 
   return 0;
 

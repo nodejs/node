@@ -125,7 +125,7 @@ class Optional {
 
   constexpr Optional() {}
 
-  explicit constexpr Optional(base::nullopt_t) {}
+  constexpr Optional(base::nullopt_t) {}  // NOLINT(runtime/explicit)
 
   Optional(const Optional& other) {
     if (!other.storage_.is_null_) Init(other.value());
@@ -135,10 +135,12 @@ class Optional {
     if (!other.storage_.is_null_) Init(std::move(other.value()));
   }
 
-  explicit constexpr Optional(const T& value) : storage_(value) {}
+  constexpr Optional(const T& value)  // NOLINT(runtime/explicit)
+      : storage_(value) {}
 
   // TODO(alshabalin): Can't use 'constexpr' with std::move until C++14.
-  explicit Optional(T&& value) : storage_(std::move(value)) {}
+  Optional(T&& value)  // NOLINT(runtime/explicit)
+      : storage_(std::move(value)) {}
 
   // TODO(alshabalin): Can't use 'constexpr' with std::forward until C++14.
   template <class... Args>

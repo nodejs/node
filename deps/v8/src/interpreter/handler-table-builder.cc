@@ -4,7 +4,7 @@
 
 #include "src/interpreter/handler-table-builder.h"
 
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
@@ -15,20 +15,20 @@ namespace interpreter {
 
 HandlerTableBuilder::HandlerTableBuilder(Zone* zone) : entries_(zone) {}
 
-Handle<HandlerTable> HandlerTableBuilder::ToHandlerTable(Isolate* isolate) {
+Handle<ByteArray> HandlerTableBuilder::ToHandlerTable(Isolate* isolate) {
   int handler_table_size = static_cast<int>(entries_.size());
-  Handle<HandlerTable> table =
-      Handle<HandlerTable>::cast(isolate->factory()->NewFixedArray(
-          HandlerTable::LengthForRange(handler_table_size), TENURED));
+  Handle<ByteArray> table_byte_array = isolate->factory()->NewByteArray(
+      HandlerTable::LengthForRange(handler_table_size), TENURED);
+  HandlerTable table(*table_byte_array);
   for (int i = 0; i < handler_table_size; ++i) {
     Entry& entry = entries_[i];
     HandlerTable::CatchPrediction pred = entry.catch_prediction_;
-    table->SetRangeStart(i, static_cast<int>(entry.offset_start));
-    table->SetRangeEnd(i, static_cast<int>(entry.offset_end));
-    table->SetRangeHandler(i, static_cast<int>(entry.offset_target), pred);
-    table->SetRangeData(i, entry.context.index());
+    table.SetRangeStart(i, static_cast<int>(entry.offset_start));
+    table.SetRangeEnd(i, static_cast<int>(entry.offset_end));
+    table.SetRangeHandler(i, static_cast<int>(entry.offset_target), pred);
+    table.SetRangeData(i, entry.context.index());
   }
-  return table;
+  return table_byte_array;
 }
 
 

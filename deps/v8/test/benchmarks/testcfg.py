@@ -34,17 +34,12 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
-class VariantsGenerator(testsuite.VariantsGenerator):
-  def _get_variants(self, test):
-    return self._standard_variant
-
-
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, name, root):
-    super(TestSuite, self).__init__(name, root)
-    self.testroot = os.path.join(root, "data")
+  def __init__(self, *args, **kwargs):
+    super(TestSuite, self).__init__(*args, **kwargs)
+    self.testroot = os.path.join(self.root, "data")
 
-  def ListTests(self, context):
+  def ListTests(self):
     tests = map(self._create_test, [
         "kraken/ai-astar",
         "kraken/audio-beat-detection",
@@ -109,15 +104,9 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def _variants_gen_class(self):
-    return VariantsGenerator
-
-  def _LegacyVariantsGeneratorFactory(self):
-    return testsuite.StandardLegacyVariantsGenerator
-
 
 class TestCase(testcase.TestCase):
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     path = self.path
     testroot = self.suite.testroot
     files = []
@@ -144,5 +133,5 @@ class TestCase(testcase.TestCase):
     return os.path.join(self.suite.testroot, self.path + self._get_suffix())
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

@@ -35,15 +35,14 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Leave the frame.
   // - Restart the frame by calling the function.
   __ Mov(fp, x1);
-  __ AssertStackConsistency();
   __ Ldr(x1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
 
-  __ Mov(masm->StackPointer(), Operand(fp));
+  __ Mov(sp, fp);
   __ Pop(fp, lr);  // Frame, Return address.
 
   __ Ldr(x0, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(x0,
-         FieldMemOperand(x0, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ Ldrsw(
+      x0, FieldMemOperand(x0, SharedFunctionInfo::kFormalParameterCountOffset));
   __ mov(x2, x0);
 
   ParameterCount dummy1(x2);

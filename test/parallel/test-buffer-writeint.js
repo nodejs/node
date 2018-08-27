@@ -31,7 +31,11 @@ const errorOutOfBounds = common.expectsError({
     buffer.writeInt8(-0x80 - 1, 0);
   }, errorOutOfBounds);
 
-  ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((off) => {
+  // Verify that default offset works fine.
+  buffer.writeInt8(23, undefined);
+  buffer.writeInt8(23);
+
+  ['', '0', null, {}, [], () => {}, true, false].forEach((off) => {
     assert.throws(
       () => buffer.writeInt8(23, off),
       { code: 'ERR_INVALID_ARG_TYPE' });
@@ -70,6 +74,11 @@ const errorOutOfBounds = common.expectsError({
   assert.ok(buffer.equals(new Uint8Array([ 0xff, 0x7f, 0x00, 0x80 ])));
 
   ['writeInt16BE', 'writeInt16LE'].forEach((fn) => {
+
+    // Verify that default offset works fine.
+    buffer[fn](23, undefined);
+    buffer[fn](23);
+
     assert.throws(() => {
       buffer[fn](0x7fff + 1, 0);
     }, errorOutOfBounds);
@@ -77,7 +86,7 @@ const errorOutOfBounds = common.expectsError({
       buffer[fn](-0x8000 - 1, 0);
     }, errorOutOfBounds);
 
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((off) => {
+    ['', '0', null, {}, [], () => {}, true, false].forEach((off) => {
       assert.throws(
         () => buffer[fn](23, off),
         { code: 'ERR_INVALID_ARG_TYPE' });
@@ -127,6 +136,11 @@ const errorOutOfBounds = common.expectsError({
   ])));
 
   ['writeInt32BE', 'writeInt32LE'].forEach((fn) => {
+
+    // Verify that default offset works fine.
+    buffer[fn](23, undefined);
+    buffer[fn](23);
+
     assert.throws(() => {
       buffer[fn](0x7fffffff + 1, 0);
     }, errorOutOfBounds);
@@ -134,7 +148,7 @@ const errorOutOfBounds = common.expectsError({
       buffer[fn](-0x80000000 - 1, 0);
     }, errorOutOfBounds);
 
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((off) => {
+    ['', '0', null, {}, [], () => {}, true, false].forEach((off) => {
       assert.throws(
         () => buffer[fn](23, off),
         { code: 'ERR_INVALID_ARG_TYPE' });
@@ -148,25 +162,40 @@ const errorOutOfBounds = common.expectsError({
   });
 }
 
+// Test 48 bit
+{
+  const value = 0x1234567890ab;
+  const buffer = Buffer.allocUnsafe(6);
+  buffer.writeIntBE(value, 0, 6);
+  assert.ok(buffer.equals(new Uint8Array([
+    0x12, 0x34, 0x56, 0x78, 0x90, 0xab
+  ])));
+
+  buffer.writeIntLE(value, 0, 6);
+  assert.ok(buffer.equals(new Uint8Array([
+    0xab, 0x90, 0x78, 0x56, 0x34, 0x12
+  ])));
+}
+
 // Test Int
 {
   const data = Buffer.alloc(8);
 
   // Check byteLength.
   ['writeIntBE', 'writeIntLE'].forEach((fn) => {
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+    ['', '0', null, {}, [], () => {}, true, false, undefined].forEach((bl) => {
       assert.throws(
-        () => data[fn](23, 0, o),
+        () => data[fn](23, 0, bl),
         { code: 'ERR_INVALID_ARG_TYPE' });
     });
 
-    [Infinity, -1].forEach((offset) => {
+    [Infinity, -1].forEach((byteLength) => {
       assert.throws(
-        () => data[fn](23, 0, offset),
+        () => data[fn](23, 0, byteLength),
         {
           code: 'ERR_OUT_OF_RANGE',
           message: 'The value of "byteLength" is out of range. ' +
-                   `It must be >= 1 and <= 6. Received ${offset}`
+                   `It must be >= 1 and <= 6. Received ${byteLength}`
         }
       );
     });
@@ -200,7 +229,7 @@ const errorOutOfBounds = common.expectsError({
         });
       });
 
-      ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+      ['', '0', null, {}, [], () => {}, true, false, undefined].forEach((o) => {
         assert.throws(
           () => data[fn](min, o, i),
           {

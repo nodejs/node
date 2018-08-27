@@ -11,15 +11,45 @@
 namespace v8 {
 namespace internal {
 
+class ScriptData {
+ public:
+  ScriptData(const byte* data, int length);
+  ~ScriptData() {
+    if (owns_data_) DeleteArray(data_);
+  }
+
+  const byte* data() const { return data_; }
+  int length() const { return length_; }
+  bool rejected() const { return rejected_; }
+
+  void Reject() { rejected_ = true; }
+
+  void AcquireDataOwnership() {
+    DCHECK(!owns_data_);
+    owns_data_ = true;
+  }
+
+  void ReleaseDataOwnership() {
+    DCHECK(owns_data_);
+    owns_data_ = false;
+  }
+
+ private:
+  bool owns_data_ : 1;
+  bool rejected_ : 1;
+  const byte* data_;
+  int length_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScriptData);
+};
+
 class CodeSerializer : public Serializer<> {
  public:
-  static ScriptData* Serialize(Isolate* isolate,
-                               Handle<SharedFunctionInfo> info,
-                               Handle<String> source);
+  static ScriptCompiler::CachedData* Serialize(Handle<SharedFunctionInfo> info);
 
-  ScriptData* Serialize(Handle<HeapObject> obj);
+  ScriptData* SerializeSharedFunctionInfo(Handle<SharedFunctionInfo> info);
 
-  MUST_USE_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, ScriptData* cached_data, Handle<String> source);
 
   const std::vector<uint32_t>* stub_keys() const { return &stub_keys_; }
@@ -47,29 +77,13 @@ class CodeSerializer : public Serializer<> {
   void SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
                          WhereToPoint where_to_point);
 
+  bool SerializeReadOnlyObject(HeapObject* obj, HowToCode how_to_code,
+                               WhereToPoint where_to_point, int skip);
+
   DisallowHeapAllocation no_gc_;
   uint32_t source_hash_;
   std::vector<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
-};
-
-class WasmCompiledModuleSerializer : public CodeSerializer {
- public:
-  static std::unique_ptr<ScriptData> SerializeWasmModule(
-      Isolate* isolate, Handle<FixedArray> compiled_module);
-  static MaybeHandle<FixedArray> DeserializeWasmModule(
-      Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes);
-
- protected:
-  void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
-                           WhereToPoint where_to_point) override;
-  bool ElideObject(Object* obj) override;
-
- private:
-  WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash,
-                               Handle<Context> native_context,
-                               Handle<SeqOneByteString> module_bytes);
-  DISALLOW_COPY_AND_ASSIGN(WasmCompiledModuleSerializer);
 };
 
 // Wrapper around ScriptData to provide code-serializer-specific functionality.

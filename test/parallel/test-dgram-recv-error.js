@@ -1,8 +1,11 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
+const { kStateSymbol } = require('internal/dgram');
 const s = dgram.createSocket('udp4');
+const { handle } = s[kStateSymbol];
 
 s.on('error', common.mustCall((err) => {
   s.close();
@@ -13,4 +16,4 @@ s.on('error', common.mustCall((err) => {
 }));
 
 s.on('message', common.mustNotCall('no message should be received.'));
-s.bind(common.mustCall(() => s._handle.onmessage(-1, s._handle, null, null)));
+s.bind(common.mustCall(() => handle.onmessage(-1, handle, null, null)));

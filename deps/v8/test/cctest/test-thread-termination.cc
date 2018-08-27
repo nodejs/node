@@ -506,6 +506,184 @@ TEST(PostponeTerminateException) {
   CHECK_EQ(2, callback_counter);
 }
 
+static void AssertTerminatedCodeRun(v8::Isolate* isolate) {
+  v8::TryCatch try_catch(isolate);
+  CompileRun("for (var i = 0; i < 10000; i++);");
+  CHECK(try_catch.HasTerminated());
+}
+
+static void AssertFinishedCodeRun(v8::Isolate* isolate) {
+  v8::TryCatch try_catch(isolate);
+  CompileRun("for (var i = 0; i < 10000; i++);");
+  CHECK(!try_catch.HasTerminated());
+}
+
+TEST(SafeForTerminateException) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  {  // Checks safe for termination scope.
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION);
+    isolate->TerminateExecution();
+    AssertFinishedCodeRun(isolate);
+    {
+      i::SafeForInterruptsScope p2(CcTest::i_isolate(),
+                                   i::StackGuard::TERMINATE_EXECUTION);
+      AssertTerminatedCodeRun(isolate);
+      AssertFinishedCodeRun(isolate);
+      isolate->TerminateExecution();
+    }
+    AssertFinishedCodeRun(isolate);
+    isolate->CancelTerminateExecution();
+  }
+
+  isolate->TerminateExecution();
+  {  // no scope -> postpone
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION);
+    AssertFinishedCodeRun(isolate);
+    {  // postpone -> postpone
+      i::PostponeInterruptsScope p2(CcTest::i_isolate(),
+                                    i::StackGuard::TERMINATE_EXECUTION);
+      AssertFinishedCodeRun(isolate);
+
+      {  // postpone -> safe
+        i::SafeForInterruptsScope p3(CcTest::i_isolate(),
+                                     i::StackGuard::TERMINATE_EXECUTION);
+        AssertTerminatedCodeRun(isolate);
+        isolate->TerminateExecution();
+
+        {  // safe -> safe
+          i::SafeForInterruptsScope p4(CcTest::i_isolate(),
+                                       i::StackGuard::TERMINATE_EXECUTION);
+          AssertTerminatedCodeRun(isolate);
+          isolate->TerminateExecution();
+
+          {  // safe -> postpone
+            i::PostponeInterruptsScope p5(CcTest::i_isolate(),
+                                          i::StackGuard::TERMINATE_EXECUTION);
+            AssertFinishedCodeRun(isolate);
+          }  // postpone -> safe
+
+          AssertTerminatedCodeRun(isolate);
+          isolate->TerminateExecution();
+        }  // safe -> safe
+
+        AssertTerminatedCodeRun(isolate);
+        isolate->TerminateExecution();
+      }  // safe -> postpone
+
+      AssertFinishedCodeRun(isolate);
+    }  // postpone -> postpone
+
+    AssertFinishedCodeRun(isolate);
+  }  // postpone -> no scope
+  AssertTerminatedCodeRun(isolate);
+
+  isolate->TerminateExecution();
+  {  // no scope -> safe
+    i::SafeForInterruptsScope p1(CcTest::i_isolate(),
+                                 i::StackGuard::TERMINATE_EXECUTION);
+    AssertTerminatedCodeRun(isolate);
+  }  // safe -> no scope
+  AssertFinishedCodeRun(isolate);
+
+  {  // no scope -> postpone
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION);
+    isolate->TerminateExecution();
+    {  // postpone -> safe
+      i::SafeForInterruptsScope p2(CcTest::i_isolate(),
+                                   i::StackGuard::TERMINATE_EXECUTION);
+      AssertTerminatedCodeRun(isolate);
+    }  // safe -> postpone
+  }    // postpone -> no scope
+  AssertFinishedCodeRun(isolate);
+
+  {  // no scope -> postpone
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION);
+    {  // postpone -> safe
+      i::SafeForInterruptsScope p2(CcTest::i_isolate(),
+                                   i::StackGuard::TERMINATE_EXECUTION);
+      {  // safe -> postpone
+        i::PostponeInterruptsScope p3(CcTest::i_isolate(),
+                                      i::StackGuard::TERMINATE_EXECUTION);
+        isolate->TerminateExecution();
+      }  // postpone -> safe
+      AssertTerminatedCodeRun(isolate);
+    }  // safe -> postpone
+  }    // postpone -> no scope
+}
+
+void RequestTermianteAndCallAPI(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetIsolate()->TerminateExecution();
+  AssertFinishedCodeRun(args.GetIsolate());
+}
+
+UNINITIALIZED_TEST(IsolateSafeForTerminationMode) {
+  v8::Isolate::CreateParams create_params;
+  create_params.only_terminate_in_safe_scope = true;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+    global->Set(v8_str("terminateAndCallAPI"),
+                v8::FunctionTemplate::New(isolate, RequestTermianteAndCallAPI));
+    v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
+    v8::Context::Scope context_scope(context);
+
+    // Should postpone termination without safe scope.
+    isolate->TerminateExecution();
+    AssertFinishedCodeRun(isolate);
+    {
+      v8::Isolate::SafeForTerminationScope safe_scope(isolate);
+      AssertTerminatedCodeRun(isolate);
+    }
+    AssertFinishedCodeRun(isolate);
+
+    {
+      isolate->TerminateExecution();
+      AssertFinishedCodeRun(isolate);
+      i::PostponeInterruptsScope p1(i_isolate,
+                                    i::StackGuard::TERMINATE_EXECUTION);
+      {
+        // SafeForTermination overrides postpone.
+        v8::Isolate::SafeForTerminationScope safe_scope(isolate);
+        AssertTerminatedCodeRun(isolate);
+      }
+      AssertFinishedCodeRun(isolate);
+    }
+
+    {
+      v8::Isolate::SafeForTerminationScope safe_scope(isolate);
+      // Request terminate and call API recursively.
+      CompileRun("terminateAndCallAPI()");
+      AssertTerminatedCodeRun(isolate);
+    }
+
+    {
+      i::PostponeInterruptsScope p1(i_isolate,
+                                    i::StackGuard::TERMINATE_EXECUTION);
+      // Request terminate and call API recursively.
+      CompileRun("terminateAndCallAPI()");
+      AssertFinishedCodeRun(isolate);
+    }
+    AssertFinishedCodeRun(isolate);
+    {
+      v8::Isolate::SafeForTerminationScope safe_scope(isolate);
+      AssertTerminatedCodeRun(isolate);
+    }
+  }
+  isolate->Dispose();
+}
 
 TEST(ErrorObjectAfterTermination) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -613,5 +791,105 @@ TEST(TerminateConsole) {
   CHECK(!isolate->IsExecutionTerminating());
   CHECK(CompileRun("terminate(); console.log(); fail();").IsEmpty());
   CHECK(try_catch.HasCaught());
+  CHECK(!isolate->IsExecutionTerminating());
+}
+
+class TerminatorSleeperThread : public v8::base::Thread {
+ public:
+  explicit TerminatorSleeperThread(v8::Isolate* isolate, int sleep_ms)
+      : Thread(Options("TerminatorSlepperThread")),
+        isolate_(isolate),
+        sleep_ms_(sleep_ms) {}
+  void Run() {
+    v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(sleep_ms_));
+    CHECK(!isolate_->IsExecutionTerminating());
+    isolate_->TerminateExecution();
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  int sleep_ms_;
+};
+
+TEST(TerminateRegExp) {
+// regexp interpreter does not support preemption.
+#ifndef V8_INTERPRETED_REGEXP
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(
+      isolate, TerminateCurrentThread, DoLoopCancelTerminate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
+  v8::Context::Scope context_scope(context);
+  CHECK(!isolate->IsExecutionTerminating());
+  v8::TryCatch try_catch(isolate);
+  CHECK(!isolate->IsExecutionTerminating());
+  CHECK(!CompileRun("var re = /(x+)+y$/; re.test('x');").IsEmpty());
+  TerminatorSleeperThread terminator(isolate, 100);
+  terminator.Start();
+  CHECK(CompileRun("re.test('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'); fail();")
+            .IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK(!isolate->IsExecutionTerminating());
+#endif  // V8_INTERPRETED_REGEXP
+}
+
+TEST(TerminateInMicrotask) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(isolate);
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(
+      isolate, TerminateCurrentThread, DoLoopCancelTerminate);
+  v8::Local<v8::Context> context1 = v8::Context::New(isolate, nullptr, global);
+  v8::Local<v8::Context> context2 = v8::Context::New(isolate, nullptr, global);
+  v8::TryCatch try_catch(isolate);
+  {
+    v8::Context::Scope context_scope(context1);
+    CHECK(!isolate->IsExecutionTerminating());
+    CHECK(!CompileRun("Promise.resolve().then(function() {"
+                      "terminate(); loop(); fail();})")
+               .IsEmpty());
+    CHECK(!try_catch.HasCaught());
+  }
+  {
+    v8::Context::Scope context_scope(context2);
+    CHECK(context2 == isolate->GetCurrentContext());
+    CHECK(context2 == isolate->GetEnteredContext());
+    CHECK(!isolate->IsExecutionTerminating());
+    isolate->RunMicrotasks();
+    CHECK(context2 == isolate->GetCurrentContext());
+    CHECK(context2 == isolate->GetEnteredContext());
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.HasTerminated());
+  }
+  CHECK(!isolate->IsExecutionTerminating());
+}
+
+void TerminationMicrotask(void* data) {
+  CcTest::isolate()->TerminateExecution();
+  CompileRun("");
+}
+
+void UnreachableMicrotask(void* data) { UNREACHABLE(); }
+
+TEST(TerminateInApiMicrotask) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(isolate);
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(
+      isolate, TerminateCurrentThread, DoLoopCancelTerminate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
+  v8::TryCatch try_catch(isolate);
+  {
+    v8::Context::Scope context_scope(context);
+    CHECK(!isolate->IsExecutionTerminating());
+    isolate->EnqueueMicrotask(TerminationMicrotask);
+    isolate->EnqueueMicrotask(UnreachableMicrotask);
+    isolate->RunMicrotasks();
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.HasTerminated());
+  }
   CHECK(!isolate->IsExecutionTerminating());
 }

@@ -1,5 +1,6 @@
 "use strict";
 var Buffer = require("buffer").Buffer;
+// Note: not polyfilled with safer-buffer on a purpose, as overrides Buffer
 
 // == Extend Node primitives to use iconv-lite =================================
 
@@ -8,7 +9,8 @@ module.exports = function (iconv) {
 
     // Node authors rewrote Buffer internals to make it compatible with
     // Uint8Array and we cannot patch key functions since then.
-    iconv.supportsNodeEncodingsExtension = !(new Buffer(0) instanceof Uint8Array);
+    // Note: this does use older Buffer API on a purpose
+    iconv.supportsNodeEncodingsExtension = !(Buffer.from || new Buffer(0) instanceof Uint8Array);
 
     iconv.extendNodeEncodings = function extendNodeEncodings() {
         if (original) return;

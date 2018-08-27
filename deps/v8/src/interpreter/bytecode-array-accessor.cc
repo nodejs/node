@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-accessor.h"
 
+#include "src/feedback-vector.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
@@ -67,7 +68,7 @@ uint32_t BytecodeArrayAccessor::GetUnsignedOperand(
   DCHECK_EQ(operand_type,
             Bytecodes::GetOperandType(current_bytecode(), operand_index));
   DCHECK(Bytecodes::IsUnsignedOperandType(operand_type));
-  const uint8_t* operand_start =
+  Address operand_start =
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
@@ -83,7 +84,7 @@ int32_t BytecodeArrayAccessor::GetSignedOperand(
   DCHECK_EQ(operand_type,
             Bytecodes::GetOperandType(current_bytecode(), operand_index));
   DCHECK(!Bytecodes::IsUnsignedOperandType(operand_type));
-  const uint8_t* operand_start =
+  Address operand_start =
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
@@ -125,10 +126,15 @@ uint32_t BytecodeArrayAccessor::GetIndexOperand(int operand_index) const {
   return GetUnsignedOperand(operand_index, operand_type);
 }
 
+FeedbackSlot BytecodeArrayAccessor::GetSlotOperand(int operand_index) const {
+  int index = GetIndexOperand(operand_index);
+  return FeedbackVector::ToSlot(index);
+}
+
 Register BytecodeArrayAccessor::GetRegisterOperand(int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
-  const uint8_t* operand_start =
+  Address operand_start =
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
@@ -206,12 +212,18 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
 
 JumpTableTargetOffsets BytecodeArrayAccessor::GetJumpTableTargetOffsets()
     const {
-  DCHECK_EQ(current_bytecode(), Bytecode::kSwitchOnSmiNoFeedback);
-
-  uint32_t table_start = GetIndexOperand(0);
-  uint32_t table_size = GetUnsignedImmediateOperand(1);
-  int32_t case_value_base = GetImmediateOperand(2);
-
+  uint32_t table_start, table_size;
+  int32_t case_value_base;
+  if (current_bytecode() == Bytecode::kSwitchOnGeneratorState) {
+    table_start = GetIndexOperand(1);
+    table_size = GetUnsignedImmediateOperand(2);
+    case_value_base = 0;
+  } else {
+    DCHECK_EQ(current_bytecode(), Bytecode::kSwitchOnSmiNoFeedback);
+    table_start = GetIndexOperand(0);
+    table_size = GetUnsignedImmediateOperand(1);
+    case_value_base = GetImmediateOperand(2);
+  }
   return JumpTableTargetOffsets(this, table_start, table_size, case_value_base);
 }
 
@@ -225,9 +237,10 @@ bool BytecodeArrayAccessor::OffsetWithinBytecode(int offset) const {
 }
 
 std::ostream& BytecodeArrayAccessor::PrintTo(std::ostream& os) const {
-  return BytecodeDecoder::Decode(
-      os, bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_,
-      bytecode_array()->parameter_count());
+  const uint8_t* bytecode_addr = reinterpret_cast<const uint8_t*>(
+      bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_);
+  return BytecodeDecoder::Decode(os, bytecode_addr,
+                                 bytecode_array()->parameter_count());
 }
 
 JumpTableTargetOffsets::JumpTableTargetOffsets(

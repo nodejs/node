@@ -1,8 +1,10 @@
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('./acorn')) :
 	typeof define === 'function' && define.amd ? define(['exports', './acorn'], factory) :
-	(factory((global.acorn = global.acorn || {}, global.acorn.loose = global.acorn.loose || {}),global.acorn));
+	(factory((global.acorn = global.acorn || {}, global.acorn.loose = {}),global.acorn));
 }(this, (function (exports,__acorn) { 'use strict';
+
+function noop() {}
 
 // Registered plugins
 var pluginsLoose = {};
@@ -14,6 +16,8 @@ var LooseParser = function LooseParser(input, options) {
   this.options = this.toks.options;
   this.input = this.toks.input;
   this.tok = this.last = {type: __acorn.tokTypes.eof, start: 0, end: 0};
+  this.tok.validateRegExpFlags = noop;
+  this.tok.validateRegExpPattern = noop;
   if (this.options.locations) {
     var here = this.toks.curPosition();
     this.tok.loc = new __acorn.SourceLocation(this.toks, here, here);
@@ -24,6 +28,7 @@ var LooseParser = function LooseParser(input, options) {
   this.curLineStart = 0;
   this.nextLineStart = this.lineEnd(this.curLineStart) + 1;
   this.inAsync = false;
+  this.inFunction = false;
   // Load plugins
   this.options.pluginsLoose = options.pluginsLoose || {};
   this.loadPlugins(this.options.pluginsLoose);
@@ -110,7 +115,7 @@ LooseParser.prototype.expect = function expect (type) {
 
   if (this.eat(type)) { return true }
   for (var i = 1; i <= 2; i++) {
-    if (this$1.lookAhead(i).type == type) {
+    if (this$1.lookAhead(i).type === type) {
       for (var j = 0; j < i; j++) { this$1.next(); }
       return true
     }
@@ -143,7 +148,7 @@ LooseParser.prototype.indentationAfter = function indentationAfter (pos) {
 
 LooseParser.prototype.closes = function closes (closeTok, indent, line, blockHeuristic) {
   if (this.tok.type === closeTok || this.tok.type === __acorn.tokTypes.eof) { return true }
-  return line != this.curLineStart && this.curIndent < indent && this.tokenStartsLine() &&
+  return line !== this.curLineStart && this.curIndent < indent && this.tokenStartsLine() &&
     (!blockHeuristic || this.nextLineStart >= this.input.length ||
      this.indentationAfter(this.nextLineStart) < indent)
 };
@@ -273,7 +278,7 @@ lp.resetTo = function(pos) {
   var ch = this.input.charAt(pos - 1);
   this.toks.exprAllowed = !ch || /[[{(,;:?/*=+\-~!|&%^<>]/.test(ch) ||
     /[enwfd]/.test(ch) &&
-    /\b(keywords|case|else|return|throw|new|in|(instance|type)of|delete|void)$/.test(this.input.slice(pos - 10, pos));
+    /\b(case|else|return|throw|new|in|(instance|type)?of|delete|void)$/.test(this.input.slice(pos - 10, pos));
 
   if (this.options.locations) {
     this.toks.curLine = 1;
@@ -294,7 +299,7 @@ lp.lookAhead = function(n) {
   return this.ahead[n - 1]
 };
 
-function isDummy(node) { return node.name == "✖" }
+function isDummy(node) { return node.name === "✖" }
 
 var lp$1 = LooseParser.prototype;
 
@@ -347,7 +352,9 @@ lp$1.parseStatement = function() {
     return this.finishNode(node, "DoWhileStatement")
 
   case __acorn.tokTypes._for:
-    this.next();
+    this.next(); // `for` keyword
+    var isAwait = this.options.ecmaVersion >= 9 && this.inAsync && this.eatContextual("await");
+
     this.pushCx();
     this.expect(__acorn.tokTypes.parenL);
     if (this.tok.type === __acorn.tokTypes.semi) { return this.parseFor(node, null) }
@@ -355,13 +362,20 @@ lp$1.parseStatement = function() {
     if (isLet || this.tok.type === __acorn.tokTypes._var || this.tok.type === __acorn.tokTypes._const) {
       var init$1 = this.parseVar(true, isLet ? "let" : this.tok.value);
       if (init$1.declarations.length === 1 && (this.tok.type === __acorn.tokTypes._in || this.isContextual("of"))) {
+        if (this.options.ecmaVersion >= 9 && this.tok.type !== __acorn.tokTypes._in) {
+          node.await = isAwait;
+        }
         return this.parseForIn(node, init$1)
       }
       return this.parseFor(node, init$1)
     }
     var init = this.parseExpression(true);
-    if (this.tok.type === __acorn.tokTypes._in || this.isContextual("of"))
-      { return this.parseForIn(node, this.toAssignable(init)) }
+    if (this.tok.type === __acorn.tokTypes._in || this.isContextual("of")) {
+      if (this.options.ecmaVersion >= 9 && this.tok.type !== __acorn.tokTypes._in) {
+        node.await = isAwait;
+      }
+      return this.parseForIn(node, this.toAssignable(init))
+    }
     return this.parseFor(node, init)
 
   case __acorn.tokTypes._function:
@@ -427,9 +441,12 @@ lp$1.parseStatement = function() {
     if (this.tok.type === __acorn.tokTypes._catch) {
       var clause = this.startNode();
       this.next();
-      this.expect(__acorn.tokTypes.parenL);
-      clause.param = this.toAssignable(this.parseExprAtom(), true);
-      this.expect(__acorn.tokTypes.parenR);
+      if (this.eat(__acorn.tokTypes.parenL)) {
+        clause.param = this.toAssignable(this.parseExprAtom(), true);
+        this.expect(__acorn.tokTypes.parenR);
+      } else {
+        clause.param = null;
+      }
       clause.body = this.parseBlock();
       node.handler = this.finishNode(clause, "CatchClause");
     }
@@ -576,7 +593,7 @@ lp$1.parseClass = function(isStatement) {
     this$1.parsePropertyName(method);
     if (isDummy(method.key)) { if (isDummy(this$1.parseMaybeAssign())) { this$1.next(); } this$1.eat(__acorn.tokTypes.comma); continue }
     if (method.key.type === "Identifier" && !method.computed && method.key.name === "static" &&
-        (this$1.tok.type != __acorn.tokTypes.parenL && this$1.tok.type != __acorn.tokTypes.braceL)) {
+        (this$1.tok.type !== __acorn.tokTypes.parenL && this$1.tok.type !== __acorn.tokTypes.braceL)) {
       method.static = true;
       isGenerator = this$1.eat(__acorn.tokTypes.star);
       this$1.parsePropertyName(method);
@@ -586,8 +603,9 @@ lp$1.parseClass = function(isStatement) {
     if (!method.computed &&
         method.key.type === "Identifier" && method.key.name === "async" && this$1.tok.type !== __acorn.tokTypes.parenL &&
         !this$1.canInsertSemicolon()) {
-      this$1.parsePropertyName(method);
       isAsync = true;
+      isGenerator = this$1.options.ecmaVersion >= 9 && this$1.eat(__acorn.tokTypes.star);
+      this$1.parsePropertyName(method);
     } else {
       isAsync = false;
     }
@@ -622,7 +640,7 @@ lp$1.parseClass = function(isStatement) {
 };
 
 lp$1.parseFunction = function(node, isStatement, isAsync) {
-  var oldInAsync = this.inAsync;
+  var oldInAsync = this.inAsync, oldInFunction = this.inFunction;
   this.initFunction(node);
   if (this.options.ecmaVersion >= 6) {
     node.generator = this.eat(__acorn.tokTypes.star);
@@ -633,10 +651,12 @@ lp$1.parseFunction = function(node, isStatement, isAsync) {
   if (this.tok.type === __acorn.tokTypes.name) { node.id = this.parseIdent(); }
   else if (isStatement === true) { node.id = this.dummyIdent(); }
   this.inAsync = node.async;
+  this.inFunction = true;
   node.params = this.parseFunctionParams();
   node.body = this.parseBlock();
   this.toks.adaptDirectivePrologue(node.body.body);
   this.inAsync = oldInAsync;
+  this.inFunction = oldInFunction;
   return this.finishNode(node, isStatement ? "FunctionDeclaration" : "FunctionExpression")
 };
 
@@ -691,7 +711,7 @@ lp$1.parseImport = function() {
       this.eat(__acorn.tokTypes.comma);
     }
     node.specifiers = this.parseImportSpecifierList();
-    node.source = this.eatContextual("from") && this.tok.type == __acorn.tokTypes.string ? this.parseExprAtom() : this.dummyString();
+    node.source = this.eatContextual("from") && this.tok.type === __acorn.tokTypes.string ? this.parseExprAtom() : this.dummyString();
     if (elt) { node.specifiers.unshift(elt); }
   }
   this.semicolon();
@@ -801,7 +821,7 @@ lp$2.parseMaybeAssign = function(noIn) {
   if (this.toks.isContextual("yield")) {
     var node = this.startNode();
     this.next();
-    if (this.semicolon() || this.canInsertSemicolon() || (this.tok.type != __acorn.tokTypes.star && !this.tok.type.startsExpr)) {
+    if (this.semicolon() || this.canInsertSemicolon() || (this.tok.type !== __acorn.tokTypes.star && !this.tok.type.startsExpr)) {
       node.delegate = false;
       node.argument = null;
     } else {
@@ -844,7 +864,7 @@ lp$2.parseExprOps = function(noIn) {
 };
 
 lp$2.parseExprOp = function(left, start, minPrec, noIn, indent, line) {
-  if (this.curLineStart != line && this.curIndent < indent && this.tokenStartsLine()) { return left }
+  if (this.curLineStart !== line && this.curIndent < indent && this.tokenStartsLine()) { return left }
   var prec = this.tok.type.binop;
   if (prec != null && (!noIn || this.tok.type !== __acorn.tokTypes._in)) {
     if (prec > minPrec) {
@@ -852,7 +872,7 @@ lp$2.parseExprOp = function(left, start, minPrec, noIn, indent, line) {
       node.left = left;
       node.operator = this.tok.value;
       this.next();
-      if (this.curLineStart != line && this.curIndent < indent && this.tokenStartsLine()) {
+      if (this.curLineStart !== line && this.curIndent < indent && this.tokenStartsLine()) {
         node.right = this.dummyIdent();
       } else {
         var rightStart = this.storeCurrentPos();
@@ -869,7 +889,9 @@ lp$2.parseMaybeUnary = function(sawUnary) {
   var this$1 = this;
 
   var start = this.storeCurrentPos(), expr;
-  if (this.options.ecmaVersion >= 8 && this.inAsync && this.toks.isContextual("await")) {
+  if (this.options.ecmaVersion >= 8 && this.toks.isContextual("await") &&
+    (this.inAsync || (!this.inFunction && this.options.allowAwaitOutsideFunction))
+  ) {
     expr = this.parseAwait();
     sawUnary = true;
   } else if (this.tok.type.prefix) {
@@ -918,8 +940,8 @@ lp$2.parseSubscripts = function(base, start, noCalls, startIndent, line) {
   var this$1 = this;
 
   for (;;) {
-    if (this$1.curLineStart != line && this$1.curIndent <= startIndent && this$1.tokenStartsLine()) {
-      if (this$1.tok.type == __acorn.tokTypes.dot && this$1.curIndent == startIndent)
+    if (this$1.curLineStart !== line && this$1.curIndent <= startIndent && this$1.tokenStartsLine()) {
+      if (this$1.tok.type === __acorn.tokTypes.dot && this$1.curIndent === startIndent)
         { --startIndent; }
       else
         { return base }
@@ -930,13 +952,13 @@ lp$2.parseSubscripts = function(base, start, noCalls, startIndent, line) {
     if (this$1.eat(__acorn.tokTypes.dot)) {
       var node = this$1.startNodeAt(start);
       node.object = base;
-      if (this$1.curLineStart != line && this$1.curIndent <= startIndent && this$1.tokenStartsLine())
+      if (this$1.curLineStart !== line && this$1.curIndent <= startIndent && this$1.tokenStartsLine())
         { node.property = this$1.dummyIdent(); }
       else
         { node.property = this$1.parsePropertyAccessor() || this$1.dummyIdent(); }
       node.computed = false;
       base = this$1.finishNode(node, "MemberExpression");
-    } else if (this$1.tok.type == __acorn.tokTypes.bracketL) {
+    } else if (this$1.tok.type === __acorn.tokTypes.bracketL) {
       this$1.pushCx();
       this$1.next();
       var node$1 = this$1.startNodeAt(start);
@@ -946,7 +968,7 @@ lp$2.parseSubscripts = function(base, start, noCalls, startIndent, line) {
       this$1.popCx();
       this$1.expect(__acorn.tokTypes.bracketR);
       base = this$1.finishNode(node$1, "MemberExpression");
-    } else if (!noCalls && this$1.tok.type == __acorn.tokTypes.parenL) {
+    } else if (!noCalls && this$1.tok.type === __acorn.tokTypes.parenL) {
       var exprList = this$1.parseExprList(__acorn.tokTypes.parenR);
       if (maybeAsyncArrow && this$1.eat(__acorn.tokTypes.arrow))
         { return this$1.parseArrowExpression(this$1.startNodeAt(start), exprList, true) }
@@ -954,7 +976,7 @@ lp$2.parseSubscripts = function(base, start, noCalls, startIndent, line) {
       node$2.callee = base;
       node$2.arguments = exprList;
       base = this$1.finishNode(node$2, "CallExpression");
-    } else if (this$1.tok.type == __acorn.tokTypes.backQuote) {
+    } else if (this$1.tok.type === __acorn.tokTypes.backQuote) {
       var node$3 = this$1.startNodeAt(start);
       node$3.tag = base;
       node$3.quasi = this$1.parseTemplate();
@@ -1068,7 +1090,7 @@ lp$2.parseNew = function() {
   }
   var start = this.storeCurrentPos();
   node.callee = this.parseSubscripts(this.parseExprAtom(), start, true, startIndent, line);
-  if (this.tok.type == __acorn.tokTypes.parenL) {
+  if (this.tok.type === __acorn.tokTypes.parenL) {
     node.arguments = this.parseExprList(__acorn.tokTypes.parenR);
   } else {
     node.arguments = [];
@@ -1132,6 +1154,12 @@ lp$2.parseObj = function() {
   if (this.curIndent + 1 < indent) { indent = this.curIndent; line = this.curLineStart; }
   while (!this.closes(__acorn.tokTypes.braceR, indent, line)) {
     var prop = this$1.startNode(), isGenerator = (void 0), isAsync = (void 0), start = (void 0);
+    if (this$1.options.ecmaVersion >= 9 && this$1.eat(__acorn.tokTypes.ellipsis)) {
+      prop.argument = this$1.parseMaybeAssign();
+      node.properties.push(this$1.finishNode(prop, "SpreadElement"));
+      this$1.eat(__acorn.tokTypes.comma);
+      continue
+    }
     if (this$1.options.ecmaVersion >= 6) {
       start = this$1.storeCurrentPos();
       prop.method = false;
@@ -1140,8 +1168,9 @@ lp$2.parseObj = function() {
     }
     this$1.parsePropertyName(prop);
     if (this$1.toks.isAsyncProp(prop)) {
-      this$1.parsePropertyName(prop);
       isAsync = true;
+      isGenerator = this$1.options.ecmaVersion >= 9 && this$1.eat(__acorn.tokTypes.star);
+      this$1.parsePropertyName(prop);
     } else {
       isAsync = false;
     }
@@ -1155,7 +1184,7 @@ lp$2.parseObj = function() {
       prop.value = this$1.parseMethod(isGenerator, isAsync);
     } else if (this$1.options.ecmaVersion >= 5 && prop.key.type === "Identifier" &&
                !prop.computed && (prop.key.name === "get" || prop.key.name === "set") &&
-               (this$1.tok.type != __acorn.tokTypes.comma && this$1.tok.type != __acorn.tokTypes.braceR && this$1.tok.type != __acorn.tokTypes.eq)) {
+               (this$1.tok.type !== __acorn.tokTypes.comma && this$1.tok.type !== __acorn.tokTypes.braceR && this$1.tok.type !== __acorn.tokTypes.eq)) {
       prop.kind = prop.key.name;
       this$1.parsePropertyName(prop);
       prop.value = this$1.parseMethod(false);
@@ -1234,28 +1263,29 @@ lp$2.initFunction = function(node) {
 lp$2.toAssignable = function(node, binding) {
   var this$1 = this;
 
-  if (!node || node.type == "Identifier" || (node.type == "MemberExpression" && !binding)) {
+  if (!node || node.type === "Identifier" || (node.type === "MemberExpression" && !binding)) {
     // Okay
-  } else if (node.type == "ParenthesizedExpression") {
+  } else if (node.type === "ParenthesizedExpression") {
     this.toAssignable(node.expression, binding);
   } else if (this.options.ecmaVersion < 6) {
     return this.dummyIdent()
-  } else if (node.type == "ObjectExpression") {
+  } else if (node.type === "ObjectExpression") {
     node.type = "ObjectPattern";
-    var props = node.properties;
-    for (var i = 0, list = props; i < list.length; i += 1)
+    for (var i = 0, list = node.properties; i < list.length; i += 1)
       {
       var prop = list[i];
 
-      this$1.toAssignable(prop.value, binding);
+      this$1.toAssignable(prop, binding);
     }
-  } else if (node.type == "ArrayExpression") {
+  } else if (node.type === "ArrayExpression") {
     node.type = "ArrayPattern";
     this.toAssignableList(node.elements, binding);
-  } else if (node.type == "SpreadElement") {
+  } else if (node.type === "Property") {
+    this.toAssignable(node.value, binding);
+  } else if (node.type === "SpreadElement") {
     node.type = "RestElement";
     this.toAssignable(node.argument, binding);
-  } else if (node.type == "AssignmentExpression") {
+  } else if (node.type === "AssignmentExpression") {
     node.type = "AssignmentPattern";
     delete node.operator;
   } else {
@@ -1282,26 +1312,29 @@ lp$2.parseFunctionParams = function(params) {
 };
 
 lp$2.parseMethod = function(isGenerator, isAsync) {
-  var node = this.startNode(), oldInAsync = this.inAsync;
+  var node = this.startNode(), oldInAsync = this.inAsync, oldInFunction = this.inFunction;
   this.initFunction(node);
   if (this.options.ecmaVersion >= 6)
     { node.generator = !!isGenerator; }
   if (this.options.ecmaVersion >= 8)
     { node.async = !!isAsync; }
   this.inAsync = node.async;
+  this.inFunction = true;
   node.params = this.parseFunctionParams();
   node.body = this.parseBlock();
   this.toks.adaptDirectivePrologue(node.body.body);
   this.inAsync = oldInAsync;
+  this.inFunction = oldInFunction;
   return this.finishNode(node, "FunctionExpression")
 };
 
 lp$2.parseArrowExpression = function(node, params, isAsync) {
-  var oldInAsync = this.inAsync;
+  var oldInAsync = this.inAsync, oldInFunction = this.inFunction;
   this.initFunction(node);
   if (this.options.ecmaVersion >= 8)
     { node.async = !!isAsync; }
   this.inAsync = node.async;
+  this.inFunction = true;
   node.params = this.toAssignableList(params, true);
   node.expression = this.tok.type !== __acorn.tokTypes.braceL;
   if (node.expression) {
@@ -1311,6 +1344,7 @@ lp$2.parseArrowExpression = function(node, params, isAsync) {
     this.toks.adaptDirectivePrologue(node.body.body);
   }
   this.inAsync = oldInAsync;
+  this.inFunction = oldInFunction;
   return this.finishNode(node, "ArrowFunctionExpression")
 };
 

@@ -30,9 +30,9 @@
 
 Debug = debug.Debug
 
-listenerComplete = false;
-exception = false;
-breakPointCount = 0;
+let listenerComplete = false;
+let exceptionThrown = false;
+let breakPointCount = 0;
 
 function listener(event, exec_state, event_data, data) {
   try {
@@ -53,7 +53,7 @@ function listener(event, exec_state, event_data, data) {
       }
     }
   } catch (e) {
-    exception = e
+    exceptionThrown = true;
   };
 };
 
@@ -79,4 +79,4 @@ eval("with({bar:'with'}) { (function g() { var foo = 'local'; debugger; })(); }"
 
 // Make sure that the debug event listener vas invoked.
 assertEquals(3, breakPointCount);
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener");

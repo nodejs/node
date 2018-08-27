@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 

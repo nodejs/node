@@ -1,17 +1,16 @@
 'use strict';
 
-// Flags: --experimental-vm-modules --experimental-modules --harmony-dynamic-import
+// Flags: --experimental-vm-modules --experimental-modules
 
 const common = require('../common');
-common.crashOnUnhandledRejection();
 
 const assert = require('assert');
-const { Module, createContext } = require('vm');
+const { SourceTextModule, createContext } = require('vm');
 
 const finished = common.mustCall();
 
 (async function() {
-  const m = new Module('import("foo")', { context: createContext() });
+  const m = new SourceTextModule('import("foo")', { context: createContext() });
   await m.link(common.mustNotCall());
   m.instantiate();
   const { result } = await m.evaluate();

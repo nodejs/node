@@ -26,8 +26,8 @@
 //    needs to increment twice (which the compiler should be able to detect and
 //    optimize).
 
-#ifndef BASE_ATOMICOPS_INTERNALS_PORTABLE_H_
-#define BASE_ATOMICOPS_INTERNALS_PORTABLE_H_
+#ifndef V8_BASE_ATOMICOPS_INTERNALS_PORTABLE_H_
+#define V8_BASE_ATOMICOPS_INTERNALS_PORTABLE_H_
 
 #include <atomic>
 

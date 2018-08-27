@@ -28,43 +28,46 @@ server.on('session', common.mustCall((session) => {
   session.altsvc('h2=":8000"', 3);
 
   // Will error because the numeric stream id is out of valid range
-  [0, -1, 1.1, 0xFFFFFFFF + 1, Infinity, -Infinity].forEach((i) => {
-    common.expectsError(
-      () => session.altsvc('h2=":8000"', i),
+  [0, -1, 1.1, 0xFFFFFFFF + 1, Infinity, -Infinity].forEach((input) => {
+    assert.throws(
+      () => session.altsvc('h2=":8000"', input),
       {
         code: 'ERR_OUT_OF_RANGE',
-        type: RangeError
+        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        message: 'The value of "originOrStream" is out of ' +
+                 `range. It must be > 0 && < 4294967296. Received ${input}`
       }
     );
   });
 
   // First argument must be a string
-  [0, {}, [], null, Infinity].forEach((i) => {
-    common.expectsError(
-      () => session.altsvc(i),
+  [0, {}, [], null, Infinity].forEach((input) => {
+    assert.throws(
+      () => session.altsvc(input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
       }
     );
   });
 
-  ['\u0001', 'h2="\uff20"', '👀'].forEach((i) => {
-    common.expectsError(
-      () => session.altsvc(i),
+  ['\u0001', 'h2="\uff20"', '👀'].forEach((input) => {
+    assert.throws(
+      () => session.altsvc(input),
       {
         code: 'ERR_INVALID_CHAR',
-        type: TypeError
+        name: 'TypeError [ERR_INVALID_CHAR]',
+        message: 'Invalid character in alt'
       }
     );
   });
 
-  [{}, [], true].forEach((i) => {
-    common.expectsError(
-      () => session.altsvc('clear', i),
+  [{}, [], true].forEach((input) => {
+    assert.throws(
+      () => session.altsvc('clear', input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
       }
     );
   });
@@ -74,25 +77,27 @@ server.on('session', common.mustCall((session) => {
     new URL('abc:'),
     { origin: 'null' },
     { origin: '' }
-  ].forEach((i) => {
-    common.expectsError(
-      () => session.altsvc('h2=":8000', i),
+  ].forEach((input) => {
+    assert.throws(
+      () => session.altsvc('h2=":8000', input),
       {
         code: 'ERR_HTTP2_ALTSVC_INVALID_ORIGIN',
-        type: TypeError
+        name: 'TypeError [ERR_HTTP2_ALTSVC_INVALID_ORIGIN]',
+        message: 'HTTP/2 ALTSVC frames require a valid origin'
       }
     );
   });
 
   // arguments + origin are too long for an ALTSVC frame
-  common.expectsError(
+  assert.throws(
     () => {
       session.altsvc('h2=":8000"',
                      `http://example.${'a'.repeat(17000)}.org:8000`);
     },
     {
       code: 'ERR_HTTP2_ALTSVC_LENGTH',
-      type: TypeError
+      name: 'TypeError [ERR_HTTP2_ALTSVC_LENGTH]',
+      message: 'HTTP/2 ALTSVC frames are limited to 16382 bytes'
     }
   );
 }));

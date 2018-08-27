@@ -39,6 +39,9 @@ const int kLoadDoubleMaxReachBits = 15;
 // sign-extend the least significant 16-bits of value <imm>
 #define SIGN_EXT_IMM16(imm) ((static_cast<int>(imm) << 16) >> 16)
 
+// sign-extend the least significant 22-bits of value <imm>
+#define SIGN_EXT_IMM22(imm) ((static_cast<int>(imm) << 10) >> 10)
+
 // sign-extend the least significant 26-bits of value <imm>
 #define SIGN_EXT_IMM26(imm) ((static_cast<int>(imm) << 6) >> 6)
 
@@ -2596,6 +2599,7 @@ enum {
   kImm24Mask = (1 << 24) - 1,
   kOff16Mask = (1 << 16) - 1,
   kImm16Mask = (1 << 16) - 1,
+  kImm22Mask = (1 << 22) - 1,
   kImm26Mask = (1 << 26) - 1,
   kBOfieldMask = 0x1f << 21,
   kOpcodeMask = 0x3f << 26,

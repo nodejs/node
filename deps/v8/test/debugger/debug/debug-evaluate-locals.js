@@ -27,8 +27,8 @@
 
 Debug = debug.Debug
 
-listenerComplete = false;
-exception = false;
+let listenerComplete = false;
+let exceptionThrown = false;
 
 
 function h() {
@@ -132,7 +132,7 @@ function listener(event, exec_state, event_data, data) {
       listenerComplete = true;
     }
   } catch (e) {
-    exception = e;
+    exceptionThrown = true;
     print("Caught something. " + e + " " + e.stack);
   };
 };
@@ -145,5 +145,5 @@ var f_result = f();
 assertEquals("foobar", f_result);
 
 // Make sure that the debug event listener was invoked.
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener");
 assertTrue(listenerComplete);

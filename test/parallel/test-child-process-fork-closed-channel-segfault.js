@@ -31,6 +31,16 @@ const server = net
   .listen(0, function() {
     const worker = cluster.fork();
 
+    worker.on('error', function(err) {
+      if (
+        err.code !== 'ECONNRESET' &&
+        err.code !== 'ECONNREFUSED' &&
+        err.code !== 'EMFILE'
+      ) {
+        throw err;
+      }
+    });
+
     function send(callback) {
       const s = net.connect(server.address().port, function() {
         worker.send({}, s, callback);
@@ -66,7 +76,10 @@ const server = net
         send(function(err) {
           // Ignore errors when sending the second handle because the worker
           // may already have exited.
-          if (err && err.message !== 'Channel closed') {
+          if (err && err.code !== 'ERR_IPC_CHANNEL_CLOSED' &&
+                     err.code !== 'ECONNRESET' &&
+                     err.code !== 'ECONNREFUSED' &&
+                     err.code !== 'EMFILE') {
             throw err;
           }
         });

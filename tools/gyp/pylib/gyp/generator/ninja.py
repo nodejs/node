@@ -140,7 +140,7 @@ class Target(object):
     # On Windows, incremental linking requires linking against all the .objs
     # that compose a .lib (rather than the .lib itself). That list is stored
     # here. In this case, we also need to save the compile_deps for the target,
-    # so that the the target that directly depends on the .objs can also depend
+    # so that the target that directly depends on the .objs can also depend
     # on those.
     self.component_objs = None
     self.compile_deps = None

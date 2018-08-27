@@ -7,7 +7,7 @@
 #include "src/arguments.h"
 #include "src/conversions-inl.h"
 #include "src/date.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 
@@ -20,15 +20,6 @@ RUNTIME_FUNCTION(Runtime_IsDate) {
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSDate());
 }
-
-
-RUNTIME_FUNCTION(Runtime_ThrowNotDateError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                 NewTypeError(MessageTemplate::kNotDateObject));
-}
-
 
 RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
   HandleScope scope(isolate);

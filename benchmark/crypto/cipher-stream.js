@@ -10,6 +10,9 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ api, cipher, type, len, writes }) {
+  // Default cipher for tests.
+  if (cipher === '')
+    cipher = 'AES192';
   if (api === 'stream' && /^v0\.[0-8]\./.test(process.version)) {
     console.error('Crypto streams not available until v0.10');
     // use the legacy, just so that we can compare them.

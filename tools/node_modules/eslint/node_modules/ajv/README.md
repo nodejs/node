@@ -2,30 +2,35 @@
 
 # Ajv: Another JSON Schema Validator
 
-The fastest JSON Schema validator for Node.js and browser with draft 6 support.
+The fastest JSON Schema validator for Node.js and browser. Supports draft-04/06/07.
 
 
 [![Build Status](https://travis-ci.org/epoberezkin/ajv.svg?branch=master)](https://travis-ci.org/epoberezkin/ajv)
-[![npm version](https://badge.fury.io/js/ajv.svg)](https://www.npmjs.com/package/ajv)
-[![npm@beta](https://img.shields.io/npm/v/ajv/beta.svg)](https://github.com/epoberezkin/ajv/tree/beta)
+[![npm](https://img.shields.io/npm/v/ajv.svg)](https://www.npmjs.com/package/ajv)
 [![npm downloads](https://img.shields.io/npm/dm/ajv.svg)](https://www.npmjs.com/package/ajv)
 [![Coverage Status](https://coveralls.io/repos/epoberezkin/ajv/badge.svg?branch=master&service=github)](https://coveralls.io/github/epoberezkin/ajv?branch=master)
 [![Greenkeeper badge](https://badges.greenkeeper.io/epoberezkin/ajv.svg)](https://greenkeeper.io/)
 [![Gitter](https://img.shields.io/gitter/room/ajv-validator/ajv.svg)](https://gitter.im/ajv-validator/ajv)
 
 
-__Please note__: Ajv [version 6](https://github.com/epoberezkin/ajv/tree/beta) with [JSON Schema draft-07](http://json-schema.org/work-in-progress) support is released. Use `npm install ajv@beta` to install.
+## Using version 6
 
+[JSON Schema draft-07](http://json-schema.org/latest/json-schema-validation.html) is published.
 
-## Using version 5
+[Ajv version 6.0.0](https://github.com/epoberezkin/ajv/releases/tag/v6.0.0) that supports draft-07 is released. It may require either migrating your schemas or updating your code (to continue using draft-04 and v5 schemas, draft-06 schemas will be supported without changes).
 
-[JSON Schema draft-06](https://trac.tools.ietf.org/html/draft-wright-json-schema-validation-01) is published.
-
-[Ajv version 5.0.0](https://github.com/epoberezkin/ajv/releases/tag/5.0.0) that supports draft-06 is released. It may require either migrating your schemas or updating your code (to continue using draft-04 and v5 schemas).
-
-__Please note__: To use Ajv with draft-04 schemas you need to explicitly add meta-schema to the validator instance:
+__Please note__: To use Ajv with draft-06 schemas you need to explicitly add the meta-schema to the validator instance:
 
 ```javascript
+ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-06.json'));
+```
+
+To use Ajv with draft-04 schemas in addition to explicitly adding meta-schema you also need to use option schemaId:
+
+```javascript
+var ajv = new Ajv({schemaId: 'id'});
+// If you want to use both draft-04 and draft-06/07 schemas:
+// var ajv = new Ajv({schemaId: 'auto'});
 ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-04.json'));
 ```
 
@@ -40,6 +45,7 @@ ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-04.json'));
 - [Command line interface](#command-line-interface)
 - Validation
   - [Keywords](#validation-keywords)
+  - [Annotation keywords](#annotation-keywords)
   - [Formats](#formats)
   - [Combining schemas with $ref](#ref)
   - [$data reference](#data-reference)
@@ -55,6 +61,7 @@ ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-04.json'));
   - [Methods](#api)
   - [Options](#options)
   - [Validation errors](#validation-errors)
+- [Plugins](#plugins)
 - [Related packages](#related-packages)
 - [Packages using Ajv](#some-packages-using-ajv)
 - [Tests, Contributing, History, License](#tests)
@@ -62,7 +69,7 @@ ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-04.json'));
 
 ## Performance
 
-Ajv generates code using [doT templates](https://github.com/olado/doT) to turn JSON schemas into super-fast validation functions that are efficient for v8 optimization.
+Ajv generates code using [doT templates](https://github.com/olado/doT) to turn JSON Schemas into super-fast validation functions that are efficient for v8 optimization.
 
 Currently Ajv is the fastest and the most standard compliant validator according to these benchmarks:
 
@@ -79,12 +86,12 @@ Performance of different validators by [json-schema-benchmark](https://github.co
 
 ## Features
 
-- Ajv implements full JSON Schema [draft 6](http://json-schema.org/) and draft 4 standards:
+- Ajv implements full JSON Schema [draft-06/07](http://json-schema.org/) and draft-04 standards:
   - all validation keywords (see [JSON Schema validation keywords](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md))
   - full support of remote refs (remote schemas have to be added with `addSchema` or compiled to be available)
   - support of circular references between schemas
   - correct string lengths for strings with unicode pairs (can be turned off)
-  - [formats](#formats) defined by JSON Schema draft 4 standard and custom formats (can be turned off)
+  - [formats](#formats) defined by JSON Schema draft-07 standard and custom formats (can be turned off)
   - [validates schemas against meta-schema](#api-validateschema)
 - supports [browsers](#using-in-browser) and Node.js 0.10-8.x
 - [asynchronous loading](#asynchronous-schema-compilation) of referenced schemas during compilation
@@ -95,9 +102,9 @@ Performance of different validators by [json-schema-benchmark](https://github.co
 - [assigning defaults](#assigning-defaults) to missing properties and items
 - [coercing data](#coercing-data-types) to the types specified in `type` keywords
 - [custom keywords](#defining-custom-keywords)
-- draft-6 keywords `const`, `contains` and `propertyNames`
-- draft-6 boolean schemas (`true`/`false` as a schema to always pass/fail).
-- keywords `switch`, `patternRequired`, `formatMaximum` / `formatMinimum` and `formatExclusiveMaximum` / `formatExclusiveMinimum` from [JSON-schema extension proposals](https://github.com/json-schema/json-schema/wiki/v5-Proposals) with [ajv-keywords](https://github.com/epoberezkin/ajv-keywords) package
+- draft-06/07 keywords `const`, `contains`, `propertyNames` and `if/then/else`
+- draft-06 boolean schemas (`true`/`false` as a schema to always pass/fail).
+- keywords `switch`, `patternRequired`, `formatMaximum` / `formatMinimum` and `formatExclusiveMaximum` / `formatExclusiveMinimum` from [JSON Schema extension proposals](https://github.com/json-schema/json-schema/wiki/v5-Proposals) with [ajv-keywords](https://github.com/epoberezkin/ajv-keywords) package
 - [$data reference](#data-reference) to use values from the validated data as values for the schema keywords
 - [asynchronous validation](#asynchronous-validation) of custom formats and keywords
 
@@ -108,12 +115,6 @@ Currently Ajv is the only validator that passes all the tests from [JSON Schema 
 
 ```
 npm install ajv
-```
-
-or to install [version 6](https://github.com/epoberezkin/ajv/tree/beta):
-
-```
-npm install ajv@beta
 ```
 
 
@@ -186,11 +187,11 @@ __Please note__: some frameworks, e.g. Dojo, may redefine global require in such
 
 CLI is available as a separate npm package [ajv-cli](https://github.com/jessedc/ajv-cli). It supports:
 
-- compiling JSON-schemas to test their validity
+- compiling JSON Schemas to test their validity
 - BETA: generating standalone module exporting a validation function to be used without Ajv (using [ajv-pack](https://github.com/epoberezkin/ajv-pack))
-- migrate schemas to draft-06 (using [json-schema-migrate](https://github.com/epoberezkin/json-schema-migrate))
-- validating data file(s) against JSON-schema
-- testing expected validity of data against JSON-schema
+- migrate schemas to draft-07 (using [json-schema-migrate](https://github.com/epoberezkin/json-schema-migrate))
+- validating data file(s) against JSON Schema
+- testing expected validity of data against JSON Schema
 - referenced schemas
 - custom meta-schemas
 - files in JSON and JavaScript format
@@ -200,7 +201,7 @@ CLI is available as a separate npm package [ajv-cli](https://github.com/jessedc/
 
 ## Validation keywords
 
-Ajv supports all validation keywords from draft 4 of JSON-schema standard:
+Ajv supports all validation keywords from draft-07 of JSON Schema standard:
 
 - [type](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#type)
 - [for numbers](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#keywords-for-numbers) - maximum, minimum, exclusiveMaximum, exclusiveMinimum, multipleOf
@@ -208,15 +209,29 @@ Ajv supports all validation keywords from draft 4 of JSON-schema standard:
 - [for arrays](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#keywords-for-arrays) - maxItems, minItems, uniqueItems, items, additionalItems, [contains](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#contains)
 - [for objects](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#keywords-for-objects) - maxProperties, minProperties, required, properties, patternProperties, additionalProperties, dependencies, [propertyNames](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#propertynames)
 - [for all types](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#keywords-for-all-types) - enum, [const](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#const)
-- [compound keywords](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#compound-keywords) - not, oneOf, anyOf, allOf
+- [compound keywords](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#compound-keywords) - not, oneOf, anyOf, allOf, [if/then/else](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#ifthenelse)
 
-With [ajv-keywords](https://github.com/epoberezkin/ajv-keywords) package Ajv also supports validation keywords from [JSON Schema extension proposals](https://github.com/json-schema/json-schema/wiki/v5-Proposals) for JSON-schema standard:
+With [ajv-keywords](https://github.com/epoberezkin/ajv-keywords) package Ajv also supports validation keywords from [JSON Schema extension proposals](https://github.com/json-schema/json-schema/wiki/v5-Proposals) for JSON Schema standard:
 
-- [switch](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#switch-proposed) - conditional validation with a sequence of if/then clauses
 - [patternRequired](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#patternrequired-proposed) - like `required` but with patterns that some property should match.
 - [formatMaximum, formatMinimum, formatExclusiveMaximum, formatExclusiveMinimum](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md#formatmaximum--formatminimum-and-exclusiveformatmaximum--exclusiveformatminimum-proposed) - setting limits for date, time, etc.
 
 See [JSON Schema validation keywords](https://github.com/epoberezkin/ajv/blob/master/KEYWORDS.md) for more details.
+
+
+## Annotation keywords
+
+JSON Schema specification defines several annotation keywords that describe schema itself but do not perform any validation.
+
+- `title` and `description`: information about the data represented by that schema
+- `$comment` (NEW in draft-07): information for developers. With option `$comment` Ajv logs or passes the comment string to the user-supplied function. See [Options](#options).
+- `default`: a default value of the data instance, see [Assigning defaults](#assigning-defaults).
+- `examples` (NEW in draft-07): an array of data instances. Ajv does not check the validity of these instances against the schema.
+- `readOnly` and `writeOnly` (NEW in draft-07): marks data-instance as read-only or write-only in relation to the source of the data (database, api, etc.).
+- `contentEncoding`: [RFC 2045](https://tools.ietf.org/html/rfc2045#section-6.1 ), e.g., "base64".
+- `contentMediaType`: [RFC 2046](https://tools.ietf.org/html/rfc2046), e.g., "image/png".
+
+__Please note__:  Ajv does not implement validation of the keywords `examples`, `contentEncoding` and `contentMediaType` but it reserves them. If you want to create a plugin that implements some of them, it should remove these keywords from the instance.
 
 
 ## Formats
@@ -226,9 +241,10 @@ The following formats are supported for string validation with "format" keyword:
 - _date_: full-date according to [RFC3339](http://tools.ietf.org/html/rfc3339#section-5.6).
 - _time_: time with optional time-zone.
 - _date-time_: date-time from the same source (time-zone is mandatory). `date`, `time` and `date-time` validate ranges in `full` mode and only regexp in `fast` mode (see [options](#options)).
-- _uri_: full uri with optional protocol.
-- _url_: [URL record](https://url.spec.whatwg.org/#concept-url).
+- _uri_: full URI.
+- _uri-reference_: URI reference, including full and relative URIs.
 - _uri-template_: URI template according to [RFC6570](https://tools.ietf.org/html/rfc6570)
+- _url_: [URL record](https://url.spec.whatwg.org/#concept-url).
 - _email_: email address.
 - _hostname_: host name according to [RFC1034](http://tools.ietf.org/html/rfc1034#section-3.5).
 - _ipv4_: IP address v4.
@@ -238,7 +254,9 @@ The following formats are supported for string validation with "format" keyword:
 - _json-pointer_: JSON-pointer according to [RFC6901](https://tools.ietf.org/html/rfc6901).
 - _relative-json-pointer_: relative JSON-pointer according to [this draft](http://tools.ietf.org/html/draft-luff-relative-json-pointer-00).
 
-There are two modes of format validation: `fast` and `full`. This mode affects formats `date`, `time`, `date-time`, `uri`, `email`, and `hostname`. See [Options](#options) for details.
+__Please note__: JSON Schema draft-07 also defines formats `iri`, `iri-reference`, `idn-hostname` and `idn-email` for URLs, hostnames and emails with international characters. Ajv does not implement these formats. If you create Ajv plugin that implements them please make a PR to mention this plugin here.
+
+There are two modes of format validation: `fast` and `full`. This mode affects formats `date`, `time`, `date-time`, `uri`, `uri-reference`, `email`, and `hostname`. See [Options](#options) for details.
 
 You can add additional formats and replace any of the formats above using [addFormat](#api-addformat) method.
 
@@ -353,7 +371,7 @@ var validData = {
 
 ## $merge and $patch keywords
 
-With the package [ajv-merge-patch](https://github.com/epoberezkin/ajv-merge-patch) you can use the keywords `$merge` and `$patch` that allow extending JSON-schemas with patches using formats [JSON Merge Patch (RFC 7396)](https://tools.ietf.org/html/rfc7396) and [JSON Patch (RFC 6902)](https://tools.ietf.org/html/rfc6902).
+With the package [ajv-merge-patch](https://github.com/epoberezkin/ajv-merge-patch) you can use the keywords `$merge` and `$patch` that allow extending JSON Schemas with patches using formats [JSON Merge Patch (RFC 7396)](https://tools.ietf.org/html/rfc7396) and [JSON Patch (RFC 6902)](https://tools.ietf.org/html/rfc6902).
 
 To add keywords `$merge` and `$patch` to Ajv instance use this code:
 
@@ -427,7 +445,7 @@ The advantages of using custom keywords are:
 
 If a keyword is used only for side-effects and its validation result is pre-defined, use option `valid: true/false` in keyword definition to simplify both generated code (no error handling in case of `valid: true`) and your keyword functions (no need to return any validation result).
 
-The concerns you have to be aware of when extending JSON-schema standard with custom keywords are the portability and understanding of your schemas. You will have to support these custom keywords on other platforms and to properly document these keywords so that everybody can understand them in your schemas.
+The concerns you have to be aware of when extending JSON Schema standard with custom keywords are the portability and understanding of your schemas. You will have to support these custom keywords on other platforms and to properly document these keywords so that everybody can understand them in your schemas.
 
 You can define custom keywords with [addKeyword](#api-addkeyword) method. Keywords are defined on the `ajv` instance level - new instances will not have previously defined keywords.
 
@@ -501,17 +519,11 @@ If your schema uses asynchronous formats/keywords or refers to some schema that 
 
 __Please note__: all asynchronous subschemas that are referenced from the current or other schemas should have `"$async": true` keyword as well, otherwise the schema compilation will fail.
 
-Validation function for an asynchronous custom format/keyword should return a promise that resolves with `true` or `false` (or rejects with `new Ajv.ValidationError(errors)` if you want to return custom errors from the keyword function). Ajv compiles asynchronous schemas to either [es7 async functions](http://tc39.github.io/ecmascript-asyncawait/) that can optionally be transpiled with [nodent](https://github.com/MatAtBread/nodent) or with [regenerator](https://github.com/facebook/regenerator) or to [generator functions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*) that can be optionally transpiled with regenerator as well. You can also supply any other transpiler as a function. See [Options](#options).
+Validation function for an asynchronous custom format/keyword should return a promise that resolves with `true` or `false` (or rejects with `new Ajv.ValidationError(errors)` if you want to return custom errors from the keyword function).
+
+Ajv compiles asynchronous schemas to [es7 async functions](http://tc39.github.io/ecmascript-asyncawait/) that can optionally be transpiled with [nodent](https://github.com/MatAtBread/nodent). Async functions are supported in Node.js 7+ and all modern browsers. You can also supply any other transpiler as a function via `processCode` option. See [Options](#options).
 
 The compiled validation function has `$async: true` property (if the schema is asynchronous), so you can differentiate these functions if you are using both synchronous and asynchronous schemas.
-
-If you are using generators, the compiled validation function can be either wrapped with [co](https://github.com/tj/co) (default) or returned as generator function, that can be used directly, e.g. in [koa](http://koajs.com/) 1.0. `co` is a small library, it is included in Ajv (both as npm dependency and in the browser bundle).
-
-Async functions are currently supported in Chrome 55, Firefox 52, Node.js 7 (with --harmony-async-await) and MS Edge 13 (with flag).
-
-Generator functions are currently supported in Chrome, Firefox and Node.js.
-
-If you are using Ajv in other browsers or in older versions of Node.js you should use one of available transpiling options. All provided async modes use global Promise class. If your platform does not have Promise you should use a polyfill that defines it.
 
 Validation result will be a promise that resolves with validated data or rejects with an exception `Ajv.ValidationError` that contains the array of validation errors in `errors` property.
 
@@ -519,21 +531,8 @@ Validation result will be a promise that resolves with validated data or rejects
 Example:
 
 ```javascript
-/**
- * Default mode is non-transpiled generator function wrapped with `co`.
- * Using package ajv-async (https://github.com/epoberezkin/ajv-async)
- * you can auto-detect the best async mode.
- * In this case, without "async" and "transpile" options
- * (or with option {async: true})
- * Ajv will choose the first supported/installed option in this order:
- * 1. native async function
- * 2. native generator function wrapped with co
- * 3. es7 async functions transpiled with nodent
- * 4. es7 async functions transpiled with regenerator
- */
-
-var setupAsync = require('ajv-async');
-var ajv = setupAsync(new Ajv);
+var ajv = new Ajv;
+// require('ajv-async')(ajv);
 
 ajv.addKeyword('idExists', {
   async: true,
@@ -580,66 +579,30 @@ validate({ userId: 1, postId: 19 })
 
 ### Using transpilers with asynchronous validation functions.
 
-To use a transpiler you should separately install it (or load its bundle in the browser).
-
-Ajv npm package includes minified browser bundles of regenerator and nodent in dist folder.
+[ajv-async](https://github.com/epoberezkin/ajv-async) uses [nodent](https://github.com/MatAtBread/nodent) to transpile async functions. To use another transpiler you should separately install it (or load its bundle in the browser).
 
 
 #### Using nodent
 
 ```javascript
-var setupAsync = require('ajv-async');
-var ajv = new Ajv({ /* async: 'es7', */ transpile: 'nodent' });
-setupAsync(ajv);
+var ajv = new Ajv;
+require('ajv-async')(ajv);
+// in the browser if you want to load ajv-async bundle separately you can:
+// window.ajvAsync(ajv);
 var validate = ajv.compile(schema); // transpiled es7 async function
 validate(data).then(successFunc).catch(errorFunc);
 ```
-
-`npm install nodent` or use `nodent.min.js` from dist folder of npm package.
-
-
-#### Using regenerator
-
-```javascript
-var setupAsync = require('ajv-async');
-var ajv = new Ajv({ /* async: 'es7', */ transpile: 'regenerator' });
-setupAsync(ajv);
-var validate = ajv.compile(schema); // transpiled es7 async function
-validate(data).then(successFunc).catch(errorFunc);
-```
-
-`npm install regenerator` or use `regenerator.min.js` from dist folder of npm package.
 
 
 #### Using other transpilers
 
 ```javascript
-var ajv = new Ajv({ async: 'es7', processCode: transpileFunc });
+var ajv = new Ajv({ processCode: transpileFunc });
 var validate = ajv.compile(schema); // transpiled es7 async function
 validate(data).then(successFunc).catch(errorFunc);
 ```
 
 See [Options](#options).
-
-
-#### Comparison of async modes
-
-|mode|transpile<br>speed*|run-time<br>speed*|bundle<br>size|
-|---|:-:|:-:|:-:|
-|es7 async<br>(native)|-|0.75|-|
-|generators<br>(native)|-|1.0|-|
-|es7.nodent|1.35|1.1|215Kb|
-|es7.regenerator|1.0|2.7|1109Kb|
-|regenerator|1.0|3.2|1109Kb|
-
-\* Relative performance in Node.js 7.x — smaller is better.
-
-[nodent](https://github.com/MatAtBread/nodent) has several advantages:
-
-- much smaller browser bundle than regenerator
-- almost the same performance of generated code as native generators in Node.js and the latest Chrome
-- much better performance than native generators in other browsers
-- works in IE 9 (regenerator does not)
 
 
 ## Filtering data
@@ -884,9 +847,9 @@ Create Ajv instance.
 
 Generate validating function and cache the compiled schema for future use.
 
-Validating function returns boolean and has properties `errors` with the errors from the last validation (`null` if there were no errors) and `schema` with the reference to the original schema.
+Validating function returns a boolean value. This function has properties `errors` and `schema`. Errors encountered during the last validation are assigned to `errors` property (it is assigned `null` if there was no errors). `schema` property contains the reference to the original schema.
 
-Unless the option `validateSchema` is false, the schema will be validated against meta-schema and if schema is invalid the error will be thrown. See [options](#options).
+The schema passed to this method will be validated against meta-schema unless `validateSchema` option is false. If schema is invalid, an error will be thrown. See [options](#options).
 
 
 ##### <a name="api-compileAsync"></a>.compileAsync(Object schema [, Boolean meta] [, Function callback]) -&gt; Promise
@@ -937,13 +900,13 @@ This allows you to do nice things like the following.
 
 ```javascript
 var validate = new Ajv().addSchema(schema).addFormat(name, regex).getSchema(uri);
-```  
+```
 
 ##### .addMetaSchema(Array&lt;Object&gt;|Object schema [, String key]) -&gt; Ajv
 
 Adds meta schema(s) that can be used to validate other schemas. That function should be used instead of `addSchema` because there may be instance options that would compile a meta schema incorrectly (at the moment it is `removeAdditional` option).
 
-There is no need to explicitly add draft 6 meta schema (http://json-schema.org/draft-06/schema and http://json-schema.org/schema) - it is added by default, unless option `meta` is set to `false`. You only need to use it if you have a changed meta-schema that you want to use to validate your schemas. See `validateSchema`.
+There is no need to explicitly add draft-07 meta schema (http://json-schema.org/draft-07/schema) - it is added by default, unless option `meta` is set to `false`. You only need to use it if you have a changed meta-schema that you want to use to validate your schemas. See `validateSchema`.
 
 
 ##### <a name="api-validateschema"></a>.validateSchema(Object schema) -&gt; Boolean
@@ -999,14 +962,14 @@ Custom formats can be also added via `formats` option.
 
 Add custom validation keyword to Ajv instance.
 
-Keyword should be different from all standard JSON schema keywords and different from previously defined keywords. There is no way to redefine keywords or to remove keyword definition from the instance.
+Keyword should be different from all standard JSON Schema keywords and different from previously defined keywords. There is no way to redefine keywords or to remove keyword definition from the instance.
 
 Keyword must start with a letter, `_` or `$`, and may continue with letters, numbers, `_`, `$`, or `-`.
 It is recommended to use an application-specific prefix for keywords to avoid current and future name collisions.
 
 Example Keywords:
 - `"xyz-example"`: valid, and uses prefix for the xyz project to avoid name collisions.
-- `"example"`: valid, but not recommended as it could collide with future versions of JSON schema etc.
+- `"example"`: valid, but not recommended as it could collide with future versions of JSON Schema etc.
 - `"3-example"`: invalid as numbers are not allowed to be the first character in a keyword
 
 Keyword definition is an object with the following properties:
@@ -1062,6 +1025,7 @@ Defaults:
   $data:            false,
   allErrors:        false,
   verbose:          false,
+  $comment:         false, // NEW in Ajv version 6.0
   jsonPointers:     false,
   uniqueItems:      true,
   unicode:          true,
@@ -1071,7 +1035,7 @@ Defaults:
   schemas:          {},
   logger:           undefined,
   // referenced schema options:
-  schemaId:         undefined // recommended '$id'
+  schemaId:         '$id',
   missingRefs:      true,
   extendRefs:       'ignore', // recommended 'fail'
   loadSchema:       undefined, // function(uri: string): Promise {}
@@ -1080,7 +1044,6 @@ Defaults:
   useDefaults:      false,
   coerceTypes:      false,
   // asynchronous validation options:
-  async:            'co*',
   transpile:        undefined, // requires ajv-async package
   // advanced options:
   meta:             true,
@@ -1091,7 +1054,7 @@ Defaults:
   loopRequired:     Infinity,
   ownProperties:    false,
   multipleOfPrecision: false,
-  errorDataPath:    'object',
+  errorDataPath:    'object', // deprecated
   messages:         true,
   sourceCode:       false,
   processCode:      undefined, // function (str: string): string {}
@@ -1105,6 +1068,10 @@ Defaults:
 - _$data_: support [$data references](#data-reference). Draft 6 meta-schema that is added by default will be extended to allow them. If you want to use another meta-schema you need to use $dataMetaSchema method to add support for $data reference. See [API](#api).
 - _allErrors_: check all rules collecting all errors. Default is to return after the first error.
 - _verbose_: include the reference to the part of the schema (`schema` and `parentSchema`) and validated data in errors (false by default).
+- _$comment_ (NEW in Ajv version 6.0): log or pass the value of `$comment` keyword to a function. Option values:
+  - `false` (default): ignore $comment keyword.
+  - `true`: log the keyword value to console.
+  - function: pass the keyword value, its schema path and root schema to the specified function
 - _jsonPointers_: set `dataPath` property of errors using [JSON Pointers](https://tools.ietf.org/html/rfc6901) instead of JavaScript property access notation.
 - _uniqueItems_: validate `uniqueItems` keyword (true by default).
 - _unicode_: calculate correct length of strings with unicode pairs (true by default). Pass `false` to use `.length` of strings that is faster, but gives "incorrect" lengths of strings with unicode pairs - each unicode pair is counted as two characters.
@@ -1113,7 +1080,7 @@ Defaults:
 - _unknownFormats_: handling of unknown formats. Option values:
   - `true` (default) - if an unknown format is encountered the exception is thrown during schema compilation. If `format` keyword value is [$data reference](#data-reference) and it is unknown the validation will fail.
   - `[String]` - an array of unknown format names that will be ignored. This option can be used to allow usage of third party schemas with format(s) for which you don't have definitions, but still fail if another unknown format is used. If `format` keyword value is [$data reference](#data-reference) and it is not in this array the validation will fail.
-  - `"ignore"` - to log warning during schema compilation and always pass validation (the default behaviour in versions before 5.0.0). This option is not recommended, as it allows to mistype format name and it won't be validated without any error message. This behaviour is required by JSON-schema specification.
+  - `"ignore"` - to log warning during schema compilation and always pass validation (the default behaviour in versions before 5.0.0). This option is not recommended, as it allows to mistype format name and it won't be validated without any error message. This behaviour is required by JSON Schema specification.
 - _schemas_: an array or object of schemas that will be added to the instance. In case you pass the array the schemas must have IDs in them. When the object is passed the method `addSchema(value, key)` will be called for each schema in this object.
 - _logger_: sets the logging method. Default is the global `console` object that should have methods `log`, `warn` and `error`. Option values:
   - custom logger - it should have methods `log`, `warn` and `error`. If any of these methods is missing an exception will be thrown.
@@ -1123,9 +1090,9 @@ Defaults:
 ##### Referenced schema options
 
 - _schemaId_: this option defines which keywords are used as schema URI. Option value:
-  - `"$id"` (recommended) - only use `$id` keyword as schema URI (as specified in JSON Schema draft-06), ignore `id` keyword (if it is present a warning will be logged).
+  - `"$id"` (default) - only use `$id` keyword as schema URI (as specified in JSON Schema draft-06/07), ignore `id` keyword (if it is present a warning will be logged).
   - `"id"` - only use `id` keyword as schema URI (as specified in JSON Schema draft-04), ignore `$id` keyword (if it is present a warning will be logged).
-  - `undefined` (default) - use both `$id` and `id` keywords as schema URI. If both are present (in the same schema object) and different the exception will be thrown during schema compilation.
+  - `"auto"` - use both `$id` and `id` keywords as schema URI. If both are present (in the same schema object) and different the exception will be thrown during schema compilation.
 - _missingRefs_: handling of missing referenced schemas. Option values:
   - `true` (default) - if the reference cannot be resolved during compilation the exception is thrown. The thrown error has properties `missingRef` (with hash fragment) and `missingSchema` (without it). Both properties are resolved relative to the current base id (usually schema id, unless it was substituted).
   - `"ignore"` - to log error during compilation and always pass validation.
@@ -1156,30 +1123,16 @@ Defaults:
 
 ##### Asynchronous validation options
 
-- _async_: determines how Ajv compiles asynchronous schemas (see [Asynchronous validation](#asynchronous-validation)) to functions. Option values:
-  - `"*"` / `"co*"` (default) - compile to generator function ("co*" - wrapped with `co.wrap`). If generators are not supported and you don't provide `processCode` option (or `transpile` option if you use [ajv-async](https://github.com/epoberezkin/ajv-async) package), the exception will be thrown when async schema is compiled.
-  - `"es7"` - compile to es7 async function. Unless your platform supports them you need to provide `processCode` or `transpile` option. According to [compatibility table](http://kangax.github.io/compat-table/es7/)) async functions are supported by:
-    - Firefox 52,
-    - Chrome 55,
-    - Node.js 7 (with `--harmony-async-await`),
-    - MS Edge 13 (with flag).
-  - `undefined`/`true` - auto-detect async mode. It requires [ajv-async](https://github.com/epoberezkin/ajv-async) package. If `transpile` option is not passed, ajv-async will choose the first of supported/installed async/transpile modes in this order:
-    - "es7" (native async functions),
-    - "co*" (native generators with co.wrap),
-    - "es7"/"nodent",
-    - "co*"/"regenerator" during the creation of the Ajv instance.
-
-  If none of the options is available the exception will be thrown.
 - _transpile_: Requires [ajv-async](https://github.com/epoberezkin/ajv-async) package. It determines whether Ajv transpiles compiled asynchronous validation function. Option values:
-  - `"nodent"` - transpile with [nodent](https://github.com/MatAtBread/nodent). If nodent is not installed, the exception will be thrown. nodent can only transpile es7 async functions; it will enforce this mode.
-  - `"regenerator"` - transpile with [regenerator](https://github.com/facebook/regenerator). If regenerator is not installed, the exception will be thrown.
-  - a function - this function should accept the code of validation function as a string and return transpiled code. This option allows you to use any other transpiler you prefer. If you are passing a function, you can simply pass it to `processCode` option without using ajv-async.
+  - `undefined` (default) - transpile with [nodent](https://github.com/MatAtBread/nodent) if async functions are not supported.
+  - `true` - always transpile with nodent.
+  - `false` - do not transpile; if async functions are not supported an exception will be thrown.
 
 
 ##### Advanced options
 
 - _meta_: add [meta-schema](http://json-schema.org/documentation.html) so it can be used by other schemas (true by default). If an object is passed, it will be used as the default meta-schema for schemas that have no `$schema` keyword. This default meta-schema MUST have `$schema` keyword.
-- _validateSchema_: validate added/compiled schemas against meta-schema (true by default). `$schema` property in the schema can either be http://json-schema.org/schema or http://json-schema.org/draft-04/schema or absent (draft-4 meta-schema will be used) or can be a reference to the schema previously added with `addMetaSchema` method. Option values:
+- _validateSchema_: validate added/compiled schemas against meta-schema (true by default). `$schema` property in the schema can be http://json-schema.org/draft-07/schema or absent (draft-07 meta-schema will be used) or can be a reference to the schema previously added with `addMetaSchema` method. Option values:
   - `true` (default) -  if the validation fails, throw the exception.
   - `"log"` - if the validation fails, log error.
   - `false` - skip schema validation.
@@ -1192,7 +1145,7 @@ Defaults:
 - _loopRequired_: by default `required` keyword is compiled into a single expression (or a sequence of statements in `allErrors` mode). In case of a very large number of properties in this keyword it may result in a very big validation function. Pass integer to set the number of properties above which `required` keyword will be validated in a loop - smaller validation function size but also worse performance.
 - _ownProperties_: by default Ajv iterates over all enumerable object properties; when this option is `true` only own enumerable object properties (i.e. found directly on the object rather than on its prototype) are iterated. Contributed by @mbroadst.
 - _multipleOfPrecision_: by default `multipleOf` keyword is validated by comparing the result of division with parseInt() of that result. It works for dividers that are bigger than 1. For small dividers such as 0.01 the result of the division is usually not integer (even when it should be integer, see issue [#84](https://github.com/epoberezkin/ajv/issues/84)). If you need to use fractional dividers set this option to some positive integer N to have `multipleOf` validated using this formula: `Math.abs(Math.round(division) - division) < 1e-N` (it is slower but allows for float arithmetics deviations).
-- _errorDataPath_: set `dataPath` to point to 'object' (default) or to 'property' when validating keywords `required`, `additionalProperties` and `dependencies`.
+- _errorDataPath_ (deprecated): set `dataPath` to point to 'object' (default) or to 'property' when validating keywords `required`, `additionalProperties` and `dependencies`.
 - _messages_: Include human-readable messages in errors. `true` by default. `false` can be passed when custom messages are used (e.g. with [ajv-i18n](https://github.com/epoberezkin/ajv-i18n)).
 - _sourceCode_: add `sourceCode` property to validating function (for debugging; this code can be different from the result of toString call).
 - _processCode_: an optional function to process generated code before it is passed to Function constructor. It can be used to either beautify (the validating function is generated without line-breaks) or to transpile code. Starting from version 5.0.0 this option replaced options:
@@ -1247,20 +1200,34 @@ Properties of `params` object in errors depend on the keyword that failed valida
 - `patternRequired` (in ajv-keywords) - property `missingPattern` (required pattern that did not match any property).
 - `type` - property `type` (required type(s), a string, can be a comma-separated list)
 - `uniqueItems` - properties `i` and `j` (indices of duplicate items).
+- `const` - property `allowedValue` pointing to the value (the schema of the keyword).
 - `enum` - property `allowedValues` pointing to the array of values (the schema of the keyword).
 - `$ref` - property `ref` with the referenced schema URI.
+- `oneOf` - property `passingSchemas` (array of indices of passing schemas, null if no schema passes).
 - custom keywords (in case keyword definition doesn't create errors) - property `keyword` (the keyword name).
+
+
+## Plugins
+
+Ajv can be extended with plugins that add custom keywords, formats or functions to process generated code. When such plugin is published as npm package it is recommended that it follows these conventions:
+
+- it exports a function
+- this function accepts ajv instance as the first parameter and returns the same instance to allow chaining
+- this function can accept an optional configuration as the second parameter
+
+If you have published a useful plugin please submit a PR to add it to the next section.
 
 
 ## Related packages
 
-- [ajv-async](https://github.com/epoberezkin/ajv-async) - configure async validation mode
+- [ajv-async](https://github.com/epoberezkin/ajv-async) - plugin to configure async validation mode
+- [ajv-bsontype](https://github.com/BoLaMN/ajv-bsontype) - plugin to validate mongodb's bsonType formats
 - [ajv-cli](https://github.com/jessedc/ajv-cli) - command line interface
-- [ajv-errors](https://github.com/epoberezkin/ajv-errors) - custom error messages
+- [ajv-errors](https://github.com/epoberezkin/ajv-errors) - plugin for custom error messages
 - [ajv-i18n](https://github.com/epoberezkin/ajv-i18n) - internationalised error messages
-- [ajv-istanbul](https://github.com/epoberezkin/ajv-istanbul) - instrument generated validation code to measure test coverage of your schemas
-- [ajv-keywords](https://github.com/epoberezkin/ajv-keywords) - custom validation keywords (if/then/else, select, typeof, etc.)
-- [ajv-merge-patch](https://github.com/epoberezkin/ajv-merge-patch) - keywords $merge and $patch
+- [ajv-istanbul](https://github.com/epoberezkin/ajv-istanbul) - plugin to instrument generated validation code to measure test coverage of your schemas
+- [ajv-keywords](https://github.com/epoberezkin/ajv-keywords) - plugin with custom validation keywords (if/then/else, select, typeof, etc.)
+- [ajv-merge-patch](https://github.com/epoberezkin/ajv-merge-patch) - plugin with keywords $merge and $patch
 - [ajv-pack](https://github.com/epoberezkin/ajv-pack) - produces a compact module exporting validation functions
 
 
@@ -1271,7 +1238,7 @@ Properties of `params` object in errors depend on the keyword that failed valida
 - [osprey-method-handler](https://github.com/mulesoft-labs/osprey-method-handler) - Express middleware for validating requests and responses based on a RAML method object, used in [osprey](https://github.com/mulesoft/osprey) - validating API proxy generated from a RAML definition
 - [har-validator](https://github.com/ahmadnassri/har-validator) - HTTP Archive (HAR) validator
 - [jsoneditor](https://github.com/josdejong/jsoneditor) - a web-based tool to view, edit, format, and validate JSON http://jsoneditoronline.org
-- [JSON Schema Lint](https://github.com/nickcmaynard/jsonschemalint) - a web tool to validate JSON/YAML document against a single JSON-schema http://jsonschemalint.com
+- [JSON Schema Lint](https://github.com/nickcmaynard/jsonschemalint) - a web tool to validate JSON/YAML document against a single JSON Schema http://jsonschemalint.com
 - [objection](https://github.com/vincit/objection.js) - SQL-friendly ORM for Node.js
 - [table](https://github.com/gajus/table) - formats data into a string table
 - [ripple-lib](https://github.com/ripple/ripple-lib) - a JavaScript API for interacting with [Ripple](https://ripple.com) in Node.js and the browser
@@ -1280,12 +1247,13 @@ Properties of `params` object in errors depend on the keyword that failed valida
 - [react-form-controlled](https://github.com/seeden/react-form-controlled) - React controlled form components with validation
 - [rabbitmq-schema](https://github.com/tjmehta/rabbitmq-schema) - a schema definition module for RabbitMQ graphs and messages
 - [@query/schema](https://www.npmjs.com/package/@query/schema) - stream filtering with a URI-safe query syntax parsing to JSON Schema
-- [chai-ajv-json-schema](https://github.com/peon374/chai-ajv-json-schema) - chai plugin to us JSON-schema with expect in mocha tests
+- [chai-ajv-json-schema](https://github.com/peon374/chai-ajv-json-schema) - chai plugin to us JSON Schema with expect in mocha tests
 - [grunt-jsonschema-ajv](https://github.com/SignpostMarv/grunt-jsonschema-ajv) - Grunt plugin for validating files against JSON Schema
 - [extract-text-webpack-plugin](https://github.com/webpack-contrib/extract-text-webpack-plugin) - extract text from bundle into a file
 - [electron-builder](https://github.com/electron-userland/electron-builder) - a solution to package and build a ready for distribution Electron app
 - [addons-linter](https://github.com/mozilla/addons-linter) - Mozilla Add-ons Linter
 - [gh-pages-generator](https://github.com/epoberezkin/gh-pages-generator) - multi-page site generator converting markdown files to GitHub pages
+- [ESLint](https://github.com/eslint/eslint) - the pluggable linting utility for JavaScript and JSX
 
 
 ## Tests
@@ -1311,15 +1279,15 @@ Please see [Contributing guidelines](https://github.com/epoberezkin/ajv/blob/mas
 
 See https://github.com/epoberezkin/ajv/releases
 
-__Please note__: [Changes in version 5.0.0](https://github.com/epoberezkin/ajv/releases/tag/5.0.0).
+__Please note__: [Changes in version 6.0.0](https://github.com/epoberezkin/ajv/releases/tag/v6.0.0).
 
-[Changes in version 4.6.0](https://github.com/epoberezkin/ajv/releases/tag/4.6.0).
+[Version 5.0.0](https://github.com/epoberezkin/ajv/releases/tag/5.0.0).
 
-[Changes in version 4.0.0](https://github.com/epoberezkin/ajv/releases/tag/4.0.0).
+[Version 4.0.0](https://github.com/epoberezkin/ajv/releases/tag/4.0.0).
 
-[Changes in version 3.0.0](https://github.com/epoberezkin/ajv/releases/tag/3.0.0).
+[Version 3.0.0](https://github.com/epoberezkin/ajv/releases/tag/3.0.0).
 
-[Changes in version 2.0.0](https://github.com/epoberezkin/ajv/releases/tag/2.0.0).
+[Version 2.0.0](https://github.com/epoberezkin/ajv/releases/tag/2.0.0).
 
 
 ## License

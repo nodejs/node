@@ -1,7 +1,7 @@
 'use strict';
 // Flags: --expose-gc
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const util = require('util');
@@ -25,6 +25,7 @@ class ActivityCollector {
     onbefore,
     onafter,
     ondestroy,
+    onpromiseResolve,
     logid = null,
     logtype = null
   } = {}) {
@@ -39,13 +40,16 @@ class ActivityCollector {
     this.onbefore = typeof onbefore === 'function' ? onbefore : noop;
     this.onafter = typeof onafter === 'function' ? onafter : noop;
     this.ondestroy = typeof ondestroy === 'function' ? ondestroy : noop;
+    this.onpromiseResolve = typeof onpromiseResolve === 'function' ?
+      onpromiseResolve : noop;
 
     // Create the hook with which we'll collect activity data
     this._asyncHook = async_hooks.createHook({
       init: this._init.bind(this),
       before: this._before.bind(this),
       after: this._after.bind(this),
-      destroy: this._destroy.bind(this)
+      destroy: this._destroy.bind(this),
+      promiseResolve: this._promiseResolve.bind(this)
     });
   }
 
@@ -158,6 +162,10 @@ class ActivityCollector {
         const stub = { uid, type: 'Unknown', handleIsObject: true };
         this._activities.set(uid, stub);
         return stub;
+      } else if (!common.isMainThread) {
+        // Worker threads start main script execution inside of an AsyncWrap
+        // callback, so we don't yield errors for these.
+        return null;
       } else {
         const err = new Error(`Found a handle whose ${hook}` +
                               ' hook was invoked but not its init hook');
@@ -206,6 +214,13 @@ class ActivityCollector {
     this.ondestroy(uid);
   }
 
+  _promiseResolve(uid) {
+    const h = this._getActivity(uid, 'promiseResolve');
+    this._stamp(h, 'promiseResolve');
+    this._maybeLog(uid, h && h.type, 'promiseResolve');
+    this.onpromiseResolve(uid);
+  }
+
   _maybeLog(uid, type, name) {
     if (this._logid &&
       (type == null || this._logtype == null || this._logtype === type)) {
@@ -219,6 +234,7 @@ exports = module.exports = function initHooks({
   onbefore,
   onafter,
   ondestroy,
+  onpromiseResolve,
   allowNoInit,
   logid,
   logtype
@@ -228,6 +244,7 @@ exports = module.exports = function initHooks({
     onbefore,
     onafter,
     ondestroy,
+    onpromiseResolve,
     allowNoInit,
     logid,
     logtype

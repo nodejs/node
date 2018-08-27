@@ -2,7 +2,7 @@
 
 // Flags: --expose-internals
 
-const common = require('../common');
+require('../common');
 const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
@@ -46,9 +46,6 @@ function run(test) {
 
   REPL.createInternalRepl(env, opts, function(err, repl) {
     assert.ifError(err);
-
-    // The REPL registers 'module' and 'require' globals
-    common.allowGlobals(repl.context.module, repl.context.require);
 
     assert.strictEqual(expected.terminal, repl.terminal,
                        `Expected ${inspect(expected)} with ${inspect(env)}`);

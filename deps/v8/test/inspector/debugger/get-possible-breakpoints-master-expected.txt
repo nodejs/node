@@ -152,7 +152,7 @@ function testSwitch() {
   }
 |R|}
 
-function* idMaker() {
+function* idMaker|_|() {
   |_|yield 1;
   |_|yield 2;
   |_|yield 3;
@@ -230,8 +230,8 @@ async function testPromiseAsyncWithCode() {
       |_|await p;
     |R|}
     |C|setTimeout(returnCall, 0);
-    await |C|foo();
-    await |C|foo();
+    |_|await |C|foo();
+    |_|await |C|foo();
     |C|nextTest();
   |R|}
   |C|main();
@@ -252,7 +252,7 @@ async function testPromiseComplex() {
     |R|}
     var x = |_|1;
     var y = |_|2;
-    |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = await |C|foo((a => 2 |_|*a|R|)|C|(5));
+    |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = |_|await |C|foo((a => 2 |_|*a|R|)|C|(5));
     |C|nextTest();
   |R|}
   |C|main();

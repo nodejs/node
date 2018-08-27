@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_LOOP_VARIABLE_OPTIMIZER_H_
 #define V8_COMPILER_LOOP_VARIABLE_OPTIMIZER_H_
 
+#include "src/compiler/functional-list.h"
+#include "src/compiler/node-aux-data.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -82,8 +84,17 @@ class LoopVariableOptimizer {
   const int kAssumedLoopEntryIndex = 0;
   const int kFirstBackedge = 1;
 
-  class Constraint;
-  class VariableLimits;
+  struct Constraint {
+    Node* left;
+    InductionVariable::ConstraintKind kind;
+    Node* right;
+
+    bool operator!=(const Constraint& other) const {
+      return left != other.left || kind != other.kind || right != other.right;
+    }
+  };
+
+  using VariableLimits = FunctionalList<Constraint>;
 
   void VisitBackedge(Node* from, Node* loop);
   void VisitNode(Node* node);
@@ -109,7 +120,9 @@ class LoopVariableOptimizer {
   Graph* graph_;
   CommonOperatorBuilder* common_;
   Zone* zone_;
-  ZoneVector<const VariableLimits*> limits_;
+  NodeAuxData<VariableLimits> limits_;
+  NodeAuxData<bool> reduced_;
+
   ZoneMap<int, InductionVariable*> induction_vars_;
 };
 

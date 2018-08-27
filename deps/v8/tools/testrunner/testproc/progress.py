@@ -103,6 +103,15 @@ class SimpleProgressIndicator(ProgressIndicator):
 
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
+  def __init__(self):
+    super(VerboseProgressIndicator, self).__init__()
+    self._last_printed_time = time.time()
+
+  def _print(self, text):
+    print text
+    sys.stdout.flush()
+    self._last_printed_time = time.time()
+
   def _on_result_for(self, test, result):
     super(VerboseProgressIndicator, self)._on_result_for(test, result)
     # TODO(majeski): Support for dummy/grouped results
@@ -113,12 +122,13 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
         outcome = 'FAIL'
     else:
       outcome = 'pass'
-    print 'Done running %s: %s' % (test, outcome)
-    sys.stdout.flush()
+    self._print('Done running %s: %s' % (test, outcome))
 
   def _on_heartbeat(self):
-    print 'Still working...'
-    sys.stdout.flush()
+    if time.time() - self._last_printed_time > 30:
+      # Print something every 30 seconds to not get killed by an output
+      # timeout.
+      self._print('Still working...')
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
@@ -292,7 +302,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
 
 class JsonTestProgressIndicator(ProgressIndicator):
-  def __init__(self, json_test_results, arch, mode, random_seed):
+  def __init__(self, json_test_results, arch, mode):
     super(JsonTestProgressIndicator, self).__init__()
     # We want to drop stdout/err for all passed tests on the first try, but we
     # need to get outputs for all runs after the first one. To accommodate that,
@@ -303,7 +313,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode
-    self.random_seed = random_seed
     self.results = []
     self.tests = []
 
@@ -338,10 +347,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
         "result": test.output_proc.get_outcome(output),
         "expected": test.expected_outcomes,
         "duration": output.duration,
-
-        # TODO(machenbach): This stores only the global random seed from the
-        # context and not possible overrides when using random-seed stress.
-        "random_seed": self.random_seed,
+        "random_seed": test.random_seed,
         "target_name": test.get_shell(),
         "variant": test.variant,
       })

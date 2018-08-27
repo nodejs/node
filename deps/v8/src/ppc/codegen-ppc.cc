@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/codegen.h"
+#include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/ppc/simulator-ppc.h"
 
@@ -36,10 +37,9 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  DCHECK(ABI_USES_FUNCTION_DESCRIPTORS ||
-         !RelocInfo::RequiresRelocation(isolate, desc));
+  DCHECK(ABI_USES_FUNCTION_DESCRIPTORS || !RelocInfo::RequiresRelocation(desc));
 
-  Assembler::FlushICache(isolate, buffer, allocated);
+  Assembler::FlushICache(buffer, allocated);
   CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #endif

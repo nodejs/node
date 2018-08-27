@@ -24,8 +24,6 @@ const common = require('../common');
 const assert = require('assert');
 const Script = require('vm').Script;
 
-common.globalCheck = false;
-
 // Run a string
 let script = new Script('\'passed\';');
 const result = script.runInThisContext(script);
@@ -60,3 +58,11 @@ global.f = function() { global.foo = 100; };
 script = new Script('f()');
 script.runInThisContext(script);
 assert.strictEqual(100, global.foo);
+
+common.allowGlobals(
+  global.hello,
+  global.code,
+  global.foo,
+  global.obj,
+  global.f
+);

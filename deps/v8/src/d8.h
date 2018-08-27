@@ -9,11 +9,12 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "src/allocation.h"
-#include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
+#include "src/string-hasher.h"
 #include "src/utils.h"
 
 #include "src/base/once.h"
@@ -56,41 +57,21 @@ class CounterCollection {
   Counter counters_[kMaxCounters];
 };
 
-
-class CounterMap {
- public:
-  CounterMap(): hash_map_(Match) { }
-  Counter* Lookup(const char* name) {
-    base::HashMap::Entry* answer =
-        hash_map_.Lookup(const_cast<char*>(name), Hash(name));
-    if (!answer) return nullptr;
-    return reinterpret_cast<Counter*>(answer->value);
+struct CStringHasher {
+  std::size_t operator()(const char* name) const {
+    size_t h = 0;
+    size_t c;
+    while ((c = *name++) != 0) {
+      h += h << 5;
+      h += c;
+    }
+    return h;
   }
-  void Set(const char* name, Counter* value) {
-    base::HashMap::Entry* answer =
-        hash_map_.LookupOrInsert(const_cast<char*>(name), Hash(name));
-    DCHECK_NOT_NULL(answer);
-    answer->value = value;
-  }
-  class Iterator {
-   public:
-    explicit Iterator(CounterMap* map)
-        : map_(&map->hash_map_), entry_(map_->Start()) { }
-    void Next() { entry_ = map_->Next(entry_); }
-    bool More() { return entry_ != nullptr; }
-    const char* CurrentKey() { return static_cast<const char*>(entry_->key); }
-    Counter* CurrentValue() { return static_cast<Counter*>(entry_->value); }
-   private:
-    base::CustomMatcherHashMap* map_;
-    base::CustomMatcherHashMap::Entry* entry_;
-  };
-
- private:
-  static int Hash(const char* name);
-  static bool Match(void* key1, void* key2);
-  base::CustomMatcherHashMap hash_map_;
 };
 
+typedef std::unordered_map<const char*, Counter*, CStringHasher,
+                           i::StringEquals>
+    CounterMap;
 
 class SourceGroup {
  public:
@@ -197,12 +178,6 @@ class SerializationData {
     return shared_array_buffer_contents_;
   }
 
-  void AppendExternalizedContentsTo(std::vector<ExternalizedContents>* to) {
-    to->insert(to->end(),
-               std::make_move_iterator(externalized_contents_.begin()),
-               std::make_move_iterator(externalized_contents_.end()));
-    externalized_contents_.clear();
-  }
 
  private:
   struct DataDeleter {
@@ -213,7 +188,6 @@ class SerializationData {
   size_t size_;
   std::vector<ArrayBuffer::Contents> array_buffer_contents_;
   std::vector<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
-  std::vector<ExternalizedContents> externalized_contents_;
 
  private:
   friend class Serializer;
@@ -299,6 +273,7 @@ class ShellOptions {
         send_idle_notification(false),
         invoke_weak_callbacks(false),
         omit_quit(false),
+        wait_for_wasm(true),
         stress_opt(false),
         stress_deopt(false),
         stress_runs(1),
@@ -334,6 +309,7 @@ class ShellOptions {
   bool send_idle_notification;
   bool invoke_weak_callbacks;
   bool omit_quit;
+  bool wait_for_wasm;
   bool stress_opt;
   bool stress_deopt;
   int stress_runs;
@@ -358,13 +334,25 @@ class ShellOptions {
   int read_from_tcp_port;
   bool enable_os_system = false;
   bool quiet_load = false;
+  int thread_pool_size = 0;
 };
 
 class Shell : public i::AllStatic {
  public:
+  enum PrintResult : bool { kPrintResult = true, kNoPrintResult = false };
+  enum ReportExceptions : bool {
+    kReportExceptions = true,
+    kNoReportExceptions = false
+  };
+  enum ProcessMessageQueue : bool {
+    kProcessMessageQueue = true,
+    kNoProcessMessageQueue = false
+  };
+
   static bool ExecuteString(Isolate* isolate, Local<String> source,
-                            Local<Value> name, bool print_result,
-                            bool report_exceptions);
+                            Local<Value> name, PrintResult print_result,
+                            ReportExceptions report_exceptions,
+                            ProcessMessageQueue process_message_queue);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
@@ -375,7 +363,6 @@ class Shell : public i::AllStatic {
   static void OnExit(Isolate* isolate);
   static void CollectGarbage(Isolate* isolate);
   static bool EmptyMessageQueues(Isolate* isolate);
-  static void EnsureEventLoopInitialized(Isolate* isolate);
   static void CompleteMessageLoop(Isolate* isolate);
 
   static std::unique_ptr<SerializationData> SerializeValue(

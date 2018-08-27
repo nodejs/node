@@ -2,7 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const fs = require('internal/fs');
+const fs = require('internal/fs/utils');
 
 // Valid encodings and no args should not throw.
 fs.assertEncoding();

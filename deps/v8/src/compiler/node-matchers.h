@@ -54,7 +54,7 @@ struct ValueMatcher : public NodeMatcher {
   explicit ValueMatcher(Node* node)
       : NodeMatcher(node), value_(), has_value_(opcode() == kOpcode) {
     if (has_value_) {
-      value_ = OpParameter<T>(node);
+      value_ = OpParameter<T>(node->op());
     }
   }
 
@@ -77,7 +77,7 @@ inline ValueMatcher<uint32_t, IrOpcode::kInt32Constant>::ValueMatcher(
       value_(),
       has_value_(opcode() == IrOpcode::kInt32Constant) {
   if (has_value_) {
-    value_ = static_cast<uint32_t>(OpParameter<int32_t>(node));
+    value_ = static_cast<uint32_t>(OpParameter<int32_t>(node->op()));
   }
 }
 
@@ -86,10 +86,10 @@ template <>
 inline ValueMatcher<int64_t, IrOpcode::kInt64Constant>::ValueMatcher(Node* node)
     : NodeMatcher(node), value_(), has_value_(false) {
   if (opcode() == IrOpcode::kInt32Constant) {
-    value_ = OpParameter<int32_t>(node);
+    value_ = OpParameter<int32_t>(node->op());
     has_value_ = true;
   } else if (opcode() == IrOpcode::kInt64Constant) {
-    value_ = OpParameter<int64_t>(node);
+    value_ = OpParameter<int64_t>(node->op());
     has_value_ = true;
   }
 }
@@ -100,10 +100,10 @@ inline ValueMatcher<uint64_t, IrOpcode::kInt64Constant>::ValueMatcher(
     Node* node)
     : NodeMatcher(node), value_(), has_value_(false) {
   if (opcode() == IrOpcode::kInt32Constant) {
-    value_ = static_cast<uint32_t>(OpParameter<int32_t>(node));
+    value_ = static_cast<uint32_t>(OpParameter<int32_t>(node->op()));
     has_value_ = true;
   } else if (opcode() == IrOpcode::kInt64Constant) {
-    value_ = static_cast<uint64_t>(OpParameter<int64_t>(node));
+    value_ = static_cast<uint64_t>(OpParameter<int64_t>(node->op()));
     has_value_ = true;
   }
 }
@@ -629,11 +629,11 @@ struct BaseWithIndexAndDisplacementMatcher {
     if (displacement != nullptr) {
       switch (displacement->opcode()) {
         case IrOpcode::kInt32Constant: {
-          value = OpParameter<int32_t>(displacement);
+          value = OpParameter<int32_t>(displacement->op());
           break;
         }
         case IrOpcode::kInt64Constant: {
-          value = OpParameter<int64_t>(displacement);
+          value = OpParameter<int64_t>(displacement->op());
           break;
         }
         default:

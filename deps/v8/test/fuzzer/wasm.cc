@@ -7,12 +7,10 @@
 #include <stdint.h>
 
 #include "include/v8.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate-inl.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
-#include "src/wasm/module-compiler.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
@@ -42,8 +40,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   i::HandleScope scope(i_isolate);
   i::wasm::ErrorThrower thrower(i_isolate, "wasm fuzzer");
-  i::MaybeHandle<i::WasmModuleObject> maybe_object = SyncCompile(
-      i_isolate, &thrower, i::wasm::ModuleWireBytes(data, data + size));
+  i::MaybeHandle<i::WasmModuleObject> maybe_object =
+      i_isolate->wasm_engine()->SyncCompile(
+          i_isolate, &thrower, i::wasm::ModuleWireBytes(data, data + size));
   i::Handle<i::WasmModuleObject> module_object;
   if (maybe_object.ToHandle(&module_object)) {
     i::wasm::fuzzer::InterpretAndExecuteModule(i_isolate, module_object);

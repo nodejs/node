@@ -1,5 +1,5 @@
 "use strict";
-var Buffer = require("buffer").Buffer;
+var Buffer = require("safer-buffer").Buffer;
 
 // Multibyte codec. In this scheme, a character is represented by 1 or more bytes.
 // Our codec supports UTF-16 surrogates, extensions for GB18030 and unicode sequences.
@@ -281,7 +281,7 @@ function DBCSEncoder(options, codec) {
 }
 
 DBCSEncoder.prototype.write = function(str) {
-    var newBuf = new Buffer(str.length * (this.gb18030 ? 4 : 3)), 
+    var newBuf = Buffer.alloc(str.length * (this.gb18030 ? 4 : 3)),
         leadSurrogate = this.leadSurrogate,
         seqObj = this.seqObj, nextChar = -1,
         i = 0, j = 0;
@@ -404,7 +404,7 @@ DBCSEncoder.prototype.end = function() {
     if (this.leadSurrogate === -1 && this.seqObj === undefined)
         return; // All clean. Most often case.
 
-    var newBuf = new Buffer(10), j = 0;
+    var newBuf = Buffer.alloc(10), j = 0;
 
     if (this.seqObj) { // We're in the sequence.
         var dbcsCode = this.seqObj[DEF_CHAR];
@@ -440,7 +440,7 @@ DBCSEncoder.prototype.findIdx = findIdx;
 function DBCSDecoder(options, codec) {
     // Decoder state
     this.nodeIdx = 0;
-    this.prevBuf = new Buffer(0);
+    this.prevBuf = Buffer.alloc(0);
 
     // Static data
     this.decodeTables = codec.decodeTables;
@@ -450,7 +450,7 @@ function DBCSDecoder(options, codec) {
 }
 
 DBCSDecoder.prototype.write = function(buf) {
-    var newBuf = new Buffer(buf.length*2),
+    var newBuf = Buffer.alloc(buf.length*2),
         nodeIdx = this.nodeIdx, 
         prevBuf = this.prevBuf, prevBufOffset = this.prevBuf.length,
         seqStart = -this.prevBuf.length, // idx of the start of current parsed sequence.
@@ -527,7 +527,7 @@ DBCSDecoder.prototype.end = function() {
         var buf = this.prevBuf.slice(1);
 
         // Parse remaining as usual.
-        this.prevBuf = new Buffer(0);
+        this.prevBuf = Buffer.alloc(0);
         this.nodeIdx = 0;
         if (buf.length > 0)
             ret += this.write(buf);

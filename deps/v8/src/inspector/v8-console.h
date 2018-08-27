@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8CONSOLE_H_
-#define V8_INSPECTOR_V8CONSOLE_H_
+#ifndef V8_INSPECTOR_V8_CONSOLE_H_
+#define V8_INSPECTOR_V8_CONSOLE_H_
 
 #include "src/base/macros.h"
 
@@ -16,7 +16,7 @@ class InspectedContext;
 class V8InspectorImpl;
 
 // Console API
-// https://console.spec.whatwg.org/#console-interface
+// https://console.spec.whatwg.org/#console-namespace
 class V8Console : public v8::debug::ConsoleDelegate {
  public:
   v8::Local<v8::Object> createCommandLineAPI(v8::Local<v8::Context> context,
@@ -78,6 +78,8 @@ class V8Console : public v8::debug::ConsoleDelegate {
              const v8::debug::ConsoleContext& consoleContext) override;
   void Count(const v8::debug::ConsoleCallArguments&,
              const v8::debug::ConsoleContext& consoleContext) override;
+  void CountReset(const v8::debug::ConsoleCallArguments&,
+                  const v8::debug::ConsoleContext& consoleContext) override;
   void Assert(const v8::debug::ConsoleCallArguments&,
               const v8::debug::ConsoleContext& consoleContext) override;
   void MarkTimeline(const v8::debug::ConsoleCallArguments&,
@@ -172,4 +174,4 @@ class V8Console : public v8::debug::ConsoleDelegate {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8CONSOLE_H_
+#endif  // V8_INSPECTOR_V8_CONSOLE_H_

@@ -25,5 +25,6 @@
   "package": "package",
   "npx: installed %s in %ss": "npx: installed %s in %ss",
   "Suppress output from npx itself. Subcommands will not be affected.": "Suppress output from npx itself. Subcommands will not be affected.",
-  "Extra node argument when calling a node binary.": "Extra node argument when calling a node binary."
+  "Extra node argument when calling a node binary.": "Extra node argument when calling a node binary.",
+  "Always spawn a child process to execute the command.": "Always spawn a child process to execute the command."
 }

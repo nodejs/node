@@ -6,7 +6,6 @@ var mkdirp = require('mkdirp')
 var pkg = path.resolve(__dirname, 'git-cache-locking')
 var tmp = path.join(pkg, 'tmp')
 var cache = path.join(pkg, 'cache')
-var shallowClone = Object.assign || require('util')._extend
 
 test('setup', function (t) {
   rimraf.sync(pkg)
@@ -18,7 +17,7 @@ test('git-cache-locking: install a git dependency', function (t) {
   // disable git integration tests on Travis.
   if (process.env.TRAVIS) return t.end()
 
-  var gitEnv = shallowClone({}, process.env)
+  var gitEnv = Object.assign({}, process.env)
   gitEnv.npm_config_cache = cache
   gitEnv.npm_config_tmp = tmp
   gitEnv.npm_config_prefix = pkg

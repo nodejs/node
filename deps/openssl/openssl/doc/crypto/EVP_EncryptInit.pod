@@ -2,11 +2,11 @@
 
 =head1 NAME
 
-EVP_CIPHER_CTX_init, EVP_EncryptInit_ex, EVP_EncryptUpdate,
-EVP_EncryptFinal_ex, EVP_DecryptInit_ex, EVP_DecryptUpdate,
-EVP_DecryptFinal_ex, EVP_CipherInit_ex, EVP_CipherUpdate,
-EVP_CipherFinal_ex, EVP_CIPHER_CTX_set_key_length,
-EVP_CIPHER_CTX_ctrl, EVP_CIPHER_CTX_cleanup, EVP_EncryptInit,
+EVP_CIPHER_CTX_new, EVP_CIPHER_CTX_reset, EVP_CIPHER_CTX_free,
+EVP_EncryptInit_ex, EVP_EncryptUpdate, EVP_EncryptFinal_ex,
+EVP_DecryptInit_ex, EVP_DecryptUpdate, EVP_DecryptFinal_ex,
+EVP_CipherInit_ex, EVP_CipherUpdate, EVP_CipherFinal_ex,
+EVP_CIPHER_CTX_set_key_length, EVP_CIPHER_CTX_ctrl, EVP_EncryptInit,
 EVP_EncryptFinal, EVP_DecryptInit, EVP_DecryptFinal,
 EVP_CipherInit, EVP_CipherFinal, EVP_get_cipherbyname,
 EVP_get_cipherbynid, EVP_get_cipherbyobj, EVP_CIPHER_nid,
@@ -16,7 +16,7 @@ EVP_CIPHER_CTX_nid, EVP_CIPHER_CTX_block_size, EVP_CIPHER_CTX_key_length,
 EVP_CIPHER_CTX_iv_length, EVP_CIPHER_CTX_get_app_data,
 EVP_CIPHER_CTX_set_app_data, EVP_CIPHER_CTX_type, EVP_CIPHER_CTX_flags,
 EVP_CIPHER_CTX_mode, EVP_CIPHER_param_to_asn1, EVP_CIPHER_asn1_to_param,
-EVP_CIPHER_CTX_set_padding,  EVP_enc_null, EVP_des_cbc, EVP_des_ecb,
+EVP_CIPHER_CTX_set_padding, EVP_enc_null, EVP_des_cbc, EVP_des_ecb,
 EVP_des_cfb, EVP_des_ofb, EVP_des_ede_cbc, EVP_des_ede, EVP_des_ede_ofb,
 EVP_des_ede_cfb, EVP_des_ede3_cbc, EVP_des_ede3, EVP_des_ede3_ofb,
 EVP_des_ede3_cfb, EVP_desx_cbc, EVP_rc4, EVP_rc4_40, EVP_rc4_hmac_md5,
@@ -24,18 +24,25 @@ EVP_idea_cbc, EVP_idea_ecb, EVP_idea_cfb, EVP_idea_ofb, EVP_rc2_cbc,
 EVP_rc2_ecb, EVP_rc2_cfb, EVP_rc2_ofb, EVP_rc2_40_cbc, EVP_rc2_64_cbc,
 EVP_bf_cbc, EVP_bf_ecb, EVP_bf_cfb, EVP_bf_ofb, EVP_cast5_cbc,
 EVP_cast5_ecb, EVP_cast5_cfb, EVP_cast5_ofb, EVP_rc5_32_12_16_cbc,
-EVP_rc5_32_12_16_ecb, EVP_rc5_32_12_16_cfb, EVP_rc5_32_12_16_ofb, 
-EVP_aes_128_gcm, EVP_aes_192_gcm, EVP_aes_256_gcm, EVP_aes_128_ccm,
-EVP_aes_192_ccm, EVP_aes_256_ccm,
+EVP_rc5_32_12_16_ecb, EVP_rc5_32_12_16_cfb, EVP_rc5_32_12_16_ofb,
+EVP_aes_128_cbc, EVP_aes_128_ecb, EVP_aes_128_cfb, EVP_aes_128_ofb,
+EVP_aes_192_cbc, EVP_aes_192_ecb, EVP_aes_192_cfb, EVP_aes_192_ofb,
+EVP_aes_256_cbc, EVP_aes_256_ecb, EVP_aes_256_cfb, EVP_aes_256_ofb,
+EVP_aes_128_gcm, EVP_aes_192_gcm, EVP_aes_256_gcm,
+EVP_aes_128_ccm, EVP_aes_192_ccm, EVP_aes_256_ccm,
 EVP_aes_128_cbc_hmac_sha1, EVP_aes_256_cbc_hmac_sha1,
-EVP_aes_128_cbc_hmac_sha256, EVP_aes_256_cbc_hmac_sha256
-- EVP cipher routines
+EVP_aes_128_cbc_hmac_sha256, EVP_aes_256_cbc_hmac_sha256,
+EVP_chacha20, EVP_chacha20_poly1305 - EVP cipher routines
 
 =head1 SYNOPSIS
 
+=for comment generic
+
  #include <openssl/evp.h>
 
- void EVP_CIPHER_CTX_init(EVP_CIPHER_CTX *a);
+ EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void);
+ int EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *ctx);
+ void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx);
 
  int EVP_EncryptInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
          ENGINE *impl, const unsigned char *key, const unsigned char *iv);
@@ -76,30 +83,29 @@ EVP_aes_128_cbc_hmac_sha256, EVP_aes_256_cbc_hmac_sha256
  int EVP_CIPHER_CTX_set_padding(EVP_CIPHER_CTX *x, int padding);
  int EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *x, int keylen);
  int EVP_CIPHER_CTX_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg, void *ptr);
- int EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *a);
 
  const EVP_CIPHER *EVP_get_cipherbyname(const char *name);
- #define EVP_get_cipherbynid(a) EVP_get_cipherbyname(OBJ_nid2sn(a))
- #define EVP_get_cipherbyobj(a) EVP_get_cipherbynid(OBJ_obj2nid(a))
+ const EVP_CIPHER *EVP_get_cipherbynid(int nid);
+ const EVP_CIPHER *EVP_get_cipherbyobj(const ASN1_OBJECT *a);
 
- #define EVP_CIPHER_nid(e)		((e)->nid)
- #define EVP_CIPHER_block_size(e)	((e)->block_size)
- #define EVP_CIPHER_key_length(e)	((e)->key_len)
- #define EVP_CIPHER_iv_length(e)		((e)->iv_len)
- #define EVP_CIPHER_flags(e)		((e)->flags)
- #define EVP_CIPHER_mode(e)		((e)->flags) & EVP_CIPH_MODE)
+ int EVP_CIPHER_nid(const EVP_CIPHER *e);
+ int EVP_CIPHER_block_size(const EVP_CIPHER *e);
+ int EVP_CIPHER_key_length(const EVP_CIPHER *e)
+ int EVP_CIPHER_key_length(const EVP_CIPHER *e);
+ int EVP_CIPHER_iv_length(const EVP_CIPHER *e);
+ unsigned long EVP_CIPHER_flags(const EVP_CIPHER *e);
+ unsigned long EVP_CIPHER_mode(const EVP_CIPHER *e);
  int EVP_CIPHER_type(const EVP_CIPHER *ctx);
 
- #define EVP_CIPHER_CTX_cipher(e)	((e)->cipher)
- #define EVP_CIPHER_CTX_nid(e)		((e)->cipher->nid)
- #define EVP_CIPHER_CTX_block_size(e)	((e)->cipher->block_size)
- #define EVP_CIPHER_CTX_key_length(e)	((e)->key_len)
- #define EVP_CIPHER_CTX_iv_length(e)	((e)->cipher->iv_len)
- #define EVP_CIPHER_CTX_get_app_data(e)	((e)->app_data)
- #define EVP_CIPHER_CTX_set_app_data(e,d) ((e)->app_data=(char *)(d))
- #define EVP_CIPHER_CTX_type(c)         EVP_CIPHER_type(EVP_CIPHER_CTX_cipher(c))
- #define EVP_CIPHER_CTX_flags(e)		((e)->cipher->flags)
- #define EVP_CIPHER_CTX_mode(e)		((e)->cipher->flags & EVP_CIPH_MODE)
+ const EVP_CIPHER *EVP_CIPHER_CTX_cipher(const EVP_CIPHER_CTX *ctx);
+ int EVP_CIPHER_CTX_nid(const EVP_CIPHER_CTX *ctx);
+ int EVP_CIPHER_CTX_block_size(const EVP_CIPHER_CTX *ctx);
+ int EVP_CIPHER_CTX_key_length(const EVP_CIPHER_CTX *ctx);
+ int EVP_CIPHER_CTX_iv_length(const EVP_CIPHER_CTX *ctx);
+ void *EVP_CIPHER_CTX_get_app_data(const EVP_CIPHER_CTX *ctx);
+ void EVP_CIPHER_CTX_set_app_data(const EVP_CIPHER_CTX *ctx, void *data);
+ int EVP_CIPHER_CTX_type(const EVP_CIPHER_CTX *ctx);
+ int EVP_CIPHER_CTX_mode(const EVP_CIPHER_CTX *ctx);
 
  int EVP_CIPHER_param_to_asn1(EVP_CIPHER_CTX *c, ASN1_TYPE *type);
  int EVP_CIPHER_asn1_to_param(EVP_CIPHER_CTX *c, ASN1_TYPE *type);
@@ -109,10 +115,16 @@ EVP_aes_128_cbc_hmac_sha256, EVP_aes_256_cbc_hmac_sha256
 The EVP cipher routines are a high level interface to certain
 symmetric ciphers.
 
-EVP_CIPHER_CTX_init() initializes cipher contex B<ctx>.
+EVP_CIPHER_CTX_new() creates a cipher context.
+
+EVP_CIPHER_CTX_free() clears all information from a cipher context
+and free up any allocated memory associate with it, including B<ctx>
+itself. This function should be called after all operations using a
+cipher are complete so sensitive information does not remain in
+memory.
 
 EVP_EncryptInit_ex() sets up cipher context B<ctx> for encryption
-with cipher B<type> from ENGINE B<impl>. B<ctx> must be initialized
+with cipher B<type> from ENGINE B<impl>. B<ctx> must be created
 before calling this function. B<type> is normally supplied
 by a function such as EVP_aes_256_cbc(). If B<impl> is NULL then the
 default implementation is used. B<key> is the symmetric key to use
@@ -129,11 +141,14 @@ multiple times to encrypt successive blocks of data. The amount
 of data written depends on the block alignment of the encrypted data:
 as a result the amount of data written may be anything from zero bytes
 to (inl + cipher_block_size - 1) so B<out> should contain sufficient
-room. The actual number of bytes written is placed in B<outl>.
+room. The actual number of bytes written is placed in B<outl>. It also
+checks if B<in> and B<out> are partially overlapping, and if they are
+0 is returned to indicate failure.
 
 If padding is enabled (the default) then EVP_EncryptFinal_ex() encrypts
 the "final" data, that is any data that remains in a partial block.
-It uses L<standard block padding|/NOTES> (aka PKCS padding). The encrypted
+It uses standard block padding (aka PKCS padding) as described in
+the NOTES section, below. The encrypted
 final data is written to B<out> which should have sufficient space for
 one cipher block. The number of bytes written is placed in B<outl>. After
 this function is called the encryption operation is finished and no further
@@ -141,7 +156,7 @@ calls to EVP_EncryptUpdate() should be made.
 
 If padding is disabled then EVP_EncryptFinal_ex() will not encrypt any more
 data and it will return an error if any data remains in a partial block:
-that is if the total data length is not a multiple of the block size. 
+that is if the total data length is not a multiple of the block size.
 
 EVP_DecryptInit_ex(), EVP_DecryptUpdate() and EVP_DecryptFinal_ex() are the
 corresponding decryption operations. EVP_DecryptFinal() will return an
@@ -158,13 +173,14 @@ performed depends on the value of the B<enc> parameter. It should be set
 to 1 for encryption, 0 for decryption and -1 to leave the value unchanged
 (the actual value of 'enc' being supplied in a previous call).
 
-EVP_CIPHER_CTX_cleanup() clears all information from a cipher context
-and free up any allocated memory associate with it. It should be called
-after all operations using a cipher are complete so sensitive information
-does not remain in memory.
+EVP_CIPHER_CTX_reset() clears all information from a cipher context
+and free up any allocated memory associate with it, except the B<ctx>
+itself. This function should be called anytime B<ctx> is to be reused
+for another EVP_CipherInit() / EVP_CipherUpdate() / EVP_CipherFinal()
+series of calls.
 
 EVP_EncryptInit(), EVP_DecryptInit() and EVP_CipherInit() behave in a
-similar way to EVP_EncryptInit_ex(), EVP_DecryptInit_ex and
+similar way to EVP_EncryptInit_ex(), EVP_DecryptInit_ex() and
 EVP_CipherInit_ex() except the B<ctx> parameter does not need to be
 initialized and they always use the default cipher implementation.
 
@@ -183,12 +199,14 @@ passed an B<EVP_CIPHER> or B<EVP_CIPHER_CTX> structure.  The actual NID
 value is an internal value which may not have a corresponding OBJECT
 IDENTIFIER.
 
-EVP_CIPHER_CTX_set_padding() enables or disables padding. By default
-encryption operations are padded using standard block padding and the
-padding is checked and removed when decrypting. If the B<pad> parameter
-is zero then no padding is performed, the total amount of data encrypted
-or decrypted must then be a multiple of the block size or an error will
-occur.
+EVP_CIPHER_CTX_set_padding() enables or disables padding. This
+function should be called after the context is set up for encryption
+or decryption with EVP_EncryptInit_ex(), EVP_DecryptInit_ex() or
+EVP_CipherInit_ex(). By default encryption operations are padded using
+standard block padding and the padding is checked and removed when
+decrypting. If the B<pad> parameter is zero then no padding is
+performed, the total amount of data encrypted or decrypted must then
+be a multiple of the block size or an error will occur.
 
 EVP_CIPHER_key_length() and EVP_CIPHER_CTX_key_length() return the key
 length of a cipher when passed an B<EVP_CIPHER> or B<EVP_CIPHER_CTX>
@@ -208,7 +226,7 @@ B<EVP_MAX_IV_LENGTH> is the maximum IV length for all ciphers.
 
 EVP_CIPHER_block_size() and EVP_CIPHER_CTX_block_size() return the block
 size of a cipher when passed an B<EVP_CIPHER> or B<EVP_CIPHER_CTX>
-structure. The constant B<EVP_MAX_IV_LENGTH> is also the maximum block
+structure. The constant B<EVP_MAX_BLOCK_LENGTH> is also the maximum block
 length for all ciphers.
 
 EVP_CIPHER_type() and EVP_CIPHER_CTX_type() return the type of the passed
@@ -249,6 +267,9 @@ and set.
 
 =head1 RETURN VALUES
 
+EVP_CIPHER_CTX_new() returns a pointer to a newly created
+B<EVP_CIPHER_CTX> for success and B<NULL> for failure.
+
 EVP_EncryptInit_ex(), EVP_EncryptUpdate() and EVP_EncryptFinal_ex()
 return 1 for success and 0 for failure.
 
@@ -258,7 +279,7 @@ EVP_DecryptFinal_ex() returns 0 if the decrypt failed or 1 for success.
 EVP_CipherInit_ex() and EVP_CipherUpdate() return 1 for success and 0 for failure.
 EVP_CipherFinal_ex() returns 0 for a decryption failure or 1 for success.
 
-EVP_CIPHER_CTX_cleanup() returns 1 for success and 0 for failure.
+EVP_CIPHER_CTX_reset() returns 1 for success and 0 for failure.
 
 EVP_get_cipherbyname(), EVP_get_cipherbynid() and EVP_get_cipherbyobj()
 return an B<EVP_CIPHER> structure or NULL on error.
@@ -281,8 +302,8 @@ OBJECT IDENTIFIER or NID_undef if it has no defined OBJECT IDENTIFIER.
 
 EVP_CIPHER_CTX_cipher() returns an B<EVP_CIPHER> structure.
 
-EVP_CIPHER_param_to_asn1() and EVP_CIPHER_asn1_to_param() return 1 for 
-success or zero for failure.
+EVP_CIPHER_param_to_asn1() and EVP_CIPHER_asn1_to_param() return greater
+than zero for success and zero or a negative number.
 
 =head1 CIPHER LISTING
 
@@ -294,84 +315,114 @@ All algorithms have a fixed key length unless otherwise stated.
 
 Null cipher: does nothing.
 
-=item EVP_des_cbc(void), EVP_des_ecb(void), EVP_des_cfb(void), EVP_des_ofb(void)
+=item EVP_aes_128_cbc(), EVP_aes_128_ecb(), EVP_aes_128_cfb(), EVP_aes_128_ofb()
 
-DES in CBC, ECB, CFB and OFB modes respectively. 
+AES with a 128-bit key in CBC, ECB, CFB and OFB modes respectively.
 
-=item EVP_des_ede_cbc(void), EVP_des_ede(), EVP_des_ede_ofb(void),  EVP_des_ede_cfb(void)
+=item EVP_aes_192_cbc(), EVP_aes_192_ecb(), EVP_aes_192_cfb(), EVP_aes_192_ofb()
+
+AES with a 192-bit key in CBC, ECB, CFB and OFB modes respectively.
+
+=item EVP_aes_256_cbc(), EVP_aes_256_ecb(), EVP_aes_256_cfb(), EVP_aes_256_ofb()
+
+AES with a 256-bit key in CBC, ECB, CFB and OFB modes respectively.
+
+=item EVP_des_cbc(), EVP_des_ecb(), EVP_des_cfb(), EVP_des_ofb()
+
+DES in CBC, ECB, CFB and OFB modes respectively.
+
+=item EVP_des_ede_cbc(), EVP_des_ede(), EVP_des_ede_ofb(), EVP_des_ede_cfb()
 
 Two key triple DES in CBC, ECB, CFB and OFB modes respectively.
 
-=item EVP_des_ede3_cbc(void), EVP_des_ede3(), EVP_des_ede3_ofb(void),  EVP_des_ede3_cfb(void)
+=item EVP_des_ede3_cbc(), EVP_des_ede3(), EVP_des_ede3_ofb(), EVP_des_ede3_cfb()
 
 Three key triple DES in CBC, ECB, CFB and OFB modes respectively.
 
-=item EVP_desx_cbc(void)
+=item EVP_desx_cbc()
 
 DESX algorithm in CBC mode.
 
-=item EVP_rc4(void)
+=item EVP_rc4()
 
 RC4 stream cipher. This is a variable key length cipher with default key length 128 bits.
 
-=item EVP_rc4_40(void)
+=item EVP_rc4_40()
 
-RC4 stream cipher with 40 bit key length. This is obsolete and new code should use EVP_rc4()
+RC4 stream cipher with 40 bit key length.
+This is obsolete and new code should use EVP_rc4()
 and the EVP_CIPHER_CTX_set_key_length() function.
 
-=item EVP_idea_cbc() EVP_idea_ecb(void), EVP_idea_cfb(void), EVP_idea_ofb(void), EVP_idea_cbc(void)
+=item EVP_idea_cbc() EVP_idea_ecb(), EVP_idea_cfb(), EVP_idea_ofb()
 
 IDEA encryption algorithm in CBC, ECB, CFB and OFB modes respectively.
 
-=item EVP_rc2_cbc(void), EVP_rc2_ecb(void), EVP_rc2_cfb(void), EVP_rc2_ofb(void)
+=item EVP_rc2_cbc(), EVP_rc2_ecb(), EVP_rc2_cfb(), EVP_rc2_ofb()
 
 RC2 encryption algorithm in CBC, ECB, CFB and OFB modes respectively. This is a variable key
 length cipher with an additional parameter called "effective key bits" or "effective key length".
 By default both are set to 128 bits.
 
-=item EVP_rc2_40_cbc(void), EVP_rc2_64_cbc(void)
+=item EVP_rc2_40_cbc(), EVP_rc2_64_cbc()
 
 RC2 algorithm in CBC mode with a default key length and effective key length of 40 and 64 bits.
 These are obsolete and new code should use EVP_rc2_cbc(), EVP_CIPHER_CTX_set_key_length() and
 EVP_CIPHER_CTX_ctrl() to set the key length and effective key length.
 
-=item EVP_bf_cbc(void), EVP_bf_ecb(void), EVP_bf_cfb(void), EVP_bf_ofb(void);
+=item EVP_bf_cbc(), EVP_bf_ecb(), EVP_bf_cfb(), EVP_bf_ofb()
 
 Blowfish encryption algorithm in CBC, ECB, CFB and OFB modes respectively. This is a variable key
 length cipher.
 
-=item EVP_cast5_cbc(void), EVP_cast5_ecb(void), EVP_cast5_cfb(void), EVP_cast5_ofb(void)
+=item EVP_cast5_cbc(), EVP_cast5_ecb(), EVP_cast5_cfb(), EVP_cast5_ofb()
 
 CAST encryption algorithm in CBC, ECB, CFB and OFB modes respectively. This is a variable key
 length cipher.
 
-=item EVP_rc5_32_12_16_cbc(void), EVP_rc5_32_12_16_ecb(void), EVP_rc5_32_12_16_cfb(void), EVP_rc5_32_12_16_ofb(void)
+=item EVP_rc5_32_12_16_cbc(), EVP_rc5_32_12_16_ecb(), EVP_rc5_32_12_16_cfb(), EVP_rc5_32_12_16_ofb()
 
 RC5 encryption algorithm in CBC, ECB, CFB and OFB modes respectively. This is a variable key length
 cipher with an additional "number of rounds" parameter. By default the key length is set to 128
 bits and 12 rounds.
 
-=item EVP_aes_128_gcm(void), EVP_aes_192_gcm(void), EVP_aes_256_gcm(void)
+=item EVP_aes_128_gcm(), EVP_aes_192_gcm(), EVP_aes_256_gcm()
 
 AES Galois Counter Mode (GCM) for 128, 192 and 256 bit keys respectively.
 These ciphers require additional control operations to function correctly: see
-L<GCM mode> section below for details.
+the L</GCM and OCB Modes> section below for details.
 
-=item EVP_aes_128_ccm(void), EVP_aes_192_ccm(void), EVP_aes_256_ccm(void)
+=item EVP_aes_128_ocb(void), EVP_aes_192_ocb(void), EVP_aes_256_ocb(void)
+
+Offset Codebook Mode (OCB) for 128, 192 and 256 bit keys respectively.
+These ciphers require additional control operations to function correctly: see
+the L</GCM and OCB Modes> section below for details.
+
+=item EVP_aes_128_ccm(), EVP_aes_192_ccm(), EVP_aes_256_ccm()
 
 AES Counter with CBC-MAC Mode (CCM) for 128, 192 and 256 bit keys respectively.
 These ciphers require additional control operations to function correctly: see
 CCM mode section below for details.
 
+=item EVP_chacha20()
+
+The ChaCha20 stream cipher. The key length is 256 bits, the IV is 96 bits long.
+
+=item EVP_chacha20_poly1305()
+
+Authenticated encryption with ChaCha20-Poly1305. Like EVP_chacha20() the key is
+256 bits and the IV is 96 bits. This supports additional authenticated
+data (AAD) and produces a 128 bit authentication tag. See the
+L</GCM and OCB Modes> section for more information.
+
 =back
 
-=head1 GCM Mode
+=head1 GCM and OCB Modes
 
-For GCM mode ciphers the behaviour of the EVP interface is subtly altered and
-several GCM specific ctrl operations are supported.
+For GCM and OCB mode ciphers the behaviour of the EVP interface is subtly
+altered and several additional ctrl operations are supported.
 
 To specify any additional authenticated data (AAD) a call to EVP_CipherUpdate(),
-EVP_EncryptUpdate() or EVP_DecryptUpdate() should be made with the output 
+EVP_EncryptUpdate() or EVP_DecryptUpdate() should be made with the output
 parameter B<out> set to B<NULL>.
 
 When decrypting the return value of EVP_DecryptFinal() or EVP_CipherFinal()
@@ -379,39 +430,47 @@ indicates if the operation was successful. If it does not indicate success
 the authentication operation has failed and any output data B<MUST NOT>
 be used as it is corrupted.
 
-The following ctrls are supported in GCM mode:
+The following ctrls are supported in both GCM and OCB modes:
 
- EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, ivlen, NULL);
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, ivlen, NULL);
 
-Sets the GCM IV length: this call can only be made before specifying an IV. If
-not called a default IV length is used (96 bits for AES).
- 
- EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, taglen, tag);
+Sets the IV length: this call can only be made before specifying an IV. If
+not called a default IV length is used. For GCM AES and OCB AES the default is
+12 (i.e. 96 bits). For OCB mode the maximum is 15.
+
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, taglen, tag);
 
 Writes B<taglen> bytes of the tag value to the buffer indicated by B<tag>.
 This call can only be made when encrypting data and B<after> all data has been
-processed (e.g. after an EVP_EncryptFinal() call).
+processed (e.g. after an EVP_EncryptFinal() call). For OCB mode the taglen must
+either be 16 or the value previously set via EVP_CTRL_OCB_SET_TAGLEN.
 
- EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, taglen, tag);
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, taglen, tag);
 
 Sets the expected tag to B<taglen> bytes from B<tag>. This call is only legal
-when decrypting data.
+when decrypting data. For OCB mode the taglen must either be 16 or the value
+previously set via EVP_CTRL_AEAD_SET_TAG.
+
+In OCB mode calling this with B<tag> set to NULL sets the tag length. The tag
+length can only be set before specifying an IV. If not called a default tag
+length is used. For OCB AES the default is 16 (i.e. 128 bits). This is also the
+maximum tag length for OCB.
 
 =head1 CCM Mode
 
-The behaviour of CCM mode ciphers is similar to CCM mode but with a few
+The behaviour of CCM mode ciphers is similar to GCM mode but with a few
 additional requirements and different ctrl values.
 
-Like GCM mode any additional authenticated data (AAD) is passed by calling
-EVP_CipherUpdate(), EVP_EncryptUpdate() or EVP_DecryptUpdate() with the output 
+Like GCM and OCB modes any additional authenticated data (AAD) is passed by calling
+EVP_CipherUpdate(), EVP_EncryptUpdate() or EVP_DecryptUpdate() with the output
 parameter B<out> set to B<NULL>. Additionally the total plaintext or ciphertext
 length B<MUST> be passed to EVP_CipherUpdate(), EVP_EncryptUpdate() or
-EVP_DecryptUpdate() with the output and input parameters (B<in> and B<out>) 
+EVP_DecryptUpdate() with the output and input parameters (B<in> and B<out>)
 set to B<NULL> and the length passed in the B<inl> parameter.
 
 The following ctrls are supported in CCM mode:
- 
- EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, taglen, tag);
+
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, taglen, tag);
 
 This call is made to set the expected B<CCM> tag value when decrypting or
 the length of the tag (with the B<tag> parameter set to NULL) when encrypting.
@@ -422,13 +481,11 @@ used (12 for AES).
 
 Sets the CCM B<L> value. If not set a default is used (8 for AES).
 
- EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, ivlen, NULL);
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, ivlen, NULL);
 
 Sets the CCM nonce (IV) length: this call can only be made before specifying
 an nonce value. The nonce length is given by B<15 - L> so it is 7 by default
 for AES.
-
-
 
 =head1 NOTES
 
@@ -439,7 +496,7 @@ B<EVP> interface will ensure the use of platform specific cryptographic
 acceleration such as AES-NI (the low level interfaces do not provide the
 guarantee).
 
-PKCS padding works by adding B<n> padding bytes of value B<n> to make the total 
+PKCS padding works by adding B<n> padding bytes of value B<n> to make the total
 length of the encrypted data a multiple of the block size. Padding is always
 added so if the data is already a multiple of the block size B<n> will equal
 the block size. For example if the block size is 8 and 11 bytes are to be
@@ -462,6 +519,8 @@ EVP_EncryptFinal_ex(), EVP_DecryptInit_ex(), EVP_DecryptFinal_ex(),
 EVP_CipherInit_ex() and EVP_CipherFinal_ex() because they can reuse an
 existing context without allocating and freeing it up on each call.
 
+EVP_get_cipherbynid(), and EVP_get_cipherbyobj() are implemented as macros.
+
 =head1 BUGS
 
 For RC5 the number of rounds can currently only be set to 8, 12 or 16. This is
@@ -469,7 +528,7 @@ a limitation of the current RC5 code rather than the EVP interface.
 
 EVP_MAX_KEY_LENGTH and EVP_MAX_IV_LENGTH only refer to the internal ciphers with
 default key lengths. If custom ciphers exceed these values the results are
-unpredictable. This is because it has become standard practice to define a 
+unpredictable. This is because it has become standard practice to define a
 generic key as a fixed unsigned char array containing EVP_MAX_KEY_LENGTH bytes.
 
 The ASN1 code is incomplete (and sometimes inaccurate) it has only been tested
@@ -480,50 +539,50 @@ for certain common S/MIME ciphers (RC2, DES, triple DES) in CBC mode.
 Encrypt a string using IDEA:
 
  int do_crypt(char *outfile)
- 	{
-	unsigned char outbuf[1024];
-	int outlen, tmplen;
-	/* Bogus key and IV: we'd normally set these from
-	 * another source.
-	 */
-	unsigned char key[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-	unsigned char iv[] = {1,2,3,4,5,6,7,8};
-	char intext[] = "Some Crypto Text";
-	EVP_CIPHER_CTX ctx;
-	FILE *out;
+        {
+        unsigned char outbuf[1024];
+        int outlen, tmplen;
+        /* Bogus key and IV: we'd normally set these from
+         * another source.
+         */
+        unsigned char key[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+        unsigned char iv[] = {1,2,3,4,5,6,7,8};
+        char intext[] = "Some Crypto Text";
+        EVP_CIPHER_CTX *ctx;
+        FILE *out;
 
-	EVP_CIPHER_CTX_init(&ctx);
-	EVP_EncryptInit_ex(&ctx, EVP_idea_cbc(), NULL, key, iv);
+        ctx = EVP_CIPHER_CTX_new();
+        EVP_EncryptInit_ex(ctx, EVP_idea_cbc(), NULL, key, iv);
 
-	if(!EVP_EncryptUpdate(&ctx, outbuf, &outlen, intext, strlen(intext)))
-		{
-		/* Error */
-		return 0;
-		}
-	/* Buffer passed to EVP_EncryptFinal() must be after data just
-	 * encrypted to avoid overwriting it.
-	 */
-	if(!EVP_EncryptFinal_ex(&ctx, outbuf + outlen, &tmplen))
-		{
-		/* Error */
-		return 0;
-		}
-	outlen += tmplen;
-	EVP_CIPHER_CTX_cleanup(&ctx);
-	/* Need binary mode for fopen because encrypted data is
-	 * binary data. Also cannot use strlen() on it because
-         * it wont be null terminated and may contain embedded
-	 * nulls.
-	 */
-	out = fopen(outfile, "wb");
-	fwrite(outbuf, 1, outlen, out);
-	fclose(out);
-	return 1;
-	}
+        if(!EVP_EncryptUpdate(ctx, outbuf, &outlen, intext, strlen(intext)))
+                {
+                /* Error */
+                return 0;
+                }
+        /* Buffer passed to EVP_EncryptFinal() must be after data just
+         * encrypted to avoid overwriting it.
+         */
+        if(!EVP_EncryptFinal_ex(ctx, outbuf + outlen, &tmplen))
+                {
+                /* Error */
+                return 0;
+                }
+        outlen += tmplen;
+        EVP_CIPHER_CTX_free(ctx);
+        /* Need binary mode for fopen because encrypted data is
+         * binary data. Also cannot use strlen() on it because
+         * it won't be null terminated and may contain embedded
+         * nulls.
+         */
+        out = fopen(outfile, "wb");
+        fwrite(outbuf, 1, outlen, out);
+        fclose(out);
+        return 1;
+        }
 
 The ciphertext from the above example can be decrypted using the B<openssl>
 utility with the command line (shown on two lines for clarity):
- 
+
  openssl idea -d <filename
           -K 000102030405060708090A0B0C0D0E0F -iv 0102030405060708
 
@@ -531,64 +590,72 @@ General encryption and decryption function example using FILE I/O and AES128
 with a 128-bit key:
 
  int do_crypt(FILE *in, FILE *out, int do_encrypt)
- 	{
-	/* Allow enough space in output buffer for additional block */
-	unsigned char inbuf[1024], outbuf[1024 + EVP_MAX_BLOCK_LENGTH];
-	int inlen, outlen;
-	EVP_CIPHER_CTX ctx;
-	/* Bogus key and IV: we'd normally set these from
-	 * another source.
-	 */
-	unsigned char key[] = "0123456789abcdeF";
-	unsigned char iv[] = "1234567887654321";
+        {
+        /* Allow enough space in output buffer for additional block */
+        unsigned char inbuf[1024], outbuf[1024 + EVP_MAX_BLOCK_LENGTH];
+        int inlen, outlen;
+        EVP_CIPHER_CTX *ctx;
+        /* Bogus key and IV: we'd normally set these from
+         * another source.
+         */
+        unsigned char key[] = "0123456789abcdeF";
+        unsigned char iv[] = "1234567887654321";
 
-	/* Don't set key or IV right away; we want to check lengths */
-	EVP_CIPHER_CTX_init(&ctx);
-	EVP_CipherInit_ex(&ctx, EVP_aes_128_cbc(), NULL, NULL, NULL,
-		do_encrypt);
-	OPENSSL_assert(EVP_CIPHER_CTX_key_length(&ctx) == 16);
-	OPENSSL_assert(EVP_CIPHER_CTX_iv_length(&ctx) == 16);
+        /* Don't set key or IV right away; we want to check lengths */
+        ctx = EVP_CIPHER_CTX_new();
+        EVP_CipherInit_ex(&ctx, EVP_aes_128_cbc(), NULL, NULL, NULL,
+                do_encrypt);
+        OPENSSL_assert(EVP_CIPHER_CTX_key_length(ctx) == 16);
+        OPENSSL_assert(EVP_CIPHER_CTX_iv_length(ctx) == 16);
 
-	/* Now we can set key and IV */
-	EVP_CipherInit_ex(&ctx, NULL, NULL, key, iv, do_encrypt);
+        /* Now we can set key and IV */
+        EVP_CipherInit_ex(ctx, NULL, NULL, key, iv, do_encrypt);
 
-	for(;;) 
-		{
-		inlen = fread(inbuf, 1, 1024, in);
-		if(inlen <= 0) break;
-		if(!EVP_CipherUpdate(&ctx, outbuf, &outlen, inbuf, inlen))
-			{
-			/* Error */
-			EVP_CIPHER_CTX_cleanup(&ctx);
-			return 0;
-			}
-		fwrite(outbuf, 1, outlen, out);
-		}
-	if(!EVP_CipherFinal_ex(&ctx, outbuf, &outlen))
-		{
-		/* Error */
-		EVP_CIPHER_CTX_cleanup(&ctx);
-		return 0;
-		}
-	fwrite(outbuf, 1, outlen, out);
+        for(;;)
+                {
+                inlen = fread(inbuf, 1, 1024, in);
+                if (inlen <= 0) break;
+                if(!EVP_CipherUpdate(ctx, outbuf, &outlen, inbuf, inlen))
+                        {
+                        /* Error */
+                        EVP_CIPHER_CTX_free(ctx);
+                        return 0;
+                        }
+                fwrite(outbuf, 1, outlen, out);
+                }
+        if(!EVP_CipherFinal_ex(ctx, outbuf, &outlen))
+                {
+                /* Error */
+                EVP_CIPHER_CTX_free(ctx);
+                return 0;
+                }
+        fwrite(outbuf, 1, outlen, out);
 
-	EVP_CIPHER_CTX_cleanup(&ctx);
-	return 1;
-	}
+        EVP_CIPHER_CTX_free(ctx);
+        return 1;
+        }
 
 
 =head1 SEE ALSO
 
-L<evp(3)|evp(3)>
+L<evp(7)>
 
 =head1 HISTORY
 
-EVP_CIPHER_CTX_init(), EVP_EncryptInit_ex(), EVP_EncryptFinal_ex(),
-EVP_DecryptInit_ex(), EVP_DecryptFinal_ex(), EVP_CipherInit_ex(),
-EVP_CipherFinal_ex() and EVP_CIPHER_CTX_set_padding() appeared in
-OpenSSL 0.9.7.
+Support for OCB mode was added in OpenSSL 1.1.0
 
-IDEA appeared in OpenSSL 0.9.7 but was often disabled due to
-patent concerns; the last patents expired in 2012.
+B<EVP_CIPHER_CTX> was made opaque in OpenSSL 1.1.0.  As a result,
+EVP_CIPHER_CTX_reset() appeared and EVP_CIPHER_CTX_cleanup()
+disappeared.  EVP_CIPHER_CTX_init() remains as an alias for
+EVP_CIPHER_CTX_reset().
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

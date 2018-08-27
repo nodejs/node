@@ -88,9 +88,9 @@ $ node hello-world.js
 An output like this should appear in the terminal to indicate Node.js
 server is running:
 
- ```console
- Server running at http://127.0.0.1:3000/
- ````
+```console
+Server running at http://127.0.0.1:3000/
+```
 
 Now, open any preferred web browser and visit `http://127.0.0.1:3000`.
 

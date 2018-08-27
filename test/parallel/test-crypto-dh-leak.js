@@ -23,4 +23,4 @@ const after = process.memoryUsage().rss;
 
 // RSS should stay the same, ceteris paribus, but allow for
 // some slop because V8 mallocs memory during execution.
-assert(after - before < 5 << 20);
+assert(after - before < 10 << 20, `before=${before} after=${after}`);

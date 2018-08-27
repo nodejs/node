@@ -5,7 +5,7 @@
 
 "use strict";
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -46,10 +46,10 @@ module.exports = {
             requireSpaceAfter = true;
 
         if (typeof config === "object") {
-            if (config.hasOwnProperty("before")) {
+            if (Object.prototype.hasOwnProperty.call(config, "before")) {
                 requireSpaceBefore = config.before;
             }
-            if (config.hasOwnProperty("after")) {
+            if (Object.prototype.hasOwnProperty.call(config, "after")) {
                 requireSpaceAfter = config.after;
             }
         }

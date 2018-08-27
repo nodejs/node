@@ -18,12 +18,13 @@ server.listen(0, common.mustCall(() => {
   const req = client.request();
   const closeCode = 1;
 
-  common.expectsError(
+  assert.throws(
     () => req.close(2 ** 32),
     {
-      type: RangeError,
+      name: 'RangeError [ERR_OUT_OF_RANGE]',
       code: 'ERR_OUT_OF_RANGE',
-      message: 'The value of "code" is out of range.'
+      message: 'The value of "code" is out of range. It must be ' +
+               '>= 0 && <= 4294967295. Received 4294967296'
     }
   );
   assert.strictEqual(req.closed, false);
@@ -62,8 +63,14 @@ server.listen(0, common.mustCall(() => {
     message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
   }));
 
-  req.on('response', common.mustCall());
-  req.resume();
+  // The `response` event should not fire as the server should receive the
+  // RST_STREAM frame before it ever has a chance to reply.
+  req.on('response', common.mustNotCall());
+
+  // The `end` event should still fire as we close the readable stream by
+  // pushing a `null` chunk.
   req.on('end', common.mustCall());
+
+  req.resume();
   req.end();
 }));

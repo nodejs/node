@@ -9,12 +9,6 @@ const { resolve: UrlResolve } = require('url');
 const fixtures = require('../common/fixtures');
 const { NodeInstance } = require('../common/inspector-helper.js');
 
-function assertNoUrlsWhileConnected(response) {
-  assert.strictEqual(response.length, 1);
-  assert.ok(!response[0].hasOwnProperty('devtoolsFrontendUrl'));
-  assert.ok(!response[0].hasOwnProperty('webSocketDebuggerUrl'));
-}
-
 function assertScopeValues({ result }, expected) {
   const unmatched = new Set(Object.keys(expected));
   for (const actual of result) {
@@ -110,13 +104,10 @@ async function runTest() {
                                  '', fixtures.path('es-modules/loop.mjs'));
 
   const session = await child.connectInspectorSession();
-  assertNoUrlsWhileConnected(await child.httpGet(null, '/json/list'));
   await testBreakpointOnStart(session);
   await testBreakpoint(session);
   await session.runToCompletion();
   assert.strictEqual((await child.expectShutdown()).exitCode, 55);
 }
-
-common.crashOnUnhandledRejection();
 
 runTest();

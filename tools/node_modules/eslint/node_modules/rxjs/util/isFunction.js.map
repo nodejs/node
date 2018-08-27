@@ -1,0 +1,1 @@
+{"version":3,"file":"isFunction.js","sourceRoot":"","sources":["../../src/util/isFunction.ts"],"names":[],"mappings":";AAAA,oBAA2B,CAAM;IAC/B,MAAM,CAAC,OAAO,CAAC,KAAK,UAAU,CAAC;AACjC,CAAC;AAFe,kBAAU,aAEzB,CAAA","sourcesContent":["export function isFunction(x: any): x is Function {\n  return typeof x === 'function';\n}\n"]}

@@ -21,14 +21,15 @@
 
 'use strict';
 const common = require('../common');
-common.globalCheck = false;
-
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
 const util = require('util');
 
+common.allowGlobals(42);
+
 // Create a dummy stream that does nothing
-const dummy = new common.ArrayStream();
+const dummy = new ArrayStream();
 
 function testReset(cb) {
   const r = repl.start({

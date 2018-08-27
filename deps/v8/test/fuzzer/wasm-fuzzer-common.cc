@@ -7,11 +7,10 @@
 #include "include/v8.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/wasm/module-compiler.h"
-#include "src/wasm/wasm-api.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/wasm/flag-utils.h"
@@ -68,26 +67,40 @@ int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size) {
 
 void InterpretAndExecuteModule(i::Isolate* isolate,
                                Handle<WasmModuleObject> module_object) {
-  ScheduledErrorThrower thrower(isolate, "WebAssembly Instantiation");
-  // Try to instantiate and interpret the module_object.
-  MaybeHandle<WasmInstanceObject> maybe_instance =
-      SyncInstantiate(isolate, &thrower, module_object,
-                      Handle<JSReceiver>::null(),     // imports
-                      MaybeHandle<JSArrayBuffer>());  // memory
+  ErrorThrower thrower(isolate, "WebAssembly Instantiation");
+  MaybeHandle<WasmInstanceObject> maybe_instance;
   Handle<WasmInstanceObject> instance;
-  if (!maybe_instance.ToHandle(&instance)) return;
+
+  // Try to instantiate and interpret the module_object.
+  maybe_instance = isolate->wasm_engine()->SyncInstantiate(
+      isolate, &thrower, module_object,
+      Handle<JSReceiver>::null(),     // imports
+      MaybeHandle<JSArrayBuffer>());  // memory
+  if (!maybe_instance.ToHandle(&instance)) {
+    isolate->clear_pending_exception();
+    thrower.Reset();  // Ignore errors.
+    return;
+  }
   if (!testing::InterpretWasmModuleForTesting(isolate, instance, "main", 0,
                                               nullptr)) {
+    isolate->clear_pending_exception();
     return;
   }
 
-  // Instantiate and execute the module_object.
-  maybe_instance = SyncInstantiate(isolate, &thrower, module_object,
-                                   Handle<JSReceiver>::null(),     // imports
-                                   MaybeHandle<JSArrayBuffer>());  // memory
-  if (!maybe_instance.ToHandle(&instance)) return;
-
-  testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
+  // Try to instantiate and execute the module_object.
+  maybe_instance = isolate->wasm_engine()->SyncInstantiate(
+      isolate, &thrower, module_object,
+      Handle<JSReceiver>::null(),     // imports
+      MaybeHandle<JSArrayBuffer>());  // memory
+  if (!maybe_instance.ToHandle(&instance)) {
+    isolate->clear_pending_exception();
+    thrower.Reset();  // Ignore errors.
+    return;
+  }
+  if (testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr) < 0) {
+    isolate->clear_pending_exception();
+    return;
+  }
 }
 
 namespace {
@@ -123,6 +136,15 @@ std::ostream& operator<<(std::ostream& os, const PrintSig& print) {
   return os << "]";
 }
 
+struct PrintName {
+  WasmName name;
+  PrintName(ModuleWireBytes wire_bytes, WireBytesRef ref)
+      : name(wire_bytes.GetNameOrNull(ref)) {}
+};
+std::ostream& operator<<(std::ostream& os, const PrintName& name) {
+  return os.write(name.name.start(), name.name.size());
+}
+
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
@@ -144,7 +166,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "load('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
         "(function() {\n"
-        "  var builder = new WasmModuleBuilder();\n";
+        "  const builder = new WasmModuleBuilder();\n";
 
   if (module->has_memory) {
     os << "  builder.addMemory(" << module->initial_pages;
@@ -155,18 +177,24 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     }
   }
 
+  for (WasmGlobal& glob : module->globals) {
+    os << "  builder.addGlobal(" << ValueTypeToConstantName(glob.type) << ", "
+       << glob.mutability << ");\n";
+  }
+
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
 
   for (const WasmFunction& func : module->functions) {
     Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
-    os << "  // Generate function " << func.func_index + 1 << " of "
-       << module->functions.size() << ".\n";
+    os << "  // Generate function " << (func.func_index + 1) << " (out of "
+       << module->functions.size() << ").\n";
     // Generate signature.
-    os << "  sig" << func.func_index << " = makeSig("
+    os << "  sig" << (func.func_index + 1) << " = makeSig("
        << PrintParameters(func.sig) << ", " << PrintReturns(func.sig) << ");\n";
 
     // Add function.
-    os << "  builder.addFunction(undefined, sig" << func.func_index << ")\n";
+    os << "  builder.addFunction(undefined, sig" << (func.func_index + 1)
+       << ")\n";
 
     // Add locals.
     BodyLocalDecls decls(&tmp_zone);
@@ -178,7 +206,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         ValueType type = decls.type_list[pos];
         while (pos + count < locals && decls.type_list[pos + count] == type)
           ++count;
-        os << ".addLocals({" << WasmOpcodes::TypeName(type)
+        os << ".addLocals({" << ValueTypes::TypeName(type)
            << "_count: " << count << "})";
       }
       os << "\n";
@@ -190,16 +218,21 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     FunctionBody func_body(func.sig, func.code.offset(), func_code.start(),
                            func_code.end());
     PrintRawWasmCode(isolate->allocator(), func_body, module, kOmitLocals);
-    os << "            ])";
-    if (func.func_index == 0) os << "\n            .exportAs('main')";
-    os << ";\n ";
+    os << "            ]);\n";
+  }
+
+  for (WasmExport& exp : module->export_table) {
+    if (exp.kind != kExternalFunction) continue;
+    os << "  builder.addExport('" << PrintName(wire_bytes, exp.name) << "', "
+       << exp.index << ");\n";
   }
 
   if (compiles) {
-    os << "  var module = builder.instantiate();\n"
-          "  module.exports.main(1, 2, 3);\n";
+    os << "  const instance = builder.instantiate();\n"
+          "  print(instance.exports.main(1, 2, 3));\n";
   } else {
-    os << "  assertThrows(function() { builder.instantiate(); });\n";
+    os << "  assertThrows(function() { builder.instantiate(); }, "
+          "WebAssembly.CompileError);\n";
   }
   os << "})();\n";
 }
@@ -241,7 +274,8 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   MaybeHandle<WasmModuleObject> compiled_module;
   {
     FlagScope<bool> no_liftoff(&FLAG_liftoff, false);
-    compiled_module = SyncCompile(i_isolate, &interpreter_thrower, wire_bytes);
+    compiled_module = i_isolate->wasm_engine()->SyncCompile(
+        i_isolate, &interpreter_thrower, wire_bytes);
   }
   bool compiles = !compiled_module.is_null();
 
@@ -260,9 +294,10 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   int32_t result_interpreter;
   bool possible_nondeterminism = false;
   {
-    MaybeHandle<WasmInstanceObject> interpreter_instance = SyncInstantiate(
-        i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
-        MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
+    MaybeHandle<WasmInstanceObject> interpreter_instance =
+        i_isolate->wasm_engine()->SyncInstantiate(
+            i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
+            MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
 
     // Ignore instantiation failure.
     if (interpreter_thrower.error()) {
@@ -286,9 +321,10 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   int32_t result_turbofan;
   {
     ErrorThrower compiler_thrower(i_isolate, "Turbofan");
-    MaybeHandle<WasmInstanceObject> compiled_instance = SyncInstantiate(
-        i_isolate, &compiler_thrower, compiled_module.ToHandleChecked(),
-        MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
+    MaybeHandle<WasmInstanceObject> compiled_instance =
+        i_isolate->wasm_engine()->SyncInstantiate(
+            i_isolate, &compiler_thrower, compiled_module.ToHandleChecked(),
+            MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
 
     DCHECK(!compiler_thrower.error());
     result_turbofan = testing::CallWasmFunctionForTesting(
@@ -315,9 +351,8 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
     ErrorThrower compiler_thrower(i_isolate, "Liftoff");
     // Re-compile with Liftoff.
     MaybeHandle<WasmInstanceObject> compiled_instance =
-        SyncCompileAndInstantiate(i_isolate, &compiler_thrower, wire_bytes,
-                                  MaybeHandle<JSReceiver>(),
-                                  MaybeHandle<JSArrayBuffer>());
+        testing::CompileAndInstantiateForTesting(i_isolate, &compiler_thrower,
+                                                 wire_bytes);
     DCHECK(!compiler_thrower.error());
     result_liftoff = testing::CallWasmFunctionForTesting(
         i_isolate, compiled_instance.ToHandleChecked(), &compiler_thrower,

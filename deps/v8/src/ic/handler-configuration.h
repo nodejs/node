@@ -175,7 +175,7 @@ class LoadHandler final : public DataHandler {
                                               KeyedAccessLoadMode load_mode);
 
   // Decodes the KeyedAccessLoadMode from a {handler}.
-  static KeyedAccessLoadMode GetKeyedAccessLoadMode(Object* handler);
+  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject* handler);
 };
 
 // A set of bit fields representing Smi handlers for stores and a HeapObject
@@ -192,9 +192,6 @@ class StoreHandler final : public DataHandler {
     kElement,
     kField,
     kConstField,
-    // TODO(ishell): remove once constant field tracking is done.
-    kTransitionToConstant = kConstField,
-    kTransitionToField,
     kAccessor,
     kNativeDataProperty,
     kApiSetter,
@@ -236,8 +233,7 @@ class StoreHandler final : public DataHandler {
   //
   // Encoding when KindBits contains kField or kTransitionToField.
   //
-  class ExtendStorageBits : public BitField<bool, DescriptorBits::kNext, 1> {};
-  class IsInobjectBits : public BitField<bool, ExtendStorageBits::kNext, 1> {};
+  class IsInobjectBits : public BitField<bool, DescriptorBits::kNext, 1> {};
   class FieldRepresentationBits
       : public BitField<FieldRepresentation, IsInobjectBits::kNext, 2> {};
   // +1 here is to cover all possible JSObject header sizes.
@@ -247,18 +243,14 @@ class StoreHandler final : public DataHandler {
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(FieldIndexBits::kNext <= kSmiValueSize);
 
-  static inline WeakCell* GetTransitionCell(Object* handler);
-  static Object* ValidHandlerOrNull(Object* handler, Name* name,
-                                    Handle<Map>* out_transition);
-
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,
                                        FieldIndex field_index,
                                        PropertyConstness constness,
                                        Representation representation);
 
-  static Handle<Smi> StoreTransition(Isolate* isolate,
-                                     Handle<Map> transition_map);
+  static MaybeObjectHandle StoreTransition(Isolate* isolate,
+                                           Handle<Map> transition_map);
 
   // Creates a Smi-handler for storing a native data property on a fast object.
   static inline Handle<Smi> StoreNativeDataProperty(Isolate* isolate,
@@ -288,8 +280,8 @@ class StoreHandler final : public DataHandler {
 
   // Creates a handler for storing a property to the property cell of a global
   // object.
-  static Handle<Object> StoreGlobal(Isolate* isolate,
-                                    Handle<PropertyCell> cell);
+  static MaybeObjectHandle StoreGlobal(Isolate* isolate,
+                                       Handle<PropertyCell> cell);
 
   // Creates a Smi-handler for storing a property to a global proxy object.
   static inline Handle<Smi> StoreGlobalProxy(Isolate* isolate);
@@ -303,19 +295,7 @@ class StoreHandler final : public DataHandler {
  private:
   static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,
                                        int descriptor, FieldIndex field_index,
-                                       Representation representation,
-                                       bool extend_storage);
-
-  // Creates a Smi-handler for transitioning store to a field.
-  static inline Handle<Smi> TransitionToField(Isolate* isolate, int descriptor,
-                                              FieldIndex field_index,
-                                              Representation representation,
-                                              bool extend_storage);
-
-  // Creates a Smi-handler for transitioning store to a constant field (in this
-  // case the only thing that needs to be done is an update of a map).
-  static inline Handle<Smi> TransitionToConstant(Isolate* isolate,
-                                                 int descriptor);
+                                       Representation representation);
 };
 
 }  // namespace internal

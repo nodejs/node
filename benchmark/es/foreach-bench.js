@@ -5,51 +5,51 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   method: ['for', 'for-of', 'for-in', 'forEach'],
   count: [5, 10, 20, 100],
-  millions: [5]
+  n: [5e6]
 });
 
-function useFor(millions, items, count) {
+function useFor(n, items, count) {
   bench.start();
-  for (var i = 0; i < millions * 1e6; i++) {
+  for (var i = 0; i < n; i++) {
     for (var j = 0; j < count; j++) {
       /* eslint-disable no-unused-vars */
       const item = items[j];
       /* esline-enable no-unused-vars */
     }
   }
-  bench.end(millions);
+  bench.end(n);
 }
 
-function useForOf(millions, items) {
+function useForOf(n, items) {
   var item;
   bench.start();
-  for (var i = 0; i < millions * 1e6; i++) {
+  for (var i = 0; i < n; i++) {
     for (item of items) {}
   }
-  bench.end(millions);
+  bench.end(n);
 }
 
-function useForIn(millions, items) {
+function useForIn(n, items) {
   bench.start();
-  for (var i = 0; i < millions * 1e6; i++) {
+  for (var i = 0; i < n; i++) {
     for (var j in items) {
       /* eslint-disable no-unused-vars */
       const item = items[j];
       /* esline-enable no-unused-vars */
     }
   }
-  bench.end(millions);
+  bench.end(n);
 }
 
-function useForEach(millions, items) {
+function useForEach(n, items) {
   bench.start();
-  for (var i = 0; i < millions * 1e6; i++) {
+  for (var i = 0; i < n; i++) {
     items.forEach((item) => {});
   }
-  bench.end(millions);
+  bench.end(n);
 }
 
-function main({ millions, count, method }) {
+function main({ n, count, method }) {
   const items = new Array(count);
   var fn;
   for (var i = 0; i < count; i++)
@@ -73,5 +73,5 @@ function main({ millions, count, method }) {
     default:
       throw new Error(`Unexpected method "${method}"`);
   }
-  fn(millions, items, count);
+  fn(n, items, count);
 }

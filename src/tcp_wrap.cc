@@ -25,7 +25,7 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
-#include "node_wrap.h"
+#include "node_internals.h"
 #include "connect_wrap.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
@@ -81,19 +81,13 @@ void TCPWrap::Initialize(Local<Object> target,
   // Init properties
   t->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "reading"),
                              Boolean::New(env->isolate(), false));
-  t->InstanceTemplate()->Set(env->owner_string(), Null(env->isolate()));
+  t->InstanceTemplate()->Set(env->owner_symbol(), Null(env->isolate()));
   t->InstanceTemplate()->Set(env->onread_string(), Null(env->isolate()));
   t->InstanceTemplate()->Set(env->onconnection_string(), Null(env->isolate()));
 
   AsyncWrap::AddWrapMethods(env, t, AsyncWrap::kFlagHasReset);
-
-  env->SetProtoMethod(t, "close", HandleWrap::Close);
-
-  env->SetProtoMethod(t, "ref", HandleWrap::Ref);
-  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
-  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
-
-  LibuvStreamWrap::AddMethods(env, t, StreamBase::kFlagHasWritev);
+  HandleWrap::AddWrapMethods(env, t);
+  LibuvStreamWrap::AddMethods(env, t);
 
   env->SetProtoMethod(t, "open", Open);
   env->SetProtoMethod(t, "bind", Bind);
@@ -116,12 +110,8 @@ void TCPWrap::Initialize(Local<Object> target,
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
-  auto constructor = [](const FunctionCallbackInfo<Value>& args) {
-    CHECK(args.IsConstructCall());
-    ClearWrap(args.This());
-  };
-  auto cwt = FunctionTemplate::New(env->isolate(), constructor);
-  cwt->InstanceTemplate()->SetInternalFieldCount(1);
+  Local<FunctionTemplate> cwt =
+      BaseObject::MakeLazilyInitializedJSTemplate(env);
   AsyncWrap::AddWrapMethods(env, cwt);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");
@@ -215,7 +205,12 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
   int fd = static_cast<int>(args[0]->IntegerValue());
-  uv_tcp_open(&wrap->handle_, fd);
+  int err = uv_tcp_open(&wrap->handle_, fd);
+
+  if (err == 0)
+    wrap->set_fd(fd);
+
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -291,11 +286,10 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
-    err = uv_tcp_connect(req_wrap->req(),
-                         &wrap->handle_,
-                         reinterpret_cast<const sockaddr*>(&addr),
-                         AfterConnect);
-    req_wrap->Dispatched();
+    err = req_wrap->Dispatch(uv_tcp_connect,
+                             &wrap->handle_,
+                             reinterpret_cast<const sockaddr*>(&addr),
+                             AfterConnect);
     if (err)
       delete req_wrap;
   }
@@ -327,11 +321,10 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
-    err = uv_tcp_connect(req_wrap->req(),
-                         &wrap->handle_,
-                         reinterpret_cast<const sockaddr*>(&addr),
-                         AfterConnect);
-    req_wrap->Dispatched();
+    err = req_wrap->Dispatch(uv_tcp_connect,
+                             &wrap->handle_,
+                             reinterpret_cast<const sockaddr*>(&addr),
+                             AfterConnect);
     if (err)
       delete req_wrap;
   }
@@ -346,8 +339,8 @@ Local<Object> AddressToJS(Environment* env,
                           Local<Object> info) {
   EscapableHandleScope scope(env->isolate());
   char ip[INET6_ADDRSTRLEN];
-  const sockaddr_in *a4;
-  const sockaddr_in6 *a6;
+  const sockaddr_in* a4;
+  const sockaddr_in6* a6;
   int port;
 
   if (info.IsEmpty())
@@ -382,4 +375,4 @@ Local<Object> AddressToJS(Environment* env,
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(tcp_wrap, node::TCPWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(tcp_wrap, node::TCPWrap::Initialize)

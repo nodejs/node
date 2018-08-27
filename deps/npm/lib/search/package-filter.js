@@ -8,16 +8,16 @@ function filter (data, include, exclude, opts) {
 
 function getWords (data, opts) {
   return [ data.name ]
-  .concat((opts && opts.description) ? data.description : [])
-  .concat((data.maintainers || []).map(function (m) {
-    return '=' + m.name
-  }))
-  .concat(data.versions && data.versions.length && data.url && ('<' + data.url + '>'))
-  .concat(data.keywords || [])
-  .map(function (f) { return f && f.trim && f.trim() })
-  .filter(function (f) { return f })
-  .join(' ')
-  .toLowerCase()
+    .concat((opts && opts.description) ? data.description : [])
+    .concat((data.maintainers || []).map(function (m) {
+      return '=' + m.name
+    }))
+    .concat(data.versions && data.versions.length && data.url && ('<' + data.url + '>'))
+    .concat(data.keywords || [])
+    .map(function (f) { return f && f.trim && f.trim() })
+    .filter(function (f) { return f })
+    .join(' ')
+    .toLowerCase()
 }
 
 function filterWords (data, include, exclude, opts) {

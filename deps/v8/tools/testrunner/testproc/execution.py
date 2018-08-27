@@ -15,12 +15,12 @@ def run_job(job, process_context):
   return job.run(process_context)
 
 
-def create_process_context(requirement):
-  return ProcessContext(base.get_reduce_result_function(requirement))
+def create_process_context(result_reduction):
+  return ProcessContext(result_reduction)
 
 
 JobResult = collections.namedtuple('JobResult', ['id', 'result'])
-ProcessContext = collections.namedtuple('ProcessContext', ['reduce_result_f'])
+ProcessContext = collections.namedtuple('ProcessContext', ['result_reduction'])
 
 
 class Job(object):
@@ -32,9 +32,8 @@ class Job(object):
 
   def run(self, process_ctx):
     output = self.cmd.execute()
-    result = self.outproc.process(output)
-    if not self.keep_output:
-      result = process_ctx.reduce_result_f(result)
+    reduction = process_ctx.result_reduction if not self.keep_output else None
+    result = self.outproc.process(output, reduction)
     return JobResult(self.test_id, result)
 
 
@@ -44,49 +43,51 @@ class ExecutionProc(base.TestProc):
   sends results to the previous processor.
   """
 
-  def __init__(self, jobs, context):
+  def __init__(self, jobs, outproc_factory=None):
     super(ExecutionProc, self).__init__()
     self._pool = pool.Pool(jobs)
-    self._context = context
+    self._outproc_factory = outproc_factory or (lambda t: t.output_proc)
     self._tests = {}
 
   def connect_to(self, next_proc):
     assert False, 'ExecutionProc cannot be connected to anything'
 
-  def start(self):
-    try:
-      it = self._pool.imap_unordered(
+  def run(self):
+    it = self._pool.imap_unordered(
         fn=run_job,
         gen=[],
         process_context_fn=create_process_context,
         process_context_args=[self._prev_requirement],
-      )
-      for pool_result in it:
-        if pool_result.heartbeat:
-          continue
-
-        job_result = pool_result.value
-        test_id, result = job_result
-
-        test, result.cmd = self._tests[test_id]
-        del self._tests[test_id]
-        self._send_result(test, result)
-    except KeyboardInterrupt:
-      raise
-    except:
-      traceback.print_exc()
-      raise
-    finally:
-      self._pool.terminate()
+    )
+    for pool_result in it:
+      self._unpack_result(pool_result)
 
   def next_test(self, test):
+    if self.is_stopped:
+      return
+
     test_id = test.procid
-    cmd = test.get_command(self._context)
+    cmd = test.get_command()
     self._tests[test_id] = test, cmd
 
-    # TODO(majeski): Needs factory for outproc as in local/execution.py
-    outproc = test.output_proc
+    outproc = self._outproc_factory(test)
     self._pool.add([Job(test_id, cmd, outproc, test.keep_output)])
 
   def result_for(self, test, result):
     assert False, 'ExecutionProc cannot receive results'
+
+  def stop(self):
+    super(ExecutionProc, self).stop()
+    self._pool.abort()
+
+  def _unpack_result(self, pool_result):
+    if pool_result.heartbeat:
+      self.heartbeat()
+      return
+
+    job_result = pool_result.value
+    test_id, result = job_result
+
+    test, result.cmd = self._tests[test_id]
+    del self._tests[test_id]
+    self._send_result(test, result)

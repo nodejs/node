@@ -52,4 +52,4 @@ class UnwindingInfoWriter {
 
 #endif
 
-#endif
+#endif  // V8_COMPILER_UNWINDING_INFO_WRITER_H_

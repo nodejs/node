@@ -19,6 +19,8 @@ uint32_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
       return 0;  // no permissions
+    case OS::MemoryPermission::kRead:
+      return ZX_VM_FLAG_PERM_READ;
     case OS::MemoryPermission::kReadWrite:
       return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE;
     case OS::MemoryPermission::kReadWriteExecute:
@@ -129,6 +131,22 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 
 void OS::SignalCodeMovingGC() {
   UNREACHABLE();  // TODO(scottmg): Port, https://crbug.com/731217.
+}
+
+int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
+  const auto kNanosPerMicrosecond = 1000ULL;
+  const auto kMicrosPerSecond = 1000000ULL;
+  const zx_time_t nanos_since_thread_started = zx_clock_get(ZX_CLOCK_THREAD);
+
+  // First convert to microseconds, rounding up.
+  const uint64_t micros_since_thread_started =
+      (nanos_since_thread_started + kNanosPerMicrosecond - 1ULL) /
+      kNanosPerMicrosecond;
+
+  *secs = static_cast<uint32_t>(micros_since_thread_started / kMicrosPerSecond);
+  *usecs =
+      static_cast<uint32_t>(micros_since_thread_started % kMicrosPerSecond);
+  return 0;
 }
 
 }  // namespace base

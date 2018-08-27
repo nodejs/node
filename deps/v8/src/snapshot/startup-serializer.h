@@ -14,9 +14,7 @@ namespace internal {
 
 class StartupSerializer : public Serializer<> {
  public:
-  StartupSerializer(
-      Isolate* isolate,
-      v8::SnapshotCreator::FunctionCodeHandling function_code_handling);
+  explicit StartupSerializer(Isolate* isolate);
   ~StartupSerializer() override;
 
   // Serialize the current state of the heap.  The order is:
@@ -30,7 +28,6 @@ class StartupSerializer : public Serializer<> {
   int PartialSnapshotCacheIndex(HeapObject* o);
 
   bool can_be_rehashed() const { return can_be_rehashed_; }
-  bool clear_function_code() const { return clear_function_code_; }
   bool root_has_been_serialized(int root_index) const {
     return root_has_been_serialized_.test(root_index);
   }
@@ -63,7 +60,8 @@ class StartupSerializer : public Serializer<> {
 
   // The StartupSerializer has to serialize the root array, which is slightly
   // different.
-  void VisitRootPointers(Root root, Object** start, Object** end) override;
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override;
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
@@ -71,7 +69,6 @@ class StartupSerializer : public Serializer<> {
 
   void CheckRehashability(HeapObject* obj);
 
-  const bool clear_function_code_;
   std::bitset<Heap::kStrongRootListLength> root_has_been_serialized_;
   PartialCacheIndexMap partial_cache_index_map_;
   std::vector<AccessorInfo*> accessor_infos_;
@@ -86,7 +83,8 @@ class StartupSerializer : public Serializer<> {
 class SerializedHandleChecker : public RootVisitor {
  public:
   SerializedHandleChecker(Isolate* isolate, std::vector<Context*>* contexts);
-  virtual void VisitRootPointers(Root root, Object** start, Object** end);
+  virtual void VisitRootPointers(Root root, const char* description,
+                                 Object** start, Object** end);
   bool CheckGlobalAndEternalHandles();
 
  private:

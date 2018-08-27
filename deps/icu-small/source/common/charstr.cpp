@@ -23,6 +23,18 @@
 
 U_NAMESPACE_BEGIN
 
+CharString::CharString(CharString&& src) U_NOEXCEPT
+        : buffer(std::move(src.buffer)), len(src.len) {
+    src.len = 0;  // not strictly necessary because we make no guarantees on the source string
+}
+
+CharString& CharString::operator=(CharString&& src) U_NOEXCEPT {
+    buffer = std::move(src.buffer);
+    len = src.len;
+    src.len = 0;  // not strictly necessary because we make no guarantees on the source string
+    return *this;
+}
+
 CharString &CharString::copyFrom(const CharString &s, UErrorCode &errorCode) {
     if(U_SUCCESS(errorCode) && this!=&s && ensureCapacity(s.len+1, 0, errorCode)) {
         len=s.len;

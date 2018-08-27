@@ -476,7 +476,6 @@ void V8ProfilerAgentImpl::startProfiling(const String16& title) {
   if (!m_startedProfilesCount) {
     DCHECK(!m_profiler);
     m_profiler = v8::CpuProfiler::New(m_isolate);
-    m_profiler->SetIdle(m_idle);
     int interval =
         m_state->integerProperty(ProfilerAgentState::samplingInterval, 0);
     if (interval) m_profiler->SetSamplingInterval(interval);
@@ -501,18 +500,6 @@ std::unique_ptr<protocol::Profiler::Profile> V8ProfilerAgentImpl::stopProfiling(
     m_profiler = nullptr;
   }
   return result;
-}
-
-bool V8ProfilerAgentImpl::idleStarted() {
-  m_idle = true;
-  if (m_profiler) m_profiler->SetIdle(m_idle);
-  return m_profiler;
-}
-
-bool V8ProfilerAgentImpl::idleFinished() {
-  m_idle = false;
-  if (m_profiler) m_profiler->SetIdle(m_idle);
-  return m_profiler;
 }
 
 }  // namespace v8_inspector

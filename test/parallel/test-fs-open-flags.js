@@ -39,7 +39,7 @@ const O_DSYNC = fs.constants.O_DSYNC || 0;
 const O_TRUNC = fs.constants.O_TRUNC || 0;
 const O_WRONLY = fs.constants.O_WRONLY || 0;
 
-const { stringToFlags } = require('internal/fs');
+const { stringToFlags } = require('internal/fs/utils');
 
 assert.strictEqual(stringToFlags('r'), O_RDONLY);
 assert.strictEqual(stringToFlags('r+'), O_RDWR);

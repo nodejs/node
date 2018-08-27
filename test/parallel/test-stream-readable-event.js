@@ -113,3 +113,16 @@ const Readable = require('stream').Readable;
     assert.deepStrictEqual(result, expected);
   }));
 }
+
+{
+  // #20923
+  const r = new Readable();
+  r._read = function() {
+    // actually doing thing here
+  };
+  r.on('data', function() {});
+
+  r.removeAllListeners();
+
+  assert.strictEqual(r.eventNames().length, 0);
+}

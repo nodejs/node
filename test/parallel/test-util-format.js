@@ -44,9 +44,18 @@ assert.strictEqual(util.format(symbol), 'Symbol(foo)');
 assert.strictEqual(util.format('foo', symbol), 'foo Symbol(foo)');
 assert.strictEqual(util.format('%s', symbol), 'Symbol(foo)');
 assert.strictEqual(util.format('%j', symbol), 'undefined');
-assert.throws(function() {
-  util.format('%d', symbol);
-}, /^TypeError: Cannot convert a Symbol value to a number$/);
+assert.throws(
+  () => { util.format('%d', symbol); },
+  (e) => {
+    // The error should be a TypeError.
+    if (!(e instanceof TypeError))
+      return false;
+
+    // The error should be from the JS engine and not from Node.js.
+    // JS engine errors do not have the `code` property.
+    return e.code === undefined;
+  }
+);
 
 // Number format specifier
 assert.strictEqual(util.format('%d'), '%d');
@@ -126,7 +135,7 @@ assert.strictEqual(
   util.format('%o', obj),
   '{ foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func: \n' +
+  '  func:\n' +
   '   { [Function: func]\n' +
   '     [length]: 0,\n' +
   '     [name]: \'func\',\n' +
@@ -135,8 +144,8 @@ assert.strictEqual(
   util.format('%o', nestedObj2),
   '{ foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func: \n' +
-  '   [ { a: \n' +
+  '  func:\n' +
+  '   [ { a:\n' +
   '        { [Function: a]\n' +
   '          [length]: 0,\n' +
   '          [name]: \'a\',\n' +
@@ -145,9 +154,9 @@ assert.strictEqual(
 assert.strictEqual(
   util.format('%o', nestedObj),
   '{ foo: \'bar\',\n' +
-  '  foobar: \n' +
+  '  foobar:\n' +
   '   { foo: \'bar\',\n' +
-  '     func: \n' +
+  '     func:\n' +
   '      { [Function: func]\n' +
   '        [length]: 0,\n' +
   '        [name]: \'func\',\n' +
@@ -156,14 +165,14 @@ assert.strictEqual(
   util.format('%o %o', obj, obj),
   '{ foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func: \n' +
+  '  func:\n' +
   '   { [Function: func]\n' +
   '     [length]: 0,\n' +
   '     [name]: \'func\',\n' +
   '     [prototype]: func { [constructor]: [Circular] } } }' +
   ' { foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func: \n' +
+  '  func:\n' +
   '   { [Function: func]\n' +
   '     [length]: 0,\n' +
   '     [name]: \'func\',\n' +
@@ -172,7 +181,7 @@ assert.strictEqual(
   util.format('%o %o', obj),
   '{ foo: \'bar\',\n' +
   '  foobar: 1,\n' +
-  '  func: \n' +
+  '  func:\n' +
   '   { [Function: func]\n' +
   '     [length]: 0,\n' +
   '     [name]: \'func\',\n' +

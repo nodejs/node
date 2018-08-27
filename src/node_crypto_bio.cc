@@ -38,36 +38,32 @@ namespace crypto {
 #endif
 
 
-BIO* NodeBIO::New() {
+BIOPointer NodeBIO::New(Environment* env) {
   // The const_cast doesn't violate const correctness.  OpenSSL's usage of
   // BIO_METHOD is effectively const but BIO_new() takes a non-const argument.
-  return BIO_new(const_cast<BIO_METHOD*>(GetMethod()));
+  BIOPointer bio(BIO_new(const_cast<BIO_METHOD*>(GetMethod())));
+  if (bio && env != nullptr)
+    NodeBIO::FromBIO(bio.get())->env_ = env;
+  return bio;
 }
 
 
-BIO* NodeBIO::NewFixed(const char* data, size_t len) {
-  BIO* bio = New();
+BIOPointer NodeBIO::NewFixed(const char* data, size_t len, Environment* env) {
+  BIOPointer bio = New(env);
 
-  if (bio == nullptr ||
+  if (!bio ||
       len > INT_MAX ||
-      BIO_write(bio, data, len) != static_cast<int>(len) ||
-      BIO_set_mem_eof_return(bio, 0) != 1) {
-    BIO_free(bio);
-    return nullptr;
+      BIO_write(bio.get(), data, len) != static_cast<int>(len) ||
+      BIO_set_mem_eof_return(bio.get(), 0) != 1) {
+    return BIOPointer();
   }
 
   return bio;
 }
 
 
-void NodeBIO::AssignEnvironment(Environment* env) {
-  env_ = env;
-}
-
-
 int NodeBIO::New(BIO* bio) {
   BIO_set_data(bio, new NodeBIO());
-
   BIO_set_init(bio, 1);
 
   return 1;
@@ -251,6 +247,8 @@ const BIO_METHOD* NodeBIO::GetMethod() {
 
   return &method;
 #else
+  // This is called from InitCryptoOnce() to avoid race conditions during
+  // initialization.
   static BIO_METHOD* method = nullptr;
 
   if (method == nullptr) {
@@ -518,7 +516,7 @@ NodeBIO::~NodeBIO() {
 
 
 NodeBIO* NodeBIO::FromBIO(BIO* bio) {
-  CHECK_NE(BIO_get_data(bio), nullptr);
+  CHECK_NOT_NULL(BIO_get_data(bio));
   return static_cast<NodeBIO*>(BIO_get_data(bio));
 }
 

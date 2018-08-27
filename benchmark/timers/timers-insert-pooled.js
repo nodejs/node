@@ -2,17 +2,16 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  millions: [5],
+  n: [5e6],
 });
 
-function main({ millions }) {
-  const iterations = millions * 1e6;
+function main({ n }) {
 
   bench.start();
 
-  for (var i = 0; i < iterations; i++) {
+  for (var i = 0; i < n; i++) {
     setTimeout(() => {}, 1);
   }
 
-  bench.end(iterations / 1e6);
+  bench.end(n);
 }

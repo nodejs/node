@@ -60,7 +60,7 @@ class FrameArray : public FixedArray {
                                           int flags);
   static Handle<FrameArray> AppendWasmFrame(
       Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
-      int wasm_function_index, WasmCodeWrapper code, int offset, int flags);
+      int wasm_function_index, wasm::WasmCode* code, int offset, int flags);
 
   DECL_CAST(FrameArray)
 

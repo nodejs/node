@@ -1,7 +1,11 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
+const { internalBinding } = require('internal/test/binding');
+const { UV_UNKNOWN } = internalBinding('uv');
+const { kStateSymbol } = require('internal/dgram');
 const mockError = new Error('mock DNS error');
 
 function getSocket(callback) {
@@ -9,7 +13,7 @@ function getSocket(callback) {
 
   socket.on('message', common.mustNotCall('Should not receive any messages.'));
   socket.bind(common.mustCall(() => {
-    socket._handle.lookup = function(address, callback) {
+    socket[kStateSymbol].handle.lookup = function(address, callback) {
       process.nextTick(callback, mockError);
     };
 
@@ -43,7 +47,6 @@ getSocket((socket) => {
 
   socket.bind(common.mustCall(() => {
     const port = socket.address().port;
-    const errCode = process.binding('uv').UV_UNKNOWN;
     const callback = common.mustCall((err) => {
       socket.close();
       assert.strictEqual(err.code, 'UNKNOWN');
@@ -57,8 +60,8 @@ getSocket((socket) => {
       );
     });
 
-    socket._handle.send = function() {
-      return errCode;
+    socket[kStateSymbol].handle.send = function() {
+      return UV_UNKNOWN;
     };
 
     socket.send('foo', port, common.localhostIPv4, callback);

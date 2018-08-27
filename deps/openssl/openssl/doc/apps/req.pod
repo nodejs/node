@@ -1,14 +1,14 @@
-
 =pod
 
 =head1 NAME
 
 openssl-req,
-req - PKCS#10 certificate request and certificate generating utility.
+req - PKCS#10 certificate request and certificate generating utility
 
 =head1 SYNOPSIS
 
 B<openssl> B<req>
+[B<-help>]
 [B<-inform PEM|DER>]
 [B<-outform PEM|DER>]
 [B<-in filename>]
@@ -35,8 +35,6 @@ B<openssl> B<req>
 [B<-x509>]
 [B<-days n>]
 [B<-set_serial n>]
-[B<-asn1-kludge>]
-[B<-no-asn1-kludge>]
 [B<-newhdr>]
 [B<-extensions section>]
 [B<-reqexts section>]
@@ -55,9 +53,13 @@ The B<req> command primarily creates and processes certificate requests
 in PKCS#10 format. It can additionally create self signed certificates
 for use as root CAs for example.
 
-=head1 COMMAND OPTIONS
+=head1 OPTIONS
 
 =over 4
+
+=item B<-help>
+
+Print out a usage message.
 
 =item B<-inform DER|PEM>
 
@@ -68,7 +70,7 @@ footer lines.
 
 =item B<-outform DER|PEM>
 
-This specifies the output format, the options have the same meaning as the 
+This specifies the output format, the options have the same meaning as the
 B<-inform> option.
 
 =item B<-in filename>
@@ -80,7 +82,7 @@ options (B<-new> and B<-newkey>) are not specified.
 =item B<-passin arg>
 
 the input file password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-out filename>
 
@@ -90,7 +92,7 @@ default.
 =item B<-passout arg>
 
 the output file password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-text>
 
@@ -128,18 +130,11 @@ in the configuration file and any requested extensions.
 If the B<-key> option is not used it will generate a new RSA private
 key using information specified in the configuration file.
 
-=item B<-subj arg>
-
-Replaces subject field of input request with specified data and outputs
-modified request. The arg must be formatted as
-I</type0=value0/type1=value1/type2=...>,
-characters may be escaped by \ (backslash), no spaces are skipped.
-
 =item B<-rand file(s)>
 
 a file or files containing random data used to seed the random number
-generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
-Multiple files can be specified separated by a OS-dependent character.
+generator, or an EGD socket (see L<RAND_egd(3)>).
+Multiple files can be specified separated by an OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others.
 
@@ -153,13 +148,13 @@ the default key size, specified in the configuration file is used.
 
 All other algorithms support the B<-newkey alg:file> form, where file may be
 an algorithm parameter file, created by the B<genpkey -genparam> command
-or and X.509 certificate for a key with approriate algorithm.
+or and X.509 certificate for a key with appropriate algorithm.
 
 B<param:file> generates a key using the parameter file or certificate B<file>,
 the algorithm is determined by the parameters. B<algname:file> use algorithm
 B<algname> and parameter file B<file>: the two algorithms must match or an
 error occurs. B<algname> just uses algorithm B<algname>, and parameters,
-if neccessary should be specified via B<-pkeyopt> parameter.
+if necessary should be specified via B<-pkeyopt> parameter.
 
 B<dsa:filename> generates a DSA key using the parameters
 in the file B<filename>. B<ec:filename> generates EC key (usable both with
@@ -199,8 +194,9 @@ will not be encrypted.
 
 =item B<-[digest]>
 
-this specifies the message digest to sign the request with (such as
-B<-md5>, B<-sha1>). This overrides the digest algorithm specified in
+this specifies the message digest to sign the request.
+Any digest supported by the OpenSSL B<dgst> command can be used.
+This overrides the digest algorithm specified in
 the configuration file.
 
 Some public key algorithms may override this choice. For instance, DSA
@@ -209,9 +205,9 @@ GOST R 34.11-94 (B<-md_gost94>).
 
 =item B<-config filename>
 
-this allows an alternative configuration file to be specified,
-this overrides the compile time filename or any specified in
-the B<OPENSSL_CONF> environment variable.
+this allows an alternative configuration file to be specified.
+Optional; for a description of the default value,
+see L<openssl(1)/COMMAND SUMMARY>.
 
 =item B<-subj arg>
 
@@ -250,7 +246,6 @@ days to certify the certificate for. The default is 30 days.
 
 serial number to use when outputting a self signed certificate. This
 may be specified as a decimal value or a hex value if preceded by B<0x>.
-It is possible to use negative serial numbers but this is not recommended.
 
 =item B<-extensions section>
 
@@ -264,7 +259,7 @@ a variety of purposes.
 
 =item B<-utf8>
 
-this option causes field values to be interpreted as UTF8 strings, by 
+this option causes field values to be interpreted as UTF8 strings, by
 default they are interpreted as ASCII. This means that the field
 values, whether prompted from a terminal or obtained from a
 configuration file, must be valid UTF8 strings.
@@ -274,35 +269,15 @@ configuration file, must be valid UTF8 strings.
 option which determines how the subject or issuer names are displayed. The
 B<option> argument can be a single option or multiple options separated by
 commas.  Alternatively the B<-nameopt> switch may be used more than once to
-set multiple options. See the L<x509(1)|x509(1)> manual page for details.
+set multiple options. See the L<x509(1)> manual page for details.
 
 =item B<-reqopt>
 
 customise the output format used with B<-text>. The B<option> argument can be
-a single option or multiple options separated by commas. 
+a single option or multiple options separated by commas.
 
-See discission of the  B<-certopt> parameter in the L<B<x509>|x509(1)>
+See discussion of the  B<-certopt> parameter in the L<x509(1)>
 command.
-
-
-=item B<-asn1-kludge>
-
-by default the B<req> command outputs certificate requests containing
-no attributes in the correct PKCS#10 format. However certain CAs will only
-accept requests containing no attributes in an invalid form: this
-option produces this invalid format.
-
-More precisely the B<Attributes> in a PKCS#10 certificate request
-are defined as a B<SET OF Attribute>. They are B<not OPTIONAL> so
-if no attributes are present then they should be encoded as an
-empty B<SET OF>. The invalid form does not include the empty
-B<SET OF> whereas the correct form does.
-
-It should be noted that very few CAs still require the use of this option.
-
-=item B<-no-asn1-kludge>
-
-Reverses effect of B<-asn1-kludge>
 
 =item B<-newhdr>
 
@@ -369,7 +344,7 @@ overridden by the B<-keyout> option.
 This specifies a file containing additional B<OBJECT IDENTIFIERS>.
 Each line of the file should consist of the numerical form of the
 object identifier followed by white space then the short name followed
-by white space and finally the long name. 
+by white space and finally the long name.
 
 =item B<oid_section>
 
@@ -381,7 +356,7 @@ and long names are the same when this option is used.
 =item B<RANDFILE>
 
 This specifies a filename in which random number seed information is
-placed and read from, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
+placed and read from, or an EGD socket (see L<RAND_egd(3)>).
 It is used for private key generation.
 
 =item B<encrypt_key>
@@ -392,9 +367,10 @@ option. For compatibility B<encrypt_rsa_key> is an equivalent option.
 
 =item B<default_md>
 
-This option specifies the digest algorithm to use. Possible values
-include B<md5 sha1 mdc2>. If not present then MD5 is used. This
-option can be overridden on the command line.
+This option specifies the digest algorithm to use.
+Any digest supported by the OpenSSL B<dgst> command can be used.
+If not present then MD5 is used.
+This option can be overridden on the command line.
 
 =item B<string_mask>
 
@@ -402,7 +378,7 @@ This option masks out the use of certain string types in certain
 fields. Most users will not need to change this option.
 
 It can be set to several values B<default> which is also the default
-option uses PrintableStrings, T61Strings and BMPStrings if the 
+option uses PrintableStrings, T61Strings and BMPStrings if the
 B<pkix> value is used then only PrintableStrings and BMPStrings will
 be used. This follows the PKIX recommendation in RFC2459. If the
 B<utf8only> option is used then only UTF8Strings will be used: this
@@ -414,8 +390,8 @@ problems with BMPStrings and UTF8Strings: in particular Netscape.
 
 this specifies the configuration file section containing a list of
 extensions to add to the certificate request. It can be overridden
-by the B<-reqexts> command line switch. See the 
-L<x509v3_config(5)|x509v3_config(5)> manual page for details of the
+by the B<-reqexts> command line switch. See the
+L<x509v3_config(5)> manual page for details of the
 extension section format.
 
 =item B<x509_extensions>
@@ -525,8 +501,8 @@ Generate a self signed root certificate:
 
 Example of a file pointed to by the B<oid_file> option:
 
- 1.2.3.4	shortName	A longer Name
- 1.2.3.6	otherName	Other longer Name
+ 1.2.3.4        shortName       A longer Name
+ 1.2.3.6        otherName       Other longer Name
 
 Example of a section pointed to by B<oid_section> making use of variable
 expansion:
@@ -537,65 +513,65 @@ expansion:
 Sample configuration file prompting for field values:
 
  [ req ]
- default_bits		= 2048
- default_keyfile 	= privkey.pem
- distinguished_name	= req_distinguished_name
- attributes		= req_attributes
- x509_extensions	= v3_ca
+ default_bits           = 2048
+ default_keyfile        = privkey.pem
+ distinguished_name     = req_distinguished_name
+ attributes             = req_attributes
+ req_extensions         = v3_ca
 
  dirstring_type = nobmp
 
  [ req_distinguished_name ]
- countryName			= Country Name (2 letter code)
- countryName_default		= AU
- countryName_min		= 2
- countryName_max		= 2
+ countryName                    = Country Name (2 letter code)
+ countryName_default            = AU
+ countryName_min                = 2
+ countryName_max                = 2
 
- localityName			= Locality Name (eg, city)
+ localityName                   = Locality Name (eg, city)
 
- organizationalUnitName		= Organizational Unit Name (eg, section)
+ organizationalUnitName         = Organizational Unit Name (eg, section)
 
- commonName			= Common Name (eg, YOUR name)
- commonName_max			= 64
+ commonName                     = Common Name (eg, YOUR name)
+ commonName_max                 = 64
 
- emailAddress			= Email Address
- emailAddress_max		= 40
+ emailAddress                   = Email Address
+ emailAddress_max               = 40
 
  [ req_attributes ]
- challengePassword		= A challenge password
- challengePassword_min		= 4
- challengePassword_max		= 20
+ challengePassword              = A challenge password
+ challengePassword_min          = 4
+ challengePassword_max          = 20
 
  [ v3_ca ]
 
  subjectKeyIdentifier=hash
  authorityKeyIdentifier=keyid:always,issuer:always
- basicConstraints = CA:true
+ basicConstraints = critical, CA:true
 
 Sample configuration containing all field values:
 
 
- RANDFILE		= $ENV::HOME/.rnd
+ RANDFILE               = $ENV::HOME/.rnd
 
  [ req ]
- default_bits		= 2048
- default_keyfile 	= keyfile.pem
- distinguished_name	= req_distinguished_name
- attributes		= req_attributes
- prompt			= no
- output_password	= mypass
+ default_bits           = 2048
+ default_keyfile        = keyfile.pem
+ distinguished_name     = req_distinguished_name
+ attributes             = req_attributes
+ prompt                 = no
+ output_password        = mypass
 
  [ req_distinguished_name ]
- C			= GB
- ST			= Test State or Province
- L			= Test Locality
- O			= Organization Name
- OU			= Organizational Unit Name
- CN			= Common Name
- emailAddress		= test@email.address
+ C                      = GB
+ ST                     = Test State or Province
+ L                      = Test Locality
+ O                      = Organization Name
+ OU                     = Organizational Unit Name
+ CN                     = Common Name
+ emailAddress           = test@email.address
 
  [ req_attributes ]
- challengePassword		= A challenge password
+ challengePassword              = A challenge password
 
 
 =head1 NOTES
@@ -622,13 +598,13 @@ by the script in an extendedKeyUsage extension.
 
 The following messages are frequently asked about:
 
-	Using configuration from /some/path/openssl.cnf
-	Unable to load config info
+        Using configuration from /some/path/openssl.cnf
+        Unable to load config info
 
 This is followed some time later by...
 
-	unable to find 'distinguished_name' in config
-	problems making Certificate Request
+        unable to find 'distinguished_name' in config
+        problems making Certificate Request
 
 The first error message is the clue: it can't find the configuration
 file! Certain operations (like examining a certificate request) don't
@@ -651,13 +627,6 @@ then the B<SET OF> is missing and the encoding is technically invalid (but
 it is tolerated). See the description of the command line option B<-asn1-kludge>
 for more information.
 
-=head1 ENVIRONMENT VARIABLES
-
-The variable B<OPENSSL_CONF> if defined allows an alternative configuration
-file location to be specified, it will be overridden by the B<-config> command
-line switch if it is present. For compatibility reasons the B<SSLEAY_CONF>
-environment variable serves the same purpose but its use is discouraged.
-
 =head1 BUGS
 
 OpenSSL's handling of T61Strings (aka TeletexStrings) is broken: it effectively
@@ -677,8 +646,17 @@ address in subjectAltName should be input by the user.
 
 =head1 SEE ALSO
 
-L<x509(1)|x509(1)>, L<ca(1)|ca(1)>, L<genrsa(1)|genrsa(1)>,
-L<gendsa(1)|gendsa(1)>, L<config(5)|config(5)>,
-L<x509v3_config(5)|x509v3_config(5)> 
+L<x509(1)>, L<ca(1)>, L<genrsa(1)>,
+L<gendsa(1)>, L<config(5)>,
+L<x509v3_config(5)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

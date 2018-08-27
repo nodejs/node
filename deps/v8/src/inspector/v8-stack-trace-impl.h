@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8STACKTRACEIMPL_H_
-#define V8_INSPECTOR_V8STACKTRACEIMPL_H_
+#ifndef V8_INSPECTOR_V8_STACK_TRACE_IMPL_H_
+#define V8_INSPECTOR_V8_STACK_TRACE_IMPL_H_
 
 #include <memory>
 #include <vector>
@@ -64,6 +64,7 @@ class V8StackTraceImpl : public V8StackTrace {
   // V8StackTrace implementation.
   // This method drops the async stack trace.
   std::unique_ptr<V8StackTrace> clone() override;
+  StringView firstNonEmptySourceURL() const override;
   bool isEmpty() const override;
   StringView topSourceURL() const override;
   int topLineNumber() const override;    // 1-based.
@@ -145,4 +146,4 @@ class AsyncStackTrace {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8STACKTRACEIMPL_H_
+#endif  // V8_INSPECTOR_V8_STACK_TRACE_IMPL_H_

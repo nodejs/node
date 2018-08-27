@@ -13,6 +13,10 @@
 
 const common = require('../common');
 const assert = require('assert');
+
+if (!common.isMainThread)
+  common.skip('--require does not work with Workers');
+
 const inspector = require('inspector');
 const msg = 'Test inspector logging';
 let asserted = false;
@@ -31,8 +35,6 @@ async function testConsoleLog() {
   console.log(msg);
   session.disconnect();
 }
-
-common.crashOnUnhandledRejection();
 
 async function runTests() {
   await testConsoleLog();

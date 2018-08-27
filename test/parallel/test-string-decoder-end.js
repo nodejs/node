@@ -103,8 +103,10 @@ function testBuf(encoding, buf) {
   // .toString() on the buffer
   const res3 = buf.toString(encoding);
 
-  assert.strictEqual(res1, res3, 'one byte at a time should match toString');
-  assert.strictEqual(res2, res3, 'all bytes at once should match toString');
+  // One byte at a time should match toString
+  assert.strictEqual(res1, res3);
+  // All bytes at once should match toString
+  assert.strictEqual(res2, res3);
 }
 
 function testEnd(encoding, incomplete, next, expected) {

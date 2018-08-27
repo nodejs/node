@@ -3,7 +3,7 @@
 
 napi_deferred deferred = NULL;
 
-napi_value createPromise(napi_env env, napi_callback_info info) {
+static napi_value createPromise(napi_env env, napi_callback_info info) {
   napi_value promise;
 
   // We do not overwrite an existing deferred.
@@ -16,7 +16,8 @@ napi_value createPromise(napi_env env, napi_callback_info info) {
   return promise;
 }
 
-napi_value concludeCurrentPromise(napi_env env, napi_callback_info info) {
+static napi_value
+concludeCurrentPromise(napi_env env, napi_callback_info info) {
   napi_value argv[2];
   size_t argc = 2;
   bool resolution;
@@ -34,7 +35,7 @@ napi_value concludeCurrentPromise(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value isPromise(napi_env env, napi_callback_info info) {
+static napi_value isPromise(napi_env env, napi_callback_info info) {
   napi_value promise, result;
   size_t argc = 1;
   bool is_promise;
@@ -46,7 +47,7 @@ napi_value isPromise(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("createPromise", createPromise),
     DECLARE_NAPI_PROPERTY("concludeCurrentPromise", concludeCurrentPromise),

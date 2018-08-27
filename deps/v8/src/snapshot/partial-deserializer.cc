@@ -31,7 +31,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   Initialize(isolate);
   if (!allocator()->ReserveSpace()) {
-    V8::FatalProcessOutOfMemory("PartialDeserializer");
+    V8::FatalProcessOutOfMemory(isolate, "PartialDeserializer");
   }
 
   AddAttachedObject(global_proxy);
@@ -39,10 +39,10 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   DisallowHeapAllocation no_gc;
   // Keep track of the code space start and end pointers in case new
   // code objects were unserialized
-  OldSpace* code_space = isolate->heap()->code_space();
+  CodeSpace* code_space = isolate->heap()->code_space();
   Address start_address = code_space->top();
   Object* root;
-  VisitRootPointer(Root::kPartialSnapshotCache, &root);
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &root);
   DeserializeDeferredObjects();
   DeserializeEmbedderFields(embedder_fields_deserializer);
 

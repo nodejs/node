@@ -4,20 +4,28 @@ function RetryOperation(timeouts, options) {
     options = { forever: options };
   }
 
+  this._originalTimeouts = JSON.parse(JSON.stringify(timeouts));
   this._timeouts = timeouts;
   this._options = options || {};
+  this._maxRetryTime = options && options.maxRetryTime || Infinity;
   this._fn = null;
   this._errors = [];
   this._attempts = 1;
   this._operationTimeout = null;
   this._operationTimeoutCb = null;
   this._timeout = null;
+  this._operationStart = null;
 
   if (this._options.forever) {
     this._cachedTimeouts = this._timeouts.slice(0);
   }
 }
 module.exports = RetryOperation;
+
+RetryOperation.prototype.reset = function() {
+  this._attempts = 1;
+  this._timeouts = this._originalTimeouts;
+}
 
 RetryOperation.prototype.stop = function() {
   if (this._timeout) {
@@ -34,6 +42,11 @@ RetryOperation.prototype.retry = function(err) {
   }
 
   if (!err) {
+    return false;
+  }
+  var currentTime = new Date().getTime();
+  if (err && currentTime - this._operationStart >= this._maxRetryTime) {
+    this._errors.unshift(new Error('RetryOperation timeout occurred'));
     return false;
   }
 
@@ -60,7 +73,7 @@ RetryOperation.prototype.retry = function(err) {
         self._operationTimeoutCb(self._attempts);
       }, self._operationTimeout);
 
-      if (this._options.unref) {
+      if (self._options.unref) {
           self._timeout.unref();
       }
     }
@@ -93,6 +106,8 @@ RetryOperation.prototype.attempt = function(fn, timeoutOps) {
       self._operationTimeoutCb();
     }, self._operationTimeout);
   }
+
+  this._operationStart = new Date().getTime();
 
   this._fn(this._attempts);
 };

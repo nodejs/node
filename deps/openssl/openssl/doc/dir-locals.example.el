@@ -9,7 +9,7 @@
 
 ((nil
   (indent-tabs-mode . nil)
-  (fill-column . 78)
+  (fill-column . 70)
   )
  (c-mode
   (c-file-style . "OpenSSL-II")))

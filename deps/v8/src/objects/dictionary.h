@@ -48,11 +48,11 @@ class Dictionary : public HashTable<Derived, Shape> {
   }
 
   // Delete a property from the dictionary.
-  MUST_USE_RESULT static Handle<Derived> DeleteEntry(Handle<Derived> dictionary,
-                                                     int entry);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> DeleteEntry(
+      Handle<Derived> dictionary, int entry);
 
   // Attempt to shrink the dictionary after deletion of key.
-  MUST_USE_RESULT static inline Handle<Derived> Shrink(
+  V8_WARN_UNUSED_RESULT static inline Handle<Derived> Shrink(
       Handle<Derived> dictionary) {
     return DerivedHashTable::Shrink(dictionary);
   }
@@ -73,16 +73,18 @@ class Dictionary : public HashTable<Derived, Shape> {
   inline void SetEntry(int entry, Object* key, Object* value,
                        PropertyDetails details);
 
-  MUST_USE_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
-                                             Key key, Handle<Object> value,
-                                             PropertyDetails details,
-                                             int* entry_out = nullptr);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
+                                                   Key key,
+                                                   Handle<Object> value,
+                                                   PropertyDetails details,
+                                                   int* entry_out = nullptr);
 
  protected:
   // Generic at put operation.
-  MUST_USE_RESULT static Handle<Derived> AtPut(Handle<Derived> dictionary,
-                                               Key key, Handle<Object> value,
-                                               PropertyDetails details);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> AtPut(Handle<Derived> dictionary,
+                                                     Key key,
+                                                     Handle<Object> value,
+                                                     PropertyDetails details);
 };
 
 template <typename Key>
@@ -152,7 +154,7 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   }
 
   // Creates a new dictionary.
-  MUST_USE_RESULT static Handle<Derived> New(
+  V8_WARN_UNUSED_RESULT static Handle<Derived> New(
       Isolate* isolate, int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
@@ -165,6 +167,8 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   static Handle<FixedArray> IterationIndices(Handle<Derived> dictionary);
 
   // Copies enumerable keys to preallocated fixed array.
+  // Does not throw for uninitialized exports in module namespace objects, so
+  // this has to be checked separately.
   static void CopyEnumKeysTo(Handle<Derived> dictionary,
                              Handle<FixedArray> storage, KeyCollectionMode mode,
                              KeyAccumulator* accumulator);
@@ -172,14 +176,15 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   // Ensure enough space for n additional elements.
   static Handle<Derived> EnsureCapacity(Handle<Derived> dictionary, int n);
 
-  MUST_USE_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
+  V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
       Handle<Derived> dictionary, Key key, Handle<Object> value,
       PropertyDetails details, int* entry_out = nullptr);
 
-  MUST_USE_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
-                                             Key key, Handle<Object> value,
-                                             PropertyDetails details,
-                                             int* entry_out = nullptr);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
+                                                   Key key,
+                                                   Handle<Object> value,
+                                                   PropertyDetails details,
+                                                   int* entry_out = nullptr);
 };
 
 class NameDictionary
@@ -228,18 +233,60 @@ class GlobalDictionary
   inline void ValueAtPut(int entry, Object* value);
 };
 
-class NumberDictionaryShape : public BaseDictionaryShape<uint32_t> {
+class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
  public:
-  static const int kPrefixSize = 1;
-  static const int kEntrySize = 3;
-
   static inline bool IsMatch(uint32_t key, Object* other);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
 
   static inline uint32_t Hash(Isolate* isolate, uint32_t key);
   static inline uint32_t HashForObject(Isolate* isolate, Object* object);
+};
+
+class NumberDictionaryShape : public NumberDictionaryBaseShape {
+ public:
+  static const int kPrefixSize = 1;
+  static const int kEntrySize = 3;
 
   static inline int GetMapRootIndex();
+};
+
+class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
+ public:
+  static const bool kHasDetails = false;
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 2;
+
+  template <typename Dictionary>
+  static inline PropertyDetails DetailsAt(Dictionary* dict, int entry) {
+    UNREACHABLE();
+  }
+
+  template <typename Dictionary>
+  static inline void DetailsAtPut(Dictionary* dict, int entry,
+                                  PropertyDetails value) {
+    UNREACHABLE();
+  }
+
+  static inline int GetMapRootIndex();
+};
+
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    HashTable<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
+
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
+
+// SimpleNumberDictionary is used to map number to an entry.
+class SimpleNumberDictionary
+    : public Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape> {
+ public:
+  DECL_CAST(SimpleNumberDictionary)
+  // Type specific at put (default NONE attributes is used when adding).
+  V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary> Set(
+      Handle<SimpleNumberDictionary> dictionary, uint32_t key,
+      Handle<Object> value);
+
+  static const int kEntryValueIndex = 1;
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(
@@ -248,13 +295,15 @@ extern template class EXPORT_TEMPLATE_DECLARE(
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
     Dictionary<NumberDictionary, NumberDictionaryShape>;
 
+// NumberDictionary is used as elements backing store and provides a bitfield
+// and stores property details for every entry.
 class NumberDictionary
     : public Dictionary<NumberDictionary, NumberDictionaryShape> {
  public:
   DECL_CAST(NumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).
-  MUST_USE_RESULT static Handle<NumberDictionary> Set(
+  V8_WARN_UNUSED_RESULT static Handle<NumberDictionary> Set(
       Handle<NumberDictionary> dictionary, uint32_t key, Handle<Object> value,
       Handle<JSObject> dictionary_holder = Handle<JSObject>::null(),
       PropertyDetails details = PropertyDetails::Empty());

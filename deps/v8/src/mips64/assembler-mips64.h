@@ -32,9 +32,8 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
-
-#ifndef V8_MIPS_ASSEMBLER_MIPS_H_
-#define V8_MIPS_ASSEMBLER_MIPS_H_
+#ifndef V8_MIPS64_ASSEMBLER_MIPS64_H_
+#define V8_MIPS64_ASSEMBLER_MIPS64_H_
 
 #include <stdio.h>
 
@@ -326,9 +325,9 @@ const Simd128Register no_msareg = Simd128Register::no_reg();
 // cp is assumed to be a callee saved register.
 constexpr Register kRootRegister = s6;
 constexpr Register cp = s7;
-constexpr Register kLithiumScratchReg = s3;
-constexpr Register kLithiumScratchReg2 = s4;
-constexpr DoubleRegister kLithiumScratchDouble = f30;
+constexpr Register kScratchReg = s3;
+constexpr Register kScratchReg2 = s4;
+constexpr DoubleRegister kScratchDoubleReg = f30;
 constexpr DoubleRegister kDoubleRegZero = f28;
 // Used on mips64r6 for compare operations.
 // We use the last non-callee saved odd register for N64 ABI
@@ -396,20 +395,19 @@ class Operand BASE_EMBEDDED {
  public:
   // Immediate.
   INLINE(explicit Operand(int64_t immediate,
-                          RelocInfo::Mode rmode = RelocInfo::NONE64))
+                          RelocInfo::Mode rmode = RelocInfo::NONE))
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
   INLINE(explicit Operand(const ExternalReference& f))
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
-    value_.immediate = reinterpret_cast<int64_t>(f.address());
+    value_.immediate = static_cast<int64_t>(f.address());
   }
   INLINE(explicit Operand(const char* s));
   INLINE(explicit Operand(Object** opp));
   INLINE(explicit Operand(Context** cpp));
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value))
-      : rm_(no_reg), rmode_(RelocInfo::NONE32) {
+  INLINE(explicit Operand(Smi* value)) : rm_(no_reg), rmode_(RelocInfo::NONE) {
     value_.immediate = reinterpret_cast<intptr_t>(value);
   }
 
@@ -577,23 +575,22 @@ class Assembler : public AssemblerBase {
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_address_at(Address pc);
   INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Address target,
+      Address pc, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
-    set_target_value_at(isolate, pc, reinterpret_cast<uint64_t>(target),
-                        icache_flush_mode);
+    set_target_value_at(pc, target, icache_flush_mode);
   }
   // On MIPS there is no Constant Pool so we skip that parameter.
   INLINE(static Address target_address_at(Address pc, Address constant_pool)) {
     return target_address_at(pc);
   }
   INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Address constant_pool, Address target,
+      Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
-    set_target_address_at(isolate, pc, target, icache_flush_mode);
+    set_target_address_at(pc, target, icache_flush_mode);
   }
 
   static void set_target_value_at(
-      Isolate* isolate, Address pc, uint64_t target,
+      Address pc, uint64_t target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address
@@ -608,12 +605,15 @@ class Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
-      Isolate* isolate, Address instruction_payload, Code* code,
-      Address target);
+      Address instruction_payload, Code* code, Address target);
+
+  // Get the size of the special target encoded at 'instruction_payload'.
+  inline static int deserialization_special_target_size(
+      Address instruction_payload);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Isolate* isolate, Address pc, Address target,
+      Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Size of an instruction.
@@ -684,9 +684,6 @@ class Assembler : public AssemblerBase {
     // Helper values.
     LAST_CODE_MARKER,
     FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED,
-    // Code aging
-    CODE_AGE_MARKER_NOP = 6,
-    CODE_AGE_SEQUENCE_NOP
   };
 
   // Type == 0 is the default non-marking nop. For mips this is a
@@ -1795,7 +1792,7 @@ class Assembler : public AssemblerBase {
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
                          int id);
 
-  static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
+  static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
                                        intptr_t pc_delta);
 
   // Writes a single byte or word of data in the code stream.  Used for
@@ -1821,8 +1818,8 @@ class Assembler : public AssemblerBase {
   }
 
   // Read/patch instructions.
-  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
-  static void instr_at_put(byte* pc, Instr instr) {
+  static Instr instr_at(Address pc) { return *reinterpret_cast<Instr*>(pc); }
+  static void instr_at_put(Address pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
@@ -1962,8 +1959,6 @@ class Assembler : public AssemblerBase {
   bool has_exception() const {
     return internal_trampoline_exception_;
   }
-
-  void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi);
 
   bool is_trampoline_emitted() const {
     return trampoline_emitted_;
@@ -2300,4 +2295,4 @@ class UseScratchRegisterScope {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ARM_ASSEMBLER_MIPS_H_
+#endif  // V8_MIPS64_ASSEMBLER_MIPS64_H_

@@ -8,5 +8,14 @@ require('../common');
 const runBenchmark = require('../common/benchmark');
 
 runBenchmark(
-  'assert', ['len=1', 'method=', 'n=1', 'prim=null', 'size=1', 'type=Int8Array']
+  'assert',
+  [
+    'strict=1',
+    'len=1',
+    'method=',
+    'n=1',
+    'primitive=null',
+    'size=1',
+    'type=Int8Array'
+  ]
 );

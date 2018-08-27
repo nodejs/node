@@ -1,35 +1,43 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
 const vm = require('vm');
 
-// Create a dummy stream that does nothing
-const stream = new common.ArrayStream();
+// Create a dummy stream that does nothing.
+const stream = new ArrayStream();
 
-// Test when useGlobal is false
-testContext(repl.start({
-  input: stream,
-  output: stream,
-  useGlobal: false
-}));
+// Test context when useGlobal is false.
+{
+  const r = repl.start({
+    input: stream,
+    output: stream,
+    useGlobal: false
+  });
 
-function testContext(repl) {
-  const context = repl.createContext();
-  // ensure that the repl context gets its own "console" instance
+  // Ensure that the repl context gets its own "console" instance.
+  assert(r.context.console);
+
+  // Ensure that the repl console instance is not the global one.
+  assert.notStrictEqual(r.context.console, console);
+
+  const context = r.createContext();
+  // Ensure that the repl context gets its own "console" instance.
   assert(context.console instanceof require('console').Console);
 
-  // ensure that the repl's global property is the context
+  // Ensure that the repl's global property is the context.
   assert.strictEqual(context.global, context);
 
-  // ensure that the repl console instance does not have a setter
-  assert.throws(() => context.console = 'foo', TypeError);
-  repl.close();
+  // Ensure that the repl console instance is writable.
+  context.console = 'foo';
+  r.close();
 }
 
-testContextSideEffects(repl.start({ input: stream, output: stream }));
+// Test for context side effects.
+{
+  const server = repl.start({ input: stream, output: stream });
 
-function testContextSideEffects(server) {
   assert.ok(!server.underscoreAssigned);
   assert.strictEqual(server.lines.length, 0);
 

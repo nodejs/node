@@ -91,16 +91,16 @@ static void uv__fast_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
     handle->mask_events_1 = handle->events;
     handle->mask_events_2 = 0;
   } else {
-    /* Just wait until there's an unsubmitted req. */
-    /* This will happen almost immediately as one of the 2 outstanding */
-    /* requests is about to return. When this happens, */
-    /* uv__fast_poll_process_poll_req will be called, and the pending */
-    /* events, if needed, will be processed in a subsequent request. */
+    /* Just wait until there's an unsubmitted req. This will happen almost
+     * immediately as one of the 2 outstanding requests is about to return.
+     * When this happens, uv__fast_poll_process_poll_req will be called, and
+     * the pending events, if needed, will be processed in a subsequent
+     * request. */
     return;
   }
 
-  /* Setting Exclusive to TRUE makes the other poll request return if there */
-  /* is any. */
+  /* Setting Exclusive to TRUE makes the other poll request return if there is
+   * any. */
   afd_poll_info->Exclusive = TRUE;
   afd_poll_info->NumberOfHandles = 1;
   afd_poll_info->Timeout.QuadPart = INT64_MAX;
@@ -218,7 +218,7 @@ static void uv__fast_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
   if ((handle->events & ~(handle->submitted_events_1 |
       handle->submitted_events_2)) != 0) {
     uv__fast_poll_submit_poll_req(loop, handle);
-  } else if ((handle->flags & UV__HANDLE_CLOSING) &&
+  } else if ((handle->flags & UV_HANDLE_CLOSING) &&
              handle->submitted_events_1 == 0 &&
              handle->submitted_events_2 == 0) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
@@ -228,7 +228,7 @@ static void uv__fast_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
 
 static int uv__fast_poll_set(uv_loop_t* loop, uv_poll_t* handle, int events) {
   assert(handle->type == UV_POLL);
-  assert(!(handle->flags & UV__HANDLE_CLOSING));
+  assert(!(handle->flags & UV_HANDLE_CLOSING));
   assert((events & ~(UV_READABLE | UV_WRITABLE | UV_DISCONNECT)) == 0);
 
   handle->events = events;
@@ -257,8 +257,8 @@ static int uv__fast_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
     return 0;
   } else {
-    /* Cancel outstanding poll requests by executing another, unique poll */
-    /* request that forces the outstanding ones to return. */
+    /* Cancel outstanding poll requests by executing another, unique poll
+     * request that forces the outstanding ones to return. */
     return uv__fast_poll_cancel_poll_req(loop, handle);
   }
 }
@@ -316,9 +316,8 @@ static SOCKET uv__fast_poll_get_peer_socket(uv_loop_t* loop,
     return INVALID_SOCKET;
   }
 
-  /* If we didn't (try) to create a peer socket yet, try to make one. Don't */
-  /* try again if the peer socket creation failed earlier for the same */
-  /* protocol. */
+  /* If we didn't (try) to create a peer socket yet, try to make one. Don't try
+   * again if the peer socket creation failed earlier for the same protocol. */
   peer_socket = loop->poll_peer_sockets[index];
   if (peer_socket == 0) {
     peer_socket = uv__fast_poll_create_peer_socket(loop->iocp, protocol_info);
@@ -357,8 +356,8 @@ static DWORD WINAPI uv__slow_poll_thread_proc(void* arg) {
     efds.fd_count = 0;
   }
 
-  /* Make the select() time out after 3 minutes. If select() hangs because */
-  /* the user closed the socket, we will at least not hang indefinitely. */
+  /* Make the select() time out after 3 minutes. If select() hangs because the
+   * user closed the socket, we will at least not hang indefinitely. */
   timeout.tv_sec = 3 * 60;
   timeout.tv_usec = 0;
 
@@ -462,7 +461,7 @@ static void uv__slow_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
   if ((handle->events & ~(handle->submitted_events_1 |
       handle->submitted_events_2)) != 0) {
     uv__slow_poll_submit_poll_req(loop, handle);
-  } else if ((handle->flags & UV__HANDLE_CLOSING) &&
+  } else if ((handle->flags & UV_HANDLE_CLOSING) &&
              handle->submitted_events_1 == 0 &&
              handle->submitted_events_2 == 0) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
@@ -472,7 +471,7 @@ static void uv__slow_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
 
 static int uv__slow_poll_set(uv_loop_t* loop, uv_poll_t* handle, int events) {
   assert(handle->type == UV_POLL);
-  assert(!(handle->flags & UV__HANDLE_CLOSING));
+  assert(!(handle->flags & UV_HANDLE_CLOSING));
   assert((events & ~(UV_READABLE | UV_WRITABLE)) == 0);
 
   handle->events = events;
@@ -522,10 +521,10 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
   if (ioctlsocket(socket, FIONBIO, &yes) == SOCKET_ERROR)
     return uv_translate_sys_error(WSAGetLastError());
 
-  /* Try to obtain a base handle for the socket. This increases this chances */
-  /* that we find an AFD handle and are able to use the fast poll mechanism. */
-  /* This will always fail on windows XP/2k3, since they don't support the */
-  /* SIO_BASE_HANDLE ioctl. */
+/* Try to obtain a base handle for the socket. This increases this chances that
+ * we find an AFD handle and are able to use the fast poll mechanism. This will
+ * always fail on windows XP/2k3, since they don't support the. SIO_BASE_HANDLE
+ * ioctl. */
 #ifndef NDEBUG
   base_socket = INVALID_SOCKET;
 #endif
@@ -557,9 +556,9 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
     return uv_translate_sys_error(WSAGetLastError());
   }
 
-  /* Get the peer socket that is needed to enable fast poll. If the returned */
-  /* value is NULL, the protocol is not implemented by MSAFD and we'll have */
-  /* to use slow mode. */
+  /* Get the peer socket that is needed to enable fast poll. If the returned
+   * value is NULL, the protocol is not implemented by MSAFD and we'll have to
+   * use slow mode. */
   peer_socket = uv__fast_poll_get_peer_socket(loop, &protocol_info);
 
   if (peer_socket != INVALID_SOCKET) {
@@ -634,7 +633,7 @@ int uv_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
 
 
 void uv_poll_endgame(uv_loop_t* loop, uv_poll_t* handle) {
-  assert(handle->flags & UV__HANDLE_CLOSING);
+  assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
 
   assert(handle->submitted_events_1 == 0);

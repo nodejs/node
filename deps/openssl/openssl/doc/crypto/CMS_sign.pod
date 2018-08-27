@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- CMS_sign - create a CMS SignedData structure
+CMS_sign - create a CMS SignedData structure
 
 =head1 SYNOPSIS
 
@@ -95,8 +95,8 @@ suitable for many purposes. For finer control of the output format the
 B<certs>, B<signcert> and B<pkey> parameters can all be B<NULL> and the
 B<CMS_PARTIAL> flag set. Then one or more signers can be added using the
 function CMS_sign_add1_signer(), non default digests can be used and custom
-attributes added. B<CMS_final()> must then be called to finalize the
-structure if streaming is not enabled. 
+attributes added. CMS_final() must then be called to finalize the
+structure if streaming is not enabled.
 
 =head1 BUGS
 
@@ -109,13 +109,20 @@ occurred. The error can be obtained from ERR_get_error(3).
 
 =head1 SEE ALSO
 
-L<ERR_get_error(3)|ERR_get_error(3)>, L<CMS_verify(3)|CMS_verify(3)>
+L<ERR_get_error(3)>, L<CMS_verify(3)>
 
 =head1 HISTORY
 
-CMS_sign() was added to OpenSSL 0.9.8
-
 The B<CMS_STREAM> flag is only supported for detached data in OpenSSL 0.9.8,
 it is supported for embedded data in OpenSSL 1.0.0 and later.
+
+=head1 COPYRIGHT
+
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

@@ -8,13 +8,10 @@
 
 #include "include/v8.h"
 #include "src/api.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate-inl.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
-#include "src/wasm/module-compiler.h"
-#include "src/wasm/wasm-api.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
@@ -93,8 +90,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
          Promise::Resolver::New(support->GetContext()));
   Local<Promise> promise = resolver->GetPromise();
 
-  AsyncCompile(i_isolate, Utils::OpenHandle(*promise),
-               ModuleWireBytes(data, data + size), false);
+  i_isolate->wasm_engine()->AsyncCompile(i_isolate, Utils::OpenHandle(*promise),
+                                         ModuleWireBytes(data, data + size),
+                                         false);
 
   ASSIGN(Function, instantiate_impl,
          Function::New(support->GetContext(), &InstantiateCallback,

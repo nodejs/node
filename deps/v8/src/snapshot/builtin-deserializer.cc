@@ -109,14 +109,39 @@ void BuiltinDeserializer::DeserializeEagerBuiltinsAndHandlers() {
 Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
   allocator()->ReserveAndInitializeBuiltinsTableForBuiltin(builtin_id);
   DisallowHeapAllocation no_gc;
-  return DeserializeBuiltinRaw(builtin_id);
+  Code* code = DeserializeBuiltinRaw(builtin_id);
+
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_builtin_code) {
+    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+
+    DCHECK(isolate()->builtins()->is_initialized());
+    code->Disassemble(Builtins::name(builtin_id), os);
+    os << std::flush;
+  }
+#endif  // ENABLE_DISASSEMBLER
+
+  return code;
 }
 
 Code* BuiltinDeserializer::DeserializeHandler(Bytecode bytecode,
                                               OperandScale operand_scale) {
   allocator()->ReserveForHandler(bytecode, operand_scale);
   DisallowHeapAllocation no_gc;
-  return DeserializeHandlerRaw(bytecode, operand_scale);
+  Code* code = DeserializeHandlerRaw(bytecode, operand_scale);
+
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_builtin_code) {
+    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+
+    code->Disassemble(Bytecodes::ToString(bytecode), os);
+    os << std::flush;
+  }
+#endif  // ENABLE_DISASSEMBLER
+
+  return code;
 }
 
 Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
@@ -136,9 +161,16 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
 
   // Flush the instruction cache.
   Code* code = Code::cast(o);
-  Assembler::FlushICache(isolate(), code->instruction_start(),
-                         code->instruction_size());
+  Assembler::FlushICache(code->raw_instruction_start(),
+                         code->raw_instruction_size());
 
+  PROFILE(isolate(), CodeCreateEvent(CodeEventListener::BUILTIN_TAG,
+                                     AbstractCode::cast(code),
+                                     Builtins::name(builtin_id)));
+  LOG_CODE_EVENT(isolate(),
+                 CodeLinePosInfoRecordEvent(
+                     code->raw_instruction_start(),
+                     ByteArray::cast(code->source_position_table())));
   return code;
 }
 
@@ -161,9 +193,16 @@ Code* BuiltinDeserializer::DeserializeHandlerRaw(Bytecode bytecode,
 
   // Flush the instruction cache.
   Code* code = Code::cast(o);
-  Assembler::FlushICache(isolate(), code->instruction_start(),
-                         code->instruction_size());
+  Assembler::FlushICache(code->raw_instruction_start(),
+                         code->raw_instruction_size());
 
+  const char* handler_name =
+      isolate()->interpreter()->LookupNameOfBytecodeHandler(code);
+  if (handler_name == nullptr) {
+    handler_name = "UnknownBytecodeHadler";
+  }
+  PROFILE(isolate(), CodeCreateEvent(CodeEventListener::HANDLER_TAG,
+                                     AbstractCode::cast(code), handler_name));
   return code;
 }
 

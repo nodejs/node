@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   method: ['copy', 'rest', 'arguments'],
-  millions: [100]
+  n: [1e8]
 });
 
 function copyArguments() {
@@ -33,22 +33,22 @@ function useArguments() {
   assert.strictEqual(arguments[3], 'b');
 }
 
-function runCopyArguments(millions) {
-  for (var i = 0; i < millions * 1e6; i++)
+function runCopyArguments(n) {
+  for (var i = 0; i < n; i++)
     copyArguments(1, 2, 'a', 'b');
 }
 
-function runRestArguments(millions) {
-  for (var i = 0; i < millions * 1e6; i++)
+function runRestArguments(n) {
+  for (var i = 0; i < n; i++)
     restArguments(1, 2, 'a', 'b');
 }
 
-function runUseArguments(millions) {
-  for (var i = 0; i < millions * 1e6; i++)
+function runUseArguments(n) {
+  for (var i = 0; i < n; i++)
     useArguments(1, 2, 'a', 'b');
 }
 
-function main({ millions, method }) {
+function main({ n, method }) {
   var fn;
   switch (method) {
     case '':
@@ -66,6 +66,6 @@ function main({ millions, method }) {
       throw new Error(`Unexpected method "${method}"`);
   }
   bench.start();
-  fn(millions);
-  bench.end(millions);
+  fn(n);
+  bench.end(n);
 }

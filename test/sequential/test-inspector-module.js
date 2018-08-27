@@ -55,16 +55,6 @@ common.expectsError(
   }
 );
 
-const session2 = new Session();
-common.expectsError(
-  () => session2.connect(),
-  {
-    code: 'ERR_INSPECTOR_ALREADY_CONNECTED',
-    type: Error,
-    message: 'Another inspector session is already connected'
-  }
-);
-
 session.disconnect();
 // Calling disconnect twice should not throw.
 session.disconnect();

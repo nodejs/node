@@ -128,47 +128,60 @@ TEST(TestTraceBufferRingBuffer) {
   delete ring_buffer;
 }
 
+void PopulateJSONWriter(TraceWriter* writer) {
+  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
+  std::unique_ptr<v8::Platform> default_platform(
+      v8::platform::NewDefaultPlatform());
+  i::V8::SetPlatformForTesting(default_platform.get());
+  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
+  v8::platform::tracing::TracingController* tracing_controller = tracing.get();
+  static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
+      ->SetTracingController(std::move(tracing));
+
+  TraceBuffer* ring_buffer =
+      TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
+  tracing_controller->Initialize(ring_buffer);
+  TraceConfig* trace_config = new TraceConfig();
+  trace_config->AddIncludedCategory("v8-cat");
+  tracing_controller->StartTracing(trace_config);
+
+  TraceObject trace_object;
+  trace_object.InitializeForTesting(
+      'X', tracing_controller->GetCategoryGroupEnabled("v8-cat"), "Test0",
+      v8::internal::tracing::kGlobalScope, 42, 123, 0, nullptr, nullptr,
+      nullptr, nullptr, TRACE_EVENT_FLAG_HAS_ID, 11, 22, 100, 50, 33, 44);
+  writer->AppendTraceEvent(&trace_object);
+  trace_object.InitializeForTesting(
+      'Y', tracing_controller->GetCategoryGroupEnabled("v8-cat"), "Test1",
+      v8::internal::tracing::kGlobalScope, 43, 456, 0, nullptr, nullptr,
+      nullptr, nullptr, 0, 55, 66, 110, 55, 77, 88);
+  writer->AppendTraceEvent(&trace_object);
+  tracing_controller->StopTracing();
+  i::V8::SetPlatformForTesting(old_platform);
+}
+
 TEST(TestJSONTraceWriter) {
   std::ostringstream stream;
-  // Create a scope for the tracing controller to terminate the trace writer.
-  {
-    v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-    std::unique_ptr<v8::Platform> default_platform(
-        v8::platform::NewDefaultPlatform());
-    i::V8::SetPlatformForTesting(default_platform.get());
-    auto tracing =
-        base::make_unique<v8::platform::tracing::TracingController>();
-    v8::platform::tracing::TracingController* tracing_controller =
-        tracing.get();
-    static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
-        ->SetTracingController(std::move(tracing));
-    TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream);
-
-    TraceBuffer* ring_buffer =
-        TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
-    tracing_controller->Initialize(ring_buffer);
-    TraceConfig* trace_config = new TraceConfig();
-    trace_config->AddIncludedCategory("v8-cat");
-    tracing_controller->StartTracing(trace_config);
-
-    TraceObject trace_object;
-    trace_object.InitializeForTesting(
-        'X', tracing_controller->GetCategoryGroupEnabled("v8-cat"), "Test0",
-        v8::internal::tracing::kGlobalScope, 42, 123, 0, nullptr, nullptr,
-        nullptr, nullptr, TRACE_EVENT_FLAG_HAS_ID, 11, 22, 100, 50, 33, 44);
-    writer->AppendTraceEvent(&trace_object);
-    trace_object.InitializeForTesting(
-        'Y', tracing_controller->GetCategoryGroupEnabled("v8-cat"), "Test1",
-        v8::internal::tracing::kGlobalScope, 43, 456, 0, nullptr, nullptr,
-        nullptr, nullptr, 0, 55, 66, 110, 55, 77, 88);
-    writer->AppendTraceEvent(&trace_object);
-    tracing_controller->StopTracing();
-    i::V8::SetPlatformForTesting(old_platform);
-  }
-
+  TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream);
+  PopulateJSONWriter(writer);
   std::string trace_str = stream.str();
   std::string expected_trace_str =
       "{\"traceEvents\":[{\"pid\":11,\"tid\":22,\"ts\":100,\"tts\":50,"
+      "\"ph\":\"X\",\"cat\":\"v8-cat\",\"name\":\"Test0\",\"dur\":33,"
+      "\"tdur\":44,\"id\":\"0x2a\",\"args\":{}},{\"pid\":55,\"tid\":66,"
+      "\"ts\":110,\"tts\":55,\"ph\":\"Y\",\"cat\":\"v8-cat\",\"name\":"
+      "\"Test1\",\"dur\":77,\"tdur\":88,\"args\":{}}]}";
+
+  CHECK_EQ(expected_trace_str, trace_str);
+}
+
+TEST(TestJSONTraceWriterWithCustomtag) {
+  std::ostringstream stream;
+  TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream, "customTag");
+  PopulateJSONWriter(writer);
+  std::string trace_str = stream.str();
+  std::string expected_trace_str =
+      "{\"customTag\":[{\"pid\":11,\"tid\":22,\"ts\":100,\"tts\":50,"
       "\"ph\":\"X\",\"cat\":\"v8-cat\",\"name\":\"Test0\",\"dur\":33,"
       "\"tdur\":44,\"id\":\"0x2a\",\"args\":{}},{\"pid\":55,\"tid\":66,"
       "\"ts\":110,\"tts\":55,\"ph\":\"Y\",\"cat\":\"v8-cat\",\"name\":"

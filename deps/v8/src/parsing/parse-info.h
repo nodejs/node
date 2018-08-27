@@ -29,7 +29,6 @@ class DeclarationScope;
 class FunctionLiteral;
 class RuntimeCallStats;
 class Logger;
-class ScriptData;
 class SourceRangeMap;
 class UnicodeCache;
 class Utf16CharacterStream;
@@ -85,6 +84,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_on_background_thread)
   FLAG_ACCESSOR(kWrappedAsFunction, is_wrapped_as_function,
                 set_wrapped_as_function)
+  FLAG_ACCESSOR(kAllowEvalCache, allow_eval_cache, set_allow_eval_cache)
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -106,18 +106,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   v8::Extension* extension() const { return extension_; }
   void set_extension(v8::Extension* extension) { extension_ = extension; }
 
-  ScriptData** cached_data() const { return cached_data_; }
-  void set_cached_data(ScriptData** cached_data) { cached_data_ = cached_data; }
 
   ConsumedPreParsedScopeData* consumed_preparsed_scope_data() {
     return &consumed_preparsed_scope_data_;
-  }
-
-  ScriptCompiler::CompileOptions compile_options() const {
-    return compile_options_;
-  }
-  void set_compile_options(ScriptCompiler::CompileOptions compile_options) {
-    compile_options_ = compile_options;
   }
 
   DeclarationScope* script_scope() const { return script_scope_; }
@@ -151,9 +142,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   uint32_t hash_seed() const { return hash_seed_; }
   void set_hash_seed(uint32_t hash_seed) { hash_seed_ = hash_seed; }
 
-  int compiler_hints() const { return compiler_hints_; }
-  void set_compiler_hints(int compiler_hints) {
-    compiler_hints_ = compiler_hints;
+  int function_flags() const { return function_flags_; }
+  void set_function_flags(int function_flags) {
+    function_flags_ = function_flags;
   }
 
   int start_position() const { return start_position_; }
@@ -204,7 +195,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     return &pending_error_handler_;
   }
 
-  // Getters for individual compiler hints.
+  // Getters for individual function flags.
   bool is_declaration() const;
   FunctionKind function_kind() const;
   bool requires_instance_fields_initializer() const;
@@ -263,18 +254,20 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kIsAsmWasmBroken = 1 << 12,
     kOnBackgroundThread = 1 << 13,
     kWrappedAsFunction = 1 << 14,  // Implicitly wrapped as function.
+    kAllowEvalCache = 1 << 15,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
   std::shared_ptr<Zone> zone_;
   unsigned flags_;
   v8::Extension* extension_;
-  ScriptCompiler::CompileOptions compile_options_;
   DeclarationScope* script_scope_;
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
   uint32_t hash_seed_;
-  int compiler_hints_;
+  // TODO(leszeks): Move any remaining flags used here either to the flags_
+  // field or to other fields.
+  int function_flags_;
   int start_position_;
   int end_position_;
   int parameters_end_pos_;
@@ -287,7 +280,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;
-  ScriptData** cached_data_;  // used if available, populated if requested.
   ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
   std::shared_ptr<AstValueFactory> ast_value_factory_;
   const class AstStringConstants* ast_string_constants_;

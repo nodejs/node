@@ -20,14 +20,18 @@ constexpr Register kReturnRegister2 = r2;
 constexpr Register kJSFunctionRegister = r1;
 constexpr Register kContextRegister = r7;
 constexpr Register kAllocateSizeRegister = r1;
+constexpr Register kSpeculationPoisonRegister = r9;
 constexpr Register kInterpreterAccumulatorRegister = r0;
 constexpr Register kInterpreterBytecodeOffsetRegister = r5;
 constexpr Register kInterpreterBytecodeArrayRegister = r6;
 constexpr Register kInterpreterDispatchTableRegister = r8;
 constexpr Register kJavaScriptCallArgCountRegister = r0;
+constexpr Register kJavaScriptCallCodeStartRegister = r2;
 constexpr Register kJavaScriptCallNewTargetRegister = r3;
+constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r1;
 constexpr Register kRuntimeCallArgCountRegister = r0;
+constexpr Register kWasmInstanceRegister = r3;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -305,17 +309,23 @@ class TurboAssembler : public Assembler {
   inline bool AllowThisStubCall(CodeStub* stub);
 
   void LslPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register scratch, Register shift);
+               Register src_high, Register shift);
   void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
   void LsrPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register scratch, Register shift);
+               Register src_high, Register shift);
   void LsrPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
   void AsrPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register scratch, Register shift);
+               Register src_high, Register shift);
   void AsrPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
+
+#ifdef V8_EMBEDDED_BUILTINS
+  void LookupConstant(Register destination, Handle<Object> object);
+  void LookupExternalReference(Register destination,
+                               ExternalReference reference);
+#endif  // V8_EMBEDDED_BUILTINS
 
   // Returns the size of a call in instructions. Note, the value returned is
   // only valid as long as no entries are added to the constant pool between
@@ -328,6 +338,7 @@ class TurboAssembler : public Assembler {
   int CallStubSize();
 
   void CallStubDelayed(CodeStub* stub);
+  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
                           SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
@@ -462,6 +473,7 @@ class TurboAssembler : public Assembler {
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi* smi);
   void Move(Register dst, Handle<HeapObject> value);
+  void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(Register dst, const Operand& src, SBit sbit = LeaveCC,
             Condition cond = al) {
@@ -481,7 +493,8 @@ class TurboAssembler : public Assembler {
   void VmovExtended(int dst_code, const MemOperand& src);
   void VmovExtended(const MemOperand& dst, int src_code);
 
-  // Register swap.
+  // Register swap. Note that the register operands should be distinct.
+  void Swap(Register srcdst0, Register srcdst1);
   void Swap(DwVfpRegister srcdst0, DwVfpRegister srcdst1);
   void Swap(QwNeonRegister srcdst0, QwNeonRegister srcdst1);
 
@@ -516,8 +529,8 @@ class TurboAssembler : public Assembler {
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
   // Exits with 'result' holding the answer.
-  void TruncateDoubleToIDelayed(Zone* zone, Register result,
-                                DwVfpRegister double_input);
+  void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
+                         DwVfpRegister double_input);
 
   // EABI variant for double arguments in use.
   bool use_eabi_hardfloat() {
@@ -530,11 +543,23 @@ class TurboAssembler : public Assembler {
 #endif
   }
 
- private:
-  bool has_frame_ = false;
-  Isolate* const isolate_;
+  // Compute the start of the generated instruction stream from the current PC.
+  // This is an alternative to embedding the {CodeObject} handle as a reference.
+  void ComputeCodeStartAddress(Register dst);
+
+  void ResetSpeculationPoisonRegister();
+
+  bool root_array_available() const { return root_array_available_; }
+  void set_root_array_available(bool v) { root_array_available_ = v; }
+
+ protected:
   // This handle will be patched with the code object on installation.
   Handle<HeapObject> code_object_;
+
+ private:
+  bool has_frame_ = false;
+  bool root_array_available_ = true;
+  Isolate* const isolate_;
 
   // Compare single values and then load the fpscr flags to a register.
   void VFPCompareAndLoadFlags(const SwVfpRegister src1,
@@ -578,11 +603,6 @@ class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
-
-  // Swap two registers.  If the scratch register is omitted then a slightly
-  // less efficient form using xor instead of mov is emitted.
-  void Swap(Register reg1, Register reg2, Register scratch = no_reg,
-            Condition cond = al);
 
   void Mls(Register dst, Register src1, Register src2, Register srcA,
            Condition cond = al);
@@ -694,10 +714,6 @@ class MacroAssembler : public TurboAssembler {
   void InvokeFunction(Register function, const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
   // Frame restart support
   void MaybeDropFrames();
 
@@ -797,6 +813,13 @@ class MacroAssembler : public TurboAssembler {
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
 
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(Address entry);
+
+  // ---------------------------------------------------------------------------
+  // In-place weak references.
+  void LoadWeakValue(Register out, Register in, Label* target_if_cleared);
+
   // ---------------------------------------------------------------------------
   // StatsCounter support
 
@@ -828,6 +851,9 @@ class MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a FixedArray, enabled via --debug-code.
   void AssertFixedArray(Register object);
+
+  // Abort execution if argument is not a Constructor, enabled via --debug-code.
+  void AssertConstructor(Register object);
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);

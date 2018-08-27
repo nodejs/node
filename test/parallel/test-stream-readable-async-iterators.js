@@ -4,8 +4,6 @@ const common = require('../common');
 const { Readable } = require('stream');
 const assert = require('assert');
 
-common.crashOnUnhandledRejection();
-
 async function tests() {
   await (async function() {
     console.log('read without for..await');
@@ -113,6 +111,18 @@ async function tests() {
     });
 
     readable.destroy(new Error('kaboom'));
+  })();
+
+  await (async function() {
+    console.log('call next() after error');
+    const readable = new Readable({
+      read() {}
+    });
+    const iterator = readable[Symbol.asyncIterator]();
+
+    const err = new Error('kaboom');
+    readable.destroy(new Error('kaboom'));
+    await assert.rejects(iterator.next.bind(iterator), err);
   })();
 
   await (async function() {

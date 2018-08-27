@@ -35,18 +35,18 @@ namespace node {
 # define INLINE inline
 #endif
 
-typedef ULONG (NTAPI *EventRegisterFunc)(
+typedef ULONG (NTAPI* EventRegisterFunc)(
   LPCGUID ProviderId,
   PENABLECALLBACK EnableCallback,
   PVOID CallbackContext,
   PREGHANDLE RegHandle
 );
 
-typedef ULONG (NTAPI *EventUnregisterFunc)(
+typedef ULONG (NTAPI* EventUnregisterFunc)(
   REGHANDLE RegHandle
 );
 
-typedef ULONG (NTAPI *EventWriteFunc)(
+typedef ULONG (NTAPI* EventWriteFunc)(
   REGHANDLE RegHandle,
   PCEVENT_DESCRIPTOR EventDescriptor,
   ULONG UserDataCount,
@@ -57,19 +57,19 @@ void init_etw();
 void shutdown_etw();
 
 INLINE void NODE_HTTP_SERVER_REQUEST(node_dtrace_http_server_request_t* req,
-  node_dtrace_connection_t* conn, const char *remote, int port,
-  const char *method, const char *url, int fd);
+  node_dtrace_connection_t* conn, const char* remote, int port,
+  const char* method, const char* url, int fd);
 INLINE void NODE_HTTP_SERVER_RESPONSE(node_dtrace_connection_t* conn,
-  const char *remote, int port, int fd);
+  const char* remote, int port, int fd);
 INLINE void NODE_HTTP_CLIENT_REQUEST(node_dtrace_http_client_request_t* req,
-  node_dtrace_connection_t* conn, const char *remote, int port,
-  const char *method, const char *url, int fd);
+  node_dtrace_connection_t* conn, const char* remote, int port,
+  const char* method, const char* url, int fd);
 INLINE void NODE_HTTP_CLIENT_RESPONSE(node_dtrace_connection_t* conn,
-  const char *remote, int port, int fd);
+  const char* remote, int port, int fd);
 INLINE void NODE_NET_SERVER_CONNECTION(node_dtrace_connection_t* conn,
-  const char *remote, int port, int fd);
+  const char* remote, int port, int fd);
 INLINE void NODE_NET_STREAM_END(node_dtrace_connection_t* conn,
-  const char *remote, int port, int fd);
+  const char* remote, int port, int fd);
 INLINE void NODE_GC_START(v8::GCType type,
                           v8::GCCallbackFlags flags,
                           v8::Isolate* isolate);

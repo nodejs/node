@@ -7,8 +7,11 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>  // For abort.
 #include <memory>
 #include <string>
+
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace v8 {
 
@@ -204,6 +207,7 @@ class PageAllocator {
    */
   enum Permission {
     kNoAccess,
+    kRead,
     kReadWrite,
     // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
@@ -242,16 +246,6 @@ class PageAllocator {
  */
 class Platform {
  public:
-  /**
-   * This enum is used to indicate whether a task is potentially long running,
-   * or causes a long wait. The embedder might want to use this hint to decide
-   * whether to execute the task on a dedicated thread.
-   */
-  enum ExpectedRuntime {
-    kShortRunningTask,
-    kLongRunningTask
-  };
-
   virtual ~Platform() = default;
 
   /**
@@ -286,45 +280,42 @@ class Platform {
   virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
 
   /**
-   * Gets the number of threads that are used to execute background tasks. Is
-   * used to estimate the number of tasks a work package should be split into.
-   * A return value of 0 means that there are no background threads available.
-   * Note that a value of 0 won't prohibit V8 from posting tasks using
-   * |CallOnBackgroundThread|.
+   * Gets the number of worker threads used by
+   * Call(BlockingTask)OnWorkerThread(). This can be used to estimate the number
+   * of tasks a work package should be split into. A return value of 0 means
+   * that there are no worker threads available. Note that a value of 0 won't
+   * prohibit V8 from posting tasks using |CallOnWorkerThread|.
    */
-  virtual size_t NumberOfAvailableBackgroundThreads() { return 0; }
+  virtual int NumberOfWorkerThreads() = 0;
 
   /**
    * Returns a TaskRunner which can be used to post a task on the foreground.
    * This function should only be called from a foreground thread.
    */
   virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      Isolate* isolate) {
-    // TODO(ahaas): Make this function abstract after it got implemented on all
-    // platforms.
-    return {};
+      Isolate* isolate) = 0;
+
+  /**
+   * Schedules a task to be invoked on a worker thread.
+   */
+  virtual void CallOnWorkerThread(std::unique_ptr<Task> task) = 0;
+
+  /**
+   * Schedules a task that blocks the main thread to be invoked with
+   * high-priority on a worker thread.
+   */
+  virtual void CallBlockingTaskOnWorkerThread(std::unique_ptr<Task> task) {
+    // Embedders may optionally override this to process these tasks in a high
+    // priority pool.
+    CallOnWorkerThread(std::move(task));
   }
 
   /**
-   * Returns a TaskRunner which can be used to post a task on a background.
-   * This function should only be called from a foreground thread.
+   * Schedules a task to be invoked on a worker thread after |delay_in_seconds|
+   * expires.
    */
-  virtual std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
-      Isolate* isolate) {
-    // TODO(ahaas): Make this function abstract after it got implemented on all
-    // platforms.
-    return {};
-  }
-
-  /**
-   * Schedules a task to be invoked on a background thread. |expected_runtime|
-   * indicates that the task will run a long time. The Platform implementation
-   * takes ownership of |task|. There is no guarantee about order of execution
-   * of tasks wrt order of scheduling, nor is there a guarantee about the
-   * thread the task will be run on.
-   */
-  virtual void CallOnBackgroundThread(Task* task,
-                                      ExpectedRuntime expected_runtime) = 0;
+  virtual void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
+                                         double delay_in_seconds) = 0;
 
   /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
@@ -351,14 +342,14 @@ class Platform {
    * The definition of "foreground" is opaque to V8.
    */
   virtual void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) {
-    // TODO(ulan): Make this function abstract after V8 roll in Chromium.
+    // This must be overriden if |IdleTasksEnabled()|.
+    abort();
   }
 
   /**
    * Returns true if idle tasks are enabled for the given |isolate|.
    */
   virtual bool IdleTasksEnabled(Isolate* isolate) {
-    // TODO(ulan): Make this function abstract after V8 roll in Chromium.
     return false;
   }
 

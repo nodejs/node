@@ -261,8 +261,8 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
   explicit constexpr Register(int code) : RegisterBase(code) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(Register) &&
-                  sizeof(Register) == sizeof(int),
+ASSERT_TRIVIALLY_COPYABLE(Register);
+static_assert(sizeof(Register) == sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DEFINE_REGISTER(R) \
@@ -303,8 +303,8 @@ class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
   explicit constexpr DoubleRegister(int code) : RegisterBase(code) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(DoubleRegister) &&
-                  sizeof(DoubleRegister) == sizeof(int),
+ASSERT_TRIVIALLY_COPYABLE(DoubleRegister);
+static_assert(sizeof(DoubleRegister) == sizeof(int),
               "DoubleRegister can efficiently be passed by value");
 
 typedef DoubleRegister FloatRegister;
@@ -345,12 +345,6 @@ C_REGISTERS(DECLARE_C_REGISTER)
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
-#if V8_TARGET_ARCH_S390X
-constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE64;
-#else
-constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE32;
-#endif
-
 // Class Operand represents a shifter operand in data processing instructions
 // defining immediate numbers and masks
 typedef uint8_t Length;
@@ -369,17 +363,17 @@ class Operand BASE_EMBEDDED {
  public:
   // immediate
   INLINE(explicit Operand(intptr_t immediate,
-                          RelocInfo::Mode rmode = kRelocInfo_NONEPTR)
+                          RelocInfo::Mode rmode = RelocInfo::NONE)
          : rmode_(rmode)) {
     value_.immediate = immediate;
   }
   INLINE(static Operand Zero()) { return Operand(static_cast<intptr_t>(0)); }
   INLINE(explicit Operand(const ExternalReference& f)
          : rmode_(RelocInfo::EXTERNAL_REFERENCE)) {
-    value_.immediate = reinterpret_cast<intptr_t>(f.address());
+    value_.immediate = static_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value) : rmode_(kRelocInfo_NONEPTR)) {
+  INLINE(explicit Operand(Smi* value) : rmode_(RelocInfo::NONE)) {
     value_.immediate = reinterpret_cast<intptr_t>(value);
   }
 
@@ -555,7 +549,7 @@ class Assembler : public AssemblerBase {
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Address constant_pool, Address target,
+      Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Return the code target address at a call site from the return address
@@ -570,12 +564,15 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Isolate* isolate, Address instruction_payload, Code* code,
-      Address target);
+      Address instruction_payload, Code* code, Address target);
+
+  // Get the size of the special target encoded at 'instruction_payload'.
+  inline static int deserialization_special_target_size(
+      Address instruction_payload);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Isolate* isolate, Address pc, Address target,
+      Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Here we are patching the address in the IIHF/IILF instruction pair.
@@ -838,6 +835,42 @@ class Assembler : public AssemblerBase {
     rxy_format(PFD, cond, x2.code(), b2.code(), d2);
   }
 #undef DECLARE_S390_RXY_INSTRUCTIONS
+
+inline void rsy_form(Opcode op, int f1, int f2, int f3, const int f4) {
+  DCHECK(is_int20(f4));
+  DCHECK(is_uint16(op));
+  uint64_t code = (getfield<uint64_t, 6, 0, 8>(op >> 8) |
+                   getfield<uint64_t, 6, 8, 12>(f1) |
+                   getfield<uint64_t, 6, 12, 16>(f2) |
+                   getfield<uint64_t, 6, 16, 20>(f3) |
+                   getfield<uint64_t, 6, 20, 32>(f4 & 0x0fff) |
+                   getfield<uint64_t, 6, 32, 40>(f4 >> 12) |
+                   getfield<uint64_t, 6, 40, 48>(op & 0xff));
+  emit6bytes(code);
+}
+
+#define DECLARE_S390_RSY_A_INSTRUCTIONS(name, op_name, op_value)           \
+  void name(Register r1, Register r3, Register b2, Disp d2 = 0) {          \
+    rsy_form(op_name, r1.code(), r3.code(), b2.code(), d2);                \
+  }                                                                        \
+  void name(Register r1, Register r3, Operand d2) {                        \
+    name(r1, r3, r0, d2.immediate());                                      \
+  }                                                                        \
+  void name(Register r1, Register r3, const MemOperand& opnd) {            \
+    name(r1, r3, opnd.getBaseRegister(), opnd.getDisplacement());          \
+  }
+  S390_RSY_A_OPCODE_LIST(DECLARE_S390_RSY_A_INSTRUCTIONS);
+#undef DECLARE_S390_RSY_A_INSTRUCTIONS
+
+#define DECLARE_S390_RSY_B_INSTRUCTIONS(name, op_name, op_value)            \
+  void name(Register r1, Condition m3, Register b2, Disp d2) {              \
+    rsy_form(op_name, r1.code(), m3, b2.code(), d2);                        \
+  }                                                                         \
+  void name(Register r1, Condition m3, const MemOperand& opnd) {            \
+    name(r1, m3, opnd.getBaseRegister(), opnd.getDisplacement());           \
+  }
+  S390_RSY_B_OPCODE_LIST(DECLARE_S390_RSY_B_INSTRUCTIONS);
+#undef DECLARE_S390_RSY_B_INSTRUCTIONS
 
   // Helper for unconditional branch to Label with update to save register
   void b(Register r, Label* l) {
@@ -1119,21 +1152,15 @@ class Assembler : public AssemblerBase {
 
   // Load Multiple Instructions
   void lm(Register r1, Register r2, const MemOperand& src);
-  void lmy(Register r1, Register r2, const MemOperand& src);
-  void lmg(Register r1, Register r2, const MemOperand& src);
 
   // Load On Condition Instructions
   void locr(Condition m3, Register r1, Register r2);
   void locgr(Condition m3, Register r1, Register r2);
-  void loc(Condition m3, Register r1, const MemOperand& src);
-  void locg(Condition m3, Register r1, const MemOperand& src);
 
   // Store Instructions
 
   // Store Multiple Instructions
   void stm(Register r1, Register r2, const MemOperand& src);
-  void stmy(Register r1, Register r2, const MemOperand& src);
-  void stmg(Register r1, Register r2, const MemOperand& src);
 
   // Compare Instructions
   void chi(Register r, const Operand& opnd);
@@ -1146,50 +1173,24 @@ class Assembler : public AssemblerBase {
 
   // Compare and Swap Instructions
   void cs(Register r1, Register r2, const MemOperand& src);
-  void csy(Register r1, Register r2, const MemOperand& src);
-  void csg(Register r1, Register r2, const MemOperand& src);
 
   // Test Under Mask Instructions
   void tm(const MemOperand& mem, const Operand& imm);
   void tmy(const MemOperand& mem, const Operand& imm);
 
-  // Rotate Instructions
-  void rll(Register r1, Register r3, Register opnd);
-  void rll(Register r1, Register r3, const Operand& opnd);
-  void rll(Register r1, Register r3, Register r2, const Operand& opnd);
-  void rllg(Register r1, Register r3, const Operand& opnd);
-  void rllg(Register r1, Register r3, const Register opnd);
-  void rllg(Register r1, Register r3, Register r2, const Operand& opnd);
-
   // Shift Instructions (32)
   void sll(Register r1, Register opnd);
   void sll(Register r1, const Operand& opnd);
-  void sllk(Register r1, Register r3, Register opnd);
-  void sllk(Register r1, Register r3, const Operand& opnd);
   void srl(Register r1, Register opnd);
   void srl(Register r1, const Operand& opnd);
-  void srlk(Register r1, Register r3, Register opnd);
-  void srlk(Register r1, Register r3, const Operand& opnd);
   void sra(Register r1, Register opnd);
   void sra(Register r1, const Operand& opnd);
-  void srak(Register r1, Register r3, Register opnd);
-  void srak(Register r1, Register r3, const Operand& opnd);
   void sla(Register r1, Register opnd);
   void sla(Register r1, const Operand& opnd);
-  void slak(Register r1, Register r3, Register opnd);
-  void slak(Register r1, Register r3, const Operand& opnd);
 
   // Shift Instructions (64)
-  void sllg(Register r1, Register r3, const Operand& opnd);
-  void sllg(Register r1, Register r3, const Register opnd);
-  void srlg(Register r1, Register r3, const Operand& opnd);
-  void srlg(Register r1, Register r3, const Register opnd);
-  void srag(Register r1, Register r3, const Operand& opnd);
-  void srag(Register r1, Register r3, const Register opnd);
   void srda(Register r1, const Operand& opnd);
   void srdl(Register r1, const Operand& opnd);
-  void slag(Register r1, Register r3, const Operand& opnd);
-  void slag(Register r1, Register r3, const Register opnd);
   void sldl(Register r1, Register b2, const Operand& opnd);
   void srdl(Register r1, Register b2, const Operand& opnd);
   void srda(Register r1, Register b2, const Operand& opnd);
@@ -1540,12 +1541,6 @@ class Assembler : public AssemblerBase {
 
   inline void rsi_form(Opcode op, Register r1, Register r3, const Operand& i2);
   inline void rsl_form(Opcode op, Length l1, Register b2, Disp d2);
-
-  inline void rsy_form(Opcode op, Register r1, Register r3, Register b2,
-                       const Disp d2);
-  inline void rsy_form(Opcode op, Register r1, Condition m3, Register b2,
-                       const Disp d2);
-
   inline void rxe_form(Opcode op, Register r1, Register x2, Register b2,
                        Disp d2);
 

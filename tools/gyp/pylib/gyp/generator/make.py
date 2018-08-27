@@ -19,7 +19,7 @@
 #
 # Global settings and utility functions are currently stuffed in the
 # toplevel Makefile.  It may make sense to generate some .mk files on
-# the side to keep the the files readable.
+# the side to keep the files readable.
 
 import os
 import re

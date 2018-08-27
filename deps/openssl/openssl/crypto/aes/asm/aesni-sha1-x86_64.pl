@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -25,7 +32,10 @@
 # Sandy Bridge	5.05[+5.0(6.1)]	10.06(11.15)	5.98(7.05)  +68%(+58%)
 # Ivy Bridge	5.05[+4.6]	9.65		5.54        +74%
 # Haswell	4.43[+3.6(4.2)]	8.00(8.58)	4.55(5.21)  +75%(+65%)
+# Skylake	2.63[+3.5(4.1)]	6.17(6.69)	4.23(4.44)  +46%(+51%)
 # Bulldozer	5.77[+6.0]	11.72		6.37        +84%
+# Ryzen(**)	2.71[+1.93]	4.64		2.74        +69%
+# Goldmont(**)	3.82[+1.70]	5.52		4.20        +31%
 #
 #		AES-192-CBC
 # Westmere	4.51		9.81		6.80	    +44%
@@ -39,12 +49,16 @@
 # Sandy Bridge	7.05		12.06(13.15)	7.12(7.72)  +69%(+70%)
 # Ivy Bridge	7.05		11.65		7.12        +64%
 # Haswell	6.19		9.76(10.34)	6.21(6.25)  +57%(+65%)
+# Skylake	3.62		7.16(7.68)	4.56(4.76)  +57%(+61%)
 # Bulldozer	8.00		13.95		8.25        +69%
+# Ryzen(**)	3.71		5.64		3.72        +52%
+# Goldmont(**)	5.35		7.05		5.76        +22%
 #
 # (*)	There are two code paths: SSSE3 and AVX. See sha1-568.pl for
 #	background information. Above numbers in parentheses are SSSE3
 #	results collected on AVX-capable CPU, i.e. apply on OSes that
 #	don't support AVX.
+# (**)	SHAEXT results.
 #
 # Needless to mention that it makes no sense to implement "stitched"
 # *decrypt* subroutine. Because *both* AESNI-CBC decrypt and SHA1
@@ -100,7 +114,7 @@ $shaext=1;	### set to zero if compiling for 1.0.1
 
 $stitched_decrypt=0;
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 # void aesni_cbc_sha1_enc(const void *inp,
@@ -298,7 +312,7 @@ ___
     $r++;	unshift(@rndkey,pop(@rndkey));
 };
 
-sub Xupdate_ssse3_16_31()		# recall that $Xi starts wtih 4
+sub Xupdate_ssse3_16_31()		# recall that $Xi starts with 4
 { use integer;
   my $body = shift;
   my @insns = (&$body,&$body,&$body,&$body);	# 40 instructions
@@ -1137,7 +1151,7 @@ ___
     $r++;	unshift(@rndkey,pop(@rndkey));
 };
 
-sub Xupdate_avx_16_31()		# recall that $Xi starts wtih 4
+sub Xupdate_avx_16_31()		# recall that $Xi starts with 4
 { use integer;
   my $body = shift;
   my @insns = (&$body,&$body,&$body,&$body);	# 40 instructions

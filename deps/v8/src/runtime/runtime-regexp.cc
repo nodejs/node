@@ -529,7 +529,7 @@ void TruncateRegexpIndicesList(Isolate* isolate) {
 }  // namespace
 
 template <typename ResultSeqString>
-MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
+V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> pattern_regexp,
     Handle<String> replacement, Handle<RegExpMatchInfo> last_match_info) {
   DCHECK(subject->IsFlat());
@@ -608,7 +608,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   return *result;
 }
 
-MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
+V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithString(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
     Handle<String> replacement, Handle<RegExpMatchInfo> last_match_info) {
   DCHECK(subject->IsFlat());
@@ -699,7 +699,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
 }
 
 template <typename ResultSeqString>
-MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
+V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
     Handle<RegExpMatchInfo> last_match_info) {
   DCHECK(subject->IsFlat());
@@ -1300,10 +1300,9 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
 
 // Legacy implementation of RegExp.prototype[Symbol.replace] which
 // doesn't properly call the underlying exec method.
-MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
-                                                  Handle<JSRegExp> regexp,
-                                                  Handle<String> string,
-                                                  Handle<Object> replace_obj) {
+V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
+    Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> string,
+    Handle<Object> replace_obj) {
   // Functional fast-paths are dispatched directly by replace builtin.
   DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));
   DCHECK(!replace_obj->IsCallable());
@@ -1545,9 +1544,9 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
 
 namespace {
 
-MUST_USE_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
-                                             Handle<Object> object,
-                                             uint32_t* out) {
+V8_WARN_UNUSED_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
+                                                   Handle<Object> object,
+                                                   uint32_t* out) {
   if (object->IsUndefined(isolate)) {
     *out = kMaxUInt32;
     return object;
@@ -1918,14 +1917,6 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
   }
 
   RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
-}
-
-RUNTIME_FUNCTION(Runtime_RegExpExecReThrow) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  Object* exception = isolate->pending_exception();
-  isolate->clear_pending_exception();
-  return isolate->ReThrow(exception);
 }
 
 RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {

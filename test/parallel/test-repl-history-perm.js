@@ -38,9 +38,6 @@ const replHistoryPath = path.join(tmpdir.path, '.node_repl_history');
 const checkResults = common.mustCall(function(err, r) {
   assert.ifError(err);
 
-  // The REPL registers 'module' and 'require' globals
-  common.allowGlobals(r.context.module, r.context.require);
-
   r.input.end();
   const stat = fs.statSync(replHistoryPath);
   const fileMode = stat.mode & 0o777;

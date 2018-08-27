@@ -61,11 +61,11 @@ var comment_lines = 27;
 
 // This is the last position in the entire file (note: this equals
 // file size of <debug-sourceinfo.js> - 1, since starting at 0).
-var last_position = 8022;
+var last_position = 7933;
 // This is the last line of entire file (note: starting at 0).
-var last_line = 198;
+var last_line = 202;
 // This is the last column of last line (note: starting at 0).
-var last_column = 71;
+var last_column = 64;
 
 // This magic number is the length or the first line comment (actually number
 // of characters before 'function a(...'.
@@ -95,13 +95,17 @@ assertTrue(script.source === Debug.findScript(b).source);
 assertTrue(script.source === Debug.findScript(c).source);
 assertTrue(script.source === Debug.findScript(d).source);
 
+function locationFromPosition(position) {
+  return %ScriptPositionInfo(script, position, false);
+}
+
 // Test that when running through source positions the position, line and
 // column progresses as expected.
 var position;
 var line;
 var column;
 for (var p = 0; p < 100; p++) {
-  var location = script.locationFromPosition(p);
+  var location = locationFromPosition(p);
   if (p > 0) {
     assertEquals(position + 1, location.position);
     if (line == location.line) {
@@ -127,7 +131,7 @@ for (var p = 0; p < 100; p++) {
 var p = start_code_d;
 for (line = 0; line < num_lines_d; line++) {
   for (column = 0; column < line_length_d; column++) {
-    var location = script.locationFromPosition(p);
+    var location = locationFromPosition(p);
     assertEquals(p, location.position);
     assertEquals(start_line_d + line, location.line);
     assertEquals(column, location.column);
@@ -136,34 +140,34 @@ for (line = 0; line < num_lines_d; line++) {
 }
 
 // Test first position.
-assertEquals(0, script.locationFromPosition(0).position);
-assertEquals(0, script.locationFromPosition(0).line);
-assertEquals(0, script.locationFromPosition(0).column);
+assertEquals(0, locationFromPosition(0).position);
+assertEquals(0, locationFromPosition(0).line);
+assertEquals(0, locationFromPosition(0).column);
 
 // Test second position.
-assertEquals(1, script.locationFromPosition(1).position);
-assertEquals(0, script.locationFromPosition(1).line);
-assertEquals(1, script.locationFromPosition(1).column);
+assertEquals(1, locationFromPosition(1).position);
+assertEquals(0, locationFromPosition(1).line);
+assertEquals(1, locationFromPosition(1).column);
 
 // Test first position in function a().
-assertEquals(start_a, script.locationFromPosition(start_a).position);
-assertEquals(0, script.locationFromPosition(start_a).line - comment_lines);
-assertEquals(10, script.locationFromPosition(start_a).column);
+assertEquals(start_a, locationFromPosition(start_a).position);
+assertEquals(0, locationFromPosition(start_a).line - comment_lines);
+assertEquals(10, locationFromPosition(start_a).column);
 
 // Test first position in function b().
-assertEquals(start_b, script.locationFromPosition(start_b).position);
-assertEquals(1, script.locationFromPosition(start_b).line - comment_lines);
-assertEquals(13, script.locationFromPosition(start_b).column);
+assertEquals(start_b, locationFromPosition(start_b).position);
+assertEquals(1, locationFromPosition(start_b).line - comment_lines);
+assertEquals(13, locationFromPosition(start_b).column);
 
 // Test first position in function c().
-assertEquals(start_c, script.locationFromPosition(start_c).position);
-assertEquals(4, script.locationFromPosition(start_c).line - comment_lines);
-assertEquals(12, script.locationFromPosition(start_c).column);
+assertEquals(start_c, locationFromPosition(start_c).position);
+assertEquals(4, locationFromPosition(start_c).line - comment_lines);
+assertEquals(12, locationFromPosition(start_c).column);
 
 // Test first position in function d().
-assertEquals(start_d, script.locationFromPosition(start_d).position);
-assertEquals(11, script.locationFromPosition(start_d).line - comment_lines);
-assertEquals(10, script.locationFromPosition(start_d).column);
+assertEquals(start_d, locationFromPosition(start_d).position);
+assertEquals(11, locationFromPosition(start_d).line - comment_lines);
+assertEquals(10, locationFromPosition(start_d).column);
 
 // Test the Debug.findSourcePosition which wraps SourceManager.
 assertEquals(0 + start_a, Debug.findFunctionSourceLocation(a, 0, 0).position);
@@ -187,13 +191,13 @@ for (i = 1; i <= num_lines_d; i++) {
 assertEquals(158 + start_d, Debug.findFunctionSourceLocation(d, 17, 0).position);
 
 // Make sure invalid inputs work properly.
-assertEquals(0, script.locationFromPosition(-1).line);
-assertEquals(null, script.locationFromPosition(last_position + 2));
+assertEquals(0, locationFromPosition(-1).line);
+assertEquals(null, locationFromPosition(last_position + 2));
 
 // Test last position.
-assertEquals(last_position, script.locationFromPosition(last_position).position);
-assertEquals(last_line, script.locationFromPosition(last_position).line);
-assertEquals(last_column, script.locationFromPosition(last_position).column);
+assertEquals(last_position, locationFromPosition(last_position).position);
+assertEquals(last_line, locationFromPosition(last_position).line);
+assertEquals(last_column, locationFromPosition(last_position).column);
 assertEquals(last_line + 1,
-             script.locationFromPosition(last_position + 1).line);
-assertEquals(0, script.locationFromPosition(last_position + 1).column);
+             locationFromPosition(last_position + 1).line);
+assertEquals(0, locationFromPosition(last_position + 1).column);

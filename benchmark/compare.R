@@ -107,8 +107,8 @@ options(width = 200);
 print(statistics);
 cat("\n")
 cat(sprintf(
-"Be aware that when doing many comparisions the risk of a false-positive
-result increases. In this case there are %d comparisions, you can thus
+"Be aware that when doing many comparisons the risk of a false-positive
+result increases. In this case there are %d comparisons, you can thus
 expect the following amount of false-positive results:
   %.2f false positives, when considering a   5%% risk acceptance (*, **, ***),
   %.2f false positives, when considering a   1%% risk acceptance (**, ***),

@@ -19,6 +19,7 @@ import sys
 from testrunner.local import command
 
 MAX_TRIES = 3
+TIMEOUT = 120
 
 def main(args):
   def allocation_str(stdout):
@@ -27,7 +28,7 @@ def main(args):
         return line
     return None
 
-  cmd = command.Command(args[0], args[1:])
+  cmd = command.Command(args[0], args[1:], timeout=TIMEOUT)
 
   previous_allocations = None
   for run in range(1, MAX_TRIES + 1):

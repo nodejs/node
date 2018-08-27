@@ -60,6 +60,11 @@ A `boolean` that is always `true` for `tty.ReadStream` instances.
 added: v0.7.7
 -->
 
+* `mode` {boolean} If `true`, configures the `tty.ReadStream` to operate as a
+  raw device. If `false`, configures the `tty.ReadStream` to operate in its
+  default mode. The `readStream.isRaw` property will be set to the resulting
+  mode.
+
 Allows configuration of `tty.ReadStream` so that it operates as a raw device.
 
 When in raw mode, input is always available character-by-character, not
@@ -67,18 +72,13 @@ including modifiers. Additionally, all special processing of characters by the
 terminal is disabled, including echoing input characters.
 Note that `CTRL`+`C` will no longer cause a `SIGINT` when in this mode.
 
-* `mode` {boolean} If `true`, configures the `tty.ReadStream` to operate as a
-  raw device. If `false`, configures the `tty.ReadStream` to operate in its
-  default mode. The `readStream.isRaw` property will be set to the resulting
-  mode.
-
 ## Class: tty.WriteStream
 <!-- YAML
 added: v0.5.8
 -->
 
-The `tty.WriteStream` class is a subclass of `net.Socket` that represents the
-writable side of a TTY. In normal circumstances, [`process.stdout`][] and
+The `tty.WriteStream` class is a subclass of [`net.Socket`][] that represents
+the writable side of a TTY. In normal circumstances, [`process.stdout`][] and
 [`process.stderr`][] will be the only `tty.WriteStream` instances created for a
 Node.js process and there should be no reason to create additional instances.
 
@@ -126,15 +126,15 @@ is updated whenever the `'resize'` event is emitted.
 added: v9.9.0
 -->
 
-* `env` {Object} A object containing the environment variables to check.
-  Defaults to `process.env`.
+* `env` {Object} An object containing the environment variables to check.
+  **Default:** `process.env`.
 * Returns: {number}
 
 Returns:
-* 1 for 2,
-* 4 for 16,
-* 8 for 256,
-* 24 for 16,777,216
+* `1` for 2,
+* `4` for 16,
+* `8` for 256,
+* `24` for 16,777,216
 colors supported.
 
 Use this to determine what colors the terminal supports. Due to the nature of

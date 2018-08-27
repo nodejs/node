@@ -5,11 +5,12 @@
 const common = require('../common');
 const assert = require('assert');
 
+if (!common.isMainThread)
+  common.skip('Worker bootstrapping works differently -> different timing');
+
 const async_hooks = require('async_hooks');
 
 const seenEvents = [];
-
-common.crashOnUnhandledRejection();
 
 const p = new Promise((resolve) => resolve(1));
 p.then(() => seenEvents.push('then'));

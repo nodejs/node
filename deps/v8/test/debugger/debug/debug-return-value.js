@@ -27,12 +27,12 @@
 
 Debug = debug.Debug
 
-listener_complete = false;
-exception = false;
-break_count = 0;
-expected_return_value = 0;
-expected_source_position = [];
-debugger_source_position = 0;
+let listener_complete = false;
+let exceptionThrown = false;
+let break_count = 0;
+let expected_return_value = 0;
+let expected_source_position = [];
+let debugger_source_position = 0;
 
 // Listener which expects to do four steps to reach returning from the function.
 function listener(event, exec_state, event_data, data) {
@@ -72,7 +72,7 @@ function listener(event, exec_state, event_data, data) {
       }
     }
   } catch (e) {
-    exception = e
+    exceptionThrown = true;
     print(e + e.stack)
   };
 };
@@ -93,7 +93,7 @@ expected_return_value = 2;
 expected_source_position = [10, 38, 47];
 listener_complete = false;
 f();
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener");
 assertTrue(listener_complete);
 assertEquals(4, break_count);
 
@@ -102,7 +102,7 @@ expected_return_value = 1;
 expected_source_position = [10, 19, 28];
 listener_complete = false;
 f(true);
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener");
 assertTrue(listener_complete);
 assertEquals(4, break_count);
 
@@ -111,6 +111,6 @@ expected_return_value = 2;
 expected_source_position = [10, 38, 47];
 listener_complete = false;
 f(false);
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener");
 assertTrue(listener_complete);
 assertEquals(4, break_count);

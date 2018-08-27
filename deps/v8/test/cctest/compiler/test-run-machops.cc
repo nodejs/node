@@ -1257,7 +1257,8 @@ TEST(RunInt32AddP) {
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
       // Use uint32_t because signed overflow is UB in C.
-      int expected = static_cast<int32_t>(*i + *j);
+      int expected = static_cast<int32_t>(static_cast<uint32_t>(*i) +
+                                          static_cast<uint32_t>(*j));
       CHECK_EQ(expected, bt.call(*i, *j));
     }
   }
@@ -1721,7 +1722,7 @@ TEST(RunInt32SubP) {
 
   FOR_UINT32_INPUTS(i) {
     FOR_UINT32_INPUTS(j) {
-      uint32_t expected = static_cast<int32_t>(*i - *j);
+      uint32_t expected = *i - *j;
       CHECK_EQ(expected, bt.call(*i, *j));
     }
   }
@@ -3198,6 +3199,54 @@ TEST(RunWord32ShrP) {
   }
 }
 
+TEST(RunWordShiftInBranch) {
+  static const uint32_t constant = 987654321;
+  FOR_UINT32_SHIFTS(shift) {
+    RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+    RawMachineLabel blocka, blockb;
+    m.Branch(m.Word32Equal(m.Word32Shl(m.Parameter(0), m.Int32Constant(shift)),
+                           m.Int32Constant(0)),
+             &blocka, &blockb);
+    m.Bind(&blocka);
+    m.Return(m.Int32Constant(constant));
+    m.Bind(&blockb);
+    m.Return(m.Int32Constant(0 - constant));
+    FOR_UINT32_INPUTS(i) {
+      uint32_t expected = ((*i << shift) == 0) ? constant : 0 - constant;
+      CHECK_EQ(expected, m.Call(*i));
+    }
+  }
+  FOR_UINT32_SHIFTS(shift) {
+    RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+    RawMachineLabel blocka, blockb;
+    m.Branch(m.Word32Equal(m.Word32Shr(m.Parameter(0), m.Int32Constant(shift)),
+                           m.Int32Constant(0)),
+             &blocka, &blockb);
+    m.Bind(&blocka);
+    m.Return(m.Int32Constant(constant));
+    m.Bind(&blockb);
+    m.Return(m.Int32Constant(0 - constant));
+    FOR_UINT32_INPUTS(i) {
+      uint32_t expected = ((*i >> shift) == 0) ? constant : 0 - constant;
+      CHECK_EQ(expected, m.Call(*i));
+    }
+  }
+  FOR_UINT32_SHIFTS(shift) {
+    RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+    RawMachineLabel blocka, blockb;
+    m.Branch(m.Word32Equal(m.Word32Sar(m.Parameter(0), m.Int32Constant(shift)),
+                           m.Int32Constant(0)),
+             &blocka, &blockb);
+    m.Bind(&blocka);
+    m.Return(m.Int32Constant(constant));
+    m.Bind(&blockb);
+    m.Return(m.Int32Constant(0 - constant));
+    FOR_INT32_INPUTS(i) {
+      int32_t expected = ((*i >> shift) == 0) ? constant : 0 - constant;
+      CHECK_EQ(expected, m.Call(*i));
+    }
+  }
+}
 
 TEST(RunWord32ShrInComparison) {
   {
@@ -6742,7 +6791,7 @@ TEST(RunComputedCodeObject) {
   CallDescriptor* c = Linkage::GetSimplifiedCDescriptor(r.zone(), &sig);
   LinkageLocation ret[] = {c->GetReturnLocation(0)};
   Signature<LinkageLocation> loc(1, 0, ret);
-  CallDescriptor* desc = new (r.zone()) CallDescriptor(  // --
+  auto call_descriptor = new (r.zone()) CallDescriptor(  // --
       CallDescriptor::kCallCodeObject,                   // kind
       MachineType::AnyTagged(),                          // target_type
       c->GetInputLocation(0),                            // target_loc
@@ -6753,7 +6802,7 @@ TEST(RunComputedCodeObject) {
       c->CalleeSavedFPRegisters(),                       // callee saved FP
       CallDescriptor::kNoFlags,                          // flags
       "c-call-as-code");
-  Node* call = r.AddNode(r.common()->Call(desc), phi);
+  Node* call = r.AddNode(r.common()->Call(call_descriptor), phi);
   r.Return(call);
 
   CHECK_EQ(33, r.Call(1));
@@ -6897,29 +6946,6 @@ TEST(Regression738952) {
   m.Return(m.Load(MachineType::Int32(), m.PointerConstant(&sentinel),
                   m.TruncateFloat64ToWord32(m.Float64Constant(d))));
   CHECK_EQ(sentinel, m.Call());
-}
-
-TEST(Regression6640) {
-  RawMachineAssemblerTester<int32_t> m;
-
-  int32_t old_value = 0;
-  int32_t new_value = 1;
-  Node* c = m.RelocatableInt32Constant(
-      old_value, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
-  m.Return(m.Word32Equal(c, c));
-
-  // Patch the code.
-  Handle<Code> code = m.GetCode();
-  for (RelocIterator it(*code,
-                        1 << RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
-       !it.done(); it.next()) {
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(code->GetHeap());
-    it.rinfo()->update_wasm_function_table_size_reference(
-        code->GetIsolate(), old_value, new_value, FLUSH_ICACHE_IF_NEEDED);
-  }
-
-  CHECK(m.Call());
 }
 
 }  // namespace compiler

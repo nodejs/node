@@ -169,6 +169,22 @@ $ make check
 $ make install
 ```
 
+To build with [CMake](https://cmake.org/):
+
+```bash
+$ mkdir -p out/cmake ; cd out/cmake ; cmake -DBUILD_TESTING=ON ../..
+$ make all test
+# Or manually:
+$ ./uv_run_tests    # shared library build
+$ ./uv_run_tests_a  # static library build
+```
+
+To build with GYP, first run:
+
+```bash
+$ git clone https://chromium.googlesource.com/external/gyp build/gyp
+```
+
 ### Windows
 
 Prerequisites:
@@ -316,6 +332,13 @@ describes the package in more detail.
 
 AIX support for filesystem events is not compiled when building with `gyp`.
 
+### z/OS Notes
+
+z/OS creates System V semaphores and message queues. These persist on the system
+after the process terminates unless the event loop is closed.
+
+Use the `ipcrm` command to manually clear up System V resources.
+
 ## Patches
 
 See the [guidelines for contributing][].
@@ -326,7 +349,7 @@ See the [guidelines for contributing][].
 [libuv_banner]: https://raw.githubusercontent.com/libuv/libuv/master/img/banner.png
 [x32]: https://en.wikipedia.org/wiki/X32_ABI
 [Python 2.6 or 2.7]: https://www.python.org/downloads/
-[Visual C++ Build Tools]: http://landinghub.visualstudio.com/visual-cpp-build-tools
+[Visual C++ Build Tools]: https://visualstudio.microsoft.com/visual-cpp-build-tools/
 [Visual Studio 2015 Update 3]: https://www.visualstudio.com/vs/older-downloads/
 [Visual Studio 2017]: https://www.visualstudio.com/downloads/
 [Git for Windows]: http://git-scm.com/download/win

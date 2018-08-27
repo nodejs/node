@@ -30,6 +30,7 @@ namespace internal {
   V(GroupEnd, groupEnd)             \
   V(Clear, clear)                   \
   V(Count, count)                   \
+  V(CountReset, countReset)         \
   V(Assert, assert)                 \
   V(MarkTimeline, markTimeline)     \
   V(Profile, profile)               \
@@ -112,13 +113,11 @@ void InstallContextFunction(Handle<JSObject> target, const char* name,
                             Handle<Object> context_name) {
   Factory* const factory = target->GetIsolate()->factory();
 
-  Handle<Code> code(target->GetIsolate()->builtins()->builtin(builtin_id));
-
   Handle<String> name_string =
       Name::ToFunctionName(factory->InternalizeUtf8String(name))
           .ToHandleChecked();
   NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
-      name_string, code, builtin_id, i::LanguageMode::kSloppy);
+      name_string, builtin_id, i::LanguageMode::kSloppy);
   Handle<JSFunction> fun = factory->NewFunction(args);
 
   fun->shared()->set_native(true);

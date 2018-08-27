@@ -2,6 +2,8 @@
 const common = require('../common');
 if (process.config.variables.node_without_node_options)
   common.skip('missing NODE_OPTIONS support');
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
 // Test options specified by env variable.
 

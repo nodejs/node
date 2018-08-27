@@ -84,9 +84,9 @@ snippet: "
   class A { constructor(...args) { this.args = args; } }
   new A(0, ...[1, 2, 3], 4);
 "
-frame size: 6
+frame size: 10
 parameter count: 1
-bytecode array length: 66
+bytecode array length: 127
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaTheHole),
@@ -102,14 +102,36 @@ bytecodes: [
                 B(Mov), R(0), R(1),
   /*   89 S> */ B(CreateArrayLiteral), U8(2), U8(1), U8(37),
                 B(Star), R(3),
-                B(CreateArrayLiteral), U8(3), U8(2), U8(37),
+                B(LdaConstant), U8(3),
                 B(Star), R(4),
-                B(CallJSRuntime), U8(%spread_iterable), R(4), U8(1),
-                B(Star), R(4),
-                B(CreateArrayLiteral), U8(4), U8(3), U8(37),
+  /*  101 S> */ B(CreateArrayLiteral), U8(4), U8(7), U8(37),
+                B(Star), R(8),
+                B(LdaNamedProperty), R(8), U8(5), U8(8),
+                B(Star), R(9),
+                B(CallProperty0), R(9), R(8), U8(10),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
+                B(Star), R(7),
+                B(LdaNamedProperty), R(7), U8(6), U8(12),
+                B(Star), R(6),
+                B(CallProperty0), R(6), R(7), U8(14),
                 B(Star), R(5),
-                B(CallJSRuntime), U8(%spread_arguments), R(3), U8(3),
-                B(Star), R(3),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(5), U8(1),
+                B(LdaNamedProperty), R(5), U8(7), U8(16),
+                B(JumpIfToBooleanTrue), U8(21),
+                B(LdaNamedProperty), R(5), U8(8), U8(18),
+                B(Star), R(5),
+                B(StaInArrayLiteral), R(3), R(4), U8(2),
+                B(Ldar), R(4),
+                B(Inc), U8(4),
+                B(Star), R(4),
+                B(JumpLoop), U8(35), I8(0),
+                B(LdaSmi), I8(4),
+                B(StaInArrayLiteral), R(3), R(4), U8(2),
+                B(Ldar), R(4),
+                B(Inc), U8(4),
+                B(Star), R(4),
                 B(CallJSRuntime), U8(%reflect_construct), R(2), U8(2),
                 B(LdaUndefined),
   /*  116 S> */ B(Return),
@@ -118,8 +140,12 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   TUPLE2_TYPE,
+  Smi [1],
   TUPLE2_TYPE,
-  TUPLE2_TYPE,
+  SYMBOL_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
 ]
 handlers: [
 ]

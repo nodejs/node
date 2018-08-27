@@ -30,6 +30,12 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_IsScriptWrapper) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  return isolate->heap()->ToBoolean(args[0]->IsScriptWrapper());
+}
+
 RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -145,9 +151,9 @@ RUNTIME_FUNCTION(Runtime_ThrowInvalidTypedArrayAlignment) {
   Handle<String> type =
       isolate->factory()->NewStringFromAsciiChecked(ElementsKindToType(kind));
 
-  ExternalArrayType external_type =
-      isolate->factory()->GetArrayTypeFromElementsKind(kind);
-  size_t size = isolate->factory()->GetExternalArrayElementSize(external_type);
+  ExternalArrayType external_type;
+  size_t size;
+  Factory::TypeAndSizeForElementsKind(kind, &external_type, &size);
   Handle<Object> element_size =
       handle(Smi::FromInt(static_cast<int>(size)), isolate);
 
@@ -206,30 +212,6 @@ RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
   return *isolate->factory()->NewSyntaxError(message_template, arg0);
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowCannotConvertToPrimitive) {
-  HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kCannotConvertToPrimitive));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, arg1, 1);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver, arg0, arg1));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowInvalidHint) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, hint, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kInvalidHint, hint));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
@@ -258,31 +240,12 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowNonCallableInInstanceOfCheck) {
-  HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNonCallableInInstanceOfCheck));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowNonObjectInInstanceOfCheck) {
-  HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNonObjectInInstanceOfCheck));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowNotConstructor) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kNotConstructor, object));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowGeneratorRunning) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kGeneratorRunning));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
@@ -454,14 +417,6 @@ RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(id, callsite));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowCalledOnNullOrUndefined) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined, name));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -475,23 +430,10 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
 RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  if (FLAG_harmony_restrict_constructor_return) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kClassConstructorReturnedNonObject));
-  }
 
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
       NewTypeError(MessageTemplate::kDerivedConstructorReturnedNonObject));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowUndefinedOrNullToObject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject, name));
 }
 
 // ES6 section 7.3.17 CreateListFromArrayLike (obj)
@@ -511,31 +453,22 @@ RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
   DCHECK(FLAG_lazy_deserialization);
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  int builtin_id = shared->lazy_deserialization_builtin_id();
 
+#ifdef DEBUG
+  int builtin_id = shared->builtin_id();
   // At this point, the builtins table should definitely have DeserializeLazy
-  // set at the position of the target builtin. Also, we should never lazily
-  // deserialize DeserializeLazy.
-
-  DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
-  DCHECK_EQ(Builtins::kDeserializeLazy,
-            isolate->builtins()->builtin(builtin_id)->builtin_index());
-
+  // set at the position of the target builtin.
+  CHECK_EQ(Builtins::kDeserializeLazy,
+           isolate->builtins()->builtin(builtin_id)->builtin_index());
   // The DeserializeLazy builtin tail-calls the deserialized builtin. This only
   // works with JS-linkage.
-  DCHECK(Builtins::IsLazy(builtin_id));
-  DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
+  CHECK(Builtins::IsLazy(builtin_id));
+  CHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
+#endif  // DEBUG
 
-  if (FLAG_trace_lazy_deserialization) {
-    PrintF("Lazy-deserializing builtin %s\n", Builtins::name(builtin_id));
-  }
+  Code* code = Snapshot::EnsureBuiltinIsDeserialized(isolate, shared);
 
-  Code* code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
-  DCHECK_EQ(builtin_id, code->builtin_index());
-  DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
-  shared->set_code(code);
   function->set_code(code);
-
   return code;
 }
 
@@ -544,15 +477,6 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(counter, 0);
   isolate->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(counter));
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(
-    Runtime_IncrementUseCounterConstructorReturnNonUndefinedPrimitive) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  isolate->CountUsage(
-      v8::Isolate::UseCounterFeature::kConstructorNonUndefinedPrimitiveReturn);
   return isolate->heap()->undefined_value();
 }
 
@@ -638,17 +562,21 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
         isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
   }
 
+  Handle<Object> next;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, next,
+      Object::GetProperty(sync_iterator, isolate->factory()->next_string()));
+
   return *isolate->factory()->NewJSAsyncFromSyncIterator(
-      Handle<JSReceiver>::cast(sync_iterator));
+      Handle<JSReceiver>::cast(sync_iterator), next);
 }
 
-RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
+RUNTIME_FUNCTION(Runtime_CreateTemplateObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(TemplateObjectDescription, description, 0);
 
-  return *TemplateObjectDescription::GetTemplateObject(
-      description, isolate->native_context());
+  return *TemplateObjectDescription::CreateTemplateObject(description);
 }
 
 RUNTIME_FUNCTION(Runtime_ReportMessage) {

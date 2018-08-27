@@ -211,6 +211,23 @@ Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,
   bit_field_ |= TokenField::encode(op);
 }
 
+void FunctionLiteral::set_inferred_name(Handle<String> inferred_name) {
+  DCHECK(!inferred_name.is_null());
+  inferred_name_ = inferred_name;
+  DCHECK(raw_inferred_name_ == nullptr || raw_inferred_name_->IsEmpty());
+  raw_inferred_name_ = nullptr;
+  scope()->set_has_inferred_function_name(true);
+}
+
+void FunctionLiteral::set_raw_inferred_name(
+    const AstConsString* raw_inferred_name) {
+  DCHECK_NOT_NULL(raw_inferred_name);
+  raw_inferred_name_ = raw_inferred_name;
+  DCHECK(inferred_name_.is_null());
+  inferred_name_ = Handle<String>();
+  scope()->set_has_inferred_function_name(true);
+}
+
 bool FunctionLiteral::ShouldEagerCompile() const {
   return scope()->ShouldEagerCompile();
 }
@@ -259,7 +276,9 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
     AllowHandleDereference allow_deref;
     return inferred_name_->ToCString();
   } else {
-    return std::unique_ptr<char[]>(new char{'\0'});
+    char* empty_str = new char[1];
+    empty_str[0] = 0;
+    return std::unique_ptr<char[]>(empty_str);
   }
 
   // TODO(rmcilroy): Deal with two-character strings.
@@ -311,7 +330,7 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
     : LiteralProperty(key, value, is_computed_name),
       kind_(kind),
       is_static_(is_static),
-      computed_name_var_(nullptr) {}
+      private_or_computed_name_var_(nullptr) {}
 
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
@@ -683,8 +702,8 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
       }
     }
   }
-  return isolate->factory()->NewTemplateObjectDescription(
-      this->hash(), raw_strings, cooked_strings);
+  return isolate->factory()->NewTemplateObjectDescription(raw_strings,
+                                                          cooked_strings);
 }
 
 static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {

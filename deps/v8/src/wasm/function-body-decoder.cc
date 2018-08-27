@@ -5,21 +5,18 @@
 #include "src/signature.h"
 
 #include "src/base/platform/elapsed-timer.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/flags.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"
-#include "src/zone/zone-containers.h"
-
+#include "src/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
-
-#include "src/ostreams.h"
-
-#include "src/compiler/wasm-compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -37,7 +34,7 @@ struct SsaEnv {
   State state;
   TFNode* control;
   TFNode* effect;
-  compiler::WasmContextCacheNodes context_cache;
+  compiler::WasmInstanceCacheNodes instance_cache;
   TFNode** locals;
 
   bool go() { return state >= kReached; }
@@ -46,7 +43,7 @@ struct SsaEnv {
     locals = nullptr;
     control = nullptr;
     effect = nullptr;
-    context_cache = {0};
+    instance_cache = {};
   }
   void SetNotMerged() {
     if (state == kMerged) state = kReached;
@@ -74,9 +71,9 @@ class WasmGraphBuildingInterface {
 
   struct TryInfo : public ZoneObject {
     SsaEnv* catch_env;
-    TFNode* exception;
+    TFNode* exception = nullptr;
 
-    explicit TryInfo(SsaEnv* c) : catch_env(c), exception(nullptr) {}
+    explicit TryInfo(SsaEnv* c) : catch_env(c) {}
   };
 
   struct Control : public ControlWithNamedConstructors<Control, Value> {
@@ -100,14 +97,14 @@ class WasmGraphBuildingInterface {
                  : nullptr;
 
     // The first '+ 1' is needed by TF Start node, the second '+ 1' is for the
-    // wasm_context parameter.
+    // instance parameter.
     TFNode* start = builder_->Start(
         static_cast<int>(decoder->sig_->parameter_count() + 1 + 1));
-    // Initialize the wasm_context (the paramater at index 0).
-    builder_->set_wasm_context(
-        builder_->Param(compiler::kWasmContextParameterIndex));
+    // Initialize the instance parameter (index 0).
+    builder_->set_instance_node(
+        builder_->Param(wasm::kWasmInstanceParameterIndex));
     // Initialize local variables. Parameters are shifted by 1 because of the
-    // the wasm_context.
+    // the instance parameter.
     uint32_t index = 0;
     for (; index < decoder->sig_->parameter_count(); ++index) {
       ssa_env->locals[index] = builder_->Param(index + 1);
@@ -129,11 +126,10 @@ class WasmGraphBuildingInterface {
     SetEnv(ssa_env);
   }
 
-  // Reload the wasm context variables from the WasmContext structure attached
-  // to the memory object into the Ssa Environment.
+  // Reload the instance cache entries into the Ssa Environment.
   void LoadContextIntoSsa(SsaEnv* ssa_env) {
     if (!ssa_env || !ssa_env->go()) return;
-    builder_->InitContextCache(&ssa_env->context_cache);
+    builder_->InitInstanceCache(&ssa_env->instance_cache);
   }
 
   void StartFunctionBody(Decoder* decoder, Control* block) {
@@ -235,6 +231,10 @@ class WasmGraphBuildingInterface {
     result->node = builder_->Float64Constant(value);
   }
 
+  void RefNull(Decoder* decoder, Value* result) {
+    result->node = builder_->RefNull();
+  }
+
   void Drop(Decoder* decoder, const Value& value) {}
 
   void DoReturn(Decoder* decoder, Vector<Value> values, bool implicit) {
@@ -251,32 +251,32 @@ class WasmGraphBuildingInterface {
   }
 
   void GetLocal(Decoder* decoder, Value* result,
-                const LocalIndexOperand<validate>& operand) {
+                const LocalIndexImmediate<validate>& imm) {
     if (!ssa_env_->locals) return;  // unreachable
-    result->node = ssa_env_->locals[operand.index];
+    result->node = ssa_env_->locals[imm.index];
   }
 
   void SetLocal(Decoder* decoder, const Value& value,
-                const LocalIndexOperand<validate>& operand) {
+                const LocalIndexImmediate<validate>& imm) {
     if (!ssa_env_->locals) return;  // unreachable
-    ssa_env_->locals[operand.index] = value.node;
+    ssa_env_->locals[imm.index] = value.node;
   }
 
   void TeeLocal(Decoder* decoder, const Value& value, Value* result,
-                const LocalIndexOperand<validate>& operand) {
+                const LocalIndexImmediate<validate>& imm) {
     result->node = value.node;
     if (!ssa_env_->locals) return;  // unreachable
-    ssa_env_->locals[operand.index] = value.node;
+    ssa_env_->locals[imm.index] = value.node;
   }
 
   void GetGlobal(Decoder* decoder, Value* result,
-                 const GlobalIndexOperand<validate>& operand) {
-    result->node = BUILD(GetGlobal, operand.index);
+                 const GlobalIndexImmediate<validate>& imm) {
+    result->node = BUILD(GetGlobal, imm.index);
   }
 
   void SetGlobal(Decoder* decoder, const Value& value,
-                 const GlobalIndexOperand<validate>& operand) {
-    BUILD(SetGlobal, operand.index, value.node);
+                 const GlobalIndexImmediate<validate>& imm) {
+    BUILD(SetGlobal, imm.index, value.node);
   }
 
   void Unreachable(Decoder* decoder) {
@@ -308,28 +308,28 @@ class WasmGraphBuildingInterface {
     ssa_env_ = fenv;
   }
 
-  void BrTable(Decoder* decoder, const BranchTableOperand<validate>& operand,
+  void BrTable(Decoder* decoder, const BranchTableImmediate<validate>& imm,
                const Value& key) {
-    if (operand.table_count == 0) {
+    if (imm.table_count == 0) {
       // Only a default target. Do the equivalent of br.
-      uint32_t target = BranchTableIterator<validate>(decoder, operand).next();
+      uint32_t target = BranchTableIterator<validate>(decoder, imm).next();
       Br(decoder, decoder->control_at(target));
       return;
     }
 
     SsaEnv* break_env = ssa_env_;
     // Build branches to the various blocks based on the table.
-    TFNode* sw = BUILD(Switch, operand.table_count + 1, key.node);
+    TFNode* sw = BUILD(Switch, imm.table_count + 1, key.node);
 
     SsaEnv* copy = Steal(decoder->zone(), break_env);
     ssa_env_ = copy;
-    BranchTableIterator<validate> iterator(decoder, operand);
+    BranchTableIterator<validate> iterator(decoder, imm);
     while (iterator.has_next()) {
       uint32_t i = iterator.cur_index();
       uint32_t target = iterator.next();
       ssa_env_ = Split(decoder, copy);
-      ssa_env_->control = (i == operand.table_count) ? BUILD(IfDefault, sw)
-                                                     : BUILD(IfValue, i, sw);
+      ssa_env_->control =
+          (i == imm.table_count) ? BUILD(IfDefault, sw) : BUILD(IfValue, i, sw);
       Br(decoder, decoder->control_at(target));
     }
     DCHECK(decoder->ok());
@@ -341,19 +341,18 @@ class WasmGraphBuildingInterface {
   }
 
   void LoadMem(Decoder* decoder, LoadType type,
-               const MemoryAccessOperand<validate>& operand, const Value& index,
+               const MemoryAccessImmediate<validate>& imm, const Value& index,
                Value* result) {
     result->node =
         BUILD(LoadMem, type.value_type(), type.mem_type(), index.node,
-              operand.offset, operand.alignment, decoder->position());
+              imm.offset, imm.alignment, decoder->position());
   }
 
   void StoreMem(Decoder* decoder, StoreType type,
-                const MemoryAccessOperand<validate>& operand,
-                const Value& index, const Value& value) {
-    BUILD(StoreMem, type.mem_rep(), index.node, operand.offset,
-          operand.alignment, value.node, decoder->position(),
-          type.value_type());
+                const MemoryAccessImmediate<validate>& imm, const Value& index,
+                const Value& value) {
+    BUILD(StoreMem, type.mem_rep(), index.node, imm.offset, imm.alignment,
+          value.node, decoder->position(), type.value_type());
   }
 
   void CurrentMemoryPages(Decoder* decoder, Value* result) {
@@ -362,20 +361,19 @@ class WasmGraphBuildingInterface {
 
   void GrowMemory(Decoder* decoder, const Value& value, Value* result) {
     result->node = BUILD(GrowMemory, value.node);
-    // Always reload the context cache after growing memory.
+    // Always reload the instance cache after growing memory.
     LoadContextIntoSsa(ssa_env_);
   }
 
-  void CallDirect(Decoder* decoder,
-                  const CallFunctionOperand<validate>& operand,
+  void CallDirect(Decoder* decoder, const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
-    DoCall(decoder, nullptr, operand, args, returns, false);
+    DoCall(decoder, nullptr, imm.sig, imm.index, args, returns);
   }
 
   void CallIndirect(Decoder* decoder, const Value& index,
-                    const CallIndirectOperand<validate>& operand,
+                    const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    DoCall(decoder, index.node, operand, args, returns, true);
+    DoCall(decoder, index.node, imm.sig, imm.sig_index, args, returns);
   }
 
   void SimdOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,
@@ -386,48 +384,48 @@ class WasmGraphBuildingInterface {
   }
 
   void SimdLaneOp(Decoder* decoder, WasmOpcode opcode,
-                  const SimdLaneOperand<validate> operand, Vector<Value> inputs,
+                  const SimdLaneImmediate<validate> imm, Vector<Value> inputs,
                   Value* result) {
     TFNode** nodes = GetNodes(inputs);
-    result->node = BUILD(SimdLaneOp, opcode, operand.lane, nodes);
+    result->node = BUILD(SimdLaneOp, opcode, imm.lane, nodes);
   }
 
   void SimdShiftOp(Decoder* decoder, WasmOpcode opcode,
-                   const SimdShiftOperand<validate> operand, const Value& input,
+                   const SimdShiftImmediate<validate> imm, const Value& input,
                    Value* result) {
     TFNode* inputs[] = {input.node};
-    result->node = BUILD(SimdShiftOp, opcode, operand.shift, inputs);
+    result->node = BUILD(SimdShiftOp, opcode, imm.shift, inputs);
   }
 
   void Simd8x16ShuffleOp(Decoder* decoder,
-                         const Simd8x16ShuffleOperand<validate>& operand,
+                         const Simd8x16ShuffleImmediate<validate>& imm,
                          const Value& input0, const Value& input1,
                          Value* result) {
     TFNode* input_nodes[] = {input0.node, input1.node};
-    result->node = BUILD(Simd8x16ShuffleOp, operand.shuffle, input_nodes);
+    result->node = BUILD(Simd8x16ShuffleOp, imm.shuffle, input_nodes);
   }
 
   TFNode* GetExceptionTag(Decoder* decoder,
-                          const ExceptionIndexOperand<validate>& operand) {
+                          const ExceptionIndexImmediate<validate>& imm) {
     // TODO(kschimpf): Need to get runtime exception tag values. This
     // code only handles non-imported/exported exceptions.
-    return BUILD(Int32Constant, operand.index);
+    return BUILD(Int32Constant, imm.index);
   }
 
-  void Throw(Decoder* decoder, const ExceptionIndexOperand<validate>& operand,
+  void Throw(Decoder* decoder, const ExceptionIndexImmediate<validate>& imm,
              Control* block, const Vector<Value>& value_args) {
     int count = value_args.length();
     ZoneVector<TFNode*> args(count, decoder->zone());
     for (int i = 0; i < count; ++i) {
       args[i] = value_args[i].node;
     }
-    BUILD(Throw, operand.index, operand.exception, vec2vec(args));
+    BUILD(Throw, imm.index, imm.exception, vec2vec(args));
     Unreachable(decoder);
     EndControl(decoder, block);
   }
 
   void CatchException(Decoder* decoder,
-                      const ExceptionIndexOperand<validate>& operand,
+                      const ExceptionIndexImmediate<validate>& imm,
                       Control* block, Vector<Value> values) {
     DCHECK(block->is_try_catch());
     current_catch_ = block->previous_catch;
@@ -447,8 +445,7 @@ class WasmGraphBuildingInterface {
     } else {
       // Get the exception and see if wanted exception.
       TFNode* caught_tag = BUILD(GetExceptionRuntimeId);
-      TFNode* exception_tag =
-          BUILD(ConvertExceptionTagToRuntimeId, operand.index);
+      TFNode* exception_tag = BUILD(ConvertExceptionTagToRuntimeId, imm.index);
       compare_i32 = BUILD(Binop, kExprI32Eq, caught_tag, exception_tag);
     }
 
@@ -479,7 +476,7 @@ class WasmGraphBuildingInterface {
     } else {
       // TODO(kschimpf): Can't use BUILD() here, GetExceptionValues() returns
       // TFNode** rather than TFNode*. Fix to add landing pads.
-      TFNode** caught_values = builder_->GetExceptionValues(operand.exception);
+      TFNode** caught_values = builder_->GetExceptionValues(imm.exception);
       for (size_t i = 0, e = values.size(); i < e; ++i) {
         values[i].node = caught_values[i];
       }
@@ -487,10 +484,10 @@ class WasmGraphBuildingInterface {
   }
 
   void AtomicOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,
-                const MemoryAccessOperand<validate>& operand, Value* result) {
+                const MemoryAccessImmediate<validate>& imm, Value* result) {
     TFNode** inputs = GetNodes(args);
-    TFNode* node = BUILD(AtomicOp, opcode, inputs, operand.alignment,
-                         operand.offset, decoder->position());
+    TFNode* node = BUILD(AtomicOp, opcode, inputs, imm.alignment, imm.offset,
+                         decoder->position());
     if (result) result->node = node;
   }
 
@@ -545,10 +542,10 @@ class WasmGraphBuildingInterface {
     }
 #endif
     ssa_env_ = env;
-    // TODO(wasm): combine the control and effect pointers with context cache.
+    // TODO(wasm): combine the control and effect pointers with instance cache.
     builder_->set_control_ptr(&env->control);
     builder_->set_effect_ptr(&env->effect);
-    builder_->set_context_cache(&env->context_cache);
+    builder_->set_instance_cache(&env->instance_cache);
   }
 
   TFNode* CheckForException(Decoder* decoder, TFNode* node) {
@@ -577,9 +574,9 @@ class WasmGraphBuildingInterface {
       try_info->exception = if_exception;
     } else {
       DCHECK_EQ(SsaEnv::kMerged, try_info->catch_env->state);
-      try_info->exception =
-          builder_->CreateOrMergeIntoPhi(kWasmI32, try_info->catch_env->control,
-                                         try_info->exception, if_exception);
+      try_info->exception = builder_->CreateOrMergeIntoPhi(
+          MachineRepresentation::kWord32, try_info->catch_env->control,
+          try_info->exception, if_exception);
     }
 
     SetEnv(success_env);
@@ -621,7 +618,8 @@ class WasmGraphBuildingInterface {
       DCHECK(val.type == old.type || val.type == kWasmVar);
       old.node = first ? val.node
                        : builder_->CreateOrMergeIntoPhi(
-                             old.type, target->control, old.node, val.node);
+                             ValueTypes::MachineRepresentationFor(old.type),
+                             target->control, old.node, val.node);
     }
   }
 
@@ -634,7 +632,7 @@ class WasmGraphBuildingInterface {
         to->locals = from->locals;
         to->control = from->control;
         to->effect = from->effect;
-        to->context_cache = from->context_cache;
+        to->instance_cache = from->instance_cache;
         break;
       }
       case SsaEnv::kReached: {  // Create a new merge.
@@ -658,9 +656,9 @@ class WasmGraphBuildingInterface {
                 builder_->Phi(decoder->GetLocalType(i), 2, vals, merge);
           }
         }
-        // Start a new merge from the context cache.
-        builder_->NewContextCacheMerge(&to->context_cache, &from->context_cache,
-                                       merge);
+        // Start a new merge from the instance cache.
+        builder_->NewInstanceCacheMerge(&to->instance_cache,
+                                        &from->instance_cache, merge);
         break;
       }
       case SsaEnv::kMerged: {
@@ -673,11 +671,12 @@ class WasmGraphBuildingInterface {
         // Merge locals.
         for (int i = decoder->NumLocals() - 1; i >= 0; i--) {
           to->locals[i] = builder_->CreateOrMergeIntoPhi(
-              decoder->GetLocalType(i), merge, to->locals[i], from->locals[i]);
+              ValueTypes::MachineRepresentationFor(decoder->GetLocalType(i)),
+              merge, to->locals[i], from->locals[i]);
         }
-        // Merge the context caches.
-        builder_->MergeContextCacheInto(&to->context_cache,
-                                        &from->context_cache, merge);
+        // Merge the instance caches.
+        builder_->MergeInstanceCacheInto(&to->instance_cache,
+                                         &from->instance_cache, merge);
         break;
       }
       default:
@@ -693,21 +692,22 @@ class WasmGraphBuildingInterface {
     env->control = builder_->Loop(env->control);
     env->effect = builder_->EffectPhi(1, &env->effect, env->control);
     builder_->Terminate(env->effect, env->control);
-    // The '+ 1' here is to be able to set the context cache as assigned.
+    // The '+ 1' here is to be able to set the instance cache as assigned.
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
         decoder, decoder->pc(), decoder->total_locals() + 1, decoder->zone());
     if (decoder->failed()) return env;
     if (assigned != nullptr) {
       // Only introduce phis for variables assigned in this loop.
-      int context_cache_index = decoder->total_locals();
+      int instance_cache_index = decoder->total_locals();
       for (int i = decoder->NumLocals() - 1; i >= 0; i--) {
         if (!assigned->Contains(i)) continue;
         env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1,
                                        &env->locals[i], env->control);
       }
-      // Introduce phis for context cache pointers if necessary.
-      if (assigned->Contains(context_cache_index)) {
-        builder_->PrepareContextCacheForLoop(&env->context_cache, env->control);
+      // Introduce phis for instance cache pointers if necessary.
+      if (assigned->Contains(instance_cache_index)) {
+        builder_->PrepareInstanceCacheForLoop(&env->instance_cache,
+                                              env->control);
       }
 
       SsaEnv* loop_body_env = Split(decoder, env);
@@ -722,8 +722,8 @@ class WasmGraphBuildingInterface {
                                      &env->locals[i], env->control);
     }
 
-    // Conservatively introduce phis for context cache.
-    builder_->PrepareContextCacheForLoop(&env->context_cache, env->control);
+    // Conservatively introduce phis for instance cache.
+    builder_->PrepareInstanceCacheForLoop(&env->instance_cache, env->control);
 
     SsaEnv* loop_body_env = Split(decoder, env);
     builder_->StackCheck(decoder->position(), &loop_body_env->effect,
@@ -746,11 +746,11 @@ class WasmGraphBuildingInterface {
           size > 0 ? reinterpret_cast<TFNode**>(decoder->zone()->New(size))
                    : nullptr;
       memcpy(result->locals, from->locals, size);
-      result->context_cache = from->context_cache;
+      result->instance_cache = from->instance_cache;
     } else {
       result->state = SsaEnv::kUnreachable;
       result->locals = nullptr;
-      result->context_cache = {0};
+      result->instance_cache = {};
     }
 
     return result;
@@ -766,7 +766,7 @@ class WasmGraphBuildingInterface {
     result->locals = from->locals;
     result->control = from->control;
     result->effect = from->effect;
-    result->context_cache = from->context_cache;
+    result->instance_cache = from->instance_cache;
     from->Kill(SsaEnv::kUnreachable);
     return result;
   }
@@ -778,34 +778,33 @@ class WasmGraphBuildingInterface {
     result->control = nullptr;
     result->effect = nullptr;
     result->locals = nullptr;
-    result->context_cache = {0};
+    result->instance_cache = {};
     return result;
   }
 
-  template <typename Operand>
   void DoCall(WasmFullDecoder<validate, WasmGraphBuildingInterface>* decoder,
-              TFNode* index_node, const Operand& operand, const Value args[],
-              Value returns[], bool is_indirect) {
-    int param_count = static_cast<int>(operand.sig->parameter_count());
+              TFNode* index_node, FunctionSig* sig, uint32_t index,
+              const Value args[], Value returns[]) {
+    int param_count = static_cast<int>(sig->parameter_count());
     TFNode** arg_nodes = builder_->Buffer(param_count + 1);
     TFNode** return_nodes = nullptr;
     arg_nodes[0] = index_node;
     for (int i = 0; i < param_count; ++i) {
       arg_nodes[i + 1] = args[i].node;
     }
-    if (is_indirect) {
-      builder_->CallIndirect(operand.index, arg_nodes, &return_nodes,
+    if (index_node) {
+      builder_->CallIndirect(index, arg_nodes, &return_nodes,
                              decoder->position());
     } else {
-      builder_->CallDirect(operand.index, arg_nodes, &return_nodes,
+      builder_->CallDirect(index, arg_nodes, &return_nodes,
                            decoder->position());
     }
-    int return_count = static_cast<int>(operand.sig->return_count());
+    int return_count = static_cast<int>(sig->return_count());
     for (int i = 0; i < return_count; ++i) {
       returns[i].node = return_nodes[i];
     }
     // The invoked function could have used grow_memory, so we need to
-    // reload mem_size and mem_start
+    // reload mem_size and mem_start.
     LoadContextIntoSsa(ssa_env_);
   }
 };
@@ -925,7 +924,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         if (decls.type_list[pos] == type) {
           ++count;
         } else {
-          os << " " << count << " " << WasmOpcodes::TypeName(type);
+          os << " " << count << " " << ValueTypes::TypeName(type);
           type = decls.type_list[pos];
           count = 1;
         }
@@ -960,8 +959,31 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 
     os << RawOpcodeName(opcode) << ",";
 
-    for (unsigned j = 1; j < length; ++j) {
-      os << " 0x" << AsHex(i.pc()[j], 2) << ",";
+    if (opcode == kExprLoop || opcode == kExprIf || opcode == kExprBlock ||
+        opcode == kExprTry) {
+      DCHECK_EQ(2, length);
+
+      switch (i.pc()[1]) {
+#define CASE_LOCAL_TYPE(local_name, type_name) \
+  case kLocal##local_name:                     \
+    os << " kWasm" #type_name ",";             \
+    break;
+
+        CASE_LOCAL_TYPE(I32, I32)
+        CASE_LOCAL_TYPE(I64, I64)
+        CASE_LOCAL_TYPE(F32, F32)
+        CASE_LOCAL_TYPE(F64, F64)
+        CASE_LOCAL_TYPE(S128, S128)
+        CASE_LOCAL_TYPE(Void, Stmt)
+        default:
+          os << " 0x" << AsHex(i.pc()[1], 2) << ",";
+          break;
+      }
+#undef CASE_LOCAL_TYPE
+    } else {
+      for (unsigned j = 1; j < length; ++j) {
+        os << " 0x" << AsHex(i.pc()[j], 2) << ",";
+      }
     }
 
     switch (opcode) {
@@ -973,10 +995,10 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprIf:
       case kExprBlock:
       case kExprTry: {
-        BlockTypeOperand<Decoder::kNoValidate> operand(&i, i.pc());
+        BlockTypeImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << "   // @" << i.pc_offset();
-        for (unsigned i = 0; i < operand.out_arity(); i++) {
-          os << " " << WasmOpcodes::TypeName(operand.out_type(i));
+        for (unsigned i = 0; i < imm.out_arity(); i++) {
+          os << " " << ValueTypes::TypeName(imm.out_type(i));
         }
         control_depth++;
         break;
@@ -986,33 +1008,33 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         control_depth--;
         break;
       case kExprBr: {
-        BreakDepthOperand<Decoder::kNoValidate> operand(&i, i.pc());
-        os << "   // depth=" << operand.depth;
+        BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        os << "   // depth=" << imm.depth;
         break;
       }
       case kExprBrIf: {
-        BreakDepthOperand<Decoder::kNoValidate> operand(&i, i.pc());
-        os << "   // depth=" << operand.depth;
+        BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        os << "   // depth=" << imm.depth;
         break;
       }
       case kExprBrTable: {
-        BranchTableOperand<Decoder::kNoValidate> operand(&i, i.pc());
-        os << " // entries=" << operand.table_count;
+        BranchTableImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        os << " // entries=" << imm.table_count;
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectOperand<Decoder::kNoValidate> operand(&i, i.pc());
-        os << "   // sig #" << operand.index;
-        if (decoder.Complete(i.pc(), operand)) {
-          os << ": " << *operand.sig;
+        CallIndirectImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        os << "   // sig #" << imm.sig_index;
+        if (decoder.Complete(i.pc(), imm)) {
+          os << ": " << *imm.sig;
         }
         break;
       }
       case kExprCallFunction: {
-        CallFunctionOperand<Decoder::kNoValidate> operand(&i, i.pc());
-        os << " // function #" << operand.index;
-        if (decoder.Complete(i.pc(), operand)) {
-          os << ": " << *operand.sig;
+        CallFunctionImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        os << " // function #" << imm.index;
+        if (decoder.Complete(i.pc(), imm)) {
+          os << ": " << *imm.sig;
         }
         break;
       }

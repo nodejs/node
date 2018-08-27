@@ -26,7 +26,7 @@ class AllocationBuilder final {
 
   // Primitive allocation of static size.
   void Allocate(int size, PretenureFlag pretenure = NOT_TENURED,
-                Type* type = Type::Any()) {
+                Type type = Type::Any()) {
     DCHECK_LE(size, kMaxRegularHeapObjectSize);
     effect_ = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect_);
@@ -46,6 +46,16 @@ class AllocationBuilder final {
   void Store(ElementAccess const& access, Node* index, Node* value) {
     effect_ = graph()->NewNode(simplified()->StoreElement(access), allocation_,
                                index, value, effect_, control_);
+  }
+
+  // Compound allocation of a context.
+  void AllocateContext(int length, Handle<Map> map) {
+    DCHECK(map->instance_type() >= BLOCK_CONTEXT_TYPE &&
+           map->instance_type() <= WITH_CONTEXT_TYPE);
+    int size = FixedArray::SizeFor(length);
+    Allocate(size, NOT_TENURED, Type::OtherInternal());
+    Store(AccessBuilder::ForMap(), map);
+    Store(AccessBuilder::ForFixedArrayLength(), jsgraph()->Constant(length));
   }
 
   // Compound allocation of a FixedArray.

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_STORE_BUFFER_H_
-#define V8_STORE_BUFFER_H_
+#ifndef V8_HEAP_STORE_BUFFER_H_
+#define V8_HEAP_STORE_BUFFER_H_
 
 #include "src/allocation.h"
 #include "src/base/logging.h"
@@ -50,23 +50,21 @@ class StoreBuffer {
   void MoveAllEntriesToRememberedSet();
 
   inline bool IsDeletionAddress(Address address) const {
-    return reinterpret_cast<intptr_t>(address) & kDeletionTag;
+    return address & kDeletionTag;
   }
 
   inline Address MarkDeletionAddress(Address address) {
-    return reinterpret_cast<Address>(reinterpret_cast<intptr_t>(address) |
-                                     kDeletionTag);
+    return address | kDeletionTag;
   }
 
   inline Address UnmarkDeletionAddress(Address address) {
-    return reinterpret_cast<Address>(reinterpret_cast<intptr_t>(address) &
-                                     ~kDeletionTag);
+    return address & ~kDeletionTag;
   }
 
   // If we only want to delete a single slot, end should be set to null which
   // will be written into the second field. When processing the store buffer
   // the more efficient Remove method will be called in this case.
-  void DeleteEntry(Address start, Address end = nullptr) {
+  void DeleteEntry(Address start, Address end = kNullAddress) {
     // Deletions coming from the GC are directly deleted from the remembered
     // set. Deletions coming from the runtime are added to the store buffer
     // to allow concurrent processing.
@@ -225,4 +223,4 @@ class StoreBuffer {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_STORE_BUFFER_H_
+#endif  // V8_HEAP_STORE_BUFFER_H_

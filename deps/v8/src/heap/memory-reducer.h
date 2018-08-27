@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_memory_reducer_H
-#define V8_HEAP_memory_reducer_H
+#ifndef V8_HEAP_MEMORY_REDUCER_H_
+#define V8_HEAP_MEMORY_REDUCER_H_
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
@@ -123,7 +123,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   // the incoming event.
   static State Step(const State& state, const Event& event);
   // Posts a timer task that will call NotifyTimer after the given delay.
-  void ScheduleTimer(double time_ms, double delay_ms);
+  void ScheduleTimer(double delay_ms);
   void TearDown();
   static const int kLongDelayMs;
   static const int kShortDelayMs;
@@ -171,4 +171,4 @@ class V8_EXPORT_PRIVATE MemoryReducer {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_memory_reducer_H
+#endif  // V8_HEAP_MEMORY_REDUCER_H_

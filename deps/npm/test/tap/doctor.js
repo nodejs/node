@@ -1,5 +1,5 @@
 'use strict'
-
+/* eslint-disable camelcase */
 const common = require('../common-tap.js')
 const http = require('http')
 const mr = require('npm-registry-mock')

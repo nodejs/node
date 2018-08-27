@@ -2,19 +2,18 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  thousands: [5000],
+  n: [5e6],
 });
 
-function main({ thousands }) {
-  const N = thousands * 1e3;
-  var n = 0;
+function main({ n }) {
+  var j = 0;
   bench.start();
   function cb() {
-    n++;
-    if (n === N)
-      bench.end(N / 1e3);
+    j++;
+    if (j === n)
+      bench.end(n);
   }
-  for (var i = 0; i < N; i++) {
+  for (var i = 0; i < n; i++) {
     setTimeout(cb, 1);
   }
 }

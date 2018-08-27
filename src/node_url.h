@@ -50,7 +50,8 @@ using v8::Value;
   XX(URL_FLAGS_HAS_HOST, 0x80)                                                \
   XX(URL_FLAGS_HAS_PATH, 0x100)                                               \
   XX(URL_FLAGS_HAS_QUERY, 0x200)                                              \
-  XX(URL_FLAGS_HAS_FRAGMENT, 0x400)
+  XX(URL_FLAGS_HAS_FRAGMENT, 0x400)                                           \
+  XX(URL_FLAGS_IS_DEFAULT_SCHEME_PORT, 0x800)                                 \
 
 enum url_parse_state {
   kUnknownState = -1,

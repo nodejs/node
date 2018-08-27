@@ -9,7 +9,6 @@
 
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
-#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/counters-inl.h"
 #include "src/interpreter/bytecode-generator.h"
@@ -20,27 +19,29 @@
 #include "src/parsing/parse-info.h"
 #include "src/setup-isolate.h"
 #include "src/snapshot/snapshot.h"
+#include "src/unoptimized-compilation-info.h"
 #include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class InterpreterCompilationJob final : public CompilationJob {
+class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
  public:
   InterpreterCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
-                            AccountingAllocator* allocator);
+                            AccountingAllocator* allocator,
+                            ZoneVector<FunctionLiteral*>* eager_inner_literals);
 
  protected:
-  Status PrepareJobImpl(Isolate* isolate) final;
   Status ExecuteJobImpl() final;
-  Status FinalizeJobImpl(Isolate* isolate) final;
+  Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+                         Isolate* isolate) final;
 
  private:
   BytecodeGenerator* generator() { return &generator_; }
 
   Zone zone_;
-  CompilationInfo compilation_info_;
+  UnoptimizedCompilationInfo compilation_info_;
   BytecodeGenerator generator_;
 
   DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationJob);
@@ -66,11 +67,6 @@ Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
   if (!isolate_->heap()->IsDeserializeLazyHandler(code)) return code;
 
   DCHECK(FLAG_lazy_handler_deserialization);
-  if (FLAG_trace_lazy_deserialization) {
-    PrintF("Lazy-deserializing handler %s\n",
-           Bytecodes::ToString(bytecode, operand_scale).c_str());
-  }
-
   DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   code = Snapshot::DeserializeHandler(isolate_, bytecode, operand_scale);
 
@@ -119,26 +115,30 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
 void Interpreter::IterateDispatchTable(RootVisitor* v) {
   for (int i = 0; i < kDispatchTableSize; i++) {
     Address code_entry = dispatch_table_[i];
-    Object* code = code_entry == nullptr
+    Object* code = code_entry == kNullAddress
                        ? nullptr
                        : Code::GetCodeFromTargetAddress(code_entry);
     Object* old_code = code;
-    v->VisitRootPointer(Root::kDispatchTable, &code);
+    v->VisitRootPointer(Root::kDispatchTable, nullptr, &code);
     if (code != old_code) {
       dispatch_table_[i] = reinterpret_cast<Code*>(code)->entry();
     }
   }
 }
 
+int Interpreter::InterruptBudget() {
+  return FLAG_interrupt_budget;
+}
+
 namespace {
 
-void MaybePrintAst(ParseInfo* parse_info, CompilationInfo* compilation_info) {
+void MaybePrintAst(ParseInfo* parse_info,
+                   UnoptimizedCompilationInfo* compilation_info) {
   if (!FLAG_print_ast) return;
 
   OFStream os(stdout);
-  std::unique_ptr<char[]> name = compilation_info->GetDebugName();
-  os << "[generating bytecode for function: "
-     << compilation_info->GetDebugName().get() << "]" << std::endl;
+  std::unique_ptr<char[]> name = compilation_info->literal()->GetDebugName();
+  os << "[generating bytecode for function: " << name.get() << "]" << std::endl;
 #ifdef DEBUG
   os << "--- AST ---" << std::endl
      << AstPrinter(parse_info->stack_limit())
@@ -163,18 +163,14 @@ bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
 
 InterpreterCompilationJob::InterpreterCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
-    AccountingAllocator* allocator)
-    : CompilationJob(parse_info->stack_limit(), parse_info, &compilation_info_,
-                     "Ignition", State::kReadyToExecute),
+    AccountingAllocator* allocator,
+    ZoneVector<FunctionLiteral*>* eager_inner_literals)
+    : UnoptimizedCompilationJob(parse_info->stack_limit(), parse_info,
+                                &compilation_info_),
       zone_(allocator, ZONE_NAME),
       compilation_info_(&zone_, parse_info, literal),
-      generator_(&compilation_info_, parse_info->ast_string_constants()) {}
-
-InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl(
-    Isolate* isolate) {
-  UNREACHABLE();  // Prepare should always be skipped.
-  return SUCCEEDED;
-}
+      generator_(&compilation_info_, parse_info->ast_string_constants(),
+                 eager_inner_literals) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   RuntimeCallTimerScope runtimeTimerScope(
@@ -198,7 +194,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
-    Isolate* isolate) {
+    Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
   RuntimeCallTimerScope runtimeTimerScope(
       parse_info()->runtime_call_stats(),
       RuntimeCallCounterId::kCompileIgnitionFinalization);
@@ -211,29 +207,30 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     return FAILED;
   }
 
-  if (ShouldPrintBytecode(compilation_info()->shared_info())) {
+  if (ShouldPrintBytecode(shared_info)) {
     OFStream os(stdout);
-    std::unique_ptr<char[]> name = compilation_info()->GetDebugName();
-    os << "[generated bytecode for function: "
-       << compilation_info()->GetDebugName().get() << "]" << std::endl;
+    std::unique_ptr<char[]> name =
+        compilation_info()->literal()->GetDebugName();
+    os << "[generated bytecode for function: " << name.get() << "]"
+       << std::endl;
     bytecodes->Disassemble(os);
     os << std::flush;
   }
 
   compilation_info()->SetBytecodeArray(bytecodes);
-  compilation_info()->SetCode(
-      BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   return SUCCEEDED;
 }
 
-CompilationJob* Interpreter::NewCompilationJob(ParseInfo* parse_info,
-                                               FunctionLiteral* literal,
-                                               AccountingAllocator* allocator) {
-  return new InterpreterCompilationJob(parse_info, literal, allocator);
+UnoptimizedCompilationJob* Interpreter::NewCompilationJob(
+    ParseInfo* parse_info, FunctionLiteral* literal,
+    AccountingAllocator* allocator,
+    ZoneVector<FunctionLiteral*>* eager_inner_literals) {
+  return new InterpreterCompilationJob(parse_info, literal, allocator,
+                                       eager_inner_literals);
 }
 
 bool Interpreter::IsDispatchTableInitialized() const {
-  return dispatch_table_[0] != nullptr;
+  return dispatch_table_[0] != kNullAddress;
 }
 
 const char* Interpreter::LookupNameOfBytecodeHandler(Code* code) {

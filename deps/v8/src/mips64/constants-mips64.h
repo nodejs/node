@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef  V8_MIPS_CONSTANTS_H_
-#define  V8_MIPS_CONSTANTS_H_
+#ifndef V8_MIPS64_CONSTANTS_MIPS64_H_
+#define V8_MIPS64_CONSTANTS_MIPS64_H_
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -82,6 +82,14 @@ const uint32_t kMipsSdlOffset = 0;
 #error Unknown endianness
 #endif
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+const uint32_t kLeastSignificantByteInInt32Offset = 0;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+const uint32_t kLeastSignificantByteInInt32Offset = 3;
+#else
+#error Unknown endianness
+#endif
+
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
@@ -131,8 +139,8 @@ const int kMSALanesDword = kMSARegSize / 64;
 // FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
 const int kFCSRRegister = 31;
 const int kInvalidFPUControlRegister = -1;
-const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1 << 31) - 1;
-const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1 << 31);
+const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1u << 31) - 1;
+const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1u << 31);
 const uint64_t kFPU64InvalidResult =
     static_cast<uint64_t>(static_cast<uint64_t>(1) << 63) - 1;
 const int64_t kFPU64InvalidResultNegative =
@@ -2013,4 +2021,4 @@ bool InstructionGetters<T>::IsForbiddenAfterBranchInstr(Instr instr) {
 }  // namespace internal
 }  // namespace v8
 
-#endif    // #ifndef V8_MIPS_CONSTANTS_H_
+#endif  // V8_MIPS64_CONSTANTS_MIPS64_H_

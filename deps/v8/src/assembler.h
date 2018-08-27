@@ -37,17 +37,20 @@
 
 #include <forward_list>
 #include <iosfwd>
+#include <map>
 
 #include "src/allocation.h"
-#include "src/builtins/builtins.h"
+#include "src/code-reference.h"
+#include "src/contexts.h"
 #include "src/deoptimize-reason.h"
 #include "src/double.h"
+#include "src/external-reference.h"
+#include "src/flags.h"
 #include "src/globals.h"
 #include "src/label.h"
-#include "src/log.h"
+#include "src/objects.h"
 #include "src/register-configuration.h"
 #include "src/reglist.h"
-#include "src/runtime/runtime.h"
 
 namespace v8 {
 
@@ -57,14 +60,11 @@ class ApiFunction;
 namespace internal {
 
 // Forward declarations.
+class InstructionStream;
 class Isolate;
+class SCTableReference;
 class SourcePosition;
 class StatsCounter;
-
-void SetUpJSCallerSavedCodeData();
-
-// Return the code of the n-th saved register available to JavaScript.
-int JSCallerSavedCode(int n);
 
 // -----------------------------------------------------------------------------
 // Optimization for far-jmp like instructions that can be replaced by shorter.
@@ -99,7 +99,7 @@ class AssemblerBase: public Malloced {
     IsolateData(const IsolateData&) = default;
 
     bool serializer_enabled_;
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
     Address code_range_start_;
 #endif
   };
@@ -162,7 +162,10 @@ class AssemblerBase: public Malloced {
 
   static const int kMinimalBufferSize = 4*KB;
 
-  static void FlushICache(Isolate* isolate, void* start, size_t size);
+  static void FlushICache(void* start, size_t size);
+  static void FlushICache(Address start, size_t size) {
+    return FlushICache(reinterpret_cast<void*>(start), size);
+  }
 
  protected:
   // The buffer into which code and relocation info are generated. It could
@@ -181,6 +184,7 @@ class AssemblerBase: public Malloced {
   }
 
   // The program counter, which points into the buffer above and moves forward.
+  // TODO(jkummerow): This should probably have type {Address}.
   byte* pc_;
 
  private:
@@ -220,16 +224,14 @@ class DontEmitDebugCodeScope BASE_EMBEDDED {
 // snapshot and the running VM.
 class PredictableCodeSizeScope {
  public:
-  explicit PredictableCodeSizeScope(AssemblerBase* assembler);
   PredictableCodeSizeScope(AssemblerBase* assembler, int expected_size);
   ~PredictableCodeSizeScope();
-  void ExpectSize(int expected_size) { expected_size_ = expected_size; }
 
  private:
-  AssemblerBase* assembler_;
-  int expected_size_;
-  int start_offset_;
-  bool old_value_;
+  AssemblerBase* const assembler_;
+  int const expected_size_;
+  int const start_offset_;
+  bool const old_value_;
 };
 
 
@@ -252,6 +254,8 @@ class CpuFeatureScope BASE_EMBEDDED {
 #else
   CpuFeatureScope(AssemblerBase* assembler, CpuFeature f,
                   CheckPolicy check = kCheckSupported) {}
+  // Define a destructor to avoid unused variable warnings.
+  ~CpuFeatureScope() {}
 #endif
 };
 
@@ -283,7 +287,7 @@ class CpuFeatures : public AllStatic {
     return (supported_ & (1u << f)) != 0;
   }
 
-  static inline bool SupportsCrankshaft();
+  static inline bool SupportsOptimizer();
 
   static inline bool SupportsWasmSimd128();
 
@@ -316,11 +320,6 @@ class CpuFeatures : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
-
-enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
-
-enum ArgvMode { kArgvOnStack, kArgvInRegister };
-
 // Specifies whether to perform icache flush operations on RelocInfo updates.
 // If FLUSH_ICACHE_IF_NEEDED, the icache will always be flushed if an
 // instruction was modified. If SKIP_ICACHE_FLUSH the flush will always be
@@ -341,6 +340,12 @@ enum ICacheFlushMode { FLUSH_ICACHE_IF_NEEDED, SKIP_ICACHE_FLUSH };
 
 class RelocInfo {
  public:
+  enum Flag : uint8_t {
+    kNoFlags = 0,
+    kInNativeWasmCode = 1u << 0,  // Reloc info belongs to native wasm code.
+  };
+  typedef base::Flags<Flag> Flags;
+
   // This string is used to add padding comments to the reloc info in cases
   // where we are not sure to have enough space for patching in during
   // lazy deoptimization. This is the case if we have indirect calls for which
@@ -357,15 +362,10 @@ class RelocInfo {
   // The maximum pc delta that will use the short encoding.
   static const int kMaxSmallPCDelta;
 
-  enum Mode {
+  enum Mode : int8_t {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CODE_TARGET,
     EMBEDDED_OBJECT,
-    // Wasm entries are to relocate pointers into the wasm memory embedded in
-    // wasm code. Everything after WASM_CONTEXT_REFERENCE (inclusive) is not
-    // GC'ed.
-    WASM_CONTEXT_REFERENCE,
-    WASM_FUNCTION_TABLE_SIZE_REFERENCE,
     WASM_GLOBAL_HANDLE,
     WASM_CALL,
     JS_TO_WASM_CALL,
@@ -378,6 +378,9 @@ class RelocInfo {
 
     // Encoded internal reference, used only on MIPS, MIPS64 and PPC.
     INTERNAL_REFERENCE_ENCODED,
+
+    // An off-heap instruction stream target. See http://goo.gl/Z2HUiM.
+    OFF_HEAP_TARGET,
 
     // Marks constant and veneer pools. Only used on ARM and ARM64.
     // They use a custom noncompact encoding.
@@ -393,10 +396,12 @@ class RelocInfo {
     // cannot be encoded as part of another record.
     PC_JUMP,
 
+    // Points to a wasm code table entry.
+    WASM_CODE_TABLE_ENTRY,
+
     // Pseudo-types
     NUMBER_OF_MODES,
-    NONE32,  // never recorded 32-bit value
-    NONE64,  // never recorded 64-bit value
+    NONE,  // never recorded value
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
@@ -409,7 +414,7 @@ class RelocInfo {
 
   RelocInfo() = default;
 
-  RelocInfo(byte* pc, Mode rmode, intptr_t data, Code* host)
+  RelocInfo(Address pc, Mode rmode, intptr_t data, Code* host)
       : pc_(pc), rmode_(rmode), data_(data), host_(host) {}
 
   static inline bool IsRealRelocMode(Mode mode) {
@@ -456,35 +461,29 @@ class RelocInfo {
   static inline bool IsInternalReferenceEncoded(Mode mode) {
     return mode == INTERNAL_REFERENCE_ENCODED;
   }
-  static inline bool IsNone(Mode mode) {
-    return mode == NONE32 || mode == NONE64;
+  static inline bool IsOffHeapTarget(Mode mode) {
+    return mode == OFF_HEAP_TARGET;
   }
-  static inline bool IsWasmContextReference(Mode mode) {
-    return mode == WASM_CONTEXT_REFERENCE;
-  }
-  static inline bool IsWasmFunctionTableSizeReference(Mode mode) {
-    return mode == WASM_FUNCTION_TABLE_SIZE_REFERENCE;
-  }
+  static inline bool IsNone(Mode mode) { return mode == NONE; }
   static inline bool IsWasmReference(Mode mode) {
-    return IsWasmPtrReference(mode) || IsWasmSizeReference(mode);
-  }
-  static inline bool IsWasmSizeReference(Mode mode) {
-    return IsWasmFunctionTableSizeReference(mode);
+    return IsWasmPtrReference(mode);
   }
   static inline bool IsWasmPtrReference(Mode mode) {
-    return mode == WASM_CONTEXT_REFERENCE || mode == WASM_GLOBAL_HANDLE ||
-           mode == WASM_CALL || mode == JS_TO_WASM_CALL;
+    return mode == WASM_GLOBAL_HANDLE || mode == WASM_CALL ||
+           mode == JS_TO_WASM_CALL;
   }
 
-  static inline int ModeMask(Mode mode) { return 1 << mode; }
+  static constexpr int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
-  byte* pc() const { return pc_; }
-  void set_pc(byte* pc) { pc_ = pc; }
+  Address pc() const { return pc_; }
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
   Code* host() const { return host_; }
   Address constant_pool() const { return constant_pool_; }
+  void set_constant_pool(Address constant_pool) {
+    constant_pool_ = constant_pool;
+  }
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
   // relative addresses have to be updated as well as absolute addresses
@@ -497,36 +496,29 @@ class RelocInfo {
   // instructions).
   bool IsCodedSpecially();
 
+  // The static pendant to IsCodedSpecially, just for off-heap targets. Used
+  // during deserialization, when we don't actually have a RelocInfo handy.
+  static bool OffHeapTargetIsCodedSpecially();
+
   // If true, the pointer this relocation info refers to is an entry in the
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
 
-  Address wasm_context_reference() const;
-  uint32_t wasm_function_table_size_reference() const;
   Address global_handle() const;
   Address js_to_wasm_address() const;
   Address wasm_call_address() const;
 
-  void set_wasm_context_reference(
-      Isolate* isolate, Address address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  void update_wasm_function_table_size_reference(
-      Isolate* isolate, uint32_t old_base, uint32_t new_base,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_target_address(
-      Isolate* isolate, Address target,
+      Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  void set_global_handle(
-      Isolate* isolate, Address address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void set_global_handle(Address address, ICacheFlushMode icache_flush_mode =
+                                              FLUSH_ICACHE_IF_NEEDED);
   void set_wasm_call_address(
-      Isolate*, Address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_js_to_wasm_address(
-      Isolate*, Address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
@@ -539,14 +531,19 @@ class RelocInfo {
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Address target_runtime_entry(Assembler* origin));
   INLINE(void set_target_runtime_entry(
-      Isolate* isolate, Address target,
+      Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
+  INLINE(Address target_off_heap_target());
   INLINE(Cell* target_cell());
   INLINE(Handle<Cell> target_cell_handle());
   INLINE(void set_target_cell(
       Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
+  INLINE(void set_wasm_code_table_entry(
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
+  INLINE(void set_target_external_reference(
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Returns the address of the constant pool entry where the target address
   // is held.  This should only be called if IsInConstantPool returns true.
@@ -585,15 +582,15 @@ class RelocInfo {
 
   // Wipe out a relocation to a fixed value, used for making snapshots
   // reproducible.
-  INLINE(void WipeOut(Isolate* isolate));
+  INLINE(void WipeOut());
 
   template <typename ObjectVisitor>
-  inline void Visit(Isolate* isolate, ObjectVisitor* v);
+  inline void Visit(ObjectVisitor* v);
 
 #ifdef DEBUG
   // Check whether the given code contains relocation information that
   // either is position-relative or movable by the garbage collector.
-  static bool RequiresRelocation(Isolate* isolate, const CodeDesc& desc);
+  static bool RequiresRelocation(const CodeDesc& desc);
 #endif
 
 #ifdef ENABLE_DISASSEMBLER
@@ -609,23 +606,20 @@ class RelocInfo {
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
  private:
-  void set_embedded_address(Isolate* isolate, Address address,
-                            ICacheFlushMode flush_mode);
-  void set_embedded_size(Isolate* isolate, uint32_t size,
-                         ICacheFlushMode flush_mode);
+  void set_embedded_address(Address address, ICacheFlushMode flush_mode);
+  void set_embedded_size(uint32_t size, ICacheFlushMode flush_mode);
 
   uint32_t embedded_size() const;
   Address embedded_address() const;
 
-  // On ARM, note that pc_ is the address of the constant pool entry
-  // to be relocated and not the address of the instruction
-  // referencing the constant pool entry (except when rmode_ ==
-  // comment).
-  byte* pc_;
+  // On ARM/ARM64, note that pc_ is the address of the instruction referencing
+  // the constant pool and not the address of the constant pool entry.
+  Address pc_;
   Mode rmode_;
-  intptr_t data_;
+  intptr_t data_ = 0;
   Code* host_;
-  Address constant_pool_ = nullptr;
+  Address constant_pool_ = kNullAddress;
+  Flags flags_;
   friend class RelocIterator;
 };
 
@@ -635,7 +629,6 @@ class RelocInfo {
 class RelocInfoWriter BASE_EMBEDDED {
  public:
   RelocInfoWriter() : pos_(nullptr), last_pc_(nullptr) {}
-  RelocInfoWriter(byte* pos, byte* pc) : pos_(pos), last_pc_(pc) {}
 
   byte* pos() const { return pos_; }
   byte* last_pc() const { return last_pc_; }
@@ -651,10 +644,7 @@ class RelocInfoWriter BASE_EMBEDDED {
 
   // Max size (bytes) of a written RelocInfo. Longest encoding is
   // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, data_delta.
-  // On ia32 and arm this is 1 + 4 + 1 + 1 + 4 = 11.
-  // On x64 this is 1 + 4 + 1 + 1 + 8 == 15;
-  // Here we use the maximum of the two.
-  static const int kMaxSize = 15;
+  static constexpr int kMaxSize = 1 + 4 + 1 + 1 + kPointerSize;
 
  private:
   inline uint32_t WriteLongPCJump(uint32_t pc_delta);
@@ -669,7 +659,6 @@ class RelocInfoWriter BASE_EMBEDDED {
 
   byte* pos_;
   byte* last_pc_;
-  RelocInfo::Mode last_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };
@@ -691,6 +680,8 @@ class RelocIterator: public Malloced {
   // iteration iff bit k of mode_mask is set.
   explicit RelocIterator(Code* code, int mode_mask = -1);
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
+  explicit RelocIterator(const CodeReference code_reference,
+                         int mode_mask = -1);
   explicit RelocIterator(Vector<byte> instructions,
                          Vector<const byte> reloc_info, Address const_pool,
                          int mode_mask = -1);
@@ -708,6 +699,9 @@ class RelocIterator: public Malloced {
   }
 
  private:
+  RelocIterator(Code* host, Address pc, Address constant_pool, const byte* pos,
+                const byte* end, int mode_mask);
+
   // Advance* moves the position before/after reading.
   // *Read* reads from current byte(s) into rinfo_.
   // *Get* just reads and returns info on current byte.
@@ -733,361 +727,11 @@ class RelocIterator: public Malloced {
   const byte* pos_;
   const byte* end_;
   RelocInfo rinfo_;
-  bool done_;
-  int mode_mask_;
+  bool done_ = false;
+  const int mode_mask_;
+
   DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
-
-
-//------------------------------------------------------------------------------
-// External function
-
-//----------------------------------------------------------------------------
-class SCTableReference;
-class Debug_Address;
-
-
-// An ExternalReference represents a C++ address used in the generated
-// code. All references to C++ functions and variables must be encapsulated in
-// an ExternalReference instance. This is done in order to track the origin of
-// all external references in the code so that they can be bound to the correct
-// addresses when deserializing a heap.
-class ExternalReference BASE_EMBEDDED {
- public:
-  // Used in the simulator to support different native api calls.
-  enum Type {
-    // Builtin call.
-    // Object* f(v8::internal::Arguments).
-    BUILTIN_CALL,  // default
-
-    // Builtin call returning object pair.
-    // ObjectPair f(v8::internal::Arguments).
-    BUILTIN_CALL_PAIR,
-
-    // Builtin that takes float arguments and returns an int.
-    // int f(double, double).
-    BUILTIN_COMPARE_CALL,
-
-    // Builtin call that returns floating point.
-    // double f(double, double).
-    BUILTIN_FP_FP_CALL,
-
-    // Builtin call that returns floating point.
-    // double f(double).
-    BUILTIN_FP_CALL,
-
-    // Builtin call that returns floating point.
-    // double f(double, int).
-    BUILTIN_FP_INT_CALL,
-
-    // Direct call to API function callback.
-    // void f(v8::FunctionCallbackInfo&)
-    DIRECT_API_CALL,
-
-    // Call to function callback via InvokeFunctionCallback.
-    // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
-    PROFILING_API_CALL,
-
-    // Direct call to accessor getter callback.
-    // void f(Local<Name> property, PropertyCallbackInfo& info)
-    DIRECT_GETTER_CALL,
-
-    // Call to accessor getter callback via InvokeAccessorGetterCallback.
-    // void f(Local<Name> property, PropertyCallbackInfo& info,
-    //     AccessorNameGetterCallback callback)
-    PROFILING_GETTER_CALL
-  };
-
-  static void SetUp();
-
-  // These functions must use the isolate in a thread-safe way.
-  typedef void* ExternalReferenceRedirector(Isolate* isolate, void* original,
-                                            Type type);
-
-  ExternalReference() : address_(nullptr) {}
-
-  ExternalReference(Address address, Isolate* isolate);
-
-  ExternalReference(ApiFunction* ptr, Type type, Isolate* isolate);
-
-  ExternalReference(Runtime::FunctionId id, Isolate* isolate);
-
-  ExternalReference(const Runtime::Function* f, Isolate* isolate);
-
-  explicit ExternalReference(StatsCounter* counter);
-
-  ExternalReference(IsolateAddressId id, Isolate* isolate);
-
-  explicit ExternalReference(const SCTableReference& table_ref);
-
-  // Isolate as an external reference.
-  static ExternalReference isolate_address(Isolate* isolate);
-
-  // The builtins table as an external reference, used by lazy deserialization.
-  static ExternalReference builtins_address(Isolate* isolate);
-
-  static ExternalReference handle_scope_implementer_address(Isolate* isolate);
-  static ExternalReference pending_microtask_count_address(Isolate* isolate);
-
-  // One-of-a-kind references. These references are not part of a general
-  // pattern. This means that they have to be added to the
-  // ExternalReferenceTable in serialize.cc manually.
-
-  static ExternalReference interpreter_dispatch_table_address(Isolate* isolate);
-  static ExternalReference interpreter_dispatch_counters(Isolate* isolate);
-  static ExternalReference bytecode_size_table_address(Isolate* isolate);
-
-  static ExternalReference incremental_marking_record_write_function(
-      Isolate* isolate);
-  static ExternalReference store_buffer_overflow_function(
-      Isolate* isolate);
-  static ExternalReference delete_handle_scope_extensions(Isolate* isolate);
-
-  static ExternalReference get_date_field_function(Isolate* isolate);
-  static ExternalReference date_cache_stamp(Isolate* isolate);
-
-  // Deoptimization support.
-  static ExternalReference new_deoptimizer_function(Isolate* isolate);
-  static ExternalReference compute_output_frames_function(Isolate* isolate);
-
-  static ExternalReference wasm_f32_trunc(Isolate* isolate);
-  static ExternalReference wasm_f32_floor(Isolate* isolate);
-  static ExternalReference wasm_f32_ceil(Isolate* isolate);
-  static ExternalReference wasm_f32_nearest_int(Isolate* isolate);
-  static ExternalReference wasm_f64_trunc(Isolate* isolate);
-  static ExternalReference wasm_f64_floor(Isolate* isolate);
-  static ExternalReference wasm_f64_ceil(Isolate* isolate);
-  static ExternalReference wasm_f64_nearest_int(Isolate* isolate);
-  static ExternalReference wasm_int64_to_float32(Isolate* isolate);
-  static ExternalReference wasm_uint64_to_float32(Isolate* isolate);
-  static ExternalReference wasm_int64_to_float64(Isolate* isolate);
-  static ExternalReference wasm_uint64_to_float64(Isolate* isolate);
-  static ExternalReference wasm_float32_to_int64(Isolate* isolate);
-  static ExternalReference wasm_float32_to_uint64(Isolate* isolate);
-  static ExternalReference wasm_float64_to_int64(Isolate* isolate);
-  static ExternalReference wasm_float64_to_uint64(Isolate* isolate);
-  static ExternalReference wasm_int64_div(Isolate* isolate);
-  static ExternalReference wasm_int64_mod(Isolate* isolate);
-  static ExternalReference wasm_uint64_div(Isolate* isolate);
-  static ExternalReference wasm_uint64_mod(Isolate* isolate);
-  static ExternalReference wasm_word32_ctz(Isolate* isolate);
-  static ExternalReference wasm_word64_ctz(Isolate* isolate);
-  static ExternalReference wasm_word32_popcnt(Isolate* isolate);
-  static ExternalReference wasm_word64_popcnt(Isolate* isolate);
-  static ExternalReference wasm_word32_rol(Isolate* isolate);
-  static ExternalReference wasm_word32_ror(Isolate* isolate);
-  static ExternalReference wasm_float64_pow(Isolate* isolate);
-  static ExternalReference wasm_set_thread_in_wasm_flag(Isolate* isolate);
-  static ExternalReference wasm_clear_thread_in_wasm_flag(Isolate* isolate);
-
-  static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_asin_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_mod_wrapper_function(Isolate* isolate);
-
-  // Trap callback function for cctest/wasm/wasm-run-utils.h
-  static ExternalReference wasm_call_trap_callback_for_testing(
-      Isolate* isolate);
-
-  // Log support.
-  static ExternalReference log_enter_external_function(Isolate* isolate);
-  static ExternalReference log_leave_external_function(Isolate* isolate);
-
-  // Static variable Heap::roots_array_start()
-  static ExternalReference roots_array_start(Isolate* isolate);
-
-  // Static variable Heap::allocation_sites_list_address()
-  static ExternalReference allocation_sites_list_address(Isolate* isolate);
-
-  // Static variable StackGuard::address_of_jslimit()
-  V8_EXPORT_PRIVATE static ExternalReference address_of_stack_limit(
-      Isolate* isolate);
-
-  // Static variable StackGuard::address_of_real_jslimit()
-  static ExternalReference address_of_real_stack_limit(Isolate* isolate);
-
-  // Static variable RegExpStack::limit_address()
-  static ExternalReference address_of_regexp_stack_limit(Isolate* isolate);
-
-  // Static variables for RegExp.
-  static ExternalReference address_of_static_offsets_vector(Isolate* isolate);
-  static ExternalReference address_of_regexp_stack_memory_address(
-      Isolate* isolate);
-  static ExternalReference address_of_regexp_stack_memory_size(
-      Isolate* isolate);
-
-  // Write barrier.
-  static ExternalReference store_buffer_top(Isolate* isolate);
-  static ExternalReference heap_is_marking_flag_address(Isolate* isolate);
-
-  // Used for fast allocation in generated code.
-  static ExternalReference new_space_allocation_top_address(Isolate* isolate);
-  static ExternalReference new_space_allocation_limit_address(Isolate* isolate);
-  static ExternalReference old_space_allocation_top_address(Isolate* isolate);
-  static ExternalReference old_space_allocation_limit_address(Isolate* isolate);
-
-  static ExternalReference mod_two_doubles_operation(Isolate* isolate);
-  static ExternalReference power_double_double_function(Isolate* isolate);
-
-  static ExternalReference handle_scope_next_address(Isolate* isolate);
-  static ExternalReference handle_scope_limit_address(Isolate* isolate);
-  static ExternalReference handle_scope_level_address(Isolate* isolate);
-
-  static ExternalReference scheduled_exception_address(Isolate* isolate);
-  static ExternalReference address_of_pending_message_obj(Isolate* isolate);
-
-  // Static variables containing common double constants.
-  static ExternalReference address_of_min_int();
-  static ExternalReference address_of_one_half();
-  static ExternalReference address_of_minus_one_half();
-  static ExternalReference address_of_negative_infinity();
-  static ExternalReference address_of_the_hole_nan();
-  static ExternalReference address_of_uint32_bias();
-
-  // Static variables containing simd constants.
-  static ExternalReference address_of_float_abs_constant();
-  static ExternalReference address_of_float_neg_constant();
-  static ExternalReference address_of_double_abs_constant();
-  static ExternalReference address_of_double_neg_constant();
-
-  // IEEE 754 functions.
-  static ExternalReference ieee754_acos_function(Isolate* isolate);
-  static ExternalReference ieee754_acosh_function(Isolate* isolate);
-  static ExternalReference ieee754_asin_function(Isolate* isolate);
-  static ExternalReference ieee754_asinh_function(Isolate* isolate);
-  static ExternalReference ieee754_atan_function(Isolate* isolate);
-  static ExternalReference ieee754_atanh_function(Isolate* isolate);
-  static ExternalReference ieee754_atan2_function(Isolate* isolate);
-  static ExternalReference ieee754_cbrt_function(Isolate* isolate);
-  static ExternalReference ieee754_cos_function(Isolate* isolate);
-  static ExternalReference ieee754_cosh_function(Isolate* isolate);
-  static ExternalReference ieee754_exp_function(Isolate* isolate);
-  static ExternalReference ieee754_expm1_function(Isolate* isolate);
-  static ExternalReference ieee754_log_function(Isolate* isolate);
-  static ExternalReference ieee754_log1p_function(Isolate* isolate);
-  static ExternalReference ieee754_log10_function(Isolate* isolate);
-  static ExternalReference ieee754_log2_function(Isolate* isolate);
-  static ExternalReference ieee754_sin_function(Isolate* isolate);
-  static ExternalReference ieee754_sinh_function(Isolate* isolate);
-  static ExternalReference ieee754_tan_function(Isolate* isolate);
-  static ExternalReference ieee754_tanh_function(Isolate* isolate);
-
-  static ExternalReference libc_memchr_function(Isolate* isolate);
-  static ExternalReference libc_memcpy_function(Isolate* isolate);
-  static ExternalReference libc_memmove_function(Isolate* isolate);
-  static ExternalReference libc_memset_function(Isolate* isolate);
-
-  static ExternalReference printf_function(Isolate* isolate);
-
-  static ExternalReference try_internalize_string_function(Isolate* isolate);
-
-  static ExternalReference check_object_type(Isolate* isolate);
-
-#ifdef V8_INTL_SUPPORT
-  static ExternalReference intl_convert_one_byte_to_lower(Isolate* isolate);
-  static ExternalReference intl_to_latin1_lower_table(Isolate* isolate);
-#endif  // V8_INTL_SUPPORT
-
-  template <typename SubjectChar, typename PatternChar>
-  static ExternalReference search_string_raw(Isolate* isolate);
-
-  static ExternalReference orderedhashmap_gethash_raw(Isolate* isolate);
-
-  static ExternalReference get_or_create_hash_raw(Isolate* isolate);
-  static ExternalReference jsreceiver_create_identity_hash(Isolate* isolate);
-
-  static ExternalReference copy_fast_number_jsarray_elements_to_typed_array(
-      Isolate* isolate);
-  static ExternalReference copy_typed_array_elements_to_typed_array(
-      Isolate* isolate);
-
-  static ExternalReference page_flags(Page* page);
-
-  static ExternalReference ForDeoptEntry(Address entry);
-
-  static ExternalReference cpu_features();
-
-  static ExternalReference debug_is_active_address(Isolate* isolate);
-  static ExternalReference debug_hook_on_function_call_address(
-      Isolate* isolate);
-
-  static ExternalReference is_profiling_address(Isolate* isolate);
-  static ExternalReference invoke_function_callback(Isolate* isolate);
-  static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
-
-  static ExternalReference promise_hook_or_debug_is_active_address(
-      Isolate* isolate);
-
-  V8_EXPORT_PRIVATE static ExternalReference runtime_function_table_address(
-      Isolate* isolate);
-
-  static ExternalReference invalidate_prototype_chains_function(
-      Isolate* isolate);
-
-  Address address() const { return reinterpret_cast<Address>(address_); }
-
-  // Used to read out the last step action of the debugger.
-  static ExternalReference debug_last_step_action_address(Isolate* isolate);
-
-  // Used to check for suspended generator, used for stepping across await call.
-  static ExternalReference debug_suspended_generator_address(Isolate* isolate);
-
-  // Used to store the frame pointer to drop to when restarting a frame.
-  static ExternalReference debug_restart_fp_address(Isolate* isolate);
-
-#ifndef V8_INTERPRETED_REGEXP
-  // C functions called from RegExp generated code.
-
-  // Function NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()
-  static ExternalReference re_case_insensitive_compare_uc16(Isolate* isolate);
-
-  // Function RegExpMacroAssembler*::CheckStackGuardState()
-  static ExternalReference re_check_stack_guard_state(Isolate* isolate);
-
-  // Function NativeRegExpMacroAssembler::GrowStack()
-  static ExternalReference re_grow_stack(Isolate* isolate);
-
-  // byte NativeRegExpMacroAssembler::word_character_bitmap
-  static ExternalReference re_word_character_map();
-
-#endif
-
-  // This lets you register a function that rewrites all external references.
-  // Used by the ARM simulator to catch calls to external references.
-  static void set_redirector(Isolate* isolate,
-                             ExternalReferenceRedirector* redirector);
-
-  static ExternalReference stress_deopt_count(Isolate* isolate);
-
-  static ExternalReference force_slow_path(Isolate* isolate);
-
-  static ExternalReference fixed_typed_array_base_data_offset();
-
- private:
-  explicit ExternalReference(void* address)
-      : address_(address) {}
-
-  static void* Redirect(Isolate* isolate,
-                        Address address_arg,
-                        Type type = ExternalReference::BUILTIN_CALL) {
-    ExternalReferenceRedirector* redirector =
-        reinterpret_cast<ExternalReferenceRedirector*>(
-            isolate->external_reference_redirector());
-    void* address = reinterpret_cast<void*>(address_arg);
-    void* answer = (redirector == nullptr)
-                       ? address
-                       : (*redirector)(isolate, address, type);
-    return answer;
-  }
-
-  void* address_;
-};
-
-V8_EXPORT_PRIVATE bool operator==(ExternalReference, ExternalReference);
-bool operator!=(ExternalReference, ExternalReference);
-
-size_t hash_value(ExternalReference);
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
 
 // -----------------------------------------------------------------------------
 // Utility functions
@@ -1104,14 +748,18 @@ double power_double_double(double x, double y);
 class ConstantPoolEntry {
  public:
   ConstantPoolEntry() {}
-  ConstantPoolEntry(int position, intptr_t value, bool sharing_ok)
+  ConstantPoolEntry(int position, intptr_t value, bool sharing_ok,
+                    RelocInfo::Mode rmode = RelocInfo::NONE)
       : position_(position),
         merged_index_(sharing_ok ? SHARING_ALLOWED : SHARING_PROHIBITED),
-        value_(value) {}
-  ConstantPoolEntry(int position, Double value)
+        value_(value),
+        rmode_(rmode) {}
+  ConstantPoolEntry(int position, Double value,
+                    RelocInfo::Mode rmode = RelocInfo::NONE)
       : position_(position),
         merged_index_(SHARING_ALLOWED),
-        value64_(value.AsUint64()) {}
+        value64_(value.AsUint64()),
+        rmode_(rmode) {}
 
   int position() const { return position_; }
   bool sharing_ok() const { return merged_index_ != SHARING_PROHIBITED; }
@@ -1135,6 +783,7 @@ class ConstantPoolEntry {
   }
   intptr_t value() const { return value_; }
   uint64_t value64() const { return value64_; }
+  RelocInfo::Mode rmode() const { return rmode_; }
 
   enum Type { INTPTR, DOUBLE, NUMBER_OF_TYPES };
 
@@ -1151,6 +800,9 @@ class ConstantPoolEntry {
     intptr_t value_;
     uint64_t value64_;
   };
+  // TODO(leszeks): The way we use this, it could probably be packed into
+  // merged_index_ if size is a concern.
+  RelocInfo::Mode rmode_;
   enum { SHARING_PROHIBITED = -2, SHARING_ALLOWED = -1 };
 };
 
@@ -1308,8 +960,8 @@ class RegisterBase {
   }
 
   template <RegisterCode reg_code>
-  static constexpr int bit() {
-    return 1 << code<reg_code>();
+  static constexpr RegList bit() {
+    return RegList{1} << code<reg_code>();
   }
 
   static SubType from_code(int code) {
@@ -1318,9 +970,16 @@ class RegisterBase {
     return SubType{code};
   }
 
+  // Constexpr version (pass registers as template parameters).
   template <RegisterCode... reg_codes>
   static constexpr RegList ListOf() {
     return CombineRegLists(RegisterBase::bit<reg_codes>()...);
+  }
+
+  // Non-constexpr version (pass registers as method parameters).
+  template <typename... Register>
+  static RegList ListOf(Register... regs) {
+    return CombineRegLists(regs.bit()...);
   }
 
   bool is_valid() const { return reg_code_ != kCode_no_reg; }
@@ -1330,7 +989,7 @@ class RegisterBase {
     return reg_code_;
   }
 
-  int bit() const { return 1 << code(); }
+  RegList bit() const { return RegList{1} << code(); }
 
   inline constexpr bool operator==(SubType other) const {
     return reg_code_ == other.reg_code_;

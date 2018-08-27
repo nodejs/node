@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SRC_ZONE_ZONE_CONTAINERS_H_
-#define V8_SRC_ZONE_ZONE_CONTAINERS_H_
+#ifndef V8_ZONE_ZONE_CONTAINERS_H_
+#define V8_ZONE_ZONE_CONTAINERS_H_
 
 #include <deque>
 #include <forward_list>
@@ -190,4 +190,4 @@ typedef ZoneVector<int> IntVector;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SRC_ZONE_ZONE_CONTAINERS_H_
+#endif  // V8_ZONE_ZONE_CONTAINERS_H_

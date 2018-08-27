@@ -25,7 +25,7 @@ link.completion = function (opts, cb) {
   var dir = npm.globalDir
   fs.readdir(dir, function (er, files) {
     cb(er, files.filter(function (f) {
-      return !f.match(/^[\._-]/)
+      return !f.match(/^[._-]/)
     }))
   })
 }
@@ -37,7 +37,7 @@ function link (args, cb) {
       var msg = 'npm link not supported on windows prior to node 0.7.9'
       var e = new Error(msg)
       e.code = 'ENOTSUP'
-      e.errno = require('constants').ENOTSUP
+      e.errno = require('constants').ENOTSUP // eslint-disable-line node/no-deprecated-api
       return cb(e)
     }
   }
@@ -148,8 +148,8 @@ function linkPkg (folder, cb_) {
       er = new Error('Package must have a name field to be linked')
       return cb(er)
     }
-    if (npm.config.get('dry-run')) return resultPrinter(path.basename(me), me, target, cb)
     var target = path.resolve(npm.globalDir, d.name)
+    if (npm.config.get('dry-run')) return resultPrinter(path.basename(me), me, target, cb)
     symlink(me, target, false, true, function (er) {
       if (er) return cb(er)
       log.verbose('link', 'build target', target)

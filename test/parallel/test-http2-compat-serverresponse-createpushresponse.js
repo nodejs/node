@@ -28,6 +28,15 @@ const server = h2.createServer((request, response) => {
     }
   );
 
+  response.stream.on('close', () => {
+    response.createPushResponse({
+      ':path': '/pushed',
+      ':method': 'GET'
+    }, common.mustCall((error) => {
+      assert.strictEqual(error.code, 'ERR_HTTP2_INVALID_STREAM');
+    }));
+  });
+
   response.createPushResponse({
     ':path': '/pushed',
     ':method': 'GET'
@@ -36,16 +45,6 @@ const server = h2.createServer((request, response) => {
     assert.strictEqual(push.stream.id % 2, 0);
     push.end(pushExpect);
     response.end();
-
-    // wait for a tick, so the stream is actually closed
-    setImmediate(function() {
-      response.createPushResponse({
-        ':path': '/pushed',
-        ':method': 'GET'
-      }, common.mustCall((error) => {
-        assert.strictEqual(error.code, 'ERR_HTTP2_INVALID_STREAM');
-      }));
-    });
   }));
 });
 

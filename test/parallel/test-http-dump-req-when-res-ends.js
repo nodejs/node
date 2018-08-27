@@ -1,54 +1,62 @@
 'use strict';
 
-const common = require('../common');
-const http = require('http');
+const { mustCall } = require('../common');
+
 const fs = require('fs');
+const http = require('http');
+const { strictEqual } = require('assert');
 
-const server = http.createServer(function(req, res) {
-  // this checks if the request gets dumped
-  req.on('resume', common.mustCall(function() {
-    console.log('resume called');
-
-    req.on('data', common.mustCallAtLeast(function(d) {
-      console.log('data', d);
-    }, 1));
+const server = http.createServer(mustCall(function(req, res) {
+  strictEqual(req.socket.listenerCount('data'), 1);
+  req.socket.once('data', mustCall(function() {
+    // Ensure that a chunk of data is received before calling `res.end()`.
+    res.end('hello world');
+  }));
+  // This checks if the request gets dumped
+  // resume will be triggered by res.end().
+  req.on('resume', mustCall(function() {
+    // There is no 'data' event handler anymore
+    // it gets automatically removed when dumping the request.
+    strictEqual(req.listenerCount('data'), 0);
+    req.on('data', mustCall());
   }));
 
-  // end is not called as we are just exhausting
-  // the in-memory buffer
-  req.on('end', common.mustNotCall);
+  // We explicitly pause the stream
+  // so that the following on('data') does not cause
+  // a resume.
+  req.pause();
+  req.on('data', function() {});
 
-  // this 'data' handler will be removed when dumped
-  req.on('data', common.mustNotCall);
-
-  // start sending the response
+  // Start sending the response.
   res.flushHeaders();
+}));
 
-  setTimeout(function() {
-    res.end('hello world');
-  }, common.platformTimeout(100));
-});
-
-server.listen(0, function() {
+server.listen(0, mustCall(function() {
   const req = http.request({
     method: 'POST',
     port: server.address().port
   });
 
   // Send the http request without waiting
-  // for the body
+  // for the body.
   req.flushHeaders();
 
-  req.on('response', common.mustCall(function(res) {
-    // pipe the body as soon as we get the headers of the
-    // response back
+  req.on('response', mustCall(function(res) {
+    // Pipe the body as soon as we get the headers of the
+    // response back.
     fs.createReadStream(__filename).pipe(req);
 
     res.resume();
 
-    // wait for the response
+    // Wait for the response.
     res.on('end', function() {
       server.close();
     });
   }));
-});
+
+  req.on('error', function() {
+    // An error can happen if there is some data still
+    // being sent, as the other side is calling .destroy()
+    // this is safe to ignore.
+  });
+}));

@@ -8,7 +8,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/conversions-inl.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 
 // Implement Atomic accesses to SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here
@@ -248,30 +248,6 @@ inline Object* DoXor(Isolate* isolate, void* buffer, size_t index,
   V(Int16, int16, INT16, int16_t, 2)     \
   V(Uint32, uint32, UINT32, uint32_t, 4) \
   V(Int32, int32, INT32, int32_t, 4)
-
-RUNTIME_FUNCTION(Runtime_ThrowNotIntegerSharedTypedArrayError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError(MessageTemplate::kNotIntegerSharedTypedArray, value));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowNotInt32SharedTypedArrayError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNotInt32SharedTypedArray, value));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowInvalidAtomicAccessIndexError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewRangeError(MessageTemplate::kInvalidAtomicAccessIndex));
-}
 
 RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
   HandleScope scope(isolate);

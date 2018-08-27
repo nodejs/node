@@ -18,7 +18,7 @@ CONF="-config ../apps/openssl.cnf"
 # create pca request.
 echo creating $CAbits bit PCA cert request
 $SSLEAY req $CONF \
-	-new -md5 -newkey $CAbits \
+	-new -sha256 -newkey $CAbits \
 	-keyout pca-key.pem \
 	-out pca-req.pem -nodes >/dev/null <<EOF
 AU
@@ -40,7 +40,7 @@ fi
 #sign it.
 echo
 echo self signing PCA
-$SSLEAY x509 -md5 -days 1461 \
+$SSLEAY x509 -sha256 -days 36525 \
 	-req -signkey pca-key.pem \
 	-CAcreateserial -CAserial pca-cert.srl \
 	-in pca-req.pem -out pca-cert.pem
@@ -54,7 +54,7 @@ echo
 # create ca request.
 echo creating $CAbits bit CA cert request
 $SSLEAY req $CONF \
-	-new -md5 -newkey $CAbits \
+	-new -sha256 -newkey $CAbits \
 	-keyout ca-key.pem \
 	-out ca-req.pem -nodes >/dev/null <<EOF
 AU
@@ -76,7 +76,7 @@ fi
 #sign it.
 echo
 echo signing CA
-$SSLEAY x509 -md5 -days 1461 \
+$SSLEAY x509 -sha256 -days 36525 \
 	-req \
 	-CAcreateserial -CAserial pca-cert.srl \
 	-CA pca-cert.pem -CAkey pca-key.pem \
@@ -91,7 +91,7 @@ echo
 # create server request.
 echo creating 512 bit server cert request
 $SSLEAY req $CONF \
-	-new -md5 -newkey 512 \
+	-new -sha256 -newkey 512 \
 	-keyout s512-key.pem \
 	-out s512-req.pem -nodes >/dev/null <<EOF
 AU
@@ -113,7 +113,7 @@ fi
 #sign it.
 echo
 echo signing 512 bit server cert
-$SSLEAY x509 -md5 -days 365 \
+$SSLEAY x509 -sha256 -days 36525 \
 	-req \
 	-CAcreateserial -CAserial ca-cert.srl \
 	-CA ca-cert.pem -CAkey ca-key.pem \
@@ -128,7 +128,7 @@ echo
 # create 1024 bit server request.
 echo creating 1024 bit server cert request
 $SSLEAY req $CONF \
-	-new -md5 -newkey 1024 \
+	-new -sha256 -newkey 1024 \
 	-keyout s1024key.pem \
 	-out s1024req.pem -nodes >/dev/null <<EOF
 AU
@@ -150,7 +150,7 @@ fi
 #sign it.
 echo
 echo signing 1024 bit server cert
-$SSLEAY x509 -md5 -days 365 \
+$SSLEAY x509 -sha256 -days 36525 \
 	-req \
 	-CAcreateserial -CAserial ca-cert.srl \
 	-CA ca-cert.pem -CAkey ca-key.pem \
@@ -165,7 +165,7 @@ echo
 # create 512 bit client request.
 echo creating 512 bit client cert request
 $SSLEAY req $CONF \
-	-new -md5 -newkey 512 \
+	-new -sha256 -newkey 512 \
 	-keyout c512-key.pem \
 	-out c512-req.pem -nodes >/dev/null <<EOF
 AU
@@ -187,7 +187,7 @@ fi
 #sign it.
 echo
 echo signing 512 bit client cert
-$SSLEAY x509 -md5 -days 365 \
+$SSLEAY x509 -sha256 -days 36525 \
 	-req \
 	-CAcreateserial -CAserial ca-cert.srl \
 	-CA ca-cert.pem -CAkey ca-key.pem \

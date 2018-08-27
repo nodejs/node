@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8HEAPPROFILERAGENTIMPL_H_
-#define V8_INSPECTOR_V8HEAPPROFILERAGENTIMPL_H_
+#ifndef V8_INSPECTOR_V8_HEAP_PROFILER_AGENT_IMPL_H_
+#define V8_INSPECTOR_V8_HEAP_PROFILER_AGENT_IMPL_H_
 
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
@@ -66,4 +66,4 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8HEAPPROFILERAGENTIMPL_H_
+#endif  // V8_INSPECTOR_V8_HEAP_PROFILER_AGENT_IMPL_H_

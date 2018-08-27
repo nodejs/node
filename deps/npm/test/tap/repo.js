@@ -14,7 +14,7 @@ common.pendIfWindows('This is trickier to convert without opening new shells')
 
 test('setup', function (t) {
   var s = '#!/usr/bin/env bash\n' +
-          'echo \"$@\" > ' + JSON.stringify(__dirname) + '/_output\n'
+          'echo "$@" > ' + JSON.stringify(__dirname) + '/_output\n'
   fs.writeFileSync(fakeBrowser, s, 'ascii')
   fs.chmodSync(fakeBrowser, '0755')
   t.pass('made script')

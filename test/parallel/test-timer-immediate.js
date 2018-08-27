@@ -1,5 +1,5 @@
 'use strict';
 const common = require('../common');
-common.globalCheck = false;
 global.process = {};  // Boom!
+common.allowGlobals(global.process);
 setImmediate(common.mustCall());

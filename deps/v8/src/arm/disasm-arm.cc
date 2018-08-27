@@ -937,8 +937,14 @@ void Decoder::DecodeType01(Instruction* instr) {
     } else {
       Unknown(instr);  // not used by V8
     }
-  } else if ((type == 1) && instr->IsNopType1()) {
-    Format(instr, "nop'cond");
+  } else if ((type == 1) && instr->IsNopLikeType1()) {
+    if (instr->BitField(7, 0) == 0) {
+      Format(instr, "nop'cond");
+    } else if (instr->BitField(7, 0) == 20) {
+      Format(instr, "csdb");
+    } else {
+      Unknown(instr);  // Not used in V8.
+    }
   } else {
     switch (instr->OpcodeField()) {
       case AND: {
@@ -2586,7 +2592,7 @@ int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
 
 // Disassemble the instruction at *instr_ptr into the output buffer.
 int Decoder::InstructionDecode(byte* instr_ptr) {
-  Instruction* instr = Instruction::At(instr_ptr);
+  Instruction* instr = Instruction::At(reinterpret_cast<Address>(instr_ptr));
   // Print raw instruction bytes.
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                               "%08x       ",

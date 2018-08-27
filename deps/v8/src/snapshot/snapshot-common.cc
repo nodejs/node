@@ -8,6 +8,8 @@
 
 #include "src/api.h"
 #include "src/base/platform/platform.h"
+#include "src/callable.h"
+#include "src/interface-descriptors.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/builtin-deserializer.h"
 #include "src/snapshot/builtin-serializer.h"
@@ -89,6 +91,10 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
 
 // static
 Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
+  if (FLAG_trace_lazy_deserialization) {
+    PrintF("Lazy-deserializing builtin %s\n", Builtins::name(builtin_id));
+  }
+
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -108,7 +114,8 @@ Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
            Builtins::name(builtin_id), bytes, ms);
   }
 
-  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
+  if (isolate->logger()->is_listening_to_code_events() ||
+      isolate->is_profiling()) {
     isolate->logger()->LogCodeObject(code);
   }
 
@@ -116,9 +123,60 @@ Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
 }
 
 // static
+void Snapshot::EnsureAllBuiltinsAreDeserialized(Isolate* isolate) {
+  if (!FLAG_lazy_deserialization) return;
+
+  if (FLAG_trace_lazy_deserialization) {
+    PrintF("Forcing eager builtin deserialization\n");
+  }
+
+  Builtins* builtins = isolate->builtins();
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    if (!Builtins::IsLazy(i)) continue;
+
+    DCHECK_NE(Builtins::kDeserializeLazy, i);
+    Code* code = builtins->builtin(i);
+    if (code->builtin_index() == Builtins::kDeserializeLazy) {
+      code = Snapshot::DeserializeBuiltin(isolate, i);
+    }
+
+    DCHECK_EQ(i, code->builtin_index());
+    DCHECK_EQ(code, builtins->builtin(i));
+  }
+}
+
+// static
+Code* Snapshot::EnsureBuiltinIsDeserialized(Isolate* isolate,
+                                            Handle<SharedFunctionInfo> shared) {
+  DCHECK(FLAG_lazy_deserialization);
+
+  int builtin_id = shared->builtin_id();
+
+  // We should never lazily deserialize DeserializeLazy.
+  DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
+
+  // Look up code from builtins list.
+  Code* code = isolate->builtins()->builtin(builtin_id);
+
+  // Deserialize if builtin is not on the list.
+  if (code->builtin_index() != builtin_id) {
+    DCHECK_EQ(code->builtin_index(), Builtins::kDeserializeLazy);
+    code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
+    DCHECK_EQ(builtin_id, code->builtin_index());
+    DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
+  }
+  return code;
+}
+
+// static
 Code* Snapshot::DeserializeHandler(Isolate* isolate,
                                    interpreter::Bytecode bytecode,
                                    interpreter::OperandScale operand_scale) {
+  if (FLAG_trace_lazy_deserialization) {
+    PrintF("Lazy-deserializing handler %s\n",
+           interpreter::Bytecodes::ToString(bytecode, operand_scale).c_str());
+  }
+
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -138,7 +196,8 @@ Code* Snapshot::DeserializeHandler(Isolate* isolate,
            bytes, ms);
   }
 
-  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
+  if (isolate->logger()->is_listening_to_code_events() ||
+      isolate->is_profiling()) {
     isolate->logger()->LogBytecodeHandler(bytecode, operand_scale, code);
   }
 
@@ -236,6 +295,153 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   return result;
 }
 
+#ifdef V8_EMBEDDED_BUILTINS
+namespace {
+bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code* code) {
+  DCHECK(Builtins::IsIsolateIndependent(code->builtin_index()));
+  switch (Builtins::KindOf(code->builtin_index())) {
+    case Builtins::CPP:
+    case Builtins::TFC:
+    case Builtins::TFH:
+    case Builtins::TFJ:
+    case Builtins::TFS:
+      break;
+    case Builtins::API:
+    case Builtins::ASM:
+      // TODO(jgruber): Extend checks to remaining kinds.
+      return false;
+  }
+
+  Callable callable = Builtins::CallableFor(
+      isolate, static_cast<Builtins::Name>(code->builtin_index()));
+  CallInterfaceDescriptor descriptor = callable.descriptor();
+
+  if (descriptor.ContextRegister() == kOffHeapTrampolineRegister) {
+    return true;
+  }
+
+  for (int i = 0; i < descriptor.GetRegisterParameterCount(); i++) {
+    Register reg = descriptor.GetRegisterParameter(i);
+    if (reg == kOffHeapTrampolineRegister) return true;
+  }
+
+  return false;
+}
+}  // namespace
+
+// static
+EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
+  Builtins* builtins = isolate->builtins();
+
+  // Store instruction stream lengths and offsets.
+  std::vector<uint32_t> lengths(kTableSize);
+  std::vector<uint32_t> offsets(kTableSize);
+
+  bool saw_unsafe_builtin = false;
+  uint32_t raw_data_size = 0;
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    Code* code = builtins->builtin(i);
+
+    if (Builtins::IsIsolateIndependent(i)) {
+      DCHECK(!Builtins::IsLazy(i));
+
+      // Sanity-check that the given builtin is isolate-independent and does not
+      // use the trampoline register in its calling convention.
+      if (!code->IsProcessIndependent()) {
+        saw_unsafe_builtin = true;
+        fprintf(stderr, "%s is not isolate-independent.\n", Builtins::name(i));
+      }
+      if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
+        saw_unsafe_builtin = true;
+        fprintf(stderr, "%s aliases the off-heap trampoline register.\n",
+                Builtins::name(i));
+      }
+
+      uint32_t length = static_cast<uint32_t>(code->raw_instruction_size());
+
+      DCHECK_EQ(0, raw_data_size % kCodeAlignment);
+      offsets[i] = raw_data_size;
+      lengths[i] = length;
+
+      // Align the start of each instruction stream.
+      raw_data_size += RoundUp<kCodeAlignment>(length);
+    } else {
+      offsets[i] = raw_data_size;
+      lengths[i] = 0;
+    }
+  }
+  CHECK_WITH_MSG(
+      !saw_unsafe_builtin,
+      "One or more builtins marked as isolate-independent either contains "
+      "isolate-dependent code or aliases the off-heap trampoline register. "
+      "If in doubt, ask jgruber@");
+
+  const uint32_t blob_size = RawDataOffset() + raw_data_size;
+  uint8_t* blob = new uint8_t[blob_size];
+  std::memset(blob, 0, blob_size);
+
+  // Write the offsets and length tables.
+  DCHECK_EQ(OffsetsSize(), sizeof(offsets[0]) * offsets.size());
+  std::memcpy(blob + OffsetsOffset(), offsets.data(), OffsetsSize());
+
+  DCHECK_EQ(LengthsSize(), sizeof(lengths[0]) * lengths.size());
+  std::memcpy(blob + LengthsOffset(), lengths.data(), LengthsSize());
+
+  // Write the raw data section.
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    if (!Builtins::IsIsolateIndependent(i)) continue;
+    Code* code = builtins->builtin(i);
+    uint32_t offset = offsets[i];
+    uint8_t* dst = blob + RawDataOffset() + offset;
+    DCHECK_LE(RawDataOffset() + offset + code->raw_instruction_size(),
+              blob_size);
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code->raw_instruction_start()),
+                code->raw_instruction_size());
+  }
+
+  EmbeddedData d(blob, blob_size);
+
+  // Hash the blob and store the result.
+  STATIC_ASSERT(HashSize() == kSizetSize);
+  const size_t hash = d.CreateHash();
+  std::memcpy(blob + HashOffset(), &hash, HashSize());
+
+  DCHECK_EQ(hash, d.CreateHash());
+  DCHECK_EQ(hash, d.Hash());
+
+  return d;
+}
+
+EmbeddedData EmbeddedData::FromBlob() {
+  const uint8_t* data = Isolate::CurrentEmbeddedBlob();
+  uint32_t size = Isolate::CurrentEmbeddedBlobSize();
+  DCHECK_NOT_NULL(data);
+  DCHECK_LT(0, size);
+  return {data, size};
+}
+
+Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
+  DCHECK(Builtins::IsBuiltinId(i));
+  const uint32_t* offsets = Offsets();
+  const uint8_t* result = RawData() + offsets[i];
+  DCHECK_LE(result, data_ + size_);
+  DCHECK_IMPLIES(result == data_ + size_, InstructionSizeOfBuiltin(i) == 0);
+  return reinterpret_cast<Address>(result);
+}
+
+uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
+  DCHECK(Builtins::IsBuiltinId(i));
+  const uint32_t* lengths = Lengths();
+  return lengths[i];
+}
+
+size_t EmbeddedData::CreateHash() const {
+  STATIC_ASSERT(HashOffset() == 0);
+  STATIC_ASSERT(HashSize() == kSizetSize);
+  return base::hash_range(data_ + HashSize(), data_ + size_);
+}
+#endif
+
 uint32_t Snapshot::ExtractNumContexts(const v8::StartupData* data) {
   CHECK_LT(kNumberOfContextsOffset, data->raw_size);
   uint32_t num_contexts = GetHeaderValue(data, kNumberOfContextsOffset);
@@ -312,16 +518,16 @@ void Snapshot::CheckVersion(const v8::StartupData* data) {
   CHECK_LT(kVersionStringOffset + kVersionStringLength,
            static_cast<uint32_t>(data->raw_size));
   Version::GetString(Vector<char>(version, kVersionStringLength));
-  if (memcmp(version, data->data + kVersionStringOffset,
-             kVersionStringLength) != 0) {
-    V8_Fatal(__FILE__, __LINE__,
-             "Version mismatch between V8 binary and snapshot.\n"
-             "#   V8 binary version: %.*s\n"
-             "#    Snapshot version: %.*s\n"
-             "# The snapshot consists of %d bytes and contains %d context(s).",
-             kVersionStringLength, version, kVersionStringLength,
-             data->data + kVersionStringOffset, data->raw_size,
-             ExtractNumContexts(data));
+  if (strncmp(version, data->data + kVersionStringOffset,
+              kVersionStringLength) != 0) {
+    FATAL(
+        "Version mismatch between V8 binary and snapshot.\n"
+        "#   V8 binary version: %.*s\n"
+        "#    Snapshot version: %.*s\n"
+        "# The snapshot consists of %d bytes and contains %d context(s).",
+        kVersionStringLength, version, kVersionStringLength,
+        data->data + kVersionStringOffset, data->raw_size,
+        ExtractNumContexts(data));
   }
 }
 

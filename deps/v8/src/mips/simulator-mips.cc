@@ -783,8 +783,7 @@ void MipsDebugger::Debug() {
 #undef XSTR
 }
 
-
-static bool ICacheMatch(void* one, void* two) {
+bool Simulator::ICacheMatch(void* one, void* two) {
   DCHECK_EQ(reinterpret_cast<intptr_t>(one) & CachePage::kPageMask, 0);
   DCHECK_EQ(reinterpret_cast<intptr_t>(two) & CachePage::kPageMask, 0);
   return one == two;
@@ -883,11 +882,6 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
-  i_cache_ = isolate_->simulator_i_cache();
-  if (i_cache_ == nullptr) {
-    i_cache_ = new base::CustomMatcherHashMap(&ICacheMatch);
-    isolate_->set_simulator_i_cache(i_cache_);
-  }
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
   stack_ = reinterpret_cast<char*>(malloc(stack_size_));
@@ -933,7 +927,6 @@ Simulator::~Simulator() { free(stack_); }
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
        isolate->FindOrAllocatePerThreadDataForThisThread();
-  DCHECK_NOT_NULL(isolate_data);
   DCHECK_NOT_NULL(isolate_data);
 
   Simulator* sim = isolate_data->simulator();
@@ -2307,17 +2300,18 @@ void Simulator::SoftwareInterrupt() {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
             PrintF("Call to host function at %p with args %f, %f",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                   dval1);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
             PrintF("Call to host function at %p with arg %f",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
             PrintF("Call to host function at %p with args %f, %d",
-                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
-                   ival);
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0, ival);
             break;
           default:
             UNREACHABLE();
@@ -2417,8 +2411,8 @@ void Simulator::SoftwareInterrupt() {
         PrintF(
             "Call to host function at %p "
             "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x\n",
-            static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
-            arg4, arg5, arg6, arg7, arg8);
+            reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
+            arg3, arg4, arg5, arg6, arg7, arg8);
       }
       int64_t result =
           target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
@@ -2539,8 +2533,7 @@ void Simulator::PrintStopInfo(uint32_t code) {
 
 
 void Simulator::SignalException(Exception e) {
-  V8_Fatal(__FILE__, __LINE__, "Error: Exception %i raised.",
-           static_cast<int>(e));
+  FATAL("Error: Exception %i raised.", static_cast<int>(e));
 }
 
 // Min/Max template functions for Double and Single arguments.
@@ -5690,7 +5683,8 @@ void Simulator::DecodeTypeMsa3RF() {
     case MSUB_Q:
     case MADDR_Q:
     case MSUBR_Q:
-      get_msa_register(wd_reg(), &wd);  // fall-through
+      get_msa_register(wd_reg(), &wd);
+      V8_FALLTHROUGH;
     case MUL_Q:
     case MULR_Q:
       switch (DecodeMsaDataFormat()) {
@@ -6912,7 +6906,7 @@ void Simulator::DecodeTypeJump() {
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
-    CheckICache(isolate_->simulator_i_cache(), instr);
+    CheckICache(i_cache(), instr);
   }
   pc_modified_ = false;
   v8::internal::EmbeddedVector<char, 256> buffer;
@@ -6980,13 +6974,12 @@ void Simulator::Execute() {
   }
 }
 
-
-void Simulator::CallInternal(byte* entry) {
+void Simulator::CallInternal(Address entry) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
   // Prepare to execute the code at entry.
-  set_register(pc, reinterpret_cast<int32_t>(entry));
+  set_register(pc, static_cast<int32_t>(entry));
   // Put down marker for end of simulation. The simulator will stop simulation
   // when the PC reaches this value. By saving the "end simulation" value into
   // the LR the simulation stops when returning to this call point.
@@ -7050,7 +7043,7 @@ void Simulator::CallInternal(byte* entry) {
   set_register(fp, fp_val);
 }
 
-intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+intptr_t Simulator::CallImpl(Address entry, int argument_count,
                              const intptr_t* arguments) {
   // Set up arguments.
 
@@ -7084,8 +7077,7 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   return get_register(v0);
 }
 
-
-double Simulator::CallFP(byte* entry, double d0, double d1) {
+double Simulator::CallFP(Address entry, double d0, double d1) {
   if (!IsMipsSoftFloatABI) {
     set_fpu_register_double(f12, d0);
     set_fpu_register_double(f14, d1);

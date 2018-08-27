@@ -1,7 +1,7 @@
 #include <node_api.h>
 #include "../common.h"
 
-napi_value AsBool(napi_env env, napi_callback_info info) {
+static napi_value AsBool(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -15,7 +15,7 @@ napi_value AsBool(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value AsInt32(napi_env env, napi_callback_info info) {
+static napi_value AsInt32(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -29,7 +29,7 @@ napi_value AsInt32(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value AsUInt32(napi_env env, napi_callback_info info) {
+static napi_value AsUInt32(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -43,7 +43,7 @@ napi_value AsUInt32(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value AsInt64(napi_env env, napi_callback_info info) {
+static napi_value AsInt64(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -57,7 +57,7 @@ napi_value AsInt64(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value AsDouble(napi_env env, napi_callback_info info) {
+static napi_value AsDouble(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -71,7 +71,7 @@ napi_value AsDouble(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value AsString(napi_env env, napi_callback_info info) {
+static napi_value AsString(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -87,7 +87,7 @@ napi_value AsString(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value ToBool(napi_env env, napi_callback_info info) {
+static napi_value ToBool(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -98,7 +98,7 @@ napi_value ToBool(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value ToNumber(napi_env env, napi_callback_info info) {
+static napi_value ToNumber(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -109,7 +109,7 @@ napi_value ToNumber(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value ToObject(napi_env env, napi_callback_info info) {
+static napi_value ToObject(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -120,7 +120,7 @@ napi_value ToObject(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value ToString(napi_env env, napi_callback_info info) {
+static napi_value ToString(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -131,7 +131,7 @@ napi_value ToString(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("asBool", AsBool),
     DECLARE_NAPI_PROPERTY("asInt32", AsInt32),

@@ -4,43 +4,174 @@
 
 "use strict";
 
+function anyToString(x) {
+  return "" + x;
+}
+
 class TextView extends View {
-  constructor(id, broker, patterns, allowSpanSelection) {
+  constructor(id, broker, patterns) {
     super(id, broker);
     let view = this;
-    view.hide();
     view.textListNode = view.divNode.getElementsByTagName('ul')[0];
-    view.fillerSvgElement = view.divElement.append("svg").attr('version','1.1').attr("width", "0");
     view.patterns = patterns;
-    view.allowSpanSelection = allowSpanSelection;
-    view.nodeToLineMap = [];
-    var selectionHandler = {
-      clear: function() {
-        broker.clear(selectionHandler);
-      },
-      select: function(items, selected) {
-        for (let i of items) {
-          if (selected) {
-            i.classList.add("selected");
-          } else {
-            i.classList.remove("selected");
-          }
-        }
-        broker.clear(selectionHandler);
-        broker.select(selectionHandler, view.getLocations(items), selected);
-      },
-      selectionDifference: function(span1, inclusive1, span2, inclusive2) {
-        return null;
-      },
-      brokeredSelect: function(locations, selected) {
-        view.selectLocations(locations, selected, true);
-      },
-      brokeredClear: function() {
+    view.nodeIdToHtmlElementsMap = new Map();
+    view.blockIdToHtmlElementsMap = new Map();
+    view.sourcePositionToHtmlElementsMap = new Map();
+    view.blockIdtoNodeIds = new Map();
+    view.nodeIdToBlockId = [];
+    view.selection = new Selection(anyToString);
+    view.blockSelection = new Selection(anyToString);
+    view.sourcePositionSelection = new Selection(sourcePositionToStringKey);
+    const selectionHandler = {
+      clear: function () {
         view.selection.clear();
+        view.updateSelection();
+        broker.broadcastClear(selectionHandler);
+      },
+      select: function (nodeIds, selected) {
+        view.selection.select(nodeIds, selected);
+        const blockIds = view.blockIdsForNodeIds(nodeIds);
+        view.blockSelection.select(blockIds, selected);
+        view.updateSelection();
+        broker.broadcastNodeSelect(selectionHandler, view.selection.selectedKeys(), selected);
+        broker.broadcastBlockSelect(view.blockSelectionHandler, blockIds, selected);
+      },
+      brokeredNodeSelect: function (nodeIds, selected) {
+        const firstSelect = view.blockSelection.isEmpty();
+        view.selection.select(nodeIds, selected);
+        const blockIds = view.blockIdsForNodeIds(nodeIds);
+        view.blockSelection.select(blockIds, selected);
+        view.updateSelection(firstSelect);
+      },
+      brokeredClear: function () {
+        view.selection.clear();
+        view.updateSelection();
       }
     };
-    view.selection = new Selection(selectionHandler);
-    broker.addSelectionHandler(selectionHandler);
+    this.selectionHandler = selectionHandler;
+    broker.addNodeHandler(selectionHandler);
+    view.divNode.onmouseup = function (e) {
+      if (!e.shiftKey) {
+        view.selectionHandler.clear();
+      }
+    }
+    const blockSelectionHandler = {
+      clear: function () {
+        view.blockSelection.clear();
+        view.updateSelection();
+        broker.broadcastClear(blockSelectionHandler);
+      },
+      select: function (blockIds, selected) {
+        view.blockSelection.select(blockIds, selected);
+        view.updateSelection();
+        broker.broadcastBlockSelect(blockSelectionHandler, blockIds, selected);
+      },
+      brokeredBlockSelect: function (blockIds, selected) {
+        const firstSelect = view.blockSelection.isEmpty();
+        view.blockSelection.select(blockIds, selected);
+        view.updateSelection(firstSelect);
+      },
+      brokeredClear: function () {
+        view.blockSelection.clear();
+        view.updateSelection();
+      }
+    };
+    this.blockSelectionHandler = blockSelectionHandler;
+    broker.addBlockHandler(blockSelectionHandler);
+    const sourcePositionSelectionHandler = {
+      clear: function () {
+        view.sourcePositionSelection.clear();
+        view.updateSelection();
+        broker.broadcastClear(sourcePositionSelectionHandler);
+      },
+      select: function (sourcePositions, selected) {
+        view.sourcePositionSelection.select(sourcePositions, selected);
+        view.updateSelection();
+        broker.broadcastSourcePositionSelect(sourcePositionSelectionHandler, sourcePositions, selected);
+      },
+      brokeredSourcePositionSelect: function (sourcePositions, selected) {
+        const firstSelect = view.sourcePositionSelection.isEmpty();
+        view.sourcePositionSelection.select(sourcePositions, selected);
+        view.updateSelection(firstSelect);
+      },
+      brokeredClear: function () {
+        view.sourcePositionSelection.clear();
+        view.updateSelection();
+      }
+    };
+    view.sourcePositionSelectionHandler = sourcePositionSelectionHandler;
+    broker.addSourcePositionHandler(sourcePositionSelectionHandler);
+  }
+
+  addHtmlElementForNodeId(anyNodeId, htmlElement) {
+    const nodeId = anyToString(anyNodeId);
+    if (!this.nodeIdToHtmlElementsMap.has(nodeId)) {
+      this.nodeIdToHtmlElementsMap.set(nodeId, []);
+    }
+    this.nodeIdToHtmlElementsMap.get(nodeId).push(htmlElement);
+  }
+
+  addHtmlElementForSourcePosition(sourcePosition, htmlElement) {
+    const key = sourcePositionToStringKey(sourcePosition);
+    if (!this.sourcePositionToHtmlElementsMap.has(key)) {
+      this.sourcePositionToHtmlElementsMap.set(key, []);
+    }
+    this.sourcePositionToHtmlElementsMap.get(key).push(htmlElement);
+  }
+
+  addHtmlElementForBlockId(anyBlockId, htmlElement) {
+    const blockId = anyToString(anyBlockId);
+    if (!this.blockIdToHtmlElementsMap.has(blockId)) {
+      this.blockIdToHtmlElementsMap.set(blockId, []);
+    }
+    this.blockIdToHtmlElementsMap.get(blockId).push(htmlElement);
+  }
+
+  addNodeIdToBlockId(anyNodeId, anyBlockId) {
+    const blockId = anyToString(anyBlockId);
+    if (!this.blockIdtoNodeIds.has(blockId)) {
+      this.blockIdtoNodeIds.set(blockId, []);
+    }
+    this.blockIdtoNodeIds.get(blockId).push(anyToString(anyNodeId));
+    this.nodeIdToBlockId[anyNodeId] = blockId;
+  }
+
+  blockIdsForNodeIds(nodeIds) {
+    const blockIds = [];
+    for (const nodeId of nodeIds) {
+      const blockId = this.nodeIdToBlockId[nodeId];
+      if (blockId == undefined) continue;
+      blockIds.push(blockId);
+    }
+    return blockIds;
+  }
+
+  updateSelection(scrollIntoView) {
+    if (this.divNode.parentNode == null) return;
+    const mkVisible = new ViewElements(this.divNode.parentNode);
+    const view = this;
+    for (const [nodeId, elements] of this.nodeIdToHtmlElementsMap.entries()) {
+      const isSelected = view.selection.isSelected(nodeId);
+      for (const element of elements) {
+        mkVisible.consider(element, isSelected);
+        element.classList.toggle("selected", isSelected);
+      }
+    }
+    for (const [blockId, elements] of this.blockIdToHtmlElementsMap.entries()) {
+      const isSelected = view.blockSelection.isSelected(blockId);
+      for (const element of elements) {
+        mkVisible.consider(element, isSelected);
+        element.classList.toggle("selected", isSelected);
+      }
+    }
+    for (const [sourcePositionKey, elements] of this.sourcePositionToHtmlElementsMap.entries()) {
+      const isSelected = view.sourcePositionSelection.isKeySelected(sourcePositionKey);
+      for (const element of elements) {
+        mkVisible.consider(element, isSelected);
+        element.classList.toggle("selected", isSelected);
+      }
+    }
+    mkVisible.apply(scrollIntoView);
   }
 
   setPatterns(patterns) {
@@ -55,77 +186,68 @@ class TextView extends View {
     }
   }
 
-  sameLocation(l1, l2) {
-    let view = this;
-    if (l1.block_id != undefined && l2.block_id != undefined &&
-      l1.block_id == l2.block_id && l1.node_id === undefined) {
-      return true;
-    }
-
-    if (l1.address != undefined && l1.address == l2.address) {
-      return true;
-    }
-
-    let node1 = l1.node_id;
-    let node2 = l2.node_id;
-
-    if (node1 === undefined || node2 == undefined) {
-      if (l1.pos_start === undefined || l2.pos_start == undefined) {
-        return false;
-      }
-      if (l1.pos_start == -1 || l2.pos_start == -1) {
-        return false;
-      }
-      if (l1.pos_start < l2.pos_start) {
-        return l1.pos_end > l2.pos_start;
-      } {
-        return l1.pos_start < l2.pos_end;
-      }
-    }
-
-    return l1.node_id == l2.node_id;
-  }
-
-  selectLocations(locations, selected, makeVisible) {
-    let view = this;
-    let s = new Set();
-    for (let l of locations) {
-      for (let i = 0; i < view.textListNode.children.length; ++i) {
-        let child = view.textListNode.children[i];
-        if (child.location != undefined && view.sameLocation(l, child.location)) {
-          s.add(child);
-        }
-      }
-    }
-    view.selectCommon(s, selected, makeVisible);
-  }
-
-  getLocations(items) {
-    let result = [];
-    let lastObject = null;
-    for (let i of items) {
-      if (i.location) {
-        result.push(i.location);
-      }
-    }
-    return result;
-  }
-
   createFragment(text, style) {
     let view = this;
-    let span = document.createElement("SPAN");
-    span.onmousedown = function(e) {
-      view.mouseDownSpan(span, e);
-    }
-    if (style != undefined) {
-      span.classList.add(style);
-    }
-    span.innerHTML = text;
-    return span;
-  }
+    let fragment = document.createElement("SPAN");
 
-  appendFragment(li, fragment) {
-    li.appendChild(fragment);
+    if (style.blockId != undefined) {
+      const blockId = style.blockId(text);
+      if (blockId != undefined) {
+        fragment.blockId = blockId;
+        this.addHtmlElementForBlockId(blockId, fragment);
+      }
+    }
+
+    if (typeof style.link == 'function') {
+      fragment.classList.add('linkable-text');
+      fragment.onmouseup = function (e) {
+        e.stopPropagation();
+        style.link(text)
+      };
+    }
+
+    if (typeof style.nodeId == 'function') {
+      const nodeId = style.nodeId(text);
+      if (nodeId != undefined) {
+        fragment.nodeId = nodeId;
+        this.addHtmlElementForNodeId(nodeId, fragment);
+      }
+    }
+
+    if (typeof style.sourcePosition === 'function') {
+      const sourcePosition = style.sourcePosition(text);
+      if (sourcePosition != undefined) {
+        fragment.sourcePosition = sourcePosition;
+        //this.addHtmlElementForNodeId(nodeId, fragment);
+      }
+    }
+
+    if (typeof style.assignSourcePosition === 'function') {
+      fragment.sourcePosition = style.assignSourcePosition();
+      this.addHtmlElementForSourcePosition(fragment.sourcePosition, fragment)
+    }
+
+    if (typeof style.assignBlockId === 'function') {
+      fragment.blockId = style.assignBlockId();
+      this.addNodeIdToBlockId(fragment.nodeId, fragment.blockId);
+    }
+
+      if (typeof style.linkHandler == 'function') {
+      const handler = style.linkHandler(text, fragment)
+      if (handler !== undefined) {
+        fragment.classList.add('linkable-text');
+        fragment.onmouseup = handler;
+      }
+    }
+
+    if (style.css != undefined) {
+      const css = isIterable(style.css) ? style.css : [style.css];
+      for (const cls of css) {
+        fragment.classList.add(cls);
+      }
+    }
+    fragment.innerHTML = text;
+    return fragment;
   }
 
   processLine(line) {
@@ -141,18 +263,8 @@ class TextView extends View {
             let style = pattern[1] != null ? pattern[1] : {};
             let text = matches[0];
             if (text != '') {
-              let fragment = view.createFragment(matches[0], style.css);
-              if (style.link) {
-                fragment.classList.add('linkable-text');
-                fragment.link = style.link;
-              }
+              let fragment = view.createFragment(matches[0], style);
               result.push(fragment);
-              if (style.location != undefined) {
-                let location = style.location(text);
-                if (location != undefined) {
-                  fragment.location = location;
-                }
-              }
             }
             line = line.substr(matches[0].length);
           }
@@ -162,7 +274,7 @@ class TextView extends View {
           }
           if (line == "") {
             if (nextPatternSet != -1) {
-              throw("illegal parsing state in text-view in patternSet" + patternSet);
+              throw ("illegal parsing state in text-view in patternSet" + patternSet);
             }
             return result;
           }
@@ -171,69 +283,8 @@ class TextView extends View {
         }
       }
       if (beforeLine == line) {
-        throw("input not consumed in text-view in patternSet" + patternSet);
+        throw ("input not consumed in text-view in patternSet" + patternSet);
       }
-    }
-  }
-
-  select(s, selected, makeVisible) {
-    let view = this;
-    view.selection.clear();
-    view.selectCommon(s, selected, makeVisible);
-  }
-
-  selectCommon(s, selected, makeVisible) {
-    let view = this;
-    let firstSelect = makeVisible && view.selection.isEmpty();
-    if ((typeof s) === 'function') {
-      for (let i = 0; i < view.textListNode.children.length; ++i) {
-        let child = view.textListNode.children[i];
-        if (child.location && s(child.location)) {
-          if (firstSelect) {
-            makeContainerPosVisible(view.parentNode, child.offsetTop);
-            firstSelect = false;
-          }
-          view.selection.select(child, selected);
-        }
-      }
-    } else if (typeof s[Symbol.iterator] === 'function') {
-      if (firstSelect) {
-        for (let i of s) {
-          makeContainerPosVisible(view.parentNode, i.offsetTop);
-          break;
-        }
-      }
-      view.selection.select(s, selected);
-    } else {
-      if (firstSelect) {
-        makeContainerPosVisible(view.parentNode, s.offsetTop);
-      }
-      view.selection.select(s, selected);
-    }
-  }
-
-  mouseDownLine(li, e) {
-    let view = this;
-    e.stopPropagation();
-    if (!e.shiftKey) {
-      view.selection.clear();
-    }
-    if (li.location != undefined) {
-      view.selectLocations([li.location], true, false);
-    }
-  }
-
-  mouseDownSpan(span, e) {
-    let view = this;
-    if (view.allowSpanSelection) {
-      e.stopPropagation();
-      if (!e.shiftKey) {
-        view.selection.clear();
-      }
-      select(li, true);
-    } else if (span.link) {
-      span.link(span.textContent);
-      e.stopPropagation();
     }
   }
 
@@ -243,18 +294,11 @@ class TextView extends View {
     let lineNo = 0;
     for (let line of textLines) {
       let li = document.createElement("LI");
-      li.onmousedown = function(e) {
-        view.mouseDownLine(li, e);
-      }
       li.className = "nolinenums";
       li.lineNo = lineNo++;
       let fragments = view.processLine(line);
       for (let fragment of fragments) {
-        view.appendFragment(li, fragment);
-      }
-      let lineLocation = view.lineLocation(li);
-      if (lineLocation != undefined) {
-        li.location = lineLocation;
+        li.appendChild(fragment);
       }
       view.textListNode.appendChild(li);
     }
@@ -262,15 +306,8 @@ class TextView extends View {
 
   initializeContent(data, rememberedSelection) {
     let view = this;
-    view.selection.clear();
     view.clearText();
     view.processText(data);
-    var fillerSize = document.documentElement.clientHeight -
-        view.textListNode.clientHeight;
-    if (fillerSize < 0) {
-      fillerSize = 0;
-    }
-    view.fillerSvgElement.attr("height", fillerSize);
   }
 
   deleteContent() {
@@ -278,19 +315,5 @@ class TextView extends View {
 
   isScrollable() {
     return true;
-  }
-
-  detachSelection() {
-    return null;
-  }
-
-  lineLocation(li) {
-    let view = this;
-    for (let i = 0; i < li.children.length; ++i) {
-      let fragment = li.children[i];
-      if (fragment.location != undefined && !view.allowSpanSelection) {
-        return fragment.location;
-      }
-    }
   }
 }

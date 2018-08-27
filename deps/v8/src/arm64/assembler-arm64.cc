@@ -157,14 +157,20 @@ CPURegList CPURegList::GetSafepointSavedRegisters() {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
-const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
-
+const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
+                                  1 << RelocInfo::RUNTIME_ENTRY |
+                                  1 << RelocInfo::INTERNAL_REFERENCE;
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded. Being
-  // specially coded on ARM64 means that it is a movz/movk sequence. We don't
-  // generate those for relocatable pointers.
-  return false;
+  // specially coded on ARM64 means that it is an immediate branch.
+  Instruction* instr = reinterpret_cast<Instruction*>(pc_);
+  if (instr->IsLdrLiteralX()) {
+    return false;
+  } else {
+    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+    return true;
+  }
 }
 
 
@@ -174,29 +180,27 @@ bool RelocInfo::IsInConstantPool() {
 }
 
 Address RelocInfo::embedded_address() const {
-  return Memory::Address_at(Assembler::target_pointer_address_at(pc_));
+  return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 uint32_t RelocInfo::embedded_size() const {
   return Memory::uint32_at(Assembler::target_pointer_address_at(pc_));
 }
 
-void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
+void RelocInfo::set_embedded_address(Address address,
                                      ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate, pc_, constant_pool_, address,
-                                   flush_mode);
+  Assembler::set_target_address_at(pc_, constant_pool_, address, flush_mode);
 }
 
-void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
-                                  ICacheFlushMode flush_mode) {
+void RelocInfo::set_embedded_size(uint32_t size, ICacheFlushMode flush_mode) {
   Memory::uint32_at(Assembler::target_pointer_address_at(pc_)) = size;
   // No icache flushing needed, see comment in set_target_address_at.
 }
 
-void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+void RelocInfo::set_js_to_wasm_address(Address address,
                                        ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  set_embedded_address(isolate, address, icache_flush_mode);
+  set_embedded_address(address, icache_flush_mode);
 }
 
 Address RelocInfo::js_to_wasm_address() const {
@@ -292,7 +296,7 @@ bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
 }
 
 void Immediate::InitializeHandle(Handle<HeapObject> handle) {
-  value_ = reinterpret_cast<intptr_t>(handle.address());
+  value_ = static_cast<intptr_t>(handle.address());
   rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
@@ -467,9 +471,6 @@ void ConstPool::Clear() {
 
 
 bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
-  // Constant pool currently does not support 32-bit entries.
-  DCHECK(mode != RelocInfo::NONE32);
-
   return RelocInfo::IsNone(mode) ||
          (mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE);
 }
@@ -575,8 +576,8 @@ void Assembler::Reset() {
   memset(buffer_, 0, pc_ - buffer_);
 #endif
   pc_ = buffer_;
-  reloc_info_writer.Reposition(reinterpret_cast<byte*>(buffer_ + buffer_size_),
-                               reinterpret_cast<byte*>(pc_));
+  code_targets_.reserve(64);
+  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   constpool_.Clear();
   next_constant_pool_check_ = 0;
   next_veneer_pool_check_ = kMaxInt;
@@ -585,19 +586,27 @@ void Assembler::Reset() {
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   for (auto& request : heap_object_requests_) {
-    Handle<HeapObject> object;
+    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber(request.heap_number(),
-                                                   IMMUTABLE, TENURED);
+      case HeapObjectRequest::kHeapNumber: {
+        Handle<HeapObject> object = isolate->factory()->NewHeapNumber(
+            request.heap_number(), IMMUTABLE, TENURED);
+        set_target_address_at(pc, 0 /* unused */, object.address());
         break;
-      case HeapObjectRequest::kCodeStub:
+      }
+      case HeapObjectRequest::kCodeStub: {
         request.code_stub()->set_isolate(isolate);
-        object = request.code_stub()->GetCode();
+        Instruction* instr = reinterpret_cast<Instruction*>(pc);
+        DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+        DCHECK_GE(instr->ImmPCOffset(), 0);
+        DCHECK_EQ(instr->ImmPCOffset() % kInstructionSize, 0);
+        DCHECK_LT(instr->ImmPCOffset() >> kInstructionSizeLog2,
+                  code_targets_.size());
+        code_targets_[instr->ImmPCOffset() >> kInstructionSizeLog2] =
+            request.code_stub()->GetCode();
         break;
+      }
     }
-    Address pc = buffer_ + request.offset();
-    Memory::Address_at(target_pointer_address_at(pc)) = object.address();
   }
 }
 
@@ -1754,7 +1763,6 @@ void Assembler::stlr(const Register& rt, const Register& rn) {
 
 void Assembler::stlxr(const Register& rs, const Register& rt,
                       const Register& rn) {
-  DCHECK(rs.Is32Bits());
   DCHECK(rn.Is64Bits());
   DCHECK(!rs.Is(rt) && !rs.Is(rn));
   LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLXR_w : STLXR_x;
@@ -2993,6 +3001,8 @@ void Assembler::dsb(BarrierDomain domain, BarrierType type) {
 void Assembler::isb() {
   Emit(ISB | ImmBarrierDomain(FullSystem) | ImmBarrierType(BarrierAll));
 }
+
+void Assembler::csdb() { hint(CSDB); }
 
 void Assembler::fmov(const VRegister& vd, double imm) {
   if (vd.IsScalar()) {
@@ -4701,7 +4711,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if (desc.buffer_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
+    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   byte* buffer = reinterpret_cast<byte*>(buffer_);
@@ -4726,7 +4736,7 @@ void Assembler::GrowBuffer() {
   DeleteArray(buffer_);
   buffer_ = desc.buffer;
   buffer_size_ = desc.buffer_size;
-  pc_ = reinterpret_cast<byte*>(pc_) + pc_delta;
+  pc_ = pc_ + pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
@@ -4743,10 +4753,13 @@ void Assembler::GrowBuffer() {
   // Pending relocation entries are also relative, no need to relocate.
 }
 
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
+                                ConstantPoolMode constant_pool_mode) {
+  // Non-relocatable constants should not end up in the literal pool.
+  DCHECK(!RelocInfo::IsNone(rmode));
 
-void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   bool write_reloc_info = true;
 
   if ((rmode == RelocInfo::COMMENT) ||
@@ -4761,12 +4774,14 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
-  } else {
+  } else if (constant_pool_mode == NEEDS_POOL_ENTRY) {
     write_reloc_info = constpool_.RecordEntry(data, rmode);
     // Make sure the constant pool is not emitted in place of the next
     // instruction for which we just recorded relocation info.
     BlockConstPoolFor(1);
   }
+  // For modes that cannot use the constant pool, a different sequence of
+  // instructions will be emitted by this function's caller.
 
   if (!RelocInfo::IsNone(rmode) && write_reloc_info) {
     // Don't record external references unless the heap will be serialized.
@@ -4779,6 +4794,34 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
 }
 
+int Assembler::GetCodeTargetIndex(Handle<Code> target) {
+  int current = static_cast<int>(code_targets_.size());
+  if (current > 0 && !target.is_null() &&
+      code_targets_.back().address() == target.address()) {
+    // Optimization if we keep jumping to the same code target.
+    return (current - 1);
+  } else {
+    code_targets_.push_back(target);
+    return current;
+  }
+}
+
+void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  b(offset);
+}
+
+void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  bl(offset);
+}
+
+void Assembler::near_call(HeapObjectRequest request) {
+  RequestHeapObject(request);
+  int index = GetCodeTargetIndex(Handle<Code>());
+  RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
+  bl(index);
+}
 
 void Assembler::BlockConstPoolFor(int instructions) {
   int pc_limit = pc_offset() + instructions * kInstructionSize;
@@ -4859,8 +4902,8 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
-  RelocInfo rinfo(buffer_ + location_offset, RelocInfo::VENEER_POOL,
-                  static_cast<intptr_t>(size), nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(buffer_) + location_offset,
+                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), nullptr);
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -4966,8 +5009,7 @@ void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
 
 
 int Assembler::buffer_space() const {
-  return static_cast<int>(reloc_info_writer.pos() -
-                          reinterpret_cast<byte*>(pc_));
+  return static_cast<int>(reloc_info_writer.pos() - pc_);
 }
 
 
@@ -5010,6 +5052,15 @@ void PatchingAssembler::PatchAdrFar(int64_t target_offset) {
   add(rd, rd, scratch);
 }
 
+void PatchingAssembler::PatchSubSp(uint32_t immediate) {
+  // The code at the current instruction should be:
+  //   sub sp, sp, #0
+
+  // Verify the expected code.
+  Instruction* expected_adr = InstructionAt(0);
+  CHECK(expected_adr->IsAddSubImmediate());
+  sub(sp, sp, immediate);
+}
 
 }  // namespace internal
 }  // namespace v8

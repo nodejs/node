@@ -51,7 +51,7 @@ class V8_BASE_EXPORT Mutex final {
 
   // Tries to lock the given mutex. Returns whether the mutex was
   // successfully locked.
-  bool TryLock() WARN_UNUSED_RESULT;
+  bool TryLock() V8_WARN_UNUSED_RESULT;
 
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
@@ -150,7 +150,7 @@ class V8_BASE_EXPORT RecursiveMutex final {
 
   // Tries to lock the given mutex. Returns whether the mutex was
   // successfully locked.
-  bool TryLock() WARN_UNUSED_RESULT;
+  bool TryLock() V8_WARN_UNUSED_RESULT;
 
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
@@ -203,11 +203,21 @@ typedef LazyStaticInstance<RecursiveMutex,
 // object was created, the LockGuard is destructed and the mutex is released.
 // The LockGuard class is non-copyable.
 
-template <typename Mutex>
+// Controls whether a LockGuard always requires a valid Mutex or will just
+// ignore it if it's nullptr.
+enum class NullBehavior { kRequireNotNull, kIgnoreIfNull };
+
+template <typename Mutex, NullBehavior Behavior = NullBehavior::kRequireNotNull>
 class LockGuard final {
  public:
-  explicit LockGuard(Mutex* mutex) : mutex_(mutex) { mutex_->Lock(); }
-  ~LockGuard() { mutex_->Unlock(); }
+  explicit LockGuard(Mutex* mutex) : mutex_(mutex) {
+    if (Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr) {
+      mutex_->Lock();
+    }
+  }
+  ~LockGuard() {
+    if (mutex_ != nullptr) mutex_->Unlock();
+  }
 
  private:
   Mutex* mutex_;

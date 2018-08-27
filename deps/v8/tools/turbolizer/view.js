@@ -6,9 +6,9 @@
 
 class View {
   constructor(id, broker) {
-    this.divElement = d3.select("#" + id);
-    this.divNode = this.divElement[0][0];
-    this.parentNode = this.divNode.parentNode;
+    this.container = document.getElementById(id);
+    this.divNode = this.createViewElement();
+    this.divElement = d3.select(this.divNode);
   }
 
   isScrollable() {
@@ -16,7 +16,7 @@ class View {
   }
 
   show(data, rememberedSelection) {
-    this.parentNode.appendChild(this.divElement[0][0]);
+    this.container.appendChild(this.divElement.node());
     this.initializeContent(data, rememberedSelection);
     this.divElement.attr(VISIBILITY, 'visible');
   }
@@ -24,7 +24,7 @@ class View {
   hide() {
     this.divElement.attr(VISIBILITY, 'hidden');
     this.deleteContent();
-    this.parentNode.removeChild(this.divNode);
+    this.container.removeChild(this.divNode);
   }
 
   detachSelection() {

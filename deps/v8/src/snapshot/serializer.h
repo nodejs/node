@@ -7,6 +7,7 @@
 
 #include <map>
 
+#include "src/instruction-stream.h"
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/objects.h"
@@ -20,11 +21,11 @@ namespace internal {
 class CodeAddressMap : public CodeEventLogger {
  public:
   explicit CodeAddressMap(Isolate* isolate) : isolate_(isolate) {
-    isolate->logger()->addCodeEventListener(this);
+    isolate->logger()->AddCodeEventListener(this);
   }
 
   ~CodeAddressMap() override {
-    isolate_->logger()->removeCodeEventListener(this);
+    isolate_->logger()->RemoveCodeEventListener(this);
   }
 
   void CodeMoveEvent(AbstractCode* from, Address to) override {
@@ -95,12 +96,13 @@ class CodeAddressMap : public CodeEventLogger {
     }
 
     base::HashMap::Entry* FindOrCreateEntry(Address code_address) {
-      return impl_.LookupOrInsert(code_address,
-                                  ComputePointerHash(code_address));
+      return impl_.LookupOrInsert(reinterpret_cast<void*>(code_address),
+                                  ComputeAddressHash(code_address));
     }
 
     base::HashMap::Entry* FindEntry(Address code_address) {
-      return impl_.Lookup(code_address, ComputePointerHash(code_address));
+      return impl_.Lookup(reinterpret_cast<void*>(code_address),
+                          ComputeAddressHash(code_address));
     }
 
     void RemoveEntry(base::HashMap::Entry* entry) {
@@ -115,6 +117,11 @@ class CodeAddressMap : public CodeEventLogger {
   void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
                          const char* name, int length) override {
     address_to_name_map_.Insert(code->address(), name, length);
+  }
+
+  void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
+                         int length) override {
+    UNREACHABLE();
   }
 
   NameMap address_to_name_map_;
@@ -162,7 +169,8 @@ class Serializer : public SerializerDeserializer {
 
   virtual bool MustBeDeferred(HeapObject* object);
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override;
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override;
 
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);
@@ -182,17 +190,10 @@ class Serializer : public SerializerDeserializer {
   bool SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
                               WhereToPoint where_to_point, int skip);
 
-  // Determines whether the interpreter trampoline is replaced by CompileLazy.
-  enum BuiltinReferenceSerializationMode {
-    kDefault,
-    kCanonicalizeCompileLazy,
-  };
-
   // Returns true if the object was successfully serialized as a builtin
   // reference.
-  bool SerializeBuiltinReference(
-      HeapObject* obj, HowToCode how_to_code, WhereToPoint where_to_point,
-      int skip, BuiltinReferenceSerializationMode mode = kDefault);
+  bool SerializeBuiltinReference(HeapObject* obj, HowToCode how_to_code,
+                                 WhereToPoint where_to_point, int skip);
 
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject* obj) const;
@@ -225,7 +226,7 @@ class Serializer : public SerializerDeserializer {
   void OutputStatistics(const char* name);
 
 #ifdef OBJECT_PRINT
-  void CountInstanceType(Map* map, int size);
+  void CountInstanceType(Map* map, int size, AllocationSpace space);
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
@@ -255,6 +256,8 @@ class Serializer : public SerializerDeserializer {
   static const int kInstanceTypes = LAST_TYPE + 1;
   int* instance_type_count_;
   size_t* instance_type_size_;
+  int* read_only_instance_type_count_;
+  size_t* read_only_instance_type_size_;
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
@@ -265,6 +268,8 @@ class Serializer : public SerializerDeserializer {
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
+
+class RelocInfoIterator;
 
 template <class AllocatorT>
 class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
@@ -290,12 +295,17 @@ class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
   void SerializeObject();
   void SerializeDeferred();
   void VisitPointers(HeapObject* host, Object** start, Object** end) override;
+  void VisitPointers(HeapObject* host, MaybeObject** start,
+                     MaybeObject** end) override;
   void VisitEmbeddedPointer(Code* host, RelocInfo* target) override;
   void VisitExternalReference(Foreign* host, Address* p) override;
   void VisitExternalReference(Code* host, RelocInfo* rinfo) override;
   void VisitInternalReference(Code* host, RelocInfo* rinfo) override;
   void VisitCodeTarget(Code* host, RelocInfo* target) override;
   void VisitRuntimeEntry(Code* host, RelocInfo* reloc) override;
+  void VisitOffHeapTarget(Code* host, RelocInfo* target) override;
+  // Relocation info needs to be visited sorted by target_address_address.
+  void VisitRelocInfo(RelocIterator* it) override;
 
  private:
   void SerializePrologue(AllocationSpace space, int size, Map* map);

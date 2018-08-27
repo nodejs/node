@@ -18,13 +18,11 @@
 namespace v8 {
 namespace internal {
 
-class CompilationJob;
+class OptimizedCompilationJob;
 class SharedFunctionInfo;
 
 class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
  public:
-  enum class BlockingBehavior { kBlock, kDontBlock };
-
   explicit OptimizingCompileDispatcher(Isolate* isolate)
       : isolate_(isolate),
         input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
@@ -34,7 +32,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
         ref_count_(0),
         recompilation_delay_(FLAG_concurrent_recompilation_delay) {
     base::Relaxed_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
-    input_queue_ = NewArray<CompilationJob*>(input_queue_capacity_);
+    input_queue_ = NewArray<OptimizedCompilationJob*>(input_queue_capacity_);
   }
 
   ~OptimizingCompileDispatcher();
@@ -42,7 +40,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void Stop();
   void Flush(BlockingBehavior blocking_behavior);
   // Takes ownership of |job|.
-  void QueueForOptimization(CompilationJob* job);
+  void QueueForOptimization(OptimizedCompilationJob* job);
   void Unblock();
   void InstallOptimizedFunctions();
 
@@ -59,8 +57,8 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   enum ModeFlag { COMPILE, FLUSH };
 
   void FlushOutputQueue(bool restore_function_code);
-  void CompileNext(CompilationJob* job);
-  CompilationJob* NextInput(bool check_if_flushing = false);
+  void CompileNext(OptimizedCompilationJob* job);
+  OptimizedCompilationJob* NextInput(bool check_if_flushing = false);
 
   inline int InputQueueIndex(int i) {
     int result = (i + input_queue_shift_) % input_queue_capacity_;
@@ -72,14 +70,14 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   Isolate* isolate_;
 
   // Circular queue of incoming recompilation tasks (including OSR).
-  CompilationJob** input_queue_;
+  OptimizedCompilationJob** input_queue_;
   int input_queue_capacity_;
   int input_queue_length_;
   int input_queue_shift_;
   base::Mutex input_queue_mutex_;
 
   // Queue of recompilation tasks ready to be installed (excluding OSR).
-  std::queue<CompilationJob*> output_queue_;
+  std::queue<OptimizedCompilationJob*> output_queue_;
   // Used for job based recompilation which has multiple producers on
   // different threads.
   base::Mutex output_queue_mutex_;

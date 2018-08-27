@@ -1,114 +1,33 @@
-/* dso_lib.c */
 /*
- * Written by Geoff Thorpe (geoff@geoffthorpe.net) for the OpenSSL project
- * 2000.
- */
-/* ====================================================================
- * Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+ * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
-#include <stdio.h>
-#include <openssl/crypto.h>
-#include "cryptlib.h"
-#include <openssl/dso.h>
+#include "dso_locl.h"
 
 static DSO_METHOD *default_DSO_meth = NULL;
 
-DSO *DSO_new(void)
-{
-    return (DSO_new_method(NULL));
-}
-
-void DSO_set_default_method(DSO_METHOD *meth)
-{
-    default_DSO_meth = meth;
-}
-
-DSO_METHOD *DSO_get_default_method(void)
-{
-    return (default_DSO_meth);
-}
-
-DSO_METHOD *DSO_get_method(DSO *dso)
-{
-    return (dso->meth);
-}
-
-DSO_METHOD *DSO_set_method(DSO *dso, DSO_METHOD *meth)
-{
-    DSO_METHOD *mtmp;
-    mtmp = dso->meth;
-    dso->meth = meth;
-    return (mtmp);
-}
-
-DSO *DSO_new_method(DSO_METHOD *meth)
+static DSO *DSO_new_method(DSO_METHOD *meth)
 {
     DSO *ret;
 
-    if (default_DSO_meth == NULL)
+    if (default_DSO_meth == NULL) {
         /*
          * We default to DSO_METH_openssl() which in turn defaults to
          * stealing the "best available" method. Will fallback to
          * DSO_METH_null() in the worst case.
          */
         default_DSO_meth = DSO_METHOD_openssl();
-    ret = (DSO *)OPENSSL_malloc(sizeof(DSO));
+    }
+    ret = OPENSSL_zalloc(sizeof(*ret));
     if (ret == NULL) {
         DSOerr(DSO_F_DSO_NEW_METHOD, ERR_R_MALLOC_FAILURE);
         return (NULL);
     }
-    memset(ret, 0, sizeof(DSO));
     ret->meth_data = sk_void_new_null();
     if (ret->meth_data == NULL) {
         /* sk_new doesn't generate any errors so we do */
@@ -116,59 +35,62 @@ DSO *DSO_new_method(DSO_METHOD *meth)
         OPENSSL_free(ret);
         return (NULL);
     }
-    if (meth == NULL)
-        ret->meth = default_DSO_meth;
-    else
-        ret->meth = meth;
+    ret->meth = default_DSO_meth;
     ret->references = 1;
-    if ((ret->meth->init != NULL) && !ret->meth->init(ret)) {
+    ret->lock = CRYPTO_THREAD_lock_new();
+    if (ret->lock == NULL) {
+        DSOerr(DSO_F_DSO_NEW_METHOD, ERR_R_MALLOC_FAILURE);
         sk_void_free(ret->meth_data);
         OPENSSL_free(ret);
+        return NULL;
+    }
+
+    if ((ret->meth->init != NULL) && !ret->meth->init(ret)) {
+        DSO_free(ret);
         ret = NULL;
     }
-    return (ret);
+
+    return ret;
+}
+
+DSO *DSO_new(void)
+{
+    return DSO_new_method(NULL);
 }
 
 int DSO_free(DSO *dso)
 {
     int i;
 
-    if (dso == NULL) {
-        DSOerr(DSO_F_DSO_FREE, ERR_R_PASSED_NULL_PARAMETER);
-        return (0);
-    }
-
-    i = CRYPTO_add(&dso->references, -1, CRYPTO_LOCK_DSO);
-#ifdef REF_PRINT
-    REF_PRINT("DSO", dso);
-#endif
-    if (i > 0)
+    if (dso == NULL)
         return (1);
-#ifdef REF_CHECK
-    if (i < 0) {
-        fprintf(stderr, "DSO_free, bad reference count\n");
-        abort();
-    }
-#endif
 
-    if ((dso->meth->dso_unload != NULL) && !dso->meth->dso_unload(dso)) {
-        DSOerr(DSO_F_DSO_FREE, DSO_R_UNLOAD_FAILED);
-        return (0);
+    if (CRYPTO_atomic_add(&dso->references, -1, &i, dso->lock) <= 0)
+        return 0;
+
+    REF_PRINT_COUNT("DSO", dso);
+    if (i > 0)
+        return 1;
+    REF_ASSERT_ISNT(i < 0);
+
+    if ((dso->flags & DSO_FLAG_NO_UNLOAD_ON_FREE) == 0) {
+        if ((dso->meth->dso_unload != NULL) && !dso->meth->dso_unload(dso)) {
+            DSOerr(DSO_F_DSO_FREE, DSO_R_UNLOAD_FAILED);
+            return 0;
+        }
     }
 
     if ((dso->meth->finish != NULL) && !dso->meth->finish(dso)) {
         DSOerr(DSO_F_DSO_FREE, DSO_R_FINISH_FAILED);
-        return (0);
+        return 0;
     }
 
     sk_void_free(dso->meth_data);
-    if (dso->filename != NULL)
-        OPENSSL_free(dso->filename);
-    if (dso->loaded_filename != NULL)
-        OPENSSL_free(dso->loaded_filename);
-
+    OPENSSL_free(dso->filename);
+    OPENSSL_free(dso->loaded_filename);
+    CRYPTO_THREAD_lock_free(dso->lock);
     OPENSSL_free(dso);
-    return (1);
+    return 1;
 }
 
 int DSO_flags(DSO *dso)
@@ -178,13 +100,19 @@ int DSO_flags(DSO *dso)
 
 int DSO_up_ref(DSO *dso)
 {
+    int i;
+
     if (dso == NULL) {
         DSOerr(DSO_F_DSO_UP_REF, ERR_R_PASSED_NULL_PARAMETER);
-        return (0);
+        return 0;
     }
 
-    CRYPTO_add(&dso->references, 1, CRYPTO_LOCK_DSO);
-    return (1);
+    if (CRYPTO_atomic_add(&dso->references, 1, &i, dso->lock) <= 0)
+        return 0;
+
+    REF_PRINT_COUNT("DSO", r);
+    REF_ASSERT_ISNT(i < 2);
+    return ((i > 1) ? 1 : 0);
 }
 
 DSO *DSO_load(DSO *dso, const char *filename, DSO_METHOD *meth, int flags)
@@ -239,26 +167,6 @@ DSO *DSO_load(DSO *dso, const char *filename, DSO_METHOD *meth, int flags)
     if (allocated)
         DSO_free(ret);
     return (NULL);
-}
-
-void *DSO_bind_var(DSO *dso, const char *symname)
-{
-    void *ret = NULL;
-
-    if ((dso == NULL) || (symname == NULL)) {
-        DSOerr(DSO_F_DSO_BIND_VAR, ERR_R_PASSED_NULL_PARAMETER);
-        return (NULL);
-    }
-    if (dso->meth->dso_bind_var == NULL) {
-        DSOerr(DSO_F_DSO_BIND_VAR, DSO_R_UNSUPPORTED);
-        return (NULL);
-    }
-    if ((ret = dso->meth->dso_bind_var(dso, symname)) == NULL) {
-        DSOerr(DSO_F_DSO_BIND_VAR, DSO_R_SYM_FAILURE);
-        return (NULL);
-    }
-    /* Success */
-    return (ret);
 }
 
 DSO_FUNC_TYPE DSO_bind_func(DSO *dso, const char *symname)
@@ -319,19 +227,6 @@ long DSO_ctrl(DSO *dso, int cmd, long larg, void *parg)
     return (dso->meth->dso_ctrl(dso, cmd, larg, parg));
 }
 
-int DSO_set_name_converter(DSO *dso, DSO_NAME_CONVERTER_FUNC cb,
-                           DSO_NAME_CONVERTER_FUNC *oldcb)
-{
-    if (dso == NULL) {
-        DSOerr(DSO_F_DSO_SET_NAME_CONVERTER, ERR_R_PASSED_NULL_PARAMETER);
-        return (0);
-    }
-    if (oldcb)
-        *oldcb = dso->name_converter;
-    dso->name_converter = cb;
-    return (1);
-}
-
 const char *DSO_get_filename(DSO *dso)
 {
     if (dso == NULL) {
@@ -354,14 +249,12 @@ int DSO_set_filename(DSO *dso, const char *filename)
         return (0);
     }
     /* We'll duplicate filename */
-    copied = OPENSSL_malloc(strlen(filename) + 1);
+    copied = OPENSSL_strdup(filename);
     if (copied == NULL) {
         DSOerr(DSO_F_DSO_SET_FILENAME, ERR_R_MALLOC_FAILURE);
         return (0);
     }
-    BUF_strlcpy(copied, filename, strlen(filename) + 1);
-    if (dso->filename)
-        OPENSSL_free(dso->filename);
+    OPENSSL_free(dso->filename);
     dso->filename = copied;
     return (1);
 }
@@ -404,23 +297,13 @@ char *DSO_convert_filename(DSO *dso, const char *filename)
             result = dso->meth->dso_name_converter(dso, filename);
     }
     if (result == NULL) {
-        result = OPENSSL_malloc(strlen(filename) + 1);
+        result = OPENSSL_strdup(filename);
         if (result == NULL) {
             DSOerr(DSO_F_DSO_CONVERT_FILENAME, ERR_R_MALLOC_FAILURE);
             return (NULL);
         }
-        BUF_strlcpy(result, filename, strlen(filename) + 1);
     }
     return (result);
-}
-
-const char *DSO_get_loaded_filename(DSO *dso)
-{
-    if (dso == NULL) {
-        DSOerr(DSO_F_DSO_GET_LOADED_FILENAME, ERR_R_PASSED_NULL_PARAMETER);
-        return (NULL);
-    }
-    return (dso->loaded_filename);
 }
 
 int DSO_pathbyaddr(void *addr, char *path, int sz)
@@ -433,6 +316,24 @@ int DSO_pathbyaddr(void *addr, char *path, int sz)
         return -1;
     }
     return (*meth->pathbyaddr) (addr, path, sz);
+}
+
+DSO *DSO_dsobyaddr(void *addr, int flags)
+{
+    DSO *ret = NULL;
+    char *filename = NULL;
+    int len = DSO_pathbyaddr(addr, NULL, 0);
+
+    if (len < 0)
+        return NULL;
+
+    filename = OPENSSL_malloc(len);
+    if (filename != NULL
+            && DSO_pathbyaddr(addr, filename, len) == len)
+        ret = DSO_load(NULL, filename, NULL, flags);
+
+    OPENSSL_free(filename);
+    return ret;
 }
 
 void *DSO_global_lookup(const char *name)

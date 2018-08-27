@@ -27,7 +27,7 @@ var linkedJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   dependencies: {
     'baz': '1.0.0'
@@ -42,7 +42,7 @@ var linkedDepJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   author: '',
   license: 'ISC'
@@ -54,7 +54,7 @@ var installJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   dependencies: {
     'foo': '1.0.0'

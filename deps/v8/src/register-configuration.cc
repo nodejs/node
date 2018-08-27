@@ -64,29 +64,6 @@ STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
               Simd128Register::kNumRegisters);
 
-static int get_num_allocatable_general_registers() {
-  return
-#if V8_TARGET_ARCH_IA32
-      kMaxAllocatableGeneralRegisterCount;
-#elif V8_TARGET_ARCH_X64
-      kMaxAllocatableGeneralRegisterCount;
-#elif V8_TARGET_ARCH_ARM
-      kMaxAllocatableGeneralRegisterCount;
-#elif V8_TARGET_ARCH_ARM64
-      kMaxAllocatableGeneralRegisterCount;
-#elif V8_TARGET_ARCH_MIPS
-      kMaxAllocatableGeneralRegisterCount;
-#elif V8_TARGET_ARCH_MIPS64
-      kMaxAllocatableGeneralRegisterCount;
-#elif V8_TARGET_ARCH_PPC
-      kMaxAllocatableGeneralRegisterCount;
-#elif V8_TARGET_ARCH_S390
-      kMaxAllocatableGeneralRegisterCount;
-#else
-#error Unsupported target architecture.
-#endif
-}
-
 static int get_num_allocatable_double_registers() {
   return
 #if V8_TARGET_ARCH_IA32
@@ -127,7 +104,7 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
   ArchDefaultRegisterConfiguration()
       : RegisterConfiguration(
             Register::kNumRegisters, DoubleRegister::kNumRegisters,
-            get_num_allocatable_general_registers(),
+            kMaxAllocatableGeneralRegisterCount,
             get_num_allocatable_double_registers(), kAllocatableGeneralCodes,
             get_allocatable_double_codes(),
             kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
@@ -144,6 +121,50 @@ struct RegisterConfigurationInitializer {
 static base::LazyInstance<ArchDefaultRegisterConfiguration,
                           RegisterConfigurationInitializer>::type
     kDefaultRegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
+
+// Allocatable registers with the masking register removed.
+class ArchDefaultPoisoningRegisterConfiguration : public RegisterConfiguration {
+ public:
+  ArchDefaultPoisoningRegisterConfiguration()
+      : RegisterConfiguration(
+            Register::kNumRegisters, DoubleRegister::kNumRegisters,
+            kMaxAllocatableGeneralRegisterCount - 1,
+            get_num_allocatable_double_registers(),
+            InitializeGeneralRegisterCodes(), get_allocatable_double_codes(),
+            kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
+            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
+            kSimd128RegisterNames) {}
+
+ private:
+  static const int* InitializeGeneralRegisterCodes() {
+    int filtered_index = 0;
+    for (int i = 0; i < kMaxAllocatableGeneralRegisterCount; ++i) {
+      if (kAllocatableGeneralCodes[i] != kSpeculationPoisonRegister.code()) {
+        allocatable_general_codes_[filtered_index] =
+            kAllocatableGeneralCodes[i];
+        filtered_index++;
+      }
+    }
+    DCHECK_EQ(filtered_index, kMaxAllocatableGeneralRegisterCount - 1);
+    return allocatable_general_codes_;
+  }
+
+  static int
+      allocatable_general_codes_[kMaxAllocatableGeneralRegisterCount - 1];
+};
+
+int ArchDefaultPoisoningRegisterConfiguration::allocatable_general_codes_
+    [kMaxAllocatableGeneralRegisterCount - 1];
+
+struct PoisoningRegisterConfigurationInitializer {
+  static void Construct(void* config) {
+    new (config) ArchDefaultPoisoningRegisterConfiguration();
+  }
+};
+
+static base::LazyInstance<ArchDefaultPoisoningRegisterConfiguration,
+                          PoisoningRegisterConfigurationInitializer>::type
+    kDefaultPoisoningRegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
 
 // RestrictedRegisterConfiguration uses the subset of allocatable general
 // registers the architecture support, which results into generating assembly
@@ -191,6 +212,10 @@ class RestrictedRegisterConfiguration : public RegisterConfiguration {
 
 const RegisterConfiguration* RegisterConfiguration::Default() {
   return &kDefaultRegisterConfiguration.Get();
+}
+
+const RegisterConfiguration* RegisterConfiguration::Poisoning() {
+  return &kDefaultPoisoningRegisterConfiguration.Get();
 }
 
 const RegisterConfiguration* RegisterConfiguration::RestrictGeneralRegisters(

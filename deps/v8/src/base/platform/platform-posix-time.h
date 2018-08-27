@@ -13,7 +13,7 @@ namespace base {
 class PosixDefaultTimezoneCache : public PosixTimezoneCache {
  public:
   const char* LocalTimezone(double time_ms) override;
-  double LocalTimeOffset() override;
+  double LocalTimeOffset(double time_ms, bool is_utc) override;
 
   ~PosixDefaultTimezoneCache() override {}
 };

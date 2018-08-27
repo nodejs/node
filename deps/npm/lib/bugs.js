@@ -1,8 +1,7 @@
 module.exports = bugs
 
-var npm = require('./npm.js')
 var log = require('npmlog')
-var opener = require('opener')
+var openUrl = require('./utils/open-url')
 var fetchPackageMetadata = require('./fetch-package-metadata.js')
 var usage = require('./utils/usage')
 
@@ -27,6 +26,6 @@ function bugs (args, cb) {
       url = 'https://www.npmjs.org/package/' + d.name
     }
     log.silly('bugs', 'url', url)
-    opener(url, { command: npm.config.get('browser') }, cb)
+    openUrl(url, 'bug list available at the following URL', cb)
   })
 }

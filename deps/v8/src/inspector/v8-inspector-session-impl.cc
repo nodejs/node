@@ -197,8 +197,11 @@ Response V8InspectorSessionImpl::findInjectedScript(
   if (!context) return Response::Error("Cannot find context with specified id");
   injectedScript = context->getInjectedScript(m_sessionId);
   if (!injectedScript) {
-    if (!context->createInjectedScript(m_sessionId))
+    if (!context->createInjectedScript(m_sessionId)) {
+      if (m_inspector->isolate()->IsExecutionTerminating())
+        return Response::Error("Execution was terminated");
       return Response::Error("Cannot access specified execution context");
+    }
     injectedScript = context->getInjectedScript(m_sessionId);
     if (m_customObjectFormatterEnabled)
       injectedScript->setCustomObjectFormatterEnabled(true);

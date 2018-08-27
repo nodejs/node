@@ -4,7 +4,9 @@ const common = require('../common');
 const assert = require('assert');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
-common.crashOnUnhandledRejection();
+
+if (!common.isMainThread)
+  common.skip('Worker bootstrapping works differently -> different async IDs');
 
 const p = new Promise(common.mustCall(function executor(resolve, reject) {
   resolve(5);

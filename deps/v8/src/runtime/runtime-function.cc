@@ -76,7 +76,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  int pos = fun->shared()->start_position();
+  int pos = fun->shared()->StartPosition();
   return Smi::FromInt(pos);
 }
 
@@ -87,17 +87,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
   return fun->native_context()->debug_context_id();
 }
-
-RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  CONVERT_SMI_ARG_CHECKED(length, 1);
-  fun->shared()->set_length(length);
-  return isolate->heap()->undefined_value();
-}
-
 
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
@@ -123,25 +112,23 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
     return isolate->heap()->exception();
   }
 
-  // Set the code, scope info, formal parameter count, and the length
+  // Set the function data, scope info, formal parameter count, and the length
   // of the target shared function info.
-  target_shared->set_code(source_shared->code());
-  if (source_shared->HasBytecodeArray()) {
-    target_shared->set_bytecode_array(source_shared->bytecode_array());
-  }
-  target_shared->set_scope_info(source_shared->scope_info());
-  target_shared->set_outer_scope_info(source_shared->outer_scope_info());
+  target_shared->set_function_data(source_shared->function_data());
   target_shared->set_length(source_shared->GetLength());
-  target_shared->set_feedback_metadata(source_shared->feedback_metadata());
+  target_shared->set_raw_outer_scope_info_or_feedback_metadata(
+      source_shared->raw_outer_scope_info_or_feedback_metadata());
   target_shared->set_internal_formal_parameter_count(
       source_shared->internal_formal_parameter_count());
-  target_shared->set_start_position_and_type(
-      source_shared->start_position_and_type());
-  target_shared->set_end_position(source_shared->end_position());
+  target_shared->set_raw_start_position_and_type(
+      source_shared->raw_start_position_and_type());
+  target_shared->set_raw_end_position(source_shared->raw_end_position());
   bool was_native = target_shared->native();
-  target_shared->set_compiler_hints(source_shared->compiler_hints());
+  target_shared->set_flags(source_shared->flags());
   target_shared->set_native(was_native);
   target_shared->set_function_literal_id(source_shared->function_literal_id());
+
+  target_shared->set_scope_info(source_shared->scope_info());
 
   Handle<Object> source_script(source_shared->script(), isolate);
   if (source_script->IsScript()) {
@@ -151,17 +138,17 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   SharedFunctionInfo::SetScript(target_shared, source_script);
 
   // Set the code of the target function.
-  target->set_code(source_shared->code());
-
+  target->set_code(source_shared->GetCode());
   Handle<Context> context(source->context());
   target->set_context(*context);
 
-  // Make sure we get a fresh copy of the literal vector to avoid cross
-  // context contamination, and that the literal vector makes it's way into
+  // Make sure we get a fresh copy of the feedback vector to avoid cross
+  // context contamination, and that the feedback vector makes it's way into
   // the target_shared optimized code map.
-  JSFunction::EnsureLiterals(target);
+  JSFunction::EnsureFeedbackVector(target);
 
-  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
+  if (isolate->logger()->is_listening_to_code_events() ||
+      isolate->is_profiling()) {
     isolate->logger()->LogExistingFunction(
         source_shared, Handle<AbstractCode>(source_shared->abstract_code()));
   }

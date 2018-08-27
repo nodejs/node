@@ -262,11 +262,13 @@ class RollMerge(ScriptsBase):
   def _Config(self):
     return {
       "BRANCHNAME": "prepare-merge",
-      "PERSISTFILE_BASENAME": "/tmp/v8-merge-to-branch-tempfile",
+      "PERSISTFILE_BASENAME":
+          RELEASE_WORKDIR + "v8-merge-to-branch-tempfile",
       "ALREADY_MERGING_SENTINEL_FILE":
-          "/tmp/v8-merge-to-branch-tempfile-already-merging",
-      "TEMPORARY_PATCH_FILE": "/tmp/v8-prepare-merge-tempfile-temporary-patch",
-      "COMMITMSG_FILE": "/tmp/v8-prepare-merge-tempfile-commitmsg",
+          RELEASE_WORKDIR + "v8-merge-to-branch-tempfile-already-merging",
+      "TEMPORARY_PATCH_FILE":
+          RELEASE_WORKDIR + "v8-prepare-merge-tempfile-temporary-patch",
+      "COMMITMSG_FILE": RELEASE_WORKDIR + "v8-prepare-merge-tempfile-commitmsg",
     }
 
   def _Steps(self):

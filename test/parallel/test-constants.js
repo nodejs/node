@@ -24,3 +24,5 @@ assert.ok(binding.crypto);
     }
   });
 });
+
+assert.ok(Object.isFrozen(constants));

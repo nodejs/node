@@ -16,7 +16,7 @@ You are welcome to
 [report bugs](https://github.com/acornjs/acorn/issues) or create pull
 requests on [github](https://github.com/acornjs/acorn). For questions
 and discussion, please use the
-[Tern discussion forum](https://discuss.acornjs.net).
+[Tern discussion forum](https://discuss.ternjs.net).
 
 ## Installation
 
@@ -66,7 +66,7 @@ object referring to that same position.
 [estree]: https://github.com/estree/estree
 
 - **ecmaVersion**: Indicates the ECMAScript version to parse. Must be
-  either 3, 5, 6 (2015), 7 (2016), 8 (2017), or 9 (2018, partial
+  either 3, 5, 6 (2015), 7 (2016), 8 (2017), 9 (2018) or 10 (2019, partial
   support). This influences support for strict mode, the set of
   reserved words, and support for new syntax features. Default is 7.
 
@@ -99,6 +99,8 @@ object referring to that same position.
 - **allowImportExportEverywhere**: By default, `import` and `export`
   declarations can only appear at a program's top level. Setting this
   option to `true` allows them anywhere where a statement is allowed.
+  
+- **allowAwaitOutsideFunction**: By default, `await` expressions can only appear inside `async` functions. Setting this option to `true` allows to have top-level `await` expressions. They are still not allowed in non-`async` functions, though.
 
 - **allowHashBang**: When this is enabled (off by default), if the
   code starts with the characters `#!` (as in a shellscript), the
@@ -354,7 +356,7 @@ The `bin/acorn` utility can be used to parse a file from the command
 line. It accepts as arguments its input file and the following
 options:
 
-- `--ecma3|--ecma5|--ecma6|--ecma7|--ecma8|--ecma9`: Sets the ECMAScript version
+- `--ecma3|--ecma5|--ecma6|--ecma7|--ecma8|--ecma9|--ecma10`: Sets the ECMAScript version
   to parse. Default is version 7.
 
 - `--module`: Sets the parsing mode to `"module"`. Is set to `"script"` otherwise.

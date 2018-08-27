@@ -67,11 +67,6 @@ class DebugWrapper {
     this.ExceptionBreak = { Caught : 0,
                             Uncaught: 1 };
 
-    // The different script break point types.
-    this.ScriptBreakPointType = { ScriptId: 0,
-                                  ScriptName: 1,
-                                  ScriptRegExp: 2 };
-
     // Store the current script id so we can skip corresponding break events.
     this.thisScriptId = %FunctionGetScriptId(receive);
 
@@ -137,13 +132,6 @@ class DebugWrapper {
     const loc =
       %ScriptLocationFromLine2(scriptid, opt_line, opt_column, offset);
     return this.setBreakPointAtLocation(scriptid, loc, opt_condition);
-  }
-
-  setScriptBreakPoint(type, scriptid, opt_line, opt_column, opt_condition) {
-    // Only sets by script id are supported for now.
-    assertEquals(this.ScriptBreakPointType.ScriptId, type);
-    return this.setScriptBreakPointById(scriptid, opt_line, opt_column,
-                                        opt_condition);
   }
 
   setScriptBreakPointById(scriptid, opt_line, opt_column, opt_condition) {
@@ -297,7 +285,7 @@ class DebugWrapper {
 
     function setScopeVariableValue(name, value) {
       const res = %SetScopeVariableValue(gen, null, null, index, name, value);
-      if (!res) throw new Error("Failed to set variable value");
+      if (!res) throw new Error("Failed to set variable '" + name + "' value");
     }
 
     const scopeObject =
@@ -495,7 +483,7 @@ class DebugWrapper {
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
     if (reply.error) {
-      throw new Error("Failed to set variable value");
+      throw new Error("Failed to set variable '" + name + "' value");
     }
   }
 
@@ -653,6 +641,12 @@ class DebugWrapper {
         }
         break;
       }
+      case "bigint": {
+        assertEquals("n", obj.unserializableValue.charAt(
+            obj.unserializableValue.length - 1));
+        value = eval(obj.unserializableValue);
+        break;
+      }
       case "string":
       case "boolean": {
         break;
@@ -737,9 +731,9 @@ class DebugWrapper {
            };
   }
 
-  execStateEvaluateGlobal(expr) {
+  evaluateGlobal(expr, throw_on_side_effect) {
     const {msgid, msg} = this.createMessage(
-        "Runtime.evaluate", { expression : expr });
+        "Runtime.evaluate", { expression : expr, throwOnSideEffect: throw_on_side_effect });
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
 
@@ -836,7 +830,7 @@ class DebugWrapper {
     let execState = { frames : params.callFrames,
                       prepareStep : this.execStatePrepareStep.bind(this),
                       evaluateGlobal :
-                        (expr) => this.execStateEvaluateGlobal(expr),
+                        (expr) => this.evaluateGlobal(expr),
                       frame : (index) => this.execStateFrame(
                           index ? params.callFrames[index]
                                 : params.callFrames[0]),

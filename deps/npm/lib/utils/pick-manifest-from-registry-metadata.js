@@ -21,6 +21,6 @@ function pickManifestFromRegistryMetadata (spec, tag, versions, metadata) {
   } else if (spec === '*' && versions.length && tagged && metadata.versions[tagged]) {
     return {resolvedTo: tag, manifest: metadata.versions[tagged]}
   } else {
-    return
+
   }
 }

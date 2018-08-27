@@ -3,6 +3,9 @@
 const common = require('../common');
 const assert = require('assert');
 
+if (!common.isMainThread)
+  common.skip('Error handling timing is different in Workers');
+
 // If a process encounters an uncaughtException, it should schedule
 // processing of nextTicks on the next Immediates cycle but not
 // before all Immediates are handled

@@ -1,15 +1,11 @@
-/* global SharedArrayBuffer */
+// Flags: --experimental-vm-modules
 'use strict';
-const common = require('../common');
+require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { types, inspect } = require('util');
-const path = require('path');
-const fs = require('fs');
 const vm = require('vm');
 const { JSStream } = process.binding('js_stream');
-
-common.crashOnUnhandledRejection();
 
 const external = (new JSStream())._externalStream;
 const wasmBuffer = fixtures.readSync('test.wasm');
@@ -22,6 +18,7 @@ for (const [ value, _method ] of [
   [ new Number(), 'isNumberObject' ],
   [ new String(), 'isStringObject' ],
   [ Object(Symbol()), 'isSymbolObject' ],
+  [ Object(BigInt(0)), 'isBigIntObject' ],
   [ new Error(), 'isNativeError' ],
   [ new RegExp() ],
   [ async function() {}, 'isAsyncFunction' ],
@@ -44,6 +41,8 @@ for (const [ value, _method ] of [
   [ new Int32Array() ],
   [ new Float32Array() ],
   [ new Float64Array() ],
+  [ new BigInt64Array() ],
+  [ new BigUint64Array() ],
   [ Object.defineProperty(new Uint8Array(),
                           Symbol.toStringTag,
                           { value: 'foo' }) ],
@@ -126,37 +125,10 @@ for (const [ value, _method ] of [
   }
 }
 
-
-// Try reading the v8.h header to verify completeness.
-
-let v8_h;
-try {
-  v8_h = fs.readFileSync(path.resolve(
-    __dirname, '..', '..', 'deps', 'v8', 'include', 'v8.h'), 'utf8');
-} catch (e) {
-  // If loading the header fails, it should fail because we did not find it.
-  assert.strictEqual(e.code, 'ENOENT');
-  common.skip('Could not read v8.h');
-  return;
-}
-
-// Exclude a number of checks that make sense on the C++ side but have
-// much faster/better JS equivalents, so they should not be exposed.
-const exclude = [
-  'Undefined', 'Null', 'NullOrUndefined', 'True', 'False', 'Name', 'String',
-  'Symbol', 'Function', 'Array', 'Object', 'Boolean', 'Number', 'Int32',
-  'Uint32'
-];
-
-const start = v8_h.indexOf('Value : public Data');
-const end = v8_h.indexOf('};', start);
-const valueDefinition = v8_h.substr(start, end - start);
-
-const re = /bool Is(\w+)\(\)/g;
-let match;
-while (match = re.exec(valueDefinition)) {
-  if (exclude.includes(match[1]))
-    continue;
-  assert(`is${match[1]}` in types,
-         `util.types should provide check for Is${match[1]}`);
-}
+(async () => {
+  const m = new vm.SourceTextModule('');
+  await m.link(() => 0);
+  m.instantiate();
+  await m.evaluate();
+  assert.ok(types.isModuleNamespaceObject(m.namespace));
+})();

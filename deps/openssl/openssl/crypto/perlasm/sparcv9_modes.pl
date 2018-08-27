@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # Specific modes implementations for SPARC Architecture 2011. There
 # is T4 dependency though, an ASI value that is not specified in the
@@ -15,6 +22,10 @@
 # performance for parallelizable modes is ~1.5% worse for largest
 # block sizes [though few percent better for not so long ones]. All
 # this based on suggestions from David Miller.
+
+$::bias="STACK_BIAS";
+$::frame="STACK_FRAME";
+$::size_t_cc="SIZE_T_CC";
 
 sub asm_init {		# to be called with @ARGV as argument
     for (@_)		{ $::abibits=64 if (/\-m64/ || /\-xarch\=v9/); }
@@ -1387,7 +1398,7 @@ ___
 
 # Purpose of these subroutines is to explicitly encode VIS instructions,
 # so that one can compile the module without having to specify VIS
-# extentions on compiler command line, e.g. -xarch=v9 vs. -xarch=v9a.
+# extensions on compiler command line, e.g. -xarch=v9 vs. -xarch=v9a.
 # Idea is to reserve for option to produce "universal" binary and let
 # programmer detect if current CPU is VIS capable at run-time.
 sub unvis {

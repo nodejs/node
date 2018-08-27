@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 
 class BailoutId;
-class CompilationInfo;
+class OptimizedCompilationInfo;
 
 namespace compiler {
 
@@ -23,7 +23,7 @@ class SourcePositionTable;
 // heuristics that decide what and how much to inline are beyond its scope.
 class JSInliner final : public AdvancedReducer {
  public:
-  JSInliner(Editor* editor, Zone* local_zone, CompilationInfo* info,
+  JSInliner(Editor* editor, Zone* local_zone, OptimizedCompilationInfo* info,
             JSGraph* jsgraph, SourcePositionTable* source_positions)
       : AdvancedReducer(editor),
         local_zone_(local_zone),
@@ -50,7 +50,7 @@ class JSInliner final : public AdvancedReducer {
   Handle<Context> native_context() const;
 
   Zone* const local_zone_;
-  CompilationInfo* info_;
+  OptimizedCompilationInfo* info_;
   JSGraph* const jsgraph_;
   SourcePositionTable* const source_positions_;
 

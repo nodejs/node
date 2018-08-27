@@ -279,6 +279,23 @@ addTest('\x1b[31ma\x1b[39ma', [
   { name: 'a', sequence: 'a' },
 ]);
 
+// rxvt keys with modifiers
+addTest('\x1b[a\x1b[b\x1b[c\x1b[d\x1b[e', [
+  { name: 'up', sequence: '\x1b[a', code: '[a', shift: true },
+  { name: 'down', sequence: '\x1b[b', code: '[b', shift: true },
+  { name: 'right', sequence: '\x1b[c', code: '[c', shift: true },
+  { name: 'left', sequence: '\x1b[d', code: '[d', shift: true },
+  { name: 'clear', sequence: '\x1b[e', code: '[e', shift: true },
+]);
+
+addTest('\x1bOa\x1bOb\x1bOc\x1bOd\x1bOe', [
+  { name: 'up', sequence: '\x1bOa', code: 'Oa', ctrl: true },
+  { name: 'down', sequence: '\x1bOb', code: 'Ob', ctrl: true },
+  { name: 'right', sequence: '\x1bOc', code: 'Oc', ctrl: true },
+  { name: 'left', sequence: '\x1bOd', code: 'Od', ctrl: true },
+  { name: 'clear', sequence: '\x1bOe', code: 'Oe', ctrl: true },
+]);
+
 // Reduce array of addKeyIntervalTest(..) right to left
 // with () => {} as initial function
 const runKeyIntervalTests = [

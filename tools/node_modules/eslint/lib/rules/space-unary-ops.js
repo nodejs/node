@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -72,7 +72,7 @@ module.exports = {
          * @returns {boolean} Whether or not an override has been provided for the operator
          */
         function overrideExistsForOperator(operator) {
-            return options.overrides && options.overrides.hasOwnProperty(operator);
+            return options.overrides && Object.prototype.hasOwnProperty.call(options.overrides, operator);
         }
 
         /**

@@ -5,22 +5,39 @@
 "use strict";
 
 class DisassemblyView extends TextView {
-  constructor(id, broker) {
-    super(id, broker, null, false);
 
+  createViewElement() {
+    const pane = document.createElement('div');
+    pane.setAttribute('id', "disassembly");
+    pane.innerHTML =
+      `<pre id='disassembly-text-pre' class='prettyprint prettyprinted'>
+       <ul id='disassembly-list' class='nolinenums noindent'>
+       </ul>
+     </pre>`;
+    return pane;
+  }
+
+  constructor(parentId, broker) {
+    super(parentId, broker, null, false);
     let view = this;
     let ADDRESS_STYLE = {
       css: 'tag',
-      location: function(text) {
-        ADDRESS_STYLE.last_address = text;
-        return undefined;
+      assignSourcePosition: function (text) {
+        return SOURCE_POSITION_HEADER_STYLE.currentSourcePosition;
+      },
+      linkHandler: function (text, fragment) {
+        if (fragment.sourcePosition === undefined) return undefined;
+        return (e) => {
+          e.stopPropagation();
+          if (!e.shiftKey) {
+            view.sourcePositionSelectionHandler.clear();
+          }
+          view.sourcePositionSelectionHandler.select([fragment.sourcePosition], true);
+        };
       }
     };
     let ADDRESS_LINK_STYLE = {
-      css: 'tag',
-      link: function(text) {
-        view.select(function(location) { return location.address == text; }, true, true);
-      }
+      css: 'tag'
     };
     let UNCLASSIFIED_STYLE = {
       css: 'com'
@@ -33,52 +50,47 @@ class DisassemblyView extends TextView {
     };
     let POSITION_STYLE = {
       css: 'com',
-      location: function(text) {
+      location: function (text) {
         view.pos_start = Number(text);
       }
     };
     let OPCODE_STYLE = {
       css: 'kwd',
-      location: function(text) {
-        if (BLOCK_HEADER_STYLE.block_id != undefined) {
-          return {
-            address: ADDRESS_STYLE.last_address,
-            block_id: BLOCK_HEADER_STYLE.block_id
-          };
-        } else {
-          return {
-            address: ADDRESS_STYLE.last_address
-          };
-        }
-      }
     };
     const BLOCK_HEADER_STYLE = {
-      css: 'com',
-      block_id: -1,
-      location: function(text) {
+      css: ['com', 'block'],
+      blockId: function (text) {
         let matches = /\d+/.exec(text);
         if (!matches) return undefined;
         BLOCK_HEADER_STYLE.block_id = Number(matches[0]);
-        return {
-          block_id: BLOCK_HEADER_STYLE.block_id
-        };
+        return BLOCK_HEADER_STYLE.block_id;
       },
+      linkHandler: function (text) {
+        let matches = /\d+/.exec(text);
+        if (!matches) return undefined;
+        const blockId = matches[0];
+        return function (e) {
+          e.stopPropagation();
+          if (!e.shiftKey) {
+            view.selectionHandler.clear();
+          }
+          view.blockSelectionHandler.select([blockId], true);
+        };
+      }
     };
     const SOURCE_POSITION_HEADER_STYLE = {
       css: 'com',
-      location: function(text) {
-        let matches = /(\d+):(\d+)/.exec(text);
+      sourcePosition: function (text) {
+        let matches = view.SOURCE_POSITION_HEADER_REGEX.exec(text);
         if (!matches) return undefined;
-        let li = Number(matches[1]);
-        if (view.pos_lines === null) return undefined;
-        let pos = view.pos_lines[li-1] + Number(matches[2]);
-        return {
-          pos_start: pos,
-          pos_end: pos + 1
-        };
+        const scriptOffset = Number(matches[3]);
+        const inliningId = matches[1] === 'not inlined' ? -1 : Number(matches[2]);
+        const sp = { scriptOffset: scriptOffset, inliningId: inliningId };
+        SOURCE_POSITION_HEADER_STYLE.currentSourcePosition = sp;
+        return sp;
       },
     };
-    view.SOURCE_POSITION_HEADER_REGEX = /^(\s*-- .+:)(\d+:\d+)( --)/;
+    view.SOURCE_POSITION_HEADER_REGEX = /^\s*--[^<]*<.*(not inlined|inlined\((\d+)\)):(\d+)>\s*--/;
     let patterns = [
       [
         [/^0x[0-9a-f]{8,16}/, ADDRESS_STYLE, 1],
@@ -119,36 +131,6 @@ class DisassemblyView extends TextView {
     view.setPatterns(patterns);
   }
 
-  lineLocation(li) {
-    let view = this;
-    let result = undefined;
-    for (let i = 0; i < li.children.length; ++i) {
-      let fragment = li.children[i];
-      let location = fragment.location;
-      if (location != null) {
-        if (location.block_id != undefined) {
-          if (result === undefined) result = {};
-          result.block_id = location.block_id;
-        }
-        if (location.address != undefined) {
-          if (result === undefined) result = {};
-          result.address = location.address;
-        }
-        if (location.pos_start != undefined && location.pos_end != undefined) {
-          if (result === undefined) result = {};
-          result.pos_start = location.pos_start;
-          result.pos_end = location.pos_end;
-        }
-        else if (view.pos_start != -1) {
-          if (result === undefined) result = {};
-          result.pos_start = view.pos_start;
-          result.pos_end = result.pos_start + 1;
-        }
-      }
-    }
-    return result;
-  }
-
   initializeContent(data, rememberedSelection) {
     this.data = data;
     super.initializeContent(data, rememberedSelection);
@@ -164,13 +146,13 @@ class DisassemblyView extends TextView {
     // Comment lines for line 0 include sourcePosition already, only need to
     // add sourcePosition for lines > 0.
     view.pos_lines[0] = sourcePosition;
-    if (sourceText != "") {
+    if (sourceText && sourceText != "") {
       let base = sourcePosition;
       let current = 0;
       let source_lines = sourceText.split("\n");
       for (let i = 1; i < source_lines.length; i++) {
         // Add 1 for newline character that is split off.
-        current += source_lines[i-1].length + 1;
+        current += source_lines[i - 1].length + 1;
         view.pos_lines[i] = base + current;
       }
     }
@@ -209,16 +191,6 @@ class DisassemblyView extends TextView {
 
   processLine(line) {
     let view = this;
-    let func = function(match, p1, p2, p3) {
-      let nums = p2.split(":");
-      let li = Number(nums[0]);
-      let pos = Number(nums[1]);
-      if(li === 0)
-        pos -= view.pos_lines[0];
-      li++;
-      return p1 + li + ":" + pos + p3;
-    };
-    line = line.replace(view.SOURCE_POSITION_HEADER_REGEX, func);
     let fragments = super.processLine(line);
 
     // Add profiling data per instruction if available.
@@ -230,7 +202,7 @@ class DisassemblyView extends TextView {
           let count = view.addr_event_counts[event][matches[1]];
           let str = " ";
           let css_cls = "prof";
-          if(count !== undefined) {
+          if (count !== undefined) {
             let perc = count / view.total_event_counts[event] * 100;
 
             let col = { r: 255, g: 255, b: 255 };

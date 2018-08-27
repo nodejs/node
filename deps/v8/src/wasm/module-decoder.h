@@ -13,12 +13,9 @@
 
 namespace v8 {
 namespace internal {
-
-namespace compiler {
-struct ModuleEnv;
-}
-
 namespace wasm {
+
+struct ModuleEnv;
 
 inline bool IsValidSectionCode(uint8_t byte) {
   return kTypeSectionCode <= byte && byte <= kLastKnownModuleSection;
@@ -82,10 +79,9 @@ V8_EXPORT_PRIVATE FunctionResult SyncDecodeWasmFunction(
     const WasmModule* module, const byte* function_start,
     const byte* function_end);
 
-V8_EXPORT_PRIVATE FunctionResult
-AsyncDecodeWasmFunction(Isolate* isolate, Zone* zone, compiler::ModuleEnv* env,
-                        const byte* function_start, const byte* function_end,
-                        const std::shared_ptr<Counters> async_counters);
+V8_EXPORT_PRIVATE FunctionResult AsyncDecodeWasmFunction(
+    Isolate* isolate, Zone* zone, ModuleEnv* env, const byte* function_start,
+    const byte* function_end, const std::shared_ptr<Counters> async_counters);
 
 V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
                                                             const byte* end);
@@ -106,6 +102,12 @@ V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
 // is not complete.
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* module_start,
                                       const byte* module_end);
+
+// Decode the function names from the name section.
+// Returns the result as an unordered map. Only names with valid utf8 encoding
+// are stored and conflicts are resolved by choosing the last name read.
+void DecodeFunctionNames(const byte* module_start, const byte* module_end,
+                         std::unordered_map<uint32_t, WireBytesRef>* names);
 
 // Decode the local names assignment from the name section.
 // Stores the result in the given {LocalNames} structure. The result will be
@@ -139,6 +141,16 @@ class ModuleDecoder {
   WasmModule* module() const;
 
   bool ok();
+
+  // Translates the unknown section that decoder is pointing to to an extended
+  // SectionCode if the unknown section is known to decoder. Currently this only
+  // handles the name section.
+  // The decoder is expected to point after the section lenght and just before
+  // the identifier string of the unknown section.
+  // If a SectionCode other than kUnknownSectionCode is returned, the decoder
+  // will point right after the identifier string. Otherwise, the position is
+  // undefined.
+  static SectionCode IdentifyUnknownSection(Decoder& decoder, const byte* end);
 
  private:
   std::unique_ptr<ModuleDecoderImpl> impl_;

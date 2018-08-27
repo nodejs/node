@@ -979,11 +979,11 @@ class CodeDescription BASE_EMBEDDED {
   }
 
   uintptr_t CodeStart() const {
-    return reinterpret_cast<uintptr_t>(code_->instruction_start());
+    return static_cast<uintptr_t>(code_->InstructionStart());
   }
 
   uintptr_t CodeEnd() const {
-    return reinterpret_cast<uintptr_t>(code_->instruction_end());
+    return static_cast<uintptr_t>(code_->InstructionEnd());
   }
 
   uintptr_t CodeSize() const {
@@ -996,11 +996,7 @@ class CodeDescription BASE_EMBEDDED {
 
   Script* script() { return Script::cast(shared_info_->script()); }
 
-  bool IsLineInfoAvailable() {
-    return has_script() && script()->source()->IsString() &&
-           script()->HasValidSource() && script()->name()->IsString() &&
-           lineinfo_ != nullptr;
-  }
+  bool IsLineInfoAvailable() { return lineinfo_ != nullptr; }
 
 #if V8_TARGET_ARCH_X64
   uintptr_t GetStackStateStartAddress(StackState state) const {
@@ -1015,11 +1011,22 @@ class CodeDescription BASE_EMBEDDED {
 #endif
 
   std::unique_ptr<char[]> GetFilename() {
-    return String::cast(script()->name())->ToCString();
+    if (shared_info_ != nullptr) {
+      return String::cast(script()->name())->ToCString();
+    } else {
+      std::unique_ptr<char[]> result(new char[1]);
+      result[0] = 0;
+      return result;
+    }
   }
 
-  int GetScriptLineNumber(int pos) { return script()->GetLineNumber(pos) + 1; }
-
+  int GetScriptLineNumber(int pos) {
+    if (shared_info_ != nullptr) {
+      return script()->GetLineNumber(pos) + 1;
+    } else {
+      return 0;
+    }
+  }
 
  private:
   const char* name_;
@@ -1197,12 +1204,12 @@ class DebugInfoSection : public DebugSection {
 
       // See contexts.h for more information.
       DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, 4);
-      DCHECK_EQ(Context::CLOSURE_INDEX, 0);
+      DCHECK_EQ(Context::SCOPE_INFO_INDEX, 0);
       DCHECK_EQ(Context::PREVIOUS_INDEX, 1);
       DCHECK_EQ(Context::EXTENSION_INDEX, 2);
       DCHECK_EQ(Context::NATIVE_CONTEXT_INDEX, 3);
       w->WriteULEB128(current_abbreviation++);
-      w->WriteString(".closure");
+      w->WriteString(".scope_info");
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".previous");
       w->WriteULEB128(current_abbreviation++);
@@ -1893,7 +1900,8 @@ static JITCodeEntry* CreateCodeEntry(Address symfile_addr,
 
   entry->symfile_addr_ = reinterpret_cast<Address>(entry + 1);
   entry->symfile_size_ = symfile_size;
-  MemCopy(entry->symfile_addr_, symfile_addr, symfile_size);
+  MemCopy(reinterpret_cast<void*>(entry->symfile_addr_),
+          reinterpret_cast<void*>(symfile_addr), symfile_size);
 
   entry->prev_ = entry->next_ = nullptr;
 
@@ -1969,7 +1977,7 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
   elf.Write(&w);
 #endif
 
-  return CreateCodeEntry(w.buffer(), w.position());
+  return CreateCodeEntry(reinterpret_cast<Address>(w.buffer()), w.position());
 }
 
 
@@ -2003,8 +2011,7 @@ static CodeMap* GetCodeMap() {
 
 static uint32_t HashCodeAddress(Address addr) {
   static const uintptr_t kGoldenRatio = 2654435761u;
-  uintptr_t offset = OffsetFrom(addr);
-  return static_cast<uint32_t>((offset >> kCodeAlignmentBits) * kGoldenRatio);
+  return static_cast<uint32_t>((addr >> kCodeAlignmentBits) * kGoldenRatio);
 }
 
 static base::HashMap* GetLineMap() {
@@ -2018,15 +2025,16 @@ static base::HashMap* GetLineMap() {
 
 static void PutLineInfo(Address addr, LineInfo* info) {
   base::HashMap* line_map = GetLineMap();
-  base::HashMap::Entry* e =
-      line_map->LookupOrInsert(addr, HashCodeAddress(addr));
+  base::HashMap::Entry* e = line_map->LookupOrInsert(
+      reinterpret_cast<void*>(addr), HashCodeAddress(addr));
   if (e->value != nullptr) delete static_cast<LineInfo*>(e->value);
   e->value = info;
 }
 
 
 static LineInfo* GetLineInfo(Address addr) {
-  void* value = GetLineMap()->Remove(addr, HashCodeAddress(addr));
+  void* value = GetLineMap()->Remove(reinterpret_cast<void*>(addr),
+                                     HashCodeAddress(addr));
   return static_cast<LineInfo*>(value);
 }
 
@@ -2114,7 +2122,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
 
     SNPrintF(Vector<char>(file_name, kMaxFileNameSize), "/tmp/elfdump%s%d.o",
              (name_hint != nullptr) ? name_hint : "", file_num++);
-    WriteBytes(file_name, entry->symfile_addr_,
+    WriteBytes(file_name, reinterpret_cast<byte*>(entry->symfile_addr_),
                static_cast<int>(entry->symfile_size_));
   }
 #endif
@@ -2167,6 +2175,7 @@ static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
 
 void EventHandler(const v8::JitCodeEvent* event) {
   if (!FLAG_gdbjit) return;
+  if (event->code_type != v8::JitCodeEvent::JIT_CODE) return;
   base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {

@@ -27,8 +27,8 @@
 
 Debug = debug.Debug
 
-listenerComplete = false;
-exception = false;
+let listenerComplete = false;
+let exceptionThrown = false;
 
 function listener(event, exec_state, event_data, data) {
   try {
@@ -51,7 +51,7 @@ function listener(event, exec_state, event_data, data) {
       listenerComplete = true;
     }
   } catch (e) {
-   exception = e
+   exceptionThrown = true;
   };
 };
 
@@ -80,6 +80,6 @@ for (var i = 0; i < 4; i++) {
 Debug.setBreakPoint(f, 2, 0);
 g();
 
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener");
 // Make sure that the debug event listener vas invoked.
 assertTrue(listenerComplete, "listener did not run to completion");

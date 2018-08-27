@@ -3,7 +3,7 @@
 /*
  * This is a regression test for
  * https://github.com/nodejs/node-v0.x-archive/issues/15447 and
- * and https://github.com/nodejs/node-v0.x-archive/issues/9333.
+ * https://github.com/nodejs/node-v0.x-archive/issues/9333.
  *
  * When a timer is added in another timer's callback, its underlying timer
  * handle was started with a timeout that was actually incorrect.
@@ -25,7 +25,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-const Timer = process.binding('timer_wrap').Timer;
 
 const TIMEOUT = 100;
 
@@ -49,7 +48,7 @@ function blockingCallback(retry, callback) {
   ++nbBlockingCallbackCalls;
 
   if (nbBlockingCallbackCalls > 1) {
-    latestDelay = Timer.now() - timeCallbackScheduled;
+    latestDelay = Date.now() - timeCallbackScheduled;
     // Even if timers can fire later than when they've been scheduled
     // to fire, they shouldn't generally be more than 100% late in this case.
     // But they are guaranteed to be at least 100ms late given the bug in
@@ -68,7 +67,7 @@ function blockingCallback(retry, callback) {
     // block by busy-looping to trigger the issue
     common.busyLoop(TIMEOUT);
 
-    timeCallbackScheduled = Timer.now();
+    timeCallbackScheduled = Date.now();
     setTimeout(blockingCallback.bind(null, retry, callback), TIMEOUT);
   }
 }

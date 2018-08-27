@@ -127,26 +127,6 @@ int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
 
 typedef struct uv__stream_queued_fds_s uv__stream_queued_fds_t;
 
-/* handle flags */
-enum {
-  UV_CLOSING              = 0x01,   /* uv_close() called but not finished. */
-  UV_CLOSED               = 0x02,   /* close(2) finished. */
-  UV_STREAM_READING       = 0x04,   /* uv_read_start() called. */
-  UV_STREAM_SHUTTING      = 0x08,   /* uv_shutdown() called but not complete. */
-  UV_STREAM_SHUT          = 0x10,   /* Write side closed. */
-  UV_STREAM_READABLE      = 0x20,   /* The stream is readable */
-  UV_STREAM_WRITABLE      = 0x40,   /* The stream is writable */
-  UV_STREAM_BLOCKING      = 0x80,   /* Synchronous writes. */
-  UV_STREAM_READ_PARTIAL  = 0x100,  /* read(2) read less than requested. */
-  UV_STREAM_READ_EOF      = 0x200,  /* read(2) read EOF. */
-  UV_TCP_NODELAY          = 0x400,  /* Disable Nagle. */
-  UV_TCP_KEEPALIVE        = 0x800,  /* Turn on keep-alive. */
-  UV_TCP_SINGLE_ACCEPT    = 0x1000, /* Only accept() when idle. */
-  UV_HANDLE_IPV6          = 0x10000, /* Handle is bound to a IPv6 socket. */
-  UV_UDP_PROCESSING       = 0x20000, /* Handle is running the send callback queue. */
-  UV_HANDLE_BOUND         = 0x40000  /* Handle is bound to an address and port */
-};
-
 /* loop flags */
 enum {
   UV_LOOP_BLOCK_SIGPROF = 1
@@ -185,12 +165,24 @@ struct uv__stream_queued_fds_s {
 #define uv__nonblock uv__nonblock_fcntl
 #endif
 
+/* On Linux, uv__nonblock_fcntl() and uv__nonblock_ioctl() do not commute
+ * when O_NDELAY is not equal to O_NONBLOCK.  Case in point: linux/sparc32
+ * and linux/sparc64, where O_NDELAY is O_NONBLOCK + another bit.
+ *
+ * Libuv uses uv__nonblock_fcntl() directly sometimes so ensure that it
+ * commutes with uv__nonblock().
+ */
+#if defined(__linux__) && O_NDELAY != O_NONBLOCK
+#undef uv__nonblock
+#define uv__nonblock uv__nonblock_fcntl
+#endif
+
 /* core */
 int uv__cloexec_ioctl(int fd, int set);
 int uv__cloexec_fcntl(int fd, int set);
 int uv__nonblock_ioctl(int fd, int set);
 int uv__nonblock_fcntl(int fd, int set);
-int uv__close(int fd);
+int uv__close(int fd); /* preserves errno */
 int uv__close_nocheckstdio(int fd);
 int uv__socket(int domain, int type, int protocol);
 int uv__dup(int fd);
@@ -207,6 +199,7 @@ int uv__io_active(const uv__io_t* w, unsigned int events);
 int uv__io_check_fd(uv_loop_t* loop, int fd);
 void uv__io_poll(uv_loop_t* loop, int timeout); /* in milliseconds or -1 */
 int uv__io_fork(uv_loop_t* loop);
+int uv__fd_exists(uv_loop_t* loop, int fd);
 
 /* async */
 void uv__async_stop(uv_loop_t* loop);
@@ -239,10 +232,6 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay);
 /* pipe */
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 
-/* timer */
-void uv__run_timers(uv_loop_t* loop);
-int uv__next_timeout(const uv_loop_t* loop);
-
 /* signal */
 void uv__signal_close(uv_signal_t* handle);
 void uv__signal_global_once_init(void);
@@ -267,7 +256,6 @@ void uv__prepare_close(uv_prepare_t* handle);
 void uv__process_close(uv_process_t* handle);
 void uv__stream_close(uv_stream_t* handle);
 void uv__tcp_close(uv_tcp_t* handle);
-void uv__timer_close(uv_timer_t* handle);
 void uv__udp_close(uv_udp_t* handle);
 void uv__udp_finish_close(uv_udp_t* handle);
 uv_handle_type uv__handle_type(int fd);

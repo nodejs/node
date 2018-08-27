@@ -92,7 +92,7 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
     register_count = register_optimizer_->maxiumum_register_index() + 1;
   }
 
-  Handle<FixedArray> handler_table =
+  Handle<ByteArray> handler_table =
       handler_table_builder()->ToHandlerTable(isolate);
   return bytecode_array_writer_.ToBytecodeArray(
       isolate, register_count, parameter_count(), handler_table);
@@ -511,15 +511,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
 BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
                                                              Register reg) {
   switch (op) {
-    case Token::Value::EQ_STRICT:
-      OutputTestEqualStrictNoFeedback(reg);
-      break;
     case Token::Value::IN:
       OutputTestIn(reg);
       break;
     default:
       UNREACHABLE();
   }
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareReference(Register reg) {
+  OutputTestReferenceEqual(reg);
   return *this;
 }
 
@@ -864,6 +866,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreInArrayLiteral(
+    Register array, Register index, int feedback_slot) {
+  OutputStaInArrayLiteral(array, index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreHomeObjectProperty(
     Register object, int feedback_slot, LanguageMode language_mode) {
   size_t name_index = HomeObjectSymbolConstantPoolEntry();
@@ -898,20 +906,23 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateBlockContext(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateCatchContext(
-    Register exception, const AstRawString* name, const Scope* scope) {
-  size_t name_index = GetConstantPoolEntry(name);
+    Register exception, const Scope* scope) {
   size_t scope_index = GetConstantPoolEntry(scope);
-  OutputCreateCatchContext(exception, name_index, scope_index);
+  OutputCreateCatchContext(exception, scope_index);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(int slots) {
-  OutputCreateFunctionContext(slots);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(
+    const Scope* scope, int slots) {
+  size_t scope_index = GetConstantPoolEntry(scope);
+  OutputCreateFunctionContext(scope_index, slots);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEvalContext(int slots) {
-  OutputCreateEvalContext(slots);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEvalContext(
+    const Scope* scope, int slots) {
+  size_t scope_index = GetConstantPoolEntry(scope);
+  OutputCreateEvalContext(scope_index, slots);
   return *this;
 }
 
@@ -973,8 +984,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEmptyObjectLiteral() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::GetTemplateObject(
-    size_t template_object_description_entry) {
-  OutputGetTemplateObject(template_object_description_entry);
+    size_t template_object_description_entry, int feedback_slot) {
+  OutputGetTemplateObject(template_object_description_entry, feedback_slot);
   return *this;
 }
 
@@ -995,6 +1006,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ToObject(Register out) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ToName(Register out) {
   OutputToName(out);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToString() {
+  OutputToString();
   return *this;
 }
 
@@ -1271,16 +1287,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::SuspendGenerator(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::RestoreGeneratorState(
-    Register generator) {
-  OutputRestoreGeneratorState(generator);
+BytecodeArrayBuilder& BytecodeArrayBuilder::SwitchOnGeneratorState(
+    Register generator, BytecodeJumpTable* jump_table) {
+  DCHECK_EQ(jump_table->case_value_base(), 0);
+  BytecodeNode node(CreateSwitchOnGeneratorStateNode(
+      generator, jump_table->constant_pool_index(), jump_table->size()));
+  WriteSwitch(&node, jump_table);
+  LeaveBasicBlock();
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ResumeGenerator(
-    Register generator, Register generator_state, RegisterList registers) {
-  OutputResumeGenerator(generator, generator_state, registers,
-                        registers.register_count());
+    Register generator, RegisterList registers) {
+  OutputResumeGenerator(generator, registers, registers.register_count());
   return *this;
 }
 

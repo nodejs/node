@@ -92,8 +92,8 @@ static void uv__udp_run_completed(uv_udp_t* handle) {
   uv_udp_send_t* req;
   QUEUE* q;
 
-  assert(!(handle->flags & UV_UDP_PROCESSING));
-  handle->flags |= UV_UDP_PROCESSING;
+  assert(!(handle->flags & UV_HANDLE_UDP_PROCESSING));
+  handle->flags |= UV_HANDLE_UDP_PROCESSING;
 
   while (!QUEUE_EMPTY(&handle->write_completed_queue)) {
     q = QUEUE_HEAD(&handle->write_completed_queue);
@@ -128,7 +128,7 @@ static void uv__udp_run_completed(uv_udp_t* handle) {
       uv__handle_stop(handle);
   }
 
-  handle->flags &= ~UV_UDP_PROCESSING;
+  handle->flags &= ~UV_HANDLE_UDP_PROCESSING;
 }
 
 
@@ -427,7 +427,7 @@ int uv__udp_send(uv_udp_send_t* req,
   QUEUE_INSERT_TAIL(&handle->write_queue, &req->queue);
   uv__handle_start(handle);
 
-  if (empty_queue && !(handle->flags & UV_UDP_PROCESSING)) {
+  if (empty_queue && !(handle->flags & UV_HANDLE_UDP_PROCESSING)) {
     uv__udp_sendmsg(handle);
 
     /* `uv__udp_sendmsg` may not be able to do non-blocking write straight
@@ -623,6 +623,9 @@ int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
   /* Check for already active socket. */
   if (handle->io_watcher.fd != -1)
     return UV_EBUSY;
+
+  if (uv__fd_exists(handle->loop, sock))
+    return UV_EEXIST;
 
   err = uv__nonblock(sock, 1);
   if (err)

@@ -33,7 +33,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -53,8 +53,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       v8::internal::CodeObjectRequired::kYes);
 
-  DoubleToIStub stub(isolate, destination_reg);
-  byte* start = stub.GetCode()->instruction_start();
+  Handle<Code> code = BUILTIN_CODE(isolate, DoubleToI);
+  Address start = code->InstructionStart();
 
   __ push(ebx);
   __ push(ecx);
@@ -81,6 +81,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Call through to the actual stub
   __ call(start, RelocInfo::EXTERNAL_REFERENCE);
+  __ mov(destination_reg, MemOperand(esp, 0));
 
   __ add(esp, Immediate(kDoubleSize));
 

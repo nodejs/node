@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOCKED_QUEUE_
-#define V8_LOCKED_QUEUE_
+#ifndef V8_LOCKED_QUEUE_H_
+#define V8_LOCKED_QUEUE_H_
 
 #include "src/allocation.h"
 #include "src/base/platform/platform.h"
@@ -40,4 +40,4 @@ class LockedQueue final BASE_EMBEDDED {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_LOCKED_QUEUE_
+#endif  // V8_LOCKED_QUEUE_H_

@@ -62,7 +62,7 @@ function closeSync() {
 }
 
 
-// On Windows chmod is only able to manipulate read-only bit
+// On Windows chmod is only able to manipulate write permission
 if (common.isWindows) {
   mode_async = 0o400;   // read-only
   mode_sync = 0o600;    // read-write
@@ -112,10 +112,10 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
     common.expectsError(
       () => fs.fchmod(fd, {}),
       {
-        code: 'ERR_INVALID_ARG_TYPE',
+        code: 'ERR_INVALID_ARG_VALUE',
         type: TypeError,
-        message: 'The "mode" argument must be of type number. ' +
-                 'Received type object'
+        message: 'The argument \'mode\' must be a 32-bit unsigned integer ' +
+                 'or an octal string. Received {}'
       }
     );
 

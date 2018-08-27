@@ -110,7 +110,6 @@ class TTYTestCase(test.TestCase):
                      self.context.GetTimeout(self.mode),
                      env,
                      True)
-    self.Cleanup()
     return test.TestOutput(self,
                       full_command,
                       output,

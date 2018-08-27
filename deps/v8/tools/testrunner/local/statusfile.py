@@ -34,8 +34,8 @@ from utils import Freeze
 # Possible outcomes
 FAIL = "FAIL"
 PASS = "PASS"
-TIMEOUT = "TIMEOUT" # TODO(majeski): unused in status files
-CRASH = "CRASH" # TODO(majeski): unused in status files
+TIMEOUT = "TIMEOUT"
+CRASH = "CRASH"
 
 # Outcomes only for status file, need special handling
 FAIL_OK = "FAIL_OK"
@@ -59,7 +59,7 @@ for var in ["debug", "release", "big", "little",
             "android_arm", "android_arm64", "android_ia32", "android_x64",
             "arm", "arm64", "ia32", "mips", "mipsel", "mips64", "mips64el",
             "x64", "ppc", "ppc64", "s390", "s390x", "macos", "windows",
-            "linux", "aix"]:
+            "linux", "aix", "r1", "r2", "r3", "r5", "r6"]:
   VARIABLES[var] = var
 
 # Allow using variants as keywords.

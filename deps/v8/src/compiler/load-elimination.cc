@@ -8,7 +8,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -36,7 +36,7 @@ Node* ResolveRenames(Node* node) {
 
 bool MayAlias(Node* a, Node* b) {
   if (a == b) return true;
-  if (!NodeProperties::GetType(a)->Maybe(NodeProperties::GetType(b))) {
+  if (!NodeProperties::GetType(a).Maybe(NodeProperties::GetType(b))) {
     return false;
   }
   switch (b->opcode()) {
@@ -252,7 +252,7 @@ LoadElimination::AbstractElements::Kill(Node* object, Node* index,
         DCHECK_NOT_NULL(element.index);
         DCHECK_NOT_NULL(element.value);
         if (!MayAlias(object, element.object) ||
-            !NodeProperties::GetType(index)->Maybe(
+            !NodeProperties::GetType(index).Maybe(
                 NodeProperties::GetType(element.index))) {
           that->elements_[that->next_index_++] = element;
         }
@@ -329,6 +329,7 @@ void LoadElimination::AbstractElements::Print() const {
 
 Node* LoadElimination::AbstractField::Lookup(Node* object) const {
   for (auto pair : info_for_node_) {
+    if (pair.first->IsDead()) continue;
     if (MustAlias(object, pair.first)) return pair.second.value;
   }
   return nullptr;
@@ -364,6 +365,7 @@ LoadElimination::AbstractField const* LoadElimination::AbstractField::Kill(
     const AliasStateInfo& alias_info, MaybeHandle<Name> name,
     Zone* zone) const {
   for (auto pair : this->info_for_node_) {
+    if (pair.first->IsDead()) continue;
     if (alias_info.MayAlias(pair.first)) {
       AbstractField* that = new (zone) AbstractField(zone);
       for (auto pair : this->info_for_node_) {
@@ -821,9 +823,11 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
     state = state->SetMaps(
         node, ZoneHandleSet<Map>(factory()->fixed_double_array_map()), zone());
   } else {
-    // We know that the resulting elements have the fixed array map.
-    state = state->SetMaps(
-        node, ZoneHandleSet<Map>(factory()->fixed_array_map()), zone());
+    // We know that the resulting elements have the fixed array map or the COW
+    // version thereof (if we didn't grow and it was already COW before).
+    ZoneHandleSet<Map> fixed_array_maps(factory()->fixed_array_map());
+    fixed_array_maps.insert(factory()->fixed_cow_array_map(), zone());
+    state = state->SetMaps(node, fixed_array_maps, zone());
   }
   // Kill the previous elements on {object}.
   state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
@@ -924,7 +928,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
         // TODO(tebbi): We should insert a {TypeGuard} for the intersection of
         // these two types here once we properly handle {Type::None} everywhere.
         if (!replacement->IsDead() && NodeProperties::GetType(replacement)
-                                          ->Is(NodeProperties::GetType(node))) {
+                                          .Is(NodeProperties::GetType(node))) {
           ReplaceWithValue(node, replacement, effect);
           return Replace(replacement);
         }
@@ -951,11 +955,11 @@ Reduction LoadElimination::ReduceStoreField(Node* node) {
     DCHECK(IsAnyTagged(access.machine_type.representation()));
     // Kill all potential knowledge about the {object}s map.
     state = state->KillMaps(object, zone());
-    Type* const new_value_type = NodeProperties::GetType(new_value);
-    if (new_value_type->IsHeapConstant()) {
+    Type const new_value_type = NodeProperties::GetType(new_value);
+    if (new_value_type.IsHeapConstant()) {
       // Record the new {object} map information.
       ZoneHandleSet<Map> object_maps(
-          bit_cast<Handle<Map>>(new_value_type->AsHeapConstant()->Value()));
+          bit_cast<Handle<Map>>(new_value_type.AsHeapConstant()->Value()));
       state = state->SetMaps(object, object_maps, zone());
     }
   } else {
@@ -1012,7 +1016,7 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
         // TODO(tebbi): We should insert a {TypeGuard} for the intersection of
         // these two types here once we properly handle {Type::None} everywhere.
         if (!replacement->IsDead() && NodeProperties::GetType(replacement)
-                                          ->Is(NodeProperties::GetType(node))) {
+                                          .Is(NodeProperties::GetType(node))) {
           ReplaceWithValue(node, replacement, effect);
           return Replace(replacement);
         }
@@ -1344,7 +1348,7 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
       if (kDoubleSize != kPointerSize) {
         return -1;  // We currently only track pointer size fields.
       }
-    // Fall through.
+      break;
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:

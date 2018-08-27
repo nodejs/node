@@ -45,7 +45,8 @@ class OptionalOperator final {
 // A Load needs a MachineType.
 typedef MachineType LoadRepresentation;
 
-LoadRepresentation LoadRepresentationOf(Operator const*);
+V8_EXPORT_PRIVATE LoadRepresentation LoadRepresentationOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
 
 // A Store needs a MachineType and a WriteBarrierKind in order to emit the
 // correct write barrier.
@@ -71,17 +72,14 @@ size_t hash_value(StoreRepresentation);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, StoreRepresentation);
 
-StoreRepresentation const& StoreRepresentationOf(Operator const*);
-
-typedef MachineType UnalignedLoadRepresentation;
-
-UnalignedLoadRepresentation UnalignedLoadRepresentationOf(Operator const*);
+V8_EXPORT_PRIVATE StoreRepresentation const& StoreRepresentationOf(
+    Operator const*) V8_WARN_UNUSED_RESULT;
 
 // An UnalignedStore needs a MachineType.
 typedef MachineRepresentation UnalignedStoreRepresentation;
 
 UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
-    Operator const*);
+    Operator const*) V8_WARN_UNUSED_RESULT;
 
 class StackSlotRepresentation final {
  public:
@@ -105,11 +103,13 @@ size_t hash_value(StackSlotRepresentation);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            StackSlotRepresentation);
 
-StackSlotRepresentation const& StackSlotRepresentationOf(Operator const* op);
+V8_EXPORT_PRIVATE StackSlotRepresentation const& StackSlotRepresentationOf(
+    Operator const* op) V8_WARN_UNUSED_RESULT;
 
-MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
+MachineRepresentation AtomicStoreRepresentationOf(Operator const* op)
+    V8_WARN_UNUSED_RESULT;
 
-MachineType AtomicOpRepresentationOf(Operator const* op);
+MachineType AtomicOpRepresentationOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
@@ -301,6 +301,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // This operator reinterprets the bits of a tagged pointer as word.
   const Operator* BitcastTaggedToWord();
 
+  // This operator reinterprets the bits of a tagged MaybeObject pointer as
+  // word.
+  const Operator* BitcastMaybeObjectToWord();
+
   // This operator reinterprets the bits of a word as tagged pointer.
   const Operator* BitcastWordToTagged();
 
@@ -349,6 +353,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* BitcastFloat64ToInt64();
   const Operator* BitcastInt32ToFloat32();
   const Operator* BitcastInt64ToFloat64();
+
+  // These operators sign-extend to Int32/Int64
+  const Operator* SignExtendWord8ToInt32();
+  const Operator* SignExtendWord16ToInt32();
+  const Operator* SignExtendWord8ToInt64();
+  const Operator* SignExtendWord16ToInt64();
+  const Operator* SignExtendWord32ToInt64();
 
   // Floating point operators always operate with IEEE 754 round-to-nearest
   // (single-precision).
@@ -577,6 +588,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
+  const Operator* PoisonedLoad(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
 
   // store [base + index], value
@@ -584,7 +596,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* ProtectedStore(MachineRepresentation rep);
 
   // unaligned load [base + index]
-  const Operator* UnalignedLoad(UnalignedLoadRepresentation rep);
+  const Operator* UnalignedLoad(LoadRepresentation rep);
 
   // unaligned store [base + index], value
   const Operator* UnalignedStore(UnalignedStoreRepresentation rep);
@@ -592,29 +604,55 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* StackSlot(int size, int alignment = 0);
   const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
 
+  // Destroy value by masking when misspeculating.
+  const Operator* TaggedPoisonOnSpeculation();
+  const Operator* Word32PoisonOnSpeculation();
+  const Operator* Word64PoisonOnSpeculation();
+
   // Access to the machine stack.
   const Operator* LoadStackPointer();
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
 
+  // Access to the root register.
+  const Operator* LoadRootsPointer();
+
   // atomic-load [base + index]
-  const Operator* AtomicLoad(LoadRepresentation rep);
+  const Operator* Word32AtomicLoad(LoadRepresentation rep);
+  // atomic-load [base + index]
+  const Operator* Word64AtomicLoad(LoadRepresentation rep);
   // atomic-store [base + index], value
-  const Operator* AtomicStore(MachineRepresentation rep);
+  const Operator* Word32AtomicStore(MachineRepresentation rep);
+  // atomic-store [base + index], value
+  const Operator* Word64AtomicStore(MachineRepresentation rep);
   // atomic-exchange [base + index], value
-  const Operator* AtomicExchange(MachineType rep);
+  const Operator* Word32AtomicExchange(MachineType rep);
+  // atomic-exchange [base + index], value
+  const Operator* Word64AtomicExchange(MachineType rep);
   // atomic-compare-exchange [base + index], old_value, new_value
-  const Operator* AtomicCompareExchange(MachineType rep);
+  const Operator* Word32AtomicCompareExchange(MachineType rep);
+  // atomic-compare-exchange [base + index], old_value, new_value
+  const Operator* Word64AtomicCompareExchange(MachineType rep);
   // atomic-add [base + index], value
-  const Operator* AtomicAdd(MachineType rep);
+  const Operator* Word32AtomicAdd(MachineType rep);
   // atomic-sub [base + index], value
-  const Operator* AtomicSub(MachineType rep);
+  const Operator* Word32AtomicSub(MachineType rep);
   // atomic-and [base + index], value
-  const Operator* AtomicAnd(MachineType rep);
+  const Operator* Word32AtomicAnd(MachineType rep);
   // atomic-or [base + index], value
-  const Operator* AtomicOr(MachineType rep);
+  const Operator* Word32AtomicOr(MachineType rep);
   // atomic-xor [base + index], value
-  const Operator* AtomicXor(MachineType rep);
+  const Operator* Word32AtomicXor(MachineType rep);
+  // atomic-load [base + index]
+  const Operator* Word64AtomicAdd(MachineType rep);
+  // atomic-sub [base + index], value
+  const Operator* Word64AtomicSub(MachineType rep);
+  // atomic-and [base + index], value
+  const Operator* Word64AtomicAnd(MachineType rep);
+  // atomic-or [base + index], value
+  const Operator* Word64AtomicOr(MachineType rep);
+  // atomic-xor [base + index], value
+  const Operator* Word64AtomicXor(MachineType rep);
 
   const OptionalOperator SpeculationFence();
 
@@ -633,25 +671,26 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
 // Pseudo operators that translate to 32/64-bit operators depending on the
 // word-size of the target machine assumed by this builder.
-#define PSEUDO_OP_LIST(V) \
-  V(Word, And)            \
-  V(Word, Or)             \
-  V(Word, Xor)            \
-  V(Word, Shl)            \
-  V(Word, Shr)            \
-  V(Word, Sar)            \
-  V(Word, Ror)            \
-  V(Word, Clz)            \
-  V(Word, Equal)          \
-  V(Int, Add)             \
-  V(Int, Sub)             \
-  V(Int, Mul)             \
-  V(Int, Div)             \
-  V(Int, Mod)             \
-  V(Int, LessThan)        \
-  V(Int, LessThanOrEqual) \
-  V(Uint, Div)            \
-  V(Uint, LessThan)       \
+#define PSEUDO_OP_LIST(V)      \
+  V(Word, And)                 \
+  V(Word, Or)                  \
+  V(Word, Xor)                 \
+  V(Word, Shl)                 \
+  V(Word, Shr)                 \
+  V(Word, Sar)                 \
+  V(Word, Ror)                 \
+  V(Word, Clz)                 \
+  V(Word, Equal)               \
+  V(Word, PoisonOnSpeculation) \
+  V(Int, Add)                  \
+  V(Int, Sub)                  \
+  V(Int, Mul)                  \
+  V(Int, Div)                  \
+  V(Int, Mod)                  \
+  V(Int, LessThan)             \
+  V(Int, LessThanOrEqual)      \
+  V(Uint, Div)                 \
+  V(Uint, LessThan)            \
   V(Uint, Mod)
 #define PSEUDO_OP(Prefix, Suffix)                                \
   const Operator* Prefix##Suffix() {                             \

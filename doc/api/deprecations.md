@@ -1,10 +1,11 @@
 # Deprecated APIs
 
 <!--introduced_in=v7.7.0-->
+<!-- type=misc -->
 
 Node.js may deprecate APIs when either: (a) use of the API is considered to be
-unsafe, (b) an improved alternative API has been made available, or (c)
-breaking changes to the API are expected in a future major release.
+unsafe, (b) an improved alternative API is available, or (c) breaking changes to
+the API are expected in a future major release.
 
 Node.js utilizes three kinds of Deprecations:
 
@@ -26,15 +27,14 @@ be printed to `stderr` the first time the deprecated API is used. When the
 `--throw-deprecation` command-line flag is used, a Runtime deprecation will
 cause an error to be thrown.
 
-An End-of-Life deprecation is used to identify code that either has been
-removed or will soon be removed from Node.js.
+An End-of-Life deprecation is used when functionality is or will soon be removed
+from Node.js.
 
-## Un-deprecation
+## Revoking deprecations
 
-From time-to-time the deprecation of an API may be reversed. Such action may
-happen in either a semver-minor or semver-major release. In such situations,
+Occasionally, the deprecation of an API may be reversed. In such situations,
 this document will be updated with information relevant to the decision.
-*However, the deprecation identifier will not be modified*.
+However, the deprecation identifier will not be modified.
 
 ## List of Deprecated APIs
 
@@ -64,15 +64,14 @@ The `_writableState.buffer` property is deprecated. Use the
 <a id="DEP0004"></a>
 ### DEP0004: CryptoStream.prototype.readyState
 
-Type: Documentation-only
+Type: End-of-Life
 
-The `CryptoStream.prototype.readyState` property is deprecated and should not
-be used.
+The `CryptoStream.prototype.readyState` property was removed.
 
 <a id="DEP0005"></a>
 ### DEP0005: Buffer() constructor
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime (supports [`--pending-deprecation`][])
 
 The `Buffer()` function and `new Buffer()` constructor are deprecated due to
 API usability issues that can potentially lead to accidental security issues.
@@ -92,6 +91,10 @@ is strongly recommended:
 * [`Buffer.from(buffer)`][] - Create a `Buffer` that copies `buffer`.
 * [`Buffer.from(string[, encoding])`][from_string_encoding] - Create a `Buffer`
   that copies `string`.
+
+As of v10.0.0, a deprecation warning is printed at runtime when
+`--pending-deprecation` is used or when the calling code is
+outside `node_modules` in order to better target developers, rather than users.
 
 <a id="DEP0006"></a>
 ### DEP0006: child\_process options.customFds
@@ -119,7 +122,7 @@ precisely describe the actual semantics and was unnecessarily emotion-laden.
 
 Type: Documentation-only
 
-The `constants` module has been deprecated. When requiring access to constants
+The `constants` module is deprecated. When requiring access to constants
 relevant to specific Node.js builtin modules, developers should instead refer
 to the `constants` property exposed by the relevant module. For instance,
 `require('fs').constants` and `require('os').constants`.
@@ -127,7 +130,7 @@ to the `constants` property exposed by the relevant module. For instance,
 <a id="DEP0009"></a>
 ### DEP0009: crypto.pbkdf2 without digest
 
-Type: End-of-life
+Type: End-of-Life
 
 Use of the [`crypto.pbkdf2()`][] API without specifying a digest was deprecated
 in Node.js 6.0 because the method defaulted to using the non-recommended
@@ -138,17 +141,17 @@ undefined `digest` will throw a `TypeError`.
 <a id="DEP0010"></a>
 ### DEP0010: crypto.createCredentials
 
-Type: Runtime
+Type: End-of-Life
 
-The [`crypto.createCredentials()`][] API is deprecated. Please use
+The `crypto.createCredentials()` API was removed. Please use
 [`tls.createSecureContext()`][] instead.
 
 <a id="DEP0011"></a>
 ### DEP0011: crypto.Credentials
 
-Type: Runtime
+Type: End-of-Life
 
-The `crypto.Credentials` class is deprecated. Please use [`tls.SecureContext`][]
+The `crypto.Credentials` class was removed. Please use [`tls.SecureContext`][]
 instead.
 
 <a id="DEP0012"></a>
@@ -156,7 +159,7 @@ instead.
 
 Type: End-of-Life
 
-`Domain.dispose()` is removed. Recover from failed I/O actions
+`Domain.dispose()` has been removed. Recover from failed I/O actions
 explicitly via error event handlers set on the domain instead.
 
 <a id="DEP0013"></a>
@@ -165,30 +168,30 @@ explicitly via error event handlers set on the domain instead.
 Type: End-of-Life
 
 Calling an asynchronous function without a callback throws a `TypeError`
-REPLACEME onwards. Refer: [PR 12562](https://github.com/nodejs/node/pull/12562)
+in Node.js 10.0.0 onwards. (See https://github.com/nodejs/node/pull/12562.)
 
 <a id="DEP0014"></a>
 ### DEP0014: fs.read legacy String interface
 
 Type: End-of-Life
 
-The [`fs.read()`][] legacy String interface is deprecated. Use the Buffer API as
-mentioned in the documentation instead.
+The [`fs.read()`][] legacy `String` interface is deprecated. Use the `Buffer`
+API as mentioned in the documentation instead.
 
 <a id="DEP0015"></a>
 ### DEP0015: fs.readSync legacy String interface
 
 Type: End-of-Life
 
-The [`fs.readSync()`][] legacy String interface is deprecated. Use the Buffer
-API as mentioned in the documentation instead.
+The [`fs.readSync()`][] legacy `String` interface is deprecated. Use the
+`Buffer` API as mentioned in the documentation instead.
 
 <a id="DEP0016"></a>
 ### DEP0016: GLOBAL/root
 
 Type: Runtime
 
-The `GLOBAL` and `root` aliases for the `global` property have been deprecated
+The `GLOBAL` and `root` aliases for the `global` property are deprecated
 and should no longer be used.
 
 <a id="DEP0017"></a>
@@ -299,7 +302,7 @@ instead.
 
 Type: Documentation-only
 
-The [`SlowBuffer`][] class has been deprecated. Please use
+The [`SlowBuffer`][] class is deprecated. Please use
 [`Buffer.allocUnsafeSlow(size)`][] instead.
 
 <a id="DEP0031"></a>
@@ -322,7 +325,7 @@ The [`domain`][] module is deprecated and should not be used.
 
 Type: Documentation-only
 
-The [`EventEmitter.listenerCount(emitter, eventName)`][] API has been
+The [`EventEmitter.listenerCount(emitter, eventName)`][] API is
 deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
 
 <a id="DEP0034"></a>
@@ -330,7 +333,7 @@ deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
 
 Type: Documentation-only
 
-The [`fs.exists(path, callback)`][] API has been deprecated. Please use
+The [`fs.exists(path, callback)`][] API is deprecated. Please use
 [`fs.stat()`][] or [`fs.access()`][] instead.
 
 <a id="DEP0035"></a>
@@ -338,48 +341,34 @@ The [`fs.exists(path, callback)`][] API has been deprecated. Please use
 
 Type: Documentation-only
 
-The [`fs.lchmod(path, mode, callback)`][] API has been deprecated.
+The [`fs.lchmod(path, mode, callback)`][] API is deprecated.
 
 <a id="DEP0036"></a>
 ### DEP0036: fs.lchmodSync(path, mode)
 
 Type: Documentation-only
 
-The [`fs.lchmodSync(path, mode)`][] API has been deprecated.
-
-<a id="DEP0037"></a>
-### DEP0037: fs.lchown(path, uid, gid, callback)
-
-Type: Documentation-only
-
-The [`fs.lchown(path, uid, gid, callback)`][] API has been deprecated.
-
-<a id="DEP0038"></a>
-### DEP0038: fs.lchownSync(path, uid, gid)
-
-Type: Documentation-only
-
-The [`fs.lchownSync(path, uid, gid)`][] API has been deprecated.
+The [`fs.lchmodSync(path, mode)`][] API is deprecated.
 
 <a id="DEP0039"></a>
 ### DEP0039: require.extensions
 
 Type: Documentation-only
 
-The [`require.extensions`][] property has been deprecated.
+The [`require.extensions`][] property is deprecated.
 
 <a id="DEP0040"></a>
 ### DEP0040: punycode module
 
 Type: Documentation-only
 
-The [`punycode`][] module has been deprecated. Please use a userland alternative
+The [`punycode`][] module is deprecated. Please use a userland alternative
 instead.
 
 <a id="DEP0041"></a>
 ### DEP0041: NODE\_REPL\_HISTORY\_FILE environment variable
 
-Type: End-of-life
+Type: End-of-Life
 
 The `NODE_REPL_HISTORY_FILE` environment variable was removed. Please use
 `NODE_REPL_HISTORY` instead.
@@ -387,9 +376,9 @@ The `NODE_REPL_HISTORY_FILE` environment variable was removed. Please use
 <a id="DEP0042"></a>
 ### DEP0042: tls.CryptoStream
 
-Type: Documentation-only
+Type: End-of-Life
 
-The [`tls.CryptoStream`][] class has been deprecated. Please use
+The [`tls.CryptoStream`][] class was removed. Please use
 [`tls.TLSSocket`][] instead.
 
 <a id="DEP0043"></a>
@@ -397,7 +386,7 @@ The [`tls.CryptoStream`][] class has been deprecated. Please use
 
 Type: Documentation-only
 
-The [`tls.SecurePair`][] class has been deprecated. Please use
+The [`tls.SecurePair`][] class is deprecated. Please use
 [`tls.TLSSocket`][] instead.
 
 <a id="DEP0044"></a>
@@ -405,7 +394,7 @@ The [`tls.SecurePair`][] class has been deprecated. Please use
 
 Type: Documentation-only
 
-The [`util.isArray()`][] API has been deprecated. Please use `Array.isArray()`
+The [`util.isArray()`][] API is deprecated. Please use `Array.isArray()`
 instead.
 
 <a id="DEP0045"></a>
@@ -413,14 +402,14 @@ instead.
 
 Type: Documentation-only
 
-The [`util.isBoolean()`][] API has been deprecated.
+The [`util.isBoolean()`][] API is deprecated.
 
 <a id="DEP0046"></a>
 ### DEP0046: util.isBuffer()
 
 Type: Documentation-only
 
-The [`util.isBuffer()`][] API has been deprecated. Please use
+The [`util.isBuffer()`][] API is deprecated. Please use
 [`Buffer.isBuffer()`][] instead.
 
 <a id="DEP0047"></a>
@@ -428,113 +417,114 @@ The [`util.isBuffer()`][] API has been deprecated. Please use
 
 Type: Documentation-only
 
-The [`util.isDate()`][] API has been deprecated.
+The [`util.isDate()`][] API is deprecated.
 
 <a id="DEP0048"></a>
 ### DEP0048: util.isError()
 
 Type: Documentation-only
 
-The [`util.isError()`][] API has been deprecated.
+The [`util.isError()`][] API is deprecated.
 
 <a id="DEP0049"></a>
 ### DEP0049: util.isFunction()
 
 Type: Documentation-only
 
-The [`util.isFunction()`][] API has been deprecated.
+The [`util.isFunction()`][] API is deprecated.
 
 <a id="DEP0050"></a>
 ### DEP0050: util.isNull()
 
 Type: Documentation-only
 
-The [`util.isNull()`][] API has been deprecated.
+The [`util.isNull()`][] API is deprecated.
 
 <a id="DEP0051"></a>
 ### DEP0051: util.isNullOrUndefined()
 
 Type: Documentation-only
 
-The [`util.isNullOrUndefined()`][] API has been deprecated.
+The [`util.isNullOrUndefined()`][] API is deprecated.
 
 <a id="DEP0052"></a>
 ### DEP0052: util.isNumber()
 
 Type: Documentation-only
 
-The [`util.isNumber()`][] API has been deprecated.
+The [`util.isNumber()`][] API is deprecated.
 
 <a id="DEP0053"></a>
 ### DEP0053 util.isObject()
 
 Type: Documentation-only
 
-The [`util.isObject()`][] API has been deprecated.
+The [`util.isObject()`][] API is deprecated.
 
 <a id="DEP0054"></a>
 ### DEP0054: util.isPrimitive()
 
 Type: Documentation-only
 
-The [`util.isPrimitive()`][] API has been deprecated.
+The [`util.isPrimitive()`][] API is deprecated.
 
 <a id="DEP0055"></a>
 ### DEP0055: util.isRegExp()
 
 Type: Documentation-only
 
-The [`util.isRegExp()`][] API has been deprecated.
+The [`util.isRegExp()`][] API is deprecated.
 
 <a id="DEP0056"></a>
 ### DEP0056: util.isString()
 
 Type: Documentation-only
 
-The [`util.isString()`][] API has been deprecated.
+The [`util.isString()`][] API is deprecated.
 
 <a id="DEP0057"></a>
 ### DEP0057: util.isSymbol()
 
 Type: Documentation-only
 
-The [`util.isSymbol()`][] API has been deprecated.
+The [`util.isSymbol()`][] API is deprecated.
 
 <a id="DEP0058"></a>
 ### DEP0058: util.isUndefined()
 
 Type: Documentation-only
 
-The [`util.isUndefined()`][] API has been deprecated.
+The [`util.isUndefined()`][] API is deprecated.
 
 <a id="DEP0059"></a>
 ### DEP0059: util.log()
 
 Type: Documentation-only
 
-The [`util.log()`][] API has been deprecated.
+The [`util.log()`][] API is deprecated.
 
 <a id="DEP0060"></a>
 ### DEP0060: util.\_extend()
 
 Type: Documentation-only
 
-The [`util._extend()`][] API has been deprecated.
+The [`util._extend()`][] API is deprecated.
 
 <a id="DEP0061"></a>
 ### DEP0061: fs.SyncWriteStream
 
-Type: Runtime
+Type: End-of-Life
 
 The `fs.SyncWriteStream` class was never intended to be a publicly accessible
-API. No alternative API is available. Please use a userland alternative.
+API and has been removed. No alternative API is available. Please use a userland
+alternative.
 
 <a id="DEP0062"></a>
 ### DEP0062: node --debug
 
 Type: Runtime
 
-`--debug` activates the legacy V8 debugger interface, which has been removed as
+`--debug` activates the legacy V8 debugger interface, which was removed as
 of V8 5.8. It is replaced by Inspector which is activated with `--inspect`
 instead.
 
@@ -543,7 +533,7 @@ instead.
 
 Type: Documentation-only
 
-The `http` module `ServerResponse.prototype.writeHeader()` API has been
+The `http` module `ServerResponse.prototype.writeHeader()` API is
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
 
 The `ServerResponse.prototype.writeHeader()` method was never documented as an
@@ -564,7 +554,7 @@ Type: End-of-Life
 
 The `repl` module's `REPL_MODE_MAGIC` constant, used for `replMode` option, has
 been removed. Its behavior has been functionally identical to that of
-`REPL_MODE_SLOPPY` since Node.js v6.0.0, when V8 5.0 was imported. Please use
+`REPL_MODE_SLOPPY` since Node.js 6.0.0, when V8 5.0 was imported. Please use
 `REPL_MODE_SLOPPY` instead.
 
 The `NODE_REPL_MODE` environment variable is used to set the underlying
@@ -577,7 +567,7 @@ removed. Please use `sloppy` instead.
 Type: Documentation-only
 
 The `http` module `outgoingMessage._headers` and `outgoingMessage._headerNames`
-properties have been deprecated. Please instead use one of the public methods
+properties are deprecated. Use one of the public methods
 (e.g. `outgoingMessage.getHeader()`, `outgoingMessage.getHeaders()`,
 `outgoingMessage.getHeaderNames()`, `outgoingMessage.hasHeader()`,
 `outgoingMessage.removeHeader()`, `outgoingMessage.setHeader()`) for working
@@ -591,7 +581,7 @@ were never documented as officially supported properties.
 
 Type: Documentation-only
 
-The `http` module `OutgoingMessage.prototype._renderHeaders()` API has been
+The `http` module `OutgoingMessage.prototype._renderHeaders()` API is
 deprecated.
 
 The `OutgoingMessage.prototype._renderHeaders` property was never documented as
@@ -650,7 +640,7 @@ This change was made while `async_hooks` was an experimental API.
 Type: End-of-Life
 
 Accessing several internal, undocumented properties of `net.Server` instances
-with inappropriate names has been deprecated.
+with inappropriate names is deprecated.
 
 As the original API was undocumented and not generally useful for non-internal
 code, no replacement API is provided.
@@ -698,9 +688,9 @@ difference is that `querystring.parse()` does url decoding:
 
 Type: Runtime
 
-`Module._debug()` has been deprecated.
+`Module._debug()` is deprecated.
 
-The `Module._debug()` function   was never documented as an officially
+The `Module._debug()` function was never documented as an officially
 supported API.
 
 <a id="DEP0078"></a>
@@ -713,11 +703,11 @@ Type: Runtime
 <a id="DEP0079"></a>
 ### DEP0079: Custom inspection function on Objects via .inspect()
 
-Type: Runtime
+Type: End-of-Life
 
 Using a property named `inspect` on an object to specify a custom inspection
 function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
-instead. For backwards compatibility with Node.js prior to version 6.4.0, both
+instead. For backward compatibility with Node.js prior to version 6.4.0, both
 may be specified.
 
 <a id="DEP0080"></a>
@@ -726,7 +716,7 @@ may be specified.
 Type: Documentation-only
 
 The internal `path._makeLong()` was not intended for public use. However,
-userland modules have found it useful. The internal API has been deprecated
+userland modules have found it useful. The internal API is deprecated
 and replaced with an identical, public `path.toNamespacedPath()` method.
 
 <a id="DEP0081"></a>
@@ -734,7 +724,7 @@ and replaced with an identical, public `path.toNamespacedPath()` method.
 
 Type: Runtime
 
-`fs.truncate()` `fs.truncateSync()` usage with a file descriptor has been
+`fs.truncate()` `fs.truncateSync()` usage with a file descriptor is
 deprecated. Please use `fs.ftruncate()` or `fs.ftruncateSync()` to work with
 file descriptors.
 
@@ -743,9 +733,8 @@ file descriptors.
 
 Type: Runtime
 
-`REPLServer.prototype.memory()` is a function only necessary for the
-internal mechanics of the `REPLServer` itself, and is therefore not
-necessary in user space.
+`REPLServer.prototype.memory()` is only necessary for the internal mechanics of
+the `REPLServer` itself. Do not use this function.
 
 <a id="DEP0083"></a>
 ### DEP0083: Disabling ECDH by setting ecdhCurve to false
@@ -793,8 +782,8 @@ code modification is necessary if that is done.
 
 Type: End-of-Life
 
-The AsyncHooks Sensitive API was never documented and had various of minor
-issues, see https://github.com/nodejs/node/issues/15572. Use the `AsyncResource`
+The AsyncHooks Sensitive API was never documented and had various minor issues.
+(See https://github.com/nodejs/node/issues/15572.) Use the `AsyncResource`
 API instead.
 
 <a id="DEP0086"></a>
@@ -802,7 +791,7 @@ API instead.
 
 Type: End-of-Life
 
-`runInAsyncIdScope` doesn't emit the `before` or `after` event and can thus
+`runInAsyncIdScope` doesn't emit the `'before'` or `'after'` event and can thus
 cause a lot of issues. See https://github.com/nodejs/node/issues/14328 for more
 details.
 
@@ -818,14 +807,13 @@ same as the legacy assert but it will always use strict equality checks.
 <a id="DEP0090"></a>
 ### DEP0090: Invalid GCM authentication tag lengths
 
-Type: Runtime
+Type: End-of-Life
 
-Node.js supports all GCM authentication tag lengths which are accepted by
-OpenSSL when calling [`decipher.setAuthTag()`][]. This behavior will change in
-a future version at which point only authentication tag lengths of 128, 120,
-112, 104, 96, 64, and 32 bits will be allowed. Authentication tags whose length
-is not included in this list will be considered invalid in compliance with
-[NIST SP 800-38D][].
+Node.js used to support all GCM authentication tag lengths which are accepted by
+OpenSSL when calling [`decipher.setAuthTag()`][]. Beginning with node REPLACEME,
+only authentication tag lengths of 128, 120, 112, 104, 96, 64, and 32 bits are
+allowed. Authentication tags whose length is not included in this list are
+considered invalid in compliance with [NIST SP 800-38D][].
 
 <a id="DEP0091"></a>
 ### DEP0091: crypto.DEFAULT_ENCODING
@@ -856,9 +844,9 @@ and `crypto.getFips()` instead.
 
 Type: Runtime
 
-Using `assert.fail()` with more than one argument has no benefit over writing an
-individual error message. Either use `assert.fail()` with one argument or switch
-to one of the other assert methods.
+Using `assert.fail()` with more than one argument is deprecated. Use
+`assert.fail()` with only one argument or use a different `assert` module
+method.
 
 <a id="DEP0095"></a>
 ### DEP0095: timers.enroll()
@@ -886,12 +874,13 @@ should start using the `async_context` variant of `MakeCallback` or
 `CallbackScope`, or the high-level `AsyncResource` class.
 
 <a id="DEP0098"></a>
-### DEP0098: AsyncHooks Embedder AsyncResource.emit{Before,After} APIs
+### DEP0098: AsyncHooks Embedder AsyncResource.emitBefore and AsyncResource.emitAfter APIs
 
 Type: Runtime
 
-The embedded API provided by AsyncHooks exposes emit{Before,After} methods
-which are very easy to use incorrectly which can lead to unrecoverable errors.
+The embedded API provided by AsyncHooks exposes `.emitBefore()` and
+`.emitAfter()` methods which are very easy to use incorrectly which can lead
+to unrecoverable errors.
 
 Use [`asyncResource.runInAsyncScope()`][] API instead which provides a much
 safer, and more convenient, alternative. See
@@ -920,7 +909,7 @@ This was never a documented feature.
 
 Type: End-of-Life
 
-The `--with-lttng` compile time option is removed.
+The `--with-lttng` compile-time option has been removed.
 
 <a id="DEP0102"></a>
 ### DEP0102: Using `noAssert` in Buffer#(read|write) operations.
@@ -939,45 +928,108 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 Using `process.binding()` in general should be avoided. The type checking
 methods in particular can be replaced by using [`util.types`][].
 
+This deprecation has been superseded by the deprecation of the
+`process.binding()` API ([DEP0111](#DEP0111)).
+
 <a id="DEP0104"></a>
 ### DEP0104: process.env string coercion
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
-Currently when assigning a property to [`process.env`][], the assigned value is
-implicitly converted to a string if it is not a string. This behavior is
-deprecated if the assigned value is not a string, boolean, or number. In the
-future, such assignment may result in a thrown error. Please convert the
-property to a string before assigning it to `process.env`.
+When assigning a non-string property to [`process.env`][], the assigned value is
+implicitly converted to a string. This behavior is deprecated if the assigned
+value is not a string, boolean, or number. In the future, such assignment may
+result in a thrown error. Please convert the property to a string before
+assigning it to `process.env`.
 
 <a id="DEP0105"></a>
 ### DEP0105: decipher.finaltol
 
-Type: Runtime
+Type: End-of-Life
 
-`decipher.finaltol()` has never been documented and is currently an alias for
-[`decipher.final()`][]. In the future, this API will likely be removed, and it
-is recommended to use [`decipher.final()`][] instead.
+`decipher.finaltol()` has never been documented and was an alias for
+[`decipher.final()`][]. This API has been removed, and it is recommended to use
+[`decipher.final()`][] instead.
 
 <a id="DEP0106"></a>
 ### DEP0106: crypto.createCipher and crypto.createDecipher
 
-Type: Documentation-only
+Type: Runtime
 
 Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] should be
 avoided as they use a weak key derivation function (MD5 with no salt) and static
 initialization vectors. It is recommended to derive a key using
-[`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][] and
-[`crypto.createDecipheriv()`][] to obtain the [`Cipher`][] and [`Decipher`][]
-objects respectively.
+[`crypto.pbkdf2()`][] or [`crypto.scrypt()`][] and to use
+[`crypto.createCipheriv()`][] and [`crypto.createDecipheriv()`][] to obtain the
+[`Cipher`][] and [`Decipher`][] objects respectively.
 
 <a id="DEP0107"></a>
 ### DEP0107: tls.convertNPNProtocols()
 
-Type: Runtime
+Type: End-of-Life
 
 This was an undocumented helper function not intended for use outside Node.js
 core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
+
+<a id="DEP0108"></a>
+### DEP0108: zlib.bytesRead
+
+Type: Documentation-only
+
+Deprecated alias for [`zlib.bytesWritten`][]. This original name was chosen
+because it also made sense to interpret the value as the number of bytes
+read by the engine, but is inconsistent with other streams in Node.js that
+expose values under these names.
+
+<a id="DEP0109"></a>
+### DEP0109: http, https, and tls support for invalid URLs
+
+Type: Runtime
+
+Some previously supported (but strictly invalid) URLs were accepted through the
+[`http.request()`][], [`http.get()`][], [`https.request()`][],
+[`https.get()`][], and [`tls.checkServerIdentity()`][] APIs because those were
+accepted by the legacy `url.parse()` API. The mentioned APIs now use the WHATWG
+URL parser that requires strictly valid URLs. Passing an invalid URL is
+deprecated and support will be removed in the future.
+
+<a id="DEP0110"></a>
+### DEP0110: vm.Script cached data
+
+Type: Documentation-only
+
+The option `produceCachedData` has been deprecated. Use
+[`script.createCachedData()`][] instead.
+
+<a id="DEP0111"></a>
+### DEP0111: process.binding()
+
+Type: Documentation-only
+
+The `process.binding()` API is intended for use by Node.js internal code
+only. Use of `process.binding()` by userland code is unsupported.
+
+<a id="DEP0112"></a>
+### DEP0112: dgram private APIs
+
+Type: Runtime
+
+The `dgram` module previously contained several APIs that were never meant to
+accessed outside of Node.js core: `Socket.prototype._handle`,
+`Socket.prototype._receiving`, `Socket.prototype._bindState`,
+`Socket.prototype._queue`, `Socket.prototype._reuseAddr`,
+`Socket.prototype._healthCheck()`, `Socket.prototype._stopReceiving()`, and
+`dgram._createSocketHandle()`.
+
+<a id="DEP0113"></a>
+### DEP0113: Cipher.setAuthTag(), Decipher.getAuthTag()
+
+Type: Runtime
+
+With the current crypto API, having `Cipher.setAuthTag()` and
+`Decipher.getAuthTag()` is not helpful and both functions will throw an error
+when called. They have never been documented and will be removed in a future
+release.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -1000,12 +1052,12 @@ core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
 [`console.log()`]: console.html#console_console_log_data_args
 [`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password_options
 [`crypto.createCipheriv()`]: crypto.html#crypto_crypto_createcipheriv_algorithm_key_iv_options
-[`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
 [`crypto.createDecipher()`]: crypto.html#crypto_crypto_createdecipher_algorithm_password_options
 [`crypto.createDecipheriv()`]: crypto.html#crypto_crypto_createdecipheriv_algorithm_key_iv_options
 [`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
 [`crypto.fips`]: crypto.html#crypto_crypto_fips
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
 [`decipher.final()`]: crypto.html#crypto_decipher_final_outputencoding
 [`decipher.setAuthTag()`]: crypto.html#crypto_decipher_setauthtag_buffer
 [`domain`]: domain.html
@@ -1015,22 +1067,26 @@ core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
 [`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
 [`fs.lchmod(path, mode, callback)`]: fs.html#fs_fs_lchmod_path_mode_callback
 [`fs.lchmodSync(path, mode)`]: fs.html#fs_fs_lchmodsync_path_mode
-[`fs.lchown(path, uid, gid, callback)`]: fs.html#fs_fs_lchown_path_uid_gid_callback
-[`fs.lchownSync(path, uid, gid)`]: fs.html#fs_fs_lchownsync_path_uid_gid
 [`fs.read()`]: fs.html#fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readSync()`]: fs.html#fs_fs_readsync_fd_buffer_offset_length_position
-[`fs.stat()`]: fs.html#fs_fs_stat_path_callback
+[`fs.stat()`]: fs.html#fs_fs_stat_path_options_callback
+[`http.get()`]: http.html#http_http_get_options_callback
+[`http.request()`]: http.html#http_http_request_options_callback
+[`https.get()`]: https.html#https_https_get_options_callback
+[`https.request()`]: https.html#https_https_request_options_callback
 [`os.networkInterfaces`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
+[`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream
 [`tls.SecureContext`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.SecurePair`]: tls.html#tls_class_securepair
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
+[`tls.checkServerIdentity()`]: tls.html#tls_tls_checkserveridentity_hostname_cert
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`util._extend()`]: util.html#util_util_extend_target_source
 [`util.debug()`]: util.html#util_util_debug_string
@@ -1058,9 +1114,10 @@ core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
 [`util.types`]: util.html#util_util_types
 [`util`]: util.html
 [`worker.exitedAfterDisconnect`]: cluster.html#cluster_worker_exitedafterdisconnect
+[`zlib.bytesWritten`]: zlib.html#zlib_zlib_byteswritten
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
-[NIST SP 800-38D]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
+[NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand

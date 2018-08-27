@@ -66,6 +66,8 @@ function toString(obj)
 }
 
 /**
+ * TODO(luoe): remove type-check suppression once bigint is supported by closure.
+ * @suppress {checkTypes}
  * @param {*} obj
  * @return {string}
  */
@@ -73,6 +75,8 @@ function toStringDescription(obj)
 {
     if (typeof obj === "number" && obj === 0 && 1 / obj < 0)
         return "-0"; // Negative zero.
+    if (typeof obj === "bigint")
+        return toString(obj) + "n";
     return toString(obj);
 }
 
@@ -167,6 +171,7 @@ InjectedScript.primitiveTypes = {
     "boolean": true,
     "number": true,
     "string": true,
+    "bigint": true,
     __proto__: null
 }
 
@@ -747,6 +752,13 @@ InjectedScript.RemoteObject = function(object, objectGroupName, doNotBind, force
             }
         }
 
+        // The "n" suffix of bigint primitives are not JSON serializable.
+        if (this.type === "bigint") {
+            delete this.value;
+            this.description = toStringDescription(object);
+            this.unserializableValue = this.description;
+        }
+
         return;
     }
 
@@ -772,7 +784,7 @@ InjectedScript.RemoteObject = function(object, objectGroupName, doNotBind, force
     if (generatePreview && this.type === "object") {
         if (this.subtype === "proxy")
             this.preview = this._generatePreview(InjectedScriptHost.proxyTargetValue(object), undefined, columnNames, isTable, skipEntriesPreview);
-        else if (this.subtype !== "node")
+        else
             this.preview = this._generatePreview(object, undefined, columnNames, isTable, skipEntriesPreview);
     }
 
@@ -1002,9 +1014,10 @@ InjectedScript.RemoteObject.prototype = {
 
             var maxLength = 100;
             if (InjectedScript.primitiveTypes[type]) {
-                if (type === "string" && value.length > maxLength)
-                    value = this._abbreviateString(value, maxLength, true);
-                push(preview.properties, { name: name, type: type, value: toStringDescription(value), __proto__: null });
+                var valueString = type === "string" ? value : toStringDescription(value);
+                if (valueString.length > maxLength)
+                    valueString = this._abbreviateString(valueString, maxLength, true);
+                push(preview.properties, { name: name, type: type, value: valueString, __proto__: null });
                 continue;
             }
 

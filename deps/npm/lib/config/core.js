@@ -21,18 +21,20 @@ exports.defs = configDefs
 
 Object.defineProperty(exports, 'defaults', { get: function () {
   return configDefs.defaults
-}, enumerable: true })
+},
+enumerable: true })
 
 Object.defineProperty(exports, 'types', { get: function () {
   return configDefs.types
-}, enumerable: true })
+},
+enumerable: true })
 
 exports.validate = validate
 
 var myUid = process.env.SUDO_UID !== undefined
-          ? process.env.SUDO_UID : (process.getuid && process.getuid())
+  ? process.env.SUDO_UID : (process.getuid && process.getuid())
 var myGid = process.env.SUDO_GID !== undefined
-          ? process.env.SUDO_GID : (process.getgid && process.getgid())
+  ? process.env.SUDO_GID : (process.getgid && process.getgid())
 
 var loading = false
 var loadCbs = []
@@ -153,17 +155,10 @@ function load_ (builtin, rc, cli, cb) {
     // annoying humans and their expectations!
     if (conf.get('prefix')) {
       var etc = path.resolve(conf.get('prefix'), 'etc')
-      mkdirp(etc, function () {
-        defaults.globalconfig = path.resolve(etc, 'npmrc')
-        defaults.globalignorefile = path.resolve(etc, 'npmignore')
-        afterUserContinuation()
-      })
-    } else {
-      afterUserContinuation()
+      defaults.globalconfig = path.resolve(etc, 'npmrc')
+      defaults.globalignorefile = path.resolve(etc, 'npmignore')
     }
-  }
 
-  function afterUserContinuation () {
     conf.addFile(conf.get('globalconfig'), 'global')
 
     // move the builtin into the conf stack now.
@@ -274,7 +269,7 @@ Conf.prototype.save = function (where, cb) {
       if (cb) return cb(er)
       else return this.emit('error', er)
     }
-    this._saving --
+    this._saving--
     if (this._saving === 0) {
       if (cb) cb()
       this.emit('save')
@@ -283,7 +278,7 @@ Conf.prototype.save = function (where, cb) {
 
   then = then.bind(this)
   done = done.bind(this)
-  this._saving ++
+  this._saving++
 
   var mode = where === 'user' ? '0600' : '0666'
   if (!data.trim()) {
@@ -331,7 +326,10 @@ Conf.prototype.parse = function (content, file) {
 Conf.prototype.add = function (data, marker) {
   try {
     Object.keys(data).forEach(function (k) {
-      data[k] = parseField(data[k], k)
+      const newKey = envReplace(k)
+      const newField = parseField(data[k], newKey)
+      delete data[k]
+      data[newKey] = newField
     })
   } catch (e) {
     this.emit('error', e)
@@ -351,8 +349,8 @@ Conf.prototype.addEnv = function (env) {
       // leave first char untouched, even if
       // it is a '_' - convert all other to '-'
       var p = k.toLowerCase()
-               .replace(/^npm_config_/, '')
-               .replace(/(?!^)_/g, '-')
+        .replace(/^npm_config_/, '')
+        .replace(/(?!^)_/g, '-')
       conf[p] = env[k]
     })
   return CC.prototype.addEnv.call(this, '', conf, 'env')

@@ -26,6 +26,7 @@ namespace internal {
   V(CodeDataContainer)     \
   V(ConsString)            \
   V(DataObject)            \
+  V(FeedbackCell)          \
   V(FeedbackVector)        \
   V(FixedArray)            \
   V(FixedDoubleArray)      \
@@ -37,7 +38,6 @@ namespace internal {
   V(JSFunction)            \
   V(JSObject)              \
   V(JSObjectFast)          \
-  V(JSRegExp)              \
   V(JSWeakCollection)      \
   V(Map)                   \
   V(NativeContext)         \
@@ -55,7 +55,9 @@ namespace internal {
   V(Symbol)                \
   V(ThinString)            \
   V(TransitionArray)       \
-  V(WeakCell)
+  V(WasmInstanceObject)    \
+  V(WeakCell)              \
+  V(WeakArray)
 
 // For data objects, JS objects and structs along with generic visitor which
 // can visit object of any size we provide visitors specialized by
@@ -115,15 +117,17 @@ typedef std::vector<Handle<Map>> MapHandles;
 //      |          |   - is_undetectable (bit 4)                 |
 //      |          |   - is_access_check_needed (bit 5)          |
 //      |          |   - is_constructor (bit 6)                  |
-//      |          |   - unused (bit 7)                          |
+//      |          |   - has_prototype_slot (bit 7)              |
 //      +----------+---------------------------------------------+
 //      | Byte     | [bit_field2]                                |
 //      |          |   - is_extensible (bit 0)                   |
-//      |          |   - is_prototype_map (bit 2)                |
+//      |          |   - is_prototype_map (bit 1)                |
+//      |          |   - is_in_retained_map_list (bit 2)         |
 //      |          |   - elements_kind (bits 3..7)               |
 // +----+----------+---------------------------------------------+
 // | Int           | [bit_field3]                                |
-// |               |   - number_of_own_descriptors (bit 0..19)   |
+// |               |   - enum_length (bit 0..9)                  |
+// |               |   - number_of_own_descriptors (bit 10..19)  |
 // |               |   - is_dictionary_map (bit 20)              |
 // |               |   - owns_descriptors (bit 21)               |
 // |               |   - has_hidden_prototype (bit 22)           |
@@ -238,10 +242,10 @@ class Map : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(bit_field2, byte)
 
 // Bit positions for |bit_field2|.
-#define MAP_BIT_FIELD2_FIELDS(V, _) \
-  /* One bit is still free here. */ \
-  V(IsExtensibleBit, bool, 1, _)    \
-  V(IsPrototypeMapBit, bool, 1, _)  \
+#define MAP_BIT_FIELD2_FIELDS(V, _)     \
+  V(IsExtensibleBit, bool, 1, _)        \
+  V(IsPrototypeMapBit, bool, 1, _)      \
+  V(IsInRetainedMapListBit, bool, 1, _) \
   V(ElementsKindBits, ElementsKind, 5, _)
 
   DEFINE_BIT_FIELDS(MAP_BIT_FIELD2_FIELDS)
@@ -368,6 +372,10 @@ class Map : public HeapObject {
   DECL_BOOLEAN_ACCESSORS(is_prototype_map)
   inline bool is_abandoned_prototype_map() const;
 
+  // Whether the instance has been added to the retained map list by
+  // Heap::AddRetainedMap.
+  DECL_BOOLEAN_ACCESSORS(is_in_retained_map_list)
+
   DECL_PRIMITIVE_ACCESSORS(elements_kind, ElementsKind)
 
   // Tells whether the instance has fast elements that are only Smis.
@@ -398,7 +406,7 @@ class Map : public HeapObject {
   // [raw_transitions]: Provides access to the transitions storage field.
   // Don't call set_raw_transitions() directly to overwrite transitions, use
   // the TransitionArray::ReplaceTransitions() wrapper instead!
-  DECL_ACCESSORS(raw_transitions, Object)
+  DECL_ACCESSORS(raw_transitions, MaybeObject)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
   DECL_ACCESSORS(prototype_info, Object)
@@ -413,11 +421,13 @@ class Map : public HeapObject {
                                           Isolate* isolate);
 
   // [prototype chain validity cell]: Associated with a prototype object,
-  // stored in that object's map's PrototypeInfo, indicates that prototype
-  // chains through this object are currently valid. The cell will be
-  // invalidated and replaced when the prototype chain changes.
-  static Handle<Cell> GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
-                                                            Isolate* isolate);
+  // stored in that object's map, indicates that prototype chains through this
+  // object are currently valid. The cell will be invalidated and replaced when
+  // the prototype chain changes. When there's nothing to guard (for example,
+  // when direct prototype is null or Proxy) this function returns Smi with
+  // |kPrototypeChainValid| sentinel value.
+  static Handle<Object> GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
+                                                              Isolate* isolate);
   static const int kPrototypeChainValid = 0;
   static const int kPrototypeChainInvalid = 1;
 
@@ -457,7 +467,7 @@ class Map : public HeapObject {
                               int* old_number_of_fields) const;
   // TODO(ishell): moveit!
   static Handle<Map> GeneralizeAllFields(Handle<Map> map);
-  MUST_USE_RESULT static Handle<FieldType> GeneralizeFieldType(
+  V8_WARN_UNUSED_RESULT static Handle<FieldType> GeneralizeFieldType(
       Representation rep1, Handle<FieldType> type1, Representation rep2,
       Handle<FieldType> type2, Isolate* isolate);
   static void GeneralizeField(Handle<Map> map, int modify_index,
@@ -558,6 +568,24 @@ class Map : public HeapObject {
   // [weak cell cache]: cache that stores a weak cell pointing to this map.
   DECL_ACCESSORS(weak_cell_cache, Object)
 
+  // [prototype_validity_cell]: Cell containing the validity bit for prototype
+  // chains or Smi(0) if uninitialized.
+  // The meaning of this validity cell is different for prototype maps and
+  // non-prototype maps.
+  // For prototype maps the validity bit "guards" modifications of prototype
+  // chains going through this object. When a prototype object changes, both its
+  // own validity cell and those of all "downstream" prototypes are invalidated;
+  // handlers for a given receiver embed the currently valid cell for that
+  // receiver's prototype during their creation and check it on execution.
+  // For non-prototype maps which are used as transitioning store handlers this
+  // field contains the validity cell which guards modifications of this map's
+  // prototype.
+  DECL_ACCESSORS(prototype_validity_cell, Object)
+
+  // Returns true if prototype validity cell value represents "valid" prototype
+  // chain state.
+  inline bool IsPrototypeValidityCellValid() const;
+
   inline PropertyDetails GetLastDescriptorDetails() const;
 
   inline int LastAdded() const;
@@ -599,7 +627,7 @@ class Map : public HeapObject {
   // is found by re-transitioning from the root of the transition tree using the
   // descriptor array of the map. Returns MaybeHandle<Map>() if no updated map
   // is found.
-  static MaybeHandle<Map> TryUpdate(Handle<Map> map) WARN_UNUSED_RESULT;
+  static MaybeHandle<Map> TryUpdate(Handle<Map> map) V8_WARN_UNUSED_RESULT;
 
   // Returns a non-deprecated version of the input. This method may deprecate
   // existing maps along the way if encodings conflict. Not for use while
@@ -621,12 +649,12 @@ class Map : public HeapObject {
   static Handle<Object> WrapFieldType(Handle<FieldType> type);
   static FieldType* UnwrapFieldType(Object* wrapped_type);
 
-  MUST_USE_RESULT static MaybeHandle<Map> CopyWithField(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithField(
       Handle<Map> map, Handle<Name> name, Handle<FieldType> type,
       PropertyAttributes attributes, PropertyConstness constness,
       Representation representation, TransitionFlag flag);
 
-  MUST_USE_RESULT static MaybeHandle<Map> CopyWithConstant(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithConstant(
       Handle<Map> map, Handle<Name> name, Handle<Object> constant,
       PropertyAttributes attributes, TransitionFlag flag);
 
@@ -654,10 +682,12 @@ class Map : public HeapObject {
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
   inline bool TooManyFastProperties(StoreFromKeyed store_mode) const;
-  static Handle<Map> TransitionToDataProperty(
-      Handle<Map> map, Handle<Name> name, Handle<Object> value,
-      PropertyAttributes attributes, PropertyConstness constness,
-      StoreFromKeyed store_mode, bool* created_new_map);
+  static Handle<Map> TransitionToDataProperty(Handle<Map> map,
+                                              Handle<Name> name,
+                                              Handle<Object> value,
+                                              PropertyAttributes attributes,
+                                              PropertyConstness constness,
+                                              StoreFromKeyed store_mode);
   static Handle<Map> TransitionToAccessorProperty(
       Isolate* isolate, Handle<Map> map, Handle<Name> name, int descriptor,
       Handle<Object> getter, Handle<Object> setter,
@@ -707,12 +737,15 @@ class Map : public HeapObject {
   // found at all.
   Map* FindElementsKindTransitionedMap(MapHandles const& candidates);
 
+  inline static bool IsJSObject(InstanceType type);
+
   inline bool CanTransition() const;
 
   inline bool IsBooleanMap() const;
   inline bool IsPrimitiveMap() const;
   inline bool IsJSReceiverMap() const;
   inline bool IsJSObjectMap() const;
+  inline bool IsJSPromiseMap() const;
   inline bool IsJSArrayMap() const;
   inline bool IsJSFunctionMap() const;
   inline bool IsStringMap() const;
@@ -724,6 +757,8 @@ class Map : public HeapObject {
   inline bool IsJSDataViewMap() const;
 
   inline bool IsSpecialReceiverMap() const;
+
+  inline bool IsCustomElementsReceiverMap() const;
 
   static void AddDependentCode(Handle<Map> map,
                                DependentCode::DependencyGroup group,
@@ -771,6 +806,7 @@ class Map : public HeapObject {
   V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kPointerSize : 0)   \
   V(kDependentCodeOffset, kPointerSize)                                     \
   V(kWeakCellCacheOffset, kPointerSize)                                     \
+  V(kPrototypeValidityCellOffset, kPointerSize)                             \
   V(kPointerFieldsEndOffset, 0)                                             \
   /* Total size. */                                                         \
   V(kSize, 0)
@@ -780,9 +816,7 @@ class Map : public HeapObject {
 
   STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
-  typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
-                              kPointerFieldsEndOffset, kSize>
-      BodyDescriptor;
+  class BodyDescriptor;
 
   // Compares this map to another to see if they describe equivalent objects.
   // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
@@ -871,7 +905,7 @@ class Map : public HeapObject {
                                            Handle<DescriptorArray> descriptors,
                                            Descriptor* descriptor, int index,
                                            TransitionFlag flag);
-  static MUST_USE_RESULT MaybeHandle<Map> TryReconfigureExistingProperty(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> TryReconfigureExistingProperty(
       Handle<Map> map, int descriptor, PropertyKind kind,
       PropertyAttributes attributes, const char** reason);
 
@@ -923,8 +957,8 @@ class NormalizedMapCache : public FixedArray {
  public:
   static Handle<NormalizedMapCache> New(Isolate* isolate);
 
-  MUST_USE_RESULT MaybeHandle<Map> Get(Handle<Map> fast_map,
-                                       PropertyNormalizationMode mode);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Handle<Map> fast_map,
+                                             PropertyNormalizationMode mode);
   void Set(Handle<Map> fast_map, Handle<Map> normalized_map,
            Handle<WeakCell> normalized_map_weak_cell);
 

@@ -27,7 +27,6 @@
 #include "async_wrap.h"
 #include "env.h"
 #include "handle_wrap.h"
-#include "req_wrap-inl.h"
 #include "uv.h"
 #include "v8.h"
 
@@ -43,6 +42,7 @@ class UDPWrap: public HandleWrap {
                          v8::Local<v8::Context> context);
   static void GetFD(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Send(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind6(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -65,7 +65,11 @@ class UDPWrap: public HandleWrap {
                                            SocketType type);
   uv_udp_t* UVHandle();
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
+  ADD_MEMORY_INFO_NAME(UDPWrap)
 
  private:
   typedef uv_udp_t HandleType;

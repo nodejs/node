@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SRC_IC_ACCESSOR_ASSEMBLER_H_
-#define V8_SRC_IC_ACCESSOR_ASSEMBLER_H_
+#ifndef V8_IC_ACCESSOR_ASSEMBLER_H_
+#define V8_IC_ACCESSOR_ASSEMBLER_H_
 
 #include "src/code-stub-assembler.h"
 
@@ -18,7 +18,11 @@ class ExitPoint;
 
 class AccessorAssembler : public CodeStubAssembler {
  public:
-  typedef compiler::Node Node;
+  using Node = compiler::Node;
+  template <class T>
+  using TNode = compiler::TNode<T>;
+  template <class T>
+  using SloppyTNode = compiler::SloppyTNode<T>;
 
   explicit AccessorAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
@@ -26,7 +30,6 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadIC();
   void GenerateLoadIC_Noninlined();
   void GenerateLoadIC_Uninitialized();
-  void GenerateLoadField();
   void GenerateLoadICTrampoline();
   void GenerateKeyedLoadIC();
   void GenerateKeyedLoadICTrampoline();
@@ -42,6 +45,8 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void GenerateKeyedStoreIC();
   void GenerateKeyedStoreICTrampoline();
+
+  void GenerateStoreInArrayLiteralIC();
 
   void TryProbeStubCache(StubCache* stub_cache, Node* receiver, Node* name,
                          Label* if_handler, Variable* var_handler,
@@ -83,27 +88,43 @@ class AccessorAssembler : public CodeStubAssembler {
   void LoadIC_BytecodeHandler(const LoadICParameters* p, ExitPoint* exit_point);
 
   // Loads dataX field from the DataHandler object.
-  Node* LoadHandlerDataField(Node* handler, int data_index);
+  TNode<Object> LoadHandlerDataField(SloppyTNode<DataHandler> handler,
+                                     int data_index);
 
  protected:
   struct StoreICParameters : public LoadICParameters {
-    StoreICParameters(Node* context, Node* receiver, Node* name, Node* value,
-                      Node* slot, Node* vector)
+    StoreICParameters(Node* context, Node* receiver, Node* name,
+                      SloppyTNode<Object> value, Node* slot, Node* vector)
         : LoadICParameters(context, receiver, name, slot, vector),
           value(value) {}
-    Node* value;
+    SloppyTNode<Object> value;
   };
 
   enum class ICMode { kNonGlobalIC, kGlobalIC };
   enum ElementSupport { kOnlyProperties, kSupportElements };
   void HandleStoreICHandlerCase(
-      const StoreICParameters* p, Node* handler, Label* miss, ICMode ic_mode,
-      ElementSupport support_elements = kOnlyProperties);
+      const StoreICParameters* p, TNode<MaybeObject> handler, Label* miss,
+      ICMode ic_mode, ElementSupport support_elements = kOnlyProperties);
+  void HandleStoreICTransitionMapHandlerCase(const StoreICParameters* p,
+                                             TNode<Map> transition_map,
+                                             Label* miss,
+                                             bool validate_transition_handler);
+
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 
   void BranchIfStrictMode(Node* vector, Node* slot, Label* if_strict);
 
   void InvalidateValidityCellIfPrototype(Node* map, Node* bitfield2 = nullptr);
+
+  void OverwriteExistingFastDataProperty(Node* object, Node* object_map,
+                                         Node* descriptors,
+                                         Node* descriptor_name_index,
+                                         Node* details, Node* value,
+                                         Label* slow,
+                                         bool do_transitioning_store);
+
+  void CheckFieldType(Node* descriptors, Node* name_index, Node* representation,
+                      Node* value, Label* bailout);
 
  private:
   // Stub generation entry points.
@@ -127,21 +148,23 @@ class AccessorAssembler : public CodeStubAssembler {
   void StoreGlobalIC_PropertyCellCase(Node* property_cell, Node* value,
                                       ExitPoint* exit_point, Label* miss);
   void KeyedStoreIC(const StoreICParameters* p);
+  void StoreInArrayLiteralIC(const StoreICParameters* p);
 
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
   Node* TryMonomorphicCase(Node* slot, Node* vector, Node* receiver_map,
-                           Label* if_handler, Variable* var_handler,
-                           Label* if_miss);
-  void HandlePolymorphicCase(Node* receiver_map, Node* feedback,
-                             Label* if_handler, Variable* var_handler,
+                           Label* if_handler,
+                           TVariable<MaybeObject>* var_handler, Label* if_miss);
+  void HandlePolymorphicCase(Node* receiver_map, TNode<WeakFixedArray> feedback,
+                             Label* if_handler,
+                             TVariable<MaybeObject>* var_handler,
                              Label* if_miss, int min_feedback_capacity);
 
   // LoadIC implementation.
   enum class OnNonExistent { kThrowReferenceError, kReturnUndefined };
   void HandleLoadICHandlerCase(
-      const LoadICParameters* p, Node* handler, Label* miss,
+      const LoadICParameters* p, TNode<Object> handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
       OnNonExistent on_nonexistent = OnNonExistent::kReturnUndefined,
       ElementSupport support_elements = kOnlyProperties);
@@ -181,19 +204,17 @@ class AccessorAssembler : public CodeStubAssembler {
 
   // StoreIC implementation.
 
-  void HandleStoreICProtoHandler(const StoreICParameters* p, Node* handler,
-                                 Label* miss, ICMode ic_mode,
+  void HandleStoreICProtoHandler(const StoreICParameters* p,
+                                 TNode<StoreHandler> handler, Label* miss,
+                                 ICMode ic_mode,
                                  ElementSupport support_elements);
-  // If |transition| is nullptr then the normal field store is generated or
-  // transitioning store otherwise.
   void HandleStoreICSmiHandlerCase(Node* handler_word, Node* holder,
-                                   Node* value, Node* transition, Label* miss);
-  // If |transition| is nullptr then the normal field store is generated or
-  // transitioning store otherwise.
+                                   Node* value, Label* miss);
   void HandleStoreFieldAndReturn(Node* handler_word, Node* holder,
                                  Representation representation, Node* value,
-                                 Node* transition, Label* miss);
+                                 Label* miss);
 
+  void CheckPrototypeValidityCell(Node* maybe_validity_cell, Label* miss);
   void HandleStoreICNativeDataProperty(const StoreICParameters* p, Node* holder,
                                        Node* handler_word);
 
@@ -206,12 +227,13 @@ class AccessorAssembler : public CodeStubAssembler {
   // KeyedLoadIC_Generic implementation.
 
   void GenericElementLoad(Node* receiver, Node* receiver_map,
-                          Node* instance_type, Node* index, Label* slow);
+                          SloppyTNode<Int32T> instance_type, Node* index,
+                          Label* slow);
 
   enum UseStubCache { kUseStubCache, kDontUseStubCache };
   void GenericPropertyLoad(Node* receiver, Node* receiver_map,
-                           Node* instance_type, const LoadICParameters* p,
-                           Label* slow,
+                           SloppyTNode<Int32T> instance_type,
+                           const LoadICParameters* p, Label* slow,
                            UseStubCache use_stub_cache = kUseStubCache);
 
   // Low-level helpers.
@@ -229,25 +251,28 @@ class AccessorAssembler : public CodeStubAssembler {
   Node* GetLanguageMode(Node* vector, Node* slot);
 
   Node* PrepareValueForStore(Node* handler_word, Node* holder,
-                             Representation representation, Node* transition,
-                             Node* value, Label* bailout);
+                             Representation representation, Node* value,
+                             Label* bailout);
 
-  // Extends properties backing store by JSObject::kFieldsAdded elements.
-  void ExtendPropertiesBackingStore(Node* object, Node* handler_word);
+  // Extends properties backing store by JSObject::kFieldsAdded elements,
+  // returns updated properties backing store.
+  Node* ExtendPropertiesBackingStore(Node* object, Node* index);
 
   void StoreNamedField(Node* handler_word, Node* object, bool is_inobject,
                        Representation representation, Node* value,
-                       bool transition_to_field, Label* bailout);
+                       Label* bailout);
 
   void EmitFastElementsBoundsCheck(Node* object, Node* elements,
                                    Node* intptr_index,
                                    Node* is_jsarray_condition, Label* miss);
   void EmitElementLoad(Node* object, Node* elements, Node* elements_kind,
-                       Node* key, Node* is_jsarray_condition, Label* if_hole,
-                       Label* rebox_double, Variable* var_double_value,
+                       SloppyTNode<IntPtrT> key, Node* is_jsarray_condition,
+                       Label* if_hole, Label* rebox_double,
+                       Variable* var_double_value,
                        Label* unimplemented_elements_kind, Label* out_of_bounds,
                        Label* miss, ExitPoint* exit_point);
-  void NameDictionaryNegativeLookup(Node* object, Node* name, Label* miss);
+  void NameDictionaryNegativeLookup(Node* object, SloppyTNode<Name> name,
+                                    Label* miss);
 
   // Stub cache access helpers.
 
@@ -274,11 +299,21 @@ class ExitPoint {
   typedef compiler::CodeAssemblerVariable CodeAssemblerVariable;
 
  public:
+  typedef std::function<void(Node* result)> IndirectReturnHandler;
+
   explicit ExitPoint(CodeStubAssembler* assembler)
-      : ExitPoint(assembler, nullptr, nullptr) {}
+      : ExitPoint(assembler, nullptr) {}
+
+  ExitPoint(CodeStubAssembler* assembler,
+            const IndirectReturnHandler& indirect_return_handler)
+      : asm_(assembler), indirect_return_handler_(indirect_return_handler) {}
+
   ExitPoint(CodeStubAssembler* assembler, CodeAssemblerLabel* out,
             CodeAssemblerVariable* var_result)
-      : out_(out), var_result_(var_result), asm_(assembler) {
+      : ExitPoint(assembler, [=](Node* result) {
+          var_result->Bind(result);
+          assembler->Goto(out);
+        }) {
     DCHECK_EQ(out != nullptr, var_result != nullptr);
   }
 
@@ -288,7 +323,7 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->TailCallRuntime(function, context, args...);
     } else {
-      IndirectReturn(asm_->CallRuntime(function, context, args...));
+      indirect_return_handler_(asm_->CallRuntime(function, context, args...));
     }
   }
 
@@ -297,7 +332,7 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->TailCallStub(callable, context, args...);
     } else {
-      IndirectReturn(asm_->CallStub(callable, context, args...));
+      indirect_return_handler_(asm_->CallStub(callable, context, args...));
     }
   }
 
@@ -307,7 +342,8 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->TailCallStub(descriptor, target, context, args...);
     } else {
-      IndirectReturn(asm_->CallStub(descriptor, target, context, args...));
+      indirect_return_handler_(
+          asm_->CallStub(descriptor, target, context, args...));
     }
   }
 
@@ -315,24 +351,18 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->Return(result);
     } else {
-      IndirectReturn(result);
+      indirect_return_handler_(result);
     }
   }
 
-  bool IsDirect() const { return out_ == nullptr; }
+  bool IsDirect() const { return !indirect_return_handler_; }
 
  private:
-  void IndirectReturn(Node* const result) {
-    var_result_->Bind(result);
-    asm_->Goto(out_);
-  }
-
-  CodeAssemblerLabel* const out_;
-  CodeAssemblerVariable* const var_result_;
   CodeStubAssembler* const asm_;
+  IndirectReturnHandler indirect_return_handler_;
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SRC_IC_ACCESSOR_ASSEMBLER_H_
+#endif  // V8_IC_ACCESSOR_ASSEMBLER_H_

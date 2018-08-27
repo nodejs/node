@@ -1,0 +1,1 @@
+{"version":3,"file":"never.js","sourceRoot":"","sources":["../../src/observable/never.ts"],"names":[],"mappings":";AAAA,gCAAkC,mBAAmB,CAAC,CAAA;AAEzC,aAAK,GAAG,iCAAe,CAAC,MAAM,CAAC","sourcesContent":["import {  NeverObservable  } from './NeverObservable';\n\nexport const never = NeverObservable.create;"]}

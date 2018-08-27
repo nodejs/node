@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/managed.h"
+#include "src/objects/managed.h"
 
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -14,67 +14,184 @@
 namespace v8 {
 namespace internal {
 
-class DeleteRecorder {
+class DeleteCounter {
  public:
-  explicit DeleteRecorder(bool* deleted) : deleted_(deleted) {
-    *deleted_ = false;
-  }
-  ~DeleteRecorder() { *deleted_ = true; }
-  static void Deleter(Isolate::ManagedObjectFinalizer* finalizer) {
-    delete *reinterpret_cast<DeleteRecorder**>(finalizer);
+  explicit DeleteCounter(int* deleted) : deleted_(deleted) { *deleted_ = 0; }
+  ~DeleteCounter() { (*deleted_)++; }
+  static void Deleter(void* arg) {
+    delete reinterpret_cast<DeleteCounter*>(arg);
   }
 
  private:
-  bool* deleted_;
+  int* deleted_;
 };
 
-TEST(ManagedCollect) {
+TEST(GCCausesDestruction) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  bool deleted1 = false;
-  bool deleted2 = false;
-  DeleteRecorder* d1 = new DeleteRecorder(&deleted1);
-  DeleteRecorder* d2 = new DeleteRecorder(&deleted2);
-  Isolate::ManagedObjectFinalizer finalizer(d2, DeleteRecorder::Deleter);
-  isolate->RegisterForReleaseAtTeardown(&finalizer);
+  int deleted1 = 0;
+  int deleted2 = 0;
+  DeleteCounter* d1 = new DeleteCounter(&deleted1);
+  DeleteCounter* d2 = new DeleteCounter(&deleted2);
   {
     HandleScope scope(isolate);
-    auto handle = Managed<DeleteRecorder>::From(isolate, d1);
+    auto handle = Managed<DeleteCounter>::FromRawPtr(isolate, d1);
     USE(handle);
   }
 
   CcTest::CollectAllAvailableGarbage();
 
-  CHECK(deleted1);
-  CHECK(!deleted2);
-  isolate->UnregisterFromReleaseAtTeardown(&finalizer);
+  CHECK_EQ(1, deleted1);
+  CHECK_EQ(0, deleted2);
   delete d2;
-  CHECK(deleted2);
+  CHECK_EQ(1, deleted2);
 }
 
-TEST(DisposeCollect) {
+TEST(DisposeCausesDestruction1) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator =
       CcTest::InitIsolateOnce()->array_buffer_allocator();
 
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  isolate->Enter();
   Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  bool deleted1 = false;
-  bool deleted2 = false;
-  DeleteRecorder* d1 = new DeleteRecorder(&deleted1);
-  DeleteRecorder* d2 = new DeleteRecorder(&deleted2);
+  isolate->Enter();
+  int deleted1 = 0;
+  DeleteCounter* d1 = new DeleteCounter(&deleted1);
   {
     HandleScope scope(i_isolate);
-    auto handle = Managed<DeleteRecorder>::From(i_isolate, d1);
+    auto handle = Managed<DeleteCounter>::FromRawPtr(i_isolate, d1);
     USE(handle);
   }
-  Isolate::ManagedObjectFinalizer finalizer(d2, DeleteRecorder::Deleter);
-  i_isolate->RegisterForReleaseAtTeardown(&finalizer);
+  isolate->Exit();
+  isolate->Dispose();
+  CHECK_EQ(1, deleted1);
+}
+
+TEST(DisposeCausesDestruction2) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator =
+      CcTest::InitIsolateOnce()->array_buffer_allocator();
+
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  isolate->Enter();
+  int deleted1 = 0;
+  int deleted2 = 0;
+  DeleteCounter* d1 = new DeleteCounter(&deleted1);
+  DeleteCounter* d2 = new DeleteCounter(&deleted2);
+  {
+    HandleScope scope(i_isolate);
+    auto handle = Managed<DeleteCounter>::FromRawPtr(i_isolate, d1);
+    USE(handle);
+  }
+  ManagedPtrDestructor* destructor =
+      new ManagedPtrDestructor(d2, DeleteCounter::Deleter);
+  i_isolate->RegisterManagedPtrDestructor(destructor);
 
   isolate->Exit();
   isolate->Dispose();
-  CHECK(deleted1);
-  CHECK(deleted2);
+  CHECK_EQ(1, deleted1);
+  CHECK_EQ(1, deleted2);
+}
+
+TEST(DisposeWithAnotherSharedPtr) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator =
+      CcTest::InitIsolateOnce()->array_buffer_allocator();
+
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  isolate->Enter();
+  int deleted1 = 0;
+  DeleteCounter* d1 = new DeleteCounter(&deleted1);
+  {
+    std::shared_ptr<DeleteCounter> shared1(d1);
+    {
+      HandleScope scope(i_isolate);
+      auto handle = Managed<DeleteCounter>::FromSharedPtr(i_isolate, shared1);
+      USE(handle);
+    }
+    isolate->Exit();
+    isolate->Dispose();
+    CHECK_EQ(0, deleted1);
+  }
+  // Should be deleted after the second shared pointer is destroyed.
+  CHECK_EQ(1, deleted1);
+}
+
+TEST(DisposeAcrossIsolates) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator =
+      CcTest::InitIsolateOnce()->array_buffer_allocator();
+
+  int deleted = 0;
+  DeleteCounter* delete_counter = new DeleteCounter(&deleted);
+
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  Isolate* i_isolate1 = reinterpret_cast<i::Isolate*>(isolate1);
+  isolate1->Enter();
+  {
+    HandleScope scope1(i_isolate1);
+    auto handle1 =
+        Managed<DeleteCounter>::FromRawPtr(i_isolate1, delete_counter);
+
+    v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+    Isolate* i_isolate2 = reinterpret_cast<i::Isolate*>(isolate2);
+    isolate2->Enter();
+    {
+      HandleScope scope(i_isolate2);
+      auto handle2 =
+          Managed<DeleteCounter>::FromSharedPtr(i_isolate2, handle1->get());
+      USE(handle2);
+    }
+    isolate2->Exit();
+    isolate2->Dispose();
+    CHECK_EQ(0, deleted);
+  }
+  // Should be deleted after the first isolate is destroyed.
+  isolate1->Exit();
+  isolate1->Dispose();
+  CHECK_EQ(1, deleted);
+}
+
+TEST(CollectAcrossIsolates) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator =
+      CcTest::InitIsolateOnce()->array_buffer_allocator();
+
+  int deleted = 0;
+  DeleteCounter* delete_counter = new DeleteCounter(&deleted);
+
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  Isolate* i_isolate1 = reinterpret_cast<i::Isolate*>(isolate1);
+  isolate1->Enter();
+  {
+    HandleScope scope1(i_isolate1);
+    auto handle1 =
+        Managed<DeleteCounter>::FromRawPtr(i_isolate1, delete_counter);
+
+    v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+    Isolate* i_isolate2 = reinterpret_cast<i::Isolate*>(isolate2);
+    isolate2->Enter();
+    {
+      HandleScope scope(i_isolate2);
+      auto handle2 =
+          Managed<DeleteCounter>::FromSharedPtr(i_isolate2, handle1->get());
+      USE(handle2);
+    }
+    i_isolate2->heap()->CollectAllAvailableGarbage(
+        i::GarbageCollectionReason::kTesting);
+    CHECK_EQ(0, deleted);
+    isolate2->Exit();
+    isolate2->Dispose();
+    CHECK_EQ(0, deleted);
+  }
+  // Should be deleted after the first isolate is destroyed.
+  i_isolate1->heap()->CollectAllAvailableGarbage(
+      i::GarbageCollectionReason::kTesting);
+  CHECK_EQ(1, deleted);
+  isolate1->Exit();
+  isolate1->Dispose();
+  CHECK_EQ(1, deleted);
 }
 
 }  // namespace internal

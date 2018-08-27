@@ -70,7 +70,7 @@ function searchFiles (args, files, cb) {
       if (nextLine) {
         for (a = 0, ll = args.length; a < ll && !match; a++) {
           match = nextLine.toLowerCase()
-                  .indexOf(args[a].toLowerCase()) !== -1
+            .indexOf(args[a].toLowerCase()) !== -1
         }
         if (match) {
           // skip over the next line, and the line after it.
@@ -107,7 +107,7 @@ function searchFiles (args, files, cb) {
     lines.forEach(function (line) {
       args.forEach(function (arg) {
         var hit = (line || '').toLowerCase()
-                  .split(arg.toLowerCase()).length - 1
+          .split(arg.toLowerCase()).length - 1
         if (hit > 0) {
           found[arg] = (found[arg] || 0) + hit
           totalHits += hit
@@ -144,12 +144,12 @@ function searchFiles (args, files, cb) {
   // then by number of matching lines
   results = results.sort(function (a, b) {
     return a.found.length > b.found.length ? -1
-         : a.found.length < b.found.length ? 1
-         : a.totalHits > b.totalHits ? -1
-         : a.totalHits < b.totalHits ? 1
-         : a.lines.length > b.lines.length ? -1
-         : a.lines.length < b.lines.length ? 1
-         : 0
+      : a.found.length < b.found.length ? 1
+        : a.totalHits > b.totalHits ? -1
+          : a.totalHits < b.totalHits ? 1
+            : a.lines.length > b.lines.length ? -1
+              : a.lines.length < b.lines.length ? 1
+                : 0
   })
 
   cb(null, results)
@@ -170,7 +170,7 @@ function formatResults (args, results, cb) {
       }).join(' ')
 
     out += ((new Array(Math.max(1, cols - out.length - r.length)))
-             .join(' ')) + r
+      .join(' ')) + r
 
     if (!npm.config.get('long')) return out
 

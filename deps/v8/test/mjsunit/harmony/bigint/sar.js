@@ -7,100 +7,94 @@
 // Flags: --harmony-bigint
 
 var data = [{
-  a: "-4efa0d1f8a127",
-  b: "-66",
-  r: "-13be8347e2849c0000000000000000000000000"
+  a: 0x211a34fn,
+  b: 0xa6n,
+  r: 0n
 }, {
-  a: "-100000001",
-  b: "20",
-  r: "-2"
+  a: 0xa0d0aff5d2783ad192f37423n,
+  b: 0x7n,
+  r: 0x141a15feba4f075a325e6e8n
 }, {
-  a: "853cd87b0bd5c046aecbf4b3d",
-  b: "-96",
-  r: "214f361ec2f57011abb2fd2cf40000000000000000000000000000000000000"
+  a: -0x68ba010a12ed551fc17c67f63331eea3n,
+  b: 0xae5n,
+  r: -0x1n
 }, {
-  a: "-4bc82dba903fedec0a079f7ae4fa6bd6befa",
-  b: "0",
-  r: "-4bc82dba903fedec0a079f7ae4fa6bd6befa"
+  a: 0xb64dc8009n,
+  b: 0xf1n,
+  r: 0n
 }, {
-  a: "43969b4db0d921d9f0ca68f74e4e4b9073732a7955a5b4571",
-  b: "-91",
-  r: "872d369b61b243b3e194d1ee9c9c9720e6e654f2ab4b68ae2000000000000000000000000000000000000"
+  a: -0x364cdec628e438712e4f8cb7an,
+  b: 0x48cn,
+  r: -0x1n
 }, {
-  a: "495f57",
-  b: "-a5",
-  r: "92beae00000000000000000000000000000000000000000"
+  a: -0xb417099aba80a783f52790b779b38c2e6fbdf5f490d7b02a59e81032een,
+  b: 0x6a3n,
+  r: -0x1n
 }, {
-  a: "-22109b99d3025aaef5c3fbd27420a72",
-  b: "45d",
-  r: "-1"
+  a: 0x9d2b41n,
+  b: 0n,
+  r: 0x9d2b41n
 }, {
-  a: "b3f6b156f4afcf259efd3cd1",
-  b: "c7",
-  r: "0"
+  a: -0x4a070c83b02ba86434228a50cbaf50ddf38n,
+  b: -0x63n,
+  r: -0x25038641d815d4321a11452865d7a86ef9c0000000000000000000000000n
 }, {
-  a: "137aeeadc8d1395042e80393cc1b6a1c7b6e526ab1b6fc2f2859fd70e0c29df2802",
-  b: "f49",
-  r: "0"
+  a: 0x3e76514036ccb958c98f60n,
+  b: -0x76n,
+  r: 0xf9d94500db32e563263d8000000000000000000000000000000n
 }, {
-  a: "70f51026476e43bd7e911d37a4553701",
-  b: "33",
-  r: "e1ea204c8edc877afd2"
+  a: -0x51fe20d47ba564bc09337d5c8d284deb5006549bad2629230198f34n,
+  b: -0xfn,
+  r: -0x28ff106a3dd2b25e0499beae469426f5a8032a4dd693149180cc79a0000n
 }, {
-  a: "-3f935a89481c85d666498cf64fdc2a57028f7b295621dc665c0442229563",
-  b: "-2",
-  r: "-fe4d6a2520721759992633d93f70a95c0a3deca5588771997011088a558c"
+  a: 0x49adce1d09dadc5a0635f24d066d3a29e37b9be6059b88d0239d6ca6d92267a372n,
+  b: -0x6n,
+  r: 0x126b73874276b716818d7c93419b4e8a78dee6f98166e23408e75b29b64899e8dc80n
 }, {
-  a: "-c3",
-  b: "-87",
-  r: "-618000000000000000000000000000000000"
+  a: 0xca19971406fb07cn,
+  b: -0x17n,
+  r: 0x650ccb8a037d83e000000n
 }, {
-  a: "aae225520f630c0dfbb815f121836612d75a1f65a301461cd05ad0a741496",
-  b: "-4",
-  r: "aae225520f630c0dfbb815f121836612d75a1f65a301461cd05ad0a7414960"
+  a: 0xd8de8f631313b1f98f77d265ee48014f82eb20n,
+  b: 0xen,
+  r: 0x3637a3d8c4c4ec7e63ddf4997b920053e0bn
 }, {
-  a: "a5348f9af939041cc6ed386c060619a42f30c4aa8",
-  b: "95",
-  r: "529a"
+  a: -0x550d3470c8ad9b8f22ed01a4b1d3f648n,
+  b: -0x4dn,
+  r: -0xaa1a68e1915b371e45da034963a7ec900000000000000000000n
 }, {
-  a: "-4c27fc7e3892a6a5b517",
-  b: "-6c",
-  r: "-4c27fc7e3892a6a5b517000000000000000000000000000"
+  a: -0xa7eadcd4a1b8037081952f0a9199n,
+  b: -0xcfn,
+  r: -0x53f56e6a50dc01b840ca978548cc8000000000000000000000000000000000000000000000000000n
 }, {
-  a: "98efd35f2239f7efde9aef42ad0acd835e68ad868a2cd8fac260f1c7496e3fd2ada76",
-  b: "0",
-  r: "98efd35f2239f7efde9aef42ad0acd835e68ad868a2cd8fac260f1c7496e3fd2ada76"
+  a: -0x65b3933c9e1eb5f953f6cc55cn,
+  b: 0xa6cn,
+  r: -0x1n
 }, {
-  a: "-92f0264c863bdf66d4c83e8bf812123d759b4",
-  b: "-96",
-  r: "-24bc0993218ef7d9b5320fa2fe04848f5d66d00000000000000000000000000000000000000"
+  a: -0x92cea858475460661a2831a28434bde95e5132e1dcaeb161ec89bd9555f41n,
+  b: -0xbn,
+  r: -0x4967542c23aa30330d1418d1421a5ef4af289970ee5758b0f644decaaafa0800n
 }, {
-  a: "ec6341ff2b0e9cf8721e2eb4ec9c9",
-  b: "74",
-  r: "0"
+  a: -0x1d838ade17fe571916a26314b6a8b42e9b6e2b74238de734d6f5575df7n,
+  b: -0x7n,
+  r: -0xec1c56f0bff2b8c8b51318a5b545a174db715ba11c6f39a6b7aabaefb80n
 }, {
-  a: "-32de8dced947fa55cd0b91332a81f70",
-  b: "-5b",
-  r: "-196f46e76ca3fd2ae685c8999540fb800000000000000000000000"
+  a: 0xdd5bf8581e32875d44e26ef10c45bdff68d209015933586dc37211n,
+  b: -0xa9n,
+  r: 0x1bab7f0b03c650eba89c4dde2188b7bfed1a41202b266b0db86e422000000000000000000000000000000000000000000n
 }, {
-  a: "-3ef43bf8610f6533526ba734e85eafa04cd50a3",
-  b: "-25",
-  r: "-7de877f0c21eca66a4d74e69d0bd5f4099aa146000000000"
-}, {
-  a: "-9979591a367a32ae0039c54fd0f3d9e0ccc80be52b7e517fc94d9f3587dc54d933bb",
-  b: "0",
-  r: "-9979591a367a32ae0039c54fd0f3d9e0ccc80be52b7e517fc94d9f3587dc54d933bb"
+  a: -0xa92d3014dcn,
+  b: -0x4cn,
+  r: -0xa92d3014dc0000000000000000000n
 }];
 
 var error_count = 0;
 for (var i = 0; i < data.length; i++) {
   var d = data[i];
-  var a = BigInt.parseInt(d.a, 16);
-  var b = BigInt.parseInt(d.b, 16);
-  var r = a >> b;
-  if (d.r !== r.toString(16)) {
-    print("Input A:  " + a.toString(16));
-    print("Input B:  " + b.toString(16));
+  var r = d.a >> d.b;
+  if (d.r !== r) {
+    print("Input A:  " + d.a.toString(16));
+    print("Input B:  " + d.b.toString(16));
     print("Result:   " + r.toString(16));
     print("Expected: " + d.r);
     print("Op: >>");

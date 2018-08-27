@@ -2,10 +2,10 @@
 #include "node_i18n.h"
 #include "env-inl.h"
 #include "util-inl.h"
-#include "node_debug_options.h"
 
 namespace node {
 
+using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::Integer;
@@ -29,6 +29,18 @@ using v8::Value;
                               True(isolate), ReadOnly).FromJust();            \
   } while (0)
 
+#define READONLY_STRING_PROPERTY(obj, str, val)                                \
+  do {                                                                         \
+    (obj)->DefineOwnProperty(context,                                          \
+                             FIXED_ONE_BYTE_STRING(isolate, str),              \
+                             String::NewFromUtf8(                              \
+                                 isolate,                                      \
+                                 val.data(),                                   \
+                                 v8::NewStringType::kNormal).ToLocalChecked(), \
+                             ReadOnly).FromJust();                             \
+  } while (0)
+
+
 #define READONLY_PROPERTY(obj, name, value)                                   \
   do {                                                                        \
     obj->DefineOwnProperty(env->context(),                                    \
@@ -44,6 +56,7 @@ static void Initialize(Local<Object> target,
 
 #ifdef NODE_FIPS_MODE
   READONLY_BOOLEAN_PROPERTY("fipsMode");
+  // TODO(addaleax): Use options parser variable instead.
   if (force_fips_crypto)
     READONLY_BOOLEAN_PROPERTY("fipsForced");
 #endif
@@ -56,39 +69,42 @@ static void Initialize(Local<Object> target,
   READONLY_BOOLEAN_PROPERTY("hasSmallICU");
 #endif  // NODE_HAVE_SMALL_ICU
 
-  target->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "icuDataDir"),
-      String::NewFromUtf8(isolate,
-                          icu_data_dir.data(),
-                          v8::NewStringType::kNormal).ToLocalChecked(),
-      ReadOnly).FromJust();
+#if NODE_USE_V8_PLATFORM
+  READONLY_BOOLEAN_PROPERTY("hasTracing");
+#endif
+
+  // TODO(addaleax): This seems to be an unused, private API. Remove it?
+  READONLY_STRING_PROPERTY(target, "icuDataDir",
+      per_process_opts->icu_data_dir);
 
 #endif  // NODE_HAVE_I18N_SUPPORT
 
-  if (config_preserve_symlinks)
+  if (env->options()->preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
+  if (env->options()->preserve_symlinks_main)
+    READONLY_BOOLEAN_PROPERTY("preserveSymlinksMain");
 
-  if (config_experimental_modules) {
+  if (env->options()->experimental_modules) {
     READONLY_BOOLEAN_PROPERTY("experimentalModules");
-    if (!config_userland_loader.empty()) {
-      target->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(isolate, "userLoader"),
-          String::NewFromUtf8(isolate,
-                              config_userland_loader.data(),
-                              v8::NewStringType::kNormal).ToLocalChecked(),
-          ReadOnly).FromJust();
+    const std::string& userland_loader = env->options()->userland_loader;
+    if (!userland_loader.empty()) {
+      READONLY_STRING_PROPERTY(target, "userLoader",  userland_loader);
     }
   }
 
-  if (config_experimental_vm_modules)
+  if (env->options()->experimental_vm_modules)
     READONLY_BOOLEAN_PROPERTY("experimentalVMModules");
 
-  if (config_pending_deprecation)
+  if (env->options()->experimental_worker)
+    READONLY_BOOLEAN_PROPERTY("experimentalWorker");
+
+  if (env->options()->experimental_repl_await)
+    READONLY_BOOLEAN_PROPERTY("experimentalREPLAwait");
+
+  if (env->options()->pending_deprecation)
     READONLY_BOOLEAN_PROPERTY("pendingDeprecation");
 
-  if (config_expose_internals)
+  if (env->options()->expose_internals)
     READONLY_BOOLEAN_PROPERTY("exposeInternals");
 
   if (env->abort_on_uncaught_exception())
@@ -98,42 +114,41 @@ static void Initialize(Local<Object> target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
 
-  if (!config_warning_file.empty()) {
-    target->DefineOwnProperty(
-        context,
-        FIXED_ONE_BYTE_STRING(isolate, "warningFile"),
-        String::NewFromUtf8(isolate,
-                            config_warning_file.data(),
-                            v8::NewStringType::kNormal).ToLocalChecked(),
-        ReadOnly).FromJust();
+  const std::string& warning_file = env->options()->redirect_warnings;
+  if (!warning_file.empty()) {
+    READONLY_STRING_PROPERTY(target, "warningFile", warning_file);
   }
 
-  Local<Object> debugOptions = Object::New(isolate);
+  std::shared_ptr<DebugOptions> debug_options = env->options()->debug_options;
+  Local<Object> debug_options_obj = Object::New(isolate);
+  READONLY_PROPERTY(target, "debugOptions", debug_options_obj);
 
-  target->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "debugOptions"),
-      debugOptions, ReadOnly).FromJust();
+  READONLY_STRING_PROPERTY(debug_options_obj, "host",
+                           debug_options->host());
 
-  debugOptions->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "host"),
-      String::NewFromUtf8(isolate,
-                          debug_options.host_name().c_str(),
-                          v8::NewStringType::kNormal).ToLocalChecked(),
-      ReadOnly).FromJust();
+  READONLY_PROPERTY(debug_options_obj,
+                    "port",
+                    Integer::New(isolate, debug_options->port()));
 
-  debugOptions->DefineOwnProperty(
-      context,
-      env->port_string(),
-      Integer::New(isolate, debug_options.port()),
-      ReadOnly).FromJust();
+  READONLY_PROPERTY(debug_options_obj,
+                    "inspectorEnabled",
+                    Boolean::New(isolate, debug_options->inspector_enabled));
 
-  debugOptions->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "inspectorEnabled"),
-      Boolean::New(isolate, debug_options.inspector_enabled()), ReadOnly)
-          .FromJust();
+  Local<Array> environmentFlags = Array::New(env->isolate(),
+                                  environment_flags_count);
+  READONLY_PROPERTY(target, "allowedNodeEnvironmentFlags", environmentFlags);
+  for (int i = 0; i < environment_flags_count; ++i) {
+    environmentFlags->Set(i, OneByteString(env->isolate(),
+        environment_flags[i]));
+  }
+
+  Local<Array> v8EnvironmentFlags = Array::New(env->isolate(),
+                                    v8_environment_flags_count);
+  READONLY_PROPERTY(target, "allowedV8EnvironmentFlags", v8EnvironmentFlags);
+  for (int i = 0; i < v8_environment_flags_count; ++i) {
+    v8EnvironmentFlags->Set(i, OneByteString(env->isolate(),
+        v8_environment_flags[i]));
+  }
 }  // InitConfig
 
 }  // namespace node

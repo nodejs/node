@@ -5,8 +5,10 @@
 
 from collections import OrderedDict
 import json
+import multiprocessing
 import optparse
 import os
+import shlex
 import sys
 
 
@@ -17,10 +19,14 @@ sys.path.insert(
     os.path.dirname(os.path.abspath(__file__))))
 
 
-from local import testsuite
-from local import utils
-
-from testproc.shard import ShardProc
+from testrunner.local import testsuite
+from testrunner.local import utils
+from testrunner.test_config import TestConfig
+from testrunner.testproc import progress
+from testrunner.testproc.rerun import RerunProc
+from testrunner.testproc.shard import ShardProc
+from testrunner.testproc.sigproc import SignalProc
+from testrunner.testproc.timeout import TimeoutProc
 
 
 BASE_DIR = (
@@ -30,8 +36,6 @@ BASE_DIR = (
           os.path.abspath(__file__)))))
 
 DEFAULT_OUT_GN = 'out.gn'
-
-ARCH_GUESS = utils.DefaultArch()
 
 # Map of test name synonyms to lists of test suites. Should be ordered by
 # expected runtimes (suites with slow test cases first). These groups are
@@ -90,6 +94,16 @@ TEST_MAP = {
   ],
 }
 
+# Double the timeout for these:
+SLOW_ARCHS = ["arm",
+              "mips",
+              "mipsel",
+              "mips64",
+              "mips64el",
+              "s390",
+              "s390x",
+              "arm64"]
+
 
 class ModeConfig(object):
   def __init__(self, flags, timeout_scalefactor, status_mode, execution_mode):
@@ -138,6 +152,12 @@ MODES = {
   ),
 }
 
+PROGRESS_INDICATORS = {
+  'verbose': progress.VerboseProgressIndicator,
+  'dots': progress.DotsProgressIndicator,
+  'color': progress.ColorProgressIndicator,
+  'mono': progress.MonochromeProgressIndicator,
+}
 
 class TestRunnerError(Exception):
   pass
@@ -162,6 +182,10 @@ class BuildConfig(object):
     self.predictable = build_config['v8_enable_verify_predictable']
     self.tsan = build_config['is_tsan']
     self.ubsan_vptr = build_config['is_ubsan_vptr']
+    # Export only for MIPS target
+    if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
+      self.mips_arch_variant = build_config['mips_arch_variant']
+      self.mips_use_msa = build_config['mips_use_msa']
 
   def __str__(self):
     detected_options = []
@@ -204,6 +228,10 @@ class BaseTestRunner(object):
     try:
       parser = self._create_parser()
       options, args = self._parse_args(parser, sys_args)
+      if options.swarming:
+        # Swarming doesn't print how isolated commands are called. Lets make
+        # this less cryptic by printing it ourselves.
+        print ' '.join(sys.argv)
 
       self._load_build_config(options)
 
@@ -215,14 +243,19 @@ class BaseTestRunner(object):
         raise
 
       args = self._parse_test_args(args)
-      suites = self._get_suites(args, options.verbose)
+      suites = self._get_suites(args, options)
+      self._prepare_suites(suites, options)
 
       self._setup_env()
-      return self._do_execute(suites, args, options)
+
+      print(">>> Running tests for %s.%s" % (self.build_config.arch,
+                                            self.mode_name))
+      tests = [t for s in suites for t in s.tests]
+      return self._do_execute(tests, args, options)
     except TestRunnerError:
-      return 1
+      return utils.EXIT_CODE_INTERNAL_ERROR
     except KeyboardInterrupt:
-      return 2
+      return utils.EXIT_CODE_INTERRUPTED
 
   def _create_parser(self):
     parser = optparse.OptionParser()
@@ -247,14 +280,63 @@ class BaseTestRunner(object):
                       " and buildbot builds): %s" % MODES.keys())
     parser.add_option("--shell-dir", help="DEPRECATED! Executables from build "
                       "directory will be used")
-    parser.add_option("-v", "--verbose", help="Verbose output",
-                      default=False, action="store_true")
-    parser.add_option("--shard-count",
-                      help="Split tests into this number of shards",
-                      default=1, type="int")
-    parser.add_option("--shard-run",
-                      help="Run this shard from the split up tests.",
-                      default=1, type="int")
+    parser.add_option("--total-timeout-sec", default=0, type="int",
+                      help="How long should fuzzer run")
+    parser.add_option("--swarming", default=False, action="store_true",
+                      help="Indicates running test driver on swarming.")
+
+    parser.add_option("-j", help="The number of parallel tasks to run",
+                      default=0, type=int)
+
+    # Shard
+    parser.add_option("--shard-count", default=1, type=int,
+                      help="Split tests into this number of shards")
+    parser.add_option("--shard-run", default=1, type=int,
+                      help="Run this shard from the split up tests.")
+
+    # Progress
+    parser.add_option("-p", "--progress",
+                      choices=PROGRESS_INDICATORS.keys(), default="mono",
+                      help="The style of progress indicator (verbose, dots, "
+                           "color, mono)")
+    parser.add_option("--json-test-results",
+                      help="Path to a file for storing json results.")
+    parser.add_option("--junitout", help="File name of the JUnit output")
+    parser.add_option("--junittestsuite", default="v8tests",
+                      help="The testsuite name in the JUnit output file")
+
+    # Rerun
+    parser.add_option("--rerun-failures-count", default=0, type=int,
+                      help="Number of times to rerun each failing test case. "
+                           "Very slow tests will be rerun only once.")
+    parser.add_option("--rerun-failures-max", default=100, type=int,
+                      help="Maximum number of failing test cases to rerun")
+
+    # Test config
+    parser.add_option("--command-prefix", default="",
+                      help="Prepended to each shell command used to run a test")
+    parser.add_option("--extra-flags", action="append", default=[],
+                      help="Additional flags to pass to each test command")
+    parser.add_option("--isolates", action="store_true", default=False,
+                      help="Whether to test isolates")
+    parser.add_option("--no-harness", "--noharness",
+                      default=False, action="store_true",
+                      help="Run without test harness of a given suite")
+    parser.add_option("--random-seed", default=0, type=int,
+                      help="Default seed for initializing random generator")
+    parser.add_option("-t", "--timeout", default=60, type=int,
+                      help="Timeout for single test in seconds")
+    parser.add_option("-v", "--verbose", default=False, action="store_true",
+                      help="Verbose output")
+
+    # TODO(machenbach): Temporary options for rolling out new test runner
+    # features.
+    parser.add_option("--mastername", default='',
+                      help="Mastername property from infrastructure. Not "
+                           "setting this option indicates manual usage.")
+    parser.add_option("--buildername", default='',
+                      help="Buildername property from infrastructure. Not "
+                           "setting this option indicates manual usage.")
 
   def _add_parser_options(self, parser):
     pass
@@ -378,6 +460,12 @@ class BaseTestRunner(object):
       print('Warning: --shell-dir is deprecated. Searching for executables in '
             'build directory (%s) instead.' % self.outdir)
 
+    if options.j == 0:
+      options.j = multiprocessing.cpu_count()
+
+    options.command_prefix = shlex.split(options.command_prefix)
+    options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
+
   def _buildbot_to_v8_mode(self, config):
     """Convert buildbot build configs to configs understood by the v8 runner.
 
@@ -471,9 +559,9 @@ class BaseTestRunner(object):
 
     return reduce(list.__add__, map(expand_test_group, args), [])
 
-  def _get_suites(self, args, verbose=False):
+  def _get_suites(self, args, options):
     names = self._args_to_suite_names(args)
-    return self._load_suites(names, verbose)
+    return self._load_suites(names, options)
 
   def _args_to_suite_names(self, args):
     # Use default tests if no test configuration was provided at the cmd line.
@@ -484,20 +572,104 @@ class BaseTestRunner(object):
   def _get_default_suite_names(self):
     return []
 
-  def _expand_test_group(self, name):
-    return TEST_MAP.get(name, [name])
-
-  def _load_suites(self, names, verbose=False):
+  def _load_suites(self, names, options):
+    test_config = self._create_test_config(options)
     def load_suite(name):
-      if verbose:
+      if options.verbose:
         print '>>> Loading test suite: %s' % name
       return testsuite.TestSuite.LoadTestSuite(
-          os.path.join(self.basedir, 'test', name))
+          os.path.join(self.basedir, 'test', name),
+          test_config)
     return map(load_suite, names)
+
+  def _prepare_suites(self, suites, options):
+    self._load_status_files(suites, options)
+    for s in suites:
+      s.ReadTestCases()
+
+  def _load_status_files(self, suites, options):
+    # simd_mips is true if SIMD is fully supported on MIPS
+    variables = self._get_statusfile_variables(options)
+    for s in suites:
+      s.ReadStatusFile(variables)
+
+  def _get_statusfile_variables(self, options):
+    simd_mips = (
+      self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
+      self.build_config.mips_arch_variant == "r6" and
+      self.build_config.mips_use_msa)
+
+    mips_arch_variant = (
+      self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
+      self.build_config.mips_arch_variant)
+
+    # TODO(all): Combine "simulator" and "simulator_run".
+    # TODO(machenbach): In GN we can derive simulator run from
+    # target_arch != v8_target_arch in the dumped build config.
+    return {
+      "arch": self.build_config.arch,
+      "asan": self.build_config.asan,
+      "byteorder": sys.byteorder,
+      "dcheck_always_on": self.build_config.dcheck_always_on,
+      "deopt_fuzzer": False,
+      "endurance_fuzzer": False,
+      "gc_fuzzer": False,
+      "gc_stress": False,
+      "gcov_coverage": self.build_config.gcov_coverage,
+      "isolates": options.isolates,
+      "mips_arch_variant": mips_arch_variant,
+      "mode": self.mode_options.status_mode,
+      "msan": self.build_config.msan,
+      "no_harness": options.no_harness,
+      "no_i18n": self.build_config.no_i18n,
+      "no_snap": self.build_config.no_snap,
+      "novfp3": False,
+      "predictable": self.build_config.predictable,
+      "simd_mips": simd_mips,
+      "simulator": utils.UseSimulator(self.build_config.arch),
+      "simulator_run": False,
+      "system": utils.GuessOS(),
+      "tsan": self.build_config.tsan,
+      "ubsan_vptr": self.build_config.ubsan_vptr,
+    }
+
+  def _create_test_config(self, options):
+    timeout = options.timeout * self._timeout_scalefactor(options)
+    return TestConfig(
+        command_prefix=options.command_prefix,
+        extra_flags=options.extra_flags,
+        isolates=options.isolates,
+        mode_flags=self.mode_options.flags,
+        no_harness=options.no_harness,
+        noi18n=self.build_config.no_i18n,
+        random_seed=options.random_seed,
+        shell_dir=self.outdir,
+        timeout=timeout,
+        verbose=options.verbose,
+    )
+
+  def _timeout_scalefactor(self, options):
+    factor = self.mode_options.timeout_scalefactor
+
+    # Simulators are slow, therefore allow a longer timeout.
+    if self.build_config.arch in SLOW_ARCHS:
+      factor *= 2
+
+    # Predictable mode is slower.
+    if self.build_config.predictable:
+      factor *= 2
+
+    return factor
 
   # TODO(majeski): remove options & args parameters
   def _do_execute(self, suites, args, options):
     raise NotImplementedError()
+
+  def _prepare_procs(self, procs):
+    procs = filter(None, procs)
+    for i in xrange(0, len(procs) - 1):
+      procs[i].connect_to(procs[i + 1])
+    procs[0].setup()
 
   def _create_shard_proc(self, options):
     myid, count = self._get_shard_info(options)
@@ -541,3 +713,29 @@ class BaseTestRunner(object):
       return 1, 1
 
     return shard_run, shard_count
+
+  def _create_progress_indicators(self, options):
+    procs = [PROGRESS_INDICATORS[options.progress]()]
+    if options.junitout:
+      procs.append(progress.JUnitTestProgressIndicator(options.junitout,
+                                                       options.junittestsuite))
+    if options.json_test_results:
+      procs.append(progress.JsonTestProgressIndicator(
+        options.json_test_results,
+        self.build_config.arch,
+        self.mode_options.execution_mode))
+    return procs
+
+  def _create_timeout_proc(self, options):
+    if not options.total_timeout_sec:
+      return None
+    return TimeoutProc(options.total_timeout_sec)
+
+  def _create_signal_proc(self):
+    return SignalProc()
+
+  def _create_rerun_proc(self, options):
+    if not options.rerun_failures_count:
+      return None
+    return RerunProc(options.rerun_failures_count,
+                     options.rerun_failures_max)

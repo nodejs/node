@@ -1287,8 +1287,7 @@ TestKeysThrow({
 
 // ---------------------------------------------------------------------------
 // String conversion (Object.prototype.toString,
-//                    Object.prototype.toLocaleString,
-//                    Function.prototype.toString)
+//                    Object.prototype.toLocaleString)
 
 var key
 
@@ -1306,7 +1305,6 @@ function TestToString(handler) {
   assertEquals(Symbol.toStringTag, key)
   assertEquals("my_proxy", Object.prototype.toLocaleString.call(f))
   assertEquals("toString", key)
-  assertThrows(function(){ Function.prototype.toString.call(f) })
 
   var o = Object.create(p)
   key = ""

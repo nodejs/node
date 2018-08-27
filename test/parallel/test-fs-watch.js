@@ -46,7 +46,8 @@ for (const testCase of cases) {
   fs.writeFileSync(testCase.filePath, content1);
 
   let interval;
-  const watcher = fs.watch(testCase[testCase.field]);
+  const pathToWatch = testCase[testCase.field];
+  const watcher = fs.watch(pathToWatch);
   watcher.on('error', (err) => {
     if (interval) {
       clearInterval(interval);
@@ -54,6 +55,11 @@ for (const testCase of cases) {
     }
     assert.fail(err);
   });
+  watcher.on('close', common.mustCall(() => {
+    watcher.close(); // Closing a closed watcher should be a noop
+    // Starting a closed watcher should be a noop
+    watcher.start();
+  }));
   watcher.on('change', common.mustCall(function(eventType, argFilename) {
     if (interval) {
       clearInterval(interval);
@@ -65,10 +71,16 @@ for (const testCase of cases) {
       assert.strictEqual(eventType, 'change');
     assert.strictEqual(argFilename, testCase.fileName);
 
-    watcher.start(); // Starting a started watcher should be a noop
-    // End of test case
+    // Starting a started watcher should be a noop
+    watcher.start();
+    watcher.start(pathToWatch);
+
     watcher.close();
+
+    // We document that watchers cannot be used anymore when it's closed,
+    // here we turn the methods into noops instead of throwing
     watcher.close(); // Closing a closed watcher should be a noop
+    watcher.start();  // Starting a closed watcher should be a noop
   }));
 
   // Long content so it's actually flushed. toUpperCase so there's real change.

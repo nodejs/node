@@ -6,9 +6,8 @@ const runBenchmark = require('../common/benchmark');
 
 runBenchmark('timers',
              [
-               'type=depth',
+               'direction=start',
                'n=1',
-               'millions=0.000001',
-               'thousands=0.001'
+               'type=depth',
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

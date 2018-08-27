@@ -15,6 +15,10 @@ module.exports = function defFunc(ajv) {
   if (typeof Buffer != 'undefined')
     CONSTRUCTORS.Buffer = Buffer;
 
+  /* istanbul ignore else */
+  if (typeof Promise != 'undefined')
+    CONSTRUCTORS.Promise = Promise;
+
   defFunc.definition = {
     compile: function (schema) {
       if (typeof schema == 'string') {

@@ -45,7 +45,40 @@ inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
 
-V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const);
+enum class IsSafetyCheck : uint8_t {
+  kCriticalSafetyCheck,
+  kSafetyCheck,
+  kNoSafetyCheck
+};
+
+// Get the more critical safety check of the two arguments.
+IsSafetyCheck CombineSafetyChecks(IsSafetyCheck, IsSafetyCheck);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, IsSafetyCheck);
+inline size_t hash_value(IsSafetyCheck is_safety_check) {
+  return static_cast<size_t>(is_safety_check);
+}
+
+struct BranchOperatorInfo {
+  BranchHint hint;
+  IsSafetyCheck is_safety_check;
+};
+
+inline size_t hash_value(const BranchOperatorInfo& info) {
+  return base::hash_combine(info.hint, info.is_safety_check);
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchOperatorInfo);
+
+inline bool operator==(const BranchOperatorInfo& a,
+                       const BranchOperatorInfo& b) {
+  return a.hint == b.hint && a.is_safety_check == b.is_safety_check;
+}
+
+V8_EXPORT_PRIVATE const BranchOperatorInfo& BranchOperatorInfoOf(
+    const Operator* const) V8_WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const)
+    V8_WARN_UNUSED_RESULT;
 
 // Helper function for return nodes, because returns have a hidden value input.
 int ValueInputCountOfReturn(Operator const* const op);
@@ -54,17 +87,23 @@ int ValueInputCountOfReturn(Operator const* const op);
 class DeoptimizeParameters final {
  public:
   DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason,
-                       VectorSlotPair const& feedback)
-      : kind_(kind), reason_(reason), feedback_(feedback) {}
+                       VectorSlotPair const& feedback,
+                       IsSafetyCheck is_safety_check)
+      : kind_(kind),
+        reason_(reason),
+        feedback_(feedback),
+        is_safety_check_(is_safety_check) {}
 
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
   const VectorSlotPair& feedback() const { return feedback_; }
+  IsSafetyCheck is_safety_check() const { return is_safety_check_; }
 
  private:
   DeoptimizeKind const kind_;
   DeoptimizeReason const reason_;
   VectorSlotPair const feedback_;
+  IsSafetyCheck is_safety_check_;
 };
 
 bool operator==(DeoptimizeParameters, DeoptimizeParameters);
@@ -74,8 +113,10 @@ size_t hast_value(DeoptimizeParameters p);
 
 std::ostream& operator<<(std::ostream&, DeoptimizeParameters p);
 
-DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const);
+DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const)
+    V8_WARN_UNUSED_RESULT;
 
+IsSafetyCheck IsSafetyCheckOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class SelectParameters final {
  public:
@@ -99,14 +140,16 @@ size_t hash_value(SelectParameters const& p);
 std::ostream& operator<<(std::ostream&, SelectParameters const& p);
 
 V8_EXPORT_PRIVATE SelectParameters const& SelectParametersOf(
-    const Operator* const);
+    const Operator* const) V8_WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE CallDescriptor const* CallDescriptorOf(const Operator* const);
+V8_EXPORT_PRIVATE CallDescriptor const* CallDescriptorOf(const Operator* const)
+    V8_WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const);
+V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const)
+    V8_WARN_UNUSED_RESULT;
 
 V8_EXPORT_PRIVATE MachineRepresentation
-PhiRepresentationOf(const Operator* const);
+PhiRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
 
 // The {IrOpcode::kParameter} opcode represents an incoming parameter to the
 // function. This class bundles the index and a debug name for such operators.
@@ -125,8 +168,10 @@ class ParameterInfo final {
 
 std::ostream& operator<<(std::ostream&, ParameterInfo const&);
 
-V8_EXPORT_PRIVATE int ParameterIndexOf(const Operator* const);
-const ParameterInfo& ParameterInfoOf(const Operator* const);
+V8_EXPORT_PRIVATE int ParameterIndexOf(const Operator* const)
+    V8_WARN_UNUSED_RESULT;
+const ParameterInfo& ParameterInfoOf(const Operator* const)
+    V8_WARN_UNUSED_RESULT;
 
 struct ObjectStateInfo final : std::pair<uint32_t, int> {
   ObjectStateInfo(uint32_t object_id, int size)
@@ -303,19 +348,20 @@ size_t hash_value(RegionObservability);
 
 std::ostream& operator<<(std::ostream&, RegionObservability);
 
-RegionObservability RegionObservabilityOf(Operator const*) WARN_UNUSED_RESULT;
+RegionObservability RegionObservabilityOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
 
 std::ostream& operator<<(std::ostream& os,
                          const ZoneVector<MachineType>* types);
 
-Type* TypeGuardTypeOf(Operator const*) WARN_UNUSED_RESULT;
+Type TypeGuardTypeOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
-int OsrValueIndexOf(Operator const*);
+int OsrValueIndexOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
-SparseInputMask SparseInputMaskOf(Operator const*);
+SparseInputMask SparseInputMaskOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 // The ArgumentsElementsState and ArgumentsLengthState can describe the layout
 // for backing stores of arguments objects of various types:
@@ -338,11 +384,41 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
 // type to carry a backing store of {kUnappedArguments} type when {K == 0}.
 typedef CreateArgumentsType ArgumentsStateType;
 
-ArgumentsStateType ArgumentsStateTypeOf(Operator const*) WARN_UNUSED_RESULT;
+ArgumentsStateType ArgumentsStateTypeOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 uint32_t ObjectIdOf(Operator const*);
 
-MachineRepresentation DeadValueRepresentationOf(Operator const*);
+MachineRepresentation DeadValueRepresentationOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
+
+class IfValueParameters final {
+ public:
+  IfValueParameters(int32_t value, int32_t comparison_order)
+      : value_(value), comparison_order_(comparison_order) {}
+
+  int32_t value() const { return value_; }
+  int32_t comparison_order() const { return comparison_order_; }
+
+ private:
+  int32_t value_;
+  int32_t comparison_order_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(IfValueParameters const&,
+                                  IfValueParameters const&);
+
+size_t hash_value(IfValueParameters const&);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           IfValueParameters const&);
+
+V8_EXPORT_PRIVATE IfValueParameters const& IfValueParametersOf(
+    const Operator* op) V8_WARN_UNUSED_RESULT;
+
+const FrameStateInfo& FrameStateInfoOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
+Handle<HeapObject> HeapConstantOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
@@ -355,21 +431,26 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
   const Operator* End(size_t control_input_count);
-  const Operator* Branch(BranchHint = BranchHint::kNone);
+  const Operator* Branch(BranchHint = BranchHint::kNone,
+                         IsSafetyCheck = IsSafetyCheck::kSafetyCheck);
   const Operator* IfTrue();
   const Operator* IfFalse();
   const Operator* IfSuccess();
   const Operator* IfException();
   const Operator* Switch(size_t control_output_count);
-  const Operator* IfValue(int32_t value);
+  const Operator* IfValue(int32_t value, int32_t order = 0);
   const Operator* IfDefault();
   const Operator* Throw();
   const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
                              VectorSlotPair const& feedback);
-  const Operator* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
-                               VectorSlotPair const& feedback);
-  const Operator* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
-                                   VectorSlotPair const& feedback);
+  const Operator* DeoptimizeIf(
+      DeoptimizeKind kind, DeoptimizeReason reason,
+      VectorSlotPair const& feedback,
+      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  const Operator* DeoptimizeUnless(
+      DeoptimizeKind kind, DeoptimizeReason reason,
+      VectorSlotPair const& feedback,
+      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   const Operator* TrapIf(int32_t trap_id);
   const Operator* TrapUnless(int32_t trap_id);
   const Operator* Return(int value_input_count = 1);
@@ -421,13 +502,13 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* FrameState(BailoutId bailout_id,
                              OutputFrameStateCombine state_combine,
                              const FrameStateFunctionInfo* function_info);
-  const Operator* Call(const CallDescriptor* descriptor);
+  const Operator* Call(const CallDescriptor* call_descriptor);
   const Operator* CallWithCallerSavedRegisters(
-      const CallDescriptor* descriptor);
-  const Operator* TailCall(const CallDescriptor* descriptor);
+      const CallDescriptor* call_descriptor);
+  const Operator* TailCall(const CallDescriptor* call_descriptor);
   const Operator* Projection(size_t index);
   const Operator* Retain();
-  const Operator* TypeGuard(Type* type);
+  const Operator* TypeGuard(Type type);
 
   // Constructs a new merge or phi operator with the same opcode as {op}, but
   // with {size} inputs.
@@ -437,6 +518,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(
       FrameStateType type, int parameter_count, int local_count,
       Handle<SharedFunctionInfo> shared_info);
+
+  const Operator* MarkAsSafetyCheck(const Operator* op,
+                                    IsSafetyCheck safety_check);
 
  private:
   Zone* zone() const { return zone_; }

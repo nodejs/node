@@ -28,7 +28,7 @@
 #ifndef V8_TEST_CCTEST_PRINT_EXTENSION_H_
 #define V8_TEST_CCTEST_PRINT_EXTENSION_H_
 
-#include "src/v8.h"
+#include "include/v8.h"
 
 namespace v8 {
 namespace internal {

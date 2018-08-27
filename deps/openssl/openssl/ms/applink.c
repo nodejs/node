@@ -1,3 +1,12 @@
+/*
+ * Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 #define APPLINK_STDIN   1
 #define APPLINK_STDOUT  2
 #define APPLINK_STDERR  3
@@ -81,9 +90,9 @@ void **
  * decoration right with Borland C. Otherwise it works
  * purely incidentally, as we pass no parameters.
  */
- __stdcall
+__stdcall
 # else
- __cdecl
+__cdecl
 # endif
 OPENSSL_Applink(void)
 {

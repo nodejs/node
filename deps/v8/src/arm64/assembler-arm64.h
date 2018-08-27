@@ -39,8 +39,8 @@ namespace internal {
 #define ALLOCATABLE_GENERAL_REGISTERS(R)                  \
   R(x0)  R(x1)  R(x2)  R(x3)  R(x4)  R(x5)  R(x6)  R(x7)  \
   R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
-  R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x27) \
-  R(x28)
+  R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x25) \
+  R(x27) R(x28)
 
 #define FLOAT_REGISTERS(V)                                \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
@@ -60,6 +60,8 @@ namespace internal {
   V(q16) V(q17) V(q18) V(q19) V(q20) V(q21) V(q22) V(q23) \
   V(q24) V(q25) V(q26) V(q27) V(q28) V(q29) V(q30) V(q31)
 
+// Register d29 could be allocated, but we keep an even length list here, in
+// order to make stack alignment easier for save and restore.
 #define ALLOCATABLE_DOUBLE_REGISTERS(R)                   \
   R(d0)  R(d1)  R(d2)  R(d3)  R(d4)  R(d5)  R(d6)  R(d7)  \
   R(d8)  R(d9)  R(d10) R(d11) R(d12) R(d13) R(d14) R(d16) \
@@ -68,7 +70,6 @@ namespace internal {
 // clang-format on
 
 constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
-static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 
 const int kNumRegs = kNumberOfRegisters;
 // Registers x0-x17 are caller-saved.
@@ -123,10 +124,6 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
 
   RegisterType type() const { return reg_type_; }
-  RegList bit() const {
-    DCHECK(static_cast<size_t>(reg_code_) < (sizeof(RegList) * kBitsPerByte));
-    return IsValid() ? 1UL << reg_code_ : 0;
-  }
   int SizeInBits() const {
     DCHECK(IsValid());
     return reg_size_;
@@ -203,7 +200,6 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
 
   bool IsSameSizeAndType(const CPURegister& other) const;
 
-  // V8 compatibility.
   bool is(const CPURegister& other) const { return Is(other); }
   bool is_valid() const { return IsValid(); }
 
@@ -238,8 +234,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(CPURegister),
-              "CPURegister can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(CPURegister);
 
 class Register : public CPURegister {
  public:
@@ -257,25 +252,6 @@ class Register : public CPURegister {
   static Register XRegFromCode(unsigned code);
   static Register WRegFromCode(unsigned code);
 
-  // Start of V8 compatibility section ---------------------
-  // These memebers are necessary for compilation.
-  // A few of them may be unused for now.
-
-  // We allow crankshaft to use the following registers:
-  //   - x0 to x15
-  //   - x18 to x24
-  //   - x27 (also context)
-  //
-  // TODO(all): Register x25 is currently free and could be available for
-  // crankshaft, but we don't use it as we might use it as a per function
-  // literal pool pointer in the future.
-  //
-  // TODO(all): Consider storing cp in x25 to have only two ranges.
-  // We split allocatable registers in three ranges called
-  //   - "low range"
-  //   - "high range"
-  //   - "context"
-
   static Register from_code(int code) {
     // Always return an X register.
     return Register::Create(code, kXRegSizeInBits);
@@ -287,14 +263,11 @@ class Register : public CPURegister {
     return Register::Create<code, kXRegSizeInBits>();
   }
 
-  // End of V8 compatibility section -----------------------
-  //
  private:
   constexpr explicit Register(const CPURegister& r) : CPURegister(r) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(Register),
-              "Register can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(Register);
 
 constexpr bool kPadArguments = true;
 constexpr bool kSimpleFPAliasing = true;
@@ -406,19 +379,13 @@ class VRegister : public CPURegister {
 
   unsigned LaneSizeInBits() const { return LaneSizeInBytes() * 8; }
 
-  // Start of V8 compatibility section ---------------------
   static constexpr int kMaxNumRegisters = kNumberOfVRegisters;
   STATIC_ASSERT(kMaxNumRegisters == kDoubleAfterLast);
 
-  // Crankshaft can use all the V registers except:
-  //   - d15 which is used to keep the 0 double value
-  //   - d30 which is used in crankshaft as a double scratch register
-  //   - d31 which is used in the MacroAssembler as a double scratch register
   static VRegister from_code(int code) {
     // Always return a D register.
     return VRegister::Create(code, kDRegSizeInBits);
   }
-  // End of V8 compatibility section -----------------------
 
  private:
   int lane_count_;
@@ -431,8 +398,7 @@ class VRegister : public CPURegister {
   }
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(VRegister),
-              "VRegister can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(VRegister);
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
 // these all compare equal (using the Is() method). The Register and VRegister
@@ -440,8 +406,6 @@ static_assert(IS_TRIVIALLY_COPYABLE(VRegister),
 constexpr Register NoReg = Register::no_reg();
 constexpr VRegister NoVReg = VRegister::no_reg();
 constexpr CPURegister NoCPUReg = CPURegister::no_reg();
-
-// v8 compatibility.
 constexpr Register no_reg = NoReg;
 
 #define DEFINE_REGISTER(register_class, name, ...) \
@@ -455,8 +419,8 @@ constexpr Register no_reg = NoReg;
 GENERAL_REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
-DEFINE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits);
-DEFINE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits);
+DEFINE_REGISTER(Register, wsp, kSPRegInternalCode, kWRegSizeInBits);
+DEFINE_REGISTER(Register, sp, kSPRegInternalCode, kXRegSizeInBits);
 
 #define DEFINE_VREGISTERS(N)                            \
   DEFINE_REGISTER(VRegister, b##N, N, kBRegSizeInBits); \
@@ -477,7 +441,7 @@ ALIAS_REGISTER(Register, ip1, x17);
 ALIAS_REGISTER(Register, wip0, w16);
 ALIAS_REGISTER(Register, wip1, w17);
 // Root register.
-ALIAS_REGISTER(Register, root, x26);
+ALIAS_REGISTER(Register, kRootRegister, x26);
 ALIAS_REGISTER(Register, rr, x26);
 // Context pointer register.
 ALIAS_REGISTER(Register, cp, x27);
@@ -492,11 +456,9 @@ ALIAS_REGISTER(Register, padreg, x31);
 // Keeps the 0 double value.
 ALIAS_REGISTER(VRegister, fp_zero, d15);
 // MacroAssembler fixed V Registers.
-ALIAS_REGISTER(VRegister, fp_fixed1, d27);
-ALIAS_REGISTER(VRegister, fp_fixed2, d28);
-ALIAS_REGISTER(VRegister, fp_fixed3, d29);  // same as Crankshaft scratch.
-// Crankshaft double scratch register.
-ALIAS_REGISTER(VRegister, crankshaft_fp_scratch, d29);
+ALIAS_REGISTER(VRegister, fp_fixed1, d28);
+ALIAS_REGISTER(VRegister, fp_fixed2, d29);
+
 // MacroAssembler scratch V registers.
 ALIAS_REGISTER(VRegister, fp_scratch, d30);
 ALIAS_REGISTER(VRegister, fp_scratch1, d30);
@@ -519,14 +481,11 @@ bool AreAliased(const CPURegister& reg1,
 // same size, and are of the same type. The system stack pointer may be
 // specified. Arguments set to NoReg are ignored, as are any subsequent
 // arguments. At least one argument (reg1) must be valid (not NoCPUReg).
-bool AreSameSizeAndType(const CPURegister& reg1,
-                        const CPURegister& reg2,
-                        const CPURegister& reg3 = NoCPUReg,
-                        const CPURegister& reg4 = NoCPUReg,
-                        const CPURegister& reg5 = NoCPUReg,
-                        const CPURegister& reg6 = NoCPUReg,
-                        const CPURegister& reg7 = NoCPUReg,
-                        const CPURegister& reg8 = NoCPUReg);
+bool AreSameSizeAndType(
+    const CPURegister& reg1, const CPURegister& reg2 = NoCPUReg,
+    const CPURegister& reg3 = NoCPUReg, const CPURegister& reg4 = NoCPUReg,
+    const CPURegister& reg5 = NoCPUReg, const CPURegister& reg6 = NoCPUReg,
+    const CPURegister& reg7 = NoCPUReg, const CPURegister& reg8 = NoCPUReg);
 
 // AreSameFormat returns true if all of the specified VRegisters have the same
 // vector format. Arguments set to NoVReg are ignored, as are any subsequent
@@ -551,12 +510,12 @@ typedef VRegister Simd128Register;
 // Lists of registers.
 class CPURegList {
  public:
-  explicit CPURegList(CPURegister reg1, CPURegister reg2 = NoCPUReg,
-                      CPURegister reg3 = NoCPUReg, CPURegister reg4 = NoCPUReg)
-      : list_(reg1.bit() | reg2.bit() | reg3.bit() | reg4.bit()),
-        size_(reg1.SizeInBits()),
-        type_(reg1.type()) {
-    DCHECK(AreSameSizeAndType(reg1, reg2, reg3, reg4));
+  template <typename... CPURegisters>
+  explicit CPURegList(CPURegister reg0, CPURegisters... regs)
+      : list_(CPURegister::ListOf(reg0, regs...)),
+        size_(reg0.SizeInBits()),
+        type_(reg0.type()) {
+    DCHECK(AreSameSizeAndType(reg0, regs...));
     DCHECK(IsValid());
   }
 
@@ -680,8 +639,8 @@ class CPURegList {
   CPURegister::RegisterType type_;
 
   bool IsValid() const {
-    const RegList kValidRegisters = 0x8000000ffffffff;
-    const RegList kValidVRegisters = 0x0000000ffffffff;
+    constexpr RegList kValidRegisters{0x8000000ffffffff};
+    constexpr RegList kValidVRegisters{0x0000000ffffffff};
     switch (type_) {
       case CPURegister::kRegister:
         return (list_ & kValidRegisters) == list_;
@@ -785,6 +744,7 @@ class Operand {
 
   inline Immediate immediate() const;
   inline int64_t ImmediateValue() const;
+  inline RelocInfo::Mode ImmediateRMode() const;
   inline Register reg() const;
   inline Shift shift() const;
   inline Extend extend() const;
@@ -984,7 +944,22 @@ class Assembler : public AssemblerBase {
   // RelocInfo and pools ------------------------------------------------------
 
   // Record relocation information for current pc_.
-  void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
+  enum ConstantPoolMode { NEEDS_POOL_ENTRY, NO_POOL_ENTRY };
+  void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0,
+                       ConstantPoolMode constant_pool_mode = NEEDS_POOL_ENTRY);
+
+  // Generate a B immediate instruction with the corresponding relocation info.
+  // 'offset' is the immediate to encode in the B instruction (so it is the
+  // difference between the target and the PC of the instruction, divided by
+  // the instruction size).
+  void near_jump(int offset, RelocInfo::Mode rmode);
+  // Generate a BL immediate instruction with the corresponding relocation info.
+  // As for near_jump, 'offset' is the immediate to encode in the BL
+  // instruction.
+  void near_call(int offset, RelocInfo::Mode rmode);
+  // Generate a BL immediate instruction with the corresponding relocation info
+  // for the input HeapObjectRequest.
+  void near_call(HeapObjectRequest request);
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
@@ -994,46 +969,62 @@ class Assembler : public AssemblerBase {
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   inline static Address target_address_at(Address pc, Address constant_pool);
   inline static void set_target_address_at(
-      Isolate* isolate, Address pc, Address constant_pool, Address target,
+      Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  // Add 'target' to the code_targets_ vector, if necessary, and return the
+  // offset at which it is stored.
+  int GetCodeTargetIndex(Handle<Code> target);
+
+  // Returns the handle for the code object called at 'pc'.
+  // This might need to be temporarily encoded as an offset into code_targets_.
+  inline Handle<Code> code_target_object_handle_at(Address pc);
+
+  // Returns the target address for a runtime function for the call encoded
+  // at 'pc'.
+  // Runtime entries can be temporarily encoded as the offset between the
+  // runtime function entrypoint and the code range start (stored in the
+  // code_range_start_ field), in order to be encodable as we generate the code,
+  // before it is moved into the code space.
+  inline Address runtime_entry_at(Address pc);
 
   // Return the code target address at a call site from the return address of
   // that call in the instruction stream.
   inline static Address target_address_from_return_address(Address pc);
 
-  // Given the address of the beginning of a call, return the address in the
-  // instruction stream that call will return from.
-  inline static Address return_address_from_call_start(Address pc);
-
-  // This sets the branch destination (which is in the constant pool on ARM).
+  // This sets the branch destination. 'location' here can be either the pc of
+  // an immediate branch or the address of an entry in the constant pool.
   // This is for calls and branches within generated code.
-  inline static void deserialization_set_special_target_at(
-      Isolate* isolate, Address constant_pool_entry, Code* code,
-      Address target);
+  inline static void deserialization_set_special_target_at(Address location,
+                                                           Code* code,
+                                                           Address target);
+
+  // Get the size of the special target encoded at 'location'.
+  inline static int deserialization_special_target_size(Address location);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Isolate* isolate, Address pc, Address target,
+      Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  // All addresses in the constant pool are the same size as pointers.
-  static constexpr int kSpecialTargetSize = kPointerSize;
+  // This value is used in the serialization process and must be zero for
+  // ARM64, as the code target is split across multiple instructions and does
+  // not exist separately in the code, so the serializer should not step
+  // forwards in memory after a target is resolved and written.
+  static constexpr int kSpecialTargetSize = 0;
 
   // The sizes of the call sequences emitted by MacroAssembler::Call.
   // Wherever possible, use MacroAssembler::CallSize instead of these constants,
   // as it will choose the correct value for a given relocation mode.
   //
-  // Without relocation:
-  //  movz  temp, #(target & 0x000000000000ffff)
-  //  movk  temp, #(target & 0x00000000ffff0000)
-  //  movk  temp, #(target & 0x0000ffff00000000)
-  //  blr   temp
+  // A "near" call is encoded in a BL immediate instruction:
+  //  bl target
   //
-  // With relocation:
-  //  ldr   temp, =target
-  //  blr   temp
-  static constexpr int kCallSizeWithoutRelocation = 4 * kInstructionSize;
-  static constexpr int kCallSizeWithRelocation = 2 * kInstructionSize;
+  // whereas a "far" call will be encoded like this:
+  //  ldr temp, =target
+  //  blr temp
+  static constexpr int kNearCallSize = 1 * kInstructionSize;
+  static constexpr int kFarCallSize = 2 * kInstructionSize;
 
   // Size of the generated code in bytes
   uint64_t SizeOfGeneratedCode() const {
@@ -1056,7 +1047,7 @@ class Assembler : public AssemblerBase {
   // change things to be consistent.
   void AssertSizeOfCodeGeneratedSince(const Label* label, ptrdiff_t size) {
     DCHECK_GE(size, 0);
-    DCHECK(static_cast<uint64_t>(size) == SizeOfCodeGeneratedSince(label));
+    DCHECK_EQ(static_cast<uint64_t>(size), SizeOfCodeGeneratedSince(label));
   }
 
   // Return the number of instructions generated from label to the
@@ -1753,6 +1744,9 @@ class Assembler : public AssemblerBase {
 
   // Instruction synchronization barrier
   void isb();
+
+  // Conditional speculation barrier.
+  void csdb();
 
   // Alias for system instructions.
   void nop() { hint(NOP); }
@@ -3463,8 +3457,6 @@ class Assembler : public AssemblerBase {
   // Verify that a label's link chain is intact.
   void CheckLabelLinkChain(Label const * label);
 
-  void RecordLiteral(int64_t imm, unsigned size);
-
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
   void BlockConstPoolFor(int instructions);
@@ -3553,6 +3545,14 @@ class Assembler : public AssemblerBase {
   // GrowBuffer(); contains only those internal references whose labels
   // are already bound.
   std::deque<int> internal_reference_positions_;
+
+  // Before we copy code into the code space, we cannot encode calls to code
+  // targets as we normally would, as the difference between the instruction's
+  // location in the temporary buffer and the call target is not guaranteed to
+  // fit in the offset field. We keep track of the code handles we encounter
+  // in calls in this vector, and encode the index of the code handle in the
+  // vector instead.
+  std::vector<Handle<Code>> code_targets_;
 
   // Relocation info records are also used during code generation as temporary
   // containers for constants and code target addresses until they are emitted
@@ -3677,18 +3677,9 @@ class PatchingAssembler : public Assembler {
   // If more or fewer instructions than expected are generated or if some
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
-
-  // This version will flush at destruction.
-  PatchingAssembler(Isolate* isolate, byte* start, unsigned count)
-      : PatchingAssembler(IsolateData(isolate), start, count) {
-    CHECK_NOT_NULL(isolate);
-    isolate_ = isolate;
-  }
-
-  // This version will not flush.
+  // Note that the instruction cache will not be flushed.
   PatchingAssembler(IsolateData isolate_data, byte* start, unsigned count)
-      : Assembler(isolate_data, start, count * kInstructionSize + kGap),
-        isolate_(nullptr) {
+      : Assembler(isolate_data, start, count * kInstructionSize + kGap) {
     // Block constant pool emission.
     StartBlockPools();
   }
@@ -3701,18 +3692,13 @@ class PatchingAssembler : public Assembler {
     DCHECK((pc_offset() + kGap) == buffer_size_);
     // Verify no relocation information has been emitted.
     DCHECK(IsConstPoolEmpty());
-    // Flush the Instruction cache.
-    size_t length = buffer_size_ - kGap;
-    if (isolate_ != nullptr) Assembler::FlushICache(isolate_, buffer_, length);
   }
 
   // See definition of PatchAdrFar() for details.
   static constexpr int kAdrFarPatchableNNops = 2;
   static constexpr int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
   void PatchAdrFar(int64_t target_offset);
-
- private:
-  Isolate* isolate_;
+  void PatchSubSp(uint32_t immediate);
 };
 
 

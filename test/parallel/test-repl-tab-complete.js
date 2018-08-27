@@ -22,9 +22,17 @@
 'use strict';
 
 const common = require('../common');
+const ArrayStream = require('../common/arraystream');
+const {
+  hijackStderr,
+  restoreStderr
+} = require('../common/hijackstdio');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const hasInspector = process.config.variables.v8_enable_inspector === 1;
+
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
 // We have to change the directory to ../fixtures before requiring repl
 // in order to make the tests for completion of node_modules work properly
@@ -41,7 +49,7 @@ function getNoResultsFunction() {
 }
 
 const works = [['inner.one'], 'inner.o'];
-const putIn = new common.ArrayStream();
+const putIn = new ArrayStream();
 const testMe = repl.start('', putIn);
 
 // Some errors are passed to the domain, but do not callback
@@ -146,7 +154,10 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', getNoResultsFunction());
+// See: https://github.com/nodejs/node/issues/21586
+// testMe.complete('inner.o', getNoResultsFunction());
+testMe.complete('inner.o', common.mustCall(function(error, data) {
+}));
 
 putIn.run(['.clear']);
 
@@ -201,6 +212,20 @@ testMe.complete(' ', common.mustCall(function(error, data) {
 // any other properties up the "global" object's prototype chain
 testMe.complete('toSt', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['toString'], 'toSt']);
+}));
+
+// own properties should shadow properties on the prototype
+putIn.run(['.clear']);
+putIn.run([
+  'var x = Object.create(null);',
+  'x.a = 1;',
+  'x.b = 2;',
+  'var y = Object.create(x);',
+  'y.a = 3;',
+  'y.c = 4;'
+]);
+testMe.complete('y.', common.mustCall(function(error, data) {
+  assert.deepStrictEqual(data, [['y.b', '', 'y.a', 'y.c'], 'y.']);
 }));
 
 // Tab complete provides built in libs for require()
@@ -366,12 +391,12 @@ putIn.run(['.clear']);
 testMe.complete('.b', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['break'], 'b']);
 }));
-
-// tab completion for large buffer
-const warningRegEx = new RegExp(
-  '\\(node:\\d+\\) REPLWarning: The current array, Buffer or TypedArray has ' +
-  'too many entries\\. Certain properties may be missing from completion ' +
-  'output\\.');
+putIn.run(['.clear']);
+putIn.run(['var obj = {"hello, world!": "some string", "key": 123}']);
+testMe.complete('obj.', common.mustCall((error, data) => {
+  assert.strictEqual(data[0].includes('obj.hello, world!'), false);
+  assert(data[0].includes('obj.key'));
+}));
 
 [
   Array,
@@ -402,13 +427,9 @@ const warningRegEx = new RegExp(
     putIn.run([`var ele = new ${type.name}(1e6 + 1); ele.biu = 1;`]);
   }
 
-  common.hijackStderr(common.mustCall((err) => {
-    process.nextTick(() => {
-      assert.ok(warningRegEx.test(err));
-    });
-  }));
+  hijackStderr(common.mustNotCall());
   testMe.complete('ele.', common.mustCall((err, data) => {
-    common.restoreStderr();
+    restoreStderr();
     assert.ifError(err);
 
     const ele = (type === Array) ?
@@ -417,13 +438,12 @@ const warningRegEx = new RegExp(
         Buffer.alloc(0) :
         new type(0));
 
+    assert.strictEqual(data[0].includes('ele.biu'), true);
+
     data[0].forEach((key) => {
-      if (!key) return;
+      if (!key || key === 'ele.biu') return;
       assert.notStrictEqual(ele[key.substr(4)], undefined);
     });
-
-    // no `biu`
-    assert.strictEqual(data.includes('ele.biu'), false);
   }));
 });
 
@@ -510,7 +530,7 @@ testCustomCompleterAsyncMode.complete('a', common.mustCall((error, data) => {
 }));
 
 // tab completion in editor mode
-const editorStream = new common.ArrayStream();
+const editorStream = new ArrayStream();
 const editor = repl.start({
   stream: editorStream,
   terminal: true,
@@ -533,7 +553,7 @@ editor.completer('var log = console.l', common.mustCall((error, data) => {
 
 {
   // tab completion of lexically scoped variables
-  const stream = new common.ArrayStream();
+  const stream = new ArrayStream();
   const testRepl = repl.start({ stream });
 
   stream.run([`

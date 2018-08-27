@@ -89,6 +89,13 @@ out.write = common.mustCall((d) => {
 // Console() detects if it is called without `new` keyword.
 Console(out, err);
 
+// Extending Console works.
+class MyConsole extends Console {
+  hello() {}
+}
+const myConsole = new MyConsole(process.stdout);
+assert.strictEqual(typeof myConsole.hello, 'function');
+
 // Instance that does not ignore the stream errors.
 const c2 = new Console(out, err, false);
 

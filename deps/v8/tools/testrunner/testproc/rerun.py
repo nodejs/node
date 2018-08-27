@@ -34,7 +34,7 @@ class RerunProc(base.TestProcProducer):
     results = self._results[test.procid]
     results.append(result)
 
-    if self._needs_rerun(test, result):
+    if not self.is_stopped and self._needs_rerun(test, result):
       self._rerun[test.procid] += 1
       if self._rerun_total_left is not None:
         self._rerun_total_left -= 1

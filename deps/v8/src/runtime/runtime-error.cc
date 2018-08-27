@@ -20,5 +20,11 @@ RUNTIME_FUNCTION(Runtime_ErrorToString) {
   RETURN_RESULT_OR_FAILURE(isolate, ErrorUtils::ToString(isolate, recv));
 }
 
+RUNTIME_FUNCTION(Runtime_IsJSError) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  return isolate->heap()->ToBoolean(args[0]->IsJSError());
+}
+
 }  // namespace internal
 }  // namespace v8

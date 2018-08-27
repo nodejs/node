@@ -11,9 +11,11 @@
 #include <memory>
 
 #include "src/api.h"
-#include "src/factory.h"
+#include "src/global-handles.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/managed.h"
 #include "src/property-descriptor.h"
 #include "unicode/brkiter.h"
 #include "unicode/bytestream.h"
@@ -70,8 +72,7 @@ bool ExtractIntegerSetting(Isolate* isolate, Handle<JSObject> options,
   Handle<Object> object =
       JSReceiver::GetProperty(options, str).ToHandleChecked();
   if (object->IsNumber()) {
-    object->ToInt32(value);
-    return true;
+    return object->ToInt32(value);
   }
   return false;
 }
@@ -121,8 +122,20 @@ icu::SimpleDateFormat* CreateICUDateFormat(Isolate* isolate,
   icu::SimpleDateFormat* date_format = nullptr;
   icu::UnicodeString skeleton;
   if (ExtractStringSetting(isolate, options, "skeleton", &skeleton)) {
+    // See https://github.com/tc39/ecma402/issues/225 . The best pattern
+    // generation needs to be done in the base locale according to the
+    // current spec however odd it may be. See also crbug.com/826549 .
+    // This is a temporary work-around to get v8's external behavior to match
+    // the current spec, but does not follow the spec provisions mentioned
+    // in the above Ecma 402 issue.
+    // TODO(jshin): The spec may need to be revised because using the base
+    // locale for the pattern match is not quite right. Moreover, what to
+    // do with 'related year' part when 'chinese/dangi' calendar is specified
+    // has to be discussed. Revisit once the spec is clarified/revised.
+    icu::Locale no_extension_locale(icu_locale.getBaseName());
     std::unique_ptr<icu::DateTimePatternGenerator> generator(
-        icu::DateTimePatternGenerator::createInstance(icu_locale, status));
+        icu::DateTimePatternGenerator::createInstance(no_extension_locale,
+                                                      status));
     icu::UnicodeString pattern;
     if (U_SUCCESS(status))
       pattern = generator->getBestPattern(skeleton, status);
@@ -900,10 +913,11 @@ void NumberFormat::DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
 }
 
-icu::Collator* Collator::InitializeCollator(Isolate* isolate,
-                                            Handle<String> locale,
-                                            Handle<JSObject> options,
-                                            Handle<JSObject> resolved) {
+bool Collator::InitializeCollator(Isolate* isolate,
+                                  Handle<JSObject> collator_holder,
+                                  Handle<String> locale,
+                                  Handle<JSObject> options,
+                                  Handle<JSObject> resolved) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
@@ -915,7 +929,7 @@ icu::Collator* Collator::InitializeCollator(Isolate* isolate,
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
     if (U_FAILURE(status) || icu_length == 0) {
-      return nullptr;
+      return false;
     }
     icu_locale = icu::Locale(icu_result);
   }
@@ -937,17 +951,16 @@ icu::Collator* Collator::InitializeCollator(Isolate* isolate,
     SetResolvedCollatorSettings(isolate, icu_locale, collator, resolved);
   }
 
-  return collator;
+  Handle<Managed<icu::Collator>> managed =
+      Managed<icu::Collator>::FromRawPtr(isolate, collator);
+  collator_holder->SetEmbedderField(0, *managed);
+
+  return true;
 }
 
 icu::Collator* Collator::UnpackCollator(Isolate* isolate,
                                         Handle<JSObject> obj) {
-  return reinterpret_cast<icu::Collator*>(obj->GetEmbedderField(0));
-}
-
-void Collator::DeleteCollator(const v8::WeakCallbackInfo<void>& data) {
-  delete reinterpret_cast<icu::Collator*>(data.GetInternalField(0));
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
+  return Managed<icu::Collator>::cast(obj->GetEmbedderField(0))->raw();
 }
 
 bool PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,

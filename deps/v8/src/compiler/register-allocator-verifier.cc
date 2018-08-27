@@ -167,13 +167,17 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
       constraint->value_ = unallocated->fixed_slot_index();
     } else {
       switch (unallocated->extended_policy()) {
-        case UnallocatedOperand::ANY:
+        case UnallocatedOperand::REGISTER_OR_SLOT:
         case UnallocatedOperand::NONE:
           if (sequence()->IsFP(vreg)) {
-            constraint->type_ = kNoneFP;
+            constraint->type_ = kRegisterOrSlotFP;
           } else {
-            constraint->type_ = kNone;
+            constraint->type_ = kRegisterOrSlot;
           }
+          break;
+        case UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
+          DCHECK(!sequence()->IsFP(vreg));
+          constraint->type_ = kRegisterOrSlotOrConstant;
           break;
         case UnallocatedOperand::FIXED_REGISTER:
           if (unallocated->HasSecondaryStorage()) {
@@ -252,11 +256,15 @@ void RegisterAllocatorVerifier::CheckConstraint(
       CHECK_EQ(ElementSizeLog2Of(LocationOperand::cast(op)->representation()),
                constraint->value_);
       return;
-    case kNone:
+    case kRegisterOrSlot:
       CHECK_WITH_MSG(op->IsRegister() || op->IsStackSlot(), caller_info_);
       return;
-    case kNoneFP:
+    case kRegisterOrSlotFP:
       CHECK_WITH_MSG(op->IsFPRegister() || op->IsFPStackSlot(), caller_info_);
+      return;
+    case kRegisterOrSlotOrConstant:
+      CHECK_WITH_MSG(op->IsRegister() || op->IsStackSlot() || op->IsConstant(),
+                     caller_info_);
       return;
     case kSameAsFirst:
       CHECK_WITH_MSG(false, caller_info_);

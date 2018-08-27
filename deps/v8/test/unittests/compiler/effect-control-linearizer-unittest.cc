@@ -7,6 +7,7 @@
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/simplified-operator.h"
@@ -32,11 +33,13 @@ class EffectControlLinearizerTest : public GraphTest {
         jsgraph_(isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_) {
     source_positions_ = new (zone()) SourcePositionTable(graph());
+    node_origins_ = new (zone()) NodeOriginTable(graph());
   }
 
   JSGraph* jsgraph() { return &jsgraph_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   SourcePositionTable* source_positions() { return source_positions_; }
+  NodeOriginTable* node_origins() { return node_origins_; }
 
  private:
   MachineOperatorBuilder machine_;
@@ -44,6 +47,7 @@ class EffectControlLinearizerTest : public GraphTest {
   SimplifiedOperatorBuilder simplified_;
   JSGraph jsgraph_;
   SourcePositionTable* source_positions_;
+  NodeOriginTable* node_origins_;
 };
 
 namespace {
@@ -82,7 +86,7 @@ TEST_F(EffectControlLinearizerTest, SimpleLoad) {
 
   // Run the state effect introducer.
   EffectControlLinearizer introducer(
-      jsgraph(), &schedule, zone(), source_positions(),
+      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
       EffectControlLinearizer::kDoNotMaskArrayIndex);
   introducer.Run();
 
@@ -145,7 +149,7 @@ TEST_F(EffectControlLinearizerTest, DiamondLoad) {
 
   // Run the state effect introducer.
   EffectControlLinearizer introducer(
-      jsgraph(), &schedule, zone(), source_positions(),
+      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
       EffectControlLinearizer::kDoNotMaskArrayIndex);
   introducer.Run();
 
@@ -213,7 +217,7 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
 
   // Run the state effect introducer.
   EffectControlLinearizer introducer(
-      jsgraph(), &schedule, zone(), source_positions(),
+      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
       EffectControlLinearizer::kDoNotMaskArrayIndex);
   introducer.Run();
 
@@ -277,7 +281,7 @@ TEST_F(EffectControlLinearizerTest, CloneBranch) {
   schedule.AddNode(mblock, graph()->end());
 
   EffectControlLinearizer introducer(
-      jsgraph(), &schedule, zone(), source_positions(),
+      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
       EffectControlLinearizer::kDoNotMaskArrayIndex);
   introducer.Run();
 

@@ -5,7 +5,7 @@
 // Flags: --harmony-bigint
 
 function Check(bigint, number_string) {
-  var number = Number(number_string);
+  var number = Number(bigint);
   if (number_string.substring(0, 2) === "0x") {
     assertEquals(number_string.substring(2), number.toString(16));
   } else {
@@ -29,6 +29,19 @@ Check(0x7ffffffffffffdn, "0x7ffffffffffffc");  // 55 bits, rounding down.
 Check(0x7ffffffffffffen, "0x80000000000000");  // 55 bits, tie to even.
 Check(0x7fffffffffffffn, "0x80000000000000");  // 55 bits, rounding up.
 Check(0x1ffff0000ffff0000n, "0x1ffff0000ffff0000");  // 65 bits.
+Check(100000000000000008192n, "100000000000000000000");  // Tie to even.
+
+// Check the cornercase where the most significant cut-off bit is 1.
+// If a digit beyond the mantissa is non-zero, we must round up;
+// otherwise tie to even.
+// ...digit2 ][    digit1    ][    digit0    ]
+//        [ mantissa  ]
+Check(0x01000000000000080000000000000000001000n,
+      "0x1000000000000100000000000000000000000");
+Check(0x01000000000000080000000000000000000000n,
+      "0x1000000000000000000000000000000000000");
+Check(0x01000000000000180000000000000000000000n,
+      "0x1000000000000200000000000000000000000");
 
 // Values near infinity.
 Check(1n << 1024n, "Infinity");

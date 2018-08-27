@@ -65,9 +65,9 @@ badge.
 
 For first-time contributors, check if the commit author is the same as the
 pull request author, and ask if they have configured their git
-username and email to their liking as per [this guide][git-username].
-This is to make sure they would be promoted to "contributor" once
-their pull request gets landed.
+[username][git-username] and [email][git-email] to their liking.
+This is to make sure they would be promoted to "contributor" once their
+pull request lands.
 
 ### Closing Issues and Pull Requests
 
@@ -82,32 +82,31 @@ necessary.
 ### Author ready pull requests
 
 A pull request that is still awaiting the minimum review time is considered
-`author-ready` as soon as the CI has been started, it has at least one approval,
+_author ready_ as soon as the CI has been started, it has at least one approval,
 and it has no outstanding review comments. Please always make sure to add the
-appropriate `author-ready` label to the PR in that case and remove it again as
-soon as that condition is not met anymore.
+`author ready` label to the PR in that case and remove it again as soon as that
+condition is not met anymore.
 
 ### Handling own pull requests
 
-If you as a Collaborator open a pull request, it is recommended to start a CI
-right after (see [testing and CI](#testing-and-ci) for further information on
-how to do that) and to post the link to it as well. Starting a new CI after each
-update is also recommended (due to e.g., a change request in a review or due to
-rebasing).
+When you open a pull request, it is recommended to start a CI right away (see
+[testing and CI](#testing-and-ci) for instructions) and to post the link to it
+in a comment in the pull request. Starting a new CI after each update is also
+recommended (for example, after an additional code change or after rebasing).
 
-As soon as the PR is ready to land, please go ahead and do so on your own.
-Landing your own pull requests distributes the work load for each Collaborator
-equally. If it is still awaiting the
-[minimum time to land](#waiting-for-approvals), please add the `author-ready`
-label to it so it is obvious that the PR can land as soon as the time ends.
+As soon as the PR is ready to land, please do so. Landing your own pull requests
+allows other Collaborators to focus on other pull requests. If your pull request
+is still awaiting the [minimum time to land](#waiting-for-approvals), add the
+`author ready` label so other Collaborators know it can land as soon as the time
+ends.
 
 ## Accepting Modifications
 
 All modifications to the Node.js code and documentation should be performed via
 GitHub pull requests, including modifications by Collaborators and TSC members.
 A pull request must be reviewed, and must also be tested with CI, before being
-landed into the codebase. There may be exception to the latter (the changed code
-can not be tested with a CI or similar). If that is the case, please leave a
+landed into the codebase. There may be exceptions to the latter (the changed
+code cannot be tested with a CI or similar). If that is the case, please leave a
 comment that explains why the PR does not require a CI run.
 
 ### Code Reviews
@@ -140,7 +139,7 @@ the CI outcome.
 If there is no disagreement amongst Collaborators, a pull request should be
 landed given appropriate review, a green CI, and the minimum
 [waiting time](#waiting-for-approvals) for a PR. If it is still awaiting the
-[minimum time to land](#waiting-for-approvals), please add the `author-ready`
+[minimum time to land](#waiting-for-approvals), please add the `author ready`
 label to it so it is obvious that the PR can land as soon as the time ends.
 
 Where there is discussion amongst Collaborators, consensus should be sought if
@@ -199,11 +198,10 @@ status indicator.
 
 Do not land any Pull Requests without passing (green or yellow) CI runs. If you
 believe any failed (red or grey) CI sub-tasks are unrelated to the change in the
-Pull Request, you may re-run the sub-task to try to see if it passes. If re-runs
-of all failed sub-tasks pass, it is permissible to land the Pull Request but
-only if the initial failures are believed in good faith to be unrelated to the
-changes in the Pull Request. Otherwise, reasonable steps must be taken to
-confirm that the changes are not resulting in an unreliable test.
+Pull Request, use "Resume Build" in the left navigation of the relevant
+`node-test-pull-request` job. It will create a new `node-test-pull-request` run
+that preserves all the green results from the current job but re-runs everything
+else.
 
 #### Useful CI Jobs
 
@@ -212,7 +210,7 @@ is the standard CI run we do to check Pull Requests. It triggers
 `node-test-commit`, which runs the `build-ci` and `test-ci` targets on all
 supported platforms.
 
-* [`node-test-pull-request-lite`](https://ci.nodejs.org/job/node-test-pull-request-lite/)
+* [`node-test-pull-request-lite-pipeline`](https://ci.nodejs.org/job/node-test-pull-request-lite-pipeline/)
 only runs the linter job, as well as the tests on LinuxONE, which is very fast.
 This is useful for changes that only affect comments or documentation.
 
@@ -230,6 +228,13 @@ platform to confirm that the test is reliable.
 is designed to allow validation of changes to the copy of V8 in the Node.js
 tree by running the standard V8 tests. It should be run whenever the
 level of V8 within Node.js is updated or new patches are floated on V8.
+
+* [`node-test-commit-custom-suites`](https://ci.nodejs.org/job/node-test-commit-custom-suites/)
+can be used to customize what tests are run and with what parameters. For
+example, it can be used to execute tests which are not executed in a typical
+`node-test-commit` run (such as tests in the `internet` or `pummel`
+directories). It can also be used to make sure tests pass when provided with a
+flag not typically used in other CI test runs (such as `--worker`).
 
 ### Internal vs. Public API
 
@@ -408,29 +413,28 @@ recommended but not required.
 
 ### Deprecations
 
-**Deprecation** refers to the identification of Public APIs that should no
-longer be used.
+[_Deprecation_][] is "the discouragement of use of some … feature … or practice,
+typically because it has been superseded or is no longer considered efficient or
+safe, without completely removing it or prohibiting its use. It can also imply
+that a feature, design, or practice will be removed or discontinued entirely in
+the future."
 
 Node.js uses three Deprecation levels:
 
-* *Documentation-Only Deprecation* refers to elements of the Public API that are
-  being staged for deprecation in a future Node.js major release. An explicit
-  notice indicating the deprecated status is added to the API documentation
-  but no functional changes are implemented in the code. There will be no
-  runtime deprecation warnings emitted for such deprecations by default.
-  Documentation-only deprecations may trigger a runtime warning when Node.js
-  is started with the [`--pending-deprecation`][] flag or the
+* *Documentation-Only Deprecation*: A deprecation notice is added to the API
+  documentation but no functional changes are implemented in the code. By
+  default, there will be no warnings emitted for such deprecations at
+  runtime. Documentation-only deprecations may trigger a runtime warning when
+  Node.js is started with the [`--pending-deprecation`][] flag or the
   `NODE_PENDING_DEPRECATION=1` environment variable is set.
 
-* *Runtime Deprecation* refers to the use of process warnings emitted at
-  runtime the first time that a deprecated API is used. A command-line
-  switch can be used to escalate such warnings into runtime errors that will
-  cause the Node.js process to exit. As with Documentation-Only Deprecation,
-  the documentation for the API must be updated to clearly indicate the
-  deprecated status.
+* *Runtime Deprecation*: A warning is emitted at runtime the first time that a
+  deprecated API is used. The [`--throw-deprecation`][] flag can be used to
+  escalate such warnings into runtime errors that will cause the Node.js process
+  to exit. As with Documentation-Only Deprecation, the documentation for the API
+  must be updated to clearly indicate the deprecated status.
 
-* *End-of-life* refers to APIs that have gone through Runtime Deprecation and
-  are no longer subject to the semantic versioning rules used by the project.
+* *End-of-life*: The API is no longer subject to the semantic versioning rules.
   Backward-incompatible changes including complete removal of such APIs may
   occur at any time.
 
@@ -451,21 +455,21 @@ the documentation for the assigned deprecation identifier must remain in the
 Node.js API documentation.
 
 <a id="deprecation-cycle"></a>
-A _Deprecation cycle_ is one full Node.js major release during which an API
-has been in one of the three Deprecation levels. (Note that Documentation-Only
-Deprecations may land in a Node.js minor release but must not be upgraded to
-a Runtime Deprecation until the next major release.)
+A _Deprecation cycle_ is a major release during which an API has been in one of
+the three Deprecation levels. Documentation-Only Deprecations may land in a
+minor release but must not be upgraded to a Runtime Deprecation until the next
+major release.
 
 No API can be moved to End-of-life without first having gone through a
 Runtime Deprecation cycle. However, there is no requirement that deprecated
 code must progress ultimately to *End-of-Life*. Documentation-only and runtime
 deprecations may remain indefinitely.
 
-A best effort will be made to communicate pending deprecations and associated
-mitigations with the ecosystem as soon as possible (preferably before the pull
-request adding the deprecation lands on the master branch). All deprecations
-included in a Node.js release should be listed prominently in the "Notable
-Changes" section of the release notes.
+Communicate pending deprecations and associated mitigations with the ecosystem
+as soon as possible (preferably before the pull request adding the deprecation
+lands on the master branch). Use the `notable-change` label on all pull requests
+that add a new deprecation or move an existing deprecation to a new deprecation
+level.
 
 ### Involving the TSC
 
@@ -486,8 +490,7 @@ The TSC should serve as the final arbiter where required.
 1. Never use GitHub's green ["Merge Pull Request"][] button. Reasons for not
    using the web interface button:
    * The merge method will add an unnecessary merge commit.
-   * The squash & merge method has been known to add metadata to the commit
-     title (the PR #).
+   * The squash & merge method can add metadata (the PR #) to the commit title.
    * If more than one author has contributed to the PR, keep the most recent
      author when squashing.
 1. Make sure the CI is done and the result is green. If the CI is not green,
@@ -829,7 +832,6 @@ LTS working group and the Release team.
 | Subsystem                                | Maintainers                                                           |
 | ---                                      | ---                                                                   |
 | `benchmark/*`                            | @nodejs/benchmarking, @mscdex                                         |
-| `bootstrap_node.js`                      | @nodejs/process                                                       |
 | `doc/*`, `*.md`                          | @nodejs/documentation                                                 |
 | `lib/assert`                             | @nodejs/testing                                                       |
 | `lib/async_hooks`                        | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
@@ -841,7 +843,8 @@ LTS working group and the Release team.
 | `lib/domains`                            | @nodejs/domains                                                       |
 | `lib/fs`, `src/{fs,file}`                | @nodejs/fs                                                            |
 | `lib/{_}http{*}`                         | @nodejs/http                                                          |
-| `lib/inspector.js`, `src/inspector_*`    | @nodejs/V8-inspector                                                  |
+| `lib/inspector.js`, `src/inspector_*`    | @nodejs/v8-inspector                                                  |
+| `lib/internal/bootstrap/*`               | @nodejs/process                                                       |
 | `lib/internal/url`, `src/node_url`       | @nodejs/url                                                           |
 | `lib/net`                                | @bnoordhuis, @indutny, @nodejs/streams                                |
 | `lib/repl`                               | @nodejs/repl                                                          |
@@ -849,13 +852,13 @@ LTS working group and the Release team.
 | `lib/timers`                             | @nodejs/timers                                                        |
 | `lib/util`                               | @nodejs/util                                                          |
 | `lib/zlib`                               | @nodejs/zlib                                                          |
-| `src/async-wrap.*`                       | @nodejs/async\_hooks                                                  |
+| `src/async_wrap.*`                       | @nodejs/async\_hooks                                                  |
 | `src/node_api.*`                         | @nodejs/n-api                                                         |
 | `src/node_crypto.*`                      | @nodejs/crypto                                                        |
 | `test/*`                                 | @nodejs/testing                                                       |
 | `tools/node_modules/eslint`, `.eslintrc` | @nodejs/linting                                                       |
 | build                                    | @nodejs/build                                                         |
-| `src/module_wrap.*`, `lib/internal/loader/*`, `lib/internal/vm/Module.js` | @nodejs/modules                      |
+| `src/module_wrap.*`, `lib/internal/modules/*`, `lib/internal/vm/module.js` | @nodejs/modules                     |
 | GYP                                      | @nodejs/gyp                                                           |
 | performance                              | @nodejs/performance                                                   |
 | platform specific                        | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
@@ -872,17 +875,20 @@ When things need extra attention, are controversial, or `semver-major`:
 
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
+["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
+[Enhancement Proposal]: https://github.com/nodejs/node-eps
+[Stability Index]: doc/api/documentation.md#stability-index
+[TSC]: https://github.com/nodejs/TSC
+[_Deprecation_]: https://en.wikipedia.org/wiki/Deprecation
+[`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
+[`--throw-deprecation`]: doc/api/cli.md#--throw-deprecation
+[`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [backporting guide]: doc/guides/backporting-to-release-lines.md
 [contributing]: ./doc/guides/contributing/pull-requests.md#commit-message-guidelines
-[Stability Index]: doc/api/documentation.md#stability-index
-[Enhancement Proposal]: https://github.com/nodejs/node-eps
-[`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
+[flaky tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22y
 [git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
-[`node-core-utils`]: https://github.com/nodejs/node-core-utils
-[TSC]: https://github.com/nodejs/TSC
-[node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
+[git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
-["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
-[flaky tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
+[node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues

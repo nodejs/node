@@ -22,7 +22,7 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   map_ = new AddressToIndexHashMap();
   isolate->set_external_reference_map(map_);
   // Add V8's external references.
-  ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
+  ExternalReferenceTable* table = isolate->heap()->external_reference_table();
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
     // Ignore duplicate references.
@@ -34,7 +34,7 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   const intptr_t* api_references = isolate->api_external_references();
   if (api_references == nullptr) return;
   for (uint32_t i = 0; api_references[i] != 0; ++i) {
-    Address addr = reinterpret_cast<Address>(api_references[i]);
+    Address addr = static_cast<Address>(api_references[i]);
     // Ignore duplicate references.
     // This can happen due to ICF. See http://crbug.com/726896.
     if (map_->Get(addr).IsNothing()) map_->Set(addr, Value::Encode(i, true));
@@ -47,10 +47,11 @@ ExternalReferenceEncoder::~ExternalReferenceEncoder() {
   if (!i::FLAG_external_reference_stats) return;
   if (api_references_ == nullptr) return;
   for (uint32_t i = 0; api_references_[i] != 0; ++i) {
-    Address addr = reinterpret_cast<Address>(api_references_[i]);
+    Address addr = static_cast<Address>(api_references_[i]);
     DCHECK(map_->Get(addr).IsJust());
-    v8::base::OS::Print("index=%5d count=%5d  %-60s\n", i, count_[i],
-                        ExternalReferenceTable::ResolveSymbol(addr));
+    v8::base::OS::Print(
+        "index=%5d count=%5d  %-60s\n", i, count_[i],
+        ExternalReferenceTable::ResolveSymbol(reinterpret_cast<void*>(addr)));
   }
 #endif  // DEBUG
 }
@@ -70,7 +71,7 @@ ExternalReferenceEncoder::Value ExternalReferenceEncoder::Encode(
     Address address) {
   Maybe<uint32_t> maybe_index = map_->Get(address);
   if (maybe_index.IsNothing()) {
-    void* addr = address;
+    void* addr = reinterpret_cast<void*>(address);
     v8::base::OS::PrintError("Unknown external reference %p.\n", addr);
     v8::base::OS::PrintError("%s", ExternalReferenceTable::ResolveSymbol(addr));
     v8::base::OS::Abort();
@@ -86,8 +87,9 @@ const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
                                                     Address address) const {
   Maybe<uint32_t> maybe_index = map_->Get(address);
   if (maybe_index.IsNothing()) return "<unknown>";
-  return ExternalReferenceTable::instance(isolate)->name(
-      maybe_index.FromJust());
+  Value value(maybe_index.FromJust());
+  if (value.is_from_api()) return "<from api>";
+  return isolate->heap()->external_reference_table()->name(value.index());
 }
 
 void SerializedData::AllocateData(uint32_t size) {
@@ -96,6 +98,11 @@ void SerializedData::AllocateData(uint32_t size) {
   size_ = size;
   owns_data_ = true;
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(data_), kPointerAlignment));
+}
+
+// static
+uint32_t SerializedData::ComputeMagicNumber(Isolate* isolate) {
+  return ComputeMagicNumber(isolate->heap()->external_reference_table());
 }
 
 // The partial snapshot cache is terminated by undefined. We visit the
@@ -111,7 +118,8 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
     if (cache->size() <= i) cache->push_back(Smi::kZero);
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
-    visitor->VisitRootPointer(Root::kPartialSnapshotCache, &cache->at(i));
+    visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
+                              &cache->at(i));
     if (cache->at(i)->IsUndefined(isolate)) break;
   }
 }

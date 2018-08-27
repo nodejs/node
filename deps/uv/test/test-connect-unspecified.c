@@ -48,12 +48,14 @@ TEST_IMPL(connect_unspecified) {
                         (const struct sockaddr*) &addr4,
                         connect_4) == 0);
 
-  ASSERT(uv_tcp_init(loop, &socket6) == 0);
-  ASSERT(uv_ip6_addr("::", TEST_PORT, &addr6) == 0);
-  ASSERT(uv_tcp_connect(&connect6,
-                        &socket6,
-                        (const struct sockaddr*) &addr6,
-                        connect_6) == 0);
+  if (can_ipv6()) {
+    ASSERT(uv_tcp_init(loop, &socket6) == 0);
+    ASSERT(uv_ip6_addr("::", TEST_PORT, &addr6) == 0);
+    ASSERT(uv_tcp_connect(&connect6,
+                          &socket6,
+                          (const struct sockaddr*) &addr6,
+                          connect_6) == 0);
+  }
 
   ASSERT(uv_run(loop, UV_RUN_DEFAULT) == 0);
 

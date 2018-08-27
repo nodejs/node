@@ -8,7 +8,6 @@ debugging, multiple ways to execute scripts, and other helpful runtime options.
 
 To view this documentation as a manual page in a terminal, run `man node`.
 
-
 ## Synopsis
 
 `node [options] [V8 options] [script.js | -e "script" | -] [--] [arguments]`
@@ -21,115 +20,131 @@ Execute without arguments to start the [REPL][].
 
 _For more info about `node debug`, please see the [debugger][] documentation._
 
-
 ## Options
 
-### `-v`, `--version`
+### `-`
 <!-- YAML
-added: v0.1.3
+added: v8.0.0
 -->
 
-Print node's version.
+Alias for stdin, analogous to the use of - in other command line utilities,
+meaning that the script will be read from stdin, and the rest of the options
+are passed to that script.
 
-
-### `-h`, `--help`
+### `--`
 <!-- YAML
-added: v0.1.3
+added: v6.11.0
 -->
 
-Print node command line options.
-The output of this option is less detailed than this document.
+Indicate the end of node options. Pass the rest of the arguments to the script.
+If no script filename or eval/print script is supplied prior to this, then
+the next argument will be used as a script filename.
 
-
-### `-e`, `--eval "script"`
+### `--abort-on-uncaught-exception`
 <!-- YAML
-added: v0.5.2
-changes:
-  - version: v5.11.0
-    pr-url: https://github.com/nodejs/node/pull/5348
-    description: Built-in libraries are now available as predefined variables.
+added: v0.10
 -->
 
-Evaluate the following argument as JavaScript. The modules which are
-predefined in the REPL can also be used in `script`.
+Aborting instead of exiting causes a core file to be generated for post-mortem
+analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
 
-On Windows, using `cmd.exe` a single quote will not work correctly because it
-only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
-and `"` are usable.
+If this flag is passed, the behavior can still be set to not abort through
+[`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
+`domain` module that uses it).
 
-
-### `-p`, `--print "script"`
+### `--enable-fips`
 <!-- YAML
-added: v0.6.4
-changes:
-  - version: v5.11.0
-    pr-url: https://github.com/nodejs/node/pull/5348
-    description: Built-in libraries are now available as predefined variables.
+added: v6.0.0
 -->
 
-Identical to `-e` but prints the result.
+Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
+`./configure --openssl-fips`.)
 
-
-### `-c`, `--check`
+### `--experimental-modules`
 <!-- YAML
-added:
-  - v5.0.0
-  - v4.2.0
+added: v8.5.0
 -->
 
-Syntax check the script without executing.
+Enable experimental ES module support and caching modules.
 
-
-### `-i`, `--interactive`
+### `--experimental-repl-await`
 <!-- YAML
-added: v0.7.7
+added: v10.0.0
 -->
 
-Opens the REPL even if stdin does not appear to be a terminal.
+Enable experimental top-level `await` keyword support in REPL.
 
-
-### `-r`, `--require module`
+### `--experimental-vm-modules`
 <!-- YAML
-added: v1.6.0
+added: v9.6.0
 -->
 
-Preload the specified module at startup.
+Enable experimental ES Module support in the `vm` module.
 
-Follows `require()`'s module resolution
-rules. `module` may be either a path to a file, or a node module name.
-
-
-### `--inspect[=[host:]port]`
+### `--experimental-worker`
 <!-- YAML
-added: v6.3.0
+added: v10.5.0
 -->
 
-Activate inspector on host:port. Default is 127.0.0.1:9229.
+Enable experimental worker threads using the `worker_threads` module.
 
-V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
-and profile Node.js instances. The tools attach to Node.js instances via a
-tcp port and communicate using the [Chrome Debugging Protocol][].
+### `--force-fips`
+<!-- YAML
+added: v6.0.0
+-->
 
+Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
+(Same requirements as `--enable-fips`.)
+
+### `--icu-data-dir=file`
+<!-- YAML
+added: v0.11.15
+-->
+
+Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 
 ### `--inspect-brk[=[host:]port]`
 <!-- YAML
 added: v7.6.0
 -->
 
-Activate inspector on host:port and break at start of user script.
-Default host:port is 127.0.0.1:9229.
-
+Activate inspector on `host:port` and break at start of user script.
+Default `host:port` is `127.0.0.1:9229`.
 
 ### `--inspect-port=[host:]port`
 <!-- YAML
 added: v7.6.0
 -->
 
-Set the host:port to be used when the inspector is activated.
+Set the `host:port` to be used when the inspector is activated.
 Useful when activating the inspector by sending the `SIGUSR1` signal.
 
-Default host is 127.0.0.1.
+Default host is `127.0.0.1`.
 
+### `--inspect[=[host:]port]`
+<!-- YAML
+added: v6.3.0
+-->
+
+Activate inspector on `host:port`. Default is `127.0.0.1:9229`.
+
+V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
+and profile Node.js instances. The tools attach to Node.js instances via a
+tcp port and communicate using the [Chrome DevTools Protocol][].
+
+### `--loader=file`
+<!--
+added: v9.0.0
+-->
+
+Specify the `file` of the custom [experimental ECMAScript Module][] loader.
+
+### `--napi-modules`
+<!-- YAML
+added: v7.10.0
+-->
+
+This option is a no-op. It is kept for compatibility.
 
 ### `--no-deprecation`
 <!-- YAML
@@ -138,21 +153,29 @@ added: v0.8.0
 
 Silence deprecation warnings.
 
-
-### `--trace-deprecation`
+### `--no-force-async-hooks-checks`
 <!-- YAML
-added: v0.8.0
+added: v9.0.0
 -->
 
-Print stack traces for deprecations.
+Disables runtime checks for `async_hooks`. These will still be enabled
+dynamically when `async_hooks` is enabled.
 
-
-### `--throw-deprecation`
+### `--no-warnings`
 <!-- YAML
-added: v0.11.14
+added: v6.0.0
 -->
 
-Throw errors for deprecations.
+Silence all process warnings (including deprecations).
+
+### `--openssl-config=file`
+<!-- YAML
+added: v6.9.0
+-->
+
+Load an OpenSSL configuration file on startup. Among other uses, this can be
+used to enable FIPS-compliant crypto if Node.js is built with
+`./configure --openssl-fips`.
 
 ### `--pending-deprecation`
 <!-- YAML
@@ -167,90 +190,6 @@ unless either the `--pending-deprecation` command line flag, or the
 `NODE_PENDING_DEPRECATION=1` environment variable, is set. Pending deprecations
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
-
-### `--no-warnings`
-<!-- YAML
-added: v6.0.0
--->
-
-Silence all process warnings (including deprecations).
-
-### `--abort-on-uncaught-exception`
-<!-- YAML
-added: v0.10
--->
-
-Aborting instead of exiting causes a core file to be generated for post-mortem
-analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
-
-If this flag is passed, the behavior can still be set to not abort through
-[`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
-`domain` module that uses it).
-
-### `--trace-warnings`
-<!-- YAML
-added: v6.0.0
--->
-
-Print stack traces for process warnings (including deprecations).
-
-### `--redirect-warnings=file`
-<!-- YAML
-added: v8.0.0
--->
-
-Write process warnings to the given file instead of printing to stderr. The
-file will be created if it does not exist, and will be appended to if it does.
-If an error occurs while attempting to write the warning to the file, the
-warning will be written to stderr instead.
-
-### `--trace-sync-io`
-<!-- YAML
-added: v2.1.0
--->
-
-Prints a stack trace whenever synchronous I/O is detected after the first turn
-of the event loop.
-
-### `--no-force-async-hooks-checks`
-<!-- YAML
-added: v9.0.0
--->
-
-Disables runtime checks for `async_hooks`. These will still be enabled
-dynamically when `async_hooks` is enabled.
-
-### `--trace-events-enabled`
-<!-- YAML
-added: v7.7.0
--->
-
-Enables the collection of trace event tracing information.
-
-### `--trace-event-categories`
-<!-- YAML
-added: v7.7.0
--->
-
-A comma separated list of categories that should be traced when trace event
-tracing is enabled using `--trace-events-enabled`.
-
-### `--trace-event-file-pattern`
-<!-- YAML
-added: v9.8.0
--->
-
-Template string specifying the filepath for the trace event data, it
-supports `${rotation}` and `${pid}`.
-
-### `--zero-fill-buffers`
-<!-- YAML
-added: v6.0.0
--->
-
-Automatically zero-fills all newly allocated [Buffer][] and [SlowBuffer][]
-instances.
-
 
 ### `--preserve-symlinks`
 <!-- YAML
@@ -292,13 +231,35 @@ are linked from more than one location in the dependency tree (Node.js would
 see those as two separate modules and would attempt to load the module multiple
 times, causing an exception to be thrown).
 
-### `--track-heap-objects`
+The `--preserve-symlinks` flag does not apply to the main module, which allows
+`node --preserve-symlinks node_module/.bin/<foo>` to work.  To apply the same
+behavior for the main module, also use `--preserve-symlinks-main`.
+
+### `--preserve-symlinks-main`
 <!-- YAML
-added: v2.4.0
+added: v10.2.0
 -->
 
-Track heap object allocations for heap snapshots.
+Instructs the module loader to preserve symbolic links when resolving and
+caching the main module (`require.main`).
 
+This flag exists so that the main module can be opted-in to the same behavior
+that `--preserve-symlinks` gives to all other imports; they are separate flags,
+however, for backward compatibility with older Node.js versions.
+
+Note that `--preserve-symlinks-main` does not imply `--preserve-symlinks`; it
+is expected that `--preserve-symlinks-main` will be used in addition to
+`--preserve-symlinks` when it is not desirable to follow symlinks before
+resolving relative paths.
+
+See `--preserve-symlinks` for more information.
+
+### `--prof`
+<!-- YAML
+added: v2.0.0
+-->
+
+Generate V8 profiler output.
 
 ### `--prof-process`
 <!-- YAML
@@ -307,6 +268,109 @@ added: v5.2.0
 
 Process V8 profiler output generated using the V8 option `--prof`.
 
+### `--redirect-warnings=file`
+<!-- YAML
+added: v8.0.0
+-->
+
+Write process warnings to the given file instead of printing to stderr. The
+file will be created if it does not exist, and will be appended to if it does.
+If an error occurs while attempting to write the warning to the file, the
+warning will be written to stderr instead.
+
+### `--throw-deprecation`
+<!-- YAML
+added: v0.11.14
+-->
+
+Throw errors for deprecations.
+
+### `--title=title`
+<!-- YAML
+added: v10.7.0
+-->
+
+Set `process.title` on startup.
+
+### `--tls-cipher-list=list`
+<!-- YAML
+added: v4.0.0
+-->
+
+Specify an alternative default TLS cipher list. Requires Node.js to be built
+with crypto support (default).
+
+### `--trace-deprecation`
+<!-- YAML
+added: v0.8.0
+-->
+
+Print stack traces for deprecations.
+
+### `--trace-event-categories`
+<!-- YAML
+added: v7.7.0
+-->
+
+A comma separated list of categories that should be traced when trace event
+tracing is enabled using `--trace-events-enabled`.
+
+### `--trace-event-file-pattern`
+<!-- YAML
+added: v9.8.0
+-->
+
+Template string specifying the filepath for the trace event data, it
+supports `${rotation}` and `${pid}`.
+
+### `--trace-events-enabled`
+<!-- YAML
+added: v7.7.0
+-->
+
+Enables the collection of trace event tracing information.
+
+### `--trace-sync-io`
+<!-- YAML
+added: v2.1.0
+-->
+
+Prints a stack trace whenever synchronous I/O is detected after the first turn
+of the event loop.
+
+### `--trace-warnings`
+<!-- YAML
+added: v6.0.0
+-->
+
+Print stack traces for process warnings (including deprecations).
+
+### `--track-heap-objects`
+<!-- YAML
+added: v2.4.0
+-->
+
+Track heap object allocations for heap snapshots.
+
+### `--use-bundled-ca`, `--use-openssl-ca`
+<!-- YAML
+added: v6.11.0
+-->
+
+Use bundled Mozilla CA store as supplied by current Node.js version
+or use OpenSSL's default CA store. The default store is selectable
+at build-time.
+
+The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store
+that is fixed at release time. It is identical on all supported platforms.
+
+Using OpenSSL store allows for external modifications of the store. For most
+Linux and BSD distributions, this store is maintained by the distribution
+maintainers and system administrators. OpenSSL CA store location is dependent on
+configuration of the OpenSSL library but this can be altered at runtime using
+environment variables.
+
+See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 
 ### `--v8-options`
 <!-- YAML
@@ -320,87 +384,98 @@ underscores (`_`).
 
 For example, `--stack-trace-limit` is equivalent to `--stack_trace_limit`.
 
-### `--tls-cipher-list=list`
+### `--v8-pool-size=num`
 <!-- YAML
-added: v4.0.0
+added: v5.10.0
 -->
 
-Specify an alternative default TLS cipher list. (Requires Node.js to be built
-with crypto support. (Default))
+Set V8's thread pool size which will be used to allocate background jobs.
 
+If set to `0` then V8 will choose an appropriate size of the thread pool based
+on the number of online processors.
 
-### `--enable-fips`
-<!-- YAML
-added: v6.0.0
--->
+If the value provided is larger than V8's maximum, then the largest value
+will be chosen.
 
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
-`./configure --openssl-fips`)
-
-
-### `--force-fips`
+### `--zero-fill-buffers`
 <!-- YAML
 added: v6.0.0
 -->
 
-Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
-(Same requirements as `--enable-fips`)
+Automatically zero-fills all newly allocated [`Buffer`][] and [`SlowBuffer`][]
+instances.
 
-
-### `--openssl-config=file`
+### `-c`, `--check`
 <!-- YAML
-added: v6.9.0
+added:
+  - v5.0.0
+  - v4.2.0
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19600
+    description: The `--require` option is now supported when checking a file.
 -->
 
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-`./configure --openssl-fips`.
+Syntax check the script without executing.
 
-### `--use-openssl-ca`, `--use-bundled-ca`
+### `-e`, `--eval "script"`
 <!-- YAML
-added: v6.11.0
+added: v0.5.2
+changes:
+  - version: v5.11.0
+    pr-url: https://github.com/nodejs/node/pull/5348
+    description: Built-in libraries are now available as predefined variables.
 -->
 
-Use OpenSSL's default CA store or use bundled Mozilla CA store as supplied by
-current Node.js version. The default store is selectable at build-time.
+Evaluate the following argument as JavaScript. The modules which are
+predefined in the REPL can also be used in `script`.
 
-Using OpenSSL store allows for external modifications of the store. For most
-Linux and BSD distributions, this store is maintained by the distribution
-maintainers and system administrators. OpenSSL CA store location is dependent on
-configuration of the OpenSSL library but this can be altered at runtime using
-environment variables.
+On Windows, using `cmd.exe` a single quote will not work correctly because it
+only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
+and `"` are usable.
 
-The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store
-that is fixed at release time. It is identical on all supported platforms.
-
-See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
-
-### `--icu-data-dir=file`
+### `-h`, `--help`
 <!-- YAML
-added: v0.11.15
+added: v0.1.3
 -->
 
-Specify ICU data load path. (overrides `NODE_ICU_DATA`)
+Print node command line options.
+The output of this option is less detailed than this document.
 
-
-### `-`
+### `-i`, `--interactive`
 <!-- YAML
-added: v8.0.0
+added: v0.7.7
 -->
 
-Alias for stdin, analogous to the use of - in other command line utilities,
-meaning that the script will be read from stdin, and the rest of the options
-are passed to that script.
+Opens the REPL even if stdin does not appear to be a terminal.
 
-
-### `--`
+### `-p`, `--print "script"`
 <!-- YAML
-added: v6.11.0
+added: v0.6.4
+changes:
+  - version: v5.11.0
+    pr-url: https://github.com/nodejs/node/pull/5348
+    description: Built-in libraries are now available as predefined variables.
 -->
 
-Indicate the end of node options. Pass the rest of the arguments to the script.
-If no script filename or eval/print script is supplied prior to this, then
-the next argument will be used as a script filename.
+Identical to `-e` but prints the result.
+
+### `-r`, `--require module`
+<!-- YAML
+added: v1.6.0
+-->
+
+Preload the specified module at startup.
+
+Follows `require()`'s module resolution
+rules. `module` may be either a path to a file, or a node module name.
+
+### `-v`, `--version`
+<!-- YAML
+added: v0.1.3
+-->
+
+Print node's version.
 
 ## Environment Variables
 
@@ -411,17 +486,6 @@ added: v0.1.32
 
 `','`-separated list of core modules that should print debug information.
 
-
-### `NODE_PATH=path[:…]`
-<!-- YAML
-added: v0.1.32
--->
-
-`':'`-separated list of directories prefixed to the module search path.
-
-On Windows, this is a `';'`-separated list instead.
-
-
 ### `NODE_DISABLE_COLORS=1`
 <!-- YAML
 added: v0.3.0
@@ -429,13 +493,26 @@ added: v0.3.0
 
 When set to `1` colors will not be used in the REPL.
 
+### `NODE_EXTRA_CA_CERTS=file`
+<!-- YAML
+added: v7.3.0
+-->
+
+When set, the well known "root" CAs (like VeriSign) will be extended with the
+extra certificates in `file`. The file should consist of one or more trusted
+certificates in PEM format. A message will be emitted (once) with
+[`process.emitWarning()`][emit_warning] if the file is missing or
+malformed, but any errors are otherwise ignored.
+
+Note that neither the well known nor extra certificates are used when the `ca`
+options property is explicitly specified for a TLS or HTTPS client or server.
 
 ### `NODE_ICU_DATA=file`
 <!-- YAML
 added: v0.11.15
 -->
 
-Data path for ICU (Intl object) data. Will extend linked-in data when compiled
+Data path for ICU (`Intl` object) data. Will extend linked-in data when compiled
 with small-icu support.
 
 ### `NODE_NO_WARNINGS=1`
@@ -457,22 +534,31 @@ that is not allowed in the environment is used, such as `-p` or a script file.
 
 Node options that are allowed are:
 - `--enable-fips`
+- `--experimental-modules`
+- `--experimental-repl-await`
+- `--experimental-vm-modules`
+- `--experimental-worker`
 - `--force-fips`
 - `--icu-data-dir`
+- `--inspect`
 - `--inspect-brk`
 - `--inspect-port`
-- `--inspect`
+- `--loader`
+- `--napi-modules`
 - `--no-deprecation`
+- `--no-force-async-hooks-checks`
 - `--no-warnings`
 - `--openssl-config`
+- `--pending-deprecation`
 - `--redirect-warnings`
 - `--require`, `-r`
 - `--throw-deprecation`
+- `--title`
 - `--tls-cipher-list`
 - `--trace-deprecation`
-- `--trace-events-categories`
-- `--trace-events-enabled`
+- `--trace-event-categories`
 - `--trace-event-file-pattern`
+- `--trace-events-enabled`
 - `--trace-sync-io`
 - `--trace-warnings`
 - `--track-heap-objects`
@@ -487,6 +573,15 @@ V8 options that are allowed are:
 - `--perf-basic-prof`
 - `--perf-prof`
 - `--stack-trace-limit`
+
+### `NODE_PATH=path[:…]`
+<!-- YAML
+added: v0.1.32
+-->
+
+`':'`-separated list of directories prefixed to the module search path.
+
+On Windows, this is a `';'`-separated list instead.
 
 ### `NODE_PENDING_DEPRECATION=1`
 <!-- YAML
@@ -510,6 +605,17 @@ added: v7.1.0
 When set to `1`, instructs the module loader to preserve symbolic links when
 resolving and caching modules.
 
+### `NODE_REDIRECT_WARNINGS=file`
+<!-- YAML
+added: v8.0.0
+-->
+
+When set, process warnings will be emitted to the given file instead of
+printing to stderr. The file will be created if it does not exist, and will be
+appended to if it does. If an error occurs while attempting to write the
+warning to the file, the warning will be written to stderr instead. This is
+equivalent to using the `--redirect-warnings=file` command-line flag.
+
 ### `NODE_REPL_HISTORY=file`
 <!-- YAML
 added: v3.0.0
@@ -517,22 +623,7 @@ added: v3.0.0
 
 Path to the file used to store the persistent REPL history. The default path is
 `~/.node_repl_history`, which is overridden by this variable. Setting the value
-to an empty string (`""` or `" "`) disables persistent REPL history.
-
-
-### `NODE_EXTRA_CA_CERTS=file`
-<!-- YAML
-added: v7.3.0
--->
-
-When set, the well known "root" CAs (like VeriSign) will be extended with the
-extra certificates in `file`. The file should consist of one or more trusted
-certificates in PEM format. A message will be emitted (once) with
-[`process.emitWarning()`][emit_warning] if the file is missing or
-malformed, but any errors are otherwise ignored.
-
-Note that neither the well known nor extra certificates are used when the `ca`
-options property is explicitly specified for a TLS or HTTPS client or server.
+to an empty string (`''` or `' '`) disables persistent REPL history.
 
 ### `OPENSSL_CONF=file`
 <!-- YAML
@@ -570,17 +661,6 @@ Be aware that unless the child environment is explicitly set, this environment
 variable will be inherited by any child processes, and if they use OpenSSL, it
 may cause them to trust the same CAs as node.
 
-### `NODE_REDIRECT_WARNINGS=file`
-<!-- YAML
-added: v8.0.0
--->
-
-When set, process warnings will be emitted to the given file instead of
-printing to stderr. The file will be created if it does not exist, and will be
-appended to if it does. If an error occurs while attempting to write the
-warning to the file, the warning will be written to stderr instead. This is
-equivalent to using the `--redirect-warnings=file` command-line flag.
-
 ### `UV_THREADPOOL_SIZE=size`
 
 Set the number of threads used in libuv's threadpool to `size` threads.
@@ -602,15 +682,16 @@ reason any of these APIs takes a long time, other (seemingly unrelated) APIs
 that run in libuv's threadpool will experience degraded performance. In order to
 mitigate this issue, one potential solution is to increase the size of libuv's
 threadpool by setting the `'UV_THREADPOOL_SIZE'` environment variable to a value
-greater than `4` (its current default value).  For more information, see the
+greater than `4` (its current default value). For more information, see the
 [libuv threadpool documentation][].
 
 [`--openssl-config`]: #cli_openssl_config_file
-[Buffer]: buffer.html#buffer_buffer
-[Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer
+[`Buffer`]: buffer.html#buffer_class_buffer
+[`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
+[Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
-[SlowBuffer]: buffer.html#buffer_class_slowbuffer
 [debugger]: debugger.html
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
+[experimental ECMAScript Module]: esm.html#esm_loader_hooks
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
-[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn

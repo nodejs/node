@@ -1,8 +1,6 @@
 #include "node_internals.h"
 #include "node_perf.h"
 
-#include <vector>
-
 #ifdef __POSIX__
 #include <sys/time.h>  // gettimeofday
 #endif
@@ -77,20 +75,24 @@ inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
                          env->name_string(),
                          String::NewFromUtf8(isolate,
                                              entry.name().c_str(),
-                                             String::kNormalString),
-                         attr).FromJust();
+                                             v8::NewStringType::kNormal)
+                             .ToLocalChecked(),
+                         attr)
+      .FromJust();
   obj->DefineOwnProperty(context,
-                         FIXED_ONE_BYTE_STRING(isolate, "entryType"),
+                         env->entry_type_string(),
                          String::NewFromUtf8(isolate,
                                              entry.type().c_str(),
-                                             String::kNormalString),
-                         attr).FromJust();
+                                             v8::NewStringType::kNormal)
+                             .ToLocalChecked(),
+                         attr)
+      .FromJust();
   obj->DefineOwnProperty(context,
-                         FIXED_ONE_BYTE_STRING(isolate, "startTime"),
+                         env->start_time_string(),
                          Number::New(isolate, entry.startTime()),
                          attr).FromJust();
   obj->DefineOwnProperty(context,
-                         FIXED_ONE_BYTE_STRING(isolate, "duration"),
+                         env->duration_string(),
                          Number::New(isolate, entry.duration()),
                          attr).FromJust();
 }
@@ -130,7 +132,7 @@ void PerformanceEntry::Notify(Environment* env,
                        object.As<Object>(),
                        env->performance_entry_callback(),
                        1, &object,
-                       node::async_context{0, 0}).ToLocalChecked();
+                       node::async_context{0, 0});
   }
 }
 
@@ -153,6 +155,17 @@ void Mark(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(obj);
 }
 
+void ClearMark(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  auto marks = env->performance_marks();
+
+  if (args.Length() == 0) {
+    marks->clear();
+  } else {
+    Utf8Value name(env->isolate(), args[0]);
+    marks->erase(*name);
+  }
+}
 
 inline uint64_t GetPerformanceMark(Environment* env, std::string name) {
   auto marks = env->performance_marks();
@@ -236,7 +249,7 @@ void PerformanceGCCallback(Environment* env, void* ptr) {
     v8::PropertyAttribute attr =
         static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
     obj->DefineOwnProperty(context,
-                           FIXED_ONE_BYTE_STRING(env->isolate(), "kind"),
+                           env->kind_string(),
                            Integer::New(env->isolate(), entry->gckind()),
                            attr).FromJust();
     PerformanceEntry::Notify(env, entry->kind(), obj);
@@ -259,6 +272,9 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
                               v8::GCCallbackFlags flags,
                               void* data) {
   Environment* env = static_cast<Environment*>(data);
+  // If no one is listening to gc performance entries, do not create them.
+  if (!env->performance_state()->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC])
+    return;
   GCPerformanceEntry* entry =
       new GCPerformanceEntry(env,
                              static_cast<PerformanceGCKind>(type),
@@ -298,10 +314,7 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   Local<Function> fn = args.Data().As<Function>();
   size_t count = args.Length();
   size_t idx;
-  std::vector<Local<Value>> call_args;
-  for (size_t i = 0; i < count; ++i)
-    call_args.push_back(args[i]);
-
+  SlicedArguments call_args(args);
   Utf8Value name(isolate, GetName(fn));
 
   uint64_t start;
@@ -395,6 +408,7 @@ void Initialize(Local<Object> target,
   target->Set(context, performanceEntryString, fn).FromJust();
   env->set_performance_entry_template(fn);
 
+  env->SetMethod(target, "clearMark", ClearMark);
   env->SetMethod(target, "mark", Mark);
   env->SetMethod(target, "measure", Measure);
   env->SetMethod(target, "markMilestone", MarkMilestone);
@@ -443,4 +457,4 @@ void Initialize(Local<Object> target,
 }  // namespace performance
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(performance, node::performance::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(performance, node::performance::Initialize)

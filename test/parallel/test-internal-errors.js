@@ -1,7 +1,10 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
-
+const {
+  hijackStdout,
+  restoreStdout,
+} = require('../common/hijackstdio');
 const assert = require('assert');
 const errors = require('internal/errors');
 
@@ -42,11 +45,13 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`, Error);
 }
 
 {
-  const err = new errors.codes.TEST_ERROR_1();
-  assert(err instanceof Error);
-  assert.strictEqual(err.name, 'Error [TEST_ERROR_1]');
-  assert.strictEqual(err.message, 'Error for testing purposes: %s');
-  assert.strictEqual(err.code, 'TEST_ERROR_1');
+  assert.throws(
+    () => new errors.codes.TEST_ERROR_1(),
+    {
+      message: 'Code: TEST_ERROR_1; The provided arguments ' +
+               'length (0) does not match the required ones (1).'
+    }
+  );
 }
 
 // Tests for common.expectsError
@@ -75,7 +80,7 @@ common.expectsError(() => {
   }, { code: 'TEST_ERROR_1', type: RangeError });
 }, {
   code: 'ERR_ASSERTION',
-  message: /^.+ is not instance of \S/
+  message: /\+   type: \[Function: TypeError]\n-   type: \[Function: RangeError]/
 });
 
 common.expectsError(() => {
@@ -87,24 +92,26 @@ common.expectsError(() => {
 }, {
   code: 'ERR_ASSERTION',
   type: assert.AssertionError,
-  message: /.+ does not match \S/
+  message: /\+   message: 'Error for testing purposes: a'\n-   message: \/\^Error/
 });
 
 // Test ERR_INVALID_FD_TYPE
-assert.strictEqual(errors.message('ERR_INVALID_FD_TYPE', ['a']),
+assert.strictEqual(errors.getMessage('ERR_INVALID_FD_TYPE', ['a']),
                    'Unsupported fd type: a');
 
 // Test ERR_INVALID_URL_SCHEME
-assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', ['file']),
+assert.strictEqual(errors.getMessage('ERR_INVALID_URL_SCHEME', ['file']),
                    'The URL must be of scheme file');
-assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['file']]),
+assert.strictEqual(errors.getMessage('ERR_INVALID_URL_SCHEME', [['file']]),
                    'The URL must be of scheme file');
-assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['http', 'ftp']]),
+assert.strictEqual(errors.getMessage('ERR_INVALID_URL_SCHEME',
+                                     [['http', 'ftp']]),
                    'The URL must be one of scheme http or ftp');
-assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['a', 'b', 'c']]),
+assert.strictEqual(errors.getMessage('ERR_INVALID_URL_SCHEME',
+                                     [['a', 'b', 'c']]),
                    'The URL must be one of scheme a, b, or c');
 common.expectsError(
-  () => errors.message('ERR_INVALID_URL_SCHEME', [[]]),
+  () => errors.getMessage('ERR_INVALID_URL_SCHEME', [[]]),
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
@@ -112,89 +119,67 @@ common.expectsError(
   });
 
 // Test ERR_MISSING_ARGS
-assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name']),
+assert.strictEqual(errors.getMessage('ERR_MISSING_ARGS', ['name']),
                    'The "name" argument must be specified');
-assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name', 'value']),
+assert.strictEqual(errors.getMessage('ERR_MISSING_ARGS', ['name', 'value']),
                    'The "name" and "value" arguments must be specified');
-assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['a', 'b', 'c']),
+assert.strictEqual(errors.getMessage('ERR_MISSING_ARGS', ['a', 'b', 'c']),
                    'The "a", "b", and "c" arguments must be specified');
-common.expectsError(
-  () => errors.message('ERR_MISSING_ARGS'),
-  {
-    code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
-    message: /^At least one arg needs to be specified$/
-  });
 
 // Test ERR_SOCKET_BAD_PORT
 assert.strictEqual(
-  errors.message('ERR_SOCKET_BAD_PORT', [0]),
+  errors.getMessage('ERR_SOCKET_BAD_PORT', [0]),
   'Port should be > 0 and < 65536. Received 0.');
 
 // Test ERR_TLS_CERT_ALTNAME_INVALID
 assert.strictEqual(
-  errors.message('ERR_TLS_CERT_ALTNAME_INVALID', ['altname']),
+  errors.getMessage('ERR_TLS_CERT_ALTNAME_INVALID', ['altname']),
   'Hostname/IP does not match certificate\'s altnames: altname');
 
 assert.strictEqual(
-  errors.message('ERR_INVALID_PROTOCOL', ['bad protocol', 'http']),
+  errors.getMessage('ERR_INVALID_PROTOCOL', ['bad protocol', 'http']),
   'Protocol "bad protocol" not supported. Expected "http"'
 );
 
 assert.strictEqual(
-  errors.message('ERR_HTTP_HEADERS_SENT', ['render']),
+  errors.getMessage('ERR_HTTP_HEADERS_SENT', ['render']),
   'Cannot render headers after they are sent to the client'
 );
 
 assert.strictEqual(
-  errors.message('ERR_INVALID_DOMAIN_NAME'),
-  'Unable to determine the domain name'
-);
-
-assert.strictEqual(
-  errors.message('ERR_INVALID_HTTP_TOKEN', ['Method', 'foo']),
+  errors.getMessage('ERR_INVALID_HTTP_TOKEN', ['Method', 'foo']),
   'Method must be a valid HTTP token ["foo"]'
 );
 
 assert.strictEqual(
-  errors.message('ERR_OUT_OF_RANGE', ['A']),
-  'The value of "A" is out of range.'
-);
-
-assert.strictEqual(
-  errors.message('ERR_OUT_OF_RANGE', ['A', 'some values']),
-  'The value of "A" is out of range. It must be some values.'
-);
-
-assert.strictEqual(
-  errors.message('ERR_OUT_OF_RANGE', ['A', 'some values', 'B']),
+  errors.getMessage('ERR_OUT_OF_RANGE', ['A', 'some values', 'B']),
   'The value of "A" is out of range. It must be some values. Received B'
 );
 
 assert.strictEqual(
-  errors.message('ERR_UNESCAPED_CHARACTERS', ['Request path']),
+  errors.getMessage('ERR_UNESCAPED_CHARACTERS', ['Request path']),
   'Request path contains unescaped characters'
 );
 
 // Test ERR_DNS_SET_SERVERS_FAILED
 assert.strictEqual(
-  errors.message('ERR_DNS_SET_SERVERS_FAILED', ['err', 'servers']),
+  errors.getMessage('ERR_DNS_SET_SERVERS_FAILED', ['err', 'servers']),
   'c-ares failed to set servers: "err" [servers]');
 
 // Test ERR_ENCODING_NOT_SUPPORTED
 assert.strictEqual(
-  errors.message('ERR_ENCODING_NOT_SUPPORTED', ['enc']),
+  errors.getMessage('ERR_ENCODING_NOT_SUPPORTED', ['enc']),
   'The "enc" encoding is not supported');
 
 // Test error messages for async_hooks
 assert.strictEqual(
-  errors.message('ERR_ASYNC_CALLBACK', ['init']),
+  errors.getMessage('ERR_ASYNC_CALLBACK', ['init']),
   'init must be a function');
 assert.strictEqual(
-  errors.message('ERR_ASYNC_TYPE', [{}]),
+  errors.getMessage('ERR_ASYNC_TYPE', [{}]),
   'Invalid name for async "type": [object Object]');
 assert.strictEqual(
-  errors.message('ERR_INVALID_ASYNC_ID', ['asyncId', undefined]),
+  errors.getMessage('ERR_INVALID_ASYNC_ID', ['asyncId', undefined]),
   'Invalid asyncId value: undefined');
 
 {
@@ -259,22 +244,22 @@ assert.strictEqual(
 // browser. Note that `message` remains non-enumerable after being assigned.
 {
   let initialConsoleLog = '';
-  common.hijackStdout((data) => { initialConsoleLog += data; });
+  hijackStdout((data) => { initialConsoleLog += data; });
   const myError = new errors.codes.ERR_TLS_HANDSHAKE_TIMEOUT();
   assert.deepStrictEqual(Object.keys(myError), []);
   const initialToString = myError.toString();
   console.log(myError);
   assert.notStrictEqual(initialConsoleLog, '');
 
-  common.restoreStdout();
+  restoreStdout();
 
   let subsequentConsoleLog = '';
-  common.hijackStdout((data) => { subsequentConsoleLog += data; });
+  hijackStdout((data) => { subsequentConsoleLog += data; });
   myError.message = 'Fhqwhgads';
   assert.deepStrictEqual(Object.keys(myError), []);
   assert.notStrictEqual(myError.toString(), initialToString);
   console.log(myError);
   assert.strictEqual(subsequentConsoleLog, initialConsoleLog);
 
-  common.restoreStdout();
+  restoreStdout();
 }

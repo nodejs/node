@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 
+#include "src/compiler/types.h"
 #include "src/field-index.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
@@ -75,7 +76,7 @@ class PropertyAccessInfo final {
   static PropertyAccessInfo DataField(
       PropertyConstness constness, MapHandles const& receiver_maps,
       FieldIndex field_index, MachineRepresentation field_representation,
-      Type* field_type, MaybeHandle<Map> field_map = MaybeHandle<Map>(),
+      Type field_type, MaybeHandle<Map> field_map = MaybeHandle<Map>(),
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
   static PropertyAccessInfo AccessorConstant(MapHandles const& receiver_maps,
@@ -87,7 +88,7 @@ class PropertyAccessInfo final {
   PropertyAccessInfo();
 
   bool Merge(PropertyAccessInfo const* that, AccessMode access_mode,
-             Zone* zone) WARN_UNUSED_RESULT;
+             Zone* zone) V8_WARN_UNUSED_RESULT;
 
   bool IsNotFound() const { return kind() == kNotFound; }
   bool IsDataConstant() const { return kind() == kDataConstant; }
@@ -105,7 +106,7 @@ class PropertyAccessInfo final {
   MaybeHandle<Map> transition_map() const { return transition_map_; }
   Handle<Object> constant() const { return constant_; }
   FieldIndex field_index() const { return field_index_; }
-  Type* field_type() const { return field_type_; }
+  Type field_type() const { return field_type_; }
   MachineRepresentation field_representation() const {
     return field_representation_;
   }
@@ -121,7 +122,7 @@ class PropertyAccessInfo final {
   PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
                      MaybeHandle<Map> transition_map, FieldIndex field_index,
                      MachineRepresentation field_representation,
-                     Type* field_type, MaybeHandle<Map> field_map,
+                     Type field_type, MaybeHandle<Map> field_map,
                      MapHandles const& receiver_maps);
 
   Kind kind_;
@@ -131,7 +132,7 @@ class PropertyAccessInfo final {
   MaybeHandle<JSObject> holder_;
   FieldIndex field_index_;
   MachineRepresentation field_representation_;
-  Type* field_type_;
+  Type field_type_;
   MaybeHandle<Map> field_map_;
 };
 
@@ -147,6 +148,9 @@ class AccessInfoFactory final {
   bool ComputeElementAccessInfos(MapHandles const& maps, AccessMode access_mode,
                                  ZoneVector<ElementAccessInfo>* access_infos);
   bool ComputePropertyAccessInfo(Handle<Map> map, Handle<Name> name,
+                                 AccessMode access_mode,
+                                 PropertyAccessInfo* access_info);
+  bool ComputePropertyAccessInfo(MapHandles const& maps, Handle<Name> name,
                                  AccessMode access_mode,
                                  PropertyAccessInfo* access_info);
   bool ComputePropertyAccessInfos(MapHandles const& maps, Handle<Name> name,

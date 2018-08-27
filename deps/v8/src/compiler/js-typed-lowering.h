@@ -25,6 +25,8 @@ class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
 class TypeCache;
 
+enum Signedness { kSigned, kUnsigned };
+
 // Lowers JS-level operators to simplified operators based on types.
 class V8_EXPORT_PRIVATE JSTypedLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
@@ -72,6 +74,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSStoreMessage(Node* node);
   Reduction ReduceJSGeneratorStore(Node* node);
   Reduction ReduceJSGeneratorRestoreContinuation(Node* node);
+  Reduction ReduceJSGeneratorRestoreContext(Node* node);
   Reduction ReduceJSGeneratorRestoreRegister(Node* node);
   Reduction ReduceJSGeneratorRestoreInputOrDebugPos(Node* node);
   Reduction ReduceNumberBinop(Node* node);
@@ -82,6 +85,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceSpeculativeNumberMultiply(Node* node);
   Reduction ReduceSpeculativeNumberBinop(Node* node);
   Reduction ReduceSpeculativeNumberComparison(Node* node);
+  Reduction ReduceObjectIsArray(Node* node);
+  Reduction ReduceJSParseInt(Node* node);
 
   // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
   Node* BuildGetModuleCell(Node* node);
@@ -98,8 +103,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* jsgraph_;
-  Type* empty_string_type_;
-  Type* pointer_comparable_type_;
+  Type empty_string_type_;
+  Type pointer_comparable_type_;
   TypeCache const& type_cache_;
 };
 

@@ -40,11 +40,11 @@ struct BuiltinMetadata {
                               { FUNCTION_ADDR(Builtin_##Name) }},
 #ifdef V8_TARGET_BIG_ENDIAN
 #define DECL_TFJ(Name, Count, ...) { #Name, Builtins::TFJ, \
-  { reinterpret_cast<Address>(static_cast<uintptr_t>(      \
+  { static_cast<Address>(static_cast<uintptr_t>(           \
                               Count) << (kBitsPerByte * (kPointerSize - 1))) }},
 #else
 #define DECL_TFJ(Name, Count, ...) { #Name, Builtins::TFJ, \
-                              { reinterpret_cast<Address>(Count) }},
+                              { static_cast<Address>(Count) }},
 #endif
 #define DECL_TFC(Name, ...) { #Name, Builtins::TFC, {} },
 #define DECL_TFS(Name, ...) { #Name, Builtins::TFS, {} },
@@ -86,11 +86,12 @@ Builtins::Name Builtins::GetBuiltinFromBailoutId(BailoutId id) {
 void Builtins::TearDown() { initialized_ = false; }
 
 void Builtins::IterateBuiltins(RootVisitor* v) {
-  v->VisitRootPointers(Root::kBuiltins, &builtins_[0],
-                       &builtins_[0] + builtin_count);
+  for (int i = 0; i < builtin_count; i++) {
+    v->VisitRootPointer(Root::kBuiltins, name(i), &builtins_[i]);
+  }
 }
 
-const char* Builtins::Lookup(byte* pc) {
+const char* Builtins::Lookup(Address pc) {
   // may be called during initialization (disassembler!)
   if (initialized_) {
     for (int i = 0; i < builtin_count; i++) {
@@ -170,30 +171,11 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
                  CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN)
 #undef CASE_OTHER
-    case kArrayFilterLoopEagerDeoptContinuation:
-    case kArrayFilterLoopLazyDeoptContinuation:
-    case kArrayEveryLoopEagerDeoptContinuation:
-    case kArrayEveryLoopLazyDeoptContinuation:
-    case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
-    case kArrayFindIndexLoopEagerDeoptContinuation:
-    case kArrayFindIndexLoopLazyDeoptContinuation:
-    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
-    case kArrayFindLoopEagerDeoptContinuation:
-    case kArrayFindLoopLazyDeoptContinuation:
-    case kArrayForEach:
-    case kArrayForEachLoopEagerDeoptContinuation:
-    case kArrayForEachLoopLazyDeoptContinuation:
-    case kArrayMapLoopEagerDeoptContinuation:
-    case kArrayMapLoopLazyDeoptContinuation:
-    case kArrayReduceLoopEagerDeoptContinuation:
-    case kArrayReduceLoopLazyDeoptContinuation:
-    case kArrayReduceRightLoopEagerDeoptContinuation:
-    case kArrayReduceRightLoopLazyDeoptContinuation:
-    case kArraySomeLoopEagerDeoptContinuation:
-    case kArraySomeLoopLazyDeoptContinuation:
-    case kConsoleAssert:
-      return Callable(code, BuiltinDescriptor(isolate));
     default:
+      Builtins::Kind kind = Builtins::KindOf(name);
+      if (kind == TFJ || kind == CPP) {
+        return Callable(code, BuiltinDescriptor(isolate));
+      }
       UNREACHABLE();
   }
   CallInterfaceDescriptor descriptor(isolate, key);
@@ -213,8 +195,29 @@ Address Builtins::CppEntryOf(int index) {
 }
 
 // static
+bool Builtins::IsBuiltin(const Code* code) {
+  return Builtins::IsBuiltinId(code->builtin_index());
+}
+
+// static
+bool Builtins::IsEmbeddedBuiltin(const Code* code) {
+#ifdef V8_EMBEDDED_BUILTINS
+  return Builtins::IsBuiltinId(code->builtin_index()) &&
+         Builtins::IsIsolateIndependent(code->builtin_index());
+#else
+  return false;
+#endif
+}
+
+// static
 bool Builtins::IsLazy(int index) {
   DCHECK(IsBuiltinId(index));
+
+#ifdef V8_EMBEDDED_BUILTINS
+  // We don't want to lazy-deserialize off-heap builtins.
+  if (Builtins::IsIsolateIndependent(index)) return false;
+#endif
+
   // There are a couple of reasons that builtins can require eager-loading,
   // i.e. deserialization at isolate creation instead of on-demand. For
   // instance:
@@ -227,44 +230,53 @@ bool Builtins::IsLazy(int index) {
   // TODO(wasm): Remove wasm builtins once immovability is no longer required.
   switch (index) {
     case kAbort:  // Required by wasm.
-    case kArrayFindLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
-    case kArrayFindLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
-    // https://crbug.com/v8/6786.
-    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
-    // https://crbug.com/v8/6786.
-    case kArrayFindIndexLoopEagerDeoptContinuation:
-    // https://crbug.com/v8/6786.
-    case kArrayFindIndexLoopLazyDeoptContinuation:
-    // https://crbug.com/v8/6786.
+    case kArrayEveryLoopEagerDeoptContinuation:
+    case kArrayEveryLoopLazyDeoptContinuation:
+    case kArrayFilterLoopEagerDeoptContinuation:
+    case kArrayFilterLoopLazyDeoptContinuation:
     case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
-    case kArrayForEachLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
-    case kArrayForEachLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
-    case kArrayMapLoopEagerDeoptContinuation:      // https://crbug.com/v8/6786.
-    case kArrayMapLoopLazyDeoptContinuation:       // https://crbug.com/v8/6786.
-    case kArrayEveryLoopEagerDeoptContinuation:    // https://crbug.com/v8/6786.
-    case kArrayEveryLoopLazyDeoptContinuation:     // https://crbug.com/v8/6786.
-    case kArrayFilterLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
-    case kArrayFilterLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
-    case kArrayReduceLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
-    case kArrayReduceLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
+    case kArrayFindIndexLoopEagerDeoptContinuation:
+    case kArrayFindIndexLoopLazyDeoptContinuation:
+    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
+    case kArrayFindLoopEagerDeoptContinuation:
+    case kArrayFindLoopLazyDeoptContinuation:
+    case kArrayForEachLoopEagerDeoptContinuation:
+    case kArrayForEachLoopLazyDeoptContinuation:
+    case kArrayMapLoopEagerDeoptContinuation:
+    case kArrayMapLoopLazyDeoptContinuation:
+    case kArrayReduceLoopEagerDeoptContinuation:
+    case kArrayReduceLoopLazyDeoptContinuation:
+    case kArrayReducePreLoopEagerDeoptContinuation:
     case kArrayReduceRightLoopEagerDeoptContinuation:
     case kArrayReduceRightLoopLazyDeoptContinuation:
-    case kArraySomeLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
-    case kArraySomeLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
-    case kCheckOptimizationMarker:
+    case kArrayReduceRightPreLoopEagerDeoptContinuation:
+    case kArraySomeLoopEagerDeoptContinuation:
+    case kArraySomeLoopLazyDeoptContinuation:
+    case kAsyncGeneratorAwaitCaught:            // https://crbug.com/v8/6786.
+    case kAsyncGeneratorAwaitUncaught:          // https://crbug.com/v8/6786.
+    // CEntry variants must be immovable, whereas lazy deserialization allocates
+    // movable code.
+    case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
+    case kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
+    case kCEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case kCEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit:
+    case kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
+    case kCEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
+    case kCEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case kCEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit:
     case kCompileLazy:
+    case kDebugBreakTrampoline:
     case kDeserializeLazy:
     case kFunctionPrototypeHasInstance:  // https://crbug.com/v8/6786.
     case kHandleApiCall:
     case kIllegal:
+    case kInstantiateAsmJs:
     case kInterpreterEnterBytecodeAdvance:
     case kInterpreterEnterBytecodeDispatch:
     case kInterpreterEntryTrampoline:
-    case kObjectConstructor_ConstructStub:    // https://crbug.com/v8/6787.
-    case kProxyConstructor_ConstructStub:     // https://crbug.com/v8/6787.
-    case kNumberConstructor_ConstructStub:    // https://crbug.com/v8/6787.
-    case kStringConstructor_ConstructStub:    // https://crbug.com/v8/6787.
-    case kProxyConstructor:                   // https://crbug.com/v8/6787.
+    case kPromiseConstructorLazyDeoptContinuation:
     case kRecordWrite:  // https://crbug.com/chromium/765301.
     case kThrowWasmTrapDivByZero:             // Required by wasm.
     case kThrowWasmTrapDivUnrepresentable:    // Required by wasm.
@@ -274,7 +286,9 @@ bool Builtins::IsLazy(int index) {
     case kThrowWasmTrapMemOutOfBounds:        // Required by wasm.
     case kThrowWasmTrapRemByZero:             // Required by wasm.
     case kThrowWasmTrapUnreachable:           // Required by wasm.
+    case kToBooleanLazyDeoptContinuation:
     case kToNumber:                           // Required by wasm.
+    case kTypedArrayConstructorLazyDeoptContinuation:
     case kWasmCompileLazy:                    // Required by wasm.
     case kWasmStackGuard:                     // Required by wasm.
       return false;
@@ -284,6 +298,50 @@ bool Builtins::IsLazy(int index) {
   }
   UNREACHABLE();
 }
+
+// static
+bool Builtins::IsIsolateIndependent(int index) {
+  DCHECK(IsBuiltinId(index));
+  // TODO(jgruber): There's currently two blockers for moving
+  // InterpreterEntryTrampoline into the binary:
+  // 1. InterpreterEnterBytecode calculates a pointer into the middle of
+  //    InterpreterEntryTrampoline (see interpreter_entry_return_pc_offset).
+  //    When the builtin is embedded, the pointer would need to be calculated
+  //    at an offset from the embedded instruction stream (instead of the
+  //    trampoline code object).
+  // 2. We create distinct copies of the trampoline to make it possible to
+  //    attribute ticks in the interpreter to individual JS functions.
+  //    See https://crrev.com/c/959081 and InstallBytecodeArray. When the
+  //    trampoline is embedded, we need to ensure that CopyCode creates a copy
+  //    of the builtin itself (and not just the trampoline).
+  return index != kInterpreterEntryTrampoline;
+}
+
+#ifdef V8_EMBEDDED_BUILTINS
+// static
+Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
+                                                    Address off_heap_entry) {
+  DCHECK(isolate->serializer_enabled());
+  DCHECK_NOT_NULL(isolate->embedded_blob());
+  DCHECK_NE(0, isolate->embedded_blob_size());
+
+  constexpr size_t buffer_size = 256;  // Enough to fit the single jmp.
+  byte buffer[buffer_size];            // NOLINT(runtime/arrays)
+
+  // Generate replacement code that simply tail-calls the off-heap code.
+  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
+  DCHECK(!masm.has_frame());
+  {
+    FrameScope scope(&masm, StackFrame::NONE);
+    masm.JumpToInstructionStream(off_heap_entry);
+  }
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+  return isolate->factory()->NewCode(desc, Code::BUILTIN, masm.CodeObject());
+}
+#endif  // V8_EMBEDDED_BUILTINS
 
 // static
 Builtins::Kind Builtins::KindOf(int index) {
@@ -315,12 +373,6 @@ bool Builtins::IsCpp(int index) { return Builtins::KindOf(index) == CPP; }
 bool Builtins::HasCppImplementation(int index) {
   Kind kind = Builtins::KindOf(index);
   return (kind == CPP || kind == API);
-}
-
-Handle<Code> Builtins::JSConstructStubGeneric() {
-  return FLAG_harmony_restrict_constructor_return
-             ? builtin_handle(kJSConstructStubGenericRestrictedReturn)
-             : builtin_handle(kJSConstructStubGenericUnrestrictedReturn);
 }
 
 // static

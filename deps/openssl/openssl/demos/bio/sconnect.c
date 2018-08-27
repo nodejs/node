@@ -1,5 +1,11 @@
-/* NOCW */
-/* demos/bio/sconnect.c */
+/*
+ * Copyright 1998-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
 
 /*-
  * A minimal program to do SSL to a passed host and port.
@@ -11,8 +17,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+
+#define HOSTPORT "localhost:4433"
+#define CAFILE "root.pem"
 
 extern int errno;
 
@@ -20,34 +30,44 @@ int main(argc, argv)
 int argc;
 char *argv[];
 {
-    char *host;
-    BIO *out;
+    const char *hostport = HOSTPORT;
+    const char *CAfile = CAFILE;
+    char *hostname;
+    char *cp;
+    BIO *out = NULL;
     char buf[1024 * 10], *p;
     SSL_CTX *ssl_ctx = NULL;
     SSL *ssl;
     BIO *ssl_bio;
     int i, len, off, ret = 1;
 
-    if (argc <= 1)
-        host = "localhost:4433";
-    else
-        host = argv[1];
+    if (argc > 1)
+        hostport = argv[1];
+    if (argc > 2)
+        CAfile = argv[2];
+
+    hostname = OPENSSL_strdup(hostport);
+    if ((cp = strchr(hostname, ':')) != NULL)
+        *cp = 0;
 
 #ifdef WATT32
     dbug_init();
     sock_init();
 #endif
 
-    /* Lets get nice error messages */
-    SSL_load_error_strings();
+    ssl_ctx = SSL_CTX_new(TLS_client_method());
 
-    /* Setup all the global SSL stuff */
-    OpenSSL_add_ssl_algorithms();
-    ssl_ctx = SSL_CTX_new(SSLv23_client_method());
+    /* Enable trust chain verification */
+    SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
+    SSL_CTX_load_verify_locations(ssl_ctx, CAfile, NULL);
 
     /* Lets make a SSL structure */
     ssl = SSL_new(ssl_ctx);
     SSL_set_connect_state(ssl);
+
+    /* Enable peername verification */
+    if (SSL_set1_host(ssl, hostname) <= 0)
+        goto err;
 
     /* Use it inside an SSL BIO */
     ssl_bio = BIO_new(BIO_f_ssl());
@@ -55,7 +75,7 @@ char *argv[];
 
     /* Lets use a connect BIO under the SSL BIO */
     out = BIO_new(BIO_s_connect());
-    BIO_set_conn_hostname(out, host);
+    BIO_set_conn_hostname(out, hostport);
     BIO_set_nbio(out, 1);
     out = BIO_push(ssl_bio, out);
 
@@ -96,18 +116,16 @@ char *argv[];
     }
 
     ret = 1;
+    goto done;
 
-    if (0) {
  err:
-        if (ERR_peek_error() == 0) { /* system call error */
-            fprintf(stderr, "errno=%d ", errno);
-            perror("error");
-        } else
-            ERR_print_errors_fp(stderr);
-    }
+    if (ERR_peek_error() == 0) { /* system call error */
+        fprintf(stderr, "errno=%d ", errno);
+        perror("error");
+    } else
+        ERR_print_errors_fp(stderr);
+ done:
     BIO_free_all(out);
-    if (ssl_ctx != NULL)
-        SSL_CTX_free(ssl_ctx);
-    exit(!ret);
-    return (ret);
+    SSL_CTX_free(ssl_ctx);
+    return (ret == 1);
 }

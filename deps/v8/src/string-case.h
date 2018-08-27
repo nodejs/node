@@ -14,4 +14,4 @@ int FastAsciiConvert(char* dst, const char* src, int length, bool* changed_out);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_STRING_CASE_H__
+#endif  // V8_STRING_CASE_H_

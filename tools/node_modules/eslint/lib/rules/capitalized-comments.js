@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const LETTER_PATTERN = require("../util/patterns/letters");
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers

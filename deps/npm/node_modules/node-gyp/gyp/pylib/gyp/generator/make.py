@@ -227,6 +227,25 @@ cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSE
 """
 
 
+LINK_COMMANDS_OS390 = """\
+quiet_cmd_alink = AR($(TOOLSET)) $@
+cmd_alink = rm -f $@ && $(AR.$(TOOLSET)) crs $@ $(filter %.o,$^)
+
+quiet_cmd_alink_thin = AR($(TOOLSET)) $@
+cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crsT $@ $(filter %.o,$^)
+
+quiet_cmd_link = LINK($(TOOLSET)) $@
+cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS)
+
+quiet_cmd_solink = SOLINK($(TOOLSET)) $@
+cmd_solink = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS) -Wl,DLL
+
+quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
+cmd_solink_module = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS) -Wl,DLL
+
+"""
+
+
 # Header of toplevel Makefile.
 # This should go into the build tree, but it's easier to keep it here for now.
 SHARED_HEADER = ("""\
@@ -310,7 +329,7 @@ dirx = $(call unreplace_spaces,$(dir $(call replace_spaces,$1)))
 # We write to a dep file on the side first and then rename at the end
 # so we can't end up with a broken dep file.
 depfile = $(depsdir)/$(call replace_spaces,$@).d
-DEPFLAGS = -MMD -MF $(depfile).raw
+DEPFLAGS = %(makedep_args)s -MF $(depfile).raw
 
 # We have to fixup the deps output in a few ways.
 # (1) the file output should mention the proper .o file.
@@ -623,6 +642,9 @@ def Sourceify(path):
 def QuoteSpaces(s, quote=r'\ '):
   return s.replace(' ', quote)
 
+def SourceifyAndQuoteSpaces(path):
+  """Convert a path to its source directory form and quote spaces."""
+  return QuoteSpaces(Sourceify(path))
 
 # TODO: Avoid code duplication with _ValidateSourcesForMSVSProject in msvs.py.
 def _ValidateSourcesForOSX(spec, all_sources):
@@ -1945,7 +1967,7 @@ def WriteAutoRegenerationRule(params, root_makefile, makefile_name,
       "%(makefile_name)s: %(deps)s\n"
       "\t$(call do_cmd,regen_makefile)\n\n" % {
           'makefile_name': makefile_name,
-          'deps': ' '.join(map(Sourceify, build_files)),
+          'deps': ' '.join(map(SourceifyAndQuoteSpaces, build_files)),
           'cmd': gyp.common.EncodePOSIXShellList(
                      [gyp_binary, '-fmake'] +
                      gyp.RegenerateFlags(options) +
@@ -2013,6 +2035,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
   flock_command= 'flock'
   copy_archive_arguments = '-af'
+  makedep_arguments = '-MMD'
   header_params = {
       'default_target': default_target,
       'builddir': builddir_name,
@@ -2023,6 +2046,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
       'extra_commands': '',
       'srcdir': srcdir,
       'copy_archive_args': copy_archive_arguments,
+      'makedep_args': makedep_arguments,
     }
   if flavor == 'mac':
     flock_command = './gyp-mac-tool flock'
@@ -2035,6 +2059,14 @@ def GenerateOutput(target_list, target_dicts, data, params):
   elif flavor == 'android':
     header_params.update({
         'link_commands': LINK_COMMANDS_ANDROID,
+    })
+  elif flavor == 'zos':
+    copy_archive_arguments = '-fPR'
+    makedep_arguments = '-qmakedep=gcc'
+    header_params.update({
+        'copy_archive_args': copy_archive_arguments,
+        'makedep_args': makedep_arguments,
+        'link_commands': LINK_COMMANDS_OS390,
     })
   elif flavor == 'solaris':
     header_params.update({

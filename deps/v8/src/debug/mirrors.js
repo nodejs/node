@@ -54,11 +54,11 @@ macro IS_DATE(arg)
 endmacro
 
 macro IS_ERROR(arg)
-(%_ClassOf(arg) === 'Error')
+(%IsJSError(arg))
 endmacro
 
 macro IS_GENERATOR(arg)
-(%_ClassOf(arg) === 'Generator')
+(%IsJSGeneratorObject(arg))
 endmacro
 
 macro IS_MAP(arg)
@@ -66,11 +66,11 @@ macro IS_MAP(arg)
 endmacro
 
 macro IS_MAP_ITERATOR(arg)
-(%_ClassOf(arg) === 'Map Iterator')
+(%IsJSMapIterator(arg))
 endmacro
 
 macro IS_SCRIPT(arg)
-(%_ClassOf(arg) === 'Script')
+(%IsScriptWrapper(arg))
 endmacro
 
 macro IS_SET(arg)
@@ -78,7 +78,7 @@ macro IS_SET(arg)
 endmacro
 
 macro IS_SET_ITERATOR(arg)
-(%_ClassOf(arg) === 'Set Iterator')
+(%IsJSSetIterator(arg))
 endmacro
 
 // Must match PropertyFilter in property-details.h
@@ -638,7 +638,7 @@ inherits(ObjectMirror, ValueMirror);
 
 
 ObjectMirror.prototype.className = function() {
-  return %_ClassOf(this.value_);
+  return %ClassOf(this.value_);
 };
 
 
@@ -2287,7 +2287,7 @@ ScriptMirror.prototype.value = function() {
 
 
 ScriptMirror.prototype.name = function() {
-  return this.script_.name || this.script_.nameOrSourceURL();
+  return this.script_.name || this.script_.source_url;
 };
 
 
@@ -2339,7 +2339,7 @@ ScriptMirror.prototype.lineCount = function() {
 
 ScriptMirror.prototype.locationFromPosition = function(
     position, include_resource_offset) {
-  return this.script_.locationFromPosition(position, include_resource_offset);
+  return %ScriptPositionInfo(this.script_, position, !!include_resource_offset);
 };
 
 

@@ -43,8 +43,10 @@ class IdentityMapBase {
 
   RawEntry GetEntry(Object* key);
   RawEntry FindEntry(Object* key) const;
-  void* DeleteEntry(Object* key);
+  bool DeleteEntry(Object* key, void** deleted_value);
   void Clear();
+
+  Object* KeyAtIndex(int index) const;
 
   V8_EXPORT_PRIVATE RawEntry EntryAtIndex(int index) const;
   V8_EXPORT_PRIVATE int NextIndex(int index) const;
@@ -61,7 +63,7 @@ class IdentityMapBase {
   int InsertKey(Object* address);
   int Lookup(Object* key) const;
   int LookupOrInsert(Object* key);
-  void* DeleteIndex(int index);
+  bool DeleteIndex(int index, void** deleted_value);
   void Rehash();
   void Resize(int new_capacity);
   int Hash(Object* address) const;
@@ -111,8 +113,17 @@ class IdentityMap : public IdentityMapBase {
   void Set(Handle<Object> key, V v) { Set(*key, v); }
   void Set(Object* key, V v) { *(reinterpret_cast<V*>(GetEntry(key))) = v; }
 
-  V Delete(Handle<Object> key) { return Delete(*key); }
-  V Delete(Object* key) { return reinterpret_cast<V>(DeleteEntry(key)); }
+  bool Delete(Handle<Object> key, V* deleted_value) {
+    return Delete(*key, deleted_value);
+  }
+  bool Delete(Object* key, V* deleted_value) {
+    void* v = nullptr;
+    bool deleted_something = DeleteEntry(key, &v);
+    if (deleted_value != nullptr && deleted_something) {
+      *deleted_value = (V) reinterpret_cast<intptr_t>(v);
+    }
+    return deleted_something;
+  }
 
   // Removes all elements from the map.
   void Clear() { IdentityMapBase::Clear(); }
@@ -126,8 +137,13 @@ class IdentityMap : public IdentityMapBase {
       return *this;
     }
 
-    V* operator*() { return reinterpret_cast<V*>(map_->EntryAtIndex(index_)); }
-    V* operator->() { return reinterpret_cast<V*>(map_->EntryAtIndex(index_)); }
+    Object* key() const { return map_->KeyAtIndex(index_); }
+    V* entry() const {
+      return reinterpret_cast<V*>(map_->EntryAtIndex(index_));
+    }
+
+    V* operator*() { return entry(); }
+    V* operator->() { return entry(); }
     bool operator!=(const Iterator& other) { return index_ != other.index_; }
 
    private:

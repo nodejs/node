@@ -28,7 +28,7 @@ const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
 
-common.globalCheck = false;
+common.allowGlobals('bar', 'foo');
 
 baseFoo = 'foo'; // eslint-disable-line no-undef
 global.baseBar = 'bar';

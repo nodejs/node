@@ -50,7 +50,7 @@ function apiUri (registryUri) {
 function orgAssertions (subcommand, uri, params, cb) {
   assert(subcommand, 'subcommand is required')
   assert(subcommands.hasOwnProperty(subcommand),
-         'org subcommand must be one of ' + Object.keys(subcommands))
+    'org subcommand must be one of ' + Object.keys(subcommands))
   assert(typeof uri === 'string', 'registry URI is required')
   assert(typeof params === 'object', 'params are required')
   assert(typeof params.auth === 'object', 'auth is required')

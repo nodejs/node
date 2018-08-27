@@ -8,10 +8,11 @@
 #include "src/contexts.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
-#include "src/factory.h"
 #include "src/frames-inl.h"
+#include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/api-callbacks.h"
 #include "src/property-details.h"
 #include "src/prototype.h"
 
@@ -28,6 +29,7 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_is_special_data_property(true);
   info->set_is_sloppy(false);
   info->set_replace_on_access(false);
+  info->set_has_no_side_effect(false);
   name = factory->InternalizeName(name);
   info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);
@@ -36,7 +38,7 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_getter(*get);
   info->set_setter(*set);
   Address redirected = info->redirected_getter();
-  if (redirected != nullptr) {
+  if (redirected != kNullAddress) {
     Handle<Object> js_get = v8::FromCData(isolate, redirected);
     info->set_js_getter(*js_get);
   }
@@ -75,12 +77,12 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
   }
 }
 
-
-namespace {
-
-MUST_USE_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
-    Isolate* isolate, Handle<Object> receiver, Handle<JSObject> holder,
-    Handle<Name> name, Handle<Object> value) {
+V8_WARN_UNUSED_RESULT MaybeHandle<Object>
+Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
+                                           Handle<Object> receiver,
+                                           Handle<JSObject> holder,
+                                           Handle<Name> name,
+                                           Handle<Object> value) {
   LookupIterator it(receiver, name, holder,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
@@ -95,8 +97,10 @@ MUST_USE_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
   return value;
 }
 
-}  // namespace
 
+//
+// Accessors::ReconfigureToDataProperty
+//
 void Accessors::ReconfigureToDataProperty(
     v8::Local<v8::Name> key, v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
@@ -109,14 +113,15 @@ void Accessors::ReconfigureToDataProperty(
       Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Name> name = Utils::OpenHandle(*key);
   Handle<Object> value = Utils::OpenHandle(*val);
-  MaybeHandle<Object> result =
-      ReplaceAccessorWithDataProperty(isolate, receiver, holder, name, value);
+  MaybeHandle<Object> result = Accessors::ReplaceAccessorWithDataProperty(
+      isolate, receiver, holder, name, value);
   if (result.is_null()) {
     isolate->OptionalRescheduleException(false);
   } else {
     info.GetReturnValue().Set(true);
   }
 }
+
 
 //
 // Accessors::ArgumentsIterator
@@ -298,7 +303,6 @@ Handle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &StringLengthGetter, nullptr);
 }
-
 
 //
 // Accessors::ScriptColumnOffset
@@ -613,7 +617,7 @@ void Accessors::ScriptEvalFromFunctionNameGetter(
   if (script->has_eval_from_shared()) {
     Handle<SharedFunctionInfo> shared(script->eval_from_shared());
     // Find the name of the function calling eval.
-    result = Handle<Object>(shared->name(), isolate);
+    result = Handle<Object>(shared->Name(), isolate);
   }
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
@@ -1179,8 +1183,8 @@ void Accessors::ErrorStackGetter(
       Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
   Handle<Name> name = Utils::OpenHandle(*key);
   if (IsAccessor(receiver, name, holder)) {
-    result = ReplaceAccessorWithDataProperty(isolate, receiver, holder, name,
-                                             formatted_stack_trace);
+    result = Accessors::ReplaceAccessorWithDataProperty(
+        isolate, receiver, holder, name, formatted_stack_trace);
     if (result.is_null()) {
       isolate->OptionalRescheduleException(false);
       return;

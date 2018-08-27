@@ -519,6 +519,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE)
+      V8_FALLTHROUGH;
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE) {
         bool unicode =
             (insn & BYTECODE_MASK) == BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE;
@@ -537,6 +538,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD)
+      V8_FALLTHROUGH;
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD) {
         bool unicode = (insn & BYTECODE_MASK) ==
                        BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD;

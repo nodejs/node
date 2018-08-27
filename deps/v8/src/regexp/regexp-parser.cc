@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "src/char-predicates-inl.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
@@ -399,8 +399,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
               Advance(2);
               break;
             }
+            V8_FALLTHROUGH;
           }
-          // Fall through.
           case '0': {
             Advance();
             if (unicode() && Next() >= '0' && Next() <= '9') {
@@ -493,7 +493,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
               ParseNamedBackReference(builder, state CHECK_FAILED);
               break;
             }
-          // Fall through.
+            V8_FALLTHROUGH;
           default:
             Advance();
             // With /u, no identity escapes except for syntax characters
@@ -511,14 +511,14 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         int dummy;
         bool parsed = ParseIntervalQuantifier(&dummy, &dummy CHECK_FAILED);
         if (parsed) return ReportError(CStrVector("Nothing to repeat"));
-        // Fall through.
+        V8_FALLTHROUGH;
       }
       case '}':
       case ']':
         if (unicode()) {
           return ReportError(CStrVector("Lone quantifier brackets"));
         }
-      // Fall through.
+        V8_FALLTHROUGH;
       default:
         builder->AddUnicodeCharacter(current());
         Advance();
@@ -684,7 +684,7 @@ RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
           Advance();
           break;
         }
-      // Fall through.
+        V8_FALLTHROUGH;
       default:
         ReportError(CStrVector("Invalid group"));
         return nullptr;
@@ -1515,7 +1515,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
         Advance();
         return 0;
       }
-    // Fall through.
+      V8_FALLTHROUGH;
     case '1':
     case '2':
     case '3':
@@ -1986,8 +1986,14 @@ bool RegExpBuilder::AddQuantifierToAtom(
   } else if (terms_.length() > 0) {
     DCHECK(last_added_ == ADD_ATOM);
     atom = terms_.RemoveLast();
-    // With /u, lookarounds are not quantifiable.
-    if (unicode() && atom->IsLookaround()) return false;
+    if (atom->IsLookaround()) {
+      // With /u, lookarounds are not quantifiable.
+      if (unicode()) return false;
+      // Lookbehinds are not quantifiable.
+      if (atom->AsLookaround()->type() == RegExpLookaround::LOOKBEHIND) {
+        return false;
+      }
+    }
     if (atom->max_match() == 0) {
       // Guaranteed to only match an empty string.
       LAST(ADD_TERM);

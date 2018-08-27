@@ -25,7 +25,7 @@ exports.checkInvocations = function checkInvocations(activity, hooks, stage) {
   );
 
   // Check that actual invocations for all hooks match the expected invocations
-  [ 'init', 'before', 'after', 'destroy' ].forEach(checkHook);
+  [ 'init', 'before', 'after', 'destroy', 'promiseResolve' ].forEach(checkHook);
 
   function checkHook(k) {
     const val = hooks[k];

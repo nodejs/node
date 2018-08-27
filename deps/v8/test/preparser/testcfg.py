@@ -60,7 +60,7 @@ class TestSuite(testsuite.TestSuite):
       return MkTest
     execfile(pathname, {"Test": Test, "Template": Template})
 
-  def ListTests(self, context):
+  def ListTests(self):
     result = []
 
     # Find all .pyt files in this directory.
@@ -77,33 +77,30 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def _LegacyVariantsGeneratorFactory(self):
-    return testsuite.StandardLegacyVariantsGenerator
-
   def _variants_gen_class(self):
     return VariantsGenerator
 
 
 class TestCase(testcase.TestCase):
-  def __init__(self, suite, path, name, source, template_flags):
-    super(TestCase, self).__init__(suite, path, name)
+  def __init__(self, suite, path, name, test_config, source, template_flags):
+    super(TestCase, self).__init__(suite, path, name, test_config)
 
     self._source = source
     self._template_flags = template_flags
 
-  def _get_cmd_params(self, ctx):
+  def _get_cmd_params(self):
     return (
-        self._get_files_params(ctx) +
-        self._get_extra_flags(ctx) +
+        self._get_files_params() +
+        self._get_extra_flags() +
         ['-e', self._source] +
         self._template_flags +
         self._get_variant_flags() +
         self._get_statusfile_flags() +
-        self._get_mode_flags(ctx) +
+        self._get_mode_flags() +
         self._get_source_flags()
     )
 
-  def _get_mode_flags(self, ctx):
+  def _get_mode_flags(self):
     return []
 
   def is_source_available(self):
@@ -113,5 +110,5 @@ class TestCase(testcase.TestCase):
     return self._source
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

@@ -195,11 +195,13 @@ class ZoneHandleSet<T>::const_iterator {
   typedef std::forward_iterator_tag iterator_category;
   typedef std::ptrdiff_t difference_type;
   typedef Handle<T> value_type;
+  typedef value_type reference;
+  typedef value_type* pointer;
 
   const_iterator(const const_iterator& other)
       : set_(other.set_), current_(other.current_) {}
 
-  Handle<T> operator*() const { return (*set_)[current_]; }
+  reference operator*() const { return (*set_)[current_]; }
   bool operator==(const const_iterator& other) const {
     return set_ == other.set_ && current_ == other.current_;
   }

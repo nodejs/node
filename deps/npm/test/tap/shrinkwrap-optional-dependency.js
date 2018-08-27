@@ -8,7 +8,7 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
-var npm = npm = require('../../')
+var npm = require('../../')
 
 var pkg = path.resolve(__dirname, 'shrinkwrap-optional-dependency')
 

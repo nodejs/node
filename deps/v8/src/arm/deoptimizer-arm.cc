@@ -30,9 +30,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   const int kFloatRegsSize = kFloatSize * SwVfpRegister::kNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
-  DCHECK_EQ(kDoubleRegZero.code(), 13);
-  DCHECK_EQ(kScratchDoubleReg.code(), 14);
-
   {
     // We use a run-time check for VFP32DREGS.
     CpuFeatureScope scope(masm(), VFP32DREGS,
@@ -61,7 +58,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   {
     UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
-    __ mov(scratch, Operand(ExternalReference(
+    __ mov(scratch, Operand(ExternalReference::Create(
                         IsolateAddressId::kCEntryFPAddress, isolate())));
     __ str(fp, MemOperand(scratch));
   }
@@ -98,7 +95,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Call Deoptimizer::New().
   {
     AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate()), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
   // Preserve "deoptimizer" object in register r0 and get the input
@@ -167,8 +164,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Call Deoptimizer::ComputeOutputFrames().
   {
     AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(
-        ExternalReference::compute_output_frames_function(isolate()), 1);
+    __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
   }
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
 

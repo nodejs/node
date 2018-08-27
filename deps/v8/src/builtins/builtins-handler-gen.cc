@@ -55,6 +55,15 @@ TF_BUILTIN(KeyedStoreIC_Slow, CodeStubAssembler) {
                   receiver, name);
 }
 
+TF_BUILTIN(StoreInArrayLiteralIC_Slow, CodeStubAssembler) {
+  Node* array = Parameter(Descriptor::kReceiver);
+  Node* index = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* context = Parameter(Descriptor::kContext);
+  TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, context, value, array,
+                  index);
+}
+
 TF_BUILTIN(LoadGlobalIC_Slow, CodeStubAssembler) {
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);

@@ -252,13 +252,13 @@ class Int32Signature : public MachineSignature {
   }
 };
 
-
-Handle<Code> CompileGraph(const char* name, CallDescriptor* desc, Graph* graph,
-                          Schedule* schedule = nullptr) {
+Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
+                          Graph* graph, Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  CompilationInfo info(ArrayVector("testing"), graph->zone(), Code::STUB);
-  Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, isolate, desc, graph, schedule);
+  OptimizedCompilationInfo info(ArrayVector("testing"), graph->zone(),
+                                Code::STUB);
+  Handle<Code> code = Pipeline::GenerateCodeForTesting(
+      &info, isolate, call_descriptor, graph, schedule);
   CHECK(!code.is_null());
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code) {
@@ -269,10 +269,10 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* desc, Graph* graph,
   return code;
 }
 
-
-Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
+Handle<Code> WrapWithCFunction(Handle<Code> inner,
+                               CallDescriptor* call_descriptor) {
   Zone zone(inner->GetIsolate()->allocator(), ZONE_NAME);
-  int param_count = static_cast<int>(desc->ParameterCount());
+  int param_count = static_cast<int>(call_descriptor->ParameterCount());
   GraphAndBuilders caller(&zone);
   {
     GraphAndBuilders& b = caller;
@@ -292,15 +292,15 @@ Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
     args[index++] = start;  // control.
 
     // Build the call and return nodes.
-    Node* call =
-        b.graph()->NewNode(b.common()->Call(desc), param_count + 3, args);
+    Node* call = b.graph()->NewNode(b.common()->Call(call_descriptor),
+                                    param_count + 3, args);
     Node* zero = b.graph()->NewNode(b.common()->Int32Constant(0));
     Node* ret =
         b.graph()->NewNode(b.common()->Return(), zero, call, call, start);
     b.graph()->SetEnd(ret);
   }
 
-  MachineSignature* msig = desc->GetMachineSignature(&zone);
+  MachineSignature* msig = call_descriptor->GetMachineSignature(&zone);
   CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, msig);
 
   return CompileGraph("wrapper", cdesc, caller.graph());
@@ -419,9 +419,8 @@ void ArgsBuffer<float64>::Mutate() {
   seed_++;
 }
 
-
-int ParamCount(CallDescriptor* desc) {
-  return static_cast<int>(desc->ParameterCount());
+int ParamCount(CallDescriptor* call_descriptor) {
+  return static_cast<int>(call_descriptor->ParameterCount());
 }
 
 
@@ -638,8 +637,7 @@ static void Test_RunInt32SubWithRet(int retreg) {
     Allocator params(parray, 2, nullptr, 0);
     Allocator rets(rarray, 1, nullptr, 0);
     RegisterConfig config(params, rets);
-    CallDescriptor* desc = config.Create(&zone, &sig);
-    TestInt32Sub(desc);
+    TestInt32Sub(config.Create(&zone, &sig));
   }
 }
 
@@ -687,8 +685,7 @@ TEST(Run_Int32Sub_all_allocatable_single) {
     Allocator params(parray, 1, nullptr, 0);
     Allocator rets(rarray, 1, nullptr, 0);
     RegisterConfig config(params, rets);
-    CallDescriptor* desc = config.Create(&zone, &sig);
-    TestInt32Sub(desc);
+    TestInt32Sub(config.Create(&zone, &sig));
   }
 }
 
@@ -705,8 +702,7 @@ TEST(Run_CopyTwentyInt32_all_allocatable_pairs) {
     Allocator params(parray, 2, nullptr, 0);
     Allocator rets(rarray, 1, nullptr, 0);
     RegisterConfig config(params, rets);
-    CallDescriptor* desc = config.Create(&zone, &sig);
-    CopyTwentyInt32(desc);
+    CopyTwentyInt32(config.Create(&zone, &sig));
   }
 }
 

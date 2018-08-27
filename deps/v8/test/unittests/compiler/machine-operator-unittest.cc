@@ -88,8 +88,7 @@ TEST_P(MachineLoadOperatorTest, OpcodeIsCorrect) {
 
 TEST_P(MachineLoadOperatorTest, ParameterIsCorrect) {
   MachineOperatorBuilder machine(zone(), representation());
-  EXPECT_EQ(GetParam(),
-            OpParameter<LoadRepresentation>(machine.Load(GetParam())));
+  EXPECT_EQ(GetParam(), LoadRepresentationOf(machine.Load(GetParam())));
 }
 
 
@@ -149,8 +148,7 @@ TEST_P(MachineStoreOperatorTest, OpcodeIsCorrect) {
 
 TEST_P(MachineStoreOperatorTest, ParameterIsCorrect) {
   MachineOperatorBuilder machine(zone(), representation());
-  EXPECT_EQ(GetParam(),
-            OpParameter<StoreRepresentation>(machine.Store(GetParam())));
+  EXPECT_EQ(GetParam(), StoreRepresentationOf(machine.Store(GetParam())));
 }
 
 

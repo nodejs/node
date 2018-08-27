@@ -34,36 +34,3 @@ function StringIndexOfNonConstant() {
 
   return sum;
 }
-
-new BenchmarkSuite('StringCharCodeAtConstant', [3], [
-  new Benchmark('StringIndexOfConstant', true, false, 0,
-  StringCharCodeAtConstant),
-]);
-
-new BenchmarkSuite('StringCharCodeAtNonConstant', [3], [
-  new Benchmark('StringIndexOfNonConstant', true, false, 0,
-  StringCharCodeAtNonConstant),
-]);
-
-const string = "qweruiplkjhgfdsazxccvbnm";
-const indices = [1, 13, 32, 100, "xx"];
-
-function StringCharCodeAtConstant() {
-  var sum = 0;
-
-  for (var j = 0; j < indices.length - 1; ++j) {
-    sum += string.charCodeAt(indices[j] | 0);
-  }
-
-  return sum;
-}
-
-function StringCharCodeAtNonConstant() {
-  var sum = 0;
-
-  for (var j = 0; j < indices.length - 1; ++j) {
-    sum += string.charCodeAt(indices[j]);
-  }
-
-  return sum;
-}

@@ -16,12 +16,9 @@ namespace internal {
 // Handles should be trivially copyable so that they can be efficiently passed
 // by value. If they are not trivially copyable, they cannot be passed in
 // registers.
-static_assert(IS_TRIVIALLY_COPYABLE(HandleBase),
-              "HandleBase should be trivially copyable");
-static_assert(IS_TRIVIALLY_COPYABLE(Handle<Object>),
-              "Handle<Object> should be trivially copyable");
-static_assert(IS_TRIVIALLY_COPYABLE(MaybeHandle<Object>),
-              "MaybeHandle<Object> should be trivially copyable");
+ASSERT_TRIVIALLY_COPYABLE(HandleBase);
+ASSERT_TRIVIALLY_COPYABLE(Handle<Object>);
+ASSERT_TRIVIALLY_COPYABLE(MaybeHandle<Object>);
 
 #ifdef DEBUG
 bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
@@ -110,7 +107,7 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 void HandleScope::ZapRange(Object** start, Object** end) {
   DCHECK_LE(end - start, kHandleBlockSize);
   for (Object** p = start; p != end; p++) {
-    *reinterpret_cast<Address*>(p) = reinterpret_cast<Address>(kHandleZapValue);
+    *reinterpret_cast<Address*>(p) = static_cast<Address>(kHandleZapValue);
   }
 }
 #endif
@@ -179,7 +176,8 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
   HandleScopeData* data = impl_->isolate()->handle_scope_data();
   Object** new_next = impl_->GetSpareOrNewBlock();
   Object** new_limit = &new_next[kHandleBlockSize];
-  // Check that at least one HandleScope exists, see the class description.
+  // Check that at least one HandleScope with at least one Handle in it exists,
+  // see the class description.
   DCHECK(!impl_->blocks()->empty());
   // Check that we are not in a SealedHandleScope.
   DCHECK(data->limit == &impl_->blocks()->back()[kHandleBlockSize]);

@@ -146,7 +146,7 @@ class SamplingHeapProfiler {
   std::unique_ptr<SamplingAllocationObserver> other_spaces_observer_;
   StringsStorage* const names_;
   AllocationNode profile_root_;
-  std::set<Sample*> samples_;
+  std::set<std::unique_ptr<Sample>> samples_;
   const int stack_depth_;
   const uint64_t rate_;
   v8::HeapProfiler::SamplingFlags flags_;

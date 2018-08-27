@@ -21,7 +21,7 @@ function onStream(stream, headers) {
   const socket = stream.session[kSocket];
 
   assert(stream.session.encrypted);
-  assert(stream.session.alpnProtocol, 'h2');
+  assert.strictEqual(stream.session.alpnProtocol, 'h2');
   const originSet = stream.session.originSet;
   assert(Array.isArray(originSet));
   assert.strictEqual(originSet[0],

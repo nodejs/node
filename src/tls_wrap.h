@@ -30,7 +30,6 @@
 #include "async_wrap.h"
 #include "env.h"
 #include "stream_wrap.h"
-#include "util.h"
 #include "v8.h"
 
 #include <openssl/ssl.h>
@@ -77,7 +76,9 @@ class TLSWrap : public AsyncWrap,
 
   void NewSessionDoneCb();
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
+  ADD_MEMORY_INFO_NAME(TLSWrap)
 
  protected:
   inline StreamBase* underlying_stream() {
@@ -139,16 +140,13 @@ class TLSWrap : public AsyncWrap,
   static void EnableCertCb(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DestroySSL(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
-#endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
   crypto::SecureContext* sc_;
-  BIO* enc_in_;
-  BIO* enc_out_;
+  BIO* enc_in_ = nullptr;
+  BIO* enc_out_ = nullptr;
   std::vector<uv_buf_t> pending_cleartext_input_;
   size_t write_size_;
   WriteWrap* current_write_ = nullptr;

@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-X509_verify_cert - discover and verify X509 certificte chain
+X509_verify_cert - discover and verify X509 certificate chain
 
 =head1 SYNOPSIS
 
@@ -14,7 +14,7 @@ X509_verify_cert - discover and verify X509 certificte chain
 
 The X509_verify_cert() function attempts to discover and validate a
 certificate chain based on parameters in B<ctx>. A complete description of
-the process is contained in the L<verify(1)|verify(1)> manual page.
+the process is contained in the L<verify(1)> manual page.
 
 =head1 RETURN VALUES
 
@@ -42,14 +42,19 @@ Applications must check for <= 0 return value on error.
 =head1 BUGS
 
 This function uses the header B<x509.h> as opposed to most chain verification
-functiosn which use B<x509_vfy.h>.
+functions which use B<x509_vfy.h>.
 
 =head1 SEE ALSO
 
-L<X509_STORE_CTX_get_error(3)|X509_STORE_CTX_get_error(3)>
+L<X509_STORE_CTX_get_error(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-X509_verify_cert() is available in all versions of SSLeay and OpenSSL.
+Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

@@ -11,7 +11,7 @@
 
 const lodash = require("lodash");
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -73,10 +73,10 @@ module.exports = {
             topLevelFunctions = [];
         let maxStatements = 10;
 
-        if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
+        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "maximum") && typeof option.maximum === "number") {
             maxStatements = option.maximum;
         }
-        if (typeof option === "object" && option.hasOwnProperty("max") && typeof option.max === "number") {
+        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "max") && typeof option.max === "number") {
             maxStatements = option.max;
         }
         if (typeof option === "number") {

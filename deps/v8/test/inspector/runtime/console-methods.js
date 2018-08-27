@@ -32,6 +32,13 @@ function testFunction() {
   console.count();
   console.count(undefined);
   console.count('default');
+  console.countReset();
+  console.count();
+  console.countReset(undefined);
+  console.count();
+  console.countReset('default');
+  console.count();
+  console.countReset('countReset');
 }
 //# sourceURL=test.js`, 7, 26);
 

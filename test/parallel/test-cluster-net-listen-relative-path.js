@@ -1,46 +1,46 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const cluster = require('cluster');
-const net = require('net');
-const path = require('path');
-const fs = require('fs');
-
-const tmpdir = require('../common/tmpdir');
 
 if (common.isWindows)
   common.skip('On Windows named pipes live in their own ' +
               'filesystem and don\'t have a ~100 byte limit');
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
+const assert = require('assert');
+const cluster = require('cluster');
+const fs = require('fs');
+const net = require('net');
+const path = require('path');
+
+const tmpdir = require('../common/tmpdir');
 
 // Choose a socket name such that the absolute path would exceed 100 bytes.
 const socketDir = './unix-socket-dir';
 const socketName = 'A'.repeat(100 - socketDir.length - 1);
 
-// Make sure we're not in a weird environment
-assert.strictEqual(path.resolve(socketDir, socketName).length > 100, true,
-                   'absolute socket path should be longer than 100 bytes');
+// Make sure we're not in a weird environment.
+assert.ok(path.resolve(socketDir, socketName).length > 100,
+          'absolute socket path should be longer than 100 bytes');
 
 if (cluster.isMaster) {
-  // ensure that the worker exits peacefully
+  // Ensure that the worker exits peacefully.
   tmpdir.refresh();
   process.chdir(tmpdir.path);
   fs.mkdirSync(socketDir);
-  cluster.fork().on('exit', common.mustCall(function(statusCode) {
+  cluster.fork().on('exit', common.mustCall((statusCode) => {
     assert.strictEqual(statusCode, 0);
 
-    assert.strictEqual(
-      fs.existsSync(path.join(socketDir, socketName)), false,
-      'Socket should be removed when the worker exits');
+    assert.ok(!fs.existsSync(path.join(socketDir, socketName)),
+              'Socket should be removed when the worker exits');
   }));
 } else {
   process.chdir(socketDir);
 
   const server = net.createServer(common.mustNotCall());
 
-  server.listen(socketName, common.mustCall(function() {
-    assert.strictEqual(
-      fs.existsSync(socketName), true,
-      'Socket created in CWD');
+  server.listen(socketName, common.mustCall(() => {
+    assert.ok(fs.existsSync(socketName), 'Socket created in CWD');
 
     process.disconnect();
   }));

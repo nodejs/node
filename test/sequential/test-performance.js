@@ -4,67 +4,26 @@ const common = require('../common');
 const assert = require('assert');
 const { performance } = require('perf_hooks');
 
+if (!common.isMainThread)
+  common.skip('bootstrapping workers works differently');
+
 assert(performance);
 assert(performance.nodeTiming);
 assert.strictEqual(typeof performance.timeOrigin, 'number');
 // Use a fairly large epsilon value, since we can only guarantee that the node
-// process started up in 20 seconds.
-assert(Math.abs(performance.timeOrigin - Date.now()) < 20000);
+// process started up in 15 seconds.
+assert(Math.abs(performance.timeOrigin - Date.now()) < 15000);
 
 const inited = performance.now();
-assert(inited < 20000);
+assert(inited < 15000);
 
 {
-  const entries = performance.getEntries();
-  assert(Array.isArray(entries));
-  assert.strictEqual(entries.length, 1);
-  assert.strictEqual(entries[0], performance.nodeTiming);
-}
-
-{
-  const entries = performance.getEntriesByName('node');
-  assert(Array.isArray(entries));
-  assert.strictEqual(entries.length, 1);
-  assert.strictEqual(entries[0], performance.nodeTiming);
-}
-
-{
-  let n;
-  let entries = performance.getEntries();
-  for (n = 0; n < entries.length; n++) {
-    const entry = entries[n];
-    assert.notStrictEqual(entry.name, 'A');
-    assert.notStrictEqual(entry.entryType, 'mark');
-  }
+  // Should work without throwing any errors
   performance.mark('A');
-  entries = performance.getEntries();
-  const markA = entries[1];
-  assert.strictEqual(markA.name, 'A');
-  assert.strictEqual(markA.entryType, 'mark');
   performance.clearMarks('A');
-  entries = performance.getEntries();
-  for (n = 0; n < entries.length; n++) {
-    const entry = entries[n];
-    assert.notStrictEqual(entry.name, 'A');
-    assert.notStrictEqual(entry.entryType, 'mark');
-  }
-}
 
-{
-  let entries = performance.getEntries();
-  for (let n = 0; n < entries.length; n++) {
-    const entry = entries[n];
-    assert.notStrictEqual(entry.name, 'B');
-    assert.notStrictEqual(entry.entryType, 'mark');
-  }
   performance.mark('B');
-  entries = performance.getEntries();
-  const markB = entries[1];
-  assert.strictEqual(markB.name, 'B');
-  assert.strictEqual(markB.entryType, 'mark');
   performance.clearMarks();
-  entries = performance.getEntries();
-  assert.strictEqual(entries.length, 1);
 }
 
 {
@@ -83,11 +42,7 @@ assert(inited < 20000);
       });
   });
 
-  performance.clearMeasures();
   performance.clearMarks();
-
-  const entries = performance.getEntries();
-  assert.strictEqual(entries.length, 1);
 }
 
 {
@@ -95,29 +50,53 @@ assert(inited < 20000);
   setImmediate(() => {
     performance.mark('B');
     performance.measure('foo', 'A', 'B');
-    const entry = performance.getEntriesByName('foo')[0];
-    const markA = performance.getEntriesByName('A', 'mark')[0];
-    performance.getEntriesByName('B', 'mark')[0];
-    assert.strictEqual(entry.name, 'foo');
-    assert.strictEqual(entry.entryType, 'measure');
-    assert.strictEqual(entry.startTime, markA.startTime);
-    // TODO(jasnell): This comparison is too imprecise on some systems
-    // assert.strictEqual(entry.duration.toPrecision(3),
-    //                   (markB.startTime - markA.startTime).toPrecision(3));
   });
 }
 
 assert.strictEqual(performance.nodeTiming.name, 'node');
 assert.strictEqual(performance.nodeTiming.entryType, 'node');
 
+let timeoutDelay = 111; // An extra of 111 ms for the first call.
+
+function checkDelay(cb) {
+  const defaultTimeout = 1;
+  const timer = setInterval(checkDelay, defaultTimeout);
+  const timeouts = 10;
+
+  const now = getTime();
+  let resolved = 0;
+
+  function checkDelay() {
+    resolved++;
+    if (resolved === timeouts) {
+      clearInterval(timer);
+      timeoutDelay = getTime() - now;
+      cb();
+    }
+  }
+}
+
+function getTime() {
+  const ts = process.hrtime();
+  return Math.ceil((ts[0] * 1e3) + (ts[1] / 1e6));
+}
+
 function checkNodeTiming(props) {
+  console.log(props);
+
   for (const prop of Object.keys(props)) {
     if (props[prop].around !== undefined) {
       assert.strictEqual(typeof performance.nodeTiming[prop], 'number');
       const delta = performance.nodeTiming[prop] - props[prop].around;
-      assert(Math.abs(delta) < 1000);
+      const delay = 1000 + timeoutDelay;
+      assert(
+        Math.abs(delta) < delay,
+        `${prop}: ${Math.abs(delta)} >= ${delay}`
+      );
     } else {
-      assert.strictEqual(performance.nodeTiming[prop], props[prop]);
+      assert.strictEqual(performance.nodeTiming[prop], props[prop],
+                         `mismatch for performance property ${prop}: ` +
+                         `${performance.nodeTiming[prop]} vs ${props[prop]}`);
     }
   }
 }
@@ -129,42 +108,28 @@ checkNodeTiming({
   duration: { around: performance.now() },
   nodeStart: { around: 0 },
   v8Start: { around: 0 },
-  bootstrapComplete: -1,
+  bootstrapComplete: { around: inited },
   environment: { around: 0 },
   loopStart: -1,
-  loopExit: -1,
-  thirdPartyMainStart: -1,
-  thirdPartyMainEnd: -1,
-  clusterSetupStart: -1,
-  clusterSetupEnd: -1,
-  moduleLoadStart: { around: inited },
-  moduleLoadEnd: { around: inited },
-  preloadModuleLoadStart: { around: inited },
-  preloadModuleLoadEnd: { around: inited },
+  loopExit: -1
 });
 
-setTimeout(() => {
-  checkNodeTiming({
-    name: 'node',
-    entryType: 'node',
-    startTime: 0,
-    duration: { around: performance.now() },
-    nodeStart: { around: 0 },
-    v8Start: { around: 0 },
-    bootstrapComplete: { around: inited },
-    environment: { around: 0 },
-    loopStart: { around: inited },
-    loopExit: -1,
-    thirdPartyMainStart: -1,
-    thirdPartyMainEnd: -1,
-    clusterSetupStart: -1,
-    clusterSetupEnd: -1,
-    moduleLoadStart: { around: inited },
-    moduleLoadEnd: { around: inited },
-    preloadModuleLoadStart: { around: inited },
-    preloadModuleLoadEnd: { around: inited },
-  });
-}, 2000);
+checkDelay(() => {
+  setTimeout(() => {
+    checkNodeTiming({
+      name: 'node',
+      entryType: 'node',
+      startTime: 0,
+      duration: { around: performance.now() },
+      nodeStart: { around: 0 },
+      v8Start: { around: 0 },
+      bootstrapComplete: { around: inited },
+      environment: { around: 0 },
+      loopStart: { around: inited },
+      loopExit: -1
+    });
+  }, 1000);
+});
 
 process.on('exit', () => {
   checkNodeTiming({
@@ -177,14 +142,6 @@ process.on('exit', () => {
     bootstrapComplete: { around: inited },
     environment: { around: 0 },
     loopStart: { around: inited },
-    loopExit: { around: performance.now() },
-    thirdPartyMainStart: -1,
-    thirdPartyMainEnd: -1,
-    clusterSetupStart: -1,
-    clusterSetupEnd: -1,
-    moduleLoadStart: { around: inited },
-    moduleLoadEnd: { around: inited },
-    preloadModuleLoadStart: { around: inited },
-    preloadModuleLoadEnd: { around: inited },
+    loopExit: { around: performance.now() }
   });
 });

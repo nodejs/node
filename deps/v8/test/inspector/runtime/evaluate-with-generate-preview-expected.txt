@@ -836,3 +836,23 @@ Running test: testObjWithArrayAsProto
     ]
     type : object
 }
+
+Running test: testArrayWithLongValues
+{
+    description : Array(2)
+    overflow : false
+    properties : [
+        [0] : {
+            name : 0
+            type : string
+            value : aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        }
+        [1] : {
+            name : 1
+            type : bigint
+            value : 51644997561738171793118383440060237486594115856584…033682389259290706560275662871806343945494986752n
+        }
+    ]
+    subtype : array
+    type : object
+}

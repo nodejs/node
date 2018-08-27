@@ -28,7 +28,7 @@
 #include <stdlib.h>
 
 #include "src/base/platform/platform.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
@@ -80,12 +80,10 @@ class TestCodeRangeScope {
   DISALLOW_COPY_AND_ASSIGN(TestCodeRangeScope);
 };
 
-static void VerifyMemoryChunk(Isolate* isolate,
-                              Heap* heap,
-                              CodeRange* code_range,
-                              size_t reserve_area_size,
-                              size_t commit_area_size,
-                              Executability executable) {
+static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
+                              CodeRange* code_range, size_t reserve_area_size,
+                              size_t commit_area_size, Executability executable,
+                              Space* space) {
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   {
@@ -99,7 +97,7 @@ static void VerifyMemoryChunk(Isolate* isolate,
         (executable == EXECUTABLE) ? MemoryAllocator::CodePageGuardSize() : 0;
 
     MemoryChunk* memory_chunk = memory_allocator->AllocateChunk(
-        reserve_area_size, commit_area_size, executable, nullptr);
+        reserve_area_size, commit_area_size, executable, space);
     size_t alignment = code_range != nullptr && code_range->valid()
                            ? MemoryChunk::kAlignment
                            : CommitPageSize();
@@ -140,7 +138,7 @@ TEST(Regress3540) {
   address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &size);
-  CHECK_NOT_NULL(address);
+  CHECK_NE(address, kNullAddress);
 
   Address null_address;
   size_t null_size;
@@ -148,7 +146,7 @@ TEST(Regress3540) {
   null_address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &null_size);
-  CHECK_NULL(null_address);
+  CHECK_EQ(null_address, kNullAddress);
 
   code_range->FreeRawMemory(address, size);
   delete code_range;
@@ -178,36 +176,22 @@ TEST(MemoryChunk) {
     const size_t code_range_size = 32 * MB;
     if (!code_range->SetUp(code_range_size)) return;
 
-    VerifyMemoryChunk(isolate,
-                      heap,
-                      code_range,
-                      reserve_area_size,
-                      initial_commit_area_size,
-                      EXECUTABLE);
+    VerifyMemoryChunk(isolate, heap, code_range, reserve_area_size,
+                      initial_commit_area_size, EXECUTABLE, heap->code_space());
 
-    VerifyMemoryChunk(isolate,
-                      heap,
-                      code_range,
-                      reserve_area_size,
-                      initial_commit_area_size,
-                      NOT_EXECUTABLE);
+    VerifyMemoryChunk(isolate, heap, code_range, reserve_area_size,
+                      initial_commit_area_size, NOT_EXECUTABLE,
+                      heap->old_space());
     delete code_range;
 
     // Without a valid CodeRange, i.e., omitting SetUp.
     code_range = new CodeRange(isolate);
-    VerifyMemoryChunk(isolate,
-                      heap,
-                      code_range,
-                      reserve_area_size,
-                      initial_commit_area_size,
-                      EXECUTABLE);
+    VerifyMemoryChunk(isolate, heap, code_range, reserve_area_size,
+                      initial_commit_area_size, EXECUTABLE, heap->code_space());
 
-    VerifyMemoryChunk(isolate,
-                      heap,
-                      code_range,
-                      reserve_area_size,
-                      initial_commit_area_size,
-                      NOT_EXECUTABLE);
+    VerifyMemoryChunk(isolate, heap, code_range, reserve_area_size,
+                      initial_commit_area_size, NOT_EXECUTABLE,
+                      heap->old_space());
     delete code_range;
   }
 }
@@ -224,7 +208,7 @@ TEST(MemoryAllocator) {
 
   {
     int total_pages = 0;
-    OldSpace faked_space(heap, OLD_SPACE, NOT_EXECUTABLE);
+    OldSpace faked_space(heap);
     Page* first_page = memory_allocator->AllocatePage(
         faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
         NOT_EXECUTABLE);
@@ -280,7 +264,7 @@ TEST(NewSpace) {
   }
 
   new_space.TearDown();
-  memory_allocator->unmapper()->WaitUntilCompleted();
+  memory_allocator->unmapper()->EnsureUnmappingCompleted();
   memory_allocator->TearDown();
   delete memory_allocator;
 }
@@ -293,7 +277,7 @@ TEST(OldSpace) {
   CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
-  OldSpace* s = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
+  OldSpace* s = new OldSpace(heap);
   CHECK_NOT_NULL(s);
 
   CHECK(s->SetUp());
@@ -381,8 +365,9 @@ TEST(SizeOfInitialHeap) {
   // Freshly initialized VM gets by with the snapshot size (which is below
   // kMaxInitialSizePerSpace per space).
   Heap* heap = isolate->heap();
-  int page_count[LAST_PAGED_SPACE + 1] = {0, 0, 0, 0};
-  for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
+  int page_count[LAST_GROWABLE_PAGED_SPACE + 1] = {0, 0, 0, 0};
+  for (int i = FIRST_GROWABLE_PAGED_SPACE; i <= LAST_GROWABLE_PAGED_SPACE;
+       i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
     if (i == CODE_SPACE && i::FLAG_debug_code) continue;
 
@@ -394,7 +379,8 @@ TEST(SizeOfInitialHeap) {
   // Executing the empty script gets by with the same number of pages, i.e.,
   // requires no extra space.
   CompileRun("/*empty*/");
-  for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
+  for (int i = FIRST_GROWABLE_PAGED_SPACE; i <= LAST_GROWABLE_PAGED_SPACE;
+       i++) {
     // Skip CODE_SPACE, since we had to generate code even for an empty script.
     if (i == CODE_SPACE) continue;
     CHECK_EQ(page_count[i], isolate->heap()->paged_space(i)->CountTotalPages());

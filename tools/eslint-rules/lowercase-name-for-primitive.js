@@ -12,9 +12,7 @@
 const astSelector = 'NewExpression[callee.property.name="TypeError"]' +
                     '[arguments.0.value="ERR_INVALID_ARG_TYPE"]';
 
-const primitives = [
-  'number', 'string', 'boolean', 'null', 'undefined'
-];
+const primitives = [ 'number', 'string', 'boolean', 'null', 'undefined' ];
 
 module.exports = function(context) {
   function checkNamesArgument(node) {

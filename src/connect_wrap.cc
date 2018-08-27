@@ -13,12 +13,6 @@ using v8::Object;
 ConnectWrap::ConnectWrap(Environment* env,
     Local<Object> req_wrap_obj,
     AsyncWrap::ProviderType provider) : ReqWrap(env, req_wrap_obj, provider) {
-  Wrap(req_wrap_obj, this);
-}
-
-
-ConnectWrap::~ConnectWrap() {
-  ClearWrap(object());
 }
 
 }  // namespace node

@@ -5,7 +5,7 @@
 #ifndef V8_DEBUG_DEBUG_INTERFACE_H_
 #define V8_DEBUG_DEBUG_INTERFACE_H_
 
-#include "include/v8-debug.h"
+#include "include/v8-inspector.h"
 #include "include/v8-util.h"
 #include "include/v8.h"
 
@@ -29,6 +29,9 @@ namespace debug {
 
 void SetContextId(Local<Context> context, int id);
 int GetContextId(Local<Context> context);
+
+void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
+v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
 /**
  * Debugger is running in its own context which is entered while debugger
@@ -120,8 +123,11 @@ bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
  * \param data the parameter provided during callback installation.
  */
 typedef void (*OutOfMemoryCallback)(void* data);
-void SetOutOfMemoryCallback(Isolate* isolate, OutOfMemoryCallback callback,
-                            void* data);
+
+V8_DEPRECATED("Use v8::Isolate::AddNearHeapLimitCallback",
+              void SetOutOfMemoryCallback(Isolate* isolate,
+                                          OutOfMemoryCallback callback,
+                                          void* data));
 
 /**
  * Native wrapper around v8::internal::Script object.
@@ -167,6 +173,7 @@ class WasmScript : public Script {
   std::pair<int, int> GetFunctionRange(int function_index) const;
 
   debug::WasmDisassembly DisassembleFunction(int function_index) const;
+  uint32_t GetFunctionHash(int function_index);
 };
 
 void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
@@ -181,12 +188,10 @@ class DebugDelegate {
                                     bool is_blackboxed) {}
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
-  // |break_points_hit| contains installed by JS debug API breakpoint objects.
   // |inspector_break_points_hit| contains id of breakpoints installed with
   // debug::Script::SetBreakpoint API.
   virtual void BreakProgramRequested(
       v8::Local<v8::Context> paused_context, v8::Local<v8::Object> exec_state,
-      v8::Local<v8::Value> break_points_hit,
       const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Object> exec_state,
@@ -206,10 +211,6 @@ void ResetBlackboxedStateCache(Isolate* isolate,
                                v8::Local<debug::Script> script);
 
 int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
-
-v8::MaybeLocal<v8::Array> EntriesPreview(Isolate* isolate,
-                                         v8::Local<v8::Value> value,
-                                         bool* is_key_value);
 
 enum Builtin {
   kObjectKeys,
@@ -435,6 +436,9 @@ class ScopeIterator {
   virtual ScopeType GetType() = 0;
   virtual v8::Local<v8::Object> GetObject() = 0;
   virtual v8::Local<v8::Function> GetFunction() = 0;
+  virtual v8::Local<v8::Value> GetFunctionDebugName() = 0;
+  virtual int GetScriptId() = 0;
+  virtual bool HasLocationInfo() = 0;
   virtual debug::Location GetStartLocation() = 0;
   virtual debug::Location GetEndLocation() = 0;
 
@@ -458,7 +462,7 @@ class StackTraceIterator {
   virtual int GetContextId() const = 0;
   virtual v8::MaybeLocal<v8::Value> GetReceiver() const = 0;
   virtual v8::Local<v8::Value> GetReturnValue() const = 0;
-  virtual v8::Local<v8::String> GetFunctionName() const = 0;
+  virtual v8::Local<v8::String> GetFunctionDebugName() const = 0;
   virtual v8::Local<v8::debug::Script> GetScript() const = 0;
   virtual debug::Location GetSourceLocation() const = 0;
   virtual v8::Local<v8::Function> GetFunction() const = 0;
@@ -499,6 +503,17 @@ int GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
                                 v8::Local<v8::Name> name);
 
 int64_t GetNextRandomInt64(v8::Isolate* isolate);
+
+v8::MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
+                                         v8::Local<v8::String> source,
+                                         bool throw_on_side_effect);
+
+int GetDebuggingId(v8::Local<v8::Function> function);
+
+bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
+                           v8::Local<v8::String> condition, BreakpointId* id);
+
+v8::Platform* GetCurrentPlatform();
 
 }  // namespace debug
 }  // namespace v8

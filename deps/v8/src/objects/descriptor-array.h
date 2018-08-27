@@ -143,13 +143,14 @@ class DescriptorArray : public FixedArray {
   static const int kEntrySize = 3;
 
   // Print all the descriptors.
-  void PrintDescriptors(std::ostream& os);  // NOLINT
+  void PrintDescriptors(std::ostream& os);
   void PrintDescriptorDetails(std::ostream& os, int descriptor,
                               PropertyDetails::PrintMode mode);
 
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   // For our gdb macros, we should perhaps change these in the future.
   void Print();
+  void DescriptorArrayPrint(std::ostream& os);
 #endif
 
   DECL_VERIFIER(DescriptorArray)
@@ -164,20 +165,20 @@ class DescriptorArray : public FixedArray {
 
   // Returns the fixed array length required to hold number_of_descriptors
   // descriptors.
-  static int LengthFor(int number_of_descriptors) {
+  static constexpr int LengthFor(int number_of_descriptors) {
     return ToKeyIndex(number_of_descriptors);
   }
 
-  static int ToDetailsIndex(int descriptor_number) {
+  static constexpr int ToDetailsIndex(int descriptor_number) {
     return kFirstIndex + (descriptor_number * kEntrySize) + kEntryDetailsIndex;
   }
 
   // Conversion from descriptor number to array indices.
-  static int ToKeyIndex(int descriptor_number) {
+  static constexpr int ToKeyIndex(int descriptor_number) {
     return kFirstIndex + (descriptor_number * kEntrySize) + kEntryKeyIndex;
   }
 
-  static int ToValueIndex(int descriptor_number) {
+  static constexpr int ToValueIndex(int descriptor_number) {
     return kFirstIndex + (descriptor_number * kEntrySize) + kEntryValueIndex;
   }
 

@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -27,11 +34,21 @@
 # Apple A7	0.92		5.62
 # Cortex-A53	1.01		8.39
 # Cortex-A57	1.17		7.61
+# Denver	0.71		6.02
+# Mongoose	1.10		8.06
 #
 # (*)	presented for reference/comparison purposes;
 
 $flavour = shift;
-open STDOUT,">".shift;
+$output  = shift;
+
+$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
+( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
+die "can't locate arm-xlate.pl";
+
+open OUT,"| \"$^X\" $xlate $flavour $output";
+*STDOUT=*OUT;
 
 $Xi="x0";	# argument block
 $Htbl="x1";
@@ -47,10 +64,15 @@ my ($t0,$t1,$t2,$xC2,$H,$Hhl,$H2)=map("q$_",(8..14));
 $code=<<___;
 #include "arm_arch.h"
 
+#if __ARM_MAX_ARCH__>=7
 .text
 ___
 $code.=".arch	armv8-a+crypto\n"	if ($flavour =~ /64/);
-$code.=".fpu	neon\n.code	32\n"	if ($flavour !~ /64/);
+$code.=<<___				if ($flavour !~ /64/);
+.fpu	neon
+.code	32
+#undef	__thumb2__
+___
 
 ################################################################################
 # void gcm_init_v8(u128 Htable[16],const u64 H[2]);
@@ -330,6 +352,7 @@ ___
 $code.=<<___;
 .asciz  "GHASH for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
 .align  2
+#endif
 ___
 
 if ($flavour =~ /64/) {			######## 64-bit code

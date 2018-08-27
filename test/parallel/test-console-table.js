@@ -17,7 +17,10 @@ function test(data, only, expected) {
     only = undefined;
   }
   console.table(data, only);
-  assert.strictEqual(queue.shift(), expected.trimLeft());
+  assert.deepStrictEqual(
+    queue.shift().split('\n'),
+    expected.trimLeft().split('\n')
+  );
 }
 
 common.expectsError(() => console.table([], false), {
@@ -29,6 +32,7 @@ test(undefined, 'undefined\n');
 test(false, 'false\n');
 test('hi', 'hi\n');
 test(Symbol(), 'Symbol()\n');
+test(function() {}, '[Function]\n');
 
 test([1, 2, 3], `
 ┌─────────┬────────┐
@@ -41,13 +45,13 @@ test([1, 2, 3], `
 `);
 
 test([Symbol(), 5, [10]], `
-┌─────────┬──────────┐
-│ (index) │  Values  │
-├─────────┼──────────┤
-│    0    │ Symbol() │
-│    1    │    5     │
-│    2    │  [ 10 ]  │
-└─────────┴──────────┘
+┌─────────┬────┬──────────┐
+│ (index) │ 0  │  Values  │
+├─────────┼────┼──────────┤
+│    0    │    │ Symbol() │
+│    1    │    │    5     │
+│    2    │ 10 │          │
+└─────────┴────┴──────────┘
 `);
 
 test([undefined, 5], `
@@ -116,6 +120,26 @@ test(new Map([[1, 1], [2, 2], [3, 3]]).entries(), `
 └───────────────────┴─────┴────────┘
 `);
 
+test(new Map([[1, 1], [2, 2], [3, 3]]).values(), `
+┌───────────────────┬────────┐
+│ (iteration index) │ Values │
+├───────────────────┼────────┤
+│         0         │   1    │
+│         1         │   2    │
+│         2         │   3    │
+└───────────────────┴────────┘
+`);
+
+test(new Map([[1, 1], [2, 2], [3, 3]]).keys(), `
+┌───────────────────┬────────┐
+│ (iteration index) │ Values │
+├───────────────────┼────────┤
+│         0         │   1    │
+│         1         │   2    │
+│         2         │   3    │
+└───────────────────┴────────┘
+`);
+
 test(new Set([1, 2, 3]).values(), `
 ┌───────────────────┬────────┐
 │ (iteration index) │ Values │
@@ -182,10 +206,10 @@ test({ a: undefined }, ['x'], `
 `);
 
 test([], `
-┌─────────┬────────┐
-│ (index) │ Values │
-├─────────┼────────┤
-└─────────┴────────┘
+┌─────────┐
+│ (index) │
+├─────────┤
+└─────────┘
 `);
 
 test(new Map(), `
@@ -193,4 +217,13 @@ test(new Map(), `
 │ (iteration index) │ Key │ Values │
 ├───────────────────┼─────┼────────┤
 └───────────────────┴─────┴────────┘
+`);
+
+test([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], `
+┌─────────┬─────┬─────┐
+│ (index) │  a  │  b  │
+├─────────┼─────┼─────┤
+│    0    │  1  │ 'Y' │
+│    1    │ 'Z' │  2  │
+└─────────┴─────┴─────┘
 `);

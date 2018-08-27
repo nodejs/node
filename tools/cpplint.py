@@ -53,6 +53,11 @@ import string
 import sys
 import unicodedata
 
+try:
+  xrange
+except NameError:
+  xrange = range
+
 
 logger = logging.getLogger('testrunner')
 
@@ -526,6 +531,10 @@ _SEARCH_C_FILE = re.compile(r'\b(?:LINT_C_FILE|'
 _SEARCH_KERNEL_FILE = re.compile(r'\b(?:LINT_KERNEL_FILE)')
 
 _NULL_TOKEN_PATTERN = re.compile(r'\bNULL\b')
+
+_RIGHT_LEANING_POINTER_PATTERN = re.compile(r'[^=|(,\s><);&?:}]'
+                                            r'(?<!(sizeof|return))'
+                                            r'\s\*[a-zA-z_][0-9a-zA-z_]*')
 
 _regexp_compile_cache = {}
 
@@ -1889,6 +1898,21 @@ def CheckForBadCharacters(filename, lines, error):
             'Line contains invalid UTF-8 (or Unicode replacement character).')
     if '\0' in line:
       error(filename, linenum, 'readability/nul', 5, 'Line contains NUL byte.')
+
+
+def CheckInlineHeader(filename, include_state, error):
+  """Logs an error if both a header and its inline variant are included."""
+
+  all_headers = dict(item for sublist in include_state.include_list
+                     for item in sublist)
+  bad_headers = set('%s.h' % name[:-6] for name in all_headers.keys()
+                    if name.endswith('-inl.h'))
+  bad_headers &= set(all_headers.keys())
+
+  for name in bad_headers:
+    err =  '%s includes both %s and %s-inl.h' % (filename, name, name)
+    linenum = all_headers[name]
+    error(filename, linenum, 'build/include', 5, err)
 
 
 def CheckForNewlineAtEOF(filename, lines, error):
@@ -4179,6 +4203,28 @@ def CheckNullTokens(filename, clean_lines, linenum, error):
     error(filename, linenum, 'readability/null_usage', 2,
           'Use nullptr instead of NULL')
 
+def CheckLeftLeaningPointer(filename, clean_lines, linenum, error):
+  """Check for left-leaning pointer placement.
+
+  Args:
+    filename: The name of the current file.
+    clean_lines: A CleansedLines instance containing the file.
+    linenum: The number of the line to check.
+    error: The function to call with any errors found.
+  """
+  line = clean_lines.elided[linenum]
+
+  # Avoid preprocessor lines
+  if Match(r'^\s*#', line):
+    return
+
+  if '/*' in line or '*/' in line:
+    return
+
+  for match in _RIGHT_LEANING_POINTER_PATTERN.finditer(line):
+    error(filename, linenum, 'readability/null_usage', 2,
+          'Use left leaning pointer instead of right leaning')
+
 def GetLineWidth(line):
   """Determines the width of the line in column positions.
 
@@ -4229,6 +4275,10 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   if line.find('\t') != -1:
     error(filename, linenum, 'whitespace/tab', 1,
           'Tab found; better to use spaces')
+
+  if line.find('template<') != -1:
+    error(filename, linenum, 'whitespace/template', 1,
+          'Leave a single space after template, as in `template <...>`')
 
   # One or three blank spaces at the beginning of the line is weird; it's
   # hard to reconcile that with 2-space indents.
@@ -4317,6 +4367,7 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   CheckCheck(filename, clean_lines, linenum, error)
   CheckAltTokens(filename, clean_lines, linenum, error)
   CheckNullTokens(filename, clean_lines, linenum, error)
+  CheckLeftLeaningPointer(filename, clean_lines, linenum, error)
   classinfo = nesting_state.InnermostClass()
   if classinfo:
     CheckSectionSpacing(filename, clean_lines, classinfo, linenum, error)
@@ -5829,6 +5880,8 @@ def ProcessFileData(filename, file_extension, lines, error,
   CheckForBadCharacters(filename, lines, error)
 
   CheckForNewlineAtEOF(filename, lines, error)
+
+  CheckInlineHeader(filename, include_state, error)
 
 def ProcessConfigOverrides(filename):
   """ Loads the configuration files and processes the config overrides.

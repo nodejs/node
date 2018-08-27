@@ -15,7 +15,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
  public:
   enum Mode { kGeneralInlining, kRestrictedInlining, kStressInlining };
   JSInliningHeuristic(Editor* editor, Mode mode, Zone* local_zone,
-                      CompilationInfo* info, JSGraph* jsgraph,
+                      OptimizedCompilationInfo* info, JSGraph* jsgraph,
                       SourcePositionTable* source_positions)
       : AdvancedReducer(editor),
         mode_(mode),

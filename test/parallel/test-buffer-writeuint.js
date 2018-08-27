@@ -14,7 +14,12 @@ const assert = require('assert');
 { // OOB
   const data = Buffer.alloc(8);
   ['UInt8', 'UInt16BE', 'UInt16LE', 'UInt32BE', 'UInt32LE'].forEach((fn) => {
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+
+    // Verify that default offset works fine.
+    data[`write${fn}`](23, undefined);
+    data[`write${fn}`](23);
+
+    ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {
       assert.throws(
         () => data[`write${fn}`](23, o),
         { code: 'ERR_INVALID_ARG_TYPE' });
@@ -105,6 +110,17 @@ const assert = require('assert');
   assert.ok(data.equals(new Uint8Array([0x6d, 0x6d, 0x6d, 0x0a, 0xf9, 0xe7])));
 }
 
+// Test 48 bit
+{
+  const value = 0x1234567890ab;
+  const data = Buffer.allocUnsafe(6);
+  data.writeUIntBE(value, 0, 6);
+  assert.ok(data.equals(new Uint8Array([0x12, 0x34, 0x56, 0x78, 0x90, 0xab])));
+
+  data.writeUIntLE(value, 0, 6);
+  assert.ok(data.equals(new Uint8Array([0xab, 0x90, 0x78, 0x56, 0x34, 0x12])));
+}
+
 // Test UInt
 {
   const data = Buffer.alloc(8);
@@ -112,19 +128,19 @@ const assert = require('assert');
 
   // Check byteLength.
   ['writeUIntBE', 'writeUIntLE'].forEach((fn) => {
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+    ['', '0', null, {}, [], () => {}, true, false, undefined].forEach((bl) => {
       assert.throws(
-        () => data[fn](23, 0, o),
+        () => data[fn](23, 0, bl),
         { code: 'ERR_INVALID_ARG_TYPE' });
     });
 
-    [Infinity, -1].forEach((offset) => {
+    [Infinity, -1].forEach((byteLength) => {
       assert.throws(
-        () => data[fn](23, 0, offset),
+        () => data[fn](23, 0, byteLength),
         {
           code: 'ERR_OUT_OF_RANGE',
           message: 'The value of "byteLength" is out of range. ' +
-                   `It must be >= 1 and <= 6. Received ${offset}`
+                   `It must be >= 1 and <= 6. Received ${byteLength}`
         }
       );
     });
@@ -153,7 +169,7 @@ const assert = require('assert');
                  `It must be >= 0 and <= ${val - 1}. Received ${val}`
       });
 
-      ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+      ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {
         assert.throws(
           () => data[fn](23, o, i),
           {

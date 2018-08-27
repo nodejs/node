@@ -9,10 +9,20 @@ var figures = require('figures');
  * @param {String} line   Separation line content (facultative)
  */
 
-var Separator = module.exports = function (line) {
-  this.type = 'separator';
-  this.line = chalk.dim(line || new Array(15).join(figures.line));
-};
+class Separator {
+  constructor(line) {
+    this.type = 'separator';
+    this.line = chalk.dim(line || new Array(15).join(figures.line));
+  }
+
+  /**
+   * Stringify separator
+   * @return {String} the separator display string
+   */
+  toString() {
+    return this.line;
+  }
+}
 
 /**
  * Helper function returning false if object is a separator
@@ -20,15 +30,8 @@ var Separator = module.exports = function (line) {
  * @return {Boolean}    `false` if object is a separator
  */
 
-Separator.exclude = function (obj) {
+Separator.exclude = function(obj) {
   return obj.type !== 'separator';
 };
 
-/**
- * Stringify separator
- * @return {String} the separator display string
- */
-
-Separator.prototype.toString = function () {
-  return this.line;
-};
+module.exports = Separator;

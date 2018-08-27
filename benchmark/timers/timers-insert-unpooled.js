@@ -3,21 +3,27 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  millions: [1],
+  n: [1e6],
+  direction: ['start', 'end']
 });
 
-function main({ millions }) {
-  const iterations = millions * 1e6;
-
+function main({ direction, n }) {
   const timersList = [];
 
+  var i;
   bench.start();
-  for (var i = 0; i < iterations; i++) {
-    timersList.push(setTimeout(cb, i + 1));
+  if (direction === 'start') {
+    for (i = 1; i <= n; i++) {
+      timersList.push(setTimeout(cb, i));
+    }
+  } else {
+    for (i = n; i > 0; i--) {
+      timersList.push(setTimeout(cb, i));
+    }
   }
-  bench.end(iterations / 1e6);
+  bench.end(n);
 
-  for (var j = 0; j < iterations + 1; j++) {
+  for (var j = 0; j < n; j++) {
     clearTimeout(timersList[j]);
   }
 }

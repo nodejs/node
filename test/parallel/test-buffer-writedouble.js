@@ -67,10 +67,19 @@ assert.strictEqual(buffer.readDoubleLE(8), -Infinity);
 buffer.writeDoubleBE(NaN, 0);
 buffer.writeDoubleLE(NaN, 8);
 
-assert.ok(buffer.equals(new Uint8Array([
-  0x7F, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x7F
-])));
+// JS only knows a single NaN but there exist two platform specific
+// implementations. Therefore, allow both quiet and signalling NaNs.
+if (buffer[1] === 0xF7) {
+  assert.ok(buffer.equals(new Uint8Array([
+    0x7F, 0xF7, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF7, 0x7F
+  ])));
+} else {
+  assert.ok(buffer.equals(new Uint8Array([
+    0x7F, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x7F
+  ])));
+}
 
 assert.ok(Number.isNaN(buffer.readDoubleBE(0)));
 assert.ok(Number.isNaN(buffer.readDoubleLE(8)));
@@ -80,6 +89,11 @@ assert.ok(Number.isNaN(buffer.readDoubleLE(8)));
   const small = Buffer.allocUnsafe(1);
 
   ['writeDoubleLE', 'writeDoubleBE'].forEach((fn) => {
+
+    // Verify that default offset works fine.
+    buffer[fn](23, undefined);
+    buffer[fn](23);
+
     assert.throws(
       () => small[fn](11.11, 0),
       {
@@ -88,7 +102,7 @@ assert.ok(Number.isNaN(buffer.readDoubleLE(8)));
         message: 'Attempt to write outside buffer bounds'
       });
 
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((off) => {
+    ['', '0', null, {}, [], () => {}, true, false].forEach((off) => {
       assert.throws(
         () => small[fn](23, off),
         { code: 'ERR_INVALID_ARG_TYPE' });

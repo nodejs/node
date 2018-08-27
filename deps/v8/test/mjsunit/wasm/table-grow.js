@@ -195,13 +195,20 @@ let id = (() => {  // identity exported function
     exp_add: exp_add, exp_inc: exp_inc, exp_ten: exp_ten}});
 
   let table = instance.exports.table;
-  exp_a = table.get(0);
-  exp_i = table.get(1);
-  exp_t = table.get(2);
 
-  assertEquals(exp_a(1, 4), 5);
-  assertEquals(exp_i(8), 9);
-  assertEquals(exp_t(0), 10);
+  print("   initial check");
+
+  function checkTableFunc(index, expected, ...args) {
+    let f = table.get(index);
+    print("  table[" + index + "] = " + f);
+    result = f(...args);
+    print("    -> expect " + expected + ", got " + result);
+    assertEquals(expected, result);
+  }
+
+  checkTableFunc(0, 5, 1, 4);
+  checkTableFunc(1, 9, 8);
+  checkTableFunc(2, 10, 0);
 
   let builder1 = new WasmModuleBuilder();
   let g = builder1.addImportedGlobal("q", "base", kWasmI32);
@@ -213,23 +220,22 @@ let id = (() => {  // identity exported function
   let module1 = new WebAssembly.Module(builder1.toBuffer());
 
   function verifyTableFuncs(base) {
-    assertEquals(exp_a(1, 4), 5);
-    assertEquals(exp_i(8), 9);
-    assertEquals(exp_t(0), 10);
+    print("  base = " + base);
+    checkTableFunc(0, 5, 1, 4);
+    checkTableFunc(1, 9, 8);
+    checkTableFunc(2, 10, 0);
 
-    mul = table.get(base);
-    add = table.get(base + 1);
-    sub = table.get(base + 2);
-
-    assertEquals(20, mul(10, 2));
-    assertEquals(12, add(10, 2));
-    assertEquals(8, sub(10, 2));
+    checkTableFunc(base+0, 20, 10, 2); // mul
+    checkTableFunc(base+1, 12, 10, 2); // add
+    checkTableFunc(base+2,  8, 10, 2); // sub
   }
 
   for (let i = 3; i < 10; i++) {
     let instance1 = new WebAssembly.Instance(module1, {q: {base: i, table: table}});
     verifyTableFuncs(i);
-    assertEquals(table.length, table.grow(3));
+    var prev = table.length;
+    assertEquals(prev,     table.grow(3));
+    assertEquals(prev + 3, table.length);
     verifyTableFuncs(i);
 
     assertThrows(() => table.set(table.length, id), RangeError);
@@ -286,7 +292,7 @@ let id = (() => {  // identity exported function
       assertInvalidFunction = function(s) {
         assertThrows(
             () => instances[i].exports.main(s), WebAssembly.RuntimeError,
-            /invalid function/);
+            kTrapMsgs[kTrapFuncInvalid]);
       }
       assertInvalidFunction(size);
       assertInvalidFunction(size + 1);

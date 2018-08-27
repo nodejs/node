@@ -5,7 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = process.binding('fs');
-const { stringToFlags } = require('internal/fs');
+const { stringToFlags } = require('internal/fs/utils');
 
 // Verifies that the FileHandle object is garbage collected and that a
 // warning is emitted if it is not closed.

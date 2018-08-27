@@ -7,74 +7,73 @@
 // Flags: --harmony-bigint
 
 var data = [{
-  a: "-609648ccf253976b12f6b6c8e20790c17ef6b89ea9f536267783607cf465b1ca",
-  r: "-609648ccf253976b12f6b6c8e20790c17ef6b89ea9f536267783607cf465b1cb"
+  a: 0x26ffcdbd233a53e7ca4612f2b02e1f2c1d885c3177e7n,
+  r: 0x26ffcdbd233a53e7ca4612f2b02e1f2c1d885c3177e6n
 }, {
-  a: "-6e4c39cdd2c666e32cf2fd3c53a20eeb725e7578af97d42",
-  r: "-6e4c39cdd2c666e32cf2fd3c53a20eeb725e7578af97d43"
+  a: 0xf2a29a35193377a223ef0d6d98db95eeb24a4165f288fd2b4an,
+  r: 0xf2a29a35193377a223ef0d6d98db95eeb24a4165f288fd2b49n
 }, {
-  a: "34c93e1c",
-  r: "34c93e1b"
+  a: 0x454d22e29e6104n,
+  r: 0x454d22e29e6103n
 }, {
-  a: "-db3032",
-  r: "-db3033"
+  a: -0xb00874640d30e6fce6bf79508378ed17e44dacb48a4200bce536cec462b3c2n,
+  r: -0xb00874640d30e6fce6bf79508378ed17e44dacb48a4200bce536cec462b3c3n
 }, {
-  a: "8e658ffacbefbdec5",
-  r: "8e658ffacbefbdec4"
+  a: 0x4c151a24d765249c2bab4a1915b24b80ae437417c5n,
+  r: 0x4c151a24d765249c2bab4a1915b24b80ae437417c4n
 }, {
-  a: "-d321033ec94d6a75f",
-  r: "-d321033ec94d6a760"
+  a: -0xcbd476b1f9ca08ff820941n,
+  r: -0xcbd476b1f9ca08ff820942n
 }, {
-  a: "-286017f718d6118b581ec4357e456ce6d12c01aed9a32ff0cc048d",
-  r: "-286017f718d6118b581ec4357e456ce6d12c01aed9a32ff0cc048e"
+  a: -0xe848e5830fa1035322b39c2cdd031109ca8n,
+  r: -0xe848e5830fa1035322b39c2cdd031109ca9n
 }, {
-  a: "c0",
-  r: "bf"
+  a: -0x4d58c5e190f0ebac5bb36ca4d214069f69726c63a5n,
+  r: -0x4d58c5e190f0ebac5bb36ca4d214069f69726c63a6n
 }, {
-  a: "9f9577e008a6f46f7709f71362176ebe23d19eb9e58a41de6f2631b18f2ca",
-  r: "9f9577e008a6f46f7709f71362176ebe23d19eb9e58a41de6f2631b18f2c9"
+  a: 0x9b396n,
+  r: 0x9b395n
 }, {
-  a: "-9d4294590df0aa8ea46a5c2a3d186a6afcc00c6ebb072752",
-  r: "-9d4294590df0aa8ea46a5c2a3d186a6afcc00c6ebb072753"
+  a: 0x593921fe8b9d4906cn,
+  r: 0x593921fe8b9d4906bn
 }, {
-  a: "-4bc2aed1641151db908c0eb21aa46d8b406803dc0f71d66671322d59babf10c2",
-  r: "-4bc2aed1641151db908c0eb21aa46d8b406803dc0f71d66671322d59babf10c3"
+  a: -0xe127928c7cecd6e9ca94d98e858f9c76a0fccac62203aac7710cef1f9e352n,
+  r: -0xe127928c7cecd6e9ca94d98e858f9c76a0fccac62203aac7710cef1f9e353n
 }, {
-  a: "-1dfb3929632fbba39f60cabdc27",
-  r: "-1dfb3929632fbba39f60cabdc28"
+  a: 0xeb14cd952d06eb6fc613016f73b7339cbdd010n,
+  r: 0xeb14cd952d06eb6fc613016f73b7339cbdd00fn
 }, {
-  a: "c0d409943c093aec43ba99a33ef2bb54574ecdc7cccf6547ab44eafb27",
-  r: "c0d409943c093aec43ba99a33ef2bb54574ecdc7cccf6547ab44eafb26"
+  a: -0xfdeab6a3dbd603137f680413fecc9e1c80n,
+  r: -0xfdeab6a3dbd603137f680413fecc9e1c81n
 }, {
-  a: "3d148dcffe94f859c80b38c4",
-  r: "3d148dcffe94f859c80b38c3"
+  a: -0x7e9abbdfad170df2129dae8e15088a02b9ba99276a351a05n,
+  r: -0x7e9abbdfad170df2129dae8e15088a02b9ba99276a351a06n
 }, {
-  a: "0",
-  r: "-1"
+  a: 0x7b98f57n,
+  r: 0x7b98f56n
 }, {
-  a: "d659f6507e0ac2e653bdb7c3fb38c1514dd33619a9a0c87fcb69b22",
-  r: "d659f6507e0ac2e653bdb7c3fb38c1514dd33619a9a0c87fcb69b21"
+  a: -0x919751deb470faa60d7c5c995c8bed72f9542d710fbbf1341n,
+  r: -0x919751deb470faa60d7c5c995c8bed72f9542d710fbbf1342n
 }, {
-  a: "14efe",
-  r: "14efd"
+  a: -0xc5541d89b118a88afdd187228440427c8a24f9d9bn,
+  r: -0xc5541d89b118a88afdd187228440427c8a24f9d9cn
 }, {
-  a: "-f2df301948cd17ff391a6589a67551c00679687ba5",
-  r: "-f2df301948cd17ff391a6589a67551c00679687ba6"
+  a: -0xe6c88a170595fn,
+  r: -0xe6c88a1705960n
 }, {
-  a: "-e",
-  r: "-f"
+  a: -0xa1ffbfa388c332804dc4dc973n,
+  r: -0xa1ffbfa388c332804dc4dc974n
 }, {
-  a: "-a09cf77fea7af1767695c978af13fdb62f4f040b6fb803625fb124cc99139cddadd",
-  r: "-a09cf77fea7af1767695c978af13fdb62f4f040b6fb803625fb124cc99139cddade"
+  a: 0x67b768ce0c415127a77402861d1901dd7f60a8624ebea6ecafe03adc3cen,
+  r: 0x67b768ce0c415127a77402861d1901dd7f60a8624ebea6ecafe03adc3cdn
 }];
 
 var error_count = 0;
 for (var i = 0; i < data.length; i++) {
   var d = data[i];
-  var a = BigInt.parseInt(d.a, 16);
-  var r = --a;
-  if (d.r !== r.toString(16)) {
-    print("Input:    " + a.toString(16));
+  var r = --d.a;
+  if (d.r !== r) {
+    print("Input:    " + d.a.toString(16));
     print("Result:   " + r.toString(16));
     print("Expected: " + d.r);
     error_count++;

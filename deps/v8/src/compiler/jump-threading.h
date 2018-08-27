@@ -30,4 +30,4 @@ class JumpThreading {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_JUMP_THREADING_H
+#endif  // V8_COMPILER_JUMP_THREADING_H_

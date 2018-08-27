@@ -1142,6 +1142,8 @@ TEST(SubclassArrayBuiltinNoInlineNew) {
 TEST(SubclassTypedArrayBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
   FLAG_always_opt = false;
+  // Make BigInt64Array/BigUint64Array available for testing.
+  FLAG_harmony_bigint = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 

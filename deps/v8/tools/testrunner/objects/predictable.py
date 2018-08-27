@@ -4,6 +4,7 @@
 
 from ..local import statusfile
 from ..outproc import base as outproc_base
+from ..testproc import base as testproc_base
 from ..testproc.result import Result
 
 
@@ -15,11 +16,7 @@ from ..testproc.result import Result
 
 
 def get_outproc(test):
-  output_proc = test.output_proc
-  if output_proc.negative or statusfile.FAIL in test.expected_outcomes:
-    # TODO(majeski): Skip these tests instead of having special outproc.
-    return NeverUnexpectedOutputOutProc(output_proc)
-  return OutProc(output_proc)
+  return OutProc(test.output_proc)
 
 
 class OutProc(outproc_base.BaseOutProc):
@@ -30,9 +27,6 @@ class OutProc(outproc_base.BaseOutProc):
   def __init__(self, _outproc):
     super(OutProc, self).__init__()
     self._outproc = _outproc
-
-  def process(self, output):
-    return Result(self.has_unexpected_output(output), output)
 
   def has_unexpected_output(self, output):
     return output.exit_code != 0
@@ -49,9 +43,7 @@ class OutProc(outproc_base.BaseOutProc):
     return self._outproc.expected_outcomes
 
 
-class NeverUnexpectedOutputOutProc(OutProc):
-  """Output processor wrapper for tests that we will return False for
-  has_unexpected_output in the predictable mode.
-  """
-  def has_unexpected_output(self, output):
-    return False
+class PredictableFilterProc(testproc_base.TestProcFilter):
+  def _filter(self, test):
+    return (statusfile.FAIL in test.expected_outcomes or
+            test.output_proc.negative)

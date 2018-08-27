@@ -88,6 +88,10 @@ const assert = require('assert');
 const tick = require('./tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
+
+if (!common.isMainThread)
+  common.skip('Worker bootstrapping works differently -> different timing');
+
 // Include "Unknown"s because hook2 will not be able to identify
 // the type of the first Immediate  since it will miss its `init` invocation.
 const types = [ 'Immediate', 'Unknown' ];

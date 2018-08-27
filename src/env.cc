@@ -1,8 +1,12 @@
 #include "node_internals.h"
 #include "async_wrap.h"
+#include "v8-profiler.h"
 #include "node_buffer.h"
 #include "node_platform.h"
 #include "node_file.h"
+#include "node_context_data.h"
+#include "node_worker.h"
+#include "tracing/agent.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -10,6 +14,7 @@
 namespace node {
 
 using v8::Context;
+using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
@@ -21,64 +26,80 @@ using v8::Private;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
+using v8::Symbol;
+using v8::TryCatch;
 using v8::Value;
+using worker::Worker;
+
+#define kTraceCategoryCount 1
+
+int const Environment::kNodeContextTag = 0x6e6f64;
+void* Environment::kNodeContextTagPtr = const_cast<void*>(
+    static_cast<const void*>(&Environment::kNodeContextTag));
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
                          uint32_t* zero_fill_field) :
-
-// Create string and private symbol properties as internalized one byte strings.
-//
-// Internalized because it makes property lookups a little faster and because
-// the string is created in the old space straight away.  It's going to end up
-// in the old space sooner or later anyway but now it doesn't go through
-// v8::Eternal's new space handling first.
-//
-// One byte because our strings are ASCII and we can safely skip V8's UTF-8
-// decoding step.  It's a one-time cost, but why pay it when you don't have to?
-#define V(PropertyName, StringValue)                                          \
-    PropertyName ## _(                                                        \
-        isolate,                                                              \
-        Private::New(                                                         \
-            isolate,                                                          \
-            String::NewFromOneByte(                                           \
-                isolate,                                                      \
-                reinterpret_cast<const uint8_t*>(StringValue),                \
-                v8::NewStringType::kInternalized,                             \
-                sizeof(StringValue) - 1).ToLocalChecked())),
-  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
-#undef V
-#define V(PropertyName, StringValue)                                          \
-    PropertyName ## _(                                                        \
-        isolate,                                                              \
-        String::NewFromOneByte(                                               \
-            isolate,                                                          \
-            reinterpret_cast<const uint8_t*>(StringValue),                    \
-            v8::NewStringType::kInternalized,                                 \
-            sizeof(StringValue) - 1).ToLocalChecked()),
-    PER_ISOLATE_STRING_PROPERTIES(V)
-#undef V
     isolate_(isolate),
     event_loop_(event_loop),
     zero_fill_field_(zero_fill_field),
     platform_(platform) {
   if (platform_ != nullptr)
     platform_->RegisterIsolate(this, event_loop);
+
+  options_.reset(new PerIsolateOptions(*per_process_opts->per_isolate));
+
+  // Create string and private symbol properties as internalized one byte
+  // strings after the platform is properly initialized.
+  //
+  // Internalized because it makes property lookups a little faster and
+  // because the string is created in the old space straight away.  It's going
+  // to end up in the old space sooner or later anyway but now it doesn't go
+  // through v8::Eternal's new space handling first.
+  //
+  // One byte because our strings are ASCII and we can safely skip V8's UTF-8
+  // decoding step.
+
+#define V(PropertyName, StringValue)                                        \
+    PropertyName ## _.Set(                                                  \
+        isolate,                                                            \
+        Private::New(                                                       \
+            isolate,                                                        \
+            String::NewFromOneByte(                                         \
+                isolate,                                                    \
+                reinterpret_cast<const uint8_t*>(StringValue),              \
+                v8::NewStringType::kInternalized,                           \
+                sizeof(StringValue) - 1).ToLocalChecked()));
+  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+#define V(PropertyName, StringValue)                                        \
+    PropertyName ## _.Set(                                                  \
+        isolate,                                                            \
+        Symbol::New(                                                        \
+            isolate,                                                        \
+            String::NewFromOneByte(                                         \
+                isolate,                                                    \
+                reinterpret_cast<const uint8_t*>(StringValue),              \
+                v8::NewStringType::kInternalized,                           \
+                sizeof(StringValue) - 1).ToLocalChecked()));
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+#define V(PropertyName, StringValue)                                        \
+    PropertyName ## _.Set(                                                  \
+        isolate,                                                            \
+        String::NewFromOneByte(                                             \
+            isolate,                                                        \
+            reinterpret_cast<const uint8_t*>(StringValue),                  \
+            v8::NewStringType::kInternalized,                               \
+            sizeof(StringValue) - 1).ToLocalChecked());
+  PER_ISOLATE_STRING_PROPERTIES(V)
+#undef V
 }
 
 IsolateData::~IsolateData() {
   if (platform_ != nullptr)
     platform_->UnregisterIsolate(this);
-  if (cpu_profiler_ != nullptr)
-    cpu_profiler_->Dispose();
-}
-
-v8::CpuProfiler* IsolateData::GetCpuProfiler() {
-  if (cpu_profiler_ != nullptr) return cpu_profiler_;
-  cpu_profiler_ = v8::CpuProfiler::New(isolate());
-  CHECK_NE(cpu_profiler_, nullptr);
-  return cpu_profiler_;
 }
 
 
@@ -86,10 +107,27 @@ void InitThreadLocalOnce() {
   CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
 }
 
+void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
+  env_->trace_category_state()[0] =
+      *TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACING_CATEGORY_NODE1(async_hooks));
+
+  Isolate* isolate = env_->isolate();
+  Local<Function> cb = env_->trace_category_state_function();
+  if (cb.IsEmpty())
+    return;
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  cb->Call(env_->context(), v8::Undefined(isolate),
+           0, nullptr).ToLocalChecked();
+}
+
 Environment::Environment(IsolateData* isolate_data,
-                         Local<Context> context)
+                         Local<Context> context,
+                         tracing::AgentWriterHandle* tracing_agent_writer)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
+      tracing_agent_writer_(tracing_agent_writer),
       immediate_info_(context->GetIsolate()),
       tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
@@ -99,19 +137,38 @@ Environment::Environment(IsolateData* isolate_data,
       emit_env_nonstring_warning_(true),
       makecallback_cntr_(0),
       should_abort_on_uncaught_toggle_(isolate_, 1),
-#if HAVE_INSPECTOR
-      inspector_agent_(new inspector::Agent(this)),
-#endif
-      handle_cleanup_waiting_(0),
+      trace_category_state_(isolate_, kTraceCategoryCount),
       http_parser_buffer_(nullptr),
-      fs_stats_field_array_(isolate_, kFsStatsFieldsLength),
+      fs_stats_field_array_(isolate_, kFsStatsFieldsLength * 2),
+      fs_stats_field_bigint_array_(isolate_, kFsStatsFieldsLength * 2),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());
   v8::Context::Scope context_scope(context);
   set_as_external(v8::External::New(isolate(), this));
 
+  // We create new copies of the per-Environment option sets, so that it is
+  // easier to modify them after Environment creation. The defaults are
+  // part of the per-Isolate option set, for which in turn the defaults are
+  // part of the per-process option set.
+  options_.reset(new EnvironmentOptions(*isolate_data->options()->per_env));
+  options_->debug_options.reset(new DebugOptions(*options_->debug_options));
+
+#if HAVE_INSPECTOR
+  // We can only create the inspector agent after having cloned the options.
+  inspector_agent_ =
+      std::unique_ptr<inspector::Agent>(new inspector::Agent(this));
+#endif
+
   AssignToContext(context, ContextInfo(""));
+
+  if (tracing_agent_writer_ != nullptr) {
+    trace_state_observer_.reset(new TrackingTraceStateObserver(this));
+    v8::TracingController* tracing_controller =
+        tracing_agent_writer_->GetTracingController();
+    if (tracing_controller != nullptr)
+      tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
+  }
 
   destroy_async_id_list_.reserve(512);
   performance_state_.reset(new performance::performance_state(isolate()));
@@ -126,9 +183,23 @@ Environment::Environment(IsolateData* isolate_data,
 
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
+
+  std::string debug_cats;
+  SafeGetenv("NODE_DEBUG_NATIVE", &debug_cats);
+  set_debug_categories(debug_cats, true);
+
+  isolate()->GetHeapProfiler()->AddBuildEmbedderGraphCallback(
+      BuildEmbedderGraph, this);
 }
 
 Environment::~Environment() {
+  isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
+      BuildEmbedderGraph, this);
+
+  // Make sure there are no re-used libuv wrapper objects.
+  // CleanupHandles() should have removed all of them.
+  CHECK(file_handle_read_wrap_freelist_.empty());
+
   v8::HandleScope handle_scope(isolate());
 
 #if HAVE_INSPECTOR
@@ -140,18 +211,26 @@ Environment::~Environment() {
   context()->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kEnvironment, nullptr);
 
+  if (tracing_agent_writer_ != nullptr) {
+    v8::TracingController* tracing_controller =
+        tracing_agent_writer_->GetTracingController();
+    if (tracing_controller != nullptr)
+      tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
+  }
+
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
 }
 
-void Environment::Start(int argc,
-                        const char* const* argv,
-                        int exec_argc,
-                        const char* const* exec_argv,
+void Environment::Start(const std::vector<std::string>& args,
+                        const std::vector<std::string>& exec_args,
                         bool start_profiler_idle_notifier) {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
+
+  CHECK_EQ(0, uv_timer_init(event_loop(), timer_handle()));
+  uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
 
   uv_check_init(event_loop(), immediate_check_handle());
   uv_unref(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
@@ -191,8 +270,7 @@ void Environment::Start(int argc,
       process_template->GetFunction()->NewInstance(context()).ToLocalChecked();
   set_process_object(process_object);
 
-  SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
-  LoadAsyncWrapperInfo(this);
+  SetupProcessObject(this, args, exec_args);
 
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitThreadLocalOnce);
@@ -204,11 +282,13 @@ void Environment::RegisterHandleCleanups() {
                                         void* arg) {
     handle->data = env;
 
-    uv_close(handle, [](uv_handle_t* handle) {
-      static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
-    });
+    env->CloseHandle(handle, [](uv_handle_t* handle) {});
   };
 
+  RegisterHandleCleanup(
+      reinterpret_cast<uv_handle_t*>(timer_handle()),
+      close_and_finish,
+      nullptr);
   RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(immediate_check_handle()),
       close_and_finish,
@@ -228,29 +308,44 @@ void Environment::RegisterHandleCleanups() {
 }
 
 void Environment::CleanupHandles() {
-  for (HandleCleanup& hc : handle_cleanup_queue_) {
-    handle_cleanup_waiting_++;
+  for (ReqWrap<uv_req_t>* request : req_wrap_queue_)
+    request->Cancel();
+
+  for (HandleWrap* handle : handle_wrap_queue_)
+    handle->Close();
+
+  for (HandleCleanup& hc : handle_cleanup_queue_)
     hc.cb_(this, hc.handle_, hc.arg_);
-  }
   handle_cleanup_queue_.clear();
 
-  while (handle_cleanup_waiting_ != 0)
+  while (handle_cleanup_waiting_ != 0 ||
+         request_waiting_ != 0 ||
+         !handle_wrap_queue_.IsEmpty()) {
     uv_run(event_loop(), UV_RUN_ONCE);
+  }
+
+  file_handle_read_wrap_freelist_.clear();
 }
 
 void Environment::StartProfilerIdleNotifier() {
+  if (profiler_idle_notifier_started_)
+    return;
+
+  profiler_idle_notifier_started_ = true;
+
   uv_prepare_start(&idle_prepare_handle_, [](uv_prepare_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_prepare_handle_, handle);
-    env->isolate_data()->GetCpuProfiler()->SetIdle(true);
+    env->isolate()->SetIdle(true);
   });
 
   uv_check_start(&idle_check_handle_, [](uv_check_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_check_handle_, handle);
-    env->isolate_data()->GetCpuProfiler()->SetIdle(false);
+    env->isolate()->SetIdle(false);
   });
 }
 
 void Environment::StopProfilerIdleNotifier() {
+  profiler_idle_notifier_started_ = false;
   uv_prepare_stop(&idle_prepare_handle_);
   uv_check_stop(&idle_check_handle_);
 }
@@ -263,7 +358,7 @@ void Environment::PrintSyncTrace() const {
   Local<v8::StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
 
-  fprintf(stderr, "(node:%u) WARNING: Detected use of sync API\n",
+  fprintf(stderr, "(node:%d) WARNING: Detected use of sync API\n",
           uv_os_getpid());
 
   for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
@@ -298,6 +393,37 @@ void Environment::PrintSyncTrace() const {
     }
   }
   fflush(stderr);
+}
+
+void Environment::RunCleanup() {
+  CleanupHandles();
+
+  while (!cleanup_hooks_.empty()) {
+    // Copy into a vector, since we can't sort an unordered_set in-place.
+    std::vector<CleanupHookCallback> callbacks(
+        cleanup_hooks_.begin(), cleanup_hooks_.end());
+    // We can't erase the copied elements from `cleanup_hooks_` yet, because we
+    // need to be able to check whether they were un-scheduled by another hook.
+
+    std::sort(callbacks.begin(), callbacks.end(),
+              [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
+      // Sort in descending order so that the most recently inserted callbacks
+      // are run first.
+      return a.insertion_order_counter_ > b.insertion_order_counter_;
+    });
+
+    for (const CleanupHookCallback& cb : callbacks) {
+      if (cleanup_hooks_.count(cb) == 0) {
+        // This hook was removed from the `cleanup_hooks_` set during another
+        // hook that was run earlier. Nothing to do here.
+        continue;
+      }
+
+      cb.fn_(cb.arg_);
+      cleanup_hooks_.erase(cb);
+    }
+    CleanupHandles();
+  }
 }
 
 void Environment::RunBeforeExitCallbacks() {
@@ -361,7 +487,20 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
 void Environment::EnvPromiseHook(v8::PromiseHookType type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
-  Environment* env = Environment::GetCurrent(promise->CreationContext());
+  Local<v8::Context> context = promise->CreationContext();
+
+  // Grow the embedder data if necessary to make sure we are not out of bounds
+  // when reading the magic number.
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kContextTagBoundary, nullptr);
+  int* magicNumberPtr = reinterpret_cast<int*>(
+      context->GetAlignedPointerFromEmbedderData(
+          ContextEmbedderIndex::kContextTag));
+  if (magicNumberPtr != Environment::kNodeContextTagPtr) {
+    return;
+  }
+
+  Environment* env = Environment::GetCurrent(context);
   for (const PromiseHookCallback& hook : env->promise_hooks_) {
     hook.cb_(type, promise, parent, hook.arg_);
   }
@@ -383,7 +522,9 @@ void Environment::RunAndClearNativeImmediates() {
         if (it->refed_)
           ref_count++;
         if (UNLIKELY(try_catch.HasCaught())) {
-          FatalException(isolate(), try_catch);
+          if (!try_catch.HasTerminated())
+            FatalException(isolate(), try_catch);
+
           // Bail out, remove the already executed callbacks from list
           // and set up a new TryCatch for the other pending callbacks.
           std::move_backward(it, list.end(), list.begin() + (list.end() - it));
@@ -404,6 +545,78 @@ void Environment::RunAndClearNativeImmediates() {
 }
 
 
+void Environment::ScheduleTimer(int64_t duration_ms) {
+  uv_timer_start(timer_handle(), RunTimers, duration_ms, 0);
+}
+
+void Environment::ToggleTimerRef(bool ref) {
+  if (ref) {
+    uv_ref(reinterpret_cast<uv_handle_t*>(timer_handle()));
+  } else {
+    uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
+  }
+}
+
+void Environment::RunTimers(uv_timer_t* handle) {
+  Environment* env = Environment::from_timer_handle(handle);
+
+  if (!env->can_call_into_js())
+    return;
+
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Local<Object> process = env->process_object();
+  InternalCallbackScope scope(env, process, {0, 0});
+
+  Local<Function> cb = env->timers_callback_function();
+  MaybeLocal<Value> ret;
+  Local<Value> arg = env->GetNow();
+  // This code will loop until all currently due timers will process. It is
+  // impossible for us to end up in an infinite loop due to how the JS-side
+  // is structured.
+  do {
+    TryCatch try_catch(env->isolate());
+    try_catch.SetVerbose(true);
+    ret = cb->Call(env->context(), process, 1, &arg);
+  } while (ret.IsEmpty() && env->can_call_into_js());
+
+  // NOTE(apapirovski): If it ever becomes possibble that `call_into_js` above
+  // is reset back to `true` after being previously set to `false` then this
+  // code becomes invalid and needs to be rewritten. Otherwise catastrophic
+  // timers corruption will occurr and all timers behaviour will become
+  // entirely unpredictable.
+  if (ret.IsEmpty())
+    return;
+
+  // To allow for less JS-C++ boundary crossing, the value returned from JS
+  // serves a few purposes:
+  // 1. If it's 0, no more timers exist and the handle should be unrefed
+  // 2. If it's > 0, the value represents the next timer's expiry and there
+  //    is at least one timer remaining that is refed.
+  // 3. If it's < 0, the absolute value represents the next timer's expiry
+  //    and there are no timers that are refed.
+  int64_t expiry_ms =
+      ret.ToLocalChecked()->IntegerValue(env->context()).FromJust();
+
+  uv_handle_t* h = reinterpret_cast<uv_handle_t*>(handle);
+
+  if (expiry_ms != 0) {
+    int64_t duration_ms =
+        llabs(expiry_ms) - (uv_now(env->event_loop()) - env->timer_base());
+
+    env->ScheduleTimer(duration_ms > 0 ? duration_ms : 1);
+
+    if (expiry_ms > 0)
+      uv_ref(h);
+    else
+      uv_unref(h);
+  } else {
+    uv_unref(h);
+  }
+}
+
+
 void Environment::CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
 
@@ -415,6 +628,9 @@ void Environment::CheckImmediate(uv_check_t* handle) {
 
   env->RunAndClearNativeImmediates();
 
+  if (!env->can_call_into_js())
+    return;
+
   do {
     MakeCallback(env->isolate(),
                  env->process_object(),
@@ -422,7 +638,7 @@ void Environment::CheckImmediate(uv_check_t* handle) {
                  0,
                  nullptr,
                  {0, 0}).ToLocalChecked();
-  } while (env->immediate_info()->has_outstanding());
+  } while (env->immediate_info()->has_outstanding() && env->can_call_into_js());
 
   if (env->immediate_info()->ref_count() == 0)
     env->ToggleImmediateRef(false);
@@ -444,11 +660,33 @@ Local<Value> Environment::GetNow() {
   CHECK_GE(now, timer_base());
   now -= timer_base();
   if (now <= 0xffffffff)
-    return Integer::New(isolate(), static_cast<uint32_t>(now));
+    return Integer::NewFromUnsigned(isolate(), static_cast<uint32_t>(now));
   else
     return Number::New(isolate(), static_cast<double>(now));
 }
 
+
+void Environment::set_debug_categories(const std::string& cats, bool enabled) {
+  std::string debug_categories = cats;
+  while (!debug_categories.empty()) {
+    std::string::size_type comma_pos = debug_categories.find(',');
+    std::string wanted = ToLower(debug_categories.substr(0, comma_pos));
+
+#define V(name)                                                          \
+    {                                                                    \
+      static const std::string available_category = ToLower(#name);      \
+      if (available_category.find(wanted) != std::string::npos)          \
+        set_debug_enabled(DebugCategory::name, enabled);                 \
+    }
+
+    DEBUG_CATEGORY_NAMES(V)
+
+    if (comma_pos == std::string::npos)
+      break;
+    // Use everything after the `,` as the list for the next iteration.
+    debug_categories = debug_categories.substr(comma_pos + 1);
+  }
+}
 
 void CollectExceptionInfo(Environment* env,
                           v8::Local<v8::Object> obj,
@@ -545,5 +783,45 @@ void Environment::AsyncHooks::grow_async_ids_stack() {
 }
 
 uv_key_t Environment::thread_local_env = {};
+
+void Environment::Exit(int exit_code) {
+  if (is_main_thread())
+    exit(exit_code);
+  else
+    worker_context_->Exit(exit_code);
+}
+
+void Environment::stop_sub_worker_contexts() {
+  while (!sub_worker_contexts_.empty()) {
+    Worker* w = *sub_worker_contexts_.begin();
+    remove_sub_worker_context(w);
+    w->Exit(1);
+    w->JoinThread();
+  }
+}
+
+void Environment::BuildEmbedderGraph(v8::Isolate* isolate,
+                                     v8::EmbedderGraph* graph,
+                                     void* data) {
+  MemoryTracker tracker(isolate, graph);
+  static_cast<Environment*>(data)->ForEachBaseObject([&](BaseObject* obj) {
+    tracker.Track(obj);
+  });
+}
+
+
+// Not really any better place than env.cc at this moment.
+void BaseObject::DeleteMe(void* data) {
+  BaseObject* self = static_cast<BaseObject*>(data);
+  delete self;
+}
+
+Local<Object> BaseObject::WrappedObject() const {
+  return object();
+}
+
+bool BaseObject::IsRootNode() const {
+  return !persistent_handle_.IsWeak();
+}
 
 }  // namespace node

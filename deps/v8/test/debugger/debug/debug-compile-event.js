@@ -27,7 +27,7 @@
 
 Debug = debug.Debug
 
-var exception = false;  // Exception in debug event listener.
+var exceptionThrown = false;  // Exception in debug event listener.
 var after_compile_count = 0;
 var compile_error_count = 0;
 var current_source = '';  // Current source being compiled.
@@ -85,7 +85,7 @@ function listener(event, exec_state, event_data, data) {
       }
     }
   } catch (e) {
-    exception = e
+    exceptionThrown = true;
   }
 };
 
@@ -110,7 +110,7 @@ try {
 }
 
 // Make sure that the debug event listener was invoked.
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener")
 
 // Number of before and after + error events should be the same.
 assertEquals(compile_error_count, 1);

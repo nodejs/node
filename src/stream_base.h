@@ -4,8 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "env.h"
-#include "async_wrap.h"
-#include "req_wrap-inl.h"
+#include "async_wrap-inl.h"
 #include "node.h"
 #include "util.h"
 
@@ -256,16 +255,9 @@ class StreamResource {
 
 class StreamBase : public StreamResource {
  public:
-  enum Flags {
-    kFlagNone = 0x0,
-    kFlagHasWritev = 0x1,
-    kFlagNoShutdown = 0x2
-  };
-
   template <class Base>
   static inline void AddMethods(Environment* env,
-                                v8::Local<v8::FunctionTemplate> target,
-                                int flags = kFlagNone);
+                                v8::Local<v8::FunctionTemplate> target);
 
   virtual bool IsAlive() = 0;
   virtual bool IsClosing() = 0;
@@ -352,10 +344,14 @@ class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
  public:
   SimpleShutdownWrap(StreamBase* stream,
                      v8::Local<v8::Object> req_wrap_obj);
-  ~SimpleShutdownWrap();
 
   AsyncWrap* GetAsyncWrap() override { return this; }
-  size_t self_size() const override { return sizeof(*this); }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
+  ADD_MEMORY_INFO_NAME(SimpleShutdownWrap)
 };
 
 template <typename OtherBase>
@@ -363,10 +359,16 @@ class SimpleWriteWrap : public WriteWrap, public OtherBase {
  public:
   SimpleWriteWrap(StreamBase* stream,
                   v8::Local<v8::Object> req_wrap_obj);
-  ~SimpleWriteWrap();
 
   AsyncWrap* GetAsyncWrap() override { return this; }
-  size_t self_size() const override { return sizeof(*this) + StorageSize(); }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackFieldWithSize("storage", StorageSize());
+  }
+
+
+  ADD_MEMORY_INFO_NAME(SimpleWriteWrap)
 };
 
 }  // namespace node

@@ -72,8 +72,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
  public:
   typedef uintptr_t JobId;
 
-  enum class BlockingBehavior { kBlock, kDontBlock };
-
   CompilerDispatcher(Isolate* isolate, Platform* platform,
                      size_t max_stack_size);
   ~CompilerDispatcher();
@@ -119,16 +117,16 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepParsed);
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
   FRIEND_TEST(CompilerDispatcherTest, CompileOnBackgroundThread);
-  FRIEND_TEST(CompilerDispatcherTest, FinishNowWithBackgroundTask);
-  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask);
-  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask);
+  FRIEND_TEST(CompilerDispatcherTest, FinishNowWithWorkerTask);
+  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllPendingWorkerTask);
+  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningWorkerTask);
   FRIEND_TEST(CompilerDispatcherTest, FinishNowDuringAbortAll);
   FRIEND_TEST(CompilerDispatcherTest, CompileMultipleOnBackgroundThread);
 
   typedef std::map<JobId, std::unique_ptr<CompilerDispatcherJob>> JobMap;
   typedef IdentityMap<JobId, FreeStoreAllocationPolicy> SharedToJobIdMap;
   class AbortTask;
-  class BackgroundTask;
+  class WorkerTask;
   class IdleTask;
 
   void WaitForJobIfRunningOnBackground(CompilerDispatcherJob* job);
@@ -137,7 +135,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   bool CanEnqueue(Handle<SharedFunctionInfo> function);
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
   void ConsiderJobForBackgroundProcessing(CompilerDispatcherJob* job);
-  void ScheduleMoreBackgroundTasksIfNeeded();
+  void ScheduleMoreWorkerTasksIfNeeded();
   void ScheduleIdleTaskFromAnyThread();
   void ScheduleIdleTaskIfNeeded();
   void ScheduleAbortTask();
@@ -185,8 +183,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
   bool idle_task_scheduled_;
 
-  // Number of scheduled or running BackgroundTask objects.
-  size_t num_background_tasks_;
+  // Number of scheduled or running WorkerTask objects.
+  int num_worker_tasks_;
 
   // The set of CompilerDispatcherJobs that can be advanced on any thread.
   std::unordered_set<CompilerDispatcherJob*> pending_background_jobs_;

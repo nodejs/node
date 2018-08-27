@@ -6,51 +6,59 @@
 #define V8_WASM_MODULE_COMPILER_H_
 
 #include <functional>
+#include <memory>
 
 #include "src/base/atomic-utils.h"
 #include "src/cancelable-task.h"
-#include "src/isolate.h"
-
-#include "src/wasm/module-decoder.h"
-#include "src/wasm/streaming-decoder.h"
+#include "src/globals.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
+
+class JSArrayBuffer;
+class JSPromise;
+class Counters;
+class WasmModuleObject;
+class WasmInstanceObject;
+
+template <typename T>
+class Vector;
+
 namespace wasm {
 
+class CompilationState;
+class ErrorThrower;
 class ModuleCompiler;
 class WasmCode;
+struct ModuleEnv;
+struct WasmModule;
 
-V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
-    Handle<Script> asm_js_script, Vector<const byte> asm_js_offset_table_bytes);
+struct CompilationStateDeleter {
+  void operator()(CompilationState* compilation_state) const;
+};
 
-V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompile(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes);
+// Wrapper to create a CompilationState exists in order to avoid having
+// the the CompilationState in the header file.
+std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
+    Isolate* isolate, ModuleEnv& env);
 
-V8_EXPORT_PRIVATE MaybeHandle<WasmInstanceObject> SyncInstantiate(
+ModuleEnv* GetModuleEnv(CompilationState* compilation_state);
+
+MaybeHandle<WasmModuleObject> CompileToModuleObject(
+    Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
+    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
+    Vector<const byte> asm_js_offset_table_bytes);
+
+MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
     MaybeHandle<JSArrayBuffer> memory);
 
-V8_EXPORT_PRIVATE MaybeHandle<WasmInstanceObject> SyncCompileAndInstantiate(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
-    MaybeHandle<JSReceiver> imports, MaybeHandle<JSArrayBuffer> memory);
-
-V8_EXPORT_PRIVATE void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
-                                    const ModuleWireBytes& bytes,
-                                    bool is_shared);
-
-V8_EXPORT_PRIVATE void AsyncInstantiate(Isolate* isolate,
-                                        Handle<JSPromise> promise,
-                                        Handle<WasmModuleObject> module_object,
-                                        MaybeHandle<JSReceiver> imports);
-
-V8_EXPORT_PRIVATE void CompileJsToWasmWrappers(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-    Counters* counters);
+V8_EXPORT_PRIVATE
+void CompileJsToWasmWrappers(Isolate* isolate,
+                             Handle<WasmModuleObject> module_object,
+                             Counters* counters);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
     Isolate* isolate, const ModuleWireBytes& wire_bytes);
@@ -64,50 +72,7 @@ V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
 // an error occurred. In the latter case, a pending exception has been set,
 // which will be triggered when returning from the runtime function, i.e. the
 // Illegal builtin will never be called.
-Address CompileLazy(Isolate* isolate);
-Handle<Code> CompileLazyOnGCHeap(Isolate* isolate);
-
-// This class orchestrates the lazy compilation of wasm functions. It is
-// triggered by the WasmCompileLazy builtin.
-// It contains the logic for compiling and specializing wasm functions, and
-// patching the calling wasm code.
-// Once we support concurrent lazy compilation, this class will contain the
-// logic to actually orchestrate parallel execution of wasm compilation jobs.
-// TODO(clemensh): Implement concurrent lazy compilation.
-class LazyCompilationOrchestrator {
-  const WasmCode* CompileFunction(Isolate*, Handle<WasmInstanceObject>,
-                                  int func_index);
-
- public:
-  Handle<Code> CompileLazyOnGCHeap(Isolate*, Handle<WasmInstanceObject>,
-                                   Handle<Code> caller, int call_offset,
-                                   int exported_func_index, bool patch_caller);
-  const wasm::WasmCode* CompileFromJsToWasm(Isolate*,
-                                            Handle<WasmInstanceObject>,
-                                            Handle<Code> caller,
-                                            uint32_t exported_func_index);
-  const wasm::WasmCode* CompileDirectCall(Isolate*, Handle<WasmInstanceObject>,
-                                          Maybe<uint32_t>,
-                                          const WasmCode* caller,
-                                          int call_offset);
-  const wasm::WasmCode* CompileIndirectCall(Isolate*,
-                                            Handle<WasmInstanceObject>,
-                                            uint32_t func_index);
-
-#ifdef DEBUG
-  // Call this method in tests to disallow any further lazy compilation; then
-  // call into the wasm instance again to verify that no lazy compilation is
-  // triggered.
-  void FreezeLazyCompilationForTesting() { frozen_ = true; }
-  bool IsFrozenForTesting() const { return frozen_; }
-
- private:
-  bool frozen_;
-#else
-  void FreezeLazyCompilationForTesting() {}
-  bool IsFrozenForTesting() { return false; }
-#endif
-};
+Address CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance);
 
 // Encapsulates all the state and steps of an asynchronous compilation.
 // An asynchronous compile job consists of a number of tasks that are executed
@@ -138,28 +103,26 @@ class AsyncCompileJob {
   class DecodeModule;
   class DecodeFail;
   class PrepareAndStartCompile;
-  class ExecuteAndFinishCompilationUnits;
-  class WaitForBackgroundTasks;
-  class FinishCompilationUnits;
-  class FinishCompile;
+  class CompileFailed;
   class CompileWrappers;
   class FinishModule;
   class AbortCompilation;
+  class UpdateToTopTierCompiledCode;
 
   const std::shared_ptr<Counters>& async_counters() const {
     return async_counters_;
   }
   Counters* counters() const { return async_counters().get(); }
 
-  void AsyncCompileFailed(ErrorThrower& thrower);
+  void FinishCompile();
+
+  void AsyncCompileFailed(Handle<Object> error_reason);
 
   void AsyncCompileSucceeded(Handle<Object> result);
 
   void StartForegroundTask();
 
   void StartBackgroundTask();
-
-  void RestartBackgroundTasks();
 
   // Switches to the compilation step {Step} and starts a foreground task to
   // execute it.
@@ -186,22 +149,17 @@ class AsyncCompileJob {
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
   Handle<JSPromise> module_promise_;
-  std::unique_ptr<ModuleCompiler> compiler_;
-  std::unique_ptr<compiler::ModuleEnv> module_env_;
   std::unique_ptr<WasmModule> module_;
 
   std::vector<DeferredHandles*> deferred_handles_;
-  Handle<WasmModuleObject> module_object_;
   Handle<WasmCompiledModule> compiled_module_;
-  Handle<FixedArray> code_table_;
-  size_t outstanding_units_ = 0;
+  Handle<WasmModuleObject> module_object_;
+
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
+  Handle<Code> centry_stub_;
 
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
-  std::shared_ptr<v8::TaskRunner> background_task_runner_;
-  // The number of background tasks which stopped executing within a step.
-  base::AtomicNumber<size_t> stopped_tasks_{0};
 
   // For async compilation the AsyncCompileJob is the only finisher. For
   // streaming compilation also the AsyncStreamingProcessor has to finish before
@@ -223,8 +181,9 @@ class AsyncCompileJob {
   // compilation. The AsyncCompileJob does not actively use the
   // StreamingDecoder.
   std::shared_ptr<StreamingDecoder> stream_;
-};
 
+  bool tiering_completed_ = false;
+};
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

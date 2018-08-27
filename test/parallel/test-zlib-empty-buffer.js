@@ -1,11 +1,9 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const zlib = require('zlib');
 const { inspect, promisify } = require('util');
 const assert = require('assert');
 const emptyBuffer = Buffer.alloc(0);
-
-common.crashOnUnhandledRejection();
 
 (async function() {
   for (const [ compress, decompress, method ] of [

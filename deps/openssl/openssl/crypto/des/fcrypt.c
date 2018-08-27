@@ -1,3 +1,12 @@
+/*
+ * Copyright 1998-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 /* NOCW */
 #include <stdio.h>
 #ifdef _OSD_POSIX
@@ -9,19 +18,7 @@
 # include <openssl/ebcdic.h>
 #endif
 
-/*
- * This version of crypt has been developed from my MIT compatible DES
- * library. Eric Young (eay@cryptsoft.com)
- */
-
-/*
- * Modification by Jens Kupferschmidt (Cu) I have included directive PARA for
- * shared memory computers. I have included a directive LONGCRYPT to using
- * this routine to cipher passwords with more then 8 bytes like HP-UX 10.x it
- * used. The MAXPLEN definition is the maximum of length of password and can
- * changed. I have defined 24.
- */
-
+#include <openssl/crypto.h>
 #include "des_locl.h"
 
 /*
@@ -69,27 +66,23 @@ char *DES_crypt(const char *buf, const char *salt)
     char e_buf[32 + 1];         /* replace 32 by 8 ? */
     char *ret;
 
-    /* Copy at most 2 chars of salt */
-    if ((e_salt[0] = salt[0]) != '\0')
-        e_salt[1] = salt[1];
+    if (salt[0] == '\0' || salt[1] == '\0')
+        return NULL;
 
-    /* Copy at most 32 chars of password */
-    strncpy(e_buf, buf, sizeof(e_buf));
-
-    /* Make sure we have a delimiter */
-    e_salt[sizeof(e_salt) - 1] = e_buf[sizeof(e_buf) - 1] = '\0';
-
-    /* Convert the e_salt to ASCII, as that's what DES_fcrypt works on */
+    /* Copy salt, convert to ASCII. */
+    e_salt[0] = salt[0];
+    e_salt[1] = salt[1];
+    e_salt[2] = '\0';
     ebcdic2ascii(e_salt, e_salt, sizeof(e_salt));
 
-    /* Convert the cleartext password to ASCII */
+    /* Convert password to ASCII. */
+    OPENSSL_strlcpy(e_buf, buf, sizeof(e_buf));
     ebcdic2ascii(e_buf, e_buf, sizeof(e_buf));
 
-    /* Encrypt it (from/to ASCII) */
+    /* Encrypt it (from/to ASCII); if it worked, convert back. */
     ret = DES_fcrypt(e_buf, e_salt, buff);
-
-    /* Convert the result back to EBCDIC */
-    ascii2ebcdic(ret, ret, strlen(ret));
+    if (ret != NULL)
+        ascii2ebcdic(ret, ret, strlen(ret));
 
     return ret;
 #endif
@@ -106,25 +99,14 @@ char *DES_fcrypt(const char *buf, const char *salt, char *ret)
     unsigned char *b = bb;
     unsigned char c, u;
 
-    /*
-     * eay 25/08/92 If you call crypt("pwd","*") as often happens when you
-     * have * as the pwd field in /etc/passwd, the function returns
-     * *\0XXXXXXXXX The \0 makes the string look like * so the pwd "*" would
-     * crypt to "*".  This was found when replacing the crypt in our shared
-     * libraries.  People found that the disabled accounts effectively had no
-     * passwd :-(.
-     */
-#ifndef CHARSET_EBCDIC
-    x = ret[0] = ((salt[0] == '\0') ? 'A' : salt[0]);
+    x = ret[0] = salt[0];
+    if (x == 0 || x >= sizeof(con_salt))
+        return NULL;
     Eswap0 = con_salt[x] << 2;
-    x = ret[1] = ((salt[1] == '\0') ? 'A' : salt[1]);
+    x = ret[1] = salt[1];
+    if (x == 0 || x >= sizeof(con_salt))
+        return NULL;
     Eswap1 = con_salt[x] << 6;
-#else
-    x = ret[0] = ((salt[0] == '\0') ? os_toascii['A'] : salt[0]);
-    Eswap0 = con_salt[x] << 2;
-    x = ret[1] = ((salt[1] == '\0') ? os_toascii['A'] : salt[1]);
-    Eswap1 = con_salt[x] << 6;
-#endif
 
     /*
      * EAY r=strlen(buf); r=(r+7)/8;

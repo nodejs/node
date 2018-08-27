@@ -8,6 +8,8 @@ include_rules = [
   "+src/compiler/code-assembler.h",
   "+src/compiler/wasm-compiler.h",
   "-src/heap",
+  "+src/heap/factory.h",
+  "+src/heap/factory-inl.h",
   "+src/heap/heap.h",
   "+src/heap/heap-inl.h",
   "-src/inspector",
@@ -25,7 +27,8 @@ include_rules = [
   "+src/trap-handler/trap-handler.h",
   "+testing/gtest/include/gtest/gtest_prod.h",
   "-src/libplatform",
-  "-include/libplatform"
+  "-include/libplatform",
+  "+torque-generated"
 ]
 
 specific_include_rules = {

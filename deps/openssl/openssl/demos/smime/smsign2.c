@@ -1,3 +1,12 @@
+/*
+ * Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 /* S/MIME signing example: 2 signers. OpenSSL 0.9.9 only */
 #include <openssl/pem.h>
 #include <openssl/pkcs7.h>
@@ -71,32 +80,17 @@ int main(int argc, char **argv)
     ret = 0;
 
  err:
-
     if (ret) {
         fprintf(stderr, "Error Signing Data\n");
         ERR_print_errors_fp(stderr);
     }
-
-    if (p7)
-        PKCS7_free(p7);
-
-    if (scert)
-        X509_free(scert);
-    if (skey)
-        EVP_PKEY_free(skey);
-
-    if (scert2)
-        X509_free(scert2);
-    if (skey)
-        EVP_PKEY_free(skey2);
-
-    if (in)
-        BIO_free(in);
-    if (out)
-        BIO_free(out);
-    if (tbio)
-        BIO_free(tbio);
-
+    PKCS7_free(p7);
+    X509_free(scert);
+    EVP_PKEY_free(skey);
+    X509_free(scert2);
+    EVP_PKEY_free(skey2);
+    BIO_free(in);
+    BIO_free(out);
+    BIO_free(tbio);
     return ret;
-
 }

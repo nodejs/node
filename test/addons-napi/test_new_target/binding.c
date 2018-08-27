@@ -1,7 +1,7 @@
 #include <node_api.h>
 #include "../common.h"
 
-napi_value BaseClass(napi_env env, napi_callback_info info) {
+static napi_value BaseClass(napi_env env, napi_callback_info info) {
   napi_value newTargetArg;
   NAPI_CALL(env, napi_get_new_target(env, info, &newTargetArg));
   napi_value thisArg;
@@ -22,7 +22,7 @@ napi_value BaseClass(napi_env env, napi_callback_info info) {
   return thisArg;
 }
 
-napi_value Constructor(napi_env env, napi_callback_info info) {
+static napi_value Constructor(napi_env env, napi_callback_info info) {
   bool result;
   napi_value newTargetArg;
   NAPI_CALL(env, napi_get_new_target(env, info, &newTargetArg));
@@ -45,7 +45,7 @@ napi_value Constructor(napi_env env, napi_callback_info info) {
   return thisArg;
 }
 
-napi_value OrdinaryFunction(napi_env env, napi_callback_info info) {
+static napi_value OrdinaryFunction(napi_env env, napi_callback_info info) {
   napi_value newTargetArg;
   NAPI_CALL(env, napi_get_new_target(env, info, &newTargetArg));
 
@@ -56,7 +56,7 @@ napi_value OrdinaryFunction(napi_env env, napi_callback_info info) {
   return _true;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   const napi_property_descriptor desc[] = {
     DECLARE_NAPI_PROPERTY("BaseClass", BaseClass),
     DECLARE_NAPI_PROPERTY("OrdinaryFunction", OrdinaryFunction),

@@ -295,6 +295,42 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
                        tracer->IncrementalMarkingSpeedInBytesPerMillisecond()));
 }
 
+TEST_F(GCTracerTest, MutatorUtilization) {
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+
+  // Mark-compact #1 ended at 200ms and took 100ms.
+  tracer->RecordMutatorUtilization(200, 100);
+  // Avarage mark-compact time = 0ms.
+  // Avarage mutator time = 0ms.
+  EXPECT_DOUBLE_EQ(1.0, tracer->CurrentMarkCompactMutatorUtilization());
+  EXPECT_DOUBLE_EQ(1.0, tracer->AverageMarkCompactMutatorUtilization());
+
+  // Mark-compact #2 ended at 400ms and took 100ms.
+  tracer->RecordMutatorUtilization(400, 100);
+  // The first mark-compactor is ignored.
+  // Avarage mark-compact time = 100ms.
+  // Avarage mutator time = 100ms.
+  EXPECT_DOUBLE_EQ(0.5, tracer->CurrentMarkCompactMutatorUtilization());
+  EXPECT_DOUBLE_EQ(0.5, tracer->AverageMarkCompactMutatorUtilization());
+
+  // Mark-compact #3 ended at 600ms and took 200ms.
+  tracer->RecordMutatorUtilization(600, 200);
+  // Avarage mark-compact time = 100ms * 0.5 + 200ms * 0.5.
+  // Avarage mutator time = 100ms * 0.5 + 0ms * 0.5.
+  EXPECT_DOUBLE_EQ(0.0, tracer->CurrentMarkCompactMutatorUtilization());
+  EXPECT_DOUBLE_EQ(50.0 / 200.0,
+                   tracer->AverageMarkCompactMutatorUtilization());
+
+  // Mark-compact #4 ended at 800ms and took 0ms.
+  tracer->RecordMutatorUtilization(800, 0);
+  // Avarage mark-compact time = 150ms * 0.5 + 0ms * 0.5.
+  // Avarage mutator time = 50ms * 0.5 + 200ms * 0.5.
+  EXPECT_DOUBLE_EQ(1.0, tracer->CurrentMarkCompactMutatorUtilization());
+  EXPECT_DOUBLE_EQ(125.0 / 200.0,
+                   tracer->AverageMarkCompactMutatorUtilization());
+}
+
 TEST_F(GCTracerTest, BackgroundScavengerScope) {
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();

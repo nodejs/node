@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_AST_AST_FUNCTION_LITERAL_ID_REINDEXER
-#define V8_AST_AST_FUNCTION_LITERAL_ID_REINDEXER
+#ifndef V8_AST_AST_FUNCTION_LITERAL_ID_REINDEXER_H_
+#define V8_AST_AST_FUNCTION_LITERAL_ID_REINDEXER_H_
 
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/base/macros.h"
@@ -33,4 +33,4 @@ class AstFunctionLiteralIdReindexer final
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_AST_AST_FUNCTION_LITERAL_ID_REINDEXER
+#endif  // V8_AST_AST_FUNCTION_LITERAL_ID_REINDEXER_H_

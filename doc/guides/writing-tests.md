@@ -223,6 +223,27 @@ countdown.dec();
 countdown.dec(); // The countdown callback will be invoked now.
 ```
 
+#### Testing promises
+
+When writing tests involving promises, it is generally good to wrap the
+`onFulfilled` handler, otherwise the test could successfully finish if the
+promise never resolves (pending promises do not keep the event loop alive). The
+`common` module automatically adds a handler that makes the process crash - and
+hence, the test fail - in the case of an `unhandledRejection` event. It is
+possible to disable it with `common.disableCrashOnUnhandledRejection()` if
+needed.
+
+```javascript
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs').promises;
+
+// Wrap the `onFulfilled` handler in `common.mustCall()`.
+fs.readFile('test-file').then(
+  common.mustCall(
+    (content) => assert.strictEqual(content.toString(), 'test2')
+  ));
+```
 
 ### Flags
 
@@ -372,6 +393,16 @@ The test can be executed by running the `cctest` target:
 $ make cctest
 ```
 
+A filter can be applied to run single/multiple test cases:
+```console
+$ make cctest GTEST_FILTER=EnvironmentTest.AtExitWithArgument
+```
+
+`cctest` can also be run directly which can be useful when debugging:
+```console
+$ out/Release/cctest --gtest_filter=EnvironmentTest.AtExit*
+```
+
 ### Node.js test fixture
 There is a [test fixture][] named `node_test_fixture.h` which can be included by
 unit tests. The fixture takes care of setting up the Node.js environment
@@ -380,6 +411,11 @@ and tearing it down after the tests have finished.
 It also contains a helper to create arguments to be passed into Node.js. It
 will depend on what is being tested if this is required or not.
 
+### Test Coverage
+
+To generate a test coverage report, see the
+[Test Coverage section of the Pull Requests guide][].
+
 [ASCII]: http://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
 [Web Platform Tests Project]: https://github.com/w3c/web-platform-tests/tree/master/url
@@ -387,4 +423,5 @@ will depend on what is being tested if this is required or not.
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
+[Test Coverage section of the Pull Requests guide]: https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#test-coverage
 [directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories

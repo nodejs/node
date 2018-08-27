@@ -34,7 +34,7 @@ class ExternalCallbackScope BASE_EMBEDDED {
   inline ~ExternalCallbackScope();
   Address callback() { return callback_; }
   Address* callback_entrypoint_address() {
-    if (callback_ == nullptr) return nullptr;
+    if (callback_ == kNullAddress) return nullptr;
 #if USES_FUNCTION_DESCRIPTORS
     return FUNCTION_ENTRYPOINT_ADDRESS(callback_);
 #else

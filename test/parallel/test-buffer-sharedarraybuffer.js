@@ -1,4 +1,3 @@
-/* global SharedArrayBuffer */
 'use strict';
 
 require('../common');

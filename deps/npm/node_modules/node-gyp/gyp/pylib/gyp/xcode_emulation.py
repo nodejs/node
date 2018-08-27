@@ -429,7 +429,7 @@ class XcodeSettings(object):
     # Since the CLT has no SDK paths anyway, returning None is the
     # most sensible route and should still do the right thing.
     try:
-      return GetStdout(['xcodebuild', '-version', '-sdk', sdk, infoitem])
+      return GetStdoutQuiet(['xcodebuild', '-version', '-sdk', sdk, infoitem])
     except:
       pass
 
@@ -1251,7 +1251,7 @@ def XcodeVersion():
   if XCODE_VERSION_CACHE:
     return XCODE_VERSION_CACHE
   try:
-    version_list = GetStdout(['xcodebuild', '-version']).splitlines()
+    version_list = GetStdoutQuiet(['xcodebuild', '-version']).splitlines()
     # In some circumstances xcodebuild exits 0 but doesn't return
     # the right results; for example, a user on 10.7 or 10.8 with
     # a bogus path set via xcode-select
@@ -1262,7 +1262,7 @@ def XcodeVersion():
   except:
     version = CLTVersion()
     if version:
-      version = re.match(r'(\d\.\d\.?\d*)', version).groups()[0]
+      version = re.match(r'(\d+\.\d+\.?\d*)', version).groups()[0]
     else:
       raise GypError("No Xcode or CLT version detected!")
     # The CLT has no build information, so we return an empty string.
@@ -1299,6 +1299,17 @@ def CLTVersion():
       return re.search(regex, output).groupdict()['version']
     except:
       continue
+
+
+def GetStdoutQuiet(cmdlist):
+  """Returns the content of standard output returned by invoking |cmdlist|.
+  Ignores the stderr.
+  Raises |GypError| if the command return with a non-zero return code."""
+  job = subprocess.Popen(cmdlist, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  out = job.communicate()[0]
+  if job.returncode != 0:
+    raise GypError('Error %d running %s' % (job.returncode, cmdlist[0]))
+  return out.rstrip('\n')
 
 
 def GetStdout(cmdlist):

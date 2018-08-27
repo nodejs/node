@@ -15,6 +15,7 @@ atomic and allows you set ownership (uid/gid of the file).
   * encoding **String** | **Null** default = 'utf8'
   * fsync **Boolean** default = true
   * mode **Number** default = 438 (aka 0666 in Octal)
+  * Promise **Object** default = native Promise object
 callback **Function**
 
 Atomically and asynchronously writes data to a file, replacing the file if it already
@@ -25,6 +26,7 @@ If writeFile completes successfully then, if passed the **chown** option it will
 the ownership of the file. Finally it renames the file back to the filename you specified. If
 it encounters errors at any of these steps it will attempt to unlink the temporary file and then
 pass the error back to the caller.
+If multiple writes are concurrently issued to the same file, the write operations are put into a queue and serialized in the order they were called, using Promises. Native promises are used by default, but you can inject your own promise-like object with the **Promise** option. Writes to different files are still executed in parallel.
 
 If provided, the **chown** option requires both **uid** and **gid** properties or else
 you'll get an error.

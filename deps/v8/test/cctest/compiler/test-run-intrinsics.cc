@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compilation-info.h"
 #include "src/objects/string.h"
+#include "src/optimized-compilation-info.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-uint32_t flags = CompilationInfo::kInliningEnabled;
-
+uint32_t flags = OptimizedCompilationInfo::kInliningEnabled;
 
 TEST(Call) {
   FunctionTester T("(function(a,b) { return %_Call(b, a, 1, 2, 3); })", flags);

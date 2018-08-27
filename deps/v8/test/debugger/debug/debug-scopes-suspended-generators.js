@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --no-analyze-environment-liveness
+
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 

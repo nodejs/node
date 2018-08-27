@@ -48,6 +48,8 @@ static_assert(kV8MaxWasmMemoryPages <= kSpecMaxWasmMemoryPages,
 constexpr size_t kSpecMaxWasmTableSize = 0xFFFFFFFFu;
 
 constexpr size_t kV8MaxWasmMemoryBytes = kV8MaxWasmMemoryPages * kWasmPageSize;
+static_assert(kV8MaxWasmMemoryBytes <= std::numeric_limits<int32_t>::max(),
+              "max memory bytes should fit in int32_t");
 
 constexpr uint64_t kWasmMaxHeapOffset =
     static_cast<uint64_t>(

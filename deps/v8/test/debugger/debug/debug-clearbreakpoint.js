@@ -28,8 +28,8 @@
 Debug = debug.Debug
 
 // Simple function which stores the last debug event.
-listenerComplete = false;
-exception = false;
+let listenerComplete = false;
+let exceptionThrown = false;
 
 var breakpoint = -1;
 
@@ -42,7 +42,7 @@ function listener(event, exec_state, event_data, data) {
       listenerComplete = true;
     }
   } catch (e) {
-    exception = e
+    exceptionThrown = true;
   };
 };
 
@@ -57,4 +57,4 @@ g();
 
 // Make sure that the debug event listener vas invoked.
 assertTrue(listenerComplete, "listener did not run to completion");
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener")

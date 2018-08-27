@@ -14,15 +14,10 @@ namespace internal {
 Handle<Code> Builtins::InterpreterPushArgsThenCall(
     ConvertReceiverMode receiver_mode, InterpreterPushArgsMode mode) {
   switch (mode) {
-    case InterpreterPushArgsMode::kJSFunction:
-      switch (receiver_mode) {
-        case ConvertReceiverMode::kNullOrUndefined:
-          return builtin_handle(
-              kInterpreterPushUndefinedAndArgsThenCallFunction);
-        case ConvertReceiverMode::kNotNullOrUndefined:
-        case ConvertReceiverMode::kAny:
-          return builtin_handle(kInterpreterPushArgsThenCallFunction);
-      }
+    case InterpreterPushArgsMode::kArrayFunction:
+      // There is no special-case handling of calls to Array. They will all go
+      // through the kOther case below.
+      UNREACHABLE();
     case InterpreterPushArgsMode::kWithFinalSpread:
       return builtin_handle(kInterpreterPushArgsThenCallWithFinalSpread);
     case InterpreterPushArgsMode::kOther:
@@ -40,8 +35,8 @@ Handle<Code> Builtins::InterpreterPushArgsThenCall(
 Handle<Code> Builtins::InterpreterPushArgsThenConstruct(
     InterpreterPushArgsMode mode) {
   switch (mode) {
-    case InterpreterPushArgsMode::kJSFunction:
-      return builtin_handle(kInterpreterPushArgsThenConstructFunction);
+    case InterpreterPushArgsMode::kArrayFunction:
+      return builtin_handle(kInterpreterPushArgsThenConstructArrayFunction);
     case InterpreterPushArgsMode::kWithFinalSpread:
       return builtin_handle(kInterpreterPushArgsThenConstructWithFinalSpread);
     case InterpreterPushArgsMode::kOther:

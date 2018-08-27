@@ -641,6 +641,64 @@ assertEquals(undefined, arr.reduceRight(function(val) { return val }));
   assertEquals(total, g());
 })();
 
+(function OptimizedReduceEagerDeoptMiddleOfIterationHoley() {
+  let deopt = false;
+  let array = [, ,11,22,,33,45,56,,6,77,84,93,101,];
+  let f = (a,current) => {
+    if (current == 6 && deopt) {array[0] = 1.5; }
+    return a + current;
+  };
+  let g = function() {
+    return array.reduce(f);
+  }
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  g();
+  deopt = false;
+  array = [11,22,33,45,56,6,77,84,93,101];
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  assertEquals(total, g());
+})();
+
+(function TriggerReduceRightPreLoopDeopt() {
+  function f(a) {
+    a.reduceRight((x) => { return x + 1 });
+  }
+  f([1,2,]);
+  f([1,2,]);
+  %OptimizeFunctionOnNextCall(f);
+  assertThrows(() => f([]), TypeError);
+})();
+
+(function OptimizedReduceRightEagerDeoptMiddleOfIterationHoley() {
+  let deopt = false;
+  let array = [, ,11,22,,33,45,56,,6,77,84,93,101,];
+  let f = (a,current) => {
+    if (current == 6 && deopt) {array[array.length-1] = 1.5; }
+    return a + current;
+  };
+  let g = function() {
+    return array.reduceRight(f);
+  }
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  g();
+  deopt = false;
+  array = [11,22,33,45,56,6,77,84,93,101];
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  assertEquals(total, g());
+})();
+
 (function ReduceCatch() {
   let f = (a,current) => {
     return a + current;
@@ -1240,4 +1298,15 @@ assertEquals(undefined, arr.reduceRight(function(val) { return val }));
   assertEquals(18, __f_3253(__v_12258));
   %OptimizeFunctionOnNextCall(__f_3253);
   assertEquals(18, __f_3253(__v_12258));
+})();
+
+(function ReduceMixedHoleyArrays() {
+  function r(a) {
+    return a.reduce((acc, i) => {acc[0]});
+  }
+  r([[0]]);
+  r([[0]]);
+  r([0,,]);
+  %OptimizeFunctionOnNextCall(r);
+  r([,0,0]);
 })();

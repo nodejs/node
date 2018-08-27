@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax --opt --no-always-opt
 
+let id = 0;
+
 function runTest(f, message, mkICTraining, deoptArg) {
   function test(f, message, ictraining, deoptArg) {
     // Train the call ic to the maps.
@@ -29,21 +31,23 @@ function runTest(f, message, mkICTraining, deoptArg) {
       // Make sure the optimized function can handle
       // all trained maps without deopt.
       for (let a of t3) {
+        message += " for args " + JSON.stringify(a) + " should have been optimized";
         f(a.arr, () => a.el);
-        message += " for args " + JSON.stringify(a);
-        assertOptimized(f, undefined, message + " should have been optimized");
+        assertOptimized(f, undefined, message);
       }
     } else {
       // Trigger deopt, causing no-speculation bit to be set.
       let a1 = deoptArg;
       let a2 = deoptArg;
       message += " for args " + JSON.stringify(a1);
+      message_unoptimized = message + " should have been unoptimized"
+      message_optimized = message + " should have been unoptimized"
       f(a1.arr, () => a1.el);
-      assertUnoptimized(f, undefined, message + " should have been unoptimized");
+      assertUnoptimized(f, undefined, message_unoptimized);
       %OptimizeFunctionOnNextCall(f);
       // No speculation should protect against further deopts.
       f(a2.arr, () => a2.el);
-      assertOptimized(f, undefined,  message + " should have been optimized");
+      assertOptimized(f, undefined,  message_optimized);
     }
   }
 
@@ -56,7 +60,14 @@ function runTest(f, message, mkICTraining, deoptArg) {
   // Substitute parameters.
   testString = testString.replace(new RegExp("ictraining", 'g'), mkICTraining.toString());
   testString = testString.replace(new RegExp("deoptArg", 'g'),
-    deoptArg ? JSON.stringify(deoptArg) : "undefined");
+    deoptArg ? JSON.stringify(deoptArg).replace(/"/g,'') : "undefined");
+
+  // Make field names unique to avoid learning of types.
+  id = id + 1;
+  testString = testString.replace(/[.]el/g, '.el' + id);
+  testString = testString.replace(/el:/g, 'el' + id + ':');
+  testString = testString.replace(/[.]arr/g, '.arr' + id);
+  testString = testString.replace(/arr:/g, 'arr' + id + ':');
 
   var modTest = new Function("message", testString);
   //print(modTest);
@@ -112,10 +123,10 @@ Object.keys(checks).forEach(
     let check = checks[key];
 
     for (fnc in functions) {
-      runTest(functions[fnc], "test-reliable-" + key, check.mkTrainingArguments);
+      runTest(functions[fnc], "test-" + fnc + "-" + key, check.mkTrainingArguments);
       // Test each deopting arg separately.
       for (let deoptArg of check.deoptingArguments) {
-        runTest(functions[fnc], "testDeopt-reliable-" + key, check.mkTrainingArguments, deoptArg);
+        runTest(functions[fnc], "testDeopt-" + fnc + "-" + key, check.mkTrainingArguments, deoptArg);
       }
     }
   }

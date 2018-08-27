@@ -29,7 +29,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/conversions.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/unicode-cache.h"

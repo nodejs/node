@@ -29,14 +29,14 @@ var shrinkwrap = {
   name: 'install-cli-only-shrinkwrap',
   description: 'fixture',
   version: '0.0.0',
+  lockfileVersion: 1,
+  requires: true,
   dependencies: {
     dependency: {
-      version: '0.0.0',
-      from: 'file:./dependency'
+      version: 'file:./dependency'
     },
     'dev-dependency': {
-      version: '0.0.0',
-      from: 'file:./dev-dependency',
+      version: 'file:./dev-dependency',
       dev: true
     }
   }
@@ -55,6 +55,7 @@ var devDependency = {
 }
 
 test('setup', function (t) {
+  cleanup()
   setup()
   t.pass('setup ran')
   t.end()

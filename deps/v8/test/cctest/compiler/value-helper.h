@@ -31,27 +31,27 @@ class ValueHelper {
 
   void CheckFloat64Constant(double expected, Node* node) {
     CHECK_EQ(IrOpcode::kFloat64Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<double>(node));
+    CHECK_EQ(expected, OpParameter<double>(node->op()));
   }
 
   void CheckNumberConstant(double expected, Node* node) {
     CHECK_EQ(IrOpcode::kNumberConstant, node->opcode());
-    CHECK_EQ(expected, OpParameter<double>(node));
+    CHECK_EQ(expected, OpParameter<double>(node->op()));
   }
 
   void CheckInt32Constant(int32_t expected, Node* node) {
     CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<int32_t>(node));
+    CHECK_EQ(expected, OpParameter<int32_t>(node->op()));
   }
 
   void CheckUint32Constant(int32_t expected, Node* node) {
     CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<int32_t>(node));
+    CHECK_EQ(expected, OpParameter<int32_t>(node->op()));
   }
 
   void CheckHeapConstant(HeapObject* expected, Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    CHECK_EQ(expected, *OpParameter<Handle<HeapObject>>(node));
+    CHECK_EQ(expected, *HeapConstantOf(node->op()));
   }
 
   void CheckTrue(Node* node) {
@@ -350,36 +350,40 @@ class ValueHelper {
 
 #define FOR_UINT32_SHIFTS(var) for (uint32_t var = 0; var < 32; var++)
 
-// TODO(bmeurer): Drop this crap once we switch to GTest/Gmock.
-static inline void CheckFloatEq(volatile float x, volatile float y) {
-  if (std::isnan(x)) {
-    CHECK(std::isnan(y));
-  } else {
-    CHECK_EQ(x, y);
-    CHECK_EQ(std::signbit(x), std::signbit(y));
+template <typename type>
+struct FloatCompareWrapper {
+  type value;
+  explicit FloatCompareWrapper(type x) : value(x) {}
+  bool operator==(type other) const {
+    return std::isnan(value)
+               ? std::isnan(other)
+               : value == other && std::signbit(value) == std::signbit(other);
   }
+};
+
+template <typename type>
+std::ostream& operator<<(std::ostream& out, FloatCompareWrapper<type> wrapper) {
+  return out << wrapper.value;
 }
 
-#define CHECK_FLOAT_EQ(lhs, rhs)                      \
-  do {                                                \
-    volatile float tmp = lhs;                         \
-    ::v8::internal::compiler::CheckFloatEq(tmp, rhs); \
-  } while (0)
+#define CHECK_FLOAT_EQ(lhs, rhs)                                               \
+  do {                                                                         \
+    using FloatWrapper = ::v8::internal::compiler::FloatCompareWrapper<float>; \
+    CHECK_EQ(FloatWrapper(lhs), rhs);                                          \
+  } while (false)
 
-static inline void CheckDoubleEq(volatile double x, volatile double y) {
-  if (std::isnan(x)) {
-    CHECK(std::isnan(y));
-  } else {
-    CHECK_EQ(x, y);
-    CHECK_EQ(std::signbit(x), std::signbit(y));
-  }
-}
+#define CHECK_DOUBLE_EQ(lhs, rhs)                              \
+  do {                                                         \
+    using DoubleWrapper =                                      \
+        ::v8::internal::compiler::FloatCompareWrapper<double>; \
+    CHECK_EQ(DoubleWrapper(lhs), rhs);                         \
+  } while (false)
 
-#define CHECK_DOUBLE_EQ(lhs, rhs)                      \
-  do {                                                 \
-    volatile double tmp = lhs;                         \
-    ::v8::internal::compiler::CheckDoubleEq(tmp, rhs); \
-  } while (0)
+// TODO(all): Use CHECK_FLOAT_EQ to get error reported at the right location.
+static inline void CheckFloatEq(float x, float y) { CHECK_FLOAT_EQ(x, y); }
+
+// TODO(all): Use CHECK_DOUBLE_EQ to get error reported at the right location.
+static inline void CheckDoubleEq(double x, double y) { CHECK_DOUBLE_EQ(x, y); }
 
 }  // namespace compiler
 }  // namespace internal

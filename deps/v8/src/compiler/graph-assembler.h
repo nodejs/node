@@ -196,6 +196,7 @@ class GraphAssembler {
   Node* Unreachable();
 
   Node* Float64RoundDown(Node* value);
+  Node* Float64RoundTruncate(Node* value);
 
   Node* ToNumber(Node* value);
   Node* BitcastWordToTagged(Node* value);
@@ -212,15 +213,16 @@ class GraphAssembler {
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);
 
+  Node* Word32PoisonOnSpeculation(Node* value);
+
   Node* DeoptimizeIf(DeoptimizeReason reason, VectorSlotPair const& feedback,
                      Node* condition, Node* frame_state);
-  Node* DeoptimizeIfNot(DeoptimizeKind kind, DeoptimizeReason reason,
-                        VectorSlotPair const& feedback, Node* condition,
-                        Node* frame_state);
-  Node* DeoptimizeIfNot(DeoptimizeReason reason, VectorSlotPair const& feedback,
-                        Node* condition, Node* frame_state);
+  Node* DeoptimizeIfNot(
+      DeoptimizeReason reason, VectorSlotPair const& feedback, Node* condition,
+      Node* frame_state,
+      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   template <typename... Args>
-  Node* Call(const CallDescriptor* desc, Args... args);
+  Node* Call(const CallDescriptor* call_descriptor, Args... args);
   template <typename... Args>
   Node* Call(const Operator* op, Args... args);
 
@@ -406,8 +408,9 @@ void GraphAssembler::GotoIfNot(Node* condition,
 }
 
 template <typename... Args>
-Node* GraphAssembler::Call(const CallDescriptor* desc, Args... args) {
-  const Operator* op = common()->Call(desc);
+Node* GraphAssembler::Call(const CallDescriptor* call_descriptor,
+                           Args... args) {
+  const Operator* op = common()->Call(call_descriptor);
   return Call(op, args...);
 }
 

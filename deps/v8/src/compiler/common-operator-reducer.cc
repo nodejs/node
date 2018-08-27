@@ -38,12 +38,14 @@ Decision DecideCondition(Node* const cond) {
 
 CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
                                              CommonOperatorBuilder* common,
-                                             MachineOperatorBuilder* machine)
+                                             MachineOperatorBuilder* machine,
+                                             Zone* temp_zone)
     : AdvancedReducer(editor),
       graph_(graph),
       common_(common),
       machine_(machine),
-      dead_(graph->NewNode(common->Dead())) {
+      dead_(graph->NewNode(common->Dead())),
+      zone_(temp_zone) {
   NodeProperties::SetType(dead_, Type::None());
 }
 
@@ -64,6 +66,8 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
       return ReduceReturn(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
+    case IrOpcode::kSwitch:
+      return ReduceSwitch(node);
     default:
       break;
   }
@@ -138,10 +142,10 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
   if (condition->opcode() == IrOpcode::kBooleanNot) {
     NodeProperties::ReplaceValueInput(node, condition->InputAt(0), 0);
     NodeProperties::ChangeOp(
-        node, condition_is_true ? common()->DeoptimizeIf(p.kind(), p.reason(),
-                                                         VectorSlotPair())
-                                : common()->DeoptimizeUnless(
-                                      p.kind(), p.reason(), VectorSlotPair()));
+        node,
+        condition_is_true
+            ? common()->DeoptimizeIf(p.kind(), p.reason(), p.feedback())
+            : common()->DeoptimizeUnless(p.kind(), p.reason(), p.feedback()));
     return Changed(node);
   }
   Decision const decision = DecideCondition(condition);
@@ -150,8 +154,8 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
     ReplaceWithValue(node, dead(), effect, control);
   } else {
     control = graph()->NewNode(
-        common()->Deoptimize(p.kind(), p.reason(), VectorSlotPair()),
-        frame_state, effect, control);
+        common()->Deoptimize(p.kind(), p.reason(), p.feedback()), frame_state,
+        effect, control);
     // TODO(bmeurer): This should be on the AdvancedReducer somehow.
     NodeProperties::MergeControlToEnd(graph(), common(), control);
     Revisit(graph()->end());
@@ -414,6 +418,42 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
   return NoChange();
 }
 
+Reduction CommonOperatorReducer::ReduceSwitch(Node* node) {
+  DCHECK_EQ(IrOpcode::kSwitch, node->opcode());
+  Node* const switched_value = node->InputAt(0);
+  Node* const control = node->InputAt(1);
+
+  // Attempt to constant match the switched value against the IfValue cases. If
+  // no case matches, then use the IfDefault. We don't bother marking
+  // non-matching cases as dead code (same for an unused IfDefault), because the
+  // Switch itself will be marked as dead code.
+  Int32Matcher mswitched(switched_value);
+  if (mswitched.HasValue()) {
+    bool matched = false;
+
+    size_t const projection_count = node->op()->ControlOutputCount();
+    Node** projections = zone_->NewArray<Node*>(projection_count);
+    NodeProperties::CollectControlProjections(node, projections,
+                                              projection_count);
+    for (size_t i = 0; i < projection_count - 1; i++) {
+      Node* if_value = projections[i];
+      DCHECK_EQ(IrOpcode::kIfValue, if_value->opcode());
+      const IfValueParameters& p = IfValueParametersOf(if_value->op());
+      if (p.value() == mswitched.Value()) {
+        matched = true;
+        Replace(if_value, control);
+        break;
+      }
+    }
+    if (!matched) {
+      Node* if_default = projections[projection_count - 1];
+      DCHECK_EQ(IrOpcode::kIfDefault, if_default->opcode());
+      Replace(if_default, control);
+    }
+    return Replace(dead());
+  }
+  return NoChange();
+}
 
 Reduction CommonOperatorReducer::Change(Node* node, Operator const* op,
                                         Node* a) {

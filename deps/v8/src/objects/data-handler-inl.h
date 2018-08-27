@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DATA_HANDLER_INL_H_
-#define V8_DATA_HANDLER_INL_H_
+#ifndef V8_OBJECTS_DATA_HANDLER_INL_H_
+#define V8_OBJECTS_DATA_HANDLER_INL_H_
 
 #include "src/objects/data-handler.h"
 
@@ -38,4 +38,4 @@ ACCESSORS_CHECKED(DataHandler, data3, Object, kData3Offset,
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_DATA_HANDLER_INL_H_
+#endif  // V8_OBJECTS_DATA_HANDLER_INL_H_

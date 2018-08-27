@@ -26,7 +26,7 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
  public:
   CommonOperatorReducer(Editor* editor, Graph* graph,
                         CommonOperatorBuilder* common,
-                        MachineOperatorBuilder* machine);
+                        MachineOperatorBuilder* machine, Zone* temp_zone);
   ~CommonOperatorReducer() final {}
 
   const char* reducer_name() const override { return "CommonOperatorReducer"; }
@@ -41,6 +41,7 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
   Reduction ReducePhi(Node* node);
   Reduction ReduceReturn(Node* node);
   Reduction ReduceSelect(Node* node);
+  Reduction ReduceSwitch(Node* node);
 
   Reduction Change(Node* node, Operator const* op, Node* a);
   Reduction Change(Node* node, Operator const* op, Node* a, Node* b);
@@ -54,6 +55,7 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
   CommonOperatorBuilder* const common_;
   MachineOperatorBuilder* const machine_;
   Node* const dead_;
+  Zone* zone_;
 };
 
 }  // namespace compiler

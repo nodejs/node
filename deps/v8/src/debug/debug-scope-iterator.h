@@ -24,6 +24,9 @@ class DebugScopeIterator final : public debug::ScopeIterator {
   ScopeType GetType() override;
   v8::Local<v8::Object> GetObject() override;
   v8::Local<v8::Function> GetFunction() override;
+  v8::Local<v8::Value> GetFunctionDebugName() override;
+  int GetScriptId() override;
+  bool HasLocationInfo() override;
   debug::Location GetStartLocation() override;
   debug::Location GetEndLocation() override;
 
@@ -46,12 +49,14 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
   ScopeType GetType() override;
   v8::Local<v8::Object> GetObject() override;
   v8::Local<v8::Function> GetFunction() override;
+  v8::Local<v8::Value> GetFunctionDebugName() override;
+  int GetScriptId() override;
+  bool HasLocationInfo() override;
   debug::Location GetStartLocation() override;
   debug::Location GetEndLocation() override;
 
   bool SetVariableValue(v8::Local<v8::String> name,
                         v8::Local<v8::Value> value) override;
-
  private:
   Isolate* isolate_;
   StandardFrame* frame_;

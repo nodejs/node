@@ -12,7 +12,9 @@
 #include "src/base/macros.h"
 #include "src/boxed-float.h"
 #include "src/deoptimize-reason.h"
+#include "src/feedback-vector.h"
 #include "src/frame-constants.h"
+#include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/source-position.h"
 #include "src/zone/zone-chunk-list.h"
@@ -150,6 +152,7 @@ class TranslatedFrame {
     kConstructStub,
     kBuiltinContinuation,
     kJavaScriptBuiltinContinuation,
+    kJavaScriptBuiltinContinuationWithCatch,
     kInvalid
   };
 
@@ -168,31 +171,39 @@ class TranslatedFrame {
   class iterator {
    public:
     iterator& operator++() {
+      ++input_index_;
       AdvanceIterator(&position_);
       return *this;
     }
 
     iterator operator++(int) {
+      ++input_index_;
       iterator original(position_);
       AdvanceIterator(&position_);
       return original;
     }
 
     bool operator==(const iterator& other) const {
+      // Ignore {input_index_} for equality.
       return position_ == other.position_;
     }
     bool operator!=(const iterator& other) const { return !(*this == other); }
 
     TranslatedValue& operator*() { return (*position_); }
     TranslatedValue* operator->() { return &(*position_); }
+    const TranslatedValue& operator*() const { return (*position_); }
+    const TranslatedValue* operator->() const { return &(*position_); }
+
+    int input_index() const { return input_index_; }
 
    private:
     friend TranslatedFrame;
 
     explicit iterator(std::deque<TranslatedValue>::iterator position)
-        : position_(position) {}
+        : position_(position), input_index_(0) {}
 
     std::deque<TranslatedValue>::iterator position_;
+    int input_index_;
   };
 
   typedef TranslatedValue& reference;
@@ -221,6 +232,8 @@ class TranslatedFrame {
   static TranslatedFrame BuiltinContinuationFrame(
       BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
+      BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
+  static TranslatedFrame JavaScriptBuiltinContinuationWithCatchFrame(
       BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
   static TranslatedFrame InvalidFrame() {
     return TranslatedFrame(kInvalid, nullptr);
@@ -357,7 +370,7 @@ class TranslatedState {
 
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_ = nullptr;
-  Address stack_frame_pointer_ = nullptr;
+  Address stack_frame_pointer_ = kNullAddress;
   int formal_parameter_count_;
 
   struct ObjectPosition {
@@ -393,7 +406,7 @@ class Deoptimizer : public Malloced {
     static const int kNoDeoptId = -1;
   };
 
-  static DeoptInfo GetDeoptInfo(Code* code, byte* from);
+  static DeoptInfo GetDeoptInfo(Code* code, Address from);
 
   static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo* shared,
                                                     BailoutId node_id);
@@ -515,6 +528,10 @@ class Deoptimizer : public Malloced {
   Isolate* isolate() const { return isolate_; }
 
  private:
+  friend class FrameWriter;
+  void QueueValueForMaterialization(Address output_address, Object* obj,
+                                    const TranslatedFrame::iterator& iterator);
+
   static const int kMinNumberOfEntries = 64;
   static const int kMaxNumberOfEntries = 16384;
 
@@ -531,19 +548,23 @@ class Deoptimizer : public Malloced {
                                       int frame_index);
   void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                    int frame_index);
-  void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
-                                    int frame_index, bool java_script_frame);
 
-  void WriteTranslatedValueToOutput(
-      TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
-      unsigned output_offset, const char* debug_hint_string = nullptr,
-      Address output_address_for_materialization = nullptr);
-  void WriteValueToOutput(Object* value, int input_index, int frame_index,
-                          unsigned output_offset,
-                          const char* debug_hint_string);
-  void DebugPrintOutputSlot(intptr_t value, int frame_index,
-                            unsigned output_offset,
-                            const char* debug_hint_string);
+  enum class BuiltinContinuationMode {
+    STUB,
+    JAVASCRIPT,
+    JAVASCRIPT_WITH_CATCH,
+    JAVASCRIPT_HANDLE_EXCEPTION
+  };
+  static bool BuiltinContinuationModeIsWithCatch(BuiltinContinuationMode mode);
+  static bool BuiltinContinuationModeIsJavaScript(BuiltinContinuationMode mode);
+  static StackFrame::Type BuiltinContinuationModeToFrameType(
+      BuiltinContinuationMode mode);
+  static Builtins::Name TrampolineForBuiltinContinuation(
+      BuiltinContinuationMode mode, bool must_handle_result);
+
+  void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
+                                    int frame_index,
+                                    BuiltinContinuationMode mode);
 
   unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;
@@ -866,30 +887,31 @@ class TranslationIterator BASE_EMBEDDED {
   int index_;
 };
 
-#define TRANSLATION_OPCODE_LIST(V)          \
-  V(BEGIN)                                  \
-  V(INTERPRETED_FRAME)                      \
-  V(BUILTIN_CONTINUATION_FRAME)             \
-  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) \
-  V(CONSTRUCT_STUB_FRAME)                   \
-  V(ARGUMENTS_ADAPTOR_FRAME)                \
-  V(DUPLICATED_OBJECT)                      \
-  V(ARGUMENTS_ELEMENTS)                     \
-  V(ARGUMENTS_LENGTH)                       \
-  V(CAPTURED_OBJECT)                        \
-  V(REGISTER)                               \
-  V(INT32_REGISTER)                         \
-  V(UINT32_REGISTER)                        \
-  V(BOOL_REGISTER)                          \
-  V(FLOAT_REGISTER)                         \
-  V(DOUBLE_REGISTER)                        \
-  V(STACK_SLOT)                             \
-  V(INT32_STACK_SLOT)                       \
-  V(UINT32_STACK_SLOT)                      \
-  V(BOOL_STACK_SLOT)                        \
-  V(FLOAT_STACK_SLOT)                       \
-  V(DOUBLE_STACK_SLOT)                      \
-  V(LITERAL)                                \
+#define TRANSLATION_OPCODE_LIST(V)                     \
+  V(BEGIN)                                             \
+  V(INTERPRETED_FRAME)                                 \
+  V(BUILTIN_CONTINUATION_FRAME)                        \
+  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME)            \
+  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME) \
+  V(CONSTRUCT_STUB_FRAME)                              \
+  V(ARGUMENTS_ADAPTOR_FRAME)                           \
+  V(DUPLICATED_OBJECT)                                 \
+  V(ARGUMENTS_ELEMENTS)                                \
+  V(ARGUMENTS_LENGTH)                                  \
+  V(CAPTURED_OBJECT)                                   \
+  V(REGISTER)                                          \
+  V(INT32_REGISTER)                                    \
+  V(UINT32_REGISTER)                                   \
+  V(BOOL_REGISTER)                                     \
+  V(FLOAT_REGISTER)                                    \
+  V(DOUBLE_REGISTER)                                   \
+  V(STACK_SLOT)                                        \
+  V(INT32_STACK_SLOT)                                  \
+  V(UINT32_STACK_SLOT)                                 \
+  V(BOOL_STACK_SLOT)                                   \
+  V(FLOAT_STACK_SLOT)                                  \
+  V(DOUBLE_STACK_SLOT)                                 \
+  V(LITERAL)                                           \
   V(UPDATE_FEEDBACK)
 
 class Translation BASE_EMBEDDED {
@@ -922,6 +944,9 @@ class Translation BASE_EMBEDDED {
                                      unsigned height);
   void BeginJavaScriptBuiltinContinuationFrame(BailoutId bailout_id,
                                                int literal_id, unsigned height);
+  void BeginJavaScriptBuiltinContinuationWithCatchFrame(BailoutId bailout_id,
+                                                        int literal_id,
+                                                        unsigned height);
   void ArgumentsElements(CreateArgumentsType type);
   void ArgumentsLength(CreateArgumentsType type);
   void BeginCapturedObject(int length);

@@ -65,7 +65,7 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
   DCHECK(!name->GetHeap()->InNewSpace(handler));
   DCHECK(name->IsUniqueName());
   DCHECK(name->HasHashCode());
-  if (handler) DCHECK(IC::IsHandler(handler));
+  if (handler) DCHECK(IC::IsHandler(MaybeObject::FromObject(handler), true));
   return true;
 }
 

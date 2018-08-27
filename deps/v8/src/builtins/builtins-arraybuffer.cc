@@ -23,17 +23,6 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // ES6 section 21.1 ArrayBuffer Objects
 
-// ES6 section 24.1.2.1 ArrayBuffer ( length ) for the [[Call]] case.
-BUILTIN(ArrayBufferConstructor) {
-  HandleScope scope(isolate);
-  Handle<JSFunction> target = args.target();
-  DCHECK(*target == target->native_context()->array_buffer_fun() ||
-         *target == target->native_context()->shared_array_buffer_fun());
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                            handle(target->shared()->name(), isolate)));
-}
-
 namespace {
 
 Object* ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
@@ -62,24 +51,30 @@ Object* ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
 
 }  // namespace
 
-// ES6 section 24.1.2.1 ArrayBuffer ( length ) for the [[Construct]] case.
-BUILTIN(ArrayBufferConstructor_ConstructStub) {
+// ES #sec-arraybuffer-constructor
+BUILTIN(ArrayBufferConstructor) {
   HandleScope scope(isolate);
   Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-  Handle<Object> length = args.atOrUndefined(isolate, 1);
   DCHECK(*target == target->native_context()->array_buffer_fun() ||
          *target == target->native_context()->shared_array_buffer_fun());
-
-  Handle<Object> number_length;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_length,
-                                     Object::ToInteger(isolate, length));
-  if (number_length->Number() < 0.0) {
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
-  }
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              handle(target->shared()->Name(), isolate)));
+  } else {  // [[Construct]]
+    Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+    Handle<Object> length = args.atOrUndefined(isolate, 1);
 
-  return ConstructBuffer(isolate, target, new_target, number_length, true);
+    Handle<Object> number_length;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_length,
+                                       Object::ToInteger(isolate, length));
+    if (number_length->Number() < 0.0) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
+    }
+
+    return ConstructBuffer(isolate, target, new_target, number_length, true);
+  }
 }
 
 // This is a helper to construct an ArrayBuffer with uinitialized memory.

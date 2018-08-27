@@ -63,7 +63,7 @@ server.listen(0, common.mustCall(function() {
       () => response.setHeader(header, 'foobar'),
       {
         code: 'ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED',
-        type: Error,
+        type: TypeError,
         message: 'Cannot set HTTP/2 pseudo-headers'
       })
     );

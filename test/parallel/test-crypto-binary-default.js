@@ -20,6 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+// Flags: --expose-internals
+
 // This is the same as test/simple/test-crypto, but from before the shift
 // to use buffers by default.
 
@@ -36,7 +38,7 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
 
-crypto.DEFAULT_ENCODING = 'latin1';
+require('internal/crypto/util').setDefaultEncoding('latin1');
 
 // Test Certificates
 const certPem = fixtures.readSync('test_cert.pem', 'ascii');

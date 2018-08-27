@@ -2,8 +2,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-// The v8 modules when imported leak globals. Disable global check.
-common.globalCheck = false;
 
 const deprecatedModules = [
   'node-inspect/lib/_inspect',
@@ -53,3 +51,6 @@ for (const m of deps) {
   }
   assert.notStrictEqual(path, m);
 }
+
+// The V8 modules add the WebInspector to the globals.
+common.allowGlobals(global.WebInspector);

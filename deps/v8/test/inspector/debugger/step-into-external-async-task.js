@@ -18,8 +18,11 @@ function store(description) {
 }
 //# sourceURL=utils.js`;
 
-contextGroup1.addScript(utilsScript);
+// TODO(rmcilroy): This has to be in this order since the i::Script object gets
+// reused via the CompilationCache, and we want OnAfterCompile to be called
+// for contextGroup1 last on this script.
 contextGroup2.addScript(utilsScript);
+contextGroup1.addScript(utilsScript);
 
 let frameworkScript = `
 function call(id, f) {

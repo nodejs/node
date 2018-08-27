@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/factory.h"
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/factory.h"
 #include "src/heap/spaces-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
@@ -190,7 +190,7 @@ UNINITIALIZED_HEAP_TEST(Regress658718) {
     }
     heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
     heap->new_space()->Shrink();
-    heap->memory_allocator()->unmapper()->WaitUntilCompleted();
+    heap->memory_allocator()->unmapper()->EnsureUnmappingCompleted();
     heap->delay_sweeper_tasks_for_testing_ = false;
     heap->mark_compact_collector()->sweeper()->StartSweeperTasks();
     heap->mark_compact_collector()->EnsureSweepingCompleted();

@@ -99,4 +99,4 @@ inline FieldIndex FieldIndex::ForDescriptor(const Map* map,
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_FIELD_INDEX_INL_H_

@@ -67,7 +67,7 @@ test('setup', function (t) {
       fs.readFileSync(
         path.resolve(pkg, 'node_modules/cli-dependency/hashbang.js'),
         'utf8'
-      ).includes('\r\n'),
+      ).includes('node\r\n'),
       'hashbang dependency cli newlines converted'
     )
     t.ok(

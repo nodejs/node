@@ -11,7 +11,6 @@ var validateGenerator = require('../dotjs/validate');
  * Functions below are used inside compiled validations function
  */
 
-var co = require('co');
 var ucs2length = util.ucs2length;
 var equal = require('fast-deep-equal');
 
@@ -70,9 +69,11 @@ function compile(schema, root, localRefs, baseId) {
     endCompiling.call(this, schema, root, baseId);
   }
 
+  /* @this   {*} - custom context, see passContext option */
   function callValidate() {
+    /* jshint validthis: true */
     var validate = compilation.validate;
-    var result = validate.apply(null, arguments);
+    var result = validate.apply(this, arguments);
     callValidate.errors = validate.errors;
     return result;
   }
@@ -124,7 +125,6 @@ function compile(schema, root, localRefs, baseId) {
         'refVal',
         'defaults',
         'customRules',
-        'co',
         'equal',
         'ucs2length',
         'ValidationError',
@@ -139,7 +139,6 @@ function compile(schema, root, localRefs, baseId) {
         refVal,
         defaults,
         customRules,
-        co,
         equal,
         ucs2length,
         ValidationError
@@ -224,7 +223,7 @@ function compile(schema, root, localRefs, baseId) {
   function resolvedRef(refVal, code) {
     return typeof refVal == 'object' || typeof refVal == 'boolean'
             ? { code: code, schema: refVal, inline: true }
-            : { code: code, $async: refVal && refVal.$async };
+            : { code: code, $async: refVal && !!refVal.$async };
   }
 
   function usePattern(regexStr) {

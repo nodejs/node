@@ -104,6 +104,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   FeedbackSlot strict_keyed_store_slot =
       feedback_spec.AddKeyedStoreICSlot(LanguageMode::kStrict);
   FeedbackSlot store_own_slot = feedback_spec.AddStoreOwnICSlot();
+  FeedbackSlot store_array_element_slot =
+      feedback_spec.AddStoreInArrayLiteralICSlot();
 
   // Emit global load / store operations.
   const AstRawString* name = ast_factory.GetOneByteString("var_name");
@@ -141,7 +143,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                           LanguageMode::kStrict)
       .StoreKeyedProperty(reg, reg, strict_keyed_store_slot.ToInt(),
                           LanguageMode::kStrict)
-      .StoreNamedOwnProperty(reg, name, store_own_slot.ToInt());
+      .StoreNamedOwnProperty(reg, name, store_own_slot.ToInt())
+      .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt());
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -165,9 +168,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit create context operation.
   builder.CreateBlockContext(&scope);
-  builder.CreateCatchContext(reg, name, &scope);
-  builder.CreateFunctionContext(1);
-  builder.CreateEvalContext(1);
+  builder.CreateCatchContext(reg, &scope);
+  builder.CreateFunctionContext(&scope, 1);
+  builder.CreateEvalContext(&scope, 1);
   builder.CreateWithContext(reg, &scope);
 
   // Emit literal creation operations.
@@ -176,7 +179,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateObjectLiteral(0, 0, 0, reg);
 
   // Emit tagged template operations.
-  builder.GetTemplateObject(0);
+  builder.GetTemplateObject(0, 0);
 
   // Call operations.
   builder.CallAnyReceiver(reg, reg_list, 1)
@@ -190,7 +193,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallUndefinedReceiver(reg, pair, 1)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
-      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list)
+      .CallJSRuntime(Context::OBJECT_CREATE, reg_list)
       .CallWithSpread(reg, reg_list, 1);
 
   // Emit binary operator invocations.
@@ -246,7 +249,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, 1)
       .CompareOperation(Token::Value::EQ_STRICT, reg, 2)
-      .CompareOperation(Token::Value::EQ_STRICT, reg)
       .CompareOperation(Token::Value::LT, reg, 3)
       .CompareOperation(Token::Value::GT, reg, 4)
       .CompareOperation(Token::Value::LTE, reg, 5)
@@ -254,12 +256,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber)
       .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
       .CompareOperation(Token::Value::IN, reg)
+      .CompareReference(reg)
       .CompareUndetectable()
       .CompareUndefined()
       .CompareNull();
 
   // Emit conversion operator invocations.
-  builder.ToNumber(1).ToNumeric(1).ToObject(reg).ToName(reg);
+  builder.ToNumber(1).ToNumeric(1).ToObject(reg).ToName(reg).ToString();
 
   // Emit GetSuperConstructor.
   builder.GetSuperConstructor(reg);
@@ -384,9 +387,17 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreModuleVariable(1, 42);
 
   // Emit generator operations.
-  builder.SuspendGenerator(reg, reg_list, 0)
-      .RestoreGeneratorState(reg)
-      .ResumeGenerator(reg, reg, reg_list);
+  {
+    // We have to skip over suspend because it returns and marks the remaining
+    // bytecode dead.
+    BytecodeLabel after_suspend;
+    builder.JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &after_suspend)
+        .SuspendGenerator(reg, reg_list, 0)
+        .Bind(&after_suspend)
+        .ResumeGenerator(reg, reg_list);
+  }
+  BytecodeJumpTable* gen_jump_table = builder.AllocateJumpTable(1, 0);
+  builder.SwitchOnGeneratorState(reg, gen_jump_table).Bind(gen_jump_table, 0);
 
   // Intrinsics handled by the interpreter.
   builder.CallRuntime(Runtime::kInlineIsArray, reg_list);
@@ -438,6 +449,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       operand_scale = Bytecodes::PrefixBytecodeToOperandScale(final_bytecode);
       prefix_offset = 1;
       code = the_array->get(i + 1);
+      scorecard[code] += 1;
       final_bytecode = Bytecodes::FromByte(code);
     }
     i += prefix_offset + Bytecodes::Size(final_bytecode, operand_scale);
@@ -457,7 +469,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 #define CHECK_BYTECODE_PRESENT(Name, ...)                                \
   /* Check Bytecode is marked in scorecard, unless it's a debug break */ \
   if (!Bytecodes::IsDebugBreak(Bytecode::k##Name)) {                     \
-    CHECK_GE(scorecard[Bytecodes::ToByte(Bytecode::k##Name)], 1);        \
+    EXPECT_GE(scorecard[Bytecodes::ToByte(Bytecode::k##Name)], 1);       \
   }
   BYTECODE_LIST(CHECK_BYTECODE_PRESENT)
 #undef CHECK_BYTECODE_PRESENT

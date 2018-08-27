@@ -72,10 +72,6 @@ function test(keylen, expectedCipher, cb) {
     const args = ['s_client', '-connect', `127.0.0.1:${this.address().port}`,
                   '-cipher', ciphers];
 
-    // for the performance and stability issue in s_client on Windows
-    if (common.isWindows)
-      args.push('-no_rand_screen');
-
     const client = spawn(common.opensslCli, args);
     let out = '';
     client.stdout.setEncoding('utf8');

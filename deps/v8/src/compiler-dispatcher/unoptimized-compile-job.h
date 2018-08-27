@@ -18,8 +18,6 @@ namespace internal {
 class AstValueFactory;
 class AstStringConstants;
 class CompilerDispatcherTracer;
-class CompilationInfo;
-class CompilationJob;
 class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
@@ -28,6 +26,7 @@ class Parser;
 class SharedFunctionInfo;
 class String;
 class UnicodeCache;
+class UnoptimizedCompilationJob;
 class Utf16CharacterStream;
 
 class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
@@ -77,7 +76,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   std::unique_ptr<Parser> parser_;
 
   // Members required for compiling.
-  std::unique_ptr<CompilationJob> compilation_job_;
+  std::unique_ptr<UnoptimizedCompilationJob> compilation_job_;
 
   bool trace_compiler_dispatcher_jobs_;
 

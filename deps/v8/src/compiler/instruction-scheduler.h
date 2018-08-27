@@ -16,12 +16,10 @@ namespace compiler {
 // scheduler is aware of dependencies between instructions.
 enum ArchOpcodeFlags {
   kNoOpcodeFlags = 0,
-  kIsBlockTerminator = 1,  // The instruction marks the end of a basic block
-                           // e.g.: jump and return instructions.
-  kHasSideEffect = 2,      // The instruction has some side effects (memory
-                           // store, function call...)
-  kIsLoadOperation = 4,    // The instruction is a memory load.
-  kMayNeedDeoptOrTrapCheck = 8,  // The instruction may be associated with a
+  kHasSideEffect = 1,    // The instruction has some side effects (memory
+                         // store, function call...)
+  kIsLoadOperation = 2,  // The instruction is a memory load.
+  kMayNeedDeoptOrTrapCheck = 4,  // The instruction may be associated with a
                                  // deopt or trap check which must be run before
                                  // instruction e.g. div on Intel platform which
                                  // will raise an exception when the divisor is
@@ -36,6 +34,7 @@ class InstructionScheduler final : public ZoneObject {
   void EndBlock(RpoNumber rpo);
 
   void AddInstruction(Instruction* instr);
+  void AddTerminator(Instruction* instr);
 
   static bool SchedulerSupported();
 
@@ -153,9 +152,6 @@ class InstructionScheduler final : public ZoneObject {
   int GetInstructionFlags(const Instruction* instr) const;
   int GetTargetInstructionFlags(const Instruction* instr) const;
 
-  // Return true if the instruction is a basic block terminator.
-  bool IsBlockTerminator(const Instruction* instr) const;
-
   // Check whether the given instruction has side effects (e.g. function call,
   // memory store).
   bool HasSideEffect(const Instruction* instr) const {
@@ -207,6 +203,8 @@ class InstructionScheduler final : public ZoneObject {
   Zone* zone_;
   InstructionSequence* sequence_;
   ZoneVector<ScheduleGraphNode*> graph_;
+
+  friend class InstructionSchedulerTester;
 
   // Last side effect instruction encountered while building the graph.
   ScheduleGraphNode* last_side_effect_instr_;

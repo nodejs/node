@@ -2,17 +2,22 @@
 
 =head1 NAME
 
-EVP_EncodeInit, EVP_EncodeUpdate, EVP_EncodeFinal, EVP_EncodeBlock,
-EVP_DecodeInit, EVP_DecodeUpdate, EVP_DecodeFinal, EVP_DecodeBlock - EVP base 64
-encode/decode routines
+EVP_ENCODE_CTX_new, EVP_ENCODE_CTX_free, EVP_ENCODE_CTX_copy,
+EVP_ENCODE_CTX_num, EVP_EncodeInit, EVP_EncodeUpdate, EVP_EncodeFinal,
+EVP_EncodeBlock, EVP_DecodeInit, EVP_DecodeUpdate, EVP_DecodeFinal,
+EVP_DecodeBlock - EVP base 64 encode/decode routines
 
 =head1 SYNOPSIS
 
  #include <openssl/evp.h>
 
+ EVP_ENCODE_CTX *EVP_ENCODE_CTX_new(void);
+ void EVP_ENCODE_CTX_free(EVP_ENCODE_CTX *ctx);
+ int EVP_ENCODE_CTX_copy(EVP_ENCODE_CTX *dctx, EVP_ENCODE_CTX *sctx);
+ int EVP_ENCODE_CTX_num(EVP_ENCODE_CTX *ctx);
  void EVP_EncodeInit(EVP_ENCODE_CTX *ctx);
- void EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
-                       const unsigned char *in, int inl);
+ int EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
+                      const unsigned char *in, int inl);
  void EVP_EncodeFinal(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl);
  int EVP_EncodeBlock(unsigned char *t, const unsigned char *f, int n);
 
@@ -32,6 +37,12 @@ bytes of binary data provided 4 bytes of base 64 encoded data will be produced
 plus some occasional newlines (see below). If the input data length is not a
 multiple of 3 then the output data will be padded at the end using the "="
 character.
+
+EVP_ENCODE_CTX_new() allocates, initializes and returns a context to be used for
+the encode/decode functions.
+
+EVP_ENCODE_CTX_free() cleans up an encode/decode context B<ctx> and frees up the
+space allocated to it.
 
 Encoding of binary data is performed in blocks of 48 input bytes (or less for
 the final block). For each 48 byte input block encoded 64 bytes of base 64 data
@@ -56,7 +67,8 @@ any remainder). This gives the number of blocks of data that will be processed.
 Ensure the output buffer contains 65 bytes of storage for each block, plus an
 additional byte for a NUL terminator. EVP_EncodeUpdate() may be called
 repeatedly to process large amounts of input data. In the event of an error
-EVP_EncodeUpdate() will set B<*outl> to 0.
+EVP_EncodeUpdate() will set B<*outl> to 0 and return 0. On success 1 will be
+returned.
 
 EVP_EncodeFinal() must be called at the end of an encoding operation. It will
 process any partial block of data remaining in the B<ctx> object. The output
@@ -64,6 +76,12 @@ data will be stored in B<out> and the length of the data written will be stored
 in B<*outl>. It is the caller's responsibility to ensure that B<out> is
 sufficiently large to accommodate the output data which will never be more than
 65 bytes plus an additional NUL terminator (i.e. 66 bytes in total).
+
+EVP_ENCODE_CTX_copy() can be used to copy a context B<sctx> to a context
+B<dctx>. B<dctx> must be initialized before calling this function.
+
+EVP_ENCODE_CTX_num() will return the number of as yet unprocessed bytes still to
+be encoded or decoded that are pending in the B<ctx> object.
 
 EVP_EncodeBlock() encodes a full block of input data in B<f> and of length
 B<dlen> and stores it in B<t>. For every 3 bytes of input provided 4 bytes of
@@ -102,13 +120,21 @@ in this case. Otherwise the function returns 1 on success.
 EVP_DecodeBlock() will decode the block of B<n> characters of base 64 data
 contained in B<f> and store the result in B<t>. Any leading whitespace will be
 trimmed as will any trailing whitespace, newlines, carriage returns or EOF
-characters. After such trimming the length of the data in B<f> must be divisbile
+characters. After such trimming the length of the data in B<f> must be divisible
 by 4. For every 4 input bytes exactly 3 output bytes will be produced. The
 output will be padded with 0 bits if necessary to ensure that the output is
 always 3 bytes for every 4 input bytes. This function will return the length of
 the data decoded or -1 on error.
 
 =head1 RETURN VALUES
+
+EVP_ENCODE_CTX_new() returns a pointer to the newly allocated EVP_ENCODE_CTX
+object or NULL on error.
+
+EVP_ENCODE_CTX_num() returns the number of bytes pending encoding or decoding in
+B<ctx>.
+
+EVP_EncodeUpdate() returns 0 on error or 1 on success.
 
 EVP_EncodeBlock() returns the number of bytes encoded excluding the NUL
 terminator.
@@ -123,5 +149,14 @@ EVP_DecodeBlock() returns the length of the data decoded or -1 on error.
 =head1 SEE ALSO
 
 L<evp(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

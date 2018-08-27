@@ -1,16 +1,16 @@
 'use strict';
+// Flags: --expose-gc --expose-internals --no-warnings
 
 const common = require('../common');
+const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');
 const fs = require('fs');
-const fsPromises = require('fs/promises');
+const fsPromises = fs.promises;
 const net = require('net');
-const providers = Object.assign({}, process.binding('async_wrap').Providers);
+const providers = Object.assign({}, internalBinding('async_wrap').Providers);
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const { getSystemErrorName } = require('util');
-
-common.crashOnUnhandledRejection();
 
 // Make sure that all Providers are tested.
 {
@@ -22,6 +22,11 @@ common.crashOnUnhandledRejection();
     },
   }).enable();
   process.on('beforeExit', common.mustCall(() => {
+    // This garbage collection call verifies that the wraps being garbage
+    // collected doesn't resurrect the process again due to weirdly timed
+    // uv_close calls and other similar instruments in destructors.
+    global.gc();
+
     process.removeAllListeners('uncaughtException');
     hooks.disable();
     delete providers.NONE;  // Should never be used.
@@ -35,7 +40,12 @@ common.crashOnUnhandledRejection();
     delete providers.HTTP2STREAM;
     delete providers.HTTP2PING;
     delete providers.HTTP2SETTINGS;
+    // TODO(addaleax): Test for these
     delete providers.STREAMPIPE;
+    delete providers.MESSAGEPORT;
+    delete providers.WORKER;
+    if (!common.isMainThread)
+      delete providers.INSPECTORJSBINDING;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
@@ -104,13 +114,19 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   // so need to check it from the callback.
 
   const mc = common.mustCall(function pb() {
-    testInitialized(this, 'PBKDF2');
+    testInitialized(this, 'AsyncWrap');
   });
   crypto.pbkdf2('password', 'salt', 1, 20, 'sha256', mc);
 
   crypto.randomBytes(1, common.mustCall(function rb() {
-    testInitialized(this, 'RandomBytes');
+    testInitialized(this, 'AsyncWrap');
   }));
+
+  if (typeof internalBinding('crypto').scrypt === 'function') {
+    crypto.scrypt('password', 'salt', 8, common.mustCall(function() {
+      testInitialized(this, 'AsyncWrap');
+    }));
+  }
 }
 
 
@@ -118,11 +134,11 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const binding = process.binding('fs');
   const path = require('path');
 
-  const FSReqWrap = binding.FSReqWrap;
-  const req = new FSReqWrap();
+  const FSReqCallback = binding.FSReqCallback;
+  const req = new FSReqCallback();
   req.oncomplete = () => { };
 
-  testInitialized(req, 'FSReqWrap');
+  testInitialized(req, 'FSReqCallback');
   binding.access(path.toNamespacedPath('../'), fs.F_OK, req);
 
   const StatWatcher = binding.StatWatcher;
@@ -131,7 +147,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 
 {
-  const HTTPParser = process.binding('http_parser').HTTPParser;
+  const { HTTPParser } = internalBinding('http_parser');
   testInitialized(new HTTPParser(), 'HTTPParser');
 }
 
@@ -171,7 +187,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 }
 
 {
-  const Signal = process.binding('signal_wrap').Signal;
+  const { Signal } = internalBinding('signal_wrap');
   testInitialized(new Signal(), 'Signal');
 }
 
@@ -181,17 +197,17 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
     testInitialized(fd, 'FileHandle');
     await fd.close();
   }
-  openTest().then(common.mustCall()).catch(common.mustNotCall());
+  openTest().then(common.mustCall());
 }
 
 {
-  const binding = process.binding('stream_wrap');
+  const binding = internalBinding('stream_wrap');
   testUninitialized(new binding.WriteWrap(), 'WriteWrap');
 }
 
 {
-  const stream_wrap = process.binding('stream_wrap');
-  const tcp_wrap = process.binding('tcp_wrap');
+  const stream_wrap = internalBinding('stream_wrap');
+  const tcp_wrap = internalBinding('tcp_wrap');
   const server = net.createServer(common.mustCall((socket) => {
     server.close();
     socket.on('data', () => {
@@ -239,14 +255,8 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 }
 
 
-{
-  const TimerWrap = process.binding('timer_wrap').Timer;
-  testInitialized(new TimerWrap(), 'Timer');
-}
-
-
 if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
-  const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
+  const { TCP, constants: TCPConstants } = internalBinding('tcp_wrap');
   const tcp = new TCP(TCPConstants.SOCKET);
 
   const ca = fixtures.readSync('test_ca.pem', 'ascii');
@@ -256,7 +266,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const credentials = require('tls').createSecureContext({ ca, cert, key });
 
   // TLSWrap is exposed, but needs to be instantiated via tls_wrap.wrap().
-  const tls_wrap = process.binding('tls_wrap');
+  const tls_wrap = internalBinding('tls_wrap');
   testInitialized(
     tls_wrap.wrap(tcp._externalStream, credentials.context, true), 'TLSWrap');
 }
@@ -278,7 +288,8 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   testInitialized(req, 'SendWrap');
 }
 
-if (process.config.variables.v8_enable_inspector !== 0) {
+if (process.config.variables.v8_enable_inspector !== 0 &&
+    common.isMainThread) {
   const binding = process.binding('inspector');
   const handle = new binding.Connection(() => {});
   testInitialized(handle, 'Connection');

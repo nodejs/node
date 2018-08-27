@@ -92,8 +92,7 @@ function remoteClose() {
         // waiting remote server close the socket
         setTimeout(common.mustCall(() => {
           assert.strictEqual(agent.sockets[name], undefined);
-          assert.strictEqual(agent.freeSockets[name], undefined,
-                             'freeSockets is not empty');
+          assert.strictEqual(agent.freeSockets[name], undefined);
           remoteError();
         }), common.platformTimeout(200));
       }));

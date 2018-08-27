@@ -21,23 +21,29 @@ assert.strictEqual(typeof hdl.uid, 'number');
 assert.strictEqual(typeof hdl.triggerAsyncId, 'number');
 checkInvocations(hdl, { init: 1 }, 'when created handle');
 
+// Store all buffers together so that they do not get
+// garbage collected.
+const buffers = {
+  writeResult: new Uint32Array(2),
+  dictionary: new Uint8Array(0),
+  inBuf: new Uint8Array([0x78]),
+  outBuf: new Uint8Array(1)
+};
+
 handle.init(
   constants.Z_DEFAULT_WINDOWBITS,
   constants.Z_MIN_LEVEL,
   constants.Z_DEFAULT_MEMLEVEL,
   constants.Z_DEFAULT_STRATEGY,
-  new Uint32Array(2),
+  buffers.writeResult,
   function processCallback() { this.cb(); },
-  Buffer.from('')
+  buffers.dictionary
 );
 checkInvocations(hdl, { init: 1 }, 'when initialized handle');
 
-const inBuf = Buffer.from('x');
-const outBuf = Buffer.allocUnsafe(1);
-
 let count = 2;
 handle.cb = common.mustCall(onwritten, 2);
-handle.write(true, inBuf, 0, 1, outBuf, 0, 1);
+handle.write(true, buffers.inBuf, 0, 1, buffers.outBuf, 0, 1);
 checkInvocations(hdl, { init: 1 }, 'when invoked write() on handle');
 
 function onwritten() {
@@ -45,7 +51,7 @@ function onwritten() {
     // first write
     checkInvocations(hdl, { init: 1, before: 1 },
                      'when wrote to handle the first time');
-    handle.write(true, inBuf, 0, 1, outBuf, 0, 1);
+    handle.write(true, buffers.inBuf, 0, 1, buffers.outBuf, 0, 1);
   } else {
     // second write
     checkInvocations(hdl, { init: 1, before: 2, after: 1 },
@@ -61,4 +67,7 @@ function onexit() {
   // TODO: destroy never called here even with large amounts of ticks
   // is that correct?
   checkInvocations(hdl, { init: 1, before: 2, after: 2 }, 'when process exits');
+
+  // Do something with `buffers` to keep them alive until here.
+  buffers.buffers = buffers;
 }

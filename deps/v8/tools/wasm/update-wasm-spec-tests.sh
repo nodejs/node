@@ -28,6 +28,9 @@ mkdir ${SPEC_TEST_DIR}/tmp
 ./tools/dev/gm.py x64.release d8
 
 cd ${V8_DIR}/test/wasm-js/interpreter
+
+# The next step requires that ocaml is installed. See the README.md in
+# ${V8_DIR}/test/wasm-js/interpreter/.
 make clean all
 
 cd ${V8_DIR}/test/wasm-js/test/core
@@ -42,4 +45,11 @@ echo
 echo "The following files will get uploaded:"
 ls tests
 echo
+
+# For the following command you first have to authenticate with google cloud
+# storage. For that you have to execute
+#
+# > gsutil.py config
+#
+# When the script asks you for your project-id, use 0.
 upload_to_google_storage.py -a -b v8-wasm-spec-tests tests

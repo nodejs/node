@@ -26,7 +26,7 @@ SSL_CTX object is being maintained, the sessions are unique for each SSL_CTX
 object.
 
 In order to reuse a session, a client must send the session's id to the
-server. It can only send exactly one id.  The server then either 
+server. It can only send exactly one id.  The server then either
 agrees to reuse the session or it starts a full handshake (to create a new
 session).
 
@@ -37,7 +37,7 @@ the external storage if available.
 
 Since a client may try to reuse a session intended for use in a different
 context, the session id context must be set by the server (see
-L<SSL_CTX_set_session_id_context(3)|SSL_CTX_set_session_id_context(3)>).
+L<SSL_CTX_set_session_id_context(3)>).
 
 The following session cache modes and modifiers are available:
 
@@ -53,7 +53,7 @@ Client sessions are added to the session cache. As there is no reliable way
 for the OpenSSL library to know whether a session should be reused or which
 session to choose (due to the abstract BIO layer the SSL engine does not
 have details about the connection), the application must select the session
-to be reused by using the L<SSL_set_session(3)|SSL_set_session(3)>
+to be reused by using the L<SSL_set_session(3)>
 function. This option is not activated by default.
 
 =item SSL_SESS_CACHE_SERVER
@@ -72,10 +72,10 @@ Enable both SSL_SESS_CACHE_CLIENT and SSL_SESS_CACHE_SERVER at the same time.
 
 Normally the session cache is checked for expired sessions every
 255 connections using the
-L<SSL_CTX_flush_sessions(3)|SSL_CTX_flush_sessions(3)> function. Since
+L<SSL_CTX_flush_sessions(3)> function. Since
 this may lead to a delay which cannot be controlled, the automatic
 flushing may be disabled and
-L<SSL_CTX_flush_sessions(3)|SSL_CTX_flush_sessions(3)> can be called
+L<SSL_CTX_flush_sessions(3)> can be called
 explicitly by the application.
 
 =item SSL_SESS_CACHE_NO_INTERNAL_LOOKUP
@@ -94,7 +94,7 @@ sessions negotiated in an SSL/TLS handshake may be cached for possible reuse.
 Normally a new session is added to the internal cache as well as any external
 session caching (callback) that is configured for the SSL_CTX. This flag will
 prevent sessions being stored in the internal cache (though the application can
-add them manually using L<SSL_CTX_add_session(3)|SSL_CTX_add_session(3)>). Note:
+add them manually using L<SSL_CTX_add_session(3)>). Note:
 in any SSL/TLS servers where external caching is configured, any successful
 session lookups in the external cache (ie. for session-resume requests) would
 normally be copied into the local cache before processing continues - this flag
@@ -119,19 +119,23 @@ SSL_CTX_get_session_cache_mode() returns the currently set cache mode.
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>, L<SSL_set_session(3)|SSL_set_session(3)>,
-L<SSL_session_reused(3)|SSL_session_reused(3)>,
-L<SSL_CTX_add_session(3)|SSL_CTX_add_session(3)>,
-L<SSL_CTX_sess_number(3)|SSL_CTX_sess_number(3)>,
-L<SSL_CTX_sess_set_cache_size(3)|SSL_CTX_sess_set_cache_size(3)>,
-L<SSL_CTX_sess_set_get_cb(3)|SSL_CTX_sess_set_get_cb(3)>,
-L<SSL_CTX_set_session_id_context(3)|SSL_CTX_set_session_id_context(3)>,
-L<SSL_CTX_set_timeout(3)|SSL_CTX_set_timeout(3)>,
-L<SSL_CTX_flush_sessions(3)|SSL_CTX_flush_sessions(3)>
+L<ssl(3)>, L<SSL_set_session(3)>,
+L<SSL_session_reused(3)>,
+L<SSL_CTX_add_session(3)>,
+L<SSL_CTX_sess_number(3)>,
+L<SSL_CTX_sess_set_cache_size(3)>,
+L<SSL_CTX_sess_set_get_cb(3)>,
+L<SSL_CTX_set_session_id_context(3)>,
+L<SSL_CTX_set_timeout(3)>,
+L<SSL_CTX_flush_sessions(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-SSL_SESS_CACHE_NO_INTERNAL_STORE and SSL_SESS_CACHE_NO_INTERNAL
-were introduced in OpenSSL 0.9.6h.
+Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

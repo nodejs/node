@@ -12,40 +12,43 @@
 #ifndef V8_OBJECTS_INL_H_
 #define V8_OBJECTS_INL_H_
 
+#include "src/objects.h"
+
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
 #include "src/base/tsan.h"
 #include "src/builtins/builtins.h"
 #include "src/contexts-inl.h"
 #include "src/conversions-inl.h"
-#include "src/factory.h"
 #include "src/feedback-vector-inl.h"
 #include "src/field-index-inl.h"
-#include "src/field-type.h"
 #include "src/handles-inl.h"
+#include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap.h"
 #include "src/isolate-inl.h"
-#include "src/isolate.h"
 #include "src/keys.h"
 #include "src/layout-descriptor-inl.h"
 #include "src/lookup-cache-inl.h"
 #include "src/lookup.h"
-#include "src/objects.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/data-handler-inl.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/fixed-array-inl.h"
-#include "src/objects/hash-table-inl.h"
-#include "src/objects/hash-table.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/js-regexp-string-iterator-inl.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/name-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/template-objects.h"
+#include "src/objects/templates.h"
+#include "src/property-details.h"
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
@@ -78,18 +81,21 @@ int PropertyDetails::field_width_in_words() const {
 }
 
 TYPE_CHECKER(BigInt, BIGINT_TYPE)
+TYPE_CHECKER(BoilerplateDescription, BOILERPLATE_DESCRIPTION_TYPE)
 TYPE_CHECKER(BreakPoint, TUPLE2_TYPE)
 TYPE_CHECKER(BreakPointInfo, TUPLE2_TYPE)
-TYPE_CHECKER(CallHandlerInfo, TUPLE3_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
 TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)
+TYPE_CHECKER(FeedbackCell, FEEDBACK_CELL_TYPE)
+TYPE_CHECKER(FeedbackMetadata, FEEDBACK_METADATA_TYPE)
 TYPE_CHECKER(FeedbackVector, FEEDBACK_VECTOR_TYPE)
 TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
 TYPE_CHECKER(HashTable, HASH_TABLE_TYPE)
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
+TYPE_CHECKER(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)
 TYPE_CHECKER(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)
 TYPE_CHECKER(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)
 TYPE_CHECKER(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)
@@ -99,8 +105,10 @@ TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSError, JS_ERROR_TYPE)
 TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
 TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
+#ifdef V8_INTL_SUPPORT
+TYPE_CHECKER(JSLocale, JS_INTL_LOCALE_TYPE)
+#endif  // V8_INTL_SUPPORT
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
-TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
 TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
 TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
@@ -109,12 +117,13 @@ TYPE_CHECKER(PreParsedScopeData, TUPLE2_TYPE)
 TYPE_CHECKER(PropertyArray, PROPERTY_ARRAY_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(PropertyDescriptorObject, FIXED_ARRAY_TYPE)
+TYPE_CHECKER(ScopeInfo, SCOPE_INFO_TYPE)
 TYPE_CHECKER(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)
 TYPE_CHECKER(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)
 TYPE_CHECKER(SourcePositionTableWithFrameCache, TUPLE2_TYPE)
-TYPE_CHECKER(TemplateMap, HASH_TABLE_TYPE)
-TYPE_CHECKER(TemplateObjectDescription, TUPLE3_TYPE)
+TYPE_CHECKER(TemplateObjectDescription, TUPLE2_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
+TYPE_CHECKER(WasmGlobalObject, WASM_GLOBAL_TYPE)
 TYPE_CHECKER(WasmInstanceObject, WASM_INSTANCE_TYPE)
 TYPE_CHECKER(WasmMemoryObject, WASM_MEMORY_TYPE)
 TYPE_CHECKER(WasmModuleObject, WASM_MODULE_TYPE)
@@ -137,6 +146,12 @@ bool HeapObject::IsFixedArray() const {
          instance_type <= LAST_FIXED_ARRAY_TYPE;
 }
 
+bool HeapObject::IsWeakFixedArray() const {
+  InstanceType instance_type = map()->instance_type();
+  return instance_type >= FIRST_WEAK_FIXED_ARRAY_TYPE &&
+         instance_type <= LAST_WEAK_FIXED_ARRAY_TYPE;
+}
+
 bool HeapObject::IsSloppyArgumentsElements() const {
   return IsFixedArrayExact();
 }
@@ -148,10 +163,6 @@ bool HeapObject::IsJSSloppyArgumentsObject() const {
 bool HeapObject::IsJSGeneratorObject() const {
   return map()->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
          IsJSAsyncGeneratorObject();
-}
-
-bool HeapObject::IsBoilerplateDescription() const {
-  return IsFixedArrayExact();
 }
 
 bool HeapObject::IsClassBoilerplate() const { return IsFixedArrayExact(); }
@@ -310,19 +321,21 @@ bool HeapObject::IsJSSetIterator() const {
           instance_type == JS_SET_KEY_VALUE_ITERATOR_TYPE);
 }
 
-bool HeapObject::IsJSArrayIterator() const {
-  InstanceType instance_type = map()->instance_type();
-  return (instance_type >= FIRST_ARRAY_ITERATOR_TYPE &&
-          instance_type <= LAST_ARRAY_ITERATOR_TYPE);
-}
-
 bool HeapObject::IsJSWeakCollection() const {
   return IsJSWeakMap() || IsJSWeakSet();
 }
 
 bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
 
-bool HeapObject::IsPromiseCapability() const { return IsTuple3(); }
+bool HeapObject::IsMicrotask() const {
+  InstanceType instance_type = map()->instance_type();
+  return (instance_type >= FIRST_MICROTASK_TYPE &&
+          instance_type <= LAST_MICROTASK_TYPE);
+}
+
+bool HeapObject::IsPromiseReactionJobTask() const {
+  return IsPromiseFulfillReactionJobTask() || IsPromiseRejectReactionJobTask();
+}
 
 bool HeapObject::IsEnumCache() const { return IsTuple2(); }
 
@@ -336,8 +349,6 @@ bool HeapObject::IsArrayList() const {
 bool HeapObject::IsRegExpMatchInfo() const { return IsFixedArrayExact(); }
 
 bool Object::IsLayoutDescriptor() const { return IsSmi() || IsByteArray(); }
-
-bool HeapObject::IsFeedbackMetadata() const { return IsFixedArrayExact(); }
 
 bool HeapObject::IsDeoptimizationData() const {
   // Must be a fixed array.
@@ -395,10 +406,6 @@ bool HeapObject::IsScriptContextTable() const {
   return map() == GetHeap()->script_context_table_map();
 }
 
-bool HeapObject::IsScopeInfo() const {
-  return map() == GetHeap()->scope_info_map();
-}
-
 template <>
 inline bool Is<JSFunction>(Object* obj) {
   return obj->IsJSFunction();
@@ -412,6 +419,26 @@ bool HeapObject::IsStringWrapper() const {
   return IsJSValue() && JSValue::cast(this)->value()->IsString();
 }
 
+bool HeapObject::IsBooleanWrapper() const {
+  return IsJSValue() && JSValue::cast(this)->value()->IsBoolean();
+}
+
+bool HeapObject::IsScriptWrapper() const {
+  return IsJSValue() && JSValue::cast(this)->value()->IsScript();
+}
+
+bool HeapObject::IsNumberWrapper() const {
+  return IsJSValue() && JSValue::cast(this)->value()->IsNumber();
+}
+
+bool HeapObject::IsBigIntWrapper() const {
+  return IsJSValue() && JSValue::cast(this)->value()->IsBigInt();
+}
+
+bool HeapObject::IsSymbolWrapper() const {
+  return IsJSValue() && JSValue::cast(this)->value()->IsSymbol();
+}
+
 bool HeapObject::IsBoolean() const {
   return IsOddball() &&
          ((Oddball::cast(this)->kind() & Oddball::kNotBooleanMask) == 0);
@@ -419,10 +446,6 @@ bool HeapObject::IsBoolean() const {
 
 bool HeapObject::IsJSArrayBufferView() const {
   return IsJSDataView() || IsJSTypedArray();
-}
-
-bool HeapObject::IsWeakHashTable() const {
-  return map() == GetHeap()->weak_hash_table_map();
 }
 
 bool HeapObject::IsDictionary() const {
@@ -439,6 +462,10 @@ bool HeapObject::IsNameDictionary() const {
 
 bool HeapObject::IsNumberDictionary() const {
   return map() == GetHeap()->number_dictionary_map();
+}
+
+bool HeapObject::IsSimpleNumberDictionary() const {
+  return map() == GetHeap()->simple_number_dictionary_map();
 }
 
 bool HeapObject::IsStringTable() const {
@@ -542,25 +569,20 @@ bool Object::IsMinusZero() const {
 // ------------------------------------
 // Cast operations
 
-CAST_ACCESSOR(AccessCheckInfo)
-CAST_ACCESSOR(AccessorInfo)
 CAST_ACCESSOR(AccessorPair)
 CAST_ACCESSOR(AllocationMemento)
 CAST_ACCESSOR(AllocationSite)
 CAST_ACCESSOR(AsyncGeneratorRequest)
 CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(BoilerplateDescription)
-CAST_ACCESSOR(CallHandlerInfo)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ConstantElementsPair)
-CAST_ACCESSOR(ContextExtension)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(EnumCache)
+CAST_ACCESSOR(FeedbackCell)
 CAST_ACCESSOR(Foreign)
-CAST_ACCESSOR(FunctionTemplateInfo)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HeapObject)
-CAST_ACCESSOR(InterceptorInfo)
 CAST_ACCESSOR(JSAsyncFromSyncIterator)
 CAST_ACCESSOR(JSAsyncGeneratorObject)
 CAST_ACCESSOR(JSBoundFunction)
@@ -572,7 +594,6 @@ CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSObject)
-CAST_ACCESSOR(JSPromise)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSStringIterator)
@@ -580,22 +601,19 @@ CAST_ACCESSOR(JSValue)
 CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)
+CAST_ACCESSOR(NumberDictionary)
 CAST_ACCESSOR(Object)
 CAST_ACCESSOR(ObjectHashSet)
 CAST_ACCESSOR(ObjectHashTable)
-CAST_ACCESSOR(ObjectTemplateInfo)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
-CAST_ACCESSOR(PromiseCapability)
-CAST_ACCESSOR(PromiseReactionJobInfo)
-CAST_ACCESSOR(PromiseResolveThenableJobInfo)
 CAST_ACCESSOR(PropertyArray)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(PrototypeInfo)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
-CAST_ACCESSOR(NumberDictionary)
+CAST_ACCESSOR(SimpleNumberDictionary)
 CAST_ACCESSOR(SmallOrderedHashMap)
 CAST_ACCESSOR(SmallOrderedHashSet)
 CAST_ACCESSOR(Smi)
@@ -604,13 +622,10 @@ CAST_ACCESSOR(StackFrameInfo)
 CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
-CAST_ACCESSOR(TemplateInfo)
-CAST_ACCESSOR(TemplateMap)
 CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
 CAST_ACCESSOR(WeakCell)
-CAST_ACCESSOR(WeakHashTable)
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
@@ -805,10 +820,6 @@ MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
   return ConvertToIndex(isolate, input, error_index);
 }
 
-bool Object::HasSpecificClassOf(String* name) {
-  return this->IsJSObject() && (JSObject::cast(this)->class_name() == name);
-}
-
 MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
                                         Handle<Name> name) {
   LookupIterator it(object, name);
@@ -875,7 +886,7 @@ MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
 }
 
 // static
-MUST_USE_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
+V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
     Handle<JSReceiver> object) {
   return KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
                                  ALL_PROPERTIES,
@@ -891,7 +902,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
       isolate->heap()->empty_slow_element_dictionary();
   while (prototype != null) {
     Map* map = prototype->map();
-    if (map->instance_type() <= LAST_CUSTOM_ELEMENTS_RECEIVER) return false;
+    if (map->IsCustomElementsReceiverMap()) return false;
     HeapObject* elements = JSObject::cast(prototype)->elements();
     if (elements != empty_fixed_array &&
         elements != empty_slow_element_dictionary) {
@@ -902,8 +913,12 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   return true;
 }
 
-Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
+Object** HeapObject::RawField(const HeapObject* obj, int byte_offset) {
   return reinterpret_cast<Object**>(FIELD_ADDR(obj, byte_offset));
+}
+
+MaybeObject** HeapObject::RawMaybeWeakField(HeapObject* obj, int byte_offset) {
+  return reinterpret_cast<MaybeObject**>(FIELD_ADDR(obj, byte_offset));
 }
 
 int Smi::ToInt(const Object* object) { return Smi::cast(object)->value(); }
@@ -921,13 +936,13 @@ bool MapWord::IsForwardingAddress() const {
 
 MapWord MapWord::FromForwardingAddress(HeapObject* object) {
   Address raw = reinterpret_cast<Address>(object) - kHeapObjectTag;
-  return MapWord(reinterpret_cast<uintptr_t>(raw));
+  return MapWord(static_cast<uintptr_t>(raw));
 }
 
 
 HeapObject* MapWord::ToForwardingAddress() {
   DCHECK(IsForwardingAddress());
-  return HeapObject::FromAddress(reinterpret_cast<Address>(value_));
+  return HeapObject::FromAddress(static_cast<Address>(value_));
 }
 
 
@@ -1371,6 +1386,7 @@ Handle<Object> Oddball::ToNumber(Handle<Oddball> input) {
 
 
 ACCESSORS(Cell, value, Object, kValueOffset)
+ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
 ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(PropertyCell, name, Name, kNameOffset)
 ACCESSORS(PropertyCell, value, Object, kValueOffset)
@@ -1436,6 +1452,16 @@ bool Map::IsSpecialReceiverMap() const {
   DCHECK_IMPLIES(!result,
                  !has_named_interceptor() && !is_access_check_needed());
   return result;
+}
+
+inline bool IsCustomElementsReceiverInstanceType(InstanceType instance_type) {
+  return instance_type <= LAST_CUSTOM_ELEMENTS_RECEIVER;
+}
+
+// This should be in objects/map-inl.h, but can't, because of a cyclic
+// dependency.
+bool Map::IsCustomElementsReceiverMap() const {
+  return IsCustomElementsReceiverInstanceType(instance_type());
 }
 
 // static
@@ -1643,8 +1669,8 @@ void Object::VerifyApiCallResultType() {
   DCHECK(IsHeapObject());
   Isolate* isolate = HeapObject::cast(this)->GetIsolate();
   if (!(IsString() || IsSymbol() || IsJSReceiver() || IsHeapNumber() ||
-        IsUndefined(isolate) || IsTrue(isolate) || IsFalse(isolate) ||
-        IsNull(isolate))) {
+        IsBigInt() || IsUndefined(isolate) || IsTrue(isolate) ||
+        IsFalse(isolate) || IsNull(isolate))) {
     FATAL("API call returned invalid object");
   }
 #endif  // DEBUG
@@ -1716,13 +1742,14 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
   return UPDATE_WRITE_BARRIER;
 }
 
-AllocationAlignment HeapObject::RequiredAlignment() const {
+AllocationAlignment HeapObject::RequiredAlignment(Map* map) {
 #ifdef V8_HOST_ARCH_32_BIT
-  if ((IsFixedFloat64Array() || IsFixedDoubleArray()) &&
-      FixedArrayBase::cast(this)->length() != 0) {
+  int instance_type = map->instance_type();
+  if (instance_type == FIXED_FLOAT64_ARRAY_TYPE ||
+      instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
     return kDoubleAligned;
   }
-  if (IsHeapNumber()) return kDoubleUnaligned;
+  if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
 #endif  // V8_HOST_ARCH_32_BIT
   return kWordAligned;
 }
@@ -2210,20 +2237,36 @@ int HeapObject::SizeFromMap(Map* map) const {
     return FixedDoubleArray::SizeFor(
         reinterpret_cast<const FixedDoubleArray*>(this)->synchronized_length());
   }
+  if (instance_type == FEEDBACK_METADATA_TYPE) {
+    return FeedbackMetadata::SizeFor(
+        reinterpret_cast<const FeedbackMetadata*>(this)
+            ->synchronized_slot_count());
+  }
+  if (instance_type >= FIRST_WEAK_FIXED_ARRAY_TYPE &&
+      instance_type <= LAST_WEAK_FIXED_ARRAY_TYPE) {
+    return WeakFixedArray::SizeFor(
+        reinterpret_cast<const WeakFixedArray*>(this)->synchronized_length());
+  }
+  if (instance_type == WEAK_ARRAY_LIST_TYPE) {
+    return WeakArrayList::SizeForCapacity(
+        reinterpret_cast<const WeakArrayList*>(this)->synchronized_capacity());
+  }
   if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
       instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
     return reinterpret_cast<const FixedTypedArrayBase*>(this)->TypedArraySize(
         instance_type);
   }
   if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
-    return reinterpret_cast<const SmallOrderedHashSet*>(this)->Size();
+    return SmallOrderedHashSet::SizeFor(
+        reinterpret_cast<const SmallOrderedHashSet*>(this)->Capacity());
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(
         reinterpret_cast<const PropertyArray*>(this)->synchronized_length());
   }
   if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
-    return reinterpret_cast<const SmallOrderedHashMap*>(this)->Size();
+    return SmallOrderedHashMap::SizeFor(
+        reinterpret_cast<const SmallOrderedHashMap*>(this)->Capacity());
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
@@ -2246,47 +2289,12 @@ ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
 ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
-ACCESSORS(JSFunction, feedback_vector_cell, Cell, kFeedbackVectorOffset)
+ACCESSORS(JSFunction, feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
 ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
 ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
-
-ACCESSORS(AccessorInfo, name, Name, kNameOffset)
-SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
-ACCESSORS(AccessorInfo, expected_receiver_type, Object,
-          kExpectedReceiverTypeOffset)
-
-ACCESSORS_CHECKED2(AccessorInfo, getter, Object, kGetterOffset, true,
-                   Foreign::IsNormalized(value))
-ACCESSORS_CHECKED2(AccessorInfo, setter, Object, kSetterOffset, true,
-                   Foreign::IsNormalized(value));
-ACCESSORS(AccessorInfo, js_getter, Object, kJsGetterOffset)
-ACCESSORS(AccessorInfo, data, Object, kDataOffset)
-
-bool AccessorInfo::has_getter() {
-  bool result = getter() != Smi::kZero;
-  DCHECK_EQ(result, getter() != Smi::kZero &&
-                        Foreign::cast(getter())->foreign_address() != nullptr);
-  return result;
-}
-
-ACCESSORS(PromiseResolveThenableJobInfo, thenable, JSReceiver, kThenableOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, then, JSReceiver, kThenOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, resolve, JSFunction, kResolveOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, reject, JSFunction, kRejectOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, context, Context, kContextOffset);
-
-ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
-ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);
-ACCESSORS(PromiseReactionJobInfo, deferred_promise, Object,
-          kDeferredPromiseOffset);
-ACCESSORS(PromiseReactionJobInfo, deferred_on_resolve, Object,
-          kDeferredOnResolveOffset);
-ACCESSORS(PromiseReactionJobInfo, deferred_on_reject, Object,
-          kDeferredOnRejectOffset);
-ACCESSORS(PromiseReactionJobInfo, context, Context, kContextOffset);
 
 ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
 SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
@@ -2309,45 +2317,16 @@ bool PrototypeInfo::HasObjectCreateMap() {
   return cache->IsWeakCell() && !WeakCell::cast(cache)->cleared();
 }
 
-bool FunctionTemplateInfo::instantiated() {
-  return shared_function_info()->IsSharedFunctionInfo();
-}
-
-FunctionTemplateInfo* FunctionTemplateInfo::GetParent(Isolate* isolate) {
-  Object* parent = parent_template();
-  return parent->IsUndefined(isolate) ? nullptr
-                                      : FunctionTemplateInfo::cast(parent);
-}
-
-ObjectTemplateInfo* ObjectTemplateInfo::GetParent(Isolate* isolate) {
-  Object* maybe_ctor = constructor();
-  if (maybe_ctor->IsUndefined(isolate)) return nullptr;
-  FunctionTemplateInfo* constructor = FunctionTemplateInfo::cast(maybe_ctor);
-  while (true) {
-    constructor = constructor->GetParent(isolate);
-    if (constructor == nullptr) return nullptr;
-    Object* maybe_obj = constructor->instance_template();
-    if (!maybe_obj->IsUndefined(isolate)) {
-      return ObjectTemplateInfo::cast(maybe_obj);
-    }
-  }
-  return nullptr;
-}
-
 ACCESSORS(PrototypeInfo, weak_cell, Object, kWeakCellOffset)
 ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
 ACCESSORS(PrototypeInfo, object_create_map, Object, kObjectCreateMap)
 SMI_ACCESSORS(PrototypeInfo, registry_slot, kRegistrySlotOffset)
-ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
 SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)
 BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 
 ACCESSORS(Tuple2, value1, Object, kValue1Offset)
 ACCESSORS(Tuple2, value2, Object, kValue2Offset)
 ACCESSORS(Tuple3, value3, Object, kValue3Offset)
-
-ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
-ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
 SMI_ACCESSORS(ConstantElementsPair, elements_kind, kElementsKindOffset)
 ACCESSORS(ConstantElementsPair, constant_values, FixedArrayBase,
@@ -2356,96 +2335,12 @@ bool ConstantElementsPair::is_empty() const {
   return constant_values()->length() == 0;
 }
 
-SMI_ACCESSORS(TemplateObjectDescription, hash, kHashOffset)
 ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)
 ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
           kCookedStringsOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
-
-ACCESSORS(AccessCheckInfo, callback, Object, kCallbackOffset)
-ACCESSORS(AccessCheckInfo, named_interceptor, Object, kNamedInterceptorOffset)
-ACCESSORS(AccessCheckInfo, indexed_interceptor, Object,
-          kIndexedInterceptorOffset)
-ACCESSORS(AccessCheckInfo, data, Object, kDataOffset)
-
-ACCESSORS(InterceptorInfo, getter, Object, kGetterOffset)
-ACCESSORS(InterceptorInfo, setter, Object, kSetterOffset)
-ACCESSORS(InterceptorInfo, query, Object, kQueryOffset)
-ACCESSORS(InterceptorInfo, descriptor, Object, kDescriptorOffset)
-ACCESSORS(InterceptorInfo, deleter, Object, kDeleterOffset)
-ACCESSORS(InterceptorInfo, enumerator, Object, kEnumeratorOffset)
-ACCESSORS(InterceptorInfo, definer, Object, kDefinerOffset)
-ACCESSORS(InterceptorInfo, data, Object, kDataOffset)
-SMI_ACCESSORS(InterceptorInfo, flags, kFlagsOffset)
-BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
-               kCanInterceptSymbolsBit)
-BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, kAllCanReadBit)
-BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, kNonMasking)
-BOOL_ACCESSORS(InterceptorInfo, flags, is_named, kNamed)
-
-ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
-ACCESSORS(CallHandlerInfo, js_callback, Object, kJsCallbackOffset)
-ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
-
-ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
-ACCESSORS(TemplateInfo, serial_number, Object, kSerialNumberOffset)
-SMI_ACCESSORS(TemplateInfo, number_of_properties, kNumberOfProperties)
-ACCESSORS(TemplateInfo, property_list, Object, kPropertyListOffset)
-ACCESSORS(TemplateInfo, property_accessors, Object, kPropertyAccessorsOffset)
-
-ACCESSORS(FunctionTemplateInfo, call_code, Object, kCallCodeOffset)
-ACCESSORS(FunctionTemplateInfo, prototype_template, Object,
-          kPrototypeTemplateOffset)
-ACCESSORS(FunctionTemplateInfo, prototype_provider_template, Object,
-          kPrototypeProviderTemplateOffset)
-
-ACCESSORS(FunctionTemplateInfo, parent_template, Object, kParentTemplateOffset)
-ACCESSORS(FunctionTemplateInfo, named_property_handler, Object,
-          kNamedPropertyHandlerOffset)
-ACCESSORS(FunctionTemplateInfo, indexed_property_handler, Object,
-          kIndexedPropertyHandlerOffset)
-ACCESSORS(FunctionTemplateInfo, instance_template, Object,
-          kInstanceTemplateOffset)
-ACCESSORS(FunctionTemplateInfo, class_name, Object, kClassNameOffset)
-ACCESSORS(FunctionTemplateInfo, signature, Object, kSignatureOffset)
-ACCESSORS(FunctionTemplateInfo, instance_call_handler, Object,
-          kInstanceCallHandlerOffset)
-ACCESSORS(FunctionTemplateInfo, access_check_info, Object,
-          kAccessCheckInfoOffset)
-ACCESSORS(FunctionTemplateInfo, shared_function_info, Object,
-          kSharedFunctionInfoOffset)
-ACCESSORS(FunctionTemplateInfo, cached_property_name, Object,
-          kCachedPropertyNameOffset)
-
-SMI_ACCESSORS(FunctionTemplateInfo, flag, kFlagOffset)
-
-ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
-ACCESSORS(ObjectTemplateInfo, data, Object, kDataOffset)
-
-int ObjectTemplateInfo::embedder_field_count() const {
-  Object* value = data();
-  DCHECK(value->IsSmi());
-  return EmbedderFieldCount::decode(Smi::ToInt(value));
-}
-
-void ObjectTemplateInfo::set_embedder_field_count(int count) {
-  DCHECK_LE(count, JSObject::kMaxEmbedderFields);
-  return set_data(
-      Smi::FromInt(EmbedderFieldCount::update(Smi::ToInt(data()), count)));
-}
-
-bool ObjectTemplateInfo::immutable_proto() const {
-  Object* value = data();
-  DCHECK(value->IsSmi());
-  return IsImmutablePrototype::decode(Smi::ToInt(value));
-}
-
-void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
-  return set_data(Smi::FromInt(
-      IsImmutablePrototype::update(Smi::ToInt(data()), immutable)));
-}
 
 ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
           kTransitionInfoOrBoilerplateOffset)
@@ -2494,26 +2389,12 @@ SMI_ACCESSORS(StackFrameInfo, id, kIdIndex)
 ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
           kSourcePositionTableIndex)
 ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
-          NumberDictionary, kStackFrameCacheIndex)
+          SimpleNumberDictionary, kStackFrameCacheIndex)
 
-SMI_ACCESSORS(FunctionTemplateInfo, length, kLengthOffset)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
-               kHiddenPrototypeBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
-               kNeedsAccessCheckBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
-               kReadOnlyPrototypeBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
-               kRemovePrototypeBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache,
-               kDoNotCacheBit)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
-               kAcceptAnyReceiver)
 
 FeedbackVector* JSFunction::feedback_vector() const {
-  DCHECK(feedback_vector_cell()->value()->IsFeedbackVector());
-  return FeedbackVector::cast(feedback_vector_cell()->value());
+  DCHECK(has_feedback_vector());
+  return FeedbackVector::cast(feedback_cell()->value());
 }
 
 // Code objects that are marked for deoptimization are not considered to be
@@ -2542,8 +2423,12 @@ void JSFunction::ClearOptimizationMarker() {
   feedback_vector()->ClearOptimizationMarker();
 }
 
+// Optimized code marked for deoptimization will tier back down to running
+// interpreted on its next activation, and already doesn't count as IsOptimized.
 bool JSFunction::IsInterpreted() {
-  return code()->is_interpreter_trampoline_builtin();
+  return code()->is_interpreter_trampoline_builtin() ||
+         (code()->kind() == Code::OPTIMIZED_FUNCTION &&
+          code()->marked_for_deoptimization());
 }
 
 bool JSFunction::ChecksOptimizationMarker() {
@@ -2578,7 +2463,7 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
 
 AbstractCode* JSFunction::abstract_code() {
   if (IsInterpreted()) {
-    return AbstractCode::cast(shared()->bytecode_array());
+    return AbstractCode::cast(shared()->GetBytecodeArray());
   } else {
     return AbstractCode::cast(code());
   }
@@ -2620,21 +2505,7 @@ void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
 }
 
 bool JSFunction::has_feedback_vector() const {
-  return !feedback_vector_cell()->value()->IsUndefined(GetIsolate());
-}
-
-JSFunction::FeedbackVectorState JSFunction::GetFeedbackVectorState(
-    Isolate* isolate) const {
-  Cell* cell = feedback_vector_cell();
-  if (shared()->HasAsmWasmData()) {
-    return NO_VECTOR_NEEDED;
-  } else if (cell == isolate->heap()->undefined_cell()) {
-    return TOP_LEVEL_SCRIPT_NEEDS_VECTOR;
-  } else if (cell->value() == isolate->heap()->undefined_value() ||
-             !has_feedback_vector()) {
-    return NEEDS_VECTOR;
-  }
-  return HAS_VECTOR;
+  return !feedback_cell()->value()->IsUndefined(GetIsolate());
 }
 
 Context* JSFunction::context() {
@@ -2715,8 +2586,7 @@ Object* JSFunction::prototype() {
 
 
 bool JSFunction::is_compiled() {
-  Builtins* builtins = GetIsolate()->builtins();
-  return code() != builtins->builtin(Builtins::kCompileLazy);
+  return code()->builtin_index() != Builtins::kCompileLazy;
 }
 
 ACCESSORS(JSProxy, target, Object, kTargetOffset)
@@ -2727,7 +2597,7 @@ bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }
 // static
 bool Foreign::IsNormalized(Object* value) {
   if (value == Smi::kZero) return true;
-  return Foreign::cast(value)->foreign_address() != nullptr;
+  return Foreign::cast(value)->foreign_address() != kNullAddress;
 }
 
 Address Foreign::foreign_address() {
@@ -2741,9 +2611,10 @@ void Foreign::set_foreign_address(Address value) {
 template <class Derived>
 void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
                                                   Object* value) {
-  int entry_offset = GetDataEntryOffset(entry, relative_index);
+  Address entry_offset =
+      kHeaderSize + GetDataEntryOffset(entry, relative_index);
   RELAXED_WRITE_FIELD(this, entry_offset, value);
-  WRITE_BARRIER(GetHeap(), this, entry_offset, value);
+  WRITE_BARRIER(GetHeap(), this, static_cast<int>(entry_offset), value);
 }
 
 ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
@@ -2769,8 +2640,7 @@ bool JSGeneratorObject::is_executing() const {
 }
 
 ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
-ACCESSORS(JSAsyncGeneratorObject, awaited_promise, HeapObject,
-          kAwaitedPromiseOffset)
+SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting, kIsAwaitingOffset)
 
 ACCESSORS(JSValue, value, Object, kValueOffset)
 
@@ -2805,23 +2675,6 @@ ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
 SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
-
-
-
-ACCESSORS(PromiseCapability, promise, Object, kPromiseOffset)
-ACCESSORS(PromiseCapability, resolve, Object, kResolveOffset)
-ACCESSORS(PromiseCapability, reject, Object, kRejectOffset)
-
-ACCESSORS(JSPromise, result, Object, kResultOffset)
-ACCESSORS(JSPromise, deferred_promise, Object, kDeferredPromiseOffset)
-ACCESSORS(JSPromise, deferred_on_resolve, Object, kDeferredOnResolveOffset)
-ACCESSORS(JSPromise, deferred_on_reject, Object, kDeferredOnRejectOffset)
-ACCESSORS(JSPromise, fulfill_reactions, Object, kFulfillReactionsOffset)
-ACCESSORS(JSPromise, reject_reactions, Object, kRejectReactionsOffset)
-SMI_ACCESSORS(JSPromise, flags, kFlagsOffset)
-BOOL_ACCESSORS(JSPromise, flags, has_handler, kHasHandlerBit)
-BOOL_ACCESSORS(JSPromise, flags, handled_hint, kHandledHintBit)
-
 
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
@@ -2875,6 +2728,9 @@ bool JSObject::HasFastElements() {
   return IsFastElementsKind(GetElementsKind());
 }
 
+bool JSObject::HasFastPackedElements() {
+  return IsFastPackedElementsKind(GetElementsKind());
+}
 
 bool JSObject::HasDictionaryElements() {
   return GetElementsKind() == DICTIONARY_ELEMENTS;
@@ -3171,35 +3027,6 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
   return kSize + embedder_field_count * kPointerSize;
 }
 
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_read,
-                    AccessorInfo::AllCanReadBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_write,
-                    AccessorInfo::AllCanWriteBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_special_data_property,
-                    AccessorInfo::IsSpecialDataPropertyBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, replace_on_access,
-                    AccessorInfo::ReplaceOnAccessBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_sloppy, AccessorInfo::IsSloppyBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
-                    AccessorInfo::InitialAttributesBits)
-
-bool FunctionTemplateInfo::IsTemplateFor(JSObject* object) {
-  return IsTemplateFor(object->map());
-}
-
-bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
-  if (!HasExpectedReceiverType()) return true;
-  if (!receiver->IsJSObject()) return false;
-  return FunctionTemplateInfo::cast(expected_receiver_type())
-      ->IsTemplateFor(JSObject::cast(receiver)->map());
-}
-
-
-bool AccessorInfo::HasExpectedReceiverType() {
-  return expected_receiver_type()->IsFunctionTemplateInfo();
-}
-
-
 Object* AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();
 }
@@ -3304,29 +3131,34 @@ void GlobalDictionary::ValueAtPut(int entry, Object* value) {
   set(EntryToIndex(entry), value);
 }
 
-bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
+bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Object* other) {
   DCHECK(other->IsNumber());
   return key == static_cast<uint32_t>(other->Number());
 }
 
-uint32_t NumberDictionaryShape::Hash(Isolate* isolate, uint32_t key) {
+uint32_t NumberDictionaryBaseShape::Hash(Isolate* isolate, uint32_t key) {
   return ComputeIntegerHash(key, isolate->heap()->HashSeed());
 }
 
-uint32_t NumberDictionaryShape::HashForObject(Isolate* isolate, Object* other) {
+uint32_t NumberDictionaryBaseShape::HashForObject(Isolate* isolate,
+                                                  Object* other) {
   DCHECK(other->IsNumber());
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()),
                             isolate->heap()->HashSeed());
+}
+
+Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
+                                                   uint32_t key) {
+  return isolate->factory()->NewNumberFromUint(key);
 }
 
 int NumberDictionaryShape::GetMapRootIndex() {
   return Heap::kNumberDictionaryMapRootIndex;
 }
 
-Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
-  return isolate->factory()->NewNumberFromUint(key);
+int SimpleNumberDictionaryShape::GetMapRootIndex() {
+  return Heap::kSimpleNumberDictionaryMapRootIndex;
 }
-
 
 bool NameDictionaryShape::IsMatch(Handle<Name> key, Object* other) {
   DCHECK(other->IsTheHole(key->GetIsolate()) ||
@@ -3390,6 +3222,53 @@ uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object* other) {
   return Smi::ToInt(other->GetHash());
 }
 
+// static
+Object* Object::GetSimpleHash(Object* object) {
+  DisallowHeapAllocation no_gc;
+  if (object->IsSmi()) {
+    uint32_t hash = ComputeIntegerHash(Smi::ToInt(object));
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  if (object->IsHeapNumber()) {
+    double num = HeapNumber::cast(object)->value();
+    if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
+    // Use ComputeIntegerHash for all values in Signed32 range, including -0,
+    // which is considered equal to 0 because collections use SameValueZero.
+    uint32_t hash;
+    // Check range before conversion to avoid undefined behavior.
+    if (num >= kMinInt && num <= kMaxInt && FastI2D(FastD2I(num)) == num) {
+      hash = ComputeIntegerHash(FastD2I(num));
+    } else {
+      hash = ComputeLongHash(double_to_uint64(num));
+    }
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  if (object->IsName()) {
+    uint32_t hash = Name::cast(object)->Hash();
+    return Smi::FromInt(hash);
+  }
+  if (object->IsOddball()) {
+    uint32_t hash = Oddball::cast(object)->to_string()->Hash();
+    return Smi::FromInt(hash);
+  }
+  if (object->IsBigInt()) {
+    uint32_t hash = BigInt::cast(object)->Hash();
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  DCHECK(object->IsJSReceiver());
+  return object;
+}
+
+Object* Object::GetHash() {
+  DisallowHeapAllocation no_gc;
+  Object* hash = GetSimpleHash(this);
+  if (hash->IsSmi()) return hash;
+
+  DCHECK(IsJSReceiver());
+  JSReceiver* receiver = JSReceiver::cast(this);
+  Isolate* isolate = receiver->GetIsolate();
+  return receiver->GetIdentityHash(isolate);
+}
 
 Handle<Object> ObjectHashTableShape::AsHandle(Isolate* isolate,
                                               Handle<Object> key) {
@@ -3398,35 +3277,6 @@ Handle<Object> ObjectHashTableShape::AsHandle(Isolate* isolate,
 
 Handle<ObjectHashTable> ObjectHashTable::Shrink(Handle<ObjectHashTable> table) {
   return DerivedHashTable::Shrink(table);
-}
-
-bool WeakHashTableShape::IsMatch(Handle<Object> key, Object* other) {
-  if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
-  return key->IsWeakCell() ? WeakCell::cast(*key)->value() == other
-                           : *key == other;
-}
-
-uint32_t WeakHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
-  intptr_t hash =
-      key->IsWeakCell()
-          ? reinterpret_cast<intptr_t>(WeakCell::cast(*key)->value())
-          : reinterpret_cast<intptr_t>(*key);
-  return (uint32_t)(hash & 0xFFFFFFFF);
-}
-
-uint32_t WeakHashTableShape::HashForObject(Isolate* isolate, Object* other) {
-  if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
-  intptr_t hash = reinterpret_cast<intptr_t>(other);
-  return (uint32_t)(hash & 0xFFFFFFFF);
-}
-
-Handle<Object> WeakHashTableShape::AsHandle(Isolate* isolate,
-                                            Handle<Object> key) {
-  return key;
-}
-
-int WeakHashTableShape::GetMapRootIndex() {
-  return Heap::kWeakHashTableMapRootIndex;
 }
 
 Relocatable::Relocatable(Isolate* isolate) {
@@ -3488,19 +3338,20 @@ ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
 
 ACCESSORS(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
           kSyncIteratorOffset)
+ACCESSORS(JSAsyncFromSyncIterator, next, Object, kNextOffset)
 
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 
-bool ScopeInfo::IsAsmModule() { return AsmModuleField::decode(Flags()); }
+bool ScopeInfo::IsAsmModule() const { return AsmModuleField::decode(Flags()); }
 
-bool ScopeInfo::HasSimpleParameters() {
+bool ScopeInfo::HasSimpleParameters() const {
   return HasSimpleParametersField::decode(Flags());
 }
 
 #define FIELD_ACCESSORS(name)                                                 \
   void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
-  int ScopeInfo::name() {                                                     \
+  int ScopeInfo::name() const {                                               \
     if (length() > 0) {                                                       \
       return Smi::ToInt(get(k##name));                                        \
     } else {                                                                  \

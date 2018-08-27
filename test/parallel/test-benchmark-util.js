@@ -10,6 +10,8 @@ runBenchmark('util',
               'method=Array',
               'n=1',
               'option=none',
+              'pos=start',
+              'size=1',
               'type=',
               'version=native'],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

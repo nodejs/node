@@ -46,6 +46,7 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "env-inl.h"
 #include "util-inl.h"
 #include "base_object-inl.h"
@@ -126,7 +127,7 @@ struct Converter {
 
   explicit Converter(UConverter* converter,
                      const char* sub = nullptr) : conv(converter) {
-    CHECK_NE(conv, nullptr);
+    CHECK_NOT_NULL(conv);
     UErrorCode status = U_ZERO_ERROR;
     if (sub != nullptr) {
       ucnv_setSubstChars(conv, sub, strlen(sub), &status);
@@ -249,6 +250,12 @@ class ConverterObject : public BaseObject, Converter {
     }
   }
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
+  ADD_MEMORY_INFO_NAME(ConverterObject)
+
  protected:
   ConverterObject(Environment* env,
                   v8::Local<v8::Object> wrap,
@@ -258,7 +265,7 @@ class ConverterObject : public BaseObject, Converter {
                   BaseObject(env, wrap),
                   Converter(converter, sub),
                   ignoreBOM_(ignoreBOM) {
-    MakeWeak<ConverterObject>(this);
+    MakeWeak();
 
     switch (ucnv_getType(converter)) {
       case UCNV_UTF8:
@@ -447,7 +454,7 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
   UErrorCode status = U_ZERO_ERROR;
   MaybeLocal<Object> result;
 
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  CHECK(Buffer::HasInstance(args[0]));
   SPREAD_BUFFER_ARG(args[0], ts_obj);
   const enum encoding fromEncoding = ParseEncoding(isolate, args[1], BUFFER);
   const enum encoding toEncoding = ParseEncoding(isolate, args[2], BUFFER);
@@ -545,7 +552,7 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
             TYPE_ICU ","
             TYPE_UNICODE ","
             TYPE_CLDR ","
-            TYPE_TZ));
+            TYPE_TZ, v8::NewStringType::kNormal).ToLocalChecked());
   } else {
     CHECK_GE(args.Length(), 1);
     CHECK(args[0]->IsString());
@@ -558,7 +565,7 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
       // Success.
       args.GetReturnValue().Set(
           String::NewFromUtf8(env->isolate(),
-          versionString));
+          versionString, v8::NewStringType::kNormal).ToLocalChecked());
     }
   }
 }

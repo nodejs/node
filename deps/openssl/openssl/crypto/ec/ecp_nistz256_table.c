@@ -1,4 +1,13 @@
 /*
+ * Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+/*
  * This is the precomputed constant time access table for the code in
  * ecp_montp256.c, for the default generator. The table consists of 37
  * subtables, each subtable contains 64 affine points. The affine points are
@@ -17,7 +26,7 @@ __attribute((aligned(4096)))
 #elif defined(_MSC_VER)
 __declspec(align(4096))
 #elif defined(__SUNPRO_C)
-# pragma align 64(ecp_nistz256_precomputed)
+# pragma align 4096(ecp_nistz256_precomputed)
 #endif
 static const BN_ULONG ecp_nistz256_precomputed[37][64 *
                                                    sizeof(P256_POINT_AFFINE) /

@@ -96,11 +96,14 @@ class Deserializer : public SerializerDeserializer {
   void Rehash();
 
  private:
-  void VisitRootPointers(Root root, Object** start, Object** end) override;
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override;
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 
-  void UnalignedCopy(Object** dest, Object** src) {
+  template <typename T>
+  void UnalignedCopy(T** dest, T** src) {
+    DCHECK(!allocator()->next_reference_is_weak());
     memcpy(dest, src, sizeof(*src));
   }
 
@@ -109,17 +112,24 @@ class Deserializer : public SerializerDeserializer {
   // of the object we are writing into, or nullptr if we are not writing into an
   // object, i.e. if we are writing a series of tagged values that are not on
   // the heap. Return false if the object content has been deferred.
-  bool ReadData(Object** start, Object** end, int space,
+  bool ReadData(MaybeObject** start, MaybeObject** end, int space,
                 Address object_address);
 
   // A helper function for ReadData, templatized on the bytecode for efficiency.
   // Returns the new value of {current}.
   template <int where, int how, int within, int space_number_if_any>
-  inline Object** ReadDataCase(Isolate* isolate, Object** current,
-                               Address current_object_address, byte data,
-                               bool write_barrier_needed);
+  inline MaybeObject** ReadDataCase(Isolate* isolate, MaybeObject** current,
+                                    Address current_object_address, byte data,
+                                    bool write_barrier_needed);
 
-  void ReadObject(int space_number, Object** write_back);
+  // A helper function for ReadData for reading external references.
+  // Returns the new value of {current}.
+  inline void** ReadExternalReferenceCase(HowToCode how, Isolate* isolate,
+                                          void** current,
+                                          Address current_object_address);
+
+  void ReadObject(int space_number, MaybeObject** write_back,
+                  HeapObjectReferenceType reference_type);
 
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject* PostProcessNewObject(HeapObject* obj, int space);
@@ -170,7 +180,7 @@ class StringTableInsertionKey : public StringTableKey {
 
   bool IsMatch(Object* string) override;
 
-  MUST_USE_RESULT Handle<String> AsHandle(Isolate* isolate) override;
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
 
  private:
   uint32_t ComputeHashField(String* string);

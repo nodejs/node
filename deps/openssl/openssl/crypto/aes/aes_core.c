@@ -1,4 +1,12 @@
-/* crypto/aes/aes_core.c */
+/*
+ * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 /**
  * rijndael-alg-fst.c
  *
@@ -28,14 +36,10 @@
 /* Note: rewritten a little bit to provide error control and an OpenSSL-
    compatible API */
 
-#ifndef AES_DEBUG
-# ifndef NDEBUG
-#  define NDEBUG
-# endif
-#endif
 #include <assert.h>
 
 #include <stdlib.h>
+#include <openssl/crypto.h>
 #include <openssl/aes.h>
 #include "aes_locl.h"
 
@@ -625,8 +629,8 @@ static const u32 rcon[] = {
 /**
  * Expand the cipher key into the encryption key schedule.
  */
-int private_AES_set_encrypt_key(const unsigned char *userKey, const int bits,
-                                AES_KEY *key)
+int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
+                        AES_KEY *key)
 {
 
     u32 *rk;
@@ -640,9 +644,9 @@ int private_AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 
     rk = key->rd_key;
 
-    if (bits==128)
+    if (bits == 128)
         key->rounds = 10;
-    else if (bits==192)
+    else if (bits == 192)
         key->rounds = 12;
     else
         key->rounds = 14;
@@ -727,8 +731,8 @@ int private_AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 /**
  * Expand the cipher key into the decryption key schedule.
  */
-int private_AES_set_decrypt_key(const unsigned char *userKey, const int bits,
-                                AES_KEY *key)
+int AES_set_decrypt_key(const unsigned char *userKey, const int bits,
+                        AES_KEY *key)
 {
 
     u32 *rk;
@@ -736,7 +740,7 @@ int private_AES_set_decrypt_key(const unsigned char *userKey, const int bits,
     u32 temp;
 
     /* first, start with an encryption schedule */
-    status = private_AES_set_encrypt_key(userKey, bits, key);
+    status = AES_set_encrypt_key(userKey, bits, key);
     if (status < 0)
         return status;
 
@@ -1204,11 +1208,11 @@ static const u32 rcon[] = {
 /**
  * Expand the cipher key into the encryption key schedule.
  */
-int private_AES_set_encrypt_key(const unsigned char *userKey, const int bits,
-                                AES_KEY *key)
+int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
+                        AES_KEY *key)
 {
     u32 *rk;
-   	int i = 0;
+    int i = 0;
     u32 temp;
 
     if (!userKey || !key)
@@ -1218,9 +1222,9 @@ int private_AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 
     rk = key->rd_key;
 
-    if (bits==128)
+    if (bits == 128)
         key->rounds = 10;
-    else if (bits==192)
+    else if (bits == 192)
         key->rounds = 12;
     else
         key->rounds = 14;
@@ -1305,8 +1309,8 @@ int private_AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 /**
  * Expand the cipher key into the decryption key schedule.
  */
-int private_AES_set_decrypt_key(const unsigned char *userKey, const int bits,
-                                AES_KEY *key)
+int AES_set_decrypt_key(const unsigned char *userKey, const int bits,
+                        AES_KEY *key)
 {
 
     u32 *rk;
@@ -1314,7 +1318,7 @@ int private_AES_set_decrypt_key(const unsigned char *userKey, const int bits,
     u32 temp;
 
     /* first, start with an encryption schedule */
-    status = private_AES_set_encrypt_key(userKey, bits, key);
+    status = AES_set_encrypt_key(userKey, bits, key);
     if (status < 0)
         return status;
 
@@ -1351,7 +1355,7 @@ int private_AES_set_decrypt_key(const unsigned char *userKey, const int bits,
             rk[j] = tpe ^ ROTATE(tpd,16) ^
                 ROTATE(tp9,24) ^ ROTATE(tpb,8);
 #else
-            rk[j] = tpe ^ (tpd >> 16) ^ (tpd << 16) ^ 
+            rk[j] = tpe ^ (tpd >> 16) ^ (tpd << 16) ^
                 (tp9 >> 8) ^ (tp9 << 24) ^
                 (tpb >> 24) ^ (tpb << 8);
 #endif

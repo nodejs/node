@@ -12,14 +12,15 @@ const runBenchmark = require('../common/benchmark');
 
 runBenchmark('crypto',
              [
-               'n=1',
                'algo=sha256',
                'api=stream',
+               'cipher=',
                'keylen=1024',
                'len=1',
+               'n=1',
                'out=buffer',
                'type=buf',
                'v=crypto',
-               'writes=1'
+               'writes=1',
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

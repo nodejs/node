@@ -9,35 +9,68 @@ var qrcode = require('../lib/main'),
     fs = require('fs');
 
 /*!
- * Parse the process name and input
+ * Parse the process name
  */
 
-var name = process.argv[1].replace(/^.*[\\\/]/, '').replace('.js', ''),
-    input = process.argv[2];
+var name = process.argv[1].replace(/^.*[\\\/]/, '').replace('.js', '');
 
 /*!
- * Display help
+ * Parse the input
  */
 
-if (!input || input === '-h' || input === '--help') {
-    help();
-    process.exit();
+if (process.stdin.isTTY) {
+    // called with input as argument, e.g.:
+    // ./qrcode-terminal.js "INPUT"
+
+    var input = process.argv[2];
+    handleInput(input);
+} else {
+    // called with piped input, e.g.:
+    // echo "INPUT" | ./qrcode-terminal.js
+
+    var readline = require('readline');
+
+    var interface = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        terminal: false
+    });
+
+    interface.on('line', function(line) {
+        handleInput(line);
+    });
 }
 
 /*!
- * Display version
+ * Process the input
  */
 
-if (input === '-v' || input === '--version') {
-    version();
-    process.exit();
+function handleInput(input) {
+
+    /*!
+     * Display help
+     */
+
+    if (!input || input === '-h' || input === '--help') {
+        help();
+        process.exit();
+    }
+
+    /*!
+     * Display version
+     */
+
+    if (input === '-v' || input === '--version') {
+        version();
+        process.exit();
+    }
+
+    /*!
+     * Render the QR Code
+     */
+
+    qrcode.generate(input);
 }
-
-/*!
- * Render the QR Code
- */
-
-qrcode.generate(input);
 
 /*!
  * Helper functions

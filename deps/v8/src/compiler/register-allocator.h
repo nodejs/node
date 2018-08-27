@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_REGISTER_ALLOCATOR_H_
-#define V8_REGISTER_ALLOCATOR_H_
+#ifndef V8_COMPILER_REGISTER_ALLOCATOR_H_
+#define V8_COMPILER_REGISTER_ALLOCATOR_H_
 
 #include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
@@ -229,9 +229,12 @@ class UseInterval final : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(UseInterval);
 };
 
-
-enum class UsePositionType : uint8_t { kAny, kRequiresRegister, kRequiresSlot };
-
+enum class UsePositionType : uint8_t {
+  kRegisterOrSlot,
+  kRegisterOrSlotOrConstant,
+  kRequiresRegister,
+  kRequiresSlot
+};
 
 enum class UsePositionHintType : uint8_t {
   kNone,
@@ -1213,4 +1216,4 @@ class LiveRangeConnector final : public ZoneObject {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_REGISTER_ALLOCATOR_H_
+#endif  // V8_COMPILER_REGISTER_ALLOCATOR_H_

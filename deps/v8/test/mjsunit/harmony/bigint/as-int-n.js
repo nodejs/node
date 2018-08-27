@@ -284,9 +284,7 @@
   assertEquals(4294967296n, BigInt.asUintN(2**32, 4294967296n));
   assertEquals(4294967297n, BigInt.asUintN(2**32, 4294967297n));
 }{
-  assertEquals(
-      BigInt.parseInt("0x7234567812345678"),
-      BigInt.asUintN(63, BigInt.parseInt("0xf234567812345678")));
+  assertEquals(0x7234567812345678n, BigInt.asUintN(63, 0xf234567812345678n));
 }{
   assertThrows(() => BigInt.asUintN(2n, 12n), TypeError);
   assertThrows(() => BigInt.asUintN(-1, 0n), RangeError);

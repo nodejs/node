@@ -8,7 +8,9 @@ const tests = [
   { headers: {}, expected: 'regular' },
   { headers: { upgrade: 'h2c' }, expected: 'regular' },
   { headers: { connection: 'upgrade' }, expected: 'regular' },
-  { headers: { connection: 'upgrade', upgrade: 'h2c' }, expected: 'upgrade' }
+  { headers: { connection: 'upgrade', upgrade: 'h2c' }, expected: 'upgrade' },
+  { headers: { connection: 'upgrade', upgrade: 'h2c' }, expected: 'destroy' },
+  { headers: { connection: 'upgrade', upgrade: 'h2c' }, expected: 'regular' },
 ];
 
 function fire() {
@@ -32,10 +34,17 @@ function fire() {
     done('regular');
   });
 
-  req.on('upgrade', function onUpgrade(res, socket) {
-    socket.destroy();
-    done('upgrade');
-  });
+  if (test.expected === 'destroy') {
+    req.on('socket', () => req.socket.on('close', () => {
+      server.removeAllListeners('upgrade');
+      done('destroy');
+    }));
+  } else {
+    req.on('upgrade', function onUpgrade(res, socket) {
+      socket.destroy();
+      done('upgrade');
+    });
+  }
 
   req.end();
 }

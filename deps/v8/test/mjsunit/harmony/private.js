@@ -57,8 +57,6 @@ function TestType() {
     assertEquals("symbol", typeof symbols[i])
     assertTrue(typeof symbols[i] === "symbol")
     assertTrue(%SymbolIsPrivate(symbols[i]))
-    assertEquals(null, %_ClassOf(symbols[i]))
-    assertEquals("Symbol", %_ClassOf(Object(symbols[i])))
   }
 }
 TestType()

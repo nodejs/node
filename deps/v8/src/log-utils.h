@@ -32,7 +32,7 @@ class Log {
   static bool InitLogAtStart() {
     return FLAG_log || FLAG_log_api || FLAG_log_code || FLAG_log_handles ||
            FLAG_log_suspect || FLAG_ll_prof || FLAG_perf_basic_prof ||
-           FLAG_perf_prof || FLAG_log_source_code ||
+           FLAG_perf_prof || FLAG_log_source_code || FLAG_gdbjit ||
            FLAG_log_internal_timer_events || FLAG_prof_cpp || FLAG_trace_ic ||
            FLAG_log_function_events;
   }
@@ -83,7 +83,7 @@ class Log {
     void AppendCharacter(const char character);
 
     // Delegate insertion to the underlying {log_}.
-    // All appened srings are escaped to maintain one-line log entries.
+    // All appended strings are escaped to maintain one-line log entries.
     template <typename T>
     MessageBuilder& operator<<(T value) {
       log_->os_ << value;

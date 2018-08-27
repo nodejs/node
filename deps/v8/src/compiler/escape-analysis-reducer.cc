@@ -42,9 +42,9 @@ Reduction EscapeAnalysisReducer::ReplaceNode(Node* original,
     RelaxEffectsAndControls(original);
     return Replace(replacement);
   }
-  Type* const replacement_type = NodeProperties::GetType(replacement);
-  Type* const original_type = NodeProperties::GetType(original);
-  if (replacement_type->Is(original_type)) {
+  Type const replacement_type = NodeProperties::GetType(replacement);
+  Type const original_type = NodeProperties::GetType(original);
+  if (replacement_type.Is(original_type)) {
     RelaxEffectsAndControls(original);
     return Replace(replacement);
   }
@@ -218,9 +218,8 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
       if (const VirtualObject* vobject =
               analysis_result().GetVirtualObject(node)) {
         if (!vobject->HasEscaped()) {
-          V8_Fatal(__FILE__, __LINE__,
-                   "Escape analysis failed to remove node %s#%d\n",
-                   node->op()->mnemonic(), node->id());
+          FATAL("Escape analysis failed to remove node %s#%d\n",
+                node->op()->mnemonic(), node->id());
         }
       }
     }
@@ -229,8 +228,7 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
 
 void EscapeAnalysisReducer::Finalize() {
   for (Node* node : arguments_elements_) {
-    DCHECK_EQ(IrOpcode::kNewArgumentsElements, node->opcode());
-    int mapped_count = OpParameter<int>(node);
+    int mapped_count = NewArgumentsElementsMappedCountOf(node->op());
 
     Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
     if (arguments_frame->opcode() != IrOpcode::kArgumentsFrame) continue;
@@ -368,7 +366,7 @@ Node* NodeHashCache::Query(Node* node) {
 
 NodeHashCache::Constructor::Constructor(NodeHashCache* cache,
                                         const Operator* op, int input_count,
-                                        Node** inputs, Type* type)
+                                        Node** inputs, Type type)
     : node_cache_(cache), from_(nullptr) {
   if (node_cache_->temp_nodes_.size() > 0) {
     tmp_ = node_cache_->temp_nodes_.back();

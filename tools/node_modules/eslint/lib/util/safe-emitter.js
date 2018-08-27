@@ -27,8 +27,6 @@
  * another module throws an error or registers a listener.
  * 2. It calls listener functions without any `this` value. (`EventEmitter` calls listeners with a
  * `this` value of the emitter instance, which would give listeners access to other listeners.)
- * 3. Events can be emitted with at most 3 arguments. (For example: when using `emitter.emit('foo', a, b, c)`,
- * the arguments `a`, `b`, and `c` will be passed to the listener functions.)
  * @returns {SafeEmitter} An emitter
  */
 module.exports = () => {
@@ -42,9 +40,9 @@ module.exports = () => {
                 listeners[eventName] = [listener];
             }
         },
-        emit(eventName, a, b, c) {
+        emit(eventName, ...args) {
             if (eventName in listeners) {
-                listeners[eventName].forEach(listener => listener(a, b, c));
+                listeners[eventName].forEach(listener => listener(...args));
             }
         },
         eventNames() {

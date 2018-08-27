@@ -75,7 +75,7 @@ to `public` as if you had run `npm access public` after publishing.
 ### Publishing private scoped packages to the npm registry
 
 To publish a private scoped package to the npm registry, you must have
-an [npm Private Modules](https://www.npmjs.com/private-modules)
+an [npm Private Modules](https://docs.npmjs.com/private-modules/intro)
 account.
 
 You can then publish the module with `npm publish` or `npm publish

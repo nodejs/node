@@ -266,7 +266,7 @@ namespace {
 void DecodeData(const FunctionCallbackInfo<Value>& args) {
   StringDecoder* decoder =
       reinterpret_cast<StringDecoder*>(Buffer::Data(args[0]));
-  CHECK_NE(decoder, nullptr);
+  CHECK_NOT_NULL(decoder);
   size_t nread = Buffer::Length(args[1]);
   MaybeLocal<String> ret =
       decoder->DecodeData(args.GetIsolate(), Buffer::Data(args[1]), &nread);
@@ -277,7 +277,7 @@ void DecodeData(const FunctionCallbackInfo<Value>& args) {
 void FlushData(const FunctionCallbackInfo<Value>& args) {
   StringDecoder* decoder =
       reinterpret_cast<StringDecoder*>(Buffer::Data(args[0]));
-  CHECK_NE(decoder, nullptr);
+  CHECK_NOT_NULL(decoder);
   MaybeLocal<String> ret = decoder->FlushData(args.GetIsolate());
   if (!ret.IsEmpty())
     args.GetReturnValue().Set(ret.ToLocalChecked());

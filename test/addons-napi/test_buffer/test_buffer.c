@@ -20,7 +20,7 @@ static void noopDeleter(napi_env env, void* data, void* finalize_hint) {
   deleterCallCount++;
 }
 
-napi_value newBuffer(napi_env env, napi_callback_info info) {
+static napi_value newBuffer(napi_env env, napi_callback_info info) {
   napi_value theBuffer;
   char* theCopy;
   const unsigned int kBufferSize = sizeof(theText);
@@ -37,7 +37,7 @@ napi_value newBuffer(napi_env env, napi_callback_info info) {
   return theBuffer;
 }
 
-napi_value newExternalBuffer(napi_env env, napi_callback_info info) {
+static napi_value newExternalBuffer(napi_env env, napi_callback_info info) {
   napi_value theBuffer;
   char* theCopy = strdup(theText);
   NAPI_ASSERT(env, theCopy, "Failed to copy static text for newExternalBuffer");
@@ -53,20 +53,20 @@ napi_value newExternalBuffer(napi_env env, napi_callback_info info) {
   return theBuffer;
 }
 
-napi_value getDeleterCallCount(napi_env env, napi_callback_info info) {
+static napi_value getDeleterCallCount(napi_env env, napi_callback_info info) {
   napi_value callCount;
   NAPI_CALL(env, napi_create_int32(env, deleterCallCount, &callCount));
   return callCount;
 }
 
-napi_value copyBuffer(napi_env env, napi_callback_info info) {
+static napi_value copyBuffer(napi_env env, napi_callback_info info) {
   napi_value theBuffer;
   NAPI_CALL(env, napi_create_buffer_copy(
       env, sizeof(theText), theText, NULL, &theBuffer));
   return theBuffer;
 }
 
-napi_value bufferHasInstance(napi_env env, napi_callback_info info) {
+static napi_value bufferHasInstance(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -85,7 +85,7 @@ napi_value bufferHasInstance(napi_env env, napi_callback_info info) {
   return returnValue;
 }
 
-napi_value bufferInfo(napi_env env, napi_callback_info info) {
+static napi_value bufferInfo(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -106,7 +106,7 @@ napi_value bufferInfo(napi_env env, napi_callback_info info) {
   return returnValue;
 }
 
-napi_value staticBuffer(napi_env env, napi_callback_info info) {
+static napi_value staticBuffer(napi_env env, napi_callback_info info) {
   napi_value theBuffer;
   NAPI_CALL(
       env,
@@ -119,7 +119,7 @@ napi_value staticBuffer(napi_env env, napi_callback_info info) {
   return theBuffer;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_value theValue;
 
   NAPI_CALL(env,

@@ -518,6 +518,15 @@ void AstTraversalVisitor<Subclass>::VisitSpread(Spread* expr) {
 }
 
 template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitStoreInArrayLiteral(
+    StoreInArrayLiteral* expr) {
+  PROCESS_EXPRESSION(expr);
+  RECURSE_EXPRESSION(Visit(expr->array()));
+  RECURSE_EXPRESSION(Visit(expr->index()));
+  RECURSE_EXPRESSION(Visit(expr->value()));
+}
+
+template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitEmptyParentheses(
     EmptyParentheses* expr) {
   PROCESS_EXPRESSION(expr);
@@ -533,6 +542,15 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitGetTemplateObject(
     GetTemplateObject* expr) {
   PROCESS_EXPRESSION(expr);
+}
+
+template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitTemplateLiteral(
+    TemplateLiteral* expr) {
+  PROCESS_EXPRESSION(expr);
+  for (Expression* sub : *expr->substitutions()) {
+    RECURSE_EXPRESSION(Visit(sub));
+  }
 }
 
 template <class Subclass>

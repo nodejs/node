@@ -29,7 +29,7 @@
 #define V8_TEST_CCTEST_TYPES_H_
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/v8.h"
 
@@ -118,68 +118,66 @@ class Types {
   Handle<i::JSArray> array;
   Handle<i::Oddball> uninitialized;
 
-#define DECLARE_TYPE(name, value) Type* name;
+#define DECLARE_TYPE(name, value) Type name;
   PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
   #undef DECLARE_TYPE
 
-  Type* SignedSmall;
-  Type* UnsignedSmall;
+  Type SignedSmall;
+  Type UnsignedSmall;
 
-  Type* SmiConstant;
-  Type* Signed32Constant;
-  Type* ObjectConstant1;
-  Type* ObjectConstant2;
-  Type* ArrayConstant;
-  Type* UninitializedConstant;
+  Type SmiConstant;
+  Type Signed32Constant;
+  Type ObjectConstant1;
+  Type ObjectConstant2;
+  Type ArrayConstant;
+  Type UninitializedConstant;
 
-  Type* Integer;
+  Type Integer;
 
-  typedef std::vector<Type*> TypeVector;
+  typedef std::vector<Type> TypeVector;
   typedef std::vector<Handle<i::Object> > ValueVector;
 
   TypeVector types;
   ValueVector values;
   ValueVector integers;  // "Integer" values used for range limits.
 
-  Type* Of(Handle<i::Object> value) { return Type::Of(value, zone_); }
+  Type Of(Handle<i::Object> value) { return Type::Of(value, zone_); }
 
-  Type* NewConstant(Handle<i::Object> value) {
+  Type NewConstant(Handle<i::Object> value) {
     return Type::NewConstant(value, zone_);
   }
 
-  Type* HeapConstant(Handle<i::HeapObject> value) {
+  Type HeapConstant(Handle<i::HeapObject> value) {
     return Type::HeapConstant(value, zone_);
   }
 
-  Type* Range(double min, double max) { return Type::Range(min, max, zone_); }
+  Type Range(double min, double max) { return Type::Range(min, max, zone_); }
 
-  Type* Union(Type* t1, Type* t2) { return Type::Union(t1, t2, zone_); }
+  Type Union(Type t1, Type t2) { return Type::Union(t1, t2, zone_); }
 
-  Type* Intersect(Type* t1, Type* t2) { return Type::Intersect(t1, t2, zone_); }
+  Type Intersect(Type t1, Type t2) { return Type::Intersect(t1, t2, zone_); }
 
-  Type* Random() {
-    return types[rng_->NextInt(static_cast<int>(types.size()))];
-  }
+  Type Random() { return types[rng_->NextInt(static_cast<int>(types.size()))]; }
 
-  Type* Fuzz(int depth = 4) {
+  Type Fuzz(int depth = 4) {
     switch (rng_->NextInt(depth == 0 ? 3 : 20)) {
       case 0: {  // bitset
         #define COUNT_BITSET_TYPES(type, value) + 1
         int n = 0 PROPER_BITSET_TYPE_LIST(COUNT_BITSET_TYPES);
         #undef COUNT_BITSET_TYPES
         // Pick a bunch of named bitsets and return their intersection.
-        Type* result = Type::Any();
+        Type result = Type::Any();
         for (int i = 0, m = 1 + rng_->NextInt(3); i < m; ++i) {
           int j = rng_->NextInt(n);
-#define PICK_BITSET_TYPE(type, value)                         \
-  if (j-- == 0) {                                             \
-    Type* tmp = Type::Intersect(result, Type::type(), zone_); \
-    if (tmp->Is(Type::None()) && i != 0) {                    \
-      break;                                                  \
-    } else {                                                  \
-      result = tmp;                                           \
-      continue;                                               \
-    }                                                         \
+#define PICK_BITSET_TYPE(type, value)                        \
+  if (j-- == 0) {                                            \
+    Type tmp = Type::Intersect(result, Type::type(), zone_); \
+    if (tmp.Is(Type::None()) && i != 0) {                    \
+      break;                                                 \
+    } else {                                                 \
+      result = tmp;                                          \
+      continue;                                              \
+    }                                                        \
   }
           PROPER_BITSET_TYPE_LIST(PICK_BITSET_TYPE)
           #undef PICK_BITSET_TYPE
@@ -200,9 +198,9 @@ class Types {
       }
       default: {  // union
         int n = rng_->NextInt(10);
-        Type* type = None;
+        Type type = None;
         for (int i = 0; i < n; ++i) {
-          Type* operand = Fuzz(depth - 1);
+          Type operand = Fuzz(depth - 1);
           type = Type::Union(type, operand, zone_);
         }
         return type;

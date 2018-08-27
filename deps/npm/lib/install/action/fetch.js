@@ -12,5 +12,5 @@ function fetch (staging, pkg, log, next) {
   log.silly('fetch', packageId(pkg))
   const opts = pacoteOpts({integrity: pkg.package._integrity})
   return finished(pacote.tarball.stream(pkg.package._requested, opts))
-  .then(() => next(), next)
+    .then(() => next(), next)
 }

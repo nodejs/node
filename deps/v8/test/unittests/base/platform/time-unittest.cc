@@ -24,6 +24,163 @@
 namespace v8 {
 namespace base {
 
+TEST(TimeDelta, ZeroMinMax) {
+  constexpr TimeDelta kZero;
+  static_assert(kZero.IsZero(), "");
+
+  constexpr TimeDelta kMax = TimeDelta::Max();
+  static_assert(kMax.IsMax(), "");
+  static_assert(kMax == TimeDelta::Max(), "");
+  EXPECT_GT(kMax, TimeDelta::FromDays(100 * 365));
+  static_assert(kMax > kZero, "");
+
+  constexpr TimeDelta kMin = TimeDelta::Min();
+  static_assert(kMin.IsMin(), "");
+  static_assert(kMin == TimeDelta::Min(), "");
+  EXPECT_LT(kMin, TimeDelta::FromDays(-100 * 365));
+  static_assert(kMin < kZero, "");
+}
+
+TEST(TimeDelta, MaxConversions) {
+  // static_assert also confirms constexpr works as intended.
+  constexpr TimeDelta kMax = TimeDelta::Max();
+  EXPECT_EQ(kMax.InDays(), std::numeric_limits<int>::max());
+  EXPECT_EQ(kMax.InHours(), std::numeric_limits<int>::max());
+  EXPECT_EQ(kMax.InMinutes(), std::numeric_limits<int>::max());
+  EXPECT_EQ(kMax.InSecondsF(), std::numeric_limits<double>::infinity());
+  EXPECT_EQ(kMax.InSeconds(), std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(kMax.InMillisecondsF(), std::numeric_limits<double>::infinity());
+  EXPECT_EQ(kMax.InMilliseconds(), std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(kMax.InMillisecondsRoundedUp(),
+            std::numeric_limits<int64_t>::max());
+
+  // TODO(v8-team): Import overflow support from Chromium's base.
+
+  // EXPECT_TRUE(TimeDelta::FromDays(std::numeric_limits<int>::max()).IsMax());
+
+  // EXPECT_TRUE(
+  //     TimeDelta::FromHours(std::numeric_limits<int>::max()).IsMax());
+
+  // EXPECT_TRUE(
+  //     TimeDelta::FromMinutes(std::numeric_limits<int>::max()).IsMax());
+
+  // constexpr int64_t max_int = std::numeric_limits<int64_t>::max();
+  // constexpr int64_t min_int = std::numeric_limits<int64_t>::min();
+
+  // EXPECT_TRUE(
+  //     TimeDelta::FromSeconds(max_int / Time::kMicrosecondsPerSecond + 1)
+  //         .IsMax());
+
+  // EXPECT_TRUE(TimeDelta::FromMilliseconds(
+  //                 max_int / Time::kMillisecondsPerSecond + 1)
+  //                 .IsMax());
+
+  // EXPECT_TRUE(TimeDelta::FromMicroseconds(max_int).IsMax());
+
+  // EXPECT_TRUE(
+  //     TimeDelta::FromSeconds(min_int / Time::kMicrosecondsPerSecond - 1)
+  //         .IsMin());
+
+  // EXPECT_TRUE(TimeDelta::FromMilliseconds(
+  //                 min_int / Time::kMillisecondsPerSecond - 1)
+  //                 .IsMin());
+
+  // EXPECT_TRUE(TimeDelta::FromMicroseconds(min_int).IsMin());
+
+  // EXPECT_TRUE(
+  //     TimeDelta::FromMicroseconds(std::numeric_limits<int64_t>::min())
+  //         .IsMin());
+}
+
+TEST(TimeDelta, NumericOperators) {
+  constexpr int i = 2;
+  EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
+            (TimeDelta::FromMilliseconds(1000) * i));
+  EXPECT_EQ(TimeDelta::FromMilliseconds(500),
+            (TimeDelta::FromMilliseconds(1000) / i));
+  EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
+            (TimeDelta::FromMilliseconds(1000) *= i));
+  EXPECT_EQ(TimeDelta::FromMilliseconds(500),
+            (TimeDelta::FromMilliseconds(1000) /= i));
+
+  constexpr int64_t i64 = 2;
+  EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
+            (TimeDelta::FromMilliseconds(1000) * i64));
+  EXPECT_EQ(TimeDelta::FromMilliseconds(500),
+            (TimeDelta::FromMilliseconds(1000) / i64));
+  EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
+            (TimeDelta::FromMilliseconds(1000) *= i64));
+  EXPECT_EQ(TimeDelta::FromMilliseconds(500),
+            (TimeDelta::FromMilliseconds(1000) /= i64));
+
+  EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
+            (TimeDelta::FromMilliseconds(1000) * 2));
+  EXPECT_EQ(TimeDelta::FromMilliseconds(500),
+            (TimeDelta::FromMilliseconds(1000) / 2));
+  EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
+            (TimeDelta::FromMilliseconds(1000) *= 2));
+  EXPECT_EQ(TimeDelta::FromMilliseconds(500),
+            (TimeDelta::FromMilliseconds(1000) /= 2));
+}
+
+// TODO(v8-team): Import support for overflow from Chromium's base.
+TEST(TimeDelta, DISABLED_Overflows) {
+  // Some sanity checks. static_assert's used were possible to verify constexpr
+  // evaluation at the same time.
+  static_assert(TimeDelta::Max().IsMax(), "");
+  static_assert(-TimeDelta::Max() < TimeDelta(), "");
+  static_assert(-TimeDelta::Max() > TimeDelta::Min(), "");
+  static_assert(TimeDelta() > -TimeDelta::Max(), "");
+
+  TimeDelta large_delta = TimeDelta::Max() - TimeDelta::FromMilliseconds(1);
+  TimeDelta large_negative = -large_delta;
+  EXPECT_GT(TimeDelta(), large_negative);
+  EXPECT_FALSE(large_delta.IsMax());
+  EXPECT_FALSE((-large_negative).IsMin());
+  const TimeDelta kOneSecond = TimeDelta::FromSeconds(1);
+
+  // Test +, -, * and / operators.
+  EXPECT_TRUE((large_delta + kOneSecond).IsMax());
+  EXPECT_TRUE((large_negative + (-kOneSecond)).IsMin());
+  EXPECT_TRUE((large_negative - kOneSecond).IsMin());
+  EXPECT_TRUE((large_delta - (-kOneSecond)).IsMax());
+  EXPECT_TRUE((large_delta * 2).IsMax());
+  EXPECT_TRUE((large_delta * -2).IsMin());
+
+  // Test +=, -=, *= and /= operators.
+  TimeDelta delta = large_delta;
+  delta += kOneSecond;
+  EXPECT_TRUE(delta.IsMax());
+  delta = large_negative;
+  delta += -kOneSecond;
+  EXPECT_TRUE((delta).IsMin());
+
+  delta = large_negative;
+  delta -= kOneSecond;
+  EXPECT_TRUE((delta).IsMin());
+  delta = large_delta;
+  delta -= -kOneSecond;
+  EXPECT_TRUE(delta.IsMax());
+
+  delta = large_delta;
+  delta *= 2;
+  EXPECT_TRUE(delta.IsMax());
+
+  // Test operations with Time and TimeTicks.
+  EXPECT_TRUE((large_delta + Time::Now()).IsMax());
+  EXPECT_TRUE((large_delta + TimeTicks::Now()).IsMax());
+  EXPECT_TRUE((Time::Now() + large_delta).IsMax());
+  EXPECT_TRUE((TimeTicks::Now() + large_delta).IsMax());
+
+  Time time_now = Time::Now();
+  EXPECT_EQ(kOneSecond, (time_now + kOneSecond) - time_now);
+  EXPECT_EQ(-kOneSecond, (time_now - kOneSecond) - time_now);
+
+  TimeTicks ticks_now = TimeTicks::Now();
+  EXPECT_EQ(-kOneSecond, (ticks_now - kOneSecond) - ticks_now);
+  EXPECT_EQ(kOneSecond, (ticks_now + kOneSecond) - ticks_now);
+}
+
 TEST(TimeDelta, FromAndIn) {
   EXPECT_EQ(TimeDelta::FromDays(2), TimeDelta::FromHours(48));
   EXPECT_EQ(TimeDelta::FromHours(3), TimeDelta::FromMinutes(180));
@@ -54,6 +211,47 @@ TEST(TimeDelta, MachTimespec) {
 }
 #endif
 
+TEST(Time, Max) {
+  Time max = Time::Max();
+  EXPECT_TRUE(max.IsMax());
+  EXPECT_EQ(max, Time::Max());
+  EXPECT_GT(max, Time::Now());
+  EXPECT_GT(max, Time());
+}
+
+TEST(Time, MaxConversions) {
+  Time t = Time::Max();
+  EXPECT_EQ(std::numeric_limits<int64_t>::max(), t.ToInternalValue());
+
+// TODO(v8-team): Time::FromJsTime() overflows with infinity. Import support
+// from Chromium's base.
+// t = Time::FromJsTime(std::numeric_limits<double>::infinity());
+// EXPECT_TRUE(t.IsMax());
+// EXPECT_EQ(std::numeric_limits<double>::infinity(), t.ToJsTime());
+
+#if defined(OS_POSIX)
+  struct timeval tval;
+  tval.tv_sec = std::numeric_limits<time_t>::max();
+  tval.tv_usec = static_cast<suseconds_t>(Time::kMicrosecondsPerSecond) - 1;
+  t = Time::FromTimeVal(tval);
+  EXPECT_TRUE(t.IsMax());
+  tval = t.ToTimeVal();
+  EXPECT_EQ(std::numeric_limits<time_t>::max(), tval.tv_sec);
+  EXPECT_EQ(static_cast<suseconds_t>(Time::kMicrosecondsPerSecond) - 1,
+            tval.tv_usec);
+#endif
+
+#if defined(OS_WIN)
+  FILETIME ftime;
+  ftime.dwHighDateTime = std::numeric_limits<DWORD>::max();
+  ftime.dwLowDateTime = std::numeric_limits<DWORD>::max();
+  t = Time::FromFileTime(ftime);
+  EXPECT_TRUE(t.IsMax());
+  ftime = t.ToFileTime();
+  EXPECT_EQ(std::numeric_limits<DWORD>::max(), ftime.dwHighDateTime);
+  EXPECT_EQ(std::numeric_limits<DWORD>::max(), ftime.dwLowDateTime);
+#endif
+}
 
 TEST(Time, JsTime) {
   Time t = Time::FromJsTime(700000.3);
@@ -153,20 +351,14 @@ TEST(Time, NowResolution) {
 
 
 TEST(TimeTicks, NowResolution) {
-  // We assume that TimeTicks::Now() has at least 16ms resolution.
-  static const TimeDelta kTargetGranularity = TimeDelta::FromMilliseconds(16);
+  // TimeTicks::Now() is documented as having "no worse than one microsecond"
+  // resolution. Unless !TimeTicks::IsHighResolution() in which case the clock
+  // could be as coarse as ~15.6ms.
+  const TimeDelta kTargetGranularity = TimeTicks::IsHighResolution()
+                                           ? TimeDelta::FromMicroseconds(1)
+                                           : TimeDelta::FromMilliseconds(16);
   ResolutionTest<TimeTicks>(&TimeTicks::Now, kTargetGranularity);
 }
-
-
-TEST(TimeTicks, HighResolutionNowResolution) {
-  if (!TimeTicks::IsHighResolutionClockWorking()) return;
-
-  // We assume that TimeTicks::HighResolutionNow() has sub-ms resolution.
-  static const TimeDelta kTargetGranularity = TimeDelta::FromMilliseconds(1);
-  ResolutionTest<TimeTicks>(&TimeTicks::HighResolutionNow, kTargetGranularity);
-}
-
 
 TEST(TimeTicks, IsMonotonic) {
   TimeTicks previous_normal_ticks;
@@ -194,15 +386,21 @@ TEST(TimeTicks, IsMonotonic) {
 TEST(ThreadTicks, MAYBE_ThreadNow) {
   if (ThreadTicks::IsSupported()) {
     ThreadTicks::WaitUntilInitialized();
-    TimeTicks begin = TimeTicks::Now();
-    ThreadTicks begin_thread = ThreadTicks::Now();
+    TimeTicks end, begin = TimeTicks::Now();
+    ThreadTicks end_thread, begin_thread = ThreadTicks::Now();
+    TimeDelta delta;
     // Make sure that ThreadNow value is non-zero.
     EXPECT_GT(begin_thread, ThreadTicks());
-    // Sleep for 10 milliseconds to get the thread de-scheduled.
-    OS::Sleep(base::TimeDelta::FromMilliseconds(10));
-    ThreadTicks end_thread = ThreadTicks::Now();
-    TimeTicks end = TimeTicks::Now();
-    TimeDelta delta = end - begin;
+    int iterations_count = 0;
+    do {
+      // Sleep for 10 milliseconds to get the thread de-scheduled.
+      OS::Sleep(base::TimeDelta::FromMilliseconds(10));
+      end_thread = ThreadTicks::Now();
+      end = TimeTicks::Now();
+      delta = end - begin;
+      EXPECT_LE(++iterations_count, 2);  // fail after 2 attempts.
+    } while (delta.InMicroseconds() <
+             10000);  // Make sure that the OS did sleep for at least 10 ms.
     TimeDelta delta_thread = end_thread - begin_thread;
     // Make sure that some thread time have elapsed.
     EXPECT_GT(delta_thread.InMicroseconds(), 0);

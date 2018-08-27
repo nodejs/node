@@ -74,12 +74,17 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void StringIndexOf(Node* const subject_string, Node* const search_string,
                      Node* const position, std::function<void(Node*)> f_return);
 
-  Node* IndexOfDollarChar(Node* const context, Node* const string);
+  TNode<Smi> IndexOfDollarChar(Node* const context, Node* const string);
+
+  TNode<JSArray> StringToArray(TNode<Context> context,
+                               TNode<String> subject_string,
+                               TNode<Smi> subject_length,
+                               TNode<Number> limit_number);
 
   void RequireObjectCoercible(Node* const context, Node* const value,
                               const char* method_name);
 
-  Node* SmiIsNegative(Node* const value) {
+  TNode<BoolT> SmiIsNegative(TNode<Smi> value) {
     return SmiLessThan(value, SmiConstant(0));
   }
 
@@ -95,14 +100,16 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   //
   // Contains fast paths for Smi and RegExp objects.
   // Important: {regexp_call} may not contain any code that can call into JS.
-  typedef std::function<Node*()> NodeFunction0;
-  typedef std::function<Node*(Node* fn)> NodeFunction1;
+  typedef std::function<void()> NodeFunction0;
+  typedef std::function<void(Node* fn)> NodeFunction1;
   void MaybeCallFunctionAtSymbol(Node* const context, Node* const object,
                                  Node* const maybe_string,
                                  Handle<Symbol> symbol,
                                  const NodeFunction0& regexp_call,
-                                 const NodeFunction1& generic_call,
-                                 CodeStubArguments* args = nullptr);
+                                 const NodeFunction1& generic_call);
+
+  void Generate_StringAdd(StringAddFlags flags, PretenureFlag pretenure_flag,
+                          Node* context, Node* left, Node* right);
 };
 
 class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {

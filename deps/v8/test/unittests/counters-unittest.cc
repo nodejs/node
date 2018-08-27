@@ -611,7 +611,7 @@ TEST_F(RuntimeCallStatsTest, FunctionLengthGetter) {
   EXPECT_EQ(1, getter_counter->count());
   EXPECT_EQ(2, js_counter->count());
   EXPECT_LE(0, getter_counter->time().InMicroseconds());
-  EXPECT_LT(js_time, js_counter->time().InMicroseconds());
+  EXPECT_LE(js_time, js_counter->time().InMicroseconds());
 
   {
     NativeTimeScope native_timer_scope;

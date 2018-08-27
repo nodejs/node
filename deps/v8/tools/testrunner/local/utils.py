@@ -36,6 +36,21 @@ import subprocess
 import urllib2
 
 
+### Exit codes and their meaning.
+# Normal execution.
+EXIT_CODE_PASS = 0
+# Execution with test failures.
+EXIT_CODE_FAILURES = 1
+# Execution with no tests executed.
+EXIT_CODE_NO_TESTS = 2
+# Execution aborted with SIGINT (Ctrl-C).
+EXIT_CODE_INTERRUPTED = 3
+# Execution aborted with SIGTERM.
+EXIT_CODE_TERMINATED = 4
+# Internal error.
+EXIT_CODE_INTERNAL_ERROR = 5
+
+
 def GetSuitePaths(test_root):
   return [ f for f in os.listdir(test_root) if isdir(join(test_root, f)) ]
 

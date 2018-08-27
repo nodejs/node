@@ -1,11 +1,13 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
+const { internalBinding } = require('internal/test/binding');
 
-const binding = process.binding('http2');
+const binding = internalBinding('http2');
 const http2 = require('http2');
 
 assert(binding.Http2Session);

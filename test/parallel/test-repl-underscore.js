@@ -174,11 +174,11 @@ function testError() {
 
       // The error, both from the original throw and the `_error` echo.
       'Error: foo',
-      'Error: foo',
+      '[Error: foo]',
 
       // The sync error, with individual property echoes
       /Error: ENOENT: no such file or directory, scandir '.*nonexistent.*'/,
-      /fs\.readdirSync/,
+      /Object\.readdirSync/,
       "'ENOENT'",
       "'scandir'",
 

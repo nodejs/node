@@ -4,7 +4,7 @@
 
 #include "src/wasm/wasm-result.h"
 
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
 #include "src/objects.h"

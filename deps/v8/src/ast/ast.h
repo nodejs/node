@@ -11,8 +11,8 @@
 #include "src/ast/modules.h"
 #include "src/ast/variables.h"
 #include "src/bailout-reason.h"
-#include "src/factory.h"
 #include "src/globals.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/label.h"
 #include "src/objects/literal-objects.h"
@@ -97,8 +97,10 @@ namespace internal {
   V(ResolvedProperty)           \
   V(RewritableExpression)       \
   V(Spread)                     \
+  V(StoreInArrayLiteral)        \
   V(SuperCallReference)         \
   V(SuperPropertyReference)     \
+  V(TemplateLiteral)            \
   V(ThisFunction)               \
   V(Throw)                      \
   V(UnaryOperation)             \
@@ -437,21 +439,12 @@ class IterationStatement : public BreakableStatement {
 
   ZoneList<const AstRawString*>* labels() const { return labels_; }
 
-  int suspend_count() const { return suspend_count_; }
-  int first_suspend_id() const { return first_suspend_id_; }
-  void set_suspend_count(int suspend_count) { suspend_count_ = suspend_count; }
-  void set_first_suspend_id(int first_suspend_id) {
-    first_suspend_id_ = first_suspend_id;
-  }
-
  protected:
   IterationStatement(ZoneList<const AstRawString*>* labels, int pos,
                      NodeType type)
       : BreakableStatement(TARGET_FOR_ANONYMOUS, pos, type),
         labels_(labels),
-        body_(nullptr),
-        suspend_count_(0),
-        first_suspend_id_(0) {}
+        body_(nullptr) {}
   void Initialize(Statement* body) { body_ = body; }
 
   static const uint8_t kNextBitFieldIndex =
@@ -460,8 +453,6 @@ class IterationStatement : public BreakableStatement {
  private:
   ZoneList<const AstRawString*>* labels_;
   Statement* body_;
-  int suspend_count_;
-  int first_suspend_id_;
 };
 
 
@@ -1438,6 +1429,8 @@ class ArrayLiteral final : public AggregateLiteral {
 
   ZoneList<Expression*>* values() const { return values_; }
 
+  int first_spread_index() const { return first_spread_index_; }
+
   bool is_empty() const;
 
   // Populate the depth field and flags, returns the depth.
@@ -1462,16 +1455,6 @@ class ArrayLiteral final : public AggregateLiteral {
     return AggregateLiteral::ComputeFlags(disable_mementos);
   }
 
-  // Provide a mechanism for iterating through values to rewrite spreads.
-  ZoneList<Expression*>::iterator FirstSpreadOrEndValue() const {
-    return (first_spread_index_ >= 0) ? values_->begin() + first_spread_index_
-                                      : values_->end();
-  }
-  ZoneList<Expression*>::iterator BeginValue() const {
-    return values_->begin();
-  }
-  ZoneList<Expression*>::iterator EndValue() const { return values_->end(); }
-
  private:
   friend class AstNodeFactory;
 
@@ -1486,6 +1469,7 @@ class ArrayLiteral final : public AggregateLiteral {
   ZoneList<Expression*>* values_;
 };
 
+enum class HoleCheckMode { kRequired, kElided };
 
 class VariableProxy final : public Expression {
  public:
@@ -1540,6 +1524,11 @@ class VariableProxy final : public Expression {
         HoleCheckModeField::update(bit_field_, HoleCheckMode::kRequired);
   }
 
+  bool is_private_field() const { return IsPrivateField::decode(bit_field_); }
+  void set_is_private_field() {
+    bit_field_ = IsPrivateField::update(bit_field_, true);
+  }
+
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);
 
@@ -1559,7 +1548,8 @@ class VariableProxy final : public Expression {
     bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
                   IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
-                  HoleCheckModeField::encode(HoleCheckMode::kElided);
+                  HoleCheckModeField::encode(HoleCheckMode::kElided) |
+                  IsPrivateField::encode(false);
   }
 
   explicit VariableProxy(const VariableProxy* copy_from);
@@ -1571,6 +1561,7 @@ class VariableProxy final : public Expression {
   class IsNewTargetField : public BitField<bool, IsResolvedField::kNext, 1> {};
   class HoleCheckModeField
       : public BitField<HoleCheckMode, IsNewTargetField::kNext, 1> {};
+  class IsPrivateField : public BitField<bool, HoleCheckModeField::kNext, 1> {};
 
   union {
     const AstRawString* raw_name_;  // if !is_resolved_
@@ -1589,7 +1580,6 @@ enum LhsKind {
   NAMED_SUPER_PROPERTY,
   KEYED_SUPER_PROPERTY
 };
-
 
 class Property final : public Expression {
  public:
@@ -1950,6 +1940,29 @@ class Spread final : public Expression {
   Expression* expression_;
 };
 
+// The StoreInArrayLiteral node corresponds to the StaInArrayLiteral bytecode.
+// It is used in the rewriting of destructuring assignments that contain an
+// array rest pattern.
+class StoreInArrayLiteral final : public Expression {
+ public:
+  Expression* array() const { return array_; }
+  Expression* index() const { return index_; }
+  Expression* value() const { return value_; }
+
+ private:
+  friend class AstNodeFactory;
+
+  StoreInArrayLiteral(Expression* array, Expression* index, Expression* value,
+                      int position)
+      : Expression(position, kStoreInArrayLiteral),
+        array_(array),
+        index_(index),
+        value_(value) {}
+
+  Expression* array_;
+  Expression* index_;
+  Expression* value_;
+};
 
 class Conditional final : public Expression {
  public:
@@ -2096,11 +2109,6 @@ class Suspend : public Expression {
     return OnAbruptResumeField::decode(bit_field_);
   }
 
-  int suspend_id() const { return suspend_id_; }
-  void set_suspend_id(int id) { suspend_id_ = id; }
-
-  inline bool IsInitialYield() const { return suspend_id_ == 0 && IsYield(); }
-
  private:
   friend class AstNodeFactory;
   friend class Yield;
@@ -2109,11 +2117,10 @@ class Suspend : public Expression {
 
   Suspend(NodeType node_type, Expression* expression, int pos,
           OnAbruptResume on_abrupt_resume)
-      : Expression(pos, node_type), suspend_id_(-1), expression_(expression) {
+      : Expression(pos, node_type), expression_(expression) {
     bit_field_ |= OnAbruptResumeField::encode(on_abrupt_resume);
   }
 
-  int suspend_id_;
   Expression* expression_;
 
   class OnAbruptResumeField
@@ -2128,47 +2135,11 @@ class Yield final : public Suspend {
 };
 
 class YieldStar final : public Suspend {
- public:
-  // In addition to the normal suspend for yield*, a yield* in an async
-  // generator has 2 additional suspends:
-  //   - One for awaiting the iterator result of closing the generator when
-  //     resumed with a "throw" completion, and a throw method is not present
-  //     on the delegated iterator (await_iterator_close_suspend_id)
-  //   - One for awaiting the iterator result yielded by the delegated iterator
-  //     (await_delegated_iterator_output_suspend_id)
-  int await_iterator_close_suspend_id() const {
-    return await_iterator_close_suspend_id_;
-  }
-  void set_await_iterator_close_suspend_id(int id) {
-    await_iterator_close_suspend_id_ = id;
-  }
-
-  int await_delegated_iterator_output_suspend_id() const {
-    return await_delegated_iterator_output_suspend_id_;
-  }
-  void set_await_delegated_iterator_output_suspend_id(int id) {
-    await_delegated_iterator_output_suspend_id_ = id;
-  }
-
-  inline int suspend_count() const {
-    if (await_iterator_close_suspend_id_ != -1) {
-      DCHECK_NE(-1, await_delegated_iterator_output_suspend_id_);
-      return 3;
-    }
-    return 1;
-  }
-
  private:
   friend class AstNodeFactory;
-
   YieldStar(Expression* expression, int pos)
       : Suspend(kYieldStar, expression, pos,
-                Suspend::OnAbruptResume::kNoControl),
-        await_iterator_close_suspend_id_(-1),
-        await_delegated_iterator_output_suspend_id_(-1) {}
-
-  int await_iterator_close_suspend_id_;
-  int await_delegated_iterator_output_suspend_id_;
+                Suspend::OnAbruptResume::kNoControl) {}
 };
 
 class Await final : public Suspend {
@@ -2267,23 +2238,11 @@ class FunctionLiteral final : public Expression {
     }
     UNREACHABLE();
   }
-
-  // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
-  void set_inferred_name(Handle<String> inferred_name) {
-    DCHECK(!inferred_name.is_null());
-    inferred_name_ = inferred_name;
-    DCHECK(raw_inferred_name_ == nullptr || raw_inferred_name_->IsEmpty());
-    raw_inferred_name_ = nullptr;
-  }
-
   const AstConsString* raw_inferred_name() { return raw_inferred_name_; }
 
-  void set_raw_inferred_name(const AstConsString* raw_inferred_name) {
-    DCHECK_NOT_NULL(raw_inferred_name);
-    raw_inferred_name_ = raw_inferred_name;
-    DCHECK(inferred_name_.is_null());
-    inferred_name_ = Handle<String>();
-  }
+  // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
+  void set_inferred_name(Handle<String> inferred_name);
+  void set_raw_inferred_name(const AstConsString* raw_inferred_name);
 
   bool pretenure() const { return Pretenure::decode(bit_field_); }
   void set_pretenure() { bit_field_ = Pretenure::update(bit_field_, true); }
@@ -2325,7 +2284,9 @@ class FunctionLiteral final : public Expression {
   void set_suspend_count(int suspend_count) { suspend_count_ = suspend_count; }
 
   int return_position() {
-    return std::max(start_position(), end_position() - (has_braces_ ? 1 : 0));
+    return std::max(
+        start_position(),
+        end_position() - (HasBracesField::decode(bit_field_) ? 1 : 0));
   }
 
   int function_literal_id() const { return function_literal_id_; }
@@ -2361,19 +2322,19 @@ class FunctionLiteral final : public Expression {
         function_length_(function_length),
         function_token_position_(kNoSourcePosition),
         suspend_count_(0),
-        has_braces_(has_braces),
+        function_literal_id_(function_literal_id),
         raw_name_(name ? ast_value_factory->NewConsString(name) : nullptr),
         scope_(scope),
         body_(body),
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
-        function_literal_id_(function_literal_id),
         produced_preparsed_scope_data_(produced_preparsed_scope_data) {
     bit_field_ |= FunctionTypeBits::encode(function_type) |
                   Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
                   DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
-                  RequiresInstanceFieldsInitializer::encode(false);
+                  RequiresInstanceFieldsInitializer::encode(false) |
+                  HasBracesField::encode(has_braces);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
     DCHECK_EQ(body == nullptr, expected_property_count < 0);
   }
@@ -2386,20 +2347,21 @@ class FunctionLiteral final : public Expression {
       : public BitField<BailoutReason, HasDuplicateParameters::kNext, 8> {};
   class RequiresInstanceFieldsInitializer
       : public BitField<bool, DontOptimizeReasonField::kNext, 1> {};
+  class HasBracesField
+      : public BitField<bool, RequiresInstanceFieldsInitializer::kNext, 1> {};
 
   int expected_property_count_;
   int parameter_count_;
   int function_length_;
   int function_token_position_;
   int suspend_count_;
-  bool has_braces_;
+  int function_literal_id_;
 
   const AstConsString* raw_name_;
   DeclarationScope* scope_;
   ZoneList<Statement*>* body_;
   const AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
-  int function_literal_id_;
   ProducedPreParsedScopeData* produced_preparsed_scope_data_;
 };
 
@@ -2407,14 +2369,29 @@ class FunctionLiteral final : public Expression {
 // about a class literal's properties from the parser to the code generator.
 class ClassLiteralProperty final : public LiteralProperty {
  public:
-  enum Kind : uint8_t { METHOD, GETTER, SETTER, FIELD };
+  enum Kind : uint8_t { METHOD, GETTER, SETTER, PUBLIC_FIELD, PRIVATE_FIELD };
 
   Kind kind() const { return kind_; }
 
   bool is_static() const { return is_static_; }
 
-  void set_computed_name_var(Variable* var) { computed_name_var_ = var; }
-  Variable* computed_name_var() const { return computed_name_var_; }
+  void set_computed_name_var(Variable* var) {
+    DCHECK_EQ(PUBLIC_FIELD, kind());
+    private_or_computed_name_var_ = var;
+  }
+  Variable* computed_name_var() const {
+    DCHECK_EQ(PUBLIC_FIELD, kind());
+    return private_or_computed_name_var_;
+  }
+
+  void set_private_field_name_var(Variable* var) {
+    DCHECK_EQ(PRIVATE_FIELD, kind());
+    private_or_computed_name_var_ = var;
+  }
+  Variable* private_field_name_var() const {
+    DCHECK_EQ(PRIVATE_FIELD, kind());
+    return private_or_computed_name_var_;
+  }
 
  private:
   friend class AstNodeFactory;
@@ -2424,7 +2401,7 @@ class ClassLiteralProperty final : public LiteralProperty {
 
   Kind kind_;
   bool is_static_;
-  Variable* computed_name_var_;
+  Variable* private_or_computed_name_var_;
 };
 
 class InitializeClassFieldsStatement final : public Statement {
@@ -2665,7 +2642,6 @@ class GetTemplateObject final : public Expression {
   const ZoneList<const AstRawString*>* raw_strings() const {
     return raw_strings_;
   }
-  int hash() const { return hash_; }
 
   Handle<TemplateObjectDescription> GetOrBuildDescription(Isolate* isolate);
 
@@ -2673,16 +2649,33 @@ class GetTemplateObject final : public Expression {
   friend class AstNodeFactory;
 
   GetTemplateObject(const ZoneList<const AstRawString*>* cooked_strings,
-                    const ZoneList<const AstRawString*>* raw_strings, int hash,
-                    int pos)
+                    const ZoneList<const AstRawString*>* raw_strings, int pos)
       : Expression(pos, kGetTemplateObject),
         cooked_strings_(cooked_strings),
-        raw_strings_(raw_strings),
-        hash_(hash) {}
+        raw_strings_(raw_strings) {}
 
   const ZoneList<const AstRawString*>* cooked_strings_;
   const ZoneList<const AstRawString*>* raw_strings_;
-  int hash_;
+};
+
+class TemplateLiteral final : public Expression {
+ public:
+  using StringList = ZoneList<const AstRawString*>;
+  using ExpressionList = ZoneList<Expression*>;
+
+  const StringList* string_parts() const { return string_parts_; }
+  const ExpressionList* substitutions() const { return substitutions_; }
+
+ private:
+  friend class AstNodeFactory;
+  TemplateLiteral(const StringList* parts, const ExpressionList* substitutions,
+                  int pos)
+      : Expression(pos, kTemplateLiteral),
+        string_parts_(parts),
+        substitutions_(substitutions) {}
+
+  const StringList* string_parts_;
+  const ExpressionList* substitutions_;
 };
 
 // ----------------------------------------------------------------------------
@@ -3102,6 +3095,12 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) Spread(expression, pos, expr_pos);
   }
 
+  StoreInArrayLiteral* NewStoreInArrayLiteral(Expression* array,
+                                              Expression* index,
+                                              Expression* value, int pos) {
+    return new (zone_) StoreInArrayLiteral(array, index, value, pos);
+  }
+
   Conditional* NewConditional(Expression* condition,
                               Expression* then_expression,
                               Expression* else_expression,
@@ -3257,9 +3256,14 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   GetTemplateObject* NewGetTemplateObject(
       const ZoneList<const AstRawString*>* cooked_strings,
-      const ZoneList<const AstRawString*>* raw_strings, int hash, int pos) {
-    return new (zone_)
-        GetTemplateObject(cooked_strings, raw_strings, hash, pos);
+      const ZoneList<const AstRawString*>* raw_strings, int pos) {
+    return new (zone_) GetTemplateObject(cooked_strings, raw_strings, pos);
+  }
+
+  TemplateLiteral* NewTemplateLiteral(
+      const ZoneList<const AstRawString*>* string_parts,
+      const ZoneList<Expression*>* substitutions, int pos) {
+    return new (zone_) TemplateLiteral(string_parts, substitutions, pos);
   }
 
   ImportCallExpression* NewImportCallExpression(Expression* args, int pos) {

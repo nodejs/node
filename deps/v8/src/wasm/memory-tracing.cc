@@ -15,11 +15,13 @@ void TraceMemoryOperation(ExecutionEngine engine, const MemoryTracingInfo* info,
   EmbeddedVector<char, 64> value;
   auto mem_rep = static_cast<MachineRepresentation>(info->mem_rep);
   switch (mem_rep) {
-#define TRACE_TYPE(rep, str, format, ctype1, ctype2)                    \
-  case MachineRepresentation::rep:                                      \
-    SNPrintF(value, str ":" format,                                     \
-             ReadLittleEndianValue<ctype1>(mem_start + info->address),  \
-             ReadLittleEndianValue<ctype2>(mem_start + info->address)); \
+#define TRACE_TYPE(rep, str, format, ctype1, ctype2)                     \
+  case MachineRepresentation::rep:                                       \
+    SNPrintF(value, str ":" format,                                      \
+             ReadLittleEndianValue<ctype1>(                              \
+                 reinterpret_cast<Address>(mem_start) + info->address),  \
+             ReadLittleEndianValue<ctype2>(                              \
+                 reinterpret_cast<Address>(mem_start) + info->address)); \
     break;
     TRACE_TYPE(kWord8, " i8", "%d / %02x", uint8_t, uint8_t)
     TRACE_TYPE(kWord16, "i16", "%d / %04x", uint16_t, uint16_t)

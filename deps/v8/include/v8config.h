@@ -177,6 +177,9 @@
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
+//  V8_HAS_BUILTIN_BSWAP16              - __builtin_bswap16() supported
+//  V8_HAS_BUILTIN_BSWAP32              - __builtin_bswap32() supported
+//  V8_HAS_BUILTIN_BSWAP64              - __builtin_bswap64() supported
 //  V8_HAS_BUILTIN_CLZ                  - __builtin_clz() supported
 //  V8_HAS_BUILTIN_CTZ                  - __builtin_ctz() supported
 //  V8_HAS_BUILTIN_EXPECT               - __builtin_expect() supported
@@ -217,6 +220,9 @@
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
 
+# define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
+# define V8_HAS_BUILTIN_BSWAP32 (__has_builtin(__builtin_bswap32))
+# define V8_HAS_BUILTIN_BSWAP64 (__has_builtin(__builtin_bswap64))
 # define V8_HAS_BUILTIN_CLZ (__has_builtin(__builtin_clz))
 # define V8_HAS_BUILTIN_CTZ (__has_builtin(__builtin_ctz))
 # define V8_HAS_BUILTIN_EXPECT (__has_builtin(__builtin_expect))
@@ -405,7 +411,7 @@ namespace v8 { template <typename T> class AlignOfHelper { char c; T t; }; }
 
 // Annotate a function indicating the caller must examine the return value.
 // Use like:
-//   int foo() WARN_UNUSED_RESULT;
+//   int foo() V8_WARN_UNUSED_RESULT;
 #if V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT
 #define V8_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else

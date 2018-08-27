@@ -84,11 +84,25 @@ void TimedHistogram::Start(base::ElapsedTimer* timer, Isolate* isolate) {
 
 void TimedHistogram::Stop(base::ElapsedTimer* timer, Isolate* isolate) {
   if (Enabled()) {
-    // Compute the delta between start and stop, in microseconds.
     int64_t sample = resolution_ == HistogramTimerResolution::MICROSECOND
                          ? timer->Elapsed().InMicroseconds()
                          : timer->Elapsed().InMilliseconds();
     timer->Stop();
+    AddSample(static_cast<int>(sample));
+  }
+  if (isolate != nullptr) {
+    Logger::CallEventLogger(isolate, name(), Logger::END, true);
+  }
+}
+
+void TimedHistogram::RecordAbandon(base::ElapsedTimer* timer,
+                                   Isolate* isolate) {
+  if (Enabled()) {
+    DCHECK(timer->IsStarted());
+    timer->Stop();
+    int64_t sample = resolution_ == HistogramTimerResolution::MICROSECOND
+                         ? base::TimeDelta::Max().InMicroseconds()
+                         : base::TimeDelta::Max().InMilliseconds();
     AddSample(static_cast<int>(sample));
   }
   if (isolate != nullptr) {

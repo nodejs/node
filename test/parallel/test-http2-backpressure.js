@@ -9,8 +9,6 @@ const assert = require('assert');
 const http2 = require('http2');
 const makeDuplexPair = require('../common/duplexpair');
 
-common.crashOnUnhandledRejection();
-
 {
   let req;
   const server = http2.createServer();

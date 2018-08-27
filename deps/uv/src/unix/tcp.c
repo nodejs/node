@@ -49,16 +49,14 @@ static int new_socket(uv_tcp_t* handle, int domain, unsigned long flags) {
     /* Bind this new socket to an arbitrary port */
     slen = sizeof(saddr);
     memset(&saddr, 0, sizeof(saddr));
-    err = getsockname(uv__stream_fd(handle), (struct sockaddr*) &saddr, &slen);
-    if (err) {
+    if (getsockname(uv__stream_fd(handle), (struct sockaddr*) &saddr, &slen)) {
       uv__close(sockfd);
-      return err;
+      return UV__ERR(errno);
     }
 
-    err = bind(uv__stream_fd(handle), (struct sockaddr*) &saddr, slen);
-    if (err) {
+    if (bind(uv__stream_fd(handle), (struct sockaddr*) &saddr, slen)) {
       uv__close(sockfd);
-      return err;
+      return UV__ERR(errno);
     }
   }
 
@@ -158,9 +156,7 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   if ((flags & UV_TCP_IPV6ONLY) && addr->sa_family != AF_INET6)
     return UV_EINVAL;
 
-  err = maybe_new_socket(tcp,
-                         addr->sa_family,
-                         UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+  err = maybe_new_socket(tcp, addr->sa_family, 0);
   if (err)
     return err;
 
@@ -168,6 +164,7 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   if (setsockopt(tcp->io_watcher.fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
     return UV__ERR(errno);
 
+#ifndef __OpenBSD__
 #ifdef IPV6_V6ONLY
   if (addr->sa_family == AF_INET6) {
     on = (flags & UV_TCP_IPV6ONLY) != 0;
@@ -183,6 +180,7 @@ int uv__tcp_bind(uv_tcp_t* tcp,
       return UV__ERR(errno);
     }
   }
+#endif
 #endif
 
   errno = 0;
@@ -218,7 +216,7 @@ int uv__tcp_connect(uv_connect_t* req,
 
   err = maybe_new_socket(handle,
                          addr->sa_family,
-                         UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+                         UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   if (err)
     return err;
 
@@ -265,13 +263,16 @@ int uv__tcp_connect(uv_connect_t* req,
 int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
   int err;
 
+  if (uv__fd_exists(handle->loop, sock))
+    return UV_EEXIST;
+
   err = uv__nonblock(sock, 1);
   if (err)
     return err;
 
   return uv__stream_open((uv_stream_t*)handle,
                          sock,
-                         UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+                         UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
 }
 
 
@@ -333,16 +334,16 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   }
 
   if (single_accept)
-    tcp->flags |= UV_TCP_SINGLE_ACCEPT;
+    tcp->flags |= UV_HANDLE_TCP_SINGLE_ACCEPT;
 
-  flags = UV_STREAM_READABLE;
+  flags = 0;
 #if defined(__MVS__)
   /* on zOS the listen call does not bind automatically
      if the socket is unbound. Hence the manual binding to
      an arbitrary port is required to be done manually
   */
   flags |= UV_HANDLE_BOUND;
-#endif  
+#endif
   err = maybe_new_socket(tcp, AF_INET, flags);
   if (err)
     return err;
@@ -400,9 +401,9 @@ int uv_tcp_nodelay(uv_tcp_t* handle, int on) {
   }
 
   if (on)
-    handle->flags |= UV_TCP_NODELAY;
+    handle->flags |= UV_HANDLE_TCP_NODELAY;
   else
-    handle->flags &= ~UV_TCP_NODELAY;
+    handle->flags &= ~UV_HANDLE_TCP_NODELAY;
 
   return 0;
 }
@@ -418,9 +419,9 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
   }
 
   if (on)
-    handle->flags |= UV_TCP_KEEPALIVE;
+    handle->flags |= UV_HANDLE_TCP_KEEPALIVE;
   else
-    handle->flags &= ~UV_TCP_KEEPALIVE;
+    handle->flags &= ~UV_HANDLE_TCP_KEEPALIVE;
 
   /* TODO Store delay if uv__stream_fd(handle) == -1 but don't want to enlarge
    *      uv_tcp_t with an int that's almost never used...
@@ -432,9 +433,9 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
 
 int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
   if (enable)
-    handle->flags &= ~UV_TCP_SINGLE_ACCEPT;
+    handle->flags &= ~UV_HANDLE_TCP_SINGLE_ACCEPT;
   else
-    handle->flags |= UV_TCP_SINGLE_ACCEPT;
+    handle->flags |= UV_HANDLE_TCP_SINGLE_ACCEPT;
   return 0;
 }
 

@@ -13,9 +13,9 @@ import sys
 import tempfile
 
 # Configuration.
-kChars = "0123456789abcdefghijklmnopqrstuvwxyz"
+kChars = "0123456789abcdef"
 kBase = 16
-kLineLength = 71  # A bit less than 80.
+kLineLength = 70  # A bit less than 80.
 kNumInputsGenerate = 20
 kNumInputsStress = 1000
 
@@ -46,29 +46,36 @@ if (error_count !== 0) {
 }"""
 
 def GenRandom(length, negative=kRandom):
-  if length == 0: return "0"
+  if length == 0: return "0n"
   s = []
   if negative == kYes or (negative == kRandom and (random.randint(0, 1) == 0)):
     s.append("-")  # 50% chance of negative.
+  s.append("0x")
   s.append(kChars[random.randint(1, kBase - 1)])  # No leading zero.
   for i in range(1, length):
     s.append(kChars[random.randint(0, kBase - 1)])
+  s.append("n")
   return "".join(s)
 
-def Format(x, base):
+def Parse(x):
+  assert x[-1] == 'n', x
+  return int(x[:-1], kBase)
+
+def Format(x):
   original = x
   negative = False
-  if x == 0: return "0"
+  if x == 0: return "0n"
   if x < 0:
     negative = True
     x = -x
   s = ""
   while x > 0:
-    s = kChars[x % base] + s
-    x = x / base
+    s = kChars[x % kBase] + s
+    x = x / kBase
+  s = "0x" + s + "n"
   if negative:
     s = "-" + s
-  assert int(s, base) == original
+  assert Parse(s) == original
   return s
 
 class TestGenerator(object):
@@ -120,17 +127,16 @@ class UnaryOp(TestGenerator):
   # Subclasses should not override anything below.
   def EmitOne(self):
     x_str = self.GenerateInput()
-    x_num = int(x_str, kBase)
+    x_num = Parse(x_str)
     result_num = self.GenerateResult(x_num)
-    result_str = Format(result_num, kBase)
-    return "{\n  a: \"%s\",\n  r: \"%s\"\n}" % (x_str, result_str)
+    result_str = Format(result_num)
+    return "{\n  a: %s,\n  r: %s\n}" % (x_str, result_str)
 
   def EmitTestCore(self):
     return """\
-  var a = BigInt.parseInt(d.a, %(base)d);
-  var r = %(op)sa;
-  if (d.r !== r.toString(%(base)d)) {
-    print("Input:    " + a.toString(%(base)d));
+  var r = %(op)sd.a;
+  if (d.r !== r) {
+    print("Input:    " + d.a.toString(%(base)d));
     print("Result:   " + r.toString(%(base)d));
     print("Expected: " + d.r);
     error_count++;
@@ -152,21 +158,19 @@ class BinaryOp(TestGenerator):
   # Subclasses should not override anything below.
   def EmitOne(self):
     left_str, right_str = self.GenerateInputs()
-    left_num = int(left_str, kBase)
-    right_num = int(right_str, kBase)
+    left_num = Parse(left_str)
+    right_num = Parse(right_str)
     result_num = self.GenerateResult(left_num, right_num)
-    result_str = Format(result_num, kBase)
-    return ("{\n  a: \"%s\",\n  b: \"%s\",\n  r: \"%s\"\n}" %
+    result_str = Format(result_num)
+    return ("{\n  a: %s,\n  b: %s,\n  r: %s\n}" %
             (left_str, right_str, result_str))
 
   def EmitTestCore(self):
     return """\
-  var a = BigInt.parseInt(d.a, %(base)d);
-  var b = BigInt.parseInt(d.b, %(base)d);
-  var r = a %(op)s b;
-  if (d.r !== r.toString(%(base)d)) {
-    print("Input A:  " + a.toString(%(base)d));
-    print("Input B:  " + b.toString(%(base)d));
+  var r = d.a %(op)s d.b;
+  if (d.r !== r) {
+    print("Input A:  " + d.a.toString(%(base)d));
+    print("Input B:  " + d.b.toString(%(base)d));
     print("Result:   " + r.toString(%(base)d));
     print("Expected: " + d.r);
     print("Op: %(op)s");

@@ -4,7 +4,7 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   method: ['offset', 'slice'],
   size: [16, 512, 1024, 4096, 16386],
-  millions: [1]
+  n: [1e6]
 });
 
 function compareUsingSlice(b0, b1, len, iter) {
@@ -17,13 +17,12 @@ function compareUsingOffset(b0, b1, len, iter) {
     b0.compare(b1, 1, len, 1, len);
 }
 
-function main({ millions, size, method }) {
-  const iter = millions * 1e6;
+function main({ n, size, method }) {
   const fn = method === 'slice' ? compareUsingSlice : compareUsingOffset;
   bench.start();
   fn(Buffer.alloc(size, 'a'),
      Buffer.alloc(size, 'b'),
      size >> 1,
-     iter);
-  bench.end(millions);
+     n);
+  bench.end(n);
 }

@@ -11,9 +11,6 @@ const {
 {
   // Intentional non-op. Do not wrap in common.mustCall();
   const n = performance.timerify(() => {});
-  n();
-  const entries = performance.getEntriesByType('function');
-  assert.strictEqual(entries.length, 0);
 
   const obs = new PerformanceObserver(common.mustCall((list) => {
     const entries = list.getEntries();
@@ -24,7 +21,6 @@ const {
     assert.strictEqual(typeof entry.duration, 'number');
     assert.strictEqual(typeof entry.startTime, 'number');
     obs.disconnect();
-    performance.clearFunctions();
   }));
   obs.observe({ entryTypes: ['function'] });
   n();
@@ -39,17 +35,12 @@ const {
     throw new Error('test');
   });
   assert.throws(() => n(), /^Error: test$/);
-  const entries = performance.getEntriesByType('function');
-  assert.strictEqual(entries.length, 0);
   obs.disconnect();
 }
 
 {
   class N {}
   const n = performance.timerify(N);
-  new n();
-  const entries = performance.getEntriesByType('function');
-  assert.strictEqual(entries.length, 0);
 
   const obs = new PerformanceObserver(common.mustCall((list) => {
     const entries = list.getEntries();
@@ -62,7 +53,6 @@ const {
     assert.strictEqual(typeof entry.duration, 'number');
     assert.strictEqual(typeof entry.startTime, 'number');
     obs.disconnect();
-    performance.clearFunctions();
   }));
   obs.observe({ entryTypes: ['function'] });
 

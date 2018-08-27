@@ -148,9 +148,7 @@ class Simulator : public SimulatorBase {
   void set_pc(int32_t value);
   int32_t get_pc() const;
 
-  Address get_sp() const {
-    return reinterpret_cast<Address>(static_cast<intptr_t>(get_register(sp)));
-  }
+  Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
   // Accessor to the internal simulator stack area.
   uintptr_t StackLimit(uintptr_t c_limit) const;
@@ -159,13 +157,13 @@ class Simulator : public SimulatorBase {
   void Execute();
 
   template <typename Return, typename... Args>
-  Return Call(byte* entry, Args... args) {
+  Return Call(Address entry, Args... args) {
     return VariadicCall<Return>(this, &Simulator::CallImpl, entry, args...);
   }
 
   // Alternative: call a 2-argument double function.
   template <typename Return>
-  Return CallFP(byte* entry, double d0, double d1) {
+  Return CallFP(Address entry, double d0, double d1) {
     return ConvertReturn<Return>(CallFPImpl(entry, d0, d1));
   }
 
@@ -183,6 +181,7 @@ class Simulator : public SimulatorBase {
   static void SetRedirectInstruction(Instruction* instruction);
 
   // ICache checking.
+  static bool ICacheMatch(void* one, void* two);
   static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
                           size_t size);
 
@@ -211,9 +210,9 @@ class Simulator : public SimulatorBase {
     end_sim_pc = -2
   };
 
-  V8_EXPORT_PRIVATE intptr_t CallImpl(byte* entry, int argument_count,
+  V8_EXPORT_PRIVATE intptr_t CallImpl(Address entry, int argument_count,
                                       const intptr_t* arguments);
-  intptr_t CallFPImpl(byte* entry, double d0, double d1);
+  intptr_t CallFPImpl(Address entry, double d0, double d1);
 
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
@@ -343,7 +342,7 @@ class Simulator : public SimulatorBase {
   void SetSpecialRegister(SRegisterFieldMask reg_and_mask, uint32_t value);
   uint32_t GetFromSpecialRegister(SRegister reg);
 
-  void CallInternal(byte* entry);
+  void CallInternal(Address entry);
 
   // Architecture state.
   // Saturating instructions require a Q flag to indicate saturation.
@@ -380,9 +379,6 @@ class Simulator : public SimulatorBase {
 
   // Debugger input.
   char* last_debugger_input_;
-
-  // Icache simulation
-  base::CustomMatcherHashMap* i_cache_;
 
   // Registered breakpoints.
   Instruction* break_pc_;

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_CONSTANTS_H_
-#define V8_WASM_CONSTANTS_H_
+#ifndef V8_WASM_WASM_CONSTANTS_H_
+#define V8_WASM_WASM_CONSTANTS_H_
 
 namespace v8 {
 namespace internal {
@@ -20,7 +20,8 @@ enum ValueTypeCode : uint8_t {
   kLocalI64 = 0x7e,
   kLocalF32 = 0x7d,
   kLocalF64 = 0x7c,
-  kLocalS128 = 0x7b
+  kLocalS128 = 0x7b,
+  kLocalAnyRef = 0x6f
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
@@ -80,4 +81,4 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_CONSTANTS_H_
+#endif  // V8_WASM_WASM_CONSTANTS_H_

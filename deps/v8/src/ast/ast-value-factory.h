@@ -32,8 +32,8 @@
 
 #include "src/base/hashmap.h"
 #include "src/conversions.h"
-#include "src/factory.h"
 #include "src/globals.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/utils.h"
 

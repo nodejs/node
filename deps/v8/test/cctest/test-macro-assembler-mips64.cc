@@ -785,326 +785,109 @@ static const std::vector<int64_t> overflow_int64_test_values() {
   return std::vector<int64_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
-enum OverflowBranchType {
-  kAddBranchOverflow,
-  kSubBranchOverflow,
-};
-
-struct OverflowRegisterCombination {
-  Register dst;
-  Register left;
-  Register right;
-  Register scratch;
-};
-
-static const std::vector<enum OverflowBranchType> overflow_branch_type() {
-  static const enum OverflowBranchType kValues[] = {kAddBranchOverflow,
-                                                    kSubBranchOverflow};
-  return std::vector<enum OverflowBranchType>(&kValues[0],
-                                              &kValues[arraysize(kValues)]);
-}
-
-static const std::vector<struct OverflowRegisterCombination>
-overflow_register_combination() {
-  static const struct OverflowRegisterCombination kValues[] = {
-      {t0, t1, t2, t3}, {t0, t0, t2, t3}, {t0, t1, t0, t3}, {t0, t1, t1, t3}};
-  return std::vector<struct OverflowRegisterCombination>(
-      &kValues[0], &kValues[arraysize(kValues)]);
-}
-
-template <typename T>
-static bool IsAddOverflow(T x, T y) {
-  DCHECK(std::numeric_limits<T>::is_integer);
-  T max = std::numeric_limits<T>::max();
-  T min = std::numeric_limits<T>::min();
-
-  return (x > 0 && y > (max - x)) || (x < 0 && y < (min - x));
-}
-
-template <typename T>
-static bool IsSubOverflow(T x, T y) {
-  DCHECK(std::numeric_limits<T>::is_integer);
-  T max = std::numeric_limits<T>::max();
-  T min = std::numeric_limits<T>::min();
-
-  return (y > 0 && x < (min + y)) || (y < 0 && x > (max + y));
-}
-
-template <typename IN_TYPE, typename Func>
-static bool runOverflow(IN_TYPE valLeft, IN_TYPE valRight,
-                        Func GenerateOverflowInstructions) {
-  typedef int64_t(F_CVT)(char* x0, int x1, int x2, int x3, int x4);
-
+TEST(OverflowInstructions) {
+  CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0,
-                      v8::internal::CodeObjectRequired::kYes);
-  MacroAssembler* masm = &assm;
+  HandleScope handles(isolate);
 
-  GenerateOverflowInstructions(masm, valLeft, valRight);
-  __ jr(ra);
-  __ nop();
+  struct T {
+    int64_t lhs;
+    int64_t rhs;
+    int64_t output_add;
+    int64_t output_add2;
+    int64_t output_sub;
+    int64_t output_sub2;
+    int64_t output_mul;
+    int64_t output_mul2;
+    int64_t overflow_add;
+    int64_t overflow_add2;
+    int64_t overflow_sub;
+    int64_t overflow_sub2;
+    int64_t overflow_mul;
+    int64_t overflow_mul2;
+  };
+  T t;
 
-  CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
-
-  auto f = GeneratedCode<F_CVT>::FromCode(*code);
-
-  int64_t r = reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0));
-
-  DCHECK(r == 0 || r == 1);
-  return r;
-}
-
-TEST(BranchOverflowInt64BothLabels) {
   FOR_INT64_INPUTS(i, overflow_int64_test_values) {
     FOR_INT64_INPUTS(j, overflow_int64_test_values) {
-      FOR_ENUM_INPUTS(br, OverflowBranchType, overflow_branch_type) {
-        FOR_STRUCT_INPUTS(regComb, OverflowRegisterCombination,
-                          overflow_register_combination) {
-          int64_t ii = *i;
-          int64_t jj = *j;
-          enum OverflowBranchType branchType = *br;
-          struct OverflowRegisterCombination rc = *regComb;
+      int64_t ii = *i;
+      int64_t jj = *j;
+      int64_t expected_add, expected_sub;
+      int32_t ii32 = static_cast<int32_t>(ii);
+      int32_t jj32 = static_cast<int32_t>(jj);
+      int32_t expected_mul;
+      int64_t expected_add_ovf, expected_sub_ovf, expected_mul_ovf;
+      MacroAssembler assembler(isolate, nullptr, 0,
+                               v8::internal::CodeObjectRequired::kYes);
+      MacroAssembler* masm = &assembler;
 
-          // If left and right register are same then left and right
-          // test values must also be same, otherwise we skip the test
-          if (rc.left.code() == rc.right.code()) {
-            if (ii != jj) {
-              continue;
-            }
-          }
+      __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
+      __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-          bool res1 = runOverflow<int64_t>(
-              ii, jj, [branchType, rc](MacroAssembler* masm, int64_t valLeft,
-                                       int64_t valRight) {
-                Label overflow, no_overflow, end;
-                __ li(rc.left, valLeft);
-                __ li(rc.right, valRight);
-                switch (branchType) {
-                  case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, &overflow,
-                                     &no_overflow, rc.scratch);
-                    break;
-                  case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, &overflow,
-                                     &no_overflow, rc.scratch);
-                    break;
-                }
-                __ li(v0, 2);
-                __ Branch(&end);
-                __ bind(&overflow);
-                __ li(v0, 1);
-                __ Branch(&end);
-                __ bind(&no_overflow);
-                __ li(v0, 0);
-                __ bind(&end);
-              });
+      __ DaddOverflow(t2, t0, Operand(t1), t3);
+      __ sd(t2, MemOperand(a0, offsetof(T, output_add)));
+      __ sd(t3, MemOperand(a0, offsetof(T, overflow_add)));
+      __ mov(t3, zero_reg);
+      __ DaddOverflow(t0, t0, Operand(t1), t3);
+      __ sd(t0, MemOperand(a0, offsetof(T, output_add2)));
+      __ sd(t3, MemOperand(a0, offsetof(T, overflow_add2)));
 
-          bool res2 = runOverflow<int64_t>(
-              ii, jj, [branchType, rc](MacroAssembler* masm, int64_t valLeft,
-                                       int64_t valRight) {
-                Label overflow, no_overflow, end;
-                __ li(rc.left, valLeft);
-                switch (branchType) {
-                  case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                     &overflow, &no_overflow, rc.scratch);
-                    break;
-                  case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                     &overflow, &no_overflow, rc.scratch);
-                    break;
-                }
-                __ li(v0, 2);
-                __ Branch(&end);
-                __ bind(&overflow);
-                __ li(v0, 1);
-                __ Branch(&end);
-                __ bind(&no_overflow);
-                __ li(v0, 0);
-                __ bind(&end);
-              });
+      __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
+      __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-          switch (branchType) {
-            case kAddBranchOverflow:
-              CHECK_EQ(IsAddOverflow<int64_t>(ii, jj), res1);
-              CHECK_EQ(IsAddOverflow<int64_t>(ii, jj), res2);
-              break;
-            case kSubBranchOverflow:
-              CHECK_EQ(IsSubOverflow<int64_t>(ii, jj), res1);
-              CHECK_EQ(IsSubOverflow<int64_t>(ii, jj), res2);
-              break;
-            default:
-              UNREACHABLE();
-          }
-        }
-      }
-    }
-  }
-}
+      __ DsubOverflow(t2, t0, Operand(t1), t3);
+      __ sd(t2, MemOperand(a0, offsetof(T, output_sub)));
+      __ sd(t3, MemOperand(a0, offsetof(T, overflow_sub)));
+      __ mov(t3, zero_reg);
+      __ DsubOverflow(t0, t0, Operand(t1), t3);
+      __ sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
+      __ sd(t3, MemOperand(a0, offsetof(T, overflow_sub2)));
 
-TEST(BranchOverflowInt64LeftLabel) {
-  FOR_INT64_INPUTS(i, overflow_int64_test_values) {
-    FOR_INT64_INPUTS(j, overflow_int64_test_values) {
-      FOR_ENUM_INPUTS(br, OverflowBranchType, overflow_branch_type) {
-        FOR_STRUCT_INPUTS(regComb, OverflowRegisterCombination,
-                          overflow_register_combination) {
-          int64_t ii = *i;
-          int64_t jj = *j;
-          enum OverflowBranchType branchType = *br;
-          struct OverflowRegisterCombination rc = *regComb;
+      __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
+      __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
+      __ sll(t0, t0, 0);
+      __ sll(t1, t1, 0);
 
-          // If left and right register are same then left and right
-          // test values must also be same, otherwise we skip the test
-          if (rc.left.code() == rc.right.code()) {
-            if (ii != jj) {
-              continue;
-            }
-          }
+      __ MulOverflow(t2, t0, Operand(t1), t3);
+      __ sd(t2, MemOperand(a0, offsetof(T, output_mul)));
+      __ sd(t3, MemOperand(a0, offsetof(T, overflow_mul)));
+      __ mov(t3, zero_reg);
+      __ MulOverflow(t0, t0, Operand(t1), t3);
+      __ sd(t0, MemOperand(a0, offsetof(T, output_mul2)));
+      __ sd(t3, MemOperand(a0, offsetof(T, overflow_mul2)));
 
-          bool res1 = runOverflow<int64_t>(
-              ii, jj, [branchType, rc](MacroAssembler* masm, int64_t valLeft,
-                                       int64_t valRight) {
-                Label overflow, end;
-                __ li(rc.left, valLeft);
-                __ li(rc.right, valRight);
-                switch (branchType) {
-                  case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, &overflow,
-                                     nullptr, rc.scratch);
-                    break;
-                  case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, &overflow,
-                                     nullptr, rc.scratch);
-                    break;
-                }
-                __ li(v0, 0);
-                __ Branch(&end);
-                __ bind(&overflow);
-                __ li(v0, 1);
-                __ bind(&end);
-              });
+      __ jr(ra);
+      __ nop();
 
-          bool res2 = runOverflow<int64_t>(
-              ii, jj, [branchType, rc](MacroAssembler* masm, int64_t valLeft,
-                                       int64_t valRight) {
-                Label overflow, end;
-                __ li(rc.left, valLeft);
-                switch (branchType) {
-                  case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                     &overflow, nullptr, rc.scratch);
-                    break;
-                  case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                     &overflow, nullptr, rc.scratch);
-                    break;
-                }
-                __ li(v0, 0);
-                __ Branch(&end);
-                __ bind(&overflow);
-                __ li(v0, 1);
-                __ bind(&end);
-              });
+      CodeDesc desc;
+      masm->GetCode(isolate, &desc);
+      Handle<Code> code =
+          isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+      auto f = GeneratedCode<F3>::FromCode(*code);
+      t.lhs = ii;
+      t.rhs = jj;
+      f.Call(&t, 0, 0, 0, 0);
 
-          switch (branchType) {
-            case kAddBranchOverflow:
-              CHECK_EQ(IsAddOverflow<int64_t>(ii, jj), res1);
-              CHECK_EQ(IsAddOverflow<int64_t>(ii, jj), res2);
-              break;
-            case kSubBranchOverflow:
-              CHECK_EQ(IsSubOverflow<int64_t>(ii, jj), res1);
-              CHECK_EQ(IsSubOverflow<int64_t>(ii, jj), res2);
-              break;
-            default:
-              UNREACHABLE();
-          }
-        }
-      }
-    }
-  }
-}
+      expected_add_ovf = base::bits::SignedAddOverflow64(ii, jj, &expected_add);
+      expected_sub_ovf = base::bits::SignedSubOverflow64(ii, jj, &expected_sub);
+      expected_mul_ovf =
+          base::bits::SignedMulOverflow32(ii32, jj32, &expected_mul);
 
-TEST(BranchOverflowInt64RightLabel) {
-  FOR_INT64_INPUTS(i, overflow_int64_test_values) {
-    FOR_INT64_INPUTS(j, overflow_int64_test_values) {
-      FOR_ENUM_INPUTS(br, OverflowBranchType, overflow_branch_type) {
-        FOR_STRUCT_INPUTS(regComb, OverflowRegisterCombination,
-                          overflow_register_combination) {
-          int64_t ii = *i;
-          int64_t jj = *j;
-          enum OverflowBranchType branchType = *br;
-          struct OverflowRegisterCombination rc = *regComb;
+      CHECK_EQ(expected_add_ovf, t.overflow_add < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub < 0);
+      CHECK_EQ(expected_mul_ovf, t.overflow_mul != 0);
 
-          // If left and right register are same then left and right
-          // test values must also be same, otherwise we skip the test
-          if (rc.left.code() == rc.right.code()) {
-            if (ii != jj) {
-              continue;
-            }
-          }
+      CHECK_EQ(t.overflow_add, t.overflow_add2);
+      CHECK_EQ(t.overflow_sub, t.overflow_sub2);
+      CHECK_EQ(t.overflow_mul, t.overflow_mul2);
 
-          bool res1 = runOverflow<int64_t>(
-              ii, jj, [branchType, rc](MacroAssembler* masm, int64_t valLeft,
-                                       int64_t valRight) {
-                Label no_overflow, end;
-                __ li(rc.left, valLeft);
-                __ li(rc.right, valRight);
-                switch (branchType) {
-                  case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, rc.right, nullptr,
-                                     &no_overflow, rc.scratch);
-                    break;
-                  case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, rc.right, nullptr,
-                                     &no_overflow, rc.scratch);
-                    break;
-                }
-                __ li(v0, 1);
-                __ Branch(&end);
-                __ bind(&no_overflow);
-                __ li(v0, 0);
-                __ bind(&end);
-              });
-
-          bool res2 = runOverflow<int64_t>(
-              ii, jj, [branchType, rc](MacroAssembler* masm, int64_t valLeft,
-                                       int64_t valRight) {
-                Label no_overflow, end;
-                __ li(rc.left, valLeft);
-                switch (branchType) {
-                  case kAddBranchOverflow:
-                    __ DaddBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                     nullptr, &no_overflow, rc.scratch);
-                    break;
-                  case kSubBranchOverflow:
-                    __ DsubBranchOvf(rc.dst, rc.left, Operand(valRight),
-                                     nullptr, &no_overflow, rc.scratch);
-                    break;
-                }
-                __ li(v0, 1);
-                __ Branch(&end);
-                __ bind(&no_overflow);
-                __ li(v0, 0);
-                __ bind(&end);
-              });
-
-          switch (branchType) {
-            case kAddBranchOverflow:
-              CHECK_EQ(IsAddOverflow<int64_t>(ii, jj), res1);
-              CHECK_EQ(IsAddOverflow<int64_t>(ii, jj), res2);
-              break;
-            case kSubBranchOverflow:
-              CHECK_EQ(IsSubOverflow<int64_t>(ii, jj), res1);
-              CHECK_EQ(IsSubOverflow<int64_t>(ii, jj), res2);
-              break;
-            default:
-              UNREACHABLE();
-          }
-        }
+      CHECK_EQ(expected_add, t.output_add);
+      CHECK_EQ(expected_add, t.output_add2);
+      CHECK_EQ(expected_sub, t.output_sub);
+      CHECK_EQ(expected_sub, t.output_sub2);
+      if (!expected_mul_ovf) {
+        CHECK_EQ(expected_mul, t.output_mul);
+        CHECK_EQ(expected_mul, t.output_mul2);
       }
     }
   }

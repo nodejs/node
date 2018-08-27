@@ -3,7 +3,7 @@
 Custom JSON-Schema keywords for [Ajv](https://github.com/epoberezkin/ajv) validator
 
 [![Build Status](https://travis-ci.org/epoberezkin/ajv-keywords.svg?branch=master)](https://travis-ci.org/epoberezkin/ajv-keywords)
-[![npm version](https://badge.fury.io/js/ajv-keywords.svg)](https://www.npmjs.com/package/ajv-keywords)
+[![npm](https://img.shields.io/npm/v/ajv-keywords.svg)](https://www.npmjs.com/package/ajv-keywords)
 [![npm downloads](https://img.shields.io/npm/dm/ajv-keywords.svg)](https://www.npmjs.com/package/ajv-keywords)
 [![Coverage Status](https://coveralls.io/repos/github/epoberezkin/ajv-keywords/badge.svg?branch=master)](https://coveralls.io/github/epoberezkin/ajv-keywords?branch=master)
 [![Greenkeeper badge](https://badges.greenkeeper.io/epoberezkin/ajv-keywords.svg)](https://greenkeeper.io/)
@@ -18,7 +18,6 @@ Custom JSON-Schema keywords for [Ajv](https://github.com/epoberezkin/ajv) valida
   - [typeof](#typeof)
   - [instanceof](#instanceof)
   - [range and exclusiveRange](#range-and-exclusiverange)
-  - [if/then/else](#ifthenelse)
   - [switch](#switch)
   - [select/selectCases/selectDefault](#selectselectcasesselectdefault) (BETA)
   - [patternRequired](#patternrequired)
@@ -29,6 +28,7 @@ Custom JSON-Schema keywords for [Ajv](https://github.com/epoberezkin/ajv) valida
   - [regexp](#regexp)
   - [formatMaximum / formatMinimum and formatExclusiveMaximum / formatExclusiveMinimum](#formatmaximum--formatminimum-and-formatexclusivemaximum--formatexclusiveminimum)
   - [dynamicDefaults](#dynamicdefaults)
+  - [transform](#transform)
 - [License](#license)
 
 
@@ -92,7 +92,7 @@ ajv.validate({ typeof: ['undefined', 'object'] }, null); // true
 
 Based on JavaScript `instanceof` operation.
 
-The value of the keyword should be a string (`"Object"`, `"Array"`, `"Function"`, `"Number"`, `"String"`, `"Date"`, `"RegExp"` or `"Buffer"`) or array of strings.
+The value of the keyword should be a string (`"Object"`, `"Array"`, `"Function"`, `"Number"`, `"String"`, `"Date"`, `"RegExp"`, `"Promise"` or `"Buffer"`) or array of strings.
 
 To pass validation the result of `data instanceof ...` operation on the value should be true:
 
@@ -137,37 +137,6 @@ ajv.validate(schema, 2.99); // true
 ajv.validate(schema, 1); // false
 ajv.validate(schema, 3); // false
 ```
-
-
-### `if`/`then`/`else`
-
-These keywords allow to implement conditional validation. Their values should be valid JSON-schemas.
-
-If the data is valid according to the sub-schema in `if` keyword, then the result is equal to the result of data validation against the sub-schema in `then` keyword, otherwise - in `else` keyword (if `else` is absent, the validation succeeds).
-
-```javascript
-require('ajv-keywords')(ajv, 'if');
-
-var schema = {
-  type: 'array',
-  items: {
-    type: 'integer',
-    minimum: 1,
-    if: { maximum: 10 },
-    then: { multipleOf: 2 },
-    else: { multipleOf: 5 }
-  }
-};
-
-var validItems = [ 2, 4, 6, 8, 10, 15, 20, 25 ]; // etc.
-
-var invalidItems = [ 1, 3, 5, 11, 12 ]; // etc.
-
-ajv.validate(schema, validItems); // true
-ajv.validate(schema, invalidItems); // false
-```
-
-This keyword is [proposed](https://github.com/json-schema-org/json-schema-spec/issues/180) for the future version of JSON-Schema standard.
 
 
 ### `switch`
@@ -648,6 +617,64 @@ var schema = {
     id3: { func: 'uuid', v: 1 } // v1
   }
 };
+```
+
+### `transform`
+
+This keyword allows a string to be modified before validation. 
+
+These keywords apply only to strings. If the data is not a string, the transform is skipped.
+
+There are limitation due to how ajv is written:
+- a stand alone string cannot be transformed. ie `data = 'a'; ajv.validate(schema, data);`
+- currently cannot work with `ajv-pack`
+
+**Supported options:**
+- `trim`: remove whitespace from start and end
+- `trimLeft`: remove whitespace from start
+- `trimRight`: remove whitespace from end
+- `toLowerCase`: case string to all lower case
+- `toUpperCase`: case string to all upper case
+- `toEnumCase`: case string to match case in schema
+
+Options are applied in the order they are listed.
+
+Note: `toEnumCase` requires that all allowed values are unique when case insensitive.
+
+**Example: multiple options**
+```javascript
+require('ajv-keywords')(ajv, ['transform']);
+
+var schema = {
+  type: 'array',
+  items: {
+    type:'string',
+    transform:['trim','lowercase']
+  }
+};
+
+var data = ['  MixCase  '];
+avj.validate(schema, data);
+console.log(data); // ['mixcase']
+
+```
+
+**Example: `enumcase`**
+```javascript
+require('ajv-keywords')(ajv, ['transform']);
+
+var schema = {
+  type: 'array',
+  items: {
+    type:'string',
+    transform:['trim','enumcase'],
+    enum:['pH']
+  }
+};
+
+var data = ['ph',' Ph','PH','pH '];
+avj.validate(schema, data);
+console.log(data); // ['pH','pH','pH','pH']
 ```
 
 

@@ -7,7 +7,10 @@
 
 #include "src/objects/code.h"
 
+#include "src/interpreter/bytecode-register.h"
+#include "src/isolate.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/map-inl.h"
 #include "src/v8memory.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -26,11 +29,18 @@ CAST_ACCESSOR(Code)
 CAST_ACCESSOR(CodeDataContainer)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DeoptimizationData)
-CAST_ACCESSOR(HandlerTable)
 
-int AbstractCode::instruction_size() {
+int AbstractCode::raw_instruction_size() {
   if (IsCode()) {
-    return GetCode()->instruction_size();
+    return GetCode()->raw_instruction_size();
+  } else {
+    return GetBytecodeArray()->length();
+  }
+}
+
+int AbstractCode::InstructionSize() {
+  if (IsCode()) {
+    return GetCode()->InstructionSize();
   } else {
     return GetBytecodeArray()->length();
   }
@@ -73,24 +83,41 @@ int AbstractCode::ExecutableSize() {
   }
 }
 
-Address AbstractCode::instruction_start() {
+Address AbstractCode::raw_instruction_start() {
   if (IsCode()) {
-    return GetCode()->instruction_start();
+    return GetCode()->raw_instruction_start();
   } else {
     return GetBytecodeArray()->GetFirstBytecodeAddress();
   }
 }
 
-Address AbstractCode::instruction_end() {
+Address AbstractCode::InstructionStart() {
   if (IsCode()) {
-    return GetCode()->instruction_end();
+    return GetCode()->InstructionStart();
+  } else {
+    return GetBytecodeArray()->GetFirstBytecodeAddress();
+  }
+}
+
+Address AbstractCode::raw_instruction_end() {
+  if (IsCode()) {
+    return GetCode()->raw_instruction_end();
   } else {
     return GetBytecodeArray()->GetFirstBytecodeAddress() +
            GetBytecodeArray()->length();
   }
 }
 
-bool AbstractCode::contains(byte* inner_pointer) {
+Address AbstractCode::InstructionEnd() {
+  if (IsCode()) {
+    return GetCode()->InstructionEnd();
+  } else {
+    return GetBytecodeArray()->GetFirstBytecodeAddress() +
+           GetBytecodeArray()->length();
+  }
+}
+
+bool AbstractCode::contains(Address inner_pointer) {
   return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
 }
 
@@ -148,34 +175,31 @@ void DependentCode::copy(int from, int to) {
   set(kCodesStartIndex + to, get(kCodesStartIndex + from));
 }
 
-INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
-INT_ACCESSORS(Code, constant_pool_offset, kConstantPoolOffset)
+INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
+INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 #define CODE_ACCESSORS(name, type, offset)           \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, \
                      !GetHeap()->InNewSpace(value))
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
-CODE_ACCESSORS(handler_table, FixedArray, kHandlerTableOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
-CODE_ACCESSORS(protected_instructions, FixedArray, kProtectedInstructionsOffset)
 CODE_ACCESSORS(code_data_container, CodeDataContainer, kCodeDataContainerOffset)
-CODE_ACCESSORS(trap_handler_index, Smi, kTrapHandlerIndex)
 #undef CODE_ACCESSORS
 
 void Code::WipeOutHeader() {
   WRITE_FIELD(this, kRelocationInfoOffset, nullptr);
-  WRITE_FIELD(this, kHandlerTableOffset, nullptr);
   WRITE_FIELD(this, kDeoptimizationDataOffset, nullptr);
   WRITE_FIELD(this, kSourcePositionTableOffset, nullptr);
-  WRITE_FIELD(this, kProtectedInstructionsOffset, nullptr);
   WRITE_FIELD(this, kCodeDataContainerOffset, nullptr);
 }
 
 void Code::clear_padding() {
-  memset(address() + kHeaderPaddingStart, 0, kHeaderSize - kHeaderPaddingStart);
+  memset(reinterpret_cast<void*>(address() + kHeaderPaddingStart), 0,
+         kHeaderSize - kHeaderPaddingStart);
   Address data_end =
-      has_unwinding_info() ? unwinding_info_end() : instruction_end();
-  memset(data_end, 0, CodeSize() - (data_end - address()));
+      has_unwinding_info() ? unwinding_info_end() : raw_instruction_end();
+  memset(reinterpret_cast<void*>(data_end), 0,
+         CodeSize() - (data_end - address()));
 }
 
 ByteArray* Code::SourcePositionTable() const {
@@ -204,17 +228,38 @@ void Code::set_next_code_link(Object* value) {
   code_data_container()->set_next_code_link(value);
 }
 
-byte* Code::instruction_start() const {
-  return const_cast<byte*>(FIELD_ADDR_CONST(this, kHeaderSize));
+int Code::InstructionSize() const {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionSize();
+#endif
+  return raw_instruction_size();
 }
 
-byte* Code::instruction_end() const {
-  return instruction_start() + instruction_size();
+Address Code::raw_instruction_start() const {
+  return FIELD_ADDR(this, kHeaderSize);
+}
+
+Address Code::InstructionStart() const {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionStart();
+#endif
+  return raw_instruction_start();
+}
+
+Address Code::raw_instruction_end() const {
+  return raw_instruction_start() + raw_instruction_size();
+}
+
+Address Code::InstructionEnd() const {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (Builtins::IsEmbeddedBuiltin(this)) return OffHeapInstructionEnd();
+#endif
+  return raw_instruction_end();
 }
 
 int Code::GetUnwindingInfoSizeOffset() const {
   DCHECK(has_unwinding_info());
-  return RoundUp(kHeaderSize + instruction_size(), kInt64Size);
+  return RoundUp(kHeaderSize + raw_instruction_size(), kInt64Size);
 }
 
 int Code::unwinding_info_size() const {
@@ -228,14 +273,12 @@ void Code::set_unwinding_info_size(int value) {
   WRITE_UINT64_FIELD(this, GetUnwindingInfoSizeOffset(), value);
 }
 
-byte* Code::unwinding_info_start() const {
+Address Code::unwinding_info_start() const {
   DCHECK(has_unwinding_info());
-  return const_cast<byte*>(
-             FIELD_ADDR_CONST(this, GetUnwindingInfoSizeOffset())) +
-         kInt64Size;
+  return FIELD_ADDR(this, GetUnwindingInfoSizeOffset()) + kInt64Size;
 }
 
-byte* Code::unwinding_info_end() const {
+Address Code::unwinding_info_end() const {
   DCHECK(has_unwinding_info());
   return unwinding_info_start() + unwinding_info_size();
 }
@@ -243,8 +286,8 @@ byte* Code::unwinding_info_end() const {
 int Code::body_size() const {
   int unpadded_body_size =
       has_unwinding_info()
-          ? static_cast<int>(unwinding_info_end() - instruction_start())
-          : instruction_size();
+          ? static_cast<int>(unwinding_info_end() - raw_instruction_start())
+          : raw_instruction_size();
   return RoundUp(unpadded_body_size, kObjectAlignment);
 }
 
@@ -252,8 +295,6 @@ int Code::SizeIncludingMetadata() const {
   int size = CodeSize();
   size += relocation_info()->Size();
   size += deoptimization_data()->Size();
-  size += handler_table()->Size();
-  size += protected_instructions()->Size();
   return size;
 }
 
@@ -265,21 +306,32 @@ byte* Code::relocation_start() const {
   return unchecked_relocation_info()->GetDataStartAddress();
 }
 
+byte* Code::relocation_end() const {
+  return unchecked_relocation_info()->GetDataStartAddress() +
+         unchecked_relocation_info()->length();
+}
+
 int Code::relocation_size() const {
   return unchecked_relocation_info()->length();
 }
 
-byte* Code::entry() const { return instruction_start(); }
+Address Code::entry() const { return raw_instruction_start(); }
 
-bool Code::contains(byte* inner_pointer) {
-  return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
+bool Code::contains(Address inner_pointer) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (Builtins::IsEmbeddedBuiltin(this)) {
+    return (OffHeapInstructionStart() <= inner_pointer) &&
+           (inner_pointer < OffHeapInstructionEnd());
+  }
+#endif
+  return (address() <= inner_pointer) && (inner_pointer < address() + Size());
 }
 
 int Code::ExecutableSize() const {
   // Check that the assumptions about the layout of the code object holds.
-  DCHECK_EQ(static_cast<int>(instruction_start() - address()),
+  DCHECK_EQ(static_cast<int>(raw_instruction_start() - address()),
             Code::kHeaderSize);
-  return instruction_size() + Code::kHeaderSize;
+  return raw_instruction_size() + Code::kHeaderSize;
 }
 
 int Code::CodeSize() const { return SizeFor(body_size()); }
@@ -302,8 +354,10 @@ void Code::initialize_flags(Kind kind, bool has_unwinding_info,
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
   Builtins* builtins = GetIsolate()->builtins();
+  Code* interpreter_entry_trampoline =
+      builtins->builtin(Builtins::kInterpreterEntryTrampoline);
   bool is_interpreter_trampoline =
-      (this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
+      (builtin_index() == interpreter_entry_trampoline->builtin_index() ||
        this == builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance) ||
        this == builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch));
   DCHECK_IMPLIES(is_interpreter_trampoline, !Builtins::IsLazy(builtin_index()));
@@ -312,28 +366,23 @@ inline bool Code::is_interpreter_trampoline_builtin() const {
 
 inline bool Code::checks_optimization_marker() const {
   Builtins* builtins = GetIsolate()->builtins();
+  Code* interpreter_entry_trampoline =
+      builtins->builtin(Builtins::kInterpreterEntryTrampoline);
   bool checks_marker =
       (this == builtins->builtin(Builtins::kCompileLazy) ||
-       this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
-       this == builtins->builtin(Builtins::kCheckOptimizationMarker));
+       builtin_index() == interpreter_entry_trampoline->builtin_index());
   DCHECK_IMPLIES(checks_marker, !Builtins::IsLazy(builtin_index()));
   return checks_marker ||
          (kind() == OPTIMIZED_FUNCTION && marked_for_deoptimization());
 }
 
+inline bool Code::has_tagged_params() const {
+  return kind() != JS_TO_WASM_FUNCTION && kind() != C_WASM_ENTRY &&
+         kind() != WASM_FUNCTION;
+}
+
 inline bool Code::has_unwinding_info() const {
   return HasUnwindingInfoField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
-}
-
-inline bool Code::has_tagged_params() const {
-  int flags = READ_UINT32_FIELD(this, kFlagsOffset);
-  return HasTaggedStackField::decode(flags);
-}
-
-inline void Code::set_has_tagged_params(bool value) {
-  int previous = READ_UINT32_FIELD(this, kFlagsOffset);
-  int updated = HasTaggedStackField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kFlagsOffset, updated);
 }
 
 inline bool Code::is_turbofanned() const {
@@ -464,15 +513,24 @@ bool Code::is_stub() const { return kind() == STUB; }
 bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
 bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
 
-Address Code::constant_pool() {
-  Address constant_pool = nullptr;
+int Code::constant_pool_offset() const {
+  if (!FLAG_enable_embedded_constant_pool) return InstructionSize();
+  return READ_INT_FIELD(this, kConstantPoolOffset);
+}
+
+void Code::set_constant_pool_offset(int value) {
+  if (!FLAG_enable_embedded_constant_pool) return;
+  WRITE_INT_FIELD(this, kConstantPoolOffset, value);
+}
+
+Address Code::constant_pool() const {
   if (FLAG_enable_embedded_constant_pool) {
     int offset = constant_pool_offset();
-    if (offset < instruction_size()) {
-      constant_pool = FIELD_ADDR(this, kHeaderSize + offset);
+    if (offset < InstructionSize()) {
+      return InstructionStart() + offset;
     }
   }
-  return constant_pool;
+  return kNullAddress;
 }
 
 Code* Code::GetCodeFromTargetAddress(Address address) {
@@ -520,7 +578,8 @@ INT_ACCESSORS(CodeDataContainer, kind_specific_flags, kKindSpecificFlagsOffset)
 ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
 
 void CodeDataContainer::clear_padding() {
-  memset(address() + kUnalignedSize, 0, kSize - kUnalignedSize);
+  memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
+         kSize - kUnalignedSize);
 }
 
 byte BytecodeArray::get(int index) {
@@ -618,13 +677,14 @@ int BytecodeArray::parameter_count() const {
 }
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
-ACCESSORS(BytecodeArray, handler_table, FixedArray, kHandlerTableOffset)
+ACCESSORS(BytecodeArray, handler_table, ByteArray, kHandlerTableOffset)
 ACCESSORS(BytecodeArray, source_position_table, Object,
           kSourcePositionTableOffset)
 
 void BytecodeArray::clear_padding() {
   int data_size = kHeaderSize + length();
-  memset(address() + data_size, 0, SizeFor(length()) - data_size);
+  memset(reinterpret_cast<void*>(address() + data_size), 0,
+         SizeFor(length()) - data_size);
 }
 
 Address BytecodeArray::GetFirstBytecodeAddress() {
@@ -655,55 +715,6 @@ int BytecodeArray::SizeIncludingMetadata() {
   size += handler_table()->Size();
   size += SourcePositionTable()->Size();
   return size;
-}
-
-int HandlerTable::GetRangeStart(int index) const {
-  return Smi::ToInt(get(index * kRangeEntrySize + kRangeStartIndex));
-}
-
-int HandlerTable::GetRangeEnd(int index) const {
-  return Smi::ToInt(get(index * kRangeEntrySize + kRangeEndIndex));
-}
-
-int HandlerTable::GetRangeHandler(int index) const {
-  return HandlerOffsetField::decode(
-      Smi::ToInt(get(index * kRangeEntrySize + kRangeHandlerIndex)));
-}
-
-int HandlerTable::GetRangeData(int index) const {
-  return Smi::ToInt(get(index * kRangeEntrySize + kRangeDataIndex));
-}
-
-void HandlerTable::SetRangeStart(int index, int value) {
-  set(index * kRangeEntrySize + kRangeStartIndex, Smi::FromInt(value));
-}
-
-void HandlerTable::SetRangeEnd(int index, int value) {
-  set(index * kRangeEntrySize + kRangeEndIndex, Smi::FromInt(value));
-}
-
-void HandlerTable::SetRangeHandler(int index, int offset,
-                                   CatchPrediction prediction) {
-  int value = HandlerOffsetField::encode(offset) |
-              HandlerPredictionField::encode(prediction);
-  set(index * kRangeEntrySize + kRangeHandlerIndex, Smi::FromInt(value));
-}
-
-void HandlerTable::SetRangeData(int index, int value) {
-  set(index * kRangeEntrySize + kRangeDataIndex, Smi::FromInt(value));
-}
-
-void HandlerTable::SetReturnOffset(int index, int value) {
-  set(index * kReturnEntrySize + kReturnOffsetIndex, Smi::FromInt(value));
-}
-
-void HandlerTable::SetReturnHandler(int index, int offset) {
-  int value = HandlerOffsetField::encode(offset);
-  set(index * kReturnEntrySize + kReturnHandlerIndex, Smi::FromInt(value));
-}
-
-int HandlerTable::NumberOfRangeEntries() const {
-  return length() / kRangeEntrySize;
 }
 
 BailoutId DeoptimizationData::BytecodeOffset(int i) {

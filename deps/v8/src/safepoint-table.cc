@@ -51,7 +51,7 @@ SafepointTable::SafepointTable(Address instruction_start,
 }
 
 SafepointTable::SafepointTable(Code* code)
-    : SafepointTable(code->instruction_start(), code->safepoint_table_offset(),
+    : SafepointTable(code->InstructionStart(), code->safepoint_table_offset(),
                      code->stack_slots(), true) {}
 
 unsigned SafepointTable::find_return_pc(unsigned pc_offset) {

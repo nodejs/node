@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
 # Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -51,21 +58,17 @@
 #
 # Modulo-scheduled inner loops allow to interleave floating point and
 # integer instructions and minimize Read-After-Write penalties. This
-# results in *further* 20-50% perfromance improvement [depending on
+# results in *further* 20-50% performance improvement [depending on
 # key length, more for longer keys] on USI&II cores and 30-80% - on
 # USIII&IV.
 
-$fname="bn_mul_mont_fpu";
-$bits=32;
-for (@ARGV) { $bits=64 if (/\-m64/ || /\-xarch\=v9/); }
+$output = pop;
+open STDOUT,">$output";
 
-if ($bits==64) {
-	$bias=2047;
-	$frame=192;
-} else {
-	$bias=0;
-	$frame=128;	# 96 rounded up to largest known cache-line
-}
+$fname="bn_mul_mont_fpu";
+
+$frame="STACK_FRAME";
+$bias="STACK_BIAS";
 $locals=64;
 
 # In order to provide for 32-/64-bit ABI duality, I keep integers wider
@@ -121,6 +124,8 @@ $nhia="%f56"; $nhib="%f58"; $nhic="%f60"; $nhid="%f62";
 $ASI_FL16_P=0xD2;	# magic ASI value to engage 16-bit FP load
 
 $code=<<___;
+#include "sparc_arch.h"
+
 .section	".text",#alloc,#execinstr
 
 .global $fname
@@ -867,7 +872,7 @@ ___
 $code =~ s/\`([^\`]*)\`/eval($1)/gem;
 
 # Below substitution makes it possible to compile without demanding
-# VIS extentions on command line, e.g. -xarch=v9 vs. -xarch=v9a. I
+# VIS extensions on command line, e.g. -xarch=v9 vs. -xarch=v9a. I
 # dare to do this, because VIS capability is detected at run-time now
 # and this routine is not called on CPU not capable to execute it. Do
 # note that fzeros is not the only VIS dependency! Another dependency

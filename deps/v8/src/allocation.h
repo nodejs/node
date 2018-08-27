@@ -14,13 +14,16 @@
 namespace v8 {
 namespace internal {
 
+class Isolate;
+
 // This file defines memory allocation functions. If a first attempt at an
 // allocation fails, these functions call back into the embedder, then attempt
 // the allocation a second time. The embedder callback must not reenter V8.
 
 // Called when allocation routines fail to allocate, even with a possible retry.
 // This function should not return, but should terminate the current processing.
-V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(const char* message);
+[[noreturn]] V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(
+    Isolate* isolate, const char* message);
 
 // Superclass for classes managed with new & delete.
 class V8_EXPORT_PRIVATE Malloced {
@@ -38,13 +41,13 @@ T* NewArray(size_t size) {
   if (result == nullptr) {
     V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
     result = new (std::nothrow) T[size];
-    if (result == nullptr) FatalProcessOutOfMemory("NewArray");
+    if (result == nullptr) FatalProcessOutOfMemory(nullptr, "NewArray");
   }
   return result;
 }
 
-template <typename T,
-          typename = typename std::enable_if<IS_TRIVIALLY_COPYABLE(T)>::type>
+template <typename T, typename = typename std::enable_if<
+                          base::is_trivially_copyable<T>::value>::type>
 T* NewArray(size_t size, T default_val) {
   T* result = reinterpret_cast<T*>(NewArray<uint8_t>(sizeof(T) * size));
   for (size_t i = 0; i < size; ++i) result[i] = default_val;
@@ -123,6 +126,10 @@ V8_WARN_UNUSED_RESULT bool ReleasePages(void* address, size_t size,
 V8_EXPORT_PRIVATE
 V8_WARN_UNUSED_RESULT bool SetPermissions(void* address, size_t size,
                                           PageAllocator::Permission access);
+inline bool SetPermissions(Address address, size_t size,
+                           PageAllocator::Permission access) {
+  return SetPermissions(reinterpret_cast<void*>(address), size, access);
+}
 
 // Convenience function that allocates a single system page with read and write
 // permissions. |address| is a hint. Returns the base address of the memory and
@@ -148,14 +155,15 @@ class V8_EXPORT_PRIVATE VirtualMemory {
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.
-  VirtualMemory(void* address, size_t size) : address_(address), size_(size) {}
+  VirtualMemory(Address address, size_t size)
+      : address_(address), size_(size) {}
 
   // Releases the reserved memory, if any, controlled by this VirtualMemory
   // object.
   ~VirtualMemory();
 
   // Returns whether the memory has been reserved.
-  bool IsReserved() const { return address_ != nullptr; }
+  bool IsReserved() const { return address_ != kNullAddress; }
 
   // Initialize or resets an embedded VirtualMemory object.
   void Reset();
@@ -164,15 +172,14 @@ class V8_EXPORT_PRIVATE VirtualMemory {
   // If the memory was reserved with an alignment, this address is not
   // necessarily aligned. The user might need to round it up to a multiple of
   // the alignment to get the start of the aligned block.
-  void* address() const {
+  Address address() const {
     DCHECK(IsReserved());
     return address_;
   }
 
-  void* end() const {
+  Address end() const {
     DCHECK(IsReserved());
-    return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(address_) +
-                                   size_);
+    return address_ + size_;
   }
 
   // Returns the size of the reserved memory. The returned value is only
@@ -183,11 +190,11 @@ class V8_EXPORT_PRIVATE VirtualMemory {
 
   // Sets permissions according to the access argument. address and size must be
   // multiples of CommitPageSize(). Returns true on success, otherwise false.
-  bool SetPermissions(void* address, size_t size,
+  bool SetPermissions(Address address, size_t size,
                       PageAllocator::Permission access);
 
   // Releases memory after |free_start|. Returns the number of bytes released.
-  size_t Release(void* free_start);
+  size_t Release(Address free_start);
 
   // Frees all memory.
   void Free();
@@ -196,15 +203,12 @@ class V8_EXPORT_PRIVATE VirtualMemory {
   // The old object is no longer functional (IsReserved() returns false).
   void TakeControl(VirtualMemory* from);
 
-  bool InVM(void* address, size_t size) {
-    return (reinterpret_cast<uintptr_t>(address_) <=
-            reinterpret_cast<uintptr_t>(address)) &&
-           ((reinterpret_cast<uintptr_t>(address_) + size_) >=
-            (reinterpret_cast<uintptr_t>(address) + size));
+  bool InVM(Address address, size_t size) {
+    return (address_ <= address) && ((address_ + size_) >= (address + size));
   }
 
  private:
-  void* address_;  // Start address of the virtual memory.
+  Address address_;  // Start address of the virtual memory.
   size_t size_;    // Size of the virtual memory.
 };
 

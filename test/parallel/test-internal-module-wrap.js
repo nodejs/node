@@ -2,11 +2,11 @@
 
 // Flags: --expose-internals
 
-const common = require('../common');
-common.crashOnUnhandledRejection();
+require('../common');
 const assert = require('assert');
 
-const { ModuleWrap } = require('internal/test/binding');
+const { internalBinding } = require('internal/test/binding');
+const { ModuleWrap } = internalBinding('module_wrap');
 const { getPromiseDetails, isPromise } = process.binding('util');
 const setTimeoutAsync = require('util').promisify(setTimeout);
 
@@ -24,6 +24,6 @@ const bar = new ModuleWrap('export const five = 5', 'bar');
 
   foo.instantiate();
 
-  assert.strictEqual(await foo.evaluate(), 6);
+  assert.strictEqual(await foo.evaluate(-1, false), 6);
   assert.strictEqual(foo.namespace().five, 5);
 })();

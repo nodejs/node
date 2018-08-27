@@ -1,12 +1,16 @@
 'use strict';
 
 const common = require('../common');
+const {
+  hijackStderr,
+  restoreStderr
+} = require('../common/hijackstdio');
 const assert = require('assert');
 
 function test1() {
   // Output is skipped if the argument to the 'warning' event is
   // not an Error object.
-  common.hijackStderr(common.mustNotCall('stderr.write must not be called'));
+  hijackStderr(common.mustNotCall('stderr.write must not be called'));
   process.emit('warning', 'test');
   setImmediate(test2);
 }
@@ -21,7 +25,7 @@ function test2() {
 }
 
 function test3() {
-  common.restoreStderr();
+  restoreStderr();
   // Type defaults to warning when the second argument is an object
   process.emitWarning('test', {});
   process.once('warning', common.mustCall((warning) => {

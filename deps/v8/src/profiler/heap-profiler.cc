@@ -16,29 +16,23 @@ namespace internal {
 
 HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
-      names_(new StringsStorage(heap)),
-      is_tracking_object_moves_(false),
-      get_retainer_infos_callback_(nullptr) {}
+      names_(new StringsStorage(heap->HashSeed())),
+      is_tracking_object_moves_(false) {}
 
-static void DeleteHeapSnapshot(HeapSnapshot* snapshot_ptr) {
-  delete snapshot_ptr;
-}
-
-
-HeapProfiler::~HeapProfiler() {
-  std::for_each(snapshots_.begin(), snapshots_.end(), &DeleteHeapSnapshot);
-}
-
+HeapProfiler::~HeapProfiler() = default;
 
 void HeapProfiler::DeleteAllSnapshots() {
-  std::for_each(snapshots_.begin(), snapshots_.end(), &DeleteHeapSnapshot);
   snapshots_.clear();
-  names_.reset(new StringsStorage(heap()));
+  names_.reset(new StringsStorage(heap()->HashSeed()));
 }
 
 
 void HeapProfiler::RemoveSnapshot(HeapSnapshot* snapshot) {
-  snapshots_.erase(std::find(snapshots_.begin(), snapshots_.end(), snapshot));
+  snapshots_.erase(
+      std::find_if(snapshots_.begin(), snapshots_.end(),
+                   [&](const std::unique_ptr<HeapSnapshot>& entry) {
+                     return entry.get() == snapshot;
+                   }));
 }
 
 
@@ -75,6 +69,27 @@ v8::HeapProfiler::RetainerInfos HeapProfiler::GetRetainerInfos(
   return infos;
 }
 
+void HeapProfiler::AddBuildEmbedderGraphCallback(
+    v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data) {
+  build_embedder_graph_callbacks_.push_back({callback, data});
+}
+
+void HeapProfiler::RemoveBuildEmbedderGraphCallback(
+    v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data) {
+  auto it = std::find(build_embedder_graph_callbacks_.begin(),
+                      build_embedder_graph_callbacks_.end(),
+                      std::make_pair(callback, data));
+  if (it != build_embedder_graph_callbacks_.end())
+    build_embedder_graph_callbacks_.erase(it);
+}
+
+void HeapProfiler::BuildEmbedderGraph(Isolate* isolate,
+                                      v8::EmbedderGraph* graph) {
+  for (const auto& cb : build_embedder_graph_callbacks_) {
+    cb.first(reinterpret_cast<v8::Isolate*>(isolate), graph, cb.second);
+  }
+}
+
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     v8::ActivityControl* control,
     v8::HeapProfiler::ObjectNameResolver* resolver) {
@@ -85,7 +100,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
       delete result;
       result = nullptr;
     } else {
-      snapshots_.push_back(result);
+      snapshots_.emplace_back(result);
     }
   }
   ids_->RemoveDeadEntries();
@@ -126,10 +141,10 @@ v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
 void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   ids_->UpdateHeapObjectsMap();
   is_tracking_object_moves_ = true;
-  DCHECK(!is_tracking_allocations());
+  DCHECK(!allocation_tracker_);
   if (track_allocations) {
     allocation_tracker_.reset(new AllocationTracker(ids_.get(), names_.get()));
-    heap()->DisableInlineAllocation();
+    heap()->AddHeapObjectAllocationTracker(this);
     heap()->isolate()->debug()->feature_tracker()->Track(
         DebugFeatureTracker::kAllocationTracking);
   }
@@ -142,9 +157,9 @@ SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream,
 
 void HeapProfiler::StopHeapObjectsTracking() {
   ids_->StopHeapObjectsTracking();
-  if (is_tracking_allocations()) {
+  if (allocation_tracker_) {
     allocation_tracker_.reset();
-    heap()->EnableInlineAllocation();
+    heap()->RemoveHeapObjectAllocationTracker(this);
   }
 }
 
@@ -153,7 +168,7 @@ int HeapProfiler::GetSnapshotsCount() {
 }
 
 HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
-  return snapshots_.at(index);
+  return snapshots_.at(index).get();
 }
 
 SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
@@ -200,7 +215,7 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
 
 void HeapProfiler::ClearHeapObjectMap() {
   ids_.reset(new HeapObjectsMap(heap()));
-  if (!is_tracking_allocations()) is_tracking_object_moves_ = false;
+  if (!allocation_tracker_) is_tracking_object_moves_ = false;
 }
 
 

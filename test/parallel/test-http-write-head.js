@@ -31,14 +31,15 @@ const s = http.createServer(common.mustCall((req, res) => {
   res.setHeader('test', '1');
 
   // toLowerCase() is used on the name argument, so it must be a string.
-  let threw = false;
-  try {
-    res.setHeader(0xf00, 'bar');
-  } catch (e) {
-    assert.ok(e instanceof TypeError);
-    threw = true;
-  }
-  assert.ok(threw, 'Non-string names should throw');
+  // Non-String header names should throw
+  common.expectsError(
+    () => res.setHeader(0xf00, 'bar'),
+    {
+      code: 'ERR_INVALID_HTTP_TOKEN',
+      type: TypeError,
+      message: 'Header name must be a valid HTTP token ["3840"]'
+    }
+  );
 
   // undefined value should throw, via 979d0ca8
   common.expectsError(

@@ -8,6 +8,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/typer.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -60,11 +61,13 @@ class GraphTest : public virtual TestWithNativeContext,
   CommonOperatorBuilder* common() { return &common_; }
   Graph* graph() { return &graph_; }
   SourcePositionTable* source_positions() { return &source_positions_; }
+  NodeOriginTable* node_origins() { return &node_origins_; }
 
  private:
   CommonOperatorBuilder common_;
   Graph graph_;
   SourcePositionTable source_positions_;
+  NodeOriginTable node_origins_;
 };
 
 
@@ -75,7 +78,7 @@ class TypedGraphTest : public GraphTest {
 
  protected:
   Node* Parameter(int32_t index = 0) { return GraphTest::Parameter(index); }
-  Node* Parameter(Type* type, int32_t index = 0);
+  Node* Parameter(Type type, int32_t index = 0);
 
   Typer* typer() { return &typer_; }
 

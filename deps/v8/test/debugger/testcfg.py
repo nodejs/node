@@ -12,7 +12,7 @@ FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
       for dotted in [x for x in dirs if x.startswith('.')]:
@@ -62,21 +62,21 @@ class TestCase(testcase.TestCase):
     files.append(os.path.join(self.suite.root, self.path + self._get_suffix()))
     return files
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     files = self._source_files
-    if ctx.isolates:
+    if self._test_config.isolates:
       files = files + ['--isolate'] + files
     return files
 
   def _get_source_flags(self):
     return self._source_flags
 
-  def _get_suite_flags(self, ctx):
+  def _get_suite_flags(self):
     return ['--enable-inspector', '--allow-natives-syntax']
 
   def _get_source_path(self):
     return os.path.join(self.suite.root, self.path + self._get_suffix())
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

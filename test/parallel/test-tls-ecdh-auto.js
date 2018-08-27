@@ -39,10 +39,6 @@ server.listen(0, function() {
                 '-cipher', `${options.ciphers}`,
                 '-connect', `127.0.0.1:${this.address().port}`];
 
-  // for the performance and stability issue in s_client on Windows
-  if (common.isWindows)
-    args.push('-no_rand_screen');
-
   const client = spawn(common.opensslCli, args);
 
   client.stdout.on('data', function(data) {

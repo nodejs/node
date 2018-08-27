@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8INSPECTORSESSIONIMPL_H_
-#define V8_INSPECTOR_V8INSPECTORSESSIONIMPL_H_
+#ifndef V8_INSPECTOR_V8_INSPECTOR_SESSION_IMPL_H_
+#define V8_INSPECTOR_V8_INSPECTOR_SESSION_IMPL_H_
 
 #include <vector>
 
@@ -126,4 +126,4 @@ class V8InspectorSessionImpl : public V8InspectorSession,
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8INSPECTORSESSIONIMPL_H_
+#endif  // V8_INSPECTOR_V8_INSPECTOR_SESSION_IMPL_H_

@@ -54,7 +54,7 @@ defined are described in [OS Constants](#os_os_constants_1).
 added: v0.3.3
 -->
 
-* Returns: {Array}
+* Returns: {Object[]}
 
 The `os.cpus()` method returns an array of objects containing information about
 each logical CPU core.
@@ -192,6 +192,19 @@ added: v0.3.3
 The `os.freemem()` method returns the amount of free system memory in bytes as
 an integer.
 
+## os.getPriority([pid])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `pid` {integer} The process ID to retrieve scheduling priority for.
+  **Default** `0`.
+* Returns: {integer}
+
+The `os.getPriority()` method returns the scheduling priority for the process
+specified by `pid`. If `pid` is not provided, or is `0`, the priority of the
+current process is returned.
+
 ## os.homedir()
 <!-- YAML
 added: v2.3.0
@@ -217,13 +230,13 @@ string.
 added: v0.3.3
 -->
 
-* Returns: {Array}
+* Returns: {number[]}
 
 The `os.loadavg()` method returns an array containing the 1, 5, and 15 minute
 load averages.
 
 The load average is a measure of system activity, calculated by the operating
-system and expressed as a fractional number.  As a rule of thumb, the load
+system and expressed as a fractional number. As a rule of thumb, the load
 average should ideally be less than the number of logical CPUs in the system.
 
 The load average is a UNIX-specific concept with no real equivalent on
@@ -254,7 +267,7 @@ The properties available on the assigned network address object include:
   is `IPv6`)
 * `cidr` {string} The assigned IPv4 or IPv6 address with the routing prefix
   in CIDR notation. If the `netmask` is invalid, this property is set
-  to `null`
+  to `null`.
 
 <!-- eslint-skip -->
 ```js
@@ -338,6 +351,26 @@ On POSIX systems, the operating system release is determined by calling
 [uname(3)][]. On Windows, `GetVersionExW()` is used. Please see
 https://en.wikipedia.org/wiki/Uname#Examples for more information.
 
+## os.setPriority([pid, ]priority)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `pid` {integer} The process ID to set scheduling priority for.
+  **Default** `0`.
+* `priority` {integer} The scheduling priority to assign to the process.
+
+The `os.setPriority()` method attempts to set the scheduling priority for the
+process specified by `pid`. If `pid` is not provided, or is `0`, the priority
+of the current process is used.
+
+The `priority` input must be an integer between `-20` (high priority) and `19`
+(low priority). Due to differences between Unix priority levels and Windows
+priority classes, `priority` is mapped to one of six priority constants in
+`os.constants.priority`. When retrieving a process priority level, this range
+mapping may cause the return value to be slightly different on Windows. To avoid
+confusion, it is recommended to set `priority` to one of the priority constants.
+
 ## os.tmpdir()
 <!-- YAML
 added: v0.9.9
@@ -381,14 +414,16 @@ systems.
 ## os.uptime()
 <!-- YAML
 added: v0.3.3
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/20129
+    description: The result of this function no longer contains a fraction
+                 component on Windows.
 -->
 
 * Returns: {integer}
 
 The `os.uptime()` method returns the system uptime in number of seconds.
-
-On Windows the returned value includes fractions of a second. Use `Math.floor()`
-to get whole seconds.
 
 ## os.userInfo([options])
 <!-- YAML
@@ -398,11 +433,11 @@ added: v6.0.0
 * `options` {Object}
   * `encoding` {string} Character encoding used to interpret resulting strings.
     If `encoding` is set to `'buffer'`, the `username`, `shell`, and `homedir`
-    values will be `Buffer` instances. **Default:** `'utf8'`
+    values will be `Buffer` instances. **Default:** `'utf8'`.
 * Returns: {Object}
 
 The `os.userInfo()` method returns information about the currently effective
-user -- on POSIX platforms, this is typically a subset of the password file. The
+user — on POSIX platforms, this is typically a subset of the password file. The
 returned object includes the `username`, `uid`, `gid`, `shell`, and `homedir`.
 On Windows, the `uid` and `gid` fields are `-1`, and `shell` is `null`.
 
@@ -440,7 +475,7 @@ The following signal constants are exported by `os.constants.signals`:
   <tr>
     <td><code>SIGINT</code></td>
     <td>Sent to indicate when a user wishes to interrupt a process
-    (`(Ctrl+C)`).</td>
+    (<code>(Ctrl+C)</code>).</td>
   </tr>
   <tr>
     <td><code>SIGQUIT</code></td>
@@ -853,9 +888,9 @@ The following error constants are exported by `os.constants.errno`:
   </tr>
   <tr>
     <td><code>EOPNOTSUPP</code></td>
-    <td>Indicates that an operation is not supported on the socket.
-    Note that while `ENOTSUP` and `EOPNOTSUPP` have the same value on Linux,
-    according to POSIX.1 these error values should be distinct.)</td>
+    <td>Indicates that an operation is not supported on the socket.  Note that
+    while <code>ENOTSUP</code> and <code>EOPNOTSUPP</code> have the same value
+    on Linux, according to POSIX.1 these error values should be distinct.)</td>
   </tr>
   <tr>
     <td><code>EOVERFLOW</code></td>
@@ -1112,7 +1147,8 @@ The following error codes are specific to the Windows operating system:
   </tr>
   <tr>
     <td><code>WSAVERNOTSUPPORTED</code></td>
-    <td>Indicates that the winsock.dll version is out of range.</td>
+    <td>Indicates that the <code>winsock.dll</code> version is out of
+    range.</td>
   </tr>
   <tr>
     <td><code>WSANOTINITIALISED</code></td>
@@ -1195,13 +1231,67 @@ information.
   </tr>
   <tr>
     <td><code>RTLD_LOCAL</code></td>
-    <td>The converse of RTLD_GLOBAL. This is the default behavior if neither
-    flag is specified.</td>
+    <td>The converse of <code>RTLD_GLOBAL</code>. This is the default behavior
+    if neither flag is specified.</td>
   </tr>
   <tr>
     <td><code>RTLD_DEEPBIND</code></td>
     <td>Make a self-contained library use its own symbols in preference to
     symbols from previously loaded libraries.</td>
+  </tr>
+</table>
+
+### Priority Constants
+<!-- YAML
+added: REPLACEME
+-->
+
+The following process scheduling constants are exported by
+`os.constants.priority`:
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>PRIORITY_LOW</code></td>
+    <td>The lowest process scheduling priority. This corresponds to
+    <code>IDLE_PRIORITY_CLASS</code> on Windows, and a nice value of
+    <code>19</code> on all other platforms.</td>
+  </tr>
+  <tr>
+    <td><code>PRIORITY_BELOW_NORMAL</code></td>
+    <td>The process scheduling priority above <code>PRIORITY_LOW</code> and
+    below <code>PRIORITY_NORMAL</code>. This corresponds to
+    <code>BELOW_NORMAL_PRIORITY_CLASS</code> on Windows, and a nice value of
+    <code>10</code> on all other platforms.</td>
+  </tr>
+  <tr>
+    <td><code>PRIORITY_NORMAL</code></td>
+    <td>The default process scheduling priority. This corresponds to
+    <code>NORMAL_PRIORITY_CLASS</code> on Windows, and a nice value of
+    <code>0</code> on all other platforms.</td>
+  </tr>
+  <tr>
+    <td><code>PRIORITY_ABOVE_NORMAL</code></td>
+    <td>The process scheduling priority above <code>PRIORITY_NORMAL</code> and
+    below <code>PRIORITY_HIGH</code>. This corresponds to
+    <code>ABOVE_NORMAL_PRIORITY_CLASS</code> on Windows, and a nice value of
+    <code>-7</code> on all other platforms.</td>
+  </tr>
+  <tr>
+    <td><code>PRIORITY_HIGH</code></td>
+    <td>The process scheduling priority above <code>PRIORITY_ABOVE_NORMAL</code>
+    and below <code>PRIORITY_HIGHEST</code>. This corresponds to
+    <code>HIGH_PRIORITY_CLASS</code> on Windows, and a nice value of
+    <code>-14</code> on all other platforms.</td>
+  </tr>
+  <tr>
+    <td><code>PRIORITY_HIGHEST</code></td>
+    <td>The highest process scheduling priority. This corresponds to
+    <code>REALTIME_PRIORITY_CLASS</code> on Windows, and a nice value of
+    <code>-20</code> on all other platforms.</td>
   </tr>
 </table>
 

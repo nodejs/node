@@ -37,24 +37,6 @@ RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {
   return *Module::GetModuleNamespace(module, module_request);
 }
 
-RUNTIME_FUNCTION(Runtime_LoadModuleVariable) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(index, 0);
-  Handle<Module> module(isolate->context()->module());
-  return *Module::LoadVariable(module, index);
-}
-
-RUNTIME_FUNCTION(Runtime_StoreModuleVariable) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(index, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  Handle<Module> module(isolate->context()->module());
-  Module::StoreVariable(module, index, value);
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_GetImportMetaObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());

@@ -31,7 +31,7 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
       for dotted in [x for x in dirs if x.startswith('.')]:
@@ -59,7 +59,7 @@ class TestCase(testcase.TestCase):
 
     self._source_flags = self._parse_source_flags()
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     files = map(lambda f: os.path.join(self.suite.root, f), [
         'assert.js',
         'utils.js',
@@ -68,19 +68,19 @@ class TestCase(testcase.TestCase):
         'regexp-assert.js',
     ])
 
-    if ctx.isolates:
+    if self._test_config.isolates:
       files += ['--isolate'] + files
     return files
 
   def _get_source_flags(self):
     return self._source_flags
 
-  def _get_suite_flags(self, ctx):
+  def _get_suite_flags(self):
     return ['--allow-natives-syntax']
 
   def _get_source_path(self):
     return os.path.join(self.suite.root, self.path + self._get_suffix())
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

@@ -1,4 +1,12 @@
-/* crypto/ec/ec2_mult.c */
+/*
+ * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  *
@@ -13,62 +21,10 @@
  * Douglas Stebila of Sun Microsystems Laboratories.
  *
  */
-/* ====================================================================
- * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
 
 #include <openssl/err.h>
 
+#include "internal/bn_int.h"
 #include "ec_lcl.h"
 
 #ifndef OPENSSL_NO_EC2M
@@ -103,7 +59,7 @@ static int gf2m_Mdouble(const EC_GROUP *group, BIGNUM *x, BIGNUM *z,
         goto err;
     if (!group->meth->field_sqr(group, t1, t1, ctx))
         goto err;
-    if (!group->meth->field_mul(group, t1, &group->b, t1, ctx))
+    if (!group->meth->field_mul(group, t1, group->b, t1, ctx))
         goto err;
     if (!BN_GF2m_add(x, x, t1))
         goto err;
@@ -294,17 +250,17 @@ static int ec_GF2m_montgomery_point_multiply(const EC_GROUP *group,
     if (z1 == NULL)
         goto err;
 
-    x2 = &r->X;
-    z2 = &r->Y;
+    x2 = r->X;
+    z2 = r->Y;
 
-    group_top = group->field.top;
+    group_top = bn_get_top(group->field);
     if (bn_wexpand(x1, group_top) == NULL
         || bn_wexpand(z1, group_top) == NULL
         || bn_wexpand(x2, group_top) == NULL
         || bn_wexpand(z2, group_top) == NULL)
         goto err;
 
-    if (!BN_GF2m_mod_arr(x1, &point->X, group->poly))
+    if (!BN_GF2m_mod_arr(x1, point->X, group->poly))
         goto err;               /* x1 = x */
     if (!BN_one(z1))
         goto err;               /* z1 = 1 */
@@ -312,13 +268,13 @@ static int ec_GF2m_montgomery_point_multiply(const EC_GROUP *group,
         goto err;               /* z2 = x1^2 = x^2 */
     if (!group->meth->field_sqr(group, x2, z2, ctx))
         goto err;
-    if (!BN_GF2m_add(x2, x2, &group->b))
+    if (!BN_GF2m_add(x2, x2, group->b))
         goto err;               /* x2 = x^4 + b */
 
     /* find top most bit and go one past it */
-    i = scalar->top - 1;
+    i = bn_get_top(scalar) - 1;
     mask = BN_TBIT;
-    word = scalar->d[i];
+    word = bn_get_words(scalar)[i];
     while (!(word & mask))
         mask >>= 1;
     mask >>= 1;
@@ -329,11 +285,11 @@ static int ec_GF2m_montgomery_point_multiply(const EC_GROUP *group,
     }
 
     for (; i >= 0; i--) {
-        word = scalar->d[i];
+        word = bn_get_words(scalar)[i];
         while (mask) {
             BN_consttime_swap(word & mask, x1, x2, group_top);
             BN_consttime_swap(word & mask, z1, z2, group_top);
-            if (!gf2m_Madd(group, &point->X, x2, z2, x1, z1, ctx))
+            if (!gf2m_Madd(group, point->X, x2, z2, x1, z1, ctx))
                 goto err;
             if (!gf2m_Mdouble(group, x1, z1, ctx))
                 goto err;
@@ -345,21 +301,21 @@ static int ec_GF2m_montgomery_point_multiply(const EC_GROUP *group,
     }
 
     /* convert out of "projective" coordinates */
-    i = gf2m_Mxy(group, &point->X, &point->Y, x1, z1, x2, z2, ctx);
+    i = gf2m_Mxy(group, point->X, point->Y, x1, z1, x2, z2, ctx);
     if (i == 0)
         goto err;
     else if (i == 1) {
         if (!EC_POINT_set_to_infinity(group, r))
             goto err;
     } else {
-        if (!BN_one(&r->Z))
+        if (!BN_one(r->Z))
             goto err;
         r->Z_is_one = 1;
     }
 
     /* GF(2^m) field elements should always have BIGNUM::neg = 0 */
-    BN_set_negative(&r->X, 0);
-    BN_set_negative(&r->Y, 0);
+    BN_set_negative(r->X, 0);
+    BN_set_negative(r->Y, 0);
 
     ret = 1;
 
@@ -438,12 +394,9 @@ int ec_GF2m_simple_mul(const EC_GROUP *group, EC_POINT *r,
     ret = 1;
 
  err:
-    if (p)
-        EC_POINT_free(p);
-    if (acc)
-        EC_POINT_free(acc);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
+    EC_POINT_free(p);
+    EC_POINT_free(acc);
+    BN_CTX_free(new_ctx);
     return ret;
 }
 

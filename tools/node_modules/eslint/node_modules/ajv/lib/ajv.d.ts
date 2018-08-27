@@ -1,4 +1,4 @@
-declare var ajv: { 
+declare var ajv: {
   (options?: ajv.Options): ajv.Ajv;
   new (options?: ajv.Options): ajv.Ajv;
   ValidationError: ValidationError;
@@ -15,7 +15,7 @@ declare namespace ajv {
     * @param  {Any} data to be validated
     * @return {Boolean} validation result. Errors from the last validation will be available in `ajv.errors` (and also in compiled schema: `schema.errors`).
     */
-    validate(schemaKeyRef: object | string | boolean, data: any): boolean | Thenable<any>;
+    validate(schemaKeyRef: object | string | boolean, data: any): boolean | PromiseLike<any>;
     /**
     * Create validating function for passed schema.
     * @param  {object|Boolean} schema schema object
@@ -29,9 +29,9 @@ declare namespace ajv {
     * @param {object|Boolean} schema schema object
     * @param {Boolean} meta optional true to compile meta-schema; this parameter can be skipped
     * @param {Function} callback optional node-style callback, it is always called with 2 parameters: error (or null) and validating function.
-    * @return {Thenable<ValidateFunction>} validating function
+    * @return {PromiseLike<ValidateFunction>} validating function
     */
-    compileAsync(schema: object | boolean, meta?: Boolean, callback?: (err: Error, validate: ValidateFunction) => any): Thenable<ValidateFunction>;
+    compileAsync(schema: object | boolean, meta?: Boolean, callback?: (err: Error, validate: ValidateFunction) => any): PromiseLike<ValidateFunction>;
     /**
     * Adds schema to the instance.
     * @param {object|Array} schema schema or array of schemas. If array is passed, `key` and other parameters will be ignored.
@@ -103,12 +103,8 @@ declare namespace ajv {
     * @param  {object} options optional options with properties `separator` and `dataVar`.
     * @return {string} human readable string with all errors descriptions
     */
-    errorsText(errors?: Array<ErrorObject>, options?: ErrorsTextOptions): string;
+    errorsText(errors?: Array<ErrorObject> | null, options?: ErrorsTextOptions): string;
     errors?: Array<ErrorObject>;
-  }
-
-  interface Thenable <R> {
-    then <U> (onFulfilled?: (value: R) => U | Thenable<U>, onRejected?: (error: any) => U | Thenable<U>): Thenable<U>;
   }
 
   interface ValidateFunction {
@@ -118,7 +114,7 @@ declare namespace ajv {
       parentData?: object | Array<any>,
       parentDataProperty?: string | number,
       rootData?: object | Array<any>
-    ): boolean | Thenable<any>;
+    ): boolean | PromiseLike<any>;
     schema?: object | boolean;
     errors?: null | Array<ErrorObject>;
     refs?: object;
@@ -139,10 +135,10 @@ declare namespace ajv {
     formats?: object;
     unknownFormats?: true | string[] | 'ignore';
     schemas?: Array<object> | object;
-    schemaId?: '$id' | 'id';
+    schemaId?: '$id' | 'id' | 'auto';
     missingRefs?: true | 'ignore' | 'fail';
     extendRefs?: true | 'ignore' | 'fail';
-    loadSchema?: (uri: string, cb?: (err: Error, schema: object) => void) => Thenable<object | boolean>;
+    loadSchema?: (uri: string, cb?: (err: Error, schema: object) => void) => PromiseLike<object | boolean>;
     removeAdditional?: boolean | 'all' | 'failing';
     useDefaults?: boolean | 'shared';
     coerceTypes?: boolean | 'array';
@@ -163,13 +159,24 @@ declare namespace ajv {
     cache?: object;
   }
 
-  type FormatValidator = string | RegExp | ((data: string) => boolean | Thenable<any>);
+  type FormatValidator = string | RegExp | ((data: string) => boolean | PromiseLike<any>);
+  type NumberFormatValidator = ((data: number) => boolean | PromiseLike<any>);
 
-  interface FormatDefinition {
-    validate: FormatValidator;
-    compare: (data1: string, data2: string) => number;
+  interface NumberFormatDefinition {
+    type: "number",
+    validate: NumberFormatValidator;
+    compare?: (data1: number, data2: number) => number;
     async?: boolean;
   }
+
+  interface StringFormatDefinition {
+    type?: "string",
+    validate: FormatValidator;
+    compare?: (data1: string, data2: string) => number;
+    async?: boolean;
+  }
+
+  type FormatDefinition = NumberFormatDefinition | StringFormatDefinition;
 
   interface KeywordDefinition {
     type?: string | Array<string>;
@@ -227,7 +234,7 @@ declare namespace ajv {
       parentData?: object | Array<any>,
       parentDataProperty?: string | number,
       rootData?: object | Array<any>
-    ): boolean | Thenable<any>;
+    ): boolean | PromiseLike<any>;
     errors?: Array<ErrorObject>;
   }
 
@@ -255,8 +262,8 @@ declare namespace ajv {
                           DependenciesParams | FormatParams | ComparisonParams |
                           MultipleOfParams | PatternParams | RequiredParams |
                           TypeParams | UniqueItemsParams | CustomParams |
-                          PatternGroupsParams | PatternRequiredParams |
-                          PropertyNamesParams | SwitchParams | NoParams | EnumParams;
+                          PatternRequiredParams | PropertyNamesParams |
+                          IfParams | SwitchParams | NoParams | EnumParams;
 
   interface RefParams {
     ref: string;
@@ -312,18 +319,16 @@ declare namespace ajv {
     keyword: string;
   }
 
-  interface PatternGroupsParams {
-    reason: string;
-    limit: number;
-    pattern: string;
-  }
-
   interface PatternRequiredParams {
     missingPattern: string;
   }
 
   interface PropertyNamesParams {
     propertyName: string;
+  }
+
+  interface IfParams {
+    failingKeyword: string;
   }
 
   interface SwitchParams {

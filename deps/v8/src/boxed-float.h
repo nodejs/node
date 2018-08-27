@@ -51,8 +51,7 @@ class Float32 {
       : bit_pattern_(bit_pattern) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(Float32),
-              "Float32 should be trivially copyable");
+ASSERT_TRIVIALLY_COPYABLE(Float32);
 
 // Safety wrapper for a 64-bit floating-point value to make sure we don't lose
 // the exact bit pattern during deoptimization when passing this value.
@@ -91,8 +90,7 @@ class Float64 {
       : bit_pattern_(bit_pattern) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(Float64),
-              "Float64 should be trivially copyable");
+ASSERT_TRIVIALLY_COPYABLE(Float64);
 
 }  // namespace internal
 }  // namespace v8

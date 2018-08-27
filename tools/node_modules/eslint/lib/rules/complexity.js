@@ -12,7 +12,7 @@
 
 const lodash = require("lodash");
 
-const astUtils = require("../ast-utils");
+const astUtils = require("../util/ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -61,10 +61,10 @@ module.exports = {
         const option = context.options[0];
         let THRESHOLD = 20;
 
-        if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
+        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "maximum") && typeof option.maximum === "number") {
             THRESHOLD = option.maximum;
         }
-        if (typeof option === "object" && option.hasOwnProperty("max") && typeof option.max === "number") {
+        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "max") && typeof option.max === "number") {
             THRESHOLD = option.max;
         }
         if (typeof option === "number") {

@@ -2,24 +2,23 @@
 
 =head1 NAME
 
-EVP_PKEY_CTX_ctrl, EVP_PKEY_CTX_ctrl_str, EVP_PKEY_get_default_digest_nid,
+EVP_PKEY_CTX_ctrl, EVP_PKEY_CTX_ctrl_str,
 EVP_PKEY_CTX_set_signature_md, EVP_PKEY_CTX_set_rsa_padding,
 EVP_PKEY_CTX_set_rsa_pss_saltlen, EVP_PKEY_CTX_set_rsa_rsa_keygen_bits,
 EVP_PKEY_CTX_set_rsa_keygen_pubexp, EVP_PKEY_CTX_set_dsa_paramgen_bits,
 EVP_PKEY_CTX_set_dh_paramgen_prime_len,
 EVP_PKEY_CTX_set_dh_paramgen_generator,
-EVP_PKEY_CTX_set_ec_paramgen_curve_nid - algorithm specific control operations
+EVP_PKEY_CTX_set_ec_paramgen_curve_nid,
+EVP_PKEY_CTX_set_ec_param_enc - algorithm specific control operations
 
 =head1 SYNOPSIS
 
  #include <openssl/evp.h>
 
  int EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype,
-				int cmd, int p1, void *p2);
+                                int cmd, int p1, void *p2);
  int EVP_PKEY_CTX_ctrl_str(EVP_PKEY_CTX *ctx, const char *type,
-						const char *value);
-
- int EVP_PKEY_get_default_digest_nid(EVP_PKEY *pkey, int *pnid);
+                                                const char *value);
 
  #include <openssl/rsa.h>
 
@@ -39,6 +38,7 @@ EVP_PKEY_CTX_set_ec_paramgen_curve_nid - algorithm specific control operations
 
  #include <openssl/ec.h>
  int EVP_PKEY_CTX_set_ec_paramgen_curve_nid(EVP_PKEY_CTX *ctx, int nid);
+ int EVP_PKEY_CTX_set_ec_param_enc(EVP_PKEY_CTX *ctx, int param_enc);
 
 =head1 DESCRIPTION
 
@@ -68,7 +68,7 @@ The macro EVP_PKEY_CTX_set_rsa_padding() sets the RSA padding mode for B<ctx>.
 The B<pad> parameter can take the value RSA_PKCS1_PADDING for PKCS#1 padding,
 RSA_SSLV23_PADDING for SSLv23 padding, RSA_NO_PADDING for no padding,
 RSA_PKCS1_OAEP_PADDING for OAEP padding (encrypt and decrypt only),
-RSA_X931_PADDING for X9.31 padding (signature operations only) and 
+RSA_X931_PADDING for X9.31 padding (signature operations only) and
 RSA_PKCS1_PSS_PADDING (sign and verify only).
 
 Two RSA padding modes behave differently if EVP_PKEY_CTX_set_signature_md()
@@ -78,7 +78,8 @@ to PKCS#1 when signing and this structure is expected (and stripped off) when
 verifying. If this control is not used with RSA and PKCS#1 padding then the
 supplied data is used directly and not encapsulated. In the case of X9.31
 padding for RSA the algorithm identifier byte is added or checked and removed
-if this control is called. If it is not called then the first byte of the plaintext buffer is expected to be the algorithm identifier byte.
+if this control is called. If it is not called then the first byte of the plaintext
+buffer is expected to be the algorithm identifier byte.
 
 The EVP_PKEY_CTX_set_rsa_pss_saltlen() macro sets the RSA PSS salt length to
 B<len> as its name implies it is only supported for PSS padding.  Two special
@@ -89,11 +90,11 @@ B<PSS> block structure. If this macro is not called a salt length value of -2
 is used by default.
 
 The EVP_PKEY_CTX_set_rsa_rsa_keygen_bits() macro sets the RSA key length for
-RSA key genration to B<bits>. If not specified 1024 bits is used.
+RSA key generation to B<bits>. If not specified 1024 bits is used.
 
 The EVP_PKEY_CTX_set_rsa_keygen_pubexp() macro sets the public exponent value
 for RSA key generation to B<pubexp> currently it should be an odd integer. The
-B<pubexp> pointer is used internally by this function so it should not be 
+B<pubexp> pointer is used internally by this function so it should not be
 modified or free after the call. If this macro is not called then 65537 is used.
 
 The macro EVP_PKEY_CTX_set_dsa_paramgen_bits() sets the number of bits used
@@ -109,6 +110,16 @@ for DH parameter generation. If not specified 2 is used.
 The EVP_PKEY_CTX_set_ec_paramgen_curve_nid() sets the EC curve for EC parameter
 generation to B<nid>. For EC parameter generation this macro must be called
 or an error occurs because there is no default curve.
+This function can also be called to set the curve explicitly when
+generating an EC key.
+
+The EVP_PKEY_CTX_set_ec_param_enc() sets the EC parameter encoding to
+B<param_enc> when generating EC parameters or an EC key. The encoding can be
+B<OPENSSL_EC_EXPLICIT_CURVE> for explicit parameters (the default in versions
+of OpenSSL before 1.1.0) or B<OPENSSL_EC_NAMED_CURVE> to use named curve form.
+For maximum compatibility the named curve form should be used. Note: the
+B<OPENSSL_EC_NAMED_CURVE> value was only added to OpenSSL 1.1.0; previous
+versions should use 0 instead.
 
 =head1 RETURN VALUES
 
@@ -118,17 +129,26 @@ indicates the operation is not supported by the public key algorithm.
 
 =head1 SEE ALSO
 
-L<EVP_PKEY_CTX_new(3)|EVP_PKEY_CTX_new(3)>,
-L<EVP_PKEY_encrypt(3)|EVP_PKEY_encrypt(3)>,
-L<EVP_PKEY_decrypt(3)|EVP_PKEY_decrypt(3)>,
-L<EVP_PKEY_sign(3)|EVP_PKEY_sign(3)>,
-L<EVP_PKEY_verify(3)|EVP_PKEY_verify(3)>,
-L<EVP_PKEY_verify_recover(3)|EVP_PKEY_verify_recover(3)>,
-L<EVP_PKEY_derive(3)|EVP_PKEY_derive(3)> 
-L<EVP_PKEY_keygen(3)|EVP_PKEY_keygen(3)> 
+L<EVP_PKEY_CTX_new(3)>,
+L<EVP_PKEY_encrypt(3)>,
+L<EVP_PKEY_decrypt(3)>,
+L<EVP_PKEY_sign(3)>,
+L<EVP_PKEY_verify(3)>,
+L<EVP_PKEY_verify_recover(3)>,
+L<EVP_PKEY_derive(3)>
+L<EVP_PKEY_keygen(3)>
 
 =head1 HISTORY
 
 These functions were first added to OpenSSL 1.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

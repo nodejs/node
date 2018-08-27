@@ -16,7 +16,7 @@ const key = 'test-key';
 
   const list = new SocketListSend(child, 'test');
 
-  list._request('msg', 'cmd', common.mustCall((err) => {
+  list._request('msg', 'cmd', false, common.mustCall((err) => {
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
       type: Error,
@@ -30,7 +30,7 @@ const key = 'test-key';
 {
   const child = Object.assign(new EventEmitter(), {
     connected: true,
-    send: function(msg) {
+    _send: function(msg) {
       process.nextTick(() =>
         this.emit('internalMessage', { key, cmd: 'cmd' })
       );
@@ -39,7 +39,7 @@ const key = 'test-key';
 
   const list = new SocketListSend(child, key);
 
-  list._request('msg', 'cmd', common.mustCall((err, msg) => {
+  list._request('msg', 'cmd', false, common.mustCall((err, msg) => {
     assert.strictEqual(err, null);
     assert.strictEqual(msg.cmd, 'cmd');
     assert.strictEqual(msg.key, key);
@@ -53,12 +53,12 @@ const key = 'test-key';
 {
   const child = Object.assign(new EventEmitter(), {
     connected: true,
-    send: function(msg) { process.nextTick(() => this.emit('disconnect')); }
+    _send: function(msg) { process.nextTick(() => this.emit('disconnect')); }
   });
 
   const list = new SocketListSend(child, key);
 
-  list._request('msg', 'cmd', common.mustCall((err) => {
+  list._request('msg', 'cmd', false, common.mustCall((err) => {
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
       type: Error,
@@ -73,7 +73,7 @@ const key = 'test-key';
 {
   const child = Object.assign(new EventEmitter(), {
     connected: true,
-    send: function(msg) {
+    _send: function(msg) {
       assert.strictEqual(msg.cmd, 'NODE_SOCKET_NOTIFY_CLOSE');
       assert.strictEqual(msg.key, key);
       process.nextTick(() =>
@@ -98,7 +98,7 @@ const key = 'test-key';
   const count = 1;
   const child = Object.assign(new EventEmitter(), {
     connected: true,
-    send: function(msg) {
+    _send: function(msg) {
       assert.strictEqual(msg.cmd, 'NODE_SOCKET_GET_COUNT');
       assert.strictEqual(msg.key, key);
       process.nextTick(() =>
@@ -127,7 +127,7 @@ const key = 'test-key';
   const count = 1;
   const child = Object.assign(new EventEmitter(), {
     connected: true,
-    send: function() {
+    _send: function() {
       process.nextTick(() => {
         this.emit('disconnect');
         this.emit('internalMessage', { key, count, cmd: 'NODE_SOCKET_COUNT' });

@@ -40,9 +40,10 @@ class InspectorSocket {
   std::string GetHost();
 
  private:
-  InspectorSocket();
+  static void Shutdown(ProtocolHandler*);
+  InspectorSocket() = default;
 
-  std::unique_ptr<ProtocolHandler, void(*)(ProtocolHandler*)> protocol_handler_;
+  DeleteFnPtr<ProtocolHandler, Shutdown> protocol_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(InspectorSocket);
 };

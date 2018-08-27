@@ -1,79 +1,29 @@
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2006.
- */
-/* ====================================================================
- * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
+ * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
-#include <openssl/dsa.h>
+#include "dsa_locl.h"
 #include <openssl/bn.h>
-#ifndef OPENSSL_NO_CMS
-# include <openssl/cms.h>
-#endif
-#include "asn1_locl.h"
+#include <openssl/cms.h>
+#include "internal/asn1_int.h"
+#include "internal/evp_int.h"
 
 static int dsa_pub_decode(EVP_PKEY *pkey, X509_PUBKEY *pubkey)
 {
     const unsigned char *p, *pm;
     int pklen, pmlen;
     int ptype;
-    void *pval;
-    ASN1_STRING *pstr;
+    const void *pval;
+    const ASN1_STRING *pstr;
     X509_ALGOR *palg;
     ASN1_INTEGER *public_key = NULL;
 
@@ -88,13 +38,13 @@ static int dsa_pub_decode(EVP_PKEY *pkey, X509_PUBKEY *pubkey)
         pm = pstr->data;
         pmlen = pstr->length;
 
-        if (!(dsa = d2i_DSAparams(NULL, &pm, pmlen))) {
+        if ((dsa = d2i_DSAparams(NULL, &pm, pmlen)) == NULL) {
             DSAerr(DSA_F_DSA_PUB_DECODE, DSA_R_DECODE_ERROR);
             goto err;
         }
 
     } else if ((ptype == V_ASN1_NULL) || (ptype == V_ASN1_UNDEF)) {
-        if (!(dsa = DSA_new())) {
+        if ((dsa = DSA_new()) == NULL) {
             DSAerr(DSA_F_DSA_PUB_DECODE, ERR_R_MALLOC_FAILURE);
             goto err;
         }
@@ -103,12 +53,12 @@ static int dsa_pub_decode(EVP_PKEY *pkey, X509_PUBKEY *pubkey)
         goto err;
     }
 
-    if (!(public_key = d2i_ASN1_INTEGER(NULL, &p, pklen))) {
+    if ((public_key = d2i_ASN1_INTEGER(NULL, &p, pklen)) == NULL) {
         DSAerr(DSA_F_DSA_PUB_DECODE, DSA_R_DECODE_ERROR);
         goto err;
     }
 
-    if (!(dsa->pub_key = ASN1_INTEGER_to_BN(public_key, NULL))) {
+    if ((dsa->pub_key = ASN1_INTEGER_to_BN(public_key, NULL)) == NULL) {
         DSAerr(DSA_F_DSA_PUB_DECODE, DSA_R_BN_DECODE_ERROR);
         goto err;
     }
@@ -118,10 +68,8 @@ static int dsa_pub_decode(EVP_PKEY *pkey, X509_PUBKEY *pubkey)
     return 1;
 
  err:
-    if (public_key)
-        ASN1_INTEGER_free(public_key);
-    if (dsa)
-        DSA_free(dsa);
+    ASN1_INTEGER_free(public_key);
+    DSA_free(dsa);
     return 0;
 
 }
@@ -133,12 +81,13 @@ static int dsa_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
     unsigned char *penc = NULL;
     int penclen;
     ASN1_STRING *str = NULL;
+    ASN1_INTEGER *pubint = NULL;
     ASN1_OBJECT *aobj;
 
     dsa = pkey->pkey.dsa;
     if (pkey->save_parameters && dsa->p && dsa->q && dsa->g) {
         str = ASN1_STRING_new();
-        if (!str) {
+        if (str == NULL) {
             DSAerr(DSA_F_DSA_PUB_ENCODE, ERR_R_MALLOC_FAILURE);
             goto err;
         }
@@ -151,9 +100,15 @@ static int dsa_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
     } else
         ptype = V_ASN1_UNDEF;
 
-    dsa->write_params = 0;
+    pubint = BN_to_ASN1_INTEGER(dsa->pub_key, NULL);
 
-    penclen = i2d_DSAPublicKey(dsa, &penc);
+    if (pubint == NULL) {
+        DSAerr(DSA_F_DSA_PUB_ENCODE, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
+
+    penclen = i2d_ASN1_INTEGER(pubint, &penc);
+    ASN1_INTEGER_free(pubint);
 
     if (penclen <= 0) {
         DSAerr(DSA_F_DSA_PUB_ENCODE, ERR_R_MALLOC_FAILURE);
@@ -168,10 +123,8 @@ static int dsa_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
         return 1;
 
  err:
-    if (penc)
-        OPENSSL_free(penc);
-    if (str)
-        ASN1_STRING_free(str);
+    OPENSSL_free(penc);
+    ASN1_STRING_free(str);
 
     return 0;
 }
@@ -181,18 +134,17 @@ static int dsa_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
  * AlgorithmIdentifier the pubkey must be recalculated.
  */
 
-static int dsa_priv_decode(EVP_PKEY *pkey, PKCS8_PRIV_KEY_INFO *p8)
+static int dsa_priv_decode(EVP_PKEY *pkey, const PKCS8_PRIV_KEY_INFO *p8)
 {
     const unsigned char *p, *pm;
     int pklen, pmlen;
     int ptype;
-    void *pval;
-    ASN1_STRING *pstr;
-    X509_ALGOR *palg;
+    const void *pval;
+    const ASN1_STRING *pstr;
+    const X509_ALGOR *palg;
     ASN1_INTEGER *privkey = NULL;
     BN_CTX *ctx = NULL;
 
-    STACK_OF(ASN1_TYPE) *ndsa = NULL;
     DSA *dsa = NULL;
 
     int ret = 0;
@@ -201,63 +153,28 @@ static int dsa_priv_decode(EVP_PKEY *pkey, PKCS8_PRIV_KEY_INFO *p8)
         return 0;
     X509_ALGOR_get0(NULL, &ptype, &pval, palg);
 
-    /* Check for broken DSA PKCS#8, UGH! */
-    if (*p == (V_ASN1_SEQUENCE | V_ASN1_CONSTRUCTED)) {
-        ASN1_TYPE *t1, *t2;
-        if (!(ndsa = d2i_ASN1_SEQUENCE_ANY(NULL, &p, pklen)))
-            goto decerr;
-        if (sk_ASN1_TYPE_num(ndsa) != 2)
-            goto decerr;
-        /*-
-         * Handle Two broken types:
-         * SEQUENCE {parameters, priv_key}
-         * SEQUENCE {pub_key, priv_key}
-         */
-
-        t1 = sk_ASN1_TYPE_value(ndsa, 0);
-        t2 = sk_ASN1_TYPE_value(ndsa, 1);
-        if (t1->type == V_ASN1_SEQUENCE) {
-            p8->broken = PKCS8_EMBEDDED_PARAM;
-            pval = t1->value.ptr;
-        } else if (ptype == V_ASN1_SEQUENCE)
-            p8->broken = PKCS8_NS_DB;
-        else
-            goto decerr;
-
-        if (t2->type != V_ASN1_INTEGER)
-            goto decerr;
-
-        privkey = t2->value.integer;
-    } else {
-        const unsigned char *q = p;
-        if (!(privkey = d2i_ASN1_INTEGER(NULL, &p, pklen)))
-            goto decerr;
-        if (privkey->type == V_ASN1_NEG_INTEGER) {
-            p8->broken = PKCS8_NEG_PRIVKEY;
-            ASN1_STRING_clear_free(privkey);
-            if (!(privkey = d2i_ASN1_UINTEGER(NULL, &q, pklen)))
-                goto decerr;
-        }
-        if (ptype != V_ASN1_SEQUENCE)
-            goto decerr;
-    }
+    if ((privkey = d2i_ASN1_INTEGER(NULL, &p, pklen)) == NULL)
+        goto decerr;
+    if (privkey->type == V_ASN1_NEG_INTEGER || ptype != V_ASN1_SEQUENCE)
+        goto decerr;
 
     pstr = pval;
     pm = pstr->data;
     pmlen = pstr->length;
-    if (!(dsa = d2i_DSAparams(NULL, &pm, pmlen)))
+    if ((dsa = d2i_DSAparams(NULL, &pm, pmlen)) == NULL)
         goto decerr;
     /* We have parameters now set private key */
-    if (!(dsa->priv_key = ASN1_INTEGER_to_BN(privkey, NULL))) {
+    if ((dsa->priv_key = BN_secure_new()) == NULL
+        || !ASN1_INTEGER_to_BN(privkey, dsa->priv_key)) {
         DSAerr(DSA_F_DSA_PRIV_DECODE, DSA_R_BN_ERROR);
         goto dsaerr;
     }
     /* Calculate public key */
-    if (!(dsa->pub_key = BN_new())) {
+    if ((dsa->pub_key = BN_new()) == NULL) {
         DSAerr(DSA_F_DSA_PRIV_DECODE, ERR_R_MALLOC_FAILURE);
         goto dsaerr;
     }
-    if (!(ctx = BN_CTX_new())) {
+    if ((ctx = BN_CTX_new()) == NULL) {
         DSAerr(DSA_F_DSA_PRIV_DECODE, ERR_R_MALLOC_FAILURE);
         goto dsaerr;
     }
@@ -279,10 +196,7 @@ static int dsa_priv_decode(EVP_PKEY *pkey, PKCS8_PRIV_KEY_INFO *p8)
     DSA_free(dsa);
  done:
     BN_CTX_free(ctx);
-    if (ndsa)
-        sk_ASN1_TYPE_pop_free(ndsa, ASN1_TYPE_free);
-    else
-        ASN1_STRING_clear_free(privkey);
+    ASN1_STRING_clear_free(privkey);
     return ret;
 }
 
@@ -300,7 +214,7 @@ static int dsa_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
 
     params = ASN1_STRING_new();
 
-    if (!params) {
+    if (params == NULL) {
         DSAerr(DSA_F_DSA_PRIV_ENCODE, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -332,12 +246,9 @@ static int dsa_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
     return 1;
 
  err:
-    if (dp != NULL)
-        OPENSSL_free(dp);
-    if (params != NULL)
-        ASN1_STRING_free(params);
-    if (prkey != NULL)
-        ASN1_STRING_clear_free(prkey);
+    OPENSSL_free(dp);
+    ASN1_STRING_free(params);
+    ASN1_STRING_clear_free(prkey);
     return 0;
 }
 
@@ -348,7 +259,12 @@ static int int_dsa_size(const EVP_PKEY *pkey)
 
 static int dsa_bits(const EVP_PKEY *pkey)
 {
-    return BN_num_bits(pkey->pkey.dsa->p);
+    return DSA_bits(pkey->pkey.dsa);
+}
+
+static int dsa_security_bits(const EVP_PKEY *pkey)
+{
+    return DSA_security_bits(pkey->pkey.dsa);
 }
 
 static int dsa_missing_parameters(const EVP_PKEY *pkey)
@@ -364,22 +280,25 @@ static int dsa_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from)
 {
     BIGNUM *a;
 
+    if (to->pkey.dsa == NULL) {
+        to->pkey.dsa = DSA_new();
+        if (to->pkey.dsa == NULL)
+            return 0;
+    }
+
     if ((a = BN_dup(from->pkey.dsa->p)) == NULL)
         return 0;
-    if (to->pkey.dsa->p != NULL)
-        BN_free(to->pkey.dsa->p);
+    BN_free(to->pkey.dsa->p);
     to->pkey.dsa->p = a;
 
     if ((a = BN_dup(from->pkey.dsa->q)) == NULL)
         return 0;
-    if (to->pkey.dsa->q != NULL)
-        BN_free(to->pkey.dsa->q);
+    BN_free(to->pkey.dsa->q);
     to->pkey.dsa->q = a;
 
     if ((a = BN_dup(from->pkey.dsa->g)) == NULL)
         return 0;
-    if (to->pkey.dsa->g != NULL)
-        BN_free(to->pkey.dsa->g);
+    BN_free(to->pkey.dsa->g);
     to->pkey.dsa->g = a;
     return 1;
 }
@@ -407,22 +326,10 @@ static void int_dsa_free(EVP_PKEY *pkey)
     DSA_free(pkey->pkey.dsa);
 }
 
-static void update_buflen(const BIGNUM *b, size_t *pbuflen)
-{
-    size_t i;
-    if (!b)
-        return;
-    if (*pbuflen < (i = (size_t)BN_num_bytes(b)))
-        *pbuflen = i;
-}
-
 static int do_dsa_print(BIO *bp, const DSA *x, int off, int ptype)
 {
-    unsigned char *m = NULL;
     int ret = 0;
-    size_t buf_len = 0;
     const char *ktype = NULL;
-
     const BIGNUM *priv_key, *pub_key;
 
     if (ptype == 2)
@@ -442,18 +349,6 @@ static int do_dsa_print(BIO *bp, const DSA *x, int off, int ptype)
     else
         ktype = "DSA-Parameters";
 
-    update_buflen(x->p, &buf_len);
-    update_buflen(x->q, &buf_len);
-    update_buflen(x->g, &buf_len);
-    update_buflen(priv_key, &buf_len);
-    update_buflen(pub_key, &buf_len);
-
-    m = (unsigned char *)OPENSSL_malloc(buf_len + 10);
-    if (m == NULL) {
-        DSAerr(DSA_F_DO_DSA_PRINT, ERR_R_MALLOC_FAILURE);
-        goto err;
-    }
-
     if (priv_key) {
         if (!BIO_indent(bp, off, 128))
             goto err;
@@ -462,20 +357,18 @@ static int do_dsa_print(BIO *bp, const DSA *x, int off, int ptype)
             goto err;
     }
 
-    if (!ASN1_bn_print(bp, "priv:", priv_key, m, off))
+    if (!ASN1_bn_print(bp, "priv:", priv_key, NULL, off))
         goto err;
-    if (!ASN1_bn_print(bp, "pub: ", pub_key, m, off))
+    if (!ASN1_bn_print(bp, "pub: ", pub_key, NULL, off))
         goto err;
-    if (!ASN1_bn_print(bp, "P:   ", x->p, m, off))
+    if (!ASN1_bn_print(bp, "P:   ", x->p, NULL, off))
         goto err;
-    if (!ASN1_bn_print(bp, "Q:   ", x->q, m, off))
+    if (!ASN1_bn_print(bp, "Q:   ", x->q, NULL, off))
         goto err;
-    if (!ASN1_bn_print(bp, "G:   ", x->g, m, off))
+    if (!ASN1_bn_print(bp, "G:   ", x->g, NULL, off))
         goto err;
     ret = 1;
  err:
-    if (m != NULL)
-        OPENSSL_free(m);
     return (ret);
 }
 
@@ -483,7 +376,8 @@ static int dsa_param_decode(EVP_PKEY *pkey,
                             const unsigned char **pder, int derlen)
 {
     DSA *dsa;
-    if (!(dsa = d2i_DSAparams(NULL, pder, derlen))) {
+
+    if ((dsa = d2i_DSAparams(NULL, pder, derlen)) == NULL) {
         DSAerr(DSA_F_DSA_PARAM_DECODE, ERR_R_DSA_LIB);
         return 0;
     }
@@ -518,7 +412,8 @@ static int old_dsa_priv_decode(EVP_PKEY *pkey,
                                const unsigned char **pder, int derlen)
 {
     DSA *dsa;
-    if (!(dsa = d2i_DSAPrivateKey(NULL, pder, derlen))) {
+
+    if ((dsa = d2i_DSAPrivateKey(NULL, pder, derlen)) == NULL) {
         DSAerr(DSA_F_OLD_DSA_PRIV_DECODE, ERR_R_DSA_LIB);
         return 0;
     }
@@ -536,6 +431,7 @@ static int dsa_sig_print(BIO *bp, const X509_ALGOR *sigalg,
 {
     DSA_SIG *dsa_sig;
     const unsigned char *p;
+
     if (!sig) {
         if (BIO_puts(bp, "\n") <= 0)
             return 0;
@@ -546,27 +442,19 @@ static int dsa_sig_print(BIO *bp, const X509_ALGOR *sigalg,
     dsa_sig = d2i_DSA_SIG(NULL, &p, sig->length);
     if (dsa_sig) {
         int rv = 0;
-        size_t buf_len = 0;
-        unsigned char *m = NULL;
-        update_buflen(dsa_sig->r, &buf_len);
-        update_buflen(dsa_sig->s, &buf_len);
-        m = OPENSSL_malloc(buf_len + 10);
-        if (m == NULL) {
-            DSAerr(DSA_F_DSA_SIG_PRINT, ERR_R_MALLOC_FAILURE);
-            goto err;
-        }
+        const BIGNUM *r, *s;
+
+        DSA_SIG_get0(dsa_sig, &r, &s);
 
         if (BIO_write(bp, "\n", 1) != 1)
             goto err;
 
-        if (!ASN1_bn_print(bp, "r:   ", dsa_sig->r, m, indent))
+        if (!ASN1_bn_print(bp, "r:   ", r, NULL, indent))
             goto err;
-        if (!ASN1_bn_print(bp, "s:   ", dsa_sig->s, m, indent))
+        if (!ASN1_bn_print(bp, "s:   ", s, NULL, indent))
             goto err;
         rv = 1;
  err:
-        if (m)
-            OPENSSL_free(m);
         DSA_SIG_free(dsa_sig);
         return rv;
     }
@@ -626,7 +514,7 @@ static int dsa_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 
 /* NB these are sorted in pkey_id order, lowest first */
 
-const EVP_PKEY_ASN1_METHOD dsa_asn1_meths[] = {
+const EVP_PKEY_ASN1_METHOD dsa_asn1_meths[5] = {
 
     {
      EVP_PKEY_DSA2,
@@ -667,6 +555,7 @@ const EVP_PKEY_ASN1_METHOD dsa_asn1_meths[] = {
 
      int_dsa_size,
      dsa_bits,
+     dsa_security_bits,
 
      dsa_param_decode,
      dsa_param_encode,

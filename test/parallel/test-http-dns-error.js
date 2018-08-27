@@ -29,7 +29,7 @@ const assert = require('assert');
 const http = require('http');
 const https = require('https');
 
-const host = '*'.repeat(256);
+const host = '*'.repeat(64);
 const MAX_TRIES = 5;
 
 let errCode = 'ENOTFOUND';

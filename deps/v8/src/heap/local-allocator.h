@@ -35,8 +35,8 @@ class LocalAllocator {
     // sits right next to new space allocation top.
     const LinearAllocationArea info = new_space_lab_.Close();
     const Address top = new_space_->top();
-    if (info.limit() != nullptr && info.limit() == top) {
-      DCHECK_NOT_NULL(info.top());
+    if (info.limit() != kNullAddress && info.limit() == top) {
+      DCHECK_NE(info.top(), kNullAddress);
       *new_space_->allocation_top_address() = info.top();
     }
   }

@@ -12,11 +12,11 @@ function main({ n }) {
   var m = {};
   // First call dominates results
   if (n > 1) {
-    tls.convertNPNProtocols(input, m);
+    tls.convertALPNProtocols(input, m);
     m = {};
   }
   bench.start();
   for (var i = 0; i < n; i++)
-    tls.convertNPNProtocols(input, m);
+    tls.convertALPNProtocols(input, m);
   bench.end(n);
 }

@@ -36,11 +36,15 @@ var gitHosts = module.exports = {
     'sshtemplate': 'git@{domain}:/{project}.git{#committish}',
     'sshurltemplate': 'git+ssh://git@{domain}/{project}.git{#committish}',
     'browsetemplate': 'https://{domain}/{project}{/committish}',
+    'browsefiletemplate': 'https://{domain}/{project}{/committish}{#path}',
     'docstemplate': 'https://{domain}/{project}{/committish}',
     'httpstemplate': 'git+https://{domain}/{project}.git{#committish}',
     'shortcuttemplate': '{type}:{project}{#committish}',
     'pathtemplate': '{project}{#committish}',
-    'tarballtemplate': 'https://{domain}/{user}/{project}/archive/{committish}.tar.gz'
+    'tarballtemplate': 'https://{domain}/{user}/{project}/archive/{committish}.tar.gz',
+    'hashformat': function (fragment) {
+      return 'file-' + formatHashFragment(fragment)
+    }
   }
 }
 
@@ -48,12 +52,14 @@ var gitHostDefaults = {
   'sshtemplate': 'git@{domain}:{user}/{project}.git{#committish}',
   'sshurltemplate': 'git+ssh://git@{domain}/{user}/{project}.git{#committish}',
   'browsetemplate': 'https://{domain}/{user}/{project}{/tree/committish}',
+  'browsefiletemplate': 'https://{domain}/{user}/{project}/{treepath}/{committish}/{path}{#fragment}',
   'docstemplate': 'https://{domain}/{user}/{project}{/tree/committish}#readme',
   'httpstemplate': 'git+https://{auth@}{domain}/{user}/{project}.git{#committish}',
   'filetemplate': 'https://{domain}/{user}/{project}/raw/{committish}/{path}',
   'shortcuttemplate': '{type}:{user}/{project}{#committish}',
   'pathtemplate': '{user}/{project}{#committish}',
-  'pathmatch': /^[/]([^/]+)[/]([^/]+?)(?:[.]git|[/])?$/
+  'pathmatch': /^[/]([^/]+)[/]([^/]+?)(?:[.]git|[/])?$/,
+  'hashformat': formatHashFragment
 }
 
 Object.keys(gitHosts).forEach(function (name) {
@@ -66,3 +72,7 @@ Object.keys(gitHosts).forEach(function (name) {
       return protocol.replace(/([\\+*{}()[\]$^|])/g, '\\$1')
     }).join('|') + '):$')
 })
+
+function formatHashFragment (fragment) {
+  return fragment.toLowerCase().replace(/^\W+|\/|\W+$/g, '').replace(/\W+/g, '-')
+}

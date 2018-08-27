@@ -15,6 +15,6 @@ static_library("v8_vtune") {
     "vtune-jit.h",
   ]
   deps = [
-    "//:v8",
+    "../../..:v8",
   ]
 }

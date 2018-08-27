@@ -7,96 +7,94 @@
 // Flags: --harmony-bigint
 
 var data = [{
-  a: "e5e5071838eb1314",
-  b: "3b7f55dce703a25ea14fdea6186156f775dec5d29f6edb3a014",
-  r: "-3b7f55dce703a25ea14fdea6186156f775d067822deb4c88d00"
+  a: 0xc4fd438551d58edn,
+  b: 0x91b42ee55a50d974an,
+  r: -0x90ef31a1d4ff03e5dn
 }, {
-  a: "-f",
-  b: "22d6805c7201a8ad4b9e6c2a7e8b5ab3bac",
-  r: "-22d6805c7201a8ad4b9e6c2a7e8b5ab3bbb"
+  a: -0x86b766ec276e390087458ce093b07b2574732d5f3f5125n,
+  b: 0x4b1fe0dd23316de1b38b343d4112fbd7e8c8d081de5dbabda7357fd9e868466693den,
+  r: -0x4b1fe0dd23316de1b38b34c3f879e7ff5701d10923ea9b5157b0a54e5b95a5a5e503n
 }, {
-  a: "-22",
-  b: "-11a0adfaedd5adb92297af1c3794ef5461dd8bc146db3",
-  r: "11a0adfaedd5adb92297af1c3794ef5461dd8bc146d91"
+  a: 0x63e1eac0d5470c8f802ec390b6415c43ed16d28d6dn,
+  b: -0xbe26927b2f6ae85b5d3062d869d22da005805d23142a236955127b6ca688c07fn,
+  r: 0xbe26927b2f6ae85b5d30633c4bbcee754c8ceca342edb41f966ebf59bd5b4decn
 }, {
-  a: "-d20c39d0",
-  b: "-46faa9d3eabcbd8b6d07adc2d0ff289d2",
-  r: "46faa9d3eabcbd8b6d07adc2c3de65002"
+  a: -0x873cf988993d97e5180fn,
+  b: -0xd791aa365f881a7f05f21f73ef390c0b37408dd0a908801682464178426an,
+  r: 0xd791aa365f881a7f05f21f73ef390c0b37408dd021cb868de908a9932a5bn
 }, {
-  a: "-e5b56109a11",
-  b: "211e1dcdf52f020ab0f16e18cc4e46027d05bfa3155b88973e630ae9a75bf2c7fbad269",
-  r: "-211e1dcdf52f020ab0f16e18cc4e46027d05bfa3155b88973e630ae9a75cd87d5cb6c7a"
+  a: -0xcb273d5b123eff101c62f016ae2896223b93b9114e40d1fn,
+  b: 0x2169f8c954623f8381bf12fd0927e1a645f5b3c6c00e58105c297ba40446208dn,
+  r: -0x2169f8c954623f838e7186d2ba4bd19747bbe2c82af0e1727fe2b735192a2dacn
 }, {
-  a: "-b682aa",
-  b: "-5fa59a6a80d39c0c885c030e9c8c84ec7",
-  r: "5fa59a6a80d39c0c885c030e9c811cc1d"
+  a: -0xe965bf745fffcf22n,
+  b: 0x7c3b92f8a030cbfca7cc5f2fd454459c79a3ac2201524468fbn,
+  r: -0x7c3b92f8a030cbfca7cc5f2fd454459c7a8d11e175b244381dn
 }, {
-  a: "-c1325b8ab9fea966f093bbfbc2e611b0e5bf0b13ce047c7133056d4eea",
-  b: "f97d5c4014c5cc87923c344a",
-  r: "-c1325b8ab9fea966f093bbfbc2e611b0e6b888700e19423dba97a98334"
+  a: 0n,
+  b: 0x6975a8ededffd265f472e660e18n,
+  r: -0x6975a8ededffd265f472e660e18n
 }, {
-  a: "-1872900ab729911a3c021db53672eda07a9ad623",
-  b: "152d13997090c43551edfc89d4c7ea5e9ffee4a114085858892e67e82edea6384aaaba7",
-  r: "-152d13997090c43551edfc89d4c7ea602727e54c86a169fc4950433b960d803ff4581ca"
+  a: -0x236bda1a3a9635190f26c3739b7342f33a27cd2568n,
+  b: 0x1a7e6n,
+  r: -0x236bda1a3a9635190f26c3739b7342f33a27cecd4en
 }, {
-  a: "5440388fc10de9",
-  b: "-4b",
-  r: "5440388fc10e34"
+  a: 0xb682b9c88f0b6d7b5e9a4f77dd0d7885d62cd162783b2e55b30b954e10caf3n,
+  b: 0x2c6574161d9aff7bbebd95e561fbd5d70d893e8c9772bcc697cddn,
+  r: 0xb682b9c88c451639fcc09f8021219f27800d140507629a6ce9946981a74e16n
 }, {
-  a: "-198dc54795a81722f70acc9cc20505492172c7819ba168e57d",
-  b: "-48f3b40bf850f771d44e423eb266846801d9e4e920c",
-  r: "-198dc543066cd66371fb557f7d20e15dfb0a81017e031a5371"
+  a: 0xdd6aa5240c4n,
+  b: 0xb9c7bef20c0cc0f814cce3c40d43e4c26en,
+  r: -0xb9c7bef20c0cc0f814cce3b636999281aan
 }, {
-  a: "c78082429b3163ce243c778",
-  b: "-97afe29",
-  r: "c78082429b3163cebbec5a1"
+  a: 0x35cd14329d5f81dbn,
+  b: 0x25997b1f3500f9b27f2ceean,
+  r: -0x25997b1bd82fb688a934d0fn
 }, {
-  a: "-50df",
-  b: "-d5352ec9c1b0e62b97ea1363ce8b72",
-  r: "d5352ec9c1b0e62b97ea1363ce3a93"
+  a: -0x55ec15d7ed316df3fc7bcfcce0f0a6d7034113bad6d74bae88d4aab03032n,
+  b: 0x9d09b8869aab44d6690fad48c8dffd0e18cc21fb26c2a80ac08fd4f42296f46d37cddn,
+  r: -0x9d09b886a00a0633e7e2c42808a7ba0ae6db2c6896f6b9466dfd49af0b243f183ad0fn
 }, {
-  a: "-5c9777f93d64636ff8bcda39125625aa58a49e9a4f29ece2b7afa5d",
-  b: "894bb7aa90b8687e6290c3218a4258dac9400d556caafe02cf8c312c053f2fc73",
-  r: "-894bb7aa9114fff65bce2784fa3b15b50252637b1703a2a169db5b18e7f6df6d0"
+  a: 0n,
+  b: -0xfbf3b308a6066d497e1cn,
+  r: 0xfbf3b308a6066d497e1cn
 }, {
-  a: "-e15c51f0627e460c477",
-  b: "-dfd13bac43ebe2f8e77f5b31314843",
-  r: "dfd13bac43ddcd33c879334cd083cc"
+  a: 0x6acfc1e4b681be9582cd28453387ed2c29f5eb4cd6d78aaac67n,
+  b: -0x4f5997n,
+  r: 0x6acfc1e4b681be9582cd28453387ed2c29f5eb4cd6d78fa05fen
 }, {
-  a: "0",
-  b: "adbd3e4b06b92771ae25eb52fca5fc86391303ebf7962",
-  r: "-adbd3e4b06b92771ae25eb52fca5fc86391303ebf7962"
+  a: -0xc93eb5cae0c90eb77e702ccb44eea6180829d0b360872n,
+  b: 0xdn,
+  r: -0xc93eb5cae0c90eb77e702ccb44eea6180829d0b36087fn
 }, {
-  a: "960a8aa627a1c48721f4e0",
-  b: "-9e8742ae61615481cdd12f0728f0b61",
-  r: "9e8742ae6ac1fd2c304b4b4f9b10041"
+  a: -0x324ef140a16c5c20a9a189a720136f4836ea98056n,
+  b: 0x49471582a658bf5524128e130b3378d29331baa8eb8n,
+  r: -0x49796473e6fa2bb144bc2f9cb2538c41db68a540f0en
 }, {
-  a: "-abf5cf9ff3c15b0645009",
-  b: "-e805773176aaa712d144e172db033c64aeaddf3380b2",
-  r: "e805773176aaa712d144e1681ba6426572982ecf30a9"
+  a: 0x6f15ac8490de4e308286fdde1142ad0052c2cn,
+  b: 0x9ca6c715de18d7f64a751452e967b5807eec951777245ce5fe3n,
+  r: -0x9ca6c715de18d78734c88fc20b1984fdf7eeb70634775c933b7n
 }, {
-  a: "349ebb89b13a7149ec1a4e067574c3825f90ec4e4413948b808c6a",
-  b: "-44cdc0e3efa11513525f68163033a59d7b0610070",
-  r: "349ebb89b13a7596c8288d0086c5f8a856124f517e6d6c3be18cda"
+  a: -0xc303adn,
+  b: 0x5ec0a706a54978a59b10007942e563957ad22e708678fbfdb02862b2c3n,
+  r: -0x5ec0a706a54978a59b10007942e563957ad22e708678fbfdb02925b670n
 }, {
-  a: "a86c53e8c49b20cff057882c4345c40f5c34a8cb8",
-  b: "-76453703c781511b52e663",
-  r: "a86c53e8c49b20cff05eec7fb3823c246de9d731b"
+  a: -0xdb736b5f3979c24f70aafa5f17711d725d552a9778e1n,
+  b: 0x70b56a0773498a45b796cf79ea18211614cn,
+  r: -0xdb736b5f408518efe7df930372ea8a69fbf6aca8da2dn
 }, {
-  a: "-2647d3c",
-  b: "776e5b3a57bd5196be1b9c99ae899d949cb2b94310c53be8910db71b",
-  r: "-776e5b3a57bd5196be1b9c99ae899d949cb2b94310c53be893723457"
+  a: 0xe91b9a797168c6b7440f946n,
+  b: -0x2588c1301521dd9646a2e22e3aca462ca95e76069be2f7b95d8bb81ccn,
+  r: 0x2588c1301521dd9646a2e22e3aca462caa4791a11554608014cfc7b12n
 }];
 
 var error_count = 0;
 for (var i = 0; i < data.length; i++) {
   var d = data[i];
-  var a = BigInt.parseInt(d.a, 16);
-  var b = BigInt.parseInt(d.b, 16);
-  var r = a - b;
-  if (d.r !== r.toString(16)) {
-    print("Input A:  " + a.toString(16));
-    print("Input B:  " + b.toString(16));
+  var r = d.a - d.b;
+  if (d.r !== r) {
+    print("Input A:  " + d.a.toString(16));
+    print("Input B:  " + d.b.toString(16));
     print("Result:   " + r.toString(16));
     print("Expected: " + d.r);
     print("Op: -");

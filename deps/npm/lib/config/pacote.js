@@ -26,6 +26,7 @@ function pacoteOpts (moreOpts) {
     defaultTag: npm.config.get('tag'),
     dirPacker: pack.packGitDep,
     hashAlgorithm: 'sha1',
+    includeDeprecated: false,
     key: npm.config.get('key'),
     localAddress: npm.config.get('local-address'),
     log: log,
@@ -37,6 +38,7 @@ function pacoteOpts (moreOpts) {
     preferOnline: npm.config.get('prefer-online') || npm.config.get('cache-max') <= 0,
     projectScope: npm.projectScope,
     proxy: npm.config.get('https-proxy') || npm.config.get('proxy'),
+    noProxy: npm.config.get('no-proxy'),
     refer: npm.registry.refer,
     registry: npm.config.get('registry'),
     retry: {

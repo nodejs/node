@@ -57,7 +57,7 @@ function update_ (args) {
       // use the initial installation method (repo, tar, git) for updating
       if (url.parse(ww.req).protocol) ww.what = ww.req
 
-      const where = ww.dep.parent && ww.dep.parent.path || ww.dep.path
+      const where = (ww.dep.parent && ww.dep.parent.path) || ww.dep.path
       const isTransitive = !(ww.dep.requiredBy || []).some((p) => p.isTop)
       const key = where + ':' + String(isTransitive)
       if (!toInstall[key]) toInstall[key] = {where: where, opts: {saveOnlyLock: isTransitive}, what: []}

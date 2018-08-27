@@ -1,53 +1,67 @@
-'use strict';
 // Flags: --expose-internals
+'use strict';
 
 const common = require('../common');
 const tty = require('tty');
-const { SystemError } = require('internal/errors');
+const { internalBinding } = require('internal/test/binding');
+const {
+  UV_EBADF,
+  UV_EINVAL
+} = internalBinding('uv');
+const assert = require('assert');
 
-common.expectsError(
+assert.throws(
   () => new tty.WriteStream(-1),
   {
     code: 'ERR_INVALID_FD',
-    type: RangeError,
+    name: 'RangeError [ERR_INVALID_FD]',
     message: '"fd" must be a positive integer: -1'
   }
 );
 
 {
-  const message = common.isWindows ?
-    'bad file descriptor: EBADF [uv_tty_init]' :
-    'invalid argument: EINVAL [uv_tty_init]';
+  const info = {
+    code: common.isWindows ? 'EBADF' : 'EINVAL',
+    message: common.isWindows ? 'bad file descriptor' : 'invalid argument',
+    errno: common.isWindows ? UV_EBADF : UV_EINVAL,
+    syscall: 'uv_tty_init'
+  };
 
-  common.expectsError(
+  const suffix = common.isWindows ?
+    'EBADF (bad file descriptor)' : 'EINVAL (invalid argument)';
+  const message = `TTY initialization failed: uv_tty_init returned ${suffix}`;
+
+  assert.throws(
     () => {
       common.runWithInvalidFD((fd) => {
         new tty.WriteStream(fd);
       });
     }, {
-      code: 'ERR_SYSTEM_ERROR',
-      type: SystemError,
-      message
+      code: 'ERR_TTY_INIT_FAILED',
+      name: 'SystemError [ERR_TTY_INIT_FAILED]',
+      message,
+      info
     }
   );
 
-  common.expectsError(
+  assert.throws(
     () => {
       common.runWithInvalidFD((fd) => {
         new tty.ReadStream(fd);
       });
     }, {
-      code: 'ERR_SYSTEM_ERROR',
-      type: SystemError,
-      message
+      code: 'ERR_TTY_INIT_FAILED',
+      name: 'SystemError [ERR_TTY_INIT_FAILED]',
+      message,
+      info
     });
 }
 
-common.expectsError(
+assert.throws(
   () => new tty.ReadStream(-1),
   {
     code: 'ERR_INVALID_FD',
-    type: RangeError,
+    name: 'RangeError [ERR_INVALID_FD]',
     message: '"fd" must be a positive integer: -1'
   }
 );

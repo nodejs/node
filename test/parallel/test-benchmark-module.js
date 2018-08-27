@@ -5,7 +5,7 @@ require('../common');
 const runBenchmark = require('../common/benchmark');
 
 runBenchmark('module', [
-  'thousands=.001',
+  'n=1',
   'useCache=true',
   'fullPath=true'
 ]);

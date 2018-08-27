@@ -41,6 +41,9 @@
 
   # Very slow in stress mode.
   'regress/regress-2318': [SKIP],
+
+  # https://crbug.com/v8/7626
+  'debug/debug-stepout-scope-part*': [PASS, ['tsan', SKIP]],
 }],  # variant == stress
 
 ##############################################################################
@@ -72,9 +75,9 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ##############################################################################
 ['arch == arm and not simulator_run', {

@@ -21,5 +21,4 @@ check_targets = []
 # These are the list of GN files that run exec_script. This whitelist exists
 # to force additional review for new uses of exec_script, which is strongly
 # discouraged except for gypi_to_gn calls.
-exec_script_whitelist =
-    build_dotfile_settings.exec_script_whitelist + [ "//test/test262/BUILD.gn" ]
+exec_script_whitelist = build_dotfile_settings.exec_script_whitelist + []

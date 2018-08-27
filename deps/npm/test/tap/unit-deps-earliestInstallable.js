@@ -2,6 +2,7 @@
 var test = require('tap').test
 var requireInject = require('require-inject')
 var npa = require('npm-package-arg')
+var log = require('npmlog')
 
 // we're just mocking to avoid having to call `npm.load`
 var deps = requireInject('../../lib/install/deps.js', {
@@ -66,7 +67,7 @@ test('earliestInstallable should consider devDependencies', function (t) {
   dep2a.parent = dep1
   dep2.parent = pkg
 
-  var earliest = earliestInstallable(dep1, dep1, dep2a.package)
+  var earliest = earliestInstallable(dep1, dep1, dep2a.package, log)
   t.isDeeply(earliest, dep1, 'should hoist package when an incompatible devDependency is present')
   t.end()
 })
@@ -107,7 +108,7 @@ test('earliestInstallable should reuse shared prod/dev deps when they are identi
   dep1.parent = pkg
   dep2.parent = pkg
 
-  var earliest = earliestInstallable(dep1, dep1, dep2.package)
+  var earliest = earliestInstallable(dep1, dep1, dep2.package, log)
   t.isDeeply(earliest, pkg, 'should reuse identical shared dev/prod deps when installing both')
   t.end()
 })

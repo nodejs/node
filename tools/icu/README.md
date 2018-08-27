@@ -1,6 +1,6 @@
 # Notes about the `tools/icu` subdirectory
 
-This directory contains tools, data, and information about the [http://icu-project.org](ICU)
+This directory contains tools, data, and information about the [ICU](http://icu-project.org)
 (International Components for Unicode) integration. ICU is used to provide
 internationalization functionality.
 

@@ -26,7 +26,7 @@ function main({ type, len, c }) {
     if (workers < 2)
       return;
 
-    setTimeout(function() {
+    setImmediate(function() {
       const path = `/${type}/${len}`;
 
       bench.http({
@@ -36,6 +36,6 @@ function main({ type, len, c }) {
         w1.destroy();
         w2.destroy();
       });
-    }, 100);
+    });
   });
 }

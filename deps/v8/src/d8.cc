@@ -40,14 +40,12 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 #include "src/v8.h"
+#include "src/wasm/wasm-engine.h"
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #else
 #include <windows.h>  // NOLINT
-#if defined(_MSC_VER)
-#include <crtdbg.h>  // NOLINT
-#endif               // defined(_MSC_VER)
 #endif               // !defined(_WIN32) && !defined(_WIN64)
 
 #ifndef DCHECK
@@ -84,17 +82,6 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
     allocator_->Free(data, length);
   }
 
-  void* Reserve(size_t length) override { return allocator_->Reserve(length); }
-
-  void Free(void* data, size_t length, AllocationMode mode) override {
-    allocator_->Free(data, length, mode);
-  }
-
-  void SetProtection(void* data, size_t length,
-                     Protection protection) override {
-    allocator_->SetProtection(data, length, protection);
-  }
-
  private:
   std::unique_ptr<Allocator> allocator_ =
       std::unique_ptr<Allocator>(NewDefaultAllocator());
@@ -119,18 +106,6 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
     } else {
       ArrayBufferAllocatorBase::Free(data, length);
     }
-  }
-
-  void* Reserve(size_t length) override {
-    // |length| must be over the threshold so we can distinguish VM from
-    // malloced memory.
-    DCHECK_LE(kVMThreshold, length);
-    return ArrayBufferAllocatorBase::Reserve(length);
-  }
-
-  void Free(void* data, size_t length, AllocationMode) override {
-    // Ignore allocation mode; the appropriate action is determined by |length|.
-    Free(data, length);
   }
 
  private:
@@ -172,14 +147,6 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
     return ArrayBufferAllocatorBase::Free(data, Adjust(length));
   }
 
-  void* Reserve(size_t length) override {
-    return ArrayBufferAllocatorBase::Reserve(Adjust(length));
-  }
-
-  void Free(void* data, size_t length, AllocationMode mode) override {
-    return ArrayBufferAllocatorBase::Free(data, Adjust(length), mode);
-  }
-
  private:
   size_t Adjust(size_t length) {
     const size_t kAllocationLimit = 10 * kMB;
@@ -187,9 +154,9 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 };
 
-// Predictable v8::Platform implementation. Background tasks and idle tasks are
-// disallowed, and the time reported by {MonotonicallyIncreasingTime} is
-// deterministic.
+// Predictable v8::Platform implementation. Worker threads are disabled, idle
+// tasks are disallowed, and the time reported by {MonotonicallyIncreasingTime}
+// is deterministic.
 class PredictablePlatform : public Platform {
  public:
   explicit PredictablePlatform(std::unique_ptr<Platform> platform)
@@ -214,19 +181,17 @@ class PredictablePlatform : public Platform {
     return platform_->GetForegroundTaskRunner(isolate);
   }
 
-  std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
-      v8::Isolate* isolate) override {
-    // Return the foreground task runner here, so that all tasks get executed
-    // sequentially in a predictable order.
-    return platform_->GetForegroundTaskRunner(isolate);
-  }
+  int NumberOfWorkerThreads() override { return 0; }
 
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {
+  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
     // It's not defined when background tasks are being executed, so we can just
     // execute them right away.
     task->Run();
-    delete task;
+  }
+
+  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
+                                 double delay_in_seconds) override {
+    // Never run delayed tasks.
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
@@ -515,12 +480,6 @@ ArrayBuffer::Allocator* Shell::array_buffer_allocator;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
-bool CounterMap::Match(void* key1, void* key2) {
-  const char* name1 = reinterpret_cast<const char*>(key1);
-  const char* name2 = reinterpret_cast<const char*>(key2);
-  return strcmp(name1, name2) == 0;
-}
-
 // Dummy external source stream which returns the whole source in one go.
 class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
  public:
@@ -604,8 +563,9 @@ void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
 
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
-                          Local<Value> name, bool print_result,
-                          bool report_exceptions) {
+                          Local<Value> name, PrintResult print_result,
+                          ReportExceptions report_exceptions,
+                          ProcessMessageQueue process_message_queue) {
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
@@ -621,8 +581,9 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> context(isolate->GetCurrentContext());
     ScriptOrigin origin(name);
 
-    if (options.compile_options == ScriptCompiler::kConsumeCodeCache ||
-        options.compile_options == ScriptCompiler::kConsumeParserCache) {
+    DCHECK(options.compile_options != ScriptCompiler::kProduceParserCache);
+    DCHECK(options.compile_options != ScriptCompiler::kConsumeParserCache);
+    if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
       ScriptCompiler::CachedData* cached_code =
           LookupCodeCache(isolate, source);
       if (cached_code != nullptr) {
@@ -656,9 +617,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       ScriptCompiler::Source script_source(source, origin);
       maybe_script = ScriptCompiler::Compile(context, &script_source,
                                              options.compile_options);
-      if (options.compile_options == ScriptCompiler::kProduceParserCache) {
-        StoreInCodeCache(isolate, source, script_source.GetCachedData());
-      }
     }
 
     Local<Script> script;
@@ -672,7 +630,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
         ShellOptions::CodeCacheOptions::kProduceCache) {
       // Serialize and store it in memory for the next execution.
       ScriptCompiler::CachedData* cached_data =
-          ScriptCompiler::CreateCodeCache(script->GetUnboundScript(), source);
+          ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
       StoreInCodeCache(isolate, source, cached_data);
       delete cached_data;
     }
@@ -681,11 +639,11 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
         ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute) {
       // Serialize and store it in memory for the next execution.
       ScriptCompiler::CachedData* cached_data =
-          ScriptCompiler::CreateCodeCache(script->GetUnboundScript(), source);
+          ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
       StoreInCodeCache(isolate, source, cached_data);
       delete cached_data;
     }
-    if (!EmptyMessageQueues(isolate)) success = false;
+    if (process_message_queue && !EmptyMessageQueues(isolate)) success = false;
     data->realm_current_ = data->realm_switch_;
   }
   Local<Value> result;
@@ -957,9 +915,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   std::string source_url = ToSTLString(isolate, referrer);
   std::string dir_name =
-      DirName(IsAbsolutePath(source_url)
-                  ? source_url
-                  : NormalizePath(source_url, GetWorkingDirectory()));
+      DirName(NormalizePath(source_url, GetWorkingDirectory()));
   std::string file_name = ToSTLString(isolate, specifier);
   std::string absolute_path = NormalizePath(file_name, dir_name);
 
@@ -1313,7 +1269,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
     int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), file));
     if (n != str.length()) {
       printf("Error in fwrite\n");
-      Shell::Exit(1);
+      base::OS::ExitProcess(1);
     }
   }
 }
@@ -1409,11 +1365,14 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
       Throw(args.GetIsolate(), "Error loading file");
       return;
     }
-    if (!ExecuteString(args.GetIsolate(), source,
-                       String::NewFromUtf8(args.GetIsolate(), *file,
-                                           NewStringType::kNormal)
-                           .ToLocalChecked(),
-                       false, !options.quiet_load)) {
+    if (!ExecuteString(
+            args.GetIsolate(), source,
+            String::NewFromUtf8(args.GetIsolate(), *file,
+                                NewStringType::kNormal)
+                .ToLocalChecked(),
+            kNoPrintResult,
+            options.quiet_load ? kNoReportExceptions : kReportExceptions,
+            kNoProcessMessageQueue)) {
       Throw(args.GetIsolate(), "Error executing file");
       return;
     }
@@ -1532,7 +1491,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   CleanupWorkers();
   args->GetIsolate()->Exit();
   OnExit(args->GetIsolate());
-  Exit(exit_code);
+  base::OS::ExitProcess(exit_code);
 }
 
 
@@ -1656,7 +1615,7 @@ void Shell::MapCounters(v8::Isolate* isolate, const char* name) {
       (counters_file_ == nullptr) ? nullptr : counters_file_->memory();
   if (memory == nullptr) {
     printf("Could not map counters file %s\n", name);
-    Exit(1);
+    base::OS::ExitProcess(1);
   }
   counters_ = static_cast<CounterCollection*>(memory);
   isolate->SetCounterFunction(LookupCounter);
@@ -1664,25 +1623,15 @@ void Shell::MapCounters(v8::Isolate* isolate, const char* name) {
   isolate->SetAddHistogramSampleFunction(AddHistogramSample);
 }
 
-
-int CounterMap::Hash(const char* name) {
-  int h = 0;
-  int c;
-  while ((c = *name++) != 0) {
-    h += h << 5;
-    h += c;
-  }
-  return h;
-}
-
-
 Counter* Shell::GetCounter(const char* name, bool is_histogram) {
-  Counter* counter = counter_map_->Lookup(name);
+  auto map_entry = counter_map_->find(name);
+  Counter* counter =
+      map_entry != counter_map_->end() ? map_entry->second : nullptr;
 
   if (counter == nullptr) {
     counter = counters_->GetNextCounter();
     if (counter != nullptr) {
-      counter_map_->Set(name, counter);
+      (*counter_map_)[name] = counter;
       counter->Bind(name, is_histogram);
     }
   } else {
@@ -2118,15 +2067,13 @@ void Shell::OnExit(v8::Isolate* isolate) {
   isolate->Dispose();
 
   if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
-    int number_of_counters = 0;
-    for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
-      number_of_counters++;
-    }
+    const int number_of_counters = static_cast<int>(counter_map_->size());
     CounterAndKey* counters = new CounterAndKey[number_of_counters];
     int j = 0;
-    for (CounterMap::Iterator i(counter_map_); i.More(); i.Next(), j++) {
-      counters[j].counter = i.CurrentValue();
-      counters[j].key = i.CurrentKey();
+    for (auto map_entry : *counter_map_) {
+      counters[j].counter = map_entry.second;
+      counters[j].key = map_entry.first;
+      j++;
     }
     std::sort(counters, counters + number_of_counters);
 
@@ -2305,7 +2252,8 @@ void Shell::RunShell(Isolate* isolate) {
     printf("d8> ");
     Local<String> input = Shell::ReadFromStdin(isolate);
     if (input.IsEmpty()) break;
-    ExecuteString(isolate, input, name, true, true);
+    ExecuteString(isolate, input, name, kPrintResult, kReportExceptions,
+                  kProcessMessageQueue);
   }
   printf("\n");
   // We need to explicitly clean up the module embedder data for
@@ -2467,7 +2415,9 @@ void SourceGroup::Execute(Isolate* isolate) {
           String::NewFromUtf8(isolate, argv_[i + 1], NewStringType::kNormal)
               .ToLocalChecked();
       Shell::options.script_executed = true;
-      if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
+      if (!Shell::ExecuteString(isolate, source, file_name,
+                                Shell::kNoPrintResult, Shell::kReportExceptions,
+                                Shell::kNoProcessMessageQueue)) {
         exception_was_thrown = true;
         break;
       }
@@ -2495,16 +2445,18 @@ void SourceGroup::Execute(Isolate* isolate) {
     Local<String> source = ReadFile(isolate, arg);
     if (source.IsEmpty()) {
       printf("Error reading '%s'\n", arg);
-      Shell::Exit(1);
+      base::OS::ExitProcess(1);
     }
     Shell::options.script_executed = true;
-    if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
+    if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
+                              Shell::kReportExceptions,
+                              Shell::kProcessMessageQueue)) {
       exception_was_thrown = true;
       break;
     }
   }
   if (exception_was_thrown != Shell::options.expected_to_throw) {
-    Shell::Exit(1);
+    base::OS::ExitProcess(1);
   }
 }
 
@@ -2523,8 +2475,7 @@ void SourceGroup::ExecuteInThread() {
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
       Shell::HostInitializeImportMetaObject);
-
-  Shell::EnsureEventLoopInitialized(isolate);
+  Shell::SetWaitUntilDone(isolate, false);
   D8Console console(isolate);
   debug::SetConsoleDelegate(isolate, &console);
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
@@ -2576,7 +2527,11 @@ void SourceGroup::JoinThread() {
 
 ExternalizedContents::~ExternalizedContents() {
   if (base_ != nullptr) {
-    Shell::array_buffer_allocator->Free(base_, length_, mode_);
+    if (mode_ == ArrayBuffer::Allocator::AllocationMode::kReservation) {
+      CHECK(i::FreePages(base_, length_));
+    } else {
+      Shell::array_buffer_allocator->Free(base_, length_);
+    }
   }
 }
 
@@ -2703,7 +2658,9 @@ void Worker::ExecuteInThread() {
         Local<String> source =
             String::NewFromUtf8(isolate, script_, NewStringType::kNormal)
                 .ToLocalChecked();
-        if (Shell::ExecuteString(isolate, source, file_name, false, true)) {
+        if (Shell::ExecuteString(
+                isolate, source, file_name, Shell::kNoPrintResult,
+                Shell::kReportExceptions, Shell::kProcessMessageQueue)) {
           // Get the message handler
           Local<Value> onmessage =
               global->Get(context, String::NewFromUtf8(isolate, "onmessage",
@@ -2724,7 +2681,9 @@ void Worker::ExecuteInThread() {
               if (Shell::DeserializeValue(isolate, std::move(data))
                       .ToLocal(&value)) {
                 Local<Value> argv[] = {value};
-                (void)onmessage_fun->Call(context, global, 1, argv);
+                MaybeLocal<Value> result =
+                    onmessage_fun->Call(context, global, 1, argv);
+                USE(result);
               }
               if (try_catch.HasCaught()) {
                 Shell::ReportException(isolate, &try_catch);
@@ -2825,6 +2784,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--omit-quit") == 0) {
       options.omit_quit = true;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--no-wait-for-wasm") == 0) {
+      // TODO(herhut) Remove this flag once wasm compilation is fully
+      // isolate-independent.
+      options.wait_for_wasm = false;
+      argv[i] = nullptr;
     } else if (strcmp(argv[i], "-f") == 0) {
       // Ignore any -f flags for compatibility with other stand-alone
       // JavaScript engines.
@@ -2852,8 +2816,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
         options.code_cache_options =
             ShellOptions::CodeCacheOptions::kProduceCache;
-      } else if (strncmp(value, "=parse", 7) == 0) {
-        options.compile_options = v8::ScriptCompiler::kProduceParserCache;
       } else if (strncmp(value, "=none", 6) == 0) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
         options.code_cache_options =
@@ -2900,6 +2862,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--quiet-load") == 0) {
       options.quiet_load = true;
       argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--thread-pool-size=", 19) == 0) {
+      options.thread_pool_size = atoi(argv[i] + 19);
+      argv[i] = nullptr;
     }
   }
 
@@ -2935,13 +2900,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   return true;
 }
 
-
 int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
   }
   {
-    EnsureEventLoopInitialized(isolate);
+    SetWaitUntilDone(isolate, false);
     if (options.lcov_file) {
       debug::Coverage::SelectMode(isolate, debug::Coverage::kBlockCount);
     }
@@ -2992,11 +2956,6 @@ void Shell::CollectGarbage(Isolate* isolate) {
   }
 }
 
-void Shell::EnsureEventLoopInitialized(Isolate* isolate) {
-  v8::platform::EnsureEventLoopInitialized(GetDefaultPlatform(), isolate);
-  SetWaitUntilDone(isolate, false);
-}
-
 void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
   base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
   if (isolate_status_.count(isolate) == 0) {
@@ -3037,13 +2996,18 @@ bool ProcessMessages(Isolate* isolate,
 }  // anonymous namespace
 
 void Shell::CompleteMessageLoop(Isolate* isolate) {
-  ProcessMessages(isolate, [isolate]() {
+  auto get_waiting_behaviour = [isolate]() {
     base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
     DCHECK_GT(isolate_status_.count(isolate), 0);
-    return isolate_status_[isolate]
-               ? platform::MessageLoopBehavior::kWaitForWork
-               : platform::MessageLoopBehavior::kDoNotWait;
-  });
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::wasm::WasmEngine* wasm_engine = i_isolate->wasm_engine();
+    bool should_wait =
+        (options.wait_for_wasm && wasm_engine->HasRunningCompileJob()) ||
+        isolate_status_[isolate];
+    return should_wait ? platform::MessageLoopBehavior::kWaitForWork
+                       : platform::MessageLoopBehavior::kDoNotWait;
+  };
+  ProcessMessages(isolate, get_waiting_behaviour);
 }
 
 bool Shell::EmptyMessageQueues(Isolate* isolate) {
@@ -3085,6 +3049,13 @@ class Serializer : public ValueSerializer::Delegate {
 
   std::unique_ptr<SerializationData> Release() { return std::move(data_); }
 
+  void AppendExternalizedContentsTo(std::vector<ExternalizedContents>* to) {
+    to->insert(to->end(),
+               std::make_move_iterator(externalized_contents_.begin()),
+               std::make_move_iterator(externalized_contents_.end()));
+    externalized_contents_.clear();
+  }
+
  protected:
   // Implements ValueSerializer::Delegate.
   void ThrowDataCloneError(Local<String> message) override {
@@ -3102,6 +3073,8 @@ class Serializer : public ValueSerializer::Delegate {
 
     size_t index = shared_array_buffers_.size();
     shared_array_buffers_.emplace_back(isolate_, shared_array_buffer);
+    data_->shared_array_buffer_contents_.push_back(
+        MaybeExternalize(shared_array_buffer));
     return Just<uint32_t>(static_cast<uint32_t>(index));
   }
 
@@ -3155,7 +3128,7 @@ class Serializer : public ValueSerializer::Delegate {
       return array_buffer->GetContents();
     } else {
       typename T::Contents contents = array_buffer->Externalize();
-      data_->externalized_contents_.emplace_back(contents);
+      externalized_contents_.emplace_back(contents);
       return contents;
     }
   }
@@ -3174,13 +3147,6 @@ class Serializer : public ValueSerializer::Delegate {
       data_->array_buffer_contents_.push_back(contents);
     }
 
-    for (const auto& global_shared_array_buffer : shared_array_buffers_) {
-      Local<SharedArrayBuffer> shared_array_buffer =
-          Local<SharedArrayBuffer>::New(isolate_, global_shared_array_buffer);
-      data_->shared_array_buffer_contents_.push_back(
-          MaybeExternalize(shared_array_buffer));
-    }
-
     return Just(true);
   }
 
@@ -3189,6 +3155,7 @@ class Serializer : public ValueSerializer::Delegate {
   std::unique_ptr<SerializationData> data_;
   std::vector<Global<ArrayBuffer>> array_buffers_;
   std::vector<Global<SharedArrayBuffer>> shared_array_buffers_;
+  std::vector<ExternalizedContents> externalized_contents_;
   size_t current_memory_usage_;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
@@ -3216,14 +3183,19 @@ class Deserializer : public ValueDeserializer::Delegate {
       deserializer_.TransferArrayBuffer(index++, array_buffer);
     }
 
-    index = 0;
-    for (const auto& contents : data_->shared_array_buffer_contents()) {
-      Local<SharedArrayBuffer> shared_array_buffer = SharedArrayBuffer::New(
-          isolate_, contents.Data(), contents.ByteLength());
-      deserializer_.TransferSharedArrayBuffer(index++, shared_array_buffer);
-    }
-
     return deserializer_.ReadValue(context);
+  }
+
+  MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
+      Isolate* isolate, uint32_t clone_id) override {
+    DCHECK_NOT_NULL(data_);
+    if (clone_id < data_->shared_array_buffer_contents().size()) {
+      SharedArrayBuffer::Contents contents =
+          data_->shared_array_buffer_contents().at(clone_id);
+      return SharedArrayBuffer::New(isolate_, contents.Data(),
+                                    contents.ByteLength());
+    }
+    return MaybeLocal<SharedArrayBuffer>();
   }
 
  private:
@@ -3242,9 +3214,11 @@ std::unique_ptr<SerializationData> Shell::SerializeValue(
   if (serializer.WriteValue(context, value, transfer).To(&ok)) {
     std::unique_ptr<SerializationData> data = serializer.Release();
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
-    data->AppendExternalizedContentsTo(&externalized_contents_);
+    serializer.AppendExternalizedContentsTo(&externalized_contents_);
     return data;
   }
+  // Append externalized contents even when WriteValue fails.
+  serializer.AppendExternalizedContentsTo(&externalized_contents_);
   return nullptr;
 }
 
@@ -3281,21 +3255,7 @@ void Shell::CleanupWorkers() {
 
 int Shell::Main(int argc, char* argv[]) {
   std::ofstream trace_file;
-#if (defined(_WIN32) || defined(_WIN64))
-  UINT new_flags =
-      SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
-  UINT existing_flags = SetErrorMode(new_flags);
-  SetErrorMode(existing_flags | new_flags);
-#if defined(_MSC_VER)
-  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-  _set_error_mode(_OUT_TO_STDERR);
-#endif  // defined(_MSC_VER)
-#endif  // defined(_WIN32) || defined(_WIN64)
+  v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 
@@ -3318,8 +3278,8 @@ int Shell::Main(int argc, char* argv[]) {
 
   platform::tracing::TracingController* tracing_controller = tracing.get();
   g_platform = v8::platform::NewDefaultPlatform(
-      0, v8::platform::IdleTaskSupport::kEnabled, in_process_stack_dumping,
-      std::move(tracing));
+      options.thread_pool_size, v8::platform::IdleTaskSupport::kEnabled,
+      in_process_stack_dumping, std::move(tracing));
   if (i::FLAG_verify_predictable) {
     g_platform.reset(new PredictablePlatform(std::move(g_platform)));
   }
@@ -3332,7 +3292,9 @@ int Shell::Main(int argc, char* argv[]) {
   } else {
     v8::V8::InitializeExternalStartupData(argv[0]);
   }
-  SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
+  if (i::FLAG_trace_turbo_cfg_file == nullptr) {
+    SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
+  }
   SetFlagsFromString("--redirect-code-traces-to=code.asm");
   int result = 0;
   Isolate::CreateParams create_params;
@@ -3358,10 +3320,10 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
 
-  if (i::trap_handler::IsTrapHandlerEnabled()) {
-    if (!v8::V8::RegisterDefaultSignalHandler()) {
-      fprintf(stderr, "Could not register signal handler");
-      exit(1);
+  if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
+    constexpr bool use_default_trap_handler = true;
+    if (!v8::V8::EnableWebAssemblyTrapHandler(use_default_trap_handler)) {
+      FATAL("Could not register trap handler");
     }
   }
 
@@ -3419,20 +3381,6 @@ int Shell::Main(int argc, char* argv[]) {
                ShellOptions::CodeCacheOptions::kNoProduceCache) {
       printf("============ Run: Produce code cache ============\n");
       // First run to produce the cache
-      result = RunMain(isolate, argc, argv, false);
-
-      // Change the options to consume cache
-      if (options.compile_options == v8::ScriptCompiler::kProduceParserCache) {
-        options.compile_options = v8::ScriptCompiler::kConsumeParserCache;
-      } else {
-        DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
-               options.compile_options ==
-                   v8::ScriptCompiler::kNoCompileOptions);
-        options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
-      }
-
-      printf("============ Run: Consume code cache ============\n");
-      // Second run to consume the cache in new isolate
       Isolate::CreateParams create_params;
       create_params.array_buffer_allocator = Shell::array_buffer_allocator;
       i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
@@ -3448,9 +3396,19 @@ int Shell::Main(int argc, char* argv[]) {
         PerIsolateData data(isolate2);
         Isolate::Scope isolate_scope(isolate2);
 
-        result = RunMain(isolate2, argc, argv, true);
+        result = RunMain(isolate2, argc, argv, false);
       }
       isolate2->Dispose();
+
+      // Change the options to consume cache
+      DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
+             options.compile_options == v8::ScriptCompiler::kNoCompileOptions);
+      options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
+
+      printf("============ Run: Consume code cache ============\n");
+      // Second run to consume the cache in current isolate
+      result = RunMain(isolate, argc, argv, true);
+      options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
     } else {
       bool last_run = true;
       result = RunMain(isolate, argc, argv, last_run);

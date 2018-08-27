@@ -103,7 +103,7 @@ MaybeHandle<Context> GetSpecializationContext(Node* node, size_t* distance,
                                               Maybe<OuterContext> maybe_outer) {
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
-      Handle<Object> object = OpParameter<Handle<HeapObject>>(node);
+      Handle<Object> object = HeapConstantOf(node->op());
       if (object->IsContext()) return Handle<Context>::cast(object);
       break;
     }

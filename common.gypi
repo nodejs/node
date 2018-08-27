@@ -16,6 +16,8 @@
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
     'node_module_version%': '',
+    'node_with_ltcg%': '',
+    'node_use_pch%': 'false',
 
     'node_tag%': '',
     'uv_library%': 'static_library',
@@ -27,7 +29,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.5',
+    'v8_embedder_string': '-node.18',
 
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
@@ -49,10 +51,16 @@
     'conditions': [
       ['GENERATOR=="ninja"', {
         'obj_dir': '<(PRODUCT_DIR)/obj',
-        'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/src/libv8_base.a',
+        'conditions': [
+          [ 'build_v8_with_gn=="true"', {
+            'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/gypfiles/v8_monolith.gen/gn/obj/libv8_monolith.a',
+          }, {
+            'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/gypfiles/libv8_base.a',
+          }],
+        ]
        }, {
-         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
-         'v8_base%': '<(PRODUCT_DIR)/obj.target/deps/v8/src/libv8_base.a',
+        'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+        'v8_base': '<(PRODUCT_DIR)/obj.target/deps/v8/gypfiles/libv8_base.a',
       }],
       ['OS == "win"', {
         'os_posix': 0,
@@ -63,9 +71,18 @@
         'os_posix': 1,
         'v8_postmortem_support%': 'true',
       }],
-      ['OS== "mac"', {
+      ['OS == "mac"', {
         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
         'v8_base': '<(PRODUCT_DIR)/libv8_base.a',
+      }],
+      ['build_v8_with_gn == "true"', {
+        'conditions': [
+          ['GENERATOR == "ninja"', {
+            'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/gypfiles/v8_monolith.gen/gn/obj/libv8_monolith.a',
+          }, {
+            'v8_base': '<(PRODUCT_DIR)/obj.target/v8_monolith/geni/gn/obj/libv8_monolith.a',
+          }],
+        ],
       }],
       ['openssl_fips != ""', {
         'openssl_product': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',
@@ -94,8 +111,17 @@
             'msvs_configuration_platform': 'x64',
           }],
           ['OS=="aix"', {
+            'variables': {'real_os_name': '<!(uname -s)',},
             'cflags': [ '-gxcoff' ],
             'ldflags': [ '-Wl,-bbigtoc' ],
+            'conditions': [
+              ['"<(real_os_name)"=="OS400"', {
+                'ldflags': [
+                  '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
+                  '-Wl,-brtl',
+                ],
+              }],
+            ],
           }],
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
@@ -151,6 +177,17 @@
           ['OS!="mac" and OS!="win"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
+          ['OS=="linux"', {
+            'variables': {
+              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
+            },
+            'conditions': [
+              ['enable_lto=="true"', {
+                'cflags': ['<(lto)'],
+                'ldflags': ['<(lto)'],
+              },],
+            ],
+          },],
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
@@ -168,6 +205,35 @@
                 'RuntimeLibrary': 0 # MultiThreaded (/MT)
               }
             }
+          }],
+          ['node_with_ltcg=="true"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'WholeProgramOptimization': 'true' # /GL, whole program optimization, needed for LTCG
+              },
+              'VCLibrarianTool': {
+                'AdditionalOptions': [
+                  '/LTCG:INCREMENTAL', # link time code generation
+                ]
+              },
+              'VCLinkerTool': {
+                'OptimizeReferences': 2, # /OPT:REF
+                'EnableCOMDATFolding': 2, # /OPT:ICF
+                'LinkIncremental': 1, # disable incremental linking
+                'AdditionalOptions': [
+                  '/LTCG:INCREMENTAL', # incremental link-time code generation
+                ]
+              }
+            }
+          }, {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'WholeProgramOptimization': 'false'
+              },
+              'VCLinkerTool': {
+                'LinkIncremental': 2 # enable incremental linking
+              }
+            }
           }]
         ],
         'msvs_settings': {
@@ -175,7 +241,6 @@
             'Optimization': 3, # /Ox, full optimization
             'FavorSizeOrSpeed': 1, # /Ot, favor speed over size
             'InlineFunctionExpansion': 2, # /Ob2, inline anything eligible
-            'WholeProgramOptimization': 'true', # /GL, whole program optimization, needed for LTCG
             'OmitFramePointers': 'true',
             'EnableFunctionLevelLinking': 'true',
             'EnableIntrinsicFunctions': 'true',
@@ -183,21 +248,8 @@
             'AdditionalOptions': [
               '/MP', # compile across multiple CPUs
             ],
-          },
-          'VCLibrarianTool': {
-            'AdditionalOptions': [
-              '/LTCG', # link time code generation
-            ],
-          },
-          'VCLinkerTool': {
-            'OptimizeReferences': 2, # /OPT:REF
-            'EnableCOMDATFolding': 2, # /OPT:ICF
-            'LinkIncremental': 1, # disable incremental linking
-            'AdditionalOptions': [
-              '/LTCG:INCREMENTAL', # incremental link-time code generation
-            ],
-          },
-        },
+          }
+        }
       }
     },
     # Forcibly disable -Werror.  We support a wide range of compilers, it's
@@ -212,10 +264,18 @@
         'BufferSecurityCheck': 'true',
         'ExceptionHandling': 0, # /EHsc
         'SuppressStartupBanner': 'true',
-        # Disable "warning C4267: conversion from 'size_t' to 'int',
-        # possible loss of data".  Many originate from our dependencies
-        # and their sheer number drowns out other, more legitimate warnings.
-        'DisableSpecificWarnings': ['4267'],
+        # Disable warnings:
+        # - "C4251: class needs to have dll-interface"
+        # - "C4275: non-DLL-interface used as base for DLL-interface"
+        #   Over 10k of these warnings are generated when compiling node,
+        #   originating from v8.h. Most of them are false positives.
+        #   See also: https://github.com/nodejs/node/pull/15570
+        #   TODO: re-enable when Visual Studio fixes these upstream.
+        #
+        # - "C4267: conversion from 'size_t' to 'int'"
+        #   Many any originate from our dependencies, and their sheer number
+        #   drowns out other, more legitimate warnings.
+        'DisableSpecificWarnings': ['4251', '4275', '4267'],
         'WarnAsError': 'false',
       },
       'VCLinkerTool': {
@@ -345,6 +405,7 @@
             'ldflags!': [ '-pthread' ],
           }],
           [ 'OS=="aix"', {
+            'variables': {'real_os_name': '<!(uname -s)',},
             'conditions': [
               [ 'target_arch=="ppc"', {
                 'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
@@ -352,6 +413,12 @@
               [ 'target_arch=="ppc64"', {
                 'cflags': [ '-maix64' ],
                 'ldflags': [ '-maix64' ],
+              }],
+              ['"<(real_os_name)"=="OS400"', {
+                'ldflags': [
+                  '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
+                  '-Wl,-brtl',
+                ],
               }],
             ],
             'ldflags': [ '-Wl,-bbigtoc' ],
@@ -380,7 +447,6 @@
           'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',        # -fno-exceptions
           'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
           'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
-          'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
           'PREBINDING': 'NO',                       # No -Wl,-prebind
           'MACOSX_DEPLOYMENT_TARGET': '10.7',       # -mmacosx-version-min=10.7
           'USE_HEADERMAP': 'NO',

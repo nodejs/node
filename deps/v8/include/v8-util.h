@@ -197,16 +197,6 @@ class PersistentValueMapBase {
   }
 
   /**
-   * Call Isolate::SetReference with the given parent and the map value.
-   */
-  void SetReference(const K& key,
-      const Persistent<Object>& parent) {
-    GetIsolate()->SetReference(
-      reinterpret_cast<internal::Object**>(parent.val_),
-      reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))));
-  }
-
-  /**
    * Call V8::RegisterExternallyReferencedObject with the map value for given
    * key.
    */

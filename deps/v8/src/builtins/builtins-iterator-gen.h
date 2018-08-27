@@ -17,9 +17,15 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   explicit IteratorBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
+  // Returns object[Symbol.iterator].
+  Node* GetIteratorMethod(Node* context, Node* object);
+
   // https://tc39.github.io/ecma262/#sec-getiterator --- never used for
   // @@asyncIterator.
   IteratorRecord GetIterator(Node* context, Node* object,
+                             Label* if_exception = nullptr,
+                             Variable* exception = nullptr);
+  IteratorRecord GetIterator(Node* context, Node* object, Node* method,
                              Label* if_exception = nullptr,
                              Variable* exception = nullptr);
 

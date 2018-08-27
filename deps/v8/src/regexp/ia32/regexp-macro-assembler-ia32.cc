@@ -582,7 +582,8 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
       BranchOrBacktrack(above, on_no_match);
     }
     DCHECK_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
-    ExternalReference word_map = ExternalReference::re_word_character_map();
+    ExternalReference word_map =
+        ExternalReference::re_word_character_map(isolate());
     __ test_b(current_character(),
               Operand::StaticArray(current_character(), times_1, word_map));
     BranchOrBacktrack(zero, on_no_match);
@@ -596,7 +597,8 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
       __ j(above, &done);
     }
     DCHECK_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
-    ExternalReference word_map = ExternalReference::re_word_character_map();
+    ExternalReference word_map =
+        ExternalReference::re_word_character_map(isolate());
     __ test_b(current_character(),
               Operand::StaticArray(current_character(), times_1, word_map));
     BranchOrBacktrack(not_zero, on_no_match);

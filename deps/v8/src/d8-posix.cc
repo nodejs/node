@@ -361,8 +361,8 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
 // We're disabling usage of waitid in Mac OS X because it doesn't work for us:
 // a parent process hangs on waiting while a child process is already a zombie.
 // See http://code.google.com/p/v8/issues/detail?id=401.
-#if defined(WNOWAIT) && !defined(ANDROID) && !defined(__APPLE__) \
-    && !defined(__NetBSD__)
+#if defined(WNOWAIT) && !defined(ANDROID) && !defined(__APPLE__) && \
+    !defined(__NetBSD__) && !defined(__Fuchsia__)
 #if !defined(__FreeBSD__)
 #define HAS_WAITID 1
 #endif
@@ -872,14 +872,6 @@ void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {
   os_templ->Set(String::NewFromUtf8(isolate, "rmdir", NewStringType::kNormal)
                     .ToLocalChecked(),
                 FunctionTemplate::New(isolate, RemoveDirectory));
-}
-
-void Shell::Exit(int exit_code) {
-  // Use _exit instead of exit to avoid races between isolate
-  // threads and static destructors.
-  fflush(stdout);
-  fflush(stderr);
-  _exit(exit_code);
 }
 
 }  // namespace v8

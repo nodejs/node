@@ -75,13 +75,13 @@ void EncodeEntry(std::vector<byte>& bytes, const PositionTableEntry& entry) {
 
 // Helper: Decode an integer.
 template <typename T>
-T DecodeInt(ByteArray* bytes, int* index) {
+T DecodeInt(Vector<const byte> bytes, int* index) {
   byte current;
   int shift = 0;
   T decoded = 0;
   bool more;
   do {
-    current = bytes->get((*index)++);
+    current = bytes[(*index)++];
     decoded |= static_cast<typename std::make_unsigned<T>::type>(
                    ValueBits::decode(current))
                << shift;
@@ -93,7 +93,8 @@ T DecodeInt(ByteArray* bytes, int* index) {
   return decoded;
 }
 
-void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
+void DecodeEntry(Vector<const byte> bytes, int* index,
+                 PositionTableEntry* entry) {
   int tmp = DecodeInt<int>(bytes, index);
   if (tmp >= 0) {
     entry->is_statement = true;
@@ -103,6 +104,11 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
     entry->code_offset = -(tmp + 1);
   }
   entry->source_position = DecodeInt<int64_t>(bytes, index);
+}
+
+Vector<const byte> VectorFromByteArray(ByteArray* byte_array) {
+  return Vector<const byte>(byte_array->GetDataStartAddress(),
+                            byte_array->length());
 }
 
 }  // namespace
@@ -159,7 +165,7 @@ Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
 }
 
 SourcePositionTableIterator::SourcePositionTableIterator(ByteArray* byte_array)
-    : raw_table_(byte_array) {
+    : raw_table_(VectorFromByteArray(byte_array)) {
   Advance();
 }
 
@@ -171,15 +177,24 @@ SourcePositionTableIterator::SourcePositionTableIterator(
   no_gc.Release();
 }
 
+SourcePositionTableIterator::SourcePositionTableIterator(
+    Vector<const byte> bytes)
+    : raw_table_(bytes) {
+  Advance();
+  // We can enable allocation because the underlying vector does not move.
+  no_gc.Release();
+}
+
 void SourcePositionTableIterator::Advance() {
-  ByteArray* table = raw_table_ ? raw_table_ : *table_;
+  Vector<const byte> bytes =
+      table_.is_null() ? raw_table_ : VectorFromByteArray(*table_);
   DCHECK(!done());
-  DCHECK(index_ >= 0 && index_ <= table->length());
-  if (index_ >= table->length()) {
+  DCHECK(index_ >= 0 && index_ <= bytes.length());
+  if (index_ >= bytes.length()) {
     index_ = kDone;
   } else {
     PositionTableEntry tmp;
-    DecodeEntry(table, &index_, &tmp);
+    DecodeEntry(bytes, &index_, &tmp);
     AddAndSetEntry(current_, tmp);
   }
 }

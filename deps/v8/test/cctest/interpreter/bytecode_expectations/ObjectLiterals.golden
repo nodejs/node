@@ -36,7 +36,7 @@ bytecodes: [
   /*   70 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -58,7 +58,7 @@ bytecodes: [
   /*   79 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
@@ -82,7 +82,7 @@ bytecodes: [
   /*   75 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
@@ -98,13 +98,13 @@ bytecode array length: 17
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(0),
-                B(CreateClosure), U8(1), U8(1), U8(2),
+  /*   49 E> */ B(CreateClosure), U8(1), U8(1), U8(2),
                 B(StaNamedOwnProperty), R(0), U8(2), U8(2),
                 B(Ldar), R(0),
   /*   66 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["func"],
 ]
@@ -121,13 +121,13 @@ bytecode array length: 17
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(0),
-                B(CreateClosure), U8(1), U8(1), U8(2),
+  /*   43 E> */ B(CreateClosure), U8(1), U8(1), U8(2),
                 B(StaNamedOwnProperty), R(0), U8(2), U8(2),
                 B(Ldar), R(0),
   /*   67 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["func"],
 ]
@@ -158,7 +158,7 @@ bytecodes: [
   /*   67 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   SHARED_FUNCTION_INFO_TYPE,
 ]
@@ -189,7 +189,7 @@ bytecodes: [
   /*  101 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -221,7 +221,7 @@ bytecodes: [
   /*   73 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["b"],
   SHARED_FUNCTION_INFO_TYPE,
 ]
@@ -251,7 +251,7 @@ bytecodes: [
   /*   61 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -270,7 +270,7 @@ bytecodes: [
   /*   61 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -289,13 +289,13 @@ bytecodes: [
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(41), R(1),
   /*   60 E> */ B(ToName), R(2),
                 B(LdaSmi), I8(1),
-                B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(1),
+  /*   64 E> */ B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(1),
                 B(Ldar), R(1),
   /*   68 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["test"],
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -316,13 +316,13 @@ bytecodes: [
                 B(Ldar), R(0),
   /*   68 E> */ B(ToName), R(2),
                 B(LdaSmi), I8(1),
-                B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(3),
+  /*   72 E> */ B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(3),
                 B(Ldar), R(1),
   /*   76 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["test"],
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
@@ -342,8 +342,8 @@ bytecodes: [
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(41), R(1),
   /*   60 E> */ B(ToName), R(2),
                 B(LdaSmi), I8(1),
-                B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(1),
-                B(CreateEmptyObjectLiteral),
+  /*   64 E> */ B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(1),
+  /*   78 E> */ B(CreateEmptyObjectLiteral),
                 B(Star), R(3),
                 B(Mov), R(1), R(2),
                 B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(2), U8(2),
@@ -352,7 +352,7 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["test"],
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -371,10 +371,10 @@ bytecodes: [
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(41), R(1),
   /*   60 E> */ B(ToName), R(2),
                 B(LdaConstant), U8(2),
-                B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(1),
+  /*   64 E> */ B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(1),
                 B(LdaConstant), U8(3),
                 B(Star), R(3),
-                B(CreateClosure), U8(4), U8(3), U8(2),
+  /*   71 E> */ B(CreateClosure), U8(4), U8(3), U8(2),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(5),
@@ -382,7 +382,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineGetterPropertyUnchecked), R(2), U8(4),
                 B(LdaConstant), U8(3),
                 B(Star), R(3),
-                B(CreateClosure), U8(5), U8(4), U8(2),
+  /*   84 E> */ B(CreateClosure), U8(5), U8(4), U8(2),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(5),
@@ -392,7 +392,7 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   SHARED_FUNCTION_INFO_TYPE,

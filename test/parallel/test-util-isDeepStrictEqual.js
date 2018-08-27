@@ -419,8 +419,6 @@ notUtilIsDeepStrict([1, , , 3], [1, , , 3, , , ]);
   const err3 = new TypeError('foo1');
   notUtilIsDeepStrict(err1, err2, assert.AssertionError);
   notUtilIsDeepStrict(err1, err3, assert.AssertionError);
-  // TODO: evaluate if this should throw or not. The same applies for RegExp
-  // Date and any object that has the same keys but not the same prototype.
   notUtilIsDeepStrict(err1, {}, assert.AssertionError);
 }
 

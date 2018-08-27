@@ -62,7 +62,7 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
     BIND(&if_resultisnotprimitive);
     {
       // Somehow the @@toPrimitive method on {input} didn't yield a primitive.
-      TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive, context);
+      ThrowTypeError(context, MessageTemplate::kCannotConvertToPrimitive);
     }
   }
 
@@ -99,7 +99,7 @@ TF_BUILTIN(NonPrimitiveToPrimitive_String, ConversionBuiltinsAssembler) {
 }
 
 TF_BUILTIN(StringToNumber, CodeStubAssembler) {
-  Node* input = Parameter(Descriptor::kArgument);
+  TNode<String> input = CAST(Parameter(Descriptor::kArgument));
 
   Return(StringToNumber(input));
 }
@@ -126,12 +126,12 @@ TF_BUILTIN(NonNumberToNumeric, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ToNumeric, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* input = Parameter(Descriptor::kArgument);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> input = CAST(Parameter(Descriptor::kArgument));
 
-  Return(Select(IsNumber(input), [=] { return input; },
-                [=] { return NonNumberToNumeric(context, input); },
-                MachineRepresentation::kTagged));
+  Return(Select<Numeric>(
+      IsNumber(input), [=] { return CAST(input); },
+      [=] { return NonNumberToNumeric(context, CAST(input)); }));
 }
 
 // ES6 section 7.1.3 ToNumber ( argument )
@@ -144,7 +144,7 @@ TF_BUILTIN(ToNumber, CodeStubAssembler) {
 
 // ES section #sec-tostring-applied-to-the-number-type
 TF_BUILTIN(NumberToString, CodeStubAssembler) {
-  Node* input = Parameter(Descriptor::kArgument);
+  TNode<Number> input = CAST(Parameter(Descriptor::kArgument));
 
   Return(NumberToString(input));
 }
@@ -208,7 +208,7 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
     BIND(&if_methodisnotcallable);
   }
 
-  TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive, context);
+  ThrowTypeError(context, MessageTemplate::kCannotConvertToPrimitive);
 
   BIND(&return_result);
   Return(var_result.value());
@@ -383,18 +383,11 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Return(js_value);
 
   BIND(&if_noconstructor);
-  TailCallRuntime(Runtime::kThrowUndefinedOrNullToObject, context,
-                  StringConstant("ToObject"));
+  ThrowTypeError(context, MessageTemplate::kUndefinedOrNullToObject,
+                 "ToObject");
 
   BIND(&if_jsreceiver);
   Return(object);
-}
-
-// Deprecated ES5 [[Class]] internal property (used to implement %_ClassOf).
-TF_BUILTIN(ClassOf, CodeStubAssembler) {
-  Node* object = Parameter(TypeofDescriptor::kObject);
-
-  Return(ClassOf(object));
 }
 
 // ES6 section 12.5.5 typeof operator

@@ -5,23 +5,21 @@ const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const path = require('path');
-const fsPromises = require('fs/promises');
+const fs = require('fs');
+const fsPromises = fs.promises;
 const {
   access,
   chmod,
+  chown,
   copyFile,
-  fchmod,
-  fdatasync,
-  fstat,
-  fsync,
-  ftruncate,
-  futimes,
+  lchown,
   link,
+  lchmod,
   lstat,
   mkdir,
   mkdtemp,
   open,
-  read,
+  readFile,
   readdir,
   readlink,
   realpath,
@@ -29,19 +27,26 @@ const {
   rmdir,
   stat,
   symlink,
-  write,
+  truncate,
   unlink,
-  utimes
+  utimes,
+  writeFile
 } = fsPromises;
 
 const tmpDir = tmpdir.path;
 
-common.crashOnUnhandledRejection();
+let dirc = 0;
+function nextdir() {
+  return `test${++dirc}`;
+}
+
+// fs.promises should not be enumerable as long as it causes a warning to be
+// emitted.
+assert.strictEqual(Object.keys(fs).includes('promises'), false);
 
 {
   access(__filename, 'r')
-    .then(common.mustCall())
-    .catch(common.mustNotCall());
+    .then(common.mustCall());
 
   access('this file does not exist', 'r')
     .then(common.mustNotCall())
@@ -69,37 +74,78 @@ function verifyStatObject(stat) {
     const handle = await open(dest, 'r+');
     assert.strictEqual(typeof handle, 'object');
 
-    let stats = await fstat(handle);
+    let stats = await handle.stat();
     verifyStatObject(stats);
     assert.strictEqual(stats.size, 35);
 
-    await ftruncate(handle, 1);
+    await handle.truncate(1);
 
-    stats = await fstat(handle);
+    stats = await handle.stat();
     verifyStatObject(stats);
     assert.strictEqual(stats.size, 1);
 
     stats = await stat(dest);
     verifyStatObject(stats);
 
-    await fdatasync(handle);
-    await fsync(handle);
+    stats = await handle.stat();
+    verifyStatObject(stats);
 
-    const buf = Buffer.from('hello world');
+    await handle.datasync();
+    await handle.sync();
 
-    await write(handle, buf);
-
-    const ret = await read(handle, Buffer.alloc(11), 0, 11, 0);
-    assert.strictEqual(ret.bytesRead, 11);
+    const buf = Buffer.from('hello fsPromises');
+    const bufLen = buf.length;
+    await handle.write(buf);
+    const ret = await handle.read(Buffer.alloc(bufLen), 0, bufLen, 0);
+    assert.strictEqual(ret.bytesRead, bufLen);
     assert.deepStrictEqual(ret.buffer, buf);
 
+    const buf2 = Buffer.from('hello FileHandle');
+    const buf2Len = buf2.length;
+    await handle.write(buf2, 0, buf2Len, 0);
+    const ret2 = await handle.read(Buffer.alloc(buf2Len), 0, buf2Len, 0);
+    assert.strictEqual(ret2.bytesRead, buf2Len);
+    assert.deepStrictEqual(ret2.buffer, buf2);
+    await truncate(dest, 5);
+    assert.deepStrictEqual((await readFile(dest)).toString(), 'hello');
+
     await chmod(dest, 0o666);
-    await fchmod(handle, 0o666);
+    await handle.chmod(0o666);
+
+    await chmod(dest, (0o10777));
+    await handle.chmod(0o10777);
+
+    if (!common.isWindows) {
+      await chown(dest, process.getuid(), process.getgid());
+      await handle.chown(process.getuid(), process.getgid());
+    }
+
+    assert.rejects(
+      async () => {
+        await chown(dest, 1, -1);
+      },
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        message: 'The value of "gid" is out of range. ' +
+                 'It must be >= 0 && < 4294967296. Received -1'
+      });
+
+    assert.rejects(
+      async () => {
+        await handle.chown(1, -1);
+      },
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        message: 'The value of "gid" is out of range. ' +
+                  'It must be >= 0 && < 4294967296. Received -1'
+      });
 
     await utimes(dest, new Date(), new Date());
 
     try {
-      await futimes(handle, new Date(), new Date());
+      await handle.utimes(new Date(), new Date());
     } catch (err) {
       // Some systems do not have futimes. If there is an error,
       // expect it to be ENOSYS
@@ -119,7 +165,9 @@ function verifyStatObject(stat) {
     if (common.canCreateSymLink()) {
       const newLink = path.resolve(tmpDir, 'baz3.js');
       await symlink(newPath, newLink);
-
+      if (!common.isWindows) {
+        await lchown(newLink, process.getuid(), process.getgid());
+      }
       stats = await lstat(newLink);
       verifyStatObject(stats);
 
@@ -127,6 +175,25 @@ function verifyStatObject(stat) {
                          (await realpath(newLink)).toLowerCase());
       assert.strictEqual(newPath.toLowerCase(),
                          (await readlink(newLink)).toLowerCase());
+
+      const newMode = 0o666;
+      if (common.isOSX) {
+        // lchmod is only available on macOS
+        await lchmod(newLink, newMode);
+        stats = await lstat(newLink);
+        assert.strictEqual(stats.mode & 0o777, newMode);
+      } else {
+        await Promise.all([
+          assert.rejects(
+            lchmod(newLink, newMode),
+            common.expectsError({
+              code: 'ERR_METHOD_NOT_IMPLEMENTED',
+              type: Error,
+              message: 'The lchmod() method is not implemented'
+            })
+          )
+        ]);
+      }
 
       await unlink(newLink);
     }
@@ -140,13 +207,59 @@ function verifyStatObject(stat) {
     await mkdir(newdir);
     stats = await stat(newdir);
     assert(stats.isDirectory());
-
     const list = await readdir(tmpDir);
     assert.deepStrictEqual(list, ['baz2.js', 'dir']);
-
     await rmdir(newdir);
 
+    // mkdirp when folder does not yet exist.
+    {
+      const dir = path.join(tmpDir, nextdir(), nextdir());
+      await mkdir(dir, { recursive: true });
+      stats = await stat(dir);
+      assert(stats.isDirectory());
+    }
+
+    // mkdirp when path is a file.
+    {
+      const dir = path.join(tmpDir, nextdir(), nextdir());
+      await mkdir(path.dirname(dir));
+      await writeFile(dir);
+      try {
+        await mkdir(dir, { recursive: true });
+        throw new Error('unreachable');
+      } catch (err) {
+        assert.notStrictEqual(err.message, 'unreachable');
+        assert.strictEqual(err.code, 'EEXIST');
+        assert.strictEqual(err.syscall, 'mkdir');
+      }
+    }
+
+    // mkdirp ./
+    {
+      const dir = path.resolve(tmpDir, `${nextdir()}/./${nextdir()}`);
+      await mkdir(dir, { recursive: true });
+      stats = await stat(dir);
+      assert(stats.isDirectory());
+    }
+
+    // mkdirp ../
+    {
+      const dir = path.resolve(tmpDir, `${nextdir()}/../${nextdir()}`);
+      await mkdir(dir, { recursive: true });
+      stats = await stat(dir);
+      assert(stats.isDirectory());
+    }
+
     await mkdtemp(path.resolve(tmpDir, 'FOO'));
+    assert.rejects(
+      // mkdtemp() expects to get a string prefix.
+      async () => mkdtemp(1),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      }
+    );
+
   }
 
   doTest().then(common.mustCall());

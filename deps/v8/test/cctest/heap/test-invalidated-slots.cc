@@ -32,13 +32,13 @@ Page* HeapTester::AllocateByteArraysOnPage(
     AlwaysAllocateScope always_allocate(isolate);
     heap::SimulateFullSpace(old_space);
     ByteArray* byte_array;
-    CHECK(heap->AllocateByteArray(kLength, TENURED).To(&byte_array));
+    CHECK(AllocateByteArrayForTest(heap, kLength, TENURED).To(&byte_array));
     byte_arrays->push_back(byte_array);
     page = Page::FromAddress(byte_array->address());
     CHECK_EQ(page->area_size() % kSize, 0u);
     size_t n = page->area_size() / kSize;
     for (size_t i = 1; i < n; i++) {
-      CHECK(heap->AllocateByteArray(kLength, TENURED).To(&byte_array));
+      CHECK(AllocateByteArrayForTest(heap, kLength, TENURED).To(&byte_array));
       byte_arrays->push_back(byte_array);
       CHECK_EQ(page, Page::FromAddress(byte_array->address()));
     }

@@ -15,14 +15,14 @@ npm install is-whitespace-character
 ## Usage
 
 ```javascript
-var whitespace = require('is-whitespace-character');
+var whitespace = require('is-whitespace-character')
 
-whitespace(' '); // true
-whitespace('\n'); // true
-whitespace('\ufeff'); // true
-whitespace('_'); // false
-whitespace('a'); // true
-whitespace('💩'); // false
+whitespace(' ') // => true
+whitespace('\n') // => true
+whitespace('\uFEFF') // => true
+whitespace('_') // => false
+whitespace('a') // => true
+whitespace('💩') // => false
 ```
 
 ## API

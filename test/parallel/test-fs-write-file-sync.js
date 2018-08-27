@@ -28,6 +28,9 @@ let openCount = 0;
 let mode;
 let content;
 
+if (!common.isMainThread)
+  common.skip('process.umask is not available in Workers');
+
 // Need to hijack fs.open/close to make sure that things
 // get closed once they're opened.
 fs._openSync = fs.openSync;

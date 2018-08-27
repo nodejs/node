@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_RESULT_H_
-#define V8_WASM_RESULT_H_
+#ifndef V8_WASM_WASM_RESULT_H_
+#define V8_WASM_WASM_RESULT_H_
 
 #include <cstdarg>
 #include <memory>
@@ -116,7 +116,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   }
 
   // Create and return exception object.
-  MUST_USE_RESULT Handle<Object> Reify();
+  V8_WARN_UNUSED_RESULT Handle<Object> Reify();
 
   // Reset any error which was set on this thrower.
   void Reset();
@@ -158,4 +158,4 @@ class V8_EXPORT_PRIVATE ErrorThrower {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_WASM_WASM_RESULT_H_

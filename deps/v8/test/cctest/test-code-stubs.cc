@@ -34,7 +34,7 @@
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
 #include "src/double.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -53,9 +53,9 @@ int STDCALL ConvertDToICVersion(double d) {
 #else
 #error Unsupported endianness
 #endif
-  union { double d; uint32_t u[2]; } dbl;
-  dbl.d = d;
-  uint32_t exponent_bits = dbl.u[kExponentIndex];
+  uint32_t u[2];
+  memcpy(u, &d, sizeof(d));
+  uint32_t exponent_bits = u[kExponentIndex];
   int32_t shifted_mask = static_cast<int32_t>(Double::kExponentMask >> 32);
   int32_t exponent = (((exponent_bits & shifted_mask) >>
                        (Double::kPhysicalSignificandSize - 32)) -
@@ -69,7 +69,7 @@ int STDCALL ConvertDToICVersion(double d) {
     static_cast<uint32_t>(Double::kPhysicalSignificandSize);
   if (unsigned_exponent >= max_exponent) {
     if ((exponent - Double::kPhysicalSignificandSize) < 32) {
-      result = dbl.u[kMantissaIndex]
+      result = u[kMantissaIndex]
                << (exponent - Double::kPhysicalSignificandSize);
     }
   } else {
@@ -94,7 +94,7 @@ void RunOneTruncationTestWithTest(ConvertDToICallWrapper callWrapper,
   CHECK_EQ(to, result);
 }
 
-
+DISABLE_CFI_ICALL
 int32_t DefaultCallWrapper(ConvertDToIFunc func,
                            double from) {
   return (*func)(from);

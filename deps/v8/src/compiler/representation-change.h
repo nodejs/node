@@ -203,25 +203,29 @@ class UseInfo {
                    Truncation::Any(identify_zeros), TypeCheckKind::kSignedSmall,
                    feedback);
   }
-  static UseInfo CheckedSigned32AsWord32(IdentifyZeros identify_zeros) {
+  static UseInfo CheckedSigned32AsWord32(IdentifyZeros identify_zeros,
+                                         const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kWord32,
-                   Truncation::Any(identify_zeros), TypeCheckKind::kSigned32);
+                   Truncation::Any(identify_zeros), TypeCheckKind::kSigned32,
+                   feedback);
   }
-  static UseInfo CheckedNumberAsFloat64() {
+  static UseInfo CheckedNumberAsFloat64(const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
-                   TypeCheckKind::kNumber);
+                   TypeCheckKind::kNumber, feedback);
   }
-  static UseInfo CheckedNumberAsWord32() {
+  static UseInfo CheckedNumberAsWord32(const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
-                   TypeCheckKind::kNumber);
+                   TypeCheckKind::kNumber, feedback);
   }
-  static UseInfo CheckedNumberOrOddballAsFloat64() {
+  static UseInfo CheckedNumberOrOddballAsFloat64(
+      const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
-                   TypeCheckKind::kNumberOrOddball);
+                   TypeCheckKind::kNumberOrOddball, feedback);
   }
-  static UseInfo CheckedNumberOrOddballAsWord32() {
+  static UseInfo CheckedNumberOrOddballAsWord32(
+      const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
-                   TypeCheckKind::kNumberOrOddball);
+                   TypeCheckKind::kNumberOrOddball, feedback);
   }
 
   // Undetermined representation.
@@ -270,7 +274,7 @@ class RepresentationChanger final {
   // out signedness for the word32->float64 conversion, then we check that the
   // uses truncate to word32 (so they do not care about signedness).
   Node* GetRepresentationFor(Node* node, MachineRepresentation output_rep,
-                             Type* output_type, Node* use_node,
+                             Type output_type, Node* use_node,
                              UseInfo use_info);
   const Operator* Int32OperatorFor(IrOpcode::Value opcode);
   const Operator* Int32OverflowOperatorFor(IrOpcode::Value opcode);
@@ -300,30 +304,30 @@ class RepresentationChanger final {
 
   Node* GetTaggedSignedRepresentationFor(Node* node,
                                          MachineRepresentation output_rep,
-                                         Type* output_type, Node* use_node,
+                                         Type output_type, Node* use_node,
                                          UseInfo use_info);
   Node* GetTaggedPointerRepresentationFor(Node* node,
                                           MachineRepresentation output_rep,
-                                          Type* output_type, Node* use_node,
+                                          Type output_type, Node* use_node,
                                           UseInfo use_info);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
-                                   Type* output_type, Truncation truncation);
+                                   Type output_type, Truncation truncation);
   Node* GetFloat32RepresentationFor(Node* node,
                                     MachineRepresentation output_rep,
-                                    Type* output_type, Truncation truncation);
+                                    Type output_type, Truncation truncation);
   Node* GetFloat64RepresentationFor(Node* node,
                                     MachineRepresentation output_rep,
-                                    Type* output_type, Node* use_node,
+                                    Type output_type, Node* use_node,
                                     UseInfo use_info);
   Node* GetWord32RepresentationFor(Node* node, MachineRepresentation output_rep,
-                                   Type* output_type, Node* use_node,
+                                   Type output_type, Node* use_node,
                                    UseInfo use_info);
   Node* GetBitRepresentationFor(Node* node, MachineRepresentation output_rep,
-                                Type* output_type);
+                                Type output_type);
   Node* GetWord64RepresentationFor(Node* node, MachineRepresentation output_rep,
-                                   Type* output_type);
+                                   Type output_type);
   Node* TypeError(Node* node, MachineRepresentation output_rep,
-                  Type* output_type, MachineRepresentation use);
+                  Type output_type, MachineRepresentation use);
   Node* MakeTruncatedInt32Constant(double value);
   Node* InsertChangeBitToTagged(Node* node);
   Node* InsertChangeFloat32ToFloat64(Node* node);
@@ -333,8 +337,8 @@ class RepresentationChanger final {
   Node* InsertChangeTaggedSignedToInt32(Node* node);
   Node* InsertChangeTaggedToFloat64(Node* node);
   Node* InsertChangeUint32ToFloat64(Node* node);
-
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
+  void InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason);
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const { return isolate_; }

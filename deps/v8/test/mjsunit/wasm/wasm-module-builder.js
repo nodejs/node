@@ -249,9 +249,9 @@ class WasmModuleBuilder {
     return this.num_imported_funcs++;
   }
 
-  addImportedGlobal(module = "", name, type) {
+  addImportedGlobal(module = "", name, type, mutable = false) {
     let o = {module: module, name: name, kind: kExternalGlobal, type: type,
-             mutable: false}
+             mutable: mutable};
     this.imports.push(o);
     return this.num_imported_globals++;
   }
@@ -681,6 +681,11 @@ class WasmModuleBuilder {
     let module = new WebAssembly.Module(this.toBuffer());
     let instance = new WebAssembly.Instance(module, ffi);
     return instance;
+  }
+
+  asyncInstantiate(ffi) {
+    return WebAssembly.instantiate(this.toBuffer(), ffi)
+        .then(({module, instance}) => instance);
   }
 
   toModule(debug = false) {

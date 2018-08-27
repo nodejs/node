@@ -38,7 +38,7 @@ V8_PLATFORM_EXPORT std::unique_ptr<v8::Platform> NewDefaultPlatform(
     int thread_pool_size = 0,
     IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
     InProcessStackDumping in_process_stack_dumping =
-        InProcessStackDumping::kEnabled,
+        InProcessStackDumping::kDisabled,
     std::unique_ptr<v8::TracingController> tracing_controller = {});
 
 V8_PLATFORM_EXPORT V8_DEPRECATE_SOON(
@@ -47,7 +47,7 @@ V8_PLATFORM_EXPORT V8_DEPRECATE_SOON(
         int thread_pool_size = 0,
         IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
         InProcessStackDumping in_process_stack_dumping =
-            InProcessStackDumping::kEnabled,
+            InProcessStackDumping::kDisabled,
         v8::TracingController* tracing_controller = nullptr));
 
 /**
@@ -62,8 +62,10 @@ V8_PLATFORM_EXPORT bool PumpMessageLoop(
     v8::Platform* platform, v8::Isolate* isolate,
     MessageLoopBehavior behavior = MessageLoopBehavior::kDoNotWait);
 
-V8_PLATFORM_EXPORT void EnsureEventLoopInitialized(v8::Platform* platform,
-                                                   v8::Isolate* isolate);
+V8_PLATFORM_EXPORT V8_DEPRECATED(
+    "This function has become obsolete and is essentially a nop",
+    void EnsureEventLoopInitialized(v8::Platform* platform,
+                                    v8::Isolate* isolate));
 
 /**
  * Runs pending idle tasks for at most |idle_time_in_seconds| seconds.

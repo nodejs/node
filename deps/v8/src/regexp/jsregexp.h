@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
+#include "src/isolate.h"
 #include "src/objects/js-regexp.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -71,13 +72,12 @@ class RegExpImpl {
   // generic data and choice of implementation - as well as what
   // the implementation wants to store in the data field.
   // Returns false if compilation fails.
-  MUST_USE_RESULT static MaybeHandle<Object> Compile(Handle<JSRegExp> re,
-                                                     Handle<String> pattern,
-                                                     JSRegExp::Flags flags);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Compile(
+      Handle<JSRegExp> re, Handle<String> pattern, JSRegExp::Flags flags);
 
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
-  V8_EXPORT_PRIVATE MUST_USE_RESULT static MaybeHandle<Object> Exec(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Exec(
       Handle<JSRegExp> regexp, Handle<String> subject, int index,
       Handle<RegExpMatchInfo> last_match_info);
 
@@ -132,7 +132,7 @@ class RegExpImpl {
   // On a successful match, the result is a JSArray containing
   // captured positions.  On a failure, the result is the null value.
   // Returns an empty handle in case of an exception.
-  MUST_USE_RESULT static MaybeHandle<Object> IrregexpExec(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> IrregexpExec(
       Handle<JSRegExp> regexp, Handle<String> subject, int index,
       Handle<RegExpMatchInfo> last_match_info);
 

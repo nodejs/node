@@ -77,7 +77,7 @@ function rmBins (pkg, folder, parent, top, cb) {
   asyncMap(Object.keys(pkg.bin), function (b, cb) {
     if (process.platform === 'win32') {
       chain([ [gentlyRm, path.resolve(binRoot, b) + '.cmd', true, folder],
-              [gentlyRm, path.resolve(binRoot, b), true, folder] ], cb)
+        [gentlyRm, path.resolve(binRoot, b), true, folder] ], cb)
     } else {
       gentlyRm(path.resolve(binRoot, b), true, folder, cb)
     }

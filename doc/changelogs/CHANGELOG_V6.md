@@ -10,6 +10,9 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.14.4">6.14.4</a><br/>
+<a href="#6.14.3">6.14.3</a><br/>
+<a href="#6.14.2">6.14.2</a><br/>
 <a href="#6.14.1">6.14.1</a><br/>
 <a href="#6.14.0">6.14.0</a><br/>
 <a href="#6.13.1">6.13.1</a><br/>
@@ -54,6 +57,7 @@
 </table>
 
 * Other Versions
+  * [10.x](CHANGELOG_V10.md)
   * [9.x](CHANGELOG_V9.md)
   * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
@@ -67,6 +71,291 @@
 *Note*: Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.14.4"></a>
+## 2018-08-15, Version 6.14.4 'Boron' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at:
+
+  https://nodejs.org/en/blog/vulnerability/august-2018-security-releases/
+
+for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+  * CVE-2018-0732 (OpenSSL)
+  * CVE-2018-12115 (Node.js)
+
+### Notable Changes
+
+* **buffer**: Fix out-of-bounds (OOB) write in `Buffer.write()` for UCS-2 encoding (CVE-2018-12115)
+* **deps**: Upgrade to OpenSSL 1.0.2p, fixing:
+  * Client DoS due to large DH parameter (CVE-2018-0732)
+  * ECDSA key extraction via local side-channel (CVE not assigned)
+
+### Commits
+
+* [[`0052926476`](https://github.com/nodejs/node/commit/0052926476)] - **buffer**: avoid overrun on UCS-2 string write (Rod Vagg) [nodejs-private/node-private#138](https://github.com/nodejs-private/node-private/pull/138)
+* [[`dbe6551b89`](https://github.com/nodejs/node/commit/dbe6551b89)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [#1836](https://github.com/nodejs/node/pull/1836)
+* [[`7829bbcacb`](https://github.com/nodejs/node/commit/7829bbcacb)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [#1389](https://github.com/nodejs/node/pull/1389)
+* [[`cddca629b5`](https://github.com/nodejs/node/commit/cddca629b5)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [#1389](https://github.com/nodejs/node/pull/1389)
+* [[`e6014aed52`](https://github.com/nodejs/node/commit/e6014aed52)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#22320](https://github.com/nodejs/node/pull/22320)
+* [[`37ddce514d`](https://github.com/nodejs/node/commit/37ddce514d)] - **deps**: upgrade openssl sources to 1.0.2p (Shigeki Ohtsu) [#22320](https://github.com/nodejs/node/pull/22320)
+* [[`08a150fcca`](https://github.com/nodejs/node/commit/08a150fcca)] - **inspector**: don't bind to 0.0.0.0 by default (Ben Noordhuis) [#21376](https://github.com/nodejs/node/pull/21376)
+* [[`19b9d7fd77`](https://github.com/nodejs/node/commit/19b9d7fd77)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [#1389](https://github.com/nodejs/node/pull/1389)
+* [[`7ccb0422fc`](https://github.com/nodejs/node/commit/7ccb0422fc)] - **test**: fix error messages for OpenSSL-1.0.2p (Shigeki Ohtsu) [#22320](https://github.com/nodejs/node/pull/22320)
+* [[`58b9497ca8`](https://github.com/nodejs/node/commit/58b9497ca8)] - **test**: update certificates and private keys (Fedor Indutny) [#22184](https://github.com/nodejs/node/pull/22184)
+* [[`9863e11ea8`](https://github.com/nodejs/node/commit/9863e11ea8)] - **test**: update keys/Makefile to clean and build all (Daniel Bevenius) [#19975](https://github.com/nodejs/node/pull/19975)
+
+<a id="6.14.3"></a>
+## 2018-06-12, Version 6.14.3 'Boron' (LTS), @evanlucas
+
+### Notable Changes
+
+* **buffer** (CVE-2018-7167): Fixes Denial of Service vulnerability where calling Buffer.fill() could hang
+
+### Commits
+
+* [[`7dbcfc6217`](https://github.com/nodejs/node/commit/7dbcfc6217)] - **src**: avoid hanging on Buffer#fill 0-length input (Сковорода Никита Андреевич) [nodejs-private/node-private#121](https://github.com/nodejs-private/node-private/pull/121)
+
+
+<a id="6.14.2"></a>
+## 2018-04-30, Version 6.14.2 'Boron' (LTS), @MylesBorins
+
+### Notable Changes
+
+* **n-api**:
+  - n-api has been backported to v6.x. It is being landed as an experimental interface,
+    and as such is landing in a Semver-Patch release. (Gabriel Schulhof) [#19447](https://github.com/nodejs/node/pull/19447)
+
+### Commits
+
+* [[`6ba38e8c2b`](https://github.com/nodejs/node/commit/6ba38e8c2b)] - **N-API**: Reuse ObjectTemplate instances (Gabriel Schulhof) [#13999](https://github.com/nodejs/node/pull/13999)
+* [[`49d8c2e8ae`](https://github.com/nodejs/node/commit/49d8c2e8ae)] - **build**: refine static and shared lib build (Yihong Wang) [#17604](https://github.com/nodejs/node/pull/17604)
+* [[`cc7469eec8`](https://github.com/nodejs/node/commit/cc7469eec8)] - **build**: allow x86\_64 as a dest\_cpu alias for x64 (Rod Vagg) [#18052](https://github.com/nodejs/node/pull/18052)
+* [[`969398d08e`](https://github.com/nodejs/node/commit/969398d08e)] - **crypto**: reuse variable instead of reevaluation (Tobias Nießen) [#17735](https://github.com/nodejs/node/pull/17735)
+* [[`71acb5205a`](https://github.com/nodejs/node/commit/71acb5205a)] - **doc**: Add a missing comma (jiangq) [#19555](https://github.com/nodejs/node/pull/19555)
+* [[`b9b752ef07`](https://github.com/nodejs/node/commit/b9b752ef07)] - **doc**: fix typos on n-api (Kyle Robinson Young) [#19385](https://github.com/nodejs/node/pull/19385)
+* [[`10fe65a0d5`](https://github.com/nodejs/node/commit/10fe65a0d5)] - **doc**: fix n-api asynchronous threading docs (Eric Bickle) [#19073](https://github.com/nodejs/node/pull/19073)
+* [[`8826f185b0`](https://github.com/nodejs/node/commit/8826f185b0)] - **doc**: mark NAPI\_AUTO\_LENGTH as code (Tobias Nießen) [#18697](https://github.com/nodejs/node/pull/18697)
+* [[`e9e5d56121`](https://github.com/nodejs/node/commit/e9e5d56121)] - **doc**: fix exporting a function example (Aonghus O Nia) [#18661](https://github.com/nodejs/node/pull/18661)
+* [[`9719b831a3`](https://github.com/nodejs/node/commit/9719b831a3)] - **doc**: fix typo in n-api.md (Vse Mozhet Byt) [#18590](https://github.com/nodejs/node/pull/18590)
+* [[`fdd50fb35f`](https://github.com/nodejs/node/commit/fdd50fb35f)] - **doc**: small typo in n-api.md (iskore) [#18555](https://github.com/nodejs/node/pull/18555)
+* [[`24a2791173`](https://github.com/nodejs/node/commit/24a2791173)] - **doc**: remove usage of you in n-api doc (Michael Dawson) [#18528](https://github.com/nodejs/node/pull/18528)
+* [[`74086e19f2`](https://github.com/nodejs/node/commit/74086e19f2)] - **doc**: remove uannecessary Require (Michael Dawson) [#18184](https://github.com/nodejs/node/pull/18184)
+* [[`fed2136857`](https://github.com/nodejs/node/commit/fed2136857)] - **doc**: napi: make header style consistent (Ali Ijaz Sheikh) [#18122](https://github.com/nodejs/node/pull/18122)
+* [[`e04386a363`](https://github.com/nodejs/node/commit/e04386a363)] - **doc**: napi: fix unbalanced emphasis (Ali Ijaz Sheikh) [#18122](https://github.com/nodejs/node/pull/18122)
+* [[`3d8e1aaf48`](https://github.com/nodejs/node/commit/3d8e1aaf48)] - **doc**: updates examples to use NULL (Michael Dawson) [#18008](https://github.com/nodejs/node/pull/18008)
+* [[`173f29763e`](https://github.com/nodejs/node/commit/173f29763e)] - **doc**: update example in module registration (Franziska Hinkelmann) [#17424](https://github.com/nodejs/node/pull/17424)
+* [[`c6852126fd`](https://github.com/nodejs/node/commit/c6852126fd)] - **doc**: use "JavaScript" instead of "Javascript" (Rich Trott) [#17163](https://github.com/nodejs/node/pull/17163)
+* [[`35dc8bab9e`](https://github.com/nodejs/node/commit/35dc8bab9e)] - **doc**: document common pattern for instanceof checks (Michael Dawson) [#16699](https://github.com/nodejs/node/pull/16699)
+* [[`22490dcb91`](https://github.com/nodejs/node/commit/22490dcb91)] - **doc**: fix typos in N-API (Swathi Kalahastri) [#16911](https://github.com/nodejs/node/pull/16911)
+* [[`55fabd7337`](https://github.com/nodejs/node/commit/55fabd7337)] - **doc**: fix a typo in n-api documentation (Vipin Menon) [#16879](https://github.com/nodejs/node/pull/16879)
+* [[`0c67f21bcf`](https://github.com/nodejs/node/commit/0c67f21bcf)] - **doc**: update to use NAPI\_AUTO\_LENGTH (Michael Dawson) [#16187](https://github.com/nodejs/node/pull/16187)
+* [[`5c2bba0931`](https://github.com/nodejs/node/commit/5c2bba0931)] - **doc**: fix some links (Vse Mozhet Byt) [#16202](https://github.com/nodejs/node/pull/16202)
+* [[`e9a6dffc65`](https://github.com/nodejs/node/commit/e9a6dffc65)] - **doc**: fix outdated code sample in n-api.md (rebornix) [#15581](https://github.com/nodejs/node/pull/15581)
+* [[`ca69f1dfe7`](https://github.com/nodejs/node/commit/ca69f1dfe7)] - **doc**: fix new nits in links (Vse Mozhet Byt) [#15449](https://github.com/nodejs/node/pull/15449)
+* [[`a766802bee`](https://github.com/nodejs/node/commit/a766802bee)] - **doc**: fix doc for napi\_get\_value\_string\_utf8 (Daniel Taveras) [#14529](https://github.com/nodejs/node/pull/14529)
+* [[`b0f09a2ee6`](https://github.com/nodejs/node/commit/b0f09a2ee6)] - **doc**: added napi\_get\_value\_string\_latin1 (Kyle Farnung) [#14678](https://github.com/nodejs/node/pull/14678)
+* [[`fbcc962727`](https://github.com/nodejs/node/commit/fbcc962727)] - **doc**: delint (Refael Ackermann) [#14707](https://github.com/nodejs/node/pull/14707)
+* [[`831de617b0`](https://github.com/nodejs/node/commit/831de617b0)] - **doc**: document napi\_finalize() signature (cjihrig) [#14230](https://github.com/nodejs/node/pull/14230)
+* [[`4b9773effa`](https://github.com/nodejs/node/commit/4b9773effa)] - **doc**: fix some links (Vse Mozhet Byt) [#14400](https://github.com/nodejs/node/pull/14400)
+* [[`36185b343b`](https://github.com/nodejs/node/commit/36185b343b)] - **doc**: doc lifetime of n-api last error info (Michael Dawson) [#13939](https://github.com/nodejs/node/pull/13939)
+* [[`cc3a4af7c8`](https://github.com/nodejs/node/commit/cc3a4af7c8)] - **doc**: fix a few n-api doc issues (Michael Dawson) [#13650](https://github.com/nodejs/node/pull/13650)
+* [[`1e91d5804d`](https://github.com/nodejs/node/commit/1e91d5804d)] - **doc**: fix out of date napi\_callback doc (XadillaX) [#13570](https://github.com/nodejs/node/pull/13570)
+* [[`c5ae39e401`](https://github.com/nodejs/node/commit/c5ae39e401)] - **doc**: fix napi\_create\_\*\_error signatures in n-api (Jamen Marzonie) [#13544](https://github.com/nodejs/node/pull/13544)
+* [[`35a3cbb5dd`](https://github.com/nodejs/node/commit/35a3cbb5dd)] - **doc**: fix out of date sections in n-api doc (Michael Dawson) [#13508](https://github.com/nodejs/node/pull/13508)
+* [[`a06cc4684f`](https://github.com/nodejs/node/commit/a06cc4684f)] - **doc**: fix typo "ndapi" in n-api.md (Jamen Marz) [#13484](https://github.com/nodejs/node/pull/13484)
+* [[`82f31ff4af`](https://github.com/nodejs/node/commit/82f31ff4af)] - **doc**: add ref to option to enable n-api (Michael Dawson) [#13406](https://github.com/nodejs/node/pull/13406)
+* [[`17fe21e83d`](https://github.com/nodejs/node/commit/17fe21e83d)] - **doc**: fix typo in n-api.md (JongChan Choi) [#13323](https://github.com/nodejs/node/pull/13323)
+* [[`2e2905266e`](https://github.com/nodejs/node/commit/2e2905266e)] - **doc**: fix title/function name mismatch (Michael Dawson) [#13123](https://github.com/nodejs/node/pull/13123)
+* [[`75e91fe5c8`](https://github.com/nodejs/node/commit/75e91fe5c8)] - **doc**: add reference to node\_api.h in docs (Michael Dawson) [#13084](https://github.com/nodejs/node/pull/13084)
+* [[`0f74ee5cbf`](https://github.com/nodejs/node/commit/0f74ee5cbf)] - **doc**: clarify operation of napi\_cancel\_async\_work (Michael Dawson) [#12974](https://github.com/nodejs/node/pull/12974)
+* [[`5b045374ed`](https://github.com/nodejs/node/commit/5b045374ed)] - **doc**: clarify node.js addons are c++ (Beth Griggs) [#12898](https://github.com/nodejs/node/pull/12898)
+* [[`6bcd6d49d5`](https://github.com/nodejs/node/commit/6bcd6d49d5)] - **doc**: fix broken links in n-api doc (Michael Dawson) [#12889](https://github.com/nodejs/node/pull/12889)
+* [[`3e388cf819`](https://github.com/nodejs/node/commit/3e388cf819)] - **doc**: Add initial documentation for N-API (Michael Dawson) [#12549](https://github.com/nodejs/node/pull/12549)
+* [[`4d67369c1b`](https://github.com/nodejs/node/commit/4d67369c1b)] - **doc**: fix various nits (Vse Mozhet Byt) [#19743](https://github.com/nodejs/node/pull/19743)
+* [[`057c80b088`](https://github.com/nodejs/node/commit/057c80b088)] - **doc**: move Fedor to TSC Emeritus (Myles Borins) [#18752](https://github.com/nodejs/node/pull/18752)
+* [[`bf72ee667e`](https://github.com/nodejs/node/commit/bf72ee667e)] - **doc**: add mmarchini to collaborators (Matheus Marchini) [#18740](https://github.com/nodejs/node/pull/18740)
+* [[`280af052d8`](https://github.com/nodejs/node/commit/280af052d8)] - **doc**: add history for url.parse (Steven) [#18685](https://github.com/nodejs/node/pull/18685)
+* [[`29b0d3b104`](https://github.com/nodejs/node/commit/29b0d3b104)] - **doc**: add devsnek to collaborators (Gus Caplan) [#18679](https://github.com/nodejs/node/pull/18679)
+* [[`dc6dc8232f`](https://github.com/nodejs/node/commit/dc6dc8232f)] - **doc**: add section for strategic initiatives (Michael Dawson) [#17104](https://github.com/nodejs/node/pull/17104)
+* [[`6b348d4483`](https://github.com/nodejs/node/commit/6b348d4483)] - **doc**: modify the return value of request.write() (陈刚) [#18526](https://github.com/nodejs/node/pull/18526)
+* [[`dd4d075e51`](https://github.com/nodejs/node/commit/dd4d075e51)] - **doc**: be more explicit in the sypnosis (Tim O. Peters) [#17977](https://github.com/nodejs/node/pull/17977)
+* [[`0067bccf6f`](https://github.com/nodejs/node/commit/0067bccf6f)] - **doc**: fix description of createDecipheriv (Tobias Nießen) [#18651](https://github.com/nodejs/node/pull/18651)
+* [[`bc2f0a5120`](https://github.com/nodejs/node/commit/bc2f0a5120)] - **doc**: linkify missing types (Vse Mozhet Byt) [#18444](https://github.com/nodejs/node/pull/18444)
+* [[`32089bcbc1`](https://github.com/nodejs/node/commit/32089bcbc1)] - **doc**: streamline README intro (Rich Trott) [#18483](https://github.com/nodejs/node/pull/18483)
+* [[`43839f1601`](https://github.com/nodejs/node/commit/43839f1601)] - **doc**: move Brian White to TSC Emeriti list (Rich Trott) [#18482](https://github.com/nodejs/node/pull/18482)
+* [[`27d3c1a0f4`](https://github.com/nodejs/node/commit/27d3c1a0f4)] - **doc**: add Gibson Fahnestock to TSC (Rich Trott) [#18481](https://github.com/nodejs/node/pull/18481)
+* [[`67fd520539`](https://github.com/nodejs/node/commit/67fd520539)] - **doc**: reorder section on updating PR branch (Ali Ijaz Sheikh) [#18355](https://github.com/nodejs/node/pull/18355)
+* [[`f81a69aefe`](https://github.com/nodejs/node/commit/f81a69aefe)] - **fs**: fix `createReadStream(…, {end: n})` for non-seekable fds (Anna Henningsen) [#19329](https://github.com/nodejs/node/pull/19329)
+* [[`18acad349c`](https://github.com/nodejs/node/commit/18acad349c)] - **http**: make socketPath work with no agent (Luigi Pinca) [#19425](https://github.com/nodejs/node/pull/19425)
+* [[`1edadebaa0`](https://github.com/nodejs/node/commit/1edadebaa0)] - **http**: allow \_httpMessage to be GC'ed (Luigi Pinca) [#18865](https://github.com/nodejs/node/pull/18865)
+* [[`dbe70b744c`](https://github.com/nodejs/node/commit/dbe70b744c)] - **http**: free the parser before emitting 'upgrade' (Luigi Pinca) [#18209](https://github.com/nodejs/node/pull/18209)
+* [[`77a405b92f`](https://github.com/nodejs/node/commit/77a405b92f)] - **lib**: set process.execPath on OpenBSD (Aaron Bieber) [#18543](https://github.com/nodejs/node/pull/18543)
+* [[`3aa5b7d939`](https://github.com/nodejs/node/commit/3aa5b7d939)] - **n-api**: add more `int64\_t` tests (Kyle Farnung) [#19402](https://github.com/nodejs/node/pull/19402)
+* [[`abd9fd6797`](https://github.com/nodejs/node/commit/abd9fd6797)] - **n-api**: back up env before finalize (Gabriel Schulhof) [#19718](https://github.com/nodejs/node/pull/19718)
+* [[`e6ccdfbde3`](https://github.com/nodejs/node/commit/e6ccdfbde3)] - **n-api**: ensure in-module exceptions are propagated (Gabriel Schulhof) [#19537](https://github.com/nodejs/node/pull/19537)
+* [[`c6d0a66ef2`](https://github.com/nodejs/node/commit/c6d0a66ef2)] - **n-api**: bump version of n-api supported (Michael Dawson) [#19497](https://github.com/nodejs/node/pull/19497)
+* [[`c16a705416`](https://github.com/nodejs/node/commit/c16a705416)] - **n-api**: re-write test\_make\_callback (Gabriel Schulhof) [#19448](https://github.com/nodejs/node/pull/19448)
+* [[`49cd4fad89`](https://github.com/nodejs/node/commit/49cd4fad89)] - **n-api**: add napi\_fatal\_exception (Mathias Buus) [#19337](https://github.com/nodejs/node/pull/19337)
+* [[`eb29266878`](https://github.com/nodejs/node/commit/eb29266878)] - **n-api**: add missing exception checking (Michael Dawson) [#19362](https://github.com/nodejs/node/pull/19362)
+* [[`2c1190a93d`](https://github.com/nodejs/node/commit/2c1190a93d)] - **n-api**: take n-api out of experimental (Michael Dawson) [#19262](https://github.com/nodejs/node/pull/19262)
+* [[`ce1447920e`](https://github.com/nodejs/node/commit/ce1447920e)] - **n-api**: resolve promise in test (Gabriel Schulhof) [#19245](https://github.com/nodejs/node/pull/19245)
+* [[`a8237efaf1`](https://github.com/nodejs/node/commit/a8237efaf1)] - **n-api**: update documentation (Gabriel Schulhof) [#19078](https://github.com/nodejs/node/pull/19078)
+* [[`af62c8fff7`](https://github.com/nodejs/node/commit/af62c8fff7)] - **n-api**: update reference test (Gabriel Schulhof) [#19086](https://github.com/nodejs/node/pull/19086)
+* [[`d2463745a7`](https://github.com/nodejs/node/commit/d2463745a7)] - **n-api**: fix object test (Gabriel Schulhof) [#19039](https://github.com/nodejs/node/pull/19039)
+* [[`516c287f8e`](https://github.com/nodejs/node/commit/516c287f8e)] - **n-api**: remove extra reference from test (Gabriel Schulhof) [#18542](https://github.com/nodejs/node/pull/18542)
+* [[`a8dec487f7`](https://github.com/nodejs/node/commit/a8dec487f7)] - **n-api**: add methods to open/close callback scope (Michael Dawson) [#18089](https://github.com/nodejs/node/pull/18089)
+* [[`c09a7134e7`](https://github.com/nodejs/node/commit/c09a7134e7)] - **n-api**: wrap control flow macro in do/while (Ben Noordhuis) [#18532](https://github.com/nodejs/node/pull/18532)
+* [[`b565ba2d82`](https://github.com/nodejs/node/commit/b565ba2d82)] - **n-api**: implement wrapping using private properties (Gabriel Schulhof) [#18311](https://github.com/nodejs/node/pull/18311)
+* [[`d9df8cfe77`](https://github.com/nodejs/node/commit/d9df8cfe77)] - **n-api**: change assert ok check to notStrictEqual. (Aaron Kau) [#18414](https://github.com/nodejs/node/pull/18414)
+* [[`2e24a0bfe7`](https://github.com/nodejs/node/commit/2e24a0bfe7)] - **n-api**: throw RangeError napi\_create\_typedarray() (Jinho Bang) [#18037](https://github.com/nodejs/node/pull/18037)
+* [[`62427bbed9`](https://github.com/nodejs/node/commit/62427bbed9)] - **n-api**: expose n-api version in process.versions (Michael Dawson) [#18067](https://github.com/nodejs/node/pull/18067)
+* [[`bb99f31f30`](https://github.com/nodejs/node/commit/bb99f31f30)] - **n-api**: throw RangeError in napi\_create\_dataview() with invalid range (Jinho Bang) [#17869](https://github.com/nodejs/node/pull/17869)
+* [[`65ea7abd55`](https://github.com/nodejs/node/commit/65ea7abd55)] - **n-api**: fix memory leak in napi\_async\_destroy() (alnyan) [#17714](https://github.com/nodejs/node/pull/17714)
+* [[`d4284a464b`](https://github.com/nodejs/node/commit/d4284a464b)] - **n-api**: use nullptr instead of NULL in node\_api.cc (Daniel Bevenius) [#17276](https://github.com/nodejs/node/pull/17276)
+* [[`f4391b95ee`](https://github.com/nodejs/node/commit/f4391b95ee)] - **n-api**: add helper for addons to get the event loop (Anna Henningsen) [#17109](https://github.com/nodejs/node/pull/17109)
+* [[`3c84db624a`](https://github.com/nodejs/node/commit/3c84db624a)] - **n-api**: unexpose symbols and remove EXTERNAL\_NAPI (Gabriel Schulhof) [#16234](https://github.com/nodejs/node/pull/16234)
+* [[`55aab6bf01`](https://github.com/nodejs/node/commit/55aab6bf01)] - **n-api**: check against invalid handle scope usage (Anna Henningsen) [#16201](https://github.com/nodejs/node/pull/16201)
+* [[`169b53e788`](https://github.com/nodejs/node/commit/169b53e788)] - **n-api**: use module name macro (Michael Dawson) [#16185](https://github.com/nodejs/node/pull/16185)
+* [[`32412a8ded`](https://github.com/nodejs/node/commit/32412a8ded)] - **n-api**: make changes for source compatibility (Gabriel Schulhof) [#16102](https://github.com/nodejs/node/pull/16102)
+* [[`00d094f9c3`](https://github.com/nodejs/node/commit/00d094f9c3)] - **n-api**: add check for large strings (Michael Dawson) [#15611](https://github.com/nodejs/node/pull/15611)
+* [[`2bc8a59915`](https://github.com/nodejs/node/commit/2bc8a59915)] - **n-api**: fix warning about size\_t compare with int (Sampson Gao) [#15508](https://github.com/nodejs/node/pull/15508)
+* [[`5e29823d1d`](https://github.com/nodejs/node/commit/5e29823d1d)] - **n-api**: remove n-api module loading flag (Gabriel Schulhof) [#14902](https://github.com/nodejs/node/pull/14902)
+* [[`f31b50cfc7`](https://github.com/nodejs/node/commit/f31b50cfc7)] - **n-api**: add optional string length parameters (Sampson Gao) [#15343](https://github.com/nodejs/node/pull/15343)
+* [[`fe87a5944b`](https://github.com/nodejs/node/commit/fe87a5944b)] - **n-api**: napi\_is\_construct\_call-\>napi\_get\_new\_target (Sampson Gao) [#14698](https://github.com/nodejs/node/pull/14698)
+* [[`5eadd6249d`](https://github.com/nodejs/node/commit/5eadd6249d)] - **n-api**: Context for custom async operations (Jason Ginchereau) [#15189](https://github.com/nodejs/node/pull/15189)
+* [[`50cb48b55c`](https://github.com/nodejs/node/commit/50cb48b55c)] - **n-api**: refactor napi\_addon\_register\_func (Taylor Woll) [#15088](https://github.com/nodejs/node/pull/15088)
+* [[`156a8b6069`](https://github.com/nodejs/node/commit/156a8b6069)] - **n-api**: change async resource name to napi\_value (Jason Ginchereau) [#14697](https://github.com/nodejs/node/pull/14697)
+* [[`7588eead2a`](https://github.com/nodejs/node/commit/7588eead2a)] - **n-api**: use AsyncResource for Work tracking (Anna Henningsen) [#14697](https://github.com/nodejs/node/pull/14697)
+* [[`676cff48bd`](https://github.com/nodejs/node/commit/676cff48bd)] - **n-api**: stop creating references to primitives (Gabriel Schulhof) [#15289](https://github.com/nodejs/node/pull/15289)
+* [[`3b4708b025`](https://github.com/nodejs/node/commit/3b4708b025)] - **n-api**: implement napi\_run\_script (Gabriel Schulhof) [#15216](https://github.com/nodejs/node/pull/15216)
+* [[`ac5b904808`](https://github.com/nodejs/node/commit/ac5b904808)] - **n-api**: adds function to adjust external memory (Chris Young) [#14310](https://github.com/nodejs/node/pull/14310)
+* [[`278a2d069f`](https://github.com/nodejs/node/commit/278a2d069f)] - **n-api**: implement promise (Gabriel Schulhof) [#14365](https://github.com/nodejs/node/pull/14365)
+* [[`73cc251f50`](https://github.com/nodejs/node/commit/73cc251f50)] - **n-api**: add ability to remove a wrapping (Gabriel Schulhof) [#14658](https://github.com/nodejs/node/pull/14658)
+* [[`951adbef3d`](https://github.com/nodejs/node/commit/951adbef3d)] - **n-api**: add napi\_get\_node\_version (Anna Henningsen) [#14696](https://github.com/nodejs/node/pull/14696)
+* [[`b29eb693a0`](https://github.com/nodejs/node/commit/b29eb693a0)] - **n-api**: optimize number API performance (Jason Ginchereau) [#14573](https://github.com/nodejs/node/pull/14573)
+* [[`bd032a158a`](https://github.com/nodejs/node/commit/bd032a158a)] - **n-api**: add support for DataView (Shivanth MP) [#14382](https://github.com/nodejs/node/pull/14382)
+* [[`86b101cb60`](https://github.com/nodejs/node/commit/86b101cb60)] - **n-api**: re-use napi\_env between modules (Gabriel Schulhof) [#14217](https://github.com/nodejs/node/pull/14217)
+* [[`1acab66df4`](https://github.com/nodejs/node/commit/1acab66df4)] - **n-api**: directly create Local from Persistent (Kyle Farnung) [#14211](https://github.com/nodejs/node/pull/14211)
+* [[`f4d1cae634`](https://github.com/nodejs/node/commit/f4d1cae634)] - **n-api**: add fast paths for integer getters (Anna Henningsen) [#14393](https://github.com/nodejs/node/pull/14393)
+* [[`aad36b2cd4`](https://github.com/nodejs/node/commit/aad36b2cd4)] - **n-api**: add napi\_fatal\_error API (Kyle Farnung) [#13971](https://github.com/nodejs/node/pull/13971)
+* [[`57be12ed97`](https://github.com/nodejs/node/commit/57be12ed97)] - **n-api**: add code parameter to error helpers (Michael Dawson) [#13988](https://github.com/nodejs/node/pull/13988)
+* [[`cd3015408e`](https://github.com/nodejs/node/commit/cd3015408e)] - **n-api**: wrap test macros in do/while (Kyle Farnung) [#14095](https://github.com/nodejs/node/pull/14095)
+* [[`7973bd3e63`](https://github.com/nodejs/node/commit/7973bd3e63)] - **n-api**: Implement stricter wrapping (Gabriel Schulhof) [#13872](https://github.com/nodejs/node/pull/13872)
+* [[`5b0c57cfeb`](https://github.com/nodejs/node/commit/5b0c57cfeb)] - **n-api**: fix warning in test\_general (Daniel Bevenius) [#14104](https://github.com/nodejs/node/pull/14104)
+* [[`a5517d80bb`](https://github.com/nodejs/node/commit/a5517d80bb)] - **n-api**: add napi\_has\_own\_property() (cjihrig) [#14063](https://github.com/nodejs/node/pull/14063)
+* [[`8e2a26d3d0`](https://github.com/nodejs/node/commit/8e2a26d3d0)] - **n-api**: fix -Wmaybe-uninitialized compiler warning (Ben Noordhuis) [#14053](https://github.com/nodejs/node/pull/14053)
+* [[`33821c3087`](https://github.com/nodejs/node/commit/33821c3087)] - **n-api**: use Maybe version of Object::SetPrototype() (Ben Noordhuis) [#14053](https://github.com/nodejs/node/pull/14053)
+* [[`80cf25a8a5`](https://github.com/nodejs/node/commit/80cf25a8a5)] - **n-api**: add napi\_delete\_property() (cjihrig) [#13934](https://github.com/nodejs/node/pull/13934)
+* [[`cadec3b37e`](https://github.com/nodejs/node/commit/cadec3b37e)] - **n-api**: add napi\_delete\_element() (cjihrig) [#13949](https://github.com/nodejs/node/pull/13949)
+* [[`97b628ba8e`](https://github.com/nodejs/node/commit/97b628ba8e)] - **n-api**: fix section title typo (Kyle Farnung) [#13972](https://github.com/nodejs/node/pull/13972)
+* [[`c3eb187bd9`](https://github.com/nodejs/node/commit/c3eb187bd9)] - **n-api**: avoid crash in napi\_escape\_scope() (Michael Dawson) [#13651](https://github.com/nodejs/node/pull/13651)
+* [[`919556f27a`](https://github.com/nodejs/node/commit/919556f27a)] - **n-api**: enable napi\_wrap() to work with any object (Jason Ginchereau) [#13250](https://github.com/nodejs/node/pull/13250)
+* [[`86c0ebf4e2`](https://github.com/nodejs/node/commit/86c0ebf4e2)] - **n-api**: add napi\_get\_version (Michael Dawson) [#13207](https://github.com/nodejs/node/pull/13207)
+* [[`70281ba1be`](https://github.com/nodejs/node/commit/70281ba1be)] - **n-api**: Retain last code when getting error info (Jason Ginchereau) [#13087](https://github.com/nodejs/node/pull/13087)
+* [[`8d3162d9e6`](https://github.com/nodejs/node/commit/8d3162d9e6)] - **n-api**: remove compiler warning (Anna Henningsen) [#13014](https://github.com/nodejs/node/pull/13014)
+* [[`a128219a48`](https://github.com/nodejs/node/commit/a128219a48)] - **n-api**: Handle fatal exception in async callback (Jason Ginchereau) [#12838](https://github.com/nodejs/node/pull/12838)
+* [[`2e36365d56`](https://github.com/nodejs/node/commit/2e36365d56)] - **n-api**: napi\_get\_cb\_info should fill array (Jason Ginchereau) [#12863](https://github.com/nodejs/node/pull/12863)
+* [[`7507d1e0e6`](https://github.com/nodejs/node/commit/7507d1e0e6)] - **n-api**: remove unnecessary try-catch bracket from certain APIs (Gabriel Schulhof) [#12705](https://github.com/nodejs/node/pull/12705)
+* [[`49d74c648d`](https://github.com/nodejs/node/commit/49d74c648d)] - **n-api**: Sync with back-compat changes (Jason Ginchereau) [#12674](https://github.com/nodejs/node/pull/12674)
+* [[`bc252509ca`](https://github.com/nodejs/node/commit/bc252509ca)] - **n-api**: Reference and external tests (Jason Ginchereau) [#12551](https://github.com/nodejs/node/pull/12551)
+* [[`c560db9ece`](https://github.com/nodejs/node/commit/c560db9ece)] - **n-api**: Enable scope and ref APIs during exception (Jason Ginchereau) [#12524](https://github.com/nodejs/node/pull/12524)
+* [[`8287e7671a`](https://github.com/nodejs/node/commit/8287e7671a)] - **n-api**: tighten null-checking and clean up last error (Gabriel Schulhof) [#12539](https://github.com/nodejs/node/pull/12539)
+* [[`f5cfa09ca4`](https://github.com/nodejs/node/commit/f5cfa09ca4)] - **n-api**: remove napi\_get\_value\_string\_length() (Jason Ginchereau) [#12496](https://github.com/nodejs/node/pull/12496)
+* [[`c44f6ffc3c`](https://github.com/nodejs/node/commit/c44f6ffc3c)] - **n-api**: fix coverity scan report (Michael Dawson) [#12365](https://github.com/nodejs/node/pull/12365)
+* [[`9bf8e9d48c`](https://github.com/nodejs/node/commit/9bf8e9d48c)] - **n-api**: add string api for latin1 encoding (Sampson Gao) [#12368](https://github.com/nodejs/node/pull/12368)
+* [[`eb51d42d2b`](https://github.com/nodejs/node/commit/eb51d42d2b)] - **n-api**: fix -Wmismatched-tags compiler warning (Ben Noordhuis) [#12333](https://github.com/nodejs/node/pull/12333)
+* [[`d82fd2a9a0`](https://github.com/nodejs/node/commit/d82fd2a9a0)] - **n-api**: implement async helper methods (taylor.woll) [#12250](https://github.com/nodejs/node/pull/12250)
+* [[`c127b71526`](https://github.com/nodejs/node/commit/c127b71526)] - **n-api**: change napi\_callback to return napi\_value (Taylor Woll) [#12248](https://github.com/nodejs/node/pull/12248)
+* [[`2a726223ea`](https://github.com/nodejs/node/commit/2a726223ea)] - **n-api**: cache Symbol.hasInstance (Gabriel Schulhof) [#12246](https://github.com/nodejs/node/pull/12246)
+* [[`db36ca5f91`](https://github.com/nodejs/node/commit/db36ca5f91)] - **n-api**: Update property attrs enum to match JS spec (Jason Ginchereau) [#12240](https://github.com/nodejs/node/pull/12240)
+* [[`1e6d3bb841`](https://github.com/nodejs/node/commit/1e6d3bb841)] - **n-api**: create napi\_env as a real structure (Gabriel Schulhof) [#12195](https://github.com/nodejs/node/pull/12195)
+* [[`f1bdbd17d0`](https://github.com/nodejs/node/commit/f1bdbd17d0)] - **n-api**: break dep between v8 and napi attributes (Michael Dawson) [#12191](https://github.com/nodejs/node/pull/12191)
+* [[`a9562fe30c`](https://github.com/nodejs/node/commit/a9562fe30c)] - **n-api**: add support for abi stable module API (Jason Ginchereau) [#11975](https://github.com/nodejs/node/pull/11975)
+* [[`aa0fb7761e`](https://github.com/nodejs/node/commit/aa0fb7761e)] - **n-api,test**: add int64 bounds tests (Kyle Farnung) [#19309](https://github.com/nodejs/node/pull/19309)
+* [[`3f6d80e25c`](https://github.com/nodejs/node/commit/3f6d80e25c)] - **n-api,test**: add a new.target test to addons-napi (Taylor Woll) [#19236](https://github.com/nodejs/node/pull/19236)
+* [[`011b53e28f`](https://github.com/nodejs/node/commit/011b53e28f)] - **n-api,test**: use module name macro (Gabriel Schulhof) [#16146](https://github.com/nodejs/node/pull/16146)
+* [[`a6af97f76c`](https://github.com/nodejs/node/commit/a6af97f76c)] - **napi**: initialize and check status properly (Gabriel Schulhof) [#12283](https://github.com/nodejs/node/pull/12283)
+* [[`9b36811d8e`](https://github.com/nodejs/node/commit/9b36811d8e)] - **napi**: supress invalid coverity leak message (Michael Dawson) [#12192](https://github.com/nodejs/node/pull/12192)
+* [[`269c2f3ad9`](https://github.com/nodejs/node/commit/269c2f3ad9)] - **net**: remove redundant code from \_writeGeneric() (Luigi Pinca) [#18429](https://github.com/nodejs/node/pull/18429)
+* [[`988cca841e`](https://github.com/nodejs/node/commit/988cca841e)] - **process**: fix reading zero-length env vars on win32 (Anna Henningsen) [#18463](https://github.com/nodejs/node/pull/18463)
+* [[`72a5710b71`](https://github.com/nodejs/node/commit/72a5710b71)] - **readline**: update references to archived repository (Tobias Nießen) [#17924](https://github.com/nodejs/node/pull/17924)
+* [[`b20c278a7c`](https://github.com/nodejs/node/commit/b20c278a7c)] - **src**: add napi\_handle\_scope\_mismatch to msg list (neta) [#17161](https://github.com/nodejs/node/pull/17161)
+* [[`0ef0b342e9`](https://github.com/nodejs/node/commit/0ef0b342e9)] - **src**: replace assert with CHECK\_LE in node\_api.cc (Ben Noordhuis) [#14514](https://github.com/nodejs/node/pull/14514)
+* [[`a8c73748db`](https://github.com/nodejs/node/commit/a8c73748db)] - **src**: correct endif comment SRC\_NODE\_API\_H\_\_ (Daniel Bevenius) [#13190](https://github.com/nodejs/node/pull/13190)
+* [[`0ca2dad3a6`](https://github.com/nodejs/node/commit/0ca2dad3a6)] - **src**: free memory before re-setting URLHost value (Ivan Filenko) [#18357](https://github.com/nodejs/node/pull/18357)
+* [[`e54b8e8184`](https://github.com/nodejs/node/commit/e54b8e8184)] - **stream**: cleanup() when unpiping all streams. (陈刚) [#18266](https://github.com/nodejs/node/pull/18266)
+* [[`8ab8d6afd6`](https://github.com/nodejs/node/commit/8ab8d6afd6)] - **stream**: fix y.pipe(x)+y.pipe(x)+y.unpipe(x) (Anna Henningsen) [#12746](https://github.com/nodejs/node/pull/12746)
+* [[`8f830ca896`](https://github.com/nodejs/node/commit/8f830ca896)] - **stream**: remove unreachable code (Luigi Pinca) [#18239](https://github.com/nodejs/node/pull/18239)
+* [[`64c83d7da9`](https://github.com/nodejs/node/commit/64c83d7da9)] - **stream**: simplify `src.\_readableState` to `state` (陈刚) [#18264](https://github.com/nodejs/node/pull/18264)
+* [[`7c58045470`](https://github.com/nodejs/node/commit/7c58045470)] - **test**: remove unnecessary timer (cjihrig) [#18719](https://github.com/nodejs/node/pull/18719)
+* [[`c90b77ed5d`](https://github.com/nodejs/node/commit/c90b77ed5d)] - **test**: convert new tests to use error types (Jack Horton) [#18581](https://github.com/nodejs/node/pull/18581)
+* [[`7f37dc9c48`](https://github.com/nodejs/node/commit/7f37dc9c48)] - **test**: improve error message output (Bhavani Shankar) [#18498](https://github.com/nodejs/node/pull/18498)
+* [[`59249a1768`](https://github.com/nodejs/node/commit/59249a1768)] - **test**: show pending exception error in napi tests (Ben Wilcox) [#18413](https://github.com/nodejs/node/pull/18413)
+* [[`eceb70b584`](https://github.com/nodejs/node/commit/eceb70b584)] - **test**: refactor addons-napi/test\_exception/test.js (Rich Trott) [#18340](https://github.com/nodejs/node/pull/18340)
+* [[`b3806ecd39`](https://github.com/nodejs/node/commit/b3806ecd39)] - **test**: fixed typos in napi test (furstenheim) [#18148](https://github.com/nodejs/node/pull/18148)
+* [[`a6c277e2eb`](https://github.com/nodejs/node/commit/a6c277e2eb)] - **test**: remove ambiguous error messages from test\_error (Nicholas Drane) [#17812](https://github.com/nodejs/node/pull/17812)
+* [[`412cc17748`](https://github.com/nodejs/node/commit/412cc17748)] - **test**: remove literals that obscure assert messages (Rich Trott) [#17642](https://github.com/nodejs/node/pull/17642)
+* [[`86ddd03608`](https://github.com/nodejs/node/commit/86ddd03608)] - **test**: add unhandled rejection guard (babygoat) [#17275](https://github.com/nodejs/node/pull/17275)
+* [[`e54b58c024`](https://github.com/nodejs/node/commit/e54b58c024)] - **test**: replace assert.throws with common.expectsError (Leko) [#17445](https://github.com/nodejs/node/pull/17445)
+* [[`976f32d189`](https://github.com/nodejs/node/commit/976f32d189)] - **test**: refactor addons-napi/test\_promise/test.js (ka3e) [#16814](https://github.com/nodejs/node/pull/16814)
+* [[`2476ab9619`](https://github.com/nodejs/node/commit/2476ab9619)] - **test**: improve error emssage reporting in testNapiRun.js (Paul Ashfield) [#16821](https://github.com/nodejs/node/pull/16821)
+* [[`d4c04e05f7`](https://github.com/nodejs/node/commit/d4c04e05f7)] - **test**: improve assert messages in napi exception test (Paul Blanche) [#16820](https://github.com/nodejs/node/pull/16820)
+* [[`c14207c77b`](https://github.com/nodejs/node/commit/c14207c77b)] - **test**: add detailed message for assertion failure (Attila Gonda) [#16812](https://github.com/nodejs/node/pull/16812)
+* [[`d31792fcbe`](https://github.com/nodejs/node/commit/d31792fcbe)] - **test**: use default assertion messages (John Byrne) [#16808](https://github.com/nodejs/node/pull/16808)
+* [[`087d213f67`](https://github.com/nodejs/node/commit/087d213f67)] - **test**: include actual value in assertion message (Matthew Cantelon) [#15935](https://github.com/nodejs/node/pull/15935)
+* [[`9cc435dc85`](https://github.com/nodejs/node/commit/9cc435dc85)] - **test**: improve message for assert.strictEqual() (Jayson D. Henkel) [#16013](https://github.com/nodejs/node/pull/16013)
+* [[`ebbd07dd27`](https://github.com/nodejs/node/commit/ebbd07dd27)] - **test**: remove redundant error messages (Christina Chan) [#16043](https://github.com/nodejs/node/pull/16043)
+* [[`5bba809e01`](https://github.com/nodejs/node/commit/5bba809e01)] - **test**: cleaned up assert messages (mrgorbo) [#16032](https://github.com/nodejs/node/pull/16032)
+* [[`53bd313739`](https://github.com/nodejs/node/commit/53bd313739)] - **test**: fix race condition in addon test (Kinnan Kwok) [#16037](https://github.com/nodejs/node/pull/16037)
+* [[`37acd806be`](https://github.com/nodejs/node/commit/37acd806be)] - **test**: remove template literal (Emily Ford) [#15953](https://github.com/nodejs/node/pull/15953)
+* [[`31c97178c1`](https://github.com/nodejs/node/commit/31c97178c1)] - **test**: remove unused parameters (Daniil Shakir) [#14968](https://github.com/nodejs/node/pull/14968)
+* [[`b59eddd082`](https://github.com/nodejs/node/commit/b59eddd082)] - **test**: use regular expressions in throw assertions (Vincent Xue) [#14318](https://github.com/nodejs/node/pull/14318)
+* [[`06b1273464`](https://github.com/nodejs/node/commit/06b1273464)] - **test**: changed error message validator (Pratik Jain) [#14443](https://github.com/nodejs/node/pull/14443)
+* [[`3f3eaf9961`](https://github.com/nodejs/node/commit/3f3eaf9961)] - **test**: replace string concat with template literal (Song, Bintao Garfield) [#14269](https://github.com/nodejs/node/pull/14269)
+* [[`48274213b1`](https://github.com/nodejs/node/commit/48274213b1)] - **test**: handle missing V8 tests in n-api test (cjihrig) [#14123](https://github.com/nodejs/node/pull/14123)
+* [[`7f126c2069`](https://github.com/nodejs/node/commit/7f126c2069)] - **test**: add coverage for napi\_typeof (Michael Dawson) [#13990](https://github.com/nodejs/node/pull/13990)
+* [[`a0cf9b7a73`](https://github.com/nodejs/node/commit/a0cf9b7a73)] - **test**: verify napi\_get\_property() walks prototype (cjihrig) [#13961](https://github.com/nodejs/node/pull/13961)
+* [[`1e25062fa1`](https://github.com/nodejs/node/commit/1e25062fa1)] - **test**: add coverage for napi\_property\_descriptor (Michael Dawson) [#13510](https://github.com/nodejs/node/pull/13510)
+* [[`eb422796cd`](https://github.com/nodejs/node/commit/eb422796cd)] - **test**: fix build warning in addons-napi/test\_object (Jason Ginchereau) [#13412](https://github.com/nodejs/node/pull/13412)
+* [[`9d70b43bdc`](https://github.com/nodejs/node/commit/9d70b43bdc)] - **test**: consolidate n-api test addons - part2 (Michael Dawson) [#13380](https://github.com/nodejs/node/pull/13380)
+* [[`06cf9480d3`](https://github.com/nodejs/node/commit/06cf9480d3)] - **test**: consolidate n-api test addons (Michael Dawson) [#13317](https://github.com/nodejs/node/pull/13317)
+* [[`652d3218fe`](https://github.com/nodejs/node/commit/652d3218fe)] - **test**: Make N-API weak-ref GC tests asynchronous (Jason Ginchereau) [#13121](https://github.com/nodejs/node/pull/13121)
+* [[`0dac33d4f2`](https://github.com/nodejs/node/commit/0dac33d4f2)] - **test**: improve n-api coverage for typed arrays (Michael Dawson) [#13244](https://github.com/nodejs/node/pull/13244)
+* [[`1829d25907`](https://github.com/nodejs/node/commit/1829d25907)] - **test**: add coverage for napi\_has\_named\_property (Michael Dawson) [#13178](https://github.com/nodejs/node/pull/13178)
+* [[`d89afe8685`](https://github.com/nodejs/node/commit/d89afe8685)] - **test**: increase n-api constructor coverage (Michael Dawson) [#13124](https://github.com/nodejs/node/pull/13124)
+* [[`71aa251671`](https://github.com/nodejs/node/commit/71aa251671)] - **test**: Improve N-API test coverage (Michael Dawson) [#13044](https://github.com/nodejs/node/pull/13044)
+* [[`314f22dcf4`](https://github.com/nodejs/node/commit/314f22dcf4)] - **test**: improve N-API test coverage (Michael Dawson) [#13006](https://github.com/nodejs/node/pull/13006)
+* [[`263a633d5e`](https://github.com/nodejs/node/commit/263a633d5e)] - **test**: add common.mustCall() to NAPI exception test (Rich Trott) [#12959](https://github.com/nodejs/node/pull/12959)
+* [[`5936f7c9bb`](https://github.com/nodejs/node/commit/5936f7c9bb)] - **test**: improve n-api array func coverage (Michael Dawson) [#12890](https://github.com/nodejs/node/pull/12890)
+* [[`ce03977f30`](https://github.com/nodejs/node/commit/ce03977f30)] - **test**: fix napi test\_reference for recent V8 (Michaël Zasso) [#12864](https://github.com/nodejs/node/pull/12864)
+* [[`dd7665a68e`](https://github.com/nodejs/node/commit/dd7665a68e)] - **test**: port test for make\_callback to n-api (Hitesh Kanwathirtha) [#12409](https://github.com/nodejs/node/pull/12409)
+* [[`f09677fdba`](https://github.com/nodejs/node/commit/f09677fdba)] - **test**: add coverage for error apis (Michael Dawson) [#12729](https://github.com/nodejs/node/pull/12729)
+* [[`1785f3cf44`](https://github.com/nodejs/node/commit/1785f3cf44)] - **test**: fix warning in n-api reference test (Michael Dawson) [#12730](https://github.com/nodejs/node/pull/12730)
+* [[`5d2afb2174`](https://github.com/nodejs/node/commit/5d2afb2174)] - **test**: replace indexOf with includes (gwer) [#12604](https://github.com/nodejs/node/pull/12604)
+* [[`fcb019f6ea`](https://github.com/nodejs/node/commit/fcb019f6ea)] - **test**: add coverage for napi\_cancel\_async\_work (Michael Dawson) [#12575](https://github.com/nodejs/node/pull/12575)
+* [[`72c5d976f1`](https://github.com/nodejs/node/commit/72c5d976f1)] - **test**: test doc'd napi\_get\_value\_int32 behaviour (Michael Dawson) [#12633](https://github.com/nodejs/node/pull/12633)
+* [[`d9f3e0dd83`](https://github.com/nodejs/node/commit/d9f3e0dd83)] - ***Revert*** "**test**: port test for make\_callback to n-api" (James M Snell) [#12475](https://github.com/nodejs/node/pull/12475)
+* [[`a003777d96`](https://github.com/nodejs/node/commit/a003777d96)] - **test**: port test for make\_callback to n-api (Hitesh Kanwathirtha) [#12409](https://github.com/nodejs/node/pull/12409)
+* [[`577f327d2c`](https://github.com/nodejs/node/commit/577f327d2c)] - **test**: fix compiler warning in n-api test (Anna Henningsen) [#12318](https://github.com/nodejs/node/pull/12318)
+* [[`f8c2585fe0`](https://github.com/nodejs/node/commit/f8c2585fe0)] - **test**: add second argument to assert.throws (Michaël Zasso) [#12270](https://github.com/nodejs/node/pull/12270)
+* [[`6bf3d04d6c`](https://github.com/nodejs/node/commit/6bf3d04d6c)] - **test**: improve test coverage for n-api (Michael Dawson) [#12327](https://github.com/nodejs/node/pull/12327)
+* [[`d799b1cb61`](https://github.com/nodejs/node/commit/d799b1cb61)] - **test**: update a few tests to work on OpenBSD (Aaron Bieber) [#18543](https://github.com/nodejs/node/pull/18543)
+* [[`bc883fb136`](https://github.com/nodejs/node/commit/bc883fb136)] - **test**: refactor test-http-abort-before-end (cjihrig) [#18508](https://github.com/nodejs/node/pull/18508)
+* [[`44ab85018c`](https://github.com/nodejs/node/commit/44ab85018c)] - **test**: fix flaky timers-block-eventloop test (Anatoli Papirovski) [#18567](https://github.com/nodejs/node/pull/18567)
+* [[`5bcf668f42`](https://github.com/nodejs/node/commit/5bcf668f42)] - **test**: use correct size in test-stream-buffer-list (Luigi Pinca) [#18239](https://github.com/nodejs/node/pull/18239)
+* [[`f3c6febedf`](https://github.com/nodejs/node/commit/f3c6febedf)] - **test**: update references to archived repository (Tobias Nießen) [#17924](https://github.com/nodejs/node/pull/17924)
+* [[`b2a2a55271`](https://github.com/nodejs/node/commit/b2a2a55271)] - **test**: verify the shell option works properly on execFile (jvelezpo) [#18384](https://github.com/nodejs/node/pull/18384)
+* [[`fd7d1990db`](https://github.com/nodejs/node/commit/fd7d1990db)] - **test**: remove orphaned entries from status (Kyle Farnung) [#19042](https://github.com/nodejs/node/pull/19042)
+* [[`5ca8dee8cb`](https://github.com/nodejs/node/commit/5ca8dee8cb)] - **test**: remove n-api intermediate files (Gabriel Schulhof) [#19375](https://github.com/nodejs/node/pull/19375)
+* [[`46aed5800f`](https://github.com/nodejs/node/commit/46aed5800f)] - **test**: make common.mustNotCall show file:linenumber (Lance Ball) [#17257](https://github.com/nodejs/node/pull/17257)
+* [[`4d2efa2415`](https://github.com/nodejs/node/commit/4d2efa2415)] - **test**: remove mark flaky for moved test (Beth Griggs) [#19069](https://github.com/nodejs/node/pull/19069)
+* [[`502781c1d7`](https://github.com/nodejs/node/commit/502781c1d7)] - **test**: fix spelling in test case comments (Tobias Nießen) [#18018](https://github.com/nodejs/node/pull/18018)
+* [[`b2bf6c873f`](https://github.com/nodejs/node/commit/b2bf6c873f)] - **test,lib,doc**: use function declarations (Rich Trott) [#12711](https://github.com/nodejs/node/pull/12711)
+* [[`a91b1b928c`](https://github.com/nodejs/node/commit/a91b1b928c)] - **win, build**: fix intl-none option (Birunthan Mohanathas) [#18292](https://github.com/nodejs/node/pull/18292)
+* [[`6ff763bd66`](https://github.com/nodejs/node/commit/6ff763bd66)] - **win, build**: fix without-intl option (Bartosz Sosnowski) [#17614](https://github.com/nodejs/node/pull/17614)
 
 <a id="6.14.1"></a>
 ## 2018-03-29, Version 6.14.1 'Boron' (LTS), @MylesBorins

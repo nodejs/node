@@ -154,4 +154,4 @@ class AllocationTracker {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ALLOCATION_TRACKER_H_
+#endif  // V8_PROFILER_ALLOCATION_TRACKER_H_

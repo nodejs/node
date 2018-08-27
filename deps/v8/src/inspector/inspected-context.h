@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_INSPECTEDCONTEXT_H_
-#define V8_INSPECTOR_INSPECTEDCONTEXT_H_
+#ifndef V8_INSPECTOR_INSPECTED_CONTEXT_H_
+#define V8_INSPECTOR_INSPECTED_CONTEXT_H_
 
 #include <unordered_map>
 #include <unordered_set>
@@ -65,4 +65,4 @@ class InspectedContext {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_INSPECTEDCONTEXT_H_
+#endif  // V8_INSPECTOR_INSPECTED_CONTEXT_H_

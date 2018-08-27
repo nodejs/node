@@ -89,6 +89,11 @@ TEST(PreParserScopeAnalysis) {
        "get_method();",
        true, true, false},
 
+      // Corner case: function expression with name "arguments".
+      {"var test = function arguments(%s) { %s function skippable() { } };\n"
+       "test;\n",
+       false, false, false}
+
       // FIXME(marja): Generators and async functions
   };
 
@@ -677,6 +682,12 @@ TEST(PreParserScopeAnalysis) {
          i::FLAG_harmony_public_fields = false;
          i::FLAG_harmony_static_fields = false;
        }},
+      {"class X { #x = 1 }; new X;",
+       [] { i::FLAG_harmony_private_fields = true; },
+       [] { i::FLAG_harmony_private_fields = false; }},
+      {"function t() { return class { #x = 1 }; } new t();",
+       [] { i::FLAG_harmony_private_fields = true; },
+       [] { i::FLAG_harmony_private_fields = false; }},
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
@@ -745,7 +756,7 @@ TEST(PreParserScopeAnalysis) {
           scope_with_skipped_functions));
 
       // Do scope allocation (based on the preparsed scope data).
-      i::DeclarationScope::Analyze(&using_scope_data);
+      CHECK(i::DeclarationScope::Analyze(&using_scope_data));
 
       // Parse the lazy function again eagerly to produce baseline data.
       i::ParseInfo not_using_scope_data(shared);
@@ -760,7 +771,7 @@ TEST(PreParserScopeAnalysis) {
           scope_without_skipped_functions));
 
       // Do normal scope allocation.
-      i::DeclarationScope::Analyze(&not_using_scope_data);
+      CHECK(i::DeclarationScope::Analyze(&not_using_scope_data));
 
       // Verify that scope allocation gave the same results when parsing w/ the
       // scope data (and skipping functions), and when parsing without.

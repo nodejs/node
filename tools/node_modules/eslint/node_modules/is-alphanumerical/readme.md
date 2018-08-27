@@ -13,13 +13,13 @@ npm install is-alphanumerical
 ## Usage
 
 ```javascript
-var alphanumerical = require('is-alphanumerical');
+var alphanumerical = require('is-alphanumerical')
 
-alphanumerical('a'); //=> true
-alphanumerical('Z'); //=> true
-alphanumerical('0'); //=> true
-alphanumerical(' '); //=> false
-alphanumerical('💩'); //=> false
+alphanumerical('a') // => true
+alphanumerical('Z') // => true
+alphanumerical('0') // => true
+alphanumerical(' ') // => false
+alphanumerical('💩') // => false
 ```
 
 ## API

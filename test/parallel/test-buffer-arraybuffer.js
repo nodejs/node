@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const LENGTH = 16;
@@ -58,14 +58,14 @@ assert.throws(function() {
   buf[0] = 9;
   assert.strictEqual(ab[1], 9);
 
-  common.expectsError(() => Buffer.from(ab.buffer, 6), {
+  assert.throws(() => Buffer.from(ab.buffer, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError,
+    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
     message: '"offset" is outside of buffer bounds'
   });
-  common.expectsError(() => Buffer.from(ab.buffer, 3, 6), {
+  assert.throws(() => Buffer.from(ab.buffer, 3, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError,
+    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
     message: '"length" is outside of buffer bounds'
   });
 }
@@ -86,14 +86,14 @@ assert.throws(function() {
   buf[0] = 9;
   assert.strictEqual(ab[1], 9);
 
-  common.expectsError(() => Buffer(ab.buffer, 6), {
+  assert.throws(() => Buffer(ab.buffer, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError,
+    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
     message: '"offset" is outside of buffer bounds'
   });
-  common.expectsError(() => Buffer(ab.buffer, 3, 6), {
+  assert.throws(() => Buffer(ab.buffer, 3, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError,
+    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
     message: '"length" is outside of buffer bounds'
   });
 }
@@ -111,11 +111,11 @@ assert.throws(function() {
   assert.deepStrictEqual(Buffer.from(ab, [1]), Buffer.from(ab, 1));
 
   // If byteOffset is Infinity, throw.
-  common.expectsError(() => {
+  assert.throws(() => {
     Buffer.from(ab, Infinity);
   }, {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError,
+    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
     message: '"offset" is outside of buffer bounds'
   });
 }
@@ -133,11 +133,11 @@ assert.throws(function() {
   assert.deepStrictEqual(Buffer.from(ab, 0, [1]), Buffer.from(ab, 0, 1));
 
   // If length is Infinity, throw.
-  common.expectsError(() => {
+  assert.throws(() => {
     Buffer.from(ab, 0, Infinity);
   }, {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError,
+    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
     message: '"length" is outside of buffer bounds'
   });
 }

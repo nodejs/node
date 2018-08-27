@@ -831,4 +831,23 @@ const i = d || c || (c ? 'left' : 'right')// 0400
  {"start":423,"end":431,"count":0}
 ]);
 
+TestCoverage(
+"https://crbug.com/827530",
+`
+Util = {};                                // 0000
+Util.escape = function UtilEscape(str) {  // 0050
+  if (!str) {                             // 0100
+    return 'if';                          // 0150
+  } else {                                // 0200
+    return 'else';                        // 0250
+  }                                       // 0300
+};                                        // 0350
+Util.escape("foo.bar");                   // 0400
+`,
+[{"start":0,"end":449,"count":1},
+ {"start":64,"end":351,"count":1},
+ {"start":112,"end":203,"count":0},
+ {"start":303,"end":350,"count":0}]
+);
+
 %DebugToggleBlockCoverage(false);

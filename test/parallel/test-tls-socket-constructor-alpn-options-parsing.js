@@ -13,9 +13,6 @@ new tls.TLSSocket(null, {
   ALPNProtocols: ['http/1.1'],
 });
 
-if (!process.features.tls_alpn)
-  common.skip('node compiled without ALPN feature of OpenSSL');
-
 const assert = require('assert');
 const net = require('net');
 const fixtures = require('../common/fixtures');

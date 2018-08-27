@@ -1,118 +1,36 @@
-/* crypto/dsa/dsa_gen.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
- *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
- */
-
-#undef GENUINE_DSA
-
-#ifdef GENUINE_DSA
 /*
- * Parameter generation follows the original release of FIPS PUB 186,
- * Appendix 2.2 (i.e. use SHA as defined in FIPS PUB 180)
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-# define HASH    EVP_sha()
-#else
+
 /*
  * Parameter generation follows the updated Appendix 2.2 for FIPS PUB 186,
  * also Appendix 2.2 of FIPS PUB 186-1 (i.e. use SHA as defined in FIPS PUB
  * 180-1)
  */
-# define HASH    EVP_sha1()
-#endif
+#define xxxHASH    EVP_sha1()
 
-#include <openssl/opensslconf.h> /* To see if OPENSSL_NO_SHA is defined */
-
-#ifndef OPENSSL_NO_SHA
-
-# include <stdio.h>
-# include "cryptlib.h"
-# include <openssl/evp.h>
-# include <openssl/bn.h>
-# include <openssl/rand.h>
-# include <openssl/sha.h>
-# include "dsa_locl.h"
-
-# ifdef OPENSSL_FIPS
-/* Workaround bug in prototype */
-#  define fips_dsa_builtin_paramgen2 fips_dsa_paramgen_bad
-#  include <openssl/fips.h>
-# endif
+#include <openssl/opensslconf.h>
+#include <stdio.h>
+#include "internal/cryptlib.h"
+#include <openssl/evp.h>
+#include <openssl/bn.h>
+#include <openssl/rand.h>
+#include <openssl/sha.h>
+#include "dsa_locl.h"
 
 int DSA_generate_parameters_ex(DSA *ret, int bits,
                                const unsigned char *seed_in, int seed_len,
                                int *counter_ret, unsigned long *h_ret,
                                BN_GENCB *cb)
 {
-# ifdef OPENSSL_FIPS
-    if (FIPS_mode() && !(ret->meth->flags & DSA_FLAG_FIPS_METHOD)
-        && !(ret->flags & DSA_FLAG_NON_FIPS_ALLOW)) {
-        DSAerr(DSA_F_DSA_GENERATE_PARAMETERS_EX, DSA_R_NON_FIPS_DSA_METHOD);
-        return 0;
-    }
-# endif
     if (ret->meth->dsa_paramgen)
         return ret->meth->dsa_paramgen(ret, bits, seed_in, seed_len,
                                        counter_ret, h_ret, cb);
-# ifdef OPENSSL_FIPS
-    else if (FIPS_mode()) {
-        return FIPS_dsa_generate_parameters_ex(ret, bits,
-                                               seed_in, seed_len,
-                                               counter_ret, h_ret, cb);
-    }
-# endif
     else {
         const EVP_MD *evpmd = bits >= 2048 ? EVP_sha256() : EVP_sha1();
         size_t qbits = EVP_MD_size(evpmd) * 8;
@@ -146,27 +64,33 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
         /* invalid q size */
         return 0;
 
-    if (evpmd == NULL)
-        /* use SHA1 as default */
-        evpmd = EVP_sha1();
+    if (evpmd == NULL) {
+        if (qsize == SHA_DIGEST_LENGTH)
+            evpmd = EVP_sha1();
+        else if (qsize == SHA224_DIGEST_LENGTH)
+            evpmd = EVP_sha224();
+        else
+            evpmd = EVP_sha256();
+    } else {
+        qsize = EVP_MD_size(evpmd);
+    }
 
     if (bits < 512)
         bits = 512;
 
     bits = (bits + 63) / 64 * 64;
 
-    /*
-     * NB: seed_len == 0 is special case: copy generated seed to seed_in if
-     * it is not NULL.
-     */
-    if (seed_len && (seed_len < (size_t)qsize))
-        seed_in = NULL;         /* seed buffer too small -- ignore */
-    if (seed_len > (size_t)qsize)
-        seed_len = qsize;       /* App. 2.2 of FIPS PUB 186 allows larger
-                                 * SEED, but our internal buffers are
-                                 * restricted to 160 bits */
-    if (seed_in != NULL)
+    if (seed_in != NULL) {
+        if (seed_len < (size_t)qsize) {
+            DSAerr(DSA_F_DSA_BUILTIN_PARAMGEN, DSA_R_SEED_LEN_SMALL);
+            return 0;
+        }
+        if (seed_len > (size_t)qsize) {
+            /* Only consume as much seed as is expected. */
+            seed_len = qsize;
+        }
         memcpy(seed, seed_in, seed_len);
+    }
 
     if ((mont = BN_MONT_CTX_new()) == NULL)
         goto err;
@@ -193,20 +117,18 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
 
     for (;;) {
         for (;;) {              /* find q */
-            int seed_is_random;
+            int use_random_seed = (seed_in == NULL);
 
             /* step 1 */
             if (!BN_GENCB_call(cb, 0, m++))
                 goto err;
 
-            if (!seed_len || !seed_in) {
+            if (use_random_seed) {
                 if (RAND_bytes(seed, qsize) <= 0)
                     goto err;
-                seed_is_random = 1;
             } else {
-                seed_is_random = 0;
-                seed_len = 0;   /* use random seed if 'seed_in' turns out to
-                                 * be bad */
+                /* If we come back through, use random seed next time. */
+                seed_in = NULL;
             }
             memcpy(buf, seed, qsize);
             memcpy(buf2, seed, qsize);
@@ -233,7 +155,7 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
 
             /* step 4 */
             r = BN_is_prime_fasttest_ex(q, DSS_prime_checks, ctx,
-                                        seed_is_random, cb);
+                                        use_random_seed, cb);
             if (r > 0)
                 break;
             if (r != 0)
@@ -353,12 +275,9 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
     ok = 1;
  err:
     if (ok) {
-        if (ret->p)
-            BN_free(ret->p);
-        if (ret->q)
-            BN_free(ret->q);
-        if (ret->g)
-            BN_free(ret->g);
+        BN_free(ret->p);
+        BN_free(ret->q);
+        BN_free(ret->g);
         ret->p = BN_dup(p);
         ret->q = BN_dup(q);
         ret->g = BN_dup(g);
@@ -373,25 +292,12 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
         if (seed_out)
             memcpy(seed_out, seed, qsize);
     }
-    if (ctx) {
+    if (ctx)
         BN_CTX_end(ctx);
-        BN_CTX_free(ctx);
-    }
-    if (mont != NULL)
-        BN_MONT_CTX_free(mont);
+    BN_CTX_free(ctx);
+    BN_MONT_CTX_free(mont);
     return ok;
 }
-
-# ifdef OPENSSL_FIPS
-#  undef fips_dsa_builtin_paramgen2
-extern int fips_dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
-                                      const EVP_MD *evpmd,
-                                      const unsigned char *seed_in,
-                                      size_t seed_len, int idx,
-                                      unsigned char *seed_out,
-                                      int *counter_ret, unsigned long *h_ret,
-                                      BN_GENCB *cb);
-# endif
 
 /*
  * This is a parameter generation algorithm for the DSA2 algorithm as
@@ -415,18 +321,11 @@ int dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
     int counter = 0;
     int r = 0;
     BN_CTX *ctx = NULL;
-    EVP_MD_CTX mctx;
+    EVP_MD_CTX *mctx = EVP_MD_CTX_new();
     unsigned int h = 2;
 
-# ifdef OPENSSL_FIPS
-
-    if (FIPS_mode())
-        return fips_dsa_builtin_paramgen2(ret, L, N, evpmd,
-                                          seed_in, seed_len, idx,
-                                          seed_out, counter_ret, h_ret, cb);
-# endif
-
-    EVP_MD_CTX_init(&mctx);
+    if (mctx == NULL)
+        goto err;
 
     if (evpmd == NULL) {
         if (N == 160)
@@ -438,7 +337,7 @@ int dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
     }
 
     mdsize = EVP_MD_size(evpmd);
-    /* If unverificable g generation only don't need seed */
+    /* If unverifiable g generation only don't need seed */
     if (!ret->p || !ret->q || idx >= 0) {
         if (seed_len == 0)
             seed_len = mdsize;
@@ -450,7 +349,7 @@ int dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
         else
             seed_tmp = OPENSSL_malloc(seed_len);
 
-        if (!seed || !seed_tmp)
+        if (seed == NULL || seed_tmp == NULL)
             goto err;
 
         if (seed_in)
@@ -471,6 +370,8 @@ int dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
     X = BN_CTX_get(ctx);
     c = BN_CTX_get(ctx);
     test = BN_CTX_get(ctx);
+    if (test == NULL)
+        goto err;
 
     /* if p, q already supplied generate g only */
     if (ret->p && ret->q) {
@@ -647,15 +548,15 @@ int dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
             md[0] = idx & 0xff;
             md[1] = (h >> 8) & 0xff;
             md[2] = h & 0xff;
-            if (!EVP_DigestInit_ex(&mctx, evpmd, NULL))
+            if (!EVP_DigestInit_ex(mctx, evpmd, NULL))
                 goto err;
-            if (!EVP_DigestUpdate(&mctx, seed_tmp, seed_len))
+            if (!EVP_DigestUpdate(mctx, seed_tmp, seed_len))
                 goto err;
-            if (!EVP_DigestUpdate(&mctx, ggen, sizeof(ggen)))
+            if (!EVP_DigestUpdate(mctx, ggen, sizeof(ggen)))
                 goto err;
-            if (!EVP_DigestUpdate(&mctx, md, 3))
+            if (!EVP_DigestUpdate(mctx, md, 3))
                 goto err;
-            if (!EVP_DigestFinal_ex(&mctx, md, NULL))
+            if (!EVP_DigestFinal_ex(mctx, md, NULL))
                 goto err;
             if (!BN_bin2bn(md, mdsize, test))
                 goto err;
@@ -679,17 +580,14 @@ int dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
  err:
     if (ok == 1) {
         if (p != ret->p) {
-            if (ret->p)
-                BN_free(ret->p);
+            BN_free(ret->p);
             ret->p = BN_dup(p);
         }
         if (q != ret->q) {
-            if (ret->q)
-                BN_free(ret->q);
+            BN_free(ret->q);
             ret->q = BN_dup(q);
         }
-        if (ret->g)
-            BN_free(ret->g);
+        BN_free(ret->g);
         ret->g = BN_dup(g);
         if (ret->p == NULL || ret->q == NULL || ret->g == NULL) {
             ok = -1;
@@ -700,54 +598,13 @@ int dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
         if (h_ret != NULL)
             *h_ret = h;
     }
-    if (seed)
-        OPENSSL_free(seed);
+    OPENSSL_free(seed);
     if (seed_out != seed_tmp)
         OPENSSL_free(seed_tmp);
-    if (ctx) {
+    if (ctx)
         BN_CTX_end(ctx);
-        BN_CTX_free(ctx);
-    }
-    if (mont != NULL)
-        BN_MONT_CTX_free(mont);
-    EVP_MD_CTX_cleanup(&mctx);
+    BN_CTX_free(ctx);
+    BN_MONT_CTX_free(mont);
+    EVP_MD_CTX_free(mctx);
     return ok;
 }
-
-int dsa_paramgen_check_g(DSA *dsa)
-{
-    BN_CTX *ctx;
-    BIGNUM *tmp;
-    BN_MONT_CTX *mont = NULL;
-    int rv = -1;
-    ctx = BN_CTX_new();
-    if (!ctx)
-        return -1;
-    BN_CTX_start(ctx);
-    if (BN_cmp(dsa->g, BN_value_one()) <= 0)
-        return 0;
-    if (BN_cmp(dsa->g, dsa->p) >= 0)
-        return 0;
-    tmp = BN_CTX_get(ctx);
-    if (!tmp)
-        goto err;
-    if ((mont = BN_MONT_CTX_new()) == NULL)
-        goto err;
-    if (!BN_MONT_CTX_set(mont, dsa->p, ctx))
-        goto err;
-    /* Work out g^q mod p */
-    if (!BN_mod_exp_mont(tmp, dsa->g, dsa->q, dsa->p, ctx, mont))
-        goto err;
-    if (!BN_cmp(tmp, BN_value_one()))
-        rv = 1;
-    else
-        rv = 0;
- err:
-    BN_CTX_end(ctx);
-    if (mont)
-        BN_MONT_CTX_free(mont);
-    BN_CTX_free(ctx);
-    return rv;
-
-}
-#endif

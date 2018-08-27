@@ -335,7 +335,8 @@ CPU::CPU()
       has_vfp3_(false),
       has_vfp3_d32_(false),
       is_fp64_mode_(false),
-      has_non_stop_time_stamp_counter_(false) {
+      has_non_stop_time_stamp_counter_(false),
+      has_msa_(false) {
   memcpy(vendor_, "Unknown", 8);
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
   int cpu_info[4];

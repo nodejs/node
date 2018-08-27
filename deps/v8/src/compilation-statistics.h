@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
+class OptimizedCompilationInfo;
 class CompilationStatistics;
 
 struct AsPrintableStatistics {
@@ -90,4 +90,4 @@ std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& s);
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_COMPILATION_STATISTICS_H_
