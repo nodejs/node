@@ -232,7 +232,7 @@ NODE_EXTERN void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator);
 class IsolateData;
 class Environment;
 
-class MultiIsolatePlatform : public v8::Platform {
+class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
  public:
   virtual ~MultiIsolatePlatform() { }
   // Returns true if work was dispatched or executed. New tasks that are
