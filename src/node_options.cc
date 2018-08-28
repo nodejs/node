@@ -271,10 +271,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvironment);
   AddOption("--preserve-symlinks",
             "preserve symbolic links when resolving",
-            &EnvironmentOptions::preserve_symlinks);
+            &EnvironmentOptions::preserve_symlinks,
+            kAllowedInEnvironment);
   AddOption("--preserve-symlinks-main",
             "preserve symbolic links when resolving the main module",
-            &EnvironmentOptions::preserve_symlinks_main);
+            &EnvironmentOptions::preserve_symlinks_main,
+            kAllowedInEnvironment);
   AddOption("--prof-process",
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
@@ -301,6 +303,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvironment);
+  AddOption("--type",
+            "top-level module type name",
+            &EnvironmentOptions::module_type,
+            kAllowedInEnvironment);
+  AddAlias("-m", { "--type", "module" });
 
   AddOption("--check",
             "syntax check script without executing",

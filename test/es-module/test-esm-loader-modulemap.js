@@ -7,7 +7,7 @@
 const common = require('../common');
 
 const { URL } = require('url');
-const Loader = require('internal/modules/esm/loader');
+const { Loader } = require('internal/modules/esm/loader');
 const ModuleMap = require('internal/modules/esm/module_map');
 const ModuleJob = require('internal/modules/esm/module_job');
 const createDynamicModule = require(

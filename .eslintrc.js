@@ -38,6 +38,8 @@ module.exports = {
     {
       files: [
         'doc/api/esm.md',
+        'test/es-module/test-esm-type-flag.js',
+        'test/es-module/test-esm-type-flag-alias.js',
         '*.mjs',
         'test/es-module/test-esm-example-loader.js',
       ],

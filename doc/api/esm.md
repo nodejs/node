@@ -8,10 +8,11 @@
 <!--name=esm-->
 
 Node.js contains support for ES Modules based upon the
-[Node.js EP for ES Modules][].
+[Node.js EP for ES Modules][] and the [ESM Minimal Kernel][].
 
-Not all features of the EP are complete and will be landing as both VM support
-and implementation is ready. Error messages are still being polished.
+The minimal feature set is designed to be compatible with all potential
+future implementations. Expect major changes in the implementation including
+interoperability support, specifier resolution, and default behavior.
 
 ## Enabling
 
@@ -54,6 +55,10 @@ property:
 
 ## Notable differences between `import` and `require`
 
+### Mandatory file extensions
+
+You must provide a file extension when using the `import` keyword.
+
 ### No NODE_PATH
 
 `NODE_PATH` is not part of resolving `import` specifiers. Please use symlinks
@@ -78,30 +83,31 @@ Modules will be loaded multiple times if the `import` specifier used to resolve
 them have a different query or fragment.
 
 ```js
-import './foo?query=1'; // loads ./foo with query of "?query=1"
-import './foo?query=2'; // loads ./foo with query of "?query=2"
+import './foo.mjs?query=1'; // loads ./foo.mjs with query of "?query=1"
+import './foo.mjs?query=2'; // loads ./foo.mjs with query of "?query=2"
 ```
 
 For now, only modules using the `file:` protocol can be loaded.
 
-## Interop with existing modules
+## CommonJS, JSON, and Native Modules
 
-All CommonJS, JSON, and C++ modules can be used with `import`.
-
-Modules loaded this way will only be loaded once, even if their query
-or fragment string differs between `import` statements.
-
-When loaded via `import` these modules will provide a single `default` export
-representing the value of `module.exports` at the time they finished evaluating.
+CommonJS, JSON, and Native modules can be used with [`module.createRequireFromPath()`][].
 
 ```js
-// foo.js
-module.exports = { one: 1 };
+// cjs.js
+module.exports = 'cjs';
 
-// bar.mjs
-import foo from './foo.js';
-foo.one === 1; // true
+// esm.mjs
+import { createRequireFromPath as createRequire } from 'module';
+import { fileURLToPath as fromPath } from 'url';
+
+const require = createRequire(fromPath(import.meta.url));
+
+const cjs = require('./cjs');
+cjs === 'cjs'; // true
 ```
+
+## Builtin modules
 
 Builtin modules will provide named exports of their public API, as well as a
 default export which can be used for, among other things, modifying the named
@@ -132,37 +138,161 @@ fs.readFileSync = () => Buffer.from('Hello, ESM');
 fs.readFileSync === readFileSync;
 ```
 
-## Loader hooks
+## Resolution Algorithm
 
-<!-- type=misc -->
+### Features
 
-To customize the default module resolution, loader hooks can optionally be
-provided via a `--loader ./loader-name.mjs` argument to Node.js.
+The resolver has the following properties:
 
-When hooks are used they only apply to ES module loading and not to any
-CommonJS modules loaded.
+* FileURL-based resolution as is used by ES modules
+* Support for builtin module loading
+* Relative and absolute URL resolution
+* No default extensions
+* No folder mains
+* Bare specifier package resolution lookup through node_modules
 
-### Resolve hook
+### Resolver Algorithm
 
-The resolve hook returns the resolved file URL and module format for a
-given module specifier and parent file URL:
+The algorithm to load an ES module specifier is given through the
+**ESM_RESOLVE** method below. It returns the resolved URL for a
+module specifier relative to a parentURL, in addition to the unique module
+format for that resolved URL given by the **ESM_FORMAT** routine.
 
-```js
-const baseURL = new URL('file://');
-baseURL.pathname = `${process.cwd()}/`;
+The _"module"_ format is returned for an ECMAScript Module, while the
+_"commonjs"_ format is used to indicate loading through the legacy
+CommonJS loader. Additional formats such as _"wasm"_ or _"addon"_ can be
+extended in future updates.
 
-export async function resolve(specifier,
-                              parentModuleURL = baseURL,
-                              defaultResolver) {
-  return {
-    url: new URL(specifier, parentModuleURL).href,
-    format: 'esm'
-  };
-}
-```
+In the following algorithms, all subroutine errors are propogated as errors
+of these top-level routines.
 
-The `parentModuleURL` is provided as `undefined` when performing main Node.js
-load itself.
+_isMain_ is **true** when resolving the Node.js application entry point.
+
+If the top-level `--type` is _"commonjs"_, then the ESM resolver is skipped
+entirely for the CommonJS loader.
+
+If the top-level `--type` is _"module"_, then the ESM resolver is used
+as described here, with the conditional `--type` check in **ESM_FORMAT**.
+
+<details>
+<summary>Resolver algorithm psuedocode</summary>
+
+**ESM_RESOLVE(_specifier_, _parentURL_, _isMain_)**
+> 1. Let _resolvedURL_ be **undefined**.
+> 1. If _specifier_ is a valid URL, then
+>    1. Set _resolvedURL_ to the result of parsing and reserializing
+>       _specifier_ as a URL.
+> 1. Otherwise, if _specifier_ starts with _"/"_, then
+>    1. Throw an _Invalid Specifier_ error.
+> 1. Otherwise, if _specifier_ starts with _"./"_ or _"../"_, then
+>    1. Set _resolvedURL_ to the URL resolution of _specifier_ relative to
+>       _parentURL_.
+> 1. Otherwise,
+>    1. Note: _specifier_ is now a bare specifier.
+>    1. Set _resolvedURL_ the result of
+>       **PACKAGE_RESOLVE**(_specifier_, _parentURL_).
+> 1. If the file at _resolvedURL_ does not exist, then
+>    1. Throw a _Module Not Found_ error.
+> 1. Set _resolvedURL_ to the real path of _resolvedURL_.
+> 1. Let _format_ be the result of **ESM_FORMAT**(_resolvedURL_, _isMain_).
+> 1. Load _resolvedURL_ as module format, _format_.
+
+PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
+> 1. Let _packageName_ be *undefined*.
+> 1. Let _packageSubpath_ be *undefined*.
+> 1. If _packageSpecifier_ is an empty string, then
+>    1. Throw an _Invalid Specifier_ error.
+> 1. If _packageSpecifier_ does not start with _"@"_, then
+>    1. Set _packageName_ to the substring of _packageSpecifier_ until the
+>       first _"/"_ separator or the end of the string.
+> 1. Otherwise,
+>    1. If _packageSpecifier_ does not contain a _"/"_ separator, then
+>       1. Throw an _Invalid Specifier_ error.
+>    1. Set _packageName_ to the substring of _packageSpecifier_
+>       until the second _"/"_ separator or the end of the string.
+> 1. Let _packageSubpath_ be the substring of _packageSpecifier_ from the
+>    position at the length of _packageName_ plus one, if any.
+> 1. Assert: _packageName_ is a valid package name or scoped package name.
+> 1. Assert: _packageSubpath_ is either empty, or a path without a leading
+>    separator.
+> 1. If _packageSubpath_ contains any _"."_ or _".."_ segments or percent
+>    encoded strings for _"/"_ or _"\"_ then,
+>    1. Throw an _Invalid Specifier_ error.
+> 1. If _packageSubpath_ is empty and _packageName_ is a Node.js builtin
+>    module, then
+>    1. Return the string _"node:"_ concatenated with _packageSpecifier_.
+> 1. While _parentURL_ is not the file system root,
+>    1. Set _parentURL_ to the parent folder URL of _parentURL_.
+>    1. Let _packageURL_ be the URL resolution of the string concatenation of
+>       _parentURL_, _"/node_modules/"_ and _packageSpecifier_.
+>    1. If the folder at _packageURL_ does not exist, then
+>       1. Set _parentURL_ to the parent URL path of _parentURL_.
+>       1. Continue the next loop iteration.
+>    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
+>    1. If _packageSubpath_ is empty, then
+>       1. Return the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_,
+>          _pjson_).
+>    1. Otherwise,
+>       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
+> 1. Throw a _Module Not Found_ error.
+
+PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
+> 1. If _pjson_ is **null**, then
+>    1. Throw a _Module Not Found_ error.
+> 1. If _pjson.main_ is a String, then
+>    1. Let _resolvedMain_ be the concatenation of _packageURL_, "/", and
+>       _pjson.main_.
+>    1. If the file at _resolvedMain_ exists, then
+>       1. Return _resolvedMain_.
+> 1. If _pjson.type_ is equal to _"module"_, then
+>    1. Throw a _Module Not Found_ error.
+> 1. Let _legacyMainURL_ be the result applying the legacy
+>    **LOAD_AS_DIRECTORY** CommonJS resolver to _packageURL_, throwing a
+>    _Module Not Found_ error for no resolution.
+> 1. If _legacyMainURL_ does not end in _".js"_ then,
+>    1. Throw an _Unsupported File Extension_ error.
+> 1. Return _legacyMainURL_.
+
+**ESM_FORMAT(_url_, _isMain_)**
+> 1. Assert: _url_ corresponds to an existing file.
+> 1. If _isMain_ is **true** and the `--type` flag is _"module"_, then
+>    1. If _url_ ends with _".cjs"_, then
+>       1. Throw a _Type Mismatch_ error.
+>    1. Return _"module"_.
+> 1. Let _pjson_ be the result of **READ_PACKAGE_SCOPE**(_url_).
+> 1. If _pjson_ is **null** and _isMain_ is **true**, then
+>    1. If _url_ ends in _".mjs"_, then
+>       1. Return _"module"_.
+>    1. Return _"commonjs"_.
+> 1. If _pjson.type_ exists and is _"module"_, then
+>    1. If _url_ ends in _".cjs"_, then
+>       1. Return _"commonjs"_.
+>    1. Return _"module"_.
+> 1. Otherwise,
+>    1. If _url_ ends in _".mjs"_, then
+>       1. Return _"module"_.
+>    1. If _url_ does not end in _".js"_, then
+>       1. Throw an _Unsupported File Extension_ error.
+>    1. Return _"commonjs"_.
+
+READ_PACKAGE_SCOPE(_url_)
+> 1. Let _scopeURL_ be _url_.
+> 1. While _scopeURL_ is not the file system root,
+>    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_scopeURL_).
+>    1. If _pjson_ is not **null**, then
+>       1. Return _pjson_.
+>    1. Set _scopeURL_ to the parent URL of _scopeURL_.
+> 1. Return **null**.
+
+READ_PACKAGE_JSON(_packageURL_)
+> 1. Let _pjsonURL_ be the resolution of _"package.json"_ within _packageURL_.
+> 1. If the file at _pjsonURL_ does not exist, then
+>    1. Return **null**.
+> 1. If the file at _packageURL_ does not parse as valid JSON, then
+>    1. Throw an _Invalid Package Configuration_ error.
+> 1. Return the parsed JSON source of the file at _pjsonURL_.
+
+</details>
 
 The default Node.js ES module resolution function is provided as a third
 argument to the resolver for easy compatibility workflows.
@@ -173,11 +303,9 @@ module. This can be one of the following:
 
 | `format` | Description |
 | --- | --- |
-| `'esm'` | Load a standard JavaScript module |
-| `'cjs'` | Load a node-style CommonJS module |
-| `'builtin'` | Load a node builtin CommonJS module |
-| `'json'` | Load a JSON file |
-| `'addon'` | Load a [C++ Addon][addons] |
+| `'module'` | Load a standard JavaScript module |
+| `'commonjs'` | Load a Node.js CommonJS module |
+| `'builtin'` | Load a Node.js builtin module |
 | `'dynamic'` | Use a [dynamic instantiate hook][] |
 
 For example, a dummy loader to load JavaScript restricted to browser resolution
@@ -254,5 +382,6 @@ then be called at the exact point of module evaluation order for that module
 in the import tree.
 
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
-[addons]: addons.html
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
+[`module.createRequireFromPath()`]: modules.html#modules_module_createrequirefrompath_filename
+[ESM Minimal Kernel]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md

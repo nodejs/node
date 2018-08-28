@@ -1,7 +1,11 @@
 // Flags: --experimental-modules --loader ./test/fixtures/es-module-loaders/loader-shared-dep.mjs
-import '../common';
+/* eslint-disable node-core/required-modules */
+import { createRequire } from '../common/index.mjs';
+
 import assert from 'assert';
 import '../fixtures/es-modules/test-esm-ok.mjs';
-import dep from '../fixtures/es-module-loaders/loader-dep.js';
 
-assert.strictEqual(dep.format, 'esm');
+const require = createRequire(import.meta.url);
+const dep = require('../fixtures/es-module-loaders/loader-dep.js');
+
+assert.strictEqual(dep.format, 'module');

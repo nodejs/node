@@ -511,6 +511,18 @@ added: v2.4.0
 
 Track heap object allocations for heap snapshots.
 
+### `-m`, `--type=type`
+
+When using `--experimental-modules`, this informs the module resolution type
+to interpret the top-level entry into Node.js.
+
+Works with stdin, `--eval`, `--print` as well as standard execution.
+
+Valid values are `"commonjs"` and `"module"`, where the default is to infer
+from the file extension and package type boundary.
+
+`-m` is an alias for `--type=module`.
+
 ### `--use-bundled-ca`, `--use-openssl-ca`
 <!-- YAML
 added: v6.11.0
@@ -904,7 +916,7 @@ greater than `4` (its current default value). For more information, see the
 [debugger]: debugger.html
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
-[experimental ECMAScript Module]: esm.html#esm_loader_hooks
+[experimental ECMAScript Module]: esm.html#esm_experimental_loader_hooks
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [secureProtocol]: tls.html#tls_tls_createsecurecontext_options

@@ -29,6 +29,6 @@ export function resolve(specifier, parentModuleURL = baseURL /*, defaultResolve 
   }
   return {
     url: resolved.href,
-    format: 'esm'
+    format: 'module'
   };
 }
