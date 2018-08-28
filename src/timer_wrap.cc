@@ -37,6 +37,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -138,13 +139,12 @@ class TimerWrap : public HandleWrap {
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    Local<Value> ret;
+    MaybeLocal<Value> ret;
     Local<Value> args[1];
     do {
       args[0] = env->GetNow();
-      ret = wrap->MakeCallback(env->timers_callback_function(), 1, args)
-                .ToLocalChecked();
-    } while (ret->IsUndefined() &&
+      ret = wrap->MakeCallback(env->timers_callback_function(), 1, args);
+    } while ((ret.IsEmpty() || ret.ToLocalChecked()->IsUndefined()) &&
              !env->tick_info()->has_thrown() &&
              env->can_call_into_js() &&
              wrap->object()->Get(env->context(),
