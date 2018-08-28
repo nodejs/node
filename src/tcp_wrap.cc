@@ -81,7 +81,7 @@ void TCPWrap::Initialize(Local<Object> target,
   // Init properties
   t->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "reading"),
                              Boolean::New(env->isolate(), false));
-  t->InstanceTemplate()->Set(env->owner_string(), Null(env->isolate()));
+  t->InstanceTemplate()->Set(env->owner_symbol(), Null(env->isolate()));
   t->InstanceTemplate()->Set(env->onread_string(), Null(env->isolate()));
   t->InstanceTemplate()->Set(env->onconnection_string(), Null(env->isolate()));
 

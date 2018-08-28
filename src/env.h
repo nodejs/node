@@ -111,6 +111,7 @@ struct PackageConfig {
 // for the sake of convenience.
 #define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
   V(handle_onclose_symbol, "handle_onclose")                                  \
+  V(owner_symbol, "owner")                                                    \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -233,7 +234,6 @@ struct PackageConfig {
   V(openssl_error_stack, "opensslErrorStack")                                 \
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
-  V(owner_string, "owner")                                                    \
   V(parse_error_string, "Parse Error")                                        \
   V(password_string, "password")                                              \
   V(path_string, "path")                                                      \

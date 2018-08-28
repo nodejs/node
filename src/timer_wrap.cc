@@ -148,7 +148,7 @@ class TimerWrap : public HandleWrap {
              !env->tick_info()->has_thrown() &&
              env->can_call_into_js() &&
              wrap->object()->Get(env->context(),
-                                 env->owner_string()).ToLocalChecked()
+                                 env->owner_symbol()).ToLocalChecked()
                                                      ->IsUndefined());
   }
 
