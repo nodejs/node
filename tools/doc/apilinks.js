@@ -92,7 +92,9 @@ process.argv.slice(2).forEach((file) => {
   //   ClassName.prototype.foo = ...;
   //   function Identifier(...) {...};
   //
-  const link = `https://github.com/${repo}/blob/${hash}/${file}`;
+  const link = `https://github.com/${repo}/blob/${hash}/` +
+    path.relative('.', file).replace(/\\/g, '/');
+
   program.forEach((statement) => {
     if (statement.type === 'ExpressionStatement') {
       const expr = statement.expression;
