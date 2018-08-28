@@ -86,7 +86,7 @@ For now, only modules using the `file:` protocol can be loaded.
 
 ## Interop with existing modules
 
-All CommonJS, JSON, and C++ modules can be used with `import`.
+CommonJS and C++ modules can be used with `import`.
 
 Modules loaded this way will only be loaded once, even if their query
 or fragment string differs between `import` statements.
@@ -176,7 +176,6 @@ module. This can be one of the following:
 | `'esm'` | Load a standard JavaScript module |
 | `'cjs'` | Load a node-style CommonJS module |
 | `'builtin'` | Load a node builtin CommonJS module |
-| `'json'` | Load a JSON file |
 | `'addon'` | Load a [C++ Addon][addons] |
 | `'dynamic'` | Use a [dynamic instantiate hook][] |
 
