@@ -91,7 +91,7 @@ decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.write(Buffer.from('E1', 'hex')), '');
 
 // A quick test for lastChar, lastNeed & lastTotal which are undocumented.
-assert(decoder.lastChar.equals(new Uint8Array([0xe1, 0, 0, 0])));
+assert(decoder.lastChar.equals(Buffer.from([0xe1, 0, 0, 0])));
 assert.strictEqual(decoder.lastNeed, 2);
 assert.strictEqual(decoder.lastTotal, 3);
 
@@ -174,8 +174,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "buf" argument must be one of type Buffer, Uint8Array, or' +
-      ' ArrayBufferView. Received type object'
+    message: 'The "buf" argument must be one of type Buffer, TypedArray,' +
+      ' DataView, or ArrayBufferView. Received type object'
   }
 );
 
