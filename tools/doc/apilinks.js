@@ -23,28 +23,29 @@ const fs = require('fs');
 const path = require('path');
 const child_process = require('child_process');
 
-// Determine orign repo and most recent commit.
-const repo = (
-  child_process.execSync(
-    'git config remote.origin.url',
-    { stdio: ['ignore', null, 'ignore'] }
-  ).toString()
- .match(/(\w+\/\w+)\.git\r?\n?$/) || ['', 'nodejs/node'])[1];
-
-let hash = child_process.execSync(
-  'git log -1 --pretty=%H',
-  { stdio: ['ignore', null, 'ignore'] }
-).toString().trim() || 'master';
-
-try {
-  // Replace hash with tag name, if tagged.
-  hash = child_process.execSync(
-    `git describe --contains ${hash}`,
-    { stdio: ['ignore', null, 'ignore'] }
-  ).toString();
-} catch {
+// Run a command, capturing stdout, ignoring errors.
+function execSync(command) {
+  try {
+    return child_process.execSync(
+      command,
+      { stdio: ['ignore', null, 'ignore'] }
+    ).toString().trim();
+  } catch {
+    return '';
+  }
 }
 
+// Determine orign repo and tag (or hash) of the most recent commit.
+const local_branch = execSync('git name-rev --name-only HEAD');
+const tracking_remote = execSync(`git config branch.${local_branch}.remote`);
+const remote_url = execSync(`git config remote.${tracking_remote}.url`);
+const repo = (remote_url.match(/(\w+\/\w+)\.git\r?\n?$/) ||
+             ['', 'nodejs/node'])[1];
+
+const hash = execSync('git log -1 --pretty=%H') || 'master';
+const tag = execSync(`git describe --contains ${hash}`).split('\n')[0] || hash;
+
+// Extract definitions from each file specified.
 const definition = {};
 process.argv.slice(2).forEach((file) => {
   const basename = path.basename(file, '.js');
@@ -92,7 +93,7 @@ process.argv.slice(2).forEach((file) => {
   //   ClassName.prototype.foo = ...;
   //   function Identifier(...) {...};
   //
-  const link = `https://github.com/${repo}/blob/${hash}/` +
+  const link = `https://github.com/${repo}/blob/${tag}/` +
     path.relative('.', file).replace(/\\/g, '/');
 
   program.forEach((statement) => {
