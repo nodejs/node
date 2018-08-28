@@ -1,11 +1,12 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
+const { getTTYfd } = require('../common/common-tty');
 const assert = require('assert').strict;
 /* eslint-disable no-restricted-properties */
 const { WriteStream } = require('tty');
 
-const fd = common.getTTYfd();
+const fd = getTTYfd();
 const writeStream = new WriteStream(fd);
 
 {

@@ -14,6 +14,7 @@ This directory contains modules used to test the Node.js implementation.
 * [HTTP2 module](#http2-module)
 * [Internet module](#internet-module)
 * [tmpdir module](#tmpdir-module)
+* [tty module](#tty-module)
 * [WPT module](#wpt-module)
 
 ## Benchmark Module
@@ -136,12 +137,6 @@ consisting of all `ArrayBufferView` and an `ArrayBuffer`.
 * return [&lt;string>]
 
 Returns the file name and line number for the provided Function.
-
-### getTTYfd()
-
-Attempts to get a valid TTY file descriptor. Returns `-1` if it fails.
-
-The TTY file descriptor is assumed to be capable of being writable.
 
 ### hasCrypto
 * [&lt;boolean>]
@@ -779,6 +774,21 @@ The realpath of the testing temporary directory.
 ### refresh()
 
 Deletes and recreates the testing temporary directory.
+
+## tty Module
+
+This module must be `require()`'d in all TTY tests (those is the `test/pseudo-tty`
+directory).
+
+On load, this module checks if stdin, stdout, and stderr are connected to a TTY,
+and asserts with a detailed message if they are not.
+
+### getTTYfd()
+
+Attempts to get a valid TTY file descriptor. Returns `-1` if it fails.
+
+The TTY file descriptor is assumed to be capable of being writable.
+
 
 ## WPT Module
 

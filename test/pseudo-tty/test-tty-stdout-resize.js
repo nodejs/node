@@ -1,5 +1,6 @@
 'use strict';
 const { mustCall } = require('../common');
+require('../common/common-tty');
 const { notStrictEqual } = require('assert');
 
 // tty.WriteStream#_refreshSize() only emits the 'resize' event when the

@@ -50,7 +50,6 @@ const {
   getArrayBufferViews,
   getBufferSources,
   disableCrashOnUnhandledRejection,
-  getTTYfd,
   runWithInvalidFD
 } = common;
 
@@ -102,6 +101,5 @@ export {
   getArrayBufferViews,
   getBufferSources,
   disableCrashOnUnhandledRejection,
-  getTTYfd,
   runWithInvalidFD
 };

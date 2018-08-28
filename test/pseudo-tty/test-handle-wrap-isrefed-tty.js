@@ -3,6 +3,7 @@
 // see also test/parallel/test-handle-wrap-isrefed.js
 
 const common = require('../common');
+require('../common/common-tty');
 const strictEqual = require('assert').strictEqual;
 const ReadStream = require('tty').ReadStream;
 const tty = new ReadStream(0);

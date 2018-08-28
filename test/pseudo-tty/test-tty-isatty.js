@@ -1,6 +1,7 @@
 'use strict';
 
 require('../common');
+require('../common/common-tty');
 const { strictEqual } = require('assert');
 const { isatty } = require('tty');
 

@@ -1,5 +1,6 @@
 'use strict';
 require('../common');
+require('../common/common-tty');
 const assert = require('assert').strict;
 
 try {

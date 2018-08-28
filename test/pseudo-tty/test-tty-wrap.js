@@ -1,6 +1,7 @@
 // Flags: --expose-internals --no-warnings
 'use strict';
 require('../common');
+require('../common/common-tty');
 
 const { internalBinding } = require('internal/test/binding');
 const { TTY } = process.binding('tty_wrap');

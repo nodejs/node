@@ -2,6 +2,7 @@
 // https://gist.github.com/isaacs/1495b91ec66b21d30b10572d72ad2cdd
 'use strict';
 const common = require('../common');
+require('../common/common-tty');
 
 // 1000 bytes wrapped at 50 columns
 // \n turns into a double-byte character

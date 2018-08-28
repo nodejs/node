@@ -1,6 +1,7 @@
 'use strict';
 
 require('../common');
+require('../common/common-tty');
 
 const { TTY, isTTY } = process.binding('tty_wrap');
 const strictEqual = require('assert').strictEqual;

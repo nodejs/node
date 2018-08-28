@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+require('../common/common-tty');
 const assert = require('assert');
 const { WriteStream } = require('tty');
 const { TTY } = process.binding('tty_wrap');

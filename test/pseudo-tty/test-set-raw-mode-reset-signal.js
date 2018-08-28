@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+require('../common/common-tty');
 const child_process = require('child_process');
 
 // Tests that exiting through a catchable signal resets the TTY mode.

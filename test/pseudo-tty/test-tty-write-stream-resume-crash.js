@@ -1,8 +1,9 @@
 'use strict';
 
 const common = require('../common');
+const { getTTYfd } = require('../common/common-tty');
 const { WriteStream } = require('tty');
-const fd = common.getTTYfd();
+const fd = getTTYfd();
 
 // Calling resume on a tty.WriteStream should be a no-op
 // Ref: https://github.com/nodejs/node/issues/21203
