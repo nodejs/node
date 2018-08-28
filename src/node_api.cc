@@ -1838,14 +1838,16 @@ static napi_status set_error_code(napi_env env,
     if (!maybe_name.IsEmpty()) {
       v8::Local<v8::Value> name = maybe_name.ToLocalChecked();
       if (name->IsString()) {
-        name_string = v8::String::Concat(name_string, name.As<v8::String>());
+        name_string =
+            v8::String::Concat(isolate, name_string, name.As<v8::String>());
       }
     }
-    name_string = v8::String::Concat(name_string,
-                                     FIXED_ONE_BYTE_STRING(isolate, " ["));
-    name_string = v8::String::Concat(name_string, code_value.As<v8::String>());
-    name_string = v8::String::Concat(name_string,
-                                     FIXED_ONE_BYTE_STRING(isolate, "]"));
+    name_string = v8::String::Concat(
+        isolate, name_string, FIXED_ONE_BYTE_STRING(isolate, " ["));
+    name_string =
+        v8::String::Concat(isolate, name_string, code_value.As<v8::String>());
+    name_string = v8::String::Concat(
+        isolate, name_string, FIXED_ONE_BYTE_STRING(isolate, "]"));
 
     set_maybe = err_object->Set(context, name_key, name_string);
     RETURN_STATUS_IF_FALSE(env,
