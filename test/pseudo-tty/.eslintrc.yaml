@@ -1,0 +1,8 @@
+## TTY Test-specific linter rules
+
+rules:
+
+  # Custom rules in tools/eslint-rules
+  ## common module is mandatory in tests
+  ## common/tty module is mandatory in TTY tests
+  node-core/required-modules: [error, common, common-tty]
