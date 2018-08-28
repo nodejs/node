@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_CONTEXT_DATA_H_
 #define SRC_NODE_CONTEXT_DATA_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 namespace node {
 
 // Pick an index that's hopefully out of the way when we're embedded inside
@@ -36,5 +38,7 @@ enum ContextEmbedderIndex {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CONTEXT_DATA_H_

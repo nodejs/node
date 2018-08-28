@@ -1,6 +1,8 @@
 #ifndef SRC_INSPECTOR_IO_H_
 #define SRC_INSPECTOR_IO_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "inspector_socket_server.h"
 #include "node_mutex.h"
 #include "uv.h"
@@ -89,5 +91,7 @@ class InspectorIo {
 
 }  // namespace inspector
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_INSPECTOR_IO_H_

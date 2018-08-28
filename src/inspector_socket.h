@@ -1,6 +1,8 @@
 #ifndef SRC_INSPECTOR_SOCKET_H_
 #define SRC_INSPECTOR_SOCKET_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "util-inl.h"
 #include "uv.h"
 
@@ -52,5 +54,6 @@ class InspectorSocket {
 }  // namespace inspector
 }  // namespace node
 
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_INSPECTOR_SOCKET_H_
