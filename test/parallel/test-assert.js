@@ -680,7 +680,7 @@ common.expectsError(
   () => {
     a(
       (() => 'string')()
-      // eslint-disable-next-line
+      // eslint-disable-next-line operator-linebreak
       ===
       123 instanceof
           Buffer
@@ -692,7 +692,7 @@ common.expectsError(
     message: 'The expression evaluated to a falsy value:\n\n' +
              '  a(\n' +
              '    (() => \'string\')()\n' +
-             '    // eslint-disable-next-line\n' +
+             '    // eslint-disable-next-line operator-linebreak\n' +
              '    ===\n' +
              '    123 instanceof\n' +
              '        Buffer\n' +
@@ -704,7 +704,7 @@ common.expectsError(
   () => {
     a(
       (() => 'string')()
-      // eslint-disable-next-line
+      // eslint-disable-next-line operator-linebreak
       ===
   123 instanceof
           Buffer
@@ -716,7 +716,7 @@ common.expectsError(
     message: 'The expression evaluated to a falsy value:\n\n' +
              '  a(\n' +
              '    (() => \'string\')()\n' +
-             '    // eslint-disable-next-line\n' +
+             '    // eslint-disable-next-line operator-linebreak\n' +
              '    ===\n' +
              '  123 instanceof\n' +
              '        Buffer\n' +
