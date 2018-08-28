@@ -8,6 +8,7 @@
 !.editorconfig
 !.eslintignore
 !.eslintrc.js
+!.eslintrc.yaml
 !.gitattributes
 !.github
 !.gitignore
