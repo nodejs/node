@@ -883,7 +883,7 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 ### url.fileURLToPath(url)
 
 * `url` {URL | string} The file URL string or URL object to convert to a path.
-* Returns: {URL} The fully-resolved platform-specific Node.js file path.
+* Returns: {string} The fully-resolved platform-specific Node.js file path.
 
 This function ensures the correct decodings of percent-encoded characters as
 well as ensuring a cross-platform valid absolute path string.
