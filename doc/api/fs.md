@@ -1449,23 +1449,24 @@ the specified file descriptor. This means that no `'open'` event will be
 emitted. `fd` should be blocking; non-blocking `fd`s should be passed to
 [`net.Socket`][].
 
-The blocking `fd`, if pointing to a character device (such as keyboard or
-sound card) can potentially block the main thread on stream close. This is
-because these devices do not produce EOF character as part of their data
-flow cycle, and thereby exemplify endless streams. As a result, they do not
-respond to `stream.close()`. A workaround is to close the stream first
-using `stream.close()` and then push a random character into the stream, and
-issue a single read. This unblocks the reader thread, leads to the completion
-of the data flow cycle, and the actual closing of the stream.
+If `fd` points to a character device that only supports blocking reads
+(such as keyboard or sound card), read operations do not finish until data is
+available. This can prevent the process from exiting and the stream from
+closing naturally.
 
 ```js
 const fs = require('fs');
 // Create a stream from some character  device.
 const stream = fs.createReadStream('/dev/input/event0');
 setTimeout(() => {
-  stream.close(); // This does not close the stream.
+  stream.close(); // This may not close the stream.
+  // Artificially marking end-of-stream, as if the underlying resource had
+  // indicated end-of-file by itself, allows the stream to close.
+  // This does not cancel pending read operations, and if there is such an
+  // operation, the process may still not be able to exit successfully
+  // until it finishes.
   stream.push(null);
-  stream.read(0); // Pushing a null and reading leads to close.
+  stream.read(0);
 }, 100);
 ```
 
