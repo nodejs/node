@@ -1,3 +1,4 @@
 // Flags: --experimental-modules
-import '../common';
-import('./test-esm-cyclic-dynamic-import');
+/* eslint-disable node-core/required-modules */
+import '../common/index.mjs';
+import('./test-esm-cyclic-dynamic-import.mjs');

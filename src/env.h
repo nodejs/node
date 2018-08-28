@@ -77,11 +77,13 @@ struct PackageConfig {
   enum class Exists { Yes, No };
   enum class IsValid { Yes, No };
   enum class HasMain { Yes, No };
+  enum PackageType : uint32_t { None = 0, CommonJS, Module };
 
-  Exists exists;
-  IsValid is_valid;
-  HasMain has_main;
-  std::string main;
+  const Exists exists;
+  const IsValid is_valid;
+  const HasMain has_main;
+  const std::string main;
+  const PackageType type;
 };
 }  // namespace loader
 
@@ -141,6 +143,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(channel_string, "channel")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
   V(code_string, "code")                                                       \
+  V(commonjs_string, "commonjs")                                               \
   V(config_string, "config")                                                   \
   V(constants_string, "constants")                                             \
   V(crypto_dsa_string, "dsa")                                                  \

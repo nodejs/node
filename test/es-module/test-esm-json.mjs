@@ -1,8 +1,9 @@
-// Flags: --experimental-modules
-import '../common';
-import assert from 'assert';
-import ok from '../fixtures/es-modules/test-esm-ok.mjs';
-import json from '../fixtures/es-modules/json.json';
+// Flags: --experimental-modules --experimental-json-modules
+/* eslint-disable node-core/required-modules */
 
-assert(ok);
-assert.strictEqual(json.val, 42);
+import '../common/index.mjs';
+import { strictEqual } from 'assert';
+
+import secret from '../fixtures/experimental.json';
+
+strictEqual(secret.ofLife, 42);

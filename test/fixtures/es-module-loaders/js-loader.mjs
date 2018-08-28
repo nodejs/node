@@ -15,6 +15,6 @@ export function resolve (specifier, base = baseURL) {
   const url = new URL(specifier, base).href;
   return {
     url,
-    format: 'esm'
+    format: 'module'
   };
 }

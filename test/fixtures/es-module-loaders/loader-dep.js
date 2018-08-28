@@ -1,1 +1,1 @@
-exports.format = 'esm';
+exports.format = 'module';

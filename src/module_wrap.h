@@ -12,11 +12,6 @@
 namespace node {
 namespace loader {
 
-enum PackageMainCheck : bool {
-    CheckMain = true,
-    IgnoreMain = false
-};
-
 enum ScriptType : int {
   kScript,
   kModule,
@@ -28,11 +23,6 @@ enum HostDefinedOptions : int {
   kID = 9,
   kLength = 10,
 };
-
-v8::Maybe<url::URL> Resolve(Environment* env,
-                            const std::string& specifier,
-                            const url::URL& base,
-                            PackageMainCheck read_pkg_json = CheckMain);
 
 class ModuleWrap : public BaseObject {
  public:
@@ -75,6 +65,7 @@ class ModuleWrap : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Resolve(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPackageType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetImportModuleDynamicallyCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetInitializeImportMetaObjectCallback(

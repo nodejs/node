@@ -12,11 +12,11 @@ export async function resolve (specifier, base, defaultResolve) {
     await defaultResolve(specifier, base);
   }
   catch (e) {
-    assert.strictEqual(e.code, 'MODULE_NOT_FOUND');
+    assert.strictEqual(e.code, 'ERR_MODULE_NOT_FOUND');
     return {
       format: 'builtin',
       url: 'fs'
     };
   }
-  assert.fail(`Module resolution for ${specifier} should be throw MODULE_NOT_FOUND`);
+  assert.fail(`Module resolution for ${specifier} should be throw ERR_MODULE_NOT_FOUND`);
 }

@@ -131,8 +131,42 @@ conjunction with native stack and other runtime environment data.
 added: v6.0.0
 -->
 
+### `--entry-type=type`
+<!-- YAML
+added: REPLACEME
+-->
+
+Used with `--experimental-modules`, this configures Node.js to interpret the
+initial entry point as CommonJS or as an ES module.
+
+Valid values are `"commonjs"` and `"module"`. The default is to infer from
+the file extension and the `"type"` field in the nearest parent `package.json`.
+
+Works for executing a file as well as `--eval`, `--print`, `STDIN`.
+
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 `./configure --openssl-fips`.)
+
+### `--es-module-specifier-resolution=mode`
+<!-- YAML
+added: REPLACEME
+-->
+
+To be used in conjunction with `--experimental-modules`. Sets the resolution
+algorithm for resolving specifiers. Valid options are `explicit` and `node`.
+
+The default is `explicit`, which requires providing the full path to a
+module. The `node` mode will enable support for optional file extensions and
+the ability to import a directory that has an index file.
+
+Please see [customizing esm specifier resolution][] for example usage.
+
+### `--experimental-json-modules`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental JSON support for the ES Module loader.
 
 ### `--experimental-modules`
 <!-- YAML
@@ -927,9 +961,10 @@ greater than `4` (its current default value). For more information, see the
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
+[customizing esm specifier resolution]: esm.html#esm_customizing_esm_specifier_resolution_algorithm
 [debugger]: debugger.html
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
-[experimental ECMAScript Module]: esm.html#esm_loader_hooks
+[experimental ECMAScript Module]: esm.html#esm_resolve_hook
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection

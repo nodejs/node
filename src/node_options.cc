@@ -107,6 +107,32 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     errors->push_back("--loader requires --experimental-modules be enabled");
   }
 
+  if (!module_type.empty()) {
+    if (!experimental_modules) {
+      errors->push_back("--entry-type requires "
+                        "--experimental-modules to be enabled");
+    }
+    if (module_type != "commonjs" && module_type != "module") {
+      errors->push_back("--entry-type must \"module\" or \"commonjs\"");
+    }
+  }
+
+  if (experimental_json_modules && !experimental_modules) {
+    errors->push_back("--experimental-json-modules requires "
+                      "--experimental-modules be enabled");
+  }
+
+  if (!es_module_specifier_resolution.empty()) {
+    if (!experimental_modules) {
+      errors->push_back("--es-module-specifier-resolution requires "
+                        "--experimental-modules be enabled");
+    }
+    if (es_module_specifier_resolution != "node" &&
+        es_module_specifier_resolution != "explicit") {
+      errors->push_back("invalid value for --es-module-specifier-resolution");
+    }
+  }
+
   if (syntax_check_only && has_eval_string) {
     errors->push_back("either --check or --eval can be used, not both");
   }
@@ -214,6 +240,10 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
+  AddOption("--experimental-json-modules",
+            "experimental JSON interop support for the ES Module loader",
+            &EnvironmentOptions::experimental_json_modules,
+            kAllowedInEnvironment);
   AddOption("--experimental-modules",
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
@@ -253,6 +283,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "custom loader",
             &EnvironmentOptions::userland_loader,
             kAllowedInEnvironment);
+  AddOption("--es-module-specifier-resolution",
+            "Select extension resolution algorithm for es modules; "
+            "either 'explicit' (default) or 'node'",
+            &EnvironmentOptions::es_module_specifier_resolution,
+            kAllowedInEnvironment);
   AddOption("--no-deprecation",
             "silence deprecation warnings",
             &EnvironmentOptions::no_deprecation,
@@ -271,10 +306,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvironment);
   AddOption("--preserve-symlinks",
             "preserve symbolic links when resolving",
-            &EnvironmentOptions::preserve_symlinks);
+            &EnvironmentOptions::preserve_symlinks,
+            kAllowedInEnvironment);
   AddOption("--preserve-symlinks-main",
             "preserve symbolic links when resolving the main module",
-            &EnvironmentOptions::preserve_symlinks_main);
+            &EnvironmentOptions::preserve_symlinks_main,
+            kAllowedInEnvironment);
   AddOption("--prof-process",
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
@@ -300,6 +337,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--trace-warnings",
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
+            kAllowedInEnvironment);
+  AddOption("--entry-type",
+            "set module type name of the entry point",
+            &EnvironmentOptions::module_type,
             kAllowedInEnvironment);
 
   AddOption("--check",
