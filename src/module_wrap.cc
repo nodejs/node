@@ -492,6 +492,7 @@ Maybe<uv_file> CheckFile(const std::string& path,
 using Exists = PackageConfig::Exists;
 using IsValid = PackageConfig::IsValid;
 using HasMain = PackageConfig::HasMain;
+using PackageMode = PackageConfig::PackageMode;
 
 const PackageConfig& GetPackageConfig(Environment* env,
                                       const std::string& path) {
@@ -547,7 +548,7 @@ const PackageConfig& GetPackageConfig(Environment* env,
   }
 
   Local<Value> pkg_mode_v;
-  PackageMode::Mode pkg_mode = PackageMode::CJS;
+  PackageMode pkg_mode = PackageMode::CJS;
   if (pkg_json->Get(env->context(), env->mode_string()).ToLocal(&pkg_mode_v) &&
       pkg_mode_v->StrictEquals(env->esm_string())) {
     pkg_mode = PackageMode::ESM;
@@ -559,7 +560,7 @@ const PackageConfig& GetPackageConfig(Environment* env,
   return entry.first->second;
 }
 
-PackageMode::Mode GetPackageMode(Environment* env, const URL& search) {
+PackageMode GetPackageMode(Environment* env, const URL& search) {
   URL pjson_path("package.json", &search);
   while (true) {
     const PackageConfig& pkg_json =
@@ -578,7 +579,7 @@ PackageMode::Mode GetPackageMode(Environment* env, const URL& search) {
 }
 
 void SetPackageMode(Environment* env, const URL& search,
-                    PackageMode::Mode pkg_mode) {
+                    PackageMode pkg_mode) {
   std::string pjson_path_str = URL("package.json", &search).ToFilePath();
   const PackageConfig& pkg_json = GetPackageConfig(env, pjson_path_str);
   if (pkg_json.mode != pkg_mode) {
