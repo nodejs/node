@@ -3062,7 +3062,8 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
   // Only copy the data if we have to, because it's a string
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8))
+    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8)
+             .FromMaybe(false))
       return;
     r = cipher->Update(decoder.out(), decoder.size(), &out, &out_len);
   } else {
@@ -3252,7 +3253,8 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
   bool r = false;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (decoder.Decode(env, args[0].As<String>(), args[1], UTF8)) {
+    if (decoder.Decode(env, args[0].As<String>(), args[1], UTF8)
+            .FromMaybe(false)) {
       r = hmac->HmacUpdate(decoder.out(), decoder.size());
     }
   } else {
@@ -3359,7 +3361,8 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
   bool r = true;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8)) {
+    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8)
+             .FromMaybe(false)) {
       args.GetReturnValue().Set(false);
       return;
     }
