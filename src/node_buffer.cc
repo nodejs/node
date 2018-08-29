@@ -564,15 +564,16 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> ctx = env->context();
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
-  Local<Context> ctx = env->context();
-  uint32_t start, end;
-  if (!args[2]->Uint32Value(ctx).To(&start) ||
-      !args[3]->Uint32Value(ctx).To(&end))
-    return;
+  CHECK(args[2]->IsUint32());
+  CHECK(args[3]->IsUint32());
+
+  uint32_t start = args[2].As<Uint32>()->Value();
+  uint32_t end = args[3].As<Uint32>()->Value();
   size_t fill_length = end - start;
   Local<String> str_obj;
   size_t str_length;
@@ -1004,7 +1005,7 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[1]->IsNumber());
+  CHECK(args[1]->IsUint32());
   CHECK(args[2]->IsNumber());
   CHECK(args[3]->IsBoolean());
 
