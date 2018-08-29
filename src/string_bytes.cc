@@ -41,8 +41,11 @@ namespace node {
 
 using v8::HandleScope;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Nothing;
 using v8::String;
 using v8::Value;
 
@@ -399,19 +402,20 @@ bool StringBytes::IsValidString(Local<String> string,
 // Quick and dirty size calculation
 // Will always be at least big enough, but may have some extra
 // UTF8 can be as much as 3x the size, Base64 can have 1-2 extra bytes
-size_t StringBytes::StorageSize(Isolate* isolate,
-                                Local<Value> val,
-                                enum encoding encoding) {
+Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
+                                       Local<Value> val,
+                                       enum encoding encoding) {
   HandleScope scope(isolate);
   size_t data_size = 0;
   bool is_buffer = Buffer::HasInstance(val);
 
   if (is_buffer && (encoding == BUFFER || encoding == LATIN1)) {
-    return Buffer::Length(val);
+    return Just(Buffer::Length(val));
   }
 
-  Local<String> str =
-      val->ToString(isolate->GetCurrentContext()).ToLocalChecked();
+  Local<String> str;
+  if (!val->ToString(isolate->GetCurrentContext()).ToLocal(&str))
+    return Nothing<size_t>();
 
   switch (encoding) {
     case ASCII:
@@ -445,40 +449,40 @@ size_t StringBytes::StorageSize(Isolate* isolate,
       break;
   }
 
-  return data_size;
+  return Just(data_size);
 }
 
-
-size_t StringBytes::Size(Isolate* isolate,
-                         Local<Value> val,
-                         enum encoding encoding) {
+Maybe<size_t> StringBytes::Size(Isolate* isolate,
+                                Local<Value> val,
+                                enum encoding encoding) {
   HandleScope scope(isolate);
 
   if (Buffer::HasInstance(val) && (encoding == BUFFER || encoding == LATIN1))
-    return Buffer::Length(val);
+    return Just(Buffer::Length(val));
 
-  Local<String> str =
-      val->ToString(isolate->GetCurrentContext()).ToLocalChecked();
+  Local<String> str;
+  if (!val->ToString(isolate->GetCurrentContext()).ToLocal(&str))
+    return Nothing<size_t>();
 
   switch (encoding) {
     case ASCII:
     case LATIN1:
-      return str->Length();
+      return Just<size_t>(str->Length());
 
     case BUFFER:
     case UTF8:
-      return str->Utf8Length(isolate);
+      return Just<size_t>(str->Utf8Length(isolate));
 
     case UCS2:
-      return str->Length() * sizeof(uint16_t);
+      return Just(str->Length() * sizeof(uint16_t));
 
     case BASE64: {
       String::Value value(isolate, str);
-      return base64_decoded_size(*value, value.length());
+      return Just(base64_decoded_size(*value, value.length()));
     }
 
     case HEX:
-      return str->Length() / 2;
+      return Just<size_t>(str->Length() / 2);
   }
 
   UNREACHABLE();

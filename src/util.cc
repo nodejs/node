@@ -40,7 +40,9 @@ static void MakeUtf8String(Isolate* isolate,
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
 
-  const size_t storage = StringBytes::StorageSize(isolate, string, UTF8) + 1;
+  size_t storage;
+  if (!StringBytes::StorageSize(isolate, string, UTF8).To(&storage)) return;
+  storage += 1;
   target->AllocateSufficientStorage(storage);
   const int flags =
       String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
