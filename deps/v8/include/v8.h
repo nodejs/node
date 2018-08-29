@@ -1828,7 +1828,9 @@ class V8_EXPORT StackTrace {
   /**
    * Returns a StackFrame at a particular index.
    */
-  Local<StackFrame> GetFrame(uint32_t index) const;
+  V8_DEPRECATE_SOON("Use Isolate version",
+                    Local<StackFrame> GetFrame(uint32_t index) const);
+  Local<StackFrame> GetFrame(Isolate* isolate, uint32_t index) const;
 
   /**
    * Returns the number of StackFrames.
@@ -2672,7 +2674,9 @@ class V8_EXPORT String : public Name {
    * Returns the number of bytes in the UTF-8 encoded
    * representation of this string.
    */
-  int Utf8Length() const;
+  V8_DEPRECATE_SOON("Use Isolate version instead", int Utf8Length() const);
+
+  int Utf8Length(Isolate* isolate) const;
 
   /**
    * Returns whether this string is known to contain only one byte data,
@@ -2726,20 +2730,25 @@ class V8_EXPORT String : public Name {
   };
 
   // 16-bit character codes.
-  int Write(uint16_t* buffer,
-            int start = 0,
-            int length = -1,
+  int Write(Isolate* isolate, uint16_t* buffer, int start = 0, int length = -1,
             int options = NO_OPTIONS) const;
+  V8_DEPRECATE_SOON("Use Isolate* version",
+                    int Write(uint16_t* buffer, int start = 0, int length = -1,
+                              int options = NO_OPTIONS) const);
   // One byte characters.
-  int WriteOneByte(uint8_t* buffer,
-                   int start = 0,
-                   int length = -1,
-                   int options = NO_OPTIONS) const;
+  int WriteOneByte(Isolate* isolate, uint8_t* buffer, int start = 0,
+                   int length = -1, int options = NO_OPTIONS) const;
+  V8_DEPRECATE_SOON("Use Isolate* version",
+                    int WriteOneByte(uint8_t* buffer, int start = 0,
+                                     int length = -1, int options = NO_OPTIONS)
+                        const);
   // UTF-8 encoded characters.
-  int WriteUtf8(char* buffer,
-                int length = -1,
-                int* nchars_ref = NULL,
-                int options = NO_OPTIONS) const;
+  int WriteUtf8(Isolate* isolate, char* buffer, int length = -1,
+                int* nchars_ref = NULL, int options = NO_OPTIONS) const;
+  V8_DEPRECATE_SOON("Use Isolate* version",
+                    int WriteUtf8(char* buffer, int length = -1,
+                                  int* nchars_ref = NULL,
+                                  int options = NO_OPTIONS) const);
 
   /**
    * A zero length string.

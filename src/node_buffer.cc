@@ -599,7 +599,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   // Can't use StringBytes::Write() in all cases. For example if attempting
   // to write a two byte character into a one byte Buffer.
   if (enc == UTF8) {
-    str_length = str_obj->Utf8Length();
+    str_length = str_obj->Utf8Length(env->isolate());
     node::Utf8Value str(env->isolate(), args[1]);
     memcpy(ts_obj_data + start, *str, MIN(str_length, fill_length));
 
@@ -689,10 +689,11 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 }
 
 void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
+  Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
 
   // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
-  args.GetReturnValue().Set(args[0].As<String>()->Utf8Length());
+  args.GetReturnValue().Set(args[0].As<String>()->Utf8Length(env->isolate()));
 }
 
 // Normalize val to be an integer in the range of [1, -1] since
@@ -806,15 +807,16 @@ int64_t IndexOfOffset(size_t length,
 }
 
 void IndexOfString(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsNumber());
   CHECK(args[4]->IsBoolean());
 
-  enum encoding enc = ParseEncoding(args.GetIsolate(),
-                                    args[3],
-                                    UTF8);
+  enum encoding enc = ParseEncoding(isolate, args[3], UTF8);
 
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
   Local<String> needle = args[1].As<String>();
@@ -826,8 +828,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   const size_t haystack_length = (enc == UCS2) ?
       ts_obj_length &~ 1 : ts_obj_length;  // NOLINT(whitespace/operators)
 
-  const size_t needle_length =
-      StringBytes::Size(args.GetIsolate(), needle, enc);
+  const size_t needle_length = StringBytes::Size(isolate, needle, enc);
 
   int64_t opt_offset = IndexOfOffset(haystack_length,
                                      offset_i64,
@@ -857,7 +858,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   size_t result = haystack_length;
 
   if (enc == UCS2) {
-    String::Value needle_value(args.GetIsolate(), needle);
+    String::Value needle_value(isolate, needle);
     if (*needle_value == nullptr)
       return args.GetReturnValue().Set(-1);
 
@@ -867,7 +868,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
     if (IsBigEndian()) {
       StringBytes::InlineDecoder decoder;
-      decoder.Decode(Environment::GetCurrent(args), needle, args[3], UCS2);
+      decoder.Decode(env, needle, args[3], UCS2);
       const uint16_t* decoded_string =
           reinterpret_cast<const uint16_t*>(decoder.out());
 
@@ -890,7 +891,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
     }
     result *= 2;
   } else if (enc == UTF8) {
-    String::Utf8Value needle_value(args.GetIsolate(), needle);
+    String::Utf8Value needle_value(isolate, needle);
     if (*needle_value == nullptr)
       return args.GetReturnValue().Set(-1);
 
@@ -906,7 +907,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
       return args.GetReturnValue().Set(-1);
     }
     needle->WriteOneByte(
-        needle_data, 0, needle_length, String::NO_NULL_TERMINATION);
+        isolate, needle_data, 0, needle_length, String::NO_NULL_TERMINATION);
 
     result = SearchString(reinterpret_cast<const uint8_t*>(haystack),
                           haystack_length,
@@ -1057,18 +1058,20 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
 // Used in TextEncoder.prototype.encode.
 static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
 
   Local<String> str = args[0].As<String>();
-  size_t length = str->Utf8Length();
+  size_t length = str->Utf8Length(isolate);
   char* data = node::UncheckedMalloc(length);
-  str->WriteUtf8(data,
-                 -1,   // We are certain that `data` is sufficiently large
+  str->WriteUtf8(isolate,
+                 data,
+                 -1,  // We are certain that `data` is sufficiently large
                  nullptr,
                  String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
-  auto array_buf = ArrayBuffer::New(env->isolate(), data, length,
-                                    ArrayBufferCreationMode::kInternalized);
+  auto array_buf = ArrayBuffer::New(
+      isolate, data, length, ArrayBufferCreationMode::kInternalized);
   auto array = Uint8Array::New(array_buf, 0, length);
   args.GetReturnValue().Set(array);
 }

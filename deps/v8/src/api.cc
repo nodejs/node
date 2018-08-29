@@ -3023,15 +3023,20 @@ void Message::PrintCurrentStackTrace(Isolate* isolate, FILE* out) {
 
 // --- S t a c k T r a c e ---
 
-Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+Local<StackFrame> StackTrace::GetFrame(Isolate* v8_isolate,
+                                       uint32_t index) const {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  EscapableHandleScope scope(v8_isolate);
   auto obj = handle(Utils::OpenHandle(this)->get(index), isolate);
   auto info = i::Handle<i::StackFrameInfo>::cast(obj);
   return scope.Escape(Utils::StackFrameToLocal(info));
 }
 
+Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  return GetFrame(reinterpret_cast<Isolate*>(isolate), index);
+}
 
 int StackTrace::GetFrameCount() const {
   return Utils::OpenHandle(this)->length();
@@ -5479,6 +5484,9 @@ bool String::ContainsOnlyOneByte() const {
   return helper.Check(*str);
 }
 
+int String::Utf8Length(Isolate* isolate) const {
+  return Utf8Length();
+}
 
 int String::Utf8Length() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
@@ -5705,12 +5713,10 @@ static bool RecursivelySerializeToUtf8(i::String* current,
 }
 
 
-int String::WriteUtf8(char* buffer,
-                      int capacity,
-                      int* nchars_ref,
-                      int options) const {
+int String::WriteUtf8(Isolate* v8_isolate, char* buffer, int capacity,
+                      int* nchars_ref, int options) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  i::Isolate* isolate = str->GetIsolate();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   LOG_API(isolate, String, WriteUtf8);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   str = i::String::Flatten(str);  // Flatten the string for efficiency.
@@ -5751,14 +5757,18 @@ int String::WriteUtf8(char* buffer,
   return writer.CompleteWrite(write_null, nchars_ref);
 }
 
+int String::WriteUtf8(char* buffer, int capacity, int* nchars_ref,
+                      int options) const {
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  i::Isolate* isolate = str->GetIsolate();
+  return WriteUtf8(reinterpret_cast<Isolate*>(isolate), buffer, capacity,
+                   nchars_ref, options);
+}
 
-template<typename CharType>
-static inline int WriteHelper(const String* string,
-                              CharType* buffer,
-                              int start,
-                              int length,
+template <typename CharType>
+static inline int WriteHelper(i::Isolate* isolate, const String* string,
+                              CharType* buffer, int start, int length,
                               int options) {
-  i::Isolate* isolate = Utils::OpenHandle(string)->GetIsolate();
   LOG_API(isolate, String, Write);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   DCHECK(start >= 0 && length >= -1);
@@ -5781,7 +5791,14 @@ int String::WriteOneByte(uint8_t* buffer,
                          int start,
                          int length,
                          int options) const {
-  return WriteHelper(this, buffer, start, length, options);
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  return WriteHelper(isolate, this, buffer, start, length, options);
+}
+
+int String::WriteOneByte(Isolate* isolate, uint8_t* buffer, int start,
+                         int length, int options) const {
+  return WriteHelper(reinterpret_cast<i::Isolate*>(isolate), this, buffer,
+                     start, length, options);
 }
 
 
@@ -5789,7 +5806,14 @@ int String::Write(uint16_t* buffer,
                   int start,
                   int length,
                   int options) const {
-  return WriteHelper(this, buffer, start, length, options);
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  return WriteHelper(isolate, this, buffer, start, length, options);
+}
+
+int String::Write(Isolate* isolate, uint16_t* buffer, int start, int length,
+                  int options) const {
+  return WriteHelper(reinterpret_cast<i::Isolate*>(isolate), this, buffer,
+                     start, length, options);
 }
 
 
