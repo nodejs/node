@@ -30,13 +30,13 @@ function shortname (url) {
 }
 
 function printCommit (c) {
-  console.log(`* [\`${c.shortid}\`](https://github.com/npm/npm/commit/${c.fullid})`)
+  console.log(`* [\`${c.shortid}\`](https://github.com/npm/cli/commit/${c.fullid})`)
   if (c.fixes) {
     let label = shortname(c.fixes)
     if (label) {
       console.log(`  [${label}](${c.fixes})`)
     } else {
-      console.log(`  [#${c.fixes}](https://github.com/npm/npm/issues/${c.fixes})`)
+      console.log(`  [npm.community#${c.fixes}](https://npm.community/t/${c.fixes})`)
     }
   } else if (c.prurl) {
     let label = shortname(c.prurl)
@@ -55,8 +55,8 @@ function printCommit (c) {
     .replace(/^(\s*[^@\s]+@\d+[.]\d+[.]\d+)(\s*\S)/g, '$1:$2')
     .replace(/\b([^@\s]+@\d+[.]\d+[.]\d+)\b/g, '`$1`')
     // linkify commitids
-    .replace(/\b([a-f0-9]{7,8})\b/g, '[`$1`](https://github.com/npm/npm/commit/$1)')
-    .replace(/\b#(\d+)\b/g, '[#$1](https://github.com/npm/npm/issues/$1)')
+    .replace(/\b([a-f0-9]{7,8})\b/g, '[`$1`](https://github.com/npm/cli/commit/$1)')
+    .replace(/\b#(\d+)\b/g, '[#$1](https://npm.community/t/$1)')
   console.log(msg)
   if (c.credit) {
     c.credit.forEach(function (credit) {

@@ -331,8 +331,10 @@ class Unpack extends Parser {
     })
 
     const tx = this.transform ? this.transform(entry) || entry : entry
-    if (tx !== entry)
+    if (tx !== entry) {
+      tx.on('error', er => this[ONERROR](er, entry))
       entry.pipe(tx)
+    }
     tx.pipe(stream)
   }
 
@@ -512,8 +514,10 @@ class UnpackSync extends Unpack {
       return oner(er)
     }
     const tx = this.transform ? this.transform(entry) || entry : entry
-    if (tx !== entry)
+    if (tx !== entry) {
+      tx.on('error', er => this[ONERROR](er, entry))
       entry.pipe(tx)
+    }
 
     tx.on('data', chunk => {
       try {

@@ -249,18 +249,19 @@ function auditCmd (args, cb) {
               if (installMajor) {
                 output('  (installed due to `--force` option)')
               } else {
-                output('  (use `npm audit fix --force` to install breaking changes; or do it by hand)')
+                output('  (use `npm audit fix --force` to install breaking changes;' +
+                       ' or refer to `npm audit` for steps to fix these manually)')
               }
             }
           }
         })
       })
     } else {
-      const vulns =
-        auditResult.metadata.vulnerabilities.low +
-        auditResult.metadata.vulnerabilities.moderate +
-        auditResult.metadata.vulnerabilities.high +
-        auditResult.metadata.vulnerabilities.critical
+      const levels = ['low', 'moderate', 'high', 'critical']
+      const minLevel = levels.indexOf(npm.config.get('audit-level'))
+      const vulns = levels.reduce((count, level, i) => {
+        return i < minLevel ? count : count + (auditResult.metadata.vulnerabilities[level] || 0)
+      }, 0)
       if (vulns > 0) process.exitCode = 1
       if (npm.config.get('parseable')) {
         return audit.printParseableReport(auditResult)

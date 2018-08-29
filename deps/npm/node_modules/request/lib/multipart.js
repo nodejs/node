@@ -1,10 +1,9 @@
 'use strict'
 
 var uuid = require('uuid')
-  , CombinedStream = require('combined-stream')
-  , isstream = require('isstream')
-  , Buffer = require('safe-buffer').Buffer
-
+var CombinedStream = require('combined-stream')
+var isstream = require('isstream')
+var Buffer = require('safe-buffer').Buffer
 
 function Multipart (request) {
   this.request = request
@@ -15,8 +14,8 @@ function Multipart (request) {
 
 Multipart.prototype.isChunked = function (options) {
   var self = this
-    , chunked = false
-    , parts = options.data || options
+  var chunked = false
+  var parts = options.data || options
 
   if (!parts.forEach) {
     self.request.emit('error', new Error('Argument error, options.multipart.'))
@@ -103,7 +102,7 @@ Multipart.prototype.onRequest = function (options) {
   var self = this
 
   var chunked = self.isChunked(options)
-    , parts = options.data || options
+  var parts = options.data || options
 
   self.setHeaders(chunked)
   self.chunked = chunked

@@ -1,3 +1,177 @@
+## v6.4.0 (2018-09-08):
+
+### NEW FEATURES
+
+* [`6e9f04b0b`](https://github.com/npm/cli/commit/6e9f04b0baed007169d4e0c341f097cf133debf7)
+  [npm/cli#8](https://github.com/npm/cli/pull/8)
+  Search for authentication token defined by environment variables by preventing
+  the translation layer from env variable to npm option from breaking
+  `:_authToken`.
+  ([@mkhl](https://github.com/mkhl))
+* [`84bfd23e7`](https://github.com/npm/cli/commit/84bfd23e7d6434d30595594723a6e1976e84b022)
+  [npm/cli#35](https://github.com/npm/cli/pull/35)
+  Stop filtering out non-IPv4 addresses from `local-addrs`, making npm actually
+  use IPv6 addresses when it must.
+  ([@valentin2105](https://github.com/valentin2105))
+* [`792c8c709`](https://github.com/npm/cli/commit/792c8c709dc7a445687aa0c8cba5c50bc4ed83fd)
+  [npm/cli#31](https://github.com/npm/cli/pull/31)
+  configurable audit level for non-zero exit
+  `npm audit` currently exits with exit code 1 if any vulnerabilities are found of any level.
+  Add a flag of `--audit-level` to `npm audit` to allow it to pass if only vulnerabilities below a certain level are found.
+  Example: `npm audit --audit-level=high` will exit with 0 if only low or moderate level vulns are detected.
+  ([@lennym](https://github.com/lennym))
+
+### BUGFIXES
+
+* [`d81146181`](https://github.com/npm/cli/commit/d8114618137bb5b9a52a86711bb8dc18bfc8e60c)
+  [npm/cli#32](https://github.com/npm/cli/pull/32)
+  Don't check for updates to npm when we are updating npm itself.
+  ([@olore](https://github.com/olore))
+
+### DEPENDENCY UPDATES
+
+A very special dependency update event! Since the [release of
+`node-gyp@3.8.0`](https://github.com/nodejs/node-gyp/pull/1521), an awkward
+version conflict that was preventing `request` from begin flattened was
+resolved. This means two things:
+
+1. We've cut down the npm tarball size by another 200kb, to 4.6MB
+2. `npm audit` now shows no vulnerabilities for npm itself!
+
+Thanks, [@rvagg](https://github.com/rvagg)!
+
+* [`866d776c2`](https://github.com/npm/cli/commit/866d776c27f80a71309389aaab42825b2a0916f6)
+  `request@2.87.0`
+  ([@simov](https://github.com/simov))
+* [`f861c2b57`](https://github.com/npm/cli/commit/f861c2b579a9d4feae1653222afcefdd4f0e978f)
+  `node-gyp@3.8.0`
+  ([@rvagg](https://github.com/rvagg))
+* [`32e6947c6`](https://github.com/npm/cli/commit/32e6947c60db865257a0ebc2f7e754fedf7a6fc9)
+  [npm/cli#39](https://github.com/npm/cli/pull/39)
+  `colors@1.1.2`:
+  REVERT REVERT, newer versions of this library are broken and print ansi
+  codes even when disabled.
+  ([@iarna](https://github.com/iarna))
+* [`beb96b92c`](https://github.com/npm/cli/commit/beb96b92caf061611e3faafc7ca10e77084ec335)
+  `libcipm@2.0.1`
+  ([@zkat](https://github.com/zkat))
+* [`348fc91ad`](https://github.com/npm/cli/commit/348fc91ad223ff91cd7bcf233018ea1d979a2af1)
+  `validate-npm-package-license@3.0.4`: Fixes errors with empty or string-only
+  license fields.
+  ([@Gudahtt](https://github.com/Gudahtt))
+* [`e57d34575`](https://github.com/npm/cli/commit/e57d3457547ef464828fc6f82ae4750f3e511550)
+  `iferr@1.0.2`
+  ([@shesek](https://github.com/shesek))
+* [`46f1c6ad4`](https://github.com/npm/cli/commit/46f1c6ad4b2fd5b0d7ec879b76b76a70a3a2595c)
+  `tar@4.4.6`
+  ([@isaacs](https://github.com/isaacs))
+* [`50df1bf69`](https://github.com/npm/cli/commit/50df1bf691e205b9f13e0fff0d51a68772c40561)
+  `hosted-git-info@2.7.1`
+  ([@iarna](https://github.com/iarna))
+  ([@Erveon](https://github.com/Erveon))
+  ([@huochunpeng](https://github.com/huochunpeng))
+
+### DOCUMENTATION
+
+* [`af98e76ed`](https://github.com/npm/cli/commit/af98e76ed96af780b544962aa575585b3fa17b9a)
+  [npm/cli#34](https://github.com/npm/cli/pull/34)
+  Remove `npm publish` from list of commands not affected by `--dry-run`.
+  ([@joebowbeer](https://github.com/joebowbeer))
+* [`e2b0f0921`](https://github.com/npm/cli/commit/e2b0f092193c08c00f12a6168ad2bd9d6e16f8ce)
+  [npm/cli#36](https://github.com/npm/cli/pull/36)
+  Tweak formatting in repository field examples.
+  ([@noahbenham](https://github.com/noahbenham))
+* [`e2346e770`](https://github.com/npm/cli/commit/e2346e7702acccefe6d711168c2b0e0e272e194a)
+  [npm/cli#14](https://github.com/npm/cli/pull/14)
+  Used `process.env` examples to make accessing certain `npm run-scripts`
+  environment variables more clear.
+  ([@mwarger](https://github.com/mwarger))
+
+## v6.3.0 (2018-08-01):
+
+This is basically the same as the prerelease, but two dependencies have been
+bumped due to bugs that had been around for a while.
+
+* [`0a22be42e`](https://github.com/npm/cli/commit/0a22be42eb0d40cd0bd87e68c9e28fc9d72c0e19)
+  `figgy-pudding@3.2.0`
+  ([@zkat](https://github.com/zkat))
+* [`0096f6997`](https://github.com/npm/cli/commit/0096f69978d2f40b170b28096f269b0b0008a692)
+  `cacache@11.1.0`
+  ([@zkat](https://github.com/zkat))
+
+## v6.3.0-next.0 (2018-07-25):
+
+### NEW FEATURES
+
+* [`ad0dd226f`](https://github.com/npm/cli/commit/ad0dd226fb97a33dcf41787ae7ff282803fb66f2)
+  [npm/cli#26](https://github.com/npm/cli/pull/26)
+  `npm version` now supports a `--preid` option to specify the preid for
+  prereleases. For example, `npm version premajor --preid rc` will tag a version
+  like `2.0.0-rc.0`.
+  ([@dwilches](https://github.com/dwilches))
+
+### MESSAGING IMPROVEMENTS
+
+* [`c1dad1e99`](https://github.com/npm/cli/commit/c1dad1e994827f2eab7a13c0f6454f4e4c22ebc2)
+  [npm/cli#6](https://github.com/npm/cli/pull/6)
+  Make `npm audit fix` message provide better instructions for vulnerabilities
+  that require manual review.
+  ([@bradsk88](https://github.com/bradsk88))
+* [`15c1130fe`](https://github.com/npm/cli/commit/15c1130fe81961706667d845aad7a5a1f70369f3)
+  Fix missing colon next to tarball url in new `npm view` output.
+  ([@zkat](https://github.com/zkat))
+* [`21cf0ab68`](https://github.com/npm/cli/commit/21cf0ab68cf528d5244ae664133ef400bdcfbdb6)
+  [npm/cli#24](https://github.com/npm/cli/pull/24)
+  Use the defaut OTP explanation everywhere except when the context is
+  "OTP-aware" (like when setting double-authentication). This improves the
+  overall CLI messaging when prompting for an OTP code.
+  ([@jdeniau](https://github.com/jdeniau))
+
+### MISC
+
+* [`a9ac8712d`](https://github.com/npm/cli/commit/a9ac8712dfafcb31a4e3deca24ddb92ff75e942d)
+  [npm/cli#21](https://github.com/npm/cli/pull/21)
+  Use the extracted `stringify-package` package.
+  ([@dpogue](https://github.com/dpogue))
+* [`9db15408c`](https://github.com/npm/cli/commit/9db15408c60be788667cafc787116555507dc433)
+  [npm/cli#27](https://github.com/npm/cli/pull/27)
+  `wrappy` was previously added to dependencies in order to flatten it, but we
+  no longer do legacy-style for npm itself, so it has been removed from
+  `package.json`.
+  ([@rickschubert](https://github.com/rickschubert))
+
+### DOCUMENTATION
+
+* [`3242baf08`](https://github.com/npm/cli/commit/3242baf0880d1cdc0e20b546d3c1da952e474444)
+  [npm/cli#13](https://github.com/npm/cli/pull/13)
+  Update more dead links in README.md.
+  ([@u32i64](https://github.com/u32i64))
+* [`06580877b`](https://github.com/npm/cli/commit/06580877b6023643ec780c19d84fbe120fe5425c)
+  [npm/cli#19](https://github.com/npm/cli/pull/19)
+  Update links in docs' `index.html` to refer to new bug/PR URLs.
+  ([@watilde](https://github.com/watilde))
+* [`ca03013c2`](https://github.com/npm/cli/commit/ca03013c23ff38e12902e9569a61265c2d613738)
+  [npm/cli#15](https://github.com/npm/cli/pull/15)
+  Fix some typos in file-specifiers docs.
+  ([@Mstrodl](https://github.com/Mstrodl))
+* [`4f39f79bc`](https://github.com/npm/cli/commit/4f39f79bcacef11bf2f98d09730bc94d0379789b)
+  [npm/cli#16](https://github.com/npm/cli/pull/16)
+  Fix some typos in file-specifiers and package-lock docs.
+  ([@watilde](https://github.com/watilde))
+* [`35e51f79d`](https://github.com/npm/cli/commit/35e51f79d1a285964aad44f550811aa9f9a72cd8)
+  [npm/cli#18](https://github.com/npm/cli/pull/18)
+  Update build status badge url in README.
+  ([@watilde](https://github.com/watilde))
+* [`a67db5607`](https://github.com/npm/cli/commit/a67db5607ba2052b4ea44f66657f98b758fb4786)
+  [npm/cli#17](https://github.com/npm/cli/pull/17/)
+  Replace TROUBLESHOOTING.md with [posts in
+  npm.community](https://npm.community/c/support/troubleshooting).
+  ([@watilde](https://github.com/watilde))
+* [`e115f9de6`](https://github.com/npm/cli/commit/e115f9de65bf53711266152fc715a5012f7d3462)
+  [npm/cli#7](https://github.com/npm/cli/pull/7)
+  Use https URLs in documentation when appropriate. Happy [Not Secure Day](https://arstechnica.com/gadgets/2018/07/todays-the-day-that-chrome-brands-plain-old-http-as-not-secure/)!
+  ([@XhmikosR](https://github.com/XhmikosR))
+
 ## v6.2.0 (2018-07-13):
 
 In case you missed it, [we
@@ -13,7 +187,8 @@ quite ready on time but that we'd still like to include. Enjoy!
 
 * [`244b18380`](https://github.com/npm/npm/commit/244b18380ee55950b13c293722771130dbad70de)
   [#20554](https://github.com/npm/npm/pull/20554)
-  add support for --parseable output
+  Add support for tab-separated output for `npm audit` data with the
+  `--parseable` flag.
   ([@luislobo](https://github.com/luislobo))
 * [`7984206e2`](https://github.com/npm/npm/commit/7984206e2f41b8d8361229cde88d68f0c96ed0b8)
   [#12697](https://github.com/npm/npm/pull/12697)

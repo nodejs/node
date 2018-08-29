@@ -106,7 +106,7 @@ Ideally you should pick one that is
 [OSI](https://opensource.org/licenses/alphabetical) approved.
 
 If your package is licensed under multiple common licenses, use an [SPDX license
-expression syntax version 2.0 string](https://npmjs.com/package/spdx), like this:
+expression syntax version 2.0 string](https://www.npmjs.com/package/spdx), like this:
 
     { "license" : "(ISC OR GPL-3.0)" }
 
@@ -366,15 +366,15 @@ command will be able to find you.
 
 Do it like this:
 
-    "repository" :
-      { "type" : "git"
-      , "url" : "https://github.com/npm/cli.git"
-      }
+    "repository": {
+      "type" : "git",
+      "url" : "https://github.com/npm/cli.git"
+    }
 
-    "repository" :
-      { "type" : "svn"
-      , "url" : "https://v8.googlecode.com/svn/trunk/"
-      }
+    "repository": {
+      "type" : "svn",
+      "url" : "https://v8.googlecode.com/svn/trunk/"
+    }
 
 The URL should be a publicly available (perhaps read-only) url that can be handed
 directly to a VCS program without any modification.  It should not be a url to an
@@ -608,7 +608,7 @@ Trying to install another plugin with a conflicting requirement will cause an
 error. For this reason, make sure your plugin requirement is as broad as
 possible, and not to lock it down to specific patch versions.
 
-Assuming the host complies with [semver](http://semver.org/), only changes in
+Assuming the host complies with [semver](https://semver.org/), only changes in
 the host package's major version will break your plugin. Thus, if you've worked
 with every 1.x version of the host package, use `"^1.0"` or `"1.x"` to express
 this. If you depend on features introduced in 1.5.2, use `">= 1.5.2 < 2"`.

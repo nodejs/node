@@ -35,7 +35,7 @@ This includes anyone who may show up to the npm/npm repo with issues, PRs, comme
 * Comment on issues when they have a reference to the answer.
 * If community members aren't sure they are correct and don't have a reference to the answer, please leave the issue and try another one.
 * Defer to collaborators and npm employees for answers.
-* Make sure to search for [the troubleshooting doc](./TROUBLESHOOTING.md) and search on the issue tracker for similar issues before opening a new one.
+* Make sure to search for [the troubleshooting posts on npm.community](https://npm.community/c/support/troubleshooting) and search on the issue tracker for similar issues before opening a new one.
 * Any users with urgent support needs are welcome to email support@npmjs.com, and our dedicated support team will be happy to help.
 
 PLEASE don't @ collaborators or npm employees on issues. The CLI team is small, and has many outstanding commitments to fulfill.
