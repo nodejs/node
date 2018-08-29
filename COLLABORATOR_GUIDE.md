@@ -21,6 +21,7 @@
     - [When Breaking Changes Actually Break Things](#when-breaking-changes-actually-break-things)
       - [Reverting commits](#reverting-commits)
   - [Introducing New Modules](#introducing-new-modules)
+  - [Additions to N-API](#additions-to-n-api)
   - [Deprecations](#deprecations)
   - [Involving the TSC](#involving-the-tsc)
 * [Landing Pull Requests](#landing-pull-requests)
@@ -410,6 +411,18 @@ and must remain Experimental until a semver-major release.
 For new modules that involve significant effort, non-trivial additions to
 Node.js or significant new capabilities, an [Enhancement Proposal][] is
 recommended but not required.
+
+### Additions to N-API
+
+N-API provides an ABI stable API that we will have to support in future
+versions without the usual option to modify or remove existing APIs on
+SemVer boundaries. Therefore, additions need to be managed carefully.
+
+This
+[guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md)
+outlines the requirements and principles that we should follow when
+approving and landing new N-API APIs (any additions to `node_api.h` and
+`node_api_types.h`).
 
 ### Deprecations
 
