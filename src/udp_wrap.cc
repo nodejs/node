@@ -179,8 +179,11 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   CHECK_EQ(args.Length(), 3);
 
   node::Utf8Value address(args.GetIsolate(), args[0]);
-  const int port = args[1]->Uint32Value();
-  const int flags = args[2]->Uint32Value();
+  Local<Context> ctx = args.GetIsolate()->GetCurrentContext();
+  uint32_t port, flags;
+  if (!args[1]->Uint32Value(ctx).To(&port) ||
+      !args[2]->Uint32Value(ctx).To(&flags))
+    return;
   char addr[sizeof(sockaddr_in6)];
   int err;
 
@@ -340,8 +343,8 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   Local<Array> chunks = args[1].As<Array>();
   // it is faster to fetch the length of the
   // array in js-land
-  size_t count = args[2]->Uint32Value();
-  const unsigned short port = args[3]->Uint32Value();
+  size_t count = args[2].As<Uint32>()->Value();
+  const unsigned short port = args[3].As<Uint32>()->Value();
   node::Utf8Value address(env->isolate(), args[4]);
   const bool have_callback = args[5]->IsTrue();
 
