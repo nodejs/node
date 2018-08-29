@@ -981,7 +981,8 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
   if (js_value->IsString())
     js_string = js_value.As<String>();
   else
-    js_string = js_value->ToString(env()->isolate());
+    js_string = js_value->ToString(env()->isolate()->GetCurrentContext())
+                    .ToLocalChecked();
 
   // Include space for null terminator byte.
   size = StringBytes::StorageSize(isolate, js_string, UTF8) + 1;
@@ -1025,7 +1026,12 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
     auto value = js_array->Get(context, i).ToLocalChecked();
 
     if (!value->IsString())
-      js_array->Set(context, i, value->ToString(env()->isolate())).FromJust();
+      js_array
+          ->Set(context,
+                i,
+                value->ToString(env()->isolate()->GetCurrentContext())
+                    .ToLocalChecked())
+          .FromJust();
 
     data_size += StringBytes::StorageSize(isolate, value, UTF8) + 1;
     data_size = ROUND_UP(data_size, sizeof(void*));

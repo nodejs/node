@@ -410,7 +410,8 @@ size_t StringBytes::StorageSize(Isolate* isolate,
     return Buffer::Length(val);
   }
 
-  Local<String> str = val->ToString(isolate);
+  Local<String> str =
+      val->ToString(isolate->GetCurrentContext()).ToLocalChecked();
 
   switch (encoding) {
     case ASCII:
@@ -456,7 +457,8 @@ size_t StringBytes::Size(Isolate* isolate,
   if (Buffer::HasInstance(val) && (encoding == BUFFER || encoding == LATIN1))
     return Buffer::Length(val);
 
-  Local<String> str = val->ToString(isolate);
+  Local<String> str =
+      val->ToString(isolate->GetCurrentContext()).ToLocalChecked();
 
   switch (encoding) {
     case ASCII:
