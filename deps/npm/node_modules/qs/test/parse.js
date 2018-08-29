@@ -2,7 +2,9 @@
 
 var test = require('tape');
 var qs = require('../');
+var utils = require('../lib/utils');
 var iconv = require('iconv-lite');
+var SaferBuffer = require('safer-buffer').Buffer;
 
 test('parse()', function (t) {
     t.test('parses a simple string', function (st) {
@@ -230,7 +232,7 @@ test('parse()', function (t) {
     });
 
     t.test('parses buffers correctly', function (st) {
-        var b = new Buffer('test');
+        var b = SaferBuffer.from('test');
         st.deepEqual(qs.parse({ a: b }), { a: b });
         st.end();
     });
@@ -301,6 +303,13 @@ test('parse()', function (t) {
 
     t.test('allows disabling array parsing', function (st) {
         st.deepEqual(qs.parse('a[0]=b&a[1]=c', { parseArrays: false }), { a: { 0: 'b', 1: 'c' } });
+        st.end();
+    });
+
+    t.test('allows for query string prefix', function (st) {
+        st.deepEqual(qs.parse('?foo=bar', { ignoreQueryPrefix: true }), { foo: 'bar' });
+        st.deepEqual(qs.parse('foo=bar', { ignoreQueryPrefix: true }), { foo: 'bar' });
+        st.deepEqual(qs.parse('?foo=bar', { ignoreQueryPrefix: false }), { '?foo': 'bar' });
         st.end();
     });
 
@@ -385,6 +394,33 @@ test('parse()', function (t) {
         st.equal('baz' in parsed.foo, true);
         st.equal(parsed.foo.bar, 'baz');
         st.deepEqual(parsed.foo.baz, a);
+        st.end();
+    });
+
+    t.test('does not crash when parsing deep objects', function (st) {
+        var parsed;
+        var str = 'foo';
+
+        for (var i = 0; i < 5000; i++) {
+            str += '[p]';
+        }
+
+        str += '=bar';
+
+        st.doesNotThrow(function () {
+            parsed = qs.parse(str, { depth: 5000 });
+        });
+
+        st.equal('foo' in parsed, true, 'parsed has "foo" property');
+
+        var depth = 0;
+        var ref = parsed.foo;
+        while ((ref = ref.p)) {
+            depth += 1;
+        }
+
+        st.equal(depth, 5000, 'parsed is 5000 properties deep');
+
         st.end();
     });
 
@@ -504,16 +540,35 @@ test('parse()', function (t) {
                     result.push(parseInt(parts[1], 16));
                     parts = reg.exec(str);
                 }
-                return iconv.decode(new Buffer(result), 'shift_jis').toString();
+                return iconv.decode(SaferBuffer.from(result), 'shift_jis').toString();
             }
         }), { 県: '大阪府' });
         st.end();
     });
 
+    t.test('receives the default decoder as a second argument', function (st) {
+        st.plan(1);
+        qs.parse('a', {
+            decoder: function (str, defaultDecoder) {
+                st.equal(defaultDecoder, utils.decode);
+            }
+        });
+        st.end();
+    });
+
     t.test('throws error with wrong decoder', function (st) {
-        st.throws(function () {
+        st['throws'](function () {
             qs.parse({}, { decoder: 'string' });
         }, new TypeError('Decoder has to be a function.'));
         st.end();
     });
+
+    t.test('does not mutate the options argument', function (st) {
+        var options = {};
+        qs.parse('a[b]=true', options);
+        st.deepEqual(options, {});
+        st.end();
+    });
+
+    t.end();
 });

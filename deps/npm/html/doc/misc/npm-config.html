@@ -137,6 +137,13 @@ even for <code>GET</code> requests.</p>
 <p>When &quot;true&quot; submit audit reports alongside <code>npm install</code> runs to the default
 registry and all registries configured for scopes.  See the documentation
 for <a href="../cli/npm-audit.html">npm-audit(1)</a> for details on what is submitted.</p>
+<h3 id="audit-level">audit-level</h3>
+<ul>
+<li>Default: <code>&quot;low&quot;</code></li>
+<li>Type: <code>&#39;low&#39;</code>, <code>&#39;moderate&#39;</code>, <code>&#39;high&#39;</code>, <code>&#39;critical&#39;</code></li>
+</ul>
+<p>The minimum level of vulnerability for <code>npm audit</code> to exit with
+a non-zero exit code.</p>
 <h3 id="auth-type">auth-type</h3>
 <ul>
 <li>Default: <code>&#39;legacy&#39;</code></li>
@@ -272,8 +279,8 @@ e.g., <code>npm outdated --depth 9999</code></p>
 <p>Indicates that you don&#39;t want npm to make any changes and that it should
 only report what it would have done.  This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
-<code>dedupe</code>, <code>uninstall</code>.  This is NOT currently honored by network related
-commands, eg <code>dist-tags</code>, <code>owner</code>, <code>publish</code>, etc.</p>
+<code>dedupe</code>, <code>uninstall</code>.  This is NOT currently honored by some network related
+commands, eg <code>dist-tags</code>, <code>owner</code>, etc.</p>
 <h3 id="editor">editor</h3>
 <ul>
 <li>Default: <code>EDITOR</code> environment variable if set, or <code>&quot;vi&quot;</code> on Posix,
@@ -579,7 +586,7 @@ impact how lifecycle scripts are called.</p>
 <li>Type: semver or false</li>
 </ul>
 <p>The node version to use when checking a package&#39;s <code>engines</code> map.</p>
-<h3 id="no-proxy">no-proxy</h3>
+<h3 id="noproxy">noproxy</h3>
 <ul>
 <li>Default: null</li>
 <li>Type: String or Array</li>
@@ -675,6 +682,13 @@ for updates immediately even for fresh package data.</p>
 </ul>
 <p>The location to install global items.  If set on the command line, then
 it forces non-global commands to run in the specified folder.</p>
+<h3 id="preid">preid</h3>
+<ul>
+<li>Default: &quot;&quot;</li>
+<li>Type: String</li>
+</ul>
+<p>The &quot;prerelease identifier&quot; to use as a prefix for the &quot;prerelease&quot; part of a
+semver. Like the <code>rc</code> in <code>1.2.0-rc.8</code>.</p>
 <h3 id="production">production</h3>
 <ul>
 <li>Default: false</li>
@@ -1050,5 +1064,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@6.2.0</p>
+<p id="footer">npm-config &mdash; npm@6.4.1</p>
 

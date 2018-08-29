@@ -3,7 +3,7 @@ npm-version(1) -- Bump a package version
 
 ## SYNOPSIS
 
-    npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]
+    npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=<prerelease-id>] | from-git]
 
     'npm [-v | --version]' to print npm version
     'npm view <pkg> version' to view a package's published version

@@ -4,7 +4,7 @@ npm-publish(1) -- Publish a package
 
 ## SYNOPSIS
 
-    npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>] [--otp otpcode]
+    npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>] [--otp otpcode] [--dry-run]
 
     Publishes '.' if no argument supplied
     Sets tag 'latest' if no --tag specified
@@ -46,6 +46,10 @@ specifying a different default registry or using a `npm-scope(7)` in the name
   then you can provide a code from your authenticator with this. If you
   don't include this and you're running from a TTY then you'll be prompted.
 
+* `[--dry-run]`
+  Does everything publish would do except actually publishing to the registry.
+  Reports the details of what would have been published.
+
 Fails if the package name and version combination already exists in
 the specified registry.
 
@@ -57,9 +61,8 @@ As of `npm@5`, both a sha1sum and an integrity field with a sha512sum of the
 tarball will be submitted to the registry during publication. Subsequent
 installs will use the strongest supported algorithm to verify downloads.
 
-For a "dry run" that does everything except actually publishing to the
-registry, see `npm-pack(1)`, which figures out the files to be included and
-packs them into a tarball to be uploaded to the registry.
+Similar to `--dry-run` see `npm-pack(1)`, which figures out the files to be
+included and packs them into a tarball to be uploaded to the registry.
 
 ## SEE ALSO
 

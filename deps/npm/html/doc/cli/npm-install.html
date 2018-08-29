@@ -70,9 +70,11 @@ after packing it up into a tarball (b).</p>
   using <code>npm link</code>.</p>
 <p>  Tarball requirements:</p>
 <ul>
-<li>The filename <em>must</em> use <code>.tar</code>, <code>.tar.gz</code>, or <code>.tgz</code> as
-the extension.</li>
-<li>The package contents should reside in a subfolder inside the tarball (usually it is called <code>package/</code>). npm strips one directory layer when installing the package (an equivalent of <code>tar x --strip-components=1</code> is run).</li>
+<li><p>The filename <em>must</em> use <code>.tar</code>, <code>.tar.gz</code>, or <code>.tgz</code> as
+the extension.</p>
+</li>
+<li><p>The package contents should reside in a subfolder inside the tarball (usually it is called <code>package/</code>). npm strips one directory layer when installing the package (an equivalent of <code>tar x --strip-components=1</code> is run).</p>
+</li>
 <li><p>The package must contain a <code>package.json</code> file with <code>name</code> and <code>version</code> properties.</p>
 <p>Example:</p>
 <pre><code>npm install ./package.tgz</code></pre></li>
@@ -170,12 +172,18 @@ fetch the package by name if it is not valid.</code></pre><ul>
 <p>  The following git environment variables are recognized by npm and will be
   added to the environment when running git:</p>
 <ul>
-<li><code>GIT_ASKPASS</code></li>
-<li><code>GIT_EXEC_PATH</code></li>
-<li><code>GIT_PROXY_COMMAND</code></li>
-<li><code>GIT_SSH</code></li>
-<li><code>GIT_SSH_COMMAND</code></li>
-<li><code>GIT_SSL_CAINFO</code></li>
+<li><p><code>GIT_ASKPASS</code></p>
+</li>
+<li><p><code>GIT_EXEC_PATH</code></p>
+</li>
+<li><p><code>GIT_PROXY_COMMAND</code></p>
+</li>
+<li><p><code>GIT_SSH</code></p>
+</li>
+<li><p><code>GIT_SSH_COMMAND</code></p>
+</li>
+<li><p><code>GIT_SSL_CAINFO</code></p>
+</li>
 <li><p><code>GIT_SSL_NO_VERIFY</code></p>
 <p>See the git man page for details.</p>
 <p>Examples:</p>
@@ -362,5 +370,5 @@ affects a real use-case, it will be investigated.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-install &mdash; npm@6.2.0</p>
+<p id="footer">npm-install &mdash; npm@6.4.1</p>
 

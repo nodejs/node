@@ -1,5 +1,7 @@
 'use strict'
 var gitHosts = require('./git-host-info.js')
+/* eslint-disable node/no-deprecated-api */
+var extend = Object.assign || require('util')._extend
 
 var GitHost = module.exports = function (type, user, auth, project, committish, defaultRepresentation, opts) {
   var gitHostInfo = this
@@ -22,9 +24,9 @@ GitHost.prototype.hash = function () {
 
 GitHost.prototype._fill = function (template, opts) {
   if (!template) return
-  var vars = Object.assign({}, opts)
+  var vars = extend({}, opts)
   vars.path = vars.path ? vars.path.replace(/^[/]+/g, '') : ''
-  opts = Object.assign({}, this.opts, opts)
+  opts = extend(extend({}, this.opts), opts)
   var self = this
   Object.keys(this).forEach(function (key) {
     if (self[key] != null && vars[key] == null) vars[key] = self[key]
@@ -49,8 +51,8 @@ GitHost.prototype._fill = function (template, opts) {
   } else {
     vars['#committish'] = rawComittish ? '#' + rawComittish : ''
     vars['/tree/committish'] = vars.committish
-                            ? '/' + vars.treepath + '/' + vars.committish
-                            : ''
+      ? '/' + vars.treepath + '/' + vars.committish
+      : ''
     vars['/committish'] = vars.committish ? '/' + vars.committish : ''
     vars.committish = vars.committish || 'master'
   }
@@ -79,7 +81,7 @@ GitHost.prototype.browse = function (P, F, opts) {
       opts = F
       F = null
     }
-    return this._fill(this.browsefiletemplate, Object.assign({
+    return this._fill(this.browsefiletemplate, extend({
       fragment: F,
       path: P
     }, opts))
@@ -117,7 +119,7 @@ GitHost.prototype.tarball = function (opts) {
 }
 
 GitHost.prototype.file = function (P, opts) {
-  return this._fill(this.filetemplate, Object.assign({ path: P }, opts))
+  return this._fill(this.filetemplate, extend({ path: P }, opts))
 }
 
 GitHost.prototype.getDefaultRepresentation = function () {

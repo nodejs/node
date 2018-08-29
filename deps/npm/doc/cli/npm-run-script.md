@@ -15,9 +15,9 @@ used by the test, start, restart, and stop commands, but can be called
 directly, as well. When the scripts in the package are printed out, they're
 separated into lifecycle (test, start, restart) and directly-run scripts.
 
-As of [`npm@2.0.0`](http://blog.npmjs.org/post/98131109725/npm-2-0-0), you can
+As of [`npm@2.0.0`](https://blog.npmjs.org/post/98131109725/npm-2-0-0), you can
 use custom arguments when executing scripts. The special option `--` is used by
-[getopt](http://goo.gl/KxMmtG) to delimit the end of the options. npm will pass
+[getopt](https://goo.gl/KxMmtG) to delimit the end of the options. npm will pass
 all the arguments after the `--` directly to your script:
 
     npm run test -- --grep="pattern"

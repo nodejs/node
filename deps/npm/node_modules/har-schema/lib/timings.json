@@ -1,5 +1,6 @@
 {
-  "id": "timings.json#",
+  "$id": "timings.json#",
+  "$schema": "http://json-schema.org/draft-06/schema#",
   "required": [
     "send",
     "wait",

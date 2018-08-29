@@ -69,20 +69,25 @@
     npm.command = 'help'
   }
 
+  var isGlobalNpmUpdate = conf.global && ['install', 'update'].includes(npm.command) && npm.argv.includes('npm')
+
   // now actually fire up npm and run the command.
   // this is how to use npm programmatically:
   conf._exit = true
   npm.load(conf, function (er) {
     if (er) return errorHandler(er)
     if (
+      !isGlobalNpmUpdate &&
       npm.config.get('update-notifier') &&
       !unsupported.checkVersion(process.version).unsupported
     ) {
       const pkg = require('../package.json')
       let notifier = require('update-notifier')({pkg})
+      const isCI = require('ci-info').isCI
       if (
         notifier.update &&
-        notifier.update.latest !== pkg.version
+        notifier.update.latest !== pkg.version &&
+        !isCI
       ) {
         const color = require('ansicolors')
         const useColor = npm.config.get('color')
