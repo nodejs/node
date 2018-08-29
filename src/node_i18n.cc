@@ -819,9 +819,9 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   bool expand_emoji_sequence = args[2]->IsTrue();
 
   if (args[0]->IsNumber()) {
-    args.GetReturnValue().Set(
-        GetColumnWidth(args[0]->Uint32Value(),
-                       ambiguous_as_full_width));
+    uint32_t val;
+    if (!args[0]->Uint32Value(env->context()).To(&val)) return;
+    args.GetReturnValue().Set(GetColumnWidth(val, ambiguous_as_full_width));
     return;
   }
 

@@ -345,7 +345,7 @@ static const char* name_by_gid(gid_t gid) {
 
 static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {
-    return static_cast<uid_t>(value->Uint32Value());
+    return static_cast<uid_t>(value.As<Uint32>()->Value());
   } else {
     Utf8Value name(isolate, value);
     return uid_by_name(*name);
@@ -355,7 +355,7 @@ static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
 
 static gid_t gid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {
-    return static_cast<gid_t>(value->Uint32Value());
+    return static_cast<gid_t>(value.As<Uint32>()->Value());
   } else {
     Utf8Value name(isolate, value);
     return gid_by_name(*name);
@@ -534,7 +534,7 @@ void InitGroups(const FunctionCallbackInfo<Value>& args) {
   char* user;
 
   if (args[0]->IsUint32()) {
-    user = name_by_uid(args[0]->Uint32Value());
+    user = name_by_uid(args[0].As<Uint32>()->Value());
     must_free = true;
   } else {
     user = *arg0;
