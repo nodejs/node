@@ -1,0 +1,43 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/node',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/bin/npm-cli.js',
+1 verbose cli   'login',
+1 verbose cli   '--registry',
+1 verbose cli   'http://localhost:1337',
+1 verbose cli   '--loglevel',
+1 verbose cli   'silly',
+1 verbose cli   '--userconfig',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/test/tap/adduser-legacy-auth/_npmrc' ]
+2 info using npm@6.4.1-next.0
+3 info using node@v10.6.0
+4 verbose npm-session 1582acc84bf67ce1
+5 verbose npm-session dcceca325d165252
+6 verbose web login before first POST
+7 http fetch POST 404 http://localhost:1337/-/v1/login 84ms
+8 verbose web login not supported, trying couch
+9 verbose login before first PUT { _id: 'org.couchdb.user:u',
+9 verbose login   name: 'u',
+9 verbose login   password: 'XXXXX',
+9 verbose login   type: 'user',
+9 verbose login   roles: [],
+9 verbose login   date: '2018-08-29T02:25:23.065Z' }
+10 verbose adduser before first PUT { _id: 'org.couchdb.user:u',
+10 verbose adduser   name: 'u',
+10 verbose adduser   password: 'XXXXX',
+10 verbose adduser   email: 'u@p.me',
+10 verbose adduser   type: 'user',
+10 verbose adduser   roles: [],
+10 verbose adduser   date: '2018-08-29T02:25:23.066Z' }
+11 http fetch PUT 409 http://localhost:1337/-/user/org.couchdb.user:u 5ms
+12 verbose stack Error: 409 Conflict - PUT http://localhost:1337/-/user/org.couchdb.user:u - user exists
+12 verbose stack     at res.buffer.catch.then.body (/Users/zkat/Documents/code/work/npm-profile/lib/node_modules/npm-registry-fetch/check-response.js:100:15)
+12 verbose stack     at process._tickCallback (internal/process/next_tick.js:68:7)
+13 verbose statusCode 409
+14 verbose cwd /Users/zkat/Documents/code/work/npm/test/tap
+15 verbose Darwin 17.7.0
+16 verbose argv "/usr/local/bin/node" "/Users/zkat/Documents/code/work/npm/bin/npm-cli.js" "login" "--registry" "http://localhost:1337" "--loglevel" "silly" "--userconfig" "/Users/zkat/Documents/code/work/npm/test/tap/adduser-legacy-auth/_npmrc"
+17 verbose node v10.6.0
+18 verbose npm  v6.4.1-next.0
+19 error code E409
+20 error 409 Conflict - PUT http://localhost:1337/-/user/org.couchdb.user:u - user exists
+21 verbose exit [ 1, true ]

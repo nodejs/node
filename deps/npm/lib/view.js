@@ -276,7 +276,7 @@ function prettyView (packument, manifest) {
 
     console.log('')
     console.log('dist')
-    console.log('.tarball', info.tarball)
+    console.log('.tarball:', info.tarball)
     console.log('.shasum:', info.shasum)
     info.integrity && console.log('.integrity:', info.integrity)
     info.unpackedSize && console.log('.unpackedSize:', info.unpackedSize)

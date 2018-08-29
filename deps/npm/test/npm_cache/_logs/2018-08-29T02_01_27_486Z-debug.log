@@ -1,0 +1,35 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/node',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/bin/npm-cli.js',
+1 verbose cli   'login',
+1 verbose cli   '--registry',
+1 verbose cli   'http://localhost:1337',
+1 verbose cli   '--loglevel',
+1 verbose cli   'silly',
+1 verbose cli   '--userconfig',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/test/tap/adduser-legacy-auth/_npmrc' ]
+2 info using npm@6.4.1-next.0
+3 info using node@v10.6.0
+4 verbose npm-session 122d5e560febc2d7
+5 verbose npm-session 155fa50ebb4f5f2f
+6 verbose web login before first POST
+7 verbose web login not supported, trying couch
+8 verbose adduser before first PUT { _id: 'org.couchdb.user:u',
+8 verbose adduser   name: 'u',
+8 verbose adduser   password: 'XXXXX',
+8 verbose adduser   email: 'u@p.me',
+8 verbose adduser   type: 'user',
+8 verbose adduser   roles: [],
+8 verbose adduser   date: '2018-08-29T02:01:27.479Z' }
+9 verbose stack Error: 409 Conflict - PUT http://localhost:1337/-/user/org.couchdb.user:u - user exists
+9 verbose stack     at res.buffer.catch.then.body (/Users/zkat/Documents/code/work/npm-profile/lib/node_modules/npm-registry-fetch/check-response.js:100:15)
+9 verbose stack     at process._tickCallback (internal/process/next_tick.js:68:7)
+10 verbose statusCode 409
+11 verbose cwd /Users/zkat/Documents/code/work/npm/test/tap
+12 verbose Darwin 17.7.0
+13 verbose argv "/usr/local/bin/node" "/Users/zkat/Documents/code/work/npm/bin/npm-cli.js" "login" "--registry" "http://localhost:1337" "--loglevel" "silly" "--userconfig" "/Users/zkat/Documents/code/work/npm/test/tap/adduser-legacy-auth/_npmrc"
+14 verbose node v10.6.0
+15 verbose npm  v6.4.1-next.0
+16 error code E409
+17 error 409 Conflict - PUT http://localhost:1337/-/user/org.couchdb.user:u - user exists
+18 verbose exit [ 1, true ]

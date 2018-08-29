@@ -50,6 +50,12 @@ MemoryCookieStore.prototype.inspect = function() {
   return "{ idx: "+util.inspect(this.idx, false, 2)+' }';
 };
 
+// Use the new custom inspection symbol to add the custom inspect function if
+// available.
+if (util.inspect.custom) {
+  MemoryCookieStore.prototype[util.inspect.custom] = MemoryCookieStore.prototype.inspect;
+}
+
 MemoryCookieStore.prototype.findCookie = function(domain, path, key, cb) {
   if (!this.idx[domain]) {
     return cb(null,undefined);

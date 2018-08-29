@@ -20,7 +20,7 @@ const readUserInfo = require('./utils/read-user-info.js')
 const semver = require('semver')
 const statAsync = BB.promisify(require('graceful-fs').stat)
 
-publish.usage = 'npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>]' +
+publish.usage = 'npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]' +
                 "\n\nPublishes '.' if no argument supplied" +
                 '\n\nSets tag `latest` if no --tag specified'
 

@@ -1,3 +1,9 @@
+3.0.2 / 2018-07-19
+==================
+  * [Fix] Prevent merging `__proto__` property (#48)
+  * [Dev Deps] update `eslint`, `@ljharb/eslint-config`, `tape`
+  * [Tests] up to `node` `v10.7`, `v9.11`, `v8.11`, `v7.10`, `v6.14`, `v4.9`; use `nvm install-latest-npm`
+
 3.0.1 / 2017-04-27
 ==================
   * [Fix] deep extending should work with a non-object (#46)

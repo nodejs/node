@@ -16,12 +16,26 @@ subcommands.public = function (uri, params, cb) {
 subcommands.restricted = function (uri, params, cb) {
   return setAccess.call(this, 'restricted', uri, params, cb)
 }
+subcommands['2fa-required'] = function (uri, params, cb) {
+  return setRequires2fa.call(this, true, uri, params, cb)
+}
+subcommands['2fa-not-required'] = function (uri, params, cb) {
+  return setRequires2fa.call(this, false, uri, params, cb)
+}
 
 function setAccess (access, uri, params, cb) {
   return this.request(apiUri(uri, 'package', params.package, 'access'), {
     method: 'POST',
     auth: params.auth,
     body: JSON.stringify({ access: access })
+  }, cb)
+}
+
+function setRequires2fa (requires2fa, uri, params, cb) {
+  return this.request(apiUri(uri, 'package', params.package, 'access'), {
+    method: 'POST',
+    auth: params.auth,
+    body: JSON.stringify({ publish_requires_tfa: requires2fa })
   }, cb)
 }
 

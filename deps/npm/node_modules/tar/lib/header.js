@@ -9,10 +9,11 @@ const types = require('./types.js')
 const pathModule = require('path').posix
 const large = require('./large-numbers.js')
 
+const SLURP = Symbol('slurp')
 const TYPE = Symbol('type')
 
 class Header {
-  constructor (data, off) {
+  constructor (data, off, ex, gex) {
     this.cksumValid = false
     this.needPax = false
     this.nullBlock = false
@@ -35,12 +36,12 @@ class Header {
     this.ctime = null
 
     if (Buffer.isBuffer(data))
-      this.decode(data, off || 0)
+      this.decode(data, off || 0, ex, gex)
     else if (data)
       this.set(data)
   }
 
-  decode (buf, off) {
+  decode (buf, off, ex, gex) {
     if (!off)
       off = 0
 
@@ -54,6 +55,11 @@ class Header {
     this.size = decNumber(buf, off + 124, 12)
     this.mtime = decDate(buf, off + 136, 12)
     this.cksum = decNumber(buf, off + 148, 12)
+
+    // if we have extended or global extended headers, apply them now
+    // See https://github.com/npm/node-tar/pull/187
+    this[SLURP](ex)
+    this[SLURP](gex, true)
 
     // old tar versions marked dirs as a file with a trailing /
     this[TYPE] = decString(buf, off + 156, 1)
@@ -99,6 +105,16 @@ class Header {
     this.cksumValid = sum === this.cksum
     if (this.cksum === null && sum === 8 * 0x20)
       this.nullBlock = true
+  }
+
+  [SLURP] (ex, global) {
+    for (let k in ex) {
+      // we slurp in everything except for the path attribute in
+      // a global extended header, because that's weird.
+      if (ex[k] !== null && ex[k] !== undefined &&
+          !(global && k === 'path'))
+        this[k] = ex[k]
+    }
   }
 
   encode (buf, off) {

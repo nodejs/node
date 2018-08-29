@@ -21,6 +21,16 @@ programs.
 
 Run `npm help` to get a list of available commands.
 
+## IMPORTANT
+
+npm is configured to use npm, Inc.'s public registry at
+https://registry.npmjs.org by default. Use of the npm public registry is
+subject to terms of use available at https://www.npmjs.com/policies/terms.
+
+You can configure npm to use any compatible registry you like, and even run
+your own registry. Use of someone else's registry may be governed by their
+terms of use.
+
 ## INTRODUCTION
 
 You probably got npm because you want to install stuff.
@@ -140,7 +150,7 @@ reproduction to report.
 
 [Isaac Z. Schlueter](http://blog.izs.me/) ::
 [isaacs](https://github.com/isaacs/) ::
-[@izs](http://twitter.com/izs) ::
+[@izs](https://twitter.com/izs) ::
 <i@izs.me>
 
 ## SEE ALSO
