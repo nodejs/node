@@ -3,7 +3,7 @@
   'target_name': 'v8_external_snapshot',
   'type': 'static_library',
   'conditions': [
-    [ 'v8_use_external_startup_data==1', {
+    ['v8_use_external_startup_data==1', {
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
@@ -11,14 +11,14 @@
             'mksnapshot#host',
             'js2c#host',
             'natives_blob',
-        ]}, {
-          'toolsets': ['target'],
-          'dependencies': [
-            'mksnapshot',
-            'js2c',
-            'natives_blob',
-          ],
-        }],
+          ]}, {
+           'toolsets': ['target'],
+           'dependencies': [
+             'mksnapshot',
+             'js2c',
+             'natives_blob',
+           ],
+         }],
         ['component=="shared_library"', {
           'defines': [
             'BUILDING_V8_SHARED',
@@ -33,7 +33,7 @@
       'dependencies': [
         'v8_base',
       ],
-      'include_dirs+': [
+      'include_dirs': [
         '..',
         '<(DEPTH)',
       ],
@@ -42,6 +42,7 @@
         '../src/snapshot/embedded-empty.cc',
         '../src/snapshot/natives-external.cc',
         '../src/snapshot/snapshot-external.cc',
+        '<(embedded_builtins_snapshot_src)',
       ],
       'actions': [
         {
@@ -61,17 +62,23 @@
               ['v8_os_page_size!=0', {
                 'mksnapshot_flags': ['--v8_os_page_size', '<(v8_os_page_size)'],
               }],
+              ['v8_enable_embedded_builtins="true"', {
+                # 'embedded_builtins_snapshot_src': [ "$target_gen_dir/embedded${suffix}.cc" ],
+                # 'mksnapshot_flags':  ["--embedded_src", "$target_gen_dir/embedded${suffix}.cc",],
+                # if (invoker.embedded_variant != "") {
+                #   args += [
+                #     "--embedded_variant",
+                #     invoker.embedded_variant,
+                #   ]
+                # }
+              },
+               ],
             ],
           },
           'conditions': [
-            ['embed_script!=""', {
+            ['v8_embed_script!=""', {
               'inputs': [
-                '<(embed_script)',
-              ],
-            }],
-            ['warmup_script!=""', {
-              'inputs': [
-                '<(warmup_script)',
+                '<(v8_embed_script)',
               ],
             }],
             ['want_separate_host_toolset==1', {
@@ -79,6 +86,7 @@
                 ['_toolset=="host"', {
                   'outputs': [
                     '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+                    '<(embedded_builtins_snapshot_src)'
                   ],
                   'action': [
                     '<(mksnapshot_exec)',
@@ -88,30 +96,31 @@
                     '<(warmup_script)',
                   ],
                 }, {
-                  'outputs': [
-                    '<(PRODUCT_DIR)/snapshot_blob.bin',
-                  ],
-                  'action': [
-                    '<(mksnapshot_exec)',
-                    '<@(mksnapshot_flags)',
-                    '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
-                    '<(embed_script)',
-                    '<(warmup_script)',
-                  ],
-                }],
+                   'outputs': [
+                     '<(PRODUCT_DIR)/snapshot_blob.bin',
+                   ],
+                   'action': [
+                     '<(mksnapshot_exec)',
+                     '<@(mksnapshot_flags)',
+                     '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
+                     '<(embed_script)',
+                     '<(warmup_script)',
+                   ],
+                 }],
               ],
             }, {
-              'outputs': [
-                '<(PRODUCT_DIR)/snapshot_blob.bin',
-              ],
-              'action': [
-                '<(mksnapshot_exec)',
-                '<@(mksnapshot_flags)',
-                '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
-                '<(embed_script)',
-                '<(warmup_script)',
-              ],
-            }],
+               'outputs': [
+                 '<(PRODUCT_DIR)/snapshot_blob.bin',
+                 '<(embedded_builtins_snapshot_src)'
+               ],
+               'action': [
+                 '<(mksnapshot_exec)',
+                 '<@(mksnapshot_flags)',
+                 '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
+                 '<(embed_script)',
+                 '<(warmup_script)',
+               ],
+             }],
           ],
         },
       ],
