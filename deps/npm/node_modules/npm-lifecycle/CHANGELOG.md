@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="2.1.0"></a>
+# [2.1.0](https://github.com/npm/lifecycle/compare/v2.0.3...v2.1.0) (2018-08-13)
+
+
+### Bug Fixes
+
+* **windows:** revert writing all possible cases of PATH variables ([#22](https://github.com/npm/lifecycle/issues/22)) ([8fcaa21](https://github.com/npm/lifecycle/commit/8fcaa21)), closes [#20](https://github.com/npm/lifecycle/issues/20)
+
+
+### Features
+
+* **ci:** add node@10 to CI ([e206aa0](https://github.com/npm/lifecycle/commit/e206aa0))
+
+
+
 <a name="2.0.3"></a>
 ## [2.0.3](https://github.com/npm/lifecycle/compare/v2.0.2...v2.0.3) (2018-05-16)
 

@@ -4,6 +4,8 @@ Run this in a node package, and it'll tell you which things in
 node_modules are bundledDependencies, or transitive dependencies of
 bundled dependencies.
 
+[![Build Status](https://travis-ci.org/npm/npm-bundled.svg?branch=master)](https://travis-ci.org/npm/npm-bundled)
+
 ## USAGE
 
 To get the list of deps at the top level that are bundled (or

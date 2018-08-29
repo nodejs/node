@@ -31,7 +31,8 @@
 'use strict';
 var net = require('net');
 var urlParse = require('url').parse;
-var pubsuffix = require('./pubsuffix');
+var util = require('util');
+var pubsuffix = require('./pubsuffix-psl');
 var Store = require('./store').Store;
 var MemoryCookieStore = require('./memstore').MemoryCookieStore;
 var pathMatch = require('./pathMatch').pathMatch;
@@ -41,7 +42,7 @@ var punycode;
 try {
   punycode = require('punycode');
 } catch(e) {
-  console.warn("cookie: can't load punycode; won't use punycode for domain normalization");
+  console.warn("tough-cookie: can't load punycode; won't use punycode for domain normalization");
 }
 
 // From RFC6265 S4.1.1
@@ -756,6 +757,12 @@ Cookie.prototype.inspect = function inspect() {
     '"';
 };
 
+// Use the new custom inspection symbol to add the custom inspect function if
+// available.
+if (util.inspect.custom) {
+  Cookie.prototype[util.inspect.custom] = Cookie.prototype.inspect;
+}
+
 Cookie.prototype.toJSON = function() {
   var obj = {};
 
@@ -1406,21 +1413,19 @@ CAN_BE_SYNC.forEach(function(method) {
   CookieJar.prototype[method+'Sync'] = syncWrap(method);
 });
 
-module.exports = {
-  CookieJar: CookieJar,
-  Cookie: Cookie,
-  Store: Store,
-  MemoryCookieStore: MemoryCookieStore,
-  parseDate: parseDate,
-  formatDate: formatDate,
-  parse: parse,
-  fromJSON: fromJSON,
-  domainMatch: domainMatch,
-  defaultPath: defaultPath,
-  pathMatch: pathMatch,
-  getPublicSuffix: pubsuffix.getPublicSuffix,
-  cookieCompare: cookieCompare,
-  permuteDomain: require('./permuteDomain').permuteDomain,
-  permutePath: permutePath,
-  canonicalDomain: canonicalDomain
-};
+exports.CookieJar = CookieJar;
+exports.Cookie = Cookie;
+exports.Store = Store;
+exports.MemoryCookieStore = MemoryCookieStore;
+exports.parseDate = parseDate;
+exports.formatDate = formatDate;
+exports.parse = parse;
+exports.fromJSON = fromJSON;
+exports.domainMatch = domainMatch;
+exports.defaultPath = defaultPath;
+exports.pathMatch = pathMatch;
+exports.getPublicSuffix = pubsuffix.getPublicSuffix;
+exports.cookieCompare = cookieCompare;
+exports.permuteDomain = require('./permuteDomain').permuteDomain;
+exports.permutePath = permutePath;
+exports.canonicalDomain = canonicalDomain;

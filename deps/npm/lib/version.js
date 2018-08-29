@@ -15,10 +15,10 @@ const output = require('./utils/output.js')
 const parseJSON = require('./utils/parse-json.js')
 const path = require('path')
 const semver = require('semver')
-const stringifyPackage = require('./utils/stringify-package')
+const stringifyPackage = require('stringify-package')
 const writeFileAtomic = require('write-file-atomic')
 
-version.usage = 'npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]' +
+version.usage = 'npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=<prerelease-id>] | from-git]' +
                 '\n(run in package dir)\n' +
                 "'npm -v' or 'npm --version' to print npm version " +
                 '(' + npm.version + ')\n' +
@@ -47,7 +47,7 @@ function version (args, silent, cb_) {
       retrieveTagVersion(silent, data, cb_)
     } else {
       var newVersion = semver.valid(args[0])
-      if (!newVersion) newVersion = semver.inc(data.version, args[0])
+      if (!newVersion) newVersion = semver.inc(data.version, args[0], npm.config.get('preid'))
       if (!newVersion) return cb_(version.usage)
       persistVersion(newVersion, silent, data, cb_)
     }

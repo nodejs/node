@@ -19,7 +19,7 @@
 #
 # Global settings and utility functions are currently stuffed in the
 # toplevel Makefile.  It may make sense to generate some .mk files on
-# the side to keep the the files readable.
+# the side to keep the files readable.
 
 import os
 import re
@@ -30,6 +30,8 @@ import gyp.common
 import gyp.xcode_emulation
 from gyp.common import GetEnvironFallback
 from gyp.common import GypError
+
+import hashlib
 
 generator_default_variables = {
   'EXECUTABLE_PREFIX': '',
@@ -90,7 +92,10 @@ def CalculateVariables(default_variables, params):
     if flavor == 'android':
       operating_system = 'linux'  # Keep this legacy behavior for now.
     default_variables.setdefault('OS', operating_system)
-    default_variables.setdefault('SHARED_LIB_SUFFIX', '.so')
+    if flavor == 'aix':
+      default_variables.setdefault('SHARED_LIB_SUFFIX', '.a')
+    else:
+      default_variables.setdefault('SHARED_LIB_SUFFIX', '.so')
     default_variables.setdefault('SHARED_LIB_DIR','$(builddir)/lib.$(TOOLSET)')
     default_variables.setdefault('LIB_DIR', '$(obj).$(TOOLSET)')
 
@@ -142,7 +147,7 @@ cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crsT $@ $(filter %.o,$^)
 # special "figure out circular dependencies" flags around the entire
 # input list during linking.
 quiet_cmd_link = LINK($(TOOLSET)) $@
-cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) -Wl,--end-group $(LIBS)
+cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) $(LIBS) -Wl,--end-group
 
 # We support two kinds of shared objects (.so):
 # 1) shared_library, which is just bundling together many dependent libraries
@@ -1369,7 +1374,10 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       if target[:3] == 'lib':
         target = target[3:]
       target_prefix = 'lib'
-      target_ext = '.so'
+      if self.flavor == 'aix':
+        target_ext = '.a'
+      else:
+        target_ext = '.so'
     elif self.type == 'none':
       target = '%s.stamp' % target
     elif self.type != 'executable':
@@ -1765,7 +1773,10 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       #   actual command.
       # - The intermediate recipe will 'touch' the intermediate file.
       # - The multi-output rule will have an do-nothing recipe.
-      intermediate = "%s.intermediate" % (command if command else self.target)
+
+      # Hash the target name to avoid generating overlong filenames.
+      cmddigest = hashlib.sha1(command if command else self.target).hexdigest()
+      intermediate = "%s.intermediate" % cmddigest
       self.WriteLn('%s: %s' % (' '.join(outputs), intermediate))
       self.WriteLn('\t%s' % '@:');
       self.WriteLn('%s: %s' % ('.INTERMEDIATE', intermediate))

@@ -115,6 +115,7 @@ exports.parse = function (path, map) {
 
         stream.queue(data)
       }
+    if (this.value) delete this.value[this.key]
     for(var k in this.stack)
       if (!Object.isFrozen(this.stack[k]))
         this.stack[k].value = null

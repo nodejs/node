@@ -81,7 +81,7 @@ current SPDX license identifier for the license you&#39;re using, like this:</p>
 <pre><code>{ &quot;license&quot; : &quot;BSD-3-Clause&quot; }</code></pre><p>You can check <a href="https://spdx.org/licenses/">the full list of SPDX license IDs</a>.
 Ideally you should pick one that is
 <a href="https://opensource.org/licenses/alphabetical">OSI</a> approved.</p>
-<p>If your package is licensed under multiple common licenses, use an <a href="https://npmjs.com/package/spdx">SPDX license
+<p>If your package is licensed under multiple common licenses, use an <a href="https://www.npmjs.com/package/spdx">SPDX license
 expression syntax version 2.0 string</a>, like this:</p>
 <pre><code>{ &quot;license&quot; : &quot;(ISC OR GPL-3.0)&quot; }</code></pre><p>If you are using a license that hasn&#39;t been assigned an SPDX identifier, or if
 you are using a custom license, use a string value like this one:</p>
@@ -256,15 +256,15 @@ future.</p>
 want to contribute.  If the git repo is on GitHub, then the <code>npm docs</code>
 command will be able to find you.</p>
 <p>Do it like this:</p>
-<pre><code>&quot;repository&quot; :
-  { &quot;type&quot; : &quot;git&quot;
-  , &quot;url&quot; : &quot;https://github.com/npm/cli.git&quot;
-  }
+<pre><code>&quot;repository&quot;: {
+  &quot;type&quot; : &quot;git&quot;,
+  &quot;url&quot; : &quot;https://github.com/npm/cli.git&quot;
+}
 
-&quot;repository&quot; :
-  { &quot;type&quot; : &quot;svn&quot;
-  , &quot;url&quot; : &quot;https://v8.googlecode.com/svn/trunk/&quot;
-  }</code></pre><p>The URL should be a publicly available (perhaps read-only) url that can be handed
+&quot;repository&quot;: {
+  &quot;type&quot; : &quot;svn&quot;,
+  &quot;url&quot; : &quot;https://v8.googlecode.com/svn/trunk/&quot;
+}</code></pre><p>The URL should be a publicly available (perhaps read-only) url that can be handed
 directly to a VCS program without any modification.  It should not be a url to an
 html project page that you put in your browser.  It&#39;s for computers.</p>
 <p>For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the same
@@ -434,7 +434,7 @@ dependency hell, a situation that npm is designed to avoid as much as possible.<
 <p>Trying to install another plugin with a conflicting requirement will cause an
 error. For this reason, make sure your plugin requirement is as broad as
 possible, and not to lock it down to specific patch versions.</p>
-<p>Assuming the host complies with <a href="http://semver.org/">semver</a>, only changes in
+<p>Assuming the host complies with <a href="https://semver.org/">semver</a>, only changes in
 the host package&#39;s major version will break your plugin. Thus, if you&#39;ve worked
 with every 1.x version of the host package, use <code>&quot;^1.0&quot;</code> or <code>&quot;1.x&quot;</code> to express
 this. If you depend on features introduced in 1.5.2, use <code>&quot;&gt;= 1.5.2 &lt; 2&quot;</code>.</p>
@@ -574,5 +574,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@6.2.0</p>
+<p id="footer">package.json &mdash; npm@6.4.1</p>
 
