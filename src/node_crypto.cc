@@ -3648,11 +3648,11 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc);
 }
 
-typedef enum {
+enum ParsePublicKeyResult {
   kParsePublicOk,
   kParsePublicNotRecognized,
   kParsePublicFailed
-} ParsePublicKeyResult;
+};
 
 static ParsePublicKeyResult ParsePublicKey(EVPKeyPointer* pkey,
                                            const char* key_pem,
