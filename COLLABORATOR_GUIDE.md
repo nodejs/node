@@ -416,15 +416,15 @@ recommended but not required.
 
 N-API provides an ABI stable API that we will have to support in future
 versions without the usual option to modify or remove existing APIs on
-SemVer boundaries.  Therefore,additions need to be managed carefully.
+SemVer boundaries. Therefore, additions need to be managed carefully.
 
 This
 [guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md)
 outlines the requirements and principals that we should follow when
-approving and landing new N-API APIs (additions to node_api.h and
+approving and landing new N-API APIs (any additions to node_api.h and
 node_api_types.h).
 
-Two of the key requirements is that additions be landed as
+Two of the key requirements are that additions be landed as
 experimental and then only promoted out of experimental with agreement
 from the [n-api team](https://github.com/orgs/nodejs/teams/n-api). 
 
