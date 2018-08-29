@@ -1,7 +1,11 @@
+// Flags: --expose-internals
 'use strict';
+
+const { internalBinding } = require('internal/test/binding');
+
 // Monkey patch the os binding before requiring any other modules, including
 // common, which requires the os module.
-process.binding('os').getHomeDirectory = function(ctx) {
+internalBinding('os').getHomeDirectory = function(ctx) {
   ctx.syscall = 'foo';
   ctx.code = 'bar';
   ctx.message = 'baz';
