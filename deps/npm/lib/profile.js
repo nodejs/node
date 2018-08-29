@@ -195,7 +195,7 @@ function set (args) {
       newUser[prop] = value
       return profile.set(newUser, conf).catch((err) => {
         if (err.code !== 'EOTP') throw err
-        return readUserInfo.otp('Enter OTP:  ').then((otp) => {
+        return readUserInfo.otp().then((otp) => {
           conf.auth.otp = otp
           return profile.set(newUser, conf)
         })
@@ -262,7 +262,7 @@ function enable2fa (args) {
         return pulseTillDone.withPromise(profile.set({tfa: {password, mode: 'disable'}}, conf))
       } else {
         if (conf.auth.otp) return
-        return readUserInfo.otp('Enter OTP:  ').then((otp) => {
+        return readUserInfo.otp('Enter one-time password from your authenticator app: ').then((otp) => {
           conf.auth.otp = otp
         })
       }

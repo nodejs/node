@@ -230,6 +230,9 @@ The following options are supported:
   Note that this prevents using other mtime-based features like
   `tar.update` or the `keepNewer` option with the resulting tar archive.
   [Alias: `m`, `no-mtime`]
+- `mtime` Set to a `Date` object to force a specific `mtime` for
+  everything added to the archive.  Overridden by `noMtime`.
+
 
 The following options are mostly internal, but can be modified in some
 advanced use cases, such as re-using caches between runs.

@@ -57,8 +57,8 @@ on dependencies, <code>dep1</code> (<code>dep2</code>, .. etc.).  The published 
 <p>However, if <code>app</code>&#39;s <code>package.json</code> contains:</p>
 <pre><code>&quot;dependencies&quot;: {
   &quot;dep1&quot;: &quot;~1.1.1&quot;
-}</code></pre><p>In this case, running <code>npm update</code> will install <a href="mailto:%60dep1@1.1.2">`dep1@1.1.2</a><code>.  Even though the</code>latest<code>tag points to</code>1.2.2<code>, this version does not satisfy</code>~1.1.1<code>, which is equivalent
-to</code>&gt;=1.1.1 &lt;1.2.0<code>.  So the highest-sorting version that satisfies</code>~1.1.1<code>is used,
+}</code></pre><p>In this case, running <code>npm update</code> will install <a href="mailto:%60dep1@1.1.2">`dep1@1.1.2</a><code>.  Even though the</code>latest<code>tag points to</code>1.2.2<code>, this version does not satisfy</code><del>1.1.1<code>, which is equivalent
+to</code>&gt;=1.1.1 &lt;1.2.0<code>.  So the highest-sorting version that satisfies</code></del>1.1.1<code>is used,
 which is</code>1.1.2`.</p>
 <h3 id="caret-dependencies-below-1-0-0">Caret Dependencies below 1.0.0</h3>
 <p>Suppose <code>app</code> has a caret dependency on a version below <code>1.0.0</code>, for example:</p>
@@ -98,5 +98,5 @@ be <em>downgraded</em>.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-update &mdash; npm@6.2.0</p>
+<p id="footer">npm-update &mdash; npm@6.4.1</p>
 

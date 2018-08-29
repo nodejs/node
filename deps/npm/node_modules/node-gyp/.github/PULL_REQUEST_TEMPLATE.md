@@ -10,7 +10,7 @@ Contributor guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 - [ ] `npm install && npm test` passes
 - [ ] tests are included <!-- Bug fixes and new features should include tests -->
 - [ ] documentation is changed or added
-- [ ] commit message follows [commit guidelines](https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#commit-message-guidelines)
+- [ ] commit message follows [commit guidelines](https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#commit-message-guidelines)
 
 ##### Description of change
 <!-- Provide a description of the change -->

@@ -132,7 +132,9 @@ exported into the <code>node_modules/.bin</code> directory on <code>npm install<
 for instance, if you had <code>{&quot;name&quot;:&quot;foo&quot;, &quot;version&quot;:&quot;1.2.5&quot;}</code> in your
 package.json file, then your package scripts would have the
 <code>npm_package_name</code> environment variable set to &quot;foo&quot;, and the
-<code>npm_package_version</code> set to &quot;1.2.5&quot;</p>
+<code>npm_package_version</code> set to &quot;1.2.5&quot;.  You can access these variables
+in your code with <code>process.env.npm_package_name</code> and
+<code>process.env.npm_package_version</code>, and so on for other fields.</p>
 <h3 id="configuration">configuration</h3>
 <p>Configuration parameters are put in the environment with the
 <code>npm_config_</code> prefix. For instance, you can view the effective <code>root</code>
@@ -232,5 +234,5 @@ scripts is for compilation which must be done on the target architecture.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@6.2.0</p>
+<p id="footer">npm-scripts &mdash; npm@6.4.1</p>
 

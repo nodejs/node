@@ -766,6 +766,9 @@ Installer.prototype.printInstalled = function (cb) {
     if (!this.auditSubmission) return
     return Bluebird.resolve(this.auditSubmission).timeout(10000).catch(() => null)
   }).then((auditResult) => {
+    if (auditResult && !auditResult.metadata) {
+      log.warn('audit', 'Audit result from registry missing metadata. This is probably an issue with the registry.')
+    }
     // maybe write audit report w/ hash of pjson & shrinkwrap for later reading by `npm audit`
     if (npm.config.get('json')) {
       return this.printInstalledForJSON(diffs, auditResult)
@@ -834,7 +837,7 @@ Installer.prototype.printInstalledForHuman = function (diffs, auditResult) {
   if (removed) actions.push('removed ' + packages(removed))
   if (updated) actions.push('updated ' + packages(updated))
   if (moved) actions.push('moved ' + packages(moved))
-  if (auditResult && auditResult.metadata.totalDependencies) {
+  if (auditResult && auditResult.metadata && auditResult.metadata.totalDependencies) {
     actions.push('audited ' + packages(auditResult.metadata.totalDependencies))
   }
   if (actions.length === 0) {
