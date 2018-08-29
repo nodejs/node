@@ -497,11 +497,11 @@ for /d %%F in (test\addons-napi\??_*) do (
   rd /s /q %%F
 )
 :: building addons-napi
-for /d %%F in (test\addons-napi\*) do (
-  %node_gyp_exe% rebuild ^
-    --directory="%%F" ^
-    --nodedir="%cd%"
-)
+setlocal
+set npm_config_nodedir=%~dp0
+"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons-napi"
+if errorlevel 1 exit /b 1
+endlocal
 endlocal
 goto run-tests
 
