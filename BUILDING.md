@@ -280,6 +280,17 @@ When using the debug binary, core dumps will be generated in case of crashes.
 These core dumps are useful for debugging when provided with the 
 corresponding original debug binary and system information.
 
+Reading the core dump requires a gdb that was build on the same platform as the
+core dump was captured, so 64bit gdb if node was build as 64bit and Linux gdb if node
+was built on Linux else you might get errors like "not in executable format: File format not recognized".
+
+Example of generating a backtrace from the core dump:
+
+``` console
+gdb /opt/node-debug/node core.node.8.1535359906
+backtrace
+```
+
 ### Windows
 
 Prerequisites:
