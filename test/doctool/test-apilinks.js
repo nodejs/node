@@ -29,11 +29,11 @@ fs.readdirSync(apilinks).forEach((fixture) => {
     assert.ok(k in actualLinks, `link not found: ${k}`);
     assert.ok(actualLinks[k].endsWith('/' + v),
               `link ${actualLinks[k]} expected to end with ${v}`);
-    delete expectedLinks[k];
+    delete actualLinks[k];
   }
 
   assert.strictEqual(
-    Object.keys(expectedLinks).length, 0,
-    `unexpected links returned ${JSON.stringify(Object.keys(expectedLinks))}`
+    Object.keys(actualLinks).length, 0,
+    `unexpected links returned ${JSON.stringify(actualLinks)}`
   );
 });
