@@ -2661,6 +2661,11 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   cipher->Init(*cipher_type, key_buf, key_buf_len, auth_tag_len);
 }
 
+static bool IsSupportedAuthenticatedMode(int mode) {
+  return mode == EVP_CIPH_CCM_MODE ||
+         mode == EVP_CIPH_GCM_MODE ||
+         mode == EVP_CIPH_OCB_MODE;
+}
 
 void CipherBase::InitIv(const char* cipher_type,
                         const char* key,
@@ -2678,8 +2683,7 @@ void CipherBase::InitIv(const char* cipher_type,
 
   const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
   const int mode = EVP_CIPHER_mode(cipher);
-  const bool is_gcm_mode = (EVP_CIPH_GCM_MODE == mode);
-  const bool is_ccm_mode = (EVP_CIPH_CCM_MODE == mode);
+  const bool is_authenticated_mode = IsSupportedAuthenticatedMode(mode);
   const bool has_iv = iv_len >= 0;
 
   // Throw if no IV was passed and the cipher requires an IV
@@ -2690,7 +2694,7 @@ void CipherBase::InitIv(const char* cipher_type,
   }
 
   // Throw if an IV was passed which does not match the cipher's fixed IV length
-  if (!is_gcm_mode && !is_ccm_mode && has_iv && iv_len != expected_iv_len) {
+  if (!is_authenticated_mode && has_iv && iv_len != expected_iv_len) {
     return env()->ThrowError("Invalid IV length");
   }
 
@@ -2706,7 +2710,7 @@ void CipherBase::InitIv(const char* cipher_type,
                             "Failed to initialize cipher");
   }
 
-  if (IsAuthenticatedMode()) {
+  if (is_authenticated_mode) {
     CHECK(has_iv);
     if (!InitAuthenticated(cipher_type, iv_len, auth_tag_len))
       return;
@@ -2781,7 +2785,7 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
   }
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
-  if (mode == EVP_CIPH_CCM_MODE) {
+  if (mode == EVP_CIPH_CCM_MODE || mode == EVP_CIPH_OCB_MODE) {
     if (auth_tag_len == kNoAuthTagLength) {
       char msg[128];
       snprintf(msg, sizeof(msg), "authTagLength required for %s", cipher_type);
@@ -2791,27 +2795,29 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
 
 #ifdef NODE_FIPS_MODE
     // TODO(tniessen) Support CCM decryption in FIPS mode
-    if (kind_ == kDecipher && FIPS_mode()) {
+    if (mode == EVP_CIPH_CCM_MODE && kind_ == kDecipher && FIPS_mode()) {
       env()->ThrowError("CCM decryption not supported in FIPS mode");
       return false;
     }
 #endif
 
-    if (!EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_CCM_SET_TAG, auth_tag_len,
+    // Tell OpenSSL about the desired length.
+    if (!EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_SET_TAG, auth_tag_len,
                              nullptr)) {
       env()->ThrowError("Invalid authentication tag length");
       return false;
     }
 
-    // When decrypting in CCM mode, this field will be set in setAuthTag().
-    if (kind_ == kCipher)
-      auth_tag_len_ = auth_tag_len;
+    // Remember the given authentication tag length for later.
+    auth_tag_len_ = auth_tag_len;
 
-    // Restrict the message length to min(INT_MAX, 2^(8*(15-iv_len))-1) bytes.
-    CHECK(iv_len >= 7 && iv_len <= 13);
-    max_message_size_ = INT_MAX;
-    if (iv_len == 12) max_message_size_ = 16777215;
-    if (iv_len == 13) max_message_size_ = 65535;
+    if (mode == EVP_CIPH_CCM_MODE) {
+      // Restrict the message length to min(INT_MAX, 2^(8*(15-iv_len))-1) bytes.
+      CHECK(iv_len >= 7 && iv_len <= 13);
+      max_message_size_ = INT_MAX;
+      if (iv_len == 12) max_message_size_ = 16777215;
+      if (iv_len == 13) max_message_size_ = 65535;
+    }
   } else {
     CHECK_EQ(mode, EVP_CIPH_GCM_MODE);
 
@@ -2850,7 +2856,7 @@ bool CipherBase::IsAuthenticatedMode() const {
   // Check if this cipher operates in an AEAD mode that we support.
   CHECK(ctx_);
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
-  return mode == EVP_CIPH_GCM_MODE || mode == EVP_CIPH_CCM_MODE;
+  return IsSupportedAuthenticatedMode(mode);
 }
 
 
@@ -2883,7 +2889,6 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(false);
   }
 
-  // Restrict GCM tag lengths according to NIST 800-38d, page 9.
   unsigned int tag_len = Buffer::Length(args[0]);
   const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_.get());
   if (mode == EVP_CIPH_GCM_MODE) {
@@ -2900,6 +2905,17 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
           "Permitting authentication tag lengths of %u bytes is deprecated. "
           "Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.", tag_len);
       ProcessEmitDeprecationWarning(cipher->env(), msg, "DEP0090");
+    }
+  } else if (mode == EVP_CIPH_OCB_MODE) {
+    // At this point, the tag length is already known and must match the
+    // length of the given authentication tag.
+    CHECK(mode == EVP_CIPH_CCM_MODE || mode == EVP_CIPH_OCB_MODE);
+    CHECK_NE(cipher->auth_tag_len_, kNoAuthTagLength);
+    if (cipher->auth_tag_len_ != tag_len) {
+      char msg[50];
+      snprintf(msg, sizeof(msg),
+          "Invalid authentication tag length: %u", tag_len);
+      return cipher->env()->ThrowError(msg);
     }
   }
 
@@ -2991,7 +3007,7 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
   if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_len_ > 0 &&
       auth_tag_len_ != kNoAuthTagLength && !auth_tag_set_) {
     CHECK(EVP_CIPHER_CTX_ctrl(ctx_.get(),
-                              EVP_CTRL_GCM_SET_TAG,
+                              EVP_CTRL_AEAD_SET_TAG,
                               auth_tag_len_,
                               reinterpret_cast<unsigned char*>(auth_tag_)));
     auth_tag_set_ = true;
@@ -3104,10 +3120,12 @@ bool CipherBase::Final(unsigned char** out, int* out_len) {
 
     if (ok && kind_ == kCipher && IsAuthenticatedMode()) {
       // In GCM mode, the authentication tag length can be specified in advance,
-      // but defaults to 16 bytes when encrypting. In CCM mode, it must always
-      // be given by the user.
-      if (mode == EVP_CIPH_GCM_MODE && auth_tag_len_ == kNoAuthTagLength)
+      // but defaults to 16 bytes when encrypting. In CCM and OCB mode, it must
+      // always be given by the user.
+      if (auth_tag_len_ == kNoAuthTagLength) {
+        CHECK(mode == EVP_CIPH_GCM_MODE);
         auth_tag_len_ = sizeof(auth_tag_);
+      }
       CHECK_EQ(1, EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_GET_TAG,
                       auth_tag_len_,
                       reinterpret_cast<unsigned char*>(auth_tag_)));

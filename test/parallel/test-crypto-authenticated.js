@@ -499,6 +499,207 @@ const TEST_CASES = [
     tag: '65a6002b2cdfe9f00027f839332ca6fc',
     tampered: false
   },
+
+  // OCB test cases from RFC7253
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa99887766554433221100',
+    plain: '',
+    ct: '',
+    tag: '785407bfffc8ad9edcc5520ac9111ee6'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa99887766554433221101',
+    plain: '0001020304050607',
+    plainIsHex: true,
+    aad: '0001020304050607',
+    ct: '6820b3657b6f615a',
+    tag: '5725bda0d3b4eb3a257c9af1f8f03009'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa99887766554433221102',
+    plain: '',
+    aad: '0001020304050607',
+    ct: '',
+    tag: '81017f8203f081277152fade694a0a00'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa99887766554433221103',
+    plain: '0001020304050607',
+    plainIsHex: true,
+    ct: '45dd69f8f5aae724',
+    tag: '14054cd1f35d82760b2cd00d2f99bfa9'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa99887766554433221104',
+    plain: '000102030405060708090a0b0c0d0e0f',
+    plainIsHex: true,
+    aad: '000102030405060708090a0b0c0d0e0f',
+    ct: '571d535b60b277188be5147170a9a22c',
+    tag: '3ad7a4ff3835b8c5701c1ccec8fc3358'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa99887766554433221105',
+    plain: '',
+    aad: '000102030405060708090a0b0c0d0e0f',
+    ct: '',
+    tag: '8cf761b6902ef764462ad86498ca6b97'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa99887766554433221106',
+    plain: '000102030405060708090a0b0c0d0e0f',
+    plainIsHex: true,
+    ct: '5ce88ec2e0692706a915c00aeb8b2396',
+    tag: 'f40e1c743f52436bdf06d8fa1eca343d'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa99887766554433221107',
+    plain: '000102030405060708090a0b0c0d0e0f1011121314151617',
+    plainIsHex: true,
+    aad: '000102030405060708090a0b0c0d0e0f1011121314151617',
+    ct: '1ca2207308c87c010756104d8840ce1952f09673a448a122',
+    tag: 'c92c62241051f57356d7f3c90bb0e07f'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa99887766554433221108',
+    plain: '',
+    aad: '000102030405060708090a0b0c0d0e0f1011121314151617',
+    ct: '',
+    tag: '6dc225a071fc1b9f7c69f93b0f1e10de'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa99887766554433221109',
+    plain: '000102030405060708090a0b0c0d0e0f1011121314151617',
+    plainIsHex: true,
+    ct: '221bd0de7fa6fe993eccd769460a0af2d6cded0c395b1c3c',
+    tag: 'e725f32494b9f914d85c0b1eb38357ff'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa9988776655443322110a',
+    plain: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+    plainIsHex: true,
+    aad: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+    ct: 'bd6f6c496201c69296c11efd138a467abd3c707924b964deaffc40319af5a485',
+    tag: '40fbba186c5553c68ad9f592a79a4240'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa9988776655443322110b',
+    plain: '',
+    aad: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+    ct: '',
+    tag: 'fe80690bee8a485d11f32965bc9d2a32'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa9988776655443322110c',
+    plain: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+    plainIsHex: true,
+    ct: '2942bfc773bda23cabc6acfd9bfd5835bd300f0973792ef46040c53f1432bcdf',
+    tag: 'b5e1dde3bc18a5f840b52e653444d5df'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa9988776655443322110d',
+    plain: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f' +
+           '2021222324252627',
+    plainIsHex: true,
+    aad: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20' +
+         '21222324252627',
+    ct: 'd5ca91748410c1751ff8a2f618255b68a0a12e093ff454606e59f9c1d0ddc54b65e8' +
+        '628e568bad7a',
+    tag: 'ed07ba06a4a69483a7035490c5769e60'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa9988776655443322110e',
+    plain: '',
+    plainIsHex: true,
+    aad: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20' +
+         '21222324252627',
+    ct: '',
+    tag: 'c5cd9d1850c141e358649994ee701b68'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '000102030405060708090a0b0c0d0e0f',
+    iv: 'bbaa9988776655443322110f',
+    plain: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f' +
+           '2021222324252627',
+    plainIsHex: true,
+    ct: '4412923493c57d5de0d700f753cce0d1d2d95060122e9f15a5ddbfc5787e50b5cc55' +
+        'ee507bcb084e',
+    tag: '479ad363ac366b95a98ca5f3000b1479'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '0f0e0d0c0b0a09080706050403020100',
+    iv: 'bbaa9988776655443322110d',
+    plain: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f' +
+           '2021222324252627',
+    plainIsHex: true,
+    aad: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20' +
+         '21222324252627',
+    ct: '1792a4e31e0755fb03e31b22116e6c2ddf9efd6e33d536f1a0124b0a55bae884ed93' +
+        '481529c76b6a',
+    tag: 'd0c515f4d1cdd4fdac4f02aa'
+  },
+
+  {
+    algo: 'aes-128-ocb',
+    key: '0f0e0d0c0b0a09080706050403020100',
+    iv: 'bbaa9988776655443322110d',
+    plain: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f' +
+           '2021222324252627',
+    plainIsHex: true,
+    aad: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20' +
+         '21222324252627',
+    ct: '1792a4e31e0755fb03e31b22116e6c2ddf9efd6e33d536f1a0124b0a55bae884ed93' +
+        '481529c76b6a',
+    tag: 'd0c515f4d1cdd4fdac4f02ab',
+    tampered: true
+  }
 ];
 
 const errMessages = {
@@ -559,9 +760,10 @@ for (const test of TEST_CASES) {
   }
 
   const isCCM = /^aes-(128|192|256)-ccm$/.test(test.algo);
+  const isOCB = /^aes-(128|192|256)-ocb$/.test(test.algo);
 
   let options;
-  if (isCCM)
+  if (isCCM || isOCB)
     options = { authTagLength: test.tag.length / 2 };
 
   const inputEncoding = test.plainIsHex ? 'hex' : 'ascii';
@@ -884,30 +1086,40 @@ for (const test of TEST_CASES) {
   }
 }
 
-// Test that create(De|C)ipher(iv)? throws if the mode is CCM and no
+// Test that create(De|C)ipher(iv)? throws if the mode is CCM or OCB and no
 // authentication tag has been specified.
 {
-  assert.throws(() => {
-    crypto.createCipheriv('aes-256-ccm',
-                          'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                          'qkuZpJWCewa6S');
-  }, /^Error: authTagLength required for aes-256-ccm$/);
-
-  // CCM decryption and create(De|C)ipher are unsupported in FIPS mode.
-  if (!common.hasFipsCrypto) {
+  for (const mode of ['ccm', 'ocb']) {
     assert.throws(() => {
-      crypto.createDecipheriv('aes-256-ccm',
-                              'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                              'qkuZpJWCewa6S');
-    }, /^Error: authTagLength required for aes-256-ccm$/);
+      crypto.createCipheriv(`aes-256-${mode}`,
+                            'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                            'qkuZpJWCewa6S');
+    }, {
+      message: `authTagLength required for aes-256-${mode}`
+    });
 
-    assert.throws(() => {
-      crypto.createCipher('aes-256-ccm', 'very bad password');
-    }, /^Error: authTagLength required for aes-256-ccm$/);
+    // CCM decryption and create(De|C)ipher are unsupported in FIPS mode.
+    if (!common.hasFipsCrypto) {
+      assert.throws(() => {
+        crypto.createDecipheriv(`aes-256-${mode}`,
+                                'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                'qkuZpJWCewa6S');
+      }, {
+        message: `authTagLength required for aes-256-${mode}`
+      });
 
-    assert.throws(() => {
-      crypto.createDecipher('aes-256-ccm', 'very bad password');
-    }, /^Error: authTagLength required for aes-256-ccm$/);
+      assert.throws(() => {
+        crypto.createCipher(`aes-256-${mode}`, 'very bad password');
+      }, {
+        message: `authTagLength required for aes-256-${mode}`
+      });
+
+      assert.throws(() => {
+        crypto.createDecipher(`aes-256-${mode}`, 'very bad password');
+      }, {
+        message: `authTagLength required for aes-256-${mode}`
+      });
+    }
   }
 }
 
@@ -988,7 +1200,7 @@ for (const test of TEST_CASES) {
   }
 }
 
-// Test that setAAD throws in CCM mode when no authentication tag is provided.
+// Test that final() throws in CCM mode when no authentication tag is provided.
 {
   if (!common.hasFipsCrypto) {
     const key = Buffer.from('1ed2233fa2223ef5d7df08546049406c', 'hex');
@@ -1003,6 +1215,8 @@ for (const test of TEST_CASES) {
       decrypt.setAAD(Buffer.from('63616c76696e', 'hex'), {
         plaintextLength: ct.length
       });
+      decrypt.update(ct);
+      decrypt.final();
     }, errMessages.state);
   }
 }
