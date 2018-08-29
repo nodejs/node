@@ -137,6 +137,8 @@ The tools are currently assigned to Tiers as follows:
  | Tracing   | ETW                       | No                            | Partial                 |     3       |
  | Tracing   | Systemtap                 | No                            | Partial                 |     ?       |
  | Profiling | V8 CPU profiler  (--prof) | No                            | Yes                     |     1       |
+ | Profiling | V8 CodeEventHandler API   | No                            | Yes                     |     ?       |
+ | Profiling | V8 --interpreted-frames-native-stack | Yes                | Yes                     |     ?       |
  | Profiling | Linux perf                | Yes                           | Partial                 |     ?       |
  | Profiling | DTrace                    | No                            | Partial                 |     3       |
  | Profiling | Windows Xperf             | No                            | ?                       |     ?       |
