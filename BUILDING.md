@@ -266,10 +266,10 @@ $ make -j4
 
 `make` with `./configure --debug` generates two binaries, the regular release
 one in `out/Release/node` and a debug binary in `out/Debug/node`, only the
- release version is actually installed when you run `make install`. 
+release version is actually installed when you run `make install`. 
 
 To use the debug build with all the normal dependencies overwrite the release
- version in the install directory:
+version in the install directory:
 
 ``` console
 $ make install --prefix=/opt/node-debug/
@@ -280,9 +280,10 @@ When using the debug binary, core dumps will be generated in case of crashes.
 These core dumps are useful for debugging when provided with the 
 corresponding original debug binary and system information.
 
-Reading the core dump requires a gdb that was build on the same platform as the
-core dump was captured, so 64bit gdb if node was build as 64bit and Linux gdb if node
-was built on Linux else you might get errors like "not in executable format: File format not recognized".
+Reading the core dump requires gdb built on the same platform core dump was 
+captured on(i.e. 64bit gdb for node built on a 64bit system, Linux gdb 
+for node built on Linux) otherwise you will get errors like 
+"not in executable format: File format not recognized".
 
 Example of generating a backtrace from the core dump:
 
