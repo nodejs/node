@@ -689,9 +689,14 @@ listeners for that event will receive `exception` as an argument.
 ### socket.end([data][, encoding])
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22428
+    description: The `data` parameter can now be any `TypedArray` or a
+                 `DataView`.
 -->
 
-* `data` {string|Buffer|Uint8Array}
+* `data` {string|Buffer|TypedArray|DataView}
 * `encoding` {string} Only used when data is `string`. **Default:** `'utf8'`.
 * Returns: {net.Socket} The socket itself.
 
@@ -850,9 +855,14 @@ active socket in the event system. If the socket is already `unref`ed calling
 ### socket.write(data[, encoding][, callback])
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22428
+    description: The `data` parameter can now by any `TypedArray` or a
+                 `DataView`.
 -->
 
-* `data` {string|Buffer|Uint8Array}
+* `data` {string|Buffer|TypedArray|DataView}
 * `encoding` {string} Only used when data is `string`. **Default:** `utf8`.
 * `callback` {Function}
 * Returns: {boolean}
