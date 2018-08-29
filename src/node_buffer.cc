@@ -236,7 +236,9 @@ MaybeLocal<Object> New(Isolate* isolate,
                        enum encoding enc) {
   EscapableHandleScope scope(isolate);
 
-  const size_t length = StringBytes::Size(isolate, string, enc);
+  size_t length;
+  if (!StringBytes::Size(isolate, string, enc).To(&length))
+    return Local<Object>();
   size_t actual = 0;
   char* data = nullptr;
 
@@ -828,7 +830,8 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   const size_t haystack_length = (enc == UCS2) ?
       ts_obj_length &~ 1 : ts_obj_length;  // NOLINT(whitespace/operators)
 
-  const size_t needle_length = StringBytes::Size(isolate, needle, enc);
+  size_t needle_length;
+  if (!StringBytes::Size(isolate, needle, enc).To(&needle_length)) return;
 
   int64_t opt_offset = IndexOfOffset(haystack_length,
                                      offset_i64,
@@ -868,7 +871,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
     if (IsBigEndian()) {
       StringBytes::InlineDecoder decoder;
-      decoder.Decode(env, needle, args[3], UCS2);
+      if (decoder.Decode(env, needle, args[3], UCS2).IsNothing()) return;
       const uint16_t* decoded_string =
           reinterpret_cast<const uint16_t*>(decoder.out());
 

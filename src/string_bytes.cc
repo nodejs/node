@@ -399,19 +399,20 @@ bool StringBytes::IsValidString(Local<String> string,
 // Quick and dirty size calculation
 // Will always be at least big enough, but may have some extra
 // UTF8 can be as much as 3x the size, Base64 can have 1-2 extra bytes
-size_t StringBytes::StorageSize(Isolate* isolate,
-                                Local<Value> val,
-                                enum encoding encoding) {
+v8::Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
+                                           Local<Value> val,
+                                           enum encoding encoding) {
   HandleScope scope(isolate);
   size_t data_size = 0;
   bool is_buffer = Buffer::HasInstance(val);
 
   if (is_buffer && (encoding == BUFFER || encoding == LATIN1)) {
-    return Buffer::Length(val);
+    return v8::Just(Buffer::Length(val));
   }
 
-  Local<String> str =
-      val->ToString(isolate->GetCurrentContext()).ToLocalChecked();
+  Local<String> str;
+  if (!val->ToString(isolate->GetCurrentContext()).ToLocal(&str))
+    return v8::Nothing<size_t>();
 
   switch (encoding) {
     case ASCII:
@@ -445,40 +446,40 @@ size_t StringBytes::StorageSize(Isolate* isolate,
       break;
   }
 
-  return data_size;
+  return v8::Just(data_size);
 }
 
-
-size_t StringBytes::Size(Isolate* isolate,
-                         Local<Value> val,
-                         enum encoding encoding) {
+v8::Maybe<size_t> StringBytes::Size(Isolate* isolate,
+                                    Local<Value> val,
+                                    enum encoding encoding) {
   HandleScope scope(isolate);
 
   if (Buffer::HasInstance(val) && (encoding == BUFFER || encoding == LATIN1))
-    return Buffer::Length(val);
+    return v8::Just(Buffer::Length(val));
 
-  Local<String> str =
-      val->ToString(isolate->GetCurrentContext()).ToLocalChecked();
+  Local<String> str;
+  if (!val->ToString(isolate->GetCurrentContext()).ToLocal(&str))
+    return v8::Nothing<size_t>();
 
   switch (encoding) {
     case ASCII:
     case LATIN1:
-      return str->Length();
+      return v8::Just<size_t>(str->Length());
 
     case BUFFER:
     case UTF8:
-      return str->Utf8Length(isolate);
+      return v8::Just<size_t>(str->Utf8Length(isolate));
 
     case UCS2:
-      return str->Length() * sizeof(uint16_t);
+      return v8::Just(str->Length() * sizeof(uint16_t));
 
     case BASE64: {
       String::Value value(isolate, str);
-      return base64_decoded_size(*value, value.length());
+      return v8::Just(base64_decoded_size(*value, value.length()));
     }
 
     case HEX:
-      return str->Length() / 2;
+      return v8::Just<size_t>(str->Length() / 2);
   }
 
   UNREACHABLE();

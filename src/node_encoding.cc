@@ -121,7 +121,7 @@ ssize_t DecodeBytes(Isolate* isolate,
                     enum encoding encoding) {
   HandleScope scope(isolate);
 
-  return StringBytes::Size(isolate, val, encoding);
+  return StringBytes::Size(isolate, val, encoding).FromMaybe(-1);
 }
 
 // Returns number of bytes written.
