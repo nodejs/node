@@ -49,6 +49,7 @@ using v8::Local;
 using v8::Number;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
 using v8::Uint32Array;
 using v8::Value;
 
@@ -155,7 +156,11 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
     CHECK_EQ(false, args[0]->IsUndefined() && "must provide flush value");
 
-    unsigned int flush = args[0]->Uint32Value();
+    Environment* env = ctx->env();
+    Local<Context> context = env->context();
+
+    unsigned int flush;
+    if (!args[0]->Uint32Value(context).To(&flush)) return;
 
     if (flush != Z_NO_FLUSH &&
         flush != Z_PARTIAL_FLUSH &&
@@ -170,8 +175,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
     Bytef* in;
     Bytef* out;
-    size_t in_off, in_len, out_off, out_len;
-    Environment* env = ctx->env();
+    uint32_t in_off, in_len, out_off, out_len;
 
     if (args[1]->IsNull()) {
       // just a flush
@@ -181,18 +185,18 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     } else {
       CHECK(Buffer::HasInstance(args[1]));
       Local<Object> in_buf;
-      in_buf = args[1]->ToObject(env->context()).ToLocalChecked();
-      in_off = args[2]->Uint32Value();
-      in_len = args[3]->Uint32Value();
+      in_buf = args[1]->ToObject(context).ToLocalChecked();
+      if (!args[2]->Uint32Value(context).To(&in_off)) return;
+      if (!args[3]->Uint32Value(context).To(&in_len)) return;
 
       CHECK(Buffer::IsWithinBounds(in_off, in_len, Buffer::Length(in_buf)));
       in = reinterpret_cast<Bytef *>(Buffer::Data(in_buf) + in_off);
     }
 
     CHECK(Buffer::HasInstance(args[4]));
-    Local<Object> out_buf = args[4]->ToObject(env->context()).ToLocalChecked();
-    out_off = args[5]->Uint32Value();
-    out_len = args[6]->Uint32Value();
+    Local<Object> out_buf = args[4]->ToObject(context).ToLocalChecked();
+    if (!args[5]->Uint32Value(context).To(&out_off)) return;
+    if (!args[6]->Uint32Value(context).To(&out_len)) return;
     CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
     out = reinterpret_cast<Bytef *>(Buffer::Data(out_buf) + out_off);
 
@@ -438,32 +442,38 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
+    Local<Context> context = args.GetIsolate()->GetCurrentContext();
+
     // windowBits is special. On the compression side, 0 is an invalid value.
     // But on the decompression side, a value of 0 for windowBits tells zlib
     // to use the window size in the zlib header of the compressed stream.
-    int windowBits = args[0]->Uint32Value();
+    uint32_t windowBits;
+    if (!args[0]->Uint32Value(context).To(&windowBits)) return;
+
     if (!((windowBits == 0) &&
           (ctx->mode_ == INFLATE ||
            ctx->mode_ == GUNZIP ||
            ctx->mode_ == UNZIP))) {
-      CHECK((windowBits >= Z_MIN_WINDOWBITS &&
-             windowBits <= Z_MAX_WINDOWBITS) && "invalid windowBits");
+      CHECK(
+          (windowBits >= Z_MIN_WINDOWBITS && windowBits <= Z_MAX_WINDOWBITS) &&
+          "invalid windowBits");
     }
 
     int level = args[1]->Int32Value();
     CHECK((level >= Z_MIN_LEVEL && level <= Z_MAX_LEVEL) &&
       "invalid compression level");
 
-    int memLevel = args[2]->Uint32Value();
+    uint32_t memLevel;
+    if (!args[2]->Uint32Value(context).To(&memLevel)) return;
     CHECK((memLevel >= Z_MIN_MEMLEVEL && memLevel <= Z_MAX_MEMLEVEL) &&
-      "invalid memlevel");
+          "invalid memlevel");
 
-    int strategy = args[3]->Uint32Value();
-    CHECK((strategy == Z_FILTERED ||
-           strategy == Z_HUFFMAN_ONLY ||
-           strategy == Z_RLE ||
-           strategy == Z_FIXED ||
-           strategy == Z_DEFAULT_STRATEGY) && "invalid strategy");
+    uint32_t strategy;
+    if (!args[3]->Uint32Value(context).To(&strategy)) return;
+    CHECK((strategy == Z_FILTERED || strategy == Z_HUFFMAN_ONLY ||
+           strategy == Z_RLE || strategy == Z_FIXED ||
+           strategy == Z_DEFAULT_STRATEGY) &&
+          "invalid strategy");
 
     CHECK(args[4]->IsUint32Array());
     Local<Uint32Array> array = args[4].As<Uint32Array>();
