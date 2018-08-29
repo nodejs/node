@@ -451,7 +451,7 @@ originalName [code]
 ```
 
 where `originalName` is the original name associated with the error
-and `code` is the code that was provided. For example if the code
+and `code` is the code that was provided. For example, if the code
 is `'ERR_ERROR_1'` and a `TypeError` is being created the name will be:
 
 ```text
@@ -3478,8 +3478,6 @@ called on a class prototype and a function called on an instance of a class.
 A common pattern used to address this problem is to save a persistent
 reference to the class constructor for later `instanceof` checks.
 
-As an example:
-
 ```C
 napi_value MyClass_constructor = NULL;
 status = napi_get_reference_value(env, MyClass::es_constructor, &MyClass_constructor);
@@ -3931,7 +3929,7 @@ invoking the callback. This should be a value previously obtained
 from [`napi_async_init`][].
 - `[out] result`: The newly created scope.
 
-There are cases (for example resolving promises) where it is
+There are cases (for example, resolving promises) where it is
 necessary to have the equivalent of the scope associated with a callback
 in place when making certain N-API calls. If there is no other script on
 the stack the [`napi_open_callback_scope`][] and

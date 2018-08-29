@@ -534,8 +534,6 @@ expensive nature of the [promise introspection API][PromiseHooks] provided by
 V8. This means that programs using promises or `async`/`await` will not get
 correct execution and trigger ids for promise callback contexts by default.
 
-Here's an example:
-
 ```js
 const ah = require('async_hooks');
 Promise.resolve(1729).then(() => {
@@ -551,7 +549,7 @@ the `triggerAsyncId` value is `0`, which means that we are missing context about
 the resource that caused (triggered) the `then()` callback to be executed.
 
 Installing async hooks via `async_hooks.createHook` enables promise execution
-tracking. Example:
+tracking:
 
 ```js
 const ah = require('async_hooks');
