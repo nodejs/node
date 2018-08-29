@@ -48,6 +48,7 @@ using v8::Integer;
 using v8::Local;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 using AsyncHooks = Environment::AsyncHooks;
@@ -180,7 +181,7 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
   int enable = args[0]->Int32Value();
-  unsigned int delay = args[1]->Uint32Value();
+  unsigned int delay = args[1].As<Uint32>()->Value();
   int err = uv_tcp_keepalive(&wrap->handle_, enable, delay);
   args.GetReturnValue().Set(err);
 }
@@ -277,7 +278,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value ip_address(env->isolate(), args[1]);
-  int port = args[2]->Uint32Value();
+  int port = args[2].As<Uint32>()->Value();
 
   sockaddr_in addr;
   int err = uv_ip4_addr(*ip_address, port, &addr);

@@ -3871,7 +3871,8 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   char* buf = Buffer::Data(args[1]);
   ssize_t len = Buffer::Length(args[1]);
 
-  int padding = args[2]->Uint32Value();
+  uint32_t padding;
+  if (!args[2]->Uint32Value(env->context()).To(&padding)) return;
 
   String::Utf8Value passphrase(args.GetIsolate(), args[3]);
 
@@ -4436,8 +4437,10 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to get ECDH public key");
 
   int size;
-  point_conversion_form_t form =
-      static_cast<point_conversion_form_t>(args[0]->Uint32Value());
+  uint32_t val;
+  if (!args[0]->Uint32Value(env->context()).To(&val))
+    return env->ThrowError("Failed to parse argument");
+  point_conversion_form_t form = static_cast<point_conversion_form_t>(val);
 
   size = EC_POINT_point2oct(ecdh->group_, pub, form, nullptr, 0, nullptr);
   if (size == 0)
@@ -5052,8 +5055,10 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
   if (pub == nullptr)
     return env->ThrowError("Failed to convert Buffer to EC_POINT");
 
-  point_conversion_form_t form =
-      static_cast<point_conversion_form_t>(args[2]->Uint32Value());
+  uint32_t val;
+  if (!args[2]->Uint32Value(env->context()).To(&val))
+    return env->ThrowError("Failed to parse argument");
+  point_conversion_form_t form = static_cast<point_conversion_form_t>(val);
 
   int size = EC_POINT_point2oct(
       group.get(), pub.get(), form, nullptr, 0, nullptr);
@@ -5152,7 +5157,8 @@ void InitCryptoOnce() {
 void SetEngine(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args.Length() >= 2 && args[0]->IsString());
-  unsigned int flags = args[1]->Uint32Value();
+  uint32_t flags;
+  if (!args[1]->Uint32Value(env->context()).To(&flags)) return;
 
   ClearErrorOnReturn clear_error_on_return;
 
