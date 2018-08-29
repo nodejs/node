@@ -255,21 +255,30 @@ $ [sudo] make install
 
 #### Building a debug build
 
-If you run into a issue where Node.js segfaults and the "segfault-handler" does not provide enough information, you might have to build a debug build of Node.js to get enough information to debug the issue further, this is done by :
+If you run into an issue where the information provided by the JS stack trace
+is not enough, or if you suspect the error happens outside of the JS VM, you
+can try to build a debug enabled binary:
 
 ```console
 $ ./configure --debug
 $ make -j4
 ```
 
-A make with "./configure --debug" generates two binaries, the regular release one in "out/Release/node" and a debug build in "out/Debug/node", only the release version is actually installed when you run "make install". 
+`make` with `./configure --debug` generates two binaries, the regular release
+one in `out/Release/node` and a debug binary in `out/Debug/node`, only the
+ release version is actually installed when you run `make install`. 
 
-To use the debug build with with all the normal dependencies overwrite the release version in the install directory:
+To use the debug build with all the normal dependencies overwrite the release
+ version in the install directory:
 
 ``` console
 $ make install --prefix=/opt/node-debug/
 $ cp -a -f out/Debug/node /opt/node-debug/node
 ```
+
+When using the debug binary, core dumps will be generated in case of crashes.
+These core dumps are useful for debugging when provided with the 
+corresponding original debug binary and system information.
 
 ### Windows
 
