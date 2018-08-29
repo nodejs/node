@@ -381,13 +381,21 @@ A Pull Request should be raised and approved like any other change.
 
 ### Additions to the Cryptography and Security APIs
 
-Semver-minor commits that add or change cryptograpy/security APIs should be
-treated with extra care. Due to the potential impact, it is important that
-these APIs be constructed to reduce the potential for incorrect
-usage.
+Semver-minor commits that add or change cryptograpy APIs and Security APIs
+should be treated with extra care. Due to the potential impact, it is
+important that these APIs be constructed to reduce the potential for
+incorrect usage.
 
-These commits must have an approval from at least one member from the 
-[security working group](https://github.com/nodejs/security-wg).
+Semver-minor commits changing or adding cryptography or security APIs
+should be made visible to the crypto team and the security working group
+through an @nodejs/security-wg and @nodejs/crypto mention in the PR.
+
+For Semver-minor commits changing cryptography APIs, they must have
+an approval from at least one member from the crypto team.
+
+For Semver-minor commits changing Security API's(other than those
+related to cryptography) must have an approval from at least
+one member from the [security working group](https://github.com/nodejs/security-wg).
 
 ### Introducing New Modules
 
