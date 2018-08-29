@@ -6,8 +6,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-const { INT_MAX } = process.binding('constants').crypto;
-
 //
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
@@ -71,7 +69,7 @@ assert.throws(
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError [ERR_OUT_OF_RANGE]',
     message: 'The value of "iterations" is out of range. ' +
-             'It must be >= 0 && <= 2147483647. Received -1'
+             'It must be >= 0 && < 4294967296. Received -1'
   }
 );
 
@@ -100,7 +98,7 @@ assert.throws(
     });
 });
 
-[-1, 4073741824, INT_MAX + 1].forEach((input) => {
+[-1, 4294967297].forEach((input) => {
   assert.throws(
     () => {
       crypto.pbkdf2('password', 'salt', 1, input, 'sha256',
@@ -109,7 +107,7 @@ assert.throws(
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError [ERR_OUT_OF_RANGE]',
       message: 'The value of "keylen" is out of range. It ' +
-               `must be >= 0 && <= 2147483647. Received ${input}`
+               `must be >= 0 && < 4294967296. Received ${input}`
     });
 });
 
