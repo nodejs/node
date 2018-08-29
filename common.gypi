@@ -29,26 +29,53 @@
 
     'openssl_fips%': '',
 
-    # Reset this number to 0 on major V8 upgrades.
-    # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.0',
-
-    # Enable disassembler for `--print-code` v8 options
-    'v8_enable_disassembler': 1,
-
-    # Don't bake anything extra into the snapshot.
-    'v8_use_external_startup_data%': 0,
-
-    # Disable V8 untrusted code mitigations.
-    # See https://github.com/v8/v8/wiki/Untrusted-code-mitigations
-    'v8_untrusted_code_mitigations': 'false',
-
     # Some STL containers (e.g. std::vector) do not preserve ABI compatibility
     # between debug and non-debug mode.
     'disable_glibcxx_debug': 1,
 
     # Don't use ICU data file (icudtl.dat) from V8, we use our own.
     'icu_use_data_file_flag%': 0,
+
+    # Reset this number to 0 on major V8 upgrades.
+    # Increment by one for each non-official patch applied to deps/v8.
+    'v8_embedder_string': '-node.1',
+
+    ##### V8 defaults for Node.js #####
+
+    # Old time default, now explicitly stated.
+    'v8_use_snapshot': 'true',
+
+    # Refs: https://github.com/nodejs/node/issues/23122
+    # Refs: https://github.com/nodejs/node/issues/23167
+    # Enable compiler warnings when using V8_DEPRECATED apis.
+    'v8_deprecation_warnings': 1,
+    # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
+    'v8_imminent_deprecation_warnings': 1,
+
+    # Enable disassembler for `--print-code` v8 options
+    'v8_enable_disassembler': 1,
+
+    # Don't bake anything extra into the snapshot.
+    'v8_use_external_startup_data': 0,
+
+    # https://github.com/nodejs/node/pull/22920/files#r222779926
+    'v8_enable_handle_zapping': 0,
+
+    # Disable V8 untrusted code mitigations.
+    # See https://github.com/v8/v8/wiki/Untrusted-code-mitigations
+    'v8_untrusted_code_mitigations': 'false',
+
+    # Still WIP in V8 7.1
+    'v8_enable_pointer_compression': 'false',
+
+    # New in V8 7.1
+    'v8_enable_embedded_builtins': 'true',
+
+    # This is more of a V8 dev setting
+    # https://github.com/nodejs/node/pull/22920/files#r222779926
+    'v8_enable_fast_mksnapshot': 0,
+
+    ##### end V8 defaults #####
 
     'conditions': [
       ['target_arch=="arm64"', {
