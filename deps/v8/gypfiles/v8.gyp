@@ -12,6 +12,47 @@
     'v8_experimental_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'v8_os_page_size%': 0,
+    'generate_bytecode_builtins_list_output' : '<(SHARED_INTERMEDIATE_DIR)/builtins-generated/bytecodes-builtins-list.h',
+    'torque_files': [
+      "../src/builtins/base.tq",
+      "../src/builtins/array.tq",
+      "../src/builtins/array-copywithin.tq",
+      "../src/builtins/array-foreach.tq",
+      "../src/builtins/array-lastindexof.tq",
+      "../src/builtins/array-reverse.tq",
+      "../src/builtins/array-splice.tq",
+      "../src/builtins/array-unshift.tq",
+      "../src/builtins/typed-array.tq",
+      "../src/builtins/data-view.tq",
+      "../test/torque/test-torque.tq",
+      "../third_party/v8/builtins/array-sort.tq",
+    ],
+    'torque_modules': [
+      "base",
+      "array",
+      "typed-array",
+      "data-view",
+      "test",
+    ],
+    # Since there is no foreach in GYP we manualy unroll the following:
+    # foreach(module, torque_modules) {
+    #   outputs += [
+    #     "$target_gen_dir/torque-generated/builtins-$module-from-dsl-gen.cc",
+    #     "$target_gen_dir/torque-generated/builtins-$module-from-dsl-gen.h",
+    #   ]
+    # }
+    'torque_outputs': [
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-base-from-dsl-gen.cc',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-base-from-dsl-gen.h',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-from-dsl-gen.cc',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-from-dsl-gen.h',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.cc',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.h',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.cc',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.h',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-test-from-dsl-gen.cc',
+      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-test-from-dsl-gen.h',
+    ],
     'torque_generated_pure_headers': [
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions-from-dsl.h',
     ],
@@ -77,6 +118,7 @@
             'v8_dump_build_config_args': [
               '<(PRODUCT_DIR)/v8_build_config.json',
               'dcheck_always_on=<(dcheck_always_on)',
+              'is_android=<(is_android)',
               'is_asan=<(asan)',
               'is_cfi=<(cfi_vptr)',
               'is_component_build=<(component)',
@@ -161,6 +203,7 @@
       ],
       'sources': [
         '../src/setup-isolate-full.cc',
+        '<(generate_bytecode_builtins_list_output)',
         '<@(torque_generated_pure_headers)',
       ],
       'conditions': [
@@ -259,16 +302,7 @@
         '../src/interpreter/interpreter-generator.h',
         '../src/interpreter/interpreter-intrinsics-generator.cc',
         '../src/interpreter/interpreter-intrinsics-generator.h',
-        '../src/interpreter/setup-interpreter-internal.cc',
-        '../src/interpreter/setup-interpreter.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-from-dsl-gen.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-from-dsl-gen.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-base-from-dsl-gen.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-base-from-dsl-gen.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.h',
+        '<@(torque_outputs)',
         '<@(torque_generated_pure_headers)',
       ],
       'conditions': [
@@ -327,6 +361,18 @@
             '../src/builtins/builtins-intl-gen.cc',
           ],
         }],
+        # Platforms that don't have Compare-And-Swap support need to link atomic
+        # library to implement atomic memory access
+        [ 'v8_current_cpu == "mips" or v8_current_cpu == "mipsel" or '
+          'v8_current_cpu == "mips64" or v8_current_cpu == "mips64el" or '
+          'v8_current_cpu == "ppc" or v8_current_cpu == "ppc64" or '
+          'v8_current_cpu == "s390" or v8_current_cpu == "s390x"',
+          {
+            'link_settings': {
+              'libraries': [ '-latomic', ],
+            },
+          },
+        ],
       ],
     }, # v8_initializers
     {
@@ -371,47 +417,63 @@
         '..',
         '<(DEPTH)',
       ],
-      'variables': {
-        'mksnapshot_flags': [ '--turbo_instruction_scheduling', ],
-        'conditional_snapshot_outputs': [ ],
-        'conditional_inputs': [ ],
-        'conditions': [
-          ['v8_random_seed != 0', {
-            'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
-          }],
-          ['v8_os_page_size != 0', {
-            'mksnapshot_flags': ['--v8_os_page_size', '<(v8_os_page_size)'],
-          }],
-          ['v8_use_external_startup_data !=0 ', {
-            'conditional_snapshot_outputs': [ '<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
-            'mksnapshot_flags': [ '--startup_blob', '<(INTERMEDIATE_DIR)/snapshot_blob.bin', ]
-          }, {
-             'conditional_snapshot_outputs': [ "<(INTERMEDIATE_DIR)/snapshot.cc" ],
-             'mksnapshot_flags': [ '--startup_src', '<(INTERMEDIATE_DIR)/snapshot.cc', ]
-           }],
-          ['v8_embed_script != ""', {
-            'conditional_inputs': [ '<(v8_embed_script)' ],
-            'mksnapshot_flags': [ '<(v8_embed_script)' ],
-          }],
-        ],
-      },
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '../src/setup-isolate-deserialize.cc',
-        '../src/snapshot/embedded-empty.cc',
       ],
       'actions': [
         {
           'action_name': 'run_mksnapshot',
-          'message': 'generating: >@(conditional_snapshot_outputs)',
+          'message': 'generating: >@(_outputs)',
+          'variables': {
+            'mksnapshot_flags': [ '--turbo_instruction_scheduling', ],
+          },
+          'conditions': [
+            ['v8_enable_embedded_builtins == "true"', {
+              # In this case we use `embedded_variant "Default"`
+              # and `suffix = ''` for the template `embedded${suffix}.cc`.
+              'outputs': [ '<(INTERMEDIATE_DIR)/embedded.cc' ],
+              'variables': {
+                'mksnapshot_flags':  [
+                  '--embedded_src', '<(INTERMEDIATE_DIR)/embedded.cc',
+                  '--embedded_variant', 'Default',
+                ],
+              },
+            }, {
+               'outputs': [ '../src/snapshot/embedded-empty.cc' ]
+            }],
+            ['v8_random_seed != 0', {
+              'variables': {
+                'mksnapshot_flags': [ '--random-seed', '<(v8_random_seed)' ],
+              },
+            }],
+            ['v8_os_page_size != 0', {
+              'variables': {
+                'mksnapshot_flags': [ '--v8_os_page_size', '<(v8_os_page_size)' ],
+              },
+            }],
+            ['v8_use_external_startup_data !=0 ', {
+              'outputs': [ '<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
+              'variables': {
+                'mksnapshot_flags': [ '--startup_blob', '<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
+              },
+            }, {
+               'outputs': [ "<(INTERMEDIATE_DIR)/snapshot.cc" ],
+               'variables': {
+                 'mksnapshot_flags': [ '--startup_src', '<(INTERMEDIATE_DIR)/snapshot.cc', ],
+               },
+            }],
+            ['v8_embed_script != ""', {
+              'inputs': [ '<(v8_embed_script)' ],
+              'variables': {
+                'mksnapshot_flags': [ '<(v8_embed_script)' ],
+              },
+            }],
+          ],
           'inputs': [
             '<(mksnapshot_exec)',
-            '>@(conditional_inputs)',
-          ],
-          'outputs': [
-            '>@(conditional_snapshot_outputs)',
           ],
           'process_outputs_as_sources': 1,
           'action': [
@@ -469,7 +531,9 @@
       'dependencies': [
         'v8_libbase',
         'v8_libsampler',
-        'v8_torque#host',
+        # Code generators
+        'torque#host',
+        'generate_bytecode_builtins_list#host',
       ],
       'direct_dependent_settings': {
         'include_dirs': ['<(SHARED_INTERMEDIATE_DIR)'],
@@ -487,6 +551,7 @@
         '<@(inspector_all_sources)',
         '../include//v8-inspector-protocol.h',
         '../include//v8-inspector.h',
+        '../include//v8-internal.h',
         '../include//v8-platform.h',
         '../include//v8-profiler.h',
         '../include//v8-testing.h',
@@ -500,6 +565,7 @@
         '../src/accessors.h',
         '../src/address-map.cc',
         '../src/address-map.h',
+        '../src/allocation-site-scopes-inl.h',
         '../src/allocation-site-scopes.h',
         '../src/allocation.cc',
         '../src/allocation.h',
@@ -546,6 +612,7 @@
         '../src/ast/modules.h',
         '../src/ast/prettyprinter.cc',
         '../src/ast/prettyprinter.h',
+        '../src/ast/scopes-inl.h',
         '../src/ast/scopes.cc',
         '../src/ast/scopes.h',
         '../src/ast/variables.cc',
@@ -583,7 +650,6 @@
         '../src/builtins/builtins-internal.cc',
         '../src/builtins/builtins-interpreter.cc',
         '../src/builtins/builtins-intl.cc',
-        '../src/builtins/builtins-intl.h',
         '../src/builtins/builtins-json.cc',
         '../src/builtins/builtins-math.cc',
         '../src/builtins/builtins-number.cc',
@@ -797,6 +863,7 @@
         '../src/compiler/operator.h',
         '../src/compiler/osr.cc',
         '../src/compiler/osr.h',
+        '../src/compiler/per-isolate-compiler-cache.h',
         '../src/compiler/persistent-map.h',
         '../src/compiler/pipeline-statistics.cc',
         '../src/compiler/pipeline-statistics.h',
@@ -808,6 +875,8 @@
         '../src/compiler/raw-machine-assembler.h',
         '../src/compiler/redundancy-elimination.cc',
         '../src/compiler/redundancy-elimination.h',
+        '../src/compiler/refs-map.cc',
+        '../src/compiler/refs-map.h',
         '../src/compiler/register-allocator-verifier.cc',
         '../src/compiler/register-allocator-verifier.h',
         '../src/compiler/register-allocator.cc',
@@ -1124,6 +1193,8 @@
         '../src/macro-assembler.h',
         '../src/map-updater.cc',
         '../src/map-updater.h',
+        '../src/math-random.cc',
+        '../src/math-random.h',
         '../src/maybe-handles-inl.h',
         '../src/maybe-handles.h',
         '../src/messages.cc',
@@ -1142,6 +1213,7 @@
         '../src/objects/arguments.h',
         '../src/objects/bigint.cc',
         '../src/objects/bigint.h',
+        '../src/objects/builtin-function-id.h',
         '../src/objects/code-inl.h',
         '../src/objects/code.h',
         '../src/objects/compilation-cache-inl.h',
@@ -1165,11 +1237,17 @@
         '../src/objects/js-array-buffer.h',
         '../src/objects/js-array-inl.h',
         '../src/objects/js-array.h',
+        '../src/objects/js-break-iterator-inl.h',
+        '../src/objects/js-break-iterator.cc',
+        '../src/objects/js-break-iterator.h',
         '../src/objects/js-collator-inl.h',
         '../src/objects/js-collator.cc',
         '../src/objects/js-collator.h',
         '../src/objects/js-collection-inl.h',
         '../src/objects/js-collection.h',
+        '../src/objects/js-date-time-format-inl.h',
+        '../src/objects/js-date-time-format.cc',
+        '../src/objects/js-date-time-format.h',
         '../src/objects/js-generator-inl.h',
         '../src/objects/js-generator.h',
         '../src/objects/js-list-format-inl.h',
@@ -1178,6 +1256,11 @@
         '../src/objects/js-locale-inl.h',
         '../src/objects/js-locale.cc',
         '../src/objects/js-locale.h',
+        '../src/objects/js-number-format-inl.h',
+        '../src/objects/js-number-format.cc',
+        '../src/objects/js-number-format.h',
+        '../src/objects/js-objects-inl.h',
+        '../src/objects/js-objects.h',
         '../src/objects/js-plural-rules-inl.h',
         '../src/objects/js-plural-rules.cc',
         '../src/objects/js-plural-rules.h',
@@ -1192,6 +1275,9 @@
         '../src/objects/js-relative-time-format-inl.h',
         '../src/objects/js-relative-time-format.cc',
         '../src/objects/js-relative-time-format.h',
+        '../src/objects/js-segmenter-inl.h',
+        '../src/objects/js-segmenter.cc',
+        '../src/objects/js-segmenter.h',
         '../src/objects/literal-objects-inl.h',
         '../src/objects/literal-objects.cc',
         '../src/objects/literal-objects.h',
@@ -1202,6 +1288,9 @@
         '../src/objects/maybe-object-inl.h',
         '../src/objects/maybe-object.h',
         '../src/objects/microtask-inl.h',
+        '../src/objects/microtask-queue-inl.h',
+        '../src/objects/microtask-queue.cc',
+        '../src/objects/microtask-queue.h',
         '../src/objects/microtask.h',
         '../src/objects/module-inl.h',
         '../src/objects/module.cc',
@@ -1215,6 +1304,8 @@
         '../src/objects/ordered-hash-table.h',
         '../src/objects/promise-inl.h',
         '../src/objects/promise.h',
+        '../src/objects/property-array-inl.h',
+        '../src/objects/property-array.h',
         '../src/objects/property-descriptor-object-inl.h',
         '../src/objects/property-descriptor-object.h',
         '../src/objects/prototype-info-inl.h',
@@ -1226,6 +1317,8 @@
         '../src/objects/script.h',
         '../src/objects/shared-function-info-inl.h',
         '../src/objects/shared-function-info.h',
+        '../src/objects/stack-frame-info-inl.h',
+        '../src/objects/stack-frame-info.h',
         '../src/objects/string-inl.h',
         '../src/objects/string-table.h',
         '../src/objects/string.h',
@@ -1251,6 +1344,7 @@
         '../src/parsing/parsing.cc',
         '../src/parsing/parsing.h',
         '../src/parsing/pattern-rewriter.cc',
+        '../src/parsing/preparsed-scope-data-impl.h',
         '../src/parsing/preparsed-scope-data.cc',
         '../src/parsing/preparsed-scope-data.h',
         '../src/parsing/preparser-logger.h',
@@ -1307,6 +1401,8 @@
         '../src/regexp/jsregexp-inl.h',
         '../src/regexp/jsregexp.cc',
         '../src/regexp/jsregexp.h',
+        '../src/regexp/property-sequences.cc',
+        '../src/regexp/property-sequences.h',
         '../src/regexp/regexp-ast.cc',
         '../src/regexp/regexp-ast.h',
         '../src/regexp/regexp-macro-assembler-irregexp-inl.h',
@@ -1328,6 +1424,7 @@
         '../src/reloc-info.cc',
         '../src/reloc-info.h',
         '../src/roots-inl.h',
+        '../src/roots.cc',
         '../src/roots.h',
         '../src/runtime-profiler.cc',
         '../src/runtime-profiler.h',
@@ -1347,7 +1444,6 @@
         '../src/runtime/runtime-interpreter.cc',
         '../src/runtime/runtime-intl.cc',
         '../src/runtime/runtime-literals.cc',
-        '../src/runtime/runtime-maths.cc',
         '../src/runtime/runtime-module.cc',
         '../src/runtime/runtime-numbers.cc',
         '../src/runtime/runtime-object.cc',
@@ -1379,8 +1475,6 @@
         '../src/snapshot/builtin-serializer-allocator.h',
         '../src/snapshot/builtin-serializer.cc',
         '../src/snapshot/builtin-serializer.h',
-        '../src/snapshot/builtin-snapshot-utils.cc',
-        '../src/snapshot/builtin-snapshot-utils.h',
         '../src/snapshot/code-serializer.cc',
         '../src/snapshot/code-serializer.h',
         '../src/snapshot/default-deserializer-allocator.cc',
@@ -1423,6 +1517,8 @@
         '../src/string-builder.cc',
         '../src/string-case.cc',
         '../src/string-case.h',
+        '../src/string-constants.cc',
+        '../src/string-constants.h',
         '../src/string-hasher-inl.h',
         '../src/string-hasher.h',
         '../src/string-search.h',
@@ -1431,6 +1527,7 @@
         '../src/strtod.cc',
         '../src/strtod.h',
         '../src/third_party/utf8-decoder/utf8-decoder.h',
+        '../src/torque-assembler.h',
         '../src/tracing/trace-event.cc',
         '../src/tracing/trace-event.h',
         '../src/tracing/traced-value.cc',
@@ -1502,6 +1599,7 @@
         '../src/wasm/module-compiler.h',
         '../src/wasm/module-decoder.cc',
         '../src/wasm/module-decoder.h',
+        '../src/wasm/object-access.h',
         '../src/wasm/signature-map.cc',
         '../src/wasm/signature-map.h',
         '../src/wasm/streaming-decoder.cc',
@@ -1554,6 +1652,7 @@
         '../src/zone/zone-segment.h',
         '../src/zone/zone.cc',
         '../src/zone/zone.h',
+        '<(generate_bytecode_builtins_list_output)',
         '<@(torque_generated_pure_headers)',
       ],
       'conditions': [
@@ -1892,28 +1991,39 @@
         }, {  # v8_enable_i18n_support==0
           'sources!': [
             '../src/builtins/builtins-intl.cc',
-            '../src/builtins/builtins-intl.h',
             '../src/char-predicates.cc',
             '../src/intl.cc',
             '../src/intl.h',
             '../src/objects/intl-objects-inl.h',
             '../src/objects/intl-objects.cc',
             '../src/objects/intl-objects.h',
+            '../src/objects/js-break-iterator-inl.h',
+            '../src/objects/js-break-iterator.cc',
+            '../src/objects/js-break-iterator.h',
             '../src/objects/js-collator-inl.h',
             '../src/objects/js-collator.cc',
             '../src/objects/js-collator.h',
+            '../src/objects/js-date-time-format-inl.h',
+            '../src/objects/js-date-time-format.cc',
+            '../src/objects/js-date-time-format.h',
             '../src/objects/js-list-format-inl.h',
             '../src/objects/js-list-format.cc',
             '../src/objects/js-list-format.h',
             '../src/objects/js-locale-inl.h',
             '../src/objects/js-locale.cc',
             '../src/objects/js-locale.h',
+            '../src/objects/js-number-format-inl.h',
+            '../src/objects/js-number-format.cc',
+            '../src/objects/js-number-format.h',
             '../src/objects/js-plural-rules-inl.h',
             '../src/objects/js-plural-rules.cc',
             '../src/objects/js-plural-rules.h',
             '../src/objects/js-relative-time-format-inl.h',
             '../src/objects/js-relative-time-format.cc',
             '../src/objects/js-relative-time-format.h',
+            '../src/objects/js-segmenter-inl.h',
+            '../src/objects/js-segmenter.cc',
+            '../src/objects/js-segmenter.h',
             '../src/runtime/runtime-intl.cc',
           ],
         }],
@@ -1922,6 +2032,23 @@
             '<(icu_gyp_path):icudata',
           ],
         }],
+      ],
+      'actions': [
+        {
+          'action_name': 'run_torque_action',
+          'inputs': [  # Order matters.
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
+            '<@(torque_files)',
+          ],
+          'outputs': [
+            '<@(torque_outputs)',
+            '<@(torque_generated_pure_headers)',
+          ],
+          'action': [
+            '<@(_inputs)',
+            '-o', '<(SHARED_INTERMEDIATE_DIR)/torque-generated'
+          ],
+        },
       ],
     }, # v8_base
     {
@@ -1939,6 +2066,7 @@
       },
       'sources': [
         '../src/base/adapters.h',
+        '../src/base/address-region.h',
         '../src/base/atomic-utils.h',
         '../src/base/atomicops.h',
         '../src/base/atomicops_internals_atomicword_compat.h',
@@ -1947,6 +2075,8 @@
         '../src/base/base-export.h',
         '../src/base/bits.cc',
         '../src/base/bits.h',
+        '../src/base/bounded-page-allocator.cc',
+        '../src/base/bounded-page-allocator.h',
         '../src/base/build_config.h',
         '../src/base/compiler-specific.h',
         '../src/base/cpu.cc',
@@ -1972,6 +2102,8 @@
         '../src/base/list.h',
         '../src/base/logging.cc',
         '../src/base/logging.h',
+        '../src/base/lsan-page-allocator.cc',
+        '../src/base/lsan-page-allocator.h',
         '../src/base/macros.h',
         '../src/base/once.cc',
         '../src/base/once.h',
@@ -1988,6 +2120,8 @@
         '../src/base/platform/semaphore.h',
         '../src/base/platform/time.cc',
         '../src/base/platform/time.h',
+        '../src/base/region-allocator.cc',
+        '../src/base/region-allocator.h',
         '../src/base/ring-buffer.h',
         '../src/base/safe_conversions.h',
         '../src/base/safe_conversions_impl.h',
@@ -2531,10 +2665,10 @@
       ],
     }, # js2c
     {
-      'target_name': 'torque',
-      'type': 'executable',
+      'target_name': 'torque_base',
+      'type': '<(component)',
       'toolsets': ['host'],
-      'dependencies': ['v8_libbase'],
+      'dependencies': ['v8_libbase#host'],
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
@@ -2547,7 +2681,11 @@
       },
       'sources': [
         '../src/torque/ast.h',
+        '../src/torque/cfg.cc',
+        '../src/torque/cfg.h',
         '../src/torque/contextual.h',
+        '../src/torque/csa-generator.cc',
+        '../src/torque/csa-generator.h',
         '../src/torque/declarable.cc',
         '../src/torque/declarable.h',
         '../src/torque/declaration-visitor.cc',
@@ -2561,13 +2699,14 @@
         '../src/torque/global-context.h',
         '../src/torque/implementation-visitor.cc',
         '../src/torque/implementation-visitor.h',
+        '../src/torque/instructions.cc',
+        '../src/torque/instructions.h',
         '../src/torque/scope.cc',
         '../src/torque/scope.h',
         '../src/torque/source-positions.cc',
         '../src/torque/source-positions.h',
         '../src/torque/torque-parser.cc',
         '../src/torque/torque-parser.h',
-        '../src/torque/torque.cc',
         '../src/torque/type-oracle.cc',
         '../src/torque/type-oracle.h',
         '../src/torque/types.cc',
@@ -2577,40 +2716,24 @@
       ],
     }, # torque_base
     {
-      'target_name': 'v8_torque',
-      'type': 'none',
+      'target_name': 'torque',
+      'type': 'executable',
       'toolsets': ['host'],
-      'dependencies': ['torque#host'],
-      'direct_dependent_settings': {
-        'include_dirs+': ['<(SHARED_INTERMEDIATE_DIR)'],
-      },
-      'actions': [
-        {
-          'action_name': 'run_torque',
-          'inputs': [  # Order matters.
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
-            '../src/builtins/base.tq',
-            '../src/builtins/array.tq',
-            '../src/builtins/array-copywithin.tq',
-            '../src/builtins/array-foreach.tq',
-            '../src/builtins/array-reverse.tq',
-            '../src/builtins/typed-array.tq',
-            '../src/builtins/data-view.tq',
-            '../third_party/v8/builtins/array-sort.tq',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions-from-dsl.h',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-from-dsl-gen.cc',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-array-from-dsl-gen.h',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-base-from-dsl-gen.cc',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-base-from-dsl-gen.h',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.cc',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.h',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.cc',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.h',
-          ],
-          'action': ['<@(_inputs)', '-o', '<(SHARED_INTERMEDIATE_DIR)/torque-generated'],
+      'dependencies': ['torque_base'],
+      'defines!': [
+        '_HAS_EXCEPTIONS=0',
+        'BUILDING_V8_SHARED=1',
+      ],
+      # This is defined trough `configurations` for GYP+ninja compatibility
+      'msvs_settings': {
+        'VCCLCompilerTool': {
+          'RuntimeTypeInfo': 'true',
+          'ExceptionHandling': 1,
         },
+      },
+      'include_dirs': ['..'],
+      'sources': [
+        "../src/torque/torque.cc",
       ],
     }, # torque
     {
@@ -2620,6 +2743,8 @@
         'heapobject_files': [
             '../src/objects.h',
             '../src/objects-inl.h',
+            '../src/objects/allocation-site-inl.h',
+            '../src/objects/allocation-site.h',
             '../src/objects/code-inl.h',
             '../src/objects/code.h',
             '../src/objects/data-handler.h',
@@ -2630,6 +2755,8 @@
             '../src/objects/js-array.h',
             '../src/objects/js-array-buffer-inl.h',
             '../src/objects/js-array-buffer.h',
+            '../src/objects/js-objects-inl.h',
+            '../src/objects/js-objects.h',
             '../src/objects/js-regexp-inl.h',
             '../src/objects/js-regexp.h',
             '../src/objects/js-regexp-string-iterator-inl.h',
@@ -2697,6 +2824,47 @@
         }],
       ],
     }, # mksnapshot
+    {
+      'target_name': 'bytecode_builtins_list_generator',
+      'type': 'executable',
+      'toolsets': ['host'],
+      'dependencies': [
+        "v8_libbase#host"
+      ],
+      'include_dirs': [".."],
+      'sources': [
+        "../src/builtins/generate-bytecodes-builtins-list.cc",
+        "../src/interpreter/bytecode-operands.cc",
+        "../src/interpreter/bytecode-operands.h",
+        "../src/interpreter/bytecodes.cc",
+        "../src/interpreter/bytecodes.h",
+      ],
+    }, # bytecode_builtins_list_generator
+    {
+      'target_name': 'generate_bytecode_builtins_list',
+      'type': 'none',
+      'toolsets': ['host'],
+      'dependencies': [
+        "bytecode_builtins_list_generator",
+      ],
+      'actions': [
+        {
+          'action_name': 'generate_bytecode_builtins_list_action',
+          'inputs': [
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)bytecode_builtins_list_generator<(EXECUTABLE_SUFFIX)',
+          ],
+          'outputs': [
+            '<(generate_bytecode_builtins_list_output)',
+          ],
+          'action': [
+            'python',
+            '../tools/run.py',
+            '<@(_inputs)',
+            '<@(_outputs)',
+          ],
+        },
+      ],
+    }, # generate_bytecode_builtins_list
     {
       'includes': [ 'v8_external_snapshot.gypi' ],
     }, # v8_external_snapshot
