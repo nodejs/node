@@ -274,13 +274,13 @@ fc .gyp_configure_stamp .tmp_gyp_configure_stamp >NUL 2>&1
 if errorlevel 1 goto run-configure
 
 :skip-configure
-del .tmp_gyp_configure_stamp
+del .tmp_gyp_configure_stamp 2> NUL
 echo Reusing solution generated with %configure_flags%
 goto msbuild
 
 :run-configure
-del .tmp_gyp_configure_stamp
-del .gyp_configure_stamp
+del .tmp_gyp_configure_stamp 2> NUL
+del .gyp_configure_stamp 2> NUL
 @rem Generate the VS project.
 echo configure %configure_flags%
 echo %configure_flags%> .used_configure_flags
