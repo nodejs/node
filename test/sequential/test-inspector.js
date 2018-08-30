@@ -69,7 +69,7 @@ async function testBreakpointOnStart(session) {
   ];
 
   await session.send(commands);
-  await session.waitForBreakOnLine(0, session.scriptPath());
+  await session.waitForBreakOnLine(0, session.scriptURL());
 }
 
 async function testBreakpoint(session) {
@@ -77,7 +77,7 @@ async function testBreakpoint(session) {
   const commands = [
     { 'method': 'Debugger.setBreakpointByUrl',
       'params': { 'lineNumber': 5,
-                  'url': session.scriptPath(),
+                  'url': session.scriptURL(),
                   'columnNumber': 0,
                   'condition': ''
       }
@@ -92,7 +92,7 @@ async function testBreakpoint(session) {
          `Script source is wrong: ${scriptSource}`);
 
   await session.waitForConsoleOutput('log', ['A message', 5]);
-  const paused = await session.waitForBreakOnLine(5, session.scriptPath());
+  const paused = await session.waitForBreakOnLine(5, session.scriptURL());
   const scopeId = paused.params.callFrames[0].scopeChain[0].object.objectId;
 
   console.log('[test]', 'Verify we can read current application state');
