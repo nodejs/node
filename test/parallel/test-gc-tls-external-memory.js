@@ -19,7 +19,7 @@ const server = net.createServer(function(socket) {
   socket.write(yolo);
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const { port } = server.address();
   let runs = 0;
   connect();
@@ -32,4 +32,4 @@ server.listen(0, function() {
     else
       server.close();
   }
-});
+}));
