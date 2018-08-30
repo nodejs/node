@@ -124,10 +124,6 @@ TEST_F(URLTest, FromFilePath) {
   file_url = URL::FromFilePath("b:\\a\\%%.js");
   EXPECT_EQ("file:", file_url.protocol());
   EXPECT_EQ("/b:/a/%25%25.js", file_url.path());
-
-  file_url = URL::FromFilePath("\\\\host\\a\\b\\c");
-  EXPECT_EQ("file:", file_url.protocol());
-  EXPECT_EQ("host/a/b/c", file_url.path());
 #else
   file_url = URL::FromFilePath("/");
   EXPECT_EQ("file:", file_url.protocol());

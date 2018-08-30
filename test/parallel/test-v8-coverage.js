@@ -97,7 +97,7 @@ function getFixtureCoverage(fixtureFile, coverageDirectory) {
   for (const coverageFile of coverageFiles) {
     const coverage = require(path.join(coverageDirectory, coverageFile));
     for (const fixtureCoverage of coverage.result) {
-      if (fixtureCoverage.url.indexOf(`${path.sep}${fixtureFile}`) !== -1) {
+      if (fixtureCoverage.url.indexOf(`/${fixtureFile}`) !== -1) {
         return fixtureCoverage;
       }
     }
