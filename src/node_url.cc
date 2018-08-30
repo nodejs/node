@@ -2348,6 +2348,19 @@ std::string URL::ToFilePath() const {
 #endif
 }
 
+URL URL::FromFilePath(const std::string& file_path) {
+  URL url("file://");
+  std::string escaped_file_path;
+  for (size_t i = 0; i < file_path.length(); ++i) {
+    escaped_file_path += file_path[i];
+    if (file_path[i] == '%')
+      escaped_file_path += "25";
+  }
+  URL::Parse(escaped_file_path.c_str(), escaped_file_path.length(), kPathStart,
+             &url.context_, true, nullptr, false);
+  return url;
+}
+
 // This function works by calling out to a JS function that creates and
 // returns the JS URL object. Be mindful of the JS<->Native boundary
 // crossing that is required.
