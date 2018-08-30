@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 
@@ -6,6 +7,7 @@ common.skipIfInspectorDisabled();
 const assert = require('assert');
 const { Session } = require('inspector');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 function debugged() {
   return 42;
@@ -32,8 +34,8 @@ async function test() {
 
   await new Promise((resolve, reject) => {
     session1.post('Debugger.setBreakpointByUrl', {
-      'lineNumber': 9,
-      'url': path.resolve(__dirname, __filename),
+      'lineNumber': 12,
+      'url': pathToFileURL(path.resolve(__dirname, __filename)).toString(),
       'columnNumber': 0,
       'condition': ''
     }, (error, result) => {

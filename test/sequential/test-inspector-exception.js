@@ -7,6 +7,7 @@ common.skipIfInspectorDisabled();
 
 const assert = require('assert');
 const { NodeInstance } = require('../common/inspector-helper.js');
+const { pathToFileURL } = require('url');
 
 const script = fixtures.path('throws_error.js');
 
@@ -29,7 +30,7 @@ async function testBreakpointOnStart(session) {
   ];
 
   await session.send(commands);
-  await session.waitForBreakOnLine(21, script);
+  await session.waitForBreakOnLine(21, pathToFileURL(script).toString());
 }
 
 
