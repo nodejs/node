@@ -198,7 +198,7 @@ class SecureContext : public BaseObject {
   }
 
   inline void Reset() {
-    if (ctx_.get() != nullptr) {
+    if (ctx_ != nullptr) {
       env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
     }
     ctx_.reset();
