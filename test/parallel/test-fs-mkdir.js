@@ -177,6 +177,32 @@ if (common.isMainThread && (common.isLinux || common.isOSX)) {
   });
 }
 
+// mkdirSync and mkdir require options.recursive to be a boolean.
+// Anything else generates an error.
+{
+  const pathname = path.join(tmpdir.path, nextdir());
+  ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((recursive) => {
+    common.expectsError(
+      () => fs.mkdir(pathname, { recursive }, common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "recursive" argument must be of type boolean. Received ' +
+          `type ${typeof recursive}`
+      }
+    );
+    common.expectsError(
+      () => fs.mkdirSync(pathname, { recursive }),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "recursive" argument must be of type boolean. Received ' +
+          `type ${typeof recursive}`
+      }
+    );
+  });
+}
+
 // Keep the event loop alive so the async mkdir() requests
 // have a chance to run (since they don't ref the event loop).
 process.nextTick(() => {});
