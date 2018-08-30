@@ -1102,8 +1102,8 @@ void ContextifyContext::CompileFunction(
   }
 
   if (produce_cached_data) {
-    const std::unique_ptr<ScriptCompiler::CachedData>
-        cached_data(ScriptCompiler::CreateCodeCacheForFunction(fun, code));
+    const std::unique_ptr<ScriptCompiler::CachedData> cached_data(
+        ScriptCompiler::CreateCodeCacheForFunction(fun));
     bool cached_data_produced = cached_data != nullptr;
     if (cached_data_produced) {
       MaybeLocal<Object> buf = Buffer::Copy(
