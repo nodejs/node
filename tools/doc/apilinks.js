@@ -55,35 +55,50 @@ process.argv.slice(2).forEach((file) => {
   const ast = acorn.parse(source, { ecmaVersion: 10, locations: true });
   const program = ast.body;
 
+  // Build link
+  const link = `https://github.com/${repo}/blob/${tag}/` +
+    path.relative('.', file).replace(/\\/g, '/');
+
   // Scan for exports.
   const exported = { constructors: [], identifiers: [] };
   program.forEach((statement) => {
-    if (statement.type !== 'ExpressionStatement') return;
-    const expr = statement.expression;
-    if (expr.type !== 'AssignmentExpression') return;
+    if (statement.type === 'ExpressionStatement') {
+      const expr = statement.expression;
+      if (expr.type !== 'AssignmentExpression') return;
 
-    let lhs = expr.left;
-    if (expr.left.object.type === 'MemberExpression') lhs = lhs.object;
-    if (lhs.type !== 'MemberExpression') return;
-    if (lhs.object.name !== 'module') return;
-    if (lhs.property.name !== 'exports') return;
+      let lhs = expr.left;
+      if (expr.left.object.type === 'MemberExpression') lhs = lhs.object;
+      if (lhs.type !== 'MemberExpression') return;
+      if (lhs.object.name !== 'module') return;
+      if (lhs.property.name !== 'exports') return;
 
-    let rhs = expr.right;
-    while (rhs.type === 'AssignmentExpression') rhs = rhs.right;
+      let rhs = expr.right;
+      while (rhs.type === 'AssignmentExpression') rhs = rhs.right;
 
-    if (rhs.type === 'NewExpression') {
-      exported.constructors.push(rhs.callee.name);
-    } else if (rhs.type === 'ObjectExpression') {
-      rhs.properties.forEach((property) => {
-        if (property.value.type === 'Identifier') {
-          exported.identifiers.push(property.value.name);
-          if (/^[A-Z]/.test(property.value.name[0])) {
-            exported.constructors.push(property.value.name);
+      if (rhs.type === 'NewExpression') {
+        exported.constructors.push(rhs.callee.name);
+      } else if (rhs.type === 'ObjectExpression') {
+        rhs.properties.forEach((property) => {
+          if (property.value.type === 'Identifier') {
+            exported.identifiers.push(property.value.name);
+            if (/^[A-Z]/.test(property.value.name[0])) {
+              exported.constructors.push(property.value.name);
+            }
           }
-        }
-      });
-    } else if (rhs.type === 'Identifier') {
-      exported.identifiers.push(rhs.name);
+        });
+      } else if (rhs.type === 'Identifier') {
+        exported.identifiers.push(rhs.name);
+      }
+    } else if (statement.type === 'VariableDeclaration') {
+      for (const decl of statement.declarations) {
+        let init = decl.init;
+        while (init && init.type === 'AssignmentExpression') init = init.left;
+        if (!init || init.type !== 'MemberExpression') continue;
+        if (init.object.name !== 'module') continue;
+        if (init.property.name !== 'exports') continue;
+        exported.constructors.push(decl.id.name);
+        definition[decl.id.name] = `${link}#L${statement.loc.start.line}`;
+      }
     }
   });
 
@@ -93,8 +108,7 @@ process.argv.slice(2).forEach((file) => {
   //   ClassName.prototype.foo = ...;
   //   function Identifier(...) {...};
   //
-  const link = `https://github.com/${repo}/blob/${tag}/` +
-    path.relative('.', file).replace(/\\/g, '/');
+  const indirect = {};
 
   program.forEach((statement) => {
     if (statement.type === 'ExpressionStatement') {
@@ -128,6 +142,11 @@ process.argv.slice(2).forEach((file) => {
       }
 
       definition[name] = `${link}#L${statement.loc.start.line}`;
+
+      if (expr.left.property.name === expr.right.name) {
+        indirect[expr.right.name] = name;
+      }
+
     } else if (statement.type === 'FunctionDeclaration') {
       const name = statement.id.name;
       if (!exported.identifiers.includes(name)) return;
@@ -136,6 +155,18 @@ process.argv.slice(2).forEach((file) => {
         `${link}#L${statement.loc.start.line}`;
     }
   });
+
+  // Search for indirect references of the form ClassName.foo = foo;
+  if (Object.keys(indirect).length > 0) {
+    program.forEach((statement) => {
+      if (statement.type === 'FunctionDeclaration') {
+        const name = statement.id.name;
+        if (indirect[name]) {
+          definition[indirect[name]] = `${link}#L${statement.loc.start.line}`;
+        }
+      }
+    });
+  }
 });
 
 console.log(JSON.stringify(definition, null, 2));
