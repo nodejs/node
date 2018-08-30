@@ -51,37 +51,36 @@ if (process.argv[2] === 'child') {
     const file = path.join(tmpdir.path, 'node_trace.1.log');
 
     assert(fs.existsSync(file));
-    fs.readFile(file, common.mustCall((err, data) => {
-      const traces = JSON.parse(data.toString()).traceEvents
-        .filter((trace) => trace.cat !== '__metadata');
-      assert.strictEqual(traces.length,
-                         expectedMarks.length +
-                         expectedBegins.length +
-                         expectedEnds.length);
+    const data = fs.readFileSync(file);
+    const traces = JSON.parse(data).traceEvents
+      .filter((trace) => trace.cat !== '__metadata');
+    assert.strictEqual(traces.length,
+                       expectedMarks.length +
+                       expectedBegins.length +
+                       expectedEnds.length);
 
-      traces.forEach((trace) => {
-        assert.strictEqual(trace.pid, proc.pid);
-        switch (trace.ph) {
-          case 'R':
-            assert.strictEqual(trace.cat,
-                               'node,node.perf,node.perf.usertiming');
-            assert.strictEqual(trace.name,
-                               expectedMarks.shift());
-            break;
-          case 'b':
-            const expectedBegin = expectedBegins.shift();
-            assert.strictEqual(trace.cat, expectedBegin.cat);
-            assert.strictEqual(trace.name, expectedBegin.name);
-            break;
-          case 'e':
-            const expectedEnd = expectedEnds.shift();
-            assert.strictEqual(trace.cat, expectedEnd.cat);
-            assert.strictEqual(trace.name, expectedEnd.name);
-            break;
-          default:
-            assert.fail('Unexpected trace event phase');
-        }
-      });
-    }));
+    traces.forEach((trace) => {
+      assert.strictEqual(trace.pid, proc.pid);
+      switch (trace.ph) {
+        case 'R':
+          assert.strictEqual(trace.cat,
+                             'node,node.perf,node.perf.usertiming');
+          assert.strictEqual(trace.name,
+                             expectedMarks.shift());
+          break;
+        case 'b':
+          const expectedBegin = expectedBegins.shift();
+          assert.strictEqual(trace.cat, expectedBegin.cat);
+          assert.strictEqual(trace.name, expectedBegin.name);
+          break;
+        case 'e':
+          const expectedEnd = expectedEnds.shift();
+          assert.strictEqual(trace.cat, expectedEnd.cat);
+          assert.strictEqual(trace.name, expectedEnd.name);
+          break;
+        default:
+          assert.fail('Unexpected trace event phase');
+      }
+    });
   }));
 }
