@@ -211,6 +211,22 @@ function verifyStatObject(stat) {
     assert.deepStrictEqual(list, ['baz2.js', 'dir']);
     await rmdir(newdir);
 
+    // mkdir when options is number.
+    {
+      const dir = path.join(tmpDir, nextdir());
+      await mkdir(dir, 777);
+      stats = await stat(dir);
+      assert(stats.isDirectory());
+    }
+
+    // mkdir when options is string.
+    {
+      const dir = path.join(tmpDir, nextdir());
+      await mkdir(dir, '777');
+      stats = await stat(dir);
+      assert(stats.isDirectory());
+    }
+
     // mkdirp when folder does not yet exist.
     {
       const dir = path.join(tmpDir, nextdir(), nextdir());
@@ -248,6 +264,24 @@ function verifyStatObject(stat) {
       await mkdir(dir, { recursive: true });
       stats = await stat(dir);
       assert(stats.isDirectory());
+    }
+
+    // mkdirp require recursive option to be a boolean.
+    // Anything else generates an error.
+    {
+      const dir = path.join(tmpDir, nextdir(), nextdir());
+      ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((recursive) => {
+        assert.rejects(
+          // mkdir() expects to get a boolean value for options.recursive.
+          async () => mkdir(dir, { recursive }),
+          {
+            code: 'ERR_INVALID_ARG_TYPE',
+            name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+            message: 'The "recursive" argument must be of type boolean. ' +
+              `Received type ${typeof recursive}`
+          }
+        );
+      });
     }
 
     await mkdtemp(path.resolve(tmpDir, 'FOO'));
