@@ -79,9 +79,17 @@ function toHTML({ input, content, filename, nodeVersion, analytics }, cb) {
 
   if (analytics) {
     HTML = HTML.replace('<!-- __TRACKING__ -->', `
-    <script src="assets/dnt_helper.js"></script>
-    <script>
-      if (!_dntEnabled()) {
+    <script type="text/javascript">
+      // In all the browsers we'll get '1' or 'yes' (FF 32 or above) as a string
+      // value when enabling 'DO NOT TRACK'.
+      // For more:
+      // https://developer.mozilla.org/en-US/docs/Web/API/navigator/doNotTrack
+      function isDoNotTrack() {
+        var isDoNotTrackEnabled = navigator.doNotTrack || window.doNotTrack ||
+               navigator.msDoNotTrack;
+        return isDoNotTrackEnabled === '1' || isDoNotTrackEnabled === 'yes';
+      }
+      if (!isDoNotTrack()) {
         (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;
         i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},
         i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];
