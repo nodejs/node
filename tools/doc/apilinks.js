@@ -55,6 +55,10 @@ process.argv.slice(2).forEach((file) => {
   const ast = acorn.parse(source, { ecmaVersion: 10, locations: true });
   const program = ast.body;
 
+  // Build link
+  const link = `https://github.com/${repo}/blob/${tag}/` +
+    path.relative('.', file).replace(/\\/g, '/');
+
   // Scan for exports.
   const exported = { constructors: [], identifiers: [] };
   program.forEach((statement) => {
@@ -93,6 +97,7 @@ process.argv.slice(2).forEach((file) => {
         if (init.object.name !== 'module') continue;
         if (init.property.name !== 'exports') continue;
         exported.constructors.push(decl.id.name);
+        definition[decl.id.name] = `${link}#L${statement.loc.start.line}`;
       }
     }
   });
@@ -103,8 +108,7 @@ process.argv.slice(2).forEach((file) => {
   //   ClassName.prototype.foo = ...;
   //   function Identifier(...) {...};
   //
-  const link = `https://github.com/${repo}/blob/${tag}/` +
-    path.relative('.', file).replace(/\\/g, '/');
+  const indirect = {};
 
   program.forEach((statement) => {
     if (statement.type === 'ExpressionStatement') {
@@ -138,6 +142,11 @@ process.argv.slice(2).forEach((file) => {
       }
 
       definition[name] = `${link}#L${statement.loc.start.line}`;
+
+      if (expr.left.property.name === expr.right.name) {
+        indirect[expr.right.name] = name;
+      }
+
     } else if (statement.type === 'FunctionDeclaration') {
       const name = statement.id.name;
       if (!exported.identifiers.includes(name)) return;
@@ -146,6 +155,18 @@ process.argv.slice(2).forEach((file) => {
         `${link}#L${statement.loc.start.line}`;
     }
   });
+
+  // Search for indirect references of the form ClassName.foo = foo;
+  if (Object.keys(indirect).length > 0) {
+    program.forEach((statement) => {
+      if (statement.type === 'FunctionDeclaration') {
+        const name = statement.id.name;
+        if (indirect[name]) {
+          definition[indirect[name]] = `${link}#L${statement.loc.start.line}`;
+        }
+      }
+    });
+  }
 });
 
 console.log(JSON.stringify(definition, null, 2));
