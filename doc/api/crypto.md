@@ -703,18 +703,18 @@ If the `inputEncoding` is not provided, `key` is expected to be a [`Buffer`][],
 Example (uncompressing a key):
 
 ```js
-const { ECDH } = require('crypto');
+const crypto = require('crypto');
 
-const ecdh = ECDH('secp256k1');
+const ecdh = crypto.createECDH('secp256k1');
 ecdh.generateKeys();
 
 const compressedKey = ecdh.getPublicKey('hex', 'compressed');
 
-const uncompressedKey = ECDH.convertKey(compressedKey,
-                                        'secp256k1',
-                                        'hex',
-                                        'hex',
-                                        'uncompressed');
+const uncompressedKey = crypto.ECDH.convertKey(compressedKey,
+                                               'secp256k1',
+                                               'hex',
+                                               'hex',
+                                               'uncompressed');
 
 // the converted key and the uncompressed public key should be the same
 console.log(uncompressedKey === ecdh.getPublicKey('hex'));
