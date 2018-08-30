@@ -58,32 +58,42 @@ process.argv.slice(2).forEach((file) => {
   // Scan for exports.
   const exported = { constructors: [], identifiers: [] };
   program.forEach((statement) => {
-    if (statement.type !== 'ExpressionStatement') return;
-    const expr = statement.expression;
-    if (expr.type !== 'AssignmentExpression') return;
+    if (statement.type === 'ExpressionStatement') {
+      const expr = statement.expression;
+      if (expr.type !== 'AssignmentExpression') return;
 
-    let lhs = expr.left;
-    if (expr.left.object.type === 'MemberExpression') lhs = lhs.object;
-    if (lhs.type !== 'MemberExpression') return;
-    if (lhs.object.name !== 'module') return;
-    if (lhs.property.name !== 'exports') return;
+      let lhs = expr.left;
+      if (expr.left.object.type === 'MemberExpression') lhs = lhs.object;
+      if (lhs.type !== 'MemberExpression') return;
+      if (lhs.object.name !== 'module') return;
+      if (lhs.property.name !== 'exports') return;
 
-    let rhs = expr.right;
-    while (rhs.type === 'AssignmentExpression') rhs = rhs.right;
+      let rhs = expr.right;
+      while (rhs.type === 'AssignmentExpression') rhs = rhs.right;
 
-    if (rhs.type === 'NewExpression') {
-      exported.constructors.push(rhs.callee.name);
-    } else if (rhs.type === 'ObjectExpression') {
-      rhs.properties.forEach((property) => {
-        if (property.value.type === 'Identifier') {
-          exported.identifiers.push(property.value.name);
-          if (/^[A-Z]/.test(property.value.name[0])) {
-            exported.constructors.push(property.value.name);
+      if (rhs.type === 'NewExpression') {
+        exported.constructors.push(rhs.callee.name);
+      } else if (rhs.type === 'ObjectExpression') {
+        rhs.properties.forEach((property) => {
+          if (property.value.type === 'Identifier') {
+            exported.identifiers.push(property.value.name);
+            if (/^[A-Z]/.test(property.value.name[0])) {
+              exported.constructors.push(property.value.name);
+            }
           }
-        }
-      });
-    } else if (rhs.type === 'Identifier') {
-      exported.identifiers.push(rhs.name);
+        });
+      } else if (rhs.type === 'Identifier') {
+        exported.identifiers.push(rhs.name);
+      }
+    } else if (statement.type === 'VariableDeclaration') {
+      for (const decl of statement.declarations) {
+        let init = decl.init;
+        while (init && init.type === 'AssignmentExpression') init = init.left;
+        if (!init || init.type !== 'MemberExpression') continue;
+        if (init.object.name !== 'module') continue;
+        if (init.property.name !== 'exports') continue;
+        exported.constructors.push(decl.id.name);
+      }
     }
   });
 
