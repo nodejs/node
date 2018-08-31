@@ -270,7 +270,7 @@ function verifyStatObject(stat) {
     // Anything else generates an error.
     {
       const dir = path.join(tmpDir, nextdir(), nextdir());
-      ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((i) => {
+      ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((recursive) => {
         assert.rejects(
           // mkdtemp() expects to get a string prefix.
           async () => mkdir(dir, { recursive: i }),
@@ -278,7 +278,7 @@ function verifyStatObject(stat) {
             code: 'ERR_INVALID_ARG_TYPE',
             name: 'TypeError [ERR_INVALID_ARG_TYPE]',
             message: 'The "recursive" argument must be of type boolean. ' +
-              `Received type ${typeof i}`
+              `Received type ${typeof recursive}`
           }
         );
       });
