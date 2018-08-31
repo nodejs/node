@@ -418,7 +418,6 @@ NODE_DEPRECATED("Use FatalException(isolate, ...)",
   return FatalException(v8::Isolate::GetCurrent(), try_catch);
 })
 
-// Don't call with encoding=UCS2.
 NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                         const char* buf,
                                         size_t len,
