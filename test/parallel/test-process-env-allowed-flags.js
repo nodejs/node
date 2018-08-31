@@ -6,8 +6,6 @@ require('../common');
 // assert legit flags are allowed, and bogus flags are disallowed
 {
   const goodFlags = [
-    '--inspect-brk',
-    'inspect-brk',
     '--perf_basic_prof',
     '--perf-basic-prof',
     'perf-basic-prof',
@@ -17,8 +15,11 @@ require('../common');
     '-r',
     'r',
     '--stack-trace-limit=100',
-    '--stack-trace-limit=-=xX_nodejs_Xx=-'
-  ];
+    '--stack-trace-limit=-=xX_nodejs_Xx=-',
+  ].concat(process.config.variables.v8_enable_inspector ? [
+    '--inspect-brk',
+    'inspect-brk',
+  ] : []);
 
   const badFlags = [
     '--inspect_brk',
@@ -50,7 +51,7 @@ require('../common');
 // assert all "canonical" flags begin with dash(es)
 {
   process.allowedNodeEnvironmentFlags.forEach((flag) => {
-    assert(/^--?[a-z8_-]+$/.test(flag), `Unexpected format for flag ${flag}`);
+    assert(/^--?[a-z28_-]+$/.test(flag), `Unexpected format for flag ${flag}`);
   });
 }
 

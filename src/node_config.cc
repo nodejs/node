@@ -5,7 +5,6 @@
 
 namespace node {
 
-using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::Integer;
@@ -137,22 +136,6 @@ static void Initialize(Local<Object> target,
   READONLY_PROPERTY(debug_options_obj,
                     "inspectorEnabled",
                     Boolean::New(isolate, debug_options->inspector_enabled));
-
-  Local<Array> environmentFlags = Array::New(env->isolate(),
-                                  environment_flags_count);
-  READONLY_PROPERTY(target, "allowedNodeEnvironmentFlags", environmentFlags);
-  for (int i = 0; i < environment_flags_count; ++i) {
-    environmentFlags->Set(i, OneByteString(env->isolate(),
-        environment_flags[i]));
-  }
-
-  Local<Array> v8EnvironmentFlags = Array::New(env->isolate(),
-                                    v8_environment_flags_count);
-  READONLY_PROPERTY(target, "allowedV8EnvironmentFlags", v8EnvironmentFlags);
-  for (int i = 0; i < v8_environment_flags_count; ++i) {
-    v8EnvironmentFlags->Set(i, OneByteString(env->isolate(),
-        v8_environment_flags[i]));
-  }
 }  // InitConfig
 
 }  // namespace node
