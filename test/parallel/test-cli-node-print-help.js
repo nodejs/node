@@ -27,12 +27,12 @@ function validateNodePrintHelp() {
 
   const cliHelpOptions = [
     { compileConstant: HAVE_OPENSSL,
-      flags: [ '--openssl-config=file', '--tls-cipher-list=val',
+      flags: [ '--openssl-config=...', '--tls-cipher-list=...',
                '--use-bundled-ca', '--use-openssl-ca' ] },
     { compileConstant: NODE_FIPS_MODE,
       flags: [ '--enable-fips', '--force-fips' ] },
     { compileConstant: NODE_HAVE_I18N_SUPPORT,
-      flags: [ '--icu-data-dir=dir', 'NODE_ICU_DATA' ] },
+      flags: [ '--icu-data-dir=...', 'NODE_ICU_DATA' ] },
     { compileConstant: HAVE_INSPECTOR,
       flags: [ '--inspect-brk[=[host:]port]', '--inspect-port=[host:]port',
                '--inspect[=[host:]port]' ] },
