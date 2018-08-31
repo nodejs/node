@@ -746,7 +746,7 @@ else
 ifeq ($(DESTCPU),arm)
 ARCH=arm
 else
-ifeq ($(DESTCPU),aarch64)
+ifeq ($(DESTCPU),arm64)
 ARCH=arm64
 else
 ifeq ($(DESTCPU),ppc64)
