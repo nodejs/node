@@ -93,7 +93,6 @@ class StringBytes {
                       int* chars_written = nullptr);
 
   // Take the bytes in the src, and turn it into a Buffer or String.
-  // If the encoding is UTF16-LE, input is considered to be in host endianness.
   static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
                                           const char* buf,
                                           size_t buflen,

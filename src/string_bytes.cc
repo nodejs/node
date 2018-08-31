@@ -698,22 +698,27 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
 
     case UCS2: {
       if (IsBigEndian()) {
-        // For BE we always need to swap the byte order.
         uint16_t* dst = node::UncheckedMalloc<uint16_t>(buflen / 2);
         if (dst == nullptr) {
           *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
           return MaybeLocal<Value>();
         }
         for (size_t i = 0, k = 0; k < buflen / 2; i += 2, k += 1) {
-          const uint8_t hi = static_cast<uint8_t>(buf[i + 0]);
-          const uint8_t lo = static_cast<uint8_t>(buf[i + 1]);
+          // The input is in *little endian*, because that's what Node.js
+          // expects, so the high byte comes after the low byte.
+          const uint8_t hi = static_cast<uint8_t>(buf[i + 1]);
+          const uint8_t lo = static_cast<uint8_t>(buf[i + 0]);
           dst[k] = static_cast<uint16_t>(hi) << 8 | lo;
         }
-        return ExternTwoByteString::New(isolate, dst, buflen, error);
+        return ExternTwoByteString::New(isolate, dst, buflen / 2, error);
       }
       if (reinterpret_cast<uintptr_t>(buf) % 2 != 0) {
         // Unaligned data still means we can't directly pass it to V8.
         char* dst = node::UncheckedMalloc(buflen);
+        if (dst == nullptr) {
+          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          return MaybeLocal<Value>();
+        }
         memcpy(dst, buf, buflen);
         return ExternTwoByteString::New(
             isolate, reinterpret_cast<uint16_t*>(dst), buflen / 2, error);
