@@ -502,7 +502,6 @@ set npm_config_nodedir=%~dp0
 "%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons-napi"
 if errorlevel 1 exit /b 1
 endlocal
-endlocal
 goto run-tests
 
 :run-tests
