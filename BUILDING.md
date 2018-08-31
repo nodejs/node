@@ -44,7 +44,7 @@ platforms in production.
 | macOS/OS X   | Tier 1       | >= 10.11                         | x64                  |                  |
 | Windows      | Tier 1       | >= Windows 7/2008 R2/2012 R2     | x86, x64             | [2](#fn2),[3](#fn3),[4](#fn4) |
 | SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | [1](#fn1) |
-| FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
+| FreeBSD      | Tier 2       | >= 11                            | x64                  |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le >=power8     |                  |
 | AIX          | Tier 2       | >= 7.1 TL04                      | ppc64be >=power7     |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                  |
