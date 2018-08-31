@@ -33,7 +33,7 @@ const invalidArgValueError =
   common.expectsError({ code: 'ERR_INVALID_ARG_VALUE', type: TypeError }, 14);
 
 const invalidArgTypeError =
-  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 10);
+  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 12);
 
 assert.throws(function() {
   const child = spawn(invalidcmd, 'this is not an array');
@@ -74,6 +74,14 @@ assert.throws(function() {
 
 assert.throws(function() {
   spawn(cmd, [], 1);
+}, invalidArgTypeError);
+
+assert.throws(function() {
+  spawn(cmd, [], { uid: 2 ** 63 });
+}, invalidArgTypeError);
+
+assert.throws(function() {
+  spawn(cmd, [], { gid: 2 ** 63 });
 }, invalidArgTypeError);
 
 // Argument types for combinatorics.
