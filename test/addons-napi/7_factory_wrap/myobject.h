@@ -7,6 +7,7 @@ class MyObject {
  public:
   static napi_status Init(napi_env env);
   static void Destructor(napi_env env, void* nativeObject, void* finalize_hint);
+  static napi_value GetFinalizeCount(napi_env env, napi_callback_info info);
   static napi_status NewInstance(napi_env env,
                                  napi_value arg,
                                  napi_value* instance);
