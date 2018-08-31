@@ -157,6 +157,14 @@ def files(action):
   headers(action)
 
 def headers(action):
+  def ignore_inspector_headers(files, dest):
+    inspector_headers = [
+      'deps/v8/include/v8-inspector.h',
+      'deps/v8/include/v8-inspector-protocol.h'
+    ]
+    files = filter(lambda name: name not in inspector_headers, files)
+    action(files, dest)
+
   action([
     'common.gypi',
     'config.gypi',
@@ -172,7 +180,7 @@ def headers(action):
   if sys.platform.startswith('aix'):
     action(['out/Release/node.exp'], 'include/node/')
 
-  subdir_files('deps/v8/include', 'include/node/', action)
+  subdir_files('deps/v8/include', 'include/node/', ignore_inspector_headers)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)
