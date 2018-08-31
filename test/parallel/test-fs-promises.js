@@ -272,7 +272,7 @@ function verifyStatObject(stat) {
       const dir = path.join(tmpDir, nextdir(), nextdir());
       ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((recursive) => {
         assert.rejects(
-          // mkdtemp() expects to get a string prefix.
+          // mkdir() expects to get a boolean value for options.recursive.
           async () => mkdir(dir, { recursive: i }),
           {
             code: 'ERR_INVALID_ARG_TYPE',
