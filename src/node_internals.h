@@ -504,8 +504,18 @@ class InternalCallbackScope {
 
 class ThreadPoolWork {
  public:
-  explicit inline ThreadPoolWork(Environment* env) : env_(env) {}
+  explicit inline ThreadPoolWork(Environment* env) : env_(env) {
+    work_req_options_.type = UV_WORK_UNKNOWN;
+    work_req_options_.priority = -1;
+    work_req_options_.cancelable = 0;
+    work_req_options_.data = nullptr;
+  }
   inline virtual ~ThreadPoolWork() = default;
+
+  inline void SetOptionsType(uv_work_type type) { work_req_options_.type = type; }
+  inline void SetOptionsPriority(int priority) { work_req_options_.priority = priority; }
+  inline void SetOptionsCancelable(int cancelable) { work_req_options_.cancelable = cancelable; }
+  inline void SetOptionsData(void *data) { work_req_options_.data = data; }
 
   inline void ScheduleWork();
   inline int CancelWork();
@@ -516,13 +526,15 @@ class ThreadPoolWork {
  private:
   Environment* env_;
   uv_work_t work_req_;
+  uv_work_options_t work_req_options_;
 };
 
 void ThreadPoolWork::ScheduleWork() {
   env_->IncreaseWaitingRequestCounter();
-  int status = uv_queue_work(
+  int status = uv_executor_queue_work(
       env_->event_loop(),
       &work_req_,
+      &work_req_options_,
       [](uv_work_t* req) {
         ThreadPoolWork* self = ContainerOf(&ThreadPoolWork::work_req_, req);
         self->DoThreadPoolWork();
