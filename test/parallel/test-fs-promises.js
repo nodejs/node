@@ -273,7 +273,7 @@ function verifyStatObject(stat) {
       ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((recursive) => {
         assert.rejects(
           // mkdir() expects to get a boolean value for options.recursive.
-          async () => mkdir(dir, { recursive: i }),
+          async () => mkdir(dir, { recursive }),
           {
             code: 'ERR_INVALID_ARG_TYPE',
             name: 'TypeError [ERR_INVALID_ARG_TYPE]',
