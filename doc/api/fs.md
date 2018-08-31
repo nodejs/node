@@ -4723,7 +4723,7 @@ On Windows, opening an existing hidden file using the `'w'` flag (either
 through `fs.open()` or `fs.writeFile()` or `fsPromises.open()`) will fail with
 `EPERM`. Existing hidden files can be opened for writing with the `'r+'` flag.
 
-A call to `fs.ftruncate()` or `fsPromises.ftruncate()` can be used to reset
+A call to `fs.ftruncate()` or `filehandle.truncate()` can be used to reset
 the file contents.
 
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
