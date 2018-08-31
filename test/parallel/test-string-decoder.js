@@ -143,6 +143,14 @@ decoder = new StringDecoder('utf16le');
 assert.strictEqual(decoder.write(Buffer.from('3DD84D', 'hex')), '\ud83d');
 assert.strictEqual(decoder.end(), '');
 
+// Regression test for https://github.com/nodejs/node/issues/22358
+// (unaligned UTF-16 access).
+decoder = new StringDecoder('utf16le');
+assert.strictEqual(decoder.write(Buffer.alloc(1)), '');
+assert.strictEqual(decoder.write(Buffer.alloc(20)), '\0'.repeat(10));
+assert.strictEqual(decoder.write(Buffer.alloc(48)), '\0'.repeat(24));
+assert.strictEqual(decoder.end(), '');
+
 common.expectsError(
   () => new StringDecoder(1),
   {
