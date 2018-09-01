@@ -43,12 +43,16 @@ test('CMD');
 test('powershell');
 testCopy('powershell.exe',
          `${system32}\\WindowsPowerShell\\v1.0\\powershell.exe`);
-cp.exec(`Get-ChildItem "${__dirname}" | Select-Object -Property Name`,
-        { shell: 'PowerShell' }, common.mustCall((error, stdout, stderror) => {
-          assert.ok(!error && !stderror);
-          assert.ok(stdout.includes(
-            'test-child-process-exec-any-shells-windows.js'));
-        }));
+fs.writeFile(`${tmpPath}\\test file`, 'Test', common.mustCall((err) => {
+  assert.ifError(err);
+  cp.exec(`Get-ChildItem "${tmpPath}" | Select-Object -Property Name`,
+          { shell: 'PowerShell' },
+          common.mustCall((error, stdout, stderror) => {
+            assert.ok(!error && !stderror);
+            assert.ok(stdout.includes(
+              'test file'));
+          }));
+}));
 
 // Test Bash (from WSL and Git), if available
 cp.exec('where bash', common.mustCall((error, stdout) => {
