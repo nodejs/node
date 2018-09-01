@@ -4437,9 +4437,8 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to get ECDH public key");
 
   int size;
-  uint32_t val;
-  if (!args[0]->Uint32Value(env->context()).To(&val))
-    return env->ThrowError("Failed to parse argument");
+  CHECK(args[0]->IsUint32());
+  uint32_t val = args[0].As<Uint32>()->Value();
   point_conversion_form_t form = static_cast<point_conversion_form_t>(val);
 
   size = EC_POINT_point2oct(ecdh->group_, pub, form, nullptr, 0, nullptr);
@@ -5055,9 +5054,8 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
   if (pub == nullptr)
     return env->ThrowError("Failed to convert Buffer to EC_POINT");
 
-  uint32_t val;
-  if (!args[2]->Uint32Value(env->context()).To(&val))
-    return env->ThrowError("Failed to parse argument");
+  CHECK(args[2]->IsUint32());
+  uint32_t val = args[2].As<Uint32>()->Value();
   point_conversion_form_t form = static_cast<point_conversion_form_t>(val);
 
   int size = EC_POINT_point2oct(
