@@ -91,11 +91,26 @@ decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.write(Buffer.from('E1', 'hex')), '');
 
 // A quick test for lastChar, lastNeed & lastTotal which are undocumented.
-assert(decoder.lastChar.equals(Buffer.from([0xe1, 0, 0, 0])));
+assert(decoder.lastChar.equals(new Uint8Array([0xe1, 0, 0, 0])));
 assert.strictEqual(decoder.lastNeed, 2);
 assert.strictEqual(decoder.lastTotal, 3);
 
 assert.strictEqual(decoder.end(), '\ufffd');
+
+// TypedArray with Int8Array test
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(new Int8Array([1, 2])), '\u0001\u0002');
+assert.strictEqual(decoder.end(), '');
+
+// DataView
+const buffer = new ArrayBuffer(16);
+const dv = new DataView(buffer, 0);
+dv.setInt16(1, 42);
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(dv), '\u0000\u0000*\u0000\u0000\u0000\u0000' +
+  '\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000');
+assert.strictEqual(decoder.end(), '');
 
 decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.write(Buffer.from('E18B', 'hex')), '');
@@ -175,7 +190,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "buf" argument must be one of type Buffer, TypedArray,' +
-      ' DataView, or ArrayBufferView. Received type object'
+      ' or DataView. Received type object'
   }
 );
 
