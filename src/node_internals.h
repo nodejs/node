@@ -101,7 +101,7 @@ struct sockaddr;
 // in node::Init(), need to add built-in modules in the following list.
 // Then in node::RegisterBuiltinModules(), it calls modules' registration
 // function. This helps the built-in modules are loaded properly when
-// node is built as static library. No need to depends on the
+// node is built as static library. No need to depend on the
 // __attribute__((constructor)) like mechanism in GCC.
 #define NODE_BUILTIN_STANDARD_MODULES(V)                                      \
     V(async_wrap)                                                             \
