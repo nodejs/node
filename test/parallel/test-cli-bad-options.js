@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 
 // Tests that node exits consistently on bad option syntax.
 
