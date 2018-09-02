@@ -83,15 +83,18 @@
 # define NODE_GNUC_AT_LEAST(major, minor, patch) (0)
 #endif
 
-#if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
-# define NODE_DEPRECATED(message, declarator)                                 \
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# define NODE_DEPRECATED(message, declarator) declarator
+#else  // NODE_WANT_INTERNALS
+# if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
+#  define NODE_DEPRECATED(message, declarator)                                 \
     __attribute__((deprecated(message))) declarator
-#elif defined(_MSC_VER)
-# define NODE_DEPRECATED(message, declarator)                                 \
+# elif defined(_MSC_VER)
+#  define NODE_DEPRECATED(message, declarator)                                 \
     __declspec(deprecated) declarator
-#else
-# define NODE_DEPRECATED(message, declarator)                                 \
-    declarator
+# else
+#  define NODE_DEPRECATED(message, declarator) declarator
+# endif
 #endif
 
 // Forward-declare libuv loop
