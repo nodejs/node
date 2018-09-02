@@ -254,14 +254,17 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(size);
 }
 
-
-#define X(name, fn)                                                           \
-  void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {               \
-    UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());                           \
-    CHECK_EQ(args.Length(), 1);                                               \
-    int flag = args[0]->Int32Value();                                         \
-    int err = wrap == nullptr ? UV_EBADF : fn(&wrap->handle_, flag);          \
-    args.GetReturnValue().Set(err);                                           \
+#define X(name, fn)                                                            \
+  void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {                \
+    UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());                            \
+    Environment* env = wrap->env();                                            \
+    CHECK_EQ(args.Length(), 1);                                                \
+    int flag;                                                                  \
+    if (!args[0]->Int32Value(env->context()).To(&flag)) {                      \
+      return;                                                                  \
+    }                                                                          \
+    int err = wrap == nullptr ? UV_EBADF : fn(&wrap->handle_, flag);           \
+    args.GetReturnValue().Set(err);                                            \
   }
 
 X(SetTTL, uv_udp_set_ttl)

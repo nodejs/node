@@ -147,7 +147,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 {
   const HTTPParser = process.binding('http_parser').HTTPParser;
-  testInitialized(new HTTPParser(), 'HTTPParser');
+  testInitialized(new HTTPParser(0), 'HTTPParser');
 }
 
 

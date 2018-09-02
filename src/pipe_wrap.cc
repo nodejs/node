@@ -173,7 +173,8 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-  int instances = args[0]->Int32Value();
+  CHECK(args[0]->IsInt32());
+  int instances = args[0].As<Int32>()->Value();
   uv_pipe_pending_instances(&wrap->handle_, instances);
 }
 #endif
@@ -193,7 +194,9 @@ void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-  int backlog = args[0]->Int32Value();
+  Environment* env = wrap->env();
+  int backlog;
+  if (!args[0]->Int32Value(env->context()).To(&backlog)) return;
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
                       backlog,
                       OnConnection);
@@ -207,7 +210,8 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  int fd = args[0]->Int32Value();
+  int fd;
+  if (!args[0]->Int32Value(env->context()).To(&fd)) return;
 
   int err = uv_pipe_open(&wrap->handle_, fd);
   wrap->set_fd(fd);

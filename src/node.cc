@@ -1197,7 +1197,8 @@ static void Exit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   WaitForInspectorDisconnect(env);
   v8_platform.StopTracingAgent();
-  env->Exit(args[0]->Int32Value());
+  int code = args[0]->Int32Value(env->context()).FromMaybe(0);
+  env->Exit(code);
 }
 
 extern "C" void node_module_register(void* m) {

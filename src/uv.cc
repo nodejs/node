@@ -43,7 +43,8 @@ using v8::Value;
 // lib/util.getSystemErrorName()
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  int err = args[0]->Int32Value();
+  int err;
+  if (!args[0]->Int32Value(env->context()).To(&err)) return;
   CHECK_LT(err, 0);
   const char* name = uv_err_name(err);
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
