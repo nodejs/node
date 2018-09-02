@@ -245,7 +245,6 @@
             'EnableIntrinsicFunctions': 'true',
             'RuntimeTypeInfo': 'false',
             'AdditionalOptions': [
-              '/MP', # compile across multiple CPUs
             ],
           }
         }
