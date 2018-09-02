@@ -199,14 +199,17 @@ typedef intptr_t ssize_t;
 
 namespace node {
 
-// TODO(addaleax): Deprecate and remove all of these ASAP. They have been
-// made effectively non-functional anyway.
-NODE_EXTERN extern bool no_deprecation;
+// TODO(addaleax): Remove all of these.
+NODE_DEPRECATED("use command-line flags",
+                NODE_EXTERN extern bool no_deprecation);
 #if HAVE_OPENSSL
-NODE_EXTERN extern bool ssl_openssl_cert_store;
+NODE_DEPRECATED("use command-line flags",
+                NODE_EXTERN extern bool ssl_openssl_cert_store);
 # if NODE_FIPS_MODE
-NODE_EXTERN extern bool enable_fips_crypto;
-NODE_EXTERN extern bool force_fips_crypto;
+NODE_DEPRECATED("use command-line flags",
+                NODE_EXTERN extern bool enable_fips_crypto);
+NODE_DEPRECATED("user command-line flags",
+                NODE_EXTERN extern bool force_fips_crypto);
 # endif
 #endif
 
