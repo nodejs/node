@@ -23,6 +23,7 @@ namespace options_parser {
 // TODO(addaleax): Make that unnecessary.
 
 DebugOptionsParser::DebugOptionsParser() {
+#if HAVE_INSPECTOR
   AddOption("--inspect-port",
             "set host:port for inspector",
             &DebugOptions::host_port,
@@ -52,6 +53,7 @@ DebugOptionsParser::DebugOptionsParser() {
   AddOption("--debug-brk", "", &DebugOptions::break_first_line);
   Implies("--debug-brk", "--debug");
   AddAlias("--debug-brk=", { "--inspect-port", "--debug-brk" });
+#endif
 }
 
 DebugOptionsParser DebugOptionsParser::instance;
