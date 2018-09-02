@@ -26,15 +26,15 @@
 #define NGHTTP2_NET_H
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+#  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
 #ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
+#  include <arpa/inet.h>
 #endif /* HAVE_ARPA_INET_H */
 
 #ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
+#  include <netinet/in.h>
 #endif /* HAVE_NETINET_IN_H */
 
 #include <nghttp2/nghttp2.h>
@@ -44,11 +44,11 @@
    define inline functions for those function so that we don't have
    dependeny on that lib. */
 
-#ifdef _MSC_VER
-#define STIN static __inline
-#else
-#define STIN static inline
-#endif
+#  ifdef _MSC_VER
+#    define STIN static __inline
+#  else
+#    define STIN static inline
+#  endif
 
 STIN uint32_t htonl(uint32_t hostlong) {
   uint32_t res;
