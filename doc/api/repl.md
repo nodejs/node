@@ -619,10 +619,10 @@ possible to connect to a long-running Node.js process without restarting it.
 
 For an example of running a "full-featured" (`terminal`) REPL over
 a `net.Server` and `net.Socket` instance, see:
-[https://gist.github.com/TooTallNate/2209310](https://gist.github.com/TooTallNate/2209310).
+<https://gist.github.com/TooTallNate/2209310>.
 
 For an example of running a REPL instance over [curl(1)][], see:
-[https://gist.github.com/TooTallNate/2053342](https://gist.github.com/TooTallNate/2053342).
+<https://gist.github.com/TooTallNate/2053342>.
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--experimental-repl-await`]: cli.html#cli_experimental_repl_await
