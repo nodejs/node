@@ -653,10 +653,12 @@ out/apilinks.json: $(wildcard lib/*.js) tools/doc/apilinks.js
 	$(call available-node, $(gen-apilink))
 
 out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.js \
-	tools/doc/html.js tools/doc/json.js | out/apilinks.json
+	tools/doc/html.js tools/doc/json.js tools/doc/apilinks.js | \
+	out/apilinks.json
 	$(call available-node, $(gen-api))
 
-out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js
+out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js \
+	tools/doc/apilinks.js
 	$(call available-node, tools/doc/allhtml.js)
 
 out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js
