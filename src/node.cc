@@ -1484,8 +1484,8 @@ void FatalException(Isolate* isolate,
   Environment* env = Environment::GetCurrent(isolate);
   Local<Object> process_object = env->process_object();
   Local<String> fatal_exception_string = env->fatal_exception_string();
-  Local<Function> fatal_exception_function =
-      process_object->Get(fatal_exception_string).As<Function>();
+  Local<Value> fatal_exception_function =
+      process_object->Get(fatal_exception_string);
 
   if (!fatal_exception_function->IsFunction()) {
     // Failed before the process._fatalException function was added!
@@ -1500,7 +1500,8 @@ void FatalException(Isolate* isolate,
 
     // This will return true if the JS layer handled it, false otherwise
     Local<Value> caught =
-        fatal_exception_function->Call(process_object, 1, &error);
+        fatal_exception_function.As<Function>()
+            ->Call(process_object, 1, &error);
 
     if (fatal_try_catch.HasTerminated())
       return;
