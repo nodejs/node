@@ -58,10 +58,6 @@ assert.ok(!arg);
 {
   console.log('start case 3');
   console.time('end case 3');
-  // Timeout is set because this case is known to be problematic, so stderr is
-  // logged for further analysis.
-  // Ref: https://github.com/nodejs/node/issues/13527
-  // Ref: https://github.com/nodejs/node/pull/13559
   const opts = {
     execArgv: ['--abort-on-uncaught-exception'],
     silent: true
