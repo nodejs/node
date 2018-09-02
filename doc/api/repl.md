@@ -453,7 +453,7 @@ Returns `true` if `keyword` is a valid keyword, otherwise `false`.
 added: v0.1.91
 changes:
   - version: v10.0.0
-    pr-url: https://github.com/nodejs/node/pull/v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19187
     description: The `REPL_MAGIC_MODE` `replMode` was removed.
   - version: v5.8.0
     pr-url: https://github.com/nodejs/node/pull/5388
