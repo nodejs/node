@@ -108,11 +108,12 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       enum encoding encoding = ParseEncoding(env->isolate(),
                                              chunks->Get(i * 2 + 1));
       size_t chunk_size;
-      if (encoding == UTF8 && string->Length() > 65535)
-        chunk_size = StringBytes::Size(env->isolate(), string, encoding);
-      else
-        chunk_size = StringBytes::StorageSize(env->isolate(), string, encoding);
-
+      if (encoding == UTF8 && string->Length() > 65535 &&
+          !StringBytes::Size(env->isolate(), string, encoding).To(&chunk_size))
+        return 0;
+      else if (!StringBytes::StorageSize(env->isolate(), string, encoding)
+                    .To(&chunk_size))
+        return 0;
       storage_size += chunk_size;
     }
 
@@ -214,10 +215,12 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   // For UTF8 strings that are very long, go ahead and take the hit for
   // computing their actual size, rather than tripling the storage.
   size_t storage_size;
-  if (enc == UTF8 && string->Length() > 65535)
-    storage_size = StringBytes::Size(env->isolate(), string, enc);
-  else
-    storage_size = StringBytes::StorageSize(env->isolate(), string, enc);
+  if (enc == UTF8 && string->Length() > 65535 &&
+      !StringBytes::Size(env->isolate(), string, enc).To(&storage_size))
+    return 0;
+  else if (!StringBytes::StorageSize(env->isolate(), string, enc)
+                .To(&storage_size))
+    return 0;
 
   if (storage_size > INT_MAX)
     return UV_ENOBUFS;
