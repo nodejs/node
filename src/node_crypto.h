@@ -385,6 +385,7 @@ class CipherBase : public BaseObject {
 
   bool IsAuthenticatedMode() const;
   bool SetAAD(const char* data, unsigned int len, int plaintext_len);
+  bool MaybePassAuthTagToOpenSSL();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
