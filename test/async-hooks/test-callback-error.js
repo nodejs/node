@@ -78,15 +78,7 @@ assert.ok(!arg);
     stderr += data;
   });
 
-  const tO = setTimeout(() => {
-    console.log(stderr);
-    child.kill('SIGKILL');
-    process.exit(1);
-  }, 15 * 1000);
-  tO.unref();
-
   child.on('close', (code, signal) => {
-    clearTimeout(tO);
     if (common.isWindows) {
       assert.strictEqual(code, 134);
       assert.strictEqual(signal, null);
