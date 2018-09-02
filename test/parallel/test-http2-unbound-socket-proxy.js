@@ -39,31 +39,6 @@ server.listen(0, common.mustCall(() => {
       }, {
         code: 'ERR_HTTP2_SOCKET_UNBOUND'
       });
-      common.expectsError(() => {
-        socket.ref();
-      }, {
-        code: 'ERR_HTTP2_SOCKET_UNBOUND'
-      });
-      common.expectsError(() => {
-        socket.unref();
-      }, {
-        code: 'ERR_HTTP2_SOCKET_UNBOUND'
-      });
-      common.expectsError(() => {
-        socket.setEncoding();
-      }, {
-        code: 'ERR_HTTP2_SOCKET_UNBOUND'
-      });
-      common.expectsError(() => {
-        socket.setKeepAlive();
-      }, {
-        code: 'ERR_HTTP2_SOCKET_UNBOUND'
-      });
-      common.expectsError(() => {
-        socket.setNoDelay();
-      }, {
-        code: 'ERR_HTTP2_SOCKET_UNBOUND'
-      });
     }));
   }));
 }));

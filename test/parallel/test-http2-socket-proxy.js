@@ -38,6 +38,9 @@ server.on('stream', common.mustCall(function(stream, headers) {
   common.expectsError(() => socket.read, errMsg);
   common.expectsError(() => socket.resume, errMsg);
   common.expectsError(() => socket.write, errMsg);
+  common.expectsError(() => socket.setEncoding, errMsg);
+  common.expectsError(() => socket.setKeepAlive, errMsg);
+  common.expectsError(() => socket.setNoDelay, errMsg);
 
   common.expectsError(() => (socket.destroy = undefined), errMsg);
   common.expectsError(() => (socket.emit = undefined), errMsg);
@@ -46,9 +49,17 @@ server.on('stream', common.mustCall(function(stream, headers) {
   common.expectsError(() => (socket.read = undefined), errMsg);
   common.expectsError(() => (socket.resume = undefined), errMsg);
   common.expectsError(() => (socket.write = undefined), errMsg);
+  common.expectsError(() => (socket.setEncoding = undefined), errMsg);
+  common.expectsError(() => (socket.setKeepAlive = undefined), errMsg);
+  common.expectsError(() => (socket.setNoDelay = undefined), errMsg);
 
   assert.doesNotThrow(() => (socket.on = socket.on));
   assert.doesNotThrow(() => (socket.once = socket.once));
+
+  socket.unref();
+  assert.strictEqual(socket._handle.hasRef(), false);
+  socket.ref();
+  assert.strictEqual(socket._handle.hasRef(), true);
 
   stream.respond();
 
