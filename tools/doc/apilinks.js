@@ -107,6 +107,7 @@ process.argv.slice(2).forEach((file) => {
   //   ClassName.foo = ...;
   //   ClassName.prototype.foo = ...;
   //   function Identifier(...) {...};
+  //   class Foo {...}
   //
   const indirect = {};
 
@@ -153,6 +154,24 @@ process.argv.slice(2).forEach((file) => {
       if (basename.startsWith('_')) return;
       definition[`${basename}.${name}`] =
         `${link}#L${statement.loc.start.line}`;
+
+    } else if (statement.type === 'ClassDeclaration') {
+      if (!exported.constructors.includes(statement.id.name)) return;
+      definition[statement.id.name] = `${link}#L${statement.loc.start.line}`;
+
+      const name = statement.id.name.slice(0, 1).toLowerCase() +
+                  statement.id.name.slice(1);
+
+      statement.body.body.forEach((defn) => {
+        if (defn.type !== 'MethodDefinition') return;
+        if (defn.kind === 'method') {
+          definition[`${name}.${defn.key.name}`] =
+            `${link}#L${defn.loc.start.line}`;
+        } else if (defn.kind === 'constructor') {
+          definition[`new ${statement.id.name}`] =
+            `${link}#L${defn.loc.start.line}`;
+        }
+      });
     }
   });
 
