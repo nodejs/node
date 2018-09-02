@@ -44,11 +44,13 @@ function validateNodePrintHelp() {
 function testForSubstring(options) {
   if (options.compileConstant) {
     options.flags.forEach((flag) => {
-      assert.strictEqual(stdOut.indexOf(flag) !== -1, true);
+      assert.strictEqual(stdOut.indexOf(flag) !== -1, true,
+                         `Missing flag ${flag} in ${stdOut}`);
     });
   } else {
     options.flags.forEach((flag) => {
-      assert.strictEqual(stdOut.indexOf(flag), -1);
+      assert.strictEqual(stdOut.indexOf(flag), -1,
+                         `Unexpected flag ${flag} in ${stdOut}`);
     });
   }
 }
