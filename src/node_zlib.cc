@@ -445,15 +445,15 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     // But on the decompression side, a value of 0 for windowBits tells zlib
     // to use the window size in the zlib header of the compressed stream.
     uint32_t windowBits;
-    bool winCheck = args[0]->Uint32Value(context).To(&windowBits);
+    if (!args[0]->Uint32Value(context).To(&windowBits)) return;
 
     if (!((windowBits == 0) &&
           (ctx->mode_ == INFLATE ||
            ctx->mode_ == GUNZIP ||
            ctx->mode_ == UNZIP))) {
-      CHECK((windowBits >= Z_MIN_WINDOWBITS && windowBits <= Z_MAX_WINDOWBITS &&
-             winCheck) &&
-            "invalid windowBits");
+      CHECK(
+          (windowBits >= Z_MIN_WINDOWBITS && windowBits <= Z_MAX_WINDOWBITS) &&
+          "invalid windowBits");
     }
 
     int level = args[1]->Int32Value();
@@ -461,16 +461,15 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
       "invalid compression level");
 
     uint32_t memLevel;
-    bool memCheck = args[2]->Uint32Value(context).To(&memLevel);
-    CHECK((memLevel >= Z_MIN_MEMLEVEL && memLevel <= Z_MAX_MEMLEVEL &&
-           memCheck) &&
+    if (!args[2]->Uint32Value(context).To(&memLevel)) return;
+    CHECK((memLevel >= Z_MIN_MEMLEVEL && memLevel <= Z_MAX_MEMLEVEL) &&
           "invalid memlevel");
 
     uint32_t strategy;
-    bool strategyCheck = args[3]->Uint32Value(context).To(&strategy);
+    if (!args[3]->Uint32Value(context).To(&strategy)) return;
     CHECK((strategy == Z_FILTERED || strategy == Z_HUFFMAN_ONLY ||
            strategy == Z_RLE || strategy == Z_FIXED ||
-           strategy == Z_DEFAULT_STRATEGY && strategyCheck) &&
+           strategy == Z_DEFAULT_STRATEGY) &&
           "invalid strategy");
 
     CHECK(args[4]->IsUint32Array());
