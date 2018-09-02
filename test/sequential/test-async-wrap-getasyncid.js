@@ -46,6 +46,7 @@ const { getSystemErrorName } = require('util');
     delete providers.WORKER;
     if (!common.isMainThread)
       delete providers.INSPECTORJSBINDING;
+    delete providers.KEYPAIRGENREQUEST;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
