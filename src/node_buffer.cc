@@ -594,10 +594,9 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   // Then coerce everything that's not a string.
   if (!args[1]->IsString()) {
     uint32_t val;
-    if (args[1]->Uint32Value(ctx).To(&val)) {
-      int value = val & 255;
-      memset(ts_obj_data + start, value, fill_length);
-    }
+    if (!args[1]->Uint32Value(ctx).To(&val)) return;
+    int value = val & 255;
+    memset(ts_obj_data + start, value, fill_length);
     return;
   }
 

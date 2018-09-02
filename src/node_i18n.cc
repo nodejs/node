@@ -820,8 +820,8 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
 
   if (args[0]->IsNumber()) {
     uint32_t val;
-    if (args[0]->Uint32Value(env->context()).To(&val))
-      args.GetReturnValue().Set(GetColumnWidth(val, ambiguous_as_full_width));
+    if (!args[0]->Uint32Value(env->context()).To(&val)) return;
+    args.GetReturnValue().Set(GetColumnWidth(val, ambiguous_as_full_width));
     return;
   }
 
