@@ -32,10 +32,11 @@ for (const expectView of common.getArrayBufferViews(inputBuffer)) {
 
 for (const expectView of common.getArrayBufferViews(inputBuffer)) {
   console.log('Async test for ', expectView[Symbol.toStringTag]);
-  fs.writeFile(filename, expectView, common.mustCall((e) => {
+  const file = `${filename}-${expectView[Symbol.toStringTag]}`;
+  fs.writeFile(file, expectView, common.mustCall((e) => {
     assert.ifError(e);
 
-    fs.readFile(filename, 'utf8', common.mustCall((err, data) => {
+    fs.readFile(file, 'utf8', common.mustCall((err, data) => {
       assert.ifError(err);
       assert.strictEqual(data, inputBuffer.toString('utf8'));
     }));
