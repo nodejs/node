@@ -87,6 +87,7 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -502,7 +503,8 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
 
 void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  UErrorCode status = static_cast<UErrorCode>(args[0]->Int32Value());
+  CHECK(args[0]->IsInt32());
+  UErrorCode status = static_cast<UErrorCode>(args[0].As<Int32>()->Value());
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           u_errorName(status),

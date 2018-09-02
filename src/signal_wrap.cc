@@ -88,7 +88,9 @@ class SignalWrap : public HandleWrap {
   static void Start(const FunctionCallbackInfo<Value>& args) {
     SignalWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-    int signum = args[0]->Int32Value();
+    Environment* env = wrap->env();
+    int signum;
+    if (!args[0]->Int32Value(env->context()).To(&signum)) return;
 #if defined(__POSIX__) && HAVE_INSPECTOR
     if (signum == SIGPROF) {
       Environment* env = Environment::GetCurrent(args);

@@ -25,7 +25,7 @@ function flushPool() {
 function demoBug(part1, part2) {
   flushPool();
 
-  const parser = new HTTPParser('REQUEST');
+  const parser = new HTTPParser(0);
 
   parser.headers = [];
   parser.url = '';
