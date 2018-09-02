@@ -40,8 +40,8 @@ port2.onmessage = common.mustCall((message) => {
 port1.postMessage(2);
 
 function tick(n, cb) {
-  if (--n > 0)
-    return setImmediate(() => tick(n - 1, cb));
+  if (n > 0)
+    setImmediate(() => tick(n - 1, cb));
   else
     cb();
 }
