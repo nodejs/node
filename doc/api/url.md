@@ -54,6 +54,12 @@ WHATWG URL's `origin` property includes `protocol` and `host`, but not
 (all spaces in the "" line should be ignored — they are purely for formatting)
 ```
 
+The `URL` constructor can be accessed using:
+
+```js
+const { URL } = require('url');
+```
+
 Parsing the URL string using the WHATWG API:
 
 ```js
