@@ -1,5 +1,6 @@
 'use strict';
-require('../common');
+const common = require('../common');
+common.skipIfInspectorDisabled();
 
 // Tests that node exits consistently on bad option syntax.
 
