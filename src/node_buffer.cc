@@ -569,11 +569,10 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
-  CHECK(args[2]->IsUint32());
-  CHECK(args[3]->IsUint32());
-
-  uint32_t start = args[2].As<Uint32>()->Value();
-  uint32_t end = args[3].As<Uint32>()->Value();
+  uint32_t start;
+  if (!args[2]->Uint32Value(ctx).To(&start)) return;
+  uint32_t end;
+  if (!args[3]->Uint32Value(ctx).To(&end)) return;
   size_t fill_length = end - start;
   Local<String> str_obj;
   size_t str_length;
