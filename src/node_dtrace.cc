@@ -69,13 +69,15 @@ using v8::Value;
   if ((*(const char **)valp = *_##member) == nullptr)                      \
     *(const char **)valp = "<unknown>";
 
-#define SLURP_INT(obj, member, valp)                                       \
-  if (!(obj)->IsObject()) {                                                \
-    return node::THROW_ERR_INVALID_ARG_TYPE(env,                           \
-        "expected object for " #obj " to contain integer member " #member);\
-  }                                                                        \
-  *valp = obj->Get(OneByteString(env->isolate(), #member))                 \
-      ->Int32Value();
+#define SLURP_INT(obj, member, valp)                                           \
+  if (!(obj)->IsObject()) {                                                    \
+    return node::THROW_ERR_INVALID_ARG_TYPE(                                   \
+        env,                                                                   \
+        "expected object for " #obj " to contain integer member " #member);    \
+  }                                                                            \
+  *valp = obj->Get(OneByteString(env->isolate(), #member))                     \
+              ->Int32Value(env->context())                                     \
+              .FromJust();
 
 #define SLURP_OBJECT(obj, member, valp)                                    \
   if (!(obj)->IsObject()) {                                                \

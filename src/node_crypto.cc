@@ -1045,7 +1045,7 @@ void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
         sc->env(), "Session timeout must be a 32-bit integer");
   }
 
-  int32_t sessionTimeout = args[0]->Int32Value();
+  int32_t sessionTimeout = args[0].As<Int32>()->Value();
   SSL_CTX_set_timeout(sc->ctx_.get(), sessionTimeout);
 }
 
@@ -1267,7 +1267,8 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
                                         {0, 0}).ToLocalChecked();
   Local<Array> arr = ret.As<Array>();
 
-  int r = arr->Get(kTicketKeyReturnIndex)->Int32Value();
+  int r =
+      arr->Get(kTicketKeyReturnIndex)->Int32Value(env->context()).FromJust();
   if (r < 0)
     return r;
 
@@ -3629,14 +3630,10 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   char* buf = Buffer::Data(args[0]);
 
   CHECK(args[2]->IsInt32());
-  Maybe<int32_t> maybe_padding = args[2]->Int32Value(env->context());
-  CHECK(maybe_padding.IsJust());
-  int padding = maybe_padding.ToChecked();
+  int padding = args[2].As<Int32>()->Value();
 
   CHECK(args[3]->IsInt32());
-  Maybe<int32_t> maybe_salt_len = args[3]->Int32Value(env->context());
-  CHECK(maybe_salt_len.IsJust());
-  int salt_len = maybe_salt_len.ToChecked();
+  int salt_len = args[3].As<Int32>()->Value();
 
   ClearErrorOnReturn clear_error_on_return;
   unsigned char md_value[8192];
@@ -3783,8 +3780,6 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
 
 
 void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   ClearErrorOnReturn clear_error_on_return;
 
   Verify* verify;
@@ -3797,14 +3792,10 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   ssize_t hlen = Buffer::Length(args[1]);
 
   CHECK(args[2]->IsInt32());
-  Maybe<int32_t> maybe_padding = args[2]->Int32Value(env->context());
-  CHECK(maybe_padding.IsJust());
-  int padding = maybe_padding.ToChecked();
+  int padding = args[2].As<Int32>()->Value();
 
   CHECK(args[3]->IsInt32());
-  Maybe<int32_t> maybe_salt_len = args[3]->Int32Value(env->context());
-  CHECK(maybe_salt_len.IsJust());
-  int salt_len = maybe_salt_len.ToChecked();
+  int salt_len = args[3].As<Int32>()->Value();
 
   bool verify_result;
   Error err = verify->VerifyFinal(kbuf, klen, hbuf, hlen, padding, salt_len,
@@ -4076,14 +4067,14 @@ void DiffieHellman::New(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() == 2) {
     if (args[0]->IsInt32()) {
       if (args[1]->IsInt32()) {
-        initialized = diffieHellman->Init(args[0]->Int32Value(),
-                                          args[1]->Int32Value());
+        initialized = diffieHellman->Init(args[0].As<Int32>()->Value(),
+                                          args[1].As<Int32>()->Value());
       }
     } else {
       if (args[1]->IsInt32()) {
         initialized = diffieHellman->Init(Buffer::Data(args[0]),
                                           Buffer::Length(args[0]),
-                                          args[1]->Int32Value());
+                                          args[1].As<Int32>()->Value());
       } else {
         initialized = diffieHellman->Init(Buffer::Data(args[0]),
                                           Buffer::Length(args[0]),
