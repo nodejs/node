@@ -40,13 +40,13 @@ server.on('stream', common.mustCall((stream) => {
   stream.write(content);
   stream.setTimeout(serverTimeout);
   stream.on('timeout', () => {
-    assert.strictEqual(didReceiveData, false, 'Should not timeout');
+    assert.ok(!didReceiveData, 'Should not timeout');
   });
   stream.end();
 }));
 server.setTimeout(serverTimeout);
 server.on('timeout', () => {
-  assert.strictEqual(didReceiveData, false, 'Should not timeout');
+  assert.ok(!didReceiveData, 'Should not timeout');
 });
 
 server.listen(0, common.mustCall(() => {
