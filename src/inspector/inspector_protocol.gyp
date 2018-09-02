@@ -1,6 +1,6 @@
 {
   'variables': {
-    'protocol_tool_path': '../../tools/inspector_protocol',
+    'protocol_tool_path': '../../deps/v8/third_party/inspector_protocol',
   },
   'targets': [
     {
