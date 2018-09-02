@@ -58,10 +58,6 @@ assert.ok(!arg);
 {
   console.log('start case 3');
   console.time('end case 3');
-  // Timeout is set because this case is known to be problematic, so stderr is
-  // logged for further analysis.
-  // Ref: https://github.com/nodejs/node/issues/13527
-  // Ref: https://github.com/nodejs/node/pull/13559
   const opts = {
     execArgv: ['--abort-on-uncaught-exception'],
     silent: true
@@ -78,15 +74,7 @@ assert.ok(!arg);
     stderr += data;
   });
 
-  const tO = setTimeout(() => {
-    console.log(stderr);
-    child.kill('SIGKILL');
-    process.exit(1);
-  }, 15 * 1000);
-  tO.unref();
-
   child.on('close', (code, signal) => {
-    clearTimeout(tO);
     if (common.isWindows) {
       assert.strictEqual(code, 134);
       assert.strictEqual(signal, null);
