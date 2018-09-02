@@ -83,6 +83,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
 using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Value;
@@ -565,12 +566,15 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> ctx = env->context();
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
-  size_t start = args[2]->Uint32Value();
-  size_t end = args[3]->Uint32Value();
+  uint32_t start;
+  if (!args[2]->Uint32Value(ctx).To(&start)) return;
+  uint32_t end;
+  if (!args[3]->Uint32Value(ctx).To(&end)) return;
   size_t fill_length = end - start;
   Local<String> str_obj;
   size_t str_length;
@@ -590,7 +594,9 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
 
   // Then coerce everything that's not a string.
   if (!args[1]->IsString()) {
-    int value = args[1]->Uint32Value() & 255;
+    uint32_t val;
+    if (!args[1]->Uint32Value(ctx).To(&val)) return;
+    int value = val & 255;
     memset(ts_obj_data + start, value, fill_length);
     return;
   }
@@ -1000,14 +1006,14 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[1]->IsNumber());
+  CHECK(args[1]->IsUint32());
   CHECK(args[2]->IsNumber());
   CHECK(args[3]->IsBoolean());
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
-  uint32_t needle = args[1]->Uint32Value();
+  uint32_t needle = args[1].As<Uint32>()->Value();
   int64_t offset_i64 = args[2]->IntegerValue();
   bool is_forward = args[3]->IsTrue();
 
