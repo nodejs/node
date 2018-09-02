@@ -6,12 +6,12 @@ var fs = require('graceful-fs')
 var child_process = require('child_process')
 var addonPath = path.resolve(__dirname, 'node_modules', 'hello_world')
 var nodeGyp = path.resolve(__dirname, '..', 'bin', 'node-gyp.js')
-var execFileSync = child_process.execFileSync
+var execFileSync = child_process.execFileSync || require('./process-exec-sync')
 var execFile = child_process.execFile
 
 function runHello() {
   var testCode = "console.log(require('hello_world').hello())"
-  return execFileSync('node', ['-e', testCode], { cwd: __dirname }).toString()
+  return execFileSync(process.execPath, ['-e', testCode], { cwd: __dirname }).toString()
 }
 
 function getEncoding() {

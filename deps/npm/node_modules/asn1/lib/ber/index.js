@@ -7,7 +7,7 @@ var Reader = require('./reader');
 var Writer = require('./writer');
 
 
-///--- Exports
+// --- Exports
 
 module.exports = {
 

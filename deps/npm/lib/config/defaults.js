@@ -110,6 +110,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'always-auth': false,
     also: null,
     audit: true,
+    'audit-level': 'low',
     'auth-type': 'legacy',
 
     'bin-links': true,
@@ -190,11 +191,12 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'prefer-offline': false,
     'prefer-online': false,
     prefix: globalPrefix,
+    preid: '',
     production: process.env.NODE_ENV === 'production',
     'progress': !process.env.TRAVIS && !process.env.CI,
     proxy: null,
     'https-proxy': null,
-    'no-proxy': null,
+    'noproxy': null,
     'user-agent': 'npm/{npm-version} ' +
                     'node/{node-version} ' +
                     '{platform} ' +
@@ -256,6 +258,7 @@ exports.types = {
   'always-auth': Boolean,
   also: [null, 'dev', 'development'],
   audit: Boolean,
+  'audit-level': ['low', 'moderate', 'high', 'critical'],
   'auth-type': ['legacy', 'sso', 'saml', 'oauth'],
   'bin-links': Boolean,
   browser: [null, String],
@@ -305,8 +308,6 @@ exports.types = {
   key: [null, String],
   'legacy-bundling': Boolean,
   link: Boolean,
-  // local-address must be listed as an IP for a local network interface
-  // must be IPv4 due to node bug
   'local-address': getLocalAddresses(),
   loglevel: ['silent', 'error', 'warn', 'notice', 'http', 'timing', 'info', 'verbose', 'silly'],
   logstream: Stream,
@@ -317,7 +318,7 @@ exports.types = {
   'metrics-registry': [null, String],
   'node-options': [null, String],
   'node-version': [null, semver],
-  'no-proxy': [null, String, Array],
+  'noproxy': [null, String, Array],
   offline: Boolean,
   'onload-script': [null, String],
   only: [null, 'dev', 'development', 'prod', 'production'],
@@ -329,6 +330,7 @@ exports.types = {
   'prefer-offline': Boolean,
   'prefer-online': Boolean,
   prefix: path,
+  preid: String,
   production: Boolean,
   progress: Boolean,
   proxy: [null, false, url], // allow proxy to be disabled explicitly
@@ -386,16 +388,9 @@ function getLocalAddresses () {
     interfaces = {}
   }
 
-  return Object.keys(interfaces).map(function (nic) {
-    return interfaces[nic].filter(function (addr) {
-      return addr.family === 'IPv4'
-    })
-      .map(function (addr) {
-        return addr.address
-      })
-  }).reduce(function (curr, next) {
-    return curr.concat(next)
-  }, []).concat(undefined)
+  return Object.keys(interfaces).map(
+    nic => interfaces[nic].map(({address}) => address)
+  ).reduce((curr, next) => curr.concat(next), []).concat(undefined)
 }
 
 exports.shorthands = {

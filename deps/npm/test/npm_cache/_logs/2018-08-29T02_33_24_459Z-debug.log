@@ -1,0 +1,51 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/node',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/bin/npm-cli.js',
+1 verbose cli   'login',
+1 verbose cli   '--registry',
+1 verbose cli   'http://localhost:1337',
+1 verbose cli   '--loglevel',
+1 verbose cli   'silly',
+1 verbose cli   '--userconfig',
+1 verbose cli   '/Users/zkat/Documents/code/work/npm/test/tap/adduser-legacy-auth/_npmrc' ]
+2 info using npm@6.4.1-next.0
+3 info using node@v10.6.0
+4 verbose npm-session 2fcacc2e02e3388c
+5 verbose npm-session 1bde4de81e56c43e
+6 verbose web login before first POST
+7 http fetch POST 404 http://localhost:1337/-/v1/login 86ms
+8 verbose web login not supported, trying couch
+9 verbose login before first PUT { _id: 'org.couchdb.user:u',
+9 verbose login   name: 'u',
+9 verbose login   password: 'XXXXX',
+9 verbose login   type: 'user',
+9 verbose login   roles: [],
+9 verbose login   date: '2018-08-29T02:33:24.431Z' }
+10 http fetch PUT 409 http://localhost:1337/-/user/org.couchdb.user:u 4ms
+11 http fetch GET 200 http://localhost:1337/-/user/org.couchdb.user:u?write=true 15ms
+12 http fetch PUT 201 http://localhost:1337/-/user/org.couchdb.user:u/-rev/3-deadcafebabebeef 4ms
+13 verbose stack Error: invalid config key requested: always-auth
+13 verbose stack     at BadKeyError (/Users/zkat/Documents/code/work/npm/node_modules/figgy-pudding/index.js:93:23)
+13 verbose stack     at pudGet (/Users/zkat/Documents/code/work/npm/node_modules/figgy-pudding/index.js:101:5)
+13 verbose stack     at FiggyPudding.get (/Users/zkat/Documents/code/work/npm/node_modules/figgy-pudding/index.js:27:12)
+13 verbose stack     at Object.get (/Users/zkat/Documents/code/work/npm/node_modules/figgy-pudding/index.js:159:16)
+13 verbose stack     at profile.login.catch.catch.then (/Users/zkat/Documents/code/work/npm/lib/auth/legacy.js:69:35)
+13 verbose stack     at tryCatcher (/Users/zkat/Documents/code/work/npm/node_modules/bluebird/js/release/util.js:16:23)
+13 verbose stack     at Promise._settlePromiseFromHandler (/Users/zkat/Documents/code/work/npm/node_modules/bluebird/js/release/promise.js:512:31)
+13 verbose stack     at Promise._settlePromise (/Users/zkat/Documents/code/work/npm/node_modules/bluebird/js/release/promise.js:569:18)
+13 verbose stack     at Promise._settlePromise0 (/Users/zkat/Documents/code/work/npm/node_modules/bluebird/js/release/promise.js:614:10)
+13 verbose stack     at Promise._settlePromises (/Users/zkat/Documents/code/work/npm/node_modules/bluebird/js/release/promise.js:693:18)
+13 verbose stack     at Async._drainQueue (/Users/zkat/Documents/code/work/npm/node_modules/bluebird/js/release/async.js:133:16)
+13 verbose stack     at Async._drainQueues (/Users/zkat/Documents/code/work/npm/node_modules/bluebird/js/release/async.js:143:10)
+13 verbose stack     at Immediate.Async.drainQueues [as _onImmediate] (/Users/zkat/Documents/code/work/npm/node_modules/bluebird/js/release/async.js:17:14)
+13 verbose stack     at runCallback (timers.js:696:18)
+13 verbose stack     at tryOnImmediate (timers.js:667:5)
+13 verbose stack     at processImmediate (timers.js:649:5)
+14 verbose cwd /Users/zkat/Documents/code/work/npm/test/tap
+15 verbose Darwin 17.7.0
+16 verbose argv "/usr/local/bin/node" "/Users/zkat/Documents/code/work/npm/bin/npm-cli.js" "login" "--registry" "http://localhost:1337" "--loglevel" "silly" "--userconfig" "/Users/zkat/Documents/code/work/npm/test/tap/adduser-legacy-auth/_npmrc"
+17 verbose node v10.6.0
+18 verbose npm  v6.4.1-next.0
+19 error code EBADKEY
+20 error invalid config key requested: always-auth
+21 verbose exit [ 1, true ]

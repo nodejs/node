@@ -1,8 +1,14 @@
-# qs
+# qs <sup>[![Version Badge][2]][1]</sup>
+
+[![Build Status][3]][4]
+[![dependency status][5]][6]
+[![dev dependency status][7]][8]
+[![License][license-image]][license-url]
+[![Downloads][downloads-image]][downloads-url]
+
+[![npm badge][11]][1]
 
 A querystring parsing and stringifying library with some added security.
-
-[![Build Status](https://api.travis-ci.org/ljharb/qs.svg)](http://travis-ci.org/ljharb/qs)
 
 Lead Maintainer: [Jordan Harband](https://github.com/ljharb)
 
@@ -33,9 +39,9 @@ For example, the string `'foo[bar]=baz'` converts to:
 
 ```javascript
 assert.deepEqual(qs.parse('foo[bar]=baz'), {
-  foo: {
-    bar: 'baz'
-  }
+    foo: {
+        bar: 'baz'
+    }
 });
 ```
 
@@ -57,7 +63,7 @@ URI encoded strings work too:
 
 ```javascript
 assert.deepEqual(qs.parse('a%5Bb%5D=c'), {
-  a: { b: 'c' }
+    a: { b: 'c' }
 });
 ```
 
@@ -65,11 +71,11 @@ You can also nest your objects, like `'foo[bar][baz]=foobarbaz'`:
 
 ```javascript
 assert.deepEqual(qs.parse('foo[bar][baz]=foobarbaz'), {
-  foo: {
-    bar: {
-      baz: 'foobarbaz'
+    foo: {
+        bar: {
+            baz: 'foobarbaz'
+        }
     }
-  }
 });
 ```
 
@@ -78,19 +84,19 @@ By default, when nesting objects **qs** will only parse up to 5 children deep. T
 
 ```javascript
 var expected = {
-  a: {
-    b: {
-      c: {
-        d: {
-          e: {
-            f: {
-              '[g][h][i]': 'j'
+    a: {
+        b: {
+            c: {
+                d: {
+                    e: {
+                        f: {
+                            '[g][h][i]': 'j'
+                        }
+                    }
+                }
             }
-          }
         }
-      }
     }
-  }
 };
 var string = 'a[b][c][d][e][f][g][h][i]=j';
 assert.deepEqual(qs.parse(string), expected);
@@ -110,6 +116,13 @@ For similar reasons, by default **qs** will only parse up to 1000 parameters. Th
 ```javascript
 var limited = qs.parse('a=b&c=d', { parameterLimit: 1 });
 assert.deepEqual(limited, { a: 'b' });
+```
+
+To bypass the leading question mark, use `ignoreQueryPrefix`:
+
+```javascript
+var prefixed = qs.parse('?a=b&c=d', { ignoreQueryPrefix: true });
+assert.deepEqual(prefixed, { a: 'b', c: 'd' });
 ```
 
 An optional delimiter can also be passed:
@@ -227,10 +240,10 @@ assert.equal(unencoded, 'a[b]=c');
 
 Encoding can be disabled for keys by setting the `encodeValuesOnly` option to `true`:
 ```javascript
-var encodedValues  = qs.stringify(
-  { a: 'b', c: ['d', 'e=f'], f: [['g'], ['h']] },
-  { encodeValuesOnly: true }
-)
+var encodedValues = qs.stringify(
+    { a: 'b', c: ['d', 'e=f'], f: [['g'], ['h']] },
+    { encodeValuesOnly: true }
+);
 assert.equal(encodedValues,'a=b&c[0]=d&c[1]=e%3Df&f[0][0]=g&f[1][0]=h');
 ```
 
@@ -238,8 +251,8 @@ This encoding can also be replaced by a custom encoding method set as `encoder` 
 
 ```javascript
 var encoded = qs.stringify({ a: { b: 'c' } }, { encoder: function (str) {
-  // Passed in values `a`, `b`, `c`
-  return // Return encoded string
+    // Passed in values `a`, `b`, `c`
+    return // Return encoded string
 }})
 ```
 
@@ -249,8 +262,8 @@ Analogue to the `encoder` there is a `decoder` option for `parse` to override de
 
 ```javascript
 var decoded = qs.parse('x=z', { decoder: function (str) {
-  // Passed in values `x`, `z`
-  return // Return decoded string
+    // Passed in values `x`, `z`
+    return // Return decoded string
 }})
 ```
 
@@ -317,6 +330,12 @@ Properties that are set to `undefined` will be omitted entirely:
 assert.equal(qs.stringify({ a: null, b: undefined }), 'a=');
 ```
 
+The query string may optionally be prepended with a question mark:
+
+```javascript
+assert.equal(qs.stringify({ a: 'b', c: 'd' }, { addQueryPrefix: true }), '?a=b&c=d');
+```
+
 The delimiter may be overridden with stringify as well:
 
 ```javascript
@@ -338,7 +357,7 @@ You may use the `sort` option to affect the order of parameter keys:
 
 ```javascript
 function alphabeticalSort(a, b) {
-  return a.localeCompare(b);
+    return a.localeCompare(b);
 }
 assert.equal(qs.stringify({ a: 'c', z: 'y', b : 'f' }, { sort: alphabeticalSort }), 'a=c&b=f&z=y');
 ```
@@ -349,17 +368,17 @@ pass an array, it will be used to select properties and array indices for string
 
 ```javascript
 function filterFunc(prefix, value) {
-  if (prefix == 'b') {
-    // Return an `undefined` value to omit a property.
-    return;
-  }
-  if (prefix == 'e[f]') {
-    return value.getTime();
-  }
-  if (prefix == 'e[g][0]') {
-    return value * 2;
-  }
-  return value;
+    if (prefix == 'b') {
+        // Return an `undefined` value to omit a property.
+        return;
+    }
+    if (prefix == 'e[f]') {
+        return value.getTime();
+    }
+    if (prefix == 'e[g][0]') {
+        return value * 2;
+    }
+    return value;
 }
 qs.stringify({ a: 'b', c: 'd', e: { f: new Date(123), g: [2] } }, { filter: filterFunc });
 // 'a=b&c=d&e[f]=123&e[g][0]=4'
@@ -438,3 +457,19 @@ assert.equal(qs.stringify({ a: 'b c' }), 'a=b%20c');
 assert.equal(qs.stringify({ a: 'b c' }, { format : 'RFC3986' }), 'a=b%20c');
 assert.equal(qs.stringify({ a: 'b c' }, { format : 'RFC1738' }), 'a=b+c');
 ```
+
+[1]: https://npmjs.org/package/qs
+[2]: http://versionbadg.es/ljharb/qs.svg
+[3]: https://api.travis-ci.org/ljharb/qs.svg
+[4]: https://travis-ci.org/ljharb/qs
+[5]: https://david-dm.org/ljharb/qs.svg
+[6]: https://david-dm.org/ljharb/qs
+[7]: https://david-dm.org/ljharb/qs/dev-status.svg
+[8]: https://david-dm.org/ljharb/qs?type=dev
+[9]: https://ci.testling.com/ljharb/qs.png
+[10]: https://ci.testling.com/ljharb/qs
+[11]: https://nodei.co/npm/qs.png?downloads=true&stars=true
+[license-image]: http://img.shields.io/npm/l/qs.svg
+[license-url]: LICENSE
+[downloads-image]: http://img.shields.io/npm/dm/qs.svg
+[downloads-url]: http://npm-stat.com/charts.html?package=qs

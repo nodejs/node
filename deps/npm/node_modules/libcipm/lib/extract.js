@@ -22,12 +22,14 @@ module.exports = {
 
   child (name, child, childPath, config, opts) {
     const spec = npa.resolve(name, child.version)
+    const additionalToPacoteOpts = {}
+    if (typeof opts.dirPacker !== 'undefined') {
+      additionalToPacoteOpts.dirPacker = opts.dirPacker
+    }
     const childOpts = config.toPacote(Object.assign({
       integrity: child.integrity,
       resolved: child.resolved
-    }, {
-      dirPacker: opts.dirPacker
-    }))
+    }, additionalToPacoteOpts))
     const args = [spec, childPath, childOpts]
     return BB.fromNode((cb) => {
       let launcher = extractionWorker

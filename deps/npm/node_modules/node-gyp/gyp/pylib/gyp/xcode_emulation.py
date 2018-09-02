@@ -233,6 +233,9 @@ class XcodeSettings(object):
   def _IsIosWatchApp(self):
     return int(self.spec.get('ios_watch_app', 0)) != 0
 
+  def _IsXCTest(self):
+    return int(self.spec.get('mac_xctest_bundle', 0)) != 0
+
   def GetFrameworkVersion(self):
     """Returns the framework version of the current target. Only valid for
     bundles."""
@@ -568,6 +571,11 @@ class XcodeSettings(object):
 
     cflags += self._Settings().get('WARNING_CFLAGS', [])
 
+    if self._IsXCTest():
+      platform_root = self._XcodePlatformPath(configname)
+      if platform_root:
+        cflags.append('-F' + platform_root + '/Developer/Library/Frameworks/')
+
     if sdk_root:
       framework_root = sdk_root
     else:
@@ -830,6 +838,11 @@ class XcodeSettings(object):
     framework_dirs = config.get('mac_framework_dirs', [])
     for directory in framework_dirs:
       ldflags.append('-F' + directory.replace('$(SDKROOT)', sdk_root))
+
+    if self._IsXCTest():
+      platform_root = self._XcodePlatformPath(configname)
+      if platform_root:
+        cflags.append('-F' + platform_root + '/Developer/Library/Frameworks/')
 
     is_extension = self._IsIosAppExtension() or self._IsIosWatchKitExtension()
     if sdk_root and is_extension:

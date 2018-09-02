@@ -34,6 +34,12 @@ function getCredentialsByURI (uri) {
     return c
   }
 
+  if (this.get(nerfed + ':-authtoken')) {
+    c.token = this.get(nerfed + ':-authtoken')
+    // the bearer token is enough, don't confuse things
+    return c
+  }
+
   // Handle the old-style _auth=<base64> style for the default
   // registry, if set.
   var authDef = this.get('_auth')

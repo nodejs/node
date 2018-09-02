@@ -8,7 +8,7 @@
 # shell living at /bin/sh.
 #
 # See this helpful document on writing portable shell scripts:
-# http://www.gnu.org/s/hello/manual/autoconf/Portable-Shell.html
+# https://www.gnu.org/s/hello/manual/autoconf/Portable-Shell.html
 #
 # The only shell it won't ever work on is cmd.exe.
 

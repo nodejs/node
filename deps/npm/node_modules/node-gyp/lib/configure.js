@@ -448,7 +448,7 @@ PythonFinder.prototype = {
   },
 
   checkPythonVersion: function checkPythonVersion () {
-    var args = ['-c', 'import platform; print(platform.python_version());']
+    var args = ['-c', 'import sys; print "%s.%s.%s" % sys.version_info[:3];']
     var env = extend({}, this.env)
     env.TERM = 'dumb'
 
@@ -460,14 +460,6 @@ PythonFinder.prototype = {
                        '`%s -c "' + args[1] + '"` returned: %j',
                        this.python, stdout)
       var version = stdout.trim()
-      if (~version.indexOf('+')) {
-        this.log.silly('stripping "+" sign(s) from version')
-        version = version.replace(/\+/g, '')
-      }
-      if (~version.indexOf('rc')) {
-        this.log.silly('stripping "rc" identifier from version')
-        version = version.replace(/rc(.*)$/ig, '')
-      }
       var range = semver.Range('>=2.5.0 <3.0.0')
       var valid = false
       try {
