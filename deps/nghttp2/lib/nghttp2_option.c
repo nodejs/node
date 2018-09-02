@@ -86,6 +86,10 @@ void nghttp2_option_set_builtin_recv_extension_type(nghttp2_option *option,
     option->opt_set_mask |= NGHTTP2_OPT_BUILTIN_RECV_EXT_TYPES;
     option->builtin_recv_ext_types |= NGHTTP2_TYPEMASK_ALTSVC;
     return;
+  case NGHTTP2_ORIGIN:
+    option->opt_set_mask |= NGHTTP2_OPT_BUILTIN_RECV_EXT_TYPES;
+    option->builtin_recv_ext_types |= NGHTTP2_TYPEMASK_ORIGIN;
+    return;
   default:
     return;
   }
