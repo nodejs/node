@@ -363,6 +363,7 @@
         'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_stat_watcher.cc',
+        'src/node_threadpool.cc',
         'src/node_watchdog.cc',
         'src/node_worker.cc',
         'src/node_zlib.cc',
@@ -421,6 +422,7 @@
         'src/node_persistent.h',
         'src/node_platform.h',
         'src/node_root_certs.h',
+        'src/node_threadpool.h',
         'src/node_version.h',
         'src/node_watchdog.h',
         'src/node_wrap.h',
@@ -963,6 +965,7 @@
         'test/cctest/test_node_postmortem_metadata.cc',
         'test/cctest/test_environment.cc',
         'test/cctest/test_platform.cc',
+        'test/cctest/test_threadpool.cc',
         'test/cctest/test_traced_value.cc',
         'test/cctest/test_util.cc',
         'test/cctest/test_url.cc'

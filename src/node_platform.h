@@ -96,11 +96,14 @@ class PerIsolatePlatformData :
 };
 
 // This acts as the single worker thread task runner for all Isolates.
+// API is modeled on v8::TaskRunner.
 class WorkerThreadsTaskRunner {
  public:
   explicit WorkerThreadsTaskRunner(int thread_pool_size);
 
+  // Add task to queue for eventual Run()
   void PostTask(std::unique_ptr<v8::Task> task);
+  // Add task to queue after at least delay_in_seconds
   void PostDelayedTask(std::unique_ptr<v8::Task> task,
                        double delay_in_seconds);
 
@@ -110,6 +113,7 @@ class WorkerThreadsTaskRunner {
   int NumberOfWorkerThreads() const;
 
  private:
+  // Push'd directly by PostTask() and indirectly by PostDelayedTask.
   TaskQueue<v8::Task> pending_worker_tasks_;
 
   class DelayedTaskScheduler;

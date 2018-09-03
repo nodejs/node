@@ -24,6 +24,7 @@
 #include "node_javascript.h"
 #include "node_code_cache.h"
 #include "node_platform.h"
+#include "node_threadpool.h"
 #include "node_version.h"
 #include "node_internals.h"
 #include "node_revert.h"
@@ -284,7 +285,19 @@ class NodeTraceStateObserver :
 };
 
 static struct {
+  // Returns zero on success
+  int Initialize(void) {
+    tp_.reset(new threadpool::Threadpool());
+    tp_->Initialize();
+    return uv_replace_executor(tp_->GetExecutor());
+  }
+
+  std::unique_ptr<threadpool::Threadpool> tp_;
+} node_threadpool;
+
+static struct {
 #if NODE_USE_V8_PLATFORM
+  // TODO(davisjam): Pass in the node_threadpool.
   void Initialize(int thread_pool_size) {
     tracing_agent_.reset(new tracing::Agent());
     auto controller = tracing_agent_->GetTracingController();
@@ -3338,6 +3351,10 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif  // HAVE_OPENSSL
 
+  // This needs to run before any work is queued to the libuv executor.
+  CHECK_EQ(0, node_threadpool.Initialize());
+
+  // TODO(davisjam): Pass the v8_platform the node_threadpool.
   v8_platform.Initialize(
       per_process_opts->v8_thread_pool_size);
   V8::Initialize();

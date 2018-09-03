@@ -502,6 +502,7 @@ class InternalCallbackScope {
   bool closed_ = false;
 };
 
+// TODO(davisjam): Update to use node_threadpool.
 class ThreadPoolWork {
  public:
   explicit inline ThreadPoolWork(Environment* env) : env_(env) {
@@ -512,10 +513,18 @@ class ThreadPoolWork {
   }
   inline virtual ~ThreadPoolWork() = default;
 
-  inline void SetOptionsType(uv_work_type type) { work_req_options_.type = type; }
-  inline void SetOptionsPriority(int priority) { work_req_options_.priority = priority; }
-  inline void SetOptionsCancelable(int cancelable) { work_req_options_.cancelable = cancelable; }
-  inline void SetOptionsData(void *data) { work_req_options_.data = data; }
+  inline void SetOptionsType(uv_work_type type) {
+    work_req_options_.type = type;
+  }
+  inline void SetOptionsPriority(int priority) {
+    work_req_options_.priority = priority;
+  }
+  inline void SetOptionsCancelable(int cancelable) {
+    work_req_options_.cancelable = cancelable;
+  }
+  inline void SetOptionsData(void* data) {
+    work_req_options_.data = data;
+  }
 
   inline void ScheduleWork();
   inline int CancelWork();
@@ -531,6 +540,10 @@ class ThreadPoolWork {
 
 void ThreadPoolWork::ScheduleWork() {
   env_->IncreaseWaitingRequestCounter();
+  // TODO(davisjam): Should we route to node TP instead?
+  // I don't think so.
+  // These are pending user requests with a CB for the event loop.
+  // So it makes sense for libuv to handle them start-to-finish.
   int status = uv_executor_queue_work(
       env_->event_loop(),
       &work_req_,

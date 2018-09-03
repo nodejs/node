@@ -125,6 +125,8 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   static void RunTask(uv_timer_t* timer) {
     DelayedTaskScheduler* scheduler =
         ContainerOf(&DelayedTaskScheduler::loop_, timer->loop);
+    // This adds the Task to the TP queue.
+    // TODO(davisjam): Plug in TP implementation.
     scheduler->pending_worker_tasks_->Push(scheduler->TakeTimerTask(timer));
   }
 
@@ -330,6 +332,7 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
 
   do {
     // Worker tasks aren't associated with an Isolate.
+    // TODO(davisjam): This will require some dancing with the TP.
     worker_thread_task_runner_->BlockingDrain();
   } while (per_isolate->FlushForegroundTasksInternal());
 }
@@ -371,6 +374,7 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
 }
 
 void NodePlatform::CallOnWorkerThread(std::unique_ptr<v8::Task> task) {
+  // TODO(davisjam): Plug in TP implementation
   worker_thread_task_runner_->PostTask(std::move(task));
 }
 

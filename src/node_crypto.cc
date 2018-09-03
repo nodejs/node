@@ -4584,7 +4584,9 @@ bool ECDH::IsKeyPairValid() {
 struct CryptoJob : public ThreadPoolWork {
   Environment* const env;
   std::unique_ptr<AsyncWrap> async_wrap;
-  inline explicit CryptoJob(Environment* env) : ThreadPoolWork(env), env(env) { SetOptionsType(UV_WORK_USER_CPU); }
+  inline explicit CryptoJob(Environment* env) : ThreadPoolWork(env), env(env) {
+    SetOptionsType(UV_WORK_USER_CPU);
+  }
   inline void AfterThreadPoolWork(int status) final;
   virtual void AfterThreadPoolWork() = 0;
   static inline void Run(std::unique_ptr<CryptoJob> job, Local<Value> wrap);
