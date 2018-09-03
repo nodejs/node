@@ -1050,6 +1050,16 @@ deprecated along with the undocumented aliases `crypto.prng()` and
 `crypto.rng()` in favor of [`crypto.randomBytes()`][] and will be removed in a
 future release.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: AssertionError#generatedMessage
+
+Type: Runtime
+
+Instead of accessing the generatedMessage property of `AssertionErrors`, please
+check for `AssertionError#userMessage` existence instead. It contains the actual
+user message without any modification and allows to detect if the user passed
+through a message or not.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
