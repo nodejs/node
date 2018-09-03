@@ -148,6 +148,7 @@
             'MinimalRebuild': 'false',
             'OmitFramePointers': 'false',
             'BasicRuntimeChecks': 3, # /RTC1
+            'MultiProcessorCompilation': 'true',
             'AdditionalOptions': [
               '/bigobj', # prevent error C1128 in VS2015
             ],
@@ -244,6 +245,7 @@
             'EnableFunctionLevelLinking': 'true',
             'EnableIntrinsicFunctions': 'true',
             'RuntimeTypeInfo': 'false',
+            'MultiProcessorCompilation': 'true',
             'AdditionalOptions': [
             ],
           }
