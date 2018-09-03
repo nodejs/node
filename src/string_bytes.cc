@@ -625,7 +625,6 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                       size_t buflen,
                                       enum encoding encoding,
                                       Local<Value>* error) {
-  CHECK_NE(encoding, UCS2);
   CHECK_BUFLEN_IN_RANGE(buflen);
 
   if (!buflen && encoding != BUFFER) {
@@ -703,6 +702,37 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       return ExternOneByteString::New(isolate, dst, dlen, error);
     }
 
+    case UCS2: {
+      if (IsBigEndian()) {
+        uint16_t* dst = node::UncheckedMalloc<uint16_t>(buflen / 2);
+        if (dst == nullptr) {
+          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          return MaybeLocal<Value>();
+        }
+        for (size_t i = 0, k = 0; k < buflen / 2; i += 2, k += 1) {
+          // The input is in *little endian*, because that's what Node.js
+          // expects, so the high byte comes after the low byte.
+          const uint8_t hi = static_cast<uint8_t>(buf[i + 1]);
+          const uint8_t lo = static_cast<uint8_t>(buf[i + 0]);
+          dst[k] = static_cast<uint16_t>(hi) << 8 | lo;
+        }
+        return ExternTwoByteString::New(isolate, dst, buflen / 2, error);
+      }
+      if (reinterpret_cast<uintptr_t>(buf) % 2 != 0) {
+        // Unaligned data still means we can't directly pass it to V8.
+        char* dst = node::UncheckedMalloc(buflen);
+        if (dst == nullptr) {
+          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          return MaybeLocal<Value>();
+        }
+        memcpy(dst, buf, buflen);
+        return ExternTwoByteString::New(
+            isolate, reinterpret_cast<uint16_t*>(dst), buflen / 2, error);
+      }
+      return ExternTwoByteString::NewFromCopy(
+          isolate, reinterpret_cast<const uint16_t*>(buf), buflen / 2, error);
+    }
+
     default:
       CHECK(0 && "unknown encoding");
       break;
@@ -742,30 +772,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                       enum encoding encoding,
                                       Local<Value>* error) {
   const size_t len = strlen(buf);
-  MaybeLocal<Value> ret;
-  if (encoding == UCS2) {
-    // In Node, UCS2 means utf16le. The data must be in little-endian
-    // order and must be aligned on 2-bytes. This returns an empty
-    // value if it's not aligned and ensures the appropriate byte order
-    // on big endian architectures.
-    const bool be = IsBigEndian();
-    if (len % 2 != 0)
-      return ret;
-    std::vector<uint16_t> vec(len / 2);
-    for (size_t i = 0, k = 0; i < len; i += 2, k += 1) {
-      const uint8_t hi = static_cast<uint8_t>(buf[i + 0]);
-      const uint8_t lo = static_cast<uint8_t>(buf[i + 1]);
-      vec[k] = be ?
-          static_cast<uint16_t>(hi) << 8 | lo
-          : static_cast<uint16_t>(lo) << 8 | hi;
-    }
-    ret = vec.empty() ?
-        static_cast< Local<Value> >(String::Empty(isolate))
-        : StringBytes::Encode(isolate, &vec[0], vec.size(), error);
-  } else {
-    ret = StringBytes::Encode(isolate, buf, len, encoding, error);
-  }
-  return ret;
+  return Encode(isolate, buf, len, encoding, error);
 }
 
 }  // namespace node

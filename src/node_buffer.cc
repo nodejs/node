@@ -467,65 +467,6 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-template <>
-void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  Environment* env = Environment::GetCurrent(isolate);
-
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  SPREAD_BUFFER_ARG(args.This(), ts_obj);
-
-  if (ts_obj_length == 0)
-    return args.GetReturnValue().SetEmptyString();
-
-  SLICE_START_END(args[0], args[1], ts_obj_length)
-  length /= 2;
-
-  const char* data = ts_obj_data + start;
-  const uint16_t* buf;
-  bool release = false;
-
-  // Node's "ucs2" encoding expects LE character data inside a Buffer, so we
-  // need to reorder on BE platforms.  See https://nodejs.org/api/buffer.html
-  // regarding Node's "ucs2" encoding specification.
-  const bool aligned = (reinterpret_cast<uintptr_t>(data) % sizeof(*buf) == 0);
-  if (IsLittleEndian() && !aligned) {
-    // Make a copy to avoid unaligned accesses in v8::String::NewFromTwoByte().
-    // This applies ONLY to little endian platforms, as misalignment will be
-    // handled by a byte-swapping operation in StringBytes::Encode on
-    // big endian platforms.
-    uint16_t* copy = new uint16_t[length];
-    for (size_t i = 0, k = 0; i < length; i += 1, k += 2) {
-      // Assumes that the input is little endian.
-      const uint8_t lo = static_cast<uint8_t>(data[k + 0]);
-      const uint8_t hi = static_cast<uint8_t>(data[k + 1]);
-      copy[i] = lo | hi << 8;
-    }
-    buf = copy;
-    release = true;
-  } else {
-    buf = reinterpret_cast<const uint16_t*>(data);
-  }
-
-  Local<Value> error;
-  MaybeLocal<Value> ret =
-      StringBytes::Encode(isolate,
-                          buf,
-                          length,
-                          &error);
-
-  if (release)
-    delete[] buf;
-
-  if (ret.IsEmpty()) {
-    CHECK(!error.IsEmpty());
-    isolate->ThrowException(error);
-    return;
-  }
-  args.GetReturnValue().Set(ret.ToLocalChecked());
-}
-
-
 // bytesCopied = copy(buffer, target[, targetStart][, sourceStart][, sourceEnd])
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
