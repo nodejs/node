@@ -677,7 +677,7 @@ configuration at startup.
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
@@ -744,7 +744,7 @@ arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
@@ -803,7 +803,7 @@ metacharacters may be used to trigger arbitrary command execution.**
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.

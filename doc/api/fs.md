@@ -285,7 +285,7 @@ performance implications for some applications. See the
 
 ## Class: fs.Dirent
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 When [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with the
@@ -294,7 +294,7 @@ When [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with the
 
 ### dirent.isBlockDevice()
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * Returns: {boolean}
@@ -303,7 +303,7 @@ Returns `true` if the `fs.Dirent` object describes a block device.
 
 ### dirent.isCharacterDevice()
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * Returns: {boolean}
@@ -312,7 +312,7 @@ Returns `true` if the `fs.Dirent` object describes a character device.
 
 ### dirent.isDirectory()
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * Returns: {boolean}
@@ -322,7 +322,7 @@ directory.
 
 ### dirent.isFIFO()
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * Returns: {boolean}
@@ -332,7 +332,7 @@ Returns `true` if the `fs.Dirent` object describes a first-in-first-out
 
 ### dirent.isFile()
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * Returns: {boolean}
@@ -341,7 +341,7 @@ Returns `true` if the `fs.Dirent` object describes a regular file.
 
 ### dirent.isSocket()
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * Returns: {boolean}
@@ -350,7 +350,7 @@ Returns `true` if the `fs.Dirent` object describes a socket.
 
 ### dirent.isSymbolicLink()
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * Returns: {boolean}
@@ -360,7 +360,7 @@ Returns `true` if the `fs.Dirent` object describes a symbolic link.
 
 ### dirent.name
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * {string|Buffer}
@@ -2336,7 +2336,7 @@ this API: [`fs.open()`][].
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray`, or a
                  `DataView`.
@@ -2619,7 +2619,7 @@ the link path returned will be passed as a `Buffer` object.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray` or a
                  `DataView`.
@@ -3353,7 +3353,7 @@ This happens when:
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray` or a
                  `DataView`
@@ -3456,7 +3456,7 @@ the end of the file.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `data` parameter can now be any `TypedArray` or a
                  `DataView`.
@@ -3517,7 +3517,7 @@ automatically.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `data` parameter can now be any `TypedArray` or a
                  `DataView`.
@@ -3545,7 +3545,7 @@ this API: [`fs.writeFile()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray` or a
                  `DataView`.

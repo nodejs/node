@@ -418,7 +418,7 @@ This feature is not available in [`Worker`][] threads.
 
 ## process.allowedNodeEnvironmentFlags
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * {Set}

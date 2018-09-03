@@ -639,7 +639,7 @@ console.log(globalVar);
 
 ## vm.compileFunction(code[, params[, options]])
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 * `code` {string} The body of the function to compile.
 * `params` {string[]} An array of strings containing all parameters for the
