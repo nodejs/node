@@ -1955,11 +1955,6 @@ int ParseIP(const char* ip, ParseIPResult* result = nullptr) {
   return 0;
 }
 
-void IsIPv6(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args.GetIsolate(), args[0]);
-  args.GetReturnValue().Set(6 == ParseIP(*ip));
-}
-
 void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   node::Utf8Value ip(isolate, args[0]);
@@ -2208,7 +2203,6 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "getaddrinfo", GetAddrInfo);
   env->SetMethod(target, "getnameinfo", GetNameInfo);
-  env->SetMethodNoSideEffect(target, "isIPv6", IsIPv6);
   env->SetMethodNoSideEffect(target, "canonicalizeIP", CanonicalizeIP);
 
   env->SetMethod(target, "strerror", StrError);
