@@ -2214,6 +2214,16 @@ the `_handle` property of the `Cipher`, `Decipher`, `DiffieHellman`,
 Using the `_handle` property to access the native object is deprecated because
 improper use of the native object can lead to crashing the application.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: AssertionError#generatedMessage
+
+Type: Runtime
+
+Instead of accessing the `generatedMessage` property of `AssertionErrors`,
+please check for the `AssertionError#userMessage` existence. It contains the
+actual user message without any modification and allows to detect if the user
+passed through a message or not.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array

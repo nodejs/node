@@ -53,7 +53,14 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: 'undefined does not inherit from CustomWritable'
+    message: 'The expression evaluated to a falsy value:\n\n' +
+              '  assert.ok(\n' +
+              '    this instanceof CustomWritable,\n' +
+              // eslint-disable-next-line no-template-curly-in-string
+              '    `${this} does not inherit from CustomWritable`\n' +
+              '  )\n\n' +
+              'User provided message:\n\n' +
+              'undefined does not inherit from CustomWritable'
   }
 );
 

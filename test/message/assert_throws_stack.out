@@ -1,6 +1,6 @@
 assert.js:*
-      throw err;
-      ^
+    throw err;
+    ^
 
 AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
 + actual - expected

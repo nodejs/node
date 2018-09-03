@@ -21,10 +21,23 @@ thrown by the `assert` module will be instances of the `AssertionError` class.
 ### new assert.AssertionError(options)
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `message` is now going to be appended to the error message.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Added the `userMessage` property.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `generatedMessage` property is now deprecated.
 -->
 * `options` {Object}
-  * `message` {string} If provided, the error message is going to be set to this
-    value.
+  * `message` {any} If provided and not `undefined`, it is going to be
+    appended to auto-generated message and the `userMessage` will be set to this
+    value. If the `message` is not of type string, `util.inspect()` is called
+    upon that value before being appended. If no message is auto-generated, the
+    error message will be set to this value.
   * `actual` {any} The `actual` property on the error instance is going to
     contain this value. Internally used for the `actual` error input in case
     e.g., [`assert.strictEqual()`] is used.
@@ -46,11 +59,17 @@ and:
   [`assert.strictEqual()`] is used.
 * `expected` {any} Set to the expected value in case e.g.,
   [`assert.strictEqual()`] is used.
-* `generatedMessage` {boolean} Indicates if the message was auto-generated
-  (`true`) or not.
 * `code` {string} This is always set to the string `ERR_ASSERTION` to indicate
   that the error is actually an assertion error.
+* `generatedMessage` {boolean} Deprecated. Indicates if the message was
+  auto-generated (`true`) or not.
 * `operator` {string} Set to the passed in operator value.
+* `userMessage` {any} Contains the actual passed through message by the user.
+  It will not be set in case the user does not provide an error message.
+
+All error messages thrown by the `assert` module are auto-generated. If the user
+provides an individual error message, it will be added to the auto-generated one
+to provide extra feedback to the user.
 
 ```js
 const assert = require('assert');
@@ -74,6 +93,7 @@ try {
   assert.strictEqual(err.code, 'ERR_ASSERTION');
   assert.strictEqual(err.operator, 'strictEqual');
   assert.strictEqual(err.generatedMessage, true);
+  assert.strictEqual('userMessage' in err, false);
 }
 ```
 
@@ -155,7 +175,7 @@ assert.deepEqual(/a/gi, new Date());
 added: v0.5.9
 -->
 * `value` {any} The input that is checked for being truthy.
-* `message` {string|Error}
+* `message` {any}
 
 An alias of [`assert.ok()`][].
 
@@ -163,6 +183,9 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `message` may now be any value.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: The `Error` names and messages are now properly compared
@@ -181,7 +204,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {any}
 
 **Strict mode**
 
@@ -249,16 +272,17 @@ assert.deepEqual(obj1, obj4);
 // AssertionError: { a: { b: 1 } } deepEqual {}
 ```
 
-If the values are not equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an [`Error`][] then it will be thrown instead of the
-`AssertionError`.
+If the values are not deep-equal and the `message` parameter is set to an
+instance of an [`Error`][] then that error will be thrown. In all other cases an
+`AssertionError` is thrown, passing through the `message` parameter.
 
 ## assert.deepStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `message` may now be any value.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15169
     description: Enumerable symbol properties are now compared.
@@ -285,7 +309,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {any}
 
 Tests for deep equality between the `actual` and `expected` parameters.
 "Deep" equality means that the enumerable "own" properties of child objects
@@ -402,11 +426,9 @@ assert.deepStrictEqual(weakMap1, weakMap3);
 //   }
 ```
 
-If the values are not equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an [`Error`][] then it will be thrown instead of the
-`AssertionError`.
+If the values are not strictly deep-equal and the `message` parameter is set to
+an instance of an [`Error`][] then that error will be thrown. In all other cases
+an `AssertionError` is thrown, passing through the `message` parameter.
 
 ## assert.doesNotReject(asyncFn[, error][, message])
 <!-- YAML
@@ -533,10 +555,14 @@ assert.doesNotThrow(
 ## assert.equal(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `message` may now be any value.
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {any}
 
 **Strict mode**
 
@@ -563,11 +589,9 @@ assert.equal({ a: { b: 1 } }, { a: { b: 1 } });
 // AssertionError: { a: { b: 1 } } == { a: { b: 1 } }
 ```
 
-If the values are not equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an [`Error`][] then it will be thrown instead of the
-`AssertionError`.
+If the values are not equal and the `message` parameter is set to an instance of
+an [`Error`][] then that error will be thrown. In all other cases an
+`AssertionError` is thrown, passing through the `message` parameter.
 
 ## assert.fail([message])
 <!-- YAML
@@ -707,6 +731,9 @@ let err;
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `message` may now be any value.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: The `Error` names and messages are now properly compared
@@ -725,7 +752,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {any}
 
 **Strict mode**
 
@@ -770,16 +797,17 @@ assert.notDeepEqual(obj1, obj4);
 // OK
 ```
 
-If the values are deeply equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an [`Error`][] then it will be thrown instead of the
-`AssertionError`.
+If the values are deeply equal and the `message` parameter is set to an instance
+of an [`Error`][] then that error will be thrown. In all other cases an
+`AssertionError` is thrown, passing through the `message` parameter.
 
 ## assert.notDeepStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `message` may now be any value.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15398
     description: The `-0` and `+0` are not considered equal anymore.
@@ -806,7 +834,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {any}
 
 Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 
@@ -817,19 +845,21 @@ assert.notDeepStrictEqual({ a: 1 }, { a: '1' });
 // OK
 ```
 
-If the values are deeply and strictly equal, an `AssertionError` is thrown with
-a `message` property set equal to the value of the `message` parameter. If the
-`message` parameter is undefined, a default error message is assigned. If the
-`message` parameter is an instance of an [`Error`][] then it will be thrown
-instead of the `AssertionError`.
+If the values are strictly deep-equal and the `message` parameter is set to an
+instance of an [`Error`][] then that error will be thrown. In all other cases an
+`AssertionError` is thrown, passing through the `message` parameter.
 
 ## assert.notEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `message` may now be any value.
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {any}
 
 **Strict mode**
 
@@ -855,23 +885,24 @@ assert.notEqual(1, '1');
 // AssertionError: 1 != '1'
 ```
 
-If the values are equal, an `AssertionError` is thrown with a `message` property
-set equal to the value of the `message` parameter. If the `message` parameter is
-undefined, a default error message is assigned. If the `message` parameter is an
-instance of an [`Error`][] then it will be thrown instead of the
-`AssertionError`.
+If the values are equal and the `message` parameter is set to an instance of an
+[`Error`][] then that error will be thrown. In all other cases an
+`AssertionError` is thrown, passing through the `message` parameter.
 
 ## assert.notStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `message` may now be any value.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17003
     description: Used comparison changed from Strict Equality to `Object.is()`
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {any}
 
 Tests strict inequality between the `actual` and `expected` parameters as
 determined by the [SameValue Comparison][].
@@ -891,32 +922,32 @@ assert.notStrictEqual(1, '1');
 // OK
 ```
 
-If the values are strictly equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an [`Error`][] then it will be thrown instead of the
-`AssertionError`.
+If the values are strictly equal and the `message` parameter is set to an
+instance of an [`Error`][] then that error will be thrown. In all other cases an
+`AssertionError` is thrown, passing through the `message` parameter.
 
 ## assert.ok(value[, message])
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `message` may now be any value.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18319
     description: The `assert.ok()` (no arguments) will now use a predefined
                  error message.
 -->
 * `value` {any}
-* `message` {string|Error}
+* `message` {any}
 
 Tests if `value` is truthy. It is equivalent to
 `assert.equal(!!value, true, message)`.
 
-If `value` is not truthy, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is `undefined`, a default error message is assigned. If the `message`
-parameter is an instance of an [`Error`][] then it will be thrown instead of the
-`AssertionError`.
+If `value` is not truthy and the `message` parameter is set to an instance of an
+[`Error`][] then that error will be thrown. In all other cases an
+`AssertionError` is thrown, passing through the `message` parameter.
+
 If no arguments are passed in at all `message` will be set to the string:
 ``'No value argument passed to `assert.ok()`'``.
 
@@ -990,8 +1021,9 @@ an object where each property will be tested for, or an instance of error where
 each property will be tested for including the non-enumerable `message` and
 `name` properties.
 
-If specified, `message` will be the message provided by the `AssertionError` if
-the `asyncFn` fails to reject.
+If specified, `message` will be appended to the message provided by the
+`AssertionError`, if the `asyncFn` fails to reject or in case the error
+validation fails.
 
 ```js
 (async () => {
@@ -1026,13 +1058,16 @@ argument gets considered.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `message` may now be any value.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17003
     description: Used comparison changed from Strict Equality to `Object.is()`
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {any}
 
 Tests strict equality between the `actual` and `expected` parameters as
 determined by the [SameValue Comparison][].
@@ -1057,11 +1092,9 @@ assert.strictEqual('Hello foobar', 'Hello World!');
 //          ^
 ```
 
-If the values are not strictly equal, an `AssertionError` is thrown with a
-`message` property set equal to the value of the `message` parameter. If the
-`message` parameter is undefined, a default error message is assigned. If the
-`message` parameter is an instance of an [`Error`][] then it will be thrown
-instead of the `AssertionError`.
+If the values are not strictly equal and the `message` parameter is set to an
+instance of an [`Error`][] then that error will be thrown. In all other cases an
+`AssertionError` is thrown, passing through the `message` parameter.
 
 ## assert.throws(fn[, error][, message])
 <!-- YAML

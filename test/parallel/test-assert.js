@@ -266,6 +266,7 @@ function testAssertionMessage(actual, expected, msg) {
              `+ actual - expected\n\n+ ${expected}\n- ''`
     );
     assert.ok(e.generatedMessage, 'Message not marked as generated');
+    assert.ok(!('userMessage' in e));
   }
 }
 
@@ -313,9 +314,13 @@ try {
 try {
   assert.strictEqual(1, 2, 'oh no'); // eslint-disable-line no-restricted-syntax
 } catch (e) {
-  assert.strictEqual(e.message, 'oh no');
-  // Message should not be marked as generated.
-  assert.strictEqual(e.generatedMessage, false);
+  assert.strictEqual(
+    e.message,
+    `${strictEqualMessageStart}\n1 !== 2\n\nUser provided message:\n\noh no`
+  );
+  assert.strictEqual(e.generatedMessage, false,
+                     'Message incorrectly marked as generated');
+  assert.strictEqual(e.userMessage, 'oh no');
 }
 
 {
@@ -652,7 +657,9 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     generatedMessage: false,
-    message: 'Symbol(foo)'
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             "assert(false, Symbol('foo'))\n\n" +
+             'Value passed through as message:\n\nSymbol(foo)'
   }
 );
 
@@ -820,8 +827,11 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: 'test',
-    generatedMessage: false
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             "assert.ok.call(null, 0, 'test')\n\n" +
+             'User provided message:\n\ntest',
+    generatedMessage: false,
+    userMessage: 'test'
   }
 );
 
@@ -912,12 +922,20 @@ common.expectsError(
     }
   );
 
+  const userMsg = { message: 'foobar' };
   common.expectsError(
-    () => assert.throws(() => { throw new Error(); }, { foo: 'bar' }, 'foobar'),
+    () => assert.throws(() => { throw new Error(); }, { foo: 'bar' }, userMsg),
     {
       type: assert.AssertionError,
       code: 'ERR_ASSERTION',
-      message: 'foobar'
+      message: `${start}\n${actExp}\n\n` +
+               '+ Comparison {}\n' +
+               '- Comparison {\n' +
+               "-   foo: 'bar'\n" +
+               '- }\n\n' +
+               'Value passed through as message:\n\n' +
+               inspect(userMsg, { compact: false }),
+      userMessage: userMsg
     }
   );
 
@@ -1076,6 +1094,13 @@ assert.throws(
     }
   );
 
+  common.expectWarning(
+    'DeprecationWarning',
+    "The 'generatedMessage' property is deprecated. Please check for the " +
+      "'userMessage' existence instead.",
+    'DEP0XXX'
+  );
+
   actual = 'foobar';
   const message = 'message';
   assert.throws(
@@ -1086,9 +1111,15 @@ assert.throws(
     ),
     {
       actual,
-      message,
+      message: `${start}\n${actExp}\n\n` +
+               "+ 'foobar'\n" +
+               '- {\n' +
+               "-   message: 'foobar'\n" +
+               '- }\n\n' +
+               `User provided message:\n\n${message}`,
       operator: 'throws',
-      generatedMessage: false
+      generatedMessage: false,
+      userMessage: message
     }
   );
 }

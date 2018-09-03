@@ -32,6 +32,8 @@ const stack = err.stack;
         assert.equal(e.actual.stack, stack);
         assert.equal(e.expected, null);
         assert.equal(e.operator, 'ifError');
+        assert.equal(e.generatedMessage, false);
+        assert(!('userMessage' in e));
         threw = true;
       }
       assert(threw);
