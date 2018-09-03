@@ -239,7 +239,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
                      process.getuid() !== 0,
     'update-notifier': true,
     usage: false,
-    user: process.platform === 'win32' ? 0 : 'nobody',
+    user: (process.platform === 'win32' || os.type() === 'OS400') ? 0 : 'nobody',
     userconfig: path.resolve(home, '.npmrc'),
     umask: process.umask ? process.umask() : umask.fromString('022'),
     version: false,
