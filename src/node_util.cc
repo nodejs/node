@@ -234,4 +234,4 @@ void Initialize(Local<Object> target,
 }  // namespace util
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(util, node::util::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(util, node::util::Initialize)

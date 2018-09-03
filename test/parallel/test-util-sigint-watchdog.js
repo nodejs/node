@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (common.isWindows) {
@@ -6,7 +7,8 @@ if (common.isWindows) {
 }
 
 const assert = require('assert');
-const binding = process.binding('util');
+const { internalBinding } = require('internal/test/binding');
+const binding = internalBinding('util');
 
 [(next) => {
   // Test with no signal observed.

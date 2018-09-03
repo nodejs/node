@@ -38,7 +38,8 @@ function main({ type, argument, version, n }) {
   // For testing, if supplied with an empty type, default to ArrayBufferView.
   type = type || 'ArrayBufferView';
 
-  const util = process.binding('util');
+  const { internalBinding } = require('internal/test/binding');
+  const util = internalBinding('util');
   const types = require('internal/util/types');
 
   const func = { native: util, js: types }[version][`is${type}`];

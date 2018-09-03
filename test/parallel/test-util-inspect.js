@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -22,10 +23,11 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { internalBinding } = require('internal/test/binding');
 const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
-const { previewEntries } = process.binding('util');
+const { previewEntries } = internalBinding('util');
 const { inspect } = util;
 
 assert.strictEqual(util.inspect(1), '1');
