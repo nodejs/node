@@ -419,7 +419,7 @@ void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
   LogWriteBytes(padding_bytes, static_cast<int>(padding_size));
 }
 
-void PerfJitLogger::CodeMoveEvent(AbstractCode* from, Address to) {
+void PerfJitLogger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
   // We may receive a CodeMove event if a BytecodeArray object moves. Otherwise
   // code relocation is not supported.
   CHECK(from->IsBytecodeArray());

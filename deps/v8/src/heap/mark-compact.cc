@@ -1136,7 +1136,7 @@ class ProfilingMigrationObserver final : public MigrationObserver {
                    int size) final {
     if (dest == CODE_SPACE || (dest == OLD_SPACE && dst->IsBytecodeArray())) {
       PROFILE(heap_->isolate(),
-              CodeMoveEvent(AbstractCode::cast(src), dst->address()));
+              CodeMoveEvent(AbstractCode::cast(src), AbstractCode::cast(dst)));
     }
     heap_->OnMoveEvent(dst, src, size);
   }

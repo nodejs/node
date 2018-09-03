@@ -10017,7 +10017,7 @@ const char* CpuProfileNode::GetScriptResourceNameStr() const {
 }
 
 int CpuProfileNode::GetLineNumber() const {
-  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->line_number();
+  return reinterpret_cast<const i::ProfileNode*>(this)->line_number();
 }
 
 
@@ -10155,9 +10155,14 @@ void CpuProfiler::CollectSample() {
 
 void CpuProfiler::StartProfiling(Local<String> title, bool record_samples) {
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), record_samples);
+      *Utils::OpenHandle(*title), record_samples, kLeafNodeLineNumbers);
 }
 
+void CpuProfiler::StartProfiling(Local<String> title, CpuProfilingMode mode,
+                                 bool record_samples) {
+  reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+      *Utils::OpenHandle(*title), record_samples, mode);
+}
 
 CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {
   return reinterpret_cast<CpuProfile*>(

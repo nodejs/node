@@ -41,7 +41,7 @@ class PerfJitLogger : public CodeEventLogger {
   PerfJitLogger();
   virtual ~PerfJitLogger();
 
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
 
@@ -118,7 +118,7 @@ class PerfJitLogger : public CodeEventLogger {
 // PerfJitLogger is only implemented on Linux
 class PerfJitLogger : public CodeEventLogger {
  public:
-  void CodeMoveEvent(AbstractCode* from, Address to) override {
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override {
     UNIMPLEMENTED();
   }
 

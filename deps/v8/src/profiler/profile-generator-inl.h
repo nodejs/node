@@ -33,10 +33,11 @@ inline CodeEntry* ProfileGenerator::FindEntry(Address address) {
 }
 
 ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry,
-                         ProfileNode* parent)
+                         ProfileNode* parent, int line_number)
     : tree_(tree),
       entry_(entry),
       self_ticks_(0),
+      line_number_(line_number),
       parent_(parent),
       id_(tree->next_node_id()) {
   tree_->EnqueueNode(this);
