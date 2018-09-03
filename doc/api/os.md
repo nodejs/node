@@ -194,7 +194,7 @@ an integer.
 
 ## os.getPriority([pid])
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * `pid` {integer} The process ID to retrieve scheduling priority for.
@@ -353,7 +353,7 @@ https://en.wikipedia.org/wiki/Uname#Examples for more information.
 
 ## os.setPriority([pid, ]priority)
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 * `pid` {integer} The process ID to set scheduling priority for.
@@ -1243,7 +1243,7 @@ information.
 
 ### Priority Constants
 <!-- YAML
-added: REPLACEME
+added: v10.10.0
 -->
 
 The following process scheduling constants are exported by

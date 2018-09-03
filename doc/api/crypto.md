@@ -1321,7 +1321,7 @@ This property is deprecated. Please use `crypto.setFips()` and
 added: v0.1.94
 deprecated: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/21447
     description: Ciphers in OCB mode are now supported.
   - version: v10.2.0
@@ -1376,7 +1376,7 @@ Adversaries][] for details.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/21447
     description: Ciphers in OCB mode are now supported.
   - version: v10.2.0
@@ -1426,7 +1426,7 @@ of time what a given IV will be.
 added: v0.1.94
 deprecated: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/21447
     description: Ciphers in OCB mode are now supported.
 -->
@@ -1462,7 +1462,7 @@ to create the `Decipher` object.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/21447
     description: Ciphers in OCB mode are now supported.
   - version: v10.2.0
