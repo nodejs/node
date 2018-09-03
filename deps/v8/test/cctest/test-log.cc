@@ -738,7 +738,7 @@ TEST(LogVersion) {
 TEST(Issue539892) {
   class : public i::CodeEventLogger {
    public:
-    void CodeMoveEvent(i::AbstractCode* from, Address to) override {}
+    void CodeMoveEvent(i::AbstractCode* from, i::AbstractCode* to) override {}
     void CodeDisableOptEvent(i::AbstractCode* code,
                              i::SharedFunctionInfo* shared) override {}
 
