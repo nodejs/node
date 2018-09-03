@@ -731,7 +731,7 @@ ifeq ($(findstring arm,$(UNAME_M)),arm)
 DESTCPU ?= arm
 else
 ifeq ($(findstring aarch64,$(UNAME_M)),aarch64)
-DESTCPU ?= aarch64
+DESTCPU ?= arm64
 else
 ifeq ($(findstring powerpc,$(shell uname -p)),powerpc)
 DESTCPU ?= ppc64
@@ -751,7 +751,7 @@ else
 ifeq ($(DESTCPU),arm)
 ARCH=arm
 else
-ifeq ($(DESTCPU),aarch64)
+ifeq ($(DESTCPU),arm64)
 ARCH=arm64
 else
 ifeq ($(DESTCPU),ppc64)
