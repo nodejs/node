@@ -706,9 +706,9 @@ If the `inputEncoding` is not provided, `key` is expected to be a [`Buffer`][],
 Example (uncompressing a key):
 
 ```js
-const { ECDH } = require('crypto');
+const { createECDH, ECDH } = require('crypto');
 
-const ecdh = ECDH('secp256k1');
+const ecdh = createECDH('secp256k1');
 ecdh.generateKeys();
 
 const compressedKey = ecdh.getPublicKey('hex', 'compressed');
