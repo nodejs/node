@@ -408,19 +408,19 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
-## assert.doesNotReject(block[, error][, message])
+## assert.doesNotReject(asyncFn[, error][, message])
 <!-- YAML
 added: v10.0.0
 -->
-* `block` {Function|Promise}
+* `asyncFn` {Function|Promise}
 * `error` {RegExp|Function}
-* `message` {string|Error}
+* `message` {string}
 
-Awaits the `block` promise or, if `block` is a function, immediately calls the
-function and awaits the returned promise to complete. It will then check that
-the promise is not rejected.
+Awaits the `asyncFn` promise or, if `asyncFn` is a function, immediately
+calls the function and awaits the returned promise to complete. It will then
+check that the promise is not rejected.
 
-If `block` is a function and it throws an error synchronously,
+If `asyncFn` is a function and it throws an error synchronously,
 `assert.doesNotReject()` will return a rejected `Promise` with that error. If
 the function does not return a promise, `assert.doesNotReject()` will return a
 rejected `Promise` with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases
@@ -455,7 +455,7 @@ assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
   });
 ```
 
-## assert.doesNotThrow(block[, error][, message])
+## assert.doesNotThrow(fn[, error][, message])
 <!-- YAML
 added: v0.1.21
 changes:
@@ -466,18 +466,18 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3276
     description: The `error` parameter can now be an arrow function.
 -->
-* `block` {Function}
+* `fn` {Function}
 * `error` {RegExp|Function}
-* `message` {string|Error}
+* `message` {string}
 
-Asserts that the function `block` does not throw an error.
+Asserts that the function `fn` does not throw an error.
 
 Please note: Using `assert.doesNotThrow()` is actually not useful because there
 is no benefit by catching an error and then rethrowing it. Instead, consider
 adding a comment next to the specific code path that should not throw and keep
 error messages as expressive as possible.
 
-When `assert.doesNotThrow()` is called, it will immediately call the `block`
+When `assert.doesNotThrow()` is called, it will immediately call the `fn`
 function.
 
 If an error is thrown and it is the same type as that specified by the `error`
@@ -964,19 +964,19 @@ assert(0);
 //   assert(0)
 ```
 
-## assert.rejects(block[, error][, message])
+## assert.rejects(asyncFn[, error][, message])
 <!-- YAML
 added: v10.0.0
 -->
-* `block` {Function|Promise}
+* `asyncFn` {Function|Promise}
 * `error` {RegExp|Function|Object|Error}
-* `message` {string|Error}
+* `message` {string}
 
-Awaits the `block` promise or, if `block` is a function, immediately calls the
-function and awaits the returned promise to complete. It will then check that
-the promise is rejected.
+Awaits the `asyncFn` promise or, if `asyncFn` is a function, immediately
+calls the function and awaits the returned promise to complete. It will then
+check that the promise is rejected.
 
-If `block` is a function and it throws an error synchronously,
+If `asyncFn` is a function and it throws an error synchronously,
 `assert.rejects()` will return a rejected `Promise` with that error. If the
 function does not return a promise, `assert.rejects()` will return a rejected
 `Promise` with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the error
@@ -991,7 +991,7 @@ each property will be tested for including the non-enumerable `message` and
 `name` properties.
 
 If specified, `message` will be the message provided by the `AssertionError` if
-the block fails to reject.
+the `asyncFn` fails to reject.
 
 ```js
 (async () => {
@@ -1063,7 +1063,7 @@ If the values are not strictly equal, an `AssertionError` is thrown with a
 `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the `AssertionError`.
 
-## assert.throws(block[, error][, message])
+## assert.throws(fn[, error][, message])
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1078,11 +1078,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3276
     description: The `error` parameter can now be an arrow function.
 -->
-* `block` {Function}
+* `fn` {Function}
 * `error` {RegExp|Function|Object|Error}
-* `message` {string|Error}
+* `message` {string}
 
-Expects the function `block` to throw an error.
+Expects the function `fn` to throw an error.
 
 If specified, `error` can be a [`Class`][], [`RegExp`][], a validation function,
 a validation object where each property will be tested for strict deep equality,
@@ -1091,8 +1091,9 @@ equality including the non-enumerable `message` and `name` properties. When
 using an object, it is also possible to use a regular expression, when
 validating against a string property. See below for examples.
 
-If specified, `message` will be the message provided by the `AssertionError` if
-the block fails to throw.
+If specified, `message` will be appended to the message provided by the
+`AssertionError` if the `fn` call fails to throw or in case the error validation
+fails.
 
 Custom validation object/error instance:
 
@@ -1258,12 +1259,12 @@ second argument. This might lead to difficult-to-spot errors.
 [`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
-[`assert.doesNotThrow()`]: #assert_assert_doesnotthrow_block_error_message
+[`assert.doesNotThrow()`]: #assert_assert_doesnotthrow_fn_error_message
 [`assert.notDeepStrictEqual()`]: #assert_assert_notdeepstrictequal_actual_expected_message
 [`assert.notStrictEqual()`]: #assert_assert_notstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
-[`assert.throws()`]: #assert_assert_throws_block_error_message
+[`assert.throws()`]: #assert_assert_throws_fn_error_message
 [`strict mode`]: #assert_strict_mode
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
