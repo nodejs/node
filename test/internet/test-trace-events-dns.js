@@ -53,8 +53,6 @@ for (const tr in tests) {
 
   const file = path.join(tmpdir.path, traceFile);
 
-  // Confirm that trace log file is created.
-  assert(common.fileExists(file));
   const data = fs.readFileSync(file);
   const traces = JSON.parse(data.toString()).traceEvents
         .filter((trace) => trace.cat !== '__metadata');
