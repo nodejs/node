@@ -314,6 +314,7 @@ class Debug {
   static int ArchiveSpacePerThread();
   void FreeThreadResources() { }
   void Iterate(RootVisitor* v);
+  void InitThread(const ExecutionAccess& lock) { ThreadInit(); }
 
   bool CheckExecutionState() { return is_active() && break_id() != 0; }
 
