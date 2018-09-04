@@ -50,7 +50,8 @@ const { setUnrefTimeout } = require('internal/timers');
         // Checking the arguments passed to setUnrefTimeout
         const expected = (k <= i) ? inputArgs[k] : undefined;
         strictEqual(expected, results[k],
-                    `result ${k} should be ${expected}. actual ${inputArgs[k]}`);
+                    `result ${k} should be ${expected}.` +
+                    `actual ${inputArgs[k]}`);
       }
       clearTimeout(testTimer);
       clearTimeout(timer);
