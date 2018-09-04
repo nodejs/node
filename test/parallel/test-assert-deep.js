@@ -871,10 +871,11 @@ assert.deepStrictEqual(obj1, obj2);
   b.foo = 'baz';
 
   assert.throws(
-    () => assert.deepStrictEqual(a, b),
+    () => assert.deepStrictEqual(a, b, undefined),
     {
       message: `${defaultMsgStartFull}\n\n` +
-               '  [TypeError: foo] {\n+   foo: \'bar\'\n-   foo: \'baz\'\n  }'
+               '  [TypeError: foo] {\n+   foo: \'bar\'\n-   foo: \'baz\'\n  }' +
+               '\n\nValue passed through as message:\n\nundefined'
     }
   );
 }

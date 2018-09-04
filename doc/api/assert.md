@@ -33,11 +33,11 @@ changes:
     description: The `generatedMessage` property is now deprecated.
 -->
 * `options` {Object}
-  * `message` {any} If provided and not `undefined`, it is going to be
-    appended to auto-generated message and the `userMessage` will be set to this
-    value. If the `message` is not of type string, `util.inspect()` is called
-    upon that value before being appended. If no message is auto-generated, the
-    error message will be set to this value.
+  * `message` {any} If provided, it is going to be appended to auto-generated
+    message and the `userMessage` will be set to this value. If the `message` is
+    not of type string, `util.inspect()` is called upon that value before being
+    appended. If no message is auto-generated, the error message will be set to
+    this value.
   * `actual` {any} The `actual` property on the error instance is going to
     contain this value. Internally used for the `actual` error input in case
     e.g., [`assert.strictEqual()`] is used.
