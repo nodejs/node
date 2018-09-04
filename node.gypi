@@ -141,7 +141,7 @@
           'msvs_settings': {
             'VCLinkerTool': {
               'AdditionalOptions': [
-                '/WHOLEARCHIVE:<(PRODUCT_DIR)\\lib\\zlib<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:zlib<(STATIC_LIB_SUFFIX)',
               ],
             },
           },
@@ -179,7 +179,7 @@
           'msvs_settings': {
             'VCLinkerTool': {
               'AdditionalOptions': [
-                '/WHOLEARCHIVE:<(PRODUCT_DIR)\\lib\\libuv<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:libuv<(STATIC_LIB_SUFFIX)',
               ],
             },
           },
@@ -316,7 +316,7 @@
               'msvs_settings': {
                 'VCLinkerTool': {
                   'AdditionalOptions': [
-                    '/WHOLEARCHIVE:<(PRODUCT_DIR)\\lib\\<(openssl_product)',
+                    '/WHOLEARCHIVE:<(openssl_product)',
                   ],
                 },
               },

@@ -261,8 +261,7 @@
           'msvs_settings': {
             'VCLinkerTool': {
               'AdditionalOptions': [
-                '/WHOLEARCHIVE:<(PRODUCT_DIR)\\lib\\'
-                    '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
               ],
             },
           },
