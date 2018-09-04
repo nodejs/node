@@ -7,9 +7,7 @@ const common = require('../common');
 const { strictEqual } = require('assert');
 const { setUnrefTimeout } = require('internal/timers');
 
-// ERR_INVALID_CALLBACK
 {
-  // It throws ERR_INVALID_CALLBACK when first argument is not a function.
   common.expectsError(
     () => setUnrefTimeout(),
     {
@@ -20,9 +18,10 @@ const { setUnrefTimeout } = require('internal/timers');
   );
 }
 
-// test case for passing the arguments
+// Test this if correctly passes arguments to the callback
 {
-  for (let i = 0; i < 4; i++) {
+  const maxArgsNum = 4;
+  for (let i = 0; i < maxArgsNum; i++) {
     const results = [];
     const inputArgs = [];
     // set the input argument params
@@ -33,26 +32,25 @@ const { setUnrefTimeout } = require('internal/timers');
     // For checking the arguments.length,
     // callback function should not be arrow fucntion.
     const timer = setUnrefTimeout(common.mustCall(
-      function(args1, args2, args3, args4) {
+      function(arg1, arg2, arg3, arg4) {
         // check the number of arguments passed to this callback.
         strictEqual(arguments.length, i + 1,
                     `arguments.length should be ${i + 1}.` +
                     `actual ${arguments.length}`
         );
-        results.push(args1);
-        results.push(args2);
-        results.push(args3);
-        results.push(args4);
+        results.push(arg1);
+        results.push(arg2);
+        results.push(arg3);
+        results.push(arg4);
       }
     ), 1, ...inputArgs);
 
     const testTimer = setTimeout(common.mustCall(() => {
-      const maxArgsNum = 4;
       for (let k = 0; k < maxArgsNum; k++) {
         // Checking the arguments passed to setUnrefTimeout
-        const expect = (k <= i) ? inputArgs[k] : undefined;
-        strictEqual(expect, results[k],
-                    `result ${k} should be ${inputArgs[k]}. actual ${expect}`);
+        const expected = (k <= i) ? inputArgs[k] : undefined;
+        strictEqual(expected, results[k],
+                    `result ${k} should be ${expected}. actual ${inputArgs[k]}`);
       }
       clearTimeout(testTimer);
       clearTimeout(timer);
