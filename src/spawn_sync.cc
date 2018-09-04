@@ -1100,5 +1100,5 @@ void SyncProcessRunner::KillTimerCloseCallback(uv_handle_t* handle) {
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(spawn_sync,
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(spawn_sync,
   node::SyncProcessRunner::Initialize)
