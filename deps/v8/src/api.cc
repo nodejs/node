@@ -766,8 +766,11 @@ StartupData SnapshotCreator::CreateBlob(
       // Complete in-object slack tracking for all functions.
       fun->CompleteInobjectSlackTrackingIfActive();
 
-      // Also, clear out feedback vectors.
-      fun->feedback_cell()->set_value(isolate->heap()->undefined_value());
+      // Also, clear out feedback vectors, or any optimized code.
+      if (fun->has_feedback_vector()) {
+        fun->feedback_cell()->set_value(isolate->heap()->undefined_value());
+        fun->set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
+      }
     }
 
     // Clear out re-compilable data from all shared function infos. Any
