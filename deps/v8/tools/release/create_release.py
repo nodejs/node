@@ -221,8 +221,7 @@ class LandBranch(Step):
     else:
       self.GitUpload(author=self._options.author,
                      force=True,
-                     bypass_hooks=True,
-                     private=True)
+                     bypass_hooks=True)
     cmd = "cl land --bypass-hooks -f"
     if self._options.dry_run:
       print "Dry run. Command:\ngit %s" % cmd
