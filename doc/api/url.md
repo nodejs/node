@@ -7,8 +7,14 @@
 The `url` module provides utilities for URL resolution and parsing. It can be
 accessed using:
 
+For Node v6
 ```js
-const url = require('url');
+const url = require('url').Url;
+```
+For Node version > 6
+
+```js
+const { Url } = require('url'); 
 ```
 
 ## URL Strings and URL Objects
