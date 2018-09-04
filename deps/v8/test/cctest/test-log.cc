@@ -751,7 +751,7 @@ TEST(Issue539892) {
     explicit FakeCodeEventLogger(i::Isolate* isolate)
         : CodeEventLogger(isolate) {}
 
-    void CodeMoveEvent(i::AbstractCode* from, Address to) override {}
+    void CodeMoveEvent(i::AbstractCode* from, i::AbstractCode* to) override {}
     void CodeDisableOptEvent(i::AbstractCode* code,
                              i::SharedFunctionInfo* shared) override {}
 

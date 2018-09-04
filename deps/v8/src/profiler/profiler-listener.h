@@ -44,7 +44,7 @@ class ProfilerListener : public CodeEventListener {
                        wasm::WasmName name) override;
 
   void CodeMovingGCEvent() override {}
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override;
   void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,

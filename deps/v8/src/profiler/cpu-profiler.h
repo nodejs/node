@@ -53,9 +53,9 @@ class CodeEventRecord {
 
 class CodeCreateEventRecord : public CodeEventRecord {
  public:
-  Address start;
+  Address instruction_start;
   CodeEntry* entry;
-  unsigned size;
+  unsigned instruction_size;
 
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
@@ -63,8 +63,8 @@ class CodeCreateEventRecord : public CodeEventRecord {
 
 class CodeMoveEventRecord : public CodeEventRecord {
  public:
-  Address from;
-  Address to;
+  Address from_instruction_start;
+  Address to_instruction_start;
 
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
@@ -72,7 +72,7 @@ class CodeMoveEventRecord : public CodeEventRecord {
 
 class CodeDisableOptEventRecord : public CodeEventRecord {
  public:
-  Address start;
+  Address instruction_start;
   const char* bailout_reason;
 
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
@@ -81,7 +81,7 @@ class CodeDisableOptEventRecord : public CodeEventRecord {
 
 class CodeDeoptEventRecord : public CodeEventRecord {
  public:
-  Address start;
+  Address instruction_start;
   const char* deopt_reason;
   int deopt_id;
   Address pc;
@@ -95,7 +95,7 @@ class CodeDeoptEventRecord : public CodeEventRecord {
 
 class ReportBuiltinEventRecord : public CodeEventRecord {
  public:
-  Address start;
+  Address instruction_start;
   Builtins::Name builtin_id;
 
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);

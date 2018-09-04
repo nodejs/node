@@ -426,7 +426,7 @@ void CpuProfiler::LogBuiltins() {
     CodeEventsContainer evt_rec(CodeEventRecord::REPORT_BUILTIN);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
     Builtins::Name id = static_cast<Builtins::Name>(i);
-    rec->start = builtins->builtin(id)->address();
+    rec->instruction_start = builtins->builtin(id)->InstructionStart();
     rec->builtin_id = id;
     processor_->Enqueue(evt_rec);
   }

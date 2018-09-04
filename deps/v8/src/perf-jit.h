@@ -41,7 +41,7 @@ class PerfJitLogger : public CodeEventLogger {
   explicit PerfJitLogger(Isolate* isolate);
   virtual ~PerfJitLogger();
 
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
 
@@ -120,7 +120,7 @@ class PerfJitLogger : public CodeEventLogger {
  public:
   explicit PerfJitLogger(Isolate* isolate) : CodeEventLogger(isolate) {}
 
-  void CodeMoveEvent(AbstractCode* from, Address to) override {
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override {
     UNIMPLEMENTED();
   }
 

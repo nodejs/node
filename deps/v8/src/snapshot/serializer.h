@@ -28,8 +28,8 @@ class CodeAddressMap : public CodeEventLogger {
     isolate_->logger()->RemoveCodeEventListener(this);
   }
 
-  void CodeMoveEvent(AbstractCode* from, Address to) override {
-    address_to_name_map_.Move(from->address(), to);
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override {
+    address_to_name_map_.Move(from->address(), to->address());
   }
 
   void CodeDisableOptEvent(AbstractCode* code,
