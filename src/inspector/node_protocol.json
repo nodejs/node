@@ -1,0 +1,88 @@
+{
+    "version": {
+        "major": "1",
+        "minor": "0"
+    },
+    "domains": [
+        {
+            "domain": "NodeTracing",
+            "experimental": true,
+            "types": [
+                {
+                    "id": "TraceConfig",
+                    "type": "object",
+                    "properties": [
+                        {
+                            "name": "recordMode",
+                            "description": "Controls how the trace buffer stores data.",
+                            "optional": true,
+                            "type": "string",
+                            "enum": [
+                                "recordUntilFull",
+                                "recordContinuously",
+                                "recordAsMuchAsPossible"
+                            ]
+                        },
+                        {
+                            "name": "includedCategories",
+                            "description": "Included category filters.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "commands": [
+                {
+                    "name": "getCategories",
+                    "description": "Gets supported tracing categories.",
+                    "returns": [
+                        {
+                            "name": "categories",
+                            "description": "A list of supported tracing categories.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "start",
+                    "description": "Start trace events collection.",
+                    "parameters": [
+                        {
+                            "name": "traceConfig",
+                            "$ref": "TraceConfig"
+                        }
+                    ]
+                },
+                {
+                    "name": "stop",
+                    "description": "Stop trace events collection. Remaining collected events will be sent as a sequence of\ndataCollected events followed by tracingComplete event."
+                }
+            ],
+            "events": [
+                {
+                    "name": "dataCollected",
+                    "description": "Contains an bucket of collected trace events.",
+                    "parameters": [
+                        {
+                            "name": "value",
+                            "type": "array",
+                            "items": {
+                                "type": "object"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "tracingComplete",
+                    "description": "Signals that tracing is stopped and there is no trace buffers pending flush, all data were\ndelivered via dataCollected events."
+                }
+            ]
+        }
+    ]
+}

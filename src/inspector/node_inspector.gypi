@@ -60,6 +60,14 @@
     '../../src/inspector/worker_agent.h',
     '../../src/inspector/worker_inspector.cc',
     '../../src/inspector/worker_inspector.h',
+    '../../src/inspector/node_protocol/Forward.h',
+    '../../src/inspector/node_protocol/Protocol.cpp',
+    '../../src/inspector/node_protocol/Protocol.h',
+    '../../src/inspector/node_protocol/NodeWorker.cpp',
+    '../../src/inspector/node_protocol/NodeWorker.h',
+    '../../src/inspector/node_protocol/NodeTracing.cpp',
+    '../../src/inspector/node_protocol/NodeTracing.h',
+
   ],
   'include_dirs': [
     '<(SHARED_INTERMEDIATE_DIR)/include', # for inspector
@@ -102,7 +110,6 @@
       'outputs': [
         '<@(node_inspector_generated_sources)',
       ],
-      'process_outputs_as_sources': 1,
       'action': [
         'python',
         'tools/inspector_protocol/CodeGenerator.py',
@@ -137,7 +144,6 @@
       'outputs': [
         '<(SHARED_INTERMEDIATE_DIR)/v8_inspector_protocol_json.h',
       ],
-      'process_outputs_as_sources': 1,
       'action': [
         'python',
         'tools/compress_json.py',
