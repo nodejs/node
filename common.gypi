@@ -274,18 +274,6 @@
         'BufferSecurityCheck': 'true',
         'ExceptionHandling': 0, # /EHsc
         'SuppressStartupBanner': 'true',
-        # Disable warnings:
-        # - "C4251: class needs to have dll-interface"
-        # - "C4275: non-DLL-interface used as base for DLL-interface"
-        #   Over 10k of these warnings are generated when compiling node,
-        #   originating from v8.h. Most of them are false positives.
-        #   See also: https://github.com/nodejs/node/pull/15570
-        #   TODO: re-enable when Visual Studio fixes these upstream.
-        #
-        # - "C4267: conversion from 'size_t' to 'int'"
-        #   Many any originate from our dependencies, and their sheer number
-        #   drowns out other, more legitimate warnings.
-        'DisableSpecificWarnings': ['4251', '4275', '4267'],
         'WarnAsError': 'false',
       },
       'VCLinkerTool': {
@@ -316,7 +304,20 @@
         'SuppressStartupBanner': 'true',
       },
     },
-    'msvs_disabled_warnings': [4351, 4355, 4800],
+    # Disable warnings:
+    # - "C4251: class needs to have dll-interface"
+    # - "C4275: non-DLL-interface used as base for DLL-interface"
+    #   Over 10k of these warnings are generated when compiling node,
+    #   originating from v8.h. Most of them are false positives.
+    #   See also: https://github.com/nodejs/node/pull/15570
+    #   TODO: re-enable when Visual Studio fixes these upstream.
+    #
+    # - "C4267: conversion from 'size_t' to 'int'"
+    #   Many any originate from our dependencies, and their sheer number
+    #   drowns out other, more legitimate warnings.
+    # - "C4244: conversion from 'type1' to 'type2', possible loss of data"
+    #   Ususaly safe. Disable for `dep`, enable for `src`
+    'msvs_disabled_warnings': [4351, 4355, 4800, 4251, 4275, 4244, 4267],
     'conditions': [
       ['asan == 1 and OS != "mac"', {
         'cflags+': [
