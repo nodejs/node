@@ -18,7 +18,7 @@ const nthWrittenBuffer = (n) => Buffer.from(
   let n = 0;
   const writable = new Writable({
     write: common.mustCall((chunk, encoding, cb) => {
-      assert(chunk instanceof Buffer);
+      assert(Buffer.isBuffer(chunk));
       assert.deepStrictEqual(chunk, nthWrittenBuffer(n++));
       cb();
     }, toBeWritten.length)
