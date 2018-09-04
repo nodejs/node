@@ -1028,7 +1028,12 @@ assert.throws(
     () => { throw new TypeError('foobar'); },
     {
       message: /fooa/,
-      name: /^TypeError$/
+      name: /^TypeError$/,
+      generatedMessage: assert.undefinedProperty,
+      actual: assert.undefinedProperty,
+      expected: assert.undefinedProperty,
+      userMessage: assert.undefinedProperty,
+      operator: assert.undefinedProperty
     }
   ),
   {
@@ -1054,6 +1059,7 @@ assert.throws(
       actual,
       expected,
       generatedMessage: true,
+      userMessage: assert.undefinedProperty,
       message: `${start}\n${actExp}\n\n` +
               '+ null\n' +
               '- {\n' +
@@ -1078,3 +1084,15 @@ assert.throws(
     }
   );
 }
+
+assert.throws(
+  () => assert.throws(
+    () => { throw new TypeError('foobar'); },
+    { name: assert.undefinedProperty }
+  ),
+  {
+    message: `${start}\n${actExp}\n\n` +
+             "+ Comparison {\n+   name: 'TypeError'\n+ }\n" +
+             '- Comparison {}'
+  }
+);
