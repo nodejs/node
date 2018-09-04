@@ -203,8 +203,7 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
             kAllowedInEnvironment);
   AddOption("--trace-event-file-pattern",
             "Template string specifying the filepath for the trace-events "
-            "data, it supports ${rotation} and ${pid} log-rotation id. %2$u "
-            "is the pid.",
+            "data, it supports ${rotation} and ${pid}.",
             &PerProcessOptions::trace_event_file_pattern,
             kAllowedInEnvironment);
   AddAlias("--trace-events-enabled", {
