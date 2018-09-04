@@ -269,7 +269,7 @@
     'msvs_settings': {
       'VCCLCompilerTool': {
         'StringPooling': 'true', # pool string literals
-        'DebugInformationFormat': 3, # Generate a PDB
+        'DebugInformationFormat': 1, # /Z7 embed info in .obj files
         'WarningLevel': 3,
         'BufferSecurityCheck': 'true',
         'ExceptionHandling': 0, # /EHsc
