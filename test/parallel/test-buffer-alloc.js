@@ -75,16 +75,40 @@ new Buffer('', 'binary');
 Buffer(0);
 
 // try to write a 0-length string beyond the end of b
-assert.throws(() => b.write('', 2048), RangeError);
+common.expectsError(
+  () => b.write('', 2048),
+  {
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError
+  }
+);
 
 // throw when writing to negative offset
-assert.throws(() => b.write('a', -1), RangeError);
+common.expectsError(
+  () => b.write('a', -1),
+  {
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError
+  }
+);
 
 // throw when writing past bounds from the pool
-assert.throws(() => b.write('a', 2048), RangeError);
+common.expectsError(
+  () => b.write('a', 2048),
+  {
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError
+  }
+);
 
 // throw when writing to negative offset
-assert.throws(() => b.write('a', -1), RangeError);
+common.expectsError(
+  () => b.write('a', -1),
+  {
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError
+  }
+);
 
 // try to copy 0 bytes worth of data into an empty buffer
 b.copy(Buffer.alloc(0), 0, 0, 0);
