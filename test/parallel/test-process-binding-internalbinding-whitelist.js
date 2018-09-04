@@ -14,3 +14,4 @@ assert(process.binding('signal_wrap'));
 assert(process.binding('contextify'));
 assert(process.binding('url'));
 assert(process.binding('spawn_sync'));
+assert(process.binding('js_stream'));

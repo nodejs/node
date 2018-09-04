@@ -20,11 +20,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
-const JSStream = process.binding('js_stream').JSStream;
+const { JSStream } = internalBinding('js_stream');
 const util = require('util');
 const vm = require('vm');
 const { previewEntries } = internalBinding('util');
