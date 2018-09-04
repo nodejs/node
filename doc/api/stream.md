@@ -52,12 +52,10 @@ Additionally, this module includes the utility functions [pipeline][] and
 ### Object Mode
 
 All streams created by Node.js APIs operate exclusively on strings and `Buffer`
-(or `TypedArray` or `DataView`) objects. Please note, though, that the chunks
-that are passed through the stream are converted to `Buffer` objects internally.
+(or `TypedArray` or `DataView`) objects.
 It is possible, however, for stream implementations to work with other types of
 JavaScript values (with the exception of `null`, which serves a special purpose
-within streams), as well as working with all `TypedArray`s and `DataView`s,
-without converting them to `Buffer` chunks. Such streams are considered to
+within streams). Such streams are considered to
 operate in "object mode".
 
 Stream instances are switched into object mode using the `objectMode` option

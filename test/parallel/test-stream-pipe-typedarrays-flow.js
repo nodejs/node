@@ -10,21 +10,21 @@ const testBuffers = common.getArrayBufferViews(msgBuffer);
   let ticks = testBuffers.length;
 
   const rs = new Readable({
-    objectMode: true,
+    objectMode: false,
     read: () => {
       if (ticks > 0) {
         process.nextTick(() => rs.push(testBuffers[ticks - 1]));
         ticks--;
         return;
       }
-      rs.push({});
+      rs.push(Buffer.from(''));
       rs.push(null);
     }
   });
 
   const ws = new Writable({
     highWaterMark: 0,
-    objectMode: true,
+    objectMode: false,
     write: (data, end, cb) => setImmediate(cb)
   });
 
@@ -37,7 +37,7 @@ const testBuffers = common.getArrayBufferViews(msgBuffer);
   let missing = 8;
 
   const rs = new Readable({
-    objectMode: true,
+    objectMode: false,
     read: () => {
       if (missing--) rs.push(testBuffers[missing]);
       else rs.push(null);
@@ -45,15 +45,15 @@ const testBuffers = common.getArrayBufferViews(msgBuffer);
   });
 
   const pt = rs
-    .pipe(new PassThrough({ objectMode: true, highWaterMark: 2 }))
-    .pipe(new PassThrough({ objectMode: true, highWaterMark: 2 }));
+    .pipe(new PassThrough({ objectMode: false, highWaterMark: 2 }))
+    .pipe(new PassThrough({ objectMode: false, highWaterMark: 2 }));
 
   pt.on('end', function() {
     wrapper.push(null);
   });
 
   const wrapper = new Readable({
-    objectMode: true,
+    objectMode: false,
     read: () => {
       process.nextTick(function() {
         let data = pt.read();

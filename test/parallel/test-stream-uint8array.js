@@ -14,11 +14,12 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
   let n = 0;
   const writable = new Writable({
     write: common.mustCall((chunk, encoding, cb) => {
-      assert(chunk instanceof Buffer);
+      assert(!(chunk instanceof Buffer));
+      assert(chunk instanceof Uint8Array);
       if (n++ === 0) {
-        assert.strictEqual(String(chunk), 'ABC');
+        assert.deepStrictEqual(chunk, ABC);
       } else {
-        assert.strictEqual(String(chunk), 'DEF');
+        assert.deepStrictEqual(chunk, DEF);
       }
 
       cb();
@@ -52,16 +53,19 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
 
   const writable = new Writable({
     write: common.mustCall((chunk, encoding, cb) => {
-      assert(chunk instanceof Buffer);
+      assert(chunk instanceof Uint8Array);
       assert.strictEqual(encoding, 'buffer');
-      assert.strictEqual(String(chunk), 'ABC');
+      assert.deepStrictEqual(chunk, ABC);
       callback = cb;
     }),
     writev: common.mustCall((chunks, cb) => {
       assert.strictEqual(chunks.length, 2);
       assert.strictEqual(chunks[0].encoding, 'buffer');
       assert.strictEqual(chunks[1].encoding, 'buffer');
-      assert.strictEqual(chunks[0].chunk + chunks[1].chunk, 'DEFGHI');
+      assert.deepStrictEqual(
+        [].concat(chunks[0].chunk, chunks[1].chunk),
+        [].concat(DEF, GHI)
+      );
     })
   });
 
@@ -81,7 +85,7 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
   readable.unshift(ABC);
 
   const buf = readable.read();
-  assert(buf instanceof Buffer);
+  assert(buf instanceof Uint8Array);
   assert.deepStrictEqual([...buf], [...ABC, ...DEF]);
 }
 
@@ -97,5 +101,5 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
   readable.unshift(ABC);
 
   const out = readable.read();
-  assert.strictEqual(out, 'ABCDEF');
+  assert.strictEqual(out, Buffer.from(ABC));
 }
