@@ -108,7 +108,9 @@ class CodeEntry {
   const std::vector<std::unique_ptr<CodeEntry>>* GetInlineStack(
       int pc_offset) const;
 
+  void set_instruction_start(Address start) { instruction_start_ = start; }
   Address instruction_start() const { return instruction_start_; }
+
   CodeEventListener::LogEventsAndTags tag() const {
     return TagField::decode(bit_field_);
   }
