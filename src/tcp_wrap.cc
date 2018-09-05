@@ -180,7 +180,9 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
-  int enable = args[0]->Int32Value();
+  Environment* env = wrap->env();
+  int enable;
+  if (!args[0]->Int32Value(env->context()).To(&enable)) return;
   unsigned int delay = args[1].As<Uint32>()->Value();
   int err = uv_tcp_keepalive(&wrap->handle_, enable, delay);
   args.GetReturnValue().Set(err);
@@ -220,8 +222,10 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
-  node::Utf8Value ip_address(args.GetIsolate(), args[0]);
-  int port = args[1]->Int32Value();
+  Environment* env = wrap->env();
+  node::Utf8Value ip_address(env->isolate(), args[0]);
+  int port;
+  if (!args[1]->Int32Value(env->context()).To(&port)) return;
   sockaddr_in addr;
   int err = uv_ip4_addr(*ip_address, port, &addr);
   if (err == 0) {
@@ -238,8 +242,10 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
-  node::Utf8Value ip6_address(args.GetIsolate(), args[0]);
-  int port = args[1]->Int32Value();
+  Environment* env = wrap->env();
+  node::Utf8Value ip6_address(env->isolate(), args[0]);
+  int port;
+  if (!args[1]->Int32Value(env->context()).To(&port)) return;
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip6_address, port, &addr);
   if (err == 0) {
@@ -256,7 +262,9 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
-  int backlog = args[0]->Int32Value();
+  Environment* env = wrap->env();
+  int backlog;
+  if (!args[0]->Int32Value(env->context()).To(&backlog)) return;
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
                       backlog,
                       OnConnection);
@@ -300,12 +308,11 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
                           args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
+  Environment* env = wrap->env();
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
@@ -313,7 +320,8 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value ip_address(env->isolate(), args[1]);
-  int port = args[2]->Int32Value();
+  int port;
+  if (!args[2]->Int32Value(env->context()).To(&port)) return;
 
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip_address, port, &addr);

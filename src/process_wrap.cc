@@ -36,6 +36,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Local;
 using v8::Number;
@@ -158,7 +159,7 @@ class ProcessWrap : public HandleWrap {
         js_options->Get(context, env->uid_string()).ToLocalChecked();
     if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
       CHECK(uid_v->IsInt32());
-      const int32_t uid = uid_v->Int32Value(context).FromJust();
+      const int32_t uid = uid_v.As<Int32>()->Value();
       options.flags |= UV_PROCESS_SETUID;
       options.uid = static_cast<uv_uid_t>(uid);
     }
@@ -168,7 +169,7 @@ class ProcessWrap : public HandleWrap {
         js_options->Get(context, env->gid_string()).ToLocalChecked();
     if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
       CHECK(gid_v->IsInt32());
-      const int32_t gid = gid_v->Int32Value(context).FromJust();
+      const int32_t gid = gid_v.As<Int32>()->Value();
       options.flags |= UV_PROCESS_SETGID;
       options.gid = static_cast<uv_gid_t>(gid);
     }

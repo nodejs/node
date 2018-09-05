@@ -61,6 +61,7 @@ using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Local;
 using v8::Null;
@@ -1987,23 +1988,23 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
 
   int32_t flags = 0;
   if (args[3]->IsInt32()) {
-    flags = args[3]->Int32Value(env->context()).FromJust();
+    flags = args[3].As<Int32>()->Value();
   }
 
   int family;
 
-  switch (args[2]->Int32Value(env->context()).FromJust()) {
-  case 0:
-    family = AF_UNSPEC;
-    break;
-  case 4:
-    family = AF_INET;
-    break;
-  case 6:
-    family = AF_INET6;
-    break;
-  default:
-    CHECK(0 && "bad address family");
+  switch (args[2].As<Int32>()->Value()) {
+    case 0:
+      family = AF_UNSPEC;
+      break;
+    case 4:
+      family = AF_INET;
+      break;
+    case 6:
+      family = AF_INET6;
+      break;
+    default:
+      CHECK(0 && "bad address family");
   }
 
   auto req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj, args[4]->IsTrue());

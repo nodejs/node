@@ -165,12 +165,15 @@ void HrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
 
 void Kill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
 
   if (args.Length() != 2)
     return env->ThrowError("Bad argument.");
 
-  int pid = args[0]->Int32Value();
-  int sig = args[1]->Int32Value();
+  int pid;
+  if (!args[0]->Int32Value(context).To(&pid)) return;
+  int sig;
+  if (!args[1]->Int32Value(context).To(&sig)) return;
   int err = uv_kill(pid, sig);
   args.GetReturnValue().Set(err);
 }

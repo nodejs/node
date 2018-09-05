@@ -35,6 +35,7 @@ using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Just;
@@ -783,7 +784,7 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
       js_options->Get(context, env()->uid_string()).ToLocalChecked();
   if (IsSet(js_uid)) {
     CHECK(js_uid->IsInt32());
-    const int32_t uid = js_uid->Int32Value(context).FromJust();
+    const int32_t uid = js_uid.As<Int32>()->Value();
     uv_process_options_.uid = static_cast<uv_uid_t>(uid);
     uv_process_options_.flags |= UV_PROCESS_SETUID;
   }
@@ -792,7 +793,7 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
       js_options->Get(context, env()->gid_string()).ToLocalChecked();
   if (IsSet(js_gid)) {
     CHECK(js_gid->IsInt32());
-    const int32_t gid = js_gid->Int32Value(context).FromJust();
+    const int32_t gid = js_gid.As<Int32>()->Value();
     uv_process_options_.gid = static_cast<uv_gid_t>(gid);
     uv_process_options_.flags |= UV_PROCESS_SETGID;
   }
@@ -833,7 +834,7 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
       js_options->Get(context, env()->kill_signal_string()).ToLocalChecked();
   if (IsSet(js_kill_signal)) {
     CHECK(js_kill_signal->IsInt32());
-    kill_signal_ = js_kill_signal->Int32Value(context).FromJust();
+    kill_signal_ = js_kill_signal.As<Int32>()->Value();
   }
 
   Local<Value> js_stdio =
