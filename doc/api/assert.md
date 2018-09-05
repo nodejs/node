@@ -1249,6 +1249,8 @@ second argument. This might lead to difficult-to-spot errors.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 This property can be used in combination with `assert.throws()` and
 `assert.rejects()` when using the object notation to validate the actual error.
 Using it causes `assert.throws()` to check that the property is not set on the
