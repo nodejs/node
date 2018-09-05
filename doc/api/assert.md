@@ -1244,7 +1244,7 @@ assert.throws(throwingFirst, /Second$/);
 Due to the confusing notation, it is recommended not to use a string as the
 second argument. This might lead to difficult-to-spot errors.
 
-## assert.undefinedProperty
+## assert.propertyNotSet
 <!-- YAML
 added: REPLACEME
 -->
@@ -1258,7 +1258,7 @@ error object.
 assert.throws(
   () => { throw new Error('foo'); },
   {
-    undefinedProperty: assert.undefinedProperty,
+    nonExistingProperty: assert.propertyNotSet,
     message: 'foo'
   }
 );

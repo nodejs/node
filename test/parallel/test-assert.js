@@ -1029,11 +1029,11 @@ assert.throws(
     {
       message: /fooa/,
       name: /^TypeError$/,
-      generatedMessage: assert.undefinedProperty,
-      actual: assert.undefinedProperty,
-      expected: assert.undefinedProperty,
-      userMessage: assert.undefinedProperty,
-      operator: assert.undefinedProperty
+      generatedMessage: assert.propertyNotSet,
+      actual: assert.propertyNotSet,
+      expected: assert.propertyNotSet,
+      userMessage: assert.propertyNotSet,
+      operator: assert.propertyNotSet
     }
   ),
   {
@@ -1059,7 +1059,7 @@ assert.throws(
       actual,
       expected,
       generatedMessage: true,
-      userMessage: assert.undefinedProperty,
+      userMessage: assert.propertyNotSet,
       message: `${start}\n${actExp}\n\n` +
               '+ null\n' +
               '- {\n' +
@@ -1088,7 +1088,7 @@ assert.throws(
 assert.throws(
   () => assert.throws(
     () => { throw new TypeError('foobar'); },
-    { name: assert.undefinedProperty }
+    { name: assert.propertyNotSet }
   ),
   {
     message: `${start}\n${actExp}\n\n` +

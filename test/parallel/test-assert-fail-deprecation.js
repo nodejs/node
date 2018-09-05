@@ -21,7 +21,7 @@ assert.throws(() => {
   actual: 'first',
   expected: 'second',
   generatedMessage: true,
-  userMessage: assert.undefinedProperty
+  userMessage: assert.propertyNotSet
 });
 
 // Three args
