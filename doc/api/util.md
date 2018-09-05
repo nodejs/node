@@ -1572,6 +1572,80 @@ const module = new WebAssembly.Module(wasmBuffer);
 util.types.isWebAssemblyCompiledModule(module);  // Returns true
 ```
 
+### util.createPromiseHook(hooks)
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `hooks` {Object}
+  * `resolve` {Function} Called when a promise resolve function is called. The
+    promise is not fulfilled or rejected at this point.
+  * `rejectWithNoHandler` {Function} Called when a promise rejects without any
+    handler.
+  * `handlerAddedAfterReject` {Function} Called when a promise handler is added
+    to a promise that rejected without a handler.
+  * `rejectAfterResolved` {Function} Called when a promise reject function is
+    called after resolution.
+  * `resolveAfterResolved` {Function} Called when a promise resolve function is
+    called after resolution.
+
+Returns: {Object}
+  * `enable` {Function} Enables the hook
+  * `disable` {Function} Disables the hook
+
+Registers the promise hook `hook` to be called for certain promise debugging
+events.
+
+```js
+util.createPromiseHook({
+  resolve(promise) {
+    console.log('Promise did resolve');
+  },
+  rejectWithNoHandler(promise, value) {
+    console.log('Promise did rejectWithNoHandler with', value);
+  },
+  handlerAddedAfterReject(promise) {
+    console.log('Promise did handlerAddedAfterReject');
+  },
+}).enable();
+
+const x = Promise.resolve('success')
+  .then(() => Promise.reject('error'));
+
+setTimeout(() => {
+  x.catch(() => {});
+}, 10);
+
+// Promise did resolve
+// Promise did resolve
+// Promise did rejectWithNoHandler with 'error'
+// Promise did resolve
+// Promise did handlerAddedAfterReject
+// Promise did resolve
+// Promise did rejectWithNoHandler with 'error'
+// Promise did resolve
+// Promise did handlerAddedAfterReject
+// Promise did resolve
+```
+
+```js
+util.createPromiseHook({
+  rejectAfterResolved(promise, value) {
+    console.log('Promise did rejectAfterResolved with', value);
+  },
+}).enable();
+
+new Promise((resolve, reject) => {
+  resolve('success');
+
+  reject('oops');
+});
+
+// Promise did rejectAfterResolved with 'oops'
+```
+
 ## Deprecated APIs
 
 The following APIs are deprecated and should no longer be used. Existing

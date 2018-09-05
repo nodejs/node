@@ -7,9 +7,11 @@ namespace util {
 using v8::ALL_PROPERTIES;
 using v8::Array;
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
+using v8::Number;
 using v8::Object;
 using v8::ONLY_CONFIGURABLE;
 using v8::ONLY_ENUMERABLE;
@@ -172,7 +174,7 @@ void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
             v8::NewStringType::kNormal).ToLocalChecked());
 }
 
-void Initialize(Local<Object> target,
+void InitializeBase(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
@@ -231,7 +233,68 @@ void Initialize(Local<Object> target,
               constants).FromJust();
 }
 
+void InitializeUnsafe(Local<Object> target,
+                      Local<Value> unused,
+                      Local<Context> context) {
+  InitializeBase(target, unused, context);
+}
+
+void PromiseHook(PromiseHookType type,
+                 Local<Promise> promise,
+                 Local<Value> value,
+                 void* arg) {
+  switch (type) {
+    case PromiseHookType::kResolve:
+    case PromiseHookType::kRejectWithNoHandler:
+    case PromiseHookType::kHandlerAddedAfterReject:
+    case PromiseHookType::kRejectAfterResolved:
+    case PromiseHookType::kResolveAfterResolved: {
+      Environment* env = static_cast<Environment*>(arg);
+      Local<Function> cb = env->util_promise_hook_callback();
+      int argc = value.IsEmpty() ? 2 : 3;
+      Local<Value> args[] = {
+        Number::New(env->isolate(), type),
+        promise,
+        value,
+      };
+      FatalTryCatch try_catch(env);
+      USE(cb->Call(env->context(), Undefined(env->isolate()), argc, args));
+      break;
+    }
+    default:
+      return;
+  }
+}
+
+void SetPromiseHook(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+
+  if (info[0]->IsNull()) {
+    env->RemovePromiseRejectHook(PromiseHook, env);
+    env->RemovePromiseHook(PromiseHook, env);
+  } else {
+    CHECK(info[0]->IsFunction());
+    CHECK(info[1]->IsBoolean());
+    env->set_util_promise_hook_callback(info[0].As<Function>());
+    env->AddPromiseRejectHook(PromiseHook, env);
+    if (info[1]->IsTrue()) {
+      env->AddPromiseHook(PromiseHook, env);
+    }
+  }
+}
+
+void InitializeSafe(Local<Object> target,
+                    Local<Value> unused,
+                    Local<Context> context) {
+  InitializeBase(target, unused, context);
+
+  Environment* env = Environment::GetCurrent(context);
+
+  env->SetMethod(target, "setPromiseHook", SetPromiseHook);
+}
+
 }  // namespace util
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(util, node::util::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(safe_util, node::util::InitializeSafe)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(util, node::util::InitializeUnsafe)
