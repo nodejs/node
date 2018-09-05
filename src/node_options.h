@@ -116,6 +116,9 @@ class EnvironmentOptions : public Options {
 
   bool syntax_check_only = false;
   bool has_eval_string = false;
+#ifdef NODE_REPORT
+  bool experimental_report = false;
+#endif  //  NODE_REPORT
   std::string eval_string;
   bool print_eval = false;
   bool force_repl = false;
@@ -142,6 +145,15 @@ class PerIsolateOptions : public Options {
   std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
   bool track_heap_objects = false;
 
+#ifdef NODE_REPORT
+  bool report_uncaught_exception = false;
+  bool report_on_signal = false;
+  bool report_on_fatalerror = false;
+  std::string report_signal;
+  std::string report_filename;
+  std::string report_directory;
+  bool report_verbose;
+#endif  //  NODE_REPORT
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors);
 };
@@ -183,6 +195,10 @@ class PerProcessOptions : public Options {
   bool force_fips_crypto = false;
 #endif
 #endif
+
+#ifdef NODE_REPORT
+  std::vector<std::string> cmdline;
+#endif  //  NODE_REPORT
 
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors);

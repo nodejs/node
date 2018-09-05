@@ -89,6 +89,10 @@
 #include <unicode/uvernum.h>
 #endif
 
+#ifdef NODE_REPORT
+#include "node_report.h"
+#endif
+
 #if defined(LEAK_SANITIZER)
 #include <sanitizer/lsan_interface.h>
 #endif
@@ -733,6 +737,12 @@ void RunBootstrapping(Environment* env) {
     return;
   }
 
+#ifdef NODE_REPORT
+  if (env->options()->experimental_report) {
+    report::InitializeReport(env->isolate(), env);
+  }
+#endif  // NODE_REPORT
+
   // process, loaderExports, isMainThread
   std::vector<Local<String>> node_params = {
       env->process_string(),
@@ -962,6 +972,12 @@ int Init(std::vector<std::string>* argv,
 
   // Make inherited handles noninheritable.
   uv_disable_stdio_inheritance();
+
+#ifdef NODE_REPORT
+  // Cache the original command line to be
+  // used in diagnostic reports.
+  per_process::cli_options->cmdline = *argv;
+#endif  //  NODE_REPORT
 
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()

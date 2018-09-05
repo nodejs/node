@@ -1,7 +1,7 @@
+#include "env-inl.h"
 #include "node.h"
 #include "node_i18n.h"
 #include "node_options-inl.h"
-#include "env-inl.h"
 #include "util-inl.h"
 
 namespace node {
@@ -68,6 +68,10 @@ static void Initialize(Local<Object> target,
 #endif
 
 #endif  // NODE_HAVE_I18N_SUPPORT
+
+#if defined(NODE_REPORT)
+  READONLY_TRUE_PROPERTY(target, "hasReport");
+#endif  //  NODE_REPORT
 
   if (env->abort_on_uncaught_exception())
     READONLY_TRUE_PROPERTY(target, "shouldAbortOnUncaughtException");

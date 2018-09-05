@@ -156,6 +156,7 @@
       'lib/internal/process/stdio.js',
       'lib/internal/process/warning.js',
       'lib/internal/process/worker_thread_only.js',
+      'lib/internal/process/report.js',
       'lib/internal/querystring.js',
       'lib/internal/queue_microtask.js',
       'lib/internal/readline.js',
@@ -313,6 +314,29 @@
           # lib causes filename collision. Need a different PRODUCT_NAME for
           # the executable and rename it back to node.exe later
           'product_name': '<(node_core_target_name)-win',
+        }],
+        [ 'node_report=="true"', {
+          'defines': [
+            'NODE_REPORT',
+            'NODE_ARCH="<(target_arch)"',
+            'NODE_PLATFORM="<(OS)"',
+          ],
+          'conditions': [
+            ['OS=="win"', {
+              'libraries': [
+                'dbghelp.lib',
+                'Netapi32.lib',
+                'PsApi.lib',
+                'Ws2_32.lib',
+              ],
+              'dll_files': [
+                'dbghelp.dll',
+                'Netapi32.dll',
+                'PsApi.dll',
+                'Ws2_32.dll',
+              ],
+            }],
+          ],
         }],
       ],
     }, # node_core_target_name
@@ -621,6 +645,34 @@
             'src/node_crypto_groups.h',
             'src/tls_wrap.cc',
             'src/tls_wrap.h'
+          ],
+        }],
+        [ 'node_report=="true"', {
+          'sources': [
+            'src/node_report.cc',
+            'src/node_report_module.cc',
+            'src/node_report_utils.cc',
+          ],
+          'defines': [
+            'NODE_REPORT',
+            'NODE_ARCH="<(target_arch)"',
+            'NODE_PLATFORM="<(OS)"',
+          ],
+          'conditions': [
+            ['OS=="win"', {
+              'libraries': [
+                'dbghelp.lib',
+                'Netapi32.lib',
+                'PsApi.lib',
+                'Ws2_32.lib',
+              ],
+              'dll_files': [
+                'dbghelp.dll',
+                'Netapi32.dll',
+                'PsApi.dll',
+                'Ws2_32.dll',
+              ],
+            }],
           ],
         }],
         [ 'node_use_large_pages=="true" and OS=="linux"', {
@@ -963,6 +1015,29 @@
           'xcode_settings': {
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
           },
+        }],
+        [ 'node_report=="true"', {
+          'defines': [
+            'NODE_REPORT',
+            'NODE_ARCH="<(target_arch)"',
+            'NODE_PLATFORM="<(OS)"',
+          ],
+          'conditions': [
+            ['OS=="win"', {
+              'libraries': [
+                'dbghelp.lib',
+                'Netapi32.lib',
+                'PsApi.lib',
+                'Ws2_32.lib',
+              ],
+              'dll_files': [
+                'dbghelp.dll',
+                'Netapi32.dll',
+                'PsApi.dll',
+                'Ws2_32.dll',
+              ],
+            }],
+          ],
         }],
       ],
     }, # cctest

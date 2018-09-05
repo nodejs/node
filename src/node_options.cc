@@ -34,6 +34,31 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
 
 void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
   per_env->CheckOptions(errors);
+#ifdef NODE_REPORT
+  if (!report_directory.empty() && !per_env->experimental_report)
+    errors->push_back("--diagnostic-report-directory option is valid only when "
+                      "--experimental-report is set");
+  if (!report_filename.empty() && !per_env->experimental_report)
+    errors->push_back("--diagnostic-report-filename option is valid only when "
+                      "--experimental-report is set");
+  if (!report_signal.empty() && !per_env->experimental_report)
+    errors->push_back("--diagnostic-report-signal option is valid only when "
+                      "--experimental-report is set");
+  if (report_on_fatalerror && !per_env->experimental_report)
+    errors->push_back(
+        "--diagnostic-report-on-fatalerror option is valid only when "
+        "--experimental-report is set");
+  if (report_on_signal && !per_env->experimental_report)
+    errors->push_back("--diagnostic-report-on-signal option is valid only when "
+                      "--experimental-report is set");
+  if (report_uncaught_exception && !per_env->experimental_report)
+    errors->push_back(
+        "--diagnostic-report-uncaught-exception option is valid only when "
+        "--experimental-report is set");
+  if (report_verbose && !per_env->experimental_report)
+    errors->push_back("--diagnostic-report-verbose option is valid only when "
+                      "--experimental-report is set");
+#endif  // NODE_REPORT
 }
 
 void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
@@ -119,6 +144,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_vm_modules,
             kAllowedInEnvironment);
   AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvironment);
+#ifdef NODE_REPORT
+  AddOption("--experimental-report",
+            "enable report generation",
+            &EnvironmentOptions::experimental_report,
+            kAllowedInEnvironment);
+#endif  // NODE_REPORT
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
   AddOption("--http-parser",
             "Select which HTTP parser to use; either 'legacy' or 'llhttp' "
@@ -247,6 +278,42 @@ PerIsolateOptionsParser::PerIsolateOptionsParser() {
   AddOption("--perf-basic-prof", "", V8Option{}, kAllowedInEnvironment);
   AddOption("--perf-prof", "", V8Option{}, kAllowedInEnvironment);
   AddOption("--stack-trace-limit", "", V8Option{}, kAllowedInEnvironment);
+
+#ifdef NODE_REPORT
+  AddOption("--diagnostic-report-uncaught-exception",
+            "generate diagnostic report on uncaught exceptions",
+            &PerIsolateOptions::report_uncaught_exception,
+            kAllowedInEnvironment);
+  AddOption("--diagnostic-report-on-signal",
+            "generate diagnostic report upon receiving signals",
+            &PerIsolateOptions::report_on_signal,
+            kAllowedInEnvironment);
+  AddOption("--diagnostic-report-on-fatalerror",
+            "generate diagnostic report on fatal (internal) errors",
+            &PerIsolateOptions::report_on_fatalerror,
+            kAllowedInEnvironment);
+  AddOption("--diagnostic-report-signal",
+            "causes diagnostic report to be produced on provided signal,"
+            " unsupported in Windows. (default: SIGUSR2)",
+            &PerIsolateOptions::report_signal,
+            kAllowedInEnvironment);
+  Implies("--diagnostic-report-signal", "--diagnostic-report-on-signal");
+  AddOption("--diagnostic-report-filename",
+            "define custom report file name."
+            " (default: YYYYMMDD.HHMMSS.PID.SEQUENCE#.txt)",
+            &PerIsolateOptions::report_filename,
+            kAllowedInEnvironment);
+  AddOption("--diagnostic-report-directory",
+            "define custom report pathname."
+            " (default: current working directory of Node.js process)",
+            &PerIsolateOptions::report_directory,
+            kAllowedInEnvironment);
+  AddOption("--diagnostic-report-verbose",
+            "verbose option for report generation(true|false)."
+            " (default: false)",
+            &PerIsolateOptions::report_verbose,
+            kAllowedInEnvironment);
+#endif  // NODE_REPORT
 
   Insert(&EnvironmentOptionsParser::instance,
          &PerIsolateOptions::get_per_env_options);
