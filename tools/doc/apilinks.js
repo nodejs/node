@@ -61,6 +61,7 @@ process.argv.slice(2).forEach((file) => {
 
   // Scan for exports.
   const exported = { constructors: [], identifiers: [] };
+  const indirect = {};
   program.forEach((statement) => {
     if (statement.type === 'ExpressionStatement') {
       const expr = statement.expression;
@@ -69,35 +70,52 @@ process.argv.slice(2).forEach((file) => {
       let lhs = expr.left;
       if (expr.left.object.type === 'MemberExpression') lhs = lhs.object;
       if (lhs.type !== 'MemberExpression') return;
-      if (lhs.object.name !== 'module') return;
-      if (lhs.property.name !== 'exports') return;
-
-      let rhs = expr.right;
-      while (rhs.type === 'AssignmentExpression') rhs = rhs.right;
-
-      if (rhs.type === 'NewExpression') {
-        exported.constructors.push(rhs.callee.name);
-      } else if (rhs.type === 'ObjectExpression') {
-        rhs.properties.forEach((property) => {
-          if (property.value.type === 'Identifier') {
-            exported.identifiers.push(property.value.name);
-            if (/^[A-Z]/.test(property.value.name[0])) {
-              exported.constructors.push(property.value.name);
-            }
+      if (lhs.object.name === 'exports') {
+        const name = lhs.property.name;
+        if (expr.right.type === 'FunctionExpression') {
+          definition[`${basename}.${name}`] =
+            `${link}#L${statement.loc.start.line}`;
+        } else if (expr.right.type === 'Identifier') {
+          if (expr.right.name === name) {
+            indirect[name] = `${basename}.${name}`;
           }
-        });
-      } else if (rhs.type === 'Identifier') {
-        exported.identifiers.push(rhs.name);
+        } else {
+          exported.identifiers.push(name);
+        }
+      } else if (lhs.object.name === 'module') {
+        if (lhs.property.name !== 'exports') return;
+
+        let rhs = expr.right;
+        while (rhs.type === 'AssignmentExpression') rhs = rhs.right;
+
+        if (rhs.type === 'NewExpression') {
+          exported.constructors.push(rhs.callee.name);
+        } else if (rhs.type === 'ObjectExpression') {
+          rhs.properties.forEach((property) => {
+            if (property.value.type === 'Identifier') {
+              exported.identifiers.push(property.value.name);
+              if (/^[A-Z]/.test(property.value.name[0])) {
+                exported.constructors.push(property.value.name);
+              }
+            }
+          });
+        } else if (rhs.type === 'Identifier') {
+          exported.identifiers.push(rhs.name);
+        }
       }
     } else if (statement.type === 'VariableDeclaration') {
       for (const decl of statement.declarations) {
         let init = decl.init;
         while (init && init.type === 'AssignmentExpression') init = init.left;
         if (!init || init.type !== 'MemberExpression') continue;
-        if (init.object.name !== 'module') continue;
-        if (init.property.name !== 'exports') continue;
-        exported.constructors.push(decl.id.name);
-        definition[decl.id.name] = `${link}#L${statement.loc.start.line}`;
+        if (init.object.name === 'exports') {
+          definition[`${basename}.${init.property.name}`] =
+            `${link}#L${statement.loc.start.line}`;
+        } else if (init.object.name === 'module') {
+          if (init.property.name !== 'exports') continue;
+          exported.constructors.push(decl.id.name);
+          definition[decl.id.name] = `${link}#L${statement.loc.start.line}`;
+        }
       }
     }
   });
@@ -107,10 +125,8 @@ process.argv.slice(2).forEach((file) => {
   //   ClassName.foo = ...;
   //   ClassName.prototype.foo = ...;
   //   function Identifier(...) {...};
-  //   class Foo {...}
+  //   class Foo {...};
   //
-  const indirect = {};
-
   program.forEach((statement) => {
     if (statement.type === 'ExpressionStatement') {
       const expr = statement.expression;
