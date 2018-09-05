@@ -1251,7 +1251,8 @@ added: REPLACEME
 
 This property can be used in combination with `assert.throws()` and
 `assert.rejects()` when using the object notation to validate the actual error.
-Passing it along makes sure the property is not set on the error object.
+Using it causes `assert.throws()` to check that the property is not set on the
+error object.
 
 ```js
 assert.throws(
