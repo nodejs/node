@@ -150,9 +150,7 @@ added: v0.1.18
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/20097
-    description: Garbage collected unhandled rejections will now also trigger an
-                 uncaughtException. The `errorOrigin` argument was added to
-                 distinguish those.
+    description: Added the `errorOrigin` argument.
 -->
 
 * `err` {Error} The uncaught exception.
@@ -270,10 +268,6 @@ address such failures, a non-operational
 [`.catch(() => { })`][`promise.catch()`] handler may be attached to
 `resource.loaded`, which would prevent the `'unhandledRejection'` event from
 being emitted.
-
-In case a rejected promise is garbage collected without ever having a
-[`.catch(() => { })`][`promise.catch()`] handler attached, it will trigger an
-`uncaughtException` like all other uncaught JavaScript exceptions.
 
 ### Event: 'warning'
 <!-- YAML
