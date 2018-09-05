@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+require('../common/common-tty');
 
 process.on('uncaughtException', common.expectsError({
   code: 'ERR_STDOUT_CLOSE',

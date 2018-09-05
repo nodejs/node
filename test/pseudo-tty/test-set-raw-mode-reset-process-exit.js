@@ -1,5 +1,6 @@
 'use strict';
 require('../common');
+require('../common/common-tty');
 const child_process = require('child_process');
 
 // Tests that exiting through process.exit() resets the TTY mode.

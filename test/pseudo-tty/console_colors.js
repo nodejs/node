@@ -1,5 +1,6 @@
 'use strict';
 require('../common');
+require('../common/common-tty');
 // Make this test OS-independent by overriding stdio getColorDepth().
 process.stdout.getColorDepth = () => 8;
 process.stderr.getColorDepth = () => 8;

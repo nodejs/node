@@ -4,6 +4,7 @@
 // see also test/sequential/test-async-wrap-getasyncid.js
 
 const common = require('../common');
+const { getTTYfd } = require('../common/common-tty');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
 const { TTYWRAP } = internalBinding('async_wrap').Providers;
@@ -38,7 +39,7 @@ function testInitialized(req, ctor_name) {
 }
 
 {
-  const ttyFd = common.getTTYfd();
+  const ttyFd = getTTYfd();
 
   const handle = new tty_wrap.TTY(ttyFd, false);
   testInitialized(handle, 'TTY');

@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+require('../common/common-tty');
 const assert = require('assert');
 
 // This test ensures that Node.js will not ignore tty 'readable' subscribers

@@ -2,6 +2,7 @@
 'use strict';
 
 require('../common');
+require('../common/common-tty');
 
 const { internalBinding } = require('internal/test/binding');
 const { TTY, isTTY } = internalBinding('tty_wrap');

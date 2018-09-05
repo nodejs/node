@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+require('../common/common-tty');
 
 const originalRefreshSizeStderr = process.stderr._refreshSize;
 const originalRefreshSizeStdout = process.stdout._refreshSize;
