@@ -408,19 +408,19 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
-## assert.doesNotReject(promiseFn[, error][, message])
+## assert.doesNotReject(asyncFn[, error][, message])
 <!-- YAML
 added: v10.0.0
 -->
-* `promiseFn` {Function|Promise}
+* `asyncFn` {Function|Promise}
 * `error` {RegExp|Function}
 * `message` {string}
 
-Awaits the `promiseFn` promise or, if `promiseFn` is a function, immediately
+Awaits the `asyncFn` promise or, if `asyncFn` is a function, immediately
 calls the function and awaits the returned promise to complete. It will then
 check that the promise is not rejected.
 
-If `promiseFn` is a function and it throws an error synchronously,
+If `asyncFn` is a function and it throws an error synchronously,
 `assert.doesNotReject()` will return a rejected `Promise` with that error. If
 the function does not return a promise, `assert.doesNotReject()` will return a
 rejected `Promise` with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases
@@ -964,19 +964,19 @@ assert(0);
 //   assert(0)
 ```
 
-## assert.rejects(promiseFn[, error][, message])
+## assert.rejects(asyncFn[, error][, message])
 <!-- YAML
 added: v10.0.0
 -->
-* `promiseFn` {Function|Promise}
+* `asyncFn` {Function|Promise}
 * `error` {RegExp|Function|Object|Error}
 * `message` {string}
 
-Awaits the `promiseFn` promise or, if `promiseFn` is a function, immediately
+Awaits the `asyncFn` promise or, if `asyncFn` is a function, immediately
 calls the function and awaits the returned promise to complete. It will then
 check that the promise is rejected.
 
-If `promiseFn` is a function and it throws an error synchronously,
+If `asyncFn` is a function and it throws an error synchronously,
 `assert.rejects()` will return a rejected `Promise` with that error. If the
 function does not return a promise, `assert.rejects()` will return a rejected
 `Promise` with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the error
@@ -991,7 +991,7 @@ each property will be tested for including the non-enumerable `message` and
 `name` properties.
 
 If specified, `message` will be the message provided by the `AssertionError` if
-the `promiseFn` fails to reject.
+the `asyncFn` fails to reject.
 
 ```js
 (async () => {
