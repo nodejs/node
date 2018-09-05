@@ -1658,6 +1658,109 @@ In custom builds from non-release versions of the source tree, only the
 `name` property may be present. The additional properties should not be
 relied upon to exist.
 
+## process.report
+
+### process.report.getReport([err])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `err` {Object}
+* Returns: {Object} Returns the diagnostics report as an `Object`.
+
+Generates a JSON-formatted diagnostic report summary of the running process.
+The report includes JavaScript and native stack traces, heap statistics,
+platform information, resource usage etc.
+
+```js
+const data = process.report.getReport();
+console.log(data);
+```
+
+Additional documentation on diagnostic report is available
+at [report documentation][].
+
+### process.report.setDiagnosticReportOptions([options]);
+<!-- YAML
+added: REPLACEME
+-->
+
+Set the runtime configuration of diagnostic report data capture. Upon invocation
+of this function, the runtime is reconfigured to generate report based on
+the new input.
+
+* `options` {Object}
+  * `events` {string[]}
+    * `signal`: generate a report in response to a signal raised on the process.
+    * `exception`: generate a report on unhandled exceptions.
+    * `fatalerror`: generate a report on internal fault
+      (such as out of memory errors or native assertions).
+  * `signal` {string} sets or resets the signal for report generation
+    (not supported on Windows). **Default:** `'SIGUSR2'`.
+  * `filename` {string} name of the file to which the report will be written.
+  * `path` {string} drectory at which the report will be generated.
+    **Default:** the current working directory of the Node.js process.
+  * `verbose` {boolean} flag that controls additional verbose information on
+    report generation. **Default:** `false`.
+
+```js
+// Trigger a report upon uncaught exceptions or fatal erros.
+process.report.setDiagnosticReportOptions(
+  { events: ['exception', 'fatalerror'] });
+
+// Change the default path and filename of the report.
+process.report.setDiagnosticReportOptions(
+  { filename: 'foo.json', path: '/home' });
+
+// Produce the report onto stdout, when generated. Special meaning is attached
+// to `stdout` and `stderr`. Usage of these will result in report being written
+// to the associated standard streams. URLs are not supported.
+process.report.setDiagnosticReportOptions(
+  { filename: 'stdout' });
+
+// Enable verbose option on report generation.
+process.report.setDiagnosticReportOptions(
+  { verbose: true });
+
+```
+
+Signal based report generation is not supported on Windows.
+
+Additional documentation on diagnostic report is available
+at [report documentation][].
+
+### process.report.triggerReport([filename][, err])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filename` {string} The file to write into. The `filename` should be
+a relative path, that will be appended to the directory specified by
+`process.report.setDiagnosticReportOptions`, or current working directory
+of the Node.js process, if unspecified.
+* `err`  {Object} A custom object which will be used for reporting
+JavsScript stack.
+
+* Returns: {string} Returns the filename of the generated report.
+
+If both `filename` and `err` object are passed to `triggerReport()` the
+`err` object must be the second parameter.
+
+Triggers and produces the report (a JSON-formatted file with the internal
+state of Node.js runtime) synchronously, and writes into a file.
+
+```js
+process.report.triggerReport();
+```
+
+When a report is triggered, start and end messages are issued to stderr and the
+filename of the report is returned to the caller. The default filename includes
+the date, time, PID and a sequence number. Alternatively, a filename and error
+object can be specified as parameters on the `triggerReport()` call.
+
+Additional documentation on diagnostic report is available
+at [report documentation][].
+
 ## process.send(message[, sendHandle[, options]][, callback])
 <!-- YAML
 added: v0.5.9
@@ -2172,3 +2275,4 @@ cases:
 [note on process I/O]: process.html#process_a_note_on_process_i_o
 [process_emit_warning]: #process_process_emitwarning_warning_type_code_ctor
 [process_warning]: #process_event_warning
+[report documentation]: report.html

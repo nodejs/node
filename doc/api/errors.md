@@ -1689,6 +1689,12 @@ called.
 An attempt has been made to create a string longer than the maximum allowed
 length.
 
+<a id="ERR_SYNTHETIC"></a>
+#### ERR_SYNTHETIC
+
+An artificial error object used to capture call stack when diagnostic report
+is produced.
+
 <a id="ERR_SYSTEM_ERROR"></a>
 ### ERR_SYSTEM_ERROR
 

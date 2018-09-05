@@ -78,6 +78,47 @@ Aborting instead of exiting causes a core file to be generated for analysis.
 .It Fl -completion-bash
 Print source-able bash completion script for Node.js.
 .
+.It Fl -diagnostic-report-directory
+Location at which the
+.Sy diagnostic report
+will be generated.
+.
+.It Fl -diagnostic-report-filename
+Name of the file to which the
+.Sy diagnostic report
+will be written.
+.
+.It Fl -diagnostic-report-on-fatalerror
+Enables the
+.Sy diagnostic report
+to be triggered on fatal errors (internal errors within the Node.js runtime such as out of memory) that leads to termination of the application, if
+.Sy --experimental-report
+is enabled. Useful to inspect various diagnostic data elements such as heap, stack, event loop state, resource consumption etc. to reason about the fatal error.
+.
+.It Fl -diagnostic-report-on-signal
+Enables
+.Sy diagnostic report
+to be generated upon receiving the specified (or predefined) signal to the running Node.js process, if
+.Sy --experimental-report
+is enabled. Default signal is SIGUSR2.
+.
+.It Fl -diagnostic-report-signal
+Sets or resets the signal for
+.Sy diagnostic report
+generation (not supported on Windows). Default signal is SIGUSR2.
+.
+.It Fl -diagnostic-report-uncaught-exception
+Enables
+.Sy diagnostic report
+to be generated on un-caught exceptions, if
+.Sy --experimental-report
+is enabled. Useful when inspecting JavaScript stack in conjunction with native stack and other runtime environment data.
+.
+.It Fl -diagnostic-report-verbose
+Flag that enables additional information to be printed during
+.Sy diagnostic report
+generation.
+.
 .It Fl -enable-fips
 Enable FIPS-compliant crypto at startup.
 Requires Node.js to be built with
@@ -93,6 +134,11 @@ Use the specified file as a security policy.
 Enable experimental top-level
 .Sy await
 keyword support in REPL.
+.
+.It Fl -experimental-report
+Enable experimental
+.Sy diagnostic report
+feature.
 .
 .It Fl -experimental-vm-modules
 Enable experimental ES module support in VM module.
