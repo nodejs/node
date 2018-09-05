@@ -1058,6 +1058,16 @@ The [Legacy URL API][] is deprecated. This includes [`url.format()`][],
 [`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
 use the [WHATWG URL API][] instead.
 
+<a id="DEP00XX"></a>
+### DEP00XX: Native crypto handles
+
+Type: Runtime
+
+Previous versions of Node.js exposed handles to internal native objects through
+the `_handle` property of the `Cipher`, `Decipher`, `DiffieHellman`,
+`DiffieHellmanGroup`, `ECDH`, `Hash`, `Hmac`, `Sign`, and `Verify` classes.
+Using the `_handle` property to access the native object is deprecated because
+improper use of the native object can lead to crashing the application.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
