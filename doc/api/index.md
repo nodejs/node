@@ -45,6 +45,7 @@
 * [Query Strings](querystring.html)
 * [Readline](readline.html)
 * [REPL](repl.html)
+* [Report](report.html)
 * [Stream](stream.html)
 * [String Decoder](string_decoder.html)
 * [Timers](timers.html)

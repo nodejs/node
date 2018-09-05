@@ -75,6 +75,64 @@ $ node --completion-bash > node_bash_completion
 $ source node_bash_completion
 ```
 
+### `--diagnostic-report-directory=directory`
+<!-- YAML
+added: REPLACEME
+-->
+
+Location at which the report will be generated.
+
+### `--diagnostic-report-filename=filename`
+<!-- YAML
+added: REPLACEME
+-->
+
+Name of the file to which the report will be written.
+
+### `--diagnostic-report-on-fatalerror`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enables the report to be triggered on fatal errors (internal errors within
+the Node.js runtime such as out of memory) that lead to termination of the
+application, if `--experimental-report` is enabled. Useful to inspect various
+diagnostic data elements such as heap, stack, event loop state, resource
+consumption etc. to reason about the fatal error.
+
+### `--diagnostic-report-on-signal`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enables report to be generated upon receiving the specified (or predefined)
+signal to the running Node.js process, if `--experimental-report` is enabled.
+The signal to trigger the report is specified through `--diagnostic-report-signal`.
+
+### `--diagnostic-report-signal=signal`
+<!-- YAML
+added: REPLACEME
+-->
+
+Sets or resets the signal for report generation (not supported on Windows).
+Default signal is `SIGUSR2`.
+
+### `--diagnostic-report-uncaught-exception`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enables report to be generated on un-caught exceptions, if
+`--experimental-report` is enabled. Useful when inspecting JavaScript stack in
+conjunction with native stack and other runtime environment data.
+
+### `--diagnostic-report-verbose`
+<!-- YAML
+added: REPLACEME
+-->
+
+Flag that enables additional information to be printed during report generation.
+
 ### `--enable-fips`
 <!-- YAML
 added: v6.0.0
@@ -103,6 +161,13 @@ added: v10.0.0
 -->
 
 Enable experimental top-level `await` keyword support in REPL.
+
+### `--experimental-report`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental diagnostic report feature.
 
 ### `--experimental-vm-modules`
 <!-- YAML
@@ -616,9 +681,17 @@ if they had been specified on the command line before the actual command line
 that is not allowed in the environment is used, such as `-p` or a script file.
 
 Node.js options that are allowed are:
+- `--diagnostic-report-directory`
+- `--diagnostic-report-filename`
+- `--diagnostic-report-on-fatalerror`
+- `--diagnostic-report-on-signal`
+- `--diagnostic-report-signal`
+- `--diagnostic-report-uncaught-exception`
+- `--diagnostic-report-verbose`
 - `--enable-fips`
 - `--experimental-modules`
 - `--experimental-repl-await`
+- `--experimental-report`
 - `--experimental-vm-modules`
 - `--force-fips`
 - `--icu-data-dir`
