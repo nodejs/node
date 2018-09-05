@@ -1092,7 +1092,7 @@ using an object, it is also possible to use a regular expression, when
 validating against a string property. See below for examples.
 
 If specified, `message` will be appended to the message provided by the
-`AssertionError` if the fn call fails to throw or in case the error validation
+`AssertionError` if the `fn` call fails to throw or in case the error validation
 fails.
 
 Custom validation object/error instance:
