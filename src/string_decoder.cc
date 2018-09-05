@@ -71,16 +71,17 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
                kIncompleteCharactersEnd);
       if (Encoding() == UTF8) {
         // For UTF-8, we need special treatment to align with the V8 decoder:
-        // If an incomplete character is found at a chunk boundary, we turn
-        // that character into a single invalid one.
+        // If an incomplete character is found at a chunk boundary, we use
+        // its remainder and pass it to V8 as-is.
         for (size_t i = 0; i < nread && i < MissingBytes(); ++i) {
           if ((data[i] & 0xC0) != 0x80) {
             // This byte is not a continuation byte even though it should have
-            // been one.
-            // Act as if there was a 1-byte incomplete character, which does
-            // not make sense but works here because we know it's invalid.
+            // been one. We stop decoding of the incomplete character at this
+            // point (but still use the rest of the incomplete bytes from this
+            // chunk) and assume that the new, unexpected byte starts a new one.
             state_[kMissingBytes] = 0;
-            state_[kBufferedBytes] = 1;
+            memcpy(IncompleteCharacterBuffer() + BufferedBytes(), data, i);
+            state_[kBufferedBytes] += i;
             data += i;
             nread -= i;
             break;

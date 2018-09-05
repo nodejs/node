@@ -162,6 +162,17 @@ assert.strictEqual(decoder.write(Buffer.alloc(20)), '\0'.repeat(10));
 assert.strictEqual(decoder.write(Buffer.alloc(48)), '\0'.repeat(24));
 assert.strictEqual(decoder.end(), '');
 
+// Regression tests for https://github.com/nodejs/node/issues/22626
+// (not enough replacement chars when having seen more than one byte of an
+// incomplete multibyte characters).
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('f69b', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('d1', 'hex')), '\ufffd\ufffd');
+assert.strictEqual(decoder.end(), '\ufffd');
+assert.strictEqual(decoder.write(Buffer.from('f4', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('bde5', 'hex')), '\ufffd\ufffd');
+assert.strictEqual(decoder.end(), '\ufffd');
+
 common.expectsError(
   () => new StringDecoder(1),
   {
