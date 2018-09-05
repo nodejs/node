@@ -120,6 +120,8 @@ const customTypesMap = {
   'URLSearchParams': 'url.html#url_class_urlsearchparams',
 
   'MessagePort': 'worker_threads.html#worker_threads_class_messageport',
+  'Lock': 'worker_threads.html#worker_threads_class_lock',
+  'LockManager': 'worker_threads.html#worker_threads_class_lockmanager',
 
   'zlib options': 'zlib.html#zlib_class_options',
 };

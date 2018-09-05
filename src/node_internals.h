@@ -117,6 +117,7 @@ struct sockaddr;
     V(http_parser)                                                            \
     V(inspector)                                                              \
     V(js_stream)                                                              \
+    V(locks)                                                                  \
     V(messaging)                                                              \
     V(module_wrap)                                                            \
     V(options)                                                                \

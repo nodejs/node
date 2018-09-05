@@ -153,6 +153,7 @@ struct PackageConfig {
   V(duration_string, "duration")                                              \
   V(emit_warning_string, "emitWarning")                                       \
   V(exchange_string, "exchange")                                              \
+  V(exclusive_string, "exclusive")                                            \
   V(encoding_string, "encoding")                                              \
   V(entries_string, "entries")                                                \
   V(entry_type_string, "entryType")                                           \
@@ -178,6 +179,7 @@ struct PackageConfig {
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
+  V(held_string, "held")                                                      \
   V(help_text_string, "helpText")                                             \
   V(homedir_string, "homedir")                                                \
   V(host_string, "host")                                                      \
@@ -201,6 +203,7 @@ struct PackageConfig {
   V(message_port_string, "messagePort")                                       \
   V(message_port_constructor_string, "MessagePort")                           \
   V(minttl_string, "minttl")                                                  \
+  V(mode_string, "mode")                                                      \
   V(modulus_string, "modulus")                                                \
   V(name_string, "name")                                                      \
   V(netmask_string, "netmask")                                                \
@@ -242,6 +245,7 @@ struct PackageConfig {
   V(parse_error_string, "Parse Error")                                        \
   V(password_string, "password")                                              \
   V(path_string, "path")                                                      \
+  V(pending_string, "pending")                                                \
   V(pending_handle_string, "pendingHandle")                                   \
   V(pid_string, "pid")                                                        \
   V(pipe_string, "pipe")                                                      \
@@ -270,6 +274,7 @@ struct PackageConfig {
   V(service_string, "service")                                                \
   V(servername_string, "servername")                                          \
   V(session_id_string, "sessionId")                                           \
+  V(shared_string, "shared")                                                  \
   V(shell_string, "shell")                                                    \
   V(signal_string, "signal")                                                  \
   V(sink_string, "sink")                                                      \
