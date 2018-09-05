@@ -625,6 +625,32 @@ Path to the file used to store the persistent REPL history. The default path is
 `~/.node_repl_history`, which is overridden by this variable. Setting the value
 to an empty string (`''` or `' '`) disables persistent REPL history.
 
+### `NODE_V8_COVERAGE=dir`
+
+When set, Node.js will begin outputting [V8 JavaScript code coverage][] to the
+directory provided as an argument. Coverage is output as an array of
+[ScriptCoverage][] objects:
+
+```json
+{
+  "result": [
+    {
+      "scriptId": "67",
+      "url": "internal/tty.js",
+      "functions": []
+    }
+  ]
+}
+```
+
+`NODE_V8_COVERAGE` will automatically propagate to subprocesses, making it
+easier to instrument applications that call the `child_process.spawn()` family
+of functions. `NODE_V8_COVERAGE` can be set to an empty string, to prevent
+propagation.
+
+At this time coverage is only collected in the main thread and will not be
+output for code executed by worker threads.
+
 ### `OPENSSL_CONF=file`
 <!-- YAML
 added: v6.11.0
@@ -691,6 +717,8 @@ greater than `4` (its current default value). For more information, see the
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
+[ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
+[V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [debugger]: debugger.html
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
 [experimental ECMAScript Module]: esm.html#esm_loader_hooks

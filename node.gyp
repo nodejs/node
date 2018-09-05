@@ -144,6 +144,7 @@
       'lib/internal/process/worker_thread_only.js',
       'lib/internal/querystring.js',
       'lib/internal/process/write-coverage.js',
+      'lib/internal/process/coverage.js',
       'lib/internal/readline.js',
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
