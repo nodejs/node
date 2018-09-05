@@ -132,11 +132,14 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
+using v8::DEFAULT;
+using v8::DontEnum;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Just;
@@ -145,19 +148,27 @@ using v8::Locker;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Message;
+using v8::MicrotasksPolicy;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
+using v8::NewStringType;
+using v8::None;
 using v8::Nothing;
 using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
+using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
+using v8::ReadOnly;
+using v8::Script;
+using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
 using v8::SideEffectType;
 using v8::String;
+using v8::TracingController;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::V8;
@@ -190,12 +201,12 @@ std::shared_ptr<PerProcessOptions> per_process_opts {
     new PerProcessOptions() };
 
 static Mutex node_isolate_mutex;
-static v8::Isolate* node_isolate;
+static Isolate* node_isolate;
 
 // Ensures that __metadata trace events are only emitted
 // when tracing is enabled.
 class NodeTraceStateObserver :
-    public v8::TracingController::TraceStateObserver {
+    public TracingController::TraceStateObserver {
  public:
   void OnTraceEnabled() override {
     char name_buffer[512];
@@ -278,12 +289,12 @@ class NodeTraceStateObserver :
     UNREACHABLE();
   }
 
-  explicit NodeTraceStateObserver(v8::TracingController* controller) :
+  explicit NodeTraceStateObserver(TracingController* controller) :
       controller_(controller) {}
   ~NodeTraceStateObserver() override {}
 
  private:
-  v8::TracingController* controller_;
+  TracingController* controller_;
 };
 
 static struct {
@@ -692,12 +703,12 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 }  // anonymous namespace
 
 
-void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
+void AddPromiseHook(Isolate* isolate, promise_hook_func fn, void* arg) {
   Environment* env = Environment::GetCurrent(isolate);
   env->AddPromiseHook(fn, arg);
 }
 
-void AddEnvironmentCleanupHook(v8::Isolate* isolate,
+void AddEnvironmentCleanupHook(Isolate* isolate,
                                void (*fun)(void* arg),
                                void* arg) {
   Environment* env = Environment::GetCurrent(isolate);
@@ -705,7 +716,7 @@ void AddEnvironmentCleanupHook(v8::Isolate* isolate,
 }
 
 
-void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
+void RemoveEnvironmentCleanupHook(Isolate* isolate,
                                   void (*fun)(void* arg),
                                   void* arg) {
   Environment* env = Environment::GetCurrent(isolate);
@@ -759,7 +770,7 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                Local<Value> argv[],
                                async_context asyncContext) {
   Local<String> method_string =
-      String::NewFromUtf8(isolate, method, v8::NewStringType::kNormal)
+      String::NewFromUtf8(isolate, method, NewStringType::kNormal)
           .ToLocalChecked();
   return MakeCallback(isolate, recv, method_string, argc, argv, asyncContext);
 }
@@ -945,7 +956,7 @@ void AppendExceptionLine(Environment* env,
   arrow[off + 1] = '\0';
 
   Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow,
-      v8::NewStringType::kNormal).ToLocalChecked();
+      NewStringType::kNormal).ToLocalChecked();
 
   const bool can_set_arrow = !arrow_str.IsEmpty() && !err_obj.IsEmpty();
   // If allocating arrow_str failed, print it out. There's not much else to do.
@@ -1071,8 +1082,8 @@ static MaybeLocal<Value> ExecuteString(Environment* env,
   try_catch.SetVerbose(false);
 
   ScriptOrigin origin(filename);
-  MaybeLocal<v8::Script> script =
-      v8::Script::Compile(env->context(), source, &origin);
+  MaybeLocal<Script> script =
+      Script::Compile(env->context(), source, &origin);
   if (script.IsEmpty()) {
     ReportException(env, try_catch);
     env->Exit(3);
@@ -1526,7 +1537,7 @@ void FatalException(Isolate* isolate,
           !code->IsInt32()) {
         exit(1);
       }
-      exit(code.As<v8::Int32>()->Value());
+      exit(code.As<Int32>()->Value());
     }
   }
 }
@@ -1575,20 +1586,20 @@ static Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
   // do proper error checking for string creation.
   if (!String::NewFromUtf8(env->isolate(),
                            warning,
-                           v8::NewStringType::kNormal).ToLocal(&args[argc++])) {
+                           NewStringType::kNormal).ToLocal(&args[argc++])) {
     return Nothing<bool>();
   }
   if (type != nullptr) {
     if (!String::NewFromOneByte(env->isolate(),
                                 reinterpret_cast<const uint8_t*>(type),
-                                v8::NewStringType::kNormal)
+                                NewStringType::kNormal)
                                     .ToLocal(&args[argc++])) {
       return Nothing<bool>();
     }
     if (code != nullptr &&
         !String::NewFromOneByte(env->isolate(),
                                 reinterpret_cast<const uint8_t*>(code),
-                                v8::NewStringType::kNormal)
+                                NewStringType::kNormal)
                                     .ToLocal(&args[argc++])) {
       return Nothing<bool>();
     }
@@ -1733,7 +1744,7 @@ static void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Local<Object> module = Object::New(env->isolate());
   Local<Object> exports = Object::New(env->isolate());
   Local<String> exports_prop = String::NewFromUtf8(env->isolate(), "exports",
-      v8::NewStringType::kNormal).ToLocalChecked();
+      NewStringType::kNormal).ToLocalChecked();
   module->Set(exports_prop, exports);
 
   if (mod->nm_context_register_func != nullptr) {
@@ -1817,7 +1828,7 @@ namespace {
     obj->DefineOwnProperty(env->context(),                                    \
                            OneByteString(env->isolate(), str),                \
                            var,                                               \
-                           v8::ReadOnly).FromJust();                          \
+                           ReadOnly).FromJust();                              \
   } while (0)
 
 #define READONLY_DONT_ENUM_PROPERTY(obj, str, var)                            \
@@ -1825,8 +1836,7 @@ namespace {
     obj->DefineOwnProperty(env->context(),                                    \
                            OneByteString(env->isolate(), str),                \
                            var,                                               \
-                           static_cast<v8::PropertyAttribute>(v8::ReadOnly |  \
-                                                              v8::DontEnum))  \
+                           static_cast<PropertyAttribute>(ReadOnly|DontEnum)) \
         .FromJust();                                                          \
   } while (0)
 
@@ -1846,8 +1856,8 @@ void SetupProcessObject(Environment* env,
       ProcessTitleGetter,
       env->is_main_thread() ? ProcessTitleSetter : nullptr,
       env->as_external(),
-      v8::DEFAULT,
-      v8::None,
+      DEFAULT,
+      None,
       SideEffectType::kHasNoSideEffect).FromJust());
 
   // process.version
@@ -1976,7 +1986,7 @@ void SetupProcessObject(Environment* env,
   for (size_t i = 0; i < args.size(); ++i) {
     arguments->Set(env->context(), i,
         String::NewFromUtf8(env->isolate(), args[i].c_str(),
-                            v8::NewStringType::kNormal).ToLocalChecked())
+                            NewStringType::kNormal).ToLocalChecked())
         .FromJust();
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "argv"), arguments);
@@ -1986,7 +1996,7 @@ void SetupProcessObject(Environment* env,
   for (size_t i = 0; i < exec_args.size(); ++i) {
     exec_arguments->Set(env->context(), i,
         String::NewFromUtf8(env->isolate(), exec_args[i].c_str(),
-                            v8::NewStringType::kNormal).ToLocalChecked())
+                            NewStringType::kNormal).ToLocalChecked())
         .FromJust();
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execArgv"),
@@ -2022,7 +2032,7 @@ void SetupProcessObject(Environment* env,
                       String::NewFromUtf8(
                           env->isolate(),
                           env->options()->eval_string.c_str(),
-                          v8::NewStringType::kNormal).ToLocalChecked());
+                          NewStringType::kNormal).ToLocalChecked());
   }
 
   // -p, --print
@@ -2048,7 +2058,7 @@ void SetupProcessObject(Environment* env,
     for (unsigned int i = 0; i < preload_modules.size(); ++i) {
       Local<String> module = String::NewFromUtf8(env->isolate(),
                                                  preload_modules[i].c_str(),
-                                                 v8::NewStringType::kNormal)
+                                                 NewStringType::kNormal)
                                  .ToLocalChecked();
       array->Set(i, module);
     }
@@ -2135,11 +2145,11 @@ void SetupProcessObject(Environment* env,
   if (uv_exepath(exec_path, &exec_path_len) == 0) {
     exec_path_value = String::NewFromUtf8(env->isolate(),
                                           exec_path,
-                                          v8::NewStringType::kInternalized,
+                                          NewStringType::kInternalized,
                                           exec_path_len).ToLocalChecked();
   } else {
     exec_path_value = String::NewFromUtf8(env->isolate(), args[0].c_str(),
-        v8::NewStringType::kInternalized).ToLocalChecked();
+        NewStringType::kInternalized).ToLocalChecked();
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execPath"),
                exec_path_value);
@@ -2303,15 +2313,15 @@ void LoadEnvironment(Environment* env) {
   global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
 
   // Create binding loaders
-  v8::Local<v8::Function> get_binding_fn =
+  Local<Function> get_binding_fn =
       env->NewFunctionTemplate(GetBinding)->GetFunction(env->context())
           .ToLocalChecked();
 
-  v8::Local<v8::Function> get_linked_binding_fn =
+  Local<Function> get_linked_binding_fn =
       env->NewFunctionTemplate(GetLinkedBinding)->GetFunction(env->context())
           .ToLocalChecked();
 
-  v8::Local<v8::Function> get_internal_binding_fn =
+  Local<Function> get_internal_binding_fn =
       env->NewFunctionTemplate(GetInternalBinding)->GetFunction(env->context())
           .ToLocalChecked();
 
@@ -2843,7 +2853,7 @@ void RunAtExit(Environment* env) {
 }
 
 
-uv_loop_t* GetCurrentEventLoop(v8::Isolate* isolate) {
+uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
   HandleScope handle_scope(isolate);
   auto context = isolate->GetCurrentContext();
   if (context.IsEmpty())
@@ -2976,7 +2986,7 @@ MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
 
 MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
-    v8::TracingController* tracing_controller) {
+    TracingController* tracing_controller) {
   return new NodePlatform(thread_pool_size, tracing_controller);
 }
 
@@ -2999,8 +3009,8 @@ Local<Context> NewContext(Isolate* isolate,
     // Run lib/internal/per_context.js
     Context::Scope context_scope(context);
     Local<String> per_context = NodePerContextSource(isolate);
-    v8::ScriptCompiler::Source per_context_src(per_context, nullptr);
-    Local<v8::Script> s = v8::ScriptCompiler::Compile(
+    ScriptCompiler::Source per_context_src(per_context, nullptr);
+    Local<Script> s = ScriptCompiler::Compile(
         context,
         &per_context_src).ToLocalChecked();
     s->Run(context).ToLocalChecked();
@@ -3109,7 +3119,7 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator) {
 
   isolate->AddMessageListener(OnMessage);
   isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
-  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
   isolate->SetFatalErrorHandler(OnFatalError);
   isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
 
