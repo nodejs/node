@@ -6,16 +6,16 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
+// 'should consider equal strings to be equal'
 assert.strictEqual(
   crypto.timingSafeEqual(Buffer.from('foo'), Buffer.from('foo')),
-  true,
-  'should consider equal strings to be equal'
+  true
 );
 
+// 'should consider unequal strings to be unequal'
 assert.strictEqual(
   crypto.timingSafeEqual(Buffer.from('foo'), Buffer.from('bar')),
-  false,
-  'should consider unequal strings to be unequal'
+  false
 );
 
 common.expectsError(
