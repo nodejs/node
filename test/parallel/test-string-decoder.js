@@ -102,7 +102,7 @@ const arrayBufferViewStr = 'String for ArrayBufferView tests\n';
 const inputBuffer = Buffer.from(arrayBufferViewStr.repeat(8), 'utf8');
 for (const expectView of common.getArrayBufferViews(inputBuffer)) {
   console.log(
-    'string-decoder test with TypedArray for',
+    'string-decoder test for',
     expectView[Symbol.toStringTag]
   );
   assert.strictEqual(
