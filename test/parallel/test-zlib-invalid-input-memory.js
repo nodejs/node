@@ -14,8 +14,9 @@ const ongc = common.mustCall();
   const input = Buffer.from('foobar');
   const strm = zlib.createInflate();
   strm.end(input);
-  strm.once('error', common.mustCall((err) => assert(err)));
+  strm.once('error', common.mustCall((err) => {
+    assert(err);
+    setImmediate(global.gc);
+  }));
   onGC(strm, { ongc });
 }
-
-setImmediate(() => global.gc());
