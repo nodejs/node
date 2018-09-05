@@ -97,20 +97,20 @@ assert.strictEqual(decoder.lastTotal, 3);
 
 assert.strictEqual(decoder.end(), '\ufffd');
 
-// TypedArray with Int8Array test
-decoder = new StringDecoder('utf8');
-assert.strictEqual(decoder.write(new Int8Array([1, 2])), '\u0001\u0002');
-assert.strictEqual(decoder.end(), '');
-
-// DataView
-const buffer = new ArrayBuffer(16);
-const dv = new DataView(buffer, 0);
-dv.setInt16(1, 42);
-
-decoder = new StringDecoder('utf8');
-assert.strictEqual(decoder.write(dv), '\u0000\u0000*\u0000\u0000\u0000\u0000' +
-  '\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000');
-assert.strictEqual(decoder.end(), '');
+// ArrayBufferView tests
+const arrayBufferViewStr = 'String for ArrayBufferView tests\n';
+const inputBuffer = Buffer.from(arrayBufferViewStr.repeat(8), 'utf8');
+for (const expectView of common.getArrayBufferViews(inputBuffer)) {
+  console.log(
+    'string-decoder test with TypedArray for',
+    expectView[Symbol.toStringTag]
+  );
+  assert.strictEqual(
+    decoder.write(expectView),
+    inputBuffer.toString('utf8')
+  );
+  assert.strictEqual(decoder.end(), '');
+}
 
 decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.write(Buffer.from('E18B', 'hex')), '');
