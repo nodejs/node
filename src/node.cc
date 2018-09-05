@@ -2395,11 +2395,10 @@ void DebugProcess(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Invalid number of arguments.");
   }
 
-  pid_t pid;
-  int r;
+  CHECK(args[0]->IsNumber());
+  pid_t pid = args[0].As<Integer>()->Value();
+  int r = kill(pid, SIGUSR1);
 
-  pid = args[0]->IntegerValue();
-  r = kill(pid, SIGUSR1);
   if (r != 0) {
     return env->ThrowErrnoException(errno, "kill");
   }
@@ -2417,7 +2416,6 @@ static int GetDebugSignalHandlerMappingName(DWORD pid, wchar_t* buf,
 static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-  DWORD pid;
   HANDLE process = nullptr;
   HANDLE thread = nullptr;
   HANDLE mapping = nullptr;
@@ -2429,7 +2427,8 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
     goto out;
   }
 
-  pid = (DWORD) args[0]->IntegerValue();
+  CHECK(args[0]->IsNumber());
+  DWORD pid = args[0].As<Integer>()->Value();
 
   process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
                             PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
