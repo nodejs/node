@@ -215,8 +215,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
         ctx->write_result_[0] = ctx->strm_.avail_out;
         ctx->write_result_[1] = ctx->strm_.avail_in;
         ctx->write_in_progress_ = false;
-        ctx->Unref();
       }
+      ctx->Unref();
       return;
     }
 
@@ -364,6 +364,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   // v8 land!
   void AfterThreadPoolWork(int status) override {
     AllocScope alloc_scope(this);
+    OnScopeLeave on_scope_leave([&]() { Unref(); });
 
     write_in_progress_ = false;
 
@@ -388,7 +389,6 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
                                            write_js_callback_);
     MakeCallback(cb, 0, nullptr);
 
-    Unref();
     if (pending_close_)
       Close();
   }
@@ -410,8 +410,6 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     MakeCallback(env()->onerror_string(), arraysize(args), args);
 
     // no hope of rescue.
-    if (write_in_progress_)
-      Unref();
     write_in_progress_ = false;
     if (pending_close_)
       Close();
