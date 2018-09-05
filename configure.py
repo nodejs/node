@@ -493,6 +493,11 @@ parser.add_option('--without-npm',
     dest='without_npm',
     help='do not install the bundled npm (package manager)')
 
+parser.add_option('--without-report',
+    action='store_true',
+    dest='without_report',
+    help='build without report')
+
 # Dummy option for backwards compatibility
 parser.add_option('--with-snapshot',
     action='store_true',
@@ -938,6 +943,7 @@ def configure_node(o):
     o['variables']['OS'] = 'android'
   o['variables']['node_prefix'] = options.prefix
   o['variables']['node_install_npm'] = b(not options.without_npm)
+  o['variables']['node_report'] = b(not options.without_report)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()

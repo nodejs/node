@@ -3,6 +3,9 @@
 
 #include "node_errors.h"
 #include "node_internals.h"
+#ifdef NODE_REPORT
+#include "node_report.h"
+#endif
 
 namespace node {
 
@@ -314,6 +317,21 @@ void OnFatalError(const char* location, const char* message) {
   } else {
     PrintErrorString("FATAL ERROR: %s\n", message);
   }
+#ifdef NODE_REPORT
+  Isolate* isolate = Isolate::GetCurrent();
+  std::string filename;
+  Environment* env = Environment::GetCurrent(isolate);
+  if (env != nullptr) {
+    std::shared_ptr<PerIsolateOptions> options = env->isolate_data()->options();
+    if (options->report_on_fatalerror) {
+      report::TriggerNodeReport(
+          isolate, env, message, __func__, filename, Local<String>());
+    }
+  } else {
+    report::TriggerNodeReport(
+        isolate, nullptr, message, __func__, filename, Local<String>());
+  }
+#endif  // NODE_REPORT
   fflush(stderr);
   ABORT();
 }
