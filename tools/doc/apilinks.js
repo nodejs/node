@@ -52,7 +52,9 @@ process.argv.slice(2).forEach((file) => {
 
   // Parse source.
   const source = fs.readFileSync(file, 'utf8');
-  const ast = acorn.parse(source, { ecmaVersion: 10, locations: true });
+  const ast = acorn.parse(
+    source,
+    { allowReturnOutsideFunction: true, ecmaVersion: 10, locations: true });
   const program = ast.body;
 
   // Build link
@@ -68,8 +70,8 @@ process.argv.slice(2).forEach((file) => {
       if (expr.type !== 'AssignmentExpression') return;
 
       let lhs = expr.left;
-      if (expr.left.object.type === 'MemberExpression') lhs = lhs.object;
       if (lhs.type !== 'MemberExpression') return;
+      if (lhs.object.type === 'MemberExpression') lhs = lhs.object;
       if (lhs.object.name === 'exports') {
         const name = lhs.property.name;
         if (expr.right.type === 'FunctionExpression') {
