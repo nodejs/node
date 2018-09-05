@@ -636,6 +636,12 @@ function skipIfInspectorDisabled() {
   }
 }
 
+function skipIfReportDisabled() {
+  if (!process.config.variables.node_report) {
+    skip('Node Report is disabled');
+  }
+}
+
 function skipIf32Bits() {
   if (bits < 64) {
     skip('The tested feature is not available in 32bit builds');
@@ -762,6 +768,7 @@ module.exports = {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfReportDisabled,
   skipIfWorker,
 
   get localhostIPv6() { return '::1'; },
