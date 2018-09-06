@@ -9,23 +9,13 @@
 // TODO(davisjam): DO NOT MERGE. Only for debugging.
 // TODO(davisjam): There must be a better way to do this.
 #define DEBUG_LOG 1
-#undef DEBUG_LOG
+//#undef DEBUG_LOG
 
 #ifdef DEBUG_LOG
 #include <stdio.h>
-#define LOG_0(fmt) fprintf(stderr, fmt)
-#define LOG_1(fmt, a1) fprintf(stderr, fmt, a1)
-#define LOG_2(fmt, a1, a2) fprintf(stderr, fmt, a1, a2)
-#define LOG_3(fmt, a1, a2, a3) fprintf(stderr, fmt, a1, a2, a3)
-#define LOG_4(fmt, a1, a2, a3, a4) fprintf(stderr, fmt, a1, a2, a3, a4)
-#define LOG_5(fmt, a1, a2, a3, a4, a5) fprintf(stderr, fmt, a1, a2, a3, a4, a5)
+#define LOG(...) fprintf(stderr, __VA_ARGS__)
 #else
-#define LOG_0(fmt) (void) 0
-#define LOG_1(fmt, a1) (void) 0
-#define LOG_2(fmt, a1, a2) (void) 0
-#define LOG_3(fmt, a1, a2, a3) (void) 0
-#define LOG_4(fmt, a1, a2, a3, a4) (void) 0
-#define LOG_5(fmt, a1, a2, a3, a4, a5) (void) 0
+#define LOG(...) (void) 0
 #endif
 
 namespace node {
@@ -90,16 +80,16 @@ LibuvTask::LibuvTask(Threadpool* tp,
     details_.cancelable = false;
   }
 
-  LOG_1("LibuvTask::LibuvTask: type %d\n", details_.type);
+  LOG("LibuvTask::LibuvTask: type %d\n", details_.type);
 }
 
 LibuvTask::~LibuvTask(void) {
-  LOG_1("LibuvTask::Run: Task %p done\n", req_);
+  LOG("LibuvTask::Run: Task %p done\n", req_);
   tp_->GetExecutor()->done(req_);
 }
 
 void LibuvTask::Run() {
-  LOG_1("LibuvTask::Run: Running Task %p\n", req_);
+  LOG("LibuvTask::Run: Running Task %p\n", req_);
   req_->work_cb(req_);
 }
 
@@ -197,7 +187,7 @@ void Threadpool::Initialize(void) {
 }
 
 void Threadpool::Post(std::unique_ptr<Task> task) {
-  LOG_1("Threadpool::Post: Got task of type %d\n",
+  LOG("Threadpool::Post: Got task of type %d\n",
     task->details_.type);
   queue_.Push(std::move(task));
 }
@@ -213,7 +203,7 @@ void Threadpool::uv_executor_submit(uv_executor_t* executor,
                                     uv_work_t* req,
                                     const uv_work_options_t* opts) {
   Threadpool* threadpool = reinterpret_cast<Threadpool *>(executor->data);
-  LOG_0("Threadpool::uv_executor_submit: Got some work!\n");
+  LOG("Threadpool::uv_executor_submit: Got some work!\n");
   threadpool->Post(std::unique_ptr<Task>(new LibuvTask(threadpool, req, opts)));
 }
 

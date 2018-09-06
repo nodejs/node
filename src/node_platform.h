@@ -12,6 +12,7 @@
 #include "node.h"
 #include "node_mutex.h"
 #include "uv.h"
+#include "node_threadpool.h"
 
 namespace node {
 
@@ -99,7 +100,7 @@ class PerIsolatePlatformData :
 // API is modeled on v8::TaskRunner.
 class WorkerThreadsTaskRunner {
  public:
-  explicit WorkerThreadsTaskRunner(int thread_pool_size);
+  explicit WorkerThreadsTaskRunner(std::shared_ptr<threadpool::Threadpool> tp);
 
   // Add task to queue for eventual Run()
   void PostTask(std::unique_ptr<v8::Task> task);
@@ -113,18 +114,15 @@ class WorkerThreadsTaskRunner {
   int NumberOfWorkerThreads() const;
 
  private:
-  // Push'd directly by PostTask() and indirectly by PostDelayedTask.
-  TaskQueue<v8::Task> pending_worker_tasks_;
-
   class DelayedTaskScheduler;
   std::unique_ptr<DelayedTaskScheduler> delayed_task_scheduler_;
 
-  std::vector<std::unique_ptr<uv_thread_t>> threads_;
+  std::shared_ptr<threadpool::Threadpool> tp_;
 };
 
 class NodePlatform : public MultiIsolatePlatform {
  public:
-  NodePlatform(int thread_pool_size, v8::TracingController* tracing_controller);
+  NodePlatform(std::shared_ptr<threadpool::Threadpool> tp, v8::TracingController* tracing_controller);
   virtual ~NodePlatform() {}
 
   void DrainTasks(v8::Isolate* isolate) override;

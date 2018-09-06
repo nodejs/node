@@ -54,6 +54,7 @@ class TaskDetails {
     , CPU
     , CPU_SLOW
     , CPU_FAST
+    , V8
     , UNKNOWN
   };
 
@@ -152,6 +153,7 @@ class Threadpool {
 
   void Post(std::unique_ptr<Task> task);
   int QueueLength(void) const;
+  int NWorkers(void) const { return workers_.size(); }
 
   // To interact with libuv's executor API:
   //   - For the call to uv_replace_executor

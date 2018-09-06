@@ -285,26 +285,23 @@ class NodeTraceStateObserver :
 };
 
 static struct {
-  // Returns zero on success
-  int Initialize(void) {
-    tp_.reset(new threadpool::Threadpool());
+  void Initialize(void) {
+    tp_ = std::make_shared<threadpool::Threadpool>();
     tp_->Initialize();
-    return uv_replace_executor(tp_->GetExecutor());
   }
 
-  std::unique_ptr<threadpool::Threadpool> tp_;
+  std::shared_ptr<threadpool::Threadpool> tp_;
 } node_threadpool;
 
 static struct {
 #if NODE_USE_V8_PLATFORM
-  // TODO(davisjam): Pass in the node_threadpool.
-  void Initialize(int thread_pool_size) {
+  void Initialize(std::shared_ptr<threadpool::Threadpool> tp) {
     tracing_agent_.reset(new tracing::Agent());
     auto controller = tracing_agent_->GetTracingController();
     controller->AddTraceStateObserver(new NodeTraceStateObserver(controller));
     tracing::TraceEventHelper::SetTracingController(controller);
     StartTracingAgent();
-    platform_ = new NodePlatform(thread_pool_size, controller);
+    platform_ = new NodePlatform(tp, controller);
     V8::InitializePlatform(platform_);
   }
 
@@ -3132,9 +3129,9 @@ MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
 
 
 MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
+    int thread_pool_size,  // TODO(davisjam): ignored. Not sure what to do here.
     v8::TracingController* tracing_controller) {
-  return new NodePlatform(thread_pool_size, tracing_controller);
+  return new NodePlatform(node_threadpool.tp_, tracing_controller);
 }
 
 
@@ -3351,12 +3348,16 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif  // HAVE_OPENSSL
 
-  // This needs to run before any work is queued to the libuv executor.
-  CHECK_EQ(0, node_threadpool.Initialize());
+  // Initialize our threadpool.
+  node_threadpool.Initialize();
 
-  // TODO(davisjam): Pass the v8_platform the node_threadpool.
-  v8_platform.Initialize(
-      per_process_opts->v8_thread_pool_size);
+  // Replace the default libuv executor with our threadpool.
+  // This needs to run before any work is queued to the libuv executor.
+  uv_replace_executor(node_threadpool.tp_->GetExecutor());
+
+  // Replace the default V8 platform with our implementation.
+  // Use our threadpool.
+  v8_platform.Initialize(node_threadpool.tp_);
   V8::Initialize();
   performance::performance_v8_start = PERFORMANCE_NOW();
   v8_initialized = true;

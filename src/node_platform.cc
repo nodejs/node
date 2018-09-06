@@ -16,24 +16,29 @@ using v8::Platform;
 using v8::Task;
 using v8::TracingController;
 
-namespace {
-
-static void PlatformWorkerThread(void* data) {
-  TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
-                        "PlatformWorkerThread");
-  TaskQueue<Task>* pending_worker_tasks = static_cast<TaskQueue<Task>*>(data);
-  while (std::unique_ptr<Task> task = pending_worker_tasks->BlockingPop()) {
-    task->Run();
-    pending_worker_tasks->NotifyOfCompletion();
+// Wrapper for delivery to threadpool::Threadpool.
+class V8Task : public threadpool::Task {
+ public:
+  V8Task(std::unique_ptr<v8::Task> task) {
+    task_ = std::move(task);
+    details_.type = threadpool::TaskDetails::V8;
+    details_.priority = -1;
+    details_.cancelable = -1;
   }
-}
+  ~V8Task() {}
 
-}  // namespace
+  void Run() {
+    task_->Run();
+  }
+
+ private:
+  std::unique_ptr<v8::Task> task_;
+};
 
 class WorkerThreadsTaskRunner::DelayedTaskScheduler {
  public:
-  explicit DelayedTaskScheduler(TaskQueue<Task>* tasks)
-    : pending_worker_tasks_(tasks) {}
+  explicit DelayedTaskScheduler(std::shared_ptr<threadpool::Threadpool> tp)
+    : tp_(tp) {}
 
   std::unique_ptr<uv_thread_t> Start() {
     auto start_thread = [](void* data) {
@@ -123,25 +128,25 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   };
 
   static void RunTask(uv_timer_t* timer) {
+    // This DelayedTask is ready. Post it to the threadpool.
     DelayedTaskScheduler* scheduler =
         ContainerOf(&DelayedTaskScheduler::loop_, timer->loop);
-    // This adds the Task to the TP queue.
-    // TODO(davisjam): Plug in TP implementation.
-    scheduler->pending_worker_tasks_->Push(scheduler->TakeTimerTask(timer));
+    scheduler->tp_->Post(scheduler->TakeTimerTask(timer));
   }
 
-  std::unique_ptr<Task> TakeTimerTask(uv_timer_t* timer) {
+  std::unique_ptr<threadpool::Task> TakeTimerTask(uv_timer_t* timer) {
     std::unique_ptr<Task> task(static_cast<Task*>(timer->data));
     uv_timer_stop(timer);
     uv_close(reinterpret_cast<uv_handle_t*>(timer), [](uv_handle_t* handle) {
       delete reinterpret_cast<uv_timer_t*>(handle);
     });
     timers_.erase(timer);
-    return task;
+    return std::unique_ptr<threadpool::Task>(
+      new V8Task(std::move(task)));
   }
 
   uv_sem_t ready_;
-  TaskQueue<v8::Task>* pending_worker_tasks_;
+  std::shared_ptr<threadpool::Threadpool> tp_;
 
   TaskQueue<v8::Task> tasks_;
   uv_loop_t loop_;
@@ -149,22 +154,16 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   std::unordered_set<uv_timer_t*> timers_;
 };
 
-WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(int thread_pool_size) {
+WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(std::shared_ptr<threadpool::Threadpool> tp) {
+  tp_ = tp;
   delayed_task_scheduler_.reset(
-      new DelayedTaskScheduler(&pending_worker_tasks_));
-  threads_.push_back(delayed_task_scheduler_->Start());
-  for (int i = 0; i < thread_pool_size; i++) {
-    std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
-    if (uv_thread_create(t.get(), PlatformWorkerThread,
-                         &pending_worker_tasks_) != 0) {
-      break;
-    }
-    threads_.push_back(std::move(t));
-  }
+      new DelayedTaskScheduler(tp_));
 }
 
 void WorkerThreadsTaskRunner::PostTask(std::unique_ptr<Task> task) {
-  pending_worker_tasks_.Push(std::move(task));
+  fprintf(stderr, "Posting to threadpool!\n");
+  tp_->Post(std::unique_ptr<V8Task>(
+    new V8Task(std::move(task))));
 }
 
 void WorkerThreadsTaskRunner::PostDelayedTask(std::unique_ptr<v8::Task> task,
@@ -173,19 +172,18 @@ void WorkerThreadsTaskRunner::PostDelayedTask(std::unique_ptr<v8::Task> task,
 }
 
 void WorkerThreadsTaskRunner::BlockingDrain() {
-  pending_worker_tasks_.BlockingDrain();
+  // TODO(davisjam): No support for this in threadpool::Threadpool at the moment.
+  // I believe this is the cause of the segfaults at the end of running 'node'.
+  //pending_worker_tasks_.BlockingDrain();
 }
 
 void WorkerThreadsTaskRunner::Shutdown() {
-  pending_worker_tasks_.Stop();
+  // TODO(davisjam): More cleanup?
   delayed_task_scheduler_->Stop();
-  for (size_t i = 0; i < threads_.size(); i++) {
-    CHECK_EQ(0, uv_thread_join(threads_[i].get()));
-  }
 }
 
 int WorkerThreadsTaskRunner::NumberOfWorkerThreads() const {
-  return threads_.size();
+  return tp_->NWorkers();
 }
 
 PerIsolatePlatformData::PerIsolatePlatformData(
@@ -249,7 +247,7 @@ int PerIsolatePlatformData::unref() {
   return --ref_count_;
 }
 
-NodePlatform::NodePlatform(int thread_pool_size,
+NodePlatform::NodePlatform(std::shared_ptr<threadpool::Threadpool> tp,
                            TracingController* tracing_controller) {
   if (tracing_controller) {
     tracing_controller_.reset(tracing_controller);
@@ -258,7 +256,7 @@ NodePlatform::NodePlatform(int thread_pool_size,
     tracing_controller_.reset(controller);
   }
   worker_thread_task_runner_ =
-      std::make_shared<WorkerThreadsTaskRunner>(thread_pool_size);
+      std::make_shared<WorkerThreadsTaskRunner>(tp);
 }
 
 void NodePlatform::RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) {
@@ -331,8 +329,7 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
   std::shared_ptr<PerIsolatePlatformData> per_isolate = ForIsolate(isolate);
 
   do {
-    // Worker tasks aren't associated with an Isolate.
-    // TODO(davisjam): This will require some dancing with the TP.
+    // Worker tasks aren't associated with any particular Isolate.
     worker_thread_task_runner_->BlockingDrain();
   } while (per_isolate->FlushForegroundTasksInternal());
 }
@@ -374,7 +371,6 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
 }
 
 void NodePlatform::CallOnWorkerThread(std::unique_ptr<v8::Task> task) {
-  // TODO(davisjam): Plug in TP implementation
   worker_thread_task_runner_->PostTask(std::move(task));
 }
 
