@@ -14,6 +14,7 @@
 namespace node {
 namespace threadpool {
 
+class LibuvExecutor;
 class Threadpool;
 class TaskQueue;
 class Task;
@@ -88,16 +89,39 @@ class Task {
  private:
 };
 
+// Shim that we plug into the libuv "pluggable TP" interface.
+//
+// Like WorkerThreadsTaskRunner, this routes libuv requests to the
+// internal Node.js Threadpool.
+class LibuvExecutor {
+ public:
+  LibuvExecutor(std::shared_ptr<Threadpool> tp);
+
+  uv_executor_t* GetExecutor();
+
+ private:
+
+  static void uv_executor_init(uv_executor_t* executor);
+  static void uv_executor_submit(uv_executor_t* executor,
+                                 uv_work_t* req,
+                                 const uv_work_options_t* opts);
+
+  std::shared_ptr<Threadpool> tp_;
+  uv_executor_t executor_;  // executor_.data points to instance of LibuvExecutor.
+};
+
+// The LibuvExecutor wraps libuv uv_work_t's into LibuvTasks
+// and routes them to the internal Threadpool.
 class LibuvTask : public Task {
  public:
-  LibuvTask(Threadpool* tp, uv_work_t* req, const uv_work_options_t* opts);
+  LibuvTask(LibuvExecutor *libuv_executor, uv_work_t* req, const uv_work_options_t* opts);
   ~LibuvTask();
 
   void Run();
 
  protected:
  private:
-  Threadpool* tp_;
+  LibuvExecutor* libuv_executor_;
   uv_work_t* req_;
 };
 
@@ -154,20 +178,6 @@ class Threadpool {
   void Post(std::unique_ptr<Task> task);
   int QueueLength(void) const;
   int NWorkers(void) const { return workers_.size(); }
-
-  // To interact with libuv's executor API:
-  //   - For the call to uv_replace_executor
-  //   - A LibuvTask needs the uv_executor_done_cb
-  uv_executor_t* GetExecutor();
-
- protected:
-  // TODO(davisjam): This should be in some separate interface class like
-  //   NodePlatform::WorkerThreadsTaskRunner.
-  uv_executor_t executor_;  // So can be plugged in to libuv
-  static void uv_executor_init(uv_executor_t* executor);
-  static void uv_executor_submit(uv_executor_t* executor,
-                                 uv_work_t* req,
-                                 const uv_work_options_t* opts);
 
  private:
   TaskQueue queue_;

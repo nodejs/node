@@ -288,9 +288,11 @@ static struct {
   void Initialize(void) {
     tp_ = std::make_shared<threadpool::Threadpool>();
     tp_->Initialize();
+    libuv_executor_ = std::unique_ptr<threadpool::LibuvExecutor>(new threadpool::LibuvExecutor(tp_));
   }
 
   std::shared_ptr<threadpool::Threadpool> tp_;
+  std::unique_ptr<threadpool::LibuvExecutor> libuv_executor_;
 } node_threadpool;
 
 static struct {
@@ -3351,9 +3353,9 @@ int Start(int argc, char** argv) {
   // Initialize our threadpool.
   node_threadpool.Initialize();
 
-  // Replace the default libuv executor with our threadpool.
+  // Replace the default libuv executor with our executor.
   // This needs to run before any work is queued to the libuv executor.
-  uv_replace_executor(node_threadpool.tp_->GetExecutor());
+  uv_replace_executor(node_threadpool.libuv_executor_->GetExecutor());
 
   // Replace the default V8 platform with our implementation.
   // Use our threadpool.

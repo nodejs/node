@@ -44,16 +44,45 @@ void Worker::_Run(void* data) {
 }
 
 /**************
+ * LibuvExecutor
+ ***************/
+
+LibuvExecutor::LibuvExecutor(std::shared_ptr<Threadpool> tp)
+  : tp_(tp) {
+  executor_.init = uv_executor_init;
+  executor_.destroy = nullptr;
+  executor_.submit = uv_executor_submit;
+  executor_.cancel = nullptr;
+  executor_.data = this;
+}
+
+uv_executor_t* LibuvExecutor::GetExecutor() {
+  return &executor_;
+}
+
+void LibuvExecutor::uv_executor_init(uv_executor_t* executor) {
+  // Already initialized.
+  // TODO(davisjam): I don't think we need this API in libuv. Nor destroy.
+}
+
+void LibuvExecutor::uv_executor_submit(uv_executor_t* executor,
+                                       uv_work_t* req,
+                                       const uv_work_options_t* opts) {
+  LibuvExecutor* libuv_executor = reinterpret_cast<LibuvExecutor *>(executor->data);
+  LOG("LibuvExecutor::uv_executor_submit: Got some work!\n");
+  libuv_executor->tp_->Post(std::unique_ptr<Task>(new LibuvTask(libuv_executor, req, opts)));
+}
+
+
+/**************
  * LibuvTask
  ***************/
 
-LibuvTask::LibuvTask(Threadpool* tp,
+LibuvTask::LibuvTask(LibuvExecutor* libuv_executor,
                      uv_work_t* req,
                      const uv_work_options_t* opts)
-  : Task(), tp_(tp), req_(req) {
-  req_ = req;
-
-  // Copy opts.
+  : Task(), libuv_executor_(libuv_executor), req_(req) {
+  // Fill in TaskDetails based on opts.
   if (opts) {
     switch (opts->type) {
     case UV_WORK_FS:
@@ -85,7 +114,7 @@ LibuvTask::LibuvTask(Threadpool* tp,
 
 LibuvTask::~LibuvTask(void) {
   LOG("LibuvTask::Run: Task %p done\n", req_);
-  tp_->GetExecutor()->done(req_);
+  libuv_executor_->GetExecutor()->done(req_);
 }
 
 void LibuvTask::Run() {
@@ -158,11 +187,6 @@ int TaskQueue::Length(void) const {
 
 Threadpool::Threadpool(void)
   : queue_(), workers_() {
-  executor_.init = uv_executor_init;
-  executor_.destroy = nullptr;
-  executor_.submit = uv_executor_submit;
-  executor_.cancel = nullptr;
-  executor_.data = this;
 }
 
 Threadpool::~Threadpool(void) {
@@ -194,21 +218,6 @@ void Threadpool::Post(std::unique_ptr<Task> task) {
 
 int Threadpool::QueueLength(void) const {
   return queue_.Length();
-}
-
-void Threadpool::uv_executor_init(uv_executor_t* executor) {
-}
-
-void Threadpool::uv_executor_submit(uv_executor_t* executor,
-                                    uv_work_t* req,
-                                    const uv_work_options_t* opts) {
-  Threadpool* threadpool = reinterpret_cast<Threadpool *>(executor->data);
-  LOG("Threadpool::uv_executor_submit: Got some work!\n");
-  threadpool->Post(std::unique_ptr<Task>(new LibuvTask(threadpool, req, opts)));
-}
-
-uv_executor_t* Threadpool::GetExecutor() {
-  return &executor_;
 }
 
 }  // namespace threadpool
