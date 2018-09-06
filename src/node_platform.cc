@@ -70,6 +70,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
     loop_.data = this;
     CHECK_EQ(0, uv_loop_init(&loop_));
     flush_tasks_.data = this;
+    fprintf(stderr, "WorkerThreadsTaskRunner::DelayedTaskScheduler: Initializing flush_tasks_ %p\n", &flush_tasks_);
     CHECK_EQ(0, uv_async_init(&loop_, &flush_tasks_, FlushTasks));
     uv_sem_post(&ready_);
 
@@ -159,6 +160,7 @@ WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
   tp_ = tp;
   delayed_task_scheduler_.reset(
       new DelayedTaskScheduler(tp_));
+  delayed_task_scheduler_thread_ = delayed_task_scheduler_->Start();
 }
 
 void WorkerThreadsTaskRunner::PostTask(std::unique_ptr<Task> task) {
@@ -180,8 +182,9 @@ void WorkerThreadsTaskRunner::BlockingDrain() {
 }
 
 void WorkerThreadsTaskRunner::Shutdown() {
-  // TODO(davisjam): More cleanup?
   delayed_task_scheduler_->Stop();
+  CHECK_EQ(0, uv_thread_join(delayed_task_scheduler_thread_.get()));
+  // TODO(davisjam): More cleanup?
 }
 
 int WorkerThreadsTaskRunner::NumberOfWorkerThreads() const {

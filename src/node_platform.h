@@ -115,7 +115,9 @@ class WorkerThreadsTaskRunner {
 
  private:
   class DelayedTaskScheduler;
+
   std::unique_ptr<DelayedTaskScheduler> delayed_task_scheduler_;
+  std::unique_ptr<uv_thread_t> delayed_task_scheduler_thread_;
 
   std::shared_ptr<threadpool::Threadpool> tp_;
 };
