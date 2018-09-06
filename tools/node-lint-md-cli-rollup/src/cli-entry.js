@@ -23,7 +23,7 @@ const config = options(process.argv.slice(2), args);
 config.detectConfig = false;
 config.plugins = plugins;
 
-engine(config, function done(err, code, context) {
+engine(config, function done(err, code) {
   if (err) console.error(err);
   process.exit(code);
 });
