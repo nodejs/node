@@ -46,15 +46,15 @@ changes:
 
 * `str` {string} The URL query string to parse
 * `sep` {string} The substring used to delimit key and value pairs in the
-  query string. Defaults to `'&'`.
+  query string. **Default:** `'&'`.
 * `eq` {string}. The substring used to delimit keys and values in the
-  query string. Defaults to `'='`.
+  query string. **Default:** `'='`.
 * `options` {Object}
   * `decodeURIComponent` {Function} The function to use when decoding
-    percent-encoded characters in the query string. Defaults to
+    percent-encoded characters in the query string. **Default:**
     `querystring.unescape()`.
   * `maxKeys` {number} Specifies the maximum number of keys to parse.
-    Defaults to `1000`. Specify `0` to remove key counting limitations.
+    Specify `0` to remove key counting limitations. **Default:** `1000`.
 
 The `querystring.parse()` method parses a URL query string (`str`) into a
 collection of key and value pairs.
@@ -93,12 +93,12 @@ added: v0.1.25
 
 * `obj` {Object} The object to serialize into a URL query string
 * `sep` {string} The substring used to delimit key and value pairs in the
-  query string. Defaults to `'&'`.
+  query string. **Default:** `'&'`.
 * `eq` {string}. The substring used to delimit keys and values in the
-  query string. Defaults to `'='`.
+  query string. **Default:** `'='`.
 * `options`
   * `encodeURIComponent` {Function} The function to use when converting
-    URL-unsafe characters to percent-encoding in the query string. Defaults to
+    URL-unsafe characters to percent-encoding in the query string. **Default:**
     `querystring.escape()`.
 
 The `querystring.stringify()` method produces a URL query string from a

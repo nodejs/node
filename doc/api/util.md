@@ -326,26 +326,26 @@ changes:
 * `object` {any} Any JavaScript primitive or Object.
 * `options` {Object}
   * `showHidden` {boolean} If `true`, the `object`'s non-enumerable symbols and
-    properties will be included in the formatted result. Defaults to `false`.
+    properties will be included in the formatted result. **Default:** `false`.
   * `depth` {number} Specifies the number of times to recurse while formatting
     the `object`. This is useful for inspecting large complicated objects.
     Defaults to `2`. To make it recurse indefinitely pass `null`.
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
-    codes. Defaults to `false`. Colors are customizable, see
-    [Customizing `util.inspect` colors][].
+    codes. Colors are customizable, see [Customizing `util.inspect` colors][].
+    **Default:** `false`.
   * `customInspect` {boolean} If `false`, then custom `inspect(depth, opts)`
     functions exported on the `object` being inspected will not be called.
-    Defaults to `true`.
+    **Default:** `true`.
   * `showProxy` {boolean} If `true`, then objects and functions that are
     `Proxy` objects will be introspected to show their `target` and `handler`
-    objects. Defaults to `false`.
+    objects. **Default:** `false`.
   * `maxArrayLength` {number} Specifies the maximum number of array and
-    `TypedArray` elements to include when formatting. Defaults to `100`. Set to
-    `null` to show all array elements. Set to `0` or negative to show no array
-    elements.
+    `TypedArray` elements to include when formatting. Set to `null` to show all
+    array elements. Set to `0` or negative to show no array elements.
+    **Default:** `100`.
   * `breakLength` {number} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
-    line. Defaults to 60 for legacy compatibility.
+    line. **Default:** `60` for legacy compatibility.
 
 The `util.inspect()` method returns a string representation of `object` that is
 primarily useful for debugging. Additional `options` may be passed that alter
@@ -658,15 +658,15 @@ is not supported.
 ### new TextDecoder([encoding[, options]])
 
 * `encoding` {string} Identifies the `encoding` that this `TextDecoder` instance
-  supports. Defaults to `'utf-8'`.
+  supports. **Default:** `'utf-8'`.
 * `options` {Object}
-  * `fatal` {boolean} `true` if decoding failures are fatal. Defaults to
-    `false`. This option is only supported when ICU is enabled (see
-    [Internationalization][]).
+  * `fatal` {boolean} `true` if decoding failures are fatal. This option is only
+    supported when ICU is enabled (see [Internationalization][]). **Default:**
+    `false`.
   * `ignoreBOM` {boolean} When `true`, the `TextDecoder` will include the byte
      order mark in the decoded result. When `false`, the byte order mark will
      be removed from the output. This option is only used when `encoding` is
-     `'utf-8'`, `'utf-16be'` or `'utf-16le'`. Defaults to `false`.
+     `'utf-8'`, `'utf-16be'` or `'utf-16le'`. **Default:** `false`.
 
 Creates an new `TextDecoder` instance. The `encoding` may specify one of the
 supported encodings or an alias.
@@ -677,7 +677,7 @@ supported encodings or an alias.
   Typed Array instance containing the encoded data.
 * `options` {Object}
   * `stream` {boolean} `true` if additional chunks of data are expected.
-    Defaults to `false`.
+    **Default:** `false`.
 * Returns: {string}
 
 Decodes the `input` and returns a string. If `options.stream` is `true`, any
@@ -722,7 +722,7 @@ const uint8array = encoder.encode('this is some data');
 
 ### textEncoder.encode([input])
 
-* `input` {string} The text to encode. Defaults to an empty string.
+* `input` {string} The text to encode. **Default:** an empty string.
 * Returns: {Uint8Array}
 
 UTF-8 encodes the `input` string and returns a `Uint8Array` containing the
