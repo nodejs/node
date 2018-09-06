@@ -19,7 +19,7 @@ using v8::TracingController;
 // Wrapper for delivery to threadpool::Threadpool.
 class V8Task : public threadpool::Task {
  public:
-  V8Task(std::unique_ptr<v8::Task> task) {
+  explicit V8Task(std::unique_ptr<v8::Task> task) {
     task_ = std::move(task);
     details_.type = threadpool::TaskDetails::V8;
     details_.priority = -1;
@@ -154,7 +154,8 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   std::unordered_set<uv_timer_t*> timers_;
 };
 
-WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(std::shared_ptr<threadpool::Threadpool> tp) {
+WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
+  std::shared_ptr<threadpool::Threadpool> tp) {
   tp_ = tp;
   delayed_task_scheduler_.reset(
       new DelayedTaskScheduler(tp_));
@@ -172,9 +173,10 @@ void WorkerThreadsTaskRunner::PostDelayedTask(std::unique_ptr<v8::Task> task,
 }
 
 void WorkerThreadsTaskRunner::BlockingDrain() {
-  // TODO(davisjam): No support for this in threadpool::Threadpool at the moment.
+  // TODO(davisjam): No support for this in threadpool::Threadpool
+  // at the moment.
   // I believe this is the cause of the segfaults at the end of running 'node'.
-  //pending_worker_tasks_.BlockingDrain();
+  // pending_worker_tasks_.BlockingDrain();
 }
 
 void WorkerThreadsTaskRunner::Shutdown() {

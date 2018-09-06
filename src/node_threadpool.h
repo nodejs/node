@@ -64,9 +64,6 @@ class TaskDetails {
                  // Does nothing in this class.
   bool cancelable;  // If true, by some yet-to-be-determined mechanism we can
                     // cancel this Task while it is scheduled.
-
- protected:
- private:
 };
 
 // Abstract notion of a Task.
@@ -95,26 +92,28 @@ class Task {
 // internal Node.js Threadpool.
 class LibuvExecutor {
  public:
-  LibuvExecutor(std::shared_ptr<Threadpool> tp);
+  explicit LibuvExecutor(std::shared_ptr<Threadpool> tp);
 
   uv_executor_t* GetExecutor();
 
  private:
-
   static void uv_executor_init(uv_executor_t* executor);
   static void uv_executor_submit(uv_executor_t* executor,
                                  uv_work_t* req,
                                  const uv_work_options_t* opts);
 
   std::shared_ptr<Threadpool> tp_;
-  uv_executor_t executor_;  // executor_.data points to instance of LibuvExecutor.
+  uv_executor_t executor_;  // executor_.data points to
+                            // instance of LibuvExecutor.
 };
 
 // The LibuvExecutor wraps libuv uv_work_t's into LibuvTasks
 // and routes them to the internal Threadpool.
 class LibuvTask : public Task {
  public:
-  LibuvTask(LibuvExecutor *libuv_executor, uv_work_t* req, const uv_work_options_t* opts);
+  LibuvTask(LibuvExecutor* libuv_executor,
+            uv_work_t* req,
+            const uv_work_options_t* opts);
   ~LibuvTask();
 
   void Run();

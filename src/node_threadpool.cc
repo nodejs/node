@@ -9,7 +9,7 @@
 // TODO(davisjam): DO NOT MERGE. Only for debugging.
 // TODO(davisjam): There must be a better way to do this.
 #define DEBUG_LOG 1
-//#undef DEBUG_LOG
+// #undef DEBUG_LOG
 
 #ifdef DEBUG_LOG
 #include <stdio.h>
@@ -68,9 +68,11 @@ void LibuvExecutor::uv_executor_init(uv_executor_t* executor) {
 void LibuvExecutor::uv_executor_submit(uv_executor_t* executor,
                                        uv_work_t* req,
                                        const uv_work_options_t* opts) {
-  LibuvExecutor* libuv_executor = reinterpret_cast<LibuvExecutor *>(executor->data);
+  LibuvExecutor* libuv_executor =
+    reinterpret_cast<LibuvExecutor *>(executor->data);
   LOG("LibuvExecutor::uv_executor_submit: Got some work!\n");
-  libuv_executor->tp_->Post(std::unique_ptr<Task>(new LibuvTask(libuv_executor, req, opts)));
+  libuv_executor->tp_->Post(std::unique_ptr<Task>(
+    new LibuvTask(libuv_executor, req, opts)));
 }
 
 

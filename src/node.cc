@@ -288,7 +288,8 @@ static struct {
   void Initialize(void) {
     tp_ = std::make_shared<threadpool::Threadpool>();
     tp_->Initialize();
-    libuv_executor_ = std::unique_ptr<threadpool::LibuvExecutor>(new threadpool::LibuvExecutor(tp_));
+    libuv_executor_ = std::unique_ptr<threadpool::LibuvExecutor>(
+      new threadpool::LibuvExecutor(tp_));
   }
 
   std::shared_ptr<threadpool::Threadpool> tp_;

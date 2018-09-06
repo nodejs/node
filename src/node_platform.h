@@ -122,7 +122,8 @@ class WorkerThreadsTaskRunner {
 
 class NodePlatform : public MultiIsolatePlatform {
  public:
-  NodePlatform(std::shared_ptr<threadpool::Threadpool> tp, v8::TracingController* tracing_controller);
+  NodePlatform(std::shared_ptr<threadpool::Threadpool> tp,
+    v8::TracingController* tracing_controller);
   virtual ~NodePlatform() {}
 
   void DrainTasks(v8::Isolate* isolate) override;
