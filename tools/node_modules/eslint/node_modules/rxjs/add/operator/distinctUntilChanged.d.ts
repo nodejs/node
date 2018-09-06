@@ -1,6 +1,1 @@
-import { distinctUntilChanged } from '../../operator/distinctUntilChanged';
-declare module '../../Observable' {
-    interface Observable<T> {
-        distinctUntilChanged: typeof distinctUntilChanged;
-    }
-}
+import 'rxjs-compat/add/operator/distinctUntilChanged';

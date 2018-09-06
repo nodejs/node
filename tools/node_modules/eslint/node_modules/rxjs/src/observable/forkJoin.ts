@@ -1,3 +1,1 @@
-import {  ForkJoinObservable  } from './ForkJoinObservable';
-
-export const forkJoin = ForkJoinObservable.create;
+export * from 'rxjs-compat/observable/forkJoin';

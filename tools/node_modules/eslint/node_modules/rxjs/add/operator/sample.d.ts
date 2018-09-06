@@ -1,6 +1,1 @@
-import { sample } from '../../operator/sample';
-declare module '../../Observable' {
-    interface Observable<T> {
-        sample: typeof sample;
-    }
-}
+import 'rxjs-compat/add/operator/sample';

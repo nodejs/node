@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var first_1 = require('../../operator/first');
-Observable_1.Observable.prototype.first = first_1.first;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/operator/first");
 //# sourceMappingURL=first.js.map

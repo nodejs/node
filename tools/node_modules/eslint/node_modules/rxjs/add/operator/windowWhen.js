@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var windowWhen_1 = require('../../operator/windowWhen');
-Observable_1.Observable.prototype.windowWhen = windowWhen_1.windowWhen;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/operator/windowWhen");
 //# sourceMappingURL=windowWhen.js.map

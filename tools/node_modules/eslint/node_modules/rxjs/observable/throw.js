@@ -1,4 +1,7 @@
 "use strict";
-var ErrorObservable_1 = require('./ErrorObservable');
-exports._throw = ErrorObservable_1.ErrorObservable.create;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/observable/throw"));
 //# sourceMappingURL=throw.js.map

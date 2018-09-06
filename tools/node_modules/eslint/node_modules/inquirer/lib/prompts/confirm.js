@@ -5,6 +5,7 @@
 
 var _ = require('lodash');
 var chalk = require('chalk');
+var { take, takeUntil } = require('rxjs/operators');
 var Base = require('./base');
 var observe = require('../utils/events');
 
@@ -44,9 +45,9 @@ class ConfirmPrompt extends Base {
 
     // Once user confirm (enter key)
     var events = observe(this.rl);
-    events.keypress.takeUntil(events.line).forEach(this.onKeypress.bind(this));
+    events.keypress.pipe(takeUntil(events.line)).forEach(this.onKeypress.bind(this));
 
-    events.line.take(1).forEach(this.onEnd.bind(this));
+    events.line.pipe(take(1)).forEach(this.onEnd.bind(this));
 
     // Init
     this.render();

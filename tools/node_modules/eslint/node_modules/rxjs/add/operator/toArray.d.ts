@@ -1,6 +1,1 @@
-import { toArray } from '../../operator/toArray';
-declare module '../../Observable' {
-    interface Observable<T> {
-        toArray: typeof toArray;
-    }
-}
+import 'rxjs-compat/add/operator/toArray';

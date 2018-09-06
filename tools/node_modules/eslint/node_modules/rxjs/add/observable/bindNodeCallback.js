@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var bindNodeCallback_1 = require('../../observable/bindNodeCallback');
-Observable_1.Observable.bindNodeCallback = bindNodeCallback_1.bindNodeCallback;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/observable/bindNodeCallback");
 //# sourceMappingURL=bindNodeCallback.js.map

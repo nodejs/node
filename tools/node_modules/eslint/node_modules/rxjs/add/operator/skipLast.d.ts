@@ -1,6 +1,1 @@
-import { skipLast } from '../../operator/skipLast';
-declare module '../../Observable' {
-    interface Observable<T> {
-        skipLast: typeof skipLast;
-    }
-}
+import 'rxjs-compat/add/operator/skipLast';

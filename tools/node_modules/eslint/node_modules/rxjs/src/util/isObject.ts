@@ -1,3 +1,1 @@
-export function isObject(x: any): x is Object {
-  return x != null && typeof x === 'object';
-}
+export * from 'rxjs-compat/util/isObject';
