@@ -7,6 +7,7 @@ test/es-module/test-esm-dynamic-import.js
 test/fixtures
 test/message/esm_display_syntax_error.mjs
 tools/icu
+tools/lint-md.js
 tools/node-lint-md-cli-rollup/dist
 tools/remark-*
 benchmark/tmp

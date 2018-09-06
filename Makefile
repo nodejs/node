@@ -1055,6 +1055,14 @@ bench-addons-clean:
 	$(RM) -r benchmark/napi/function_call/build
 	$(RM) -r benchmark/napi/function_args/build
 
+.PHONY: lint-md-rollup
+lint-md-rollup:
+	cd tools/node-lint-md-cli-rollup/remark-preset-lint-node && npm up
+	cd tools/node-lint-md-cli-rollup && npm up
+	cd tools/node-lint-md-cli-rollup && npm run build-node
+
+
+
 .PHONY: lint-md-clean
 lint-md-clean:
 	$(RM) -r tools/remark-cli/node_modules
