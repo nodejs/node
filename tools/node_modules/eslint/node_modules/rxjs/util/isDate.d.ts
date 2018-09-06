@@ -1,1 +1,1 @@
-export declare function isDate(value: any): value is Date;
+export * from 'rxjs-compat/util/isDate';

@@ -1,7 +1,7 @@
 "use strict";
-var combineLatest_1 = require('../operators/combineLatest');
-function combineAll(project) {
-    return function (source) { return source.lift(new combineLatest_1.CombineLatestOperator(project)); };
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.combineAll = combineAll;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/operators/combineAll"));
 //# sourceMappingURL=combineAll.js.map

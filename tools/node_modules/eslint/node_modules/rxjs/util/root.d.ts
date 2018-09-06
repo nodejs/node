@@ -1,2 +1,1 @@
-declare const _root: any;
-export { _root as root };
+export * from 'rxjs-compat/util/root';

@@ -18,7 +18,10 @@ module.exports = {
             url: "https://eslint.org/docs/rules/for-direction"
         },
         fixable: null,
-        schema: []
+        schema: [],
+        messages: {
+            incorrectDirection: "The update clause in this loop moves the variable in the wrong direction."
+        }
     },
 
     create(context) {
@@ -31,7 +34,7 @@ module.exports = {
         function report(node) {
             context.report({
                 node,
-                message: "The update clause in this loop moves the variable in the wrong direction."
+                messageId: "incorrectDirection"
             });
         }
 

@@ -37,7 +37,11 @@ module.exports = {
             {
                 enum: ["always", "as-needed", "never"]
             }
-        ]
+        ],
+        messages: {
+            unnamed: "Unexpected unnamed {{name}}.",
+            named: "Unexpected named {{name}}."
+        }
     },
 
     create(context) {
@@ -96,7 +100,7 @@ module.exports = {
                     if (hasName) {
                         context.report({
                             node,
-                            message: "Unexpected named {{name}}.",
+                            messageId: "named",
                             data: { name }
                         });
                     }
@@ -104,7 +108,7 @@ module.exports = {
                     if (!hasName && (asNeeded ? !hasInferredName(node) : !isObjectOrClassMethod(node))) {
                         context.report({
                             node,
-                            message: "Unexpected unnamed {{name}}.",
+                            messageId: "unnamed",
                             data: { name }
                         });
                     }

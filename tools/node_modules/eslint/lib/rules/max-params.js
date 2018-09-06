@@ -53,7 +53,7 @@ module.exports = {
     },
 
     create(context) {
-
+        const sourceCode = context.getSourceCode();
         const option = context.options[0];
         let numParams = 3;
 
@@ -76,6 +76,7 @@ module.exports = {
         function checkFunction(node) {
             if (node.params.length > numParams) {
                 context.report({
+                    loc: astUtils.getFunctionHeadLoc(node, sourceCode),
                     node,
                     message: "{{name}} has too many parameters ({{count}}). Maximum allowed is {{max}}.",
                     data: {

@@ -1,6 +1,7 @@
 'use strict';
 var _ = require('lodash');
-var Rx = require('rxjs/Rx');
+var { defer, empty, from, of } = require('rxjs');
+var { concatMap, filter, publish, reduce } = require('rxjs/operators');
 var runAsync = require('run-async');
 var utils = require('../utils/utils');
 var Base = require('./baseUI');
@@ -27,20 +28,22 @@ class PromptUI extends Base {
     // Create an observable, unless we received one as parameter.
     // Note: As this is a public interface, we cannot do an instanceof check as we won't
     // be using the exact same object in memory.
-    var obs = _.isArray(questions) ? Rx.Observable.from(questions) : questions;
+    var obs = _.isArray(questions) ? from(questions) : questions;
 
-    this.process = obs
-      .concatMap(this.processQuestion.bind(this))
-      // `publish` creates a hot Observable. It prevents duplicating prompts.
-      .publish();
+    this.process = obs.pipe(
+      concatMap(this.processQuestion.bind(this)),
+      publish() // Creates a hot Observable. It prevents duplicating prompts.
+    );
 
     this.process.connect();
 
     return this.process
-      .reduce((answers, answer) => {
-        _.set(this.answers, answer.name, answer.answer);
-        return this.answers;
-      }, {})
+      .pipe(
+        reduce((answers, answer) => {
+          _.set(this.answers, answer.name, answer.answer);
+          return this.answers;
+        }, {})
+      )
       .toPromise(Promise)
       .then(this.onCompletion.bind(this));
   }
@@ -49,38 +52,39 @@ class PromptUI extends Base {
    * Once all prompt are over
    */
 
-  onCompletion(answers) {
+  onCompletion() {
     this.close();
 
-    return answers;
+    return this.answers;
   }
 
   processQuestion(question) {
     question = _.clone(question);
-    return Rx.Observable.defer(() => {
-      var obs = Rx.Observable.of(question);
+    return defer(() => {
+      var obs = of(question);
 
-      return obs
-        .concatMap(this.setDefaultType.bind(this))
-        .concatMap(this.filterIfRunnable.bind(this))
-        .concatMap(() =>
+      return obs.pipe(
+        concatMap(this.setDefaultType.bind(this)),
+        concatMap(this.filterIfRunnable.bind(this)),
+        concatMap(() =>
           utils.fetchAsyncQuestionProperty(question, 'message', this.answers)
-        )
-        .concatMap(() =>
+        ),
+        concatMap(() =>
           utils.fetchAsyncQuestionProperty(question, 'default', this.answers)
-        )
-        .concatMap(() =>
+        ),
+        concatMap(() =>
           utils.fetchAsyncQuestionProperty(question, 'choices', this.answers)
-        )
-        .concatMap(this.fetchAnswer.bind(this));
+        ),
+        concatMap(this.fetchAnswer.bind(this))
+      );
     });
   }
 
   fetchAnswer(question) {
     var Prompt = this.prompts[question.type];
     this.activePrompt = new Prompt(question, this.rl, this.answers);
-    return Rx.Observable.defer(() =>
-      Rx.Observable.fromPromise(
+    return defer(() =>
+      from(
         this.activePrompt.run().then(answer => ({ name: question.name, answer: answer }))
       )
     );
@@ -91,27 +95,27 @@ class PromptUI extends Base {
     if (!this.prompts[question.type]) {
       question.type = 'input';
     }
-    return Rx.Observable.defer(() => Rx.Observable.of(question));
+    return defer(() => of(question));
   }
 
   filterIfRunnable(question) {
     if (question.when === false) {
-      return Rx.Observable.empty();
+      return empty();
     }
 
     if (!_.isFunction(question.when)) {
-      return Rx.Observable.of(question);
+      return of(question);
     }
 
     var answers = this.answers;
-    return Rx.Observable.defer(() =>
-      Rx.Observable.fromPromise(
+    return defer(() =>
+      from(
         runAsync(question.when)(answers).then(shouldRun => {
           if (shouldRun) {
             return question;
           }
         })
-      ).filter(val => val != null)
+      ).pipe(filter(val => val != null))
     );
   }
 }

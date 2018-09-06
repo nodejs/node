@@ -1,1 +1,1 @@
-{"version":3,"file":"using.js","sourceRoot":"","sources":["../../src/observable/using.ts"],"names":[],"mappings":";AAAA,gCAAkC,mBAAmB,CAAC,CAAA;AAEzC,aAAK,GAAG,iCAAe,CAAC,MAAM,CAAC","sourcesContent":["import {  UsingObservable  } from './UsingObservable';\n\nexport const using = UsingObservable.create;"]}
+{"version":3,"file":"using.js","sources":["../src/observable/using.ts"],"names":[],"mappings":";;;;;AAAA,kDAA6C"}

@@ -8,6 +8,7 @@ var chalk = require('chalk');
 var figures = require('figures');
 var cliCursor = require('cli-cursor');
 var runAsync = require('run-async');
+var { flatMap, map, take, takeUntil } = require('rxjs/operators');
 var Base = require('./base');
 var observe = require('../utils/events');
 var Paginator = require('../utils/paginator');
@@ -51,13 +52,17 @@ class ListPrompt extends Base {
     var self = this;
 
     var events = observe(this.rl);
-    events.normalizedUpKey.takeUntil(events.line).forEach(this.onUpKey.bind(this));
-    events.normalizedDownKey.takeUntil(events.line).forEach(this.onDownKey.bind(this));
-    events.numberKey.takeUntil(events.line).forEach(this.onNumberKey.bind(this));
+    events.normalizedUpKey.pipe(takeUntil(events.line)).forEach(this.onUpKey.bind(this));
+    events.normalizedDownKey
+      .pipe(takeUntil(events.line))
+      .forEach(this.onDownKey.bind(this));
+    events.numberKey.pipe(takeUntil(events.line)).forEach(this.onNumberKey.bind(this));
     events.line
-      .take(1)
-      .map(this.getCurrentValue.bind(this))
-      .flatMap(value => runAsync(self.opt.filter)(value).catch(err => err))
+      .pipe(
+        take(1),
+        map(this.getCurrentValue.bind(this)),
+        flatMap(value => runAsync(self.opt.filter)(value).catch(err => err))
+      )
       .forEach(this.onSubmit.bind(this));
 
     // Init the prompt

@@ -1,1 +1,0 @@
-{"version":3,"file":"auditTime.js","sourceRoot":"","sources":["../../src/operator/auditTime.ts"],"names":[],"mappings":"OAAO,EAAE,KAAK,EAAE,MAAM,oBAAoB;OAGnC,EAAE,SAAS,IAAI,WAAW,EAAE,MAAM,wBAAwB;AAEjE;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GAyCG;AACH,0BAAkD,QAAgB,EAAE,SAA6B;IAA7B,yBAA6B,GAA7B,iBAA6B;IAC/F,MAAM,CAAC,WAAW,CAAC,QAAQ,EAAE,SAAS,CAAC,CAAC,IAAI,CAAkB,CAAC;AACjE,CAAC"}

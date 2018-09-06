@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var fromEventPattern_1 = require('../../observable/fromEventPattern');
-Observable_1.Observable.fromEventPattern = fromEventPattern_1.fromEventPattern;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/observable/fromEventPattern");
 //# sourceMappingURL=fromEventPattern.js.map

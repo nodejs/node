@@ -1,1 +1,0 @@
-{"version":3,"file":"bufferToggle.js","sourceRoot":"","sources":["../../src/operator/bufferToggle.ts"],"names":[],"mappings":"OAEO,EAAE,YAAY,IAAI,WAAW,EAAE,MAAM,2BAA2B;AAEvE;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GAqCG;AACH,6BAAwD,QAAkC,EACvD,eAAyD;IAC1F,MAAM,CAAC,WAAW,CAAC,QAAQ,EAAE,eAAe,CAAC,CAAC,IAAI,CAAoB,CAAC;AACzE,CAAC"}

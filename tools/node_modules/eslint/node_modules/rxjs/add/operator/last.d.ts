@@ -1,6 +1,1 @@
-import { last } from '../../operator/last';
-declare module '../../Observable' {
-    interface Observable<T> {
-        last: typeof last;
-    }
-}
+import 'rxjs-compat/add/operator/last';

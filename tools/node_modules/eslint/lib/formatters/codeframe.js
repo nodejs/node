@@ -5,7 +5,7 @@
 "use strict";
 
 const chalk = require("chalk");
-const codeFrame = require("babel-code-frame");
+const { codeFrameColumns } = require("@babel/code-frame");
 const path = require("path");
 
 //------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ function formatMessage(message, parentResult) {
 
     if (sourceCode) {
         result.push(
-            codeFrame(sourceCode, message.line, message.column, { highlightCode: false })
+            codeFrameColumns(sourceCode, { start: { line: message.line, column: message.column } }, { highlightCode: false })
         );
     }
 

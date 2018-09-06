@@ -1,6 +1,1 @@
-import { concatAll } from '../../operator/concatAll';
-declare module '../../Observable' {
-    interface Observable<T> {
-        concatAll: typeof concatAll;
-    }
-}
+import 'rxjs-compat/add/operator/concatAll';

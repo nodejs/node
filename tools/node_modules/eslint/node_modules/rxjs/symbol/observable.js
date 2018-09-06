@@ -1,26 +1,7 @@
 "use strict";
-var root_1 = require('../util/root');
-function getSymbolObservable(context) {
-    var $$observable;
-    var Symbol = context.Symbol;
-    if (typeof Symbol === 'function') {
-        if (Symbol.observable) {
-            $$observable = Symbol.observable;
-        }
-        else {
-            $$observable = Symbol('observable');
-            Symbol.observable = $$observable;
-        }
-    }
-    else {
-        $$observable = '@@observable';
-    }
-    return $$observable;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.getSymbolObservable = getSymbolObservable;
-exports.observable = getSymbolObservable(root_1.root);
-/**
- * @deprecated use observable instead
- */
-exports.$$observable = exports.observable;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/symbol/observable"));
 //# sourceMappingURL=observable.js.map
