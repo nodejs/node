@@ -3052,8 +3052,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     env.async_hooks()->pop_async_id(1);
   }
 
-  env.set_trace_sync_io(env.options()->trace_sync_io);
-
   {
     SealHandleScope seal(isolate);
     bool more;
