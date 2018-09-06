@@ -143,16 +143,14 @@ const PIPE = (() => {
   return path.join(pipePrefix, pipeName);
 })();
 
-let hasIPv6;
-{
+const hasIPv6 = (() => {
   const iFaces = os.networkInterfaces();
   const re = isWindows ? /Loopback Pseudo-Interface/ : /lo/;
-  hasIPv6 = Object.keys(iFaces).some(function(name) {
-    return re.test(name) && iFaces[name].some(function(info) {
-      return info.family === 'IPv6';
-    });
+  return Object.keys(iFaces).some((name) => {
+    return re.test(name) &&
+           iFaces[name].some(({ family }) => family === 'IPv6');
   });
-}
+})();
 
 /*
  * Check that when running a test with
