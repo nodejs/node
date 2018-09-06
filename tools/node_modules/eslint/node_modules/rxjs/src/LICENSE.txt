@@ -186,7 +186,7 @@
     same "printed page" as the copyright notice for easier
     identification within third-party archives.
 
- Copyright (c) 2015-2017 Google, Inc., Netflix, Inc., Microsoft Corp. and contributors
+ Copyright (c) 2015-2018 Google, Inc., Netflix, Inc., Microsoft Corp. and contributors
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.

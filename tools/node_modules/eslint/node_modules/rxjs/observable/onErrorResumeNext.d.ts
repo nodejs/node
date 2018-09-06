@@ -1,2 +1,1 @@
-import { onErrorResumeNextStatic } from '../operators/onErrorResumeNext';
-export declare const onErrorResumeNext: typeof onErrorResumeNextStatic;
+export * from 'rxjs-compat/observable/onErrorResumeNext';

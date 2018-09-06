@@ -1,3 +1,1 @@
-import {  NeverObservable  } from './NeverObservable';
-
-export const never = NeverObservable.create;
+export * from 'rxjs-compat/observable/never';

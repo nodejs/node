@@ -1,1 +1,1 @@
-{"version":3,"file":"pairs.js","sourceRoot":"","sources":["../../src/observable/pairs.ts"],"names":[],"mappings":";AAAA,gCAAkC,mBAAmB,CAAC,CAAA;AAEzC,aAAK,GAAG,iCAAe,CAAC,MAAM,CAAC","sourcesContent":["import {  PairsObservable  } from './PairsObservable';\r\n\r\nexport const pairs = PairsObservable.create;"]}
+{"version":3,"file":"pairs.js","sources":["../src/observable/pairs.ts"],"names":[],"mappings":";;;;;AAAA,kDAA6C"}

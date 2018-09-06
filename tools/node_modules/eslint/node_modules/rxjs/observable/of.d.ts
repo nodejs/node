@@ -1,2 +1,1 @@
-import { ArrayObservable } from './ArrayObservable';
-export declare const of: typeof ArrayObservable.of;
+export * from 'rxjs-compat/observable/of';

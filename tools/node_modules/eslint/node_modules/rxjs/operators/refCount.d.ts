@@ -1,2 +1,1 @@
-import { MonoTypeOperatorFunction } from '../interfaces';
-export declare function refCount<T>(): MonoTypeOperatorFunction<T>;
+export * from 'rxjs-compat/operators/refCount';

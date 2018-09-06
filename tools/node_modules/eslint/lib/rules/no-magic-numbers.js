@@ -39,7 +39,11 @@ module.exports = {
                 }
             },
             additionalProperties: false
-        }]
+        }],
+        messages: {
+            useConst: "Number constants declarations must use 'const'.",
+            noMagic: "No magic number: {{raw}}."
+        }
     },
 
     create(context) {
@@ -136,7 +140,7 @@ module.exports = {
                     if (enforceConst && parent.parent.kind !== "const") {
                         context.report({
                             node: fullNumberNode,
-                            message: "Number constants declarations must use 'const'."
+                            messageId: "useConst"
                         });
                     }
                 } else if (
@@ -145,7 +149,7 @@ module.exports = {
                 ) {
                     context.report({
                         node: fullNumberNode,
-                        message: "No magic number: {{raw}}.",
+                        messageId: "noMagic",
                         data: {
                             raw
                         }

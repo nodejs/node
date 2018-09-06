@@ -5,6 +5,7 @@
 
 var _ = require('lodash');
 var chalk = require('chalk');
+var { map, takeUntil } = require('rxjs/operators');
 var Base = require('./base');
 var Separator = require('../objects/separator');
 var observe = require('../utils/events');
@@ -57,13 +58,15 @@ class RawListPrompt extends Base {
 
     // Once user confirm (enter key)
     var events = observe(this.rl);
-    var submit = events.line.map(this.getCurrentValue.bind(this));
+    var submit = events.line.pipe(map(this.getCurrentValue.bind(this)));
 
     var validation = this.handleSubmitEvents(submit);
     validation.success.forEach(this.onEnd.bind(this));
     validation.error.forEach(this.onError.bind(this));
 
-    events.keypress.takeUntil(validation.success).forEach(this.onKeypress.bind(this));
+    events.keypress
+      .pipe(takeUntil(validation.success))
+      .forEach(this.onKeypress.bind(this));
 
     // Init the prompt
     this.render();

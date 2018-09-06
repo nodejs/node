@@ -1,1 +1,1 @@
-export declare function identity<T>(x: T): T;
+export * from 'rxjs-compat/util/identity';

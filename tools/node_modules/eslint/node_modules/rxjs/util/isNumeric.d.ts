@@ -1,1 +1,1 @@
-export declare function isNumeric(val: any): val is number;
+export * from 'rxjs-compat/util/isNumeric';

@@ -1,4 +1,7 @@
 "use strict";
-var zip_1 = require('../operators/zip');
-exports.zip = zip_1.zipStatic;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/observable/zip"));
 //# sourceMappingURL=zip.js.map

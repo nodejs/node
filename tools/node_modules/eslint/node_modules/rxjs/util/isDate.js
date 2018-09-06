@@ -1,6 +1,7 @@
 "use strict";
-function isDate(value) {
-    return value instanceof Date && !isNaN(+value);
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.isDate = isDate;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/util/isDate"));
 //# sourceMappingURL=isDate.js.map

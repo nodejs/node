@@ -1,6 +1,1 @@
-import { merge } from '../../operator/merge';
-declare module '../../Observable' {
-    interface Observable<T> {
-        merge: typeof merge;
-    }
-}
+import 'rxjs-compat/add/operator/merge';

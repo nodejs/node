@@ -4,10 +4,10 @@
  */
 
 var chalk = require('chalk');
-var ExternalEditor = require('external-editor');
+var editAsync = require('external-editor').editAsync;
 var Base = require('./base');
 var observe = require('../utils/events');
-var Rx = require('rxjs/Rx');
+var { Subject } = require('rxjs');
 
 class EditorPrompt extends Base {
   /**
@@ -19,7 +19,7 @@ class EditorPrompt extends Base {
   _run(cb) {
     this.done = cb;
 
-    this.editorResult = new Rx.Subject();
+    this.editorResult = new Subject();
 
     // Open Editor on "line" (Enter Key)
     var events = observe(this.rl);
@@ -69,7 +69,7 @@ class EditorPrompt extends Base {
   startExternalEditor() {
     // Pause Readline to prevent stdin and stdout from being modified while the editor is showing
     this.rl.pause();
-    ExternalEditor.editAsync(this.currentText, this.endExternalEditor.bind(this));
+    editAsync(this.currentText, this.endExternalEditor.bind(this));
   }
 
   endExternalEditor(error, result) {

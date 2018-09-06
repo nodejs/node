@@ -1,4 +1,7 @@
 "use strict";
-var RangeObservable_1 = require('./RangeObservable');
-exports.range = RangeObservable_1.RangeObservable.create;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/observable/range"));
 //# sourceMappingURL=range.js.map

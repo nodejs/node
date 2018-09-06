@@ -1,1 +1,1 @@
-{"version":3,"file":"fromPromise.js","sourceRoot":"","sources":["../../src/observable/fromPromise.ts"],"names":[],"mappings":";AAAA,kCAAoC,qBAAqB,CAAC,CAAA;AAE7C,mBAAW,GAAG,qCAAiB,CAAC,MAAM,CAAC","sourcesContent":["import {  PromiseObservable  } from './PromiseObservable';\n\nexport const fromPromise = PromiseObservable.create;"]}
+{"version":3,"file":"fromPromise.js","sources":["../src/observable/fromPromise.ts"],"names":[],"mappings":";;;;;AAAA,wDAAmD"}

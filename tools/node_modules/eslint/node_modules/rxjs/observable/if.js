@@ -1,4 +1,7 @@
 "use strict";
-var IfObservable_1 = require('./IfObservable');
-exports._if = IfObservable_1.IfObservable.create;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/observable/if"));
 //# sourceMappingURL=if.js.map

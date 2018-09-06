@@ -1,5 +1,4 @@
 "use strict";
-var Observable_1 = require('../../Observable');
-var interval_1 = require('../../observable/interval');
-Observable_1.Observable.interval = interval_1.interval;
+Object.defineProperty(exports, "__esModule", { value: true });
+require("rxjs-compat/add/observable/interval");
 //# sourceMappingURL=interval.js.map

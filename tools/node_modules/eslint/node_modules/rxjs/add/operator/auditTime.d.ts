@@ -1,6 +1,1 @@
-import { auditTime } from '../../operator/auditTime';
-declare module '../../Observable' {
-    interface Observable<T> {
-        auditTime: typeof auditTime;
-    }
-}
+import 'rxjs-compat/add/operator/auditTime';
