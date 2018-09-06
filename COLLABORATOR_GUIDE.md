@@ -21,7 +21,7 @@
     - [When Breaking Changes Actually Break Things](#when-breaking-changes-actually-break-things)
       - [Reverting commits](#reverting-commits)
   - [Introducing New Modules](#introducing-new-modules)
-  - [Additions to N-API](#additions-to-N-API)
+  - [Additions to N-API](#additions-to-n-api)
   - [Deprecations](#deprecations)
   - [Involving the TSC](#involving-the-tsc)
 * [Landing Pull Requests](#landing-pull-requests)
@@ -420,13 +420,9 @@ SemVer boundaries. Therefore, additions need to be managed carefully.
 
 This
 [guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md)
-outlines the requirements and principals that we should follow when
-approving and landing new N-API APIs (any additions to node_api.h and
-node_api_types.h).
-
-Two of the key requirements are that additions be landed as
-experimental and then only promoted out of experimental with agreement
-from the [n-api team](https://github.com/orgs/nodejs/teams/n-api). 
+outlines the requirements and principles that we should follow when
+approving and landing new N-API APIs (any additions to `node_api.h` and
+`node_api_types.h`).
 
 ### Deprecations
 
