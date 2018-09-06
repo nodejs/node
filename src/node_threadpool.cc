@@ -4,6 +4,7 @@
 #include "env-inl.h"
 #include "debug_utils.h"
 #include "util.h"
+
 #include <algorithm>
 
 // TODO(davisjam): DO NOT MERGE. Only for debugging.
@@ -42,6 +43,8 @@ void Worker::_Run(void* data) {
     task->UpdateState(Task::ASSIGNED);
     task->Run();
     task->UpdateState(Task::COMPLETED);
+
+    queue->NotifyOfCompletion();
   }
 }
 
@@ -139,7 +142,9 @@ void LibuvTask::Run() {
  ***************/
 
 TaskQueue::TaskQueue()
-  : queue_(), stopped_(false), lock_(), tasks_available_() {
+  : queue_(), outstanding_tasks_(0), stopped_(false)
+  , lock_()
+  , task_available_(), tasks_drained_() {
 }
 
 bool TaskQueue::Push(std::unique_ptr<Task> task) {
@@ -151,7 +156,8 @@ bool TaskQueue::Push(std::unique_ptr<Task> task) {
 
   task->UpdateState(Task::QUEUED);
   queue_.push(std::move(task));
-  tasks_available_.Signal(scoped_lock);
+  outstanding_tasks_++;
+  task_available_.Signal(scoped_lock);
 
   return true;
 }
@@ -172,7 +178,7 @@ std::unique_ptr<Task> TaskQueue::BlockingPop(void) {
   Mutex::ScopedLock scoped_lock(lock_);
 
   while (queue_.empty() && !stopped_) {
-    tasks_available_.Wait(scoped_lock);
+    task_available_.Wait(scoped_lock);
   }
 
   if (queue_.empty()) {
@@ -184,10 +190,27 @@ std::unique_ptr<Task> TaskQueue::BlockingPop(void) {
   return result;
 }
 
+void TaskQueue::NotifyOfCompletion(void) {
+  Mutex::ScopedLock scoped_lock(lock_);
+  outstanding_tasks_--;
+  CHECK_GE(outstanding_tasks_, 0);
+  if (!outstanding_tasks_) {
+    tasks_drained_.Broadcast(scoped_lock);
+  }
+}
+
+void TaskQueue::BlockingDrain(void) {
+  Mutex::ScopedLock scoped_lock(lock_);
+  while (outstanding_tasks_) {
+    tasks_drained_.Wait(scoped_lock);
+  }
+  LOG("TaskQueue::BlockingDrain: Fully drained\n");
+}
+
 void TaskQueue::Stop(void) {
   Mutex::ScopedLock scoped_lock(lock_);
   stopped_ = true;
-  tasks_available_.Broadcast(scoped_lock);
+  task_available_.Broadcast(scoped_lock);
 }
 
 int TaskQueue::Length(void) const {
@@ -232,6 +255,14 @@ void Threadpool::Post(std::unique_ptr<Task> task) {
 
 int Threadpool::QueueLength(void) const {
   return queue_.Length();
+}
+
+void Threadpool::BlockingDrain(void) {
+  queue_.BlockingDrain();
+}
+
+int Threadpool::NWorkers(void) const {
+ return workers_.size();
 }
 
 }  // namespace threadpool

@@ -146,10 +146,17 @@ class TaskQueue {
 
   // Return true if Push succeeds, else false.
   bool Push(std::unique_ptr<Task> task);
-  std::unique_ptr<Task> Pop(void);
 
-  // Returns nullptr when we're done.
+  // Non-blocking Pop. Returns nullptr if queue is empty.
+  std::unique_ptr<Task> Pop(void);
+  // Blocking Pop. Returns nullptr if queue is empty or Stop'd.
   std::unique_ptr<Task> BlockingPop(void);
+
+  // Workers should call this after completing a Task.
+  void NotifyOfCompletion(void);
+
+  // Block until there are no Tasks pending or scheduled.
+  void BlockingDrain(void);
 
   // Subsequent Push() will fail.
   // Pop calls will return nullptr once queue is drained.
@@ -160,11 +167,15 @@ class TaskQueue {
  private:
   // Structures.
   std::queue<std::unique_ptr<Task>> queue_;
+  int outstanding_tasks_; // Number of Tasks in non-COMPLETED states.
   bool stopped_;
 
   // Synchronization.
   Mutex lock_;
-  ConditionVariable tasks_available_;
+  // Signal'd when there is at least one task in the queue.
+  ConditionVariable task_available_;
+  // Signal'd when all Push'd Tasks are in COMPLETED state.
+  ConditionVariable tasks_drained_;
 };
 
 // A threadpool works on asynchronous Tasks.
@@ -187,7 +198,10 @@ class Threadpool {
 
   void Post(std::unique_ptr<Task> task);
   int QueueLength(void) const;
-  int NWorkers(void) const { return workers_.size(); }
+  // Block until there are no tasks pending or scheduled in the TP.
+  void BlockingDrain(void);
+
+  int NWorkers(void) const;
 
  private:
   TaskQueue queue_;

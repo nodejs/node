@@ -175,10 +175,7 @@ void WorkerThreadsTaskRunner::PostDelayedTask(std::unique_ptr<v8::Task> task,
 }
 
 void WorkerThreadsTaskRunner::BlockingDrain() {
-  // TODO(davisjam): No support for this in threadpool::Threadpool
-  // at the moment.
-  // I believe this is the cause of the segfaults at the end of running 'node'.
-  // pending_worker_tasks_.BlockingDrain();
+  tp_->BlockingDrain();
 }
 
 void WorkerThreadsTaskRunner::Shutdown() {
