@@ -2173,11 +2173,11 @@ static napi_status set_error_code(napi_env env,
       }
     }
     name_string = v8::String::Concat(
-        isolate, name_string, FIXED_ONE_BYTE_STRING(isolate, " ["));
+        isolate, name_string, node::FIXED_ONE_BYTE_STRING(isolate, " ["));
     name_string =
         v8::String::Concat(isolate, name_string, code_value.As<v8::String>());
     name_string = v8::String::Concat(
-        isolate, name_string, FIXED_ONE_BYTE_STRING(isolate, "]"));
+        isolate, name_string, node::FIXED_ONE_BYTE_STRING(isolate, "]"));
 
     set_maybe = err_object->Set(context, name_key, name_string);
     RETURN_STATUS_IF_FALSE(env,
