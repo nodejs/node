@@ -92,16 +92,16 @@ testInt32(Number.POSITIVE_INFINITY, 0);
 testInt32(Number.NEGATIVE_INFINITY, 0);
 testInt32(Number.NaN, 0);
 
+// Both V8 and ChakraCore return a sentinel value of `0x8000000000000000` when
+// the conversion goes out of range, but V8 treats it as unsigned in some cases.
+const RANGEERROR_POSITIVE = Math.pow(2, 63);
+const RANGEERROR_NEGATIVE = -Math.pow(2, 63);
+
 // validate documented behavior when value is retrieved as 64-bit integer with
 // `napi_get_value_int64`
 function testInt64(input, expected = input) {
   assert.strictEqual(expected, test_number.TestInt64Truncation(input));
 }
-
-// Both V8 and ChakraCore return a sentinel value of `0x8000000000000000` when
-// the conversion goes out of range, but V8 treats it as unsigned in some cases.
-const RANGEERROR_POSITIVE = Math.pow(2, 63);
-const RANGEERROR_NEGATIVE = -Math.pow(2, 63);
 
 // Test zero
 testInt64(0.0, 0);
@@ -129,3 +129,33 @@ testInt64(Math.pow(2, 63) - (Math.pow(2, 9)), RANGEERROR_POSITIVE);
 testInt64(Number.POSITIVE_INFINITY, 0);
 testInt64(Number.NEGATIVE_INFINITY, 0);
 testInt64(Number.NaN, 0);
+
+// validate documented behavior when value is retrieved as 64-bit integer with
+// `napi_get_value_int64_unsafe`
+function testInt64Unsafe(input, expected = input) {
+  assert.strictEqual(expected, test_number.TestInt64Truncation(input, true));
+}
+
+// Test zero
+testInt64Unsafe(0.0, 0);
+testInt64Unsafe(-0.0, 0);
+
+// Test min/max safe integer range
+testInt64Unsafe(Number.MIN_SAFE_INTEGER);
+testInt64Unsafe(Number.MAX_SAFE_INTEGER);
+
+// Test within int64_t range (with precision loss)
+testInt64Unsafe(-Math.pow(2, 63) + (Math.pow(2, 9) + 1));
+testInt64Unsafe(Math.pow(2, 63) - (Math.pow(2, 9) + 1));
+
+// Test min/max double value
+testInt64Unsafe(-Number.MIN_VALUE, 0);
+testInt64Unsafe(Number.MIN_VALUE, 0);
+testInt64Unsafe(-Number.MAX_VALUE, RANGEERROR_NEGATIVE);
+testInt64Unsafe(Number.MAX_VALUE, RANGEERROR_POSITIVE);
+
+// Test outside int64_t range
+testInt64Unsafe(-Math.pow(2, 63) + (Math.pow(2, 9)), RANGEERROR_NEGATIVE);
+testInt64Unsafe(Math.pow(2, 63) - (Math.pow(2, 9)), RANGEERROR_POSITIVE);
+
+// Do not test non-finite values in the unsafe case

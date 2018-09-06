@@ -2588,6 +2588,31 @@ napi_status napi_get_value_int64(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_get_value_int64_unsafe(napi_env env,
+                                        napi_value value,
+                                        int64_t* result) {
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+
+  // This is still a fast path very likely to be taken.
+  if (val->IsInt32()) {
+    *result = val.As<v8::Int32>()->Value();
+    return napi_clear_last_error(env);
+  }
+
+  RETURN_STATUS_IF_FALSE(env, val->IsNumber(), napi_number_expected);
+
+  // Empty context: https://github.com/nodejs/node/issues/14379
+  v8::Local<v8::Context> context;
+  *result = val->IntegerValue(context).FromJust();
+  return napi_clear_last_error(env);
+}
+
 napi_status napi_get_value_bigint_int64(napi_env env,
                                         napi_value value,
                                         int64_t* result,

@@ -695,6 +695,9 @@ NAPI_EXTERN napi_status napi_get_value_bigint_words(napi_env env,
                                                     int* sign_bit,
                                                     size_t* word_count,
                                                     uint64_t* words);
+NAPI_EXTERN napi_status napi_get_value_int64_unsafe(napi_env env,
+                                                    napi_value value,
+                                                    int64_t* result);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END

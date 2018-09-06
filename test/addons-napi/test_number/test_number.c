@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <node_api.h>
 #include "../common.h"
 
@@ -68,20 +69,34 @@ static napi_value TestInt32Truncation(napi_env env, napi_callback_info info) {
 }
 
 static napi_value TestInt64Truncation(napi_env env, napi_callback_info info) {
-  size_t argc = 1;
-  napi_value args[1];
+  size_t argc = 2;
+  napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+  bool use_unsafe = false;
 
-  NAPI_ASSERT(env, argc >= 1, "Wrong number of arguments");
+  NAPI_ASSERT(env, argc == 1 || argc == 2, "Wrong number of arguments");
 
-  napi_valuetype valuetype0;
+  napi_valuetype valuetype0, valuetype1;
+
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
-
   NAPI_ASSERT(env, valuetype0 == napi_number,
-      "Wrong type of arguments. Expects a number as first argument.");
+      "Wrong type of arguments. Expects a number as the first argument.");
+
+  NAPI_CALL(env, napi_typeof(env, args[1], &valuetype1));
+  NAPI_ASSERT(env, valuetype1 == napi_boolean || valuetype1 == napi_undefined,
+      "Wrong type of arguments. "
+      "Expects a boolean or undefined as the second argument.");
+
+  if (valuetype1 == napi_boolean) {
+    NAPI_CALL(env, napi_get_value_bool(env, args[1], &use_unsafe));
+  }
 
   int64_t input;
-  NAPI_CALL(env, napi_get_value_int64(env, args[0], &input));
+  if (use_unsafe) {
+    NAPI_CALL(env, napi_get_value_int64_unsafe(env, args[0], &input));
+  } else {
+    NAPI_CALL(env, napi_get_value_int64(env, args[0], &input));
+  }
 
   napi_value output;
   NAPI_CALL(env, napi_create_int64(env, input, &output));
