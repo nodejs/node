@@ -615,6 +615,13 @@ apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
+tools/doc/node_modules: tools/doc/package.json
+ifeq ($(node_use_openssl),true)
+	cd tools/doc && $(call available-node,$(run-npm-ci))
+else
+	@echo "Skipping tools/doc/node_modules (no crypto)"
+endif
+
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
 	$(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the global Node.js binary.
@@ -932,8 +939,6 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	$(RM) -r $(TARNAME)/tools/osx-*
 	$(RM) -r $(TARNAME)/tools/osx-pkg.pmdoc
 	$(RM) -r $(TARNAME)/tools/pkgsrc
-	$(RM) -r $(TARNAME)/tools/remark-cli
-	$(RM) -r $(TARNAME)/tools/remark-preset-lint-node
 	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs $(RM)
 	find $(TARNAME)/ -type l | xargs $(RM) # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
@@ -1061,74 +1066,41 @@ lint-md-rollup:
 	cd tools/node-lint-md-cli-rollup && npm up
 	cd tools/node-lint-md-cli-rollup && npm run build-node
 
-
-
 .PHONY: lint-md-clean
 lint-md-clean:
-	$(RM) -r tools/remark-cli/node_modules
 	$(RM) -r tools/node-lint-md-cli-rollup/remark-preset-lint-node/node_modules
+	$(RM) -r tools/node-lint-md-cli-rollup/node_modules
 	$(RM) tools/.*mdlintstamp
 
-tools/remark-cli/node_modules: tools/remark-cli/package.json
-	@echo "Markdown linter: installing remark-cli into tools/"
-	@cd tools/remark-cli && $(call available-node,$(run-npm-ci))
-
-tools/node-lint-md-cli-rollup/remark-preset-lint-node/node_modules: \
-	tools/node-lint-md-cli-rollup/remark-preset-lint-node/package.json
-	@echo "Markdown linter: installing remark-preset-lint-node"
-	@cd tools/node-lint-md-cli-rollup/remark-preset-lint-node && $(call available-node,$(run-npm-ci))
-
 .PHONY: lint-md-build
-lint-md-build: tools/remark-cli/node_modules \
-	tools/doc/node_modules \
-	tools/node-lint-md-cli-rollup/remark-preset-lint-node/node_modules
-
-tools/doc/node_modules: tools/doc/package.json
-ifeq ($(node_use_openssl),true)
-	cd tools/doc && $(call available-node,$(run-npm-ci))
-else
-	@echo "Skipping tools/doc/node_modules (no crypto)"
-endif
-
-.PHONY: lint-md
-ifneq ("","$(wildcard tools/remark-cli/node_modules/)")
+lint-md-build:
+	$(warning "Deprecated no-op target 'lint-md-build'")
 
 LINT_MD_DOC_FILES = $(shell ls doc/*.md doc/**/*.md)
-run-lint-doc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_DOC_FILES)
+run-lint-doc-md = tools/lint-md.js -q -f $(LINT_MD_DOC_FILES)
 # Lint all changed markdown files under doc/
 tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
-ifeq ($(node_use_openssl),true)
 	@echo "Running Markdown linter on docs..."
-	@$(call available-node,$(run-lint-doc-md))
-	@touch $@
-else
-	@echo "Skipping Markdown linter on docs (no crypto)"
-endif
+	$(call available-node,$(run-lint-doc-md))
+	touch $@
 
 LINT_MD_TARGETS = src lib benchmark test tools/doc tools/icu
 LINT_MD_ROOT_DOCS := $(wildcard *.md)
 LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
   -not -path '*node_modules*' -name '*.md') $(LINT_MD_ROOT_DOCS)
-run-lint-misc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_MISC_FILES)
+run-lint-misc-md = tools/lint-md.js -q -f $(LINT_MD_MISC_FILES)
 # Lint other changed markdown files maintained by us
 tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)
-ifeq ($(node_use_openssl),true)
 	@echo "Running Markdown linter on misc docs..."
-	@$(call available-node,$(run-lint-misc-md))
-	@touch $@
-else
-	@echo "Skipping Markdown linter on misc docs (no crypto)"
-endif
+	$(call available-node,$(run-lint-misc-md))
+	touch $@
 
 tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
 
+.PHONY: lint-md
 # Lints the markdown documents maintained by us in the codebase.
 lint-md: | tools/.mdlintstamp
-else
-lint-md:
-	@echo "The markdown linter is not installed."
-	@echo "To install (requires internet access) run: $ make lint-md-build"
-endif
+
 
 LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
 

@@ -85,9 +85,6 @@ addlicense "gtest" "deps/gtest" "$(cat ${rootdir}/deps/gtest/LICENSE)"
 # nghttp2
 addlicense "nghttp2" "deps/nghttp2" "$(cat ${rootdir}/deps/nghttp2/COPYING)"
 
-# remark
-addlicense "remark-cli" "tools/remark-cli" "$(cat ${rootdir}/tools/remark-cli/LICENSE)"
-
 # node-inspect
 addlicense "node-inspect" "deps/node-inspect" "$(cat ${rootdir}/deps/node-inspect/LICENSE)"
 

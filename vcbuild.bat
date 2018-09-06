@@ -197,8 +197,6 @@ if defined TAG set configure_flags=%configure_flags% --tag=%TAG%
 
 if not "%target%"=="Clean" goto skip-clean
 rmdir /Q /S "%~dp0%config%\node-v%FULLVERSION%-win-%target_arch%" > nul 2> nul
-rmdir /Q /S "%~dp0tools\remark-cli\node_modules"
-rmdir /Q /S "%~dp0tools\remark-preset-lint-node\node_modules"
 :skip-clean
 
 if defined noprojgen if defined nobuild if not defined sign if not defined msi goto licensertf
@@ -609,48 +607,22 @@ goto lint-md-build
 
 :lint-md-build
 if not defined lint_md_build goto lint-md
-SETLOCAL
-echo Markdown linter: installing remark-cli into tools\
-cd tools\remark-cli
-%npm_exe% ci
-cd ..\..
-if errorlevel 1 goto lint-md-build-failed
-echo Markdown linter: installing remark-preset-lint-node into tools\
-cd tools\remark-preset-lint-node
-%npm_exe% ci
-cd ..\..
-if errorlevel 1 goto lint-md-build-failed
-ENDLOCAL
+echo "Deprecated no-op target 'lint_md_build'"
 goto lint-md
-
-:if errorlevel 1 goto lint-md-build-failed
-ENDLOCAL
-echo Failed to install markdown linter
-exit /b 1
 
 :lint-md
 if not defined lint_md goto exit
-if not exist tools\remark-cli\node_modules goto lint-md-no-tools
-if not exist tools\remark-preset-lint-node\node_modules goto lint-md-no-tools
 echo Running Markdown linter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
-cd doc
-for /D %%D IN (*) do (
+for /D %%D IN (doc\*) do (
   for %%F IN (%%D\*.md) do (
-    set "lint_md_files="doc\%%F" !lint_md_files!"
+    set "lint_md_files="%%F" !lint_md_files!"
   )
 )
-cd ..
-%config%\node tools\remark-cli\cli.js -q -f %lint_md_files%
+%config%\node tools\lint-md.js -q -f %lint_md_files%
 ENDLOCAL
 goto exit
-
-:lint-md-no-tools
-echo The markdown linter is not installed.
-echo To install (requires internet access) run: vcbuild lint-md-build
-goto exit
-
 
 :create-msvs-files-failed
 echo Failed to create vc project files.
