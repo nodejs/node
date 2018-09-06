@@ -89,9 +89,6 @@ NO_RETURN void Abort();
 NO_RETURN void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
 
-#define FIXED_ONE_BYTE_STRING(isolate, string)                                \
-  (node::OneByteString((isolate), (string), sizeof(string) - 1))
-
 #define DISALLOW_COPY_AND_ASSIGN(TypeName)                                    \
   void operator=(const TypeName&) = delete;                                   \
   void operator=(TypeName&&) = delete;                                        \
@@ -247,6 +244,15 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const unsigned char* data,
                                            int length = -1);
+
+// Used to be a macro, hence the uppercase name.
+template <int N>
+inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
+    v8::Isolate* isolate,
+    const char(&data)[N]) {
+  return OneByteString(isolate, data, N - 1);
+}
+
 
 // Swaps bytes in place. nbytes is the number of bytes to swap and must be a
 // multiple of the word size (checked by function).
