@@ -1058,22 +1058,22 @@ bench-addons-clean:
 .PHONY: lint-md-clean
 lint-md-clean:
 	$(RM) -r tools/remark-cli/node_modules
-	$(RM) -r tools/remark-preset-lint-node/node_modules
+	$(RM) -r tools/node-lint-md-cli-rollup/remark-preset-lint-node/node_modules
 	$(RM) tools/.*mdlintstamp
 
 tools/remark-cli/node_modules: tools/remark-cli/package.json
 	@echo "Markdown linter: installing remark-cli into tools/"
 	@cd tools/remark-cli && $(call available-node,$(run-npm-ci))
 
-tools/remark-preset-lint-node/node_modules: \
-	tools/remark-preset-lint-node/package.json
-	@echo "Markdown linter: installing remark-preset-lint-node into tools/"
-	@cd tools/remark-preset-lint-node && $(call available-node,$(run-npm-ci))
+tools/node-lint-md-cli-rollup/remark-preset-lint-node/node_modules: \
+	tools/node-lint-md-cli-rollup/remark-preset-lint-node/package.json
+	@echo "Markdown linter: installing remark-preset-lint-node"
+	@cd tools/node-lint-md-cli-rollup/remark-preset-lint-node && $(call available-node,$(run-npm-ci))
 
 .PHONY: lint-md-build
 lint-md-build: tools/remark-cli/node_modules \
 	tools/doc/node_modules \
-	tools/remark-preset-lint-node/node_modules
+	tools/node-lint-md-cli-rollup/remark-preset-lint-node/node_modules
 
 tools/doc/node_modules: tools/doc/package.json
 ifeq ($(node_use_openssl),true)
