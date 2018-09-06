@@ -1,5 +1,5 @@
 {
   "plugins": [
-    "./tools/remark-preset-lint-node/"
+    "./tools/node-lint-md-cli-rollup/remark-preset-lint-node/"
   ]
 }
