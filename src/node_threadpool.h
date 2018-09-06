@@ -73,6 +73,12 @@ class TaskDetails {
 //  - User work from the N-API
 class Task {
  public:
+  enum State {
+      QUEUED
+    , ASSIGNED
+    , COMPLETED
+  };
+
   Task() {}
   // Invoked after Run().
   virtual ~Task() {}
@@ -80,10 +86,15 @@ class Task {
   // Invoked on some thread in the Threadpool.
   virtual void Run() = 0;
 
+  // Different Threadpool components should update this as the Task travels around.
+  void UpdateState(enum State state);
+
   // Run() can access details.
   // Should be set in subclass constructor.
   TaskDetails details_;
- private:
+
+ protected:
+  enum State state_;
 };
 
 // Shim that we plug into the libuv "pluggable TP" interface.

@@ -39,8 +39,18 @@ void Worker::Join(void) {
 void Worker::_Run(void* data) {
   TaskQueue* queue = static_cast<TaskQueue*>(data);
   while (std::unique_ptr<Task> task = queue->BlockingPop()) {
+    task->UpdateState(Task::ASSIGNED);
     task->Run();
+    task->UpdateState(Task::COMPLETED);
   }
+}
+
+/**************
+ * Task
+ ***************/
+
+void Task::UpdateState(enum State state) {
+  state_ = state;
 }
 
 /**************
@@ -139,8 +149,10 @@ bool TaskQueue::Push(std::unique_ptr<Task> task) {
     return false;
   }
 
+  task->UpdateState(Task::QUEUED);
   queue_.push(std::move(task));
   tasks_available_.Signal(scoped_lock);
+
   return true;
 }
 
