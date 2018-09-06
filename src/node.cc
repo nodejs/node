@@ -2667,7 +2667,7 @@ void ProcessArgv(std::vector<std::string>* args,
                 "--abort-on-uncaught-exception") != v8_args.end() ||
       std::find(v8_args.begin(), v8_args.end(),
                 "--abort_on_uncaught_exception") != v8_args.end()) {
-    per_process_opts->per_isolate->per_env->abort_on_uncaught_exception = true;
+    env_opts->abort_on_uncaught_exception = true;
   }
 
   // TODO(bnoordhuis) Intercept --prof arguments and start the CPU profiler
