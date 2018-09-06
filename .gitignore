@@ -14,7 +14,6 @@
 !.gitkeep
 !.mailmap
 !.nycrc
-!.remarkrc
 !.travis.yml
 
 core
@@ -114,8 +113,6 @@ tools/doc/node_modules
 tools/clang-format/node_modules
 
 # test artifacts
-tools/remark-cli/node_modules
-tools/remark-preset-lint-node/node_modules
 icu_config.gypi
 *.tap
 
