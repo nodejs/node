@@ -14,11 +14,15 @@
 namespace node {
 namespace threadpool {
 
+// Consumer of Threadpool.
 class LibuvExecutor;
+
+// Threadpool components.
 class Threadpool;
 class TaskQueue;
 class Task;
 class TaskDetails;
+class TaskState;
 class Worker;
 
 // Inhabited by a uv_thread_t.
@@ -66,6 +70,51 @@ class TaskDetails {
                     // cancel this Task while it is scheduled.
 };
 
+// Each TaskState is shared by a Task and its Post()'er.
+// A TaskState is a two-way communication channel:
+//  - The threadpool updates its State
+//  - The Post'er can try to Cancel it
+//
+// TODO(davisjam): Could add tracking of how long
+//  it spent in QUEUED, ASSIGNED, COMPLETED states,
+//  and what its total lifetime was.
+class TaskState {
+ // My friends can call TryUpdateState.
+ friend class Task;
+
+ public:
+  enum State {
+      INITIAL
+    , QUEUED
+    , ASSIGNED
+    , COMPLETED // Terminal state
+    , CANCELLED
+  };
+
+  TaskState();
+
+  // For the benefit of an impatient Post'er.
+  State GetState() const;
+
+  // Attempt to cancel the associated Task.
+  bool Cancel();
+
+ protected:
+  // Synchronization.
+  Mutex lock_;
+
+  // Different Threadpool components should update this as the
+  // Task travels around.
+  // Returns the state after the attempted update.
+  // Thread safe.
+  State TryUpdateState(State new_state);
+
+  // Caller must hold lock_.
+  bool ValidStateTransition(State old_state, State new_state);
+
+  State state_;
+};
+
 // Abstract notion of a Task.
 // Clients of node::Threadpool should sub-class this for their type of request.
 //  - V8::Platform Tasks
@@ -73,29 +122,22 @@ class TaskDetails {
 //  - User work from the N-API
 class Task {
  public:
-  enum State {
-      QUEUED
-    , ASSIGNED
-    , COMPLETED
-  };
-
-  Task() {}
+  // Subclasses should set details_ in their constructor.
+  Task();
   // Invoked after Run().
   virtual ~Task() {}
+
+  void SetTaskState(std::shared_ptr<TaskState> task_state);
 
   // Invoked on some thread in the Threadpool.
   virtual void Run() = 0;
 
-  // Different Threadpool components should update this as the
-  // Task travels around.
-  void UpdateState(enum State state);
+  TaskState::State TryUpdateState(TaskState::State new_state);
 
-  // Run() can access details.
-  // Should be set in subclass constructor.
   TaskDetails details_;
 
  protected:
-  enum State state_;
+  std::shared_ptr<TaskState> task_state_;
 };
 
 // Shim that we plug into the libuv "pluggable TP" interface.
@@ -108,32 +150,21 @@ class LibuvExecutor {
 
   uv_executor_t* GetExecutor();
 
+  // Returns true on success.
+  bool Cancel(std::shared_ptr<TaskState> task_state);
+
  private:
+  // These redirect into appropriate public methods.
   static void uv_executor_init(uv_executor_t* executor);
   static void uv_executor_submit(uv_executor_t* executor,
                                  uv_work_t* req,
                                  const uv_work_options_t* opts);
+  static int uv_executor_cancel(uv_executor_t* executor,
+                                uv_work_t* req);
 
   std::shared_ptr<Threadpool> tp_;
-  uv_executor_t executor_;  // executor_.data points to
+  uv_executor_t executor_;  // executor_.data points to an
                             // instance of LibuvExecutor.
-};
-
-// The LibuvExecutor wraps libuv uv_work_t's into LibuvTasks
-// and routes them to the internal Threadpool.
-class LibuvTask : public Task {
- public:
-  LibuvTask(LibuvExecutor* libuv_executor,
-            uv_work_t* req,
-            const uv_work_options_t* opts);
-  ~LibuvTask();
-
-  void Run();
-
- protected:
- private:
-  LibuvExecutor* libuv_executor_;
-  uv_work_t* req_;
 };
 
 // Abstract notion of a queue of Tasks.
@@ -141,6 +172,10 @@ class LibuvTask : public Task {
 // Subclass to experiment, e.g.:
 //   - prioritization
 //   - multi-queue e.g. for CPU-bound and I/O-bound Tasks or Fast and Slow ones.
+//
+// All Tasks Push'd to TaskQueue should have been assigned a TaskState.
+// The TaskQueue contains both QUEUED and CANCELLED Tasks.
+// Users should check the state of Tasks they Pop.
 class TaskQueue {
  public:
   TaskQueue();
@@ -166,17 +201,17 @@ class TaskQueue {
   int Length(void) const;
 
  private:
-  // Structures.
-  std::queue<std::unique_ptr<Task>> queue_;
-  int outstanding_tasks_;  // Number of Tasks in non-COMPLETED states.
-  bool stopped_;
-
   // Synchronization.
   Mutex lock_;
   // Signal'd when there is at least one task in the queue.
   ConditionVariable task_available_;
   // Signal'd when all Push'd Tasks are in COMPLETED state.
   ConditionVariable tasks_drained_;
+
+  // Structures.
+  std::queue<std::unique_ptr<Task>> queue_;
+  int outstanding_tasks_;  // Number of Tasks in non-COMPLETED states.
+  bool stopped_;
 };
 
 // A threadpool works on asynchronous Tasks.
@@ -196,7 +231,10 @@ class Threadpool {
   // Waits for queue to drain.
   ~Threadpool(void);
 
-  void Post(std::unique_ptr<Task> task);
+  // Returns a TaskState by which caller can track the progress of the Task.
+  // Caller can also use the TaskState to cancel the Task.
+  // Returns nullptr on failure.
+  std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task);
   int QueueLength(void) const;
   // Block until there are no tasks pending or scheduled in the TP.
   void BlockingDrain(void);

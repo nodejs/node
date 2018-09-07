@@ -39,11 +39,18 @@ void Worker::Join(void) {
 
 void Worker::_Run(void* data) {
   TaskQueue* queue = static_cast<TaskQueue*>(data);
+  TaskState::State task_state;
   while (std::unique_ptr<Task> task = queue->BlockingPop()) {
-    task->UpdateState(Task::ASSIGNED);
-    task->Run();
-    task->UpdateState(Task::COMPLETED);
+    // May have been cancelled while queued.
+    task_state = task->TryUpdateState(TaskState::ASSIGNED);
+    if (task_state == TaskState::ASSIGNED) {
+      task->Run();
+    } else {
+      CHECK_EQ(task_state, TaskState::CANCELLED);
+    }
 
+    CHECK_EQ(task->TryUpdateState(TaskState::COMPLETED),
+                                  TaskState::COMPLETED);
     queue->NotifyOfCompletion();
   }
 }
@@ -52,25 +59,167 @@ void Worker::_Run(void* data) {
  * Task
  ***************/
 
-void Task::UpdateState(enum State state) {
-  state_ = state;
+Task::Task() : task_state_() {
 }
+
+void Task::SetTaskState(std::shared_ptr<TaskState> task_state) {
+  task_state_ = task_state;
+}
+
+TaskState::State Task::TryUpdateState(TaskState::State new_state) {
+  return task_state_->TryUpdateState(new_state);
+}
+
+
+/**************
+ * TaskState
+ ***************/
+
+TaskState::TaskState() : state_(INITIAL) {
+}
+
+TaskState::State TaskState::GetState() const {
+  Mutex::ScopedLock scoped_lock(lock_);
+  return state_;
+}
+
+bool TaskState::Cancel() {
+  if (TryUpdateState(CANCELLED) == CANCELLED) {
+    LOG("TaskState::Cancel: Succeed\n");
+    return true;
+  }
+  LOG("TaskState::Cancel: Fail\n");
+  return false;
+}
+
+TaskState::State TaskState::TryUpdateState(TaskState::State new_state) {
+  Mutex::ScopedLock scoped_lock(lock_);
+  if (ValidStateTransition(state_, new_state)) {
+    state_ = new_state;
+  }
+  return state_;
+}
+
+bool TaskState::ValidStateTransition(TaskState::State old_state, TaskState::State new_state) {
+  // Normal flow: INITIAL -> QUEUED -> ASSIGNED -> COMPLETED.
+  // Also: non-terminal state -> CANCELLED -> COMPLETED.
+  switch (old_state) {
+    case INITIAL:
+      return new_state == QUEUED || new_state == CANCELLED;
+    case QUEUED:
+      return new_state == ASSIGNED || new_state == CANCELLED;
+    case ASSIGNED:
+      return new_state == COMPLETED || new_state == CANCELLED;
+    case CANCELLED:
+      return new_state == COMPLETED;
+    // No transitions out of terminal state.
+    case COMPLETED:
+      return false;
+    default:
+      CHECK(0);
+  }
+  return false;
+}
+
 
 /**************
  * LibuvExecutor
  ***************/
+
+class LibuvTaskData;
+class LibuvTask;
+
+// Internal LibuvExecutor mechanism to enable uv_cancel.
+// Preserves task_state so smart pointers knows not to delete it.
+class LibuvTaskData {
+ friend class LibuvExecutor;
+
+ public:
+  LibuvTaskData(std::shared_ptr<TaskState> state) : state_(state) {
+  }
+
+ private:
+  std::shared_ptr<TaskState> state_;
+};
+
+// The LibuvExecutor wraps libuv uv_work_t's into LibuvTasks
+// and routes them to the internal Threadpool.
+class LibuvTask : public Task {
+ public:
+  LibuvTask(LibuvExecutor* libuv_executor,
+            uv_work_t* req,
+            const uv_work_options_t* opts)
+    : Task(), libuv_executor_(libuv_executor), req_(req) {
+    CHECK(req_);
+    req_->reserved[0] = nullptr;
+
+    // Fill in TaskDetails based on opts.
+    if (opts) {
+      switch (opts->type) {
+        case UV_WORK_FS:
+          details_.type = TaskDetails::FS;
+          break;
+        case UV_WORK_DNS:
+          details_.type = TaskDetails::DNS;
+          break;
+        case UV_WORK_USER_IO:
+          details_.type = TaskDetails::IO;
+          break;
+        case UV_WORK_USER_CPU:
+          details_.type = TaskDetails::CPU;
+          break;
+        default:
+          details_.type = TaskDetails::UNKNOWN;
+      }
+
+      details_.priority = opts->priority;
+      details_.cancelable = opts->cancelable;
+    } else {
+      details_.type = TaskDetails::UNKNOWN;
+      details_.priority = -1;
+      details_.cancelable = false;
+    }
+
+    LOG("LibuvTask::LibuvTask: type %d\n", details_.type);
+  }
+
+  ~LibuvTask() {
+    LOG("LibuvTask::Run: Task %p done\n", req_);
+    // Clean up our storage.
+    LibuvTaskData* data = reinterpret_cast<LibuvTaskData*>(req_->reserved[0]);
+    delete data;
+    req_->reserved[0] = nullptr;
+
+    // Inform libuv.
+    libuv_executor_->GetExecutor()->done(req_);
+  }
+
+  void Run() {
+    LOG("LibuvTask::Run: Running Task %p\n", req_);
+    req_->work_cb(req_);
+  }
+
+ protected:
+ private:
+  LibuvExecutor* libuv_executor_;
+  uv_work_t* req_;
+};
 
 LibuvExecutor::LibuvExecutor(std::shared_ptr<Threadpool> tp)
   : tp_(tp) {
   executor_.init = uv_executor_init;
   executor_.destroy = nullptr;
   executor_.submit = uv_executor_submit;
-  executor_.cancel = nullptr;
+  executor_.cancel = uv_executor_cancel;
   executor_.data = this;
 }
 
 uv_executor_t* LibuvExecutor::GetExecutor() {
   return &executor_;
+}
+
+bool LibuvExecutor::Cancel(std::shared_ptr<TaskState> task_state) {
+  return task_state->Cancel();
 }
 
 void LibuvExecutor::uv_executor_init(uv_executor_t* executor) {
@@ -83,58 +232,34 @@ void LibuvExecutor::uv_executor_submit(uv_executor_t* executor,
                                        const uv_work_options_t* opts) {
   LibuvExecutor* libuv_executor =
     reinterpret_cast<LibuvExecutor *>(executor->data);
-  LOG("LibuvExecutor::uv_executor_submit: Got some work!\n");
-  libuv_executor->tp_->Post(std::unique_ptr<Task>(
+  LOG("LibuvExecutor::uv_executor_submit: Got work %p\n", req);
+
+  auto task_state = libuv_executor->tp_->Post(std::unique_ptr<Task>(
     new LibuvTask(libuv_executor, req, opts)));
+  CHECK(task_state);  // Must not fail. We have no mechanism to tell libuv.
+
+  auto data = new LibuvTaskData(task_state);
+  req->reserved[0] = data;
 }
 
-
-/**************
- * LibuvTask
- ***************/
-
-LibuvTask::LibuvTask(LibuvExecutor* libuv_executor,
-                     uv_work_t* req,
-                     const uv_work_options_t* opts)
-  : Task(), libuv_executor_(libuv_executor), req_(req) {
-  // Fill in TaskDetails based on opts.
-  if (opts) {
-    switch (opts->type) {
-    case UV_WORK_FS:
-      details_.type = TaskDetails::FS;
-      break;
-    case UV_WORK_DNS:
-      details_.type = TaskDetails::DNS;
-      break;
-    case UV_WORK_USER_IO:
-      details_.type = TaskDetails::IO;
-      break;
-    case UV_WORK_USER_CPU:
-      details_.type = TaskDetails::CPU;
-      break;
-    default:
-      details_.type = TaskDetails::UNKNOWN;
-    }
-
-    details_.priority = opts->priority;
-    details_.cancelable = opts->cancelable;
-  } else {
-    details_.type = TaskDetails::UNKNOWN;
-    details_.priority = -1;
-    details_.cancelable = false;
+// Remember, libuv user won't free uv_work_t until after its done_cb is called.
+// That won't happen until after the wrapping LibuvTask is destroyed.
+int LibuvExecutor::uv_executor_cancel(uv_executor_t* executor,
+                                      uv_work_t* req) {
+  if (!req || !req->reserved[0]) {
+    return UV_EINVAL;
   }
 
-  LOG("LibuvTask::LibuvTask: type %d\n", details_.type);
-}
+  LibuvExecutor* libuv_executor =
+    reinterpret_cast<LibuvExecutor *>(executor->data);
+  LibuvTaskData* task_data =
+    reinterpret_cast<LibuvTaskData *>(req->reserved[0]);
 
-LibuvTask::~LibuvTask(void) {
-  LOG("LibuvTask::Run: Task %p done\n", req_);
-  libuv_executor_->GetExecutor()->done(req_);
-}
-
-void LibuvTask::Run() {
-  LOG("LibuvTask::Run: Running Task %p\n", req_);
-  req_->work_cb(req_);
+  if (libuv_executor->Cancel(task_data->state_)) {
+    return 0;
+  } else {
+    return UV_EBUSY;
+  }
 }
 
 /**************
@@ -142,9 +267,9 @@ void LibuvTask::Run() {
  ***************/
 
 TaskQueue::TaskQueue()
-  : queue_(), outstanding_tasks_(0), stopped_(false)
-  , lock_()
-  , task_available_(), tasks_drained_() {
+  : lock_()
+  , task_available_(), tasks_drained_()
+  , queue_(), outstanding_tasks_(0), stopped_(false) {
 }
 
 bool TaskQueue::Push(std::unique_ptr<Task> task) {
@@ -154,7 +279,11 @@ bool TaskQueue::Push(std::unique_ptr<Task> task) {
     return false;
   }
 
-  task->UpdateState(Task::QUEUED);
+  // The queue contains QUEUED or CANCELLED Tasks.
+  // There's little harm in queueing CANCELLED tasks.
+  TaskState::State task_state = task->TryUpdateState(TaskState::QUEUED);
+  CHECK(task_state == TaskState::QUEUED || task_state == TaskState::CANCELLED);
+
   queue_.push(std::move(task));
   outstanding_tasks_++;
   task_available_.Signal(scoped_lock);
@@ -250,10 +379,12 @@ int Threadpool::GoodThreadpoolSize(void) {
   int count;
 
   if (uv_cpu_info(&cpu_infos, &count)) {
+    LOG("Threadpool::GoodThreadpoolSize: Huh, uv_cpu_info failed?\n");
     return 4;  // Old libuv TP default.
   }
 
   uv_free_cpu_info(cpu_infos, count);
+    LOG("Threadpool::GoodThreadpoolSize: cpu count %d\n", count);
   return count;
 }
 
@@ -275,10 +406,16 @@ Threadpool::~Threadpool(void) {
   }
 }
 
-void Threadpool::Post(std::unique_ptr<Task> task) {
+std::shared_ptr<TaskState> Threadpool::Post(std::unique_ptr<Task> task) {
   LOG("Threadpool::Post: Got task of type %d\n",
     task->details_.type);
+
+  std::shared_ptr<TaskState> task_state = std::make_shared<TaskState>();
+  task->SetTaskState(task_state);
+
   queue_.Push(std::move(task));
+
+  return task_state;
 }
 
 int Threadpool::QueueLength(void) const {
