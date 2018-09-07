@@ -73,7 +73,7 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   async_req* req = new async_req;
   req->req.data = req;
 
-  req->input = args[0]->IntegerValue();
+  req->input = args[0].As<v8::Integer>()->Value();
   req->output = 0;
   req->isolate = isolate;
   req->context = node::EmitAsyncInit(isolate, v8::Object::New(isolate), "test");
