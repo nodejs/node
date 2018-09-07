@@ -10,7 +10,7 @@
 // TODO(davisjam): DO NOT MERGE. Only for debugging.
 // TODO(davisjam): There must be a better way to do this.
 #define DEBUG_LOG 1
-// #undef DEBUG_LOG
+#undef DEBUG_LOG
 
 #ifdef DEBUG_LOG
 #include <stdio.h>
@@ -262,7 +262,7 @@ void Threadpool::BlockingDrain(void) {
 }
 
 int Threadpool::NWorkers(void) const {
- return workers_.size();
+  return workers_.size();
 }
 
 }  // namespace threadpool

@@ -86,7 +86,8 @@ class Task {
   // Invoked on some thread in the Threadpool.
   virtual void Run() = 0;
 
-  // Different Threadpool components should update this as the Task travels around.
+  // Different Threadpool components should update this as the
+  // Task travels around.
   void UpdateState(enum State state);
 
   // Run() can access details.
@@ -167,7 +168,7 @@ class TaskQueue {
  private:
   // Structures.
   std::queue<std::unique_ptr<Task>> queue_;
-  int outstanding_tasks_; // Number of Tasks in non-COMPLETED states.
+  int outstanding_tasks_;  // Number of Tasks in non-COMPLETED states.
   bool stopped_;
 
   // Synchronization.
@@ -185,16 +186,18 @@ class TaskQueue {
 // Subclass to experiment, e.g.:
 //   - Use a different type of TaskQueue
 //   - Elastic workers (scale up and down)
+//
+// TODO(davisjam): Thread pool size recommendation.
 class Threadpool {
  public:
+  // TODO(davisjam): RAII.
   Threadpool(void);
   // Waits for queue to drain.
   ~Threadpool(void);
 
   // Call once, before you Post.
-  // TODO(davisjam): RAII?
+  // TODO(davisjam): Remove, replace with RAII.
   void Initialize(void);
-  // TODO(davisjam): Destroy.
 
   void Post(std::unique_ptr<Task> task);
   int QueueLength(void) const;

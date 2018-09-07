@@ -70,7 +70,6 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
     loop_.data = this;
     CHECK_EQ(0, uv_loop_init(&loop_));
     flush_tasks_.data = this;
-    fprintf(stderr, "WorkerThreadsTaskRunner::DelayedTaskScheduler: Initializing flush_tasks_ %p\n", &flush_tasks_);
     CHECK_EQ(0, uv_async_init(&loop_, &flush_tasks_, FlushTasks));
     uv_sem_post(&ready_);
 
@@ -164,7 +163,6 @@ WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
 }
 
 void WorkerThreadsTaskRunner::PostTask(std::unique_ptr<Task> task) {
-  fprintf(stderr, "Posting to threadpool!\n");
   tp_->Post(std::unique_ptr<V8Task>(
     new V8Task(std::move(task))));
 }
