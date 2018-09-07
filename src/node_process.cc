@@ -7,6 +7,10 @@
 #include "uv.h"
 #include "v8.h"
 
+#if HAVE_INSPECTOR
+#include "inspector_io.h"
+#endif
+
 #include <limits.h>  // PATH_MAX
 #include <stdio.h>
 
@@ -832,5 +836,30 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(ary);
 }
+
+void DebugPortGetter(Local<Name> property,
+                     const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Mutex::ScopedLock lock(process_mutex);
+  int port = env->options()->debug_options->port();
+#if HAVE_INSPECTOR
+  if (port == 0) {
+    if (auto io = env->inspector_agent()->io())
+      port = io->port();
+  }
+#endif  // HAVE_INSPECTOR
+  info.GetReturnValue().Set(port);
+}
+
+
+void DebugPortSetter(Local<Name> property,
+                     Local<Value> value,
+                     const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Mutex::ScopedLock lock(process_mutex);
+  env->options()->debug_options->host_port.port =
+      value->Int32Value(env->context()).FromMaybe(0);
+}
+
 
 }  // namespace node
