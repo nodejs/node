@@ -184,7 +184,18 @@
             },
           },
           'conditions': [
-            ['OS!="aix" and node_shared=="false"', {
+            ['OS=="linux" and node_shared=="false" \
+              and target_arch=="x64" \
+              and node_use_large_pages=="true"', {
+              'ldflags': [
+                 '-Wl,-T <(PRODUCT_DIR)/../../ld.implicit.script',
+                 '-Wl,--whole-archive,<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)'
+                    'uv<(STATIC_LIB_SUFFIX)',
+                '-Wl,--no-whole-archive',
+             ]
+            }],
+            ['OS!="aix" and node_shared=="false" \
+              and node_use_large_pages=="false"', {
               'ldflags': [
                 '-Wl,--whole-archive,<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)'
                     'uv<(STATIC_LIB_SUFFIX)',

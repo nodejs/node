@@ -412,6 +412,12 @@ parser.add_option('--with-etw',
     dest='with_etw',
     help='build with ETW (default is true on Windows)')
 
+parser.add_option('--use-largepages',
+    action='store_true',
+    dest='node_use_large_pages',
+    help='build with Large Pages support (enabled only for Linux).' +
+         '(Needs Linux kernel >= 2.6.38 with Transparent Huge pages enabled)')
+
 intl_optgroup.add_option('--with-intl',
     action='store',
     dest='with_intl',
@@ -1017,6 +1023,9 @@ def configure_node(o):
        'DTrace is currently only supported on SunOS, MacOS or Linux systems.')
   else:
     o['variables']['node_use_dtrace'] = 'false'
+
+  use_large_pages = (flavor == 'linux' and options.node_use_large_pages)
+  o['variables']['node_use_large_pages'] = b(use_large_pages)
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
