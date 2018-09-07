@@ -1526,11 +1526,114 @@ deprecated: v8.0.0
 
 The `buf.parent` property is a deprecated alias for `buf.buffer`.
 
+### buf.readBigInt128BE(offset)
+### buf.readBigInt128LE(offset)
+<!-- YAML
+added: v11.0.0-pre
+-->
+
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 16`.
+* Returns: {bigint}
+
+Reads a 128-bit integer from `buf` at the specified `offset` with specified
+endian format (`readBigInt128BE()` returns big endian, `readBigInt128LE()`
+returns little endian).
+
+```js
+const buf = Buffer.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+
+console.log(buf.readBigInt128BE(0));
+// Prints: 5233100606242806050955395731361295n
+console.log(buf.readBigInt128LE(0));
+// Prints: 20011376718272490338853433276725592320n
+console.log(buf.readBigInt128LE(1));
+// Throws ERR_OUT_OF_RANGE
+```
+
+### buf.readBigInt64BE(offset)
+### buf.readBigInt64LE(offset)
+<!-- YAML
+added: v11.0.0-pre
+-->
+
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 8`.
+* Returns: {bigint}
+
+Reads a 64-bit integer from `buf` at the specified `offset` with specified
+endian format (`readBigInt64BE()` returns big endian, `readBigInt64LE()` returns
+little endian).
+
+```js
+const buf = Buffer.of(0, 1, 2, 3, 4, 5, 6, 7);
+
+console.log(buf.readBigInt64BE(0));
+// Prints: 283686952306183n
+console.log(buf.readBigInt64LE(0));
+// Prints: 506097522914230528n
+console.log(buf.readBigInt64LE(1));
+// Throws ERR_OUT_OF_RANGE
+```
+
+### buf.readBigUInt128BE(offset)
+### buf.readBigUInt128LE(offset)
+<!-- YAML
+added: v11.0.0-pre
+-->
+
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 16`.
+* Returns: {bigint}
+
+Reads a 128-bit unsigned integer from `buf` at the specified `offset` with
+specified endian format (`readBigUInt128BE()` returns big endian,
+`readBigUInt128LE()` returns little endian).
+
+```js
+const buf = Buffer.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+
+console.log(buf.readBigUInt128BE(0));
+// Prints: 5233100606242806050955395731361295n
+console.log(buf.readBigUInt128LE(0));
+// Prints: 20011376718272490338853433276725592320n
+console.log(buf.readBigUInt128LE(1));
+// Throws ERR_OUT_OF_RANGE
+```
+
+### buf.readBigUInt64BE(offset)
+### buf.readBigUInt64LE(offset)
+<!-- YAML
+added: v11.0.0-pre
+-->
+
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 8`.
+* Returns: {bigint}
+
+Reads a 64-bit unsigned integer from `buf` at the specified `offset` with
+specified endian format (`readBigUInt64BE()` returns big endian,
+`readBigUInt64LE()` returns little endian).
+
+```js
+const buf = Buffer.of(0, 1, 2, 3, 4, 5, 6, 7);
+
+console.log(buf.readBigUInt64BE(0));
+// Prints: 283686952306183n
+console.log(buf.readBigUInt64LE(0));
+// Prints: 506097522914230528n
+console.log(buf.readBigUInt64LE(1));
+// Throws ERR_OUT_OF_RANGE
+```
+
 ### buf.readDoubleBE(offset)
 ### buf.readDoubleLE(offset)
 <!-- YAML
 added: v0.11.15
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1561,6 +1664,9 @@ console.log(buf.readDoubleLE(1));
 <!-- YAML
 added: v0.11.15
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1590,6 +1696,9 @@ console.log(buf.readFloatLE(1));
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1620,6 +1729,9 @@ console.log(buf.readInt8(2));
 <!-- YAML
 added: v0.5.5
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1652,6 +1764,9 @@ console.log(buf.readInt16LE(1));
 <!-- YAML
 added: v0.5.5
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1684,6 +1799,9 @@ console.log(buf.readInt32LE(1));
 <!-- YAML
 added: v0.11.15
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1717,6 +1835,9 @@ console.log(buf.readIntBE(1, 0).toString(16));
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1745,6 +1866,9 @@ console.log(buf.readUInt8(2));
 <!-- YAML
 added: v0.5.5
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1779,6 +1903,9 @@ console.log(buf.readUInt16LE(2).toString(16));
 <!-- YAML
 added: v0.5.5
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1809,6 +1936,9 @@ console.log(buf.readUInt32LE(1).toString(16));
 <!-- YAML
 added: v0.11.15
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2126,6 +2256,9 @@ console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 <!-- YAML
 added: v0.11.15
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2161,6 +2294,9 @@ console.log(buf);
 <!-- YAML
 added: v0.11.15
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2195,6 +2331,9 @@ console.log(buf);
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2227,6 +2366,9 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2260,6 +2402,9 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2293,6 +2438,9 @@ console.log(buf);
 <!-- YAML
 added: v0.11.15
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2328,6 +2476,9 @@ console.log(buf);
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2360,6 +2511,9 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2397,6 +2551,9 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -2432,6 +2589,9 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
+  - version: v11.0.0-pre
+    pr-url: null
+    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
