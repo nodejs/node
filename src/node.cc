@@ -3132,9 +3132,9 @@ MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
 
 
 MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,  // TODO(davisjam): ignored. Not sure what to do here.
+    int thread_pool_size,
     v8::TracingController* tracing_controller) {
-  return new NodePlatform(node_threadpool.tp_, tracing_controller);
+  return new NodePlatform(thread_pool_size, tracing_controller);
 }
 
 

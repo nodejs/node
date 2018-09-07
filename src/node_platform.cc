@@ -249,6 +249,22 @@ int PerIsolatePlatformData::unref() {
   return --ref_count_;
 }
 
+NodePlatform::NodePlatform(int thread_pool_size,
+                           TracingController* tracing_controller) {
+  if (tracing_controller) {
+    tracing_controller_.reset(tracing_controller);
+  } else {
+    TracingController* controller = new TracingController();
+    tracing_controller_.reset(controller);
+  }
+
+  // Give wttr its own TP.
+  std::shared_ptr<threadpool::Threadpool> tp =
+    std::make_shared<threadpool::Threadpool>();
+  tp->Initialize();
+  worker_thread_task_runner_ = std::make_shared<WorkerThreadsTaskRunner>(tp);
+}
+
 NodePlatform::NodePlatform(std::shared_ptr<threadpool::Threadpool> tp,
                            TracingController* tracing_controller) {
   if (tracing_controller) {

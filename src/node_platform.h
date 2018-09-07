@@ -124,6 +124,9 @@ class WorkerThreadsTaskRunner {
 
 class NodePlatform : public MultiIsolatePlatform {
  public:
+  // Create a NodePlatform with its own TP
+  NodePlatform(int thread_pool_size, v8::TracingController* tracing_controller);
+  // Create a NodePlatform using the provided TP
   NodePlatform(std::shared_ptr<threadpool::Threadpool> tp,
     v8::TracingController* tracing_controller);
   virtual ~NodePlatform() {}
