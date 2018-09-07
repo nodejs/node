@@ -60,7 +60,7 @@ MaybeHandle<Object> JsonParseInternalizer::Internalize(Isolate* isolate,
   Handle<JSObject> holder =
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<String> name = isolate->factory()->empty_string();
-  JSObject::AddProperty(holder, name, object, NONE);
+  JSObject::AddProperty(isolate, holder, name, object, NONE);
   return internalizer.InternalizeJsonProperty(holder, name);
 }
 
@@ -69,7 +69,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
   HandleScope outer_scope(isolate_);
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, value, Object::GetPropertyOrElement(holder, name), Object);
+      isolate_, value, Object::GetPropertyOrElement(isolate_, holder, name),
+      Object);
   if (value->IsJSReceiver()) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
     Maybe<bool> is_array = Object::IsArray(object);
@@ -143,7 +144,7 @@ JsonParser<seq_one_byte>::JsonParser(Isolate* isolate, Handle<String> source)
                           isolate_),
       position_(-1),
       properties_(&zone_) {
-  source_ = String::Flatten(source_);
+  source_ = String::Flatten(isolate, source_);
   pretenure_ = (source_length_ >= kPretenureTreshold) ? TENURED : NOT_TENURED;
 
   // Optimized fast case where we only have Latin1 characters.
@@ -365,7 +366,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
   HandleScope scope(isolate());
   Handle<JSObject> json_object =
       factory()->NewJSObject(object_constructor(), pretenure_);
-  Handle<Map> map(json_object->map());
+  Handle<Map> map(json_object->map(), isolate());
   int descriptor = 0;
   VectorSegment<ZoneVector<Handle<Object>>> properties(&properties_);
   DCHECK_EQ(c0_, '{');
@@ -404,7 +405,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       Handle<Map> target;
       if (seq_one_byte) {
         DisallowHeapAllocation no_gc;
-        TransitionsAccessor transitions(*map, &no_gc);
+        TransitionsAccessor transitions(isolate(), *map, &no_gc);
         key = transitions.ExpectedTransitionKey();
         follow_expected = !key.is_null() && ParseJsonString(key);
         // If the expected transition hits, follow it.
@@ -419,9 +420,9 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         if (key.is_null()) return ReportUnexpectedCharacter();
 
         // If a transition was found, follow it and continue.
-        transitioning =
-            TransitionsAccessor(map).FindTransitionToField(key).ToHandle(
-                &target);
+        transitioning = TransitionsAccessor(isolate(), map)
+                            .FindTransitionToField(key)
+                            .ToHandle(&target);
       }
       if (c0_ != ':') return ReportUnexpectedCharacter();
 
@@ -441,8 +442,9 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
                    ->NowContains(value)) {
             Handle<FieldType> value_type(
                 value->OptimalType(isolate(), expected_representation));
-            Map::GeneralizeField(target, descriptor, details.constness(),
-                                 expected_representation, value_type);
+            Map::GeneralizeField(isolate(), target, descriptor,
+                                 details.constness(), expected_representation,
+                                 value_type);
           }
           DCHECK(target->instance_descriptors()
                      ->GetFieldType(descriptor)
@@ -831,7 +833,8 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
 
     int position = position_;
     uc32 c0 = c0_;
-    uint32_t running_hash = isolate()->heap()->HashSeed();
+    uint32_t running_hash =
+        static_cast<uint32_t>(isolate()->heap()->HashSeed());
     uint32_t index = 0;
     bool is_array_index = true;
 

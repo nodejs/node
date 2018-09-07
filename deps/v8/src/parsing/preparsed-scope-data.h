@@ -76,8 +76,10 @@ class ProducedPreParsedScopeData : public ZoneObject {
     void WriteUint8(uint8_t data);
     void WriteQuarter(uint8_t data);
 
+#ifdef DEBUG
     // For overwriting previously written data at position 0.
     void OverwriteFirstUint32(uint32_t data);
+#endif
 
     Handle<PodArray<uint8_t>> Serialize(Isolate* isolate);
 
@@ -225,7 +227,7 @@ class ConsumedPreParsedScopeData {
   ConsumedPreParsedScopeData();
   ~ConsumedPreParsedScopeData();
 
-  void SetData(Handle<PreParsedScopeData> data);
+  void SetData(Isolate* isolate, Handle<PreParsedScopeData> data);
 
   bool HasData() const { return !data_.is_null(); }
 
@@ -243,6 +245,7 @@ class ConsumedPreParsedScopeData {
   void RestoreDataForVariable(Variable* var);
   void RestoreDataForInnerScopes(Scope* scope);
 
+  Isolate* isolate_;
   Handle<PreParsedScopeData> data_;
   std::unique_ptr<ByteData> scope_data_;
   // When consuming the data, these indexes point to the data we're going to

@@ -43,6 +43,7 @@ class MaybeObject {
   inline HeapObject* GetHeapObject();
   inline Object* GetHeapObjectOrSmi();
 
+  inline bool IsObject();
   inline Object* ToObject();
 
   static MaybeObject* FromSmi(Smi* smi) {
@@ -58,7 +59,7 @@ class MaybeObject {
   static inline MaybeObject* MakeWeak(MaybeObject* object);
 
 #ifdef VERIFY_HEAP
-  static void VerifyMaybeObjectPointer(MaybeObject* p);
+  static void VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject* p);
 #endif
 
   // Prints this object without details.
@@ -71,7 +72,6 @@ class MaybeObject {
 
 #ifdef OBJECT_PRINT
   void Print();
-
   void Print(std::ostream& os);
 #else
   void Print() { ShortPrint(); }

@@ -10,7 +10,7 @@ ALL_VARIANT_FLAGS = {
   "gc_stats": [["--gc_stats=1"]],
   # Alias of exhaustive variants, but triggering new test framework features.
   "infra_staging": [[]],
-  "liftoff": [["--liftoff"]],
+  "no_liftoff": [["--no-wasm-tier-up"]],
   "minor_mc": [["--minor-mc"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see

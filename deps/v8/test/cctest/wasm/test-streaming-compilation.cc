@@ -82,24 +82,39 @@ class MockPlatform final : public TestPlatform {
 
 namespace {
 
+enum class CompilationState {
+  kPending,
+  kFinished,
+  kFailed,
+};
+
+class TestResolver : public i::wasm::CompilationResultResolver {
+ public:
+  explicit TestResolver(CompilationState* state) : state_(state) {}
+
+  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
+    *state_ = CompilationState::kFinished;
+  }
+
+  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+    *state_ = CompilationState::kFailed;
+  }
+
+ private:
+  CompilationState* state_;
+};
+
 class StreamTester {
  public:
   StreamTester() : zone_(&allocator_, "StreamTester") {
     v8::Isolate* isolate = CcTest::isolate();
     i::Isolate* i_isolate = CcTest::i_isolate();
 
-    // Create the promise for the streaming compilation.
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
-    v8::Local<Promise::Resolver> resolver;
-    CHECK(Promise::Resolver::New(context).ToLocal(&resolver));
-    CHECK(!i_isolate->has_scheduled_exception());
-    promise_ = resolver->GetPromise();
 
-    i::Handle<i::JSPromise> i_promise = v8::Utils::OpenHandle(*promise_);
-
-    stream_ = i_isolate->wasm_engine()
-                  ->StartStreamingCompilation(
-                      i_isolate, v8::Utils::OpenHandle(*context), i_promise);
+    stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
+        i_isolate, v8::Utils::OpenHandle(*context),
+        base::make_unique<TestResolver>(&state_));
   }
 
   std::shared_ptr<StreamingDecoder> stream() { return stream_; }
@@ -109,15 +124,11 @@ class StreamTester {
     static_cast<MockPlatform*>(i::V8::GetCurrentPlatform())->ExecuteTasks();
   }
 
-  bool IsPromiseFulfilled() {
-    return promise_->State() == v8::Promise::kFulfilled;
-  }
+  bool IsPromiseFulfilled() { return state_ == CompilationState::kFinished; }
 
-  bool IsPromiseRejected() {
-    return promise_->State() == v8::Promise::kRejected;
-  }
+  bool IsPromiseRejected() { return state_ == CompilationState::kFailed; }
 
-  bool IsPromisePending() { return promise_->State() == v8::Promise::kPending; }
+  bool IsPromisePending() { return state_ == CompilationState::kPending; }
 
   void OnBytesReceived(const uint8_t* start, size_t length) {
     stream_->OnBytesReceived(Vector<const uint8_t>(start, length));
@@ -130,7 +141,7 @@ class StreamTester {
  private:
   AccountingAllocator allocator_;
   Zone zone_;
-  v8::Local<v8::Promise> promise_;
+  CompilationState state_ = CompilationState::kPending;
   std::shared_ptr<StreamingDecoder> stream_;
 };
 }  // namespace
@@ -204,8 +215,7 @@ size_t GetFunctionOffset(i::Isolate* isolate, const uint8_t* buffer,
   ModuleResult result = SyncDecodeWasmModule(isolate, buffer, buffer + size,
                                              false, ModuleOrigin::kWasmOrigin);
   CHECK(result.ok());
-  std::unique_ptr<WasmModule> module = std::move(result.val);
-  const WasmFunction* func = &module->functions[1];
+  const WasmFunction* func = &result.val->functions[1];
   return func->code.offset();
 }
 

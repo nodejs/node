@@ -316,6 +316,12 @@ RegisterConfiguration::RegisterConfiguration(
   }
 }
 
+const char* RegisterConfiguration::GetGeneralOrSpecialRegisterName(
+    int code) const {
+  if (code < num_general_registers_) return GetGeneralRegisterName(code);
+  return Assembler::GetSpecialRegisterName(code);
+}
+
 // Assert that kFloat32, kFloat64, and kSimd128 are consecutive values.
 STATIC_ASSERT(static_cast<int>(MachineRepresentation::kSimd128) ==
               static_cast<int>(MachineRepresentation::kFloat64) + 1);

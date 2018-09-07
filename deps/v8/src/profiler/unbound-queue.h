@@ -24,13 +24,13 @@ class UnboundQueue BASE_EMBEDDED {
   inline UnboundQueue();
   inline ~UnboundQueue();
 
-  INLINE(bool Dequeue(Record* rec));
-  INLINE(void Enqueue(const Record& rec));
-  INLINE(bool IsEmpty() const);
-  INLINE(Record* Peek() const);
+  V8_INLINE bool Dequeue(Record* rec);
+  V8_INLINE void Enqueue(const Record& rec);
+  V8_INLINE bool IsEmpty() const;
+  V8_INLINE Record* Peek() const;
 
  private:
-  INLINE(void DeleteFirst());
+  V8_INLINE void DeleteFirst();
 
   struct Node;
 

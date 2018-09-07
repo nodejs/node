@@ -26,7 +26,7 @@ namespace wasm {
 namespace testing {
 
 // Decodes the given encoded module.
-std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
+std::shared_ptr<WasmModule> DecodeWasmModuleForTesting(
     Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin, bool verify_functions = false);
 

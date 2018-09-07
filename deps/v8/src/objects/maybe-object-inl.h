@@ -104,6 +104,8 @@ Object* MaybeObject::GetHeapObjectOrSmi() {
   return GetHeapObject();
 }
 
+bool MaybeObject::IsObject() { return IsSmi() || IsStrongHeapObject(); }
+
 Object* MaybeObject::ToObject() {
   DCHECK(!HasWeakHeapObjectTag(this));
   return reinterpret_cast<Object*>(this);

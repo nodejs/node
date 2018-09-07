@@ -100,6 +100,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   Reduction ReplaceNode(Node* original, Node* replacement);
 
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   EscapeAnalysisResult analysis_result() const { return analysis_result_; }
   Zone* zone() const { return zone_; }
 

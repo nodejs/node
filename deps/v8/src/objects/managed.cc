@@ -13,8 +13,10 @@ namespace {
 void ManagedObjectFinalizerSecondPass(const v8::WeakCallbackInfo<void>& data) {
   auto destructor =
       reinterpret_cast<ManagedPtrDestructor*>(data.GetParameter());
+  int64_t adjustment = 0 - static_cast<int64_t>(destructor->estimated_size_);
   destructor->destructor_(destructor->shared_ptr_ptr_);
   delete destructor;
+  data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(adjustment);
 }
 }  // namespace
 

@@ -22,7 +22,8 @@ class TyperTest : public TypedGraphTest {
  public:
   TyperTest()
       : TypedGraphTest(3),
-        operation_typer_(isolate(), zone()),
+        js_heap_broker_(isolate()),
+        operation_typer_(isolate(), &js_heap_broker_, zone()),
         types_(zone(), isolate(), random_number_generator()),
         javascript_(zone()),
         simplified_(zone()) {
@@ -55,6 +56,7 @@ class TyperTest : public TypedGraphTest {
 
   const int kRepetitions = 50;
 
+  JSHeapBroker js_heap_broker_;
   OperationTyper operation_typer_;
   Types types_;
   JSOperatorBuilder javascript_;
@@ -174,6 +176,7 @@ class TyperTest : public TypedGraphTest {
             for (int x2 = rmin; x2 < rmin + width; x2++) {
               double result_value = opfun(x1, x2);
               Type result_type = Type::NewConstant(
+                  &js_heap_broker_,
                   isolate()->factory()->NewNumber(result_value), zone());
               EXPECT_TRUE(result_type.Is(expected_type));
             }
@@ -195,19 +198,23 @@ class TyperTest : public TypedGraphTest {
         double x2 = RandomInt(r2.AsRange());
         double result_value = opfun(x1, x2);
         Type result_type = Type::NewConstant(
-            isolate()->factory()->NewNumber(result_value), zone());
+            &js_heap_broker_, isolate()->factory()->NewNumber(result_value),
+            zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
     // Test extreme cases.
     double x1 = +1e-308;
     double x2 = -1e-308;
-    Type r1 = Type::NewConstant(isolate()->factory()->NewNumber(x1), zone());
-    Type r2 = Type::NewConstant(isolate()->factory()->NewNumber(x2), zone());
+    Type r1 = Type::NewConstant(&js_heap_broker_,
+                                isolate()->factory()->NewNumber(x1), zone());
+    Type r2 = Type::NewConstant(&js_heap_broker_,
+                                isolate()->factory()->NewNumber(x2), zone());
     Type expected_type = TypeBinaryOp(op, r1, r2);
     double result_value = opfun(x1, x2);
     Type result_type = Type::NewConstant(
-        isolate()->factory()->NewNumber(result_value), zone());
+        &js_heap_broker_, isolate()->factory()->NewNumber(result_value),
+        zone());
     EXPECT_TRUE(result_type.Is(expected_type));
   }
 
@@ -222,6 +229,7 @@ class TyperTest : public TypedGraphTest {
         double x2 = RandomInt(r2.AsRange());
         bool result_value = opfun(x1, x2);
         Type result_type = Type::NewConstant(
+            &js_heap_broker_,
             result_value ? isolate()->factory()->true_value()
                          : isolate()->factory()->false_value(),
             zone());
@@ -241,7 +249,8 @@ class TyperTest : public TypedGraphTest {
         int32_t x2 = static_cast<int32_t>(RandomInt(r2.AsRange()));
         double result_value = opfun(x1, x2);
         Type result_type = Type::NewConstant(
-            isolate()->factory()->NewNumber(result_value), zone());
+            &js_heap_broker_, isolate()->factory()->NewNumber(result_value),
+            zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
     }

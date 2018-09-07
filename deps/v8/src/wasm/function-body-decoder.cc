@@ -846,21 +846,29 @@ DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
 
 DecodeResult VerifyWasmCodeWithStats(AccountingAllocator* allocator,
                                      const wasm::WasmModule* module,
-                                     FunctionBody& body, bool is_wasm,
+                                     FunctionBody& body, ModuleOrigin origin,
                                      Counters* counters) {
   CHECK_LE(0, body.end - body.start);
-  auto time_counter = is_wasm ? counters->wasm_decode_wasm_function_time()
-                              : counters->wasm_decode_asm_function_time();
+  auto time_counter = origin == kWasmOrigin
+                          ? counters->wasm_decode_wasm_function_time()
+                          : counters->wasm_decode_asm_function_time();
   TimedHistogramScope wasm_decode_function_time_scope(time_counter);
   return VerifyWasmCode(allocator, module, body);
 }
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
-                          FunctionBody& body) {
+                          FunctionBody& body,
+                          compiler::NodeOriginTable* node_origins) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kValidate, WasmGraphBuildingInterface> decoder(
       &zone, builder->module(), body, builder);
+  if (node_origins) {
+    builder->AddBytecodePositionDecorator(node_origins, &decoder);
+  }
   decoder.Decode();
+  if (node_origins) {
+    builder->RemoveBytecodePositionDecorator();
+  }
   return decoder.toResult(nullptr);
 }
 
@@ -900,15 +908,23 @@ const char* RawOpcodeName(WasmOpcode opcode) {
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                       const wasm::WasmModule* module,
                       PrintLocals print_locals) {
-  OFStream os(stdout);
+  StdoutStream os;
+  return PrintRawWasmCode(allocator, body, module, print_locals, os);
+}
+
+bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
+                      const wasm::WasmModule* module, PrintLocals print_locals,
+                      std::ostream& os, std::vector<int>* line_numbers) {
   Zone zone(allocator, ZONE_NAME);
   WasmDecoder<Decoder::kNoValidate> decoder(module, body.sig, body.start,
                                             body.end);
   int line_nr = 0;
+  constexpr int kNoByteCode = -1;
 
   // Print the function signature.
   if (body.sig) {
     os << "// signature: " << *body.sig << std::endl;
+    if (line_numbers) line_numbers->push_back(kNoByteCode);
     ++line_nr;
   }
 
@@ -931,16 +947,19 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       }
     }
     os << std::endl;
+    if (line_numbers) line_numbers->push_back(kNoByteCode);
     ++line_nr;
 
     for (const byte* locals = body.start; locals < i.pc(); locals++) {
       os << (locals == body.start ? "0x" : " 0x") << AsHex(*locals, 2) << ",";
     }
     os << std::endl;
+    if (line_numbers) line_numbers->push_back(kNoByteCode);
     ++line_nr;
   }
 
   os << "// body: " << std::endl;
+  if (line_numbers) line_numbers->push_back(kNoByteCode);
   ++line_nr;
   unsigned control_depth = 0;
   for (; i.has_next(); i.next()) {
@@ -948,6 +967,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         WasmDecoder<Decoder::kNoValidate>::OpcodeLength(&decoder, i.pc());
 
     WasmOpcode opcode = i.current();
+    if (line_numbers) line_numbers->push_back(i.position());
     if (opcode == kExprElse) control_depth--;
 
     int num_whitespaces = control_depth < 32 ? 2 * control_depth : 64;
@@ -997,8 +1017,10 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprTry: {
         BlockTypeImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << "   // @" << i.pc_offset();
-        for (unsigned i = 0; i < imm.out_arity(); i++) {
-          os << " " << ValueTypes::TypeName(imm.out_type(i));
+        if (decoder.Complete(imm)) {
+          for (unsigned i = 0; i < imm.out_arity(); i++) {
+            os << " " << ValueTypes::TypeName(imm.out_type(i));
+          }
         }
         control_depth++;
         break;
@@ -1044,6 +1066,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     os << std::endl;
     ++line_nr;
   }
+  DCHECK(!line_numbers || line_numbers->size() == static_cast<size_t>(line_nr));
 
   return decoder.ok();
 }

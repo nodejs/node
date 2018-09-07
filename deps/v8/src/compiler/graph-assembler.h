@@ -28,7 +28,10 @@ namespace compiler {
   V(TruncateInt64ToInt32)                \
   V(RoundFloat64ToInt32)                 \
   V(TruncateFloat64ToWord32)             \
+  V(Float64ExtractLowWord32)             \
   V(Float64ExtractHighWord32)            \
+  V(BitcastInt32ToFloat32)               \
+  V(BitcastFloat32ToInt32)               \
   V(Float64Abs)
 
 #define PURE_ASSEMBLER_MACH_BINOP_LIST(V) \
@@ -60,6 +63,8 @@ namespace compiler {
   V(Float64Equal)                         \
   V(Float64LessThan)                      \
   V(Float64LessThanOrEqual)               \
+  V(Float64InsertLowWord32)               \
+  V(Float64InsertHighWord32)              \
   V(Word32Equal)                          \
   V(WordEqual)
 
@@ -258,6 +263,7 @@ class GraphAssembler {
   Operator const* ToNumberOperator();
 
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   Graph* graph() const { return jsgraph_->graph(); }
   Zone* temp_zone() const { return temp_zone_; }
   CommonOperatorBuilder* common() const { return jsgraph()->common(); }

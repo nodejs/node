@@ -42,6 +42,7 @@ int SourcePositionTable::GetSourceLineNumber(int pc_offset) const {
   return it->line_number;
 }
 
+const char* const CodeEntry::kWasmResourceNamePrefix = "wasm ";
 const char* const CodeEntry::kEmptyResourceName = "";
 const char* const CodeEntry::kEmptyBailoutReason = "";
 const char* const CodeEntry::kNoDeoptReason = "";
@@ -346,13 +347,13 @@ class Position {
  public:
   explicit Position(ProfileNode* node)
       : node(node), child_idx_(0) { }
-  INLINE(ProfileNode* current_child()) {
+  V8_INLINE ProfileNode* current_child() {
     return node->children()->at(child_idx_);
   }
-  INLINE(bool has_current_child()) {
+  V8_INLINE bool has_current_child() {
     return child_idx_ < static_cast<int>(node->children()->size());
   }
-  INLINE(void next_child()) { ++child_idx_; }
+  V8_INLINE void next_child() { ++child_idx_; }
 
   ProfileNode* node;
  private:
@@ -385,6 +386,8 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
 
 using v8::tracing::TracedValue;
 
+std::atomic<uint32_t> CpuProfile::last_id_;
+
 CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
                        bool record_samples, ProfilingMode mode)
     : title_(title),
@@ -393,12 +396,13 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
       start_time_(base::TimeTicks::HighResolutionNow()),
       top_down_(profiler->isolate()),
       profiler_(profiler),
-      streaming_next_sample_(0) {
+      streaming_next_sample_(0),
+      id_(++last_id_) {
   auto value = TracedValue::Create();
   value->SetDouble("startTime",
                    (start_time_ - base::TimeTicks()).InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "Profile", this, "data", std::move(value));
+                              "Profile", id_, "data", std::move(value));
 }
 
 void CpuProfile::AddPath(base::TimeTicks timestamp,
@@ -490,7 +494,7 @@ void CpuProfile::StreamPendingTraceEvents() {
   }
 
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "ProfileChunk", this, "data", std::move(value));
+                              "ProfileChunk", id_, "data", std::move(value));
 }
 
 void CpuProfile::FinishProfile() {
@@ -499,7 +503,7 @@ void CpuProfile::FinishProfile() {
   auto value = TracedValue::Create();
   value->SetDouble("endTime", (end_time_ - base::TimeTicks()).InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "ProfileChunk", this, "data", std::move(value));
+                              "ProfileChunk", id_, "data", std::move(value));
 }
 
 void CpuProfile::Print() {
@@ -525,8 +529,6 @@ void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
   ClearCodesInRange(addr, addr + size);
   unsigned index = AddCodeEntry(addr, entry);
   code_map_.emplace(addr, CodeEntryMapInfo{index, size});
-  DCHECK(entry->instruction_start() == kNullAddress ||
-         addr == entry->instruction_start());
 }
 
 void CodeMap::ClearCodesInRange(Address start, Address end) {
@@ -548,14 +550,8 @@ CodeEntry* CodeMap::FindEntry(Address addr) {
   auto it = code_map_.upper_bound(addr);
   if (it == code_map_.begin()) return nullptr;
   --it;
-  Address start_address = it->first;
-  Address end_address = start_address + it->second.size;
-  CodeEntry* ret = addr < end_address ? entry(it->second.index) : nullptr;
-  if (ret && ret->instruction_start() != kNullAddress) {
-    DCHECK_EQ(start_address, ret->instruction_start());
-    DCHECK(addr >= start_address && addr < end_address);
-  }
-  return ret;
+  Address end_address = it->first + it->second.size;
+  return addr < end_address ? entry(it->second.index) : nullptr;
 }
 
 void CodeMap::MoveCode(Address from, Address to) {
@@ -567,9 +563,6 @@ void CodeMap::MoveCode(Address from, Address to) {
   DCHECK(from + info.size <= to || to + info.size <= from);
   ClearCodesInRange(to, to + info.size);
   code_map_.emplace(to, info);
-
-  CodeEntry* entry = code_entries_[info.index].entry;
-  entry->set_instruction_start(to);
 }
 
 unsigned CodeMap::AddCodeEntry(Address start, CodeEntry* entry) {
@@ -597,9 +590,7 @@ void CodeMap::Print() {
 }
 
 CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
-    : resource_names_(isolate->heap()->HashSeed()),
-      profiler_(nullptr),
-      current_profiles_semaphore_(1) {}
+    : profiler_(nullptr), current_profiles_semaphore_(1) {}
 
 bool CpuProfilesCollection::StartProfiling(const char* title,
                                            bool record_samples,
@@ -702,29 +693,26 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   if (sample.pc != nullptr) {
     if (sample.has_external_callback && sample.state == EXTERNAL) {
       // Don't use PC when in external callback code, as it can point
-      // inside a callback's code, and we will erroneously report
+      // inside callback's code, and we will erroneously report
       // that a callback calls itself.
       stack_trace.push_back(
           {FindEntry(reinterpret_cast<Address>(sample.external_callback_entry)),
            no_line_info});
     } else {
-      Address attributed_pc = reinterpret_cast<Address>(sample.pc);
-      CodeEntry* pc_entry = FindEntry(attributed_pc);
-      // If there is no pc_entry, we're likely in native code. Find out if the
-      // top of the stack (the return address) was pointing inside a JS
-      // function, meaning that we have encountered a frameless invocation.
+      CodeEntry* pc_entry = FindEntry(reinterpret_cast<Address>(sample.pc));
+      // If there is no pc_entry we're likely in native code.
+      // Find out, if top of stack was pointing inside a JS function
+      // meaning that we have encountered a frameless invocation.
       if (!pc_entry && !sample.has_external_callback) {
-        attributed_pc = reinterpret_cast<Address>(sample.tos);
-        pc_entry = FindEntry(attributed_pc);
+        pc_entry = FindEntry(reinterpret_cast<Address>(sample.tos));
       }
       // If pc is in the function code before it set up stack frame or after the
-      // frame was destroyed, SafeStackFrameIterator incorrectly thinks that
-      // ebp contains the return address of the current function and skips the
-      // caller's frame. Check for this case and just skip such samples.
+      // frame was destroyed SafeStackFrameIterator incorrectly thinks that
+      // ebp contains return address of the current function and skips caller's
+      // frame. Check for this case and just skip such samples.
       if (pc_entry) {
-        int pc_offset =
-            static_cast<int>(attributed_pc - pc_entry->instruction_start());
-        DCHECK_GE(pc_offset, 0);
+        int pc_offset = static_cast<int>(reinterpret_cast<Address>(sample.pc) -
+                                         pc_entry->instruction_start());
         src_line = pc_entry->GetSourceLine(pc_offset);
         if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) {
           src_line = pc_entry->line_number();
@@ -756,7 +744,6 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
         // Find out if the entry has an inlining stack associated.
         int pc_offset =
             static_cast<int>(stack_pos - entry->instruction_start());
-        DCHECK_GE(pc_offset, 0);
         const std::vector<std::unique_ptr<CodeEntry>>* inline_stack =
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {

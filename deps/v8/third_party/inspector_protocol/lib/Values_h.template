@@ -6,7 +6,6 @@
 #define {{"_".join(config.protocol.namespace)}}_Values_h
 
 //#include "Allocator.h"
-//#include "Collections.h"
 //#include "Forward.h"
 
 {% for namespace in config.protocol.namespace %}
@@ -200,7 +199,7 @@ private:
             m_order.push_back(key);
     }
 
-    using Dictionary = protocol::HashMap<String, std::unique_ptr<Value>>;
+    using Dictionary = std::unordered_map<String, std::unique_ptr<Value>>;
     Dictionary m_data;
     std::vector<String> m_order;
 };

@@ -86,6 +86,26 @@ V8_INLINE int64_t ClockNow(clockid_t clk_id) {
   return 0;
 #endif
 }
+
+V8_INLINE bool IsHighResolutionTimer(clockid_t clk_id) {
+  // Limit duration of timer resolution measurement to 100 ms. If we cannot
+  // measure timer resoltuion within this time, we assume a low resolution
+  // timer.
+  int64_t end =
+      ClockNow(clk_id) + 100 * v8::base::Time::kMicrosecondsPerMillisecond;
+  int64_t start, delta;
+  do {
+    start = ClockNow(clk_id);
+    // Loop until we can detect that the clock has changed. Non-HighRes timers
+    // will increment in chunks, i.e. 15ms. By spinning until we see a clock
+    // change, we detect the minimum time between measurements.
+    do {
+      delta = ClockNow(clk_id) - start;
+    } while (delta == 0);
+  } while (delta > 1 && start < end);
+  return delta <= 1;
+}
+
 #elif V8_OS_WIN
 V8_INLINE bool IsQPCReliable() {
   v8::base::CPU cpu;
@@ -735,7 +755,16 @@ TimeTicks TimeTicks::Now() {
 }
 
 // static
-bool TimeTicks::IsHighResolution() { return true; }
+bool TimeTicks::IsHighResolution() {
+#if V8_OS_MACOSX
+  return true;
+#elif V8_OS_POSIX
+  static bool is_high_resolution = IsHighResolutionTimer(CLOCK_MONOTONIC);
+  return is_high_resolution;
+#else
+  return true;
+#endif
+}
 
 #endif  // V8_OS_WIN
 

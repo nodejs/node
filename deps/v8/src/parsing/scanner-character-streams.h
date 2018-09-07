@@ -19,9 +19,9 @@ class String;
 
 class V8_EXPORT_PRIVATE ScannerStream {
  public:
-  static Utf16CharacterStream* For(Handle<String> data);
-  static Utf16CharacterStream* For(Handle<String> data, int start_pos,
-                                   int end_pos);
+  static Utf16CharacterStream* For(Isolate* isolate, Handle<String> data);
+  static Utf16CharacterStream* For(Isolate* isolate, Handle<String> data,
+                                   int start_pos, int end_pos);
   static Utf16CharacterStream* For(
       ScriptCompiler::ExternalSourceStream* source_stream,
       ScriptCompiler::StreamedSource::Encoding encoding,

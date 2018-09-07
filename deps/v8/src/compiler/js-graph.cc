@@ -66,6 +66,33 @@ Node* JSGraph::Constant(Handle<Object> value) {
   }
 }
 
+Node* JSGraph::Constant(const ObjectRef& ref) {
+  if (ref.IsSmi()) return Constant(ref.AsSmi());
+  OddballType oddball_type = ref.oddball_type();
+  if (ref.IsHeapNumber()) {
+    return Constant(ref.AsHeapNumber().value());
+  } else if (oddball_type == OddballType::kUndefined) {
+    DCHECK(
+        ref.object<Object>().equals(isolate()->factory()->undefined_value()));
+    return UndefinedConstant();
+  } else if (oddball_type == OddballType::kNull) {
+    DCHECK(ref.object<Object>().equals(isolate()->factory()->null_value()));
+    return NullConstant();
+  } else if (oddball_type == OddballType::kHole) {
+    DCHECK(ref.object<Object>().equals(isolate()->factory()->the_hole_value()));
+    return TheHoleConstant();
+  } else if (oddball_type == OddballType::kBoolean) {
+    if (ref.object<Object>().equals(isolate()->factory()->true_value())) {
+      return TrueConstant();
+    } else {
+      DCHECK(ref.object<Object>().equals(isolate()->factory()->false_value()));
+      return FalseConstant();
+    }
+  } else {
+    return HeapConstant(ref.object<HeapObject>());
+  }
+}
+
 Node* JSGraph::Constant(double value) {
   if (bit_cast<int64_t>(value) == bit_cast<int64_t>(0.0)) return ZeroConstant();
   if (bit_cast<int64_t>(value) == bit_cast<int64_t>(1.0)) return OneConstant();
@@ -118,7 +145,7 @@ DEFINE_GETTER(AllocateInOldSpaceStubConstant,
               HeapConstant(BUILTIN_CODE(isolate(), AllocateInOldSpace)))
 
 DEFINE_GETTER(ArrayConstructorStubConstant,
-              HeapConstant(ArrayConstructorStub(isolate()).GetCode()))
+              HeapConstant(BUILTIN_CODE(isolate(), ArrayConstructorImpl)))
 
 DEFINE_GETTER(ToNumberBuiltinConstant,
               HeapConstant(BUILTIN_CODE(isolate(), ToNumber)))

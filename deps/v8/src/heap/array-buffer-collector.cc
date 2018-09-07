@@ -12,18 +12,18 @@ namespace v8 {
 namespace internal {
 
 void ArrayBufferCollector::AddGarbageAllocations(
-    std::vector<JSArrayBuffer::Allocation>* allocations) {
+    std::vector<JSArrayBuffer::Allocation> allocations) {
   base::LockGuard<base::Mutex> guard(&allocations_mutex_);
-  allocations_.push_back(allocations);
+  allocations_.push_back(std::move(allocations));
 }
 
 void ArrayBufferCollector::FreeAllocations() {
   base::LockGuard<base::Mutex> guard(&allocations_mutex_);
-  for (std::vector<JSArrayBuffer::Allocation>* allocations : allocations_) {
-    for (auto alloc : *allocations) {
+  for (const std::vector<JSArrayBuffer::Allocation>& allocations :
+       allocations_) {
+    for (JSArrayBuffer::Allocation alloc : allocations) {
       JSArrayBuffer::FreeBackingStore(heap_->isolate(), alloc);
     }
-    delete allocations;
   }
   allocations_.clear();
 }

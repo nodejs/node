@@ -7,6 +7,6 @@
 #include {{format_include(config.protocol.package, "Protocol")}}
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
-
 #include <cstring>

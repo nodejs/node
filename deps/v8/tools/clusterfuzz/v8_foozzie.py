@@ -58,6 +58,7 @@ CONFIGS = dict(
   ],
   liftoff=[
     '--liftoff',
+    '--no-wasm-tier-up',
     '--suppress-asm-messages',
   ],
   slow_path=[

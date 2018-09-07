@@ -212,7 +212,7 @@ class NoRootArrayScope {
 class ParameterCount BASE_EMBEDDED {
  public:
   explicit ParameterCount(Register reg) : reg_(reg), immediate_(0) {}
-  explicit ParameterCount(int imm) : reg_(no_reg), immediate_(imm) {}
+  explicit ParameterCount(uint16_t imm) : reg_(no_reg), immediate_(imm) {}
 
   bool is_reg() const { return reg_.is_valid(); }
   bool is_immediate() const { return !is_reg(); }
@@ -221,14 +221,14 @@ class ParameterCount BASE_EMBEDDED {
     DCHECK(is_reg());
     return reg_;
   }
-  int immediate() const {
+  uint16_t immediate() const {
     DCHECK(is_immediate());
     return immediate_;
   }
 
  private:
   const Register reg_;
-  const int immediate_;
+  const uint16_t immediate_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ParameterCount);
 };

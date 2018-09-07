@@ -303,6 +303,21 @@ WASM_EXEC_TEST(I32AtomicStoreLoad8U) {
   }
 }
 
+WASM_EXEC_TEST(I32AtomicStoreParameter) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t, uint32_t> r(execution_mode);
+  uint32_t* memory =
+      r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
+  r.builder().SetHasSharedMemory();
+
+  BUILD(r,
+        WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_ZERO, WASM_GET_LOCAL(0),
+                              MachineRepresentation::kWord8),
+        WASM_ATOMICS_BINOP(kExprI32AtomicAdd, WASM_I32V_1(0), WASM_GET_LOCAL(0),
+                           MachineRepresentation::kWord32));
+  CHECK_EQ(10, r.Call(10));
+  CHECK_EQ(20, r.builder().ReadMemory(&memory[0]));
+}
 }  // namespace test_run_wasm_atomics
 }  // namespace wasm
 }  // namespace internal

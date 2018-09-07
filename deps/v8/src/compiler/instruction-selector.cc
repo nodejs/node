@@ -27,8 +27,8 @@ InstructionSelector::InstructionSelector(
     EnableSwitchJumpTable enable_switch_jump_table,
     SourcePositionMode source_position_mode, Features features,
     EnableScheduling enable_scheduling,
-    EnableSerialization enable_serialization,
-    PoisoningMitigationLevel poisoning_level)
+    EnableRootsRelativeAddressing enable_roots_relative_addressing,
+    PoisoningMitigationLevel poisoning_level, EnableTraceTurboJson trace_turbo)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -48,14 +48,20 @@ InstructionSelector::InstructionSelector(
       virtual_register_rename_(zone),
       scheduler_(nullptr),
       enable_scheduling_(enable_scheduling),
-      enable_serialization_(enable_serialization),
+      enable_roots_relative_addressing_(enable_roots_relative_addressing),
       enable_switch_jump_table_(enable_switch_jump_table),
       poisoning_level_(poisoning_level),
       frame_(frame),
-      instruction_selection_failed_(false) {
+      instruction_selection_failed_(false),
+      instr_origins_(sequence->zone()),
+      trace_turbo_(trace_turbo) {
   instructions_.reserve(node_count);
   continuation_inputs_.reserve(5);
   continuation_outputs_.reserve(2);
+
+  if (trace_turbo_ == kEnableTraceTurboJson) {
+    instr_origins_.assign(node_count, {-1, 0});
+  }
 }
 
 bool InstructionSelector::SelectInstructions() {
@@ -414,7 +420,7 @@ void InstructionSelector::SetEffectLevel(Node* node, int effect_level) {
 }
 
 bool InstructionSelector::CanAddressRelativeToRootsRegister() const {
-  return enable_serialization_ == kDisableSerialization &&
+  return enable_roots_relative_addressing_ == kEnableRootsRelativeAddressing &&
          CanUseRootsRegister();
 }
 
@@ -720,7 +726,8 @@ Instruction* InstructionSelector::EmitWithContinuation(
   } else if (cont->IsSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
   } else if (cont->IsTrap()) {
-    continuation_inputs_.push_back(g.UseImmediate(cont->trap_id()));
+    int trap_id = static_cast<int>(cont->trap_id());
+    continuation_inputs_.push_back(g.UseImmediate(trap_id));
   } else {
     DCHECK(cont->IsNone());
   }
@@ -1091,21 +1098,29 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   // Visit code in reverse control flow order, because architecture-specific
   // matching may cover more than one node at a time.
   for (auto node : base::Reversed(*block)) {
-    // Skip nodes that are unused or already defined.
-    if (!IsUsed(node) || IsDefined(node)) continue;
-    // Generate code for this node "top down", but schedule the code "bottom
-    // up".
     int current_node_end = current_num_instructions();
-    VisitNode(node);
-    if (!FinishEmittedInstructions(node, current_node_end)) return;
+    // Skip nodes that are unused or already defined.
+    if (IsUsed(node) && !IsDefined(node)) {
+      // Generate code for this node "top down", but schedule the code "bottom
+      // up".
+      VisitNode(node);
+      if (!FinishEmittedInstructions(node, current_node_end)) return;
+    }
+    if (trace_turbo_ == kEnableTraceTurboJson) {
+      instr_origins_[node->id()] = {current_num_instructions(),
+                                    current_node_end};
+    }
   }
 
   // We're done with the block.
   InstructionBlock* instruction_block =
       sequence()->InstructionBlockAt(RpoNumber::FromInt(block->rpo_number()));
-  instruction_block->set_code_start(static_cast<int>(instructions_.size()));
+  if (current_num_instructions() == current_block_end) {
+    // Avoid empty block: insert a {kArchNop} instruction.
+    Emit(Instruction::New(sequence()->zone(), kArchNop));
+  }
+  instruction_block->set_code_start(current_num_instructions());
   instruction_block->set_code_end(current_block_end);
-
   current_block_ = nullptr;
 }
 
@@ -1131,25 +1146,34 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
 #endif
 
   Node* input = block->control_input();
+  int instruction_end = static_cast<int>(instructions_.size());
   switch (block->control()) {
     case BasicBlock::kGoto:
-      return VisitGoto(block->SuccessorAt(0));
+      VisitGoto(block->SuccessorAt(0));
+      break;
     case BasicBlock::kCall: {
       DCHECK_EQ(IrOpcode::kCall, input->opcode());
       BasicBlock* success = block->SuccessorAt(0);
       BasicBlock* exception = block->SuccessorAt(1);
-      return VisitCall(input, exception), VisitGoto(success);
+      VisitCall(input, exception);
+      VisitGoto(success);
+      break;
     }
     case BasicBlock::kTailCall: {
       DCHECK_EQ(IrOpcode::kTailCall, input->opcode());
-      return VisitTailCall(input);
+      VisitTailCall(input);
+      break;
     }
     case BasicBlock::kBranch: {
       DCHECK_EQ(IrOpcode::kBranch, input->opcode());
       BasicBlock* tbranch = block->SuccessorAt(0);
       BasicBlock* fbranch = block->SuccessorAt(1);
-      if (tbranch == fbranch) return VisitGoto(tbranch);
-      return VisitBranch(input, tbranch, fbranch);
+      if (tbranch == fbranch) {
+        VisitGoto(tbranch);
+      } else {
+        VisitBranch(input, tbranch, fbranch);
+      }
+      break;
     }
     case BasicBlock::kSwitch: {
       DCHECK_EQ(IrOpcode::kSwitch, input->opcode());
@@ -1168,23 +1192,25 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
         if (min_value > p.value()) min_value = p.value();
         if (max_value < p.value()) max_value = p.value();
       }
-      // Ensure that comparison order of if-cascades is preserved.
-      std::stable_sort(cases.begin(), cases.end());
       SwitchInfo sw(cases, min_value, max_value, default_branch);
-      return VisitSwitch(input, sw);
+      VisitSwitch(input, sw);
+      break;
     }
     case BasicBlock::kReturn: {
       DCHECK_EQ(IrOpcode::kReturn, input->opcode());
-      return VisitReturn(input);
+      VisitReturn(input);
+      break;
     }
     case BasicBlock::kDeoptimize: {
       DeoptimizeParameters p = DeoptimizeParametersOf(input->op());
       Node* value = input->InputAt(0);
-      return VisitDeoptimize(p.kind(), p.reason(), p.feedback(), value);
+      VisitDeoptimize(p.kind(), p.reason(), p.feedback(), value);
+      break;
     }
     case BasicBlock::kThrow:
       DCHECK_EQ(IrOpcode::kThrow, input->opcode());
-      return VisitThrow(input);
+      VisitThrow(input);
+      break;
     case BasicBlock::kNone: {
       // Exit block doesn't have control.
       DCHECK_NULL(input);
@@ -1193,6 +1219,10 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     default:
       UNREACHABLE();
       break;
+  }
+  if (trace_turbo_ == kEnableTraceTurboJson && input) {
+    int instruction_start = static_cast<int>(instructions_.size());
+    instr_origins_[input->id()] = {instruction_start, instruction_end};
   }
 }
 
@@ -1272,11 +1302,9 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kDeoptimizeUnless:
       return VisitDeoptimizeUnless(node);
     case IrOpcode::kTrapIf:
-      return VisitTrapIf(node, static_cast<Runtime::FunctionId>(
-                                   OpParameter<int32_t>(node->op())));
+      return VisitTrapIf(node, TrapIdOf(node->op()));
     case IrOpcode::kTrapUnless:
-      return VisitTrapUnless(node, static_cast<Runtime::FunctionId>(
-                                       OpParameter<int32_t>(node->op())));
+      return VisitTrapUnless(node, TrapIdOf(node->op()));
     case IrOpcode::kFrameState:
     case IrOpcode::kStateValues:
     case IrOpcode::kObjectState:
@@ -1632,8 +1660,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitLoadFramePointer(node);
     case IrOpcode::kLoadParentFramePointer:
       return VisitLoadParentFramePointer(node);
-    case IrOpcode::kLoadRootsPointer:
-      return VisitLoadRootsPointer(node);
     case IrOpcode::kUnalignedLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
@@ -1998,11 +2024,6 @@ void InstructionSelector::VisitLoadParentFramePointer(Node* node) {
   Emit(kArchParentFramePointer, g.DefineAsRegister(node));
 }
 
-void InstructionSelector::VisitLoadRootsPointer(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchRootsPointer, g.DefineAsRegister(node));
-}
-
 void InstructionSelector::VisitFloat64Acos(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Acos);
 }
@@ -2096,8 +2117,7 @@ void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,
   inputs[0] = index_operand;
   InstructionOperand default_operand = g.Label(sw.default_branch());
   std::fill(&inputs[1], &inputs[input_count], default_operand);
-  for (size_t index = 0; index < sw.case_count(); ++index) {
-    const CaseInfo& c = sw.GetCase(index);
+  for (const CaseInfo& c : sw.CasesUnsorted()) {
     size_t value = c.value - sw.min_value();
     DCHECK_LE(0u, value);
     DCHECK_LT(value + 2, input_count);
@@ -2110,19 +2130,38 @@ void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,
 void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
                                            InstructionOperand& value_operand) {
   OperandGenerator g(this);
+  std::vector<CaseInfo> cases = sw.CasesSortedByOriginalOrder();
   size_t input_count = 2 + sw.case_count() * 2;
   DCHECK_LE(sw.case_count(), (std::numeric_limits<size_t>::max() - 2) / 2);
   auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
   inputs[0] = value_operand;
   inputs[1] = g.Label(sw.default_branch());
-  for (size_t index = 0; index < sw.case_count(); ++index) {
-    const CaseInfo& c = sw.GetCase(index);
+  for (size_t index = 0; index < cases.size(); ++index) {
+    const CaseInfo& c = cases[index];
     inputs[index * 2 + 2 + 0] = g.TempImmediate(c.value);
     inputs[index * 2 + 2 + 1] = g.Label(c.branch);
   }
   Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
+void InstructionSelector::EmitBinarySearchSwitch(
+    const SwitchInfo& sw, InstructionOperand& value_operand) {
+  OperandGenerator g(this);
+  size_t input_count = 2 + sw.case_count() * 2;
+  DCHECK_LE(sw.case_count(), (std::numeric_limits<size_t>::max() - 2) / 2);
+  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
+  inputs[0] = value_operand;
+  inputs[1] = g.Label(sw.default_branch());
+  std::vector<CaseInfo> cases = sw.CasesSortedByValue();
+  std::stable_sort(cases.begin(), cases.end(),
+                   [](CaseInfo a, CaseInfo b) { return a.value < b.value; });
+  for (size_t index = 0; index < cases.size(); ++index) {
+    const CaseInfo& c = cases[index];
+    inputs[index * 2 + 2 + 0] = g.TempImmediate(c.value);
+    inputs[index * 2 + 2 + 1] = g.Label(c.branch);
+  }
+  Emit(kArchBinarySearchSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
+}
 
 void InstructionSelector::VisitBitcastTaggedToWord(Node* node) {
   EmitIdentity(node);
@@ -2353,7 +2392,7 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64
+    !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2361,11 +2400,7 @@ void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
 void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
-        // && !V8_TARGET_ARCH_MIPS64
 
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI32x4SConvertI16x8Low(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2398,11 +2433,6 @@ void InstructionSelector::VisitI16x8UConvertI8x16High(Node* node) {
   UNIMPLEMENTED();
 }
 
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
-        // && !V8_TARGET_ARCH_MIPS64
-
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitI16x8SConvertI32x4(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2417,11 +2447,7 @@ void InstructionSelector::VisitI8x16SConvertI16x8(Node* node) {
 void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
-        // && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitI8x16Shl(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16ShrS(Node* node) { UNIMPLEMENTED(); }
@@ -2754,16 +2780,15 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   }
 }
 
-void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
+void InstructionSelector::VisitTrapIf(Node* node, TrapId trap_id) {
   FlagsContinuation cont =
-      FlagsContinuation::ForTrap(kNotEqual, func_id, node->InputAt(1));
+      FlagsContinuation::ForTrap(kNotEqual, trap_id, node->InputAt(1));
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitTrapUnless(Node* node,
-                                          Runtime::FunctionId func_id) {
+void InstructionSelector::VisitTrapUnless(Node* node, TrapId trap_id) {
   FlagsContinuation cont =
-      FlagsContinuation::ForTrap(kEqual, func_id, node->InputAt(1));
+      FlagsContinuation::ForTrap(kEqual, trap_id, node->InputAt(1));
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
@@ -2860,6 +2885,84 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
 }
 
 // static
+void InstructionSelector::CanonicalizeShuffle(bool inputs_equal,
+                                              uint8_t* shuffle,
+                                              bool* needs_swap,
+                                              bool* is_swizzle) {
+  *needs_swap = false;
+  // Inputs equal, then it's a swizzle.
+  if (inputs_equal) {
+    *is_swizzle = true;
+  } else {
+    // Inputs are distinct; check that both are required.
+    bool src0_is_used = false;
+    bool src1_is_used = false;
+    for (int i = 0; i < kSimd128Size; ++i) {
+      if (shuffle[i] < kSimd128Size) {
+        src0_is_used = true;
+      } else {
+        src1_is_used = true;
+      }
+    }
+    if (src0_is_used && !src1_is_used) {
+      *is_swizzle = true;
+    } else if (src1_is_used && !src0_is_used) {
+      *needs_swap = true;
+      *is_swizzle = true;
+    } else {
+      *is_swizzle = false;
+      // Canonicalize general 2 input shuffles so that the first input lanes are
+      // encountered first. This makes architectural shuffle pattern matching
+      // easier, since we only need to consider 1 input ordering instead of 2.
+      if (shuffle[0] >= kSimd128Size) {
+        // The second operand is used first. Swap inputs and adjust the shuffle.
+        *needs_swap = true;
+        for (int i = 0; i < kSimd128Size; ++i) {
+          shuffle[i] ^= kSimd128Size;
+        }
+      }
+    }
+  }
+  if (*is_swizzle) {
+    for (int i = 0; i < kSimd128Size; ++i) shuffle[i] &= kSimd128Size - 1;
+  }
+}
+
+void InstructionSelector::CanonicalizeShuffle(Node* node, uint8_t* shuffle,
+                                              bool* is_swizzle) {
+  // Get raw shuffle indices.
+  memcpy(shuffle, OpParameter<uint8_t*>(node->op()), kSimd128Size);
+  bool needs_swap;
+  bool inputs_equal = GetVirtualRegister(node->InputAt(0)) ==
+                      GetVirtualRegister(node->InputAt(1));
+  CanonicalizeShuffle(inputs_equal, shuffle, &needs_swap, is_swizzle);
+  if (needs_swap) {
+    SwapShuffleInputs(node);
+  }
+  // Duplicate the first input; for some shuffles on some architectures, it's
+  // easiest to implement a swizzle as a shuffle so it might be used.
+  if (*is_swizzle) {
+    node->ReplaceInput(1, node->InputAt(0));
+  }
+}
+
+// static
+void InstructionSelector::SwapShuffleInputs(Node* node) {
+  Node* input0 = node->InputAt(0);
+  Node* input1 = node->InputAt(1);
+  node->ReplaceInput(0, input1);
+  node->ReplaceInput(1, input0);
+}
+
+// static
+bool InstructionSelector::TryMatchIdentity(const uint8_t* shuffle) {
+  for (int i = 0; i < kSimd128Size; ++i) {
+    if (shuffle[i] != i) return false;
+  }
+  return true;
+}
+
+// static
 bool InstructionSelector::TryMatch32x4Shuffle(const uint8_t* shuffle,
                                               uint8_t* shuffle32x4) {
   for (int i = 0; i < 4; ++i) {
@@ -2873,62 +2976,51 @@ bool InstructionSelector::TryMatch32x4Shuffle(const uint8_t* shuffle,
 }
 
 // static
-bool InstructionSelector::TryMatchConcat(const uint8_t* shuffle, uint8_t mask,
-                                         uint8_t* vext) {
-  uint8_t start = shuffle[0];
-  int i = 1;
-  for (; i < 16 - start; ++i) {
-    if ((shuffle[i] & mask) != ((shuffle[i - 1] + 1) & mask)) return false;
+bool InstructionSelector::TryMatch16x8Shuffle(const uint8_t* shuffle,
+                                              uint8_t* shuffle16x8) {
+  for (int i = 0; i < 8; ++i) {
+    if (shuffle[i * 2] % 2 != 0) return false;
+    for (int j = 1; j < 2; ++j) {
+      if (shuffle[i * 2 + j] - shuffle[i * 2 + j - 1] != 1) return false;
+    }
+    shuffle16x8[i] = shuffle[i * 2] / 2;
   }
-  uint8_t wrap = 16;
-  for (; i < 16; ++i, ++wrap) {
-    if ((shuffle[i] & mask) != (wrap & mask)) return false;
-  }
-  *vext = start;
   return true;
 }
 
-// Canonicalize shuffles to make pattern matching simpler. Returns a mask that
-// will ignore the high bit of indices in some cases.
-uint8_t InstructionSelector::CanonicalizeShuffle(Node* node) {
-  static const int kMaxLaneIndex = 15;
-  static const int kMaxShuffleIndex = 31;
-
-  const uint8_t* shuffle = OpParameter<uint8_t*>(node->op());
-  uint8_t mask = kMaxShuffleIndex;
-  // If shuffle is unary, set 'mask' to ignore the high bit of the indices.
-  // Replace any unused source with the other.
-  if (GetVirtualRegister(node->InputAt(0)) ==
-      GetVirtualRegister(node->InputAt(1))) {
-    // unary, src0 == src1.
-    mask = kMaxLaneIndex;
-  } else {
-    bool src0_is_used = false;
-    bool src1_is_used = false;
-    for (int i = 0; i < 16; ++i) {
-      if (shuffle[i] < 16) {
-        src0_is_used = true;
-      } else {
-        src1_is_used = true;
-      }
-    }
-    if (src0_is_used && !src1_is_used) {
-      node->ReplaceInput(1, node->InputAt(0));
-      mask = kMaxLaneIndex;
-    } else if (src1_is_used && !src0_is_used) {
-      node->ReplaceInput(0, node->InputAt(1));
-      mask = kMaxLaneIndex;
+// static
+bool InstructionSelector::TryMatchConcat(const uint8_t* shuffle,
+                                         uint8_t* offset) {
+  // Don't match the identity shuffle (e.g. [0 1 2 ... 15]).
+  uint8_t start = shuffle[0];
+  if (start == 0) return false;
+  DCHECK_GT(kSimd128Size, start);  // The shuffle should be canonicalized.
+  // A concatenation is a series of consecutive indices, with at most one jump
+  // in the middle from the last lane to the first.
+  for (int i = 1; i < kSimd128Size; ++i) {
+    if ((shuffle[i]) != ((shuffle[i - 1] + 1))) {
+      if (shuffle[i - 1] != 15) return false;
+      if (shuffle[i] % kSimd128Size != 0) return false;
     }
   }
-  return mask;
+  *offset = start;
+  return true;
 }
 
 // static
-int32_t InstructionSelector::Pack4Lanes(const uint8_t* shuffle, uint8_t mask) {
+bool InstructionSelector::TryMatchBlend(const uint8_t* shuffle) {
+  for (int i = 0; i < 16; ++i) {
+    if ((shuffle[i] & 0xF) != i) return false;
+  }
+  return true;
+}
+
+// static
+int32_t InstructionSelector::Pack4Lanes(const uint8_t* shuffle) {
   int32_t result = 0;
   for (int i = 3; i >= 0; --i) {
     result <<= 8;
-    result |= shuffle[i] & mask;
+    result |= shuffle[i];
   }
   return result;
 }

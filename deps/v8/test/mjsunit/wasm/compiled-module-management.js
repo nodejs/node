@@ -27,23 +27,21 @@ var instance4;
     ]).exportFunc();
 
   module = new WebAssembly.Module(builder.toBuffer());
-  print("Initial module");
-  %ValidateWasmModuleState(module);
 
   print("Initial instances=0");
-  %ValidateWasmInstancesChain(module, 0);
+  assertEquals(0, %WasmGetNumberOfInstances(module));
   instance1 = new WebAssembly.Instance(module, {"": {getValue: () => 1}});
 
   print("Initial instances=1");
-  %ValidateWasmInstancesChain(module, 1);
+  assertEquals(1, %WasmGetNumberOfInstances(module));
   instance2 = new WebAssembly.Instance(module, {"": {getValue: () => 2}});
 
   print("Initial instances=2");
-  %ValidateWasmInstancesChain(module, 2);
+  assertEquals(2, %WasmGetNumberOfInstances(module));
   instance3 = new WebAssembly.Instance(module, {"": {getValue: () => 3}});
 
   print("Initial instances=3");
-  %ValidateWasmInstancesChain(module, 3);
+  assertEquals(3, %WasmGetNumberOfInstances(module));
 })();
 
 (function CompiledModuleInstancesClear1() {
@@ -51,30 +49,33 @@ var instance4;
   instance1 = null;
 })();
 
+// Note that two GC's are required because weak slots clearing is deferred.
+gc();
 gc();
 print("After gc instances=2");
-%ValidateWasmInstancesChain(module, 2);
+assertEquals(2, %WasmGetNumberOfInstances(module));
 
 (function CompiledModuleInstancesClear3() {
   assertEquals(3, instance3.exports.f());
   instance3 = null;
 })();
 
+// Note that two GC's are required because weak slots clearing is deferred.
+gc();
 gc();
 print("After gc instances=1");
-%ValidateWasmInstancesChain(module, 1);
+assertEquals(1, %WasmGetNumberOfInstances(module));
 
 (function CompiledModuleInstancesClear2() {
   assertEquals(2, instance2.exports.f());
   instance2 = null;
 })();
 
-// Note that two GC's are required because weak cells are not cleared
-// in the same cycle that the instance finalizer is run.
+// Note that two GC's are required because weak slots clearing is deferred.
 gc();
 gc();
-print("After gc module state");
-%ValidateWasmModuleState(module);
+print("After gc instances=0");
+assertEquals(0, %WasmGetNumberOfInstances(module));
 
 (function CompiledModuleInstancesInitialize4AndClearModule() {
   instance4 = new WebAssembly.Instance(module, {"": {getValue: () => 4}});
@@ -82,6 +83,6 @@ print("After gc module state");
   module = null;
 })();
 
-// Note that the first GC will clear the module, the second the instance.
+// Note that two GC's are required because weak slots clearing is deferred.
 gc();
 gc();

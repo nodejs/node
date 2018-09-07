@@ -329,12 +329,12 @@ TF_BUILTIN(AsyncGeneratorPrototypeNext, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   Node* generator = args.GetReceiver();
   Node* value = args.GetOptionalArgumentValue(kValueArg);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
 
   AsyncGeneratorEnqueue(&args, context, generator, value,
                         JSAsyncGeneratorObject::kNext,
@@ -347,12 +347,12 @@ TF_BUILTIN(AsyncGeneratorPrototypeReturn, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   Node* generator = args.GetReceiver();
   Node* value = args.GetOptionalArgumentValue(kValueArg);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
 
   AsyncGeneratorEnqueue(&args, context, generator, value,
                         JSAsyncGeneratorObject::kReturn,
@@ -365,12 +365,12 @@ TF_BUILTIN(AsyncGeneratorPrototypeThrow, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   Node* generator = args.GetReceiver();
   Node* value = args.GetOptionalArgumentValue(kValueArg);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
 
   AsyncGeneratorEnqueue(&args, context, generator, value,
                         JSAsyncGeneratorObject::kThrow,
@@ -527,11 +527,38 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
                                    done);
   }
 
-  // Perform Call(promiseCapability.[[Resolve]], undefined, «iteratorResult»).
-  CallBuiltin(Builtins::kResolvePromise, context, promise, iter_result);
+  // We know that {iter_result} itself doesn't have any "then" property (a
+  // freshly allocated IterResultObject only has "value" and "done" properties)
+  // and we also know that the [[Prototype]] of {iter_result} is the intrinsic
+  // %ObjectPrototype%. So we can skip the [[Resolve]] logic here completely
+  // and directly call into the FulfillPromise operation if we can prove
+  // that the %ObjectPrototype% also doesn't have any "then" property. This
+  // is guarded by the Promise#then() protector.
+  // If the PromiseHooks are enabled, we cannot take the shortcut here, since
+  // the "promiseResolve" hook would not be fired otherwise.
+  Label if_fast(this), if_slow(this, Label::kDeferred), return_promise(this);
+  GotoIfForceSlowPath(&if_slow);
+  GotoIf(IsPromiseHookEnabled(), &if_slow);
+  Branch(IsPromiseThenProtectorCellInvalid(), &if_slow, &if_fast);
+
+  BIND(&if_fast);
+  {
+    // Skip the "then" on {iter_result} and directly fulfill the {promise}
+    // with the {iter_result}.
+    CallBuiltin(Builtins::kFulfillPromise, context, promise, iter_result);
+    Goto(&return_promise);
+  }
+
+  BIND(&if_slow);
+  {
+    // Perform Call(promiseCapability.[[Resolve]], undefined, «iteratorResult»).
+    CallBuiltin(Builtins::kResolvePromise, context, promise, iter_result);
+    Goto(&return_promise);
+  }
 
   // Per spec, AsyncGeneratorResolve() returns undefined. However, for the
   // benefit of %TraceExit(), return the Promise.
+  BIND(&return_promise);
   Return(promise);
 }
 

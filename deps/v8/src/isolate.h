@@ -32,6 +32,16 @@
 #include "src/runtime/runtime.h"
 #include "src/unicode.h"
 
+#ifdef V8_INTL_SUPPORT
+#include "unicode/uversion.h"  // Define U_ICU_NAMESPACE.
+// 'icu' does not work. Use U_ICU_NAMESPACE.
+namespace U_ICU_NAMESPACE {
+
+class RegexMatcher;
+
+}  // namespace U_ICU_NAMESPACE
+#endif  // V8_INTL_SUPPORT
+
 namespace v8 {
 
 namespace base {
@@ -54,7 +64,6 @@ class AstStringConstants;
 class BasicBlockProfiler;
 class Bootstrapper;
 class BuiltinsConstantsTableBuilder;
-class CallInterfaceDescriptorData;
 class CancelableTaskManager;
 class CodeEventDispatcher;
 class ExternalCodeEventListener;
@@ -68,7 +77,6 @@ class CompilerDispatcher;
 class ContextSlotCache;
 class Counters;
 class CpuFeatures;
-class CpuProfiler;
 class Debug;
 class DeoptimizerData;
 class DescriptorLookupCache;
@@ -160,16 +168,16 @@ class WasmEngine;
     }                                                             \
   } while (false)
 
-#define RETURN_RESULT_OR_FAILURE(isolate, call)     \
-  do {                                              \
-    Handle<Object> __result__;                      \
-    Isolate* __isolate__ = (isolate);               \
-    if (!(call).ToHandle(&__result__)) {            \
-      DCHECK(__isolate__->has_pending_exception()); \
-      return __isolate__->heap()->exception();      \
-    }                                               \
-    DCHECK(!__isolate__->has_pending_exception());  \
-    return *__result__;                             \
+#define RETURN_RESULT_OR_FAILURE(isolate, call)      \
+  do {                                               \
+    Handle<Object> __result__;                       \
+    Isolate* __isolate__ = (isolate);                \
+    if (!(call).ToHandle(&__result__)) {             \
+      DCHECK(__isolate__->has_pending_exception());  \
+      return ReadOnlyRoots(__isolate__).exception(); \
+    }                                                \
+    DCHECK(!__isolate__->has_pending_exception());   \
+    return *__result__;                              \
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value)  \
@@ -180,11 +188,11 @@ class WasmEngine;
     }                                                                \
   } while (false)
 
-#define ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)          \
-  do {                                                                  \
-    Isolate* __isolate__ = (isolate);                                   \
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(__isolate__, dst, call,            \
-                                     __isolate__->heap()->exception()); \
+#define ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)                \
+  do {                                                                        \
+    Isolate* __isolate__ = (isolate);                                         \
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(__isolate__, dst, call,                  \
+                                     ReadOnlyRoots(__isolate__).exception()); \
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call, T)  \
@@ -202,6 +210,13 @@ class WasmEngine;
     return __isolate__->Throw(*__isolate__->factory()->call); \
   } while (false)
 
+#define THROW_NEW_ERROR_RETURN_VALUE(isolate, call, value) \
+  do {                                                     \
+    Isolate* __isolate__ = (isolate);                      \
+    __isolate__->Throw(*__isolate__->factory()->call);     \
+    return value;                                          \
+  } while (false)
+
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value)            \
   do {                                                             \
     if ((call).is_null()) {                                        \
@@ -210,11 +225,11 @@ class WasmEngine;
     }                                                              \
   } while (false)
 
-#define RETURN_FAILURE_ON_EXCEPTION(isolate, call)               \
-  do {                                                           \
-    Isolate* __isolate__ = (isolate);                            \
-    RETURN_ON_EXCEPTION_VALUE(__isolate__, call,                 \
-                              __isolate__->heap()->exception()); \
+#define RETURN_FAILURE_ON_EXCEPTION(isolate, call)                     \
+  do {                                                                 \
+    Isolate* __isolate__ = (isolate);                                  \
+    RETURN_ON_EXCEPTION_VALUE(__isolate__, call,                       \
+                              ReadOnlyRoots(__isolate__).exception()); \
   } while (false);
 
 #define RETURN_ON_EXCEPTION(isolate, call, T)  \
@@ -256,12 +271,12 @@ class ThreadId {
   static ThreadId Invalid() { return ThreadId(kInvalidId); }
 
   // Compares ThreadIds for equality.
-  INLINE(bool Equals(const ThreadId& other) const) {
+  V8_INLINE bool Equals(const ThreadId& other) const {
     return base::Relaxed_Load(&id_) == base::Relaxed_Load(&other.id_);
   }
 
   // Checks whether this ThreadId refers to any thread.
-  INLINE(bool IsValid() const) {
+  V8_INLINE bool IsValid() const {
     return base::Relaxed_Load(&id_) != kInvalidId;
   }
 
@@ -298,10 +313,10 @@ class ThreadLocalTop BASE_EMBEDDED {
  public:
   // Does early low-level initialization that does not depend on the
   // isolate being present.
-  ThreadLocalTop();
+  ThreadLocalTop() = default;
 
   // Initialize the thread data.
-  void Initialize();
+  void Initialize(Isolate*);
 
   // Get the top C++ try catch handler or nullptr if none are registered.
   //
@@ -327,60 +342,62 @@ class ThreadLocalTop BASE_EMBEDDED {
 
   void Free();
 
-  Isolate* isolate_;
+  Isolate* isolate_ = nullptr;
   // The context where the current execution method is created and for variable
   // lookups.
-  Context* context_;
-  ThreadId thread_id_;
-  Object* pending_exception_;
+  Context* context_ = nullptr;
+  ThreadId thread_id_ = ThreadId::Invalid();
+  Object* pending_exception_ = nullptr;
   // TODO(kschimpf): Change this to a stack of caught exceptions (rather than
   // just innermost catching try block).
   Object* wasm_caught_exception_ = nullptr;
 
   // Communication channel between Isolate::FindHandler and the CEntry.
-  Context* pending_handler_context_;
-  Address pending_handler_entrypoint_;
-  Address pending_handler_constant_pool_;
-  Address pending_handler_fp_;
-  Address pending_handler_sp_;
+  Context* pending_handler_context_ = nullptr;
+  Address pending_handler_entrypoint_ = kNullAddress;
+  Address pending_handler_constant_pool_ = kNullAddress;
+  Address pending_handler_fp_ = kNullAddress;
+  Address pending_handler_sp_ = kNullAddress;
 
   // Communication channel between Isolate::Throw and message consumers.
-  bool rethrowing_message_;
-  Object* pending_message_obj_;
+  bool rethrowing_message_ = false;
+  Object* pending_message_obj_ = nullptr;
 
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to
   // unify them later.
-  Object* scheduled_exception_;
-  bool external_caught_exception_;
-  SaveContext* save_context_;
+  Object* scheduled_exception_ = nullptr;
+  bool external_caught_exception_ = false;
+  SaveContext* save_context_ = nullptr;
 
   // Stack.
-  Address c_entry_fp_;  // the frame pointer of the top c entry frame
-  Address handler_;     // try-blocks are chained through the stack
-  Address c_function_;  // C function that was called at c entry.
+  // The frame pointer of the top c entry frame.
+  Address c_entry_fp_ = kNullAddress;
+  // Try-blocks are chained through the stack.
+  Address handler_ = kNullAddress;
+  // C function that was called at c entry.
+  Address c_function_ = kNullAddress;
 
   // Throwing an exception may cause a Promise rejection.  For this purpose
   // we keep track of a stack of nested promises and the corresponding
   // try-catch handlers.
-  PromiseOnStack* promise_on_stack_;
+  PromiseOnStack* promise_on_stack_ = nullptr;
 
 #ifdef USE_SIMULATOR
-  Simulator* simulator_;
+  Simulator* simulator_ = nullptr;
 #endif
 
-  Address js_entry_sp_;  // the stack pointer of the bottom JS entry frame
-  // the external callback we're currently in
-  ExternalCallbackScope* external_callback_scope_;
-  StateTag current_vm_state_;
+  // The stack pointer of the bottom JS entry frame.
+  Address js_entry_sp_ = kNullAddress;
+  // The external callback we're currently in.
+  ExternalCallbackScope* external_callback_scope_ = nullptr;
+  StateTag current_vm_state_ = EXTERNAL;
 
   // Call back function to report unsafe JS accesses.
-  v8::FailedAccessCheckCallback failed_access_check_callback_;
+  v8::FailedAccessCheckCallback failed_access_check_callback_ = nullptr;
 
  private:
-  void InitializeInternal();
-
-  v8::TryCatch* try_catch_handler_;
+  v8::TryCatch* try_catch_handler_ = nullptr;
 };
 
 
@@ -416,6 +433,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
   V(ApiImplementationCallback, wasm_compile_streaming_callback, nullptr)      \
+  V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                  \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
@@ -527,7 +545,7 @@ class Isolate : private HiddenFactory {
   }
 
   // Returns the isolate inside which the current thread is running.
-  INLINE(static Isolate* Current()) {
+  V8_INLINE static Isolate* Current() {
     DCHECK_EQ(base::Relaxed_Load(&isolate_key_created_), 1);
     Isolate* isolate = reinterpret_cast<Isolate*>(
         base::Thread::GetExistingThreadLocal(isolate_key_));
@@ -723,10 +741,10 @@ class Isolate : private HiddenFactory {
   Handle<String> StackTraceString();
   // Stores a stack trace in a stack-allocated temporary buffer which will
   // end up in the minidump for debugging purposes.
-  NO_INLINE(void PushStackTraceAndDie(void* ptr1 = nullptr,
-                                      void* ptr2 = nullptr,
-                                      void* ptr3 = nullptr,
-                                      void* ptr4 = nullptr));
+  V8_NOINLINE void PushStackTraceAndDie(void* ptr1 = nullptr,
+                                        void* ptr2 = nullptr,
+                                        void* ptr3 = nullptr,
+                                        void* ptr4 = nullptr);
   Handle<FixedArray> CaptureCurrentStackTrace(
       int frame_limit, StackTrace::StackTraceOptions options);
   Handle<Object> CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
@@ -765,6 +783,13 @@ class Isolate : private HiddenFactory {
     console_delegate_ = delegate;
   }
   debug::ConsoleDelegate* console_delegate() { return console_delegate_; }
+
+  void set_async_event_delegate(debug::AsyncEventDelegate* delegate) {
+    async_event_delegate_ = delegate;
+    PromiseHookStateUpdated();
+  }
+  void OnAsyncFunctionStateChanged(Handle<JSPromise> promise,
+                                   debug::DebugAsyncActionType);
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.
@@ -897,7 +922,6 @@ class Isolate : private HiddenFactory {
   }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
-  wasm::WasmEngine* wasm_engine() const { return wasm_engine_.get(); }
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
@@ -979,9 +1003,7 @@ class Isolate : private HiddenFactory {
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
 #ifdef DEBUG
-  static size_t non_disposed_isolates() {
-    return non_disposed_isolates_.Value();
-  }
+  static size_t non_disposed_isolates() { return non_disposed_isolates_; }
 #endif
 
   v8::internal::Factory* factory() {
@@ -1021,8 +1043,6 @@ class Isolate : private HiddenFactory {
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   bool NeedsSourcePositionsForProfiling() const;
-
-  bool NeedsDetailedOptimizedCodeLineInfo() const;
 
   bool is_best_effort_code_coverage() const {
     return code_coverage_mode() == debug::Coverage::kBestEffort;
@@ -1076,6 +1096,32 @@ class Isolate : private HiddenFactory {
     date_cache_ = date_cache;
   }
 
+#ifdef V8_INTL_SUPPORT
+  icu::RegexMatcher* language_singleton_regexp_matcher() {
+    return language_singleton_regexp_matcher_;
+  }
+
+  icu::RegexMatcher* language_tag_regexp_matcher() {
+    return language_tag_regexp_matcher_;
+  }
+
+  icu::RegexMatcher* language_variant_regexp_matcher() {
+    return language_variant_regexp_matcher_;
+  }
+
+  void set_language_tag_regexp_matchers(
+      icu::RegexMatcher* language_singleton_regexp_matcher,
+      icu::RegexMatcher* language_tag_regexp_matcher,
+      icu::RegexMatcher* language_variant_regexp_matcher) {
+    DCHECK_NULL(language_singleton_regexp_matcher_);
+    DCHECK_NULL(language_tag_regexp_matcher_);
+    DCHECK_NULL(language_variant_regexp_matcher_);
+    language_singleton_regexp_matcher_ = language_singleton_regexp_matcher;
+    language_tag_regexp_matcher_ = language_tag_regexp_matcher;
+    language_variant_regexp_matcher_ = language_variant_regexp_matcher;
+  }
+#endif  // V8_INTL_SUPPORT
+
   static const int kProtectorValid = 1;
   static const int kProtectorInvalid = 0;
 
@@ -1107,7 +1153,10 @@ class Isolate : private HiddenFactory {
   bool IsPromiseResolveLookupChainIntact();
 
   // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
-  // initial %PromisePrototype% yields the initial method.
+  // initial %PromisePrototype% yields the initial method. In addition this
+  // protector also guards the negative lookup of "then" on the intrinsic
+  // %ObjectPrototype%, meaning that such lookups are guaranteed to yield
+  // undefined without triggering any side-effects.
   bool IsPromiseThenLookupChainIntact();
   bool IsPromiseThenLookupChainIntact(Handle<JSReceiver> receiver);
 
@@ -1139,9 +1188,6 @@ class Isolate : private HiddenFactory {
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
-
-  V8_EXPORT_PRIVATE CallInterfaceDescriptorData* call_descriptor_data(
-      int index);
 
   void IterateDeferredHandles(RootVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
@@ -1240,8 +1286,16 @@ class Isolate : private HiddenFactory {
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
 
-  Address promise_hook_or_debug_is_active_address() {
-    return reinterpret_cast<Address>(&promise_hook_or_debug_is_active_);
+  Address promise_hook_address() {
+    return reinterpret_cast<Address>(&promise_hook_);
+  }
+
+  Address async_event_delegate_address() {
+    return reinterpret_cast<Address>(&async_event_delegate_);
+  }
+
+  Address promise_hook_or_async_event_delegate_address() {
+    return reinterpret_cast<Address>(&promise_hook_or_async_event_delegate_);
   }
 
   Address pending_microtask_count_address() {
@@ -1252,11 +1306,13 @@ class Isolate : private HiddenFactory {
     return reinterpret_cast<Address>(&handle_scope_implementer_);
   }
 
-  Address debug_execution_mode_address() {
-    return reinterpret_cast<Address>(&debug_execution_mode_);
-  }
-
-  void DebugStateUpdated();
+  void SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
+                              void* data);
+  void RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
+                              Handle<JSArrayBuffer> array_buffer,
+                              size_t offset_in_bytes, int32_t value,
+                              double timeout_in_ms,
+                              AtomicsWaitWakeHandle* stop_handle);
 
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
@@ -1272,15 +1328,14 @@ class Isolate : private HiddenFactory {
   // Off-heap builtins cannot embed constants within the code object itself,
   // and thus need to load them from the root list.
   bool ShouldLoadConstantsFromRootList() const {
-#ifdef V8_EMBEDDED_BUILTINS
-    return (serializer_enabled() &&
-            builtins_constants_table_builder() != nullptr);
-#else
-    return false;
-#endif  // V8_EMBEDDED_BUILTINS
+    if (FLAG_embedded_builtins) {
+      return (serializer_enabled() &&
+              builtins_constants_table_builder() != nullptr);
+    } else {
+      return false;
+    }
   }
 
-#ifdef V8_EMBEDDED_BUILTINS
   // Called only prior to serialization.
   // This function copies off-heap-safe builtins off the heap, creates off-heap
   // trampolines, and sets up this isolate's embedded blob.
@@ -1293,10 +1348,10 @@ class Isolate : private HiddenFactory {
   static const uint8_t* CurrentEmbeddedBlob();
   static uint32_t CurrentEmbeddedBlobSize();
 
-  // TODO(jgruber): Remove these in favor of the static methods above.
+  // These always return the same result as static methods above, but don't
+  // access the global atomic variable (and thus *might be* slightly faster).
   const uint8_t* embedded_blob() const;
   uint32_t embedded_blob_size() const;
-#endif
 
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
     array_buffer_allocator_ = allocator;
@@ -1347,6 +1402,12 @@ class Isolate : private HiddenFactory {
 
   bool IsIsolateInBackground() { return is_isolate_in_background_; }
 
+  void EnableMemorySavingsMode() { memory_savings_mode_active_ = true; }
+
+  void DisableMemorySavingsMode() { memory_savings_mode_active_ = false; }
+
+  bool IsMemorySavingsModeActive() { return memory_savings_mode_active_; }
+
   PRINTF_FORMAT(2, 3) void PrintWithTimestamp(const char* format, ...);
 
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
@@ -1361,6 +1422,12 @@ class Isolate : private HiddenFactory {
   size_t elements_deletion_counter() { return elements_deletion_counter_; }
   void set_elements_deletion_counter(size_t value) {
     elements_deletion_counter_ = value;
+  }
+
+  wasm::WasmEngine* wasm_engine() const { return wasm_engine_.get(); }
+  void set_wasm_engine(std::shared_ptr<wasm::WasmEngine> engine) {
+    DCHECK_NULL(wasm_engine_);  // Only call once before {Init}.
+    wasm_engine_ = std::move(engine);
   }
 
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope() const {
@@ -1479,6 +1546,10 @@ class Isolate : private HiddenFactory {
 
   void SetTerminationOnExternalTryCatch();
 
+  void PromiseHookStateUpdated();
+  void RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
+                                           Handle<JSPromise> promise);
+
   const char* RAILModeName(RAILMode rail_mode) const {
     switch (rail_mode) {
       case PERFORMANCE_RESPONSE:
@@ -1492,10 +1563,6 @@ class Isolate : private HiddenFactory {
     }
     return "";
   }
-
-  // TODO(alph): Remove along with the deprecated GetCpuProfiler().
-  friend v8::CpuProfiler* v8::Isolate::GetCpuProfiler();
-  CpuProfiler* EnsureCpuProfiler();
 
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;
@@ -1538,17 +1605,23 @@ class Isolate : private HiddenFactory {
   RegExpStack* regexp_stack_;
   std::vector<int> regexp_indices_;
   DateCache* date_cache_;
-  CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
   base::RandomNumberGenerator* fuzzer_rng_;
   base::AtomicValue<RAILMode> rail_mode_;
-  bool promise_hook_or_debug_is_active_;
+  v8::Isolate::AtomicsWaitCallback atomics_wait_callback_;
+  void* atomics_wait_callback_data_;
   PromiseHook promise_hook_;
   HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_;
   HostInitializeImportMetaObjectCallback
       host_initialize_import_meta_object_callback_;
   base::Mutex rail_mutex_;
   double load_start_time_ms_;
+
+#ifdef V8_INTL_SUPPORT
+  icu::RegexMatcher* language_singleton_regexp_matcher_;
+  icu::RegexMatcher* language_tag_regexp_matcher_;
+  icu::RegexMatcher* language_variant_regexp_matcher_;
+#endif  // V8_INTL_SUPPORT
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_;
@@ -1566,17 +1639,20 @@ class Isolate : private HiddenFactory {
   // to prioritize between memory usage and latency.
   bool is_isolate_in_background_;
 
+  // True if the isolate is in memory savings mode. This flag is used to
+  // favor memory over runtime performance.
+  bool memory_savings_mode_active_;
+
   // Time stamp at initialization.
   double time_millis_at_init_;
 
 #ifdef DEBUG
-  static base::AtomicNumber<size_t> non_disposed_isolates_;
+  static std::atomic<size_t> non_disposed_isolates_;
 
   JSObject::SpillInformation js_spill_information_;
 #endif
 
   Debug* debug_;
-  CpuProfiler* cpu_profiler_;
   HeapProfiler* heap_profiler_;
   std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
   FunctionEntryHook function_entry_hook_;
@@ -1640,7 +1716,6 @@ class Isolate : private HiddenFactory {
 
   std::vector<Object*> partial_snapshot_cache_;
 
-#ifdef V8_EMBEDDED_BUILTINS
   // Used during builtins compilation to build the builtins constants table,
   // which is stored on the root list prior to serialization.
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder_ = nullptr;
@@ -1649,7 +1724,6 @@ class Isolate : private HiddenFactory {
 
   const uint8_t* embedded_blob_ = nullptr;
   uint32_t embedded_blob_size_ = 0;
-#endif
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_;
 
@@ -1658,6 +1732,10 @@ class Isolate : private HiddenFactory {
   CancelableTaskManager* cancelable_task_manager_;
 
   debug::ConsoleDelegate* console_delegate_ = nullptr;
+
+  debug::AsyncEventDelegate* async_event_delegate_ = nullptr;
+  bool promise_hook_or_async_event_delegate_ = false;
+  int async_task_count_ = 0;
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
       abort_on_uncaught_exception_callback_;
@@ -1670,7 +1748,7 @@ class Isolate : private HiddenFactory {
 
   size_t elements_deletion_counter_ = 0;
 
-  std::unique_ptr<wasm::WasmEngine> wasm_engine_;
+  std::shared_ptr<wasm::WasmEngine> wasm_engine_;
 
   std::unique_ptr<TracingCpuProfilerImpl> tracing_cpu_profiler_;
 
@@ -1871,72 +1949,6 @@ class SafeForInterruptsScope : public InterruptsScope {
       : InterruptsScope(isolate, intercept_mask,
                         InterruptsScope::kRunInterrupts) {}
   virtual ~SafeForInterruptsScope() = default;
-};
-
-class CodeTracer final : public Malloced {
- public:
-  explicit CodeTracer(int isolate_id) : file_(nullptr), scope_depth_(0) {
-    if (!ShouldRedirect()) {
-      file_ = stdout;
-      return;
-    }
-
-    if (FLAG_redirect_code_traces_to == nullptr) {
-      SNPrintF(filename_,
-               "code-%d-%d.asm",
-               base::OS::GetCurrentProcessId(),
-               isolate_id);
-    } else {
-      StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
-    }
-
-    WriteChars(filename_.start(), "", 0, false);
-  }
-
-  class Scope {
-   public:
-    explicit Scope(CodeTracer* tracer) : tracer_(tracer) { tracer->OpenFile(); }
-    ~Scope() { tracer_->CloseFile();  }
-
-    FILE* file() const { return tracer_->file(); }
-
-   private:
-    CodeTracer* tracer_;
-  };
-
-  void OpenFile() {
-    if (!ShouldRedirect()) {
-      return;
-    }
-
-    if (file_ == nullptr) {
-      file_ = base::OS::FOpen(filename_.start(), "ab");
-    }
-
-    scope_depth_++;
-  }
-
-  void CloseFile() {
-    if (!ShouldRedirect()) {
-      return;
-    }
-
-    if (--scope_depth_ == 0) {
-      fclose(file_);
-      file_ = nullptr;
-    }
-  }
-
-  FILE* file() const { return file_; }
-
- private:
-  static bool ShouldRedirect() {
-    return FLAG_redirect_code_traces;
-  }
-
-  EmbeddedVector<char, 128> filename_;
-  FILE* file_;
-  int scope_depth_;
 };
 
 class StackTraceFailureMessage {

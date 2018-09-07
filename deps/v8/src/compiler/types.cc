@@ -14,14 +14,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// NOTE: If code is marked as being a "shortcut", this means that removing
-// the code won't affect the semantics of the surrounding function definition.
-
-// static
-bool Type::IsInteger(i::Object* x) {
-  return x->IsNumber() && Type::IsInteger(x->Number());
-}
-
 // -----------------------------------------------------------------------------
 // Range-related helper functions.
 
@@ -55,12 +47,6 @@ bool Type::Overlap(const RangeType* lhs, const RangeType* rhs) {
 bool Type::Contains(const RangeType* lhs, const RangeType* rhs) {
   DisallowHeapAllocation no_allocation;
   return lhs->Min() <= rhs->Min() && rhs->Max() <= lhs->Max();
-}
-
-bool Type::Contains(const RangeType* range, i::Object* val) {
-  DisallowHeapAllocation no_allocation;
-  return IsInteger(val) && range->Min() <= val->Number() &&
-         val->Number() <= range->Max();
 }
 
 // -----------------------------------------------------------------------------
@@ -146,9 +132,8 @@ Type::bitset Type::BitsetLub() const {
   UNREACHABLE();
 }
 
-Type::bitset BitsetType::Lub(i::Map* map) {
-  DisallowHeapAllocation no_allocation;
-  switch (map->instance_type()) {
+Type::bitset BitsetType::Lub(HeapObjectType const& type) {
+  switch (type.instance_type()) {
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
     case THIN_STRING_TYPE:
@@ -177,19 +162,24 @@ Type::bitset BitsetType::Lub(i::Map* map) {
       return kSymbol;
     case BIGINT_TYPE:
       return kBigInt;
-    case ODDBALL_TYPE: {
-      Heap* heap = map->GetHeap();
-      if (map == heap->undefined_map()) return kUndefined;
-      if (map == heap->null_map()) return kNull;
-      if (map == heap->boolean_map()) return kBoolean;
-      if (map == heap->the_hole_map()) return kHole;
-      DCHECK(map == heap->uninitialized_map() ||
-             map == heap->termination_exception_map() ||
-             map == heap->arguments_marker_map() ||
-             map == heap->optimized_out_map() ||
-             map == heap->stale_register_map());
-      return kOtherInternal;
-    }
+    case ODDBALL_TYPE:
+      switch (type.oddball_type()) {
+        case OddballType::kNone:
+          break;
+        case OddballType::kHole:
+          return kHole;
+        case OddballType::kBoolean:
+          return kBoolean;
+        case OddballType::kNull:
+          return kNull;
+        case OddballType::kUndefined:
+          return kUndefined;
+        case OddballType::kUninitialized:
+        case OddballType::kOther:
+          // TODO(neis): We should add a kOtherOddball type.
+          return kOtherInternal;
+      }
+      UNREACHABLE();
     case HEAP_NUMBER_TYPE:
       return kNumber;
     case JS_OBJECT_TYPE:
@@ -199,15 +189,15 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
-      if (map->is_undetectable()) {
+      if (type.is_undetectable()) {
         // Currently we assume that every undetectable receiver is also
         // callable, which is what we need to support document.all.  We
         // could add another Type bit to support other use cases in the
         // future if necessary.
-        DCHECK(map->is_callable());
+        DCHECK(type.is_callable());
         return kOtherUndetectable;
       }
-      if (map->is_callable()) {
+      if (type.is_callable()) {
         return kOtherCallable;
       }
       return kOtherObject;
@@ -218,6 +208,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_DATE_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_INTL_LOCALE_TYPE:
+    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
 #endif  // V8_INTL_SUPPORT
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
@@ -246,18 +237,18 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_TABLE_TYPE:
-      DCHECK(!map->is_callable());
-      DCHECK(!map->is_undetectable());
+      DCHECK(!type.is_callable());
+      DCHECK(!type.is_undetectable());
       return kOtherObject;
     case JS_BOUND_FUNCTION_TYPE:
-      DCHECK(!map->is_undetectable());
+      DCHECK(!type.is_undetectable());
       return kBoundFunction;
     case JS_FUNCTION_TYPE:
-      DCHECK(!map->is_undetectable());
+      DCHECK(!type.is_undetectable());
       return kFunction;
     case JS_PROXY_TYPE:
-      DCHECK(!map->is_undetectable());
-      if (map->is_callable()) return kCallableProxy;
+      DCHECK(!type.is_undetectable());
+      if (type.is_callable()) return kCallableProxy;
       return kOtherProxy;
     case MAP_TYPE:
     case ALLOCATION_SITE_TYPE:
@@ -267,13 +258,21 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
+    case ORDERED_HASH_MAP_TYPE:
+    case ORDERED_HASH_SET_TYPE:
+    case NAME_DICTIONARY_TYPE:
+    case GLOBAL_DICTIONARY_TYPE:
+    case NUMBER_DICTIONARY_TYPE:
+    case SIMPLE_NUMBER_DICTIONARY_TYPE:
+    case STRING_TABLE_TYPE:
+    case EPHEMERON_HASH_TABLE_TYPE:
     case WEAK_FIXED_ARRAY_TYPE:
     case WEAK_ARRAY_LIST_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:
     case FEEDBACK_METADATA_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
-    case BOILERPLATE_DESCRIPTION_TYPE:
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case DESCRIPTOR_ARRAY_TYPE:
     case TRANSITION_ARRAY_TYPE:
     case FEEDBACK_CELL_TYPE:
@@ -281,6 +280,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case PROPERTY_ARRAY_TYPE:
     case FOREIGN_TYPE:
     case SCOPE_INFO_TYPE:
+    case SCRIPT_CONTEXT_TABLE_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
     case DEBUG_EVALUATE_CONTEXT_TYPE:
@@ -296,6 +296,9 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
     case CELL_TYPE:
+    case PRE_PARSED_SCOPE_DATA_TYPE:
+    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
+    case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do
@@ -325,10 +328,9 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case INTERPRETER_DATA_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
-    case WASM_COMPILED_MODULE_TYPE:
+    case ARRAY_BOILERPLATE_DESCRIPTION_TYPE:
     case WASM_DEBUG_INFO_TYPE:
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
-    case WASM_SHARED_MODULE_DATA_TYPE:
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
@@ -343,17 +345,9 @@ Type::bitset BitsetType::Lub(i::Map* map) {
   UNREACHABLE();
 }
 
-Type::bitset BitsetType::Lub(i::Object* value) {
-  DisallowHeapAllocation no_allocation;
-  if (value->IsNumber()) {
-    return Lub(value->Number());
-  }
-  return Lub(i::HeapObject::cast(value)->map());
-}
-
 Type::bitset BitsetType::Lub(double value) {
   DisallowHeapAllocation no_allocation;
-  if (i::IsMinusZero(value)) return kMinusZero;
+  if (IsMinusZero(value)) return kMinusZero;
   if (std::isnan(value)) return kNaN;
   if (IsUint32Double(value) || IsInt32Double(value)) return Lub(value, value);
   return kOtherNumber;
@@ -460,21 +454,16 @@ double BitsetType::Max(bitset bits) {
 // static
 bool OtherNumberConstantType::IsOtherNumberConstant(double value) {
   // Not an integer, not NaN, and not -0.
-  return !std::isnan(value) && !Type::IsInteger(value) &&
-         !i::IsMinusZero(value);
-}
-
-// static
-bool OtherNumberConstantType::IsOtherNumberConstant(Object* value) {
-  return value->IsHeapNumber() &&
-         IsOtherNumberConstant(HeapNumber::cast(value)->value());
+  return !std::isnan(value) && !RangeType::IsInteger(value) &&
+         !IsMinusZero(value);
 }
 
 HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
-                                   i::Handle<i::HeapObject> object)
-    : TypeBase(kHeapConstant), bitset_(bitset), object_(object) {
-  DCHECK(!object->IsHeapNumber());
-  DCHECK_IMPLIES(object->IsString(), object->IsInternalizedString());
+                                   const HeapObjectRef& heap_ref)
+    : TypeBase(kHeapConstant), bitset_(bitset), heap_ref_(heap_ref) {}
+
+Handle<HeapObject> HeapConstantType::Value() const {
+  return heap_ref_.object<HeapObject>();
 }
 
 // -----------------------------------------------------------------------------
@@ -819,9 +808,9 @@ Type Type::NormalizeRangeAndBitset(Type range, bitset* bits, Zone* zone) {
 }
 
 Type Type::NewConstant(double value, Zone* zone) {
-  if (IsInteger(value)) {
+  if (RangeType::IsInteger(value)) {
     return Range(value, value, zone);
-  } else if (i::IsMinusZero(value)) {
+  } else if (IsMinusZero(value)) {
     return Type::MinusZero();
   } else if (std::isnan(value)) {
     return Type::NaN();
@@ -831,16 +820,22 @@ Type Type::NewConstant(double value, Zone* zone) {
   return OtherNumberConstant(value, zone);
 }
 
-Type Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
-  if (IsInteger(*value)) {
-    double v = value->Number();
-    return Range(v, v, zone);
-  } else if (value->IsHeapNumber()) {
-    return NewConstant(value->Number(), zone);
-  } else if (value->IsString() && !value->IsInternalizedString()) {
+Type Type::NewConstant(const JSHeapBroker* js_heap_broker,
+                       Handle<i::Object> value, Zone* zone) {
+  auto maybe_smi = JSHeapBroker::TryGetSmi(value);
+  if (maybe_smi.has_value()) {
+    return NewConstant(static_cast<double>(maybe_smi.value()), zone);
+  }
+
+  HeapObjectRef heap_ref(js_heap_broker, value);
+  if (heap_ref.IsHeapNumber()) {
+    return NewConstant(heap_ref.AsHeapNumber().value(), zone);
+  }
+
+  if (heap_ref.IsString() && !heap_ref.IsInternalizedString()) {
     return Type::String();
   }
-  return HeapConstant(i::Handle<i::HeapObject>::cast(value), zone);
+  return HeapConstant(js_heap_broker, value, zone);
 }
 
 Type Type::Union(Type type1, Type type2, Zone* zone) {
@@ -1032,23 +1027,23 @@ void Type::PrintTo(std::ostream& os) const {
 
 #ifdef DEBUG
 void Type::Print() const {
-  OFStream os(stdout);
+  StdoutStream os;
   PrintTo(os);
   os << std::endl;
 }
 void BitsetType::Print(bitset bits) {
-  OFStream os(stdout);
+  StdoutStream os;
   Print(os, bits);
   os << std::endl;
 }
 #endif
 
 BitsetType::bitset BitsetType::SignedSmall() {
-  return i::SmiValuesAre31Bits() ? kSigned31 : kSigned32;
+  return SmiValuesAre31Bits() ? kSigned31 : kSigned32;
 }
 
 BitsetType::bitset BitsetType::UnsignedSmall() {
-  return i::SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
+  return SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
 }
 
 // static
@@ -1066,8 +1061,10 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(i::Handle<i::HeapObject> value, Zone* zone) {
-  return FromTypeBase(HeapConstantType::New(value, zone));
+Type Type::HeapConstant(const JSHeapBroker* js_heap_broker,
+                        Handle<i::Object> value, Zone* zone) {
+  return FromTypeBase(
+      HeapConstantType::New(HeapObjectRef(js_heap_broker, value), zone));
 }
 
 // static

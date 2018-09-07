@@ -25,8 +25,11 @@ class String;
 class Zone;
 
 // The runtime representation of an ECMAScript module.
-class Module : public Struct {
+class Module : public Struct, public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   DECL_CAST(Module)
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
@@ -95,26 +98,29 @@ class Module : public Struct {
   // otherwise. (In the case where the callback throws an exception, that
   // exception is propagated.)
   static V8_WARN_UNUSED_RESULT bool Instantiate(
-      Handle<Module> module, v8::Local<v8::Context> context,
+      Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
       v8::Module::ResolveCallback callback);
 
   // Implementation of spec operation ModuleEvaluation.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
-      Handle<Module> module);
+      Isolate* isolate, Handle<Module> module);
 
   Cell* GetCell(int cell_index);
-  static Handle<Object> LoadVariable(Handle<Module> module, int cell_index);
+  static Handle<Object> LoadVariable(Isolate* isolate, Handle<Module> module,
+                                     int cell_index);
   static void StoreVariable(Handle<Module> module, int cell_index,
                             Handle<Object> value);
 
   // Get the namespace object for [module_request] of [module].  If it doesn't
   // exist yet, it is created.
-  static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module,
+  static Handle<JSModuleNamespace> GetModuleNamespace(Isolate* isolate,
+                                                      Handle<Module> module,
                                                       int module_request);
 
   // Get the namespace object for [module].  If it doesn't exist yet, it is
   // created.
-  static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module);
+  static Handle<JSModuleNamespace> GetModuleNamespace(Isolate* isolate,
+                                                      Handle<Module> module);
 
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
@@ -143,9 +149,10 @@ class Module : public Struct {
 
   // Helpers for Instantiate and Evaluate.
 
-  static void CreateExport(Handle<Module> module, int cell_index,
-                           Handle<FixedArray> names);
-  static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
+  static void CreateExport(Isolate* isolate, Handle<Module> module,
+                           int cell_index, Handle<FixedArray> names);
+  static void CreateIndirectExport(Isolate* isolate, Handle<Module> module,
+                                   Handle<String> name,
                                    Handle<ModuleInfoEntry> entry);
 
   // The [must_resolve] argument indicates whether or not an exception should be
@@ -158,47 +165,48 @@ class Module : public Struct {
   // exception (so check manually!).
   class ResolveSet;
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExport(
-      Handle<Module> module, Handle<String> module_specifier,
+      Isolate* isolate, Handle<Module> module, Handle<String> module_specifier,
       Handle<String> export_name, MessageLocation loc, bool must_resolve,
       ResolveSet* resolve_set);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveImport(
-      Handle<Module> module, Handle<String> name, int module_request,
-      MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
+      Isolate* isolate, Handle<Module> module, Handle<String> name,
+      int module_request, MessageLocation loc, bool must_resolve,
+      ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
-      Handle<Module> module, Handle<String> module_specifier,
+      Isolate* isolate, Handle<Module> module, Handle<String> module_specifier,
       Handle<String> export_name, MessageLocation loc, bool must_resolve,
       ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
-      Handle<Module> module, v8::Local<v8::Context> context,
+      Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
       v8::Module::ResolveCallback callback);
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
-      Handle<Module> module, ZoneForwardList<Handle<Module>>* stack,
-      unsigned* dfs_index, Zone* zone);
+      Isolate* isolate, Handle<Module> module,
+      ZoneForwardList<Handle<Module>>* stack, unsigned* dfs_index, Zone* zone);
   static V8_WARN_UNUSED_RESULT bool RunInitializationCode(
-      Handle<Module> module);
+      Isolate* isolate, Handle<Module> module);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
-      Handle<Module> module, ZoneForwardList<Handle<Module>>* stack,
-      unsigned* dfs_index);
+      Isolate* isolate, Handle<Module> module,
+      ZoneForwardList<Handle<Module>>* stack, unsigned* dfs_index);
 
   static V8_WARN_UNUSED_RESULT bool MaybeTransitionComponent(
-      Handle<Module> module, ZoneForwardList<Handle<Module>>* stack,
-      Status new_status);
+      Isolate* isolate, Handle<Module> module,
+      ZoneForwardList<Handle<Module>>* stack, Status new_status);
 
   // Set module's status back to kUninstantiated and reset other internal state.
   // This is used when instantiation fails.
-  static void Reset(Handle<Module> module);
-  static void ResetGraph(Handle<Module> module);
+  static void Reset(Isolate* isolate, Handle<Module> module);
+  static void ResetGraph(Isolate* isolate, Handle<Module> module);
 
   // To set status to kErrored, RecordError should be used.
-  void SetStatus(Status status);
-  void RecordError();
+  void SetStatus(Isolate* isolate, Status status);
+  void RecordError(Isolate* isolate);
 
 #ifdef DEBUG
   // For --trace-module-status.
-  void PrintStatusTransition(Status new_status);
+  void PrintStatusTransition(Isolate* isolate, Status new_status);
 #endif  // DEBUG
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Module);
@@ -219,7 +227,8 @@ class JSModuleNamespace : public JSObject {
   // Retrieve the value exported by [module] under the given [name]. If there is
   // no such export, return Just(undefined). If the export is uninitialized,
   // schedule an exception and return Nothing.
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetExport(Handle<String> name);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetExport(Isolate* isolate,
+                                                      Handle<String> name);
 
   // Return the (constant) property attributes for the referenced property,
   // which is assumed to correspond to an export. If the export is
@@ -250,29 +259,12 @@ class ModuleInfo : public FixedArray {
   static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
                                 ModuleDescriptor* descr);
 
-  inline FixedArray* module_requests() const {
-    return FixedArray::cast(get(kModuleRequestsIndex));
-  }
-
-  inline FixedArray* special_exports() const {
-    return FixedArray::cast(get(kSpecialExportsIndex));
-  }
-
-  inline FixedArray* regular_exports() const {
-    return FixedArray::cast(get(kRegularExportsIndex));
-  }
-
-  inline FixedArray* regular_imports() const {
-    return FixedArray::cast(get(kRegularImportsIndex));
-  }
-
-  inline FixedArray* namespace_imports() const {
-    return FixedArray::cast(get(kNamespaceImportsIndex));
-  }
-
-  inline FixedArray* module_request_positions() const {
-    return FixedArray::cast(get(kModuleRequestPositionsIndex));
-  }
+  inline FixedArray* module_requests() const;
+  inline FixedArray* special_exports() const;
+  inline FixedArray* regular_exports() const;
+  inline FixedArray* regular_imports() const;
+  inline FixedArray* namespace_imports() const;
+  inline FixedArray* module_request_positions() const;
 
   // Accessors for [regular_exports].
   int RegularExportCount() const;
@@ -281,14 +273,7 @@ class ModuleInfo : public FixedArray {
   FixedArray* RegularExportExportNames(int i) const;
 
 #ifdef DEBUG
-  inline bool Equals(ModuleInfo* other) const {
-    return regular_exports() == other->regular_exports() &&
-           regular_imports() == other->regular_imports() &&
-           special_exports() == other->special_exports() &&
-           namespace_imports() == other->namespace_imports() &&
-           module_requests() == other->module_requests() &&
-           module_request_positions() == other->module_request_positions();
-  }
+  inline bool Equals(ModuleInfo* other) const;
 #endif
 
  private:

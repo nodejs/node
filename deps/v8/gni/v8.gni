@@ -38,7 +38,7 @@ declare_args() {
   v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64")
 
   # Enable several snapshots side-by-side (e.g. default and for trusted code).
-  v8_use_multi_snapshots = ""
+  v8_use_multi_snapshots = false
 
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
@@ -61,7 +61,10 @@ if (v8_use_external_startup_data == "") {
   v8_use_external_startup_data = v8_use_snapshot && !is_ios
 }
 
-if (v8_use_multi_snapshots == "") {
+if (v8_use_multi_snapshots) {
+  # Silently disable multi snapshots if they're incompatible with the current
+  # build configuration. This allows us to set v8_use_multi_snapshots=true on
+  # all bots, and e.g. no-snapshot bots will automatically do the right thing.
   v8_use_multi_snapshots =
       v8_use_external_startup_data && !build_with_chromium && !use_jumbo_build
 }

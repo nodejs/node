@@ -114,14 +114,14 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
 
 }  // namespace liftoff
 
-uint32_t LiftoffAssembler::PrepareStackFrame() {
-  uint32_t offset = static_cast<uint32_t>(pc_offset());
+int LiftoffAssembler::PrepareStackFrame() {
+  int offset = pc_offset();
   InstructionAccurateScope scope(this, 1);
   sub(sp, sp, 0);
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
+void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               uint32_t stack_slots) {
   static_assert(kStackSlotSize == kXRegSize,
                 "kStackSlotSize must equal kXRegSize");
@@ -148,8 +148,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
     return;
   }
 #endif
-  PatchingAssembler patching_assembler(IsolateData(isolate()), buffer_ + offset,
-                                       1);
+  PatchingAssembler patching_assembler(AssemblerOptions{}, buffer_ + offset, 1);
   patching_assembler.PatchSubSp(bytes);
 }
 
@@ -478,7 +477,7 @@ bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   UseScratchRegisterScope temps(this);
   VRegister scratch = temps.AcquireV(kFormat8B);
-  Fmov(scratch, src.X());
+  Fmov(scratch.S(), src.W());
   Cnt(scratch, scratch);
   Addv(scratch.B(), scratch);
   Fmov(dst.W(), scratch.S());
@@ -619,11 +618,146 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
   return true;
 }
 
+void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
+  Sxtw(dst, src);
+}
+
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {
-  BAILOUT("emit_type_conversion");
-  return true;
+  switch (opcode) {
+    case kExprI32ConvertI64:
+      if (src != dst) Mov(dst.gp().W(), src.gp().W());
+      return true;
+    case kExprI32SConvertF32:
+      Fcvtzs(dst.gp().W(), src.fp().S());  // f32 -> i32 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().S(), static_cast<float>(INT32_MIN));
+      // Check overflow.
+      Ccmp(dst.gp().W(), -1, VFlag, ge);
+      B(trap, vs);
+      return true;
+    case kExprI32UConvertF32:
+      Fcvtzu(dst.gp().W(), src.fp().S());  // f32 -> i32 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().S(), -1.0);
+      // Check overflow.
+      Ccmp(dst.gp().W(), -1, ZFlag, gt);
+      B(trap, eq);
+      return true;
+    case kExprI32SConvertF64: {
+      // INT32_MIN and INT32_MAX are valid results, we cannot test the result
+      // to detect the overflows. We could have done two immediate floating
+      // point comparisons but it would have generated two conditional branches.
+      UseScratchRegisterScope temps(this);
+      VRegister fp_ref = temps.AcquireD();
+      VRegister fp_cmp = temps.AcquireD();
+      Fcvtzs(dst.gp().W(), src.fp().D());  // f64 -> i32 round to zero.
+      Frintz(fp_ref, src.fp().D());        // f64 -> f64 round to zero.
+      Scvtf(fp_cmp, dst.gp().W());         // i32 -> f64.
+      // If comparison fails, we have an overflow or a NaN.
+      Fcmp(fp_cmp, fp_ref);
+      B(trap, ne);
+      return true;
+    }
+    case kExprI32UConvertF64: {
+      // INT32_MAX is a valid result, we cannot test the result to detect the
+      // overflows. We could have done two immediate floating point comparisons
+      // but it would have generated two conditional branches.
+      UseScratchRegisterScope temps(this);
+      VRegister fp_ref = temps.AcquireD();
+      VRegister fp_cmp = temps.AcquireD();
+      Fcvtzu(dst.gp().W(), src.fp().D());  // f64 -> i32 round to zero.
+      Frintz(fp_ref, src.fp().D());        // f64 -> f64 round to zero.
+      Ucvtf(fp_cmp, dst.gp().W());         // i32 -> f64.
+      // If comparison fails, we have an overflow or a NaN.
+      Fcmp(fp_cmp, fp_ref);
+      B(trap, ne);
+      return true;
+    }
+    case kExprI32ReinterpretF32:
+      Fmov(dst.gp().W(), src.fp().S());
+      return true;
+    case kExprI64SConvertI32:
+      Sxtw(dst.gp().X(), src.gp().W());
+      return true;
+    case kExprI64SConvertF32:
+      Fcvtzs(dst.gp().X(), src.fp().S());  // f32 -> i64 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().S(), static_cast<float>(INT64_MIN));
+      // Check overflow.
+      Ccmp(dst.gp().X(), -1, VFlag, ge);
+      B(trap, vs);
+      return true;
+    case kExprI64UConvertF32:
+      Fcvtzu(dst.gp().X(), src.fp().S());  // f32 -> i64 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().S(), -1.0);
+      // Check overflow.
+      Ccmp(dst.gp().X(), -1, ZFlag, gt);
+      B(trap, eq);
+      return true;
+    case kExprI64SConvertF64:
+      Fcvtzs(dst.gp().X(), src.fp().D());  // f64 -> i64 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().D(), static_cast<float>(INT64_MIN));
+      // Check overflow.
+      Ccmp(dst.gp().X(), -1, VFlag, ge);
+      B(trap, vs);
+      return true;
+    case kExprI64UConvertF64:
+      Fcvtzu(dst.gp().X(), src.fp().D());  // f64 -> i64 round to zero.
+      // Check underflow and NaN.
+      Fcmp(src.fp().D(), -1.0);
+      // Check overflow.
+      Ccmp(dst.gp().X(), -1, ZFlag, gt);
+      B(trap, eq);
+      return true;
+    case kExprI64UConvertI32:
+      Mov(dst.gp().W(), src.gp().W());
+      return true;
+    case kExprI64ReinterpretF64:
+      Fmov(dst.gp().X(), src.fp().D());
+      return true;
+    case kExprF32SConvertI32:
+      Scvtf(dst.fp().S(), src.gp().W());
+      return true;
+    case kExprF32UConvertI32:
+      Ucvtf(dst.fp().S(), src.gp().W());
+      return true;
+    case kExprF32SConvertI64:
+      Scvtf(dst.fp().S(), src.gp().X());
+      return true;
+    case kExprF32UConvertI64:
+      Ucvtf(dst.fp().S(), src.gp().X());
+      return true;
+    case kExprF32ConvertF64:
+      Fcvt(dst.fp().S(), src.fp().D());
+      return true;
+    case kExprF32ReinterpretI32:
+      Fmov(dst.fp().S(), src.gp().W());
+      return true;
+    case kExprF64SConvertI32:
+      Scvtf(dst.fp().D(), src.gp().W());
+      return true;
+    case kExprF64UConvertI32:
+      Ucvtf(dst.fp().D(), src.gp().W());
+      return true;
+    case kExprF64SConvertI64:
+      Scvtf(dst.fp().D(), src.gp().X());
+      return true;
+    case kExprF64UConvertI64:
+      Ucvtf(dst.fp().D(), src.gp().X());
+      return true;
+    case kExprF64ConvertF32:
+      Fcvt(dst.fp().D(), src.fp().S());
+      return true;
+    case kExprF64ReinterpretI64:
+      Fmov(dst.fp().D(), src.gp().X());
+      return true;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { B(label); }
@@ -699,14 +833,9 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   }
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code) {
-  ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(isolate());
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  Mov(scratch, Operand(stack_limit));
-  Ldr(scratch, MemOperand(scratch));
-  Cmp(sp, scratch);
+void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
+  Ldr(limit_address, MemOperand(limit_address));
+  Cmp(sp, limit_address);
   B(ool_code, ls);
 }
 
@@ -780,12 +909,6 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   Call(addr, RelocInfo::WASM_CALL);
 }
 
-void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
-  // Set context to zero.
-  Mov(cp, xzr);
-  CallRuntimeDelayed(zone, fid);
-}
-
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
@@ -793,6 +916,12 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
   // that target will always be in a register.
   DCHECK(target.IsValid());
   Call(target);
+}
+
+void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
+  // A direct call to a wasm runtime stub defined in this module.
+  // Just encode the stub index. This will be patched at relocation.
+  Call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
@@ -827,13 +956,19 @@ void LiftoffStackSlots::Construct() {
         asm_->Poke(liftoff::GetRegFromType(slot.src_.reg(), slot.src_.type()),
                    poke_offset);
         break;
-      case LiftoffAssembler::VarState::KIntConst: {
-        UseScratchRegisterScope temps(asm_);
-        Register scratch = temps.AcquireW();
-        asm_->Mov(scratch, slot.src_.i32_const());
-        asm_->Poke(scratch, poke_offset);
+      case LiftoffAssembler::VarState::KIntConst:
+        DCHECK(slot.src_.type() == kWasmI32 || slot.src_.type() == kWasmI64);
+        if (slot.src_.i32_const() == 0) {
+          Register zero_reg = slot.src_.type() == kWasmI32 ? wzr : xzr;
+          asm_->Poke(zero_reg, poke_offset);
+        } else {
+          UseScratchRegisterScope temps(asm_);
+          Register scratch = slot.src_.type() == kWasmI32 ? temps.AcquireW()
+                                                          : temps.AcquireX();
+          asm_->Mov(scratch, int64_t{slot.src_.i32_const()});
+          asm_->Poke(scratch, poke_offset);
+        }
         break;
-      }
     }
     slot_index++;
   }

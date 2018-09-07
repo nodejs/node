@@ -18,14 +18,14 @@ class Vector;
 
 class V8_EXPORT_PRIVATE StringHasher {
  public:
-  explicit inline StringHasher(int length, uint32_t seed);
+  explicit inline StringHasher(int length, uint64_t seed);
 
   template <typename schar>
   static inline uint32_t HashSequentialString(const schar* chars, int length,
-                                              uint32_t seed);
+                                              uint64_t seed);
 
   // Reads all the data, even for long strings and computes the utf16 length.
-  static uint32_t ComputeUtf8Hash(Vector<const char> chars, uint32_t seed,
+  static uint32_t ComputeUtf8Hash(Vector<const char> chars, uint64_t seed,
                                   int* utf16_length_out);
 
   // Calculated hash value for a string consisting of 1 to
@@ -39,13 +39,13 @@ class V8_EXPORT_PRIVATE StringHasher {
   static const int kZeroHash = 27;
 
   // Reusable parts of the hashing algorithm.
-  INLINE(static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c));
-  INLINE(static uint32_t GetHashCore(uint32_t running_hash));
-  INLINE(static uint32_t ComputeRunningHash(uint32_t running_hash,
-                                            const uc16* chars, int length));
-  INLINE(static uint32_t ComputeRunningHashOneByte(uint32_t running_hash,
-                                                   const char* chars,
-                                                   int length));
+  V8_INLINE static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c);
+  V8_INLINE static uint32_t GetHashCore(uint32_t running_hash);
+  V8_INLINE static uint32_t ComputeRunningHash(uint32_t running_hash,
+                                               const uc16* chars, int length);
+  V8_INLINE static uint32_t ComputeRunningHashOneByte(uint32_t running_hash,
+                                                      const char* chars,
+                                                      int length);
 
  protected:
   // Returns the value to store in the hash field of a string with
@@ -74,22 +74,22 @@ class V8_EXPORT_PRIVATE StringHasher {
 
 class IteratingStringHasher : public StringHasher {
  public:
-  static inline uint32_t Hash(String* string, uint32_t seed);
+  static inline uint32_t Hash(String* string, uint64_t seed);
   inline void VisitOneByteString(const uint8_t* chars, int length);
   inline void VisitTwoByteString(const uint16_t* chars, int length);
 
  private:
-  inline IteratingStringHasher(int len, uint32_t seed);
+  inline IteratingStringHasher(int len, uint64_t seed);
   void VisitConsString(ConsString* cons_string);
   DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
 };
 
 // Useful for std containers that require something ()'able.
 struct SeededStringHasher {
-  explicit SeededStringHasher(uint32_t hashseed) : hashseed_(hashseed) {}
+  explicit SeededStringHasher(uint64_t hashseed) : hashseed_(hashseed) {}
   inline std::size_t operator()(const char* name) const;
 
-  uint32_t hashseed_;
+  uint64_t hashseed_;
 };
 
 // Useful for std containers that require something ()'able.

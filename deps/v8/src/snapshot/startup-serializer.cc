@@ -5,6 +5,7 @@
 #include "src/snapshot/startup-serializer.h"
 
 #include "src/api.h"
+#include "src/code-tracer.h"
 #include "src/global-handles.h"
 #include "src/objects-inl.h"
 #include "src/v8threads.h"
@@ -65,12 +66,12 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     call_handler_infos_.push_back(info);
   } else if (obj->IsScript() && Script::cast(obj)->IsUserJavaScript()) {
     Script::cast(obj)->set_context_data(
-        isolate()->heap()->uninitialized_symbol());
+        ReadOnlyRoots(isolate()).uninitialized_symbol());
   } else if (obj->IsSharedFunctionInfo()) {
     // Clear inferred name for native functions.
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
     if (!shared->IsSubjectToDebugging() && shared->HasInferredName()) {
-      shared->set_inferred_name(isolate()->heap()->empty_string());
+      shared->set_inferred_name(ReadOnlyRoots(isolate()).empty_string());
     }
   }
 
@@ -86,7 +87,7 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // This comes right after serialization of the partial snapshot, where we
   // add entries to the partial snapshot cache of the startup snapshot. Add
   // one entry with 'undefined' to terminate the partial snapshot cache.
-  Object* undefined = isolate()->heap()->undefined_value();
+  Object* undefined = ReadOnlyRoots(isolate()).undefined_value();
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &undefined);
   isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
   SerializeDeferredObjects();

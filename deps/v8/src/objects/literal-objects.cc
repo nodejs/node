@@ -15,24 +15,34 @@
 namespace v8 {
 namespace internal {
 
-Object* BoilerplateDescription::name(int index) const {
+Object* ObjectBoilerplateDescription::name(int index) const {
   // get() already checks for out of bounds access, but we do not want to allow
   // access to the last element, if it is the number of properties.
   DCHECK_NE(size(), index);
-  return get(2 * index);
+  return get(2 * index + kDescriptionStartIndex);
 }
 
-Object* BoilerplateDescription::value(int index) const {
-  return get(2 * index + 1);
+Object* ObjectBoilerplateDescription::value(int index) const {
+  return get(2 * index + 1 + kDescriptionStartIndex);
 }
 
-int BoilerplateDescription::size() const {
-  DCHECK_EQ(0, (length() - (this->has_number_of_properties() ? 1 : 0)) % 2);
+void ObjectBoilerplateDescription::set_key_value(int index, Object* key,
+                                                 Object* value) {
+  DCHECK_LT(index, size());
+  DCHECK_GE(index, 0);
+  set(2 * index + kDescriptionStartIndex, key);
+  set(2 * index + 1 + kDescriptionStartIndex, value);
+}
+
+int ObjectBoilerplateDescription::size() const {
+  DCHECK_EQ(0, (length() - kDescriptionStartIndex -
+                (this->has_number_of_properties() ? 1 : 0)) %
+                   2);
   // Rounding is intended.
-  return length() / 2;
+  return (length() - kDescriptionStartIndex) / 2;
 }
 
-int BoilerplateDescription::backing_store_size() const {
+int ObjectBoilerplateDescription::backing_store_size() const {
   if (has_number_of_properties()) {
     // If present, the last entry contains the number of properties.
     return Smi::ToInt(this->get(length() - 1));
@@ -42,8 +52,8 @@ int BoilerplateDescription::backing_store_size() const {
   return size();
 }
 
-void BoilerplateDescription::set_backing_store_size(Isolate* isolate,
-                                                    int backing_store_size) {
+void ObjectBoilerplateDescription::set_backing_store_size(
+    Isolate* isolate, int backing_store_size) {
   DCHECK(has_number_of_properties());
   DCHECK_NE(size(), backing_store_size);
   Handle<Object> backing_store_size_obj =
@@ -51,8 +61,8 @@ void BoilerplateDescription::set_backing_store_size(Isolate* isolate,
   set(length() - 1, *backing_store_size_obj);
 }
 
-bool BoilerplateDescription::has_number_of_properties() const {
-  return length() % 2 != 0;
+bool ObjectBoilerplateDescription::has_number_of_properties() const {
+  return (length() - kDescriptionStartIndex) % 2 != 0;
 }
 
 namespace {
@@ -99,7 +109,7 @@ void AddToDescriptorArrayTemplate(
     } else {
       DCHECK(value_kind == ClassBoilerplate::kGetter ||
              value_kind == ClassBoilerplate::kSetter);
-      Object* raw_accessor = descriptor_array_template->GetValue(entry);
+      Object* raw_accessor = descriptor_array_template->GetStrongValue(entry);
       AccessorPair* pair;
       if (raw_accessor->IsAccessorPair()) {
         pair = AccessorPair::cast(raw_accessor);
@@ -118,18 +128,19 @@ void AddToDescriptorArrayTemplate(
 }
 
 Handle<NameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
-    Handle<NameDictionary> dictionary, Handle<Name> name, Handle<Object> value,
-    PropertyDetails details, int* entry_out = nullptr) {
+    Isolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
+    Handle<Object> value, PropertyDetails details, int* entry_out = nullptr) {
   return NameDictionary::AddNoUpdateNextEnumerationIndex(
-      dictionary, name, value, details, entry_out);
+      isolate, dictionary, name, value, details, entry_out);
 }
 
 Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
-    Handle<NumberDictionary> dictionary, uint32_t element, Handle<Object> value,
-    PropertyDetails details, int* entry_out = nullptr) {
+    Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t element,
+    Handle<Object> value, PropertyDetails details, int* entry_out = nullptr) {
   // NumberDictionary does not maintain the enumeration order, so it's
   // a normal Add().
-  return NumberDictionary::Add(dictionary, element, value, details, entry_out);
+  return NumberDictionary::Add(isolate, dictionary, element, value, details,
+                               entry_out);
 }
 
 void DictionaryUpdateMaxNumberKey(Handle<NameDictionary> dictionary,
@@ -188,7 +199,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
 
     // Add value to the dictionary without updating next enumeration index.
     Handle<Dictionary> dict = DictionaryAddNoUpdateNextEnumerationIndex(
-        dictionary, key, value_handle, details, &entry);
+        isolate, dictionary, key, value_handle, details, &entry);
     // It is crucial to avoid dictionary reallocations because it may remove
     // potential gaps in enumeration indices values that are necessary for
     // inserting computed properties into right places in the enumeration order.
@@ -215,7 +226,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
           // so overwrite both.
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
                                   enum_order);
-          dictionary->DetailsAtPut(entry, details);
+          dictionary->DetailsAtPut(isolate, entry, details);
           dictionary->ValueAtPut(entry, value);
 
         } else {
@@ -240,7 +251,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
         if (existing_value_index < key_index) {
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
                                   enum_order);
-          dictionary->DetailsAtPut(entry, details);
+          dictionary->DetailsAtPut(isolate, entry, details);
           dictionary->ValueAtPut(entry, value);
         }
       }
@@ -260,9 +271,9 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
       } else {
         Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
         pair->set(component, value);
-        PropertyDetails details(kAccessor, DONT_ENUM,
-                                PropertyCellType::kNoCell);
-        dictionary->DetailsAtPut(entry, details);
+        PropertyDetails details(kAccessor, DONT_ENUM, PropertyCellType::kNoCell,
+                                enum_order);
+        dictionary->DetailsAtPut(isolate, entry, details);
         dictionary->ValueAtPut(entry, *pair);
       }
     }
@@ -324,7 +335,7 @@ class ObjectDescriptor {
     temp_handle_ = handle(Smi::kZero, isolate);
   }
 
-  void AddConstant(Handle<Name> name, Handle<Object> value,
+  void AddConstant(Isolate* isolate, Handle<Name> name, Handle<Object> value,
                    PropertyAttributes attribs) {
     bool is_accessor = value->IsAccessorInfo();
     DCHECK(!value->IsAccessorPair());
@@ -334,7 +345,7 @@ class ObjectDescriptor {
                               next_enumeration_index_++);
       properties_dictionary_template_ =
           DictionaryAddNoUpdateNextEnumerationIndex(
-              properties_dictionary_template_, name, value, details);
+              isolate, properties_dictionary_template_, name, value, details);
     } else {
       Descriptor d = is_accessor
                          ? Descriptor::AccessorConstant(name, value, attribs)
@@ -384,10 +395,8 @@ class ObjectDescriptor {
     if (HasDictionaryProperties()) {
       properties_dictionary_template_->SetNextEnumerationIndex(
           next_enumeration_index_);
-
-      isolate->heap()->RightTrimFixedArray(
-          *computed_properties_,
-          computed_properties_->length() - current_computed_index_);
+      computed_properties_ = FixedArray::ShrinkOrEmpty(
+          isolate, computed_properties_, current_computed_index_);
     } else {
       DCHECK(descriptor_array_template_->IsSortedNoDuplicates());
     }
@@ -459,14 +468,14 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     // Add length_accessor.
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-    static_desc.AddConstant(factory->length_string(),
+    static_desc.AddConstant(isolate, factory->length_string(),
                             factory->function_length_accessor(), attribs);
   }
   {
     // Add prototype_accessor.
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-    static_desc.AddConstant(factory->prototype_string(),
+    static_desc.AddConstant(isolate, factory->prototype_string(),
                             factory->function_prototype_accessor(), attribs);
   }
   if (FunctionLiteral::NeedsHomeObject(expr->constructor())) {
@@ -474,15 +483,16 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
     Handle<Object> value(
         Smi::FromInt(ClassBoilerplate::kPrototypeArgumentIndex), isolate);
-    static_desc.AddConstant(factory->home_object_symbol(), value, attribs);
+    static_desc.AddConstant(isolate, factory->home_object_symbol(), value,
+                            attribs);
   }
   {
     Handle<Smi> start_position(Smi::FromInt(expr->start_position()), isolate);
     Handle<Smi> end_position(Smi::FromInt(expr->end_position()), isolate);
     Handle<Tuple2> class_positions =
         factory->NewTuple2(start_position, end_position, NOT_TENURED);
-    static_desc.AddConstant(factory->class_positions_symbol(), class_positions,
-                            DONT_ENUM);
+    static_desc.AddConstant(isolate, factory->class_positions_symbol(),
+                            class_positions, DONT_ENUM);
   }
 
   //
@@ -492,7 +502,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   {
     Handle<Object> value(
         Smi::FromInt(ClassBoilerplate::kConstructorArgumentIndex), isolate);
-    instance_desc.AddConstant(factory->constructor_string(), value, DONT_ENUM);
+    instance_desc.AddConstant(isolate, factory->constructor_string(), value,
+                              DONT_ENUM);
   }
 
   //
@@ -558,7 +569,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
       // Set class name accessor if the "name" method was not added yet.
       PropertyAttributes attribs =
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-      static_desc.AddConstant(factory->name_string(),
+      static_desc.AddConstant(isolate, factory->name_string(),
                               factory->function_name_accessor(), attribs);
     }
   }

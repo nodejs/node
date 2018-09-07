@@ -4,18 +4,29 @@
 
 #include "src/torque/declarations.h"
 #include "src/torque/declarable.h"
+#include "src/torque/type-oracle.h"
 
 namespace v8 {
 namespace internal {
 namespace torque {
 
-Scope* Declarations::GetNodeScope(const AstNode* node) {
+Scope* Declarations::GetModuleScope(const Module* module) {
+  auto i = module_scopes_.find(module);
+  if (i != module_scopes_.end()) return i->second;
+  Scope* result = chain_.NewScope();
+  module_scopes_[module] = result;
+  return result;
+}
+
+Scope* Declarations::GetNodeScope(const AstNode* node, bool reset_scope) {
   std::pair<const AstNode*, TypeVector> key(
       node, current_generic_specialization_ == nullptr
                 ? TypeVector()
                 : current_generic_specialization_->second);
-  auto i = scopes_.find(key);
-  if (i != scopes_.end()) return i->second;
+  if (!reset_scope) {
+    auto i = scopes_.find(key);
+    if (i != scopes_.end()) return i->second;
+  }
   Scope* result = chain_.NewScope();
   scopes_[key] = result;
   return result;
@@ -63,35 +74,22 @@ const Type* Declarations::LookupGlobalType(const std::string& name) {
   return TypeAlias::cast(raw)->type();
 }
 
-const AbstractType* Declarations::GetAbstractType(const Type* parent,
-                                                  std::string name,
-                                                  std::string generated) {
-  AbstractType* result =
-      new AbstractType(parent, std::move(name), std::move(generated));
-  nominal_types_.push_back(std::unique_ptr<AbstractType>(result));
-  return result;
-}
-
-const Type* Declarations::GetFunctionPointerType(TypeVector argument_types,
-                                                 const Type* return_type) {
-  const Type* code_type = LookupGlobalType(CODE_TYPE_STRING);
-  return function_pointer_types_.Add(
-      FunctionPointerType(code_type, argument_types, return_type));
-}
-
 const Type* Declarations::GetType(TypeExpression* type_expression) {
   if (auto* basic = BasicTypeExpression::DynamicCast(type_expression)) {
     std::string name =
         (basic->is_constexpr ? CONSTEXPR_TYPE_PREFIX : "") + basic->name;
     return LookupType(name);
+  } else if (auto* union_type = UnionTypeExpression::cast(type_expression)) {
+    return TypeOracle::GetUnionType(GetType(union_type->a),
+                                    GetType(union_type->b));
   } else {
     auto* function_type_exp = FunctionTypeExpression::cast(type_expression);
     TypeVector argument_types;
     for (TypeExpression* type_exp : function_type_exp->parameters.types) {
       argument_types.push_back(GetType(type_exp));
     }
-    return GetFunctionPointerType(argument_types,
-                                  GetType(function_type_exp->return_type));
+    return TypeOracle::GetFunctionPointerType(
+        argument_types, GetType(function_type_exp->return_type));
   }
 }
 
@@ -130,9 +128,9 @@ Label* Declarations::LookupLabel(const std::string& name) {
   return Label::cast(d);
 }
 
-Macro* Declarations::LookupMacro(const std::string& name,
-                                 const TypeVector& types) {
-  Declarable* declarable = Lookup(name);
+Macro* Declarations::TryLookupMacro(const std::string& name,
+                                    const TypeVector& types) {
+  Declarable* declarable = TryLookup(name);
   if (declarable != nullptr) {
     if (declarable->IsMacroList()) {
       for (auto& m : MacroList::cast(declarable)->list()) {
@@ -143,6 +141,13 @@ Macro* Declarations::LookupMacro(const std::string& name,
       }
     }
   }
+  return nullptr;
+}
+
+Macro* Declarations::LookupMacro(const std::string& name,
+                                 const TypeVector& types) {
+  Macro* result = TryLookupMacro(name, types);
+  if (result != nullptr) return result;
   std::stringstream stream;
   stream << "macro " << name << " with parameter types " << types
          << " is not defined";
@@ -162,11 +167,11 @@ Builtin* Declarations::LookupBuiltin(const std::string& name) {
   return nullptr;
 }
 
-Generic* Declarations::LookupGeneric(const std::string& name) {
-  Declarable* declarable = Lookup(name);
-  if (declarable != nullptr) {
-    if (declarable->IsGeneric()) {
-      return Generic::cast(declarable);
+GenericList* Declarations::LookupGeneric(const std::string& name) {
+  Declarable* declarable_list = Lookup(name);
+  if (declarable_list != nullptr) {
+    if (declarable_list->IsGenericList()) {
+      return GenericList::cast(declarable_list);
     }
     ReportError(name + " is not a generic");
   }
@@ -174,12 +179,25 @@ Generic* Declarations::LookupGeneric(const std::string& name) {
   return nullptr;
 }
 
+ModuleConstant* Declarations::LookupModuleConstant(const std::string& name) {
+  Declarable* declarable = Lookup(name);
+  if (declarable != nullptr) {
+    if (declarable->IsModuleConstant()) {
+      return ModuleConstant::cast(declarable);
+    }
+    ReportError(name + " is not a constant");
+  }
+  ReportError(std::string("constant \"") + name + "\" is not defined");
+  return nullptr;
+}
+
 const AbstractType* Declarations::DeclareAbstractType(
     const std::string& name, const std::string& generated,
-    const std::string* parent) {
+    base::Optional<const AbstractType*> non_constexpr_version,
+    const base::Optional<std::string>& parent) {
   CheckAlreadyDeclared(name, "type");
   const Type* parent_type = nullptr;
-  if (parent != nullptr) {
+  if (parent) {
     Declarable* maybe_parent_type = Lookup(*parent);
     if (maybe_parent_type == nullptr) {
       std::stringstream s;
@@ -194,7 +212,8 @@ const AbstractType* Declarations::DeclareAbstractType(
     }
     parent_type = TypeAlias::cast(maybe_parent_type)->type();
   }
-  const AbstractType* type = GetAbstractType(parent_type, name, generated);
+  const AbstractType* type = TypeOracle::GetAbstractType(
+      parent_type, name, generated, non_constexpr_version);
   DeclareType(name, type);
   return type;
 }
@@ -205,6 +224,12 @@ void Declarations::DeclareType(const std::string& name, const Type* type) {
   Declare(name, std::unique_ptr<TypeAlias>(result));
 }
 
+void Declarations::DeclareStruct(Module* module, const std::string& name,
+                                 const std::vector<NameAndType>& fields) {
+  const StructType* new_type = TypeOracle::GetStructType(module, name, fields);
+  DeclareType(name, new_type);
+}
+
 Label* Declarations::DeclareLabel(const std::string& name) {
   CheckAlreadyDeclared(name, "label");
   Label* result = new Label(name);
@@ -212,8 +237,8 @@ Label* Declarations::DeclareLabel(const std::string& name) {
   return result;
 }
 
-Macro* Declarations::DeclareMacro(const std::string& name,
-                                  const Signature& signature) {
+MacroList* Declarations::GetMacroListForName(const std::string& name,
+                                             const Signature& signature) {
   auto previous = chain_.Lookup(name);
   MacroList* macro_list = nullptr;
   if (previous == nullptr) {
@@ -238,8 +263,17 @@ Macro* Declarations::DeclareMacro(const std::string& name,
       ReportError(s.str());
     }
   }
-  return macro_list->AddMacro(
-      RegisterDeclarable(std::unique_ptr<Macro>(new Macro(name, signature))));
+  return macro_list;
+}
+
+Macro* Declarations::DeclareMacro(const std::string& name,
+                                  const Signature& signature,
+                                  base::Optional<std::string> op) {
+  Macro* macro =
+      RegisterDeclarable(std::unique_ptr<Macro>(new Macro(name, signature)));
+  GetMacroListForName(name, signature)->AddMacro(macro);
+  if (op) GetMacroListForName(*op, signature)->AddMacro(macro);
+  return macro;
 }
 
 Builtin* Declarations::DeclareBuiltin(const std::string& name,
@@ -260,10 +294,12 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
 }
 
 Variable* Declarations::DeclareVariable(const std::string& var,
-                                        const Type* type) {
-  std::string name(var + std::to_string(GetNextUniqueDeclarationNumber()));
+                                        const Type* type, bool is_const) {
+  std::string name(var + "_" +
+                   std::to_string(GetNextUniqueDeclarationNumber()));
+  std::replace(name.begin(), name.end(), '.', '_');
   CheckAlreadyDeclared(var, "variable");
-  Variable* result = new Variable(var, name, type);
+  Variable* result = new Variable(var, name, type, is_const);
   Declare(var, std::unique_ptr<Declarable>(result));
   return result;
 }
@@ -286,18 +322,39 @@ Label* Declarations::DeclarePrivateLabel(const std::string& raw_name) {
   return result;
 }
 
-void Declarations::DeclareConstant(const std::string& name, const Type* type,
-                                   const std::string& value) {
+void Declarations::DeclareExternConstant(const std::string& name,
+                                         const Type* type,
+                                         const std::string& value) {
   CheckAlreadyDeclared(name, "constant, parameter or arguments");
-  Constant* result = new Constant(name, type, value);
+  ExternConstant* result = new ExternConstant(name, type, value);
   Declare(name, std::unique_ptr<Declarable>(result));
+}
+
+ModuleConstant* Declarations::DeclareModuleConstant(const std::string& name,
+                                                    const Type* type) {
+  CheckAlreadyDeclared(name, "module constant");
+  ModuleConstant* result = new ModuleConstant(name, type);
+  Declare(name, std::unique_ptr<Declarable>(result));
+  return result;
 }
 
 Generic* Declarations::DeclareGeneric(const std::string& name, Module* module,
                                       GenericDeclaration* generic) {
-  CheckAlreadyDeclared(name, "generic");
-  Generic* result = new Generic(name, module, generic);
-  Declare(name, std::unique_ptr<Generic>(result));
+  auto previous = chain_.Lookup(name);
+  GenericList* generic_list = nullptr;
+  if (previous == nullptr) {
+    generic_list = new GenericList();
+    Declare(name, std::unique_ptr<Declarable>(generic_list));
+  } else if (!previous->IsGenericList()) {
+    std::stringstream s;
+    s << "cannot redeclare non-generic " << name << " as a generic";
+    ReportError(s.str());
+  } else {
+    generic_list = GenericList::cast(previous);
+  }
+  Generic* result = RegisterDeclarable(
+      std::unique_ptr<Generic>(new Generic(name, module, generic)));
+  generic_list->AddGeneric(result);
   generic_declaration_scopes_[result] = GetScopeChainSnapshot();
   return result;
 }
@@ -306,6 +363,16 @@ TypeVector Declarations::GetCurrentSpecializationTypeNamesVector() {
   TypeVector result;
   if (current_generic_specialization_ != nullptr) {
     result = current_generic_specialization_->second;
+  }
+  return result;
+}
+
+std::string GetGeneratedCallableName(const std::string& name,
+                                     const TypeVector& specialized_types) {
+  std::string result = name;
+  for (auto type : specialized_types) {
+    std::string type_string = type->MangledName();
+    result += std::to_string(type_string.size()) + type_string;
   }
   return result;
 }

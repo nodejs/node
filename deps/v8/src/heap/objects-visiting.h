@@ -9,6 +9,7 @@
 #include "src/layout-descriptor.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects.h"
+#include "src/objects/hash-table.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/string.h"
 #include "src/visitors.h"
@@ -18,43 +19,50 @@ namespace internal {
 
 class BigInt;
 class BytecodeArray;
+class DataHandler;
 class JSArrayBuffer;
 class JSRegExp;
 class JSWeakCollection;
+class UncompiledDataWithPreParsedScope;
 
-#define TYPED_VISITOR_ID_LIST(V) \
-  V(AllocationSite)              \
-  V(BigInt)                      \
-  V(ByteArray)                   \
-  V(BytecodeArray)               \
-  V(Cell)                        \
-  V(Code)                        \
-  V(CodeDataContainer)           \
-  V(ConsString)                  \
-  V(FeedbackCell)                \
-  V(FeedbackVector)              \
-  V(FixedArray)                  \
-  V(FixedDoubleArray)            \
-  V(FixedFloat64Array)           \
-  V(FixedTypedArrayBase)         \
-  V(JSArrayBuffer)               \
-  V(JSFunction)                  \
-  V(JSObject)                    \
-  V(JSWeakCollection)            \
-  V(Map)                         \
-  V(Oddball)                     \
-  V(PropertyArray)               \
-  V(PropertyCell)                \
-  V(SeqOneByteString)            \
-  V(SeqTwoByteString)            \
-  V(SharedFunctionInfo)          \
-  V(SlicedString)                \
-  V(SmallOrderedHashMap)         \
-  V(SmallOrderedHashSet)         \
-  V(Symbol)                      \
-  V(ThinString)                  \
-  V(TransitionArray)             \
-  V(WasmInstanceObject)          \
+#define TYPED_VISITOR_ID_LIST(V)      \
+  V(AllocationSite)                   \
+  V(BigInt)                           \
+  V(ByteArray)                        \
+  V(BytecodeArray)                    \
+  V(Cell)                             \
+  V(Code)                             \
+  V(CodeDataContainer)                \
+  V(ConsString)                       \
+  V(DataHandler)                      \
+  V(EphemeronHashTable)               \
+  V(FeedbackCell)                     \
+  V(FeedbackVector)                   \
+  V(FixedArray)                       \
+  V(FixedDoubleArray)                 \
+  V(FixedFloat64Array)                \
+  V(FixedTypedArrayBase)              \
+  V(JSArrayBuffer)                    \
+  V(JSFunction)                       \
+  V(JSObject)                         \
+  V(JSWeakCollection)                 \
+  V(Map)                              \
+  V(Oddball)                          \
+  V(PreParsedScopeData)               \
+  V(PropertyArray)                    \
+  V(PropertyCell)                     \
+  V(PrototypeInfo)                    \
+  V(SeqOneByteString)                 \
+  V(SeqTwoByteString)                 \
+  V(SharedFunctionInfo)               \
+  V(SlicedString)                     \
+  V(SmallOrderedHashMap)              \
+  V(SmallOrderedHashSet)              \
+  V(Symbol)                           \
+  V(ThinString)                       \
+  V(TransitionArray)                  \
+  V(UncompiledDataWithPreParsedScope) \
+  V(WasmInstanceObject)               \
   V(WeakCell)
 
 // The base class for visitors that need to dispatch on object type. The default

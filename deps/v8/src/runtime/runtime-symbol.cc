@@ -31,14 +31,6 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateFieldSymbol) {
   return *symbol;
 }
 
-RUNTIME_FUNCTION(Runtime_SymbolDescription) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Symbol, symbol, 0);
-  return symbol->name();
-}
-
-
 RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

@@ -49,7 +49,8 @@ BUILTIN(BigIntAsUintN) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, bigint_obj));
 
-  RETURN_RESULT_OR_FAILURE(isolate, BigInt::AsUintN(bits->Number(), bigint));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           BigInt::AsUintN(isolate, bits->Number(), bigint));
 }
 
 BUILTIN(BigIntAsIntN) {
@@ -66,7 +67,7 @@ BUILTIN(BigIntAsIntN) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, bigint_obj));
 
-  return *BigInt::AsIntN(bits->Number(), bigint);
+  return *BigInt::AsIntN(isolate, bits->Number(), bigint);
 }
 
 namespace {
@@ -115,7 +116,7 @@ Object* BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
   }
   // Return the String representation of this Number value using the radix
   // specified by radixNumber.
-  RETURN_RESULT_OR_FAILURE(isolate, BigInt::ToString(x, radix_number));
+  RETURN_RESULT_OR_FAILURE(isolate, BigInt::ToString(isolate, x, radix_number));
 }
 
 }  // namespace

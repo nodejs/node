@@ -34,7 +34,7 @@ TEST(GCCausesDestruction) {
   DeleteCounter* d2 = new DeleteCounter(&deleted2);
   {
     HandleScope scope(isolate);
-    auto handle = Managed<DeleteCounter>::FromRawPtr(isolate, d1);
+    auto handle = Managed<DeleteCounter>::FromRawPtr(isolate, 0, d1);
     USE(handle);
   }
 
@@ -58,7 +58,7 @@ TEST(DisposeCausesDestruction1) {
   DeleteCounter* d1 = new DeleteCounter(&deleted1);
   {
     HandleScope scope(i_isolate);
-    auto handle = Managed<DeleteCounter>::FromRawPtr(i_isolate, d1);
+    auto handle = Managed<DeleteCounter>::FromRawPtr(i_isolate, 0, d1);
     USE(handle);
   }
   isolate->Exit();
@@ -80,11 +80,11 @@ TEST(DisposeCausesDestruction2) {
   DeleteCounter* d2 = new DeleteCounter(&deleted2);
   {
     HandleScope scope(i_isolate);
-    auto handle = Managed<DeleteCounter>::FromRawPtr(i_isolate, d1);
+    auto handle = Managed<DeleteCounter>::FromRawPtr(i_isolate, 0, d1);
     USE(handle);
   }
   ManagedPtrDestructor* destructor =
-      new ManagedPtrDestructor(d2, DeleteCounter::Deleter);
+      new ManagedPtrDestructor(0, d2, DeleteCounter::Deleter);
   i_isolate->RegisterManagedPtrDestructor(destructor);
 
   isolate->Exit();
@@ -107,7 +107,8 @@ TEST(DisposeWithAnotherSharedPtr) {
     std::shared_ptr<DeleteCounter> shared1(d1);
     {
       HandleScope scope(i_isolate);
-      auto handle = Managed<DeleteCounter>::FromSharedPtr(i_isolate, shared1);
+      auto handle =
+          Managed<DeleteCounter>::FromSharedPtr(i_isolate, 0, shared1);
       USE(handle);
     }
     isolate->Exit();
@@ -132,7 +133,7 @@ TEST(DisposeAcrossIsolates) {
   {
     HandleScope scope1(i_isolate1);
     auto handle1 =
-        Managed<DeleteCounter>::FromRawPtr(i_isolate1, delete_counter);
+        Managed<DeleteCounter>::FromRawPtr(i_isolate1, 0, delete_counter);
 
     v8::Isolate* isolate2 = v8::Isolate::New(create_params);
     Isolate* i_isolate2 = reinterpret_cast<i::Isolate*>(isolate2);
@@ -140,7 +141,7 @@ TEST(DisposeAcrossIsolates) {
     {
       HandleScope scope(i_isolate2);
       auto handle2 =
-          Managed<DeleteCounter>::FromSharedPtr(i_isolate2, handle1->get());
+          Managed<DeleteCounter>::FromSharedPtr(i_isolate2, 0, handle1->get());
       USE(handle2);
     }
     isolate2->Exit();
@@ -167,7 +168,7 @@ TEST(CollectAcrossIsolates) {
   {
     HandleScope scope1(i_isolate1);
     auto handle1 =
-        Managed<DeleteCounter>::FromRawPtr(i_isolate1, delete_counter);
+        Managed<DeleteCounter>::FromRawPtr(i_isolate1, 0, delete_counter);
 
     v8::Isolate* isolate2 = v8::Isolate::New(create_params);
     Isolate* i_isolate2 = reinterpret_cast<i::Isolate*>(isolate2);
@@ -175,7 +176,7 @@ TEST(CollectAcrossIsolates) {
     {
       HandleScope scope(i_isolate2);
       auto handle2 =
-          Managed<DeleteCounter>::FromSharedPtr(i_isolate2, handle1->get());
+          Managed<DeleteCounter>::FromSharedPtr(i_isolate2, 0, handle1->get());
       USE(handle2);
     }
     i_isolate2->heap()->CollectAllAvailableGarbage(

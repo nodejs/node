@@ -65,10 +65,9 @@ f (:3:27)
 }
 
 Debugger.stepOver called
-(anonymous) (:5:5)
-}
-f(5);#
-
+(anonymous) (:6:0)
+f(5);
+#
 
 Debugger.resume called
 
@@ -107,10 +106,9 @@ f (:3:27)
 }
 
 Debugger.stepOut called
-(anonymous) (:5:5)
-}
-f(5);#
-
+(anonymous) (:6:0)
+f(5);
+#
 
 Debugger.resume called
 
@@ -169,9 +167,8 @@ f (:3:27)
 }
 
 Debugger.stepOut called
-(anonymous) (:5:5)
-}
-f(5);#
-
+(anonymous) (:6:0)
+f(5);
+#
 
 Debugger.resume called

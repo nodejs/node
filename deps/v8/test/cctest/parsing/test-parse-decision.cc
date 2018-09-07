@@ -30,9 +30,8 @@ void GetTopLevelFunctionInfo(
   // Get the v8::internal::Script object from the API v8::Script.
   // The API object 'wraps' the compiled top-level function, not the i::Script.
   Handle<JSFunction> toplevel_fn = v8::Utils::OpenHandle(*script);
-  Handle<Script> i_script =
-      handle(Script::cast(toplevel_fn->shared()->script()));
-  SharedFunctionInfo::ScriptIterator iterator(i_script);
+  SharedFunctionInfo::ScriptIterator iterator(
+      toplevel_fn->GetIsolate(), Script::cast(toplevel_fn->shared()->script()));
 
   while (SharedFunctionInfo* shared = iterator.Next()) {
     std::unique_ptr<char[]> name = String::cast(shared->Name())->ToCString();

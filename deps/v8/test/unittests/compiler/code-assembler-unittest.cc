@@ -19,8 +19,8 @@ namespace internal {
 namespace compiler {
 
 CodeAssemblerTestState::CodeAssemblerTestState(CodeAssemblerTest* test)
-    : CodeAssemblerState(test->isolate(), test->zone(),
-                         VoidDescriptor(test->isolate()), Code::STUB, "test",
+    : CodeAssemblerState(test->isolate(), test->zone(), VoidDescriptor{},
+                         Code::STUB, "test",
                          PoisoningMitigationLevel::kPoisonCriticalOnly) {}
 
 TARGET_TEST_F(CodeAssemblerTest, IntPtrAdd) {

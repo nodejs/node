@@ -100,8 +100,8 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
 
 }  // namespace liftoff
 
-uint32_t LiftoffAssembler::PrepareStackFrame() {
-  uint32_t offset = static_cast<uint32_t>(pc_offset());
+int LiftoffAssembler::PrepareStackFrame() {
+  int offset = pc_offset();
   // When constant that represents size of stack frame can't be represented
   // as 16bit we need three instructions to add it to sp, so we reserve space
   // for this case.
@@ -111,15 +111,16 @@ uint32_t LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
+void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               uint32_t stack_slots) {
   uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
   DCHECK_LE(bytes, kMaxInt);
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
-  TurboAssembler patching_assembler(isolate(), buffer_ + offset,
-                                    kAvailableSpace, CodeObjectRequired::kNo);
+  TurboAssembler patching_assembler(nullptr, AssemblerOptions{},
+                                    buffer_ + offset, kAvailableSpace,
+                                    CodeObjectRequired::kNo);
   // If bytes can be represented as 16bit, addiu will be generated and two
   // nops will stay untouched. Otherwise, lui-ori sequence will load it to
   // register and, as third instruction, addu will be generated.
@@ -743,6 +744,10 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                    &TurboAssembler::ShrPair, pinned);
 }
 
+void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
+  UNREACHABLE();
+}
+
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   TurboAssembler::Neg_s(dst, src);
 }
@@ -1210,12 +1215,9 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   bind(&cont);
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code) {
-  LiftoffRegister tmp = GetUnusedRegister(kGpReg);
-  TurboAssembler::li(
-      tmp.gp(), Operand(ExternalReference::address_of_stack_limit(isolate())));
-  TurboAssembler::Ulw(tmp.gp(), MemOperand(tmp.gp()));
-  TurboAssembler::Branch(ool_code, ule, sp, Operand(tmp.gp()));
+void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
+  TurboAssembler::Ulw(limit_address, MemOperand(limit_address));
+  TurboAssembler::Branch(ool_code, ule, sp, Operand(limit_address));
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
@@ -1329,12 +1331,6 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   Call(addr, RelocInfo::WASM_CALL);
 }
 
-void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
-  // Set instance to zero.
-  TurboAssembler::Move(cp, zero_reg);
-  CallRuntimeDelayed(zone, fid);
-}
-
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
@@ -1344,6 +1340,12 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
   } else {
     Call(target);
   }
+}
+
+void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
+  // A direct call to a wasm runtime stub defined in this module.
+  // Just encode the stub index. This will be patched at relocation.
+  Call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {

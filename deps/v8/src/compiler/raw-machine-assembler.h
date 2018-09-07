@@ -741,10 +741,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->LoadParentFramePointer());
   }
 
-  // Root pointer operations.
-  Node* LoadRootsPointer() { return AddNode(machine()->LoadRootsPointer()); }
-
   // Parameters.
+  Node* TargetParameter();
   Node* Parameter(size_t index);
 
   // Pointer utilities.
@@ -939,6 +937,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;
   CallDescriptor* call_descriptor_;
+  Node* target_parameter_;
   NodeVector parameters_;
   BasicBlock* current_block_;
   PoisoningMitigationLevel poisoning_level_;

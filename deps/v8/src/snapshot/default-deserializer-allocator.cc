@@ -71,9 +71,9 @@ Address DefaultDeserializerAllocator::Allocate(AllocationSpace space,
     // aligned object when the filler maps have not been deserialized yet.
     // We require filler maps as padding to align the object.
     Heap* heap = isolate()->heap();
-    DCHECK(heap->free_space_map()->IsMap());
-    DCHECK(heap->one_pointer_filler_map()->IsMap());
-    DCHECK(heap->two_pointer_filler_map()->IsMap());
+    DCHECK(ReadOnlyRoots(heap).free_space_map()->IsMap());
+    DCHECK(ReadOnlyRoots(heap).one_pointer_filler_map()->IsMap());
+    DCHECK(ReadOnlyRoots(heap).two_pointer_filler_map()->IsMap());
     obj = heap->AlignWithFiller(obj, size, reserved, next_alignment_);
     address = obj->address();
     next_alignment_ = kWordAligned;

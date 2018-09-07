@@ -40,8 +40,8 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::INTERNAL);
 
   __ ldr(r0, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r0,
-         FieldMemOperand(r0, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ ldrh(r0,
+          FieldMemOperand(r0, SharedFunctionInfo::kFormalParameterCountOffset));
   __ mov(r2, r0);
 
   ParameterCount dummy1(r2);

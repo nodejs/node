@@ -59,8 +59,7 @@ class IC {
            IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind());
   }
 
-  static inline bool IsHandler(MaybeObject* object,
-                               bool from_stub_cache = false);
+  static inline bool IsHandler(MaybeObject* object);
 
   // Nofity the IC system that a feedback has changed.
   static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
@@ -145,7 +144,7 @@ class IC {
     if (receiver->IsSmi()) {
       receiver_map_ = isolate_->factory()->heap_number_map();
     } else {
-      receiver_map_ = handle(HeapObject::cast(*receiver)->map());
+      receiver_map_ = handle(HeapObject::cast(*receiver)->map(), isolate_);
     }
   }
 

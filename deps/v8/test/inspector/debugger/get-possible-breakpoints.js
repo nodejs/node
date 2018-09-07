@@ -118,7 +118,8 @@ function foo4() { Promise.resolve().then(() => 42) };\nfoo3();\nfoo4();`;
     Protocol.Debugger.onPaused(message => dumpBreakLocationInSourceAndResume(message, source, 3, 18));
 
     var source = `function foo5() { Promise.resolve().then(() => 42) }
-function foo6() { Promise.resolve().then(() => 42) }`;
+function foo6() { Promise.resolve().then(() => 42) }
+`;
     waitForPossibleBreakpoints(source, { lineNumber: 0, columnNumber: 0 }, undefined, { name: 'with-offset.js', line_offset: 3, column_offset: 18 })
       .then(message => dumpAllLocations(message, source, 3, 18))
       .then(setAllBreakpoints)

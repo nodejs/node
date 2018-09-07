@@ -62,10 +62,12 @@ class GraphTest : public virtual TestWithNativeContext,
   Graph* graph() { return &graph_; }
   SourcePositionTable* source_positions() { return &source_positions_; }
   NodeOriginTable* node_origins() { return &node_origins_; }
+  const JSHeapBroker* js_heap_broker() { return &js_heap_broker_; }
 
  private:
   CommonOperatorBuilder common_;
   Graph graph_;
+  JSHeapBroker js_heap_broker_;
   SourcePositionTable source_positions_;
   NodeOriginTable node_origins_;
 };

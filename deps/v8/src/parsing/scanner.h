@@ -403,12 +403,12 @@ class Scanner {
 
     ~LiteralBuffer() { backing_store_.Dispose(); }
 
-    INLINE(void AddChar(char code_unit)) {
+    V8_INLINE void AddChar(char code_unit) {
       DCHECK(IsValidAscii(code_unit));
       AddOneByteChar(static_cast<byte>(code_unit));
     }
 
-    INLINE(void AddChar(uc32 code_unit)) {
+    V8_INLINE void AddChar(uc32 code_unit) {
       if (is_one_byte_ &&
           code_unit <= static_cast<uc32>(unibrow::Latin1::kMaxChar)) {
         AddOneByteChar(static_cast<byte>(code_unit));
@@ -465,7 +465,7 @@ class Scanner {
       return iscntrl(code_unit) || isprint(code_unit);
     }
 
-    INLINE(void AddOneByteChar(byte one_byte_char)) {
+    V8_INLINE void AddOneByteChar(byte one_byte_char) {
       DCHECK(is_one_byte_);
       if (position_ >= backing_store_.length()) ExpandBuffer();
       backing_store_[position_] = one_byte_char;
@@ -575,22 +575,22 @@ class Scanner {
     next_.raw_literal_chars = free_buffer;
   }
 
-  INLINE(void AddLiteralChar(uc32 c)) {
+  V8_INLINE void AddLiteralChar(uc32 c) {
     DCHECK_NOT_NULL(next_.literal_chars);
     next_.literal_chars->AddChar(c);
   }
 
-  INLINE(void AddLiteralChar(char c)) {
+  V8_INLINE void AddLiteralChar(char c) {
     DCHECK_NOT_NULL(next_.literal_chars);
     next_.literal_chars->AddChar(c);
   }
 
-  INLINE(void AddRawLiteralChar(uc32 c)) {
+  V8_INLINE void AddRawLiteralChar(uc32 c) {
     DCHECK_NOT_NULL(next_.raw_literal_chars);
     next_.raw_literal_chars->AddChar(c);
   }
 
-  INLINE(void ReduceRawLiteralLength(int delta)) {
+  V8_INLINE void ReduceRawLiteralLength(int delta) {
     DCHECK_NOT_NULL(next_.raw_literal_chars);
     next_.raw_literal_chars->ReduceLength(delta);
   }
@@ -608,24 +608,26 @@ class Scanner {
   }
 
   // Low-level scanning support.
-  template <bool capture_raw = false, bool check_surrogate = true>
+  template <bool capture_raw = false>
   void Advance() {
     if (capture_raw) {
       AddRawLiteralChar(c0_);
     }
     c0_ = source_->Advance();
-    if (check_surrogate) HandleLeadSurrogate();
   }
 
-  void HandleLeadSurrogate() {
+  bool CombineSurrogatePair() {
+    DCHECK(!unibrow::Utf16::IsLeadSurrogate(kEndOfInput));
     if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
       uc32 c1 = source_->Advance();
-      if (!unibrow::Utf16::IsTrailSurrogate(c1)) {
-        source_->Back();
-      } else {
+      DCHECK(!unibrow::Utf16::IsTrailSurrogate(kEndOfInput));
+      if (unibrow::Utf16::IsTrailSurrogate(c1)) {
         c0_ = unibrow::Utf16::CombineSurrogatePair(c0_, c1);
+        return true;
       }
+      source_->Back();
     }
+    return false;
   }
 
   void PushBack(uc32 ch) {
@@ -750,7 +752,6 @@ class Scanner {
   Token::Value ScanNumber(bool seen_period);
   Token::Value ScanIdentifierOrKeyword();
   Token::Value ScanIdentifierOrKeywordInner(LiteralScope* literal);
-  Token::Value ScanIdentifierSuffix(LiteralScope* literal, bool escaped);
 
   Token::Value ScanString();
   Token::Value ScanPrivateName();

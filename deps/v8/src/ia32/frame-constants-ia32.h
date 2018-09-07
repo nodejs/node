@@ -5,6 +5,9 @@
 #ifndef V8_IA32_FRAME_CONSTANTS_IA32_H_
 #define V8_IA32_FRAME_CONSTANTS_IA32_H_
 
+#include "src/base/macros.h"
+#include "src/frame-constants.h"
+
 namespace v8 {
 namespace internal {
 
@@ -33,6 +36,19 @@ class ExitFrameConstants : public TypedFrameConstants {
   static constexpr int kCallerSPDisplacement = +2 * kPointerSize;
 
   static constexpr int kConstantPoolOffset = 0;  // Not used
+};
+
+class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+ public:
+  static constexpr int kNumberOfSavedGpParamRegs = 5;
+  static constexpr int kNumberOfSavedFpParamRegs = 6;
+
+  // FP-relative.
+  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kFixedFrameSizeFromFp =
+      TypedFrameConstants::kFixedFrameSizeFromFp +
+      kNumberOfSavedGpParamRegs * kPointerSize +
+      kNumberOfSavedFpParamRegs * kSimd128Size;
 };
 
 class JavaScriptFrameConstants : public AllStatic {

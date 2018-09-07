@@ -23,6 +23,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
  public:
   explicit JSTypedLoweringTester(int num_parameters = 0)
       : isolate(main_isolate()),
+        js_heap_broker(isolate),
         binop(nullptr),
         unop(nullptr),
         javascript(main_zone()),
@@ -30,7 +31,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         simplified(main_zone()),
         common(main_zone()),
         graph(main_zone()),
-        typer(main_isolate(), Typer::kNoFlags, &graph),
+        typer(main_isolate(), &js_heap_broker, Typer::kNoFlags, &graph),
         context_node(nullptr) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
     graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
@@ -38,6 +39,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 
   Isolate* isolate;
+  JSHeapBroker js_heap_broker;
   const Operator* binop;
   const Operator* unop;
   JSOperatorBuilder javascript;
@@ -86,7 +88,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(main_zone(), &graph);
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, main_zone());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, &js_heap_broker,
+                            main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;

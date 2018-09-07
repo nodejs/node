@@ -43,7 +43,7 @@ class Worklist {
 
     // Returns true if the worklist is empty. Can only be used from the main
     // thread without concurrent access.
-    bool IsGlobalEmpty() { return worklist_->IsGlobalEmpty(); }
+    bool IsEmpty() { return worklist_->IsEmpty(); }
 
     bool IsGlobalPoolEmpty() { return worklist_->IsGlobalPoolEmpty(); }
 
@@ -69,13 +69,22 @@ class Worklist {
   }
 
   ~Worklist() {
-    CHECK(IsGlobalEmpty());
+    CHECK(IsEmpty());
     for (int i = 0; i < num_tasks_; i++) {
       DCHECK_NOT_NULL(private_push_segment(i));
       DCHECK_NOT_NULL(private_pop_segment(i));
       delete private_push_segment(i);
       delete private_pop_segment(i);
     }
+  }
+
+  // Swaps content with the given worklist. Local buffers need to
+  // be empty, not thread safe.
+  void Swap(Worklist<EntryType, SEGMENT_SIZE>& other) {
+    CHECK(AreLocalsEmpty());
+    CHECK(other.AreLocalsEmpty());
+
+    global_pool_.Swap(other.global_pool_);
   }
 
   bool Push(int task_id, EntryType entry) {
@@ -119,11 +128,16 @@ class Worklist {
 
   bool IsGlobalPoolEmpty() { return global_pool_.IsEmpty(); }
 
-  bool IsGlobalEmpty() {
+  bool IsEmpty() {
+    if (!AreLocalsEmpty()) return false;
+    return global_pool_.IsEmpty();
+  }
+
+  bool AreLocalsEmpty() {
     for (int i = 0; i < num_tasks_; i++) {
       if (!IsLocalEmpty(i)) return false;
     }
-    return global_pool_.IsEmpty();
+    return true;
   }
 
   size_t LocalSize(int task_id) {
@@ -157,6 +171,20 @@ class Worklist {
       private_push_segment(i)->Update(callback);
     }
     global_pool_.Update(callback);
+  }
+
+  // Calls the specified callback on each element of the deques.
+  // The signature of the callback is:
+  //   void Callback(EntryType entry).
+  //
+  // Assumes that no other tasks are running.
+  template <typename Callback>
+  void Iterate(Callback callback) {
+    for (int i = 0; i < num_tasks_; i++) {
+      private_pop_segment(i)->Iterate(callback);
+      private_push_segment(i)->Iterate(callback);
+    }
+    global_pool_.Iterate(callback);
   }
 
   template <typename Callback>
@@ -245,6 +273,13 @@ class Worklist {
   class GlobalPool {
    public:
     GlobalPool() : top_(nullptr) {}
+
+    // Swaps contents, not thread safe.
+    void Swap(GlobalPool& other) {
+      Segment* temp = top_;
+      set_top(other.top_);
+      other.set_top(temp);
+    }
 
     V8_INLINE void Push(Segment* segment) {
       base::LockGuard<base::Mutex> guard(&lock_);

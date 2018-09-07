@@ -473,7 +473,7 @@ void MipsDebugger::Debug() {
                  || (strcmp(cmd, "printobject") == 0)) {
         if (argc == 2) {
           int32_t value;
-          OFStream os(stdout);
+          StdoutStream os;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
             os << arg1 << ": \n";
@@ -751,7 +751,7 @@ void MipsDebugger::Debug() {
         PrintF("    Stops are debug instructions inserted by\n");
         PrintF("    the Assembler::stop() function.\n");
         PrintF("    When hitting a stop, the Simulator will\n");
-        PrintF("    stop and and give control to the Debugger.\n");
+        PrintF("    stop and give control to the Debugger.\n");
         PrintF("    All stop codes are watched:\n");
         PrintF("    - They can be enabled / disabled: the Simulator\n");
         PrintF("       will / won't stop when hitting them.\n");

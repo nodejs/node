@@ -139,8 +139,26 @@ TEST(TestFunctionPointers) {
         m.UncheckedCast<Context>(m.Parameter(kNumParams + 2));
     m.Return(m.TestFunctionPointers(context));
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.CheckCall(ft.true_value());
+}
+
+TEST(TestTernaryOperator) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    TNode<Smi> arg = m.UncheckedCast<Smi>(m.Parameter(0));
+    m.Return(m.TestTernaryOperator(arg));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  Handle<Object> result1 =
+      ft.Call(Handle<Smi>(Smi::FromInt(-5), isolate)).ToHandleChecked();
+  CHECK_EQ(-15, Handle<Smi>::cast(result1)->value());
+  Handle<Object> result2 =
+      ft.Call(Handle<Smi>(Smi::FromInt(3), isolate)).ToHandleChecked();
+  CHECK_EQ(103, Handle<Smi>::cast(result2)->value());
 }
 
 TEST(TestFunctionPointerToGeneric) {
@@ -150,6 +168,56 @@ TEST(TestFunctionPointerToGeneric) {
   {
     Node* temp = m.SmiConstant(0);
     m.TestFunctionPointerToGeneric(m.UncheckedCast<Context>(temp));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestUnsafeCast) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    Node* temp = m.SmiConstant(0);
+    Node* n = m.SmiConstant(10);
+    m.Return(m.TestUnsafeCast(m.UncheckedCast<Context>(temp),
+                              m.UncheckedCast<Number>(n)));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.CheckCall(ft.true_value());
+}
+
+TEST(TestHexLiteral) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    m.TestHexLiteral();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestModuleConstBindings) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    m.TestModuleConstBindings();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestLocalConstBindings) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    m.TestLocalConstBindings();
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);

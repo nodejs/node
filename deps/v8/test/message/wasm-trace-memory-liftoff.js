@@ -3,5 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --no-stress-opt --wasm-trace-memory --liftoff --no-future
+// Flags: --no-wasm-tier-up
 
 load("test/message/wasm-trace-memory.js");

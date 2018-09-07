@@ -26,9 +26,10 @@ class JSLocale : public JSObject {
  public:
   // Initializes locale object with properties derived from input locale string
   // and options.
-  static bool InitializeLocale(Isolate* isolate, Handle<JSLocale> locale_holder,
-                               Handle<String> locale,
-                               Handle<JSReceiver> options);
+  static MaybeHandle<JSLocale> InitializeLocale(Isolate* isolate,
+                                                Handle<JSLocale> locale_holder,
+                                                Handle<String> locale,
+                                                Handle<JSReceiver> options);
 
   DECL_CAST(JSLocale)
 

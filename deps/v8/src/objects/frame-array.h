@@ -41,7 +41,7 @@ class FrameArray : public FixedArray {
   inline bool IsAsmJsWasmFrame(int frame_ix) const;
   inline int FrameCount() const;
 
-  void ShrinkToFit();
+  void ShrinkToFit(Isolate* isolate);
 
   // Flags.
   enum Flag {
@@ -95,7 +95,8 @@ class FrameArray : public FixedArray {
     return kFirstIndex + frame_count * kElementsPerFrame;
   }
 
-  static Handle<FrameArray> EnsureSpace(Handle<FrameArray> array, int length);
+  static Handle<FrameArray> EnsureSpace(Isolate* isolate,
+                                        Handle<FrameArray> array, int length);
 
   friend class Factory;
   DISALLOW_IMPLICIT_CONSTRUCTORS(FrameArray);

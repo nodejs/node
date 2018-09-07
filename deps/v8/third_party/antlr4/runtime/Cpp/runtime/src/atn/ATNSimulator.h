@@ -16,7 +16,7 @@ namespace atn {
 class ANTLR4CPP_PUBLIC ATNSimulator {
  public:
   /// Must distinguish between missing edge and edge we know leads nowhere.
-  static const Ref<dfa::DFAState> ERROR;
+  static const Ref<dfa::DFAState> ERROR_STATE;
   const ATN& atn;
 
   ATNSimulator(const ATN& atn, PredictionContextCache& sharedContextCache);

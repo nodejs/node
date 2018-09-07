@@ -48,7 +48,7 @@ TEST(Create) {
   const int kNumSymbols = 30;
   Handle<Symbol> symbols[kNumSymbols];
 
-  OFStream os(stdout);
+  StdoutStream os;
   for (int i = 0; i < kNumSymbols; ++i) {
     symbols[i] = isolate->factory()->NewSymbol();
     CHECK(symbols[i]->IsName());
@@ -60,7 +60,7 @@ TEST(Create) {
     symbols[i]->Print(os);
 #endif
 #if VERIFY_HEAP
-    symbols[i]->ObjectVerify();
+    symbols[i]->ObjectVerify(isolate);
 #endif
   }
 

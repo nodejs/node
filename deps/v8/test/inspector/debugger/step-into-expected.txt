@@ -7,7 +7,7 @@ function testEval() {
   eval('// comment only\n');
 
 break at:
-// comment onl#y
+// comment only#
 
 break at:
   eval('// comment only');
@@ -15,8 +15,8 @@ break at:
 }
 
 break at:
-// comment only#
-
+// comment only
+#
 
 break at:
   eval('// comment only\n');

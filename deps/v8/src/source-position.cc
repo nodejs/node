@@ -56,20 +56,21 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
 
 std::vector<SourcePositionInfo> SourcePosition::InliningStack(
     Handle<Code> code) const {
+  Isolate* isolate = code->GetIsolate();
   Handle<DeoptimizationData> deopt_data(
-      DeoptimizationData::cast(code->deoptimization_data()));
+      DeoptimizationData::cast(code->deoptimization_data()), isolate);
   SourcePosition pos = *this;
   std::vector<SourcePositionInfo> stack;
   while (pos.isInlined()) {
     InliningPosition inl =
         deopt_data->InliningPositions()->get(pos.InliningId());
     Handle<SharedFunctionInfo> function(
-        deopt_data->GetInlinedFunction(inl.inlined_function_id));
+        deopt_data->GetInlinedFunction(inl.inlined_function_id), isolate);
     stack.push_back(SourcePositionInfo(pos, function));
     pos = inl.position;
   }
   Handle<SharedFunctionInfo> function(
-      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()));
+      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()), isolate);
   stack.push_back(SourcePositionInfo(pos, function));
   return stack;
 }
@@ -125,7 +126,7 @@ SourcePositionInfo::SourcePositionInfo(SourcePosition pos,
     : position(pos),
       script(f.is_null() || !f->script()->IsScript()
                  ? Handle<Script>::null()
-                 : handle(Script::cast(f->script()))) {
+                 : handle(Script::cast(f->script()), f->GetIsolate())) {
   if (!script.is_null()) {
     Script::PositionInfo info;
     if (Script::GetPositionInfo(script, pos.ScriptOffset(), &info,

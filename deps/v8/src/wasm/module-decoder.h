@@ -23,7 +23,7 @@ inline bool IsValidSectionCode(uint8_t byte) {
 
 const char* SectionName(SectionCode code);
 
-typedef Result<std::unique_ptr<WasmModule>> ModuleResult;
+typedef Result<std::shared_ptr<WasmModule>> ModuleResult;
 typedef Result<std::unique_ptr<WasmFunction>> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
@@ -138,7 +138,8 @@ class ModuleDecoder {
 
   ModuleResult FinishDecoding(bool verify_functions = true);
 
-  WasmModule* module() const;
+  const std::shared_ptr<WasmModule>& shared_module() const;
+  WasmModule* module() const { return shared_module().get(); }
 
   bool ok();
 

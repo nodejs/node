@@ -11,6 +11,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/prototype-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates-inl.h"
 #include "src/property.h"
@@ -70,8 +71,6 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
 BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
                     Map::ConstructionCounterBits)
 
-TYPE_CHECKER(Map, MAP_TYPE)
-
 InterceptorInfo* Map::GetNamedInterceptor() {
   DCHECK(has_named_interceptor());
   FunctionTemplateInfo* info = GetFunctionTemplateInfo();
@@ -88,8 +87,9 @@ bool Map::IsInplaceGeneralizableField(PropertyConstness constness,
                                       Representation representation,
                                       FieldType* field_type) {
   if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
-      (constness == kConst)) {
-    // kConst -> kMutable field generalization may happen in-place.
+      (constness == PropertyConstness::kConst)) {
+    // VariableMode::kConst -> PropertyConstness::kMutable field generalization
+    // may happen in-place.
     return true;
   }
   if (representation.IsHeapObject() && !field_type->IsAny()) {
@@ -119,9 +119,9 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
     // do not have fields that can be generalized in-place (without creation
     // of a new map).
     if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
-      // The constness is either already kMutable or should become kMutable if
-      // it was kConst.
-      *constness = kMutable;
+      // The constness is either already PropertyConstness::kMutable or should
+      // become PropertyConstness::kMutable if it was VariableMode::kConst.
+      *constness = PropertyConstness::kMutable;
     }
     if (representation->IsHeapObject()) {
       // The field type is either already Any or should become Any if it was
@@ -181,17 +181,17 @@ void Map::SetEnumLength(int length) {
 FixedArrayBase* Map::GetInitialElements() const {
   FixedArrayBase* result = nullptr;
   if (has_fast_elements() || has_fast_string_wrapper_elements()) {
-    result = GetHeap()->empty_fixed_array();
+    result = GetReadOnlyRoots().empty_fixed_array();
   } else if (has_fast_sloppy_arguments_elements()) {
-    result = GetHeap()->empty_sloppy_arguments_elements();
+    result = GetReadOnlyRoots().empty_sloppy_arguments_elements();
   } else if (has_fixed_typed_array_elements()) {
-    result = GetHeap()->EmptyFixedTypedArrayForMap(this);
+    result = GetReadOnlyRoots().EmptyFixedTypedArrayForMap(this);
   } else if (has_dictionary_elements()) {
-    result = GetHeap()->empty_slow_element_dictionary();
+    result = GetReadOnlyRoots().empty_slow_element_dictionary();
   } else {
     UNREACHABLE();
   }
-  DCHECK(!GetHeap()->InNewSpace(result));
+  DCHECK(!Heap::InNewSpace(result));
   return result;
 }
 
@@ -268,9 +268,11 @@ int Map::GetInObjectPropertyOffset(int index) const {
 }
 
 Handle<Map> Map::AddMissingTransitionsForTesting(
-    Handle<Map> split_map, Handle<DescriptorArray> descriptors,
+    Isolate* isolate, Handle<Map> split_map,
+    Handle<DescriptorArray> descriptors,
     Handle<LayoutDescriptor> full_layout_descriptor) {
-  return AddMissingTransitions(split_map, descriptors, full_layout_descriptor);
+  return AddMissingTransitions(isolate, split_map, descriptors,
+                               full_layout_descriptor);
 }
 
 InstanceType Map::instance_type() const {
@@ -480,11 +482,11 @@ bool Map::CanBeDeprecated() const {
   return false;
 }
 
-void Map::NotifyLeafMapLayoutChange() {
+void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
   if (is_stable()) {
     mark_unstable();
     dependent_code()->DeoptimizeDependentCodeGroup(
-        GetIsolate(), DependentCode::kPrototypeCheckGroup);
+        isolate, DependentCode::kPrototypeCheckGroup);
   }
 }
 
@@ -498,7 +500,9 @@ bool Map::CanTransition() const {
   return IsJSObject(instance_type());
 }
 
-bool Map::IsBooleanMap() const { return this == GetHeap()->boolean_map(); }
+bool Map::IsBooleanMap() const {
+  return this == GetReadOnlyRoots().boolean_map();
+}
 bool Map::IsPrimitiveMap() const {
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }
@@ -530,9 +534,10 @@ bool Map::IsJSDataViewMap() const {
 Object* Map::prototype() const { return READ_FIELD(this, kPrototypeOffset); }
 
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
-  DCHECK(value->IsNull(GetIsolate()) || value->IsJSReceiver());
+  DCHECK(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
+                            kPrototypeOffset, value, mode);
 }
 
 LayoutDescriptor* Map::layout_descriptor_gc_safe() const {
@@ -632,13 +637,16 @@ Object* Map::GetBackPointer() const {
   if (object->IsMap()) {
     return object;
   }
-  return GetIsolate()->heap()->undefined_value();
+  return GetReadOnlyRoots().undefined_value();
 }
 
 Map* Map::ElementsTransitionMap() {
   DisallowHeapAllocation no_gc;
-  return TransitionsAccessor(this, &no_gc)
-      .SearchSpecial(GetHeap()->elements_transition_symbol());
+  // TODO(delphick): While it's safe to pass nullptr for Isolate* here as
+  // SearchSpecial doesn't need it, this is really ugly. Perhaps factor out a
+  // base class for methods not requiring an Isolate?
+  return TransitionsAccessor(nullptr, this, &no_gc)
+      .SearchSpecial(GetReadOnlyRoots().elements_transition_symbol());
 }
 
 Object* Map::prototype_info() const {
@@ -649,14 +657,15 @@ Object* Map::prototype_info() const {
 void Map::set_prototype_info(Object* value, WriteBarrierMode mode) {
   CHECK(is_prototype_map());
   WRITE_FIELD(this, Map::kTransitionsOrPrototypeInfoOffset, value);
-  CONDITIONAL_WRITE_BARRIER(
-      GetHeap(), this, Map::kTransitionsOrPrototypeInfoOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
+                            Map::kTransitionsOrPrototypeInfoOffset, value,
+                            mode);
 }
 
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
   CHECK(value->IsMap());
-  CHECK(GetBackPointer()->IsUndefined(GetIsolate()));
+  CHECK(GetBackPointer()->IsUndefined());
   CHECK_IMPLIES(value->IsMap(), Map::cast(value)->GetConstructor() ==
                                     constructor_or_backpointer());
   set_constructor_or_backpointer(value, mode);
@@ -701,8 +710,9 @@ void Map::SetConstructor(Object* constructor, WriteBarrierMode mode) {
   set_constructor_or_backpointer(constructor, mode);
 }
 
-Handle<Map> Map::CopyInitialMap(Handle<Map> map) {
-  return CopyInitialMap(map, map->instance_size(), map->GetInObjectProperties(),
+Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map) {
+  return CopyInitialMap(isolate, map, map->instance_size(),
+                        map->GetInObjectProperties(),
                         map->UnusedPropertyFields());
 }
 
@@ -710,14 +720,14 @@ bool Map::IsInobjectSlackTrackingInProgress() const {
   return construction_counter() != Map::kNoSlackTracking;
 }
 
-void Map::InobjectSlackTrackingStep() {
+void Map::InobjectSlackTrackingStep(Isolate* isolate) {
   // Slack tracking should only be performed on an initial map.
-  DCHECK(GetBackPointer()->IsUndefined(GetIsolate()));
+  DCHECK(GetBackPointer()->IsUndefined());
   if (!IsInobjectSlackTrackingInProgress()) return;
   int counter = construction_counter();
   set_construction_counter(counter - 1);
   if (counter == kSlackTrackingCounterEnd) {
-    CompleteInobjectSlackTracking();
+    CompleteInobjectSlackTracking(isolate);
   }
 }
 
@@ -742,8 +752,9 @@ bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    reinterpret_cast<NormalizedMapCache*>(const_cast<HeapObject*>(obj))
-        ->NormalizedMapCacheVerify();
+    NormalizedMapCache* cache =
+        reinterpret_cast<NormalizedMapCache*>(const_cast<HeapObject*>(obj));
+    cache->NormalizedMapCacheVerify(cache->GetIsolate());
   }
 #endif
   return true;

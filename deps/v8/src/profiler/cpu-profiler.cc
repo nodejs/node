@@ -63,14 +63,14 @@ ProfilerEventsProcessor::~ProfilerEventsProcessor() {
 }
 
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
-  event.generic.order = last_code_event_id_.Increment(1);
+  event.generic.order = ++last_code_event_id_;
   events_buffer_.Enqueue(event);
 }
 
 
 void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
                                             int fp_to_sp_delta) {
-  TickSampleEventRecord record(last_code_event_id_.Value());
+  TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
   Address fp = isolate->c_entry_fp(isolate->thread_local_top());
   regs.sp = reinterpret_cast<void*>(fp - fp_to_sp_delta);
@@ -82,7 +82,7 @@ void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
 
 void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate,
                                               bool update_stats) {
-  TickSampleEventRecord record(last_code_event_id_.Value());
+  TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
   StackFrameIterator it(isolate);
   if (!it.done()) {
@@ -426,7 +426,7 @@ void CpuProfiler::LogBuiltins() {
     CodeEventsContainer evt_rec(CodeEventRecord::REPORT_BUILTIN);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
     Builtins::Name id = static_cast<Builtins::Name>(i);
-    rec->instruction_start = builtins->builtin(id)->InstructionStart();
+    rec->start = builtins->builtin(id)->address();
     rec->builtin_id = id;
     processor_->Enqueue(evt_rec);
   }

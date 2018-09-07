@@ -113,7 +113,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     Handle<SharedFunctionInfo> shared =
         candidate.functions[i].is_null()
             ? candidate.shared_info
-            : handle(candidate.functions[i]->shared());
+            : handle(candidate.functions[i]->shared(), isolate());
     candidate.can_inline_function[i] = CanInlineFunction(shared);
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
     // recurion like f() -> g() -> f(). The indirect recursion is helpful in
@@ -607,7 +607,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
     Handle<SharedFunctionInfo> shared =
         candidate.functions[0].is_null()
             ? candidate.shared_info
-            : handle(candidate.functions[0]->shared());
+            : handle(candidate.functions[0]->shared(), isolate());
     Reduction const reduction = inliner_.ReduceJSCall(node);
     if (reduction.Changed()) {
       cumulative_count_ += shared->GetBytecodeArray()->length();
@@ -709,7 +709,7 @@ bool JSInliningHeuristic::CandidateCompare::operator()(
 }
 
 void JSInliningHeuristic::PrintCandidates() {
-  OFStream os(stdout);
+  StdoutStream os;
   os << "Candidates for inlining (size=" << candidates_.size() << "):\n";
   for (const Candidate& candidate : candidates_) {
     os << "  #" << candidate.node->id() << ":"
@@ -719,7 +719,7 @@ void JSInliningHeuristic::PrintCandidates() {
       Handle<SharedFunctionInfo> shared =
           candidate.functions[i].is_null()
               ? candidate.shared_info
-              : handle(candidate.functions[i]->shared());
+              : handle(candidate.functions[i]->shared(), isolate());
       PrintF("  - size:%d, name: %s\n", shared->GetBytecodeArray()->length(),
              shared->DebugName()->ToCString().get());
     }

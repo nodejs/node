@@ -41,6 +41,25 @@ std::ostream& operator<<(std::ostream& os, IsSafetyCheck is_safety_check) {
   UNREACHABLE();
 }
 
+std::ostream& operator<<(std::ostream& os, TrapId trap_id) {
+  switch (trap_id) {
+#define TRAP_CASE(Name) \
+  case TrapId::k##Name: \
+    return os << #Name;
+    FOREACH_WASM_TRAPREASON(TRAP_CASE)
+#undef TRAP_CASE
+    case TrapId::kInvalid:
+      return os << "Invalid";
+  }
+  UNREACHABLE();
+}
+
+TrapId TrapIdOf(const Operator* const op) {
+  DCHECK(op->opcode() == IrOpcode::kTrapIf ||
+         op->opcode() == IrOpcode::kTrapUnless);
+  return OpParameter<TrapId>(op);
+}
+
 std::ostream& operator<<(std::ostream& os, BranchOperatorInfo info) {
   return os << info.hint << "|" << info.is_safety_check;
 }
@@ -742,35 +761,33 @@ struct CommonOperatorGlobalCache final {
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
 
-  template <int32_t trap_id>
-  struct TrapIfOperator final : public Operator1<int32_t> {
+  template <TrapId trap_id>
+  struct TrapIfOperator final : public Operator1<TrapId> {
     TrapIfOperator()
-        : Operator1<int32_t>(                            // --
+        : Operator1<TrapId>(                             // --
               IrOpcode::kTrapIf,                         // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapIf",                                  // name
               1, 1, 1, 0, 0, 1,                          // counts
               trap_id) {}                                // parameter
   };
-#define CACHED_TRAP_IF(Trap)                                       \
-  TrapIfOperator<static_cast<int32_t>(Builtins::kThrowWasm##Trap)> \
-      kTrapIf##Trap##Operator;
+#define CACHED_TRAP_IF(Trap) \
+  TrapIfOperator<TrapId::k##Trap> kTrapIf##Trap##Operator;
   CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
 #undef CACHED_TRAP_IF
 
-  template <int32_t trap_id>
-  struct TrapUnlessOperator final : public Operator1<int32_t> {
+  template <TrapId trap_id>
+  struct TrapUnlessOperator final : public Operator1<TrapId> {
     TrapUnlessOperator()
-        : Operator1<int32_t>(                            // --
+        : Operator1<TrapId>(                             // --
               IrOpcode::kTrapUnless,                     // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapUnless",                              // name
               1, 1, 1, 0, 0, 1,                          // counts
               trap_id) {}                                // parameter
   };
-#define CACHED_TRAP_UNLESS(Trap)                                       \
-  TrapUnlessOperator<static_cast<int32_t>(Builtins::kThrowWasm##Trap)> \
-      kTrapUnless##Trap##Operator;
+#define CACHED_TRAP_UNLESS(Trap) \
+  TrapUnlessOperator<TrapId::k##Trap> kTrapUnless##Trap##Operator;
   CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS
 
@@ -973,10 +990,10 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       parameter);                                       // parameter
 }
 
-const Operator* CommonOperatorBuilder::TrapIf(int32_t trap_id) {
+const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {
   switch (trap_id) {
-#define CACHED_TRAP_IF(Trap)       \
-  case Builtins::kThrowWasm##Trap: \
+#define CACHED_TRAP_IF(Trap) \
+  case TrapId::k##Trap:      \
     return &cache_.kTrapIf##Trap##Operator;
     CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
 #undef CACHED_TRAP_IF
@@ -984,7 +1001,7 @@ const Operator* CommonOperatorBuilder::TrapIf(int32_t trap_id) {
       break;
   }
   // Uncached
-  return new (zone()) Operator1<int>(            // --
+  return new (zone()) Operator1<TrapId>(         // --
       IrOpcode::kTrapIf,                         // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapIf",                                  // name
@@ -992,10 +1009,10 @@ const Operator* CommonOperatorBuilder::TrapIf(int32_t trap_id) {
       trap_id);                                  // parameter
 }
 
-const Operator* CommonOperatorBuilder::TrapUnless(int32_t trap_id) {
+const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id) {
   switch (trap_id) {
-#define CACHED_TRAP_UNLESS(Trap)   \
-  case Builtins::kThrowWasm##Trap: \
+#define CACHED_TRAP_UNLESS(Trap) \
+  case TrapId::k##Trap:          \
     return &cache_.kTrapUnless##Trap##Operator;
     CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS
@@ -1003,7 +1020,7 @@ const Operator* CommonOperatorBuilder::TrapUnless(int32_t trap_id) {
       break;
   }
   // Uncached
-  return new (zone()) Operator1<int>(            // --
+  return new (zone()) Operator1<TrapId>(         // --
       IrOpcode::kTrapUnless,                     // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapUnless",                              // name

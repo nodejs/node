@@ -25,8 +25,6 @@ BOOL_ACCESSORS(Symbol, flags, is_well_known_symbol, kWellKnownSymbolBit)
 BOOL_ACCESSORS(Symbol, flags, is_public, kPublicBit)
 BOOL_ACCESSORS(Symbol, flags, is_interesting_symbol, kInterestingSymbolBit)
 
-TYPE_CHECKER(Symbol, SYMBOL_TYPE)
-
 bool Symbol::is_private_field() const {
   bool value = BooleanBit::get(flags(), kPrivateFieldBit);
   DCHECK_IMPLIES(value, is_private());
@@ -71,13 +69,13 @@ bool Name::Equals(Name* other) {
   return String::cast(this)->SlowEquals(String::cast(other));
 }
 
-bool Name::Equals(Handle<Name> one, Handle<Name> two) {
+bool Name::Equals(Isolate* isolate, Handle<Name> one, Handle<Name> two) {
   if (one.is_identical_to(two)) return true;
   if ((one->IsInternalizedString() && two->IsInternalizedString()) ||
       one->IsSymbol() || two->IsSymbol()) {
     return false;
   }
-  return String::SlowEquals(Handle<String>::cast(one),
+  return String::SlowEquals(isolate, Handle<String>::cast(one),
                             Handle<String>::cast(two));
 }
 
@@ -92,7 +90,10 @@ uint32_t Name::Hash() {
   uint32_t field = hash_field();
   if (IsHashFieldComputed(field)) return field >> kHashShift;
   // Slow case: compute hash code and set it. Has to be a string.
-  return String::cast(this)->ComputeAndSetHash();
+  // Also the string must be writable, because read-only strings will have their
+  // hash values precomputed.
+  return String::cast(this)->ComputeAndSetHash(
+      Heap::FromWritableHeapObject(this)->isolate());
 }
 
 bool Name::IsInterestingSymbol() const {

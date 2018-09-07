@@ -715,9 +715,10 @@ TEST(CanonicalHandleScope) {
   CHECK_EQ(next_handle, isolate->handle_scope_data()->next);
 
   // Deduplicate root list items.
-  Handle<String> empty_string(heap->empty_string());
-  Handle<Map> free_space_map(heap->free_space_map());
-  Handle<Symbol> uninitialized_symbol(heap->uninitialized_symbol());
+  Handle<String> empty_string(ReadOnlyRoots(heap).empty_string(), isolate);
+  Handle<Map> free_space_map(ReadOnlyRoots(heap).free_space_map(), isolate);
+  Handle<Symbol> uninitialized_symbol(
+      ReadOnlyRoots(heap).uninitialized_symbol(), isolate);
   CHECK_EQ(isolate->factory()->empty_string().location(),
            empty_string.location());
   CHECK_EQ(isolate->factory()->free_space_map().location(),
@@ -732,13 +733,13 @@ TEST(CanonicalHandleScope) {
   Handle<String> string1 =
       isolate->factory()->NewStringFromAsciiChecked("test");
   next_handle = isolate->handle_scope_data()->next;
-  Handle<HeapNumber> number2(*number1);
-  Handle<String> string2(*string1);
+  Handle<HeapNumber> number2(*number1, isolate);
+  Handle<String> string2(*string1, isolate);
   CHECK_EQ(number1.location(), number2.location());
   CHECK_EQ(string1.location(), string2.location());
   CcTest::CollectAllGarbage();
-  Handle<HeapNumber> number3(*number2);
-  Handle<String> string3(*string2);
+  Handle<HeapNumber> number3(*number2, isolate);
+  Handle<String> string3(*string2, isolate);
   CHECK_EQ(number1.location(), number3.location());
   CHECK_EQ(string1.location(), string3.location());
   // Check that no new handles have been allocated.
@@ -747,23 +748,23 @@ TEST(CanonicalHandleScope) {
   // Inner handle scope do not create canonical handles.
   {
     HandleScope inner(isolate);
-    Handle<HeapNumber> number4(*number1);
-    Handle<String> string4(*string1);
+    Handle<HeapNumber> number4(*number1, isolate);
+    Handle<String> string4(*string1, isolate);
     CHECK_NE(number1.location(), number4.location());
     CHECK_NE(string1.location(), string4.location());
 
     // Nested canonical scope does not conflict with outer canonical scope,
     // but does not canonicalize across scopes.
     CanonicalHandleScope inner_canonical(isolate);
-    Handle<HeapNumber> number5(*number4);
-    Handle<String> string5(*string4);
+    Handle<HeapNumber> number5(*number4, isolate);
+    Handle<String> string5(*string4, isolate);
     CHECK_NE(number4.location(), number5.location());
     CHECK_NE(string4.location(), string5.location());
     CHECK_NE(number1.location(), number5.location());
     CHECK_NE(string1.location(), string5.location());
 
-    Handle<HeapNumber> number6(*number1);
-    Handle<String> string6(*string1);
+    Handle<HeapNumber> number6(*number1, isolate);
+    Handle<String> string6(*string1, isolate);
     CHECK_NE(number4.location(), number6.location());
     CHECK_NE(string4.location(), string6.location());
     CHECK_NE(number1.location(), number6.location());

@@ -176,19 +176,21 @@ TF_BUILTIN(ReturnReceiver, CodeStubAssembler) {
 
 TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   Label tailcall_to_shared(this);
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
   TNode<Int32T> arg_count =
-      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
-  TNode<JSFunction> function = CAST(LoadFromFrame(
-      StandardFrameConstants::kFunctionOffset, MachineType::TaggedPointer()));
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kJSTarget));
 
   // Check break-at-entry flag on the debug info.
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Object> maybe_debug_info =
-      LoadObjectField(shared, SharedFunctionInfo::kDebugInfoOffset);
-  GotoIf(TaggedIsSmi(maybe_debug_info), &tailcall_to_shared);
+  TNode<Object> maybe_heap_object_or_smi = LoadObjectField(
+      shared, SharedFunctionInfo::kFunctionIdentifierOrDebugInfoOffset);
+  TNode<HeapObject> maybe_debug_info =
+      TaggedToHeapObject(maybe_heap_object_or_smi, &tailcall_to_shared);
+  GotoIfNot(HasInstanceType(maybe_debug_info, InstanceType::DEBUG_INFO_TYPE),
+            &tailcall_to_shared);
 
   {
     TNode<DebugInfo> debug_info = CAST(maybe_debug_info);
@@ -204,11 +206,7 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   BIND(&tailcall_to_shared);
   // Tail call into code object on the SharedFunctionInfo.
   TNode<Code> code = GetSharedFunctionInfoCode(shared);
-  // Use the ConstructTrampolineDescriptor because it passes new.target too in
-  // case this is called during construct.
-  CSA_ASSERT(this, IsCode(code));
-  ConstructTrampolineDescriptor descriptor(isolate());
-  TailCallStub(descriptor, code, context, function, new_target, arg_count);
+  TailCallJSCode(code, context, function, new_target, arg_count);
 }
 
 class RecordWriteCodeStubAssembler : public CodeStubAssembler {
@@ -228,48 +226,6 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
                        IntPtrConstant(MemoryChunk::kFlagsOffset));
     return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
                         IntPtrConstant(0));
-  }
-
-  void GotoIfNotBlack(Node* object, Label* not_black) {
-    Label exit(this);
-    Label* black = &exit;
-
-    DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-
-    Node* cell;
-    Node* mask;
-
-    GetMarkBit(object, &cell, &mask);
-    mask = TruncateIntPtrToInt32(mask);
-
-    Node* bits = Load(MachineType::Int32(), cell);
-    Node* bit_0 = Word32And(bits, mask);
-
-    GotoIf(Word32Equal(bit_0, Int32Constant(0)), not_black);
-
-    mask = Word32Shl(mask, Int32Constant(1));
-
-    Label word_boundary(this), in_word(this);
-
-    // If mask becomes zero, we know mask was `1 << 31`, i.e., the bit is on
-    // word boundary. Otherwise, the bit is within the word.
-    Branch(Word32Equal(mask, Int32Constant(0)), &word_boundary, &in_word);
-
-    BIND(&word_boundary);
-    {
-      Node* bit_1 = Word32And(
-          Load(MachineType::Int32(), IntPtrAdd(cell, IntPtrConstant(4))),
-          Int32Constant(1));
-      Branch(Word32Equal(bit_1, Int32Constant(0)), not_black, black);
-    }
-
-    BIND(&in_word);
-    {
-      Branch(Word32Equal(Word32And(bits, mask), Int32Constant(0)), not_black,
-             black);
-    }
-
-    BIND(&exit);
   }
 
   Node* IsWhite(Node* object) {
@@ -445,10 +401,6 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   BIND(&incremental_wb);
   {
     Label call_incremental_wb(this);
-
-#ifndef V8_CONCURRENT_MARKING
-    GotoIfNotBlack(object, &exit);
-#endif
 
     // There are two cases we need to call incremental write barrier.
     // 1) value_is_white
@@ -692,7 +644,60 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
     StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
                         TheHoleConstant());
   }
+
+  template <typename Descriptor>
+  void GenerateAdaptorWithExitFrameType(
+      Builtins::ExitFrameType exit_frame_type);
 };
+
+template <typename Descriptor>
+void InternalBuiltinsAssembler::GenerateAdaptorWithExitFrameType(
+    Builtins::ExitFrameType exit_frame_type) {
+  TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<WordT> c_function =
+      UncheckedCast<WordT>(Parameter(Descriptor::kCFunction));
+
+  // The logic contained here is mirrored for TurboFan inlining in
+  // JSTypedLowering::ReduceJSCall{Function,Construct}. Keep these in sync.
+
+  // Make sure we operate in the context of the called function (for example
+  // ConstructStubs implemented in C++ will be run in the context of the caller
+  // instead of the callee, due to the way that [[Construct]] is defined for
+  // ordinary functions).
+  TNode<Context> context =
+      CAST(LoadObjectField(target, JSFunction::kContextOffset));
+
+  // Update arguments count for CEntry to contain the number of arguments
+  // including the receiver and the extra arguments.
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  argc = Int32Add(
+      argc,
+      Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
+
+  TNode<Code> code = HeapConstant(
+      CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                          exit_frame_type == Builtins::BUILTIN_EXIT));
+
+  // Unconditionally push argc, target and new target as extra stack arguments.
+  // They will be used by stack frame iterators when constructing stack trace.
+  TailCallStub(CEntry1ArgvOnStackDescriptor{},  // descriptor
+               code, context,       // standard arguments for TailCallStub
+               argc, c_function,    // register arguments
+               TheHoleConstant(),   // additional stack argument 1 (padding)
+               SmiFromInt32(argc),  // additional stack argument 2
+               target,              // additional stack argument 3
+               new_target);         // additional stack argument 4
+}
+
+TF_BUILTIN(AdaptorWithExitFrame, InternalBuiltinsAssembler) {
+  GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::EXIT);
+}
+
+TF_BUILTIN(AdaptorWithBuiltinExitFrame, InternalBuiltinsAssembler) {
+  GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::BUILTIN_EXIT);
+}
 
 TNode<IntPtrT> InternalBuiltinsAssembler::GetPendingMicrotaskCount() {
   auto ref = ExternalReference::pending_microtask_count_address(isolate());
@@ -792,7 +797,8 @@ void InternalBuiltinsAssembler::RunPromiseHook(
     Runtime::FunctionId id, TNode<Context> context,
     SloppyTNode<HeapObject> promise_or_capability) {
   Label hook(this, Label::kDeferred), done_hook(this);
-  Branch(IsPromiseHookEnabledOrDebugIsActive(), &hook, &done_hook);
+  GotoIf(IsDebugActive(), &hook);
+  Branch(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &hook, &done_hook);
   BIND(&hook);
   {
     // Get to the underlying JSPromise instance.
@@ -1091,10 +1097,31 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
   }
 }
 
+TF_BUILTIN(AllocateInNewSpace, CodeStubAssembler) {
+  TNode<Int32T> requested_size =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kRequestedSize));
+
+  TailCallRuntime(Runtime::kAllocateInNewSpace, NoContextConstant(),
+                  SmiFromInt32(requested_size));
+}
+
+TF_BUILTIN(AllocateInOldSpace, CodeStubAssembler) {
+  TNode<Int32T> requested_size =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kRequestedSize));
+
+  int flags = AllocateTargetSpace::encode(OLD_SPACE);
+  TailCallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
+                  SmiFromInt32(requested_size), SmiConstant(flags));
+}
+
+TF_BUILTIN(Abort, CodeStubAssembler) {
+  TNode<Smi> message_id = CAST(Parameter(Descriptor::kMessageOrMessageId));
+  TailCallRuntime(Runtime::kAbort, NoContextConstant(), message_id);
+}
+
 TF_BUILTIN(AbortJS, CodeStubAssembler) {
-  Node* message = Parameter(Descriptor::kObject);
-  Node* reason = SmiConstant(0);
-  TailCallRuntime(Runtime::kAbortJS, reason, message);
+  TNode<String> message = CAST(Parameter(Descriptor::kMessageOrMessageId));
+  TailCallRuntime(Runtime::kAbortJS, NoContextConstant(), message);
 }
 
 void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
@@ -1147,6 +1174,34 @@ void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit(
 void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit(
     MacroAssembler* masm) {
   Generate_CEntry(masm, 2, kSaveFPRegs, kArgvOnStack, true);
+}
+
+void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
+  // CallApiGetterStub only exists as a stub to avoid duplicating code between
+  // here and code-stubs-<arch>.cc. For example, see CallApiFunctionAndReturn.
+  // Here we abuse the instantiated stub to generate code.
+  CallApiGetterStub stub(masm->isolate());
+  stub.Generate(masm);
+}
+
+void Builtins::Generate_CallApiCallback_Argc0(MacroAssembler* masm) {
+  // The common variants of CallApiCallbackStub (i.e. all that are embedded into
+  // the snapshot) are generated as builtins. The rest remain available as code
+  // stubs. Here we abuse the instantiated stub to generate code and avoid
+  // duplication.
+  const int kArgc = 0;
+  CallApiCallbackStub stub(masm->isolate(), kArgc);
+  stub.Generate(masm);
+}
+
+void Builtins::Generate_CallApiCallback_Argc1(MacroAssembler* masm) {
+  // The common variants of CallApiCallbackStub (i.e. all that are embedded into
+  // the snapshot) are generated as builtins. The rest remain available as code
+  // stubs. Here we abuse the instantiated stub to generate code and avoid
+  // duplication.
+  const int kArgc = 1;
+  CallApiCallbackStub stub(masm->isolate(), kArgc);
+  stub.Generate(masm);
 }
 
 // ES6 [[Get]] operation.

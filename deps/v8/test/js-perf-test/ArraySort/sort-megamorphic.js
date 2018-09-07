@@ -15,6 +15,6 @@ function SetupMegamorphic() {
   Array.prototype.sort.call({});
 }
 
-benchy('Base', Sort, SetupMegamorphic);
-benchy('MultipleCompareFns', CreateSortFn([cmp_smaller, cmp_greater]),
-       SetupMegamorphic);
+createSortSuite('Base', 1000, Sort, SetupMegamorphic);
+createSortSuite('MultipleCompareFns', 1000,
+    CreateSortFn([cmp_smaller, cmp_greater]), SetupMegamorphic);

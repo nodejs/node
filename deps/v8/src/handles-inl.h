@@ -35,9 +35,6 @@ HandleScope::HandleScope(Isolate* isolate) {
 }
 
 template <typename T>
-Handle<T>::Handle(T* object) : Handle(object, object->GetIsolate()) {}
-
-template <typename T>
 Handle<T>::Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
 
 template <typename T>

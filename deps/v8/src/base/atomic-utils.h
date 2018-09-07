@@ -15,46 +15,6 @@ namespace v8 {
 namespace base {
 
 // Deprecated. Use std::atomic<T> for new code.
-template <class T>
-class AtomicNumber {
- public:
-  AtomicNumber() : value_(0) {}
-  explicit AtomicNumber(T initial) : value_(initial) {}
-
-  // Returns the value after incrementing.
-  V8_INLINE T Increment(T increment) {
-    return static_cast<T>(base::Barrier_AtomicIncrement(
-        &value_, static_cast<base::AtomicWord>(increment)));
-  }
-
-  // Returns the value after decrementing.
-  V8_INLINE T Decrement(T decrement) {
-    return static_cast<T>(base::Barrier_AtomicIncrement(
-        &value_, -static_cast<base::AtomicWord>(decrement)));
-  }
-
-  V8_INLINE T Value() const {
-    return static_cast<T>(base::Acquire_Load(&value_));
-  }
-
-  V8_INLINE void SetValue(T new_value) {
-    base::Release_Store(&value_, static_cast<base::AtomicWord>(new_value));
-  }
-
-  V8_INLINE T operator=(T value) {
-    SetValue(value);
-    return value;
-  }
-
-  V8_INLINE T operator+=(T value) { return Increment(value); }
-  V8_INLINE T operator-=(T value) { return Decrement(value); }
-
- private:
-  STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
-
-  base::AtomicWord value_;
-};
-
 // Flag using T atomically. Also accepts void* as T.
 template <typename T>
 class AtomicValue {

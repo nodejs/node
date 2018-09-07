@@ -22,4 +22,6 @@ per-file wasm-*=kschimpf@chromium.org
 
 per-file int64-lowering.*=ahaas@chromium.org
 
+per-file simd-scalar-lowering.*=aseemgarg@chromium.org
+
 # COMPONENT: Blink>JavaScript>Compiler

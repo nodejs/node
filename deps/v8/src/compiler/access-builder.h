@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForJSObjectElements();
 
   // Provides access to JSObject inobject property fields.
-  static FieldAccess ForJSObjectInObjectProperty(Handle<Map> map, int index);
+  static FieldAccess ForJSObjectInObjectProperty(const MapRef& map, int index);
   static FieldAccess ForJSObjectOffset(
       int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
@@ -94,8 +94,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSGeneratorObject::input_or_debug_pos() field.
   static FieldAccess ForJSGeneratorObjectInputOrDebugPos();
 
-  // Provides access to JSGeneratorObject::register_file() field.
-  static FieldAccess ForJSGeneratorObjectRegisterFile();
+  // Provides access to JSGeneratorObject::parameters_and_registers() field.
+  static FieldAccess ForJSGeneratorObjectParametersAndRegisters();
 
   // Provides access to JSGeneratorObject::function() field.
   static FieldAccess ForJSGeneratorObjectFunction();

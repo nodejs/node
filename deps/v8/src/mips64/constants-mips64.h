@@ -84,8 +84,10 @@ const uint32_t kMipsSdlOffset = 0;
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
 const uint32_t kLeastSignificantByteInInt32Offset = 0;
+const uint32_t kLessSignificantWordInDoublewordOffset = 0;
 #elif defined(V8_TARGET_BIG_ENDIAN)
 const uint32_t kLeastSignificantByteInInt32Offset = 3;
+const uint32_t kLessSignificantWordInDoublewordOffset = 4;
 #else
 #error Unknown endianness
 #endif
@@ -94,7 +96,6 @@ const uint32_t kLeastSignificantByteInInt32Offset = 3;
 #define __STDC_FORMAT_MACROS
 #endif
 #include <inttypes.h>
-
 
 // Defines constants and accessor classes to assemble, disassemble and
 // simulate MIPS32 instructions.
@@ -105,6 +106,9 @@ const uint32_t kLeastSignificantByteInInt32Offset = 3;
 
 namespace v8 {
 namespace internal {
+
+// TODO(sigurds): Change this value once we use relative jumps.
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
 
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.
@@ -179,6 +183,11 @@ const int32_t kPrefHintLoadRetained = 6;
 const int32_t kPrefHintStoreRetained = 7;
 const int32_t kPrefHintWritebackInvalidate = 25;
 const int32_t kPrefHintPrepareForStore = 30;
+
+// Actual value of root register is offset from the root array's start
+// to take advantage of negative displacement values.
+// TODO(sigurds): Choose best value.
+constexpr int kRootRegisterBias = 256;
 
 // Helper functions for converting between register numbers and names.
 class Registers {

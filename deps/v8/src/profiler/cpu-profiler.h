@@ -53,35 +53,35 @@ class CodeEventRecord {
 
 class CodeCreateEventRecord : public CodeEventRecord {
  public:
-  Address instruction_start;
+  Address start;
   CodeEntry* entry;
-  unsigned instruction_size;
+  unsigned size;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 
 class CodeMoveEventRecord : public CodeEventRecord {
  public:
-  Address from_instruction_start;
-  Address to_instruction_start;
+  Address from;
+  Address to;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 
 class CodeDisableOptEventRecord : public CodeEventRecord {
  public:
-  Address instruction_start;
+  Address start;
   const char* bailout_reason;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 
 class CodeDeoptEventRecord : public CodeEventRecord {
  public:
-  Address instruction_start;
+  Address start;
   const char* deopt_reason;
   int deopt_id;
   Address pc;
@@ -89,16 +89,16 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   CpuProfileDeoptFrame* deopt_frames;
   int deopt_frame_count;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 
 class ReportBuiltinEventRecord : public CodeEventRecord {
  public:
-  Address instruction_start;
+  Address start;
   Builtins::Name builtin_id;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 
@@ -140,7 +140,7 @@ class ProfilerEventsProcessor : public base::Thread {
   // Thread control.
   virtual void Run();
   void StopSynchronously();
-  INLINE(bool running()) { return !!base::Relaxed_Load(&running_); }
+  V8_INLINE bool running() { return !!base::Relaxed_Load(&running_); }
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into tick sample events buffer.
@@ -183,7 +183,7 @@ class ProfilerEventsProcessor : public base::Thread {
   SamplingCircularQueue<TickSampleEventRecord,
                         kTickSampleQueueLength> ticks_buffer_;
   LockedQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
-  base::AtomicNumber<unsigned> last_code_event_id_;
+  std::atomic<unsigned> last_code_event_id_;
   unsigned last_processed_code_event_id_;
 };
 

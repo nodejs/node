@@ -58,22 +58,53 @@ class GlobalTimeline extends HTMLElement {
   }
 
   getFieldData() {
-    const labels = ['Time', 'Ptr compression benefit', 'Embedder fields',
-                    'Tagged fields', 'Other raw fields', 'Unboxed doubles'];
+    const labels = [
+      {type: 'number', label: 'Time'},
+      {type: 'number', label: 'Ptr compression benefit'},
+      {type: 'string', role: 'tooltip'},
+      {type: 'number', label: 'Embedder fields'},
+      {type: 'number', label: 'Tagged fields'},
+      {type: 'number', label: 'Other raw fields'},
+      {type: 'number', label: 'Unboxed doubles'}
+    ];
     const chart_data = [labels];
     const isolate_data = this.data[this.selection.isolate];
+    let sum_total = 0;
+    let sum_ptr_compr_benefit_perc = 0;
+    let count = 0;
     Object.keys(isolate_data.gcs).forEach(gc_key => {
       const gc_data = isolate_data.gcs[gc_key];
       const data_set = gc_data[this.selection.data_set].field_data;
       const data = [];
       data.push(gc_data.time * kMillis2Seconds);
-      data.push(data_set.tagged_fields / KB / 2);  // Pointer compression benefit
+      const total = data_set.tagged_fields +
+                    data_set.embedder_fields +
+                    data_set.other_raw_fields +
+                    data_set.unboxed_double_fields;
+      const ptr_compr_benefit = data_set.tagged_fields / 2;
+      const ptr_compr_benefit_perc = ptr_compr_benefit / total * 100;
+      sum_total += total;
+      sum_ptr_compr_benefit_perc += ptr_compr_benefit_perc;
+      count++;
+      const tooltip = "Ptr compression benefit: " +
+                      (ptr_compr_benefit / KB).toFixed(2) + "KB " +
+                      " (" + ptr_compr_benefit_perc.toFixed(2) + "%)";
+      data.push(ptr_compr_benefit / KB);
+      data.push(tooltip);
       data.push(data_set.embedder_fields / KB);
       data.push(data_set.tagged_fields / KB);
       data.push(data_set.other_raw_fields / KB);
       data.push(data_set.unboxed_double_fields / KB);
       chart_data.push(data);
     });
+    const avg_ptr_compr_benefit_perc =
+        count ? sum_ptr_compr_benefit_perc / count : 0;
+    console.log("==================================================");
+    console.log("= Average ptr compression benefit is " +
+                avg_ptr_compr_benefit_perc.toFixed(2) + "%");
+    console.log("= Average V8 heap size " +
+                (sum_total / count / KB).toFixed(2) + " KB");
+    console.log("==================================================");
     return chart_data;
   }
 

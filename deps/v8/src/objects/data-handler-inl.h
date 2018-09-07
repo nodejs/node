@@ -26,8 +26,8 @@ int DataHandler::data_field_count() const {
   return (map()->instance_size() - kSizeWithData0) / kPointerSize;
 }
 
-ACCESSORS_CHECKED(DataHandler, data1, Object, kData1Offset,
-                  map()->instance_size() >= kSizeWithData1)
+WEAK_ACCESSORS_CHECKED(DataHandler, data1, kData1Offset,
+                       map()->instance_size() >= kSizeWithData1)
 ACCESSORS_CHECKED(DataHandler, data2, Object, kData2Offset,
                   map()->instance_size() >= kSizeWithData2)
 ACCESSORS_CHECKED(DataHandler, data3, Object, kData3Offset,

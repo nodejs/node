@@ -140,8 +140,13 @@ class FeedbackMetadata;
 //  - optimized code cell (weak cell or Smi marker)
 // followed by an array of feedback slots, of length determined by the feedback
 // metadata.
-class FeedbackVector : public HeapObject {
+class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
  public:
+  // Use the mixin methods over the HeapObject methods.
+  // TODO(v8:7786) Remove once the HeapObject methods are gone.
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   // Casting.
   static inline FeedbackVector* cast(Object* obj);
 
@@ -243,12 +248,7 @@ class FeedbackVector : public HeapObject {
     return GetLanguageModeFromSlotKind(GetKind(slot));
   }
 
-#ifdef OBJECT_PRINT
-  // For gdb debugging.
-  void Print();
-#endif  // OBJECT_PRINT
-
-  static void AssertNoLegacyTypes(Object* object);
+  static void AssertNoLegacyTypes(MaybeObject* object);
 
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
@@ -445,11 +445,6 @@ class FeedbackMetadata : public HeapObject {
   V8_EXPORT_PRIVATE static Handle<FeedbackMetadata> New(
       Isolate* isolate, const FeedbackVectorSpec* spec = nullptr);
 
-#ifdef OBJECT_PRINT
-  // For gdb debugging.
-  void Print();
-#endif  // OBJECT_PRINT
-
   DECL_PRINTER(FeedbackMetadata)
   DECL_VERIFIER(FeedbackMetadata)
 
@@ -609,7 +604,7 @@ class FeedbackNexus final {
   void ConfigurePremonomorphic();
   bool ConfigureMegamorphic(IcCheckType property_type);
 
-  inline Object* GetFeedback() const;
+  inline MaybeObject* GetFeedback() const;
   inline MaybeObject* GetFeedbackExtra() const;
 
   inline Isolate* GetIsolate() const;
@@ -683,6 +678,8 @@ class FeedbackNexus final {
 
  protected:
   inline void SetFeedback(Object* feedback,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void SetFeedback(MaybeObject* feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetFeedbackExtra(Object* feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

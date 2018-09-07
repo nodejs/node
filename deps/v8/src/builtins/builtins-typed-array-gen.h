@@ -5,15 +5,15 @@
 #ifndef V8_BUILTINS_BUILTINS_TYPED_ARRAY_GEN_H_
 #define V8_BUILTINS_BUILTINS_TYPED_ARRAY_GEN_H_
 
-#include "src/code-stub-assembler.h"
+#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
 
-class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
+class TypedArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
  public:
   explicit TypedArrayBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+      : BaseBuiltinsFromDSLAssembler(state) {}
 
   TNode<JSTypedArray> SpeciesCreateByLength(TNode<Context> context,
                                             TNode<JSTypedArray> exemplar,
@@ -71,15 +71,8 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   // Returns true if kind is either BIGINT64_ELEMENTS or BIGUINT64_ELEMENTS.
   TNode<Word32T> IsBigInt64ElementsKind(TNode<Word32T> kind);
 
-  // Loads the element kind of TypedArray instance.
-  TNode<Word32T> LoadElementsKind(TNode<JSTypedArray> typed_array);
-
   // Returns the byte size of an element for a TypedArray elements kind.
   TNode<IntPtrT> GetTypedArrayElementSize(TNode<Word32T> elements_kind);
-
-  TNode<Smi> LoadTypedArrayLength(TNode<JSTypedArray> typed_array) {
-    return LoadObjectField<Smi>(typed_array, JSTypedArray::kLengthOffset);
-  }
 
   TNode<JSArrayBuffer> LoadTypedArrayBuffer(TNode<JSTypedArray> typed_array) {
     return LoadObjectField<JSArrayBuffer>(typed_array,
@@ -141,10 +134,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void DispatchTypedArrayByElementsKind(
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
-
-  // Returns true iff number is NaN.
-  // TOOD(szuend): Remove when UncheckedCasts are supported in Torque.
-  TNode<BoolT> NumberIsNaN(TNode<Number> number);
 };
 
 }  // namespace internal

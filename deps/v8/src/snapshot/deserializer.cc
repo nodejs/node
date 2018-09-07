@@ -45,7 +45,7 @@ bool Deserializer<AllocatorT>::IsLazyDeserializationEnabled() const {
 template <class AllocatorT>
 void Deserializer<AllocatorT>::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
-  for (const auto& item : to_rehash_) item->RehashBasedOnMap();
+  for (const auto& item : to_rehash_) item->RehashBasedOnMap(isolate());
 }
 
 template <class AllocatorT>
@@ -161,14 +161,18 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
 
         if (canonical != nullptr) return canonical;
 
-        new_internalized_strings_.push_back(handle(string));
+        new_internalized_strings_.push_back(handle(string, isolate_));
         return string;
       }
     } else if (obj->IsScript()) {
-      new_scripts_.push_back(handle(Script::cast(obj)));
+      new_scripts_.push_back(handle(Script::cast(obj), isolate_));
     } else {
       DCHECK(CanBeDeferred(obj));
     }
+  } else if (obj->IsScript()) {
+    LOG(isolate_, ScriptEvent(Logger::ScriptEventType::kDeserialize,
+                              Script::cast(obj)->id()));
+    LOG(isolate_, ScriptDetails(Script::cast(obj)));
   }
 
   if (obj->IsAllocationSite()) {
@@ -179,7 +183,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     // as a (weak) root. If this root is relocated correctly, this becomes
     // unnecessary.
     if (isolate_->heap()->allocation_sites_list() == Smi::kZero) {
-      site->set_weak_next(isolate_->heap()->undefined_value());
+      site->set_weak_next(ReadOnlyRoots(isolate_).undefined_value());
     } else {
       site->set_weak_next(isolate_->heap()->allocation_sites_list());
     }
@@ -200,7 +204,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
 #endif
   } else if (obj->IsExternalString()) {
-    if (obj->map() == isolate_->heap()->native_source_string_map()) {
+    if (obj->map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
       ExternalOneByteString* string = ExternalOneByteString::cast(obj);
       DCHECK(string->is_short());
       string->set_resource(
@@ -273,33 +277,37 @@ int Deserializer<AllocatorT>::MaybeReplaceWithDeserializeLazy(int builtin_id) {
 template <class AllocatorT>
 HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
   HeapObject* obj;
-  SerializerReference back_reference =
-      SerializerReference::FromBitfield(source_.GetInt());
-
   switch (space) {
     case LO_SPACE:
-      obj = allocator()->GetLargeObject(back_reference.large_object_index());
+      obj = allocator()->GetLargeObject(source_.GetInt());
       break;
     case MAP_SPACE:
-      obj = allocator()->GetMap(back_reference.map_index());
+      obj = allocator()->GetMap(source_.GetInt());
       break;
-    case RO_SPACE:
+    case RO_SPACE: {
+      uint32_t chunk_index = source_.GetInt();
+      uint32_t chunk_offset = source_.GetInt();
       if (isolate()->heap()->deserialization_complete()) {
         PagedSpace* read_only_space = isolate()->heap()->read_only_space();
-        Page* page = read_only_space->FirstPage();
-        for (uint32_t i = 0; i < back_reference.chunk_index(); ++i) {
+        Page* page = read_only_space->first_page();
+        for (uint32_t i = 0; i < chunk_index; ++i) {
           page = page->next_page();
         }
-        Address address = page->OffsetToAddress(back_reference.chunk_offset());
+        Address address = page->OffsetToAddress(chunk_offset);
         obj = HeapObject::FromAddress(address);
-        break;
+      } else {
+        obj = allocator()->GetObject(static_cast<AllocationSpace>(space),
+                                     chunk_index, chunk_offset);
       }
-      V8_FALLTHROUGH;
-    default:
-      obj = allocator()->GetObject(static_cast<AllocationSpace>(space),
-                                   back_reference.chunk_index(),
-                                   back_reference.chunk_offset());
       break;
+    }
+    default: {
+      uint32_t chunk_index = source_.GetInt();
+      uint32_t chunk_offset = source_.GetInt();
+      obj = allocator()->GetObject(static_cast<AllocationSpace>(space),
+                                   chunk_index, chunk_offset);
+      break;
+    }
   }
 
   if (deserializing_user_code() && obj->IsThinString()) {
@@ -530,7 +538,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       }
 
       case kOffHeapTarget: {
-#ifdef V8_EMBEDDED_BUILTINS
+        DCHECK(FLAG_embedded_builtins);
         int skip = source_.GetInt();
         int builtin_index = source_.GetInt();
         DCHECK(Builtins::IsBuiltinId(builtin_index));
@@ -558,9 +566,6 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
           UnalignedCopy(current, &o);
           current++;
         }
-#else
-        UNREACHABLE();
-#endif
         break;
       }
 
@@ -613,7 +618,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       case kVariableRepeat: {
         int repeats = source_.GetInt();
         MaybeObject* object = current[-1];
-        DCHECK(!isolate->heap()->InNewSpace(object));
+        DCHECK(!Heap::InNewSpace(object));
         DCHECK(!allocator()->next_reference_is_weak());
         for (int i = 0; i < repeats; i++) UnalignedCopy(current++, &object);
         break;
@@ -679,7 +684,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
         MaybeObject* object =
             MaybeObject::FromObject(isolate->heap()->root(root_index));
-        DCHECK(!isolate->heap()->InNewSpace(object));
+        DCHECK(!Heap::InNewSpace(object));
         DCHECK(!allocator()->next_reference_is_weak());
         UnalignedCopy(current++, &object);
         break;
@@ -704,7 +709,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         }
 
         UnalignedCopy(current, &hot_maybe_object);
-        if (write_barrier_needed && isolate->heap()->InNewSpace(hot_object)) {
+        if (write_barrier_needed && Heap::InNewSpace(hot_object)) {
           Address current_address = reinterpret_cast<Address>(current);
           isolate->heap()->RecordWrite(
               HeapObject::FromAddress(current_object_address),
@@ -732,7 +737,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         MaybeObject* object;
         DCHECK(!allocator()->next_reference_is_weak());
         UnalignedCopy(&object, current - 1);
-        DCHECK(!isolate->heap()->InNewSpace(object));
+        DCHECK(!Heap::InNewSpace(object));
         for (int i = 0; i < repeats; i++) UnalignedCopy(current++, &object);
         break;
       }
@@ -814,16 +819,16 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
       int id = source_.GetInt();
       Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
       new_object = isolate->heap()->root(root_index);
-      emit_write_barrier = isolate->heap()->InNewSpace(new_object);
+      emit_write_barrier = Heap::InNewSpace(new_object);
       hot_objects_.Add(HeapObject::cast(new_object));
     } else if (where == kPartialSnapshotCache) {
       int cache_index = source_.GetInt();
       new_object = isolate->partial_snapshot_cache()->at(cache_index);
-      emit_write_barrier = isolate->heap()->InNewSpace(new_object);
+      emit_write_barrier = Heap::InNewSpace(new_object);
     } else if (where == kAttachedReference) {
       int index = source_.GetInt();
       new_object = *attached_objects_[index];
-      emit_write_barrier = isolate->heap()->InNewSpace(new_object);
+      emit_write_barrier = Heap::InNewSpace(new_object);
     } else {
       DCHECK_EQ(where, kBuiltin);
       int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());

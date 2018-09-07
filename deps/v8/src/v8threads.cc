@@ -45,7 +45,7 @@ void Locker::Initialize(v8::Isolate* isolate) {
     } else {
       internal::ExecutionAccess access(isolate_);
       isolate_->stack_guard()->ClearThread(access);
-      isolate_->thread_manager()->InitThread(access);
+      isolate_->stack_guard()->InitThread(access);
     }
   }
   DCHECK(isolate_->thread_manager()->IsLockedByCurrentThread());
@@ -95,10 +95,6 @@ Unlocker::~Unlocker() {
 
 namespace internal {
 
-void ThreadManager::InitThread(const ExecutionAccess& lock) {
-  isolate_->stack_guard()->InitThread(lock);
-  isolate_->debug()->InitThread(lock);
-}
 
 bool ThreadManager::RestoreThread() {
   DCHECK(IsLockedByCurrentThread());
@@ -131,7 +127,7 @@ bool ThreadManager::RestoreThread() {
       isolate_->FindPerThreadDataForThisThread();
   if (per_thread == nullptr || per_thread->thread_state() == nullptr) {
     // This is a new thread.
-    InitThread(access);
+    isolate_->stack_guard()->InitThread(access);
     return false;
   }
   ThreadState* state = per_thread->thread_state();

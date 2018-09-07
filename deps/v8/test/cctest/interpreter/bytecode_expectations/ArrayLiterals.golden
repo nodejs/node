@@ -18,7 +18,7 @@ bytecodes: [
   /*   50 S> */ B(Return),
 ]
 constant pool: [
-  TUPLE2_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -49,7 +49,7 @@ bytecodes: [
   /*   65 S> */ B(Return),
 ]
 constant pool: [
-  TUPLE2_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -67,7 +67,7 @@ bytecodes: [
   /*   61 S> */ B(Return),
 ]
 constant pool: [
-  TUPLE2_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -110,9 +110,9 @@ bytecodes: [
   /*   76 S> */ B(Return),
 ]
 constant pool: [
-  TUPLE2_TYPE,
-  TUPLE2_TYPE,
-  TUPLE2_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]

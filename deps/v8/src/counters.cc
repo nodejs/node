@@ -215,24 +215,6 @@ Counters::Counters(Isolate* isolate)
         Histogram(histogram.caption, 1000, 500000, 50, this);
   }
 
-  // For n = 100, low = 4000, high = 2000000: the factor = 1.06.
-  static const struct {
-    Histogram Counters::*member;
-    AggregatedMemoryHistogram<Histogram> Counters::*aggregated;
-    const char* caption;
-  } kMemoryHistograms[] = {
-#define HM(name, caption) \
-  {&Counters::name##_, &Counters::aggregated_##name##_, #caption},
-      HISTOGRAM_MEMORY_LIST(HM)
-#undef HM
-  };
-  for (const auto& histogram : kMemoryHistograms) {
-    this->*histogram.member =
-        Histogram(histogram.caption, 4000, 2000000, 100, this);
-    this->*histogram.aggregated =
-        AggregatedMemoryHistogram<Histogram>(&(this->*histogram.member));
-  }
-
   // clang-format off
   static const struct {
     StatsCounter Counters::*member;
@@ -323,7 +305,6 @@ void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
 
 #define HM(name, caption) name##_.Reset();
     HISTOGRAM_LEGACY_MEMORY_LIST(HM)
-    HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 }
 
@@ -508,7 +489,7 @@ bool RuntimeCallStats::IsCalledOnTheSameThread() {
 }
 
 void RuntimeCallStats::Print() {
-  OFStream os(stdout);
+  StdoutStream os;
   Print(os);
 }
 

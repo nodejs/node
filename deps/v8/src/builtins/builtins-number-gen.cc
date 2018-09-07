@@ -101,31 +101,8 @@ TF_BUILTIN(AllocateHeapNumber, CodeStubAssembler) {
 
 // ES6 #sec-number.isinteger
 TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
-  Node* number = Parameter(Descriptor::kNumber);
-
-  Label return_true(this), return_false(this);
-
-  // Check if {number} is a Smi.
-  GotoIf(TaggedIsSmi(number), &return_true);
-
-  // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumber(number), &return_false);
-
-  // Load the actual value of {number}.
-  Node* number_value = LoadHeapNumberValue(number);
-
-  // Truncate the value of {number} to an integer (or an infinity).
-  Node* integer = Float64Trunc(number_value);
-
-  // Check if {number}s value matches the integer (ruling out the infinities).
-  Branch(Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0)),
-         &return_true, &return_false);
-
-  BIND(&return_true);
-  Return(TrueConstant());
-
-  BIND(&return_false);
-  Return(FalseConstant());
+  TNode<Object> number = CAST(Parameter(Descriptor::kNumber));
+  Return(SelectBooleanConstant(IsInteger(number)));
 }
 
 // ES6 #sec-number.isnan
@@ -153,37 +130,8 @@ TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
 
 // ES6 #sec-number.issafeinteger
 TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
-  Node* number = Parameter(Descriptor::kNumber);
-
-  Label return_true(this), return_false(this);
-
-  // Check if {number} is a Smi.
-  GotoIf(TaggedIsSmi(number), &return_true);
-
-  // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumber(number), &return_false);
-
-  // Load the actual value of {number}.
-  Node* number_value = LoadHeapNumberValue(number);
-
-  // Truncate the value of {number} to an integer (or an infinity).
-  Node* integer = Float64Trunc(number_value);
-
-  // Check if {number}s value matches the integer (ruling out the infinities).
-  GotoIfNot(
-      Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0)),
-      &return_false);
-
-  // Check if the {integer} value is in safe integer range.
-  Branch(Float64LessThanOrEqual(Float64Abs(integer),
-                                Float64Constant(kMaxSafeInteger)),
-         &return_true, &return_false);
-
-  BIND(&return_true);
-  Return(TrueConstant());
-
-  BIND(&return_false);
-  Return(FalseConstant());
+  TNode<Object> number = CAST(Parameter(Descriptor::kNumber));
+  Return(SelectBooleanConstant(IsSafeInteger(number)));
 }
 
 // ES6 #sec-number.parsefloat

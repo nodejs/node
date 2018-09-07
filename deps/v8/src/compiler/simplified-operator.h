@@ -162,6 +162,29 @@ std::ostream& operator<<(std::ostream&, CheckParameters const&);
 
 CheckParameters const& CheckParametersOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
+class CheckIfParameters final {
+ public:
+  explicit CheckIfParameters(DeoptimizeReason reason,
+                             const VectorSlotPair& feedback)
+      : reason_(reason), feedback_(feedback) {}
+
+  VectorSlotPair const& feedback() const { return feedback_; }
+  DeoptimizeReason reason() const { return reason_; }
+
+ private:
+  DeoptimizeReason reason_;
+  VectorSlotPair feedback_;
+};
+
+bool operator==(CheckIfParameters const&, CheckIfParameters const&);
+
+size_t hash_value(CheckIfParameters const&);
+
+std::ostream& operator<<(std::ostream&, CheckIfParameters const&);
+
+CheckIfParameters const& CheckIfParametersOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
+
 enum class CheckFloat64HoleMode : uint8_t {
   kNeverReturnHole,  // Never return the hole (deoptimize instead).
   kAllowReturnHole   // Allow to return the hole (signaling NaN).
@@ -619,7 +642,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckEqualsSymbol();
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
   const Operator* CheckHeapObject();
-  const Operator* CheckIf(DeoptimizeReason deoptimize_reason);
+  const Operator* CheckIf(DeoptimizeReason deoptimize_reason,
+                          const VectorSlotPair& feedback = VectorSlotPair());
   const Operator* CheckInternalizedString();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
                             const VectorSlotPair& = VectorSlotPair());
@@ -735,8 +759,14 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);
 
+  // load-data-view-element buffer, [base + index]
+  const Operator* LoadDataViewElement(ExternalArrayType const&);
+
   // store-typed-element buffer, [base + external + index], value
   const Operator* StoreTypedElement(ExternalArrayType const&);
+
+  // store-data-view-element buffer, [base + index], value
+  const Operator* StoreDataViewElement(ExternalArrayType const&);
 
   // Abort (for terminating execution on internal error).
   const Operator* RuntimeAbort(AbortReason reason);

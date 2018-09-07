@@ -84,7 +84,7 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     // So let's try to fetch it using same logic as is used to retrieve 'this'
     // during DebugEvaluate::Local.
     Handle<JSFunction> function = frame_inspector_->GetFunction();
-    Handle<Context> context(function->context());
+    Handle<Context> context(function->context(), isolate_);
     // Arrow function defined in top level function without references to
     // variables may have NativeContext as context.
     if (!context->IsFunctionContext()) return v8::MaybeLocal<v8::Value>();
@@ -92,10 +92,11 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
                                  ScopeIterator::COLLECT_NON_LOCALS);
     // We lookup this variable in function context only when it is used in arrow
     // function otherwise V8 can optimize it out.
-    if (!scope_iterator.GetNonLocals()->Has(isolate_->factory()->this_string()))
+    if (!scope_iterator.GetNonLocals()->Has(isolate_,
+                                            isolate_->factory()->this_string()))
       return v8::MaybeLocal<v8::Value>();
 
-    Handle<ScopeInfo> scope_info(context->scope_info());
+    Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);
     VariableMode mode;
     InitializationFlag flag;
     MaybeAssignedFlag maybe_assigned_flag;

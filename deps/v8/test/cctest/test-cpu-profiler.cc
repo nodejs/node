@@ -176,29 +176,27 @@ TEST(CodeEvents) {
                                     "comment");
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code,
                                     "comment2");
-  profiler_listener.CodeMoveEvent(comment2_code, moved_code);
+  profiler_listener.CodeMoveEvent(comment2_code, moved_code->address());
 
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(processor, aaa_code->InstructionStart());
+  EnqueueTickSampleEvent(processor, aaa_code->address());
 
   isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
 
   // Check the state of profile generator.
-  CodeEntry* aaa =
-      generator->code_map()->FindEntry(aaa_code->InstructionStart());
+  CodeEntry* aaa = generator->code_map()->FindEntry(aaa_code->address());
   CHECK(aaa);
   CHECK_EQ(0, strcmp(aaa_str, aaa->name()));
 
   CodeEntry* comment =
-      generator->code_map()->FindEntry(comment_code->InstructionStart());
+      generator->code_map()->FindEntry(comment_code->address());
   CHECK(comment);
   CHECK_EQ(0, strcmp("comment", comment->name()));
 
-  CHECK(!generator->code_map()->FindEntry(comment2_code->InstructionStart()));
+  CHECK(!generator->code_map()->FindEntry(comment2_code->address()));
 
-  CodeEntry* comment2 =
-      generator->code_map()->FindEntry(moved_code->InstructionStart());
+  CodeEntry* comment2 = generator->code_map()->FindEntry(moved_code->address());
   CHECK(comment2);
   CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
@@ -300,11 +298,11 @@ TEST(Issue1398) {
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
   v8::TickSample* sample = processor->StartTickSample();
-  sample->pc = reinterpret_cast<void*>(code->InstructionStart());
+  sample->pc = reinterpret_cast<void*>(code->address());
   sample->tos = nullptr;
   sample->frames_count = v8::TickSample::kMaxFramesCount;
   for (unsigned i = 0; i < sample->frames_count; ++i) {
-    sample->stack[i] = reinterpret_cast<void*>(code->InstructionStart());
+    sample->stack[i] = reinterpret_cast<void*>(code->address());
   }
   processor->FinishTickSample();
 

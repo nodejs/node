@@ -208,7 +208,7 @@ class Marking : public AllStatic {
   // Impossible markbits: 01
   static const char* kImpossibleBitPattern;
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static bool IsImpossible(MarkBit mark_bit)) {
+  V8_INLINE static bool IsImpossible(MarkBit mark_bit) {
     if (mode == AccessMode::NON_ATOMIC) {
       return !mark_bit.Get<mode>() && mark_bit.Next().Get<mode>();
     }
@@ -226,14 +226,14 @@ class Marking : public AllStatic {
   // Black markbits: 11
   static const char* kBlackBitPattern;
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static bool IsBlack(MarkBit mark_bit)) {
+  V8_INLINE static bool IsBlack(MarkBit mark_bit) {
     return mark_bit.Get<mode>() && mark_bit.Next().Get<mode>();
   }
 
   // White markbits: 00 - this is required by the mark bit clearer.
   static const char* kWhiteBitPattern;
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static bool IsWhite(MarkBit mark_bit)) {
+  V8_INLINE static bool IsWhite(MarkBit mark_bit) {
     DCHECK(!IsImpossible<mode>(mark_bit));
     return !mark_bit.Get<mode>();
   }
@@ -241,19 +241,19 @@ class Marking : public AllStatic {
   // Grey markbits: 10
   static const char* kGreyBitPattern;
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static bool IsGrey(MarkBit mark_bit)) {
+  V8_INLINE static bool IsGrey(MarkBit mark_bit) {
     return mark_bit.Get<mode>() && !mark_bit.Next().Get<mode>();
   }
 
   // IsBlackOrGrey assumes that the first bit is set for black or grey
   // objects.
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static bool IsBlackOrGrey(MarkBit mark_bit)) {
+  V8_INLINE static bool IsBlackOrGrey(MarkBit mark_bit) {
     return mark_bit.Get<mode>();
   }
 
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static void MarkWhite(MarkBit markbit)) {
+  V8_INLINE static void MarkWhite(MarkBit markbit) {
     STATIC_ASSERT(mode == AccessMode::NON_ATOMIC);
     markbit.Clear<mode>();
     markbit.Next().Clear<mode>();
@@ -263,23 +263,23 @@ class Marking : public AllStatic {
   // If you know that nobody else will change the bits on the given location
   // then you may use it.
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static void MarkBlack(MarkBit markbit)) {
+  V8_INLINE static void MarkBlack(MarkBit markbit) {
     markbit.Set<mode>();
     markbit.Next().Set<mode>();
   }
 
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static bool WhiteToGrey(MarkBit markbit)) {
+  V8_INLINE static bool WhiteToGrey(MarkBit markbit) {
     return markbit.Set<mode>();
   }
 
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static bool WhiteToBlack(MarkBit markbit)) {
+  V8_INLINE static bool WhiteToBlack(MarkBit markbit) {
     return markbit.Set<mode>() && markbit.Next().Set<mode>();
   }
 
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static bool GreyToBlack(MarkBit markbit)) {
+  V8_INLINE static bool GreyToBlack(MarkBit markbit) {
     return markbit.Get<mode>() && markbit.Next().Set<mode>();
   }
 

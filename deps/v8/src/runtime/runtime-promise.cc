@@ -10,6 +10,7 @@
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-promise-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -35,7 +36,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
     isolate->ReportPromiseReject(promise, value,
                                  v8::kPromiseRejectWithNoHandler);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseRejectAfterResolved) {
@@ -45,7 +46,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectAfterResolved) {
   CONVERT_ARG_HANDLE_CHECKED(Object, reason, 1);
   isolate->ReportPromiseReject(promise, reason,
                                v8::kPromiseRejectAfterResolved);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseResolveAfterResolved) {
@@ -55,7 +56,7 @@ RUNTIME_FUNCTION(Runtime_PromiseResolveAfterResolved) {
   CONVERT_ARG_HANDLE_CHECKED(Object, resolution, 1);
   isolate->ReportPromiseReject(promise, resolution,
                                v8::kPromiseResolveAfterResolved);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
@@ -66,7 +67,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   CHECK(!promise->has_handler());
   isolate->ReportPromiseReject(promise, Handle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
@@ -76,14 +77,14 @@ RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   Handle<CallableTask> microtask =
       isolate->factory()->NewCallableTask(function, isolate->native_context());
   isolate->EnqueueMicrotask(microtask);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   isolate->RunMicrotasks();
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
@@ -95,7 +96,7 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
   void* data = ToCData<void*>(microtask_data);
   callback(data);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseStatus) {
@@ -119,7 +120,7 @@ RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
   CONVERT_ARG_CHECKED(JSPromise, promise, 0);
 
   promise->set_has_handler(true);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
@@ -128,35 +129,54 @@ RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, parent, 1);
   isolate->RunPromiseHook(PromiseHookType::kInit, promise, parent);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AwaitPromisesInit) {
+  DCHECK_EQ(3, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, wrapped_value, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, outer_promise, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, throwaway, 2);
+  isolate->RunPromiseHook(PromiseHookType::kInit, wrapped_value, outer_promise);
+  isolate->RunPromiseHook(PromiseHookType::kInit, throwaway, wrapped_value);
+  // On inspector side we capture async stack trace and store it by
+  // outer_promise->async_task_id when async function is suspended first time.
+  // To use captured stack trace later throwaway promise should have the same
+  // async_task_id as outer_promise since we generate WillHandle and DidHandle
+  // events using throwaway promise.
+  throwaway->set_async_task_id(outer_promise->async_task_id());
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, maybe_promise, 0);
-  if (!maybe_promise->IsJSPromise()) return isolate->heap()->undefined_value();
+  if (!maybe_promise->IsJSPromise())
+    return ReadOnlyRoots(isolate).undefined_value();
   Handle<JSPromise> promise = Handle<JSPromise>::cast(maybe_promise);
   if (isolate->debug()->is_active()) isolate->PushPromise(promise);
   if (promise->IsJSPromise()) {
     isolate->RunPromiseHook(PromiseHookType::kBefore, promise,
                             isolate->factory()->undefined_value());
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseHookAfter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, maybe_promise, 0);
-  if (!maybe_promise->IsJSPromise()) return isolate->heap()->undefined_value();
+  if (!maybe_promise->IsJSPromise())
+    return ReadOnlyRoots(isolate).undefined_value();
   Handle<JSPromise> promise = Handle<JSPromise>::cast(maybe_promise);
   if (isolate->debug()->is_active()) isolate->PopPromise();
   if (promise->IsJSPromise()) {
     isolate->RunPromiseHook(PromiseHookType::kAfter, promise,
                             isolate->factory()->undefined_value());
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_RejectPromise) {
@@ -165,7 +185,8 @@ RUNTIME_FUNCTION(Runtime_RejectPromise) {
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, reason, 1);
   CONVERT_ARG_HANDLE_CHECKED(Oddball, debug_event, 2);
-  return *JSPromise::Reject(promise, reason, debug_event->BooleanValue());
+  return *JSPromise::Reject(promise, reason,
+                            debug_event->BooleanValue(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_ResolvePromise) {

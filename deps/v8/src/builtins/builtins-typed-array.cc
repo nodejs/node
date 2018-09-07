@@ -95,7 +95,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   DCHECK_GE(len - count, 0);
 
   Handle<FixedTypedArrayBase> elements(
-      FixedTypedArrayBase::cast(array->elements()));
+      FixedTypedArrayBase::cast(array->elements()), isolate);
   size_t element_size = array->element_size();
   to = to * element_size;
   from = from * element_size;
@@ -122,7 +122,7 @@ BUILTIN(TypedArrayPrototypeFill) {
                                        BigInt::FromObject(isolate, obj_value));
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj_value,
-                                       Object::ToNumber(obj_value));
+                                       Object::ToNumber(isolate, obj_value));
   }
 
   int64_t len = array->length_value();
@@ -170,10 +170,10 @@ BUILTIN(TypedArrayPrototypeIncludes) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
 
-  if (args.length() < 2) return isolate->heap()->false_value();
+  if (args.length() < 2) return ReadOnlyRoots(isolate).false_value();
 
   int64_t len = array->length_value();
-  if (len == 0) return isolate->heap()->false_value();
+  if (len == 0) return ReadOnlyRoots(isolate).false_value();
 
   int64_t index = 0;
   if (args.length() > 2) {
@@ -184,14 +184,15 @@ BUILTIN(TypedArrayPrototypeIncludes) {
   }
 
   // TODO(cwhan.tunz): throw. See the above comment in CopyWithin.
-  if (V8_UNLIKELY(array->WasNeutered())) return isolate->heap()->false_value();
+  if (V8_UNLIKELY(array->WasNeutered()))
+    return ReadOnlyRoots(isolate).false_value();
 
   Handle<Object> search_element = args.atOrUndefined(isolate, 1);
   ElementsAccessor* elements = array->GetElementsAccessor();
   Maybe<bool> result = elements->IncludesValue(isolate, array, search_element,
                                                static_cast<uint32_t>(index),
                                                static_cast<uint32_t>(len));
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
@@ -222,7 +223,7 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
   Maybe<int64_t> result = elements->IndexOfValue(isolate, array, search_element,
                                                  static_cast<uint32_t>(index),
                                                  static_cast<uint32_t>(len));
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->NewNumberFromInt64(result.FromJust());
 }
 
@@ -256,7 +257,7 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
   ElementsAccessor* elements = array->GetElementsAccessor();
   Maybe<int64_t> result = elements->LastIndexOfValue(
       isolate, array, search_element, static_cast<uint32_t>(index));
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->NewNumberFromInt64(result.FromJust());
 }
 

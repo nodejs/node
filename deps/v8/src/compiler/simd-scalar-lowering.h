@@ -73,10 +73,8 @@ class SimdScalarLowering {
   void PreparePhiReplacement(Node* phi);
   void SetLoweredType(Node* node, Node* output);
   void GetIndexNodes(Node* index, Node** new_indices, SimdType type);
-  void LowerLoadOp(MachineRepresentation rep, Node* node,
-                   const Operator* load_op, SimdType type);
-  void LowerStoreOp(MachineRepresentation rep, Node* node,
-                    const Operator* store_op, SimdType rep_type);
+  void LowerLoadOp(Node* node, SimdType type);
+  void LowerStoreOp(Node* node);
   void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op,
                      bool not_horizontal = true);
   void LowerCompareOp(Node* node, SimdType input_rep_type, const Operator* op,
@@ -92,7 +90,8 @@ class SimdScalarLowering {
                       SimdType type);
   void LowerConvertFromFloat(Node* node, bool is_signed);
   void LowerConvertFromInt(Node* node, SimdType input_rep_type,
-                           SimdType output_rep_type, bool is_signed);
+                           SimdType output_rep_type, bool is_signed,
+                           int start_index);
   void LowerPack(Node* node, SimdType input_rep_type, SimdType output_rep_type,
                  bool is_signed);
   void LowerShiftOp(Node* node, SimdType type);

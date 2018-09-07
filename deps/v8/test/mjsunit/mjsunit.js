@@ -278,7 +278,7 @@ var prettyPrinted;
           case "Object":
             break;
           default:
-            return objectClass + "()";
+            return objectClass + "(" + String(value) + ")";
         }
         // [[Class]] is "Object".
         var name = value.constructor.name;
@@ -506,7 +506,7 @@ var prettyPrinted;
     try {
       fun();
     } catch(e) {
-      assertEquals(val, e);
+      assertSame(val, e);
       return;
     }
     failWithMessage("Did not throw exception");

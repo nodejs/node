@@ -49,7 +49,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreInArrayLiteralIC();
 
   void TryProbeStubCache(StubCache* stub_cache, Node* receiver, Node* name,
-                         Label* if_handler, Variable* var_handler,
+                         Label* if_handler, TVariable<MaybeObject>* var_handler,
                          Label* if_miss);
 
   Node* StubCachePrimaryOffsetForTesting(Node* name, Node* map) {
@@ -88,8 +88,8 @@ class AccessorAssembler : public CodeStubAssembler {
   void LoadIC_BytecodeHandler(const LoadICParameters* p, ExitPoint* exit_point);
 
   // Loads dataX field from the DataHandler object.
-  TNode<Object> LoadHandlerDataField(SloppyTNode<DataHandler> handler,
-                                     int data_index);
+  TNode<MaybeObject> LoadHandlerDataField(SloppyTNode<DataHandler> handler,
+                                          int data_index);
 
  protected:
   struct StoreICParameters : public LoadICParameters {
@@ -123,8 +123,8 @@ class AccessorAssembler : public CodeStubAssembler {
                                          Label* slow,
                                          bool do_transitioning_store);
 
-  void CheckFieldType(Node* descriptors, Node* name_index, Node* representation,
-                      Node* value, Label* bailout);
+  void CheckFieldType(TNode<DescriptorArray> descriptors, Node* name_index,
+                      Node* representation, Node* value, Label* bailout);
 
  private:
   // Stub generation entry points.
@@ -133,10 +133,13 @@ class AccessorAssembler : public CodeStubAssembler {
   // logic not inlined into Ignition bytecode handlers.
   void LoadIC(const LoadICParameters* p);
   void LoadIC_Noninlined(const LoadICParameters* p, Node* receiver_map,
-                         Node* feedback, Variable* var_handler,
-                         Label* if_handler, Label* miss, ExitPoint* exit_point);
+                         TNode<HeapObject> feedback,
+                         TVariable<MaybeObject>* var_handler, Label* if_handler,
+                         Label* miss, ExitPoint* exit_point);
 
-  Node* LoadDescriptorValue(Node* map, Node* descriptor);
+  TNode<Object> LoadDescriptorValue(Node* map, Node* descriptor);
+  TNode<MaybeObject> LoadDescriptorValueOrFieldType(Node* map,
+                                                    Node* descriptor);
 
   void LoadIC_Uninitialized(const LoadICParameters* p);
 
@@ -153,16 +156,16 @@ class AccessorAssembler : public CodeStubAssembler {
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  Node* TryMonomorphicCase(Node* slot, Node* vector, Node* receiver_map,
-                           Label* if_handler,
-                           TVariable<MaybeObject>* var_handler, Label* if_miss);
+  TNode<MaybeObject> TryMonomorphicCase(Node* slot, Node* vector,
+                                        Node* receiver_map, Label* if_handler,
+                                        TVariable<MaybeObject>* var_handler,
+                                        Label* if_miss);
   void HandlePolymorphicCase(Node* receiver_map, TNode<WeakFixedArray> feedback,
                              Label* if_handler,
                              TVariable<MaybeObject>* var_handler,
                              Label* if_miss, int min_feedback_capacity);
 
   // LoadIC implementation.
-  enum class OnNonExistent { kThrowReferenceError, kReturnUndefined };
   void HandleLoadICHandlerCase(
       const LoadICParameters* p, TNode<Object> handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
@@ -285,7 +288,8 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
                               Node* entry_offset, Node* name, Node* map,
-                              Label* if_handler, Variable* var_handler,
+                              Label* if_handler,
+                              TVariable<MaybeObject>* var_handler,
                               Label* if_miss);
 };
 

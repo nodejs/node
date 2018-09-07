@@ -3184,7 +3184,7 @@ void Simulator::Debug() {
                  (strcmp(cmd, "po") == 0)) {
         if (argc == 2) {
           int64_t value;
-          OFStream os(stdout);
+          StdoutStream os;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
             os << arg1 << ": \n";
@@ -3246,7 +3246,7 @@ void Simulator::Debug() {
               current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & kSmiTagMask) == 0) {
-              STATIC_ASSERT(kSmiValueSize == 32);
+              DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
               int32_t untagged = (value >> kSmiShift) & 0xFFFFFFFF;
               PrintF("smi %" PRId32, untagged);
             } else {

@@ -17,6 +17,7 @@
 #include "src/compiler/type-cache.h"
 #include "src/compiler/types.h"
 #include "src/objects-inl.h"
+#include "src/objects/module-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -92,19 +93,20 @@ class JSBinopReduction final {
     if (BothInputsAre(Type::String()) ||
         BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString) {
       HeapObjectBinopMatcher m(node_);
-      if (m.right().HasValue() && m.right().Value()->IsString()) {
-        Handle<String> right_string = Handle<String>::cast(m.right().Value());
-        if (right_string->length() >= ConsString::kMinLength) return true;
+      const JSHeapBroker* broker = lowering_->js_heap_broker();
+      if (m.right().HasValue() && m.right().Ref(broker).IsString()) {
+        StringRef right_string = m.right().Ref(broker).AsString();
+        if (right_string.length() >= ConsString::kMinLength) return true;
       }
-      if (m.left().HasValue() && m.left().Value()->IsString()) {
-        Handle<String> left_string = Handle<String>::cast(m.left().Value());
-        if (left_string->length() >= ConsString::kMinLength) {
+      if (m.left().HasValue() && m.left().Ref(broker).IsString()) {
+        StringRef left_string = m.left().Ref(broker).AsString();
+        if (left_string.length() >= ConsString::kMinLength) {
           // The invariant for ConsString requires the left hand side to be
           // a sequential or external string if the right hand side is the
           // empty string. Since we don't know anything about the right hand
           // side here, we must ensure that the left hand side satisfy the
           // constraints independent of the right hand side.
-          return left_string->IsSeqString() || left_string->IsExternalString();
+          return left_string.IsSeqString() || left_string.IsExternalString();
         }
       }
     }
@@ -359,6 +361,7 @@ class JSBinopReduction final {
   SimplifiedOperatorBuilder* simplified() { return lowering_->simplified(); }
   Graph* graph() const { return lowering_->graph(); }
   JSGraph* jsgraph() { return lowering_->jsgraph(); }
+  Isolate* isolate() { return jsgraph()->isolate(); }
   JSOperatorBuilder* javascript() { return lowering_->javascript(); }
   CommonOperatorBuilder* common() { return jsgraph()->common(); }
   Zone* zone() const { return graph()->zone(); }
@@ -404,12 +407,13 @@ class JSBinopReduction final {
 // - immediately put in type bounds for all new nodes
 // - relax effects from generic but not-side-effecting operations
 
-JSTypedLowering::JSTypedLowering(Editor* editor,
-                                 JSGraph* jsgraph, Zone* zone)
+JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph,
+                                 const JSHeapBroker* js_heap_broker, Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
-      empty_string_type_(
-          Type::HeapConstant(factory()->empty_string(), graph()->zone())),
+      js_heap_broker_(js_heap_broker),
+      empty_string_type_(Type::HeapConstant(
+          js_heap_broker, factory()->empty_string(), graph()->zone())),
       pointer_comparable_type_(
           Type::Union(Type::Oddball(),
                       Type::Union(Type::SymbolOrReceiver(), empty_string_type_,
@@ -525,22 +529,6 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
         NodeProperties::ReplaceValueInput(node, reduction.replacement(), 0);
       }
     }
-    // We might be able to constant-fold the String concatenation now.
-    if (r.BothInputsAre(Type::String())) {
-      HeapObjectBinopMatcher m(node);
-      if (m.IsFoldable()) {
-        Handle<String> left = Handle<String>::cast(m.left().Value());
-        Handle<String> right = Handle<String>::cast(m.right().Value());
-        if (left->length() + right->length() > String::kMaxLength) {
-          // No point in trying to optimize this, as it will just throw.
-          return NoChange();
-        }
-        Node* value = jsgraph()->HeapConstant(
-            factory()->NewConsString(left, right).ToHandleChecked());
-        ReplaceWithValue(node, value);
-        return Replace(value);
-      }
-    }
     // We might know for sure that we're creating a ConsString here.
     if (r.ShouldCreateConsString()) {
       return ReduceCreateConsString(node);
@@ -581,7 +569,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     Callable const callable =
         CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), callable.descriptor(), 0,
+        graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, properties);
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     node->InsertInput(graph()->zone(), 0,
@@ -731,11 +719,11 @@ Node* JSTypedLowering::BuildGetStringLength(Node* value) {
   // TODO(bmeurer): Get rid of this hack and instead have a way to
   // express the string length in the types.
   HeapObjectMatcher m(value);
-  Node* length =
-      (m.HasValue() && m.Value()->IsString())
-          ? jsgraph()->Constant(Handle<String>::cast(m.Value())->length())
-          : graph()->NewNode(simplified()->StringLength(), value);
-  return length;
+  if (!m.HasValue() || !m.Ref(js_heap_broker()).IsString()) {
+    return graph()->NewNode(simplified()->StringLength(), value);
+  }
+
+  return jsgraph()->Constant(m.Ref(js_heap_broker()).AsString().length());
 }
 
 Reduction JSTypedLowering::ReduceSpeculativeNumberComparison(Node* node) {
@@ -969,19 +957,18 @@ Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
   // Try constant-folding of JSToNumber/JSToNumeric with constant inputs. Here
   // we only cover cases where ToNumber and ToNumeric coincide.
   Type input_type = NodeProperties::GetType(input);
+
   if (input_type.Is(Type::String())) {
     HeapObjectMatcher m(input);
-    if (m.HasValue() && m.Value()->IsString()) {
-      Handle<Object> input_value = m.Value();
-      return Replace(jsgraph()->Constant(
-          String::ToNumber(Handle<String>::cast(input_value))));
+    if (m.HasValue() && m.Ref(js_heap_broker()).IsString()) {
+      StringRef input_value = m.Ref(js_heap_broker()).AsString();
+      return Replace(jsgraph()->Constant(input_value.ToNumber()));
     }
   }
   if (input_type.IsHeapConstant()) {
-    Handle<Object> input_value = input_type.AsHeapConstant()->Value();
-    if (input_value->IsOddball()) {
-      return Replace(jsgraph()->Constant(
-          Oddball::ToNumber(Handle<Oddball>::cast(input_value))));
+    ObjectRef input_value = input_type.AsHeapConstant()->Ref();
+    if (input_value.oddball_type() != OddballType::kNone) {
+      return Replace(jsgraph()->Constant(input_value.OddballToNumber()));
     }
   }
   if (input_type.Is(Type::Number())) {
@@ -1048,13 +1035,6 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
   if (input_type.Is(Type::NaN())) {
     return Replace(jsgraph()->HeapConstant(factory()->NaN_string()));
   }
-  if (input_type.Is(Type::OrderedNumber()) &&
-      input_type.Min() == input_type.Max()) {
-    // Note that we can use Type::OrderedNumber(), since
-    // both 0 and -0 map to the String "0" in JavaScript.
-    return Replace(jsgraph()->HeapConstant(
-        factory()->NumberToString(factory()->NewNumber(input_type.Min()))));
-  }
   if (input_type.Is(Type::Number())) {
     return Replace(graph()->NewNode(simplified()->NumberToString(), input));
   }
@@ -1102,7 +1082,7 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
     // Convert {receiver} using the ToObjectStub.
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), callable.descriptor(), 0,
+        graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, node->op()->properties());
     rfalse = efalse = if_false =
         graph()->NewNode(common()->Call(call_descriptor),
@@ -1140,10 +1120,10 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Type receiver_type = NodeProperties::GetType(receiver);
-  Handle<Name> name = NamedAccessOf(node->op()).name();
+  NameRef name(js_heap_broker(), NamedAccessOf(node->op()).name());
+  NameRef length_str(js_heap_broker(), factory()->length_string());
   // Optimize "length" property of strings.
-  if (name.is_identical_to(factory()->length_string()) &&
-      receiver_type.Is(Type::String())) {
+  if (name.equals(length_str) && receiver_type.Is(Type::String())) {
     Node* value = graph()->NewNode(simplified()->StringLength(), receiver);
     ReplaceWithValue(node, value);
     return Replace(value);
@@ -1375,10 +1355,9 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
   Type module_type = NodeProperties::GetType(module);
 
   if (module_type.IsHeapConstant()) {
-    Handle<Module> module_constant =
-        Handle<Module>::cast(module_type.AsHeapConstant()->Value());
-    Handle<Cell> cell_constant(module_constant->GetCell(cell_index), isolate());
-    return jsgraph()->HeapConstant(cell_constant);
+    ModuleRef module_constant = module_type.AsHeapConstant()->Ref().AsModule();
+    CellRef cell_constant(module_constant.GetCell(cell_index));
+    return jsgraph()->Constant(cell_constant);
   }
 
   FieldAccess field_access;
@@ -1508,9 +1487,9 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
   NodeProperties::ChangeOp(node, jsgraph->common()->Call(call_descriptor));
 }
 
-bool NeedsArgumentAdaptorFrame(Handle<SharedFunctionInfo> shared, int arity) {
+bool NeedsArgumentAdaptorFrame(SharedFunctionInfoRef shared, int arity) {
   static const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
-  const int num_decl_parms = shared->internal_formal_parameter_count();
+  const int num_decl_parms = shared.internal_formal_parameter_count();
   return (num_decl_parms != arity && num_decl_parms != sentinel);
 }
 
@@ -1529,11 +1508,10 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
 
   // Check if {target} is a JSFunction.
   if (target_type.IsHeapConstant() &&
-      target_type.AsHeapConstant()->Value()->IsJSFunction()) {
+      target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     // Only optimize [[Construct]] here if {function} is a Constructor.
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(target_type.AsHeapConstant()->Value());
-    if (!function->IsConstructor()) return NoChange();
+    JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
+    if (!function.IsConstructor()) return NoChange();
     // Patch {node} to an indirect call via ConstructFunctionForwardVarargs.
     Callable callable = CodeFactory::ConstructFunctionForwardVarargs(isolate());
     node->RemoveInput(arity + 1);
@@ -1545,7 +1523,7 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate(), graph()->zone(), callable.descriptor(), arity + 1,
+                  graph()->zone(), callable.descriptor(), arity + 1,
                   CallDescriptor::kNeedsFrameState)));
     return Changed(node);
   }
@@ -1564,33 +1542,33 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
 
   // Check if {target} is a known JSFunction.
   if (target_type.IsHeapConstant() &&
-      target_type.AsHeapConstant()->Value()->IsJSFunction()) {
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(target_type.AsHeapConstant()->Value());
-    Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+      target_type.AsHeapConstant()->Ref().IsJSFunction()) {
+    JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
+    SharedFunctionInfoRef shared = function.shared();
 
     // Only optimize [[Construct]] here if {function} is a Constructor.
-    if (!function->IsConstructor()) return NoChange();
+    if (!function.IsConstructor()) return NoChange();
 
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
     // Patch {node} to an indirect call via the {function}s construct stub.
-    bool use_builtin_construct_stub = shared->construct_as_builtin();
+    bool use_builtin_construct_stub = shared.construct_as_builtin();
 
-    Handle<Code> code = use_builtin_construct_stub
-                            ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
-                            : BUILTIN_CODE(isolate(), JSConstructStubGeneric);
+    CodeRef code(js_heap_broker(),
+                 use_builtin_construct_stub
+                     ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
+                     : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
 
     node->RemoveInput(arity + 1);
-    node->InsertInput(graph()->zone(), 0, jsgraph()->HeapConstant(code));
+    node->InsertInput(graph()->zone(), 0, jsgraph()->Constant(code));
     node->InsertInput(graph()->zone(), 2, new_target);
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
-        node, common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate(), graph()->zone(),
-                  ConstructStubDescriptor(isolate()), 1 + arity, flags)));
+        node,
+        common()->Call(Linkage::GetStubCallDescriptor(
+            graph()->zone(), ConstructStubDescriptor{}, 1 + arity, flags)));
 
     return Changed(node);
   }
@@ -1619,8 +1597,7 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(start_index));
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate(), graph()->zone(), callable.descriptor(), arity + 1,
-                  flags)));
+                  graph()->zone(), callable.descriptor(), arity + 1, flags)));
     return Changed(node);
   }
 
@@ -1648,19 +1625,18 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
   // Check if {target} is a known JSFunction.
   if (target_type.IsHeapConstant() &&
-      target_type.AsHeapConstant()->Value()->IsJSFunction()) {
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(target_type.AsHeapConstant()->Value());
-    Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+      target_type.AsHeapConstant()->Ref().IsJSFunction()) {
+    JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
+    SharedFunctionInfoRef shared = function.shared();
 
-    if (function->shared()->HasBreakInfo()) {
+    if (shared.HasBreakInfo()) {
       // Do not inline the call if we need to check whether to break at entry.
       return NoChange();
     }
 
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
-    if (IsClassConstructor(shared->kind())) return NoChange();
+    if (IsClassConstructor(shared.kind())) return NoChange();
 
     // Load the context from the {target}.
     Node* context = effect = graph()->NewNode(
@@ -1669,10 +1645,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     NodeProperties::ReplaceContextInput(node, context);
 
     // Check if we need to convert the {receiver}.
-    if (is_sloppy(shared->language_mode()) && !shared->native() &&
+    if (is_sloppy(shared.language_mode()) && !shared.native() &&
         !receiver_type.Is(Type::Receiver())) {
-      Node* global_proxy =
-          jsgraph()->HeapConstant(handle(function->global_proxy()));
+      Node* global_proxy = jsgraph()->Constant(function.global_proxy());
       receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(convert_mode),
                            receiver, global_proxy, effect, control);
@@ -1696,16 +1671,30 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), 3, argument_count);
       node->InsertInput(
           graph()->zone(), 4,
-          jsgraph()->Constant(shared->internal_formal_parameter_count()));
+          jsgraph()->Constant(shared.internal_formal_parameter_count()));
       NodeProperties::ChangeOp(
           node, common()->Call(Linkage::GetStubCallDescriptor(
-                    isolate(), graph()->zone(), callable.descriptor(),
-                    1 + arity, flags)));
-    } else if (shared->HasBuiltinId() &&
-               Builtins::HasCppImplementation(shared->builtin_id())) {
+                    graph()->zone(), callable.descriptor(), 1 + arity, flags)));
+    } else if (shared.HasBuiltinId() &&
+               Builtins::HasCppImplementation(shared.builtin_id())) {
       // Patch {node} to a direct CEntry call.
-      ReduceBuiltin(isolate(), jsgraph(), node, shared->builtin_id(), arity,
+      ReduceBuiltin(isolate(), jsgraph(), node, shared.builtin_id(), arity,
                     flags);
+    } else if (shared.HasBuiltinId() &&
+               Builtins::KindOf(shared.builtin_id()) == Builtins::TFJ) {
+      // Patch {node} to a direct code object call.
+      Callable callable = Builtins::CallableFor(
+          isolate(), static_cast<Builtins::Name>(shared.builtin_id()));
+      CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+
+      const CallInterfaceDescriptor& descriptor = callable.descriptor();
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          graph()->zone(), descriptor, 1 + arity, flags);
+      Node* stub_code = jsgraph()->HeapConstant(callable.code());
+      node->InsertInput(graph()->zone(), 0, stub_code);  // Code object.
+      node->InsertInput(graph()->zone(), 2, new_target);
+      node->InsertInput(graph()->zone(), 3, argument_count);
+      NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
       // Patch {node} to a direct call.
       node->InsertInput(graph()->zone(), arity + 2, new_target);
@@ -1728,8 +1717,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate(), graph()->zone(), callable.descriptor(), 1 + arity,
-                  flags)));
+                  graph()->zone(), callable.descriptor(), 1 + arity, flags)));
     return Changed(node);
   }
 
@@ -1818,7 +1806,7 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
         Callable const callable =
             Builtins::CallableFor(isolate(), Builtins::kForInFilter);
         auto call_descriptor = Linkage::GetStubCallDescriptor(
-            isolate(), graph()->zone(), callable.descriptor(), 0,
+            graph()->zone(), callable.descriptor(), 0,
             CallDescriptor::kNeedsFrameState);
         vfalse = efalse = if_false =
             graph()->NewNode(common()->Call(call_descriptor),
@@ -2013,9 +2001,10 @@ Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  int register_count = GeneratorStoreRegisterCountOf(node->op());
+  int value_count = GeneratorStoreValueCountOf(node->op());
 
-  FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectRegisterFile();
+  FieldAccess array_field =
+      AccessBuilder::ForJSGeneratorObjectParametersAndRegisters();
   FieldAccess context_field = AccessBuilder::ForJSGeneratorObjectContext();
   FieldAccess continuation_field =
       AccessBuilder::ForJSGeneratorObjectContinuation();
@@ -2025,7 +2014,7 @@ Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
   Node* array = effect = graph()->NewNode(simplified()->LoadField(array_field),
                                           generator, effect, control);
 
-  for (int i = 0; i < register_count; ++i) {
+  for (int i = 0; i < value_count; ++i) {
     Node* value = NodeProperties::GetValueInput(node, 3 + i);
     if (value != jsgraph()->OptimizedOutConstant()) {
       effect = graph()->NewNode(
@@ -2086,7 +2075,8 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreRegister(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   int index = RestoreRegisterIndexOf(node->op());
 
-  FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectRegisterFile();
+  FieldAccess array_field =
+      AccessBuilder::ForJSGeneratorObjectParametersAndRegisters();
   FieldAccess element_field = AccessBuilder::ForFixedArraySlot(index);
 
   Node* array = effect = graph()->NewNode(simplified()->LoadField(array_field),
@@ -2240,6 +2230,8 @@ Reduction JSTypedLowering::ReduceJSParseInt(Node* node) {
 }
 
 Reduction JSTypedLowering::Reduce(Node* node) {
+  DisallowHeapAccess no_heap_access;
+
   switch (node->opcode()) {
     case IrOpcode::kJSEqual:
       return ReduceJSEqual(node);

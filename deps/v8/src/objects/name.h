@@ -29,7 +29,8 @@ class Name : public HeapObject {
 
   // Equality operations.
   inline bool Equals(Name* other);
-  inline static bool Equals(Handle<Name> one, Handle<Name> two);
+  inline static bool Equals(Isolate* isolate, Handle<Name> one,
+                            Handle<Name> two);
 
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
@@ -55,9 +56,9 @@ class Name : public HeapObject {
   // Return a string version of this name that is converted according to the
   // rules described in ES6 section 9.2.11.
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
-      Handle<Name> name);
+      Isolate* isolate, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
-      Handle<Name> name, Handle<String> prefix);
+      Isolate* isolate, Handle<Name> name, Handle<String> prefix);
 
   DECL_CAST(Name)
 

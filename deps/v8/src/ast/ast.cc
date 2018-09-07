@@ -7,7 +7,6 @@
 #include <cmath>  // For isfinite.
 #include <vector>
 
-#include "src/ast/compile-time-value.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
 #include "src/base/hashmap.h"
@@ -19,6 +18,7 @@
 #include "src/double.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/map.h"
 #include "src/property-details.h"
@@ -112,6 +112,13 @@ bool Expression::IsNullLiteral() const {
 
 bool Expression::IsTheHoleLiteral() const {
   return IsLiteral() && AsLiteral()->type() == Literal::kTheHole;
+}
+
+bool Expression::IsCompileTimeValue() {
+  if (IsLiteral()) return true;
+  MaterializedLiteral* literal = AsMaterializedLiteral();
+  if (literal == nullptr) return false;
+  return literal->IsSimple();
 }
 
 bool Expression::IsUndefinedLiteral() const {
@@ -334,8 +341,7 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
 
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
-      (kind_ == MATERIALIZED_LITERAL &&
-       CompileTimeValue::IsCompileTimeValue(value_));
+         (kind_ == MATERIALIZED_LITERAL && value_->IsCompileTimeValue());
 }
 
 
@@ -360,19 +366,37 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
     Literal* literal = property->key()->AsLiteral();
     DCHECK(!literal->IsNullLiteral());
 
-    // If there is an existing entry do not emit a store unless the previous
-    // entry was also an accessor.
     uint32_t hash = literal->Hash();
     ZoneHashMap::Entry* entry = table.LookupOrInsert(literal, hash, allocator);
-    if (entry->value != nullptr) {
-      auto previous_kind =
+    if (entry->value == nullptr) {
+      entry->value = property;
+    } else {
+      // We already have a later definition of this property, so we don't need
+      // to emit a store for the current one.
+      //
+      // There are two subtleties here.
+      //
+      // (1) Emitting a store might actually be incorrect. For example, in {get
+      // foo() {}, foo: 42}, the getter store would override the data property
+      // (which, being a non-computed compile-time valued property, is already
+      // part of the initial literal object.
+      //
+      // (2) If the later definition is an accessor (say, a getter), and the
+      // current definition is a complementary accessor (here, a setter), then
+      // we still must emit a store for the current definition.
+
+      auto later_kind =
           static_cast<ObjectLiteral::Property*>(entry->value)->kind();
-      if (!((property->kind() == GETTER && previous_kind == SETTER) ||
-            (property->kind() == SETTER && previous_kind == GETTER))) {
+      bool complementary_accessors =
+          (property->kind() == GETTER && later_kind == SETTER) ||
+          (property->kind() == SETTER && later_kind == GETTER);
+      if (!complementary_accessors) {
         property->set_emit_store(false);
+        if (later_kind == GETTER || later_kind == SETTER) {
+          entry->value = property;
+        }
       }
     }
-    entry->value = property;
   }
 }
 
@@ -427,7 +451,7 @@ int ObjectLiteral::InitDepthAndFlags() {
     Literal* key = property->key()->AsLiteral();
     Expression* value = property->value();
 
-    bool is_compile_time_value = CompileTimeValue::IsCompileTimeValue(value);
+    bool is_compile_time_value = value->IsCompileTimeValue();
     is_simple = is_simple && is_compile_time_value;
 
     // Keep track of the number of elements in the object literal and
@@ -454,8 +478,8 @@ int ObjectLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
-void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
-  if (!constant_properties_.is_null()) return;
+void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
+  if (!boilerplate_description_.is_null()) return;
 
   int index_keys = 0;
   bool has_seen_proto = false;
@@ -476,17 +500,17 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     }
   }
 
-  Handle<BoilerplateDescription> constant_properties =
-      isolate->factory()->NewBoilerplateDescription(boilerplate_properties_,
-                                                    properties()->length(),
-                                                    index_keys, has_seen_proto);
+  Handle<ObjectBoilerplateDescription> boilerplate_description =
+      isolate->factory()->NewObjectBoilerplateDescription(
+          boilerplate_properties_, properties()->length(), index_keys,
+          has_seen_proto);
 
   int position = 0;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (property->IsPrototype()) continue;
 
-    if (static_cast<uint32_t>(position) == boilerplate_properties_ * 2) {
+    if (static_cast<uint32_t>(position) == boilerplate_properties_) {
       DCHECK(property->is_computed_name());
       break;
     }
@@ -510,11 +534,12 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
 
     // Add name, value pair to the fixed array.
-    constant_properties->set(position++, *key);
-    constant_properties->set(position++, *value);
+    boilerplate_description->set_key_value(position++, *key, *value);
   }
 
-  constant_properties_ = constant_properties;
+  boilerplate_description->set_flags(EncodeLiteralType());
+
+  boilerplate_description_ = boilerplate_description;
 }
 
 bool ObjectLiteral::IsFastCloningSupported() const {
@@ -528,8 +553,8 @@ bool ObjectLiteral::IsFastCloningSupported() const {
 
 bool ArrayLiteral::is_empty() const {
   DCHECK(is_initialized());
-  return values()->is_empty() &&
-         (constant_elements().is_null() || constant_elements()->is_empty());
+  return values()->is_empty() && (boilerplate_description().is_null() ||
+                                  boilerplate_description()->is_empty());
 }
 
 int ArrayLiteral::InitDepthAndFlags() {
@@ -550,7 +575,7 @@ int ArrayLiteral::InitDepthAndFlags() {
       if (subliteral_depth > depth_acc) depth_acc = subliteral_depth;
     }
 
-    if (!CompileTimeValue::IsCompileTimeValue(element)) {
+    if (!element->IsCompileTimeValue()) {
       is_simple = false;
     }
   }
@@ -563,8 +588,8 @@ int ArrayLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
-void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
-  if (!constant_elements_.is_null()) return;
+void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
+  if (!boilerplate_description_.is_null()) return;
 
   int constants_length =
       first_spread_index_ >= 0 ? first_spread_index_ : values()->length();
@@ -606,7 +631,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   // elements array to a copy-on-write array.
   if (is_simple() && depth() == 1 && array_index > 0 &&
       IsSmiOrObjectElementsKind(kind)) {
-    fixed_array->set_map(isolate->heap()->fixed_cow_array_map());
+    fixed_array->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
   }
 
   Handle<FixedArrayBase> elements = fixed_array;
@@ -615,14 +640,12 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     elements = isolate->factory()->NewFixedDoubleArray(constants_length);
     // We are copying from non-fast-double to fast-double.
     ElementsKind from_kind = TERMINAL_FAST_ELEMENTS_KIND;
-    accessor->CopyElements(fixed_array, from_kind, elements, constants_length);
+    accessor->CopyElements(isolate, fixed_array, from_kind, elements,
+                           constants_length);
   }
 
-  // Remember both the literal's constant values as well as the ElementsKind.
-  Handle<ConstantElementsPair> literals =
-      isolate->factory()->NewConstantElementsPair(kind, elements);
-
-  constant_elements_ = literals;
+  boilerplate_description_ =
+      isolate->factory()->NewArrayBoilerplateDescription(kind, elements);
 }
 
 bool ArrayLiteral::IsFastCloningSupported() const {
@@ -643,8 +666,17 @@ Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
   if (expression->IsLiteral()) {
     return expression->AsLiteral()->BuildValue(isolate);
   }
-  if (CompileTimeValue::IsCompileTimeValue(expression)) {
-    return CompileTimeValue::GetValue(isolate, expression);
+  if (expression->IsCompileTimeValue()) {
+    if (expression->IsObjectLiteral()) {
+      ObjectLiteral* object_literal = expression->AsObjectLiteral();
+      DCHECK(object_literal->is_simple());
+      return object_literal->boilerplate_description();
+    } else {
+      DCHECK(expression->IsArrayLiteral());
+      ArrayLiteral* array_literal = expression->AsArrayLiteral();
+      DCHECK(array_literal->is_simple());
+      return array_literal->boilerplate_description();
+    }
   }
   return isolate->factory()->uninitialized_value();
 }
@@ -669,10 +701,12 @@ bool MaterializedLiteral::NeedsInitialAllocationSite() {
 
 void MaterializedLiteral::BuildConstants(Isolate* isolate) {
   if (IsArrayLiteral()) {
-    return AsArrayLiteral()->BuildConstantElements(isolate);
+    AsArrayLiteral()->BuildBoilerplateDescription(isolate);
+    return;
   }
   if (IsObjectLiteral()) {
-    return AsObjectLiteral()->BuildConstantProperties(isolate);
+    AsObjectLiteral()->BuildBoilerplateDescription(isolate);
+    return;
   }
   DCHECK(IsRegExpLiteral());
 }
@@ -698,7 +732,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
       if (this->cooked_strings()->at(i) != nullptr) {
         cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
       } else {
-        cooked_strings->set(i, isolate->heap()->undefined_value());
+        cooked_strings->set(i, ReadOnlyRoots(isolate).undefined_value());
       }
     }
   }
@@ -806,9 +840,10 @@ Call::CallType Call::GetCallType() const {
     if (proxy->var()->IsUnallocated()) {
       return GLOBAL_CALL;
     } else if (proxy->var()->IsLookupSlot()) {
-      // Calls going through 'with' always use DYNAMIC rather than DYNAMIC_LOCAL
-      // or DYNAMIC_GLOBAL.
-      return proxy->var()->mode() == DYNAMIC ? WITH_CALL : OTHER_CALL;
+      // Calls going through 'with' always use VariableMode::kDynamic rather
+      // than VariableMode::kDynamicLocal or VariableMode::kDynamicGlobal.
+      return proxy->var()->mode() == VariableMode::kDynamic ? WITH_CALL
+                                                            : OTHER_CALL;
     }
   }
 
@@ -831,7 +866,7 @@ Call::CallType Call::GetCallType() const {
   return OTHER_CALL;
 }
 
-CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements)
+CaseClause::CaseClause(Expression* label, ZonePtrList<Statement>* statements)
     : label_(label), statements_(statements) {}
 
 bool Literal::IsPropertyName() const {
@@ -954,7 +989,7 @@ const char* CallRuntime::debug_name() {
   case k##NodeType:             \
     return static_cast<const NodeType*>(this)->labels();
 
-ZoneList<const AstRawString*>* BreakableStatement::labels() const {
+ZonePtrList<const AstRawString>* BreakableStatement::labels() const {
   switch (node_type()) {
     BREAKABLE_NODE_LIST(RETURN_LABELS)
     ITERATION_NODE_LIST(RETURN_LABELS)

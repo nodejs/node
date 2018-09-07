@@ -55,6 +55,9 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   // canonicalized globals or a number constant should be returned.
   Node* Constant(Handle<Object> value);
 
+  // Like above, but doesn't access the heap directly.
+  Node* Constant(const ObjectRef& value);
+
   // Creates a NumberConstant node, usually canonicalized.
   Node* Constant(double value);
 

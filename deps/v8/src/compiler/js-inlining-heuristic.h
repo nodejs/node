@@ -80,6 +80,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   SimplifiedOperatorBuilder* simplified() const;
 
   Mode const mode_;

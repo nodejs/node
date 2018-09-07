@@ -30,13 +30,22 @@ void PostBuildProfileAndTracing(Isolate* isolate, Code* code,
                                    AbstractCode::cast(code), name));
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_builtin_code) {
-    CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
-    OFStream os(trace_scope.file());
-    os << "Builtin: " << name << "\n";
-    code->Disassemble(name, os);
-    os << "\n";
+    code->PrintBuiltinCode(isolate, name);
   }
 #endif
+}
+
+AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
+                                         int32_t builtin_index) {
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  if (isolate->ShouldLoadConstantsFromRootList() &&
+      Builtins::IsIsolateIndependent(builtin_index) &&
+      isolate->heap()->memory_allocator()->code_range()->valid() &&
+      isolate->heap()->memory_allocator()->code_range()->size() <=
+          kMaxPCRelativeCodeRangeInMB * MB) {
+    options.use_pc_relative_calls_and_jumps = true;
+  }
+  return options;
 }
 
 typedef void (*MacroAssemblerGenerator)(MacroAssembler*);
@@ -71,7 +80,10 @@ Code* BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   CanonicalHandleScope canonical(isolate);
   const size_t buffer_size = 32 * KB;
   byte buffer[buffer_size];  // NOLINT(runtime/arrays)
-  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
+
+  MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin_index),
+                      buffer, buffer_size, CodeObjectRequired::kYes);
+  masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
   generator(&masm);
   CodeDesc desc;
@@ -91,7 +103,9 @@ Code* BuildAdaptor(Isolate* isolate, int32_t builtin_index,
   CanonicalHandleScope canonical(isolate);
   const size_t buffer_size = 32 * KB;
   byte buffer[buffer_size];  // NOLINT(runtime/arrays)
-  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin_index),
+                      buffer, buffer_size, CodeObjectRequired::kYes);
+  masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
   Builtins::Generate_Adaptor(&masm, builtin_address, exit_frame_type);
   CodeDesc desc;
@@ -121,7 +135,8 @@ Code* BuildWithCodeStubAssemblerJS(Isolate* isolate, int32_t builtin_index,
       isolate, &zone, argc_with_recv, Code::BUILTIN, name,
       PoisoningMitigationLevel::kDontPoison, builtin_index);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+      &state, BuiltinAssemblerOptions(isolate, builtin_index));
   PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }
@@ -141,25 +156,29 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
   Zone zone(isolate->allocator(), ZONE_NAME, segment_size);
   // The interface descriptor with given key must be initialized at this point
   // and this construction just queries the details from the descriptors table.
-  CallInterfaceDescriptor descriptor(isolate, interface_descriptor);
+  CallInterfaceDescriptor descriptor(interface_descriptor);
   // Ensure descriptor is already initialized.
+  DCHECK_EQ(result_size, descriptor.GetReturnCount());
   DCHECK_LE(0, descriptor.GetRegisterParameterCount());
   compiler::CodeAssemblerState state(
       isolate, &zone, descriptor, Code::BUILTIN, name,
-      PoisoningMitigationLevel::kDontPoison, result_size, 0, builtin_index);
+      PoisoningMitigationLevel::kDontPoison, 0, builtin_index);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+      &state, BuiltinAssemblerOptions(isolate, builtin_index));
   PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }
 }  // anonymous namespace
 
+// static
 void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, int index,
                                       Code* code) {
   DCHECK_EQ(index, code->builtin_index());
-  builtins->builtins_[index] = code;
+  builtins->set_builtin(index, code);
 }
 
+// static
 void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
   // Fill the builtins list with placeholders. References to these placeholder
   // builtins are eventually replaced by the actual builtins. This is to
@@ -172,13 +191,16 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
   }
 }
 
+// static
 void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   // Replace references from all code objects to placeholders.
   Builtins* builtins = isolate->builtins();
   DisallowHeapAllocation no_gc;
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  static const int kRelocMask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-                                RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  static const int kRelocMask =
+      RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+      RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+      RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
   HeapIterator iterator(isolate->heap());
   while (HeapObject* obj = iterator.next()) {
     if (!obj->IsCode()) continue;
@@ -186,11 +208,12 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
     bool flush_icache = false;
     for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();
-      if (RelocInfo::IsCodeTarget(rinfo->rmode())) {
+      if (RelocInfo::IsCodeTargetMode(rinfo->rmode())) {
         Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+        DCHECK_IMPLIES(RelocInfo::IsRelativeCodeTarget(rinfo->rmode()),
+                       Builtins::IsIsolateIndependent(target->builtin_index()));
         if (!target->is_builtin()) continue;
-        Code* new_target =
-            Code::cast(builtins->builtins_[target->builtin_index()]);
+        Code* new_target = builtins->builtin(target->builtin_index());
         rinfo->set_target_address(new_target->raw_instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
@@ -199,10 +222,9 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         if (!object->IsCode()) continue;
         Code* target = Code::cast(object);
         if (!target->is_builtin()) continue;
-        Code* new_target =
-            Code::cast(builtins->builtins_[target->builtin_index()]);
-        rinfo->set_target_object(new_target, UPDATE_WRITE_BARRIER,
-                                 SKIP_ICACHE_FLUSH);
+        Code* new_target = builtins->builtin(target->builtin_index());
+        rinfo->set_target_object(isolate->heap(), new_target,
+                                 UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       }
       flush_icache = true;
     }
@@ -213,6 +235,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   }
 }
 
+// static
 void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
   DCHECK(!builtins->initialized_);
@@ -237,7 +260,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
       isolate, index, &Builtins::Generate_##Name, Argc, #Name); \
   AddBuiltin(builtins, index++, code);
 #define BUILD_TFC(Name, InterfaceDescriptor, result_size)        \
-  { InterfaceDescriptor##Descriptor descriptor(isolate); }       \
   code = BuildWithCodeStubAssemblerCS(                           \
       isolate, index, &Builtins::Generate_##Name,                \
       CallDescriptors::InterfaceDescriptor, #Name, result_size); \
@@ -249,7 +271,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
                                    CallDescriptors::Name, #Name, 1);           \
   AddBuiltin(builtins, index++, code);
 #define BUILD_TFH(Name, InterfaceDescriptor)               \
-  { InterfaceDescriptor##Descriptor descriptor(isolate); } \
   /* Return size for IC builtins/handlers is always 1. */  \
   code = BuildWithCodeStubAssemblerCS(                     \
       isolate, index, &Builtins::Generate_##Name,          \
@@ -274,16 +295,14 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   ReplacePlaceholders(isolate);
 
-#define SET_PROMISE_REJECTION_PREDICTION(Name)       \
-  Code::cast(builtins->builtins_[Builtins::k##Name]) \
-      ->set_is_promise_rejection(true);
+#define SET_PROMISE_REJECTION_PREDICTION(Name) \
+  builtins->builtin(Builtins::k##Name)->set_is_promise_rejection(true);
 
   BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(SET_PROMISE_REJECTION_PREDICTION)
 #undef SET_PROMISE_REJECTION_PREDICTION
 
-#define SET_EXCEPTION_CAUGHT_PREDICTION(Name)        \
-  Code::cast(builtins->builtins_[Builtins::k##Name]) \
-      ->set_is_exception_caught(true);
+#define SET_EXCEPTION_CAUGHT_PREDICTION(Name) \
+  builtins->builtin(Builtins::k##Name)->set_is_exception_caught(true);
 
   BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(SET_EXCEPTION_CAUGHT_PREDICTION)
 #undef SET_EXCEPTION_CAUGHT_PREDICTION

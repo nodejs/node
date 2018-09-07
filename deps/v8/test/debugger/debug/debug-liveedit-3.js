@@ -30,6 +30,7 @@
 // hasen't been changed. However actually function became one level more nested
 // and must be recompiled because it uses variable from outer scope.
 
+// Flags: --allow-natives-syntax
 
 Debug = debug.Debug
 
@@ -49,15 +50,11 @@ eval(
 var z6 = Factory(6);
 assertEquals(8, z6());
 
-var script = Debug.findScript(Factory);
+var new_source = Debug.scriptSource(Factory).replace(
+    function_z_text,
+    'function Intermediate() {\nreturn (\n' + function_z_text + ')\n;\n}\n');
 
-var new_source = script.source.replace(function_z_text, "function Intermediate() {\nreturn (\n" + function_z_text + ")\n;\n}\n");
-print("new source: " + new_source);
-
-var change_log = new Array();
-var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
-print("Result: " + JSON.stringify(result) + "\n");
-print("Change log: " + JSON.stringify(change_log) + "\n");
+%LiveEditPatchScript(Factory, new_source);
 
 assertEquals(8, z6());
 

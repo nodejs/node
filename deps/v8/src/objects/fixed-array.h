@@ -104,7 +104,8 @@ class FixedArray : public FixedArrayBase {
   Handle<T> GetValueChecked(Isolate* isolate, int index) const;
 
   // Return a grown copy if the index is bigger than the array's length.
-  static Handle<FixedArray> SetAndGrow(Handle<FixedArray> array, int index,
+  static Handle<FixedArray> SetAndGrow(Isolate* isolate,
+                                       Handle<FixedArray> array, int index,
                                        Handle<Object> value,
                                        PretenureFlag pretenure = NOT_TENURED);
 
@@ -135,8 +136,13 @@ class FixedArray : public FixedArrayBase {
 
   inline void FillWithHoles(int from, int to);
 
-  // Shrink length and insert filler objects.
-  void Shrink(int length);
+  // Shrink the array and insert filler objects. {new_length} must be > 0.
+  void Shrink(Isolate* isolate, int new_length);
+  // If {new_length} is 0, return the canonical empty FixedArray. Otherwise
+  // like above.
+  static Handle<FixedArray> ShrinkOrEmpty(Isolate* isolate,
+                                          Handle<FixedArray> array,
+                                          int new_length);
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len) const;
@@ -185,6 +191,10 @@ class FixedArray : public FixedArrayBase {
 
  private:
   STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
+
+  inline void set_undefined(ReadOnlyRoots ro_roots, int index);
+  inline void set_null(ReadOnlyRoots ro_roots, int index);
+  inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
 };
@@ -276,8 +286,7 @@ class WeakFixedArray : public HeapObject {
 
   inline MaybeObject** RawFieldOfElementAt(int index);
 
-  // Shrink length and insert filler objects.
-  void Shrink(int new_length);
+  inline MaybeObject** GetFirstElementAddress();
 
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
@@ -291,11 +300,12 @@ class WeakFixedArray : public HeapObject {
   static const int kMaxLength =
       (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
 
- private:
+ protected:
   static int OffsetOfElementAt(int index) {
     return kHeaderSize + index * kPointerSize;
   }
 
+ private:
   friend class Heap;
 
   static const int kFirstIndex = 1;
@@ -314,13 +324,14 @@ class WeakArrayList : public HeapObject {
   DECL_VERIFIER(WeakArrayList)
   DECL_PRINTER(WeakArrayList)
 
-  static Handle<WeakArrayList> Add(Handle<WeakArrayList> array,
-                                   Handle<HeapObject> obj1, Smi* obj2);
+  static Handle<WeakArrayList> AddToEnd(Isolate* isolate,
+                                        Handle<WeakArrayList> array,
+                                        MaybeObjectHandle value);
 
   inline MaybeObject* Get(int index) const;
 
   // Set the element at index to obj. The underlying array must be large enough.
-  // If you need to grow the WeakArrayList, use the static Add() methods
+  // If you need to grow the WeakArrayList, use the static AddToEnd() method
   // instead.
   inline void Set(int index, MaybeObject* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -351,13 +362,15 @@ class WeakArrayList : public HeapObject {
   static const int kMaxCapacity =
       (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
 
+ protected:
+  static Handle<WeakArrayList> EnsureSpace(Isolate* isolate,
+                                           Handle<WeakArrayList> array,
+                                           int length);
+
  private:
   static int OffsetOfElementAt(int index) {
     return kHeaderSize + index * kPointerSize;
   }
-
-  static Handle<WeakArrayList> EnsureSpace(Handle<WeakArrayList> array,
-                                           int length);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WeakArrayList);
 };
@@ -368,7 +381,8 @@ class FixedArrayOfWeakCells : public FixedArray {
   // If |maybe_array| is not a FixedArrayOfWeakCells, a fresh one will be
   // allocated. This function does not check if the value exists already,
   // callers must ensure this themselves if necessary.
-  static Handle<FixedArrayOfWeakCells> Add(Handle<Object> maybe_array,
+  static Handle<FixedArrayOfWeakCells> Add(Isolate* isolate,
+                                           Handle<Object> maybe_array,
                                            Handle<HeapObject> value,
                                            int* assigned_index = nullptr);
 
@@ -381,7 +395,7 @@ class FixedArrayOfWeakCells : public FixedArray {
   };
 
   template <class CompactionCallback>
-  void Compact();
+  void Compact(Isolate* isolate);
 
   inline Object* Get(int index) const;
   inline void Clear(int index);
@@ -420,8 +434,8 @@ class FixedArrayOfWeakCells : public FixedArray {
       Isolate* isolate, int size,
       Handle<FixedArrayOfWeakCells> initialize_from);
 
-  static void Set(Handle<FixedArrayOfWeakCells> array, int index,
-                  Handle<HeapObject> value);
+  static void Set(Isolate* isolate, Handle<FixedArrayOfWeakCells> array,
+                  int index, Handle<HeapObject> value);
   inline void clear(int index);
 
   inline int last_used_index() const;
@@ -443,9 +457,10 @@ class FixedArrayOfWeakCells : public FixedArray {
 // underlying FixedArray starting at kFirstIndex.
 class ArrayList : public FixedArray {
  public:
-  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj);
-  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj1,
-                               Handle<Object> obj2);
+  static Handle<ArrayList> Add(Isolate* isolate, Handle<ArrayList> array,
+                               Handle<Object> obj);
+  static Handle<ArrayList> Add(Isolate* isolate, Handle<ArrayList> array,
+                               Handle<Object> obj1, Handle<Object> obj2);
   static Handle<ArrayList> New(Isolate* isolate, int size);
 
   // Returns the number of elements in the list, not the allocated size, which
@@ -468,12 +483,13 @@ class ArrayList : public FixedArray {
 
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
-  static Handle<FixedArray> Elements(Handle<ArrayList> array);
+  static Handle<FixedArray> Elements(Isolate* isolate, Handle<ArrayList> array);
   bool IsFull();
   DECL_CAST(ArrayList)
 
  private:
-  static Handle<ArrayList> EnsureSpace(Handle<ArrayList> array, int length);
+  static Handle<ArrayList> EnsureSpace(Isolate* isolate,
+                                       Handle<ArrayList> array, int length);
   static const int kLengthIndex = 0;
   static const int kFirstIndex = 1;
   DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayList);

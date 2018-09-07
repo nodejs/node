@@ -155,7 +155,7 @@ class String : public Name {
   };
 
   template <typename Char>
-  INLINE(Vector<const Char> GetCharVector());
+  V8_INLINE Vector<const Char> GetCharVector();
 
   // Get and set the length of the string.
   inline int length() const;
@@ -187,10 +187,10 @@ class String : public Name {
   inline void Set(int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls
   // to this method are not efficient unless the string is flat.
-  INLINE(uint16_t Get(int index));
+  V8_INLINE uint16_t Get(int index);
 
   // ES6 section 7.1.3.1 ToNumber Applied to the String Type
-  static Handle<Object> ToNumber(Handle<String> subject);
+  static Handle<Object> ToNumber(Isolate* isolate, Handle<String> subject);
 
   // Flattens the string.  Checks first inline to see if it is
   // necessary.  Does nothing if the string is not a cons string.
@@ -205,7 +205,7 @@ class String : public Name {
   // Degenerate cons strings are handled specially by the garbage
   // collector (see IsShortcutCandidate).
 
-  static inline Handle<String> Flatten(Handle<String> string,
+  static inline Handle<String> Flatten(Isolate* isolate, Handle<String> string,
                                        PretenureFlag pretenure = NOT_TENURED);
 
   // Tries to return the content of a flat string as a structure holding either
@@ -230,7 +230,8 @@ class String : public Name {
   // for strings containing supplementary characters, lexicographic ordering on
   // sequences of UTF-16 code unit values differs from that on sequences of code
   // point values.
-  V8_WARN_UNUSED_RESULT static ComparisonResult Compare(Handle<String> x,
+  V8_WARN_UNUSED_RESULT static ComparisonResult Compare(Isolate* isolate,
+                                                        Handle<String> x,
                                                         Handle<String> y);
 
   // Perform ES6 21.1.3.8, including checking arguments.
@@ -278,7 +279,8 @@ class String : public Name {
 
   // String equality operations.
   inline bool Equals(String* other);
-  inline static bool Equals(Handle<String> one, Handle<String> two);
+  inline static bool Equals(Isolate* isolate, Handle<String> one,
+                            Handle<String> two);
   bool IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match = false);
 
   // Dispatches to Is{One,Two}ByteEqualTo.
@@ -316,7 +318,8 @@ class String : public Name {
 
   // Trimming.
   enum TrimMode { kTrim, kTrimStart, kTrimEnd };
-  static Handle<String> Trim(Handle<String> string, TrimMode mode);
+  static Handle<String> Trim(Isolate* isolate, Handle<String> string,
+                             TrimMode mode);
 
   DECL_CAST(String)
 
@@ -437,7 +440,8 @@ class String : public Name {
   static inline ConsString* VisitFlat(Visitor* visitor, String* string,
                                       int offset = 0);
 
-  static Handle<FixedArray> CalculateLineEnds(Handle<String> string,
+  static Handle<FixedArray> CalculateLineEnds(Isolate* isolate,
+                                              Handle<String> string,
                                               bool include_ending_line);
 
  private:
@@ -445,20 +449,21 @@ class String : public Name {
   friend class StringTableInsertionKey;
   friend class InternalizedStringKey;
 
-  static Handle<String> SlowFlatten(Handle<ConsString> cons,
+  static Handle<String> SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
                                     PretenureFlag tenure);
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
   bool SlowEquals(String* other);
 
-  static bool SlowEquals(Handle<String> one, Handle<String> two);
+  static bool SlowEquals(Isolate* isolate, Handle<String> one,
+                         Handle<String> two);
 
   // Slow case of AsArrayIndex.
   V8_EXPORT_PRIVATE bool SlowAsArrayIndex(uint32_t* index);
 
   // Compute and set the hash code.
-  uint32_t ComputeAndSetHash();
+  uint32_t ComputeAndSetHash(Isolate* isolate);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(String);
 };
@@ -588,7 +593,7 @@ class ConsString : public String {
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
   inline Object* unchecked_first();
-  inline void set_first(String* first,
+  inline void set_first(Isolate* isolate, String* first,
                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Second string of the cons cell.
@@ -596,7 +601,7 @@ class ConsString : public String {
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
   inline Object* unchecked_second();
-  inline void set_second(String* second,
+  inline void set_second(Isolate* isolate, String* second,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
@@ -670,7 +675,7 @@ class ThinString : public String {
 class SlicedString : public String {
  public:
   inline String* parent();
-  inline void set_parent(String* parent,
+  inline void set_parent(Isolate* isolate, String* parent,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline int offset() const;
   inline void set_offset(int offset);

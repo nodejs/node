@@ -10,9 +10,6 @@
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
-namespace base {
-class AccountingAllocator;
-}
 
 namespace internal {
 class WasmInstanceObject;

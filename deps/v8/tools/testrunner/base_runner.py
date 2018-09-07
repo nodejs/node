@@ -280,6 +280,8 @@ class BaseTestRunner(object):
                       " and buildbot builds): %s" % MODES.keys())
     parser.add_option("--shell-dir", help="DEPRECATED! Executables from build "
                       "directory will be used")
+    parser.add_option("--test-root", help="Root directory of the test suites",
+                      default=os.path.join(self.basedir, 'test'))
     parser.add_option("--total-timeout-sec", default=0, type="int",
                       help="How long should fuzzer run")
     parser.add_option("--swarming", default=False, action="store_true",
@@ -560,12 +562,12 @@ class BaseTestRunner(object):
     return reduce(list.__add__, map(expand_test_group, args), [])
 
   def _get_suites(self, args, options):
-    names = self._args_to_suite_names(args)
+    names = self._args_to_suite_names(args, options.test_root)
     return self._load_suites(names, options)
 
-  def _args_to_suite_names(self, args):
+  def _args_to_suite_names(self, args, test_root):
     # Use default tests if no test configuration was provided at the cmd line.
-    all_names = set(utils.GetSuitePaths(os.path.join(self.basedir, 'test')))
+    all_names = set(utils.GetSuitePaths(test_root))
     args_names = OrderedDict([(arg.split('/')[0], None) for arg in args]) # set
     return [name for name in args_names if name in all_names]
 
@@ -578,7 +580,7 @@ class BaseTestRunner(object):
       if options.verbose:
         print '>>> Loading test suite: %s' % name
       return testsuite.TestSuite.LoadTestSuite(
-          os.path.join(self.basedir, 'test', name),
+          os.path.join(options.test_root, name),
           test_config)
     return map(load_suite, names)
 

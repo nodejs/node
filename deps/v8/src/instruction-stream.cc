@@ -13,17 +13,16 @@ namespace internal {
 
 // static
 bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
-#ifdef V8_EMBEDDED_BUILTINS
-  const Address start = reinterpret_cast<Address>(isolate->embedded_blob());
-  return start <= pc && pc < start + isolate->embedded_blob_size();
-#else
-  return false;
-#endif
+  if (FLAG_embedded_builtins) {
+    const Address start = reinterpret_cast<Address>(isolate->embedded_blob());
+    return start <= pc && pc < start + isolate->embedded_blob_size();
+  } else {
+    return false;
+  }
 }
 
 // static
 Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
-#ifdef V8_EMBEDDED_BUILTINS
   if (!PcIsOffHeap(isolate, address)) return nullptr;
 
   EmbeddedData d = EmbeddedData::FromBlob();
@@ -44,12 +43,8 @@ Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
   }
 
   UNREACHABLE();
-#else
-  return nullptr;
-#endif
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 // static
 void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
                                                        uint8_t** data,
@@ -80,7 +75,6 @@ void InstructionStream::FreeOffHeapInstructionStream(uint8_t* data,
   const uint32_t page_size = static_cast<uint32_t>(AllocatePageSize());
   CHECK(FreePages(data, RoundUp(size, page_size)));
 }
-#endif  // V8_EMBEDDED_BUILTINS
 
 }  // namespace internal
 }  // namespace v8

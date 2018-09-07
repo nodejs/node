@@ -432,7 +432,6 @@ TEST(RegExpParser) {
   CHECK_MIN_MAX("a(?=bbb|bb)c", 2, 2);
   CHECK_MIN_MAX("a(?!bbb|bb)c", 2, 2);
 
-  FLAG_harmony_regexp_named_captures = true;
   CheckParseEq("(?<a>x)(?<b>x)(?<c>x)\\k<a>",
                "(: (^ 'x') (^ 'x') (^ 'x') (<- 1))", true);
   CheckParseEq("(?<a>x)(?<b>x)(?<c>x)\\k<b>",
@@ -447,7 +446,6 @@ TEST(RegExpParser) {
 
   CheckParseEq("(?<\\u{03C0}>a)", "(^ 'a')", true);
   CheckParseEq("(?<\\u03C0>a)", "(^ 'a')", true);
-  FLAG_harmony_regexp_named_captures = false;
 }
 
 TEST(ParserRegression) {
@@ -459,14 +457,16 @@ TEST(ParserRegression) {
 
 static void ExpectError(const char* input, const char* expected,
                         bool unicode = false) {
+  Isolate* isolate = CcTest::i_isolate();
+
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  FlatStringReader reader(isolate, CStrVector(input));
   RegExpCompileData result;
   JSRegExp::Flags flags = JSRegExp::kNone;
   if (unicode) flags |= JSRegExp::kUnicode;
-  CHECK(!v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
-                                                 &reader, flags, &result));
+  CHECK(!v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
+                                                 &result));
   CHECK_NULL(result.tree);
   CHECK(!result.error.is_null());
   std::unique_ptr<char[]> str = result.error->ToCString(ALLOW_NULLS);
@@ -501,7 +501,6 @@ TEST(Errors) {
   }
   ExpectError(os.str().c_str(), kTooManyCaptures);
 
-  FLAG_harmony_regexp_named_captures = true;
   const char* kInvalidCaptureName = "Invalid capture group name";
   ExpectError("(?<>.)", kInvalidCaptureName, true);
   ExpectError("(?<1>.)", kInvalidCaptureName, true);
@@ -516,7 +515,6 @@ TEST(Errors) {
   ExpectError("(?<b>)\\k<a>", kInvalidCaptureReferenced, true);
   const char* kInvalidNamedReference = "Invalid named reference";
   ExpectError("\\ka", kInvalidNamedReference, true);
-  FLAG_harmony_regexp_named_captures = false;
 }
 
 
@@ -1980,8 +1978,9 @@ TEST(UncachedExternalString) {
   v8::Local<v8::String> external =
       v8::String::NewExternalOneByte(isolate, new UncachedExternalString())
           .ToLocalChecked();
-  CHECK(v8::Utils::OpenHandle(*external)->map() ==
-        CcTest::i_isolate()->heap()->short_external_one_byte_string_map());
+  CHECK(
+      v8::Utils::OpenHandle(*external)->map() ==
+      ReadOnlyRoots(CcTest::i_isolate()).short_external_one_byte_string_map());
   v8::Local<v8::Object> global = env->Global();
   global->Set(env.local(), v8_str("external"), external).FromJust();
   CompileRun("var re = /y(.)/; re.test('ab');");

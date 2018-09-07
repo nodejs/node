@@ -33,18 +33,16 @@ class SchedulerTest : public TestWithIsolateAndZone {
 
   Schedule* ComputeAndVerifySchedule(size_t expected) {
     if (FLAG_trace_turbo) {
-      OFStream os(stdout);
       SourcePositionTable table(graph());
       NodeOriginTable table2(graph());
-      os << AsJSON(*graph(), &table, &table2);
+      StdoutStream{} << AsJSON(*graph(), &table, &table2);
     }
 
     Schedule* schedule =
         Scheduler::ComputeSchedule(zone(), graph(), Scheduler::kSplitNodes);
 
     if (FLAG_trace_turbo_scheduler) {
-      OFStream os(stdout);
-      os << *schedule << std::endl;
+      StdoutStream{} << *schedule << std::endl;
     }
     ScheduleVerifier::Run(schedule);
     EXPECT_EQ(expected, GetScheduledNodeCount(schedule));

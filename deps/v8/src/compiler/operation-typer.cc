@@ -16,20 +16,29 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-OperationTyper::OperationTyper(Isolate* isolate, Zone* zone)
+OperationTyper::OperationTyper(Isolate* isolate,
+                               const JSHeapBroker* js_heap_broker, Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
   Factory* factory = isolate->factory();
-  infinity_ = Type::NewConstant(factory->infinity_value(), zone);
-  minus_infinity_ = Type::NewConstant(factory->minus_infinity_value(), zone);
+  infinity_ =
+      Type::NewConstant(js_heap_broker, factory->infinity_value(), zone);
+  minus_infinity_ =
+      Type::NewConstant(js_heap_broker, factory->minus_infinity_value(), zone);
   Type truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero.Maybe(Type::Integral32()));
 
-  singleton_empty_string_ = Type::HeapConstant(factory->empty_string(), zone);
-  singleton_NaN_string_ = Type::HeapConstant(factory->NaN_string(), zone);
-  singleton_zero_string_ = Type::HeapConstant(factory->zero_string(), zone);
-  singleton_false_ = Type::HeapConstant(factory->false_value(), zone);
-  singleton_true_ = Type::HeapConstant(factory->true_value(), zone);
-  singleton_the_hole_ = Type::HeapConstant(factory->the_hole_value(), zone);
+  singleton_empty_string_ =
+      Type::HeapConstant(js_heap_broker, factory->empty_string(), zone);
+  singleton_NaN_string_ =
+      Type::HeapConstant(js_heap_broker, factory->NaN_string(), zone);
+  singleton_zero_string_ =
+      Type::HeapConstant(js_heap_broker, factory->zero_string(), zone);
+  singleton_false_ =
+      Type::HeapConstant(js_heap_broker, factory->false_value(), zone);
+  singleton_true_ =
+      Type::HeapConstant(js_heap_broker, factory->true_value(), zone);
+  singleton_the_hole_ =
+      Type::HeapConstant(js_heap_broker, factory->the_hole_value(), zone);
   signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
 

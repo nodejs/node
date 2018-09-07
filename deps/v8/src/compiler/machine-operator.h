@@ -10,6 +10,7 @@
 #include "src/globals.h"
 #include "src/machine-type.h"
 #include "src/utils.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -613,9 +614,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* LoadStackPointer();
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
-
-  // Access to the root register.
-  const Operator* LoadRootsPointer();
 
   // atomic-load [base + index]
   const Operator* Word32AtomicLoad(LoadRepresentation rep);

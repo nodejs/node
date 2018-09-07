@@ -72,6 +72,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Node* dead() const { return dead_; }
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const;
   CommonOperatorBuilder* common() const;
 
   JSGraph* const jsgraph_;

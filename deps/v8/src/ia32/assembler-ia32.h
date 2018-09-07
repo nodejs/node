@@ -40,6 +40,7 @@
 #include <deque>
 
 #include "src/assembler.h"
+#include "src/ia32/constants-ia32.h"
 #include "src/ia32/sse-instr.h"
 #include "src/isolate.h"
 #include "src/utils.h"
@@ -323,22 +324,22 @@ enum ScaleFactor {
 class Operand {
  public:
   // reg
-  INLINE(explicit Operand(Register reg)) { set_modrm(3, reg); }
+  V8_INLINE explicit Operand(Register reg) { set_modrm(3, reg); }
 
   // XMM reg
-  INLINE(explicit Operand(XMMRegister xmm_reg)) {
+  V8_INLINE explicit Operand(XMMRegister xmm_reg) {
     Register reg = Register::from_code(xmm_reg.code());
     set_modrm(3, reg);
   }
 
   // [disp/r]
-  INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode)) {
+  V8_INLINE explicit Operand(int32_t disp, RelocInfo::Mode rmode) {
     set_modrm(0, ebp);
     set_dispr(disp, rmode);
   }
 
   // [disp/r]
-  INLINE(explicit Operand(Immediate imm)) {
+  V8_INLINE explicit Operand(Immediate imm) {
     set_modrm(0, ebp);
     set_dispr(imm.immediate(), imm.rmode_);
   }
@@ -500,9 +501,7 @@ class Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size)
-      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
-  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
+  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -866,6 +865,9 @@ class Assembler : public AssemblerBase {
   void jmp(Register reg) { jmp(Operand(reg)); }
   void jmp(Operand adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
+  // unconditionoal jump relative to the current address. Low-level rountine,
+  // use with caution!
+  void jmp_rel(int offset);
 
   // Conditional jumps
   void j(Condition cc,
@@ -1111,9 +1113,6 @@ class Assembler : public AssemblerBase {
   void movss(XMMRegister dst, XMMRegister src) { movss(dst, Operand(src)); }
   void extractps(Register dst, XMMRegister src, byte imm8);
 
-  void ptest(XMMRegister dst, XMMRegister src) { ptest(dst, Operand(src)); }
-  void ptest(XMMRegister dst, Operand src);
-
   void psllw(XMMRegister reg, int8_t shift);
   void pslld(XMMRegister reg, int8_t shift);
   void psrlw(XMMRegister reg, int8_t shift);
@@ -1125,6 +1124,10 @@ class Assembler : public AssemblerBase {
   void psrlq(XMMRegister reg, int8_t shift);
   void psrlq(XMMRegister dst, XMMRegister src);
 
+  void pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    pshufhw(dst, Operand(src), shuffle);
+  }
+  void pshufhw(XMMRegister dst, Operand src, uint8_t shuffle);
   void pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     pshuflw(dst, Operand(src), shuffle);
   }
@@ -1138,6 +1141,11 @@ class Assembler : public AssemblerBase {
     pblendw(dst, Operand(src), mask);
   }
   void pblendw(XMMRegister dst, Operand src, uint8_t mask);
+
+  void palignr(XMMRegister dst, XMMRegister src, uint8_t mask) {
+    palignr(dst, Operand(src), mask);
+  }
+  void palignr(XMMRegister dst, Operand src, uint8_t mask);
 
   void pextrb(Register dst, XMMRegister src, int8_t offset) {
     pextrb(Operand(dst), src, offset);
@@ -1431,10 +1439,6 @@ class Assembler : public AssemblerBase {
   }
   void vshufps(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8);
 
-  void vptest(XMMRegister dst, XMMRegister src) { vptest(dst, Operand(src)); }
-  void vptest(XMMRegister dst, Operand src) {
-    vinstr(0x17, dst, xmm0, src, k66, k0F38, kWIG);
-  }
   void vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpslld(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrlw(XMMRegister dst, XMMRegister src, int8_t imm8);
@@ -1442,6 +1446,10 @@ class Assembler : public AssemblerBase {
   void vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8);
 
+  void vpshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    vpshufhw(dst, Operand(src), shuffle);
+  }
+  void vpshufhw(XMMRegister dst, Operand src, uint8_t shuffle);
   void vpshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     vpshuflw(dst, Operand(src), shuffle);
   }
@@ -1456,6 +1464,12 @@ class Assembler : public AssemblerBase {
     vpblendw(dst, src1, Operand(src2), mask);
   }
   void vpblendw(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t mask);
+
+  void vpalignr(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                uint8_t mask) {
+    vpalignr(dst, src1, Operand(src2), mask);
+  }
+  void vpalignr(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t mask);
 
   void vpextrb(Register dst, XMMRegister src, int8_t offset) {
     vpextrb(Operand(dst), src, offset);
@@ -1684,6 +1698,7 @@ class Assembler : public AssemblerBase {
   }
 
   SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
+  SSE4_RM_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
 #undef DECLARE_SSE4_INSTRUCTION
 
 #define DECLARE_SSE34_AVX_INSTRUCTION(instruction, prefix, escape1, escape2,  \
@@ -1698,6 +1713,18 @@ class Assembler : public AssemblerBase {
   SSSE3_INSTRUCTION_LIST(DECLARE_SSE34_AVX_INSTRUCTION)
   SSE4_INSTRUCTION_LIST(DECLARE_SSE34_AVX_INSTRUCTION)
 #undef DECLARE_SSE34_AVX_INSTRUCTION
+
+#define DECLARE_SSE4_AVX_RM_INSTRUCTION(instruction, prefix, escape1, escape2, \
+                                        opcode)                                \
+  void v##instruction(XMMRegister dst, XMMRegister src) {                      \
+    v##instruction(dst, Operand(src));                                         \
+  }                                                                            \
+  void v##instruction(XMMRegister dst, Operand src) {                          \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0);   \
+  }
+
+  SSE4_RM_INSTRUCTION_LIST(DECLARE_SSE4_AVX_RM_INSTRUCTION)
+#undef DECLARE_SSE4_AVX_RM_INSTRUCTION
 
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
@@ -1841,6 +1868,8 @@ class Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
   friend class EnsureSpace;
 
   // Internal reference positions, required for (potential) patching in
@@ -1850,19 +1879,6 @@ class Assembler : public AssemblerBase {
 
   // code generation
   RelocInfoWriter reloc_info_writer;
-
-  // The following functions help with avoiding allocations of embedded heap
-  // objects during the code assembly phase. {RequestHeapObject} records the
-  // need for a future heap number allocation or code stub generation. After
-  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request). That is, for each request, it will patch the
-  // dummy heap object handle that we emitted during code assembly with the
-  // actual heap object handle.
-  void RequestHeapObject(HeapObjectRequest request);
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
-
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
 
   // Variables for this instance of assembler
   int farjmp_num_ = 0;

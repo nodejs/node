@@ -58,31 +58,32 @@ int StubCache::SecondaryOffset(Name* name, int seed) {
 namespace {
 
 bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
-                           Object* handler) {
+                           MaybeObject* handler) {
   // Validate that the name and handler do not move on scavenge, and that we
   // can use identity checks instead of structural equality checks.
-  DCHECK(!name->GetHeap()->InNewSpace(name));
-  DCHECK(!name->GetHeap()->InNewSpace(handler));
+  DCHECK(!Heap::InNewSpace(name));
+  DCHECK(!Heap::InNewSpace(handler));
   DCHECK(name->IsUniqueName());
   DCHECK(name->HasHashCode());
-  if (handler) DCHECK(IC::IsHandler(MaybeObject::FromObject(handler), true));
+  if (handler) DCHECK(IC::IsHandler(handler));
   return true;
 }
 
 }  // namespace
 #endif
 
-Object* StubCache::Set(Name* name, Map* map, Object* handler) {
+MaybeObject* StubCache::Set(Name* name, Map* map, MaybeObject* handler) {
   DCHECK(CommonStubCacheChecks(this, name, map, handler));
 
   // Compute the primary entry.
   int primary_offset = PrimaryOffset(name, map);
   Entry* primary = entry(primary_, primary_offset);
-  Object* old_handler = primary->value;
+  MaybeObject* old_handler = primary->value;
 
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
-  if (old_handler != isolate_->builtins()->builtin(Builtins::kIllegal)) {
+  if (old_handler != MaybeObject::FromObject(
+                         isolate_->builtins()->builtin(Builtins::kIllegal))) {
     Map* old_map = primary->map;
     int seed = PrimaryOffset(primary->key, old_map);
     int secondary_offset = SecondaryOffset(primary->key, seed);
@@ -98,7 +99,7 @@ Object* StubCache::Set(Name* name, Map* map, Object* handler) {
   return handler;
 }
 
-Object* StubCache::Get(Name* name, Map* map) {
+MaybeObject* StubCache::Get(Name* name, Map* map) {
   DCHECK(CommonStubCacheChecks(this, name, map, nullptr));
   int primary_offset = PrimaryOffset(name, map);
   Entry* primary = entry(primary_, primary_offset);
@@ -115,14 +116,16 @@ Object* StubCache::Get(Name* name, Map* map) {
 
 
 void StubCache::Clear() {
-  Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
+  MaybeObject* empty = MaybeObject::FromObject(
+      isolate_->builtins()->builtin(Builtins::kIllegal));
+  Name* empty_string = ReadOnlyRoots(isolate()).empty_string();
   for (int i = 0; i < kPrimaryTableSize; i++) {
-    primary_[i].key = isolate()->heap()->empty_string();
+    primary_[i].key = empty_string;
     primary_[i].map = nullptr;
     primary_[i].value = empty;
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
-    secondary_[j].key = isolate()->heap()->empty_string();
+    secondary_[j].key = empty_string;
     secondary_[j].map = nullptr;
     secondary_[j].value = empty;
   }

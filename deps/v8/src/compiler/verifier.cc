@@ -645,12 +645,15 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Receiver());
       break;
     case IrOpcode::kJSParseInt:
-      // Type is Receiver.
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Any());
       CheckTypeIs(node, Type::Number());
       break;
-
+    case IrOpcode::kJSRegExpTest:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::String());
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kJSCreate:
       // Type is Object.
       CheckTypeIs(node, Type::Object());
@@ -1495,6 +1498,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kLoadTypedElement:
       break;
+    case IrOpcode::kLoadDataViewElement:
+      break;
     case IrOpcode::kStoreField:
       // (Object, fieldtype) -> _|_
       // TODO(rossberg): activate once machine ops are typed.
@@ -1522,6 +1527,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckNotTyped(node);
       break;
     case IrOpcode::kStoreTypedElement:
+      CheckNotTyped(node);
+      break;
+    case IrOpcode::kStoreDataViewElement:
       CheckNotTyped(node);
       break;
     case IrOpcode::kNumberSilenceNaN:
@@ -1708,7 +1716,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kLoadStackPointer:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:
-    case IrOpcode::kLoadRootsPointer:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kWord32AtomicLoad:

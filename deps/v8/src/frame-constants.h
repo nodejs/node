@@ -234,13 +234,6 @@ class BuiltinFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(2);
 };
 
-class InternalFrameConstants : public TypedFrameConstants {
- public:
-  // FP-relative.
-  static constexpr int kCodeOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  DEFINE_TYPED_FRAME_SIZES(1);
-};
-
 class ConstructFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.

@@ -4,7 +4,7 @@
 
 #include <cctype>
 
-#include "src/compilation-dependencies.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/simplified-operator.h"
@@ -21,7 +21,10 @@ namespace compiler {
 class JSCallReducerTest : public TypedGraphTest {
  public:
   JSCallReducerTest()
-      : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {}
+      : TypedGraphTest(3),
+        javascript_(zone()),
+        deps_(isolate(), zone()),
+        js_heap_broker(isolate()) {}
   ~JSCallReducerTest() override {}
 
  protected:
@@ -33,8 +36,8 @@ class JSCallReducerTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
 
-    JSCallReducer reducer(&graph_reducer, &jsgraph, JSCallReducer::kNoFlags,
-                          native_context(), &deps_);
+    JSCallReducer reducer(&graph_reducer, &jsgraph, &js_heap_broker,
+                          JSCallReducer::kNoFlags, native_context(), &deps_);
     return reducer.Reduce(node);
   }
 
@@ -57,7 +60,7 @@ class JSCallReducerTest : public TypedGraphTest {
   Node* GlobalFunction(const char* name) {
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
-            isolate()->global_object(),
+            isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
     return HeapConstant(f);
@@ -66,12 +69,13 @@ class JSCallReducerTest : public TypedGraphTest {
   Node* MathFunction(const std::string& name) {
     Handle<Object> m =
         JSObject::GetProperty(
-            isolate()->global_object(),
+            isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked("Math"))
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
-            m, isolate()->factory()->NewStringFromAsciiChecked(name.c_str()))
+            isolate(), m,
+            isolate()->factory()->NewStringFromAsciiChecked(name.c_str()))
             .ToHandleChecked());
     return HeapConstant(f);
   }
@@ -79,12 +83,12 @@ class JSCallReducerTest : public TypedGraphTest {
   Node* StringFunction(const char* name) {
     Handle<Object> m =
         JSObject::GetProperty(
-            isolate()->global_object(),
+            isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked("String"))
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
-            m, isolate()->factory()->NewStringFromAsciiChecked(name))
+            isolate(), m, isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
     return HeapConstant(f);
   }
@@ -92,12 +96,12 @@ class JSCallReducerTest : public TypedGraphTest {
   Node* NumberFunction(const char* name) {
     Handle<Object> m =
         JSObject::GetProperty(
-            isolate()->global_object(),
+            isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked("Number"))
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
-            m, isolate()->factory()->NewStringFromAsciiChecked(name))
+            isolate(), m, isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
     return HeapConstant(f);
   }
@@ -129,13 +133,15 @@ class JSCallReducerTest : public TypedGraphTest {
  private:
   JSOperatorBuilder javascript_;
   CompilationDependencies deps_;
+  JSHeapBroker js_heap_broker;
 
   static bool old_flag_lazy_;
   static bool old_flag_lazy_handler_;
 };
 
 TEST_F(JSCallReducerTest, PromiseConstructorNoArgs) {
-  Node* promise = HeapConstant(handle(native_context()->promise_function()));
+  Node* promise =
+      HeapConstant(handle(native_context()->promise_function(), isolate()));
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
@@ -151,8 +157,10 @@ TEST_F(JSCallReducerTest, PromiseConstructorNoArgs) {
 }
 
 TEST_F(JSCallReducerTest, PromiseConstructorSubclass) {
-  Node* promise = HeapConstant(handle(native_context()->promise_function()));
-  Node* new_target = HeapConstant(handle(native_context()->array_function()));
+  Node* promise =
+      HeapConstant(handle(native_context()->promise_function(), isolate()));
+  Node* new_target =
+      HeapConstant(handle(native_context()->array_function(), isolate()));
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
@@ -169,7 +177,8 @@ TEST_F(JSCallReducerTest, PromiseConstructorSubclass) {
 }
 
 TEST_F(JSCallReducerTest, PromiseConstructorBasic) {
-  Node* promise = HeapConstant(handle(native_context()->promise_function()));
+  Node* promise =
+      HeapConstant(handle(native_context()->promise_function(), isolate()));
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
@@ -192,7 +201,8 @@ TEST_F(JSCallReducerTest, PromiseConstructorBasic) {
 // Exactly the same as PromiseConstructorBasic which expects a reduction,
 // except that we invalidate the protector cell.
 TEST_F(JSCallReducerTest, PromiseConstructorWithHook) {
-  Node* promise = HeapConstant(handle(native_context()->promise_function()));
+  Node* promise =
+      HeapConstant(handle(native_context()->promise_function(), isolate()));
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* context = UndefinedConstant();

@@ -11,14 +11,17 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-TypeNarrowingReducer::TypeNarrowingReducer(Editor* editor, JSGraph* jsgraph)
+TypeNarrowingReducer::TypeNarrowingReducer(Editor* editor, JSGraph* jsgraph,
+                                           const JSHeapBroker* js_heap_broker)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
-      op_typer_(jsgraph->isolate(), zone()) {}
+      op_typer_(jsgraph->isolate(), js_heap_broker, zone()) {}
 
 TypeNarrowingReducer::~TypeNarrowingReducer() {}
 
 Reduction TypeNarrowingReducer::Reduce(Node* node) {
+  DisallowHeapAccess no_heap_access;
+
   Type new_type = Type::Any();
 
   switch (node->opcode()) {
@@ -29,11 +32,10 @@ Reduction TypeNarrowingReducer::Reduce(Node* node) {
       Type right_type = NodeProperties::GetType(node->InputAt(1));
       if (left_type.Is(Type::PlainNumber()) &&
           right_type.Is(Type::PlainNumber())) {
-        Factory* const factory = jsgraph()->isolate()->factory();
         if (left_type.Max() < right_type.Min()) {
-          new_type = Type::HeapConstant(factory->true_value(), zone());
+          new_type = op_typer_.singleton_true();
         } else if (left_type.Min() >= right_type.Max()) {
-          new_type = Type::HeapConstant(factory->false_value(), zone());
+          new_type = op_typer_.singleton_false();
         }
       }
       break;

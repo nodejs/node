@@ -69,17 +69,13 @@ class WasmMemoryTracker {
 
   bool IsWasmMemory(const void* buffer_start);
 
+  // Returns whether the given buffer is a Wasm memory with guard regions large
+  // enough to safely use trap handlers.
+  bool HasFullGuardRegions(const void* buffer_start);
+
   // Returns a pointer to a Wasm buffer's allocation data, or nullptr if the
   // buffer is not tracked.
   const AllocationData* FindAllocationData(const void* buffer_start);
-
-  // Empty WebAssembly memories are all backed by a shared inaccessible
-  // reservation. This method creates this store or returns the existing one if
-  // already created.
-  void* GetEmptyBackingStore(void** allocation_base, size_t* allocation_length,
-                             Heap* heap);
-
-  bool IsEmptyBackingStore(const void* buffer_start) const;
 
   // Checks if a buffer points to a Wasm memory and if so does any necessary
   // work to reclaim the buffer. If this function returns false, the caller must
@@ -133,18 +129,16 @@ class WasmMemoryTracker {
   // buffer, rather than by the start of the allocation.
   std::unordered_map<const void*, AllocationData> allocations_;
 
-  // Empty backing stores still need to be backed by mapped pages when using
-  // trap handlers. Because this could eat up address space quickly, we keep a
-  // shared backing store here.
-  AllocationData empty_backing_store_;
-
   // Keep pointers to
-  Histogram* allocation_result_;
-  Histogram* address_space_usage_mb_;  // in MiB
+  Histogram* allocation_result_ = nullptr;
+  Histogram* address_space_usage_mb_ = nullptr;  // in MiB
 
   DISALLOW_COPY_AND_ASSIGN(WasmMemoryTracker);
 };
 
+// Attempts to allocate an array buffer with guard regions suitable for trap
+// handling. If address space is not available, it will return a buffer with
+// mini-guards that will require bounds checks.
 MaybeHandle<JSArrayBuffer> NewArrayBuffer(
     Isolate*, size_t size, SharedFlag shared = SharedFlag::kNotShared);
 

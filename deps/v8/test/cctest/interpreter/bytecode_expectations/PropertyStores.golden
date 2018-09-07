@@ -298,7 +298,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 538
+bytecode array length: 534
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   18 S> */ B(LdaSmi), I8(1),
@@ -434,7 +434,7 @@ bytecodes: [
   /* 1686 S> */ B(LdaNamedProperty), R(0), U8(127), U8(254),
   /* 1699 S> */ B(Wide), B(LdaNamedProperty), R16(0), U16(128), U16(256),
   /* 1710 S> */ B(LdaSmi), I8(2),
-  /* 1717 E> */ B(Wide), B(StaNamedProperty), R16(arg0), U16(0), U16(258),
+  /* 1717 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(0),
                 B(LdaUndefined),
   /* 1722 S> */ B(Return),
 ]
@@ -712,7 +712,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 538
+bytecode array length: 534
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   33 S> */ B(LdaSmi), I8(1),
@@ -848,7 +848,7 @@ bytecodes: [
   /* 1701 S> */ B(LdaNamedProperty), R(0), U8(127), U8(254),
   /* 1714 S> */ B(Wide), B(LdaNamedProperty), R16(0), U16(128), U16(256),
   /* 1725 S> */ B(LdaSmi), I8(2),
-  /* 1732 E> */ B(Wide), B(StaNamedProperty), R16(arg0), U16(0), U16(258),
+  /* 1732 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(0),
                 B(LdaUndefined),
   /* 1737 S> */ B(Return),
 ]

@@ -115,20 +115,21 @@ inline void SpillRegisters(LiftoffAssembler* assm, Regs... regs) {
 
 }  // namespace liftoff
 
-uint32_t LiftoffAssembler::PrepareStackFrame() {
-  uint32_t offset = static_cast<uint32_t>(pc_offset());
+int LiftoffAssembler::PrepareStackFrame() {
+  int offset = pc_offset();
   sub_sp_32(0);
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
+void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               uint32_t stack_slots) {
   uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
   DCHECK_LE(bytes, kMaxInt);
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 64;
-  Assembler patching_assembler(isolate(), buffer_ + offset, kAvailableSpace);
+  Assembler patching_assembler(AssemblerOptions{}, buffer_ + offset,
+                               kAvailableSpace);
   patching_assembler.sub_sp_32(bytes);
 }
 
@@ -755,6 +756,10 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                         &Assembler::shrq_cl, pinned);
 }
 
+void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
+  movsxlq(dst, src);
+}
+
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -1302,10 +1307,8 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
                                                       rhs);
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code) {
-  Operand stack_limit = ExternalOperand(
-      ExternalReference::address_of_stack_limit(isolate()), kScratchRegister);
-  cmpp(rsp, stack_limit);
+void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
+  cmpp(rsp, Operand(limit_address, 0));
   j(below_equal, ool_code);
 }
 
@@ -1415,12 +1418,6 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   near_call(addr, RelocInfo::WASM_CALL);
 }
 
-void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
-  // Set context to zero (Smi::kZero) for the runtime call.
-  xorp(kContextRegister, kContextRegister);
-  CallRuntimeDelayed(zone, fid);
-}
-
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
@@ -1433,6 +1430,12 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
   } else {
     call(target);
   }
+}
+
+void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
+  // A direct call to a wasm runtime stub defined in this module.
+  // Just encode the stub index. This will be patched at relocation.
+  near_call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
@@ -1449,7 +1452,18 @@ void LiftoffStackSlots::Construct() {
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack:
-        asm_->pushq(liftoff::GetStackSlot(slot.src_index_));
+        if (src.type() == kWasmI32) {
+          // Load i32 values to a register first to ensure they are zero
+          // extended.
+          asm_->movl(kScratchRegister, liftoff::GetStackSlot(slot.src_index_));
+          asm_->pushq(kScratchRegister);
+        } else {
+          // For all other types, just push the whole (8-byte) stack slot.
+          // This is also ok for f32 values (even though we copy 4 uninitialized
+          // bytes), because f32 and f64 values are clearly distinguished in
+          // Turbofan, so the uninitialized bytes are never accessed.
+          asm_->pushq(liftoff::GetStackSlot(slot.src_index_));
+        }
         break;
       case LiftoffAssembler::VarState::kRegister:
         liftoff::push(asm_, src.reg(), src.type());

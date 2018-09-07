@@ -157,6 +157,7 @@ class JSTypeHintLowering {
                           DeoptimizeReason reson) const;
 
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const;
   Flags flags() const { return flags_; }
   const Handle<FeedbackVector>& feedback_vector() const {
     return feedback_vector_;

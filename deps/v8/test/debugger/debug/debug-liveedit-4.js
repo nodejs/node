@@ -31,6 +31,7 @@
 // hasen't been changed. However actually function became one level more nested
 // and must be recompiled because it uses variable from outer scope.
 
+// Flags: --allow-natives-syntax
 
 Debug = debug.Debug
 
@@ -53,14 +54,10 @@ var res = TestFunction();
 print(res);
 assertEquals('a,c', res);
 
-var script = Debug.findScript(TestFunction);
-var new_source = script.source.replace("2013", "b");
+var new_source = Debug.scriptSource(TestFunction).replace('2013', 'b');
 print("new source: " + new_source);
-var change_log = new Array();
-var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
 
-print("Result: " + JSON.stringify(result) + "\n");
-print("Change log: " + JSON.stringify(change_log) + "\n");
+%LiveEditPatchScript(TestFunction, new_source);
 
 var res = TestFunction();
 print(res);

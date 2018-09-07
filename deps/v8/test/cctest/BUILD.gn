@@ -192,6 +192,7 @@ v8_source_set("cctest_sources") {
     "test-heap-profiler.cc",
     "test-identity-map.cc",
     "test-inobject-slack-tracking.cc",
+    "test-inspector.cc",
     "test-intl.cc",
     "test-isolate-independent-builtins.cc",
     "test-liveedit.cc",
@@ -208,6 +209,7 @@ v8_source_set("cctest_sources") {
     "test-random-number-generator.cc",
     "test-regexp.cc",
     "test-representation.cc",
+    "test-roots.cc",
     "test-sampler-api.cc",
     "test-serialize.cc",
     "test-strings.cc",
@@ -248,6 +250,8 @@ v8_source_set("cctest_sources") {
     "wasm/test-wasm-breakpoints.cc",
     "wasm/test-wasm-codegen.cc",
     "wasm/test-wasm-interpreter-entry.cc",
+    "wasm/test-wasm-serialization.cc",
+    "wasm/test-wasm-shared-engine.cc",
     "wasm/test-wasm-stack.cc",
     "wasm/test-wasm-trap-position.cc",
     "wasm/wasm-atomics-utils.h",
@@ -377,7 +381,6 @@ v8_source_set("cctest_sources") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:wasm_module_runner",
-    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 
@@ -397,6 +400,7 @@ v8_source_set("cctest_sources") {
 
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
+    public_deps += [ "//third_party/icu" ]
   } else {
     sources -= [ "test-intl.cc" ]
   }
@@ -474,7 +478,6 @@ v8_executable("generate-bytecode-expectations") {
     "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 }

@@ -81,7 +81,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
 #define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                             \
-  static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate));     \
+  static V8_INLINE Type __RT_impl_##Name(Arguments args, Isolate* isolate);   \
                                                                               \
   V8_NOINLINE static Type Stats_##Name(int args_length, Object** args_object, \
                                        Isolate* isolate) {                    \

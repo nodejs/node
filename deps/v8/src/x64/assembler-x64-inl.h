@@ -48,25 +48,10 @@ void Assembler::emitw(uint16_t x) {
   pc_ += sizeof(uint16_t);
 }
 
-void Assembler::emit_code_target(Handle<Code> target, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsCodeTarget(rmode));
-  RecordRelocInfo(rmode);
-  int current = static_cast<int>(code_targets_.size());
-  if (current > 0 && !target.is_null() &&
-      code_targets_.back().address() == target.address()) {
-    // Optimization if we keep jumping to the same code target.
-    emitl(current - 1);
-  } else {
-    code_targets_.push_back(target);
-    emitl(current);
-  }
-}
-
-
 void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
   RecordRelocInfo(rmode);
-  emitl(static_cast<uint32_t>(entry - isolate_data().code_range_start_));
+  emitl(static_cast<uint32_t>(entry - options().code_range_start));
 }
 
 void Assembler::emit(Immediate x) {
@@ -278,11 +263,11 @@ int Assembler::deserialization_special_target_size(
 }
 
 Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
-  return code_targets_[Memory::int32_at(pc)];
+  return GetCodeTarget(Memory::int32_at(pc));
 }
 
 Address Assembler::runtime_entry_at(Address pc) {
-  return Memory::int32_at(pc) + isolate_data().code_range_start_;
+  return Memory::int32_at(pc) + options().code_range_start;
 }
 
 // -----------------------------------------------------------------------------
@@ -306,8 +291,8 @@ Address RelocInfo::target_address() {
 
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
+         IsWasmStubCall(rmode_) || IsEmbeddedObject(rmode_) ||
+         IsExternalReference(rmode_) || IsOffHeapTarget(rmode_));
   return pc_;
 }
 
@@ -339,15 +324,6 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_wasm_code_table_entry(Address target,
-                                          ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::WASM_CODE_TABLE_ENTRY);
-  Memory::Address_at(pc_) = target;
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc_, sizeof(Address));
-  }
-}
-
 Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   return Memory::Address_at(pc_);
@@ -373,7 +349,7 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
-void RelocInfo::set_target_object(HeapObject* target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
@@ -382,9 +358,8 @@ void RelocInfo::set_target_object(HeapObject* target,
     Assembler::FlushICache(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  target);
-    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
+    heap->incremental_marking()->RecordWriteIntoCode(host(), this, target);
+    heap->RecordWriteIntoCode(host(), this, target);
   }
 }
 
@@ -427,7 +402,7 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(host(), this);
     Assembler::FlushICache(pc_, sizeof(Address));
-  } else if (RelocInfo::IsCodeTarget(mode)) {
+  } else if (RelocInfo::IsCodeTargetMode(mode)) {
     visitor->VisitCodeTarget(host(), this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(host(), this);

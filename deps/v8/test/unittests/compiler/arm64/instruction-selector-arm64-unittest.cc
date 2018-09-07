@@ -4426,6 +4426,95 @@ TEST_F(InstructionSelectorTest, SpeculationFence) {
   EXPECT_EQ(kArm64DsbIsb, s[0]->arch_opcode());
 }
 
+TEST_F(InstructionSelectorTest, StackCheck0) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
+  Node* const sp = m.LoadStackPointer();
+  Node* const stack_limit = m.Load(MachineType::Int64(), m.Parameter(0));
+  Node* const interrupt = m.UintPtrLessThan(sp, stack_limit);
+
+  RawMachineLabel if_true, if_false;
+  m.Branch(interrupt, &if_true, &if_false);
+
+  m.Bind(&if_true);
+  m.Return(m.Int32Constant(1));
+
+  m.Bind(&if_false);
+  m.Return(m.Int32Constant(0));
+
+  Stream s = m.Build();
+
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArm64Ldr, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Cmp, s[1]->arch_opcode());
+  EXPECT_EQ(4U, s[1]->InputCount());
+  EXPECT_EQ(0U, s[1]->OutputCount());
+}
+
+TEST_F(InstructionSelectorTest, StackCheck1) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
+  Node* const sp = m.LoadStackPointer();
+  Node* const stack_limit = m.Load(MachineType::Int64(), m.Parameter(0));
+  Node* const sp_within_limit = m.UintPtrLessThan(stack_limit, sp);
+
+  RawMachineLabel if_true, if_false;
+  m.Branch(sp_within_limit, &if_true, &if_false);
+
+  m.Bind(&if_true);
+  m.Return(m.Int32Constant(1));
+
+  m.Bind(&if_false);
+  m.Return(m.Int32Constant(0));
+
+  Stream s = m.Build();
+
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArm64Ldr, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Cmp, s[1]->arch_opcode());
+  EXPECT_EQ(4U, s[1]->InputCount());
+  EXPECT_EQ(0U, s[1]->OutputCount());
+}
+
+TEST_F(InstructionSelectorTest, ExternalReferenceLoad1) {
+  // Test offsets we can use kMode_Root for.
+  const int64_t kOffsets[] = {0, 1, 4, INT32_MIN, INT32_MAX};
+  TRACED_FOREACH(int64_t, offset, kOffsets) {
+    StreamBuilder m(this, MachineType::Int64());
+    ExternalReference reference = bit_cast<ExternalReference>(
+        reinterpret_cast<intptr_t>(isolate()->heap()->roots_array_start()) +
+        offset + kRootRegisterBias);
+    Node* const value =
+        m.Load(MachineType::Int64(), m.ExternalConstant(reference));
+    m.Return(value);
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ldr, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Root, s[0]->addressing_mode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToInt64(s[0]->InputAt(0)), offset);
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+TEST_F(InstructionSelectorTest, ExternalReferenceLoad2) {
+  // Offset too large, we cannot use kMode_Root.
+  StreamBuilder m(this, MachineType::Int64());
+  int64_t offset = 0x100000000;
+  ExternalReference reference = bit_cast<ExternalReference>(
+      reinterpret_cast<intptr_t>(isolate()->heap()->roots_array_start()) +
+      offset + kRootRegisterBias);
+  Node* const value =
+      m.Load(MachineType::Int64(), m.ExternalConstant(reference));
+  m.Return(value);
+
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Ldr, s[0]->arch_opcode());
+  EXPECT_NE(kMode_Root, s[0]->addressing_mode());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

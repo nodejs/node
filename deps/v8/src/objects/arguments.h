@@ -98,7 +98,7 @@ class SloppyArgumentsElements : public FixedArray {
 
   DECL_CAST(SloppyArgumentsElements)
 #ifdef VERIFY_HEAP
-  void SloppyArgumentsElementsVerify(JSObject* holder);
+  void SloppyArgumentsElementsVerify(Isolate* isolate, JSObject* holder);
 #endif
 
  private:

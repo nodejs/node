@@ -14,6 +14,9 @@
 namespace v8 {
 namespace internal {
 
+SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
+              FixedArray::OffsetOfElementAt(kLiteralTypeOffset));
+
 CAST_ACCESSOR(ClassBoilerplate)
 
 BIT_FIELD_ACCESSORS(ClassBoilerplate, flags, install_class_name_accessor,
@@ -42,6 +45,23 @@ ACCESSORS(ClassBoilerplate, instance_elements_template, Object,
 
 ACCESSORS(ClassBoilerplate, instance_computed_properties, FixedArray,
           FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex));
+
+SMI_ACCESSORS(ArrayBoilerplateDescription, flags, kFlagsOffset);
+
+ACCESSORS(ArrayBoilerplateDescription, constant_elements, FixedArrayBase,
+          kConstantElementsOffset);
+
+ElementsKind ArrayBoilerplateDescription::elements_kind() const {
+  return static_cast<ElementsKind>(flags());
+}
+
+void ArrayBoilerplateDescription::set_elements_kind(ElementsKind kind) {
+  set_flags(kind);
+}
+
+bool ArrayBoilerplateDescription::is_empty() const {
+  return constant_elements()->length() == 0;
+}
 
 }  // namespace internal
 }  // namespace v8

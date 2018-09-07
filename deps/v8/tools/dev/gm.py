@@ -119,6 +119,7 @@ symbol_level = 2
 use_goma = {GOMA}
 goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
+v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
 """.replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
@@ -131,6 +132,7 @@ symbol_level = 1
 use_goma = {GOMA}
 goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
+v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
 """.replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))

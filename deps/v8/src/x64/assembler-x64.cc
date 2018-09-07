@@ -19,6 +19,7 @@
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/v8.h"
 
@@ -123,35 +124,23 @@ void CpuFeatures::PrintFeatures() {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
-Address RelocInfo::embedded_address() const { return Memory::Address_at(pc_); }
-
-uint32_t RelocInfo::embedded_size() const { return Memory::uint32_at(pc_); }
-
-void RelocInfo::set_embedded_address(Address address,
-                                     ICacheFlushMode icache_flush_mode) {
+void RelocInfo::set_js_to_wasm_address(Address address,
+                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
   Memory::Address_at(pc_) = address;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(pc_, sizeof(Address));
   }
 }
 
-void RelocInfo::set_embedded_size(uint32_t size,
-                                  ICacheFlushMode icache_flush_mode) {
-  Memory::uint32_at(pc_) = size;
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc_, sizeof(uint32_t));
-  }
-}
-
-void RelocInfo::set_js_to_wasm_address(Address address,
-                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  set_embedded_address(address, icache_flush_mode);
-}
-
 Address RelocInfo::js_to_wasm_address() const {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return embedded_address();
+  return Memory::Address_at(pc_);
+}
+
+uint32_t RelocInfo::wasm_call_tag() const {
+  DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
+  return Memory::uint32_at(pc_);
 }
 
 // -----------------------------------------------------------------------------
@@ -350,14 +339,14 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
-        Handle<HeapNumber> object = isolate->factory()->NewHeapNumber(
-            request.heap_number(), IMMUTABLE, TENURED);
+        Handle<HeapNumber> object =
+            isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
         Memory::Object_Handle_at(pc) = object;
         break;
       }
       case HeapObjectRequest::kCodeStub: {
         request.code_stub()->set_isolate(isolate);
-        code_targets_[Memory::int32_at(pc)] = request.code_stub()->GetCode();
+        UpdateCodeTarget(Memory::int32_at(pc), request.code_stub()->GetCode());
         break;
       }
     }
@@ -367,8 +356,9 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
 
-Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size) {
+Assembler::Assembler(const AssemblerOptions& options, void* buffer,
+                     int buffer_size)
+    : AssemblerBase(options, buffer, buffer_size) {
 // Clear the buffer in debug mode unless it was provided by the
 // caller in which case we can't be sure it's okay to overwrite
 // existing code in it.
@@ -378,7 +368,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   }
 #endif
 
-  code_targets_.reserve(100);
+  ReserveCodeTargetSpace(100);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 }
 
@@ -992,14 +982,19 @@ void Assembler::call(CodeStub* stub) {
   // 1110 1000 #32-bit disp.
   emit(0xE8);
   RequestHeapObject(HeapObjectRequest(stub));
-  emit_code_target(Handle<Code>(), RelocInfo::CODE_TARGET);
+  RecordRelocInfo(RelocInfo::CODE_TARGET);
+  int code_target_index = AddCodeTarget(Handle<Code>());
+  emitl(code_target_index);
 }
 
 void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);
-  emit_code_target(target, rmode);
+  RecordRelocInfo(rmode);
+  int code_target_index = AddCodeTarget(target);
+  emitl(code_target_index);
 }
 
 void Assembler::near_call(Address addr, RelocInfo::Mode rmode) {
@@ -1441,7 +1436,10 @@ void Assembler::j(Condition cc,
   // 0000 1111 1000 tttn #32-bit disp.
   emit(0x0F);
   emit(0x80 | cc);
-  emit_code_target(target, rmode);
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
+  RecordRelocInfo(rmode);
+  int code_target_index = AddCodeTarget(target);
+  emitl(code_target_index);
 }
 
 
@@ -1502,10 +1500,13 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
 
 
 void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
   EnsureSpace ensure_space(this);
   // 1110 1001 #32-bit disp.
   emit(0xE9);
-  emit_code_target(target, rmode);
+  RecordRelocInfo(rmode);
+  int code_target_index = AddCodeTarget(target);
+  emitl(code_target_index);
 }
 
 
@@ -4842,9 +4843,9 @@ void Assembler::dq(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   DCHECK(!RelocInfo::IsNone(rmode));
-  // Don't record external references unless the heap will be serialized.
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
-      !serializer_enabled() && !emit_debug_code()) {
+  if (options().disable_reloc_info_for_patching) return;
+  if (RelocInfo::IsOnlyForSerializer(rmode) &&
+      !options().record_reloc_info_for_serialization && !emit_debug_code()) {
     return;
   }
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
@@ -4852,8 +4853,10 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 const int RelocInfo::kApplyMask =
-    RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
-    1 << RelocInfo::INTERNAL_REFERENCE | 1 << RelocInfo::WASM_CALL;
+    RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+    RelocInfo::ModeMask(RelocInfo::WASM_CALL);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
@@ -4867,6 +4870,10 @@ bool RelocInfo::IsInConstantPool() {
   return false;
 }
 
+int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
+  DCHECK(IsRuntimeEntry(rmode_));
+  return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
+}
 
 }  // namespace internal
 }  // namespace v8

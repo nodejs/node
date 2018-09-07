@@ -29,6 +29,7 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
 
 #define AST_EXPRESSION_NODE_KIND_LIST(V) \
   V(CallExpression)                      \
+  V(StructExpression)                    \
   V(LogicalOrExpression)                 \
   V(LogicalAndExpression)                \
   V(ConditionalExpression)               \
@@ -38,13 +39,12 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   V(FieldAccessExpression)               \
   V(ElementAccessExpression)             \
   V(AssignmentExpression)                \
-  V(IncrementDecrementExpression)        \
-  V(CastExpression)                      \
-  V(ConvertExpression)
+  V(IncrementDecrementExpression)
 
 #define AST_TYPE_EXPRESSION_NODE_KIND_LIST(V) \
   V(BasicTypeExpression)                      \
-  V(FunctionTypeExpression)
+  V(FunctionTypeExpression)                   \
+  V(UnionTypeExpression)
 
 #define AST_STATEMENT_NODE_KIND_LIST(V) \
   V(BlockStatement)                     \
@@ -61,16 +61,19 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   V(TailCallStatement)                  \
   V(VarDeclarationStatement)            \
   V(GotoStatement)                      \
-  V(TryCatchStatement)
+  V(TryLabelStatement)
 
 #define AST_DECLARATION_NODE_KIND_LIST(V) \
   V(TypeDeclaration)                      \
+  V(TypeAliasDeclaration)                 \
   V(StandardDeclaration)                  \
   V(GenericDeclaration)                   \
   V(SpecializationDeclaration)            \
-  V(ConstDeclaration)                     \
+  V(ExternConstDeclaration)               \
+  V(StructDeclaration)                    \
   V(DefaultModuleDeclaration)             \
-  V(ExplicitModuleDeclaration)
+  V(ExplicitModuleDeclaration)            \
+  V(ConstDeclaration)
 
 #define AST_CALLABLE_NODE_KIND_LIST(V) \
   V(TorqueMacroDeclaration)            \
@@ -85,7 +88,6 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   AST_STATEMENT_NODE_KIND_LIST(V)       \
   AST_DECLARATION_NODE_KIND_LIST(V)     \
   AST_CALLABLE_NODE_KIND_LIST(V)        \
-  V(CatchBlock)                         \
   V(LabelBlock)
 
 struct AstNode {
@@ -260,6 +262,14 @@ struct CallExpression : Expression {
   std::vector<std::string> labels;
 };
 
+struct StructExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(StructExpression)
+  StructExpression(SourcePosition p, std::string n, std::vector<Expression*> e)
+      : Expression(kKind, p), name(n), expressions(std::move(e)) {}
+  std::string name;
+  std::vector<Expression*> expressions;
+};
+
 struct LogicalOrExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(LogicalOrExpression)
   LogicalOrExpression(SourcePosition p, Expression* l, Expression* r)
@@ -298,24 +308,6 @@ struct NumberLiteralExpression : Expression {
   NumberLiteralExpression(SourcePosition p, std::string n)
       : Expression(kKind, p), number(std::move(n)) {}
   std::string number;
-};
-
-struct CastExpression : Expression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(CastExpression)
-  CastExpression(SourcePosition p, TypeExpression* t, std::string o,
-                 Expression* v)
-      : Expression(kKind, p), type(t), otherwise(o), value(v) {}
-  TypeExpression* type;
-  std::string otherwise;
-  Expression* value;
-};
-
-struct ConvertExpression : Expression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(ConvertExpression)
-  ConvertExpression(SourcePosition p, TypeExpression* t, Expression* v)
-      : Expression(kKind, p), type(t), value(v) {}
-  TypeExpression* type;
-  Expression* value;
 };
 
 struct ElementAccessExpression : LocationExpression {
@@ -379,6 +371,14 @@ struct FunctionTypeExpression : TypeExpression {
   TypeExpression* return_type;
 };
 
+struct UnionTypeExpression : TypeExpression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(UnionTypeExpression)
+  UnionTypeExpression(SourcePosition pos, TypeExpression* a, TypeExpression* b)
+      : TypeExpression(kKind, pos), a(a), b(b) {}
+  TypeExpression* a;
+  TypeExpression* b;
+};
+
 struct ExpressionStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExpressionStatement)
   ExpressionStatement(SourcePosition p, Expression* e)
@@ -426,8 +426,13 @@ struct DebugStatement : Statement {
 
 struct AssertStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(AssertStatement)
-  AssertStatement(SourcePosition p, Expression* e, const std::string& s)
-      : Statement(kKind, p), expression(e), source(s) {}
+  AssertStatement(SourcePosition pos, bool debug_only, Expression* expression,
+                  std::string source)
+      : Statement(kKind, pos),
+        debug_only(debug_only),
+        expression(expression),
+        source(std::move(source)) {}
+  bool debug_only;
   Expression* expression;
   std::string source;
 };
@@ -441,9 +446,14 @@ struct TailCallStatement : Statement {
 
 struct VarDeclarationStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(VarDeclarationStatement)
-  VarDeclarationStatement(SourcePosition p, std::string n, TypeExpression* t,
-                          base::Optional<Expression*> i)
-      : Statement(kKind, p), name(std::move(n)), type(t), initializer(i) {}
+  VarDeclarationStatement(SourcePosition p, bool c, std::string n,
+                          TypeExpression* t, base::Optional<Expression*> i)
+      : Statement(kKind, p),
+        const_qualified(c),
+        name(std::move(n)),
+        type(t),
+        initializer(i) {}
+  bool const_qualified;
   std::string name;
   TypeExpression* type;
   base::Optional<Expression*> initializer;
@@ -501,14 +511,6 @@ struct ForOfLoopStatement : Statement {
   Statement* body;
 };
 
-struct CatchBlock : AstNode {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(CatchBlock)
-  CatchBlock(SourcePosition p, const std::string& c, Statement* b)
-      : AstNode(kKind, p), caught(std::move(c)), body(std::move(b)) {}
-  std::string caught;
-  Statement* body;
-};
-
 struct LabelBlock : AstNode {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(LabelBlock)
   LabelBlock(SourcePosition p, const std::string& l,
@@ -522,12 +524,11 @@ struct LabelBlock : AstNode {
   Statement* body;
 };
 
-struct TryCatchStatement : Statement {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(TryCatchStatement)
-  TryCatchStatement(SourcePosition p, Statement* t, std::vector<CatchBlock*> c)
-      : Statement(kKind, p), try_block(std::move(t)), catch_blocks(c) {}
+struct TryLabelStatement : Statement {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(TryLabelStatement)
+  TryLabelStatement(SourcePosition p, Statement* t)
+      : Statement(kKind, p), try_block(std::move(t)) {}
   Statement* try_block;
-  std::vector<CatchBlock*> catch_blocks;
   std::vector<LabelBlock*> label_blocks;
 };
 
@@ -551,6 +552,19 @@ struct TypeDeclaration : Declaration {
   base::Optional<std::string> extends;
   base::Optional<std::string> generates;
   base::Optional<std::string> constexpr_generates;
+};
+
+struct TypeAliasDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(TypeAliasDeclaration)
+  TypeAliasDeclaration(SourcePosition p, std::string n, TypeExpression* t)
+      : Declaration(kKind, p), name(std::move(n)), type(t) {}
+  std::string name;
+  TypeExpression* type;
+};
+
+struct FieldNameAndType {
+  std::string name;
+  TypeExpression* type;
 };
 
 struct LabelAndTypes {
@@ -580,27 +594,26 @@ struct CallableNode : AstNode {
 
 struct MacroDeclaration : CallableNode {
   DEFINE_AST_NODE_INNER_BOILERPLATE(MacroDeclaration)
-  MacroDeclaration(AstNode::Kind kind, SourcePosition p, std::string n, bool i,
+  MacroDeclaration(AstNode::Kind kind, SourcePosition p, std::string n,
                    base::Optional<std::string> o, ParameterList pl,
                    TypeExpression* r, const LabelAndTypesVector& l)
-      : CallableNode(kind, p, n, pl, r, l), implicit(i), op(std::move(o)) {}
-  bool implicit;
+      : CallableNode(kind, p, n, pl, r, l), op(std::move(o)) {}
   base::Optional<std::string> op;
 };
 
 struct ExternalMacroDeclaration : MacroDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternalMacroDeclaration)
-  ExternalMacroDeclaration(SourcePosition p, std::string n, bool i,
+  ExternalMacroDeclaration(SourcePosition p, std::string n,
                            base::Optional<std::string> o, ParameterList pl,
                            TypeExpression* r, const LabelAndTypesVector& l)
-      : MacroDeclaration(kKind, p, n, i, o, pl, r, l) {}
+      : MacroDeclaration(kKind, p, n, o, pl, r, l) {}
 };
 
 struct TorqueMacroDeclaration : MacroDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TorqueMacroDeclaration)
   TorqueMacroDeclaration(SourcePosition p, std::string n, ParameterList pl,
                          TypeExpression* r, const LabelAndTypesVector& l)
-      : MacroDeclaration(kKind, p, n, false, {}, pl, r, l) {}
+      : MacroDeclaration(kKind, p, n, {}, pl, r, l) {}
 };
 
 struct BuiltinDeclaration : CallableNode {
@@ -631,6 +644,16 @@ struct ExternalRuntimeDeclaration : CallableNode {
       : CallableNode(kKind, p, n, pl, r, {}) {}
 };
 
+struct ConstDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(ConstDeclaration)
+  ConstDeclaration(SourcePosition p, std::string n, TypeExpression* r,
+                   Expression* e)
+      : Declaration(kKind, p), name(std::move(n)), type(r), expression(e) {}
+  std::string name;
+  TypeExpression* type;
+  Expression* expression;
+};
+
 struct StandardDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(StandardDeclaration)
   StandardDeclaration(SourcePosition p, CallableNode* c, Statement* b)
@@ -642,37 +665,40 @@ struct StandardDeclaration : Declaration {
 struct GenericDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(GenericDeclaration)
   GenericDeclaration(SourcePosition p, CallableNode* c,
-                     std::vector<std::string> gp, Statement* b)
+                     std::vector<std::string> gp,
+                     base::Optional<Statement*> b = base::nullopt)
       : Declaration(kKind, p),
         callable(c),
         generic_parameters(std::move(gp)),
         body(b) {}
   CallableNode* callable;
   std::vector<std::string> generic_parameters;
-  Statement* body;
+  base::Optional<Statement*> body;
 };
 
 struct SpecializationDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(SpecializationDeclaration)
-  SpecializationDeclaration(SourcePosition p, std::string n,
+  SpecializationDeclaration(SourcePosition p, std::string n, bool e,
                             std::vector<TypeExpression*> gp, ParameterList pl,
                             TypeExpression* r, LabelAndTypesVector l,
                             Statement* b)
       : Declaration(kKind, p),
         name(std::move(n)),
+        external(e),
         generic_parameters(gp),
         signature(new CallableNodeSignature{pl, r, l}),
         body(b) {}
   std::string name;
+  bool external;
   std::vector<TypeExpression*> generic_parameters;
   std::unique_ptr<CallableNodeSignature> signature;
   Statement* body;
 };
 
-struct ConstDeclaration : Declaration {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(ConstDeclaration)
-  ConstDeclaration(SourcePosition p, std::string n, TypeExpression* t,
-                   std::string l)
+struct ExternConstDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternConstDeclaration)
+  ExternConstDeclaration(SourcePosition p, std::string n, TypeExpression* t,
+                         std::string l)
       : Declaration(kKind, p),
         name(std::move(n)),
         type(t),
@@ -680,6 +706,14 @@ struct ConstDeclaration : Declaration {
   std::string name;
   TypeExpression* type;
   std::string literal;
+};
+
+struct StructDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(StructDeclaration)
+  StructDeclaration(SourcePosition p, std::string n)
+      : Declaration(kKind, p), name(std::move(n)) {}
+  std::string name;
+  std::vector<FieldNameAndType> fields;
 };
 
 #define ENUM_ITEM(name)                     \

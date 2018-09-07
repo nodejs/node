@@ -22,7 +22,7 @@ class CodeAssemblerTester {
   explicit CodeAssemblerTester(Isolate* isolate, const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, VoidDescriptor(isolate), Code::STUB, name,
+        state_(isolate, &zone_, VoidDescriptor{}, Code::STUB, name,
                PoisoningMitigationLevel::kDontPoison) {}
 
   // Test generating code for a JS function (e.g. builtins).
@@ -55,7 +55,10 @@ class CodeAssemblerTester {
     return state_.raw_assembler_.get();
   }
 
-  Handle<Code> GenerateCode() { return CodeAssembler::GenerateCode(&state_); }
+  Handle<Code> GenerateCode() {
+    return CodeAssembler::GenerateCode(
+        &state_, AssemblerOptions::Default(scope_.isolate()));
+  }
 
   Handle<Code> GenerateCodeCloseAndEscape() {
     return scope_.CloseAndEscape(GenerateCode());

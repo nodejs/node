@@ -425,9 +425,8 @@ std::unique_ptr<Value> buildValue(const Char* start, const Char* end, const Char
         double value = charactersToDouble(tokenStart, tokenEnd - tokenStart, &ok);
         if (!ok)
             return nullptr;
-        int number = static_cast<int>(value);
-        if (number == value)
-            result = FundamentalValue::create(number);
+        if (value >= INT_MIN && value <= INT_MAX && static_cast<int>(value) == value)
+            result = FundamentalValue::create(static_cast<int>(value));
         else
             result = FundamentalValue::create(value);
         break;

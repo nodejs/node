@@ -41,7 +41,7 @@ class AstTraversalVisitor : public AstVisitor<Subclass> {
 
   // Iteration left-to-right.
   void VisitDeclarations(Declaration::List* declarations);
-  void VisitStatements(ZoneList<Statement*>* statements);
+  void VisitStatements(ZonePtrList<Statement>* statements);
 
 // Individual nodes
 #define DECLARE_VISIT(type) void Visit##type(type* node);
@@ -112,7 +112,7 @@ void AstTraversalVisitor<Subclass>::VisitDeclarations(
 
 template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitStatements(
-    ZoneList<Statement*>* stmts) {
+    ZonePtrList<Statement>* stmts) {
   for (int i = 0; i < stmts->length(); ++i) {
     Statement* stmt = stmts->at(i);
     RECURSE(Visit(stmt));
@@ -198,14 +198,14 @@ void AstTraversalVisitor<Subclass>::VisitSwitchStatement(
   PROCESS_NODE(stmt);
   RECURSE(Visit(stmt->tag()));
 
-  ZoneList<CaseClause*>* clauses = stmt->cases();
+  ZonePtrList<CaseClause>* clauses = stmt->cases();
   for (int i = 0; i < clauses->length(); ++i) {
     CaseClause* clause = clauses->at(i);
     if (!clause->is_default()) {
       Expression* label = clause->label();
       RECURSE(Visit(label));
     }
-    ZoneList<Statement*>* stmts = clause->statements();
+    ZonePtrList<Statement>* stmts = clause->statements();
     RECURSE(VisitStatements(stmts));
   }
 }
@@ -330,7 +330,7 @@ void AstTraversalVisitor<Subclass>::VisitRegExpLiteral(RegExpLiteral* expr) {
 template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitObjectLiteral(ObjectLiteral* expr) {
   PROCESS_EXPRESSION(expr);
-  ZoneList<ObjectLiteralProperty*>* props = expr->properties();
+  ZonePtrList<ObjectLiteralProperty>* props = expr->properties();
   for (int i = 0; i < props->length(); ++i) {
     ObjectLiteralProperty* prop = props->at(i);
     RECURSE_EXPRESSION(Visit(prop->key()));
@@ -341,7 +341,7 @@ void AstTraversalVisitor<Subclass>::VisitObjectLiteral(ObjectLiteral* expr) {
 template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitArrayLiteral(ArrayLiteral* expr) {
   PROCESS_EXPRESSION(expr);
-  ZoneList<Expression*>* values = expr->values();
+  ZonePtrList<Expression>* values = expr->values();
   for (int i = 0; i < values->length(); ++i) {
     Expression* value = values->at(i);
     RECURSE_EXPRESSION(Visit(value));
@@ -404,7 +404,7 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitCall(Call* expr) {
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(Visit(expr->expression()));
-  ZoneList<Expression*>* args = expr->arguments();
+  ZonePtrList<Expression>* args = expr->arguments();
   for (int i = 0; i < args->length(); ++i) {
     Expression* arg = args->at(i);
     RECURSE_EXPRESSION(Visit(arg));
@@ -415,7 +415,7 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitCallNew(CallNew* expr) {
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(Visit(expr->expression()));
-  ZoneList<Expression*>* args = expr->arguments();
+  ZonePtrList<Expression>* args = expr->arguments();
   for (int i = 0; i < args->length(); ++i) {
     Expression* arg = args->at(i);
     RECURSE_EXPRESSION(Visit(arg));
@@ -425,7 +425,7 @@ void AstTraversalVisitor<Subclass>::VisitCallNew(CallNew* expr) {
 template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitCallRuntime(CallRuntime* expr) {
   PROCESS_EXPRESSION(expr);
-  ZoneList<Expression*>* args = expr->arguments();
+  ZonePtrList<Expression>* args = expr->arguments();
   for (int i = 0; i < args->length(); ++i) {
     Expression* arg = args->at(i);
     RECURSE_EXPRESSION(Visit(arg));
@@ -487,7 +487,7 @@ void AstTraversalVisitor<Subclass>::VisitClassLiteral(ClassLiteral* expr) {
   if (expr->instance_fields_initializer_function() != nullptr) {
     RECURSE_EXPRESSION(Visit(expr->instance_fields_initializer_function()));
   }
-  ZoneList<ClassLiteralProperty*>* props = expr->properties();
+  ZonePtrList<ClassLiteral::Property>* props = expr->properties();
   for (int i = 0; i < props->length(); ++i) {
     ClassLiteralProperty* prop = props->at(i);
     if (!prop->key()->IsLiteral()) {
@@ -501,7 +501,7 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitInitializeClassFieldsStatement(
     InitializeClassFieldsStatement* stmt) {
   PROCESS_NODE(stmt);
-  ZoneList<ClassLiteralProperty*>* props = stmt->fields();
+  ZonePtrList<ClassLiteral::Property>* props = stmt->fields();
   for (int i = 0; i < props->length(); ++i) {
     ClassLiteralProperty* prop = props->at(i);
     if (!prop->key()->IsLiteral()) {

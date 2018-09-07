@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-function benchy(fn, name) {
-  new BenchmarkSuite(name, [1], [
+function createSuiteWithWarmup( name, count, fn) {
+  new BenchmarkSuite(name, [count], [
     new Benchmark(name, true, false, 0, fn),
   ]);
 }
@@ -41,7 +41,7 @@ function endsIndex(string) {
   return string[string.length - 1] === first;
 }
 
-benchy(() => helper(startsWith), 'startsWith');
-benchy(() => helper(startsIndex), 'startsIndex');
-benchy(() => helper(endsWith), 'endsWith');
-benchy(() => helper(endsIndex), 'endsIndex');
+createSuiteWithWarmup('startsWith', 1, () => helper(startsWith));
+createSuiteWithWarmup('startsIndex', 1, () => helper(startsIndex));
+createSuiteWithWarmup('endsWith', 1, () => helper(endsWith));
+createSuiteWithWarmup('endsIndex', 1, () => helper(endsIndex));

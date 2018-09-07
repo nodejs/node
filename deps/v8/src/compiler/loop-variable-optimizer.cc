@@ -77,10 +77,9 @@ void LoopVariableOptimizer::Run() {
 void InductionVariable::AddUpperBound(Node* bound,
                                       InductionVariable::ConstraintKind kind) {
   if (FLAG_trace_turbo_loop) {
-    OFStream os(stdout);
-    os << "New upper bound for " << phi()->id() << " (loop "
-       << NodeProperties::GetControlInput(phi())->id() << "): " << *bound
-       << std::endl;
+    StdoutStream{} << "New upper bound for " << phi()->id() << " (loop "
+                   << NodeProperties::GetControlInput(phi())->id()
+                   << "): " << *bound << std::endl;
   }
   upper_bounds_.push_back(Bound(bound, kind));
 }
@@ -88,9 +87,9 @@ void InductionVariable::AddUpperBound(Node* bound,
 void InductionVariable::AddLowerBound(Node* bound,
                                       InductionVariable::ConstraintKind kind) {
   if (FLAG_trace_turbo_loop) {
-    OFStream os(stdout);
-    os << "New lower bound for " << phi()->id() << " (loop "
-       << NodeProperties::GetControlInput(phi())->id() << "): " << *bound;
+    StdoutStream{} << "New lower bound for " << phi()->id() << " (loop "
+                   << NodeProperties::GetControlInput(phi())->id()
+                   << "): " << *bound;
   }
   lower_bounds_.push_back(Bound(bound, kind));
 }

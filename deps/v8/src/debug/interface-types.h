@@ -69,13 +69,14 @@ struct WasmDisassembly {
   OffsetTable offset_table;
 };
 
-enum PromiseDebugActionType {
-  kDebugAsyncFunctionPromiseCreated,
+enum DebugAsyncActionType {
   kDebugPromiseThen,
   kDebugPromiseCatch,
   kDebugPromiseFinally,
   kDebugWillHandle,
   kDebugDidHandle,
+  kAsyncFunctionSuspended,
+  kAsyncFunctionFinished
 };
 
 enum BreakLocationType {
@@ -154,16 +155,10 @@ class ConsoleDelegate {
                           const ConsoleContext& context) {}
   virtual void Assert(const ConsoleCallArguments& args,
                       const ConsoleContext& context) {}
-  virtual void MarkTimeline(const ConsoleCallArguments& args,
-                            const ConsoleContext& context) {}
   virtual void Profile(const ConsoleCallArguments& args,
                        const ConsoleContext& context) {}
   virtual void ProfileEnd(const ConsoleCallArguments& args,
                           const ConsoleContext& context) {}
-  virtual void Timeline(const ConsoleCallArguments& args,
-                        const ConsoleContext& context) {}
-  virtual void TimelineEnd(const ConsoleCallArguments& args,
-                           const ConsoleContext& context) {}
   virtual void Time(const ConsoleCallArguments& args,
                     const ConsoleContext& context) {}
   virtual void TimeEnd(const ConsoleCallArguments& args,
@@ -176,36 +171,6 @@ class ConsoleDelegate {
 typedef int BreakpointId;
 
 }  // namespace debug
-}  // namespace v8
-
-// TODO(yangguo): this is legacy left over from removing v8-debug.h, and still
-//                used in cctests. Let's get rid of these soon.
-namespace v8 {
-enum DebugEvent {
-  Break = 1,
-  Exception = 2,
-  AfterCompile = 3,
-  CompileError = 4,
-  AsyncTaskEvent = 5,
-};
-
-class Debug {
- public:
-  class EventDetails {
-   public:
-    virtual DebugEvent GetEvent() const = 0;
-    virtual Local<Object> GetExecutionState() const = 0;
-    virtual Local<Object> GetEventData() const = 0;
-    virtual Local<Context> GetEventContext() const = 0;
-    virtual Local<Value> GetCallbackData() const = 0;
-
-    virtual Isolate* GetIsolate() const = 0;
-
-    virtual ~EventDetails() {}
-  };
-
-  typedef void (*EventCallback)(const EventDetails& event_details);
-};
 }  // namespace v8
 
 #endif  // V8_DEBUG_INTERFACE_TYPES_H_

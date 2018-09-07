@@ -124,10 +124,21 @@ class ModuleDescriptor : public ZoneObject {
     ModuleRequest(int index, int position) : index(index), position(position) {}
   };
 
+  // Custom content-based comparer for the below maps, to keep them stable
+  // across parses.
+  struct AstRawStringComparer {
+    bool operator()(const AstRawString* lhs, const AstRawString* rhs) const;
+  };
+
+  typedef ZoneMap<const AstRawString*, ModuleRequest, AstRawStringComparer>
+      ModuleRequestMap;
+  typedef ZoneMultimap<const AstRawString*, Entry*, AstRawStringComparer>
+      RegularExportMap;
+  typedef ZoneMap<const AstRawString*, Entry*, AstRawStringComparer>
+      RegularImportMap;
+
   // Module requests.
-  const ZoneMap<const AstRawString*, ModuleRequest>& module_requests() const {
-    return module_requests_;
-  }
+  const ModuleRequestMap& module_requests() const { return module_requests_; }
 
   // Namespace imports.
   const ZoneVector<const Entry*>& namespace_imports() const {
@@ -135,9 +146,7 @@ class ModuleDescriptor : public ZoneObject {
   }
 
   // All the remaining imports, indexed by local name.
-  const ZoneMap<const AstRawString*, Entry*>& regular_imports() const {
-    return regular_imports_;
-  }
+  const RegularImportMap& regular_imports() const { return regular_imports_; }
 
   // Star exports and explicitly indirect exports.
   const ZoneVector<const Entry*>& special_exports() const {
@@ -146,9 +155,7 @@ class ModuleDescriptor : public ZoneObject {
 
   // All the remaining exports, indexed by local name.
   // After canonicalization (see Validate), these are exactly the local exports.
-  const ZoneMultimap<const AstRawString*, Entry*>& regular_exports() const {
-    return regular_exports_;
-  }
+  const RegularExportMap& regular_exports() const { return regular_exports_; }
 
   void AddRegularExport(Entry* entry) {
     DCHECK_NOT_NULL(entry->export_name);
@@ -188,11 +195,11 @@ class ModuleDescriptor : public ZoneObject {
                                  Handle<ModuleInfo> module_info);
 
  private:
-  ZoneMap<const AstRawString*, ModuleRequest> module_requests_;
+  ModuleRequestMap module_requests_;
   ZoneVector<const Entry*> special_exports_;
   ZoneVector<const Entry*> namespace_imports_;
-  ZoneMultimap<const AstRawString*, Entry*> regular_exports_;
-  ZoneMap<const AstRawString*, Entry*> regular_imports_;
+  RegularExportMap regular_exports_;
+  RegularImportMap regular_imports_;
 
   // If there are multiple export entries with the same export name, return the
   // last of them (in source order).  Otherwise return nullptr.

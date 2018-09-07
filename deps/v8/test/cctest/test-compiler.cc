@@ -53,7 +53,7 @@ static void SetGlobalProperty(const char* name, Object* value) {
   Handle<Object> object(value, isolate);
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
-  Handle<JSObject> global(isolate->context()->global_object());
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Runtime::SetObjectProperty(isolate, global, internalized_name, object,
                              LanguageMode::kSloppy)
       .Check();
@@ -83,7 +83,7 @@ static double Inc(Isolate* isolate, int x) {
   Handle<JSFunction> fun = Compile(buffer.start());
   if (fun.is_null()) return -1;
 
-  Handle<JSObject> global(isolate->context()->global_object());
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
@@ -102,7 +102,7 @@ static double Add(Isolate* isolate, int x, int y) {
 
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
-  Handle<JSObject> global(isolate->context()->global_object());
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
@@ -120,7 +120,7 @@ static double Abs(Isolate* isolate, int x) {
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("x", Smi::FromInt(x));
-  Handle<JSObject> global(isolate->context()->global_object());
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
@@ -139,7 +139,7 @@ static double Sum(Isolate* isolate, int n) {
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("n", Smi::FromInt(n));
-  Handle<JSObject> global(isolate->context()->global_object());
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
@@ -159,7 +159,8 @@ TEST(Print) {
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
-  Handle<JSObject> global(CcTest::i_isolate()->context()->global_object());
+  Handle<JSObject> global(CcTest::i_isolate()->context()->global_object(),
+                          fun->GetIsolate());
   Execution::Call(CcTest::i_isolate(), fun, global, 0, nullptr).Check();
 }
 
@@ -190,7 +191,8 @@ TEST(Stuff) {
 
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
-  Handle<JSObject> global(CcTest::i_isolate()->context()->global_object());
+  Handle<JSObject> global(CcTest::i_isolate()->context()->global_object(),
+                          fun->GetIsolate());
   Execution::Call(CcTest::i_isolate(), fun, global, 0, nullptr).Check();
   CHECK_EQ(511.0, GetGlobalProperty("r")->Number());
 }
@@ -204,7 +206,7 @@ TEST(UncaughtThrow) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   Isolate* isolate = fun->GetIsolate();
-  Handle<JSObject> global(isolate->context()->global_object());
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   CHECK(Execution::Call(isolate, fun, global, 0, nullptr).is_null());
   CHECK_EQ(42.0, isolate->pending_exception()->Number());
 }
@@ -230,7 +232,7 @@ TEST(C2JSFrames) {
   Isolate* isolate = fun0->GetIsolate();
 
   // Run the generated code to populate the global object with 'foo'.
-  Handle<JSObject> global(isolate->context()->global_object());
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::Call(isolate, fun0, global, 0, nullptr).Check();
 
   Handle<Object> fun1 =
@@ -257,7 +259,7 @@ TEST(Regression236) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<Script> script = factory->NewScript(factory->empty_string());
-  script->set_source(CcTest::heap()->undefined_value());
+  script->set_source(ReadOnlyRoots(CcTest::heap()).undefined_value());
   CHECK_EQ(-1, Script::GetLineNumber(script, 0));
   CHECK_EQ(-1, Script::GetLineNumber(script, 100));
   CHECK_EQ(-1, Script::GetLineNumber(script, -1));
@@ -309,12 +311,15 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
           CcTest::global()->Get(context, v8_str("f")).ToLocalChecked())));
 
   // Verify that we gathered feedback.
-  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
   CHECK(!feedback_vector->is_empty());
   FeedbackSlot slot_for_a(0);
   MaybeObject* object = feedback_vector->Get(slot_for_a);
-  CHECK(object->ToStrongHeapObject()->IsWeakCell() &&
-        WeakCell::cast(object->ToStrongHeapObject())->value()->IsJSFunction());
+  {
+    HeapObject* heap_object;
+    CHECK(object->ToWeakHeapObject(&heap_object));
+    CHECK(heap_object->IsJSFunction());
+  }
 
   CompileRun("%OptimizeFunctionOnNextCall(f); f(fun1);");
 
@@ -322,8 +327,11 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // of the full code.
   CHECK(f->IsOptimized());
   object = f->feedback_vector()->Get(slot_for_a);
-  CHECK(object->ToStrongHeapObject()->IsWeakCell() &&
-        WeakCell::cast(object->ToStrongHeapObject())->value()->IsJSFunction());
+  {
+    HeapObject* heap_object;
+    CHECK(object->ToWeakHeapObject(&heap_object));
+    CHECK(heap_object->IsJSFunction());
+  }
 }
 
 
