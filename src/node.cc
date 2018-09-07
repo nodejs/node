@@ -29,6 +29,7 @@
 #include "node_revert.h"
 #include "node_perf.h"
 #include "node_context_data.h"
+#include "node_locks.h"
 #include "tracing/traced_value.h"
 
 #if defined HAVE_PERFCTR
@@ -3078,6 +3079,15 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   }
 
   env.set_trace_sync_io(false);
+
+  {
+    // If there are still pending locks, exit with a deadlock error
+    worker::LockManager* manager = worker::LockManager::GetCurrent();
+    if (manager->HasPending()) {
+      // FIXME: doesn't seem to actually throw
+      env.ThrowError("Worker lock deadlock detected");
+    }
+  }
 
   const int exit_code = EmitExit(&env);
 

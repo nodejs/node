@@ -146,6 +146,12 @@ bool LockManager::IsGrantable(const LockRequest* request) {
   }
 }
 
+bool LockManager::HasPending() {
+  Mutex::ScopedLock lock(work_mutex_);
+
+  return pending_requests_.size() > 0 || held_locks_.size() > 0;
+}
+
 // https://wicg.github.io/web-locks/#algorithm-request-lock
 // promise, callback, name, mode, ifAvailable, steal
 void LockManager::Request(const FunctionCallbackInfo<Value>& args) {

@@ -90,6 +90,7 @@ class LockManager {
   void Snapshot(Environment* env, v8::Local<v8::Promise::Resolver> promise);
   void ProcessQueue(Environment* env);
   bool IsGrantable(const LockRequest* request);
+  bool HasPending();
 
   static void ReleaseLock(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Snapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
