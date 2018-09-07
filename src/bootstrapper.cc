@@ -31,6 +31,11 @@ void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
   args.GetIsolate()->RunMicrotasks();
 }
 
+void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsFunction());
+  args.GetIsolate()->EnqueueMicrotask(args[0].As<Function>());
+}
+
 void SetupTraceCategoryState(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsFunction());
@@ -51,9 +56,16 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
           .ToLocalChecked();
   run_microtasks_fn->SetName(FIXED_ONE_BYTE_STRING(isolate, "runMicrotasks"));
 
+  Local<Function> enqueue_microtasks_fn =
+    env->NewFunctionTemplate(EnqueueMicrotask)->GetFunction(context)
+        .ToLocalChecked();
+  enqueue_microtasks_fn->SetName(
+      FIXED_ONE_BYTE_STRING(isolate, "EnqueueMicrotask"));
+
   Local<Array> ret = Array::New(isolate, 2);
   ret->Set(context, 0, env->tick_info()->fields().GetJSArray()).FromJust();
   ret->Set(context, 1, run_microtasks_fn).FromJust();
+  ret->Set(context, 2, enqueue_microtasks_fn).FromJust();
 
   args.GetReturnValue().Set(ret);
 }
