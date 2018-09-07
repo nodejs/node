@@ -286,8 +286,7 @@ class NodeTraceStateObserver :
 
 static struct {
   void Initialize(void) {
-    tp_ = std::make_shared<threadpool::Threadpool>();
-    tp_->Initialize();
+    tp_ = std::make_shared<threadpool::Threadpool>(-1);
     libuv_executor_ = std::unique_ptr<threadpool::LibuvExecutor>(
       new threadpool::LibuvExecutor(tp_));
   }

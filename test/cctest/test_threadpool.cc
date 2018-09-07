@@ -7,8 +7,10 @@
 #include "node_test_fixture.h"
 
 #include <atomic>
+#include <stdlib.h>
 
 using node::threadpool::Task;
+using node::threadpool::TaskDetails;
 using node::threadpool::TaskQueue;
 using node::threadpool::Worker;
 using node::threadpool::Threadpool;
@@ -28,7 +30,11 @@ class ThreadpoolTest : public NodeTestFixture {
 // Helper so we have a type of Task
 class TestTask : public node::threadpool::Task {
  public:
-  TestTask() {}
+  TestTask() {
+    details_.type = TaskDetails::CPU_FAST;
+    details_.priority = -1;
+    details_.cancelable = false;
+  }
   ~TestTask() {
     testTaskDestroyedCount++;
   }
@@ -109,13 +115,12 @@ TEST_F(ThreadpoolTest, ThreadpoolEndToEnd) {
   int nTasks = 100;
 
   {
-    std::unique_ptr<Threadpool> tp(new Threadpool());
+    std::unique_ptr<Threadpool> tp(new Threadpool(-1));
 
     // Reset globals
     testTaskRunCount = 0;
     testTaskDestroyedCount = 0;
 
-    tp->Initialize();
     EXPECT_GT(tp->NWorkers(), 0);
 
     // Push
@@ -134,13 +139,11 @@ TEST_F(ThreadpoolTest, ThreadpoolBlockingDrain) {
   // Enough that we will probably have to wait for them to finish.
   int nTasks = 10000;
 
-  std::unique_ptr<Threadpool> tp(new Threadpool());
+  std::unique_ptr<Threadpool> tp(new Threadpool(-1));
 
   // Reset globals
   testTaskRunCount = 0;
   testTaskDestroyedCount = 0;
-
-  tp->Initialize();
 
   // Push
   EXPECT_EQ(tp->QueueLength(), 0);
@@ -151,4 +154,23 @@ TEST_F(ThreadpoolTest, ThreadpoolBlockingDrain) {
   tp->BlockingDrain();
   EXPECT_EQ(testTaskRunCount, nTasks);
   EXPECT_EQ(testTaskDestroyedCount, nTasks);
+}
+
+TEST_F(ThreadpoolTest, ThreadpoolSize) {
+  char* old = getenv("UV_THREADPOOL_SIZE");
+
+  int tp_size = 17;
+  char tp_size_str[4];
+  snprintf(tp_size_str, sizeof(tp_size_str), "%d", tp_size);
+
+  setenv("UV_THREADPOOL_SIZE", tp_size_str, 1);
+  std::unique_ptr<Threadpool> tp(new Threadpool(-1));
+  EXPECT_EQ(tp->NWorkers(), tp_size);
+
+  // Restore previous value of UV_THREADPOOL_SIZE.
+  if (old) {
+    setenv("UV_THREADPOOL_SIZE", old, 1);
+  } else {
+    unsetenv("UV_THREADPOOL_SIZE");
+  }
 }

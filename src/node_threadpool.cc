@@ -10,7 +10,7 @@
 // TODO(davisjam): DO NOT MERGE. Only for debugging.
 // TODO(davisjam): There must be a better way to do this.
 #define DEBUG_LOG 1
-#undef DEBUG_LOG
+// #undef DEBUG_LOG
 
 #ifdef DEBUG_LOG
 #include <stdio.h>
@@ -222,28 +222,56 @@ int TaskQueue::Length(void) const {
  * Threadpool
  ***************/
 
-Threadpool::Threadpool(void)
-  : queue_(), workers_() {
+Threadpool::Threadpool(int threadpool_size)
+  : threadpool_size_(threadpool_size), queue_(), workers_() {
+  LOG("Threadpool::Threadpool: threadpool_size_ %d\n", threadpool_size_);
+  if (threadpool_size_ <= 0) {
+    // Check UV_THREADPOOL_SIZE
+    char buf[32];
+    size_t buf_size = sizeof(buf);
+    if (uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size) == 0) {
+      threadpool_size_ = atoi(buf);
+    }
+  }
+
+  if (threadpool_size_ <= 0) {
+    // No/bad UV_THREADPOOL_SIZE, so take a guess.
+    threadpool_size_ = GoodThreadpoolSize();
+  }
+  LOG("Threadpool::Threadpool: threadpool_size_ %d\n", threadpool_size_);
+  CHECK_GT(threadpool_size_, 0);
+
+  Initialize();
+}
+
+int Threadpool::GoodThreadpoolSize(void) {
+  // Ask libuv how many cores we have.
+  uv_cpu_info_t* cpu_infos;
+  int count;
+
+  if (uv_cpu_info(&cpu_infos, &count)) {
+    return 4;  // Old libuv TP default.
+  }
+
+  uv_free_cpu_info(cpu_infos, count);
+  return count;
+}
+
+void Threadpool::Initialize() {
+  for (int i = 0; i < threadpool_size_; i++) {
+    std::unique_ptr<Worker> worker(new Worker());
+    worker->Start(&queue_);
+    workers_.push_back(std::move(worker));
+  }
 }
 
 Threadpool::~Threadpool(void) {
   // Block future Push's.
   queue_.Stop();
 
-  // Wait for Workers to drain the queue.
+  // Workers will drain the queue and then return.
   for (auto& worker : workers_) {
     worker->Join();
-  }
-}
-
-// TODO(davisjam): Return early on multiple initialization
-void Threadpool::Initialize(void) {
-  int n_workers = 4;  // TODO(davisjam):
-
-  for (int i = 0; i < n_workers; i++) {
-    std::unique_ptr<Worker> worker(new Worker());
-    worker->Start(&queue_);
-    workers_.push_back(std::move(worker));
   }
 }
 

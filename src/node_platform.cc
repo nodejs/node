@@ -247,6 +247,7 @@ int PerIsolatePlatformData::unref() {
   return --ref_count_;
 }
 
+// TODO(davisjam): Duplicated code between constructors.
 NodePlatform::NodePlatform(int thread_pool_size,
                            TracingController* tracing_controller) {
   if (tracing_controller) {
@@ -258,8 +259,7 @@ NodePlatform::NodePlatform(int thread_pool_size,
 
   // Give wttr its own TP.
   std::shared_ptr<threadpool::Threadpool> tp =
-    std::make_shared<threadpool::Threadpool>();
-  tp->Initialize();
+    std::make_shared<threadpool::Threadpool>(thread_pool_size);
   worker_thread_task_runner_ = std::make_shared<WorkerThreadsTaskRunner>(tp);
 }
 

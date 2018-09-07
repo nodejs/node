@@ -186,18 +186,15 @@ class TaskQueue {
 // Subclass to experiment, e.g.:
 //   - Use a different type of TaskQueue
 //   - Elastic workers (scale up and down)
-//
-// TODO(davisjam): Thread pool size recommendation.
 class Threadpool {
  public:
-  // TODO(davisjam): RAII.
-  Threadpool(void);
+  // If threadpool_size <= 0:
+  //   - checks UV_THREADPOOL_SIZE to determine threadpool_size
+  //   - if this is not set, takes a guess
+  // TODO(davisjam): Ponder --v8-pool-size and UV_THREADPOOL_SIZE.
+  explicit Threadpool(int threadpool_size);
   // Waits for queue to drain.
   ~Threadpool(void);
-
-  // Call once, before you Post.
-  // TODO(davisjam): Remove, replace with RAII.
-  void Initialize(void);
 
   void Post(std::unique_ptr<Task> task);
   int QueueLength(void) const;
@@ -207,6 +204,10 @@ class Threadpool {
   int NWorkers(void) const;
 
  private:
+  int GoodThreadpoolSize(void);
+  void Initialize(void);
+
+  int threadpool_size_;
   TaskQueue queue_;
   std::vector<std::unique_ptr<Worker>> workers_;
 };
