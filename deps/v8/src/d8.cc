@@ -383,64 +383,6 @@ static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
 
 }  // namespace tracing
 
-class PerIsolateData {
- public:
-  explicit PerIsolateData(Isolate* isolate)
-      : isolate_(isolate), realms_(nullptr) {
-    isolate->SetData(0, this);
-  }
-
-  ~PerIsolateData() {
-    isolate_->SetData(0, nullptr);  // Not really needed, just to be sure...
-  }
-
-  inline static PerIsolateData* Get(Isolate* isolate) {
-    return reinterpret_cast<PerIsolateData*>(isolate->GetData(0));
-  }
-
-  class RealmScope {
-   public:
-    explicit RealmScope(PerIsolateData* data);
-    ~RealmScope();
-   private:
-    PerIsolateData* data_;
-  };
-
-  inline void SetTimeout(Local<Function> callback, Local<Context> context) {
-    set_timeout_callbacks_.emplace(isolate_, callback);
-    set_timeout_contexts_.emplace(isolate_, context);
-  }
-
-  inline MaybeLocal<Function> GetTimeoutCallback() {
-    if (set_timeout_callbacks_.empty()) return MaybeLocal<Function>();
-    Local<Function> result = set_timeout_callbacks_.front().Get(isolate_);
-    set_timeout_callbacks_.pop();
-    return result;
-  }
-
-  inline MaybeLocal<Context> GetTimeoutContext() {
-    if (set_timeout_contexts_.empty()) return MaybeLocal<Context>();
-    Local<Context> result = set_timeout_contexts_.front().Get(isolate_);
-    set_timeout_contexts_.pop();
-    return result;
-  }
-
- private:
-  friend class Shell;
-  friend class RealmScope;
-  Isolate* isolate_;
-  int realm_count_;
-  int realm_current_;
-  int realm_switch_;
-  Global<Context>* realms_;
-  Global<Value> realm_shared_;
-  std::queue<Global<Function>> set_timeout_callbacks_;
-  std::queue<Global<Context>> set_timeout_contexts_;
-
-  int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
-                        int arg_offset);
-  int RealmFind(Local<Context> context);
-};
 
 class ExternalOwningOneByteStringResource
     : public String::ExternalOneByteStringResource {
@@ -483,8 +425,8 @@ base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 // Dummy external source stream which returns the whole source in one go.
 class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
  public:
-  explicit DummySourceStream(Local<String> source) : done_(false) {
-    source_length_ = source->Utf8Length();
+  DummySourceStream(Local<String> source, Isolate* isolate) : done_(false) {
+    source_length_ = source->Utf8Length(isolate);
     source_buffer_.reset(new uint8_t[source_length_]);
     source->WriteUtf8(reinterpret_cast<char*>(source_buffer_.get()),
                       source_length_);
@@ -511,7 +453,7 @@ class BackgroundCompileThread : public base::Thread {
   BackgroundCompileThread(Isolate* isolate, Local<String> source)
       : base::Thread(GetThreadOptions("BackgroundCompileThread")),
         source_(source),
-        streamed_source_(new DummySourceStream(source),
+        streamed_source_(new DummySourceStream(source, isolate),
                          v8::ScriptCompiler::StreamedSource::UTF8),
         task_(v8::ScriptCompiler::StartStreamingScript(isolate,
                                                        &streamed_source_)) {}
@@ -990,6 +932,41 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   return true;
 }
 
+PerIsolateData::PerIsolateData(Isolate* isolate)
+    : isolate_(isolate), realms_(nullptr) {
+  isolate->SetData(0, this);
+  if (i::FLAG_expose_async_hooks) {
+    async_hooks_wrapper_ = new AsyncHooks(isolate);
+  }
+}
+
+PerIsolateData::~PerIsolateData() {
+  isolate_->SetData(0, nullptr);  // Not really needed, just to be sure...
+  if (i::FLAG_expose_async_hooks) {
+    delete async_hooks_wrapper_;  // This uses the isolate
+  }
+}
+
+void PerIsolateData::SetTimeout(Local<Function> callback,
+                                Local<Context> context) {
+  set_timeout_callbacks_.emplace(isolate_, callback);
+  set_timeout_contexts_.emplace(isolate_, context);
+}
+
+MaybeLocal<Function> PerIsolateData::GetTimeoutCallback() {
+  if (set_timeout_callbacks_.empty()) return MaybeLocal<Function>();
+  Local<Function> result = set_timeout_callbacks_.front().Get(isolate_);
+  set_timeout_callbacks_.pop();
+  return result;
+}
+
+MaybeLocal<Context> PerIsolateData::GetTimeoutContext() {
+  if (set_timeout_contexts_.empty()) return MaybeLocal<Context>();
+  Local<Context> result = set_timeout_contexts_.front().Get(isolate_);
+  set_timeout_contexts_.pop();
+  return result;
+}
+
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realm_count_ = 1;
   data_->realm_current_ = 0;
@@ -1242,6 +1219,35 @@ void Shell::RealmSharedSet(Local<String> property,
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   data->realm_shared_.Reset(isolate, value);
+}
+
+// async_hooks.createHook() registers functions to be called for different
+// lifetime events of each async operation.
+void Shell::AsyncHooksCreateHook(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Local<Object> wrap =
+      PerIsolateData::Get(args.GetIsolate())->GetAsyncHooks()->CreateHook(args);
+  args.GetReturnValue().Set(wrap);
+}
+
+// async_hooks.executionAsyncId() returns the asyncId of the current execution
+// context.
+void Shell::AsyncHooksExecutionAsyncId(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  args.GetReturnValue().Set(v8::Number::New(
+      isolate,
+      PerIsolateData::Get(isolate)->GetAsyncHooks()->GetExecutionAsyncId()));
+}
+
+void Shell::AsyncHooksTriggerAsyncId(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  args.GetReturnValue().Set(v8::Number::New(
+      isolate,
+      PerIsolateData::Get(isolate)->GetAsyncHooks()->GetTriggerAsyncId()));
 }
 
 void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1857,6 +1863,26 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
           .ToLocalChecked(),
       os_templ);
 
+  if (i::FLAG_expose_async_hooks) {
+    Local<ObjectTemplate> async_hooks_templ = ObjectTemplate::New(isolate);
+    async_hooks_templ->Set(
+        String::NewFromUtf8(isolate, "createHook", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate, AsyncHooksCreateHook));
+    async_hooks_templ->Set(
+        String::NewFromUtf8(isolate, "executionAsyncId", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate, AsyncHooksExecutionAsyncId));
+    async_hooks_templ->Set(
+        String::NewFromUtf8(isolate, "triggerAsyncId", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
+    global_template->Set(
+        String::NewFromUtf8(isolate, "async_hooks", NewStringType::kNormal)
+            .ToLocalChecked(),
+        async_hooks_templ);
+  }
+
   return global_template;
 }
 
@@ -2061,8 +2087,7 @@ void Shell::OnExit(v8::Isolate* isolate) {
   // Dump basic block profiling data.
   if (i::BasicBlockProfiler* profiler =
           reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
-    i::OFStream os(stdout);
-    os << *profiler;
+    i::StdoutStream{} << *profiler;
   }
   isolate->Dispose();
 
@@ -2351,8 +2376,6 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
             .ToLocalChecked();
     CHECK(context->Global()->Set(context, function_name, function).FromJust());
 
-    v8::debug::SetLiveEditEnabled(isolate_, true);
-
     context_.Reset(isolate_, context);
   }
 
@@ -2400,6 +2423,14 @@ SourceGroup::~SourceGroup() {
   thread_ = nullptr;
 }
 
+bool ends_with(const char* input, const char* suffix) {
+  size_t input_length = strlen(input);
+  size_t suffix_length = strlen(suffix);
+  if (suffix_length <= input_length) {
+    return strcmp(input + input_length - suffix_length, suffix) == 0;
+  }
+  return false;
+}
 
 void SourceGroup::Execute(Isolate* isolate) {
   bool exception_was_thrown = false;
@@ -2422,6 +2453,13 @@ void SourceGroup::Execute(Isolate* isolate) {
         break;
       }
       ++i;
+      continue;
+    } else if (ends_with(arg, ".mjs")) {
+      Shell::options.script_executed = true;
+      if (!Shell::ExecuteModule(isolate, arg)) {
+        exception_was_thrown = true;
+        break;
+      }
       continue;
     } else if (strcmp(arg, "--module") == 0 && i + 1 < end_offset_) {
       // Treat the next file as a module.
@@ -2882,8 +2920,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       current->Begin(argv, i + 1);
     } else if (strcmp(str, "--module") == 0) {
       // Pass on to SourceGroup, which understands this option.
-    } else if (strncmp(argv[i], "--", 2) == 0) {
-      printf("Warning: unknown flag %s.\nTry --help for options\n", argv[i]);
+    } else if (strncmp(str, "--", 2) == 0) {
+      printf("Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
       options.script_executed = true;
     } else if (strncmp(str, "-", 1) != 0) {
@@ -3078,6 +3116,21 @@ class Serializer : public ValueSerializer::Delegate {
     return Just<uint32_t>(static_cast<uint32_t>(index));
   }
 
+  Maybe<uint32_t> GetWasmModuleTransferId(
+      Isolate* isolate, Local<WasmCompiledModule> module) override {
+    DCHECK_NOT_NULL(data_);
+    for (size_t index = 0; index < wasm_modules_.size(); ++index) {
+      if (wasm_modules_[index] == module) {
+        return Just<uint32_t>(static_cast<uint32_t>(index));
+      }
+    }
+
+    size_t index = wasm_modules_.size();
+    wasm_modules_.emplace_back(isolate_, module);
+    data_->transferrable_modules_.push_back(module->GetTransferrableModule());
+    return Just<uint32_t>(static_cast<uint32_t>(index));
+  }
+
   void* ReallocateBufferMemory(void* old_buffer, size_t size,
                                size_t* actual_size) override {
     // Not accurate, because we don't take into account reallocated buffers,
@@ -3155,6 +3208,7 @@ class Serializer : public ValueSerializer::Delegate {
   std::unique_ptr<SerializationData> data_;
   std::vector<Global<ArrayBuffer>> array_buffers_;
   std::vector<Global<SharedArrayBuffer>> shared_array_buffers_;
+  std::vector<Global<WasmCompiledModule>> wasm_modules_;
   std::vector<ExternalizedContents> externalized_contents_;
   size_t current_memory_usage_;
 
@@ -3196,6 +3250,16 @@ class Deserializer : public ValueDeserializer::Delegate {
                                     contents.ByteLength());
     }
     return MaybeLocal<SharedArrayBuffer>();
+  }
+
+  MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(
+      Isolate* isolate, uint32_t transfer_id) override {
+    DCHECK_NOT_NULL(data_);
+    if (transfer_id < data_->transferrable_modules().size()) {
+      return WasmCompiledModule::FromTransferrableModule(
+          isolate_, data_->transferrable_modules().at(transfer_id));
+    }
+    return MaybeLocal<WasmCompiledModule>();
   }
 
  private:
@@ -3295,7 +3359,9 @@ int Shell::Main(int argc, char* argv[]) {
   if (i::FLAG_trace_turbo_cfg_file == nullptr) {
     SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
   }
-  SetFlagsFromString("--redirect-code-traces-to=code.asm");
+  if (i::FLAG_redirect_code_traces_to == nullptr) {
+    SetFlagsFromString("--redirect-code-traces-to=code.asm");
+  }
   int result = 0;
   Isolate::CreateParams create_params;
   ShellArrayBufferAllocator shell_array_buffer_allocator;

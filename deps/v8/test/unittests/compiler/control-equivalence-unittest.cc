@@ -31,10 +31,9 @@ class ControlEquivalenceTest : public GraphTest {
   void ComputeEquivalence(Node* node) {
     graph()->SetEnd(graph()->NewNode(common()->End(1), node));
     if (FLAG_trace_turbo) {
-      OFStream os(stdout);
       SourcePositionTable table(graph());
       NodeOriginTable table2(graph());
-      os << AsJSON(*graph(), &table, &table2);
+      StdoutStream{} << AsJSON(*graph(), &table, &table2);
     }
     ControlEquivalence equivalence(zone(), graph());
     equivalence.Run(node);

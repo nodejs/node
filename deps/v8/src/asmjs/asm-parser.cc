@@ -553,7 +553,7 @@ void AsmJsParser::ValidateModuleVarImport(VarInfo* info,
     } else {
       info->kind = VarKind::kImportedFunction;
       info->import = new (zone()->New(sizeof(FunctionImportInfo)))
-          FunctionImportInfo({name, WasmModuleBuilder::SignatureMap(zone())});
+          FunctionImportInfo(name, zone());
       info->mutable_variable = false;
     }
   }
@@ -2210,14 +2210,14 @@ AsmType* AsmJsParser::ValidateCall() {
     DCHECK_NOT_NULL(function_info->import);
     // TODO(bradnelson): Factor out.
     uint32_t index;
-    auto it = function_info->import->cache.find(sig);
+    auto it = function_info->import->cache.find(*sig);
     if (it != function_info->import->cache.end()) {
       index = it->second;
       DCHECK(function_info->function_defined);
     } else {
       index =
           module_builder_->AddImport(function_info->import->function_name, sig);
-      function_info->import->cache[sig] = index;
+      function_info->import->cache[*sig] = index;
       function_info->function_defined = true;
     }
     current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);

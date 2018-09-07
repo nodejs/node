@@ -101,7 +101,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
   __ movp(arg_reg_1, rax);
-  __ Set(arg_reg_2, type());
+  __ Set(arg_reg_2, static_cast<int>(deopt_kind()));
   // Args 3 and 4 are already in the right registers.
 
   // On windows put the arguments on the stack (PrepareCallCFunction

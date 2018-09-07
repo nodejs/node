@@ -8,6 +8,7 @@
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -165,28 +166,14 @@ class X64OperandGenerator final : public OperandGenerator {
     if (selector()->CanAddressRelativeToRootsRegister()) {
       LoadMatcher<ExternalReferenceMatcher> m(operand);
       if (m.index().HasValue() && m.object().HasValue()) {
-        Address const kRootsRegisterValue =
-            kRootRegisterBias +
-            reinterpret_cast<Address>(
-                selector()->isolate()->heap()->roots_array_start());
         ptrdiff_t const delta =
             m.index().Value() +
-            (m.object().Value().address() - kRootsRegisterValue);
+            TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+                selector()->isolate(), m.object().Value());
         if (is_int32(delta)) {
           inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
           return kMode_Root;
         }
-      }
-    }
-    if (operand->InputCount() == 2) {
-      Node* left = operand->InputAt(0);
-      Node* right = operand->InputAt(1);
-      if (left->opcode() == IrOpcode::kLoadRootsPointer &&
-          right->opcode() == IrOpcode::kInt64Constant) {
-        int64_t offset = OpParameter<int64_t>(right->op());
-        DCHECK(is_int32(offset));
-        inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(offset));
-        return kMode_Root;
       }
     }
     BaseWithIndexAndDisplacement64Matcher m(operand, AddressOption::kAllowAll);
@@ -851,7 +838,6 @@ void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
   VisitBinop(this, node, kX64Add, &cont);
 }
 
-
 void InstructionSelector::VisitInt32Sub(Node* node) {
   X64OperandGenerator g(this);
   DCHECK_EQ(node->InputCount(), 2);
@@ -859,30 +845,37 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
   Node* input2 = node->InputAt(1);
   if (input1->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
       g.CanBeImmediate(input2)) {
-    // Omit truncation and turn subtractions of constant values into immediate
-    // "leal" instructions by negating the value.
-    Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(input1->InputAt(0)),
-         g.TempImmediate(-g.GetImmediateIntegerValue(input2)));
+    int32_t imm = g.GetImmediateIntegerValue(input2);
+    InstructionOperand int64_input = g.UseRegister(input1->InputAt(0));
+    if (imm == 0) {
+      // Emit "movl" for subtraction of 0.
+      Emit(kX64Movl, g.DefineAsRegister(node), int64_input);
+    } else {
+      // Omit truncation and turn subtractions of constant values into immediate
+      // "leal" instructions by negating the value.
+      Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+           g.DefineAsRegister(node), int64_input, g.TempImmediate(-imm));
+    }
     return;
   }
 
   Int32BinopMatcher m(node);
   if (m.left().Is(0)) {
     Emit(kX64Neg32, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
+  } else if (m.right().Is(0)) {
+    // TODO(jarin): We should be able to use {EmitIdentity} here
+    // (https://crbug.com/v8/7947).
+    Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(m.left().node()));
+  } else if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
+    // Turn subtractions of constant values into immediate "leal" instructions
+    // by negating the value.
+    Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+         g.TempImmediate(-m.right().Value()));
   } else {
-    if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
-      // Turn subtractions of constant values into immediate "leal" instructions
-      // by negating the value.
-      Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
-           g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.TempImmediate(-m.right().Value()));
-      return;
-    }
     VisitBinop(this, node, kX64Sub32);
   }
 }
-
 
 void InstructionSelector::VisitInt64Sub(Node* node) {
   X64OperandGenerator g(this);
@@ -1715,7 +1708,7 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
           kX64Cmp | AddressingModeField::encode(kMode_Root);
       return VisitCompare(
           selector, opcode,
-          g.TempImmediate((root_index * kPointerSize) - kRootRegisterBias),
+          g.TempImmediate(TurboAssemblerBase::RootRegisterOffset(root_index)),
           g.UseRegister(m.left().node()), cont);
     } else if (m.left().HasValue() &&
                heap->IsRootHandle(m.left().Value(), &root_index)) {
@@ -1723,23 +1716,31 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
           kX64Cmp | AddressingModeField::encode(kMode_Root);
       return VisitCompare(
           selector, opcode,
-          g.TempImmediate((root_index * kPointerSize) - kRootRegisterBias),
+          g.TempImmediate(TurboAssemblerBase::RootRegisterOffset(root_index)),
           g.UseRegister(m.right().node()), cont);
     }
   }
-  Int64BinopMatcher m(node);
-  if (m.left().IsLoad() && m.right().IsLoadStackPointer()) {
-    LoadMatcher<ExternalReferenceMatcher> mleft(m.left().node());
-    ExternalReference js_stack_limit =
-        ExternalReference::address_of_stack_limit(selector->isolate());
-    if (mleft.object().Is(js_stack_limit) && mleft.index().Is(0)) {
-      // Compare(Load(js_stack_limit), LoadStackPointer)
-      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-      InstructionCode opcode = cont->Encode(kX64StackCheck);
-      CHECK(cont->IsBranch());
-      selector->EmitWithContinuation(opcode, cont);
-      return;
-    }
+  StackCheckMatcher<Int64BinopMatcher, IrOpcode::kUint64LessThan> m(
+      selector->isolate(), node);
+  if (m.Matched()) {
+    // Compare(Load(js_stack_limit), LoadStackPointer)
+    if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+    InstructionCode opcode = cont->Encode(kX64StackCheck);
+    CHECK(cont->IsBranch());
+    selector->EmitWithContinuation(opcode, cont);
+    return;
+  }
+  WasmStackCheckMatcher<Int64BinopMatcher, IrOpcode::kUint64LessThan> wasm_m(
+      node);
+  if (wasm_m.Matched()) {
+    // This is a wasm stack check. By structure, we know that we can use the
+    // stack pointer directly, as wasm code does not modify the stack at points
+    // where stack checks are performed.
+    Node* left = node->InputAt(0);
+    LocationOperand rsp(InstructionOperand::EXPLICIT, LocationOperand::REGISTER,
+                        InstructionSequence::DefaultRepresentation(),
+                        RegisterCode::kRegCode_rsp);
+    return VisitCompareWithMemoryOperand(selector, kX64Cmp, left, rsp, cont);
   }
   VisitWordCompare(selector, node, kX64Cmp, cont);
 }
@@ -1889,29 +1890,6 @@ void VisitAtomicExchange(InstructionSelector* selector, Node* node,
   InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
-}
-
-// Shared routine for Word32/Word64 Atomic Store
-void VisitAtomicStore(InstructionSelector* selector, Node* node,
-                      ArchOpcode opcode) {
-  X64OperandGenerator g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-  AddressingMode addressing_mode;
-  InstructionOperand index_operand;
-  if (g.CanBeImmediate(index)) {
-    index_operand = g.UseImmediate(index);
-    addressing_mode = kMode_MRI;
-  } else {
-    index_operand = g.UseUniqueRegister(index);
-    addressing_mode = kMode_MR1;
-  }
-  InstructionOperand inputs[] = {g.UseUniqueRegister(value),
-                                 g.UseUniqueRegister(base), index_operand};
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  selector->Emit(code, 0, static_cast<InstructionOperand*>(nullptr),
-                 arraysize(inputs), inputs);
 }
 
 }  // namespace
@@ -2092,8 +2070,8 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
     }
   }
 
-  // Generate a sequence of conditional jumps.
-  return EmitLookupSwitch(sw, value_operand);
+  // Generate a tree of conditional jumps.
+  return EmitBinarySearchSwitch(sw, value_operand);
 }
 
 
@@ -2315,7 +2293,7 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
       UNREACHABLE();
       return;
   }
-  VisitAtomicStore(this, node, opcode);
+  VisitAtomicExchange(this, node, opcode);
 }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
@@ -2338,7 +2316,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
       UNREACHABLE();
       return;
   }
-  VisitAtomicStore(this, node, opcode);
+  VisitAtomicExchange(this, node, opcode);
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(Node* node) {

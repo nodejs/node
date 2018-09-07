@@ -240,14 +240,14 @@ class AstBigInt {
 
 class AstStringConstants final {
  public:
-  AstStringConstants(Isolate* isolate, uint32_t hash_seed);
+  AstStringConstants(Isolate* isolate, uint64_t hash_seed);
 
 #define F(name, str) \
   const AstRawString* name##_string() const { return name##_string_; }
   AST_STRING_CONSTANTS(F)
 #undef F
 
-  uint32_t hash_seed() const { return hash_seed_; }
+  uint64_t hash_seed() const { return hash_seed_; }
   const base::CustomMatcherHashMap* string_table() const {
     return &string_table_;
   }
@@ -255,7 +255,7 @@ class AstStringConstants final {
  private:
   Zone zone_;
   base::CustomMatcherHashMap string_table_;
-  uint32_t hash_seed_;
+  uint64_t hash_seed_;
 
 #define F(name, str) AstRawString* name##_string_;
   AST_STRING_CONSTANTS(F)
@@ -267,7 +267,7 @@ class AstStringConstants final {
 class AstValueFactory {
  public:
   AstValueFactory(Zone* zone, const AstStringConstants* string_constants,
-                  uint32_t hash_seed)
+                  uint64_t hash_seed)
       : string_table_(string_constants->string_table()),
         strings_(nullptr),
         strings_end_(&strings_),
@@ -354,7 +354,7 @@ class AstValueFactory {
 
   Zone* zone_;
 
-  uint32_t hash_seed_;
+  uint64_t hash_seed_;
 };
 }  // namespace internal
 }  // namespace v8

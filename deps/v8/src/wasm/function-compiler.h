@@ -20,6 +20,7 @@ class LiftoffCompilationUnit;
 struct ModuleWireBytes;
 class NativeModule;
 class WasmCode;
+class WasmEngine;
 struct WasmFunction;
 
 enum RuntimeExceptionSupport : bool {
@@ -63,7 +64,6 @@ class WasmCompilationUnit final {
   // only allowed to happen on the foreground thread.
   WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::NativeModule*,
                       wasm::FunctionBody, wasm::WasmName, int index,
-                      Handle<Code> centry_stub,
                       CompilationMode = GetDefaultCompilationMode(),
                       Counters* = nullptr, bool lower_simd = false);
 
@@ -74,11 +74,9 @@ class WasmCompilationUnit final {
 
   static wasm::WasmCode* CompileWasmFunction(
       wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
-      Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
-      const wasm::WasmFunction* function,
+      Isolate* isolate, ModuleEnv* env, const wasm::WasmFunction* function,
       CompilationMode = GetDefaultCompilationMode());
 
-  size_t memory_cost() const { return memory_cost_; }
   wasm::NativeModule* native_module() const { return native_module_; }
   CompilationMode mode() const { return mode_; }
 
@@ -86,14 +84,12 @@ class WasmCompilationUnit final {
   friend class LiftoffCompilationUnit;
   friend class compiler::TurbofanWasmCompilationUnit;
 
-  Isolate* isolate_;
   ModuleEnv* env_;
+  WasmEngine* wasm_engine_;
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
   Counters* counters_;
-  Handle<Code> centry_stub_;
   int func_index_;
-  size_t memory_cost_ = 0;
   wasm::NativeModule* native_module_;
   // TODO(wasm): Put {lower_simd_} inside the {ModuleEnv}.
   bool lower_simd_;

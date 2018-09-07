@@ -34,14 +34,14 @@ class StubCache {
  public:
   struct Entry {
     Name* key;
-    Object* value;
+    MaybeObject* value;
     Map* map;
   };
 
   void Initialize();
   // Access cache for entry hash(name, map).
-  Object* Set(Name* name, Map* map, Object* handler);
-  Object* Get(Name* name, Map* map);
+  MaybeObject* Set(Name* name, Map* map, MaybeObject* handler);
+  MaybeObject* Get(Name* name, Map* map);
   // Clear the lookup table (@ mark compact collection).
   void Clear();
 

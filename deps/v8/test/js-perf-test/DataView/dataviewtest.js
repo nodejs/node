@@ -10,12 +10,20 @@ new BenchmarkSuite('DataViewTest-DataView-LittleEndian', [1000], [
   new Benchmark('DataViewTest-DataView-LittleEndian', false, false, 0, doTestDataViewLittleEndian),
 ]);
 
+new BenchmarkSuite('DataViewTest-DataView-Floats', [1000], [
+  new Benchmark('DataViewTest-DataView-Floats', false, false, 0, doTestDataViewFloats),
+]);
+
 new BenchmarkSuite('DataViewTest-TypedArray-BigEndian', [1000], [
   new Benchmark('DataViewTest-TypedArray-BigEndian', false, false, 0, doTestTypedArrayBigEndian),
 ]);
 
 new BenchmarkSuite('DataViewTest-TypedArray-LittleEndian', [1000], [
   new Benchmark('DataViewTest-TypedArray-LittleEndian', false, false, 0, doTestTypedArrayLittleEndian),
+]);
+
+new BenchmarkSuite('DataViewTest-TypedArray-Floats', [1000], [
+  new Benchmark('DataViewTest-TypedArray-Floats', false, false, 0, doTestTypedArrayFloats),
 ]);
 
 function doTestDataViewBigEndian() {
@@ -32,6 +40,14 @@ function doTestTypedArrayBigEndian() {
 
 function doTestTypedArrayLittleEndian() {
   doIterations(true, false);
+}
+
+function doTestDataViewFloats() {
+  doFloatIterations(true);
+}
+
+function doTestTypedArrayFloats() {
+  doFloatIterations(false);
 }
 
 function doIterations(littleEndian, dataView) {
@@ -88,6 +104,50 @@ function doOneIterationJS(buffer, littleEndian) {
     xor ^= reader.getUint16(i + 4);
     xor ^= reader.getInt32(i + 6);
     xor ^= reader.getUint32(i + 10);
+  }
+}
+
+function doFloatIterations(dataView) {
+  var buffer = makeFloatBuffer(1000);
+  var iterations = 10;
+  if (dataView) {
+    for (var i = 0; i < iterations; i++)
+      doOneFloatIterationDV(buffer);
+  } else {
+    for (var i = 0; i < iterations; i++)
+      doOneFloatIterationJS(buffer);
+  }
+}
+
+function makeFloatBuffer(size) {
+  var buffer = new ArrayBuffer(size * 16);
+  var view = new DataView(buffer);
+  for (var i = 0; i < size; i++) {
+    view.setFloat64(i * 16, Math.log10(i + 1));
+    view.setFloat32(i * 16 + 8, Math.sqrt(i));
+    view.setFloat32(i * 16 + 12, Math.cos(i));
+  }
+  return buffer;
+}
+
+function doOneFloatIterationDV(buffer) {
+  var sum = 0;
+  var view = new DataView(buffer);
+  for (var i = 0; i < view.byteLength; i += 16) {
+    sum += view.getFloat64(i);
+    sum += view.getFloat32(i + 8);
+    sum += view.getFloat32(i + 12);
+  }
+}
+
+function doOneFloatIterationJS(buffer) {
+  var sum = 0;
+  var float32array = new Float32Array(buffer);
+  var float64array = new Float64Array(buffer);
+  for (var i = 0; i < buffer.byteLength; i += 16) {
+    sum += float64array[i/8];
+    sum += float32array[i/4 + 2];
+    sum += float32array[i/4 + 3];
   }
 }
 

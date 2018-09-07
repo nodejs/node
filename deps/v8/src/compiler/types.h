@@ -6,6 +6,7 @@
 #define V8_COMPILER_TYPES_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/conversions.h"
 #include "src/globals.h"
 #include "src/handles.h"
@@ -250,8 +251,7 @@ class V8_EXPORT_PRIVATE BitsetType {
   static double Max(bitset);
 
   static bitset Glb(double min, double max);
-  static bitset Lub(i::Map* map);
-  static bitset Lub(i::Object* value);
+  static bitset Lub(HeapObjectType const& type);
   static bitset Lub(double value);
   static bitset Lub(double min, double max);
   static bitset ExpandInternals(bitset bits);
@@ -312,6 +312,10 @@ class RangeType : public TypeBase {
   double Min() const { return limits_.min; }
   double Max() const { return limits_.max; }
 
+  static bool IsInteger(double x) {
+    return nearbyint(x) == x && !IsMinusZero(x);  // Allows for infinities.
+  }
+
  private:
   friend class Type;
   friend class BitsetType;
@@ -319,10 +323,6 @@ class RangeType : public TypeBase {
 
   static RangeType* New(double min, double max, Zone* zone) {
     return New(Limits(min, max), zone);
-  }
-
-  static bool IsInteger(double x) {
-    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
   }
 
   static RangeType* New(Limits lim, Zone* zone) {
@@ -361,33 +361,25 @@ class V8_EXPORT_PRIVATE Type {
   static Type UnsignedSmall() { return NewBitset(BitsetType::UnsignedSmall()); }
 
   static Type OtherNumberConstant(double value, Zone* zone);
-  static Type HeapConstant(i::Handle<i::HeapObject> value, Zone* zone);
+  static Type HeapConstant(const JSHeapBroker* js_heap_broker,
+                           Handle<i::Object> value, Zone* zone);
   static Type Range(double min, double max, Zone* zone);
   static Type Range(RangeType::Limits lims, Zone* zone);
   static Type Tuple(Type first, Type second, Type third, Zone* zone);
   static Type Union(int length, Zone* zone);
 
   // NewConstant is a factory that returns Constant, Range or Number.
-  static Type NewConstant(i::Handle<i::Object> value, Zone* zone);
+  static Type NewConstant(const JSHeapBroker* js_heap_broker,
+                          Handle<i::Object> value, Zone* zone);
   static Type NewConstant(double value, Zone* zone);
 
   static Type Union(Type type1, Type type2, Zone* zone);
   static Type Intersect(Type type1, Type type2, Zone* zone);
 
-  static Type Of(double value, Zone* zone) {
-    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(value)));
+  static Type For(const JSHeapBroker* js_heap_broker, Handle<i::Map> map) {
+    HeapObjectType type = js_heap_broker->HeapObjectTypeFromMap(map);
+    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(type)));
   }
-  static Type Of(i::Object* value, Zone* zone) {
-    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(value)));
-  }
-  static Type Of(i::Handle<i::Object> value, Zone* zone) {
-    return Of(*value, zone);
-  }
-
-  static Type For(i::Map* map) {
-    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(map)));
-  }
-  static Type For(i::Handle<i::Map> map) { return For(*map); }
 
   // Predicates.
   bool IsNone() const { return payload_ == None().payload_; }
@@ -423,11 +415,6 @@ class V8_EXPORT_PRIVATE Type {
   // Extracts a range from the type: if the type is a range or a union
   // containing a range, that range is returned; otherwise, nullptr is returned.
   Type GetRange() const;
-
-  static bool IsInteger(i::Object* x);
-  static bool IsInteger(double x) {
-    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
-  }
 
   int NumConstants() const;
 
@@ -494,7 +481,6 @@ class V8_EXPORT_PRIVATE Type {
 
   static bool Overlap(const RangeType* lhs, const RangeType* rhs);
   static bool Contains(const RangeType* lhs, const RangeType* rhs);
-  static bool Contains(const RangeType* range, i::Object* val);
 
   static int UpdateRange(Type type, UnionType* result, int size, Zone* zone);
 
@@ -526,7 +512,6 @@ class OtherNumberConstantType : public TypeBase {
   double Value() const { return value_; }
 
   static bool IsOtherNumberConstant(double value);
-  static bool IsOtherNumberConstant(Object* value);
 
  private:
   friend class Type;
@@ -549,24 +534,27 @@ class OtherNumberConstantType : public TypeBase {
 
 class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
  public:
-  i::Handle<i::HeapObject> Value() const { return object_; }
+  Handle<HeapObject> Value() const;
+  const HeapObjectRef& Ref() const { return heap_ref_; }
 
  private:
   friend class Type;
   friend class BitsetType;
 
-  static HeapConstantType* New(i::Handle<i::HeapObject> value, Zone* zone) {
-    BitsetType::bitset bitset = BitsetType::Lub(*value);
+  static HeapConstantType* New(const HeapObjectRef& heap_ref, Zone* zone) {
+    DCHECK(!heap_ref.IsHeapNumber());
+    DCHECK_IMPLIES(heap_ref.IsString(), heap_ref.IsInternalizedString());
+    BitsetType::bitset bitset = BitsetType::Lub(heap_ref.type());
     return new (zone->New(sizeof(HeapConstantType)))
-        HeapConstantType(bitset, value);
+        HeapConstantType(bitset, heap_ref);
   }
 
-  HeapConstantType(BitsetType::bitset bitset, i::Handle<i::HeapObject> object);
+  HeapConstantType(BitsetType::bitset bitset, const HeapObjectRef& heap_ref);
 
   BitsetType::bitset Lub() const { return bitset_; }
 
   BitsetType::bitset bitset_;
-  Handle<i::HeapObject> object_;
+  HeapObjectRef heap_ref_;
 };
 
 // -----------------------------------------------------------------------------
@@ -595,7 +583,7 @@ class StructuralType : public TypeBase {
     length_ = length;
   }
 
-  StructuralType(Kind kind, int length, i::Zone* zone)
+  StructuralType(Kind kind, int length, Zone* zone)
       : TypeBase(kind), length_(length) {
     elements_ = reinterpret_cast<Type*>(zone->New(sizeof(Type) * length));
   }

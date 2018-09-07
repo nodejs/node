@@ -1732,7 +1732,7 @@ class V8Heap(object):
     "ODDBALL_TYPE": Oddball,
     "FIXED_ARRAY_TYPE": FixedArray,
     "HASH_TABLE_TYPE": FixedArray,
-    "BOILERPLATE_DESCRIPTION_TYPE": FixedArray,
+    "OBJECT_BOILERPLATE_DESCRIPTION_TYPE": FixedArray,
     "SCOPE_INFO_TYPE": FixedArray,
     "JS_FUNCTION_TYPE": JSFunction,
     "SHARED_FUNCTION_INFO_TYPE": SharedFunctionInfo,

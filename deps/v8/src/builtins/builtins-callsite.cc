@@ -28,7 +28,7 @@ namespace {
 
 Object* PositiveNumberOrNull(int value, Isolate* isolate) {
   if (value >= 0) return *isolate->factory()->NewNumberFromInt(value);
-  return isolate->heap()->null_value();
+  return ReadOnlyRoots(isolate).null_value();
 }
 
 Handle<FrameArray> GetFrameArray(Isolate* isolate, Handle<JSObject> object) {
@@ -76,7 +76,7 @@ BUILTIN(CallSitePrototypeGetFunction) {
                         GetFrameIndex(isolate, recv));
 
   StackFrameBase* frame = it.Frame();
-  if (frame->IsStrict()) return isolate->heap()->undefined_value();
+  if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
   return *frame->GetFunction();
 }
 
@@ -127,7 +127,7 @@ BUILTIN(CallSitePrototypeGetThis) {
                         GetFrameIndex(isolate, recv));
 
   StackFrameBase* frame = it.Frame();
-  if (frame->IsStrict()) return isolate->heap()->undefined_value();
+  if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
   return *frame->GetReceiver();
 }
 

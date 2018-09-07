@@ -138,7 +138,7 @@ class FixedArrayBuilder {
     return (length >= required_length);
   }
 
-  void EnsureCapacity(int elements) {
+  void EnsureCapacity(Isolate* isolate, int elements) {
     int length = array_->length();
     int required_length = length_ + elements;
     if (length < required_length) {
@@ -147,7 +147,7 @@ class FixedArrayBuilder {
         new_length *= 2;
       } while (new_length < required_length);
       Handle<FixedArray> extended_array =
-          array_->GetIsolate()->factory()->NewFixedArrayWithHoles(new_length);
+          isolate->factory()->NewFixedArrayWithHoles(new_length);
       array_->CopyTo(0, *extended_array, 0, length_);
       array_ = extended_array;
     }
@@ -218,9 +218,9 @@ class ReplacementStringBuilder {
     }
   }
 
-
-  void EnsureCapacity(int elements) { array_builder_.EnsureCapacity(elements); }
-
+  void EnsureCapacity(int elements) {
+    array_builder_.EnsureCapacity(heap_->isolate(), elements);
+  }
 
   void AddSubjectSlice(int from, int to) {
     AddSubjectSlice(&array_builder_, from, to);
@@ -270,12 +270,12 @@ class IncrementalStringBuilder {
  public:
   explicit IncrementalStringBuilder(Isolate* isolate);
 
-  INLINE(String::Encoding CurrentEncoding()) { return encoding_; }
+  V8_INLINE String::Encoding CurrentEncoding() { return encoding_; }
 
   template <typename SrcChar, typename DestChar>
-  INLINE(void Append(SrcChar c));
+  V8_INLINE void Append(SrcChar c);
 
-  INLINE(void AppendCharacter(uint8_t c)) {
+  V8_INLINE void AppendCharacter(uint8_t c) {
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       Append<uint8_t, uint8_t>(c);
     } else {
@@ -283,7 +283,7 @@ class IncrementalStringBuilder {
     }
   }
 
-  INLINE(void AppendCString(const char* s)) {
+  V8_INLINE void AppendCString(const char* s) {
     const uint8_t* u = reinterpret_cast<const uint8_t*>(s);
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       while (*u != '\0') Append<uint8_t, uint8_t>(*(u++));
@@ -292,7 +292,7 @@ class IncrementalStringBuilder {
     }
   }
 
-  INLINE(void AppendCString(const uc16* s)) {
+  V8_INLINE void AppendCString(const uc16* s) {
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       while (*s != '\0') Append<uc16, uint8_t>(*(s++));
     } else {
@@ -300,7 +300,7 @@ class IncrementalStringBuilder {
     }
   }
 
-  INLINE(bool CurrentPartCanFit(int length)) {
+  V8_INLINE bool CurrentPartCanFit(int length) {
     return part_length_ - current_index_ > length;
   }
 
@@ -308,7 +308,7 @@ class IncrementalStringBuilder {
   // serialized without allocating a new string part. The worst case length of
   // an escaped character is 6. Shifting the remaining string length right by 3
   // is a more pessimistic estimate, but faster to calculate.
-  INLINE(int EscapedLengthIfCurrentPartFits(int length)) {
+  V8_INLINE int EscapedLengthIfCurrentPartFits(int length) {
     if (length > kMaxPartLength) return 0;
     STATIC_ASSERT((kMaxPartLength << 3) <= String::kMaxLength);
     // This shift will not overflow because length is already less than the
@@ -321,9 +321,11 @@ class IncrementalStringBuilder {
 
   MaybeHandle<String> Finish();
 
-  INLINE(bool HasOverflowed()) const { return overflowed_; }
+  V8_INLINE bool HasOverflowed() const { return overflowed_; }
 
-  INLINE(int Length()) const { return accumulator_->length() + current_index_; }
+  V8_INLINE int Length() const {
+    return accumulator_->length() + current_index_;
+  }
 
   // Change encoding to two-byte.
   void ChangeEncoding() {
@@ -348,8 +350,8 @@ class IncrementalStringBuilder {
       cursor_ = start_;
     }
 
-    INLINE(void Append(DestChar c)) { *(cursor_++) = c; }
-    INLINE(void AppendCString(const char* s)) {
+    V8_INLINE void Append(DestChar c) { *(cursor_++) = c; }
+    V8_INLINE void AppendCString(const char* s) {
       const uint8_t* u = reinterpret_cast<const uint8_t*>(s);
       while (*u != '\0') Append(*(u++));
     }
@@ -402,15 +404,15 @@ class IncrementalStringBuilder {
  private:
   Factory* factory() { return isolate_->factory(); }
 
-  INLINE(Handle<String> accumulator()) { return accumulator_; }
+  V8_INLINE Handle<String> accumulator() { return accumulator_; }
 
-  INLINE(void set_accumulator(Handle<String> string)) {
+  V8_INLINE void set_accumulator(Handle<String> string) {
     *accumulator_.location() = *string;
   }
 
-  INLINE(Handle<String> current_part()) { return current_part_; }
+  V8_INLINE Handle<String> current_part() { return current_part_; }
 
-  INLINE(void set_current_part(Handle<String> string)) {
+  V8_INLINE void set_current_part(Handle<String> string) {
     *current_part_.location() = *string;
   }
 

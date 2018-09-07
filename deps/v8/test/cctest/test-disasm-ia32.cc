@@ -51,7 +51,7 @@ TEST(DisasmIa320) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
-  Assembler assm(isolate, buffer, sizeof buffer);
+  Assembler assm(AssemblerOptions{}, buffer, sizeof buffer);
   DummyStaticFunction(nullptr);  // just bloody use it (DELETE; debugging)
   // Short immediate instructions
   __ adc(eax, 12345678);
@@ -496,6 +496,8 @@ TEST(DisasmIa320) {
     __ psrlq(xmm0, 17);
     __ psrlq(xmm0, xmm1);
 
+    __ pshufhw(xmm5, xmm1, 5);
+    __ pshufhw(xmm5, Operand(edx, 4), 5);
     __ pshuflw(xmm5, xmm1, 5);
     __ pshuflw(xmm5, Operand(edx, 4), 5);
     __ pshufd(xmm5, xmm1, 5);
@@ -547,6 +549,8 @@ TEST(DisasmIa320) {
     if (CpuFeatures::IsSupported(SSSE3)) {
       CpuFeatureScope scope(&assm, SSSE3);
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+      __ palignr(xmm5, xmm1, 5);
+      __ palignr(xmm5, Operand(edx, 4), 5);
     }
   }
 
@@ -568,10 +572,9 @@ TEST(DisasmIa320) {
       __ pinsrd(xmm1, eax, 0);
       __ pinsrd(xmm1, Operand(edx, 4), 0);
       __ extractps(eax, xmm1, 0);
-      __ ptest(xmm5, xmm1);
-      __ ptest(xmm5, Operand(edx, 4));
 
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+      SSE4_RM_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
   }
 #undef EMIT_SSE34_INSTR
@@ -662,9 +665,6 @@ TEST(DisasmIa320) {
       __ vmaxpd(xmm0, xmm1, xmm2);
       __ vmaxpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
-      __ vptest(xmm5, xmm1);
-      __ vptest(xmm5, Operand(edx, 4));
-
       __ vpsllw(xmm0, xmm7, 21);
       __ vpslld(xmm0, xmm7, 21);
       __ vpsrlw(xmm0, xmm7, 21);
@@ -672,12 +672,16 @@ TEST(DisasmIa320) {
       __ vpsraw(xmm0, xmm7, 21);
       __ vpsrad(xmm0, xmm7, 21);
 
+      __ vpshufhw(xmm5, xmm1, 5);
+      __ vpshufhw(xmm5, Operand(edx, 4), 5);
       __ vpshuflw(xmm5, xmm1, 5);
       __ vpshuflw(xmm5, Operand(edx, 4), 5);
       __ vpshufd(xmm5, xmm1, 5);
       __ vpshufd(xmm5, Operand(edx, 4), 5);
       __ vpblendw(xmm5, xmm1, xmm0, 5);
       __ vpblendw(xmm5, xmm1, Operand(edx, 4), 5);
+      __ vpalignr(xmm5, xmm1, xmm0, 5);
+      __ vpalignr(xmm5, xmm1, Operand(edx, 4), 5);
       __ vpextrb(eax, xmm0, 1);
       __ vpextrb(Operand(edx, 4), xmm0, 1);
       __ vpextrw(eax, xmm0, 1);
@@ -719,6 +723,14 @@ TEST(DisasmIa320) {
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
 #undef EMIT_SSE34_AVXINSTR
+
+#define EMIT_SSE4_RM_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
+                              notUsed4)                                  \
+  __ v##instruction(xmm5, xmm1);                                         \
+  __ v##instruction(xmm5, Operand(edx, 4));
+
+      SSE4_RM_INSTRUCTION_LIST(EMIT_SSE4_RM_AVXINSTR)
+#undef EMIT_SSE4_RM_AVXINSTR
     }
   }
 
@@ -875,6 +887,7 @@ TEST(DisasmIa320) {
     __ Nop(i);
   }
 
+  __ pause();
   __ ret(0);
 
   CodeDesc desc;
@@ -883,7 +896,7 @@ TEST(DisasmIa320) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   USE(code);
 #ifdef OBJECT_PRINT
-  OFStream os(stdout);
+  StdoutStream os;
   code->Print(os);
   Address begin = code->raw_instruction_start();
   Address end = code->raw_instruction_end();

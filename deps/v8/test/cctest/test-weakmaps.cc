@@ -32,6 +32,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-collection-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -84,14 +85,14 @@ TEST(Weakness) {
     int32_t object_hash = object->GetOrCreateHash(isolate)->value();
     JSWeakCollection::Set(weakmap, object, smi, object_hash);
   }
-  CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
 
   // Force a full GC.
   CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, NumberOfWeakCalls);
-  CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+      0, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
   std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
@@ -102,9 +103,9 @@ TEST(Weakness) {
 
   CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
-  CHECK_EQ(2,
-           ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+  CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(
+      2, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 }
 
 
@@ -116,7 +117,7 @@ TEST(Shrinking) {
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Check initial capacity.
-  CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->Capacity());
 
   // Fill up weak map to trigger capacity change.
   {
@@ -131,19 +132,20 @@ TEST(Shrinking) {
   }
 
   // Check increased capacity.
-  CHECK_EQ(128, ObjectHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(128, EphemeronHashTable::cast(weakmap->table())->Capacity());
 
   // Force a full GC.
-  CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+      0, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
   CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      32, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+      32,
+      EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 
   // Check shrunk capacity.
-  CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->Capacity());
 }
 
 
@@ -163,7 +165,7 @@ TEST(Regress2060a) {
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Start second old-space page so that values land on evacuation candidate.
-  Page* first_page = heap->old_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->first_page();
   heap::SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with values on an evacuation candidate.
@@ -171,7 +173,7 @@ TEST(Regress2060a) {
     HandleScope scope(isolate);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
-      CHECK(!heap->InNewSpace(*object));
+      CHECK(!Heap::InNewSpace(*object));
       CHECK(!first_page->Contains(object->address()));
       int32_t hash = key->GetOrCreateHash(isolate)->value();
       JSWeakCollection::Set(weakmap, key, object, hash);
@@ -202,14 +204,14 @@ TEST(Regress2060b) {
       factory->NewFunctionForTest(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
-  Page* first_page = heap->old_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->first_page();
   heap::SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with keys on an evacuation candidate.
   Handle<JSObject> keys[32];
   for (int i = 0; i < 32; i++) {
     keys[i] = factory->NewJSObject(function, TENURED);
-    CHECK(!heap->InNewSpace(*keys[i]));
+    CHECK(!Heap::InNewSpace(*keys[i]));
     CHECK(!first_page->Contains(keys[i]->address()));
   }
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();

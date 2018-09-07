@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include {{format_include(config.protocol.package, domain.domain)}}
+#include {{format_domain_include(config.protocol.package, domain.domain)}}
 
 #include {{format_include(config.protocol.package, "Protocol")}}
 
@@ -24,7 +24,7 @@ const char Metainfo::version[] = "{{domain.version}}";
 
 namespace {{type.id}}Enum {
       {% for literal in type.enum %}
-const char* {{ literal | dash_to_camelcase}} = "{{literal}}";
+const char {{ literal | dash_to_camelcase}}[] = "{{literal}}";
       {% endfor %}
 } // namespace {{type.id}}Enum
       {% if protocol.is_exported(domain.domain, type.id) %}
@@ -211,13 +211,13 @@ public:
     }
     ~DispatcherImpl() override { }
     DispatchResponse::Status dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject) override;
-    HashMap<String, String>& redirects() { return m_redirects; }
+    std::unordered_map<String, String>& redirects() { return m_redirects; }
 
 protected:
     using CallHandler = DispatchResponse::Status (DispatcherImpl::*)(int callId, std::unique_ptr<DictionaryValue> messageObject, ErrorSupport* errors);
-    using DispatchMap = protocol::HashMap<String, CallHandler>;
+    using DispatchMap = std::unordered_map<String, CallHandler>;
     DispatchMap m_dispatchMap;
-    HashMap<String, String> m_redirects;
+    std::unordered_map<String, String> m_redirects;
 
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
@@ -231,7 +231,7 @@ protected:
 
 DispatchResponse::Status DispatcherImpl::dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject)
 {
-    protocol::HashMap<String, CallHandler>::iterator it = m_dispatchMap.find(method);
+    std::unordered_map<String, CallHandler>::iterator it = m_dispatchMap.find(method);
     if (it == m_dispatchMap.end()) {
         if (m_fallThroughForNotFound)
             return DispatchResponse::kFallThrough;

@@ -32,12 +32,19 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+const char* get_cached_trace_turbo_filename(OptimizedCompilationInfo* info) {
+  if (!info->trace_turbo_filename()) {
+    info->set_trace_turbo_filename(
+        GetVisualizerLogFileName(info, FLAG_trace_turbo_path, nullptr, "json"));
+  }
+  return info->trace_turbo_filename();
+}
+
 TurboJsonFile::TurboJsonFile(OptimizedCompilationInfo* info,
                              std::ios_base::openmode mode)
-    : std::ofstream(
-          GetVisualizerLogFileName(info, FLAG_trace_turbo_path, nullptr, "json")
-              .get(),
-          mode) {}
+    : std::ofstream(get_cached_trace_turbo_filename(info), mode) {}
+
+TurboJsonFile::~TurboJsonFile() { flush(); }
 
 std::ostream& operator<<(std::ostream& out,
                          const SourcePositionAsJSON& asJSON) {
@@ -128,7 +135,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   Handle<Script> script =
       (info->shared_info().is_null() || !info->shared_info()->script())
           ? Handle<Script>()
-          : handle(Script::cast(info->shared_info()->script()));
+          : handle(Script::cast(info->shared_info()->script()), isolate);
   JsonPrintFunctionSource(os, -1,
                           info->shared_info().is_null()
                               ? std::unique_ptr<char[]>(new char[1]{0})
@@ -141,8 +148,8 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
     Handle<SharedFunctionInfo> shared = inlined[id].shared_info;
     const int source_id = id_assigner.GetIdFor(shared);
     JsonPrintFunctionSource(os, source_id, shared->DebugName()->ToCString(),
-                            handle(Script::cast(shared->script())), isolate,
-                            shared, true);
+                            handle(Script::cast(shared->script()), isolate),
+                            isolate, shared, true);
   }
   os << "}, ";
   os << "\"inlinings\" : {";

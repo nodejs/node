@@ -2,14 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-function benchy (f, name) {
-  new BenchmarkSuite(name, [5], [
-    new Benchmark(name, true, false, 0,
-    f),
-  ]);
-}
-
-const subjects = ['abcde', '123456', 'aqwsde', "nbvveqxu", "f03ks-120-3;jfkm;ajp3f", "sd-93u498thikefnow8y3-0rh1nalksfnwo8y3t19-3r8hoiefnw"];
+const subjects = [
+  'abcde', '123456', 'aqwsde', 'nbvveqxu', 'f03ks-120-3;jfkm;ajp3f',
+  'sd-93u498thikefnow8y3-0rh1nalksfnwo8y3t19-3r8hoiefnw'
+];
 
 // Drop first element.
 
@@ -23,7 +19,7 @@ function StringDropFirstSlice() {
 
   return sum;
 }
-benchy(StringDropFirstSlice, "StringDropFirstSlice");
+createSuiteWithWarmup('StringDropFirstSlice', 5, StringDropFirstSlice);
 
 function StringDropFirstSubstr() {
   var sum = "";
@@ -35,7 +31,7 @@ function StringDropFirstSubstr() {
 
   return sum;
 }
-benchy(StringDropFirstSubstr, "StringDropFirstSubstr");
+createSuiteWithWarmup('StringDropFirstSubstr', 5, StringDropFirstSubstr);
 
 function StringDropFirstSubstring() {
   var sum = "";
@@ -47,8 +43,7 @@ function StringDropFirstSubstring() {
 
   return sum;
 }
-benchy(StringDropFirstSubstring, "StringDropFirstSubstring");
-
+createSuiteWithWarmup('StringDropFirstSubstring', 5, StringDropFirstSubstring);
 
 // Take first element.
 
@@ -62,7 +57,7 @@ function StringTakeFirstSlice() {
 
   return sum;
 }
-benchy(StringTakeFirstSlice, "StringTakeFirstSlice");
+createSuiteWithWarmup('StringTakeFirstSlice', 5, StringTakeFirstSlice);
 
 function StringTakeFirstSubstr() {
   var sum = "";
@@ -74,7 +69,7 @@ function StringTakeFirstSubstr() {
 
   return sum;
 }
-benchy(StringTakeFirstSubstr, "StringTakeFirstSubstr");
+createSuiteWithWarmup('StringTakeFirstSubstr', 5, StringTakeFirstSubstr);
 
 function StringTakeFirstSubstring() {
   var sum = "";
@@ -86,8 +81,7 @@ function StringTakeFirstSubstring() {
 
   return sum;
 }
-benchy(StringTakeFirstSubstring, "StringTakeFirstSubstring");
-
+createSuiteWithWarmup('StringTakeFirstSubstring', 5, StringTakeFirstSubstring);
 
 // Drop last element.
 
@@ -101,7 +95,7 @@ function StringDropLastSlice() {
 
   return sum;
 }
-benchy(StringDropLastSlice, "StringDropLastSlice");
+createSuiteWithWarmup('StringDropLastSlice', 5, StringDropLastSlice);
 
 function StringDropLastSubstr() {
   var sum = "";
@@ -113,7 +107,7 @@ function StringDropLastSubstr() {
 
   return sum;
 }
-benchy(StringDropLastSubstr, "StringDropLastSubstr");
+createSuiteWithWarmup('StringDropLastSubstr', 5, StringDropLastSubstr);
 
 function StringDropLastSubstring() {
   var sum = "";
@@ -125,8 +119,7 @@ function StringDropLastSubstring() {
 
   return sum;
 }
-benchy(StringDropLastSubstring, "StringDropLastSubstring");
-
+createSuiteWithWarmup('StringDropLastSubstring', 5, StringDropLastSubstring);
 
 // Take last element.
 
@@ -140,7 +133,7 @@ function StringTakeLastSlice() {
 
   return sum;
 }
-benchy(StringTakeLastSlice, "StringTakeLastSlice");
+createSuiteWithWarmup('StringTakeLastSlice', 5, StringTakeLastSlice);
 
 function StringTakeLastSubstr() {
   var sum = "";
@@ -152,7 +145,7 @@ function StringTakeLastSubstr() {
 
   return sum;
 }
-benchy(StringTakeLastSubstr, "StringTakeLastSubstr");
+createSuiteWithWarmup('StringTakeLastSubstr', 5, StringTakeLastSubstr);
 
 function StringTakeLastSubstring() {
   var sum = "";
@@ -164,8 +157,7 @@ function StringTakeLastSubstring() {
 
   return sum;
 }
-benchy(StringTakeLastSubstring, "StringTakeLastSubstring");
-
+createSuiteWithWarmup('StringTakeLastSubstring', 5, StringTakeLastSubstring);
 
 // Drop first and last.
 
@@ -179,7 +171,7 @@ function StringDropFirstSlice() {
 
   return sum;
 }
-benchy(StringDropFirstSlice, "StringDropFirstSlice");
+createSuiteWithWarmup('StringDropFirstSlice', 5, StringDropFirstSlice);
 
 function StringDropFirstSubstr() {
   var sum = "";
@@ -191,7 +183,7 @@ function StringDropFirstSubstr() {
 
   return sum;
 }
-benchy(StringDropFirstSubstr, "StringDropFirstSubstr");
+createSuiteWithWarmup('StringDropFirstSubstr', 5, StringDropFirstSubstr);
 
 function StringDropFirstSubstring() {
   var sum = "";
@@ -203,4 +195,4 @@ function StringDropFirstSubstring() {
 
   return sum;
 }
-benchy(StringDropFirstSubstring, "StringDropFirstSubstring");
+createSuiteWithWarmup('StringDropFirstSubstring', 5, StringDropFirstSubstring);

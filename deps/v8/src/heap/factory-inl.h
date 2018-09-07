@@ -30,6 +30,14 @@ ROOT_LIST(ROOT_ACCESSOR)
 STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
+#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name)             \
+  Handle<Map> Factory::name##_map() {                                    \
+    return Handle<Map>(bit_cast<Map**>(                                  \
+        &isolate()->heap()->roots_[Heap::k##Name##Size##MapRootIndex])); \
+  }
+ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
+#undef ALLOCATION_SITE_MAP_ACCESSOR
+
 #define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)                \
   Handle<Map> Factory::name##_map() {                                    \
     return Handle<Map>(bit_cast<Map**>(                                  \
@@ -109,23 +117,37 @@ Handle<Object> Factory::NewNumberFromInt64(int64_t value,
   return NewNumber(static_cast<double>(value), pretenure);
 }
 
-Handle<HeapNumber> Factory::NewHeapNumber(double value, MutableMode mode,
+Handle<HeapNumber> Factory::NewHeapNumber(double value,
                                           PretenureFlag pretenure) {
-  Handle<HeapNumber> heap_number = NewHeapNumber(mode, pretenure);
+  Handle<HeapNumber> heap_number = NewHeapNumber(pretenure);
   heap_number->set_value(value);
   return heap_number;
 }
 
+Handle<MutableHeapNumber> Factory::NewMutableHeapNumber(
+    double value, PretenureFlag pretenure) {
+  Handle<MutableHeapNumber> number = NewMutableHeapNumber(pretenure);
+  number->set_value(value);
+  return number;
+}
+
 Handle<HeapNumber> Factory::NewHeapNumberFromBits(uint64_t bits,
-                                                  MutableMode mode,
                                                   PretenureFlag pretenure) {
-  Handle<HeapNumber> heap_number = NewHeapNumber(mode, pretenure);
+  Handle<HeapNumber> heap_number = NewHeapNumber(pretenure);
   heap_number->set_value_as_bits(bits);
   return heap_number;
 }
 
-Handle<HeapNumber> Factory::NewMutableHeapNumber(PretenureFlag pretenure) {
-  return NewHeapNumberFromBits(kHoleNanInt64, MUTABLE, pretenure);
+Handle<MutableHeapNumber> Factory::NewMutableHeapNumberFromBits(
+    uint64_t bits, PretenureFlag pretenure) {
+  Handle<MutableHeapNumber> number = NewMutableHeapNumber(pretenure);
+  number->set_value_as_bits(bits);
+  return number;
+}
+
+Handle<MutableHeapNumber> Factory::NewMutableHeapNumberWithHoleNaN(
+    PretenureFlag pretenure) {
+  return NewMutableHeapNumberFromBits(kHoleNanInt64, pretenure);
 }
 
 Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,

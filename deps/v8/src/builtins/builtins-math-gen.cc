@@ -503,8 +503,8 @@ TF_BUILTIN(MathTrunc, MathBuiltinsAssembler) {
 TF_BUILTIN(MathMax, MathBuiltinsAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
   MathMaxMin(context, argc, &CodeStubAssembler::Float64Max, -1.0 * V8_INFINITY);
 }
 
@@ -512,8 +512,8 @@ TF_BUILTIN(MathMax, MathBuiltinsAssembler) {
 TF_BUILTIN(MathMin, MathBuiltinsAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
   MathMaxMin(context, argc, &CodeStubAssembler::Float64Min, V8_INFINITY);
 }
 

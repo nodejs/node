@@ -36,34 +36,24 @@ void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
 }
 
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
-  Node* target = Parameter(ConstructWithArrayLikeDescriptor::kTarget);
-  Node* new_target = Parameter(ConstructWithArrayLikeDescriptor::kNewTarget);
-  Node* arguments_list =
-      Parameter(ConstructWithArrayLikeDescriptor::kArgumentsList);
-  Node* context = Parameter(ConstructWithArrayLikeDescriptor::kContext);
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
+  SloppyTNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
 TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
-  Node* target = Parameter(ConstructWithSpreadDescriptor::kTarget);
-  Node* new_target = Parameter(ConstructWithSpreadDescriptor::kNewTarget);
-  Node* spread = Parameter(ConstructWithSpreadDescriptor::kSpread);
-  Node* args_count = Parameter(ConstructWithSpreadDescriptor::kArgumentsCount);
-  Node* context = Parameter(ConstructWithSpreadDescriptor::kContext);
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
+  SloppyTNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
+  TNode<Int32T> args_count =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
 typedef compiler::Node Node;
-
-Node* ConstructorBuiltinsAssembler::NotHasBoilerplate(Node* literal_site) {
-  return TaggedIsSmi(literal_site);
-}
-
-Node* ConstructorBuiltinsAssembler::LoadAllocationSiteBoilerplate(Node* site) {
-  CSA_ASSERT(this, IsAllocationSite(site));
-  return LoadObjectField(site,
-                         AllocationSite::kTransitionInfoOrBoilerplateOffset);
-}
 
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   Node* shared_function_info = Parameter(Descriptor::kSharedFunctionInfo);
@@ -149,7 +139,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
   Handle<Code> lazy_builtin_handle(
-      isolate()->builtins()->builtin(Builtins::kCompileLazy));
+      isolate()->builtins()->builtin(Builtins::kCompileLazy), isolate());
   Node* lazy_builtin = HeapConstant(lazy_builtin_handle);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
   Return(result);
@@ -287,17 +277,17 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
 }
 
 TF_BUILTIN(FastNewFunctionContextEval, ConstructorBuiltinsAssembler) {
-  Node* scope_info = Parameter(FastNewFunctionContextDescriptor::kScopeInfo);
-  Node* slots = Parameter(FastNewFunctionContextDescriptor::kSlots);
-  Node* context = Parameter(FastNewFunctionContextDescriptor::kContext);
+  Node* scope_info = Parameter(Descriptor::kScopeInfo);
+  Node* slots = Parameter(Descriptor::kSlots);
+  Node* context = Parameter(Descriptor::kContext);
   Return(EmitFastNewFunctionContext(scope_info, slots, context,
                                     ScopeType::EVAL_SCOPE));
 }
 
 TF_BUILTIN(FastNewFunctionContextFunction, ConstructorBuiltinsAssembler) {
-  Node* scope_info = Parameter(FastNewFunctionContextDescriptor::kScopeInfo);
-  Node* slots = Parameter(FastNewFunctionContextDescriptor::kSlots);
-  Node* context = Parameter(FastNewFunctionContextDescriptor::kContext);
+  Node* scope_info = Parameter(Descriptor::kScopeInfo);
+  Node* slots = Parameter(Descriptor::kSlots);
+  Node* context = Parameter(Descriptor::kContext);
   Return(EmitFastNewFunctionContext(scope_info, slots, context,
                                     ScopeType::FUNCTION_SCOPE));
 }
@@ -308,8 +298,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
   Label call_runtime(this, Label::kDeferred), end(this);
 
   VARIABLE(result, MachineRepresentation::kTagged);
-  TNode<Object> literal_site = ToObject(
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  TNode<Object> literal_site =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
   GotoIf(NotHasBoilerplate(literal_site), &call_runtime);
   {
     Node* boilerplate = literal_site;
@@ -353,13 +343,13 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
       return_result(this);
   VARIABLE(result, MachineRepresentation::kTagged);
 
-  TNode<Object> allocation_site = ToObject(
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
-  GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
+  TNode<Object> maybe_allocation_site =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  GotoIf(NotHasBoilerplate(maybe_allocation_site), call_runtime);
 
-  Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
+  TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
+  TNode<JSArray> boilerplate = CAST(LoadBoilerplate(allocation_site));
 
-  CSA_ASSERT(this, IsJSArrayMap(LoadMap(boilerplate)));
   ParameterMode mode = OptimalParameterMode();
   if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
     return CloneFastJSArray(context, boilerplate, mode, allocation_site);
@@ -392,15 +382,17 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
     Node* feedback_vector, Node* slot, Node* context) {
   // Array literals always have a valid AllocationSite to properly track
   // elements transitions.
-  TVARIABLE(Object, allocation_site,
-            ToObject(LoadFeedbackVectorSlot(feedback_vector, slot, 0,
-                                            INTPTR_PARAMETERS)));
+  TNode<Object> maybe_allocation_site =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  TVARIABLE(AllocationSite, allocation_site);
 
   Label create_empty_array(this),
       initialize_allocation_site(this, Label::kDeferred), done(this);
-  Branch(TaggedIsSmi(allocation_site.value()), &initialize_allocation_site,
-         &create_empty_array);
-
+  GotoIf(TaggedIsSmi(maybe_allocation_site), &initialize_allocation_site);
+  {
+    allocation_site = CAST(maybe_allocation_site);
+    Goto(&create_empty_array);
+  }
   // TODO(cbruni): create the AllocationSite in CSA.
   BIND(&initialize_allocation_site);
   {
@@ -410,12 +402,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   }
 
   BIND(&create_empty_array);
-  CSA_ASSERT(this, IsAllocationSite(CAST(allocation_site.value())));
-  Node* kind = SmiToInt32(CAST(
-      LoadObjectField(CAST(allocation_site.value()),
-                      AllocationSite::kTransitionInfoOrBoilerplateOffset)));
-  CSA_ASSERT(this, IsFastElementsKind(kind));
-  Node* native_context = LoadNativeContext(context);
+  TNode<Int32T> kind = LoadElementsKind(allocation_site.value());
+  TNode<Context> native_context = LoadNativeContext(context);
   Comment("LoadJSArrayElementsMap");
   Node* array_map = LoadJSArrayElementsMap(kind, native_context);
   Node* zero = SmiConstant(0);
@@ -440,12 +428,13 @@ TF_BUILTIN(CreateEmptyArrayLiteral, ConstructorBuiltinsAssembler) {
 
 Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     Node* feedback_vector, Node* slot, Label* call_runtime) {
-  TNode<Object> allocation_site = ToObject(
-      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
-  GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
+  TNode<Object> maybe_allocation_site =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  GotoIf(NotHasBoilerplate(maybe_allocation_site), call_runtime);
 
-  Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
-  Node* boilerplate_map = LoadMap(boilerplate);
+  TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
+  TNode<JSObject> boilerplate = LoadBoilerplate(allocation_site);
+  TNode<Map> boilerplate_map = LoadMap(boilerplate);
   CSA_ASSERT(this, IsJSObjectMap(boilerplate_map));
 
   VARIABLE(var_properties, MachineRepresentation::kTagged);
@@ -588,7 +577,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
                       {
                         Node* double_value = LoadHeapNumberValue(field);
                         Node* mutable_heap_number =
-                            AllocateHeapNumberWithValue(double_value, MUTABLE);
+                            AllocateMutableHeapNumberWithValue(double_value);
                         StoreObjectField(copy, offset, mutable_heap_number);
                         Goto(&continue_loop);
                       }
@@ -611,12 +600,12 @@ TF_BUILTIN(CreateShallowObjectLiteral, ConstructorBuiltinsAssembler) {
   Return(copy);
 
   BIND(&call_runtime);
-  Node* boilerplate_description =
-      Parameter(Descriptor::kBoilerplateDescription);
+  Node* object_boilerplate_description =
+      Parameter(Descriptor::kObjectBoilerplateDescription);
   Node* flags = Parameter(Descriptor::kFlags);
   Node* context = Parameter(Descriptor::kContext);
   TailCallRuntime(Runtime::kCreateObjectLiteral, context, feedback_vector,
-                  SmiTag(slot), boilerplate_description, flags);
+                  SmiTag(slot), object_boilerplate_description, flags);
 }
 
 // Used by the CreateEmptyObjectLiteral bytecode and the Object constructor.
@@ -642,17 +631,16 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
 TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   int const kValueArg = 0;
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* new_target = Parameter(Descriptor::kJSNewTarget);
 
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Label if_subclass(this, Label::kDeferred), if_notsubclass(this),
       return_result(this);
   GotoIf(IsUndefined(new_target), &if_notsubclass);
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
+  TNode<JSFunction> target = CAST(Parameter(Descriptor::kJSTarget));
   Branch(WordEqual(new_target, target), &if_notsubclass, &if_subclass);
 
   BIND(&if_subclass);
@@ -694,9 +682,9 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
 
 // ES #sec-number-constructor
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   // 1. If no arguments were passed to this function invocation, let n be +0.
@@ -716,7 +704,7 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   {
     // 3. If NewTarget is undefined, return n.
     Node* n_value = var_n.value();
-    Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+    Node* new_target = Parameter(Descriptor::kJSNewTarget);
     Label return_n(this), constructnumber(this, Label::kDeferred);
     Branch(IsUndefined(new_target), &return_n, &constructnumber);
 
@@ -729,8 +717,11 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
       //    "%NumberPrototype%", « [[NumberData]] »).
       // 5. Set O.[[NumberData]] to n.
       // 6. Return O.
-      Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                                   MachineType::TaggedPointer());
+
+      // We are not using Parameter(Descriptor::kJSTarget) and loading the value
+      // from the current frame here in order to reduce register pressure on the
+      // fast path.
+      TNode<JSFunction> target = LoadTargetFromFrame();
       Node* result =
           CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
       StoreObjectField(result, JSValue::kValueOffset, n_value);
@@ -741,14 +732,12 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
 
 // https://tc39.github.io/ecma262/#sec-string-constructor
 TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
 
   // 1. If no arguments were passed to this function invocation, let s be "".
   VARIABLE(var_s, MachineRepresentation::kTagged, EmptyStringConstant());
@@ -789,6 +778,11 @@ TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
 
     BIND(&constructstring);
     {
+      // We are not using Parameter(Descriptor::kJSTarget) and loading the value
+      // from the current frame here in order to reduce register pressure on the
+      // fast path.
+      TNode<JSFunction> target = LoadTargetFromFrame();
+
       Node* result =
           CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
       StoreObjectField(result, JSValue::kValueOffset, s_value);

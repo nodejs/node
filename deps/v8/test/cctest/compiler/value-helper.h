@@ -11,7 +11,6 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node.h"
-#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "test/cctest/cctest.h"
@@ -52,14 +51,6 @@ class ValueHelper {
   void CheckHeapConstant(HeapObject* expected, Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
     CHECK_EQ(expected, *HeapConstantOf(node->op()));
-  }
-
-  void CheckTrue(Node* node) {
-    CheckHeapConstant(isolate_->heap()->true_value(), node);
-  }
-
-  void CheckFalse(Node* node) {
-    CheckHeapConstant(isolate_->heap()->false_value(), node);
   }
 
   static constexpr float float32_array[] = {
@@ -378,12 +369,6 @@ std::ostream& operator<<(std::ostream& out, FloatCompareWrapper<type> wrapper) {
         ::v8::internal::compiler::FloatCompareWrapper<double>; \
     CHECK_EQ(DoubleWrapper(lhs), rhs);                         \
   } while (false)
-
-// TODO(all): Use CHECK_FLOAT_EQ to get error reported at the right location.
-static inline void CheckFloatEq(float x, float y) { CHECK_FLOAT_EQ(x, y); }
-
-// TODO(all): Use CHECK_DOUBLE_EQ to get error reported at the right location.
-static inline void CheckDoubleEq(double x, double y) { CHECK_DOUBLE_EQ(x, y); }
 
 }  // namespace compiler
 }  // namespace internal

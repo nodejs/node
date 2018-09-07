@@ -5,13 +5,6 @@
 load('../base.js');
 load(arguments[0] + '.js')
 
-function benchy(name, test, testSetup, testTearDown) {
-  new BenchmarkSuite(name, [1000],
-      [
-        new Benchmark(name, false, false, 0, test, testSetup, testTearDown)
-      ]);
-}
-
 function PrintResult(name, result) {
   print(name + '-ArraySort(Score): ' + result);
 }

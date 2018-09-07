@@ -17,7 +17,7 @@ namespace internal {
 
 Sweeper::PauseOrCompleteScope::PauseOrCompleteScope(Sweeper* sweeper)
     : sweeper_(sweeper) {
-  sweeper_->stop_sweeper_tasks_.SetValue(true);
+  sweeper_->stop_sweeper_tasks_ = true;
   if (!sweeper_->sweeping_in_progress()) return;
 
   sweeper_->AbortAndWaitForTasks();
@@ -34,7 +34,7 @@ Sweeper::PauseOrCompleteScope::PauseOrCompleteScope(Sweeper* sweeper)
 }
 
 Sweeper::PauseOrCompleteScope::~PauseOrCompleteScope() {
-  sweeper_->stop_sweeper_tasks_.SetValue(false);
+  sweeper_->stop_sweeper_tasks_ = false;
   if (!sweeper_->sweeping_in_progress()) return;
 
   sweeper_->StartSweeperTasks();
@@ -133,7 +133,7 @@ class Sweeper::IncrementalSweeperTask final : public CancelableTask {
 };
 
 void Sweeper::StartSweeping() {
-  CHECK(!stop_sweeper_tasks_.Value());
+  CHECK(!stop_sweeper_tasks_);
   sweeping_in_progress_ = true;
   iterability_in_progress_ = true;
   MajorNonAtomicMarkingState* marking_state =
@@ -366,14 +366,14 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
     // The allocated_bytes() counter is precisely the total size of objects.
     DCHECK_EQ(live_bytes, p->allocated_bytes());
   }
-  p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
+  p->set_concurrent_sweeping_state(Page::kSweepingDone);
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
   return static_cast<int>(FreeList::GuaranteedAllocatable(max_freed_bytes));
 }
 
 void Sweeper::SweepSpaceFromTask(AllocationSpace identity) {
   Page* page = nullptr;
-  while (!stop_sweeper_tasks_.Value() &&
+  while (!stop_sweeper_tasks_ &&
          ((page = GetSweepingPageSafe(identity)) != nullptr)) {
     ParallelSweepPage(page, identity);
   }
@@ -419,9 +419,8 @@ int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity) {
     // the page protection mode from rx -> rw while sweeping.
     CodePageMemoryModificationScope code_page_scope(page);
 
-    DCHECK_EQ(Page::kSweepingPending,
-              page->concurrent_sweeping_state().Value());
-    page->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
+    DCHECK_EQ(Page::kSweepingPending, page->concurrent_sweeping_state());
+    page->set_concurrent_sweeping_state(Page::kSweepingInProgress);
     const FreeSpaceTreatmentMode free_space_mode =
         Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
     max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
@@ -467,17 +466,17 @@ void Sweeper::AddPage(AllocationSpace space, Page* page,
     // happened when the page was initially added, so it is skipped here.
     DCHECK_EQ(Sweeper::READD_TEMPORARY_REMOVED_PAGE, mode);
   }
-  DCHECK_EQ(Page::kSweepingPending, page->concurrent_sweeping_state().Value());
+  DCHECK_EQ(Page::kSweepingPending, page->concurrent_sweeping_state());
   sweeping_list_[GetSweepSpaceIndex(space)].push_back(page);
 }
 
 void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
   DCHECK_GE(page->area_size(),
             static_cast<size_t>(marking_state_->live_bytes(page)));
-  DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state().Value());
+  DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state());
   page->ForAllFreeListCategories(
       [](FreeListCategory* category) { DCHECK(!category->is_linked()); });
-  page->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
+  page->set_concurrent_sweeping_state(Page::kSweepingPending);
   heap_->paged_space(space)->IncreaseAllocatedBytes(
       marking_state_->live_bytes(page), page);
 }
@@ -569,10 +568,10 @@ void Sweeper::AddPageForIterability(Page* page) {
   DCHECK(iterability_in_progress_);
   DCHECK(!iterability_task_started_);
   DCHECK(IsValidIterabilitySpace(page->owner()->identity()));
-  DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state().Value());
+  DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state());
 
   iterability_list_.push_back(page);
-  page->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
+  page->set_concurrent_sweeping_state(Page::kSweepingPending);
 }
 
 void Sweeper::MakeIterable(Page* page) {

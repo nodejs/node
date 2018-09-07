@@ -71,8 +71,8 @@ char* StrNDup(const char* str, int n);
 // and free. Used as the default policy for lists.
 class FreeStoreAllocationPolicy {
  public:
-  INLINE(void* New(size_t size)) { return Malloced::New(size); }
-  INLINE(static void Delete(void* p)) { Malloced::Delete(p); }
+  V8_INLINE void* New(size_t size) { return Malloced::New(size); }
+  V8_INLINE static void Delete(void* p) { Malloced::Delete(p); }
 };
 
 // Performs a malloc, with retry logic on failure. Returns nullptr on failure.

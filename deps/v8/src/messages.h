@@ -337,6 +337,7 @@ class ErrorUtils : public AllStatic {
   T(InvalidInOperatorUse, "Cannot use 'in' operator to search for '%' in %")   \
   T(InvalidRegExpExecResult,                                                   \
     "RegExp exec method returned something other than an Object or null")      \
+  T(InvalidUnit, "Invalid unit argument for %() '%'")                          \
   T(IteratorResultNotAnObject, "Iterator result % is not an object")           \
   T(IteratorSymbolNonCallable, "Found non-callable @@iterator")                \
   T(IteratorValueNotAnObject, "Iterator value % is not an entry object")       \
@@ -489,6 +490,8 @@ class ErrorUtils : public AllStatic {
     "Cannot supply flags when constructing one RegExp from another")           \
   T(RegExpNonObject, "% getter called on non-object %")                        \
   T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
+  T(RelativeDateTimeFormatterBadParameters,                                    \
+    "Incorrect RelativeDateTimeFormatter provided")                            \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
   T(ReturnMethodNotCallable, "The iterator's 'return' method is not callable") \
   T(SharedArrayBufferTooShort,                                                 \
@@ -754,14 +757,7 @@ class ErrorUtils : public AllStatic {
   T(DataCloneDeserializationError, "Unable to deserialize cloned data.")       \
   T(DataCloneDeserializationVersionError,                                      \
     "Unable to deserialize cloned data due to invalid or unsupported "         \
-    "version.")                                                                \
-  /* Builtins-Trace Errors */                                                  \
-  T(TraceEventCategoryError, "Trace event category must be a string.")         \
-  T(TraceEventNameError, "Trace event name must be a string.")                 \
-  T(TraceEventNameLengthError,                                                 \
-    "Trace event name must not be an empty string.")                           \
-  T(TraceEventPhaseError, "Trace event phase must be a number.")               \
-  T(TraceEventIDError, "Trace event id must be a number.")
+    "version.")
 
 class MessageTemplate {
  public:

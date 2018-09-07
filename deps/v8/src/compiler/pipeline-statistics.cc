@@ -6,7 +6,6 @@
 
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/zone-stats.h"
-#include "src/isolate.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/optimized-compilation-info.h"
@@ -46,11 +45,11 @@ void PipelineStatistics::CommonStats::End(
 }
 
 PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
-                                       Isolate* isolate, ZoneStats* zone_stats)
-    : isolate_(isolate),
-      outer_zone_(info->zone()),
+                                       CompilationStatistics* compilation_stats,
+                                       ZoneStats* zone_stats)
+    : outer_zone_(info->zone()),
       zone_stats_(zone_stats),
-      compilation_stats_(isolate_->GetTurboStatistics()),
+      compilation_stats_(compilation_stats),
       source_size_(0),
       phase_kind_name_(nullptr),
       phase_name_(nullptr) {

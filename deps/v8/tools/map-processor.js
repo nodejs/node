@@ -8,7 +8,8 @@ class MapProcessor extends LogReader {
     super();
     this.dispatchTable_ = {
       'code-creation': {
-        parsers: [null, parseInt, parseInt, parseInt, parseInt, null, 'var-args'],
+        parsers: [parseString, parseInt, parseInt, parseInt, parseInt,
+          parseString, parseVarArgs],
         processor: this.processCodeCreation
       },
       'code-move': {
@@ -24,17 +25,17 @@ class MapProcessor extends LogReader {
         processor: this.processFunctionMove
       },
       'map-create': {
-        parsers: [parseInt, parseInt, null],
+        parsers: [parseInt, parseInt, parseString],
         processor: this.processMapCreate
       },
       'map': {
-        parsers: [null, parseInt, parseInt, parseInt, parseInt, parseInt,
-          null, null, null
+        parsers: [parseString, parseInt, parseInt, parseInt, parseInt, parseInt,
+          parseString, parseString, parseString
         ],
         processor: this.processMap
       },
       'map-details': {
-        parsers: [parseInt, parseInt, null],
+        parsers: [parseInt, parseInt, parseString],
         processor: this.processMapDetails
       }
     };

@@ -85,10 +85,15 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& args) {
       .FromJust();
 #elif defined(V8_HOST_ARCH_64_BIT)
   Address fp = calling_frame->fp();
-  int32_t low_bits = static_cast<int32_t>(fp & 0xFFFFFFFF);
-  int32_t high_bits = static_cast<int32_t>(fp >> 32);
-  args.This()->Set(context, v8_str("low_bits"), v8_num(low_bits)).FromJust();
-  args.This()->Set(context, v8_str("high_bits"), v8_num(high_bits)).FromJust();
+  uint64_t kSmiValueMask =
+      (static_cast<uintptr_t>(1) << (kSmiValueSize - 1)) - 1;
+  int32_t low_bits = static_cast<int32_t>(fp & kSmiValueMask);
+  fp >>= kSmiValueSize - 1;
+  int32_t high_bits = static_cast<int32_t>(fp & kSmiValueMask);
+  fp >>= kSmiValueSize - 1;
+  CHECK_EQ(fp, 0);  // Ensure all the bits are successfully encoded.
+  args.This()->Set(context, v8_str("low_bits"), v8_int(low_bits)).FromJust();
+  args.This()->Set(context, v8_str("high_bits"), v8_int(high_bits)).FromJust();
 #else
 #error Host architecture is neither 32-bit nor 64-bit.
 #endif

@@ -345,16 +345,6 @@ void V8Console::Assert(const v8::debug::ConsoleCallArguments& info,
   m_inspector->debugger()->breakProgramOnAssert(helper.groupId());
 }
 
-void V8Console::MarkTimeline(const v8::debug::ConsoleCallArguments& info,
-                             const v8::debug::ConsoleContext& consoleContext) {
-  ConsoleHelper(info, consoleContext, m_inspector)
-      .reportDeprecatedCall("V8Console#markTimelineDeprecated",
-                            "'console.markTimeline' is "
-                            "deprecated. Please use "
-                            "'console.timeStamp' instead.");
-  TimeStamp(info, consoleContext);
-}
-
 void V8Console::Profile(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
   ConsoleHelper helper(info, consoleContext, m_inspector);
@@ -412,25 +402,6 @@ static void timeEndFunction(const v8::debug::ConsoleCallArguments& info,
   String16 message =
       protocolTitle + ": " + String16::fromDouble(elapsed) + "ms";
   helper.reportCallWithArgument(ConsoleAPIType::kTimeEnd, message);
-}
-
-void V8Console::Timeline(const v8::debug::ConsoleCallArguments& info,
-                         const v8::debug::ConsoleContext& consoleContext) {
-  ConsoleHelper(info, consoleContext, m_inspector)
-      .reportDeprecatedCall("V8Console#timeline",
-                            "'console.timeline' is deprecated. Please use "
-                            "'console.time' instead.");
-  timeFunction(info, consoleContext, true, m_inspector);
-}
-
-void V8Console::TimelineEnd(const v8::debug::ConsoleCallArguments& info,
-                            const v8::debug::ConsoleContext& consoleContext) {
-  ConsoleHelper(info, consoleContext, m_inspector)
-      .reportDeprecatedCall("V8Console#timelineEnd",
-                            "'console.timelineEnd' is "
-                            "deprecated. Please use "
-                            "'console.timeEnd' instead.");
-  timeEndFunction(info, consoleContext, true, m_inspector);
 }
 
 void V8Console::Time(const v8::debug::ConsoleCallArguments& info,

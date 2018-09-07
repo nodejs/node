@@ -21,11 +21,11 @@ function assertGlobalIsValid(global) {
   assertThrows(() => new WebAssembly.Global(""), TypeError);
 
   assertThrows(() => new WebAssembly.Global({}), TypeError);
-  assertThrows(() => new WebAssembly.Global({type: 'foo'}), TypeError);
-  assertThrows(() => new WebAssembly.Global({type: 'i64'}), TypeError);
+  assertThrows(() => new WebAssembly.Global({value: 'foo'}), TypeError);
+  assertThrows(() => new WebAssembly.Global({value: 'i64'}), TypeError);
 
   for (let type of ['i32', 'f32', 'f64']) {
-    assertGlobalIsValid(new WebAssembly.Global({type}));
+    assertGlobalIsValid(new WebAssembly.Global({value: type}));
   }
 })();
 
@@ -215,7 +215,7 @@ const f64_values = [
 ];
 
 function GlobalI32(value, mutable = false) {
-  return new WebAssembly.Global({type: 'i32', mutable}, value);
+  return new WebAssembly.Global({value: 'i32', mutable}, value);
 }
 
 function GlobalI64(mutable = false) {
@@ -227,11 +227,11 @@ function GlobalI64(mutable = false) {
 }
 
 function GlobalF32(value, mutable = false) {
-  return new WebAssembly.Global({type: 'f32', mutable}, value);
+  return new WebAssembly.Global({value: 'f32', mutable}, value);
 }
 
 function GlobalF64(value, mutable = false) {
-  return new WebAssembly.Global({type: 'f64', mutable}, value);
+  return new WebAssembly.Global({value: 'f64', mutable}, value);
 }
 
 (function TestDefaultValue() {

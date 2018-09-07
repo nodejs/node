@@ -4,9 +4,9 @@
 
 #include "src/compiler/property-access-builder.h"
 
-#include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
@@ -136,7 +136,8 @@ void PropertyAccessBuilder::BuildCheckMaps(
     if (receiver_map->is_stable()) {
       for (Handle<Map> map : receiver_maps) {
         if (map.is_identical_to(receiver_map)) {
-          dependencies()->AssumeMapStable(receiver_map);
+          dependencies()->DependOnStableMap(
+              MapRef(js_heap_broker(), receiver_map));
           return;
         }
       }
@@ -168,22 +169,6 @@ Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Node** effect,
   return expected;
 }
 
-void PropertyAccessBuilder::AssumePrototypesStable(
-    Handle<Context> native_context,
-    std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder) {
-  // Determine actual holder and perform prototype chain checks.
-  for (auto map : receiver_maps) {
-    // Perform the implicit ToObject for primitives here.
-    // Implemented according to ES6 section 7.3.2 GetV (V, P).
-    Handle<JSFunction> constructor;
-    if (Map::GetConstructorFunction(map, native_context)
-            .ToHandle(&constructor)) {
-      map = handle(constructor->initial_map(), holder->GetIsolate());
-    }
-    dependencies()->AssumePrototypeMapsStable(map, holder);
-  }
-}
-
 Node* PropertyAccessBuilder::ResolveHolder(
     PropertyAccessInfo const& access_info, Node* receiver) {
   Handle<JSObject> holder;
@@ -209,20 +194,22 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     // TODO(turbofan): Given that we already have the field_index here, we
     // might be smarter in the future and not rely on the LookupIterator,
     // but for now let's just do what Crankshaft does.
-    LookupIterator it(m.Value(), name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+    LookupIterator it(isolate(), m.Value(), name,
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (it.state() == LookupIterator::DATA) {
-      bool is_reaonly_non_configurable =
+      bool is_readonly_non_configurable =
           it.IsReadOnly() && !it.IsConfigurable();
-      if (is_reaonly_non_configurable ||
+      if (is_readonly_non_configurable ||
           (FLAG_track_constant_fields && access_info.IsDataConstantField())) {
         Node* value = jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
-        if (!is_reaonly_non_configurable) {
+        if (!is_readonly_non_configurable) {
           // It's necessary to add dependency on the map that introduced
           // the field.
           DCHECK(access_info.IsDataConstantField());
           DCHECK(!it.is_dictionary_holder());
-          Handle<Map> field_owner_map = it.GetFieldOwnerMap();
-          dependencies()->AssumeFieldOwner(field_owner_map);
+          MapRef map(js_heap_broker(),
+                     handle(it.GetHolder<HeapObject>()->map(), isolate()));
+          dependencies()->DependOnFieldType(map, it.GetFieldDescriptorIndex());
         }
         return value;
       }
@@ -280,7 +267,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
     Handle<Map> field_map;
     if (access_info.field_map().ToHandle(&field_map)) {
       if (field_map->is_stable()) {
-        dependencies()->AssumeMapStable(field_map);
+        dependencies()->DependOnStableMap(MapRef(js_heap_broker(), field_map));
         field_access.map = field_map;
       }
     }

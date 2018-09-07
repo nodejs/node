@@ -285,7 +285,7 @@ void ArmDebugger::Debug() {
                  || (strcmp(cmd, "printobject") == 0)) {
         if (argc == 2) {
           int32_t value;
-          OFStream os(stdout);
+          StdoutStream os;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
             os << arg1 << ": \n";
@@ -514,7 +514,7 @@ void ArmDebugger::Debug() {
         PrintF("    Stops are debug instructions inserted by\n");
         PrintF("    the Assembler::stop() function.\n");
         PrintF("    When hitting a stop, the Simulator will\n");
-        PrintF("    stop and and give control to the ArmDebugger.\n");
+        PrintF("    stop and give control to the ArmDebugger.\n");
         PrintF("    The first %d stop codes are watched:\n",
                Simulator::kNumOfWatchedStops);
         PrintF("    - They can be enabled / disabled: the Simulator\n");

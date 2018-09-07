@@ -145,6 +145,9 @@ const uint32_t kLeastSignificantByteInInt32Offset = 3;
 namespace v8 {
 namespace internal {
 
+// TODO(sigurds): Change this value once we use relative jumps.
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
+
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.
 
@@ -218,6 +221,11 @@ const int32_t kPrefHintLoadRetained = 6;
 const int32_t kPrefHintStoreRetained = 7;
 const int32_t kPrefHintWritebackInvalidate = 25;
 const int32_t kPrefHintPrepareForStore = 30;
+
+// Actual value of root register is offset from the root array's start
+// to take advantage of negative displacement values.
+// TODO(sigurds): Choose best value.
+constexpr int kRootRegisterBias = 256;
 
 // Helper functions for converting between register numbers and names.
 class Registers {

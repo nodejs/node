@@ -8,6 +8,7 @@ load('../base.js');
 load('ctor.js');
 load('exec.js');
 load('flags.js');
+load('inline_test.js')
 load('match.js');
 load('replace.js');
 load('search.js');
@@ -20,7 +21,6 @@ load('slow_replace.js');
 load('slow_search.js');
 load('slow_split.js');
 load('slow_test.js');
-load('test_inl.js')
 
 var success = true;
 

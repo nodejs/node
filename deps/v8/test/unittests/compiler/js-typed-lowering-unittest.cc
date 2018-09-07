@@ -48,7 +48,7 @@ class JSTypedLoweringTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, zone());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, js_heap_broker(), zone());
     return reducer.Reduce(node);
   }
 

@@ -24,7 +24,6 @@ class InstructionStream final : public AllStatic {
   // Returns the corresponding Code object if it exists, and nullptr otherwise.
   static Code* TryLookupCode(Isolate* isolate, Address address);
 
-#ifdef V8_EMBEDDED_BUILTINS
   // During snapshot creation, we first create an executable off-heap area
   // containing all off-heap code. The area is guaranteed to be contiguous.
   // Note that this only applies when building the snapshot, e.g. for
@@ -32,7 +31,6 @@ class InstructionStream final : public AllStatic {
   static void CreateOffHeapInstructionStream(Isolate* isolate, uint8_t** data,
                                              uint32_t* size);
   static void FreeOffHeapInstructionStream(uint8_t* data, uint32_t size);
-#endif
 };
 
 }  // namespace internal

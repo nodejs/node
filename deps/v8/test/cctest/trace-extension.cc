@@ -78,9 +78,14 @@ Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& args) {
 #if defined(V8_HOST_ARCH_32_BIT)
   Address fp = *reinterpret_cast<Address*>(*args[0]);
 #elif defined(V8_HOST_ARCH_64_BIT)
-  int64_t low_bits = *reinterpret_cast<uint64_t*>(*args[0]) >> 32;
-  int64_t high_bits = *reinterpret_cast<uint64_t*>(*args[1]);
-  Address fp = static_cast<Address>(high_bits | low_bits);
+  uint64_t kSmiValueMask =
+      (static_cast<uintptr_t>(1) << (kSmiValueSize - 1)) - 1;
+  uint64_t low_bits =
+      (*reinterpret_cast<Smi**>(*args[0]))->value() & kSmiValueMask;
+  uint64_t high_bits =
+      (*reinterpret_cast<Smi**>(*args[1]))->value() & kSmiValueMask;
+  Address fp =
+      static_cast<Address>((high_bits << (kSmiValueSize - 1)) | low_bits);
 #else
 #error Host architecture is neither 32-bit nor 64-bit.
 #endif

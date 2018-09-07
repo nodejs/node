@@ -19,9 +19,9 @@ namespace internal {
 int AddToSetAndGetHash(Isolate* isolate, Handle<JSObject> obj,
                        bool has_fast_properties) {
   CHECK_EQ(has_fast_properties, obj->HasFastProperties());
-  CHECK_EQ(isolate->heap()->undefined_value(), obj->GetHash());
+  CHECK_EQ(ReadOnlyRoots(isolate).undefined_value(), obj->GetHash());
   Handle<OrderedHashSet> set = isolate->factory()->NewOrderedHashSet();
-  OrderedHashSet::Add(set, obj);
+  OrderedHashSet::Add(isolate, set, obj);
   CHECK_EQ(has_fast_properties, obj->HasFastProperties());
   return Smi::ToInt(obj->GetHash());
 }
@@ -62,7 +62,8 @@ TEST(AddHashCodeToFastObjectWithInObjectProperties) {
   CompileRun(source);
 
   Handle<JSObject> obj = GetGlobal<JSObject>("x");
-  CHECK_EQ(isolate->heap()->empty_fixed_array(), obj->raw_properties_or_hash());
+  CHECK_EQ(ReadOnlyRoots(isolate).empty_fixed_array(),
+           obj->raw_properties_or_hash());
 
   int hash = AddToSetAndGetHash(isolate, obj, true);
   CHECK_EQ(Smi::FromInt(hash), obj->raw_properties_or_hash());

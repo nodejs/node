@@ -469,7 +469,7 @@ TEST(GotoIfException) {
   CHECK(result->IsJSObject());
 
   Handle<Object> constructor =
-      Object::GetPropertyOrElement(result,
+      Object::GetPropertyOrElement(isolate, result,
                                    isolate->factory()->constructor_string())
           .ToHandleChecked();
   CHECK(constructor->SameValue(*isolate->type_error_function()));
@@ -554,7 +554,7 @@ TEST(GotoIfExceptionMultiple) {
   CHECK(result->IsJSObject());
 
   Handle<Object> constructor =
-      Object::GetPropertyOrElement(result,
+      Object::GetPropertyOrElement(isolate, result,
                                    isolate->factory()->constructor_string())
           .ToHandleChecked();
   CHECK(constructor->SameValue(*isolate->type_error_function()));

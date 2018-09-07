@@ -85,6 +85,7 @@ unsigned Utf8::Encode(char* str,
     str[1] = 0x80 | (c & kMask);
     return 2;
   } else if (c <= kMaxThreeByteChar) {
+    DCHECK(!Utf16::IsLeadSurrogate(Utf16::kNoPreviousCharacter));
     if (Utf16::IsSurrogatePair(previous, c)) {
       const int kUnmatchedSize = kSizeOfUnmatchedSurrogate;
       return Encode(str - kUnmatchedSize,
@@ -127,8 +128,8 @@ unsigned Utf8::Length(uchar c, int previous) {
   } else if (c <= kMaxTwoByteChar) {
     return 2;
   } else if (c <= kMaxThreeByteChar) {
-    if (Utf16::IsTrailSurrogate(c) &&
-        Utf16::IsLeadSurrogate(previous)) {
+    DCHECK(!Utf16::IsLeadSurrogate(Utf16::kNoPreviousCharacter));
+    if (Utf16::IsSurrogatePair(previous, c)) {
       return kSizeOfUnmatchedSurrogate - kBytesSavedByCombiningSurrogates;
     }
     return 3;

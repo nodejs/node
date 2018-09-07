@@ -4,8 +4,8 @@
 
 #include "src/compiler/typed-optimization.h"
 #include "src/code-factory.h"
-#include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
@@ -38,7 +38,8 @@ class TypedOptimizationTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    TypedOptimization reducer(&graph_reducer, &deps_, &jsgraph);
+    TypedOptimization reducer(&graph_reducer, &deps_, &jsgraph,
+                              js_heap_broker());
     return reducer.Reduce(node);
   }
 

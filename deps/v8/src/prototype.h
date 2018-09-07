@@ -51,9 +51,9 @@ class PrototypeIterator {
     if (where_to_start == kStartAtPrototype) Advance();
   }
 
-  explicit PrototypeIterator(Map* receiver_map,
+  explicit PrototypeIterator(Isolate* isolate, Map* receiver_map,
                              WhereToEnd where_to_end = END_AT_NULL)
-      : isolate_(receiver_map->GetIsolate()),
+      : isolate_(isolate),
         object_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype()),
         where_to_end_(where_to_end),
         is_at_end_(object_->IsNull(isolate_)),
@@ -65,9 +65,9 @@ class PrototypeIterator {
     }
   }
 
-  explicit PrototypeIterator(Handle<Map> receiver_map,
+  explicit PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,
                              WhereToEnd where_to_end = END_AT_NULL)
-      : isolate_(receiver_map->GetIsolate()),
+      : isolate_(isolate),
         object_(nullptr),
         handle_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype(),
                 isolate_),
@@ -88,7 +88,7 @@ class PrototypeIterator {
     // PrototypeIterator.
     DCHECK(!handle_.is_null());
     if (handle_->IsAccessCheckNeeded()) {
-      return isolate_->MayAccess(handle(isolate_->context()),
+      return isolate_->MayAccess(handle(isolate_->context(), isolate_),
                                  Handle<JSObject>::cast(handle_));
     }
     return true;
@@ -110,7 +110,7 @@ class PrototypeIterator {
   void Advance() {
     if (handle_.is_null() && object_->IsJSProxy()) {
       is_at_end_ = true;
-      object_ = isolate_->heap()->null_value();
+      object_ = ReadOnlyRoots(isolate_).null_value();
       return;
     } else if (!handle_.is_null() && handle_->IsJSProxy()) {
       is_at_end_ = true;

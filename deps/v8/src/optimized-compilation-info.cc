@@ -23,7 +23,6 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   shared_info_ = shared;
   closure_ = closure;
   optimization_id_ = isolate->NextOptimizationId();
-  dependencies_.reset(new CompilationDependencies(isolate, zone));
 
   SetFlag(kCalledWithCodeStartRegister);
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
@@ -39,7 +38,7 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
   // more memory consumption.
-  if (isolate->NeedsDetailedOptimizedCodeLineInfo()) {
+  if (isolate->NeedsSourcePositionsForProfiling()) {
     MarkAsSourcePositionsEnabled();
   }
 
@@ -78,7 +77,6 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
       osr_offset_(BailoutId::None()),
       zone_(zone),
       deferred_handles_(nullptr),
-      dependencies_(nullptr),
       bailout_reason_(BailoutReason::kNoReason),
       optimization_id_(-1),
       debug_name_(debug_name) {}
@@ -86,9 +84,6 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 OptimizedCompilationInfo::~OptimizedCompilationInfo() {
   if (GetFlag(kDisableFutureOptimization) && has_shared_info()) {
     shared_info()->DisableOptimization(bailout_reason());
-  }
-  if (dependencies()) {
-    dependencies()->Rollback();
   }
 }
 
@@ -104,12 +99,12 @@ void OptimizedCompilationInfo::set_deferred_handles(
   deferred_handles_.reset(deferred_handles);
 }
 
-void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope() {
+void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
   if (!shared_info_.is_null()) {
-    shared_info_ = Handle<SharedFunctionInfo>(*shared_info_);
+    shared_info_ = Handle<SharedFunctionInfo>(*shared_info_, isolate);
   }
   if (!closure_.is_null()) {
-    closure_ = Handle<JSFunction>(*closure_);
+    closure_ = Handle<JSFunction>(*closure_, isolate);
   }
 }
 

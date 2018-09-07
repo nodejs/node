@@ -195,7 +195,7 @@ Char FlatStringReader::Get(int index) {
 template <typename Char>
 class SequentialStringKey : public StringTableKey {
  public:
-  explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
+  explicit SequentialStringKey(Vector<const Char> string, uint64_t seed)
       : StringTableKey(StringHasher::HashSequentialString<Char>(
             string.start(), string.length(), seed)),
         string_(string) {}
@@ -205,7 +205,7 @@ class SequentialStringKey : public StringTableKey {
 
 class OneByteStringKey : public SequentialStringKey<uint8_t> {
  public:
-  OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
+  OneByteStringKey(Vector<const uint8_t> str, uint64_t seed)
       : SequentialStringKey<uint8_t>(str, seed) {}
 
   bool IsMatch(Object* string) override {
@@ -225,9 +225,10 @@ class SeqOneByteSubStringKey : public StringTableKey {
 #pragma warning(push)
 #pragma warning(disable : 4789)
 #endif
-  SeqOneByteSubStringKey(Handle<SeqOneByteString> string, int from, int length)
+  SeqOneByteSubStringKey(Isolate* isolate, Handle<SeqOneByteString> string,
+                         int from, int length)
       : StringTableKey(StringHasher::HashSequentialString(
-            string->GetChars() + from, length, string->GetHeap()->HashSeed())),
+            string->GetChars() + from, length, isolate->heap()->HashSeed())),
         string_(string),
         from_(from),
         length_(length) {
@@ -250,7 +251,7 @@ class SeqOneByteSubStringKey : public StringTableKey {
 
 class TwoByteStringKey : public SequentialStringKey<uc16> {
  public:
-  explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
+  explicit TwoByteStringKey(Vector<const uc16> str, uint64_t seed)
       : SequentialStringKey<uc16>(str, seed) {}
 
   bool IsMatch(Object* string) override {
@@ -263,7 +264,7 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
 // Utf8StringKey carries a vector of chars as key.
 class Utf8StringKey : public StringTableKey {
  public:
-  explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
+  explicit Utf8StringKey(Vector<const char> string, uint64_t seed)
       : StringTableKey(StringHasher::ComputeUtf8Hash(string, seed, &chars_)),
         string_(string) {}
 
@@ -289,25 +290,26 @@ bool String::Equals(String* other) {
   return SlowEquals(other);
 }
 
-bool String::Equals(Handle<String> one, Handle<String> two) {
+bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
   if (one.is_identical_to(two)) return true;
   if (one->IsInternalizedString() && two->IsInternalizedString()) {
     return false;
   }
-  return SlowEquals(one, two);
+  return SlowEquals(isolate, one, two);
 }
 
-Handle<String> String::Flatten(Handle<String> string, PretenureFlag pretenure) {
+Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
+                               PretenureFlag pretenure) {
   if (string->IsConsString()) {
     Handle<ConsString> cons = Handle<ConsString>::cast(string);
     if (cons->IsFlat()) {
-      string = handle(cons->first());
+      string = handle(cons->first(), isolate);
     } else {
-      return SlowFlatten(cons, pretenure);
+      return SlowFlatten(isolate, cons, pretenure);
     }
   }
   if (string->IsThinString()) {
-    string = handle(Handle<ThinString>::cast(string)->actual());
+    string = handle(Handle<ThinString>::cast(string)->actual(), isolate);
     DCHECK(!string->IsConsString());
   }
   return string;
@@ -491,10 +493,11 @@ String* SlicedString::parent() {
   return String::cast(READ_FIELD(this, kParentOffset));
 }
 
-void SlicedString::set_parent(String* parent, WriteBarrierMode mode) {
+void SlicedString::set_parent(Isolate* isolate, String* parent,
+                              WriteBarrierMode mode) {
   DCHECK(parent->IsSeqString() || parent->IsExternalString());
   WRITE_FIELD(this, kParentOffset, parent);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kParentOffset, parent, mode);
+  CONDITIONAL_WRITE_BARRIER(isolate->heap(), this, kParentOffset, parent, mode);
 }
 
 SMI_ACCESSORS(SlicedString, offset, kOffsetOffset)
@@ -505,9 +508,10 @@ String* ConsString::first() {
 
 Object* ConsString::unchecked_first() { return READ_FIELD(this, kFirstOffset); }
 
-void ConsString::set_first(String* value, WriteBarrierMode mode) {
+void ConsString::set_first(Isolate* isolate, String* value,
+                           WriteBarrierMode mode) {
   WRITE_FIELD(this, kFirstOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kFirstOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(isolate->heap(), this, kFirstOffset, value, mode);
 }
 
 String* ConsString::second() {
@@ -518,9 +522,10 @@ Object* ConsString::unchecked_second() {
   return RELAXED_READ_FIELD(this, kSecondOffset);
 }
 
-void ConsString::set_second(String* value, WriteBarrierMode mode) {
+void ConsString::set_second(Isolate* isolate, String* value,
+                            WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kSecondOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(isolate->heap(), this, kSecondOffset, value, mode);
 }
 
 ACCESSORS(ThinString, actual, String, kActualOffset);

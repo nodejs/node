@@ -34,10 +34,10 @@ bytecodes: [
                 B(Ldar), R(3),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(3),
-  /*   13 S> */ B(Return),
+  /*   14 S> */ B(Return),
                 B(Mov), R(3), R(1),
                 B(Ldar), R(1),
-  /*   13 S> */ B(Return),
+  /*   14 S> */ B(Return),
 ]
 constant pool: [
   Smi [36],
@@ -75,10 +75,10 @@ bytecodes: [
                 B(Ldar), R(3),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(3),
-  /*   24 S> */ B(Return),
+  /*   25 S> */ B(Return),
                 B(Mov), R(3), R(1),
                 B(Ldar), R(1),
-  /*   24 S> */ B(Return),
+  /*   25 S> */ B(Return),
 ]
 constant pool: [
   Smi [36],
@@ -118,7 +118,7 @@ bytecodes: [
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(4),
-  /*   64 S> */ B(Return),
+  /*   65 S> */ B(Return),
   /*   32 S> */ B(LdaModuleVariable), I8(-1), U8(0),
                 B(ThrowReferenceErrorIfHole), U8(4),
                 B(Star), R(4),
@@ -134,7 +134,7 @@ bytecodes: [
                 B(Star), R(5),
   /*   52 E> */ B(CallUndefinedReceiver1), R(4), R(5), U8(2),
                 B(Star), R(2),
-  /*   64 S> */ B(Return),
+  /*   65 S> */ B(Return),
 ]
 constant pool: [
   Smi [36],
@@ -175,7 +175,7 @@ bytecodes: [
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(4),
-  /*   49 S> */ B(Return),
+  /*   50 S> */ B(Return),
   /*   17 S> */ B(LdaSmi), I8(42),
   /*   17 E> */ B(StaModuleVariable), I8(1), U8(0),
   /*   21 S> */ B(LdaModuleVariable), I8(1), U8(0),
@@ -190,7 +190,7 @@ bytecodes: [
   /*   42 E> */ B(StaModuleVariable), I8(1), U8(0),
                 B(Mov), R(4), R(2),
                 B(Ldar), R(2),
-  /*   49 S> */ B(Return),
+  /*   50 S> */ B(Return),
 ]
 constant pool: [
   Smi [36],
@@ -233,7 +233,7 @@ bytecodes: [
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(4),
-  /*   49 S> */ B(Return),
+  /*   50 S> */ B(Return),
   /*   17 S> */ B(LdaSmi), I8(42),
   /*   17 E> */ B(StaModuleVariable), I8(1), U8(0),
   /*   21 S> */ B(LdaModuleVariable), I8(1), U8(0),
@@ -248,7 +248,7 @@ bytecodes: [
   /*   42 E> */ B(StaModuleVariable), I8(1), U8(0),
                 B(Mov), R(4), R(2),
                 B(Ldar), R(2),
-  /*   49 S> */ B(Return),
+  /*   50 S> */ B(Return),
 ]
 constant pool: [
   Smi [42],
@@ -291,7 +291,7 @@ bytecodes: [
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(4),
-  /*   51 S> */ B(Return),
+  /*   52 S> */ B(Return),
   /*   19 S> */ B(LdaSmi), I8(42),
   /*   19 E> */ B(StaModuleVariable), I8(1), U8(0),
   /*   23 S> */ B(LdaModuleVariable), I8(1), U8(0),
@@ -306,7 +306,7 @@ bytecodes: [
   /*   44 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(Mov), R(4), R(2),
                 B(Ldar), R(2),
-  /*   51 S> */ B(Return),
+  /*   52 S> */ B(Return),
 ]
 constant pool: [
   Smi [42],
@@ -347,12 +347,12 @@ bytecodes: [
                 B(Ldar), R(3),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(3),
-  /*   32 S> */ B(Return),
+  /*   33 S> */ B(Return),
                 B(Mov), R(3), R(1),
                 B(CreateClosure), U8(4), U8(0), U8(0),
                 B(StaModuleVariable), I8(1), U8(0),
                 B(Ldar), R(1),
-  /*   32 S> */ B(Return),
+  /*   33 S> */ B(Return),
 ]
 constant pool: [
   Smi [42],
@@ -394,7 +394,7 @@ bytecodes: [
                 B(Ldar), R(3),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(3),
-  /*   26 S> */ B(Return),
+  /*   27 S> */ B(Return),
                 B(Mov), R(3), R(1),
                 B(LdaTheHole),
                 B(Star), R(6),
@@ -408,7 +408,7 @@ bytecodes: [
                 B(Ldar), R(5),
                 B(StaModuleVariable), I8(1), U8(0),
                 B(Ldar), R(1),
-  /*   26 S> */ B(Return),
+  /*   27 S> */ B(Return),
 ]
 constant pool: [
   Smi [42],
@@ -448,10 +448,10 @@ bytecodes: [
                 B(Ldar), R(3),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(3),
-  /*   30 S> */ B(Return),
+  /*   31 S> */ B(Return),
                 B(Mov), R(3), R(1),
                 B(Ldar), R(1),
-  /*   30 S> */ B(Return),
+  /*   31 S> */ B(Return),
 ]
 constant pool: [
   Smi [36],
@@ -489,10 +489,10 @@ bytecodes: [
                 B(Ldar), R(3),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(3),
-  /*   19 S> */ B(Return),
+  /*   20 S> */ B(Return),
                 B(Mov), R(3), R(1),
                 B(Ldar), R(1),
-  /*   19 S> */ B(Return),
+  /*   20 S> */ B(Return),
 ]
 constant pool: [
   Smi [36],
@@ -536,14 +536,14 @@ bytecodes: [
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
                 B(Ldar), R(4),
-  /*   45 S> */ B(Return),
+  /*   46 S> */ B(Return),
   /*   31 S> */ B(LdaNamedProperty), R(1), U8(4), U8(0),
                 B(Star), R(4),
   /*   42 E> */ B(LdaNamedProperty), R(1), U8(5), U8(2),
                 B(Star), R(7),
   /*   31 E> */ B(CallProperty2), R(4), R(1), R(1), R(7), U8(4),
                 B(Star), R(2),
-  /*   45 S> */ B(Return),
+  /*   46 S> */ B(Return),
 ]
 constant pool: [
   Smi [48],

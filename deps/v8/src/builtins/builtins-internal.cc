@@ -15,7 +15,7 @@ BUILTIN(Illegal) {
   UNREACHABLE();
 }
 
-BUILTIN(EmptyFunction) { return isolate->heap()->undefined_value(); }
+BUILTIN(EmptyFunction) { return ReadOnlyRoots(isolate).undefined_value(); }
 
 BUILTIN(UnsupportedThrower) {
   HandleScope scope(isolate);

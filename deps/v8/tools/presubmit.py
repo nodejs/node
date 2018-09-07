@@ -297,7 +297,7 @@ class SourceProcessor(SourceFileProcessor):
         m = pattern.match(line)
         if m:
           runtime_functions.append(m.group(1))
-    if len(runtime_functions) < 500:
+    if len(runtime_functions) < 450:
       print ("Runtime functions list is suspiciously short. "
              "Consider updating the presubmit script.")
       sys.exit(1)

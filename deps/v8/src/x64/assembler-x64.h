@@ -42,6 +42,7 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/x64/constants-x64.h"
 #include "src/x64/sse-instr.h"
 
 namespace v8 {
@@ -449,9 +450,7 @@ class Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size)
-      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
-  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
+  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -1936,7 +1935,6 @@ class Assembler : public AssemblerBase {
   inline void emitp(Address x, RelocInfo::Mode rmode);
   inline void emitq(uint64_t x);
   inline void emitw(uint16_t x);
-  inline void emit_code_target(Handle<Code> target, RelocInfo::Mode rmode);
   inline void emit_runtime_entry(Address entry, RelocInfo::Mode rmode);
   inline void emit(Immediate x);
 
@@ -2359,6 +2357,8 @@ class Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
   friend class EnsureSpace;
   friend class RegExpMacroAssemblerX64;
 
@@ -2369,21 +2369,6 @@ class Assembler : public AssemblerBase {
   // GrowBuffer(); contains only those internal references whose labels
   // are already bound.
   std::deque<int> internal_reference_positions_;
-
-  std::vector<Handle<Code>> code_targets_;
-
-  // The following functions help with avoiding allocations of embedded heap
-  // objects during the code assembly phase. {RequestHeapObject} records the
-  // need for a future heap number allocation or code stub generation. After
-  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request). That is, for each request, it will patch the
-  // dummy heap object handle that we emitted during code assembly with the
-  // actual heap object handle.
-  void RequestHeapObject(HeapObjectRequest request);
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
-
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
 
   // Variables for this instance of assembler
   int farjmp_num_ = 0;

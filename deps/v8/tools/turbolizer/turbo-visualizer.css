@@ -45,7 +45,6 @@
     display: none;
 }
 
-
 .selected {
     background-color: #FFFF33;
 }
@@ -64,19 +63,29 @@ ol.linenums {
     display:inline-block;
     min-width: 3ex;
     text-align: right;
-    color: gray;
-    padding-right:1ex;
-    font-size: 10px;
+    color: #444444;
+    margin-right: 0.5ex;
+    padding-right: 0.5ex;
+    background: #EEEEEE;
+    /* font-size: 80%; */
     user-select: none;
+    height: 120%;
 }
 
 .line-number:hover {
     background-color: #CCCCCC;
 }
 
+.prettyprint ol.linenums > li.selected {
+    background-color: #FFFF33 !important;
+}
+
+li.selected .line-number {
+    background-color: #FFFF33;
+}
+
 .prettyprint ol.linenums > li {
     list-style-type: decimal;
-    padding-top: 3px;
     display: block;
 }
 
@@ -478,17 +487,20 @@ text {
 
 #schedule {
     font-family: monospace;
+    margin-top: 50px;
 }
 
 .schedule-block {
     margin: 5px;
     background-color: white;
+    padding-left: 5px;
 }
 
 .schedule-block .block-id {
     display: inline-block;
     font-size:large;
     text-decoration: underline;
+    padding-left: 1ex;
 }
 
 .schedule-block .block-id:hover {
@@ -529,10 +541,6 @@ text {
     padding-right: 1ex;
 }
 
-.schedule-block .nodes {
-    padding-left: 5px;
-}
-
 .schedule-block .nodes .node * {
     display:inline-block;
 }
@@ -557,6 +565,18 @@ text {
 
 .schedule-block .nodes .node .parameter-list:after {
     content: ")";
+}
+
+.schedule-block .instr-marker {
+    padding-right: .5ex;
+    padding-left: .5ex;
+    min-width: 1ex;
+    background: #EEEEEE;
+    /* display: none; */
+}
+
+.schedule-block > .instr-marker {
+    display: inline;
 }
 
 .clickable:hover {

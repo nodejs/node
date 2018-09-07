@@ -36,7 +36,7 @@ bytecodes: [
   /*   70 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -58,7 +58,7 @@ bytecodes: [
   /*   79 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
@@ -82,7 +82,7 @@ bytecodes: [
   /*   75 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
@@ -104,7 +104,7 @@ bytecodes: [
   /*   66 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["func"],
 ]
@@ -127,7 +127,7 @@ bytecodes: [
   /*   67 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["func"],
 ]
@@ -158,7 +158,7 @@ bytecodes: [
   /*   67 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   SHARED_FUNCTION_INFO_TYPE,
 ]
@@ -189,7 +189,7 @@ bytecodes: [
   /*  101 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -221,7 +221,7 @@ bytecodes: [
   /*   73 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["b"],
   SHARED_FUNCTION_INFO_TYPE,
 ]
@@ -251,7 +251,7 @@ bytecodes: [
   /*   61 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -270,7 +270,7 @@ bytecodes: [
   /*   61 S> */ B(Return),
 ]
 constant pool: [
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -295,7 +295,7 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["test"],
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -322,7 +322,7 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["test"],
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
@@ -352,7 +352,7 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["test"],
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -392,7 +392,7 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   SHARED_FUNCTION_INFO_TYPE,

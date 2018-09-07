@@ -460,15 +460,16 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         iterator->isolate()->wasm_engine()->code_manager()->LookupCode(pc);
     if (wasm_code != nullptr) {
       switch (wasm_code->kind()) {
-        case wasm::WasmCode::kInterpreterEntry:
-          return WASM_INTERPRETER_ENTRY;
         case wasm::WasmCode::kFunction:
           return WASM_COMPILED;
-        case wasm::WasmCode::kLazyStub:
-          if (StackFrame::IsTypeMarker(marker)) break;
-          return BUILTIN;
         case wasm::WasmCode::kWasmToJsWrapper:
           return WASM_TO_JS;
+        case wasm::WasmCode::kLazyStub:
+          return WASM_COMPILE_LAZY;
+        case wasm::WasmCode::kRuntimeStub:
+          return STUB;
+        case wasm::WasmCode::kInterpreterEntry:
+          return WASM_INTERPRETER_ENTRY;
         default:
           UNREACHABLE();
       }
@@ -767,11 +768,11 @@ Script* StandardFrame::script() const {
 }
 
 Object* StandardFrame::receiver() const {
-  return isolate()->heap()->undefined_value();
+  return ReadOnlyRoots(isolate()).undefined_value();
 }
 
 Object* StandardFrame::context() const {
-  return isolate()->heap()->undefined_value();
+  return ReadOnlyRoots(isolate()).undefined_value();
 }
 
 int StandardFrame::position() const {
@@ -876,6 +877,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case WASM_TO_JS:
       case WASM_COMPILED:
       case WASM_INTERPRETER_ENTRY:
+      case WASM_COMPILE_LAZY:
         frame_header_size = WasmCompiledFrameConstants::kFixedFrameSizeFromFp;
         break;
       case OPTIMIZED:
@@ -1050,7 +1052,8 @@ void JavaScriptFrame::GetFunctions(
   std::vector<SharedFunctionInfo*> raw_functions;
   GetFunctions(&raw_functions);
   for (const auto& raw_function : raw_functions) {
-    functions->push_back(Handle<SharedFunctionInfo>(raw_function));
+    functions->push_back(
+        Handle<SharedFunctionInfo>(raw_function, function()->GetIsolate()));
   }
 }
 
@@ -1074,7 +1077,7 @@ Object* JavaScriptFrame::unchecked_function() const {
   // materialize some closures on the stack. The arguments marker object
   // marks this case.
   DCHECK(function_slot_object()->IsJSFunction() ||
-         isolate()->heap()->arguments_marker() == function_slot_object());
+         ReadOnlyRoots(isolate()).arguments_marker() == function_slot_object());
   return function_slot_object();
 }
 
@@ -1248,7 +1251,7 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
       kPointerSize;  // Skip over return value slot.
 
   // Only allow setting exception if previous value was the hole.
-  CHECK_EQ(isolate()->heap()->the_hole_value(),
+  CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
            Memory::Object_at(exception_argument_slot));
   Memory::Object_at(exception_argument_slot) = exception;
 }
@@ -1316,21 +1319,23 @@ WASM_SUMMARY_DISPATCH(int, byte_offset)
 #undef WASM_SUMMARY_DISPATCH
 
 int FrameSummary::WasmFrameSummary::SourcePosition() const {
-  Handle<WasmSharedModuleData> shared(
-      wasm_instance()->module_object()->shared(), isolate());
-  return WasmSharedModuleData::GetSourcePosition(
-      shared, function_index(), byte_offset(), at_to_number_conversion());
+  Handle<WasmModuleObject> module_object(wasm_instance()->module_object(),
+                                         isolate());
+  return WasmModuleObject::GetSourcePosition(module_object, function_index(),
+                                             byte_offset(),
+                                             at_to_number_conversion());
 }
 
 Handle<Script> FrameSummary::WasmFrameSummary::script() const {
-  return handle(wasm_instance()->module_object()->shared()->script());
+  return handle(wasm_instance()->module_object()->script(),
+                wasm_instance()->GetIsolate());
 }
 
 Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
-  Handle<WasmSharedModuleData> shared(
-      wasm_instance()->module_object()->shared(), isolate());
-  return WasmSharedModuleData::GetFunctionName(isolate(), shared,
-                                               function_index());
+  Handle<WasmModuleObject> module_object(wasm_instance()->module_object(),
+                                         isolate());
+  return WasmModuleObject::GetFunctionName(isolate(), module_object,
+                                           function_index());
 }
 
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
@@ -1748,35 +1753,33 @@ Address InternalFrame::GetCallerStackPointer() const {
   return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
-Code* InternalFrame::unchecked_code() const {
-  const int offset = InternalFrameConstants::kCodeOffset;
-  Object* code = Memory::Object_at(fp() + offset);
-  DCHECK_NOT_NULL(code);
-  return reinterpret_cast<Code*>(code);
-}
-
+Code* InternalFrame::unchecked_code() const { UNREACHABLE(); }
 
 void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
                               int index) const {
   PrintIndex(accumulator, mode, index);
   accumulator->Add("WASM [");
-  Script* script = this->script();
-  accumulator->PrintName(script->name());
+  accumulator->PrintName(script()->name());
   Address instruction_start = isolate()
                                   ->wasm_engine()
                                   ->code_manager()
                                   ->LookupCode(pc())
                                   ->instruction_start();
-  int pc = static_cast<int>(this->pc() - instruction_start);
   Vector<const uint8_t> raw_func_name =
-      shared()->GetRawFunctionName(this->function_index());
+      module_object()->GetRawFunctionName(function_index());
   const int kMaxPrintedFunctionName = 64;
   char func_name[kMaxPrintedFunctionName + 1];
   int func_name_len = std::min(kMaxPrintedFunctionName, raw_func_name.length());
   memcpy(func_name, raw_func_name.start(), func_name_len);
   func_name[func_name_len] = '\0';
-  accumulator->Add("], function #%u ('%s'), pc=%p, pos=%d\n",
-                   this->function_index(), func_name, pc, this->position());
+  int pos = position();
+  const wasm::WasmModule* module = wasm_instance()->module_object()->module();
+  int func_index = function_index();
+  int func_code_offset = module->functions[func_index].code.offset();
+  accumulator->Add("], function #%u ('%s'), pc=%p (+0x%x), pos=%d (+%d)\n",
+                   func_index, func_name, reinterpret_cast<void*>(pc()),
+                   static_cast<int>(pc() - instruction_start), pos,
+                   pos - func_code_offset);
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
@@ -1802,19 +1805,15 @@ WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
   return WasmInstanceObject::cast(instance);
 }
 
-WasmSharedModuleData* WasmCompiledFrame::shared() const {
-  return wasm_instance()->module_object()->shared();
-}
-
-WasmCompiledModule* WasmCompiledFrame::compiled_module() const {
-  return wasm_instance()->compiled_module();
+WasmModuleObject* WasmCompiledFrame::module_object() const {
+  return wasm_instance()->module_object();
 }
 
 uint32_t WasmCompiledFrame::function_index() const {
   return FrameSummary::GetSingle(this).AsWasmCompiled().function_index();
 }
 
-Script* WasmCompiledFrame::script() const { return shared()->script(); }
+Script* WasmCompiledFrame::script() const { return module_object()->script(); }
 
 int WasmCompiledFrame::position() const {
   return FrameSummary::GetSingle(this).SourcePosition();
@@ -1898,15 +1897,13 @@ WasmDebugInfo* WasmInterpreterEntryFrame::debug_info() const {
   return wasm_instance()->debug_info();
 }
 
-WasmSharedModuleData* WasmInterpreterEntryFrame::shared() const {
-  return wasm_instance()->module_object()->shared();
+WasmModuleObject* WasmInterpreterEntryFrame::module_object() const {
+  return wasm_instance()->module_object();
 }
 
-WasmCompiledModule* WasmInterpreterEntryFrame::compiled_module() const {
-  return wasm_instance()->compiled_module();
+Script* WasmInterpreterEntryFrame::script() const {
+  return module_object()->script();
 }
-
-Script* WasmInterpreterEntryFrame::script() const { return shared()->script(); }
 
 int WasmInterpreterEntryFrame::position() const {
   return FrameSummary::GetBottom(this).AsWasmInterpreted().SourcePosition();
@@ -1918,6 +1915,27 @@ Object* WasmInterpreterEntryFrame::context() const {
 
 Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
+}
+
+WasmInstanceObject* WasmCompileLazyFrame::wasm_instance() const {
+  return WasmInstanceObject::cast(*wasm_instance_slot());
+}
+
+Object** WasmCompileLazyFrame::wasm_instance_slot() const {
+  const int offset = WasmCompileLazyFrameConstants::kWasmInstanceOffset;
+  return &Memory::Object_at(fp() + offset);
+}
+
+void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
+  const int header_size = WasmCompileLazyFrameConstants::kFixedFrameSizeFromFp;
+  Object** base = &Memory::Object_at(sp());
+  Object** limit = &Memory::Object_at(fp() - header_size);
+  v->VisitRootPointers(Root::kTop, nullptr, base, limit);
+  v->VisitRootPointer(Root::kTop, nullptr, wasm_instance_slot());
+}
+
+Address WasmCompileLazyFrame::GetCallerStackPointer() const {
+  return fp() + WasmCompileLazyFrameConstants::kCallerSPOffset;
 }
 
 namespace {
@@ -1986,13 +2004,6 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   int parameters_count = ComputeParametersCount();
   for (int i = 0; i < parameters_count; i++) {
     accumulator->Add(",");
-    // If we have a name for the parameter we print it. Nameless
-    // parameters are either because we have more actual parameters
-    // than formal parameters or because we have no scope information.
-    if (i < scope_info->ParameterCount()) {
-      accumulator->PrintName(scope_info->ParameterName(i));
-      accumulator->Add("=");
-    }
     accumulator->Add("%o", GetParameter(i));
   }
 
@@ -2010,25 +2021,8 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   accumulator->Add(" {\n");
 
   // Compute the number of locals and expression stack elements.
-  int stack_locals_count = scope_info->StackLocalCount();
   int heap_locals_count = scope_info->ContextLocalCount();
   int expressions_count = ComputeExpressionsCount();
-
-  // Print stack-allocated local variables.
-  if (stack_locals_count > 0) {
-    accumulator->Add("  // stack-allocated locals\n");
-  }
-  for (int i = 0; i < stack_locals_count; i++) {
-    accumulator->Add("  var ");
-    accumulator->PrintName(scope_info->StackLocalName(i));
-    accumulator->Add(" = ");
-    if (i < expressions_count) {
-      accumulator->Add("%o", GetExpression(i));
-    } else {
-      accumulator->Add("// no expression found - inconsistent frame?");
-    }
-    accumulator->Add("\n");
-  }
 
   // Try to get hold of the context of this frame.
   Context* context = nullptr;
@@ -2063,11 +2057,10 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   }
 
   // Print the expression stack.
-  int expressions_start = stack_locals_count;
-  if (expressions_start < expressions_count) {
+  if (0 < expressions_count) {
     accumulator->Add("  // expression stack (top to bottom)\n");
   }
-  for (int i = expressions_count - 1; i >= expressions_start; i--) {
+  for (int i = expressions_count - 1; i >= 0; i--) {
     accumulator->Add("  [%02d] : %o\n", i, GetExpression(i));
   }
 
@@ -2123,21 +2116,15 @@ void JavaScriptFrame::Iterate(RootVisitor* v) const {
 }
 
 void InternalFrame::Iterate(RootVisitor* v) const {
-  wasm::WasmCode* wasm_code =
-      isolate()->wasm_engine()->code_manager()->LookupCode(pc());
-  if (wasm_code != nullptr) {
-    DCHECK(wasm_code->kind() == wasm::WasmCode::kLazyStub);
-  } else {
-    Code* code = LookupCode();
-    IteratePc(v, pc_address(), constant_pool_address(), code);
-    // Internal frames typically do not receive any arguments, hence their stack
-    // only contains tagged pointers.
-    // We are misusing the has_tagged_params flag here to tell us whether
-    // the full stack frame contains only tagged pointers or only raw values.
-    // This is used for the WasmCompileLazy builtin, where we actually pass
-    // untagged arguments and also store untagged values on the stack.
-    if (code->has_tagged_params()) IterateExpressions(v);
-  }
+  Code* code = LookupCode();
+  IteratePc(v, pc_address(), constant_pool_address(), code);
+  // Internal frames typically do not receive any arguments, hence their stack
+  // only contains tagged pointers.
+  // We are misusing the has_tagged_params flag here to tell us whether
+  // the full stack frame contains only tagged pointers or only raw values.
+  // This is used for the WasmCompileLazy builtin, where we actually pass
+  // untagged arguments and also store untagged values on the stack.
+  if (code->has_tagged_params()) IterateExpressions(v);
 }
 
 // -------------------------------------------------------------------------
@@ -2166,47 +2153,5 @@ InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
   }
   return entry;
 }
-
-
-// -------------------------------------------------------------------------
-
-
-#define DEFINE_WRAPPER(type, field)                              \
-class field##_Wrapper : public ZoneObject {                      \
- public:  /* NOLINT */                                           \
-  field##_Wrapper(const field& original) : frame_(original) {    \
-  }                                                              \
-  field frame_;                                                  \
-};
-STACK_FRAME_TYPE_LIST(DEFINE_WRAPPER)
-#undef DEFINE_WRAPPER
-
-static StackFrame* AllocateFrameCopy(StackFrame* frame, Zone* zone) {
-#define FRAME_TYPE_CASE(type, field) \
-  case StackFrame::type: { \
-    field##_Wrapper* wrapper = \
-        new(zone) field##_Wrapper(*(reinterpret_cast<field*>(frame))); \
-    return &wrapper->frame_; \
-  }
-
-  switch (frame->type()) {
-    STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
-    default: UNREACHABLE();
-  }
-#undef FRAME_TYPE_CASE
-  return nullptr;
-}
-
-
-Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone) {
-  ZoneVector<StackFrame*> frames(zone);
-  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-    StackFrame* frame = AllocateFrameCopy(it.frame(), zone);
-    frames.push_back(frame);
-  }
-  return Vector<StackFrame*>(frames.data(), frames.size());
-}
-
-
 }  // namespace internal
 }  // namespace v8

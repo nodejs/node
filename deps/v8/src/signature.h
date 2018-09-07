@@ -5,6 +5,7 @@
 #ifndef V8_SIGNATURE_H_
 #define V8_SIGNATURE_H_
 
+#include "src/base/functional.h"
 #include "src/base/iterator.h"
 #include "src/machine-type.h"
 #include "src/zone/zone.h"
@@ -46,16 +47,13 @@ class Signature : public ZoneObject {
     return {reps_, reps_ + return_count_ + parameter_count_};
   }
 
-  bool Equals(const Signature* that) const {
-    if (this == that) return true;
-    if (this->parameter_count() != that->parameter_count()) return false;
-    if (this->return_count() != that->return_count()) return false;
-    size_t size = this->return_count() + this->parameter_count();
-    for (size_t i = 0; i < size; i++) {
-      if (this->reps_[i] != that->reps_[i]) return false;
-    }
-    return true;
+  bool operator==(const Signature& other) const {
+    if (this == &other) return true;
+    if (parameter_count() != other.parameter_count()) return false;
+    if (return_count() != other.return_count()) return false;
+    return std::equal(all().begin(), all().end(), other.all().begin());
   }
+  bool operator!=(const Signature& other) const { return !(*this == other); }
 
   // For incrementally building signatures.
   class Builder {
@@ -100,6 +98,13 @@ class Signature : public ZoneObject {
 };
 
 typedef Signature<MachineType> MachineSignature;
+
+template <typename T>
+size_t hash_value(const Signature<T>& sig) {
+  size_t hash = base::hash_combine(sig.parameter_count(), sig.return_count());
+  for (const T& t : sig.all()) hash = base::hash_combine(hash, t);
+  return hash;
+}
 
 }  // namespace internal
 }  // namespace v8

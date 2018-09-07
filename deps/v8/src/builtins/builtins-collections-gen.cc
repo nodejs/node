@@ -8,6 +8,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-collection.h"
 
 namespace v8 {
 namespace internal {
@@ -81,7 +82,9 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
   // Main entry point for a collection constructor builtin.
   void GenerateConstructor(Variant variant,
-                           Handle<String> constructor_function_name);
+                           Handle<String> constructor_function_name,
+                           TNode<Object> new_target, TNode<IntPtrT> argc,
+                           TNode<Context> context);
 
   // Retrieves the collection function that adds an entry. `set` for Maps and
   // `add` for Sets.
@@ -220,7 +223,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
     TNode<Object> collection, TNode<JSArray> fast_jsarray,
     Label* if_may_have_side_effects) {
   TNode<FixedArrayBase> elements = LoadElements(fast_jsarray);
-  TNode<Int32T> elements_kind = LoadMapElementsKind(LoadMap(fast_jsarray));
+  TNode<Int32T> elements_kind = LoadElementsKind(fast_jsarray);
   TNode<JSFunction> add_func = GetInitialAddFunction(variant, native_context);
   CSA_ASSERT(
       this,
@@ -353,13 +356,11 @@ TNode<Object> BaseCollectionsAssembler::AllocateJSCollectionSlow(
 }
 
 void BaseCollectionsAssembler::GenerateConstructor(
-    Variant variant, Handle<String> constructor_function_name) {
+    Variant variant, Handle<String> constructor_function_name,
+    TNode<Object> new_target, TNode<IntPtrT> argc, TNode<Context> context) {
   const int kIterableArg = 0;
-  CodeStubArguments args(
-      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+  CodeStubArguments args(this, argc);
   TNode<Object> iterable = args.GetOptionalArgumentValue(kIterableArg);
-  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
   Label if_undefined(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &if_undefined);
@@ -500,8 +501,9 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
     TNode<HeapObject> elements, TNode<IntPtrT> index) {
   TVARIABLE(Object, entry);
   Label if_hole(this, Label::kDeferred), next(this);
-  TNode<Float64T> element = UncheckedCast<Float64T>(LoadFixedDoubleArrayElement(
-      elements, index, MachineType::Float64(), 0, INTPTR_PARAMETERS, &if_hole));
+  TNode<Float64T> element =
+      LoadFixedDoubleArrayElement(CAST(elements), index, MachineType::Float64(),
+                                  0, INTPTR_PARAMETERS, &if_hole);
   {  // not hole
     entry = AllocateHeapNumberWithValue(element);
     Goto(&next);
@@ -528,7 +530,7 @@ void BaseCollectionsAssembler::LoadKeyValue(
     TNode<JSArray> array = CAST(maybe_array);
     TNode<Smi> length = LoadFastJSArrayLength(array);
     TNode<FixedArrayBase> elements = LoadElements(array);
-    TNode<Int32T> elements_kind = LoadMapElementsKind(LoadMap(array));
+    TNode<Int32T> elements_kind = LoadElementsKind(array);
 
     Label if_smiorobjects(this), if_doubles(this);
     Branch(IsFastSmiOrTaggedElementsKind(elements_kind), &if_smiorobjects,
@@ -743,11 +745,23 @@ TNode<Object> CollectionsBuiltinsAssembler::AllocateTable(
 }
 
 TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
-  GenerateConstructor(kMap, isolate()->factory()->Map_string());
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  GenerateConstructor(kMap, isolate()->factory()->Map_string(), new_target,
+                      argc, context);
 }
 
 TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
-  GenerateConstructor(kSet, isolate()->factory()->Set_string());
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  GenerateConstructor(kSet, isolate()->factory()->Set_string(), new_target,
+                      argc, context);
 }
 
 Node* CollectionsBuiltinsAssembler::CallGetOrCreateHashRaw(Node* const key) {
@@ -1524,8 +1538,8 @@ TF_BUILTIN(MapPrototypeGetSize, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Map.prototype.forEach";
-  Node* const argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  Node* const argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  Node* const context = Parameter(Descriptor::kContext);
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
   Node* const receiver = args.GetReceiver();
   Node* const callback = args.GetOptionalArgumentValue(0);
@@ -1755,8 +1769,8 @@ TF_BUILTIN(SetPrototypeGetSize, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Set.prototype.forEach";
-  Node* const argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  Node* const argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  Node* const context = Parameter(Descriptor::kContext);
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
   Node* const receiver = args.GetReceiver();
   Node* const callback = args.GetOptionalArgumentValue(0);
@@ -1965,7 +1979,7 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   TNode<Smi> CreateIdentityHash(TNode<Object> receiver);
   TNode<IntPtrT> EntryMask(TNode<IntPtrT> capacity);
 
-  // Builds code that finds the ObjectHashTable entry for a {key} using the
+  // Builds code that finds the EphemeronHashTable entry for a {key} using the
   // comparison code generated by {key_compare}. The key index is returned if
   // the {key} is found.
   typedef std::function<void(TNode<Object> entry_key, Label* if_same)>
@@ -1974,12 +1988,13 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                               TNode<IntPtrT> entry_mask,
                               const KeyComparator& key_compare);
 
-  // Builds code that finds an ObjectHashTable entry available for a new entry.
+  // Builds code that finds an EphemeronHashTable entry available for a new
+  // entry.
   TNode<IntPtrT> FindKeyIndexForInsertion(TNode<HeapObject> table,
                                           TNode<IntPtrT> key_hash,
                                           TNode<IntPtrT> entry_mask);
 
-  // Builds code that finds the ObjectHashTable entry with key that matches
+  // Builds code that finds the EphemeronHashTable entry with key that matches
   // {key} and returns the entry's key index. If {key} cannot be found, jumps to
   // {if_not_found}.
   TNode<IntPtrT> FindKeyIndexForKey(TNode<HeapObject> table, TNode<Object> key,
@@ -2009,13 +2024,13 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
 void WeakCollectionsBuiltinsAssembler::AddEntry(
     TNode<HeapObject> table, TNode<IntPtrT> key_index, TNode<Object> key,
     TNode<Object> value, TNode<IntPtrT> number_of_elements) {
-  // See ObjectHashTable::AddEntry().
+  // See EphemeronHashTable::AddEntry().
   TNode<IntPtrT> value_index = ValueIndexFromKeyIndex(key_index);
   StoreFixedArrayElement(table, key_index, key);
   StoreFixedArrayElement(table, value_index, value);
 
   // See HashTableBase::ElementAdded().
-  StoreFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex,
+  StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiFromIntPtr(number_of_elements), SKIP_WRITE_BARRIER);
 }
 
@@ -2029,17 +2044,18 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
 
   // See HashTable::NewInternal().
   TNode<IntPtrT> length = KeyIndexFromEntry(capacity);
-  TNode<FixedArray> table = AllocateFixedArray(
-      HOLEY_ELEMENTS, length, INTPTR_PARAMETERS, kAllowLargeObjectAllocation);
+  TNode<FixedArray> table =
+      AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation);
 
-  Heap::RootListIndex map_root_index =
-      static_cast<Heap::RootListIndex>(ObjectHashTableShape::GetMapRootIndex());
+  Heap::RootListIndex map_root_index = static_cast<Heap::RootListIndex>(
+      EphemeronHashTableShape::GetMapRootIndex());
   StoreMapNoWriteBarrier(table, map_root_index);
-  StoreFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex,
+  StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);
-  StoreFixedArrayElement(table, ObjectHashTable::kNumberOfDeletedElementsIndex,
+  StoreFixedArrayElement(table,
+                         EphemeronHashTable::kNumberOfDeletedElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);
-  StoreFixedArrayElement(table, ObjectHashTable::kCapacityIndex,
+  StoreFixedArrayElement(table, EphemeronHashTable::kCapacityIndex,
                          SmiFromIntPtr(capacity), SKIP_WRITE_BARRIER);
 
   TNode<IntPtrT> start = KeyIndexFromEntry(IntPtrConstant(0));
@@ -2124,22 +2140,22 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::KeyIndexFromEntry(
   // See HashTable::KeyAt().
   // (entry * kEntrySize) + kElementsStartIndex + kEntryKeyIndex
   return IntPtrAdd(
-      IntPtrMul(entry, IntPtrConstant(ObjectHashTable::kEntrySize)),
-      IntPtrConstant(ObjectHashTable::kElementsStartIndex +
-                     ObjectHashTable::kEntryKeyIndex));
+      IntPtrMul(entry, IntPtrConstant(EphemeronHashTable::kEntrySize)),
+      IntPtrConstant(EphemeronHashTable::kElementsStartIndex +
+                     EphemeronHashTable::kEntryKeyIndex));
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadNumberOfElements(
     TNode<HeapObject> table, int offset) {
-  TNode<IntPtrT> number_of_elements = SmiUntag(CAST(
-      LoadFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex)));
+  TNode<IntPtrT> number_of_elements = SmiUntag(CAST(LoadFixedArrayElement(
+      table, EphemeronHashTable::kNumberOfElementsIndex)));
   return IntPtrAdd(number_of_elements, IntPtrConstant(offset));
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadNumberOfDeleted(
     TNode<HeapObject> table, int offset) {
   TNode<IntPtrT> number_of_deleted = SmiUntag(CAST(LoadFixedArrayElement(
-      table, ObjectHashTable::kNumberOfDeletedElementsIndex)));
+      table, EphemeronHashTable::kNumberOfDeletedElementsIndex)));
   return IntPtrAdd(number_of_deleted, IntPtrConstant(offset));
 }
 
@@ -2151,7 +2167,7 @@ TNode<HeapObject> WeakCollectionsBuiltinsAssembler::LoadTable(
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadTableCapacity(
     TNode<HeapObject> table) {
   return SmiUntag(
-      CAST(LoadFixedArrayElement(table, ObjectHashTable::kCapacityIndex)));
+      CAST(LoadFixedArrayElement(table, EphemeronHashTable::kCapacityIndex)));
 }
 
 TNode<Word32T> WeakCollectionsBuiltinsAssembler::InsufficientCapacityToAdd(
@@ -2175,16 +2191,17 @@ TNode<Word32T> WeakCollectionsBuiltinsAssembler::InsufficientCapacityToAdd(
 void WeakCollectionsBuiltinsAssembler::RemoveEntry(
     TNode<HeapObject> table, TNode<IntPtrT> key_index,
     TNode<IntPtrT> number_of_elements) {
-  // See ObjectHashTable::RemoveEntry().
+  // See EphemeronHashTable::RemoveEntry().
   TNode<IntPtrT> value_index = ValueIndexFromKeyIndex(key_index);
   StoreFixedArrayElement(table, key_index, TheHoleConstant());
   StoreFixedArrayElement(table, value_index, TheHoleConstant());
 
   // See HashTableBase::ElementRemoved().
   TNode<IntPtrT> number_of_deleted = LoadNumberOfDeleted(table, 1);
-  StoreFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex,
+  StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiFromIntPtr(number_of_elements), SKIP_WRITE_BARRIER);
-  StoreFixedArrayElement(table, ObjectHashTable::kNumberOfDeletedElementsIndex,
+  StoreFixedArrayElement(table,
+                         EphemeronHashTable::kNumberOfDeletedElementsIndex,
                          SmiFromIntPtr(number_of_deleted), SKIP_WRITE_BARRIER);
 }
 
@@ -2214,16 +2231,28 @@ TNode<Word32T> WeakCollectionsBuiltinsAssembler::ShouldShrink(
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::ValueIndexFromKeyIndex(
     TNode<IntPtrT> key_index) {
   return IntPtrAdd(key_index,
-                   IntPtrConstant(ObjectHashTableShape::kEntryValueIndex -
-                                  ObjectHashTable::kEntryKeyIndex));
+                   IntPtrConstant(EphemeronHashTableShape::kEntryValueIndex -
+                                  EphemeronHashTable::kEntryKeyIndex));
 }
 
 TF_BUILTIN(WeakMapConstructor, WeakCollectionsBuiltinsAssembler) {
-  GenerateConstructor(kWeakMap, isolate()->factory()->WeakMap_string());
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  GenerateConstructor(kWeakMap, isolate()->factory()->WeakMap_string(),
+                      new_target, argc, context);
 }
 
 TF_BUILTIN(WeakSetConstructor, WeakCollectionsBuiltinsAssembler) {
-  GenerateConstructor(kWeakSet, isolate()->factory()->WeakSet_string());
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  GenerateConstructor(kWeakSet, isolate()->factory()->WeakSet_string(),
+                      new_target, argc, context);
 }
 
 TF_BUILTIN(WeakMapLookupHashIndex, WeakCollectionsBuiltinsAssembler) {
@@ -2289,7 +2318,7 @@ TF_BUILTIN(WeakMapHas, WeakCollectionsBuiltinsAssembler) {
 }
 
 // Helper that removes the entry with a given key from the backing store
-// (ObjectHashTable) of a WeakMap or WeakSet.
+// (EphemeronHashTable) of a WeakMap or WeakSet.
 TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<HeapObject> collection = CAST(Parameter(Descriptor::kCollection));
@@ -2318,8 +2347,8 @@ TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
                      SmiTag(hash)));
 }
 
-// Helper that sets the key and value to the backing store (ObjectHashTable) of
-// a WeakMap or WeakSet.
+// Helper that sets the key and value to the backing store (EphemeronHashTable)
+// of a WeakMap or WeakSet.
 TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<HeapObject> collection = CAST(Parameter(Descriptor::kCollection));

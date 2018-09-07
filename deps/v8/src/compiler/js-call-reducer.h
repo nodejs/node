@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CompilationDependencies;
 class Factory;
 class VectorSlotPair;
 
@@ -23,8 +22,10 @@ namespace compiler {
 // Forward declarations.
 class CallFrequency;
 class CommonOperatorBuilder;
+class CompilationDependencies;
 struct FieldAccess;
 class JSGraph;
+class JSHeapBroker;
 class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
 
@@ -36,11 +37,12 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   enum Flag { kNoFlags = 0u, kBailoutOnUninitialized = 1u << 0 };
   typedef base::Flags<Flag> Flags;
 
-  JSCallReducer(Editor* editor, JSGraph* jsgraph, Flags flags,
-                Handle<Context> native_context,
+  JSCallReducer(Editor* editor, JSGraph* jsgraph, JSHeapBroker* js_heap_broker,
+                Flags flags, Handle<Context> native_context,
                 CompilationDependencies* dependencies)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
+        js_heap_broker_(js_heap_broker),
         flags_(flags),
         native_context_(native_context),
         dependencies_(dependencies) {}
@@ -109,6 +111,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSCall(Node* node, Handle<SharedFunctionInfo> shared);
   Reduction ReduceJSCallWithArrayLike(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
+  Reduction ReduceRegExpPrototypeTest(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
   Reduction ReduceStringPrototypeIndexOf(Node* node);
   Reduction ReduceStringPrototypeSubstring(Node* node);
@@ -178,6 +181,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                           InstanceType instance_type,
                                           FieldAccess const& access);
 
+  Reduction ReduceDataViewPrototypeGet(Node* node,
+                                       ExternalArrayType element_type);
+  Reduction ReduceDataViewPrototypeSet(Node* node,
+                                       ExternalArrayType element_type);
+
   Reduction ReduceDatePrototypeGetTime(Node* node);
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
@@ -223,6 +231,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Isolate* isolate() const;
   Factory* factory() const;
   Handle<Context> native_context() const { return native_context_; }
@@ -234,6 +243,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   CompilationDependencies* dependencies() const { return dependencies_; }
 
   JSGraph* const jsgraph_;
+  const JSHeapBroker* const js_heap_broker_;
   Flags const flags_;
   Handle<Context> const native_context_;
   CompilationDependencies* const dependencies_;

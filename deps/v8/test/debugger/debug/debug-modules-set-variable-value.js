@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // MODULE
-// Flags: --no-always-opt
+// Flags: --no-always-opt --no-opt
 
 // The first part of this file is copied over from debug-set-variable-value.js
 // (a few tests were removed because they make no sense for modules). The second

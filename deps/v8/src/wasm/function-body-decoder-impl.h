@@ -38,13 +38,13 @@ struct WasmException;
   }())
 
 #define RET_ON_PROTOTYPE_OPCODE(flag)                                          \
-  DCHECK(!this->module_ || !this->module_->is_asm_js());                       \
+  DCHECK(!this->module_ || this->module_->origin == kWasmOrigin);              \
   if (!FLAG_experimental_wasm_##flag) {                                        \
     this->error("Invalid opcode (enable with --experimental-wasm-" #flag ")"); \
   }
 
 #define CHECK_PROTOTYPE_OPCODE(flag)                                           \
-  DCHECK(!this->module_ || !this->module_->is_asm_js());                       \
+  DCHECK(!this->module_ || this->module_->origin == kWasmOrigin);              \
   if (!FLAG_experimental_wasm_##flag) {                                        \
     this->error("Invalid opcode (enable with --experimental-wasm-" #flag ")"); \
     break;                                                                     \
@@ -247,6 +247,9 @@ struct BlockTypeImmediate {
         return true;
       case kLocalS128:
         *result = kWasmS128;
+        return true;
+      case kLocalAnyFunc:
+        *result = kWasmAnyFunc;
         return true;
       case kLocalAnyRef:
         *result = kWasmAnyRef;
@@ -846,7 +849,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, CallIndirectImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr && !module_->function_tables.empty())) {
+    if (!VALIDATE(module_ != nullptr && !module_->tables.empty())) {
       error("function table has to exist to execute call_indirect");
       return false;
     }
@@ -940,11 +943,30 @@ class WasmDecoder : public Decoder {
   inline bool Validate(const byte* pc,
                        Simd8x16ShuffleImmediate<validate>& imm) {
     uint8_t max_lane = 0;
-    for (uint32_t i = 0; i < kSimd128Size; ++i)
+    for (uint32_t i = 0; i < kSimd128Size; ++i) {
       max_lane = std::max(max_lane, imm.shuffle[i]);
+    }
     // Shuffle indices must be in [0..31] for a 16 lane shuffle.
     if (!VALIDATE(max_lane <= 2 * kSimd128Size)) {
       error(pc_ + 2, "invalid shuffle mask");
+      return false;
+    }
+    return true;
+  }
+
+  inline bool Complete(BlockTypeImmediate<validate>& imm) {
+    if (imm.type != kWasmVar) return true;
+    if (!VALIDATE((module_ && imm.sig_index < module_->signatures.size()))) {
+      return false;
+    }
+    imm.sig = module_->signatures[imm.sig_index];
+    return true;
+  }
+
+  inline bool Validate(BlockTypeImmediate<validate>& imm) {
+    if (!Complete(imm)) {
+      errorf(pc_, "block type index %u out of bounds (%zu signatures)",
+             imm.sig_index, module_ ? module_->signatures.size() : 0);
       return false;
     }
     return true;
@@ -1138,13 +1160,11 @@ class WasmDecoder : public Decoder {
       case kSimdPrefix: {
         opcode = static_cast<WasmOpcode>(opcode << 8 | *(pc + 1));
         switch (opcode) {
-          case kExprI32AtomicStore:
-          case kExprI32AtomicStore8U:
-          case kExprI32AtomicStore16U:
-          case kExprS128StoreMem:
-            return {2, 0};
-          FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+          FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(DECLARE_OPCODE_CASE)
             return {1, 1};
+          FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(DECLARE_OPCODE_CASE)
+          FOREACH_SIMD_MASK_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+            return {2, 1};
           default: {
             sig = WasmOpcodes::Signature(opcode);
             if (sig) {
@@ -1403,7 +1423,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 #define TRACE_PART(...)
 #endif
 
-      FunctionSig* sig = WasmOpcodes::Signature(opcode);
+      FunctionSig* sig = const_cast<FunctionSig*>(kSimpleOpcodeSigs[opcode]);
       if (sig) {
         BuildSimpleOperator(opcode, sig);
       } else {
@@ -1413,7 +1433,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           case kExprBlock: {
             BlockTypeImmediate<validate> imm(this, this->pc_);
-            if (!LookupBlockType(&imm)) break;
+            if (!this->Validate(imm)) break;
             PopArgs(imm.sig);
             auto* block = PushBlock();
             SetBlockType(block, imm);
@@ -1442,7 +1462,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprTry: {
             CHECK_PROTOTYPE_OPCODE(eh);
             BlockTypeImmediate<validate> imm(this, this->pc_);
-            if (!LookupBlockType(&imm)) break;
+            if (!this->Validate(imm)) break;
             PopArgs(imm.sig);
             auto* try_block = PushTry();
             SetBlockType(try_block, imm);
@@ -1495,7 +1515,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           case kExprLoop: {
             BlockTypeImmediate<validate> imm(this, this->pc_);
-            if (!LookupBlockType(&imm)) break;
+            if (!this->Validate(imm)) break;
             PopArgs(imm.sig);
             auto* block = PushLoop();
             SetBlockType(&control_.back(), imm);
@@ -1506,7 +1526,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           case kExprIf: {
             BlockTypeImmediate<validate> imm(this, this->pc_);
-            if (!LookupBlockType(&imm)) break;
+            if (!this->Validate(imm)) break;
             auto cond = Pop(0, kWasmI32);
             PopArgs(imm.sig);
             if (!VALIDATE(this->ok())) break;
@@ -1830,7 +1850,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             MemoryIndexImmediate<validate> imm(this, this->pc_);
             len = 1 + imm.length;
             DCHECK_NOT_NULL(this->module_);
-            if (!VALIDATE(this->module_->is_wasm())) {
+            if (!VALIDATE(this->module_->origin == kWasmOrigin)) {
               this->error("grow_memory is not supported for asmjs modules");
               break;
             }
@@ -1908,9 +1928,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             len += DecodeAtomicOpcode(opcode);
             break;
           }
+// Note that prototype opcodes are not handled in the fastpath
+// above this switch, to avoid checking a feature flag.
+#define SIMPLE_PROTOTYPE_CASE(name, opc, sig) \
+  case kExpr##name: /* fallthrough */
+            FOREACH_SIMPLE_PROTOTYPE_OPCODE(SIMPLE_PROTOTYPE_CASE)
+#undef SIMPLE_PROTOTYPE_CASE
+            BuildSimplePrototypeOperator(opcode);
+            break;
           default: {
             // Deal with special asmjs opcodes.
-            if (this->module_ != nullptr && this->module_->is_asm_js()) {
+            if (this->module_ != nullptr &&
+                this->module_->origin == kAsmJsOrigin) {
               sig = WasmOpcodes::AsmjsSignature(opcode);
               if (sig) {
                 BuildSimpleOperator(opcode, sig);
@@ -1998,22 +2027,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     stack_.resize(current->stack_depth);
     CALL_INTERFACE_IF_REACHABLE(EndControl, current);
     current->reachability = kUnreachable;
-  }
-
-  bool LookupBlockType(BlockTypeImmediate<validate>* imm) {
-    if (imm->type == kWasmVar) {
-      if (!VALIDATE(this->module_ &&
-                    imm->sig_index < this->module_->signatures.size())) {
-        this->errorf(
-            this->pc_, "block type index %u out of bounds (%d signatures)",
-            imm->sig_index,
-            static_cast<int>(this->module_ ? this->module_->signatures.size()
-                                           : 0));
-        return false;
-      }
-      imm->sig = this->module_->signatures[imm->sig_index];
-    }
-    return true;
   }
 
   template<typename func>
@@ -2422,14 +2435,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CALL_INTERFACE(OnFirstError);
   }
 
-  inline void BuildSimpleOperator(WasmOpcode opcode, FunctionSig* sig) {
+  void BuildSimplePrototypeOperator(WasmOpcode opcode) {
     if (WasmOpcodes::IsSignExtensionOpcode(opcode)) {
       RET_ON_PROTOTYPE_OPCODE(se);
     }
     if (WasmOpcodes::IsAnyRefOpcode(opcode)) {
       RET_ON_PROTOTYPE_OPCODE(anyref);
     }
+    FunctionSig* sig = WasmOpcodes::Signature(opcode);
+    BuildSimpleOperator(opcode, sig);
+  }
 
+  inline void BuildSimpleOperator(WasmOpcode opcode, FunctionSig* sig) {
     switch (sig->parameter_count()) {
       case 1: {
         auto val = Pop(0, sig->GetParam(0));

@@ -24,12 +24,17 @@ RawMachineAssembler::RawMachineAssembler(
       machine_(zone(), word, flags, alignment_requirements),
       common_(zone()),
       call_descriptor_(call_descriptor),
+      target_parameter_(nullptr),
       parameters_(parameter_count(), zone()),
       current_block_(schedule()->start()),
       poisoning_level_(poisoning_level) {
   int param_count = static_cast<int>(parameter_count());
   // Add an extra input for the JSFunction parameter to the start node.
   graph->SetStart(graph->NewNode(common_.Start(param_count + 1)));
+  if (call_descriptor->IsJSFunctionCall()) {
+    target_parameter_ = AddNode(
+        common()->Parameter(Linkage::kJSCallClosureParamIndex), graph->start());
+  }
   for (size_t i = 0; i < parameter_count(); ++i) {
     parameters_[i] =
         AddNode(common()->Parameter(static_cast<int>(i)), graph->start());
@@ -55,17 +60,16 @@ Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
 Schedule* RawMachineAssembler::Export() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
-  OFStream os(stdout);
   if (FLAG_trace_turbo_scheduler) {
     PrintF("--- RAW SCHEDULE -------------------------------------------\n");
-    os << *schedule_;
+    StdoutStream{} << *schedule_;
   }
   schedule_->EnsureCFGWellFormedness();
   Scheduler::ComputeSpecialRPO(zone(), schedule_);
   schedule_->PropagateDeferredMark();
   if (FLAG_trace_turbo_scheduler) {
     PrintF("--- EDGE SPLIT AND PROPAGATED DEFERRED SCHEDULE ------------\n");
-    os << *schedule_;
+    StdoutStream{} << *schedule_;
   }
   // Invalidate RawMachineAssembler.
   Schedule* schedule = schedule_;
@@ -73,6 +77,10 @@ Schedule* RawMachineAssembler::Export() {
   return schedule;
 }
 
+Node* RawMachineAssembler::TargetParameter() {
+  DCHECK_NOT_NULL(target_parameter_);
+  return target_parameter_;
+}
 
 Node* RawMachineAssembler::Parameter(size_t index) {
   DCHECK(index < parameter_count());

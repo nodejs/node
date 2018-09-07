@@ -96,6 +96,8 @@ class HeapTester {
   static AllocationResult AllocateMapForTest(v8::internal::Isolate* isolate);
   static AllocationResult AllocateFixedArrayForTest(Heap* heap, int length,
                                                     PretenureFlag pretenure);
+
+  static void UncommitFromSpace(Heap* heap);
 };
 
 }  // namespace heap

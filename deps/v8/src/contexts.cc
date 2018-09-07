@@ -8,6 +8,7 @@
 #include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
+#include "src/objects/module-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,10 +22,10 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   CHECK(used >= 0 && length > 0 && used < length);
   if (used + kFirstContextSlotIndex == length) {
     CHECK(length < Smi::kMaxValue / 2);
-    Isolate* isolate = table->GetIsolate();
+    Isolate* isolate = script_context->GetIsolate();
     Handle<FixedArray> copy =
         isolate->factory()->CopyFixedArrayAndGrow(table, length);
-    copy->set_map(isolate->heap()->script_context_table_map());
+    copy->set_map(ReadOnlyRoots(isolate).script_context_table_map());
     result = Handle<ScriptContextTable>::cast(copy);
   } else {
     result = table;
@@ -36,13 +37,13 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   return result;
 }
 
-
-bool ScriptContextTable::Lookup(Handle<ScriptContextTable> table,
+bool ScriptContextTable::Lookup(Isolate* isolate,
+                                Handle<ScriptContextTable> table,
                                 Handle<String> name, LookupResult* result) {
   for (int i = 0; i < table->used(); i++) {
-    Handle<Context> context = GetContext(table, i);
+    Handle<Context> context = GetContext(isolate, table, i);
     DCHECK(context->IsScriptContext());
-    Handle<ScopeInfo> scope_info(context->scope_info());
+    Handle<ScopeInfo> scope_info(context->scope_info(), context->GetIsolate());
     int slot_index = ScopeInfo::ContextSlotIndex(
         scope_info, name, &result->mode, &result->init_flag,
         &result->maybe_assigned_flag);
@@ -92,7 +93,7 @@ JSObject* Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
   HeapObject* object = extension();
-  if (object->IsTheHole(GetIsolate())) return nullptr;
+  if (object->IsTheHole()) return nullptr;
   DCHECK(object->IsJSContextExtensionObject() ||
          (IsNativeContext() && object->IsJSGlobalObject()));
   return JSObject::cast(object);
@@ -153,22 +154,23 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it) {
   Handle<Object> unscopables;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, unscopables,
-      JSReceiver::GetProperty(Handle<JSReceiver>::cast(it->GetReceiver()),
+      JSReceiver::GetProperty(isolate,
+                              Handle<JSReceiver>::cast(it->GetReceiver()),
                               isolate->factory()->unscopables_symbol()),
       Nothing<bool>());
   if (!unscopables->IsJSReceiver()) return Just(true);
   Handle<Object> blacklist;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, blacklist,
-      JSReceiver::GetProperty(Handle<JSReceiver>::cast(unscopables),
+      JSReceiver::GetProperty(isolate, Handle<JSReceiver>::cast(unscopables),
                               it->name()),
       Nothing<bool>());
-  return Just(!blacklist->BooleanValue());
+  return Just(!blacklist->BooleanValue(isolate));
 }
 
 static PropertyAttributes GetAttributesForMode(VariableMode mode) {
   DCHECK(IsDeclaredVariableMode(mode));
-  return mode == CONST ? READ_ONLY : NONE;
+  return mode == VariableMode::kConst ? READ_ONLY : NONE;
 }
 
 Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
@@ -184,7 +186,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
   *index = kNotFound;
   *attributes = ABSENT;
   *init_flag = kCreatedInitialized;
-  *variable_mode = VAR;
+  *variable_mode = VariableMode::kVar;
   if (is_sloppy_function_name != nullptr) {
     *is_sloppy_function_name = false;
   }
@@ -210,7 +212,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
          (context->IsWithContext() && ((flags & SKIP_WITH_CONTEXT) == 0)) ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
         context->extension_receiver() != nullptr) {
-      Handle<JSReceiver> object(context->extension_receiver());
+      Handle<JSReceiver> object(context->extension_receiver(), isolate);
 
       if (context->IsNativeContext()) {
         if (FLAG_trace_contexts) {
@@ -218,12 +220,13 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         }
         // Try other script contexts.
         Handle<ScriptContextTable> script_contexts(
-            context->global_object()->native_context()->script_context_table());
+            context->global_object()->native_context()->script_context_table(),
+            isolate);
         ScriptContextTable::LookupResult r;
-        if (ScriptContextTable::Lookup(script_contexts, name, &r)) {
+        if (ScriptContextTable::Lookup(isolate, script_contexts, name, &r)) {
           if (FLAG_trace_contexts) {
-            Handle<Context> c = ScriptContextTable::GetContext(script_contexts,
-                                                               r.context_index);
+            Handle<Context> c = ScriptContextTable::GetContext(
+                isolate, script_contexts, r.context_index);
             PrintF("=> found property in script context %d: %p\n",
                    r.context_index, reinterpret_cast<void*>(*c));
           }
@@ -231,7 +234,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
           *variable_mode = r.mode;
           *init_flag = r.init_flag;
           *attributes = GetAttributesForMode(r.mode);
-          return ScriptContextTable::GetContext(script_contexts,
+          return ScriptContextTable::GetContext(isolate, script_contexts,
                                                 r.context_index);
         }
       }
@@ -246,9 +249,9 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       } else if (context->IsWithContext()) {
         // A with context will never bind "this", but debug-eval may look into
         // a with context when resolving "this". Other synthetic variables such
-        // as new.target may be resolved as DYNAMIC_LOCAL due to bug v8:5405 ,
-        // skipping them here serves as a workaround until a more thorough
-        // fix can be applied.
+        // as new.target may be resolved as VariableMode::kDynamicLocal due to
+        // bug v8:5405 , skipping them here serves as a workaround until a more
+        // thorough fix can be applied.
         // TODO(v8:5405): Replace this check with a DCHECK when resolution of
         // of synthetic variables does not go through this code path.
         if (ScopeInfo::VariableIsSynthetic(*name)) {
@@ -288,7 +291,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         context->IsModuleContext() || context->IsCatchContext()) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
-      Handle<ScopeInfo> scope_info(context->scope_info());
+      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
       VariableMode mode;
       InitializationFlag flag;
       MaybeAssignedFlag maybe_assigned_flag;
@@ -297,8 +300,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {
-          PrintF("=> found local in context slot %d (mode = %d)\n",
-                 slot_index, mode);
+          PrintF("=> found local in context slot %d (mode = %hhu)\n",
+                 slot_index, static_cast<uint8_t>(mode));
         }
         *index = slot_index;
         *variable_mode = mode;
@@ -321,7 +324,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
           *index = function_index;
           *attributes = READ_ONLY;
           *init_flag = kCreatedInitialized;
-          *variable_mode = CONST;
+          *variable_mode = VariableMode::kConst;
           if (is_sloppy_function_name != nullptr &&
               is_sloppy(scope_info->language_mode())) {
             *is_sloppy_function_name = true;
@@ -355,7 +358,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       // Check materialized locals.
       Object* ext = context->get(EXTENSION_INDEX);
       if (ext->IsJSReceiver()) {
-        Handle<JSReceiver> extension(JSReceiver::cast(ext));
+        Handle<JSReceiver> extension(JSReceiver::cast(ext), isolate);
         LookupIterator it(extension, name, extension);
         Maybe<bool> found = JSReceiver::HasProperty(&it);
         if (found.FromMaybe(false)) {
@@ -375,7 +378,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       // to with, script or native contexts up the context chain.
       obj = context->get(WHITE_LIST_INDEX);
       if (obj->IsStringSet()) {
-        failed_whitelist = failed_whitelist || !StringSet::cast(obj)->Has(name);
+        failed_whitelist =
+            failed_whitelist || !StringSet::cast(obj)->Has(isolate, name);
       }
     }
 
@@ -406,7 +410,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 void Context::AddOptimizedCode(Code* code) {
   DCHECK(IsNativeContext());
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
-  DCHECK(code->next_code_link()->IsUndefined(GetIsolate()));
+  DCHECK(code->next_code_link()->IsUndefined());
   code->set_next_code_link(get(OPTIMIZED_CODE_LIST));
   set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER);
 }

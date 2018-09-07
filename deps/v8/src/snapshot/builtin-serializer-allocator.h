@@ -38,10 +38,8 @@ class BuiltinSerializerAllocator final {
   static constexpr int kNumberOfSpaces =
       SerializerDeserializer::kNumberOfSpaces;
 
-  // We need to track a faked offset to create back-references. The size is
-  // kept simply to display statistics.
-  uint32_t virtual_chunk_size_ = 0;
-  uint32_t virtual_chunk_offset_ = 0;
+  uint32_t allocated_bytes_ = 0;
+  uint32_t next_builtin_reference_index_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(BuiltinSerializerAllocator)
 };

@@ -141,6 +141,16 @@ class TorqueBaseListener : public TorqueListener {
   void exitAssignmentExpression(
       TorqueParser::AssignmentExpressionContext* /*ctx*/) override {}
 
+  void enterStructExpression(
+      TorqueParser::StructExpressionContext* /*ctx*/) override {}
+  void exitStructExpression(
+      TorqueParser::StructExpressionContext* /*ctx*/) override {}
+
+  void enterFunctionPointerExpression(
+      TorqueParser::FunctionPointerExpressionContext* /*ctx*/) override {}
+  void exitFunctionPointerExpression(
+      TorqueParser::FunctionPointerExpressionContext* /*ctx*/) override {}
+
   void enterPrimaryExpression(
       TorqueParser::PrimaryExpressionContext* /*ctx*/) override {}
   void exitPrimaryExpression(
@@ -232,8 +242,10 @@ class TorqueBaseListener : public TorqueListener {
   void exitHandlerWithStatement(
       TorqueParser::HandlerWithStatementContext* /*ctx*/) override {}
 
-  void enterTryCatch(TorqueParser::TryCatchContext* /*ctx*/) override {}
-  void exitTryCatch(TorqueParser::TryCatchContext* /*ctx*/) override {}
+  void enterTryLabelStatement(
+      TorqueParser::TryLabelStatementContext* /*ctx*/) override {}
+  void exitTryLabelStatement(
+      TorqueParser::TryLabelStatementContext* /*ctx*/) override {}
 
   void enterDiagnosticStatement(
       TorqueParser::DiagnosticStatementContext* /*ctx*/) override {}
@@ -261,6 +273,16 @@ class TorqueBaseListener : public TorqueListener {
   void enterHelperBody(TorqueParser::HelperBodyContext* /*ctx*/) override {}
   void exitHelperBody(TorqueParser::HelperBodyContext* /*ctx*/) override {}
 
+  void enterFieldDeclaration(
+      TorqueParser::FieldDeclarationContext* /*ctx*/) override {}
+  void exitFieldDeclaration(
+      TorqueParser::FieldDeclarationContext* /*ctx*/) override {}
+
+  void enterFieldListDeclaration(
+      TorqueParser::FieldListDeclarationContext* /*ctx*/) override {}
+  void exitFieldListDeclaration(
+      TorqueParser::FieldListDeclarationContext* /*ctx*/) override {}
+
   void enterExtendsDeclaration(
       TorqueParser::ExtendsDeclarationContext* /*ctx*/) override {}
   void exitExtendsDeclaration(
@@ -280,6 +302,11 @@ class TorqueBaseListener : public TorqueListener {
       TorqueParser::TypeDeclarationContext* /*ctx*/) override {}
   void exitTypeDeclaration(
       TorqueParser::TypeDeclarationContext* /*ctx*/) override {}
+
+  void enterTypeAliasDeclaration(
+      TorqueParser::TypeAliasDeclarationContext* /*ctx*/) override {}
+  void exitTypeAliasDeclaration(
+      TorqueParser::TypeAliasDeclarationContext* /*ctx*/) override {}
 
   void enterExternalBuiltin(
       TorqueParser::ExternalBuiltinContext* /*ctx*/) override {}
@@ -311,10 +338,20 @@ class TorqueBaseListener : public TorqueListener {
   void exitMacroDeclaration(
       TorqueParser::MacroDeclarationContext* /*ctx*/) override {}
 
+  void enterExternConstDeclaration(
+      TorqueParser::ExternConstDeclarationContext* /*ctx*/) override {}
+  void exitExternConstDeclaration(
+      TorqueParser::ExternConstDeclarationContext* /*ctx*/) override {}
+
   void enterConstDeclaration(
       TorqueParser::ConstDeclarationContext* /*ctx*/) override {}
   void exitConstDeclaration(
       TorqueParser::ConstDeclarationContext* /*ctx*/) override {}
+
+  void enterStructDeclaration(
+      TorqueParser::StructDeclarationContext* /*ctx*/) override {}
+  void exitStructDeclaration(
+      TorqueParser::StructDeclarationContext* /*ctx*/) override {}
 
   void enterDeclaration(TorqueParser::DeclarationContext* /*ctx*/) override {}
   void exitDeclaration(TorqueParser::DeclarationContext* /*ctx*/) override {}

@@ -10,11 +10,11 @@
 #include "src/allocation.h"
 #include "src/base/platform/mutex.h"
 #include "src/globals.h"
+#include "src/objects/js-array.h"
 
 namespace v8 {
 namespace internal {
 
-class JSArrayBuffer;
 class MarkingState;
 class Page;
 class Space;
@@ -67,7 +67,7 @@ class LocalArrayBufferTracker {
   enum CallbackResult { kKeepEntry, kUpdateEntry, kRemoveEntry };
   enum FreeMode { kFreeDead, kFreeAll };
 
-  explicit LocalArrayBufferTracker(Space* space) : space_(space) {}
+  explicit LocalArrayBufferTracker(Page* page) : page_(page) {}
   ~LocalArrayBufferTracker();
 
   inline void Add(JSArrayBuffer* buffer, size_t length);
@@ -110,9 +110,12 @@ class LocalArrayBufferTracker {
   // HeapNumber. The reason for tracking the length is that in the case of
   // length being a HeapNumber, the buffer and its length may be stored on
   // different memory pages, making it impossible to guarantee order of freeing.
-  typedef std::unordered_map<JSArrayBuffer*, size_t, Hasher> TrackingData;
+  typedef std::unordered_map<JSArrayBuffer*, JSArrayBuffer::Allocation, Hasher>
+      TrackingData;
 
-  Space* space_;
+  inline Space* space();
+
+  Page* page_;
   // The set contains raw heap pointers which are removed by the GC upon
   // processing the tracker through its owning page.
   TrackingData array_buffers_;

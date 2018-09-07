@@ -402,9 +402,9 @@ class Instruction {
   bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
-  void SetImmPCOffsetTarget(AssemblerBase::IsolateData isolate_data,
+  void SetImmPCOffsetTarget(const AssemblerOptions& options,
                             Instruction* target);
-  void SetUnresolvedInternalReferenceImmTarget(AssemblerBase::IsolateData,
+  void SetUnresolvedInternalReferenceImmTarget(const AssemblerOptions& options,
                                                Instruction* target);
   // Patch a literal load instruction to load from 'source'.
   void SetImmLLiteral(Instruction* source);
@@ -441,8 +441,7 @@ class Instruction {
 
   static const int ImmPCRelRangeBitwidth = 21;
   static bool IsValidPCRelOffset(ptrdiff_t offset) { return is_int21(offset); }
-  void SetPCRelImmTarget(AssemblerBase::IsolateData isolate_data,
-                         Instruction* target);
+  void SetPCRelImmTarget(const AssemblerOptions& options, Instruction* target);
   void SetBranchImmTarget(Instruction* target);
 };
 

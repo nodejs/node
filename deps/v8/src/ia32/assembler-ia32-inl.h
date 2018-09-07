@@ -72,8 +72,8 @@ Address RelocInfo::target_address() {
 
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
+         IsWasmStubCall(rmode_) || IsEmbeddedObject(rmode_) ||
+         IsExternalReference(rmode_) || IsOffHeapTarget(rmode_));
   return pc_;
 }
 
@@ -97,7 +97,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   return Handle<HeapObject>::cast(Memory::Object_Handle_at(pc_));
 }
 
-void RelocInfo::set_target_object(HeapObject* target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
@@ -106,9 +106,8 @@ void RelocInfo::set_target_object(HeapObject* target,
     Assembler::FlushICache(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
-    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  target);
+    heap->RecordWriteIntoCode(host(), this, target);
+    heap->incremental_marking()->RecordWriteIntoCode(host(), this, target);
   }
 }
 
@@ -136,15 +135,6 @@ Address RelocInfo::target_internal_reference() {
 Address RelocInfo::target_internal_reference_address() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
   return pc_;
-}
-
-void RelocInfo::set_wasm_code_table_entry(Address target,
-                                          ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::WASM_CODE_TABLE_ENTRY);
-  Memory::Address_at(pc_) = target;
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc_, sizeof(Address));
-  }
 }
 
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
@@ -185,7 +175,7 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(host(), this);
     Assembler::FlushICache(pc_, sizeof(Address));
-  } else if (RelocInfo::IsCodeTarget(mode)) {
+  } else if (RelocInfo::IsCodeTargetMode(mode)) {
     visitor->VisitCodeTarget(host(), this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(host(), this);

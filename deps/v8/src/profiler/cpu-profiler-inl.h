@@ -16,17 +16,17 @@ namespace v8 {
 namespace internal {
 
 void CodeCreateEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->AddCode(instruction_start, entry, instruction_size);
+  code_map->AddCode(start, entry, size);
 }
 
 
 void CodeMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->MoveCode(from_instruction_start, to_instruction_start);
+  code_map->MoveCode(from, to);
 }
 
 
 void CodeDisableOptEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  CodeEntry* entry = code_map->FindEntry(instruction_start);
+  CodeEntry* entry = code_map->FindEntry(start);
   if (entry != nullptr) {
     entry->set_bailout_reason(bailout_reason);
   }
@@ -34,7 +34,7 @@ void CodeDisableOptEventRecord::UpdateCodeMap(CodeMap* code_map) {
 
 
 void CodeDeoptEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  CodeEntry* entry = code_map->FindEntry(instruction_start);
+  CodeEntry* entry = code_map->FindEntry(start);
   if (entry == nullptr) return;
   std::vector<CpuProfileDeoptFrame> frames_vector(
       deopt_frames, deopt_frames + deopt_frame_count);
@@ -44,7 +44,7 @@ void CodeDeoptEventRecord::UpdateCodeMap(CodeMap* code_map) {
 
 
 void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  CodeEntry* entry = code_map->FindEntry(instruction_start);
+  CodeEntry* entry = code_map->FindEntry(start);
   if (!entry) {
     // Code objects for builtins should already have been added to the map but
     // some of them have been filtered out by CpuProfiler.
@@ -58,7 +58,7 @@ TickSample* ProfilerEventsProcessor::StartTickSample() {
   void* address = ticks_buffer_.StartEnqueue();
   if (address == nullptr) return nullptr;
   TickSampleEventRecord* evt =
-      new (address) TickSampleEventRecord(last_code_event_id_.Value());
+      new (address) TickSampleEventRecord(last_code_event_id_);
   return &evt->sample;
 }
 

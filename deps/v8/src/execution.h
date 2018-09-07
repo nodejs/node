@@ -89,12 +89,11 @@ class V8_EXPORT_PRIVATE StackGuard final {
   void ClearThread(const ExecutionAccess& lock);
 
 #define INTERRUPT_LIST(V)                       \
-  V(DEBUGBREAK, DebugBreak, 0)                  \
-  V(TERMINATE_EXECUTION, TerminateExecution, 1) \
-  V(GC_REQUEST, GC, 2)                          \
-  V(INSTALL_CODE, InstallCode, 3)               \
-  V(API_INTERRUPT, ApiInterrupt, 4)             \
-  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 5)
+  V(TERMINATE_EXECUTION, TerminateExecution, 0) \
+  V(GC_REQUEST, GC, 1)                          \
+  V(INSTALL_CODE, InstallCode, 2)               \
+  V(API_INTERRUPT, ApiInterrupt, 3)             \
+  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 4)
 
 #define V(NAME, Name, id)                                                    \
   inline bool Check##Name() { return CheckInterrupt(NAME); }                 \

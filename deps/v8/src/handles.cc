@@ -26,7 +26,9 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   Object* object = *location_;
   if (object->IsSmi()) return true;
   HeapObject* heap_object = HeapObject::cast(object);
-  Heap* heap = heap_object->GetHeap();
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(heap_object);
+  if (chunk->owner()->identity() == RO_SPACE) return true;
+  Heap* heap = chunk->heap();
   Object** roots_array_start = heap->roots_array_start();
   if (roots_array_start <= location_ &&
       location_ < roots_array_start + Heap::kStrongRootListLength &&

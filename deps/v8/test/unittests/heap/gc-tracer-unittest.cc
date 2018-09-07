@@ -451,5 +451,64 @@ TEST_F(GCTracerTest, MultithreadedBackgroundScope) {
   EXPECT_LE(0, tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_MARKING]);
 }
 
+class GcHistogram {
+ public:
+  static void* CreateHistogram(const char* name, int min, int max,
+                               size_t buckets) {
+    histograms_[name] = std::unique_ptr<GcHistogram>(new GcHistogram());
+    return histograms_[name].get();
+  }
+
+  static void AddHistogramSample(void* histogram, int sample) {
+    if (histograms_.empty()) return;
+    static_cast<GcHistogram*>(histogram)->samples_.push_back(sample);
+  }
+
+  static GcHistogram* Get(const char* name) { return histograms_[name].get(); }
+
+  static void CleanUp() { histograms_.clear(); }
+
+  int Total() {
+    int result = 0;
+    for (int i : samples_) {
+      result += i;
+    }
+    return result;
+  }
+
+  int Count() { return static_cast<int>(samples_.size()); }
+
+ private:
+  std::vector<int> samples_;
+  static std::map<std::string, std::unique_ptr<GcHistogram>> histograms_;
+};
+
+std::map<std::string, std::unique_ptr<GcHistogram>> GcHistogram::histograms_ =
+    std::map<std::string, std::unique_ptr<GcHistogram>>();
+
+TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
+  if (FLAG_stress_incremental_marking) return;
+  isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
+  isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+  tracer->current_.scopes[GCTracer::Scope::MC_CLEAR] = 1;
+  tracer->current_.scopes[GCTracer::Scope::MC_EPILOGUE] = 2;
+  tracer->current_.scopes[GCTracer::Scope::MC_EVACUATE] = 3;
+  tracer->current_.scopes[GCTracer::Scope::MC_FINISH] = 4;
+  tracer->current_.scopes[GCTracer::Scope::MC_MARK] = 5;
+  tracer->current_.scopes[GCTracer::Scope::MC_PROLOGUE] = 6;
+  tracer->current_.scopes[GCTracer::Scope::MC_SWEEP] = 7;
+  tracer->RecordMarkCompactHistograms(i_isolate()->counters()->gc_finalize());
+  EXPECT_EQ(1, GcHistogram::Get("V8.GCFinalizeMC.Clear")->Total());
+  EXPECT_EQ(2, GcHistogram::Get("V8.GCFinalizeMC.Epilogue")->Total());
+  EXPECT_EQ(3, GcHistogram::Get("V8.GCFinalizeMC.Evacuate")->Total());
+  EXPECT_EQ(4, GcHistogram::Get("V8.GCFinalizeMC.Finish")->Total());
+  EXPECT_EQ(5, GcHistogram::Get("V8.GCFinalizeMC.Mark")->Total());
+  EXPECT_EQ(6, GcHistogram::Get("V8.GCFinalizeMC.Prologue")->Total());
+  EXPECT_EQ(7, GcHistogram::Get("V8.GCFinalizeMC.Sweep")->Total());
+  GcHistogram::CleanUp();
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -48,7 +48,7 @@ namespace base {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
+V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index);
 
 inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   const intptr_t kTibInlineTlsOffset = 0xE10;
@@ -74,7 +74,7 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 extern V8_BASE_EXPORT intptr_t kMacTlsBaseOffset;
 
-INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
+V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index);
 
 inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   intptr_t result;

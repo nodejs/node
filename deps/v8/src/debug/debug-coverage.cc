@@ -505,7 +505,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
 
     {
       // Sort functions by start position, from outer to inner functions.
-      SharedFunctionInfo::ScriptIterator infos(script_handle);
+      SharedFunctionInfo::ScriptIterator infos(isolate, *script_handle);
       while (SharedFunctionInfo* info = infos.Next()) {
         sorted.push_back(info);
       }
@@ -575,7 +575,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
       isolate->debug()->RemoveAllCoverageInfos();
       if (!isolate->is_collecting_type_profile()) {
         isolate->SetFeedbackVectorsForProfilingTools(
-            isolate->heap()->undefined_value());
+            ReadOnlyRoots(isolate).undefined_value());
       }
       break;
     case debug::Coverage::kBlockBinary:

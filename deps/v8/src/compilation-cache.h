@@ -220,9 +220,9 @@ class CompilationCache {
   // The number of sub caches covering the different types to cache.
   static const int kSubCacheCount = 4;
 
-  bool IsEnabled() { return FLAG_compilation_cache && enabled_; }
+  bool IsEnabled() const { return FLAG_compilation_cache && enabled_; }
 
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() const { return isolate_; }
 
   Isolate* isolate_;
 

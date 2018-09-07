@@ -84,6 +84,13 @@ void SetupInterpreter::InstallBytecodeHandler(Isolate* isolate,
   dispatch_table[index] = code->entry();
 
   if (FLAG_print_builtin_size) PrintBuiltinSize(bytecode, operand_scale, code);
+
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_builtin_code) {
+    std::string name = Bytecodes::ToString(bytecode, operand_scale);
+    code->PrintBuiltinCode(isolate, name.c_str());
+  }
+#endif  // ENABLE_DISASSEMBLER
 }
 
 }  // namespace interpreter

@@ -376,12 +376,7 @@ UseInterval* UseInterval::SplitAt(LifetimePosition pos, Zone* zone) {
   return after;
 }
 
-
-void LifetimePosition::Print() const {
-  OFStream os(stdout);
-  os << *this << std::endl;
-}
-
+void LifetimePosition::Print() const { StdoutStream{} << *this << std::endl; }
 
 std::ostream& operator<<(std::ostream& os, const LifetimePosition pos) {
   os << '@' << pos.ToInstructionIndex();
@@ -807,7 +802,7 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) const {
 
 void LiveRange::Print(const RegisterConfiguration* config,
                       bool with_children) const {
-  OFStream os(stdout);
+  StdoutStream os;
   PrintableLiveRange wrapper;
   wrapper.register_configuration_ = config;
   for (const LiveRange* i = this; i != nullptr; i = i->next()) {
@@ -1316,7 +1311,7 @@ void SpillRange::MergeDisjointIntervals(UseInterval* other) {
 
 
 void SpillRange::Print() const {
-  OFStream os(stdout);
+  StdoutStream os;
   os << "{" << std::endl;
   for (TopLevelLiveRange* range : live_ranges()) {
     os << range->vreg() << " ";
@@ -2747,15 +2742,12 @@ const char* RegisterAllocator::RegisterName(int register_code) const {
   }
 }
 
-
 LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
                                          RegisterKind kind, Zone* local_zone)
     : RegisterAllocator(data, kind),
       unhandled_live_ranges_(local_zone),
       active_live_ranges_(local_zone),
       inactive_live_ranges_(local_zone) {
-  unhandled_live_ranges().reserve(
-      static_cast<size_t>(code()->VirtualRegisterCount() * 2));
   active_live_ranges().reserve(8);
   inactive_live_ranges().reserve(8);
   // TryAllocateFreeReg and AllocateBlockedReg assume this
@@ -2780,12 +2772,10 @@ void LinearScanAllocator::AllocateRegisters() {
     for (LiveRange* to_add = range; to_add != nullptr;
          to_add = to_add->next()) {
       if (!to_add->spilled()) {
-        AddToUnhandledUnsorted(to_add);
+        AddToUnhandled(to_add);
       }
     }
   }
-  SortUnhandled();
-  DCHECK(UnhandledIsSorted());
 
   if (mode() == GENERAL_REGISTERS) {
     for (TopLevelLiveRange* current : data()->fixed_live_ranges()) {
@@ -2806,10 +2796,8 @@ void LinearScanAllocator::AllocateRegisters() {
   }
 
   while (!unhandled_live_ranges().empty()) {
-    DCHECK(UnhandledIsSorted());
-    LiveRange* current = unhandled_live_ranges().back();
-    unhandled_live_ranges().pop_back();
-    DCHECK(UnhandledIsSorted());
+    LiveRange* current = *unhandled_live_ranges().begin();
+    unhandled_live_ranges().erase(unhandled_live_ranges().begin());
     LifetimePosition position = current->Start();
 #ifdef DEBUG
     allocation_finger_ = position;
@@ -2862,7 +2850,7 @@ bool LinearScanAllocator::TrySplitAndSpillSplinter(LiveRange* range) {
     return false;
   } else if (next_reg->pos().PrevStart() > range->Start()) {
     LiveRange* tail = SplitRangeAt(range, next_reg->pos().PrevStart());
-    AddToUnhandledSorted(tail);
+    AddToUnhandled(tail);
     Spill(range);
     return true;
   }
@@ -2893,63 +2881,14 @@ void LinearScanAllocator::AddToInactive(LiveRange* range) {
   inactive_live_ranges().push_back(range);
 }
 
-
-void LinearScanAllocator::AddToUnhandledSorted(LiveRange* range) {
+void LinearScanAllocator::AddToUnhandled(LiveRange* range) {
   if (range == nullptr || range->IsEmpty()) return;
   DCHECK(!range->HasRegisterAssigned() && !range->spilled());
   DCHECK(allocation_finger_ <= range->Start());
-  for (size_t i = unhandled_live_ranges().size(); i-- > 0;) {
-    LiveRange* cur_range = unhandled_live_ranges().at(i);
-    if (!range->ShouldBeAllocatedBefore(cur_range)) continue;
-    TRACE("Add live range %d:%d to unhandled at %zu\n",
-          range->TopLevel()->vreg(), range->relative_id(), i + 1);
-    auto it = unhandled_live_ranges().begin() + (i + 1);
-    unhandled_live_ranges().insert(it, range);
-    DCHECK(UnhandledIsSorted());
-    return;
-  }
-  TRACE("Add live range %d:%d to unhandled at start\n",
-        range->TopLevel()->vreg(), range->relative_id());
-  unhandled_live_ranges().insert(unhandled_live_ranges().begin(), range);
-  DCHECK(UnhandledIsSorted());
-}
 
-
-void LinearScanAllocator::AddToUnhandledUnsorted(LiveRange* range) {
-  if (range == nullptr || range->IsEmpty()) return;
-  DCHECK(!range->HasRegisterAssigned() && !range->spilled());
-  TRACE("Add live range %d:%d to unhandled unsorted at end\n",
-        range->TopLevel()->vreg(), range->relative_id());
-  unhandled_live_ranges().push_back(range);
-}
-
-
-static bool UnhandledSortHelper(LiveRange* a, LiveRange* b) {
-  DCHECK(!a->ShouldBeAllocatedBefore(b) || !b->ShouldBeAllocatedBefore(a));
-  if (a->ShouldBeAllocatedBefore(b)) return false;
-  if (b->ShouldBeAllocatedBefore(a)) return true;
-  return a->TopLevel()->vreg() < b->TopLevel()->vreg();
-}
-
-
-// Sort the unhandled live ranges so that the ranges to be processed first are
-// at the end of the array list.  This is convenient for the register allocation
-// algorithm because it is efficient to remove elements from the end.
-void LinearScanAllocator::SortUnhandled() {
-  TRACE("Sort unhandled\n");
-  std::sort(unhandled_live_ranges().begin(), unhandled_live_ranges().end(),
-            &UnhandledSortHelper);
-}
-
-
-bool LinearScanAllocator::UnhandledIsSorted() {
-  size_t len = unhandled_live_ranges().size();
-  for (size_t i = 1; i < len; i++) {
-    LiveRange* a = unhandled_live_ranges().at(i - 1);
-    LiveRange* b = unhandled_live_ranges().at(i);
-    if (a->Start() < b->Start()) return false;
-  }
-  return true;
+  TRACE("Add live range %d:%d to unhandled\n", range->TopLevel()->vreg(),
+        range->relative_id());
+  unhandled_live_ranges().insert(range);
 }
 
 
@@ -3150,11 +3089,22 @@ bool LinearScanAllocator::TryAllocateFreeReg(
 
   DCHECK_GE(free_until_pos.length(), num_codes);
 
-  // Find the register which stays free for the longest time.
-  int reg = codes[0];
-  for (int i = 1; i < num_codes; ++i) {
+  // Find the register which stays free for the longest time. Check for
+  // the hinted register first, as we might want to use that one. Only
+  // count full instructions for free ranges, as an instruction's internal
+  // positions do not help but might shadow a hinted register. This is
+  // typically the case for function calls, where all registered are
+  // cloberred after the call except for the argument registers, which are
+  // set before the call. Hence, the argument registers always get ignored,
+  // as their available time is shorter.
+  int reg;
+  if (current->FirstHintPosition(&reg) == nullptr) {
+    reg = codes[0];
+  }
+  for (int i = 0; i < num_codes; ++i) {
     int code = codes[i];
-    if (free_until_pos[code] > free_until_pos[reg]) {
+    if (free_until_pos[code].ToInstructionIndex() >
+        free_until_pos[reg].ToInstructionIndex()) {
       reg = code;
     }
   }
@@ -3170,7 +3120,7 @@ bool LinearScanAllocator::TryAllocateFreeReg(
     // Register reg is available at the range start but becomes blocked before
     // the range end. Split current at position where it becomes blocked.
     LiveRange* tail = SplitRangeAt(current, pos);
-    AddToUnhandledSorted(tail);
+    AddToUnhandled(tail);
 
     // Try to allocate preferred register once more.
     if (TryAllocatePreferredReg(current, free_until_pos)) return true;
@@ -3316,7 +3266,7 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
     // position.
     LiveRange* tail =
         SplitBetween(current, current->Start(), block_pos[reg].Start());
-    AddToUnhandledSorted(tail);
+    AddToUnhandled(tail);
   }
 
   // Register reg is not blocked for the whole range.
@@ -3479,7 +3429,6 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
     bool merged = first_op_spill->TryMerge(spill_range);
     if (!merged) return false;
     SpillBetween(range, range->Start(), pos->pos());
-    DCHECK(UnhandledIsSorted());
     return true;
   }
   return false;
@@ -3519,11 +3468,11 @@ void LinearScanAllocator::SpillBetweenUntil(LiveRange* range,
     DCHECK(third_part != second_part);
 
     Spill(second_part);
-    AddToUnhandledSorted(third_part);
+    AddToUnhandled(third_part);
   } else {
     // The split result does not intersect with [start, end[.
     // Nothing to spill. Just put it to unhandled as whole.
-    AddToUnhandledSorted(second_part);
+    AddToUnhandled(second_part);
   }
 }
 

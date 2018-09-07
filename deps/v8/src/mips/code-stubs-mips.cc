@@ -26,21 +26,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
-  __ sll(t9, a0, kPointerSizeLog2);
-  __ Addu(t9, sp, t9);
-  __ sw(a1, MemOperand(t9, 0));
-  __ Push(a1);
-  __ Push(a2);
-  __ Addu(a0, a0, Operand(3));
-  __ TailCallRuntime(Runtime::kNewArray);
-}
-
-void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
-  CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
-  StoreFastElementStub::GenerateAheadOfTime(isolate);
-}
-
 void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Isolate* isolate = masm->isolate();
@@ -223,6 +208,17 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
+  if (FLAG_embedded_builtins) {
+    if (masm->root_array_available() &&
+        isolate()->ShouldLoadConstantsFromRootList()) {
+      // This is basically an inlined version of Call(Handle<Code>) that loads
+      // the code object into kScratchReg instead of t9.
+      __ Move(t9, target);
+      __ IndirectLoadConstant(kScratchReg, GetCode());
+      __ Call(kScratchReg, Code::kHeaderSize - kHeapObjectTag);
+      return;
+    }
+  }
   intptr_t loc =
       reinterpret_cast<intptr_t>(GetCode().location());
   __ Move(t9, target);
@@ -311,280 +307,6 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __ Ret();
 }
 
-
-template<class T>
-static void CreateArrayDispatch(MacroAssembler* masm,
-                                AllocationSiteOverrideMode mode) {
-  if (mode == DISABLE_ALLOCATION_SITES) {
-    T stub(masm->isolate(), GetInitialFastElementsKind(), mode);
-    __ TailCallStub(&stub);
-  } else if (mode == DONT_OVERRIDE) {
-    int last_index =
-        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
-    for (int i = 0; i <= last_index; ++i) {
-      ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-      T stub(masm->isolate(), kind);
-      __ TailCallStub(&stub, eq, a3, Operand(kind));
-    }
-
-    // If we reached this point there is a problem.
-    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
-  } else {
-    UNREACHABLE();
-  }
-}
-
-
-static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
-                                           AllocationSiteOverrideMode mode) {
-  // a2 - allocation site (if mode != DISABLE_ALLOCATION_SITES)
-  // a3 - kind (if mode != DISABLE_ALLOCATION_SITES)
-  // a0 - number of arguments
-  // a1 - constructor?
-  // sp[0] - last argument
-    STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
-    STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
-    STATIC_ASSERT(PACKED_ELEMENTS == 2);
-    STATIC_ASSERT(HOLEY_ELEMENTS == 3);
-    STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS == 4);
-    STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
-
-  if (mode == DISABLE_ALLOCATION_SITES) {
-    ElementsKind initial = GetInitialFastElementsKind();
-    ElementsKind holey_initial = GetHoleyElementsKind(initial);
-
-    ArraySingleArgumentConstructorStub stub_holey(masm->isolate(),
-                                                  holey_initial,
-                                                  DISABLE_ALLOCATION_SITES);
-    __ TailCallStub(&stub_holey);
-  } else if (mode == DONT_OVERRIDE) {
-    // is the low bit set? If so, we are holey and that is good.
-    Label normal_sequence;
-    __ And(kScratchReg, a3, Operand(1));
-    __ Branch(&normal_sequence, ne, kScratchReg, Operand(zero_reg));
-
-    // We are going to create a holey array, but our kind is non-holey.
-    // Fix kind and retry (only if we have an allocation site in the slot).
-    __ Addu(a3, a3, Operand(1));
-
-    if (FLAG_debug_code) {
-      __ lw(t1, FieldMemOperand(a2, 0));
-      __ LoadRoot(kScratchReg, Heap::kAllocationSiteMapRootIndex);
-      __ Assert(eq, AbortReason::kExpectedAllocationSite, t1,
-                Operand(kScratchReg));
-    }
-
-    // Save the resulting elements kind in type info. We can't just store a3
-    // in the AllocationSite::transition_info field because elements kind is
-    // restricted to a portion of the field...upper bits need to be left alone.
-    STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-    __ lw(t0, FieldMemOperand(
-                  a2, AllocationSite::kTransitionInfoOrBoilerplateOffset));
-    __ Addu(t0, t0, Operand(Smi::FromInt(kFastElementsKindPackedToHoley)));
-    __ sw(t0, FieldMemOperand(
-                  a2, AllocationSite::kTransitionInfoOrBoilerplateOffset));
-
-    __ bind(&normal_sequence);
-    int last_index =
-        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
-    for (int i = 0; i <= last_index; ++i) {
-      ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-      ArraySingleArgumentConstructorStub stub(masm->isolate(), kind);
-      __ TailCallStub(&stub, eq, a3, Operand(kind));
-    }
-
-    // If we reached this point there is a problem.
-    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
-  } else {
-    UNREACHABLE();
-  }
-}
-
-
-template<class T>
-static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
-  int to_index =
-      GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
-  for (int i = 0; i <= to_index; ++i) {
-    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-    T stub(isolate, kind);
-    stub.GetCode();
-    if (AllocationSite::ShouldTrack(kind)) {
-      T stub1(isolate, kind, DISABLE_ALLOCATION_SITES);
-      stub1.GetCode();
-    }
-  }
-}
-
-void CommonArrayConstructorStub::GenerateStubsAheadOfTime(Isolate* isolate) {
-  ArrayConstructorStubAheadOfTimeHelper<ArrayNoArgumentConstructorStub>(
-      isolate);
-  ArrayConstructorStubAheadOfTimeHelper<ArraySingleArgumentConstructorStub>(
-      isolate);
-  ArrayNArgumentsConstructorStub stub(isolate);
-  stub.GetCode();
-  ElementsKind kinds[2] = {PACKED_ELEMENTS, HOLEY_ELEMENTS};
-  for (int i = 0; i < 2; i++) {
-    // For internal arrays we only need a few things.
-    InternalArrayNoArgumentConstructorStub stubh1(isolate, kinds[i]);
-    stubh1.GetCode();
-    InternalArraySingleArgumentConstructorStub stubh2(isolate, kinds[i]);
-    stubh2.GetCode();
-  }
-}
-
-
-void ArrayConstructorStub::GenerateDispatchToArrayStub(
-    MacroAssembler* masm,
-    AllocationSiteOverrideMode mode) {
-  Label not_zero_case, not_one_case;
-  __ And(kScratchReg, a0, a0);
-  __ Branch(&not_zero_case, ne, kScratchReg, Operand(zero_reg));
-  CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
-
-  __ bind(&not_zero_case);
-  __ Branch(&not_one_case, gt, a0, Operand(1));
-  CreateArrayDispatchOneArgument(masm, mode);
-
-  __ bind(&not_one_case);
-  ArrayNArgumentsConstructorStub stub(masm->isolate());
-  __ TailCallStub(&stub);
-}
-
-
-void ArrayConstructorStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a0 : argc (only if argument_count() is ANY or MORE_THAN_ONE)
-  //  -- a1 : constructor
-  //  -- a2 : AllocationSite or undefined
-  //  -- a3 : Original constructor
-  //  -- sp[0] : last argument
-  // -----------------------------------
-
-  if (FLAG_debug_code) {
-    // The array construct code is only set for the global and natives
-    // builtin Array functions which always have maps.
-
-    // Initial map for the builtin Array function should be a map.
-    __ lw(t0, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a nullptr and a Smi.
-    __ SmiTst(t0, kScratchReg);
-    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction,
-              kScratchReg, Operand(zero_reg));
-    __ GetObjectType(t0, t0, t1);
-    __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction, t1,
-              Operand(MAP_TYPE));
-
-    // We should either have undefined in a2 or a valid AllocationSite
-    __ AssertUndefinedOrAllocationSite(a2, t0);
-  }
-
-  // Enter the context of the Array function.
-  __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
-
-  Label subclassing;
-  __ Branch(&subclassing, ne, a1, Operand(a3));
-
-  Label no_info;
-  // Get the elements kind and case on that.
-  __ LoadRoot(kScratchReg, Heap::kUndefinedValueRootIndex);
-  __ Branch(&no_info, eq, a2, Operand(kScratchReg));
-
-  __ lw(a3, FieldMemOperand(
-                a2, AllocationSite::kTransitionInfoOrBoilerplateOffset));
-  __ SmiUntag(a3);
-  STATIC_ASSERT(AllocationSite::ElementsKindBits::kShift == 0);
-  __ And(a3, a3, Operand(AllocationSite::ElementsKindBits::kMask));
-  GenerateDispatchToArrayStub(masm, DONT_OVERRIDE);
-
-  __ bind(&no_info);
-  GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
-
-  // Subclassing.
-  __ bind(&subclassing);
-  __ Lsa(kScratchReg, sp, a0, kPointerSizeLog2);
-  __ sw(a1, MemOperand(kScratchReg));
-  __ li(kScratchReg, Operand(3));
-  __ addu(a0, a0, kScratchReg);
-  __ Push(a3, a2);
-  __ JumpToExternalReference(ExternalReference::Create(Runtime::kNewArray));
-}
-
-
-void InternalArrayConstructorStub::GenerateCase(
-    MacroAssembler* masm, ElementsKind kind) {
-
-  InternalArrayNoArgumentConstructorStub stub0(isolate(), kind);
-  __ TailCallStub(&stub0, lo, a0, Operand(1));
-
-  ArrayNArgumentsConstructorStub stubN(isolate());
-  __ TailCallStub(&stubN, hi, a0, Operand(1));
-
-  if (IsFastPackedElementsKind(kind)) {
-    // We might need to create a holey array
-    // look at the first argument.
-    __ lw(kScratchReg, MemOperand(sp, 0));
-
-    InternalArraySingleArgumentConstructorStub
-        stub1_holey(isolate(), GetHoleyElementsKind(kind));
-    __ TailCallStub(&stub1_holey, ne, kScratchReg, Operand(zero_reg));
-  }
-
-  InternalArraySingleArgumentConstructorStub stub1(isolate(), kind);
-  __ TailCallStub(&stub1);
-}
-
-
-void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a0 : argc
-  //  -- a1 : constructor
-  //  -- sp[0] : return address
-  //  -- sp[4] : last argument
-  // -----------------------------------
-
-  if (FLAG_debug_code) {
-    // The array construct code is only set for the global and natives
-    // builtin Array functions which always have maps.
-
-    // Initial map for the builtin Array function should be a map.
-    __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a nullptr and a Smi.
-    __ SmiTst(a3, kScratchReg);
-    __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction,
-              kScratchReg, Operand(zero_reg));
-    __ GetObjectType(a3, a3, t0);
-    __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction, t0,
-              Operand(MAP_TYPE));
-  }
-
-  // Figure out the right elements kind.
-  __ lw(a3, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // Load the map's "bit field 2" into a3. We only need the first byte,
-  // but the following bit field extraction takes care of that anyway.
-  __ lbu(a3, FieldMemOperand(a3, Map::kBitField2Offset));
-  // Retrieve elements_kind from bit field 2.
-  __ DecodeField<Map::ElementsKindBits>(a3);
-
-  if (FLAG_debug_code) {
-    Label done;
-    __ Branch(&done, eq, a3, Operand(PACKED_ELEMENTS));
-    __ Assert(
-        eq,
-        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray,
-        a3, Operand(HOLEY_ELEMENTS));
-    __ bind(&done);
-  }
-
-  Label fast_elements_case;
-  __ Branch(&fast_elements_case, eq, a3, Operand(PACKED_ELEMENTS));
-  GenerateCase(masm, HOLEY_ELEMENTS);
-
-  __ bind(&fast_elements_case);
-  GenerateCase(masm, PACKED_ELEMENTS);
-}
-
 static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
   return ref0.address() - ref1.address();
 }
@@ -618,7 +340,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ Branch(&profiler_disabled, eq, t9, Operand(zero_reg));
 
   // Additional parameter is the address of the actual callback.
-  __ li(t9, Operand(thunk_ref));
+  __ li(t9, thunk_ref);
   __ jmp(&end_profiler_check);
 
   __ bind(&profiler_disabled);
@@ -626,7 +348,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&end_profiler_check);
 
   // Allocate HandleScope in callee-save registers.
-  __ li(s5, Operand(next_address));
+  __ li(s5, next_address);
   __ lw(s0, MemOperand(s5, kNextOffset));
   __ lw(s1, MemOperand(s5, kLimitOffset));
   __ lw(s2, MemOperand(s5, kLevelOffset));

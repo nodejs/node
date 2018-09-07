@@ -52,6 +52,12 @@ void FuncNameInferrer::RemoveAsyncKeywordFromEnd() {
   }
 }
 
+void FuncNameInferrer::Leave() {
+  DCHECK(IsOpen());
+  names_stack_.Rewind(entries_stack_.RemoveLast());
+  if (entries_stack_.is_empty()) funcs_to_infer_.Clear();
+}
+
 const AstConsString* FuncNameInferrer::MakeNameFromStack() {
   AstConsString* result = ast_value_factory_->NewConsString();
   for (int pos = 0; pos < names_stack_.length(); pos++) {

@@ -39,8 +39,12 @@ class Predicate {
     inline CacheEntry()
         : bit_field_(CodePointField::encode(0) | ValueField::encode(0)) {}
     inline CacheEntry(uchar code_point, bool value)
-        : bit_field_(CodePointField::encode(code_point) |
-                     ValueField::encode(value)) {}
+        : bit_field_(
+              CodePointField::encode(CodePointField::kMask & code_point) |
+              ValueField::encode(value)) {
+      DCHECK_IMPLIES((CodePointField::kMask & code_point) != code_point,
+                     code_point == static_cast<uchar>(-1));
+    }
 
     uchar code_point() const { return CodePointField::decode(bit_field_); }
     bool value() const { return ValueField::decode(bit_field_); }
@@ -94,22 +98,20 @@ class UnicodeData {
 
 class Utf16 {
  public:
+  static const int kNoPreviousCharacter = -1;
   static inline bool IsSurrogatePair(int lead, int trail) {
     return IsLeadSurrogate(lead) && IsTrailSurrogate(trail);
   }
   static inline bool IsLeadSurrogate(int code) {
-    if (code == kNoPreviousCharacter) return false;
     return (code & 0xfc00) == 0xd800;
   }
   static inline bool IsTrailSurrogate(int code) {
-    if (code == kNoPreviousCharacter) return false;
     return (code & 0xfc00) == 0xdc00;
   }
 
   static inline int CombineSurrogatePair(uchar lead, uchar trail) {
     return 0x10000 + ((lead & 0x3ff) << 10) + (trail & 0x3ff);
   }
-  static const int kNoPreviousCharacter = -1;
   static const uchar kMaxNonSurrogateCharCode = 0xffff;
   // Encoding a single UTF-16 code unit will produce 1, 2 or 3 bytes
   // of UTF-8 data.  The special case where the unit is a surrogate

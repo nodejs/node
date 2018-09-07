@@ -4,7 +4,7 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks that async stacks works for async/await');
 
-contextGroup.addScript(`
+contextGroup.addInlineScript(`
 async function foo1() {
   debugger;
   return Promise.resolve();
@@ -22,8 +22,7 @@ async function foo2() {
 
 async function test() {
   await foo2();
-}
-//# sourceURL=test.js`, 7, 26);
+}`, 'test.js');
 
 session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {

@@ -4,9 +4,9 @@
 
 module test {
   macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
-    if constexpr ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
-      return true;
-    }
+    if constexpr((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
+        return true;
+      }
     else {
       return false;
     }
@@ -36,20 +36,20 @@ module test {
   }
 
   macro TestConstexpr1() {
-    assert(convert<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
+    check(from_constexpr<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
   }
 
   macro TestConstexprIf() {
-    assert(ElementsKindTestHelper1(UINT8_ELEMENTS));
-    assert(ElementsKindTestHelper1(UINT16_ELEMENTS));
-    assert(!ElementsKindTestHelper1(UINT32_ELEMENTS));
+    check(ElementsKindTestHelper1(UINT8_ELEMENTS));
+    check(ElementsKindTestHelper1(UINT16_ELEMENTS));
+    check(!ElementsKindTestHelper1(UINT32_ELEMENTS));
   }
 
   macro TestConstexprReturn() {
-    assert(convert<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
-    assert(convert<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
-    assert(!convert<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
-    assert(convert<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
+    check(from_constexpr<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
+    check(from_constexpr<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
+    check(!from_constexpr<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
+    check(from_constexpr<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
   }
 
   macro TestGotoLabel(): Boolean {
@@ -66,7 +66,7 @@ module test {
       LabelTestHelper2() otherwise Label2;
     }
     label Label2(smi: Smi) {
-      assert(smi == 42);
+      check(smi == 42);
       return True;
     }
   }
@@ -76,13 +76,13 @@ module test {
       LabelTestHelper3() otherwise Label3;
     }
     label Label3(str: String, smi: Smi) {
-      assert(str == 'foo');
-      assert(smi == 7);
+      check(str == 'foo');
+      check(smi == 7);
       return True;
     }
   }
 
-  builtin GenericBuiltinTest<T: type>(c: Context, param: T): Object {
+  builtin GenericBuiltinTest<T : type>(c: Context, param: T): Object {
     return Null;
   }
 
@@ -91,14 +91,15 @@ module test {
   }
 
   macro TestBuiltinSpecialization(c: Context) {
-    assert(GenericBuiltinTest<Smi>(c, 0) == Null);
-    assert(GenericBuiltinTest<Smi>(c, 1) == Null);
-    assert(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
-    assert(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
+    check(GenericBuiltinTest<Smi>(c, 0) == Null);
+    check(GenericBuiltinTest<Smi>(c, 1) == Null);
+    check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
+    check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
   }
 
   macro LabelTestHelper4(flag: constexpr bool): never labels Label4, Label5 {
-    if constexpr (flag) goto Label4;
+    if
+      constexpr(flag) goto Label4;
     else
       goto Label5;
   }
@@ -125,7 +126,7 @@ module test {
       return False;
   }
 
-  macro GenericMacroTest<T: type>(param: T): Object {
+  macro GenericMacroTest<T : type>(param: T): Object {
     return Undefined;
   }
 
@@ -133,7 +134,7 @@ module test {
     return param2;
   }
 
-  macro GenericMacroTestWithLabels<T: type>(param: T): Object labels X {
+  macro GenericMacroTestWithLabels<T : type>(param: T): Object labels X {
     return Undefined;
   }
 
@@ -143,50 +144,149 @@ module test {
 
   macro TestMacroSpecialization() {
     try {
-      if (True == False) goto Fail;  // Silence warnings in release build
-      assert(GenericMacroTest<Smi>(0) == Undefined);
-      assert(GenericMacroTest<Smi>(1) == Undefined);
-      assert(GenericMacroTest<Object>(Null) == Null);
-      assert(GenericMacroTest<Object>(False) == False);
-      assert(GenericMacroTest<Object>(True) == True);
-      assert(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
-      assert(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
-      assert(GenericMacroTestWithLabels<Object>(Null) otherwise Fail == Null);
-      assert(GenericMacroTestWithLabels<Object>(False) otherwise Fail == False);
+      check(GenericMacroTest<Smi>(0) == Undefined);
+      check(GenericMacroTest<Smi>(1) == Undefined);
+      check(GenericMacroTest<Object>(Null) == Null);
+      check(GenericMacroTest<Object>(False) == False);
+      check(GenericMacroTest<Object>(True) == True);
+      check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
+      check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
+      check(GenericMacroTestWithLabels<Object>(Null) otherwise Fail == Null);
+      check(GenericMacroTestWithLabels<Object>(False) otherwise Fail == False);
     }
     label Fail {
       unreachable;
     }
   }
 
-  builtin TestHelperPlus1(context : Context, x : Smi) : Smi {
+  builtin TestHelperPlus1(context: Context, x: Smi): Smi {
     return x + 1;
   }
-  builtin TestHelperPlus2(context : Context, x : Smi) : Smi {
+  builtin TestHelperPlus2(context: Context, x: Smi): Smi {
     return x + 2;
   }
 
-  macro TestFunctionPointers(context : Context) : Boolean {
-    let fptr : builtin(Context, Smi) => Smi = TestHelperPlus1;
-    assert(fptr(context, 42) == 43);
+  macro TestFunctionPointers(context: Context): Boolean {
+    let fptr: builtin(Context, Smi) => Smi = TestHelperPlus1;
+    check(fptr(context, 42) == 43);
     fptr = TestHelperPlus2;
-    assert(fptr(context, 42) == 44);
+    check(fptr(context, 42) == 44);
     return True;
   }
 
-  macro TestVariableRedeclaration(context : Context) : Boolean {
-    let var1 : Number = 42 == 0 ? 0 : 1;
-    let var2 : Number = 42 == 0 ? 1 : 0;
+  macro TestVariableRedeclaration(context: Context): Boolean {
+    let var1: int31 = from_constexpr<bool>(42 == 0) ? 0 : 1;
+    let var2: int31 = from_constexpr<bool>(42 == 0) ? 1 : 0;
     return True;
+  }
+
+  macro TestTernaryOperator(x: Smi): Smi {
+    let b: bool = x < 0 ? true : false;
+    return b ? x - 10 : x + 100;
   }
 
   macro TestFunctionPointerToGeneric(c: Context) {
     let fptr1: builtin(Context, Smi) => Object = GenericBuiltinTest<Smi>;
     let fptr2: builtin(Context, Object) => Object = GenericBuiltinTest<Object>;
 
-    assert(fptr1(c, 0) == Null);
-    assert(fptr1(c, 1) == Null);
-    assert(fptr2(c, Undefined) == Undefined);
-    assert(fptr2(c, Undefined) == Undefined);
+    check(fptr1(c, 0) == Null);
+    check(fptr1(c, 1) == Null);
+    check(fptr2(c, Undefined) == Undefined);
+    check(fptr2(c, Undefined) == Undefined);
+  }
+
+  type SmiToSmi = builtin(Smi) => Smi;
+  macro TestTypeAlias(x: SmiToSmi): Code {
+    return x;
+  }
+
+  macro TestUnsafeCast(c: Context, n: Number): Boolean {
+    if (TaggedIsSmi(n)) {
+      let m: Smi = unsafe_cast<Smi>(n);
+
+      check(TestHelperPlus1(c, m) == 11);
+      return True;
+    }
+    return False;
+  }
+
+  macro TestHexLiteral() {
+    check(convert<intptr>(0xffff) + 1 == 0x10000);
+    check(convert<intptr>(-0xffff) == -65535);
+  }
+
+  macro TestLargeIntegerLiterals(c: Context) {
+    let x: int32 = 0x40000000;
+    let y: int32 = 0x7fffffff;
+  }
+
+  macro TestMultilineAssert() {
+    let someVeryLongVariableNameThatWillCauseLineBreaks: Smi = 5;
+    check(
+        someVeryLongVariableNameThatWillCauseLineBreaks > 0 &&
+        someVeryLongVariableNameThatWillCauseLineBreaks < 10);
+  }
+
+  macro TestNewlineInString() {
+    Print('Hello, World!\n');
+  }
+
+  const kConstexprConst: constexpr int31 = 5;
+  const kIntptrConst: intptr = 4;
+  const kSmiConst: Smi = 3;
+
+  macro TestModuleConstBindings() {
+    check(kConstexprConst == Int32Constant(5));
+    check(kIntptrConst == 4);
+    check(kSmiConst == 3);
+  }
+
+  macro TestLocalConstBindings() {
+    const kSmi: Smi = 3;
+    check(kSmi == 3);
+  }
+
+  struct TestStructA {
+    indexes: FixedArray;
+    i: Smi;
+    k: Number;
+  }
+
+  struct TestStructB {
+    x: TestStructA;
+    y: Smi;
+  }
+
+  macro TestStruct1(i: TestStructA): Smi {
+    return i.i;
+  }
+
+  macro TestStruct2(): TestStructA {
+    return TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 27, 31};
+  }
+
+  macro TestStruct3(): TestStructA {
+    let a: TestStructA =
+    TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 13, 5};
+    let b: TestStructA = a;
+    let c: TestStructA = TestStruct2();
+    a.i = TestStruct1(c);
+    a.k = a.i;
+    let d: TestStructB;
+    d.x = a;
+    d = TestStructB{a, 7};
+    let e: TestStructA = d.x;
+    let f: Smi = TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 27, 31}.i;
+    f = TestStruct2().i;
+    return a;
+  }
+
+  struct TestStructC {
+    x : TestStructA;
+    y : TestStructA;
+  }
+
+  macro TestStruct4(): TestStructC {
+    return TestStructC{TestStruct2(), TestStruct2()};
   }
 }

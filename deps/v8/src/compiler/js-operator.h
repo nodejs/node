@@ -16,8 +16,8 @@ namespace v8 {
 namespace internal {
 
 class AllocationSite;
-class BoilerplateDescription;
-class ConstantElementsPair;
+class ObjectBoilerplateDescription;
+class ArrayBoilerplateDescription;
 class FeedbackCell;
 class SharedFunctionInfo;
 
@@ -643,7 +643,7 @@ BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
 CompareOperationHint CompareOperationHintOf(const Operator* op);
 
-int GeneratorStoreRegisterCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+int GeneratorStoreValueCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 int RestoreRegisterIndexOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 Handle<ScopeInfo> ScopeInfoOf(const Operator* op) V8_WARN_UNUSED_RESULT;
@@ -705,16 +705,17 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateObject();
   const Operator* CreatePromise();
   const Operator* CreateTypedArray();
-  const Operator* CreateLiteralArray(Handle<ConstantElementsPair> constant,
-                                     VectorSlotPair const& feedback,
-                                     int literal_flags, int number_of_elements);
+  const Operator* CreateLiteralArray(
+      Handle<ArrayBoilerplateDescription> constant,
+      VectorSlotPair const& feedback, int literal_flags,
+      int number_of_elements);
   const Operator* CreateEmptyLiteralArray(VectorSlotPair const& feedback);
   const Operator* CreateEmptyLiteralObject();
 
-  const Operator* CreateLiteralObject(Handle<BoilerplateDescription> constant,
-                                      VectorSlotPair const& feedback,
-                                      int literal_flags,
-                                      int number_of_properties);
+  const Operator* CreateLiteralObject(
+      Handle<ObjectBoilerplateDescription> constant,
+      VectorSlotPair const& feedback, int literal_flags,
+      int number_of_properties);
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       VectorSlotPair const& feedback,
                                       int literal_flags);
@@ -789,7 +790,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreMessage();
 
   // Used to implement Ignition's SuspendGenerator bytecode.
-  const Operator* GeneratorStore(int register_count);
+  const Operator* GeneratorStore(int value_count);
 
   // Used to implement Ignition's SwitchOnGeneratorState bytecode.
   const Operator* GeneratorRestoreContinuation();
@@ -816,6 +817,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* ObjectIsArray();
   const Operator* ParseInt();
+  const Operator* RegExpTest();
 
  private:
   Zone* zone() const { return zone_; }

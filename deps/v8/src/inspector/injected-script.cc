@@ -263,6 +263,7 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
   v8::HandleScope handles(isolate);
   v8::TryCatch tryCatch(isolate);
   v8::Local<v8::Context> context = inspectedContext->context();
+  v8::debug::PostponeInterruptsScope postponeInterrupts(isolate);
   v8::Context::Scope scope(context);
   v8::MicrotasksScope microtasksScope(isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);

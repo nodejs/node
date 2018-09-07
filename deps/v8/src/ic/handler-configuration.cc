@@ -59,7 +59,7 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
     }
   }
   if (fill_handler) {
-    handler->set_data1(*data1);
+    handler->set_data1(MaybeObject::FromObject(*data1));
   }
   Handle<Object> data2;
   if (maybe_data2.ToHandle(&data2)) {
@@ -187,11 +187,10 @@ Handle<Object> StoreHandler::StoreElementTransition(
                           .GetCode();
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
-  Handle<WeakCell> cell = Map::WeakCellForMap(transition);
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);
   handler->set_smi_handler(*stub);
   handler->set_validity_cell(*validity_cell);
-  handler->set_data1(*cell);
+  handler->set_data1(HeapObjectReference::Weak(*transition));
   return handler;
 }
 
@@ -201,7 +200,8 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
 #ifdef DEBUG
   if (!is_dictionary_map) {
     int descriptor = transition_map->LastAdded();
-    Handle<DescriptorArray> descriptors(transition_map->instance_descriptors());
+    Handle<DescriptorArray> descriptors(transition_map->instance_descriptors(),
+                                        isolate);
     PropertyDetails details = descriptors->GetDetails(descriptor);
     if (descriptors->GetKey(descriptor)->IsPrivate()) {
       DCHECK_EQ(DONT_ENUM, details.attributes());

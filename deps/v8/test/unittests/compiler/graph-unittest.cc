@@ -18,6 +18,7 @@ GraphTest::GraphTest(int num_parameters)
       TestWithIsolateAndZone(),
       common_(zone()),
       graph_(zone()),
+      js_heap_broker_(isolate()),
       source_positions_(&graph_),
       node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
@@ -60,7 +61,7 @@ Node* GraphTest::NumberConstant(volatile double value) {
 
 Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
   Node* node = graph()->NewNode(common()->HeapConstant(value));
-  Type type = Type::NewConstant(value, zone());
+  Type type = Type::NewConstant(js_heap_broker(), value, zone());
   NodeProperties::SetType(node, type);
   return node;
 }
@@ -110,7 +111,8 @@ Matcher<Node*> GraphTest::IsUndefinedConstant() {
 }
 
 TypedGraphTest::TypedGraphTest(int num_parameters)
-    : GraphTest(num_parameters), typer_(isolate(), Typer::kNoFlags, graph()) {}
+    : GraphTest(num_parameters),
+      typer_(isolate(), js_heap_broker(), Typer::kNoFlags, graph()) {}
 
 TypedGraphTest::~TypedGraphTest() {}
 

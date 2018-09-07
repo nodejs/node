@@ -537,19 +537,19 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   }
 
   // Returns the current source position for the given |bytecode|.
-  INLINE(BytecodeSourceInfo CurrentSourcePosition(Bytecode bytecode));
+  V8_INLINE BytecodeSourceInfo CurrentSourcePosition(Bytecode bytecode);
 
-#define DECLARE_BYTECODE_OUTPUT(Name, ...)                       \
-  template <typename... Operands>                                \
-  INLINE(BytecodeNode Create##Name##Node(Operands... operands)); \
-  template <typename... Operands>                                \
-  INLINE(void Output##Name(Operands... operands));               \
-  template <typename... Operands>                                \
-  INLINE(void Output##Name(BytecodeLabel* label, Operands... operands));
+#define DECLARE_BYTECODE_OUTPUT(Name, ...)                         \
+  template <typename... Operands>                                  \
+  V8_INLINE BytecodeNode Create##Name##Node(Operands... operands); \
+  template <typename... Operands>                                  \
+  V8_INLINE void Output##Name(Operands... operands);               \
+  template <typename... Operands>                                  \
+  V8_INLINE void Output##Name(BytecodeLabel* label, Operands... operands);
   BYTECODE_LIST(DECLARE_BYTECODE_OUTPUT)
 #undef DECLARE_OPERAND_TYPE_INFO
 
-  INLINE(void OutputSwitchOnSmiNoFeedback(BytecodeJumpTable* jump_table));
+  V8_INLINE void OutputSwitchOnSmiNoFeedback(BytecodeJumpTable* jump_table);
 
   bool RegisterIsValid(Register reg) const;
   bool RegisterListIsValid(RegisterList reg_list) const;

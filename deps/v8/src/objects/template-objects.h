@@ -24,7 +24,7 @@ class TemplateObjectDescription final : public Tuple2 {
   DECL_ACCESSORS(cooked_strings, FixedArray)
 
   static Handle<JSArray> CreateTemplateObject(
-      Handle<TemplateObjectDescription> description);
+      Isolate* isolate, Handle<TemplateObjectDescription> description);
 
   DECL_CAST(TemplateObjectDescription)
 

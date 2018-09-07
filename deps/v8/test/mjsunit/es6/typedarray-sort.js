@@ -97,6 +97,7 @@ let constructorsWithArrays = [
     ctor: Float64Array,
     array: [2 ** 53, 2 ** 53 - 1, 1, 0, -1, -(2 ** 53 - 1), -(2 ** 53)]
   },
+  {ctor: Uint8ClampedArray, array: [255, 254, 4, 3, 2, 1, 0]},
   {
     ctor: BigUint64Array,
     array: [2n ** 64n - 1n, 2n ** 64n - 2n, 4n, 3n, 2n, 1n, 0n]

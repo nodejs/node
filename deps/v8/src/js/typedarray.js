@@ -59,14 +59,16 @@ function ValidateTypedArray(array, methodName) {
 
 
 // ES6 section 22.2.3.27
+// ecma402 #sup-array.prototype.tolocalestring
 DEFINE_METHOD(
   GlobalTypedArray.prototype,
   toLocaleString() {
     ValidateTypedArray(this, "%TypedArray%.prototype.toLocaleString");
 
+    var locales = arguments[0];
+    var options = arguments[1];
     var length = %_TypedArrayGetLength(this);
-
-    return InnerArrayToLocaleString(this, length);
+    return InnerArrayToLocaleString(this, length, locales, options);
   }
 );
 

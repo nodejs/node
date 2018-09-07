@@ -11,11 +11,10 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-size_t GetSerializedNativeModuleSize(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
+size_t GetSerializedNativeModuleSize(Isolate* isolate,
+                                     NativeModule* native_module);
 
-bool SerializeNativeModule(Isolate* isolate,
-                           Handle<WasmCompiledModule> compiled_module,
+bool SerializeNativeModule(Isolate* isolate, NativeModule* native_module,
                            Vector<byte> buffer);
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(

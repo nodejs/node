@@ -35,6 +35,16 @@ class CodeReference {
     return kind_ == JS ? js_code_.is_null() : wasm_code_ == nullptr;
   }
 
+  Handle<Code> as_js_code() const {
+    DCHECK_EQ(JS, kind_);
+    return js_code_;
+  }
+
+  const wasm::WasmCode* as_wasm_code() const {
+    DCHECK_EQ(WASM, kind_);
+    return wasm_code_;
+  }
+
  private:
   enum { JS, WASM } kind_;
   union {

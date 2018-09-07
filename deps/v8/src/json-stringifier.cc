@@ -94,7 +94,6 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
   if (!gap->IsUndefined(isolate_) && !InitializeGap(gap)) {
     return MaybeHandle<Object>();
   }
-  PostponeInterruptsScope no_debug_breaks(isolate_, StackGuard::DEBUGBREAK);
   Result result = SerializeObject(object);
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) return builder_.Finish();
@@ -134,10 +133,10 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
       if (key.is_null()) continue;
       // Object keys are internalized, so do it here.
       key = factory()->InternalizeString(key);
-      set = OrderedHashSet::Add(set, key);
+      set = OrderedHashSet::Add(isolate_, set, key);
     }
     property_list_ = OrderedHashSet::ConvertToKeysArray(
-        set, GetKeysConversion::kKeepNumbers);
+        isolate_, set, GetKeysConversion::kKeepNumbers);
     property_list_ = handle_scope.CloseAndEscape(property_list_);
   } else if (replacer->IsCallable()) {
     replacer_function_ = Handle<JSReceiver>::cast(replacer);
@@ -154,8 +153,8 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
                                        Object::ToString(isolate_, gap), false);
     } else if (value->IsNumber()) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap, Object::ToNumber(gap),
-                                       false);
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
+                                       Object::ToNumber(isolate_, gap), false);
     }
   }
 
@@ -199,7 +198,7 @@ MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
   // Retrieve toJSON function.
   Handle<Object> fun;
   {
-    LookupIterator it(object_for_lookup, tojson_string_,
+    LookupIterator it(isolate_, object_for_lookup, tojson_string_,
                       LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
     if (!fun->IsCallable()) return object;
@@ -232,8 +231,8 @@ Handle<JSReceiver> JsonStringifier::CurrentHolder(
   if (length == 0) {
     Handle<JSObject> holder =
         factory()->NewJSObject(isolate_->object_function());
-    JSObject::AddProperty(holder, factory()->empty_string(), initial_holder,
-                          NONE);
+    JSObject::AddProperty(isolate_, holder, factory()->empty_string(),
+                          initial_holder, NONE);
     return holder;
   } else {
     FixedArray* elements = FixedArray::cast(stack_->elements());
@@ -362,8 +361,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSValue(
     SerializeString(Handle<String>::cast(value));
   } else if (raw->IsNumber()) {
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, value, Object::ToNumber(object),
-                                     EXCEPTION);
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, value, Object::ToNumber(isolate_, object), EXCEPTION);
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
   } else if (raw->IsBigInt()) {
@@ -529,7 +528,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
     DCHECK(!js_obj->HasIndexedInterceptor());
     DCHECK(!js_obj->HasNamedInterceptor());
-    Handle<Map> map(js_obj->map());
+    Handle<Map> map(js_obj->map(), isolate_);
     builder_.AppendCharacter('{');
     Indent();
     bool comma = false;
@@ -548,8 +547,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
                                             field_index);
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate_, property, Object::GetPropertyOrElement(js_obj, key),
-            EXCEPTION);
+            isolate_, property,
+            Object::GetPropertyOrElement(isolate_, js_obj, key), EXCEPTION);
       }
       Result result = SerializeProperty(property, comma, key);
       if (!comma && result == SUCCESS) comma = true;
@@ -583,9 +582,9 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
   for (int i = 0; i < contents->length(); i++) {
     Handle<String> key(String::cast(contents->get(i)), isolate_);
     Handle<Object> property;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, property,
-                                     Object::GetPropertyOrElement(object, key),
-                                     EXCEPTION);
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, property, Object::GetPropertyOrElement(isolate_, object, key),
+        EXCEPTION);
     Result result = SerializeProperty(property, comma, key);
     if (!comma && result == SUCCESS) comma = true;
     if (result == EXCEPTION) return result;
@@ -705,7 +704,7 @@ void JsonStringifier::SerializeDeferredKey(bool deferred_comma,
 }
 
 void JsonStringifier::SerializeString(Handle<String> object) {
-  object = String::Flatten(object);
+  object = String::Flatten(isolate_, object);
   if (builder_.CurrentEncoding() == String::ONE_BYTE_ENCODING) {
     if (object->IsOneByteRepresentationUnderneath()) {
       SerializeString_<uint8_t, uint8_t>(object);

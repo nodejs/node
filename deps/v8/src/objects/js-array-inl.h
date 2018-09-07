@@ -14,10 +14,6 @@
 namespace v8 {
 namespace internal {
 
-TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
-TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
-TYPE_CHECKER(JSTypedArray, JS_TYPED_ARRAY_TYPE)
-
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
@@ -51,12 +47,13 @@ void JSArray::SetContent(Handle<JSArray> array,
   EnsureCanContainElements(array, storage, storage->length(),
                            ALLOW_COPIED_DOUBLE_ELEMENTS);
 
-  DCHECK((storage->map() == array->GetHeap()->fixed_double_array_map() &&
-          IsDoubleElementsKind(array->GetElementsKind())) ||
-         ((storage->map() != array->GetHeap()->fixed_double_array_map()) &&
-          (IsObjectElementsKind(array->GetElementsKind()) ||
-           (IsSmiElementsKind(array->GetElementsKind()) &&
-            Handle<FixedArray>::cast(storage)->ContainsOnlySmisOrHoles()))));
+  DCHECK(
+      (storage->map() == array->GetReadOnlyRoots().fixed_double_array_map() &&
+       IsDoubleElementsKind(array->GetElementsKind())) ||
+      ((storage->map() != array->GetReadOnlyRoots().fixed_double_array_map()) &&
+       (IsObjectElementsKind(array->GetElementsKind()) ||
+        (IsSmiElementsKind(array->GetElementsKind()) &&
+         Handle<FixedArray>::cast(storage)->ContainsOnlySmisOrHoles()))));
   array->set_elements(*storage);
   array->set_length(Smi::FromInt(storage->length()));
 }
@@ -105,12 +102,6 @@ void* JSArrayBuffer::allocation_base() const {
     return data->allocation_base;
   }
   return backing_store();
-}
-
-ArrayBuffer::Allocator::AllocationMode JSArrayBuffer::allocation_mode() const {
-  using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
-  return is_wasm_memory() ? AllocationMode::kReservation
-                          : AllocationMode::kNormal;
 }
 
 bool JSArrayBuffer::is_wasm_memory() const {

@@ -38,6 +38,7 @@
 
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/deoptimizer.h"
 #include "src/mips64/assembler-mips64-inl.h"
 
 namespace v8 {
@@ -161,8 +162,9 @@ Register ToRegister(int num) {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo.
 
-const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE |
-                                  1 << RelocInfo::INTERNAL_REFERENCE_ENCODED;
+const int RelocInfo::kApplyMask =
+    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
@@ -176,34 +178,27 @@ bool RelocInfo::IsInConstantPool() {
   return false;
 }
 
-Address RelocInfo::embedded_address() const {
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
-uint32_t RelocInfo::embedded_size() const {
-  return static_cast<uint32_t>(
-      (Assembler::target_address_at(pc_, constant_pool_)));
-}
-
-void RelocInfo::set_embedded_address(Address address,
-                                     ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(pc_, constant_pool_, address, flush_mode);
-}
-
-void RelocInfo::set_embedded_size(uint32_t size, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(pc_, constant_pool_,
-                                   static_cast<Address>(size), flush_mode);
+int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
+  DCHECK(IsRuntimeEntry(rmode_));
+  return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
 }
 
 void RelocInfo::set_js_to_wasm_address(Address address,
                                        ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  set_embedded_address(address, icache_flush_mode);
+  Assembler::set_target_address_at(pc_, constant_pool_, address,
+                                   icache_flush_mode);
 }
 
 Address RelocInfo::js_to_wasm_address() const {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return embedded_address();
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+uint32_t RelocInfo::wasm_call_tag() const {
+  DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
+  return static_cast<uint32_t>(
+      Assembler::target_address_at(pc_, constant_pool_));
 }
 
 // -----------------------------------------------------------------------------
@@ -247,8 +242,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Handle<HeapObject> object;
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber(request.heap_number(),
-                                                   IMMUTABLE, TENURED);
+        object =
+            isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
         break;
       case HeapObjectRequest::kCodeStub:
         request.code_stub()->set_isolate(isolate);
@@ -296,8 +291,9 @@ const Instr kLwSwInstrTypeMask = 0xFFE00000;
 const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
-Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size),
+Assembler::Assembler(const AssemblerOptions& options, void* buffer,
+                     int buffer_size)
+    : AssemblerBase(options, buffer, buffer_size),
       scratch_register_list_(at.bit()) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
@@ -589,6 +585,19 @@ bool Assembler::IsBnec(Instr instr) {
   return opcode == POP30 && rs != 0 && rs < rt;  // && rt != 0
 }
 
+bool Assembler::IsMov(Instr instr, Register rd, Register rs) {
+  uint32_t opcode = GetOpcodeField(instr);
+  uint32_t rd_field = GetRd(instr);
+  uint32_t rs_field = GetRs(instr);
+  uint32_t rt_field = GetRt(instr);
+  uint32_t rd_reg = static_cast<uint32_t>(rd.code());
+  uint32_t rs_reg = static_cast<uint32_t>(rs.code());
+  uint32_t function_field = GetFunctionField(instr);
+  // Checks if the instruction is a OR with zero_reg argument (aka MOV).
+  bool res = opcode == SPECIAL && function_field == OR && rd_field == rd_reg &&
+             rs_field == rs_reg && rt_field == 0;
+  return res;
+}
 
 bool Assembler::IsJump(Instr instr) {
   uint32_t opcode   = GetOpcodeField(instr);
@@ -869,6 +878,34 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
                  instr_ori | ((imm >> 16) & kImm16Mask));
     instr_at_put(pos + 3 * Assembler::kInstrSize,
                  instr_ori2 | (imm & kImm16Mask));
+  } else if (IsMov(instr, t8, ra)) {
+    Instr instr_lui = instr_at(pos + 4 * Assembler::kInstrSize);
+    Instr instr_ori = instr_at(pos + 5 * Assembler::kInstrSize);
+    DCHECK(IsLui(instr_lui));
+    DCHECK(IsOri(instr_ori));
+
+    int32_t imm_short = target_pos - (pos + Assembler::kBranchPCOffset);
+
+    if (is_int16(imm_short)) {
+      // Optimize by converting to regular branch with 16-bit
+      // offset
+      Instr instr_b = BEQ;
+      instr_b = SetBranchOffset(pos, target_pos, instr_b);
+
+      instr_at_put(pos, instr_b);
+      instr_at_put(pos + 1 * Assembler::kInstrSize, 0);
+    } else {
+      int32_t imm = target_pos - (pos + Assembler::kLongBranchPCOffset);
+      DCHECK_EQ(imm & 3, 0);
+
+      instr_lui &= ~kImm16Mask;
+      instr_ori &= ~kImm16Mask;
+
+      instr_at_put(pos + 4 * Assembler::kInstrSize,
+                   instr_lui | ((imm >> 16) & kImm16Mask));
+      instr_at_put(pos + 5 * Assembler::kInstrSize,
+                   instr_ori | (imm & kImm16Mask));
+    }
   } else if (IsJ(instr) || IsJal(instr)) {
     int32_t imm28 = target_pos - pos;
     DCHECK_EQ(imm28 & 3, 0);
@@ -4097,9 +4134,10 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   if (!RelocInfo::IsNone(rinfo.rmode())) {
+    if (options().disable_reloc_info_for_patching) return;
     // Don't record external references unless the heap will be serialized.
-    if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
-        !serializer_enabled() && !emit_debug_code()) {
+    if (RelocInfo::IsOnlyForSerializer(rmode) &&
+        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
       return;
     }
     DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
@@ -4147,15 +4185,30 @@ void Assembler::CheckTrampolinePool() {
 
       int pool_start = pc_offset();
       for (int i = 0; i < unbound_labels_count_; i++) {
-        { BlockGrowBufferScope block_buf_growth(this);
-          // Buffer growth (and relocation) must be blocked for internal
+        {  // Buffer growth (and relocation) must be blocked for internal
           // references until associated instructions are emitted and available
           // to be patched.
-          RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-          j(&after_pool);
+          if (kArchVariant == kMips64r6) {
+            bc(&after_pool);
+            nop();
+          } else {
+            Label find_pc;
+            or_(t8, ra, zero_reg);
+            bal(&find_pc);
+            or_(t9, ra, zero_reg);
+            bind(&find_pc);
+            or_(ra, t8, zero_reg);
+            lui(t8, 0);
+            ori(t8, t8, 0);
+            daddu(t9, t9, t8);
+            // Instruction jr will take or_ from the next trampoline.
+            // in its branch delay slot. This is the expected behavior
+            // in order to decrease size of trampoline pool.
+            jr(t9);
+          }
         }
-        nop();
       }
+      nop();
       bind(&after_pool);
       trampoline_ = Trampoline(pool_start, unbound_labels_count_);
 

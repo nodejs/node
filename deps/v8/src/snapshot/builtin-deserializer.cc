@@ -73,6 +73,20 @@ void BuiltinDeserializer::DeserializeEagerBuiltinsAndHandlers() {
   }
 #endif
 
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_builtin_code) {
+    // We can't print builtins during deserialization because they may refer
+    // to not yet deserialized builtins.
+    for (int i = 0; i < BSU::kNumberOfBuiltins; i++) {
+      if (!IsLazyDeserializationEnabled() || !Builtins::IsLazy(i)) {
+        Code* code = builtins->builtin(i);
+        const char* name = Builtins::name(i);
+        code->PrintBuiltinCode(isolate(), name);
+      }
+    }
+  }
+#endif
+
   // Deserialize bytecode handlers.
 
   Interpreter* interpreter = isolate()->interpreter();
@@ -113,12 +127,8 @@ Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
 
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_builtin_code) {
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-
-    DCHECK(isolate()->builtins()->is_initialized());
-    code->Disassemble(Builtins::name(builtin_id), os);
-    os << std::flush;
+    const char* name = Builtins::name(builtin_id);
+    code->PrintBuiltinCode(isolate(), name);
   }
 #endif  // ENABLE_DISASSEMBLER
 
@@ -129,19 +139,7 @@ Code* BuiltinDeserializer::DeserializeHandler(Bytecode bytecode,
                                               OperandScale operand_scale) {
   allocator()->ReserveForHandler(bytecode, operand_scale);
   DisallowHeapAllocation no_gc;
-  Code* code = DeserializeHandlerRaw(bytecode, operand_scale);
-
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_builtin_code) {
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-
-    code->Disassemble(Bytecodes::ToString(bytecode), os);
-    os << std::flush;
-  }
-#endif  // ENABLE_DISASSEMBLER
-
-  return code;
+  return DeserializeHandlerRaw(bytecode, operand_scale);
 }
 
 Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
@@ -196,13 +194,15 @@ Code* BuiltinDeserializer::DeserializeHandlerRaw(Bytecode bytecode,
   Assembler::FlushICache(code->raw_instruction_start(),
                          code->raw_instruction_size());
 
-  const char* handler_name =
-      isolate()->interpreter()->LookupNameOfBytecodeHandler(code);
-  if (handler_name == nullptr) {
-    handler_name = "UnknownBytecodeHadler";
-  }
+  std::string name = Bytecodes::ToString(bytecode, operand_scale);
   PROFILE(isolate(), CodeCreateEvent(CodeEventListener::HANDLER_TAG,
-                                     AbstractCode::cast(code), handler_name));
+                                     AbstractCode::cast(code), name.c_str()));
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_builtin_code) {
+    code->PrintBuiltinCode(isolate(), name.c_str());
+  }
+#endif  // ENABLE_DISASSEMBLER
+
   return code;
 }
 

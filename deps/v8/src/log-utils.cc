@@ -109,7 +109,7 @@ void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
   DCHECK(symbol);
   OFStream& os = log_->os_;
   os << "symbol(";
-  if (!symbol->name()->IsUndefined(symbol->GetIsolate())) {
+  if (!symbol->name()->IsUndefined()) {
     os << "\"";
     AppendDetailed(String::cast(symbol->name()), false);
     os << "\" ";

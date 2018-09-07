@@ -53,8 +53,6 @@ class FileVisitor {
   };
 
  protected:
-  static constexpr const char* kTrueLabelName = "_True";
-  static constexpr const char* kFalseLabelName = "_False";
   static constexpr const char* kReturnValueVariable = "_return";
   static constexpr const char* kDoneLabelName = "_done";
   static constexpr const char* kForIndexValueVariable = "_for_index";
@@ -62,32 +60,26 @@ class FileVisitor {
   Module* CurrentModule() const { return module_; }
 
   friend class ScopedModuleActivator;
-  TypeOracle& GetTypeOracle() { return global_context_.GetTypeOracle(); }
 
   std::string GetParameterVariableFromName(const std::string& name) {
     return std::string("p_") + name;
   }
 
-  Callable* LookupCall(const std::string& name,
-                       const TypeVector& parameter_types);
-
-  Signature MakeSignature(CallableNode* decl,
-                          const CallableNodeSignature* signature);
-
-  std::string GetGeneratedCallableName(const std::string& name,
-                                       const TypeVector& specialized_types);
+  Signature MakeSignature(const CallableNodeSignature* signature);
+  Signature MakeSignatureFromReturnType(TypeExpression* return_type);
 
   struct PendingSpecialization {
     SpecializationKey key;
     CallableNode* callable;
     const CallableNodeSignature* signature;
-    Statement* body;
+    base::Optional<Statement*> body;
+    SourcePosition request_position;
   };
 
   void QueueGenericSpecialization(const SpecializationKey& key,
                                   CallableNode* callable,
                                   const CallableNodeSignature* signature,
-                                  Statement* body);
+                                  base::Optional<Statement*> body);
 
   void SpecializeGeneric(const PendingSpecialization& specialization);
 

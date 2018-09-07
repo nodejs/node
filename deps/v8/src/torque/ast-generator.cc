@@ -76,14 +76,20 @@ LabelAndTypesVector AstGenerator::GetOptionalLabelAndTypeList(
 TypeExpression* AstGenerator::GetType(TorqueParser::TypeContext* context) {
   if (context->BUILTIN()) {
     ParameterList parameters = context->typeList()->accept(this);
-    TypeExpression* return_type = GetType(context->type());
+    TypeExpression* return_type = GetType(context->type(0));
     return RegisterNode(
         new FunctionTypeExpression(Pos(context), parameters, return_type));
-  } else {
+  } else if (context->BIT_OR()) {
+    return RegisterNode(new UnionTypeExpression(
+        Pos(context), GetType(context->type(0)), GetType(context->type(1))));
+  } else if (context->IDENTIFIER()) {
     bool is_constexpr = context->CONSTEXPR() != nullptr;
     std::string name = context->IDENTIFIER()->getSymbol()->getText();
     return RegisterNode(
         new BasicTypeExpression(Pos(context), is_constexpr, std::move(name)));
+  } else {
+    DCHECK_EQ(1, context->type().size());
+    return GetType(context->type(0));
   }
 }
 
@@ -169,13 +175,19 @@ antlrcpp::Any AstGenerator::visitMacroDeclaration(
       GetOptionalParameterList(context->parameterList()),
       GetOptionalType(context->optionalType()),
       GetOptionalLabelAndTypeList(context->optionalLabelList())});
-  auto body = context->helperBody()->accept(this).as<Statement*>();
+  if (auto* op = context->STRING_LITERAL()) {
+    macro->op = StringLiteralUnquote(op->getSymbol()->getText());
+  }
+  base::Optional<Statement*> body;
+  if (context->helperBody())
+    body = context->helperBody()->accept(this).as<Statement*>();
   Declaration* result = nullptr;
   if (generic_parameters.size() != 0) {
     result = RegisterNode(
         new GenericDeclaration{Pos(context), macro, generic_parameters, body});
   } else {
-    result = RegisterNode(new StandardDeclaration{Pos(context), macro, body});
+    if (!body) ReportError("A non-generic declaration needs a body.");
+    result = RegisterNode(new StandardDeclaration{Pos(context), macro, *body});
   }
   return result;
 }
@@ -184,7 +196,9 @@ antlrcpp::Any AstGenerator::visitBuiltinDeclaration(
     TorqueParser::BuiltinDeclarationContext* context) {
   auto generic_parameters =
       GetIdentifierVector(context->optionalGenericTypeList()->IDENTIFIER());
-  Statement* body = context->helperBody()->accept(this).as<Statement*>();
+  base::Optional<Statement*> body;
+  if (context->helperBody())
+    body = context->helperBody()->accept(this).as<Statement*>();
 
   TorqueBuiltinDeclaration* builtin = RegisterNode(new TorqueBuiltinDeclaration{
       Pos(context), context->JAVASCRIPT() != nullptr,
@@ -197,7 +211,9 @@ antlrcpp::Any AstGenerator::visitBuiltinDeclaration(
     result = RegisterNode(new GenericDeclaration{Pos(context), builtin,
                                                  generic_parameters, body});
   } else {
-    result = RegisterNode(new StandardDeclaration{Pos(context), builtin, body});
+    if (!body) ReportError("A non-generic declaration needs a body.");
+    result =
+        RegisterNode(new StandardDeclaration{Pos(context), builtin, *body});
   }
   return result;
 }
@@ -209,7 +225,6 @@ antlrcpp::Any AstGenerator::visitExternalMacro(
   MacroDeclaration* macro = RegisterNode(new ExternalMacroDeclaration{
       Pos(context),
       context->IDENTIFIER()->getSymbol()->getText(),
-      context->IMPLICIT() != nullptr,
       {},
       std::move(
           context->typeListMaybeVarArgs()->accept(this).as<ParameterList>()),
@@ -263,26 +278,38 @@ antlrcpp::Any AstGenerator::visitExternalRuntime(
       RegisterNode(new StandardDeclaration{Pos(context), runtime, nullptr}));
 }
 
+antlrcpp::Any AstGenerator::visitConstDeclaration(
+    TorqueParser::ConstDeclarationContext* context) {
+  auto name = context->IDENTIFIER()->getSymbol()->getText();
+  auto type = GetType(context->type());
+  Expression* expression =
+      context->expression()->accept(this).as<Expression*>();
+  return implicit_cast<Declaration*>(
+      RegisterNode(new ConstDeclaration{Pos(context), name, type, expression}));
+}
+
 antlrcpp::Any AstGenerator::visitGenericSpecialization(
     TorqueParser::GenericSpecializationContext* context) {
   auto name = context->IDENTIFIER()->getSymbol()->getText();
   auto specialization_parameters =
       GetTypeVector(context->genericSpecializationTypeList()->typeList());
-  Statement* body = context->helperBody()->accept(this).as<Statement*>();
   return implicit_cast<Declaration*>(RegisterNode(new SpecializationDeclaration{
-      Pos(context), name, specialization_parameters,
+      Pos(context), name, false, specialization_parameters,
       GetOptionalParameterList(context->parameterList()),
       GetOptionalType(context->optionalType()),
-      GetOptionalLabelAndTypeList(context->optionalLabelList()), body}));
+      GetOptionalLabelAndTypeList(context->optionalLabelList()),
+      context->helperBody()->accept(this).as<Statement*>()}));
 }
 
-antlrcpp::Any AstGenerator::visitConstDeclaration(
-    TorqueParser::ConstDeclarationContext* context) {
-  return implicit_cast<Declaration*>(RegisterNode(new ConstDeclaration{
+antlrcpp::Any AstGenerator::visitExternConstDeclaration(
+    TorqueParser::ExternConstDeclarationContext* context) {
+  return implicit_cast<Declaration*>(RegisterNode(new ExternConstDeclaration{
       Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
       GetType(context->type()),
-      StringLiteralUnquote(
-          context->STRING_LITERAL()->getSymbol()->getText())}));
+      StringLiteralUnquote(context->generatesDeclaration()
+                               ->STRING_LITERAL()
+                               ->getSymbol()
+                               ->getText())}));
 }
 
 antlrcpp::Any AstGenerator::visitTypeDeclaration(
@@ -308,10 +335,20 @@ antlrcpp::Any AstGenerator::visitTypeDeclaration(
   return implicit_cast<Declaration*>(result);
 }
 
+antlrcpp::Any AstGenerator::visitTypeAliasDeclaration(
+    TorqueParser::TypeAliasDeclarationContext* context) {
+  TypeAliasDeclaration* result = RegisterNode(new TypeAliasDeclaration{
+      Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
+      GetType(context->type())});
+  return implicit_cast<Declaration*>(result);
+}
+
 antlrcpp::Any AstGenerator::visitVariableDeclaration(
     TorqueParser::VariableDeclarationContext* context) {
+  bool is_const_qualified = context->CONST() != nullptr;
   return RegisterNode(
       new VarDeclarationStatement{Pos(context),
+                                  is_const_qualified,
                                   context->IDENTIFIER()->getSymbol()->getText(),
                                   GetType(context->type()),
                                   {}});
@@ -485,38 +522,42 @@ antlrcpp::Any AstGenerator::visitForOfLoop(
   return implicit_cast<Statement*>(result);
 }
 
-antlrcpp::Any AstGenerator::visitTryCatch(
-    TorqueParser::TryCatchContext* context) {
-  TryCatchStatement* result = RegisterNode(new TryCatchStatement{
-      Pos(context),
-      context->statementBlock()->accept(this).as<Statement*>(),
-      {}});
+antlrcpp::Any AstGenerator::visitTryLabelStatement(
+    TorqueParser::TryLabelStatementContext* context) {
+  TryLabelStatement* result = RegisterNode(new TryLabelStatement{
+      Pos(context), context->statementBlock()->accept(this).as<Statement*>()});
   for (auto* handler : context->handlerWithStatement()) {
-    if (handler->CATCH() != nullptr) {
-      CatchBlock* catch_block = RegisterNode(new CatchBlock{
-          Pos(handler->statementBlock()),
-          {},
-          handler->statementBlock()->accept(this).as<Statement*>()});
-      catch_block->caught = handler->IDENTIFIER()->getSymbol()->getText();
-      result->catch_blocks.push_back(catch_block);
-    } else {
-      handler->labelDeclaration()->accept(this);
-      auto parameter_list = handler->labelDeclaration()->parameterList();
-      ParameterList label_parameters = parameter_list == nullptr
-                                           ? ParameterList()
-                                           : handler->labelDeclaration()
-                                                 ->parameterList()
-                                                 ->accept(this)
-                                                 .as<ParameterList>();
-      LabelBlock* label_block = RegisterNode(new LabelBlock{
-          Pos(handler->statementBlock()),
-          handler->labelDeclaration()->IDENTIFIER()->getSymbol()->getText(),
-          label_parameters,
-          handler->statementBlock()->accept(this).as<Statement*>()});
-      result->label_blocks.push_back(label_block);
-    }
+    handler->labelDeclaration()->accept(this);
+    auto parameter_list = handler->labelDeclaration()->parameterList();
+    ParameterList label_parameters = parameter_list == nullptr
+                                         ? ParameterList()
+                                         : handler->labelDeclaration()
+                                               ->parameterList()
+                                               ->accept(this)
+                                               .as<ParameterList>();
+    LabelBlock* label_block = RegisterNode(new LabelBlock{
+        Pos(handler->statementBlock()),
+        handler->labelDeclaration()->IDENTIFIER()->getSymbol()->getText(),
+        label_parameters,
+        handler->statementBlock()->accept(this).as<Statement*>()});
+    result->label_blocks.push_back(label_block);
   }
   return implicit_cast<Statement*>(result);
+}
+
+antlrcpp::Any AstGenerator::visitFunctionPointerExpression(
+    TorqueParser::FunctionPointerExpressionContext* context) {
+  if (context->IDENTIFIER()) {
+    std::vector<TypeExpression*> templateArguments;
+    if (context->genericSpecializationTypeList()) {
+      templateArguments =
+          GetTypeVector(context->genericSpecializationTypeList()->typeList());
+    }
+    return implicit_cast<Expression*>(RegisterNode(new IdentifierExpression{
+        Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
+        std::move(templateArguments)}));
+  }
+  return context->primaryExpression()->accept(this);
 }
 
 antlrcpp::Any AstGenerator::visitPrimaryExpression(
@@ -528,16 +569,21 @@ antlrcpp::Any AstGenerator::visitPrimaryExpression(
   if (auto* e = context->STRING_LITERAL())
     return implicit_cast<Expression*>(RegisterNode(
         new StringLiteralExpression{Pos(context), e->getSymbol()->getText()}));
-  if (context->CONVERT_KEYWORD())
-    return implicit_cast<Expression*>(RegisterNode(new ConvertExpression{
-        Pos(context), GetType(context->type()),
-        context->expression()->accept(this).as<Expression*>()}));
-  if (context->CAST_KEYWORD())
-    return implicit_cast<Expression*>(RegisterNode(new CastExpression{
-        Pos(context), GetType(context->type()),
-        context->IDENTIFIER()->getSymbol()->getText(),
-        context->expression()->accept(this).as<Expression*>()}));
+  if (context->structExpression()) {
+    return context->structExpression()->accept(this);
+  }
   return context->expression()->accept(this);
+}
+
+antlrcpp::Any AstGenerator::visitStructExpression(
+    TorqueParser::StructExpressionContext* context) {
+  std::vector<Expression*> expressions;
+  for (auto& e : context->expression()) {
+    expressions.push_back(e->accept(this).as<Expression*>());
+  }
+  return implicit_cast<Expression*>(RegisterNode(new StructExpression{
+      Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
+      expressions}));
 }
 
 antlrcpp::Any AstGenerator::visitAssignment(
@@ -572,25 +618,23 @@ antlrcpp::Any AstGenerator::visitIncrementDecrement(
 
 antlrcpp::Any AstGenerator::visitLocationExpression(
     TorqueParser::LocationExpressionContext* context) {
-  if (auto* l = context->locationExpression()) {
-    Expression* location = l->accept(this).as<Expression*>();
-    if (auto* e = context->expression()) {
-      return implicit_cast<Expression*>(
-          RegisterNode(new ElementAccessExpression{
-              Pos(context), location, e->accept(this).as<Expression*>()}));
-    }
-    return implicit_cast<Expression*>(RegisterNode(new FieldAccessExpression{
-        Pos(context), location,
-        context->IDENTIFIER()->getSymbol()->getText()}));
+  Expression* location = nullptr;
+  if (auto* p = context->primaryExpression()) {
+    location = p->accept(this).as<Expression*>();
+  } else if (auto* l = context->locationExpression()) {
+    location = l->accept(this).as<Expression*>();
+  } else {
+    return implicit_cast<Expression*>(RegisterNode(new IdentifierExpression{
+        Pos(context), context->IDENTIFIER()->getSymbol()->getText(), {}}));
   }
-  std::vector<TypeExpression*> templateArguments;
-  if (context->genericSpecializationTypeList()) {
-    templateArguments =
-        GetTypeVector(context->genericSpecializationTypeList()->typeList());
+
+  if (auto* e = context->expression()) {
+    return implicit_cast<Expression*>(RegisterNode(new ElementAccessExpression{
+        Pos(context), location, e->accept(this).as<Expression*>()}));
   }
-  return implicit_cast<Expression*>(RegisterNode(new IdentifierExpression{
-      Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
-      std::move(templateArguments)}));
+
+  return implicit_cast<Expression*>(RegisterNode(new FieldAccessExpression{
+      Pos(context), location, context->IDENTIFIER()->getSymbol()->getText()}));
 }
 
 antlrcpp::Any AstGenerator::visitUnaryExpression(
@@ -733,14 +777,14 @@ antlrcpp::Any AstGenerator::visitConditionalExpression(
 
 antlrcpp::Any AstGenerator::visitDiagnosticStatement(
     TorqueParser::DiagnosticStatementContext* context) {
-  if (context->ASSERT()) {
+  if (context->ASSERT_TOKEN() || context->CHECK_TOKEN()) {
     size_t a = context->expression()->start->getStartIndex();
     size_t b = context->expression()->stop->getStopIndex();
     antlr4::misc::Interval interval(a, b);
     std::string source = source_file_context_->stream->getText(interval);
     return implicit_cast<Statement*>(RegisterNode(new AssertStatement{
-        Pos(context), context->expression()->accept(this).as<Expression*>(),
-        source}));
+        Pos(context), context->ASSERT_TOKEN() != nullptr,
+        context->expression()->accept(this).as<Expression*>(), source}));
   } else if (context->UNREACHABLE_TOKEN()) {
     return implicit_cast<Statement*>(
         RegisterNode(new DebugStatement{Pos(context), "unreachable", true}));
@@ -749,6 +793,22 @@ antlrcpp::Any AstGenerator::visitDiagnosticStatement(
     return implicit_cast<Statement*>(
         RegisterNode(new DebugStatement{Pos(context), "debug", false}));
   }
+}
+
+antlrcpp::Any AstGenerator::visitStructDeclaration(
+    TorqueParser::StructDeclarationContext* context) {
+  StructDeclaration* struct_declaration = RegisterNode(new StructDeclaration{
+      Pos(context), context->IDENTIFIER()->getSymbol()->getText()});
+
+  for (auto* fieldDeclaration :
+       context->fieldListDeclaration()->fieldDeclaration()) {
+    FieldNameAndType field = {
+        fieldDeclaration->IDENTIFIER()->getSymbol()->getText(),
+        GetType(fieldDeclaration->type())};
+    struct_declaration->fields.push_back(field);
+  }
+
+  return implicit_cast<Declaration*>(struct_declaration);
 }
 
 void AstGenerator::visitSourceFile(SourceFileContext* context) {

@@ -172,10 +172,10 @@ class ZoneList final {
     AddAll(other, zone);
   }
 
-  INLINE(~ZoneList()) { DeleteData(data_); }
+  V8_INLINE ~ZoneList() { DeleteData(data_); }
 
   // Please the MSVC compiler.  We should never have to execute this.
-  INLINE(void operator delete(void* p, ZoneAllocationPolicy allocator)) {
+  V8_INLINE void operator delete(void* p, ZoneAllocationPolicy allocator) {
     UNREACHABLE();
   }
 
@@ -197,9 +197,9 @@ class ZoneList final {
   inline iterator begin() const { return &data_[0]; }
   inline iterator end() const { return &data_[length_]; }
 
-  INLINE(bool is_empty() const) { return length_ == 0; }
-  INLINE(int length() const) { return length_; }
-  INLINE(int capacity() const) { return capacity_; }
+  V8_INLINE bool is_empty() const { return length_ == 0; }
+  V8_INLINE int length() const { return length_; }
+  V8_INLINE int capacity() const { return capacity_; }
 
   Vector<T> ToVector() const { return Vector<T>(data_, length_); }
 
@@ -207,7 +207,7 @@ class ZoneList final {
     return Vector<const T>(data_, length_);
   }
 
-  INLINE(void Initialize(int capacity, Zone* zone)) {
+  V8_INLINE void Initialize(int capacity, Zone* zone) {
     DCHECK_GE(capacity, 0);
     data_ = (capacity > 0) ? NewData(capacity, ZoneAllocationPolicy(zone))
                            : nullptr;
@@ -241,15 +241,15 @@ class ZoneList final {
 
   // Removes the last element without deleting it even if T is a
   // pointer type. Returns the removed element.
-  INLINE(T RemoveLast()) { return Remove(length_ - 1); }
+  V8_INLINE T RemoveLast() { return Remove(length_ - 1); }
 
   // Clears the list by freeing the storage memory. If you want to keep the
   // memory, use Rewind(0) instead. Be aware, that even if T is a
   // pointer type, clearing the list doesn't delete the entries.
-  INLINE(void Clear());
+  V8_INLINE void Clear();
 
   // Drops all but the first 'pos' elements from the list.
-  INLINE(void Rewind(int pos));
+  V8_INLINE void Rewind(int pos);
 
   inline bool Contains(const T& elm) const;
 
@@ -271,10 +271,10 @@ class ZoneList final {
   int capacity_;
   int length_;
 
-  INLINE(T* NewData(int n, ZoneAllocationPolicy allocator)) {
+  V8_INLINE T* NewData(int n, ZoneAllocationPolicy allocator) {
     return static_cast<T*>(allocator.New(n * sizeof(T)));
   }
-  INLINE(void DeleteData(T* data)) { ZoneAllocationPolicy::Delete(data); }
+  V8_INLINE void DeleteData(T* data) { ZoneAllocationPolicy::Delete(data); }
 
   // Increase the capacity of a full list, and add an element.
   // List must be full already.
@@ -289,6 +289,11 @@ class ZoneList final {
 
   DISALLOW_COPY_AND_ASSIGN(ZoneList);
 };
+
+// ZonePtrList is a ZoneList of pointers to ZoneObjects allocated in the same
+// zone as the list object.
+template <typename T>
+using ZonePtrList = ZoneList<T*>;
 
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree (see splay-tree.h).

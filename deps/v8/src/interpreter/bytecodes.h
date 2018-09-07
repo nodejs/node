@@ -695,11 +695,6 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
 #undef OR_BYTECODE
   }
 
-  // Returns the number of values which |bytecode| returns.
-  static constexpr size_t ReturnCount(Bytecode bytecode) {
-    return Returns(bytecode) ? 1 : 0;
-  }
-
   // Returns the number of operands expected by |bytecode|.
   static int NumberOfOperands(Bytecode bytecode) {
     DCHECK_LE(bytecode, Bytecode::kLast);

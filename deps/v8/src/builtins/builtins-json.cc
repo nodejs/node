@@ -21,7 +21,7 @@ BUILTIN(JsonParse) {
   Handle<String> string;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
                                      Object::ToString(isolate, source));
-  string = String::Flatten(string);
+  string = String::Flatten(isolate, string);
   RETURN_RESULT_OR_FAILURE(
       isolate, string->IsSeqOneByteString()
                    ? JsonParser<true>::Parse(isolate, string, reviver)

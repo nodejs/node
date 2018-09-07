@@ -248,11 +248,12 @@ class GraphBuilderTester : public HandleAndZoneScope,
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
       OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(),
                                     Code::STUB);
-      code_ = Pipeline::GenerateCodeForTesting(&info, main_isolate(),
-                                               call_descriptor, graph());
+      code_ = Pipeline::GenerateCodeForTesting(
+          &info, main_isolate(), call_descriptor, graph(),
+          AssemblerOptions::Default(main_isolate()));
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {
-        OFStream os(stdout);
+        StdoutStream os;
         code_.ToHandleChecked()->Disassemble("test code", os);
       }
 #endif

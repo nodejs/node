@@ -205,7 +205,7 @@ constexpr size_t kMaxByteSizedLeb128 = 127;
 class TestModuleBuilder {
  public:
   explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin) {
-    mod.set_origin(origin);
+    mod.origin = origin;
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
     mod.globals.push_back(
@@ -245,7 +245,7 @@ class TestModuleBuilder {
     mod.maximum_pages = 100;
   }
 
-  void InitializeFunctionTable() { mod.function_tables.emplace_back(); }
+  void InitializeTable() { mod.tables.emplace_back(); }
 
   WasmModule* module() { return &mod; }
 
@@ -1522,7 +1522,7 @@ TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
 TEST_F(FunctionBodyDecoderTest, SimpleIndirectCalls) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeFunctionTable();
+  builder.InitializeTable();
   module = builder.module();
 
   byte f0 = builder.AddSignature(sigs.i_v());
@@ -1538,7 +1538,7 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectCalls) {
 TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeFunctionTable();
+  builder.InitializeTable();
   module = builder.module();
 
   EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT0(0, WASM_ZERO));
@@ -1555,7 +1555,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs3) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeFunctionTable();
+  builder.InitializeTable();
   module = builder.module();
 
   byte f0 = builder.AddFunction(sigs.i_f());
@@ -1593,7 +1593,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithoutTableCrash) {
 TEST_F(FunctionBodyDecoderTest, IncompleteIndirectCall) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeFunctionTable();
+  builder.InitializeTable();
   module = builder.module();
 
   static byte code[] = {kExprCallIndirect};
@@ -1604,7 +1604,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteStore) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
   builder.InitializeMemory();
-  builder.InitializeFunctionTable();
+  builder.InitializeTable();
   module = builder.module();
 
   static byte code[] = {kExprI32StoreMem};
@@ -1616,7 +1616,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteS8x16Shuffle) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
   builder.InitializeMemory();
-  builder.InitializeFunctionTable();
+  builder.InitializeTable();
   module = builder.module();
 
   static byte code[] = {kSimdPrefix,
@@ -2975,7 +2975,6 @@ TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
   EXPECT_LENGTH(1, kExprF64ReinterpretI64);
   EXPECT_LENGTH(1, kExprI32ReinterpretF32);
   EXPECT_LENGTH(1, kExprI64ReinterpretF64);
-  EXPECT_LENGTH(1, kExprRefEq);
 }
 
 TEST_F(WasmOpcodeLengthTest, SimdExpressions) {

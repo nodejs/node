@@ -11,12 +11,16 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-ConstantFoldingReducer::ConstantFoldingReducer(Editor* editor, JSGraph* jsgraph)
-    : AdvancedReducer(editor), jsgraph_(jsgraph) {}
+ConstantFoldingReducer::ConstantFoldingReducer(
+    Editor* editor, JSGraph* jsgraph, const JSHeapBroker* js_heap_broker)
+    : AdvancedReducer(editor),
+      jsgraph_(jsgraph),
+      js_heap_broker_(js_heap_broker) {}
 
 ConstantFoldingReducer::~ConstantFoldingReducer() {}
 
 Reduction ConstantFoldingReducer::Reduce(Node* node) {
+  DisallowHeapAccess no_heap_access;
   // Check if the output type is a singleton.  In that case we already know the
   // result value and can simply replace the node if it's eliminable.
   if (!NodeProperties::IsConstant(node) && NodeProperties::IsTyped(node) &&
@@ -33,10 +37,11 @@ Reduction ConstantFoldingReducer::Reduce(Node* node) {
     if (!upper.IsNone()) {
       Node* replacement = nullptr;
       if (upper.IsHeapConstant()) {
-        replacement = jsgraph()->Constant(upper.AsHeapConstant()->Value());
+        replacement = jsgraph()->Constant(upper.AsHeapConstant()->Ref());
       } else if (upper.Is(Type::MinusZero())) {
         Factory* factory = jsgraph()->isolate()->factory();
-        replacement = jsgraph()->Constant(factory->minus_zero_value());
+        ObjectRef minus_zero(js_heap_broker(), factory->minus_zero_value());
+        replacement = jsgraph()->Constant(minus_zero);
       } else if (upper.Is(Type::NaN())) {
         replacement = jsgraph()->NaNConstant();
       } else if (upper.Is(Type::Null())) {

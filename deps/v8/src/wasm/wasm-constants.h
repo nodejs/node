@@ -21,11 +21,11 @@ enum ValueTypeCode : uint8_t {
   kLocalF32 = 0x7d,
   kLocalF64 = 0x7c,
   kLocalS128 = 0x7b,
+  kLocalAnyFunc = 0x70,
   kLocalAnyRef = 0x6f
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
-constexpr uint8_t kWasmAnyFunctionTypeCode = 0x70;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {

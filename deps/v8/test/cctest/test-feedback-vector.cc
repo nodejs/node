@@ -202,8 +202,9 @@ TEST(VectorCallFeedback) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  CHECK(nexus.GetFeedback()->IsWeakCell());
-  CHECK(*foo == WeakCell::cast(nexus.GetFeedback())->value());
+  HeapObject* heap_object;
+  CHECK(nexus.GetFeedback()->ToWeakHeapObject(&heap_object));
+  CHECK_EQ(*foo, heap_object);
 
   CcTest::CollectAllGarbage();
   // It should stay monomorphic even after a GC.
@@ -226,9 +227,9 @@ TEST(VectorCallFeedbackForArray) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  CHECK(nexus.GetFeedback()->IsWeakCell());
-  CHECK(*isolate->array_function() ==
-        WeakCell::cast(nexus.GetFeedback())->value());
+  HeapObject* heap_object;
+  CHECK(nexus.GetFeedback()->ToWeakHeapObject(&heap_object));
+  CHECK_EQ(*isolate->array_function(), heap_object);
 
   CcTest::CollectAllGarbage();
   // It should stay monomorphic even after a GC.
@@ -283,7 +284,7 @@ TEST(VectorConstructCounts) {
   FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 
-  CHECK(feedback_vector->Get(slot)->ToStrongHeapObject()->IsWeakCell());
+  CHECK(feedback_vector->Get(slot)->IsWeakHeapObject());
 
   CompileRun("f(Foo); f(Foo);");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
@@ -438,7 +439,7 @@ TEST(VectorLoadICOnSmi) {
   CompileRun("f(34)");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   // Verify that the monomorphic map is the one we expect.
-  Map* number_map = heap->heap_number_map();
+  Map* number_map = ReadOnlyRoots(heap).heap_number_map();
   CHECK_EQ(number_map, nexus.FindFirstMap());
 
   // Now go polymorphic on o.
@@ -513,7 +514,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<JSFunction> f = GetFunction("testprop");
 
     // There should be one LOAD_IC, for the load of a.
-    Handle<FeedbackVector> feedback_vector(f->feedback_vector());
+    Handle<FeedbackVector> feedback_vector(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(2, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
@@ -533,7 +534,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     // There should be 1 LOAD_GLOBAL_IC to load x (in both cases), 2 CALL_ICs
     // to call x and a LOAD_IC to load blue.
-    Handle<FeedbackVector> feedback_vector(f->feedback_vector());
+    Handle<FeedbackVector> feedback_vector(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(5, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kCall);
@@ -555,7 +556,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     // There should be 1 LOAD_GLOBAL_ICs for the load of a, and one
     // KEYED_LOAD_IC for the load of x[0] in the return statement.
-    Handle<FeedbackVector> feedback_vector(f->feedback_vector());
+    Handle<FeedbackVector> feedback_vector(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
@@ -576,7 +577,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     // There should be 1 LOAD_GLOBAL_ICs for the load of a, and one
     // KEYED_LOAD_IC for the load of x[0] in the return statement.
-    Handle<FeedbackVector> feedback_vector(f->feedback_vector());
+    Handle<FeedbackVector> feedback_vector(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
@@ -597,7 +598,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     // There should be 1 LOAD_GLOBAL_IC for load of a and 2 LOAD_ICs, for load
     // of x.old and x.young.
-    Handle<FeedbackVector> feedback_vector(f->feedback_vector());
+    Handle<FeedbackVector> feedback_vector(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(7, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
@@ -628,7 +629,7 @@ TEST(VectorStoreICBasic) {
       "f(a);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC slot.
-  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(1, helper.slot_count());
   FeedbackSlot slot(0);
@@ -652,7 +653,7 @@ TEST(StoreOwnIC) {
       "f(3);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC slot.
-  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(2, helper.slot_count());
   CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLiteral);

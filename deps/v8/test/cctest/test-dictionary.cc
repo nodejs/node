@@ -57,13 +57,14 @@ static void TestHashMap(Handle<HashMap> table) {
   CHECK_EQ(1, table->NumberOfElements());
   CHECK_EQ(table->Lookup(a), *b);
   // When the key does not exist in the map, Lookup returns the hole.
-  CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
+  ReadOnlyRoots roots(CcTest::heap());
+  CHECK_EQ(table->Lookup(b), roots.the_hole_value());
 
   // Keys still have to be valid after objects were moved.
   CcTest::CollectGarbage(NEW_SPACE);
   CHECK_EQ(1, table->NumberOfElements());
   CHECK_EQ(table->Lookup(a), *b);
-  CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
+  CHECK_EQ(table->Lookup(b), roots.the_hole_value());
 
   // Keys that are overwritten should not change number of elements.
   table = HashMap::Put(table, a, factory->NewJSArray(13));
@@ -72,10 +73,10 @@ static void TestHashMap(Handle<HashMap> table) {
 
   // Keys that have been removed are mapped to the hole.
   bool was_present = false;
-  table = HashMap::Remove(table, a, &was_present);
+  table = HashMap::Remove(isolate, table, a, &was_present);
   CHECK(was_present);
   CHECK_EQ(0, table->NumberOfElements());
-  CHECK_EQ(table->Lookup(a), CcTest::heap()->the_hole_value());
+  CHECK_EQ(table->Lookup(a), roots.the_hole_value());
 
   // Keys should map back to their respective values and also should get
   // an identity hash code generated.
@@ -84,7 +85,7 @@ static void TestHashMap(Handle<HashMap> table) {
     Handle<JSObject> value = factory->NewJSArray(11);
     table = HashMap::Put(table, key, value);
     CHECK_EQ(table->NumberOfElements(), i + 1);
-    CHECK_NE(table->FindEntry(key), HashMap::kNotFound);
+    CHECK_NE(table->FindEntry(isolate, key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), *value);
     CHECK(key->GetIdentityHash(isolate)->IsSmi());
   }
@@ -94,8 +95,8 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(key->GetOrCreateIdentityHash(isolate)->IsSmi());
-    CHECK_EQ(table->FindEntry(key), HashMap::kNotFound);
-    CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
+    CHECK_EQ(table->FindEntry(isolate, key), HashMap::kNotFound);
+    CHECK_EQ(table->Lookup(key), roots.the_hole_value());
     CHECK(key->GetIdentityHash(isolate)->IsSmi());
   }
 
@@ -103,9 +104,9 @@ static void TestHashMap(Handle<HashMap> table) {
   // should not get an identity hash code generated.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
+    CHECK_EQ(table->Lookup(key), roots.the_hole_value());
     Object* identity_hash = key->GetIdentityHash(isolate);
-    CHECK_EQ(CcTest::heap()->undefined_value(), identity_hash);
+    CHECK_EQ(roots.undefined_value(), identity_hash);
   }
 }
 
@@ -124,7 +125,7 @@ static void TestHashSet(Handle<HashSet> table) {
 
   Handle<JSObject> a = factory->NewJSArray(7);
   Handle<JSObject> b = factory->NewJSArray(11);
-  table = HashSet::Add(table, a);
+  table = HashSet::Add(isolate, table, a);
   CHECK_EQ(1, table->NumberOfElements());
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));
@@ -136,7 +137,7 @@ static void TestHashSet(Handle<HashSet> table) {
   CHECK(!table->Has(isolate, b));
 
   // Keys that are overwritten should not change number of elements.
-  table = HashSet::Add(table, a);
+  table = HashSet::Add(isolate, table, a);
   CHECK_EQ(1, table->NumberOfElements());
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));
@@ -154,7 +155,7 @@ static void TestHashSet(Handle<HashSet> table) {
   // an identity hash code generated.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    table = HashSet::Add(table, key);
+    table = HashSet::Add(isolate, table, key);
     CHECK_EQ(table->NumberOfElements(), i + 2);
     CHECK(table->Has(isolate, key));
     CHECK(key->GetIdentityHash(isolate)->IsSmi());
@@ -175,7 +176,7 @@ static void TestHashSet(Handle<HashSet> table) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(!table->Has(isolate, key));
     Object* identity_hash = key->GetIdentityHash(isolate);
-    CHECK_EQ(CcTest::heap()->undefined_value(), identity_hash);
+    CHECK_EQ(ReadOnlyRoots(CcTest::heap()).undefined_value(), identity_hash);
   }
 }
 
@@ -216,7 +217,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash();
+    t->Rehash(isolate);
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -229,7 +230,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash();
+    t->Rehash(isolate);
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }

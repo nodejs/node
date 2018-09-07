@@ -18,7 +18,7 @@ std::string CurrentPositionAsString() {
   return PositionAsString(CurrentSourcePosition::Get());
 }
 
-void ReportError(const std::string& error) {
+[[noreturn]] void ReportError(const std::string& error) {
   std::cerr << CurrentPositionAsString() << ": Torque error: " << error << "\n";
   throw(-1);
 }

@@ -187,11 +187,12 @@ class OutOfLineLoadFloat64NaN final : public OutOfLineCode {
 class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
  public:
   OutOfLineTruncateDoubleToI(CodeGenerator* gen, Register result,
-                             XMMRegister input,
+                             XMMRegister input, StubCallMode stub_mode,
                              UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         result_(result),
         input_(input),
+        stub_mode_(stub_mode),
         unwinding_info_writer_(unwinding_info_writer),
         isolate_(gen->isolate()),
         zone_(gen->zone()) {}
@@ -201,7 +202,13 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                       kDoubleSize);
     __ Movsd(MemOperand(rsp, 0), input_);
-    __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
+    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+      // A direct call to a wasm runtime stub defined in this module.
+      // Just encode the stub index. This will be patched at relocation.
+      __ near_call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+    } else {
+      __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
+    }
     __ movl(result_, MemOperand(rsp, 0));
     __ addp(rsp, Immediate(kDoubleSize));
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
@@ -211,6 +218,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
  private:
   Register const result_;
   XMMRegister const input_;
+  StubCallMode stub_mode_;
   UnwindingInfoWriter* const unwinding_info_writer_;
   Isolate* isolate_;
   Zone* zone_;
@@ -262,37 +270,23 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
 class WasmOutOfLineTrap : public OutOfLineCode {
  public:
-  WasmOutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
-      : OutOfLineCode(gen),
-        gen_(gen),
-        frame_elided_(frame_elided),
-        instr_(instr) {}
+  WasmOutOfLineTrap(CodeGenerator* gen, Instruction* instr)
+      : OutOfLineCode(gen), gen_(gen), instr_(instr) {}
 
   void Generate() override {
     X64OperandConverter i(gen_, instr_);
-
-    Builtins::Name trap_id =
-        static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
+    TrapId trap_id =
+        static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
     GenerateWithTrapId(trap_id);
   }
 
  protected:
   CodeGenerator* gen_;
 
-  void GenerateWithTrapId(Builtins::Name trap_id) {
-    bool old_has_frame = __ has_frame();
-    if (frame_elided_) {
-      __ set_has_frame(true);
-      __ EnterFrame(StackFrame::WASM_COMPILED);
-    }
-    GenerateCallToTrap(trap_id);
-    if (frame_elided_) {
-      __ set_has_frame(old_has_frame);
-    }
-  }
+  void GenerateWithTrapId(TrapId trap_id) { GenerateCallToTrap(trap_id); }
 
  private:
-  void GenerateCallToTrap(Builtins::Name trap_id) {
+  void GenerateCallToTrap(TrapId trap_id) {
     if (!gen_->wasm_runtime_exception_support()) {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
@@ -306,8 +300,9 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       __ Ret(static_cast<int>(pop_size), rcx);
     } else {
       gen_->AssembleSourcePosition(instr_);
-      __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
-              RelocInfo::CODE_TARGET);
+      // A direct call to a wasm runtime stub defined in this module.
+      // Just encode the stub index. This will be patched at relocation.
+      __ near_call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
       ReferenceMap* reference_map =
           new (gen_->zone()) ReferenceMap(gen_->zone());
       gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
@@ -316,20 +311,17 @@ class WasmOutOfLineTrap : public OutOfLineCode {
     }
   }
 
-  bool frame_elided_;
   Instruction* instr_;
 };
 
 class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
  public:
-  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, bool frame_elided,
-                               Instruction* instr)
-      : WasmOutOfLineTrap(gen, frame_elided, instr), pc_(pc) {}
+  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, Instruction* instr)
+      : WasmOutOfLineTrap(gen, instr), pc_(pc) {}
 
   void Generate() final {
     gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
-
-    GenerateWithTrapId(Builtins::kThrowWasmTrapMemOutOfBounds);
+    GenerateWithTrapId(TrapId::kTrapMemOutOfBounds);
   }
 
  private:
@@ -342,8 +334,7 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
   if (access_mode == kMemoryAccessProtected) {
-    const bool frame_elided = !codegen->frame_access_state()->has_frame();
-    new (zone) WasmProtectedInstructionTrap(codegen, pc, frame_elided, instr);
+    new (zone) WasmProtectedInstructionTrap(codegen, pc, instr);
   }
 }
 
@@ -563,9 +554,8 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
   // Load arguments count from current arguments adaptor frame (note, it
   // does not include receiver).
   Register caller_args_count_reg = scratch1;
-  __ SmiToInteger32(
-      caller_args_count_reg,
-      Operand(rbp, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiUntag(caller_args_count_reg,
+              Operand(rbp, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
   ParameterCount callee_args_count(args_reg);
   __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
@@ -691,6 +681,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Call(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
+        DCHECK_IMPLIES(
+            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            reg == kJavaScriptCallCodeStartRegister);
         __ addp(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
         if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
           __ RetpolineCall(reg);
@@ -704,15 +697,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallWasmFunction: {
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code =
-            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
-        if (info()->IsWasm()) {
-          __ near_call(wasm_code, RelocInfo::WASM_CALL);
+        Constant constant = i.ToConstant(instr->InputAt(0));
+        Address wasm_code = static_cast<Address>(constant.ToInt64());
+        if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
+          __ near_call(wasm_code, constant.rmode());
         } else {
           if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
-            __ RetpolineCall(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+            __ RetpolineCall(wasm_code, constant.rmode());
           } else {
-            __ Call(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+            __ Call(wasm_code, constant.rmode());
           }
         }
       } else {
@@ -736,9 +729,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = i.InputCode(0);
-        __ jmp(code, RelocInfo::CODE_TARGET);
+        __ Jump(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
+        DCHECK_IMPLIES(
+            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            reg == kJavaScriptCallCodeStartRegister);
         __ addp(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
         if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
           __ RetpolineJump(reg);
@@ -753,12 +749,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchTailCallWasm: {
       if (HasImmediateInput(instr, 0)) {
-        Address wasm_code =
-            static_cast<Address>(i.ToConstant(instr->InputAt(0)).ToInt64());
-        if (info()->IsWasm()) {
-          __ near_jmp(wasm_code, RelocInfo::WASM_CALL);
+        Constant constant = i.ToConstant(instr->InputAt(0));
+        Address wasm_code = static_cast<Address>(constant.ToInt64());
+        if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
+          __ near_jmp(wasm_code, constant.rmode());
         } else {
-          __ Move(kScratchRegister, wasm_code, RelocInfo::JS_TO_WASM_CALL);
+          __ Move(kScratchRegister, wasm_code, constant.rmode());
           __ jmp(kScratchRegister);
         }
       } else {
@@ -777,10 +773,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTailCallAddress: {
       CHECK(!HasImmediateInput(instr, 0));
       Register reg = i.InputRegister(0);
-      if (HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister)) {
-        static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-        DCHECK_EQ(rcx, reg);
-      }
+      DCHECK_IMPLIES(
+          HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+          reg == kJavaScriptCallCodeStartRegister);
       if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
         __ RetpolineJump(reg);
       } else {
@@ -873,6 +868,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
+    case kArchBinarySearchSwitch:
+      AssembleArchBinarySearchSwitch(instr);
+      break;
     case kArchLookupSwitch:
       AssembleArchLookupSwitch(instr);
       break;
@@ -931,14 +929,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ movq(i.OutputRegister(), rbp);
       }
       break;
-    case kArchRootsPointer:
-      __ movq(i.OutputRegister(), kRootRegister);
-      break;
     case kArchTruncateDoubleToI: {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);
       auto ool = new (zone()) OutOfLineTruncateDoubleToI(
-          this, result, input, &unwinding_info_writer_);
+          this, result, input, DetermineStubCallMode(),
+          &unwinding_info_writer_);
       // We use Cvttsd2siq instead of Cvttsd2si due to performance reasons. The
       // use of Cvttsd2siq requires the movl below to avoid sign extension.
       __ Cvttsd2siq(result, input);
@@ -1962,9 +1958,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (i.InputRegister(0) == i.OutputRegister()) {
         if (mode == kMode_MRI) {
           int32_t constant_summand = i.InputInt32(1);
+          DCHECK_NE(0, constant_summand);
           if (constant_summand > 0) {
             __ addl(i.OutputRegister(), Immediate(constant_summand));
-          } else if (constant_summand < 0) {
+          } else {
             __ subl(i.OutputRegister(), Immediate(-constant_summand));
           }
         } else if (mode == kMode_MR1) {
@@ -2944,8 +2941,7 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
 
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
-  bool frame_elided = !frame_access_state()->has_frame();
-  auto ool = new (zone()) WasmOutOfLineTrap(this, frame_elided, instr);
+  auto ool = new (zone()) WasmOutOfLineTrap(this, instr);
   Label* tlabel = ool->entry();
   Label end;
   if (condition == kUnorderedEqual) {
@@ -2983,6 +2979,17 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&done);
 }
 
+void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
+  X64OperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  std::vector<std::pair<int32_t, Label*>> cases;
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    cases.push_back({i.InputInt32(index + 0), GetLabel(i.InputRpo(index + 1))});
+  }
+  AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
+                                      cases.data() + cases.size());
+}
+
 void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   X64OperandConverter i(this, instr);
   Register input = i.InputRegister(0);
@@ -2992,7 +2999,6 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   }
   AssembleArchJump(i.InputRpo(1));
 }
-
 
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   X64OperandConverter i(this, instr);
@@ -3082,6 +3088,7 @@ void CodeGenerator::AssembleConstructFrame() {
   const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
 
   if (shrink_slots > 0) {
+    DCHECK(frame_access_state()->has_frame());
     if (info()->IsWasm() && shrink_slots > 128) {
       // For WebAssembly functions with big frames we have to do the stack
       // overflow check before we construct the frame. Otherwise we may not
@@ -3093,19 +3100,18 @@ void CodeGenerator::AssembleConstructFrame() {
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
       if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
-        __ Move(kScratchRegister,
-                ExternalReference::address_of_real_stack_limit(__ isolate()));
+        __ movq(kScratchRegister,
+                FieldOperand(kWasmInstanceRegister,
+                             WasmInstanceObject::kRealStackLimitAddressOffset));
         __ movq(kScratchRegister, Operand(kScratchRegister, 0));
         __ addq(kScratchRegister, Immediate(shrink_slots * kPointerSize));
         __ cmpq(rsp, kScratchRegister);
         __ j(above_equal, &done);
       }
-      if (!frame_access_state()->has_frame()) {
-        __ set_has_frame(true);
-        __ EnterFrame(StackFrame::WASM_COMPILED);
-      }
+      __ movp(rcx, FieldOperand(kWasmInstanceRegister,
+                                WasmInstanceObject::kCEntryStubOffset));
       __ Move(rsi, Smi::kZero);
-      __ CallRuntimeDelayed(zone(), Runtime::kThrowWasmStackOverflow);
+      __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, rcx);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kSimple, 0,
                       Safepoint::kNoLazyDeopt);
@@ -3272,6 +3278,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         break;
     }
   };
+  // Helper function to write the given constant to the stack.
+  auto MoveConstantToSlot = [&](Operand dst, Constant src) {
+    if (!RelocInfo::IsWasmPtrReference(src.rmode())) {
+      switch (src.type()) {
+        case Constant::kInt32:
+          __ movq(dst, Immediate(src.ToInt32()));
+          return;
+        case Constant::kInt64:
+          __ Set(dst, src.ToInt64());
+          return;
+        default:
+          break;
+      }
+    }
+    MoveConstantToRegister(kScratchRegister, src);
+    __ movq(dst, kScratchRegister);
+  };
   // Dispatch on the source and destination operand kinds.
   switch (MoveType::InferMove(source, destination)) {
     case MoveType::kRegisterToRegister:
@@ -3359,8 +3382,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Constant src = g.ToConstant(source);
       Operand dst = g.ToOperand(destination);
       if (destination->IsStackSlot()) {
-        MoveConstantToRegister(kScratchRegister, src);
-        __ movq(dst, kScratchRegister);
+        MoveConstantToSlot(dst, src);
       } else {
         DCHECK(destination->IsFPStackSlot());
         if (src.type() == Constant::kFloat32) {
