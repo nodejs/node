@@ -153,7 +153,7 @@ class TaskQueue {
   // Blocking Pop. Returns nullptr if queue is empty or Stop'd.
   std::unique_ptr<Task> BlockingPop(void);
 
-  // Workers should call this after completing a Task.
+  // Workers should call this after completing a Pop'd Task.
   void NotifyOfCompletion(void);
 
   // Block until there are no Tasks pending or scheduled.

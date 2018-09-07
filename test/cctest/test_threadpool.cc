@@ -105,7 +105,7 @@ TEST_F(ThreadpoolTest, WorkersWorkWithTaskQueue) {
   EXPECT_EQ(testTaskDestroyedCount, nTasks);
 }
 
-TEST_F(ThreadpoolTest, ThreadpoolWorks) {
+TEST_F(ThreadpoolTest, ThreadpoolEndToEnd) {
   int nTasks = 100;
 
   {
@@ -116,6 +116,7 @@ TEST_F(ThreadpoolTest, ThreadpoolWorks) {
     testTaskDestroyedCount = 0;
 
     tp->Initialize();
+    EXPECT_GT(tp->NWorkers(), 0);
 
     // Push
     EXPECT_EQ(tp->QueueLength(), 0);
@@ -125,6 +126,29 @@ TEST_F(ThreadpoolTest, ThreadpoolWorks) {
   }
   // tp leaves scope. In destructor it drains the queue.
 
+  EXPECT_EQ(testTaskRunCount, nTasks);
+  EXPECT_EQ(testTaskDestroyedCount, nTasks);
+}
+
+TEST_F(ThreadpoolTest, ThreadpoolBlockingDrain) {
+  // Enough that we will probably have to wait for them to finish.
+  int nTasks = 10000;
+
+  std::unique_ptr<Threadpool> tp(new Threadpool());
+
+  // Reset globals
+  testTaskRunCount = 0;
+  testTaskDestroyedCount = 0;
+
+  tp->Initialize();
+
+  // Push
+  EXPECT_EQ(tp->QueueLength(), 0);
+  for (int i = 0; i < nTasks; i++) {
+    tp->Post(std::unique_ptr<TestTask>(new TestTask()));
+  }
+
+  tp->BlockingDrain();
   EXPECT_EQ(testTaskRunCount, nTasks);
   EXPECT_EQ(testTaskDestroyedCount, nTasks);
 }
