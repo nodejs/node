@@ -2944,10 +2944,14 @@ void TurboAssembler::SwapP(Register src, MemOperand dst, Register scratch) {
 
 void TurboAssembler::SwapP(MemOperand src, MemOperand dst, Register scratch_0,
                            Register scratch_1) {
-  if (src.ra() != r0) DCHECK(!AreAliased(src.ra(), scratch_0, scratch_1));
-  if (src.rb() != r0) DCHECK(!AreAliased(src.rb(), scratch_0, scratch_1));
-  if (dst.ra() != r0) DCHECK(!AreAliased(dst.ra(), scratch_0, scratch_1));
-  if (dst.rb() != r0) DCHECK(!AreAliased(dst.rb(), scratch_0, scratch_1));
+  if (src.ra() != r0 && src.ra().is_valid())
+    DCHECK(!AreAliased(src.ra(), scratch_0, scratch_1));
+  if (src.rb() != r0 && src.rb().is_valid())
+    DCHECK(!AreAliased(src.rb(), scratch_0, scratch_1));
+  if (dst.ra() != r0 && dst.ra().is_valid())
+    DCHECK(!AreAliased(dst.ra(), scratch_0, scratch_1));
+  if (dst.rb() != r0 && dst.rb().is_valid())
+    DCHECK(!AreAliased(dst.rb(), scratch_0, scratch_1));
   DCHECK(!AreAliased(scratch_0, scratch_1));
   if (is_int16(src.offset()) || is_int16(dst.offset())) {
     if (!is_int16(src.offset())) {
