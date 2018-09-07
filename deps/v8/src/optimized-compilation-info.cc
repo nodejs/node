@@ -39,7 +39,7 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
   // more memory consumption.
-  if (isolate->NeedsSourcePositionsForProfiling()) {
+  if (isolate->NeedsDetailedOptimizedCodeLineInfo()) {
     MarkAsSourcePositionsEnabled();
   }
 
