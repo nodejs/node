@@ -1,5 +1,7 @@
 #include "node.h"
 #include "node_internals.h"
+#include "base_object.h"
+#include "base_object-inl.h"
 #include "env-inl.h"
 #include "util-inl.h"
 #include "uv.h"
@@ -777,5 +779,58 @@ void GetParentProcessId(Local<Name> property,
   info.GetReturnValue().Set(Integer::New(info.GetIsolate(), uv_os_getppid()));
 }
 
+void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<Array> ary = Array::New(args.GetIsolate());
+  Local<Context> ctx = env->context();
+  Local<Function> fn = env->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
+
+  for (auto w : *env->req_wrap_queue()) {
+    if (w->persistent().IsEmpty())
+      continue;
+    argv[idx] = w->GetOwner();
+    if (++idx >= arraysize(argv)) {
+      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
+  }
+
+  if (idx > 0) {
+    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+  }
+
+  args.GetReturnValue().Set(ary);
+}
+
+
+// Non-static, friend of HandleWrap. Could have been a HandleWrap method but
+// implemented here for consistency with GetActiveRequests().
+void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<Array> ary = Array::New(env->isolate());
+  Local<Context> ctx = env->context();
+  Local<Function> fn = env->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
+
+  for (auto w : *env->handle_wrap_queue()) {
+    if (!HandleWrap::HasRef(w))
+      continue;
+    argv[idx] = w->GetOwner();
+    if (++idx >= arraysize(argv)) {
+      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
+  }
+  if (idx > 0) {
+    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+  }
+
+  args.GetReturnValue().Set(ary);
+}
 
 }  // namespace node
