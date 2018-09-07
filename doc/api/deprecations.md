@@ -1055,9 +1055,9 @@ future release.
 
 Type: Documentation
 
-The [Legacy URL API][] is deprecated in favor of the newer standardized
-[WHATWG URL][] implementation. This includes uses of [`url.format()`][],
-[`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][].
+The [Legacy URL API][] is deprecated. This includes [`url.format()`][],
+[`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
+use the [WHATWG URL API][] instead.
 
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
@@ -1108,6 +1108,7 @@ The [Legacy URL API][] is deprecated in favor of the newer standardized
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
+[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
 [`require.extensions`]: modules.html#modules_require_extensions
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
@@ -1155,5 +1156,4 @@ The [Legacy URL API][] is deprecated in favor of the newer standardized
 [Legacy URL API]: url.html#url_legacy_url_api
 [legacy `urlObject`]: url.html#url_legacy_urlobject
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
-[WHATWG URL]: url.html#url_the_whatwg_url_api
-[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
+[WHATWG URL API]: url.html#url_the_whatwg_url_api
