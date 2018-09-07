@@ -113,14 +113,17 @@ assert.strictEqual(util.isBoolean(false), true);
 assert.strictEqual(util.isBoolean('string'), false);
 
 assert.strictEqual(util.isNull(null), true);
+assert.strictEqual(util.isNull(undefined), false);
 assert.strictEqual(util.isNull(), false);
 assert.strictEqual(util.isNull('string'), false);
 
+assert.strictEqual(util.isUndefined(undefined), true);
 assert.strictEqual(util.isUndefined(), true);
 assert.strictEqual(util.isUndefined(null), false);
 assert.strictEqual(util.isUndefined('string'), false);
 
 assert.strictEqual(util.isNullOrUndefined(null), true);
+assert.strictEqual(util.isNullOrUndefined(undefined), true);
 assert.strictEqual(util.isNullOrUndefined(), true);
 assert.strictEqual(util.isNullOrUndefined('string'), false);
 
