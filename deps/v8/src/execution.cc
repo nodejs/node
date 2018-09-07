@@ -157,7 +157,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    value->ObjectVerify();
+    value->ObjectVerify(isolate);
   }
 #endif
 
@@ -244,7 +244,7 @@ MaybeHandle<Object> Execution::TryCall(
     if (maybe_result.is_null()) {
       DCHECK(isolate->has_pending_exception());
       if (isolate->pending_exception() ==
-          isolate->heap()->termination_exception()) {
+          ReadOnlyRoots(isolate).termination_exception()) {
         is_termination = true;
       } else {
         if (exception_out != nullptr) {
@@ -514,15 +514,6 @@ Object* StackGuard::HandleInterrupts() {
     isolate_->heap()->HandleGCRequest();
   }
 
-  if (CheckDebugBreak()) {
-    if (FLAG_trace_interrupts) {
-      if (any_interrupt_handled) PrintF(", ");
-      PrintF("DEBUG_BREAK");
-      any_interrupt_handled = true;
-    }
-    isolate_->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
-  }
-
   if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {
     if (FLAG_trace_interrupts) {
       if (any_interrupt_handled) PrintF(", ");
@@ -572,7 +563,7 @@ Object* StackGuard::HandleInterrupts() {
   isolate_->counters()->runtime_profiler_ticks()->Increment();
   isolate_->runtime_profiler()->MarkCandidatesForOptimization();
 
-  return isolate_->heap()->undefined_value();
+  return ReadOnlyRoots(isolate_).undefined_value();
 }
 
 }  // namespace internal

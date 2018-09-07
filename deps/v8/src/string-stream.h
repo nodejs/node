@@ -144,9 +144,9 @@ class StringStream final {
   void PrintByteArray(ByteArray* ba);
   void PrintUsingMap(JSObject* js_object);
   void PrintPrototype(JSFunction* fun, Object* receiver);
-  void PrintSecurityTokenIfChanged(Object* function);
+  void PrintSecurityTokenIfChanged(JSFunction* function);
   // NOTE: Returns the code in the output parameter.
-  void PrintFunction(Object* function, Object* receiver, Code** code);
+  void PrintFunction(JSFunction* function, Object* receiver, Code** code);
 
   // Reset the stream.
   void Reset() {

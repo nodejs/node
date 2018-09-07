@@ -47,13 +47,8 @@ HeapObject* AllocationResult::ToObjectChecked() {
 
 #define ROOT_ACCESSOR(type, name, camel_name) \
   type* Heap::name() { return type::cast(roots_[k##camel_name##RootIndex]); }
-ROOT_LIST(ROOT_ACCESSOR)
+MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
-
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name) \
-  Map* Heap::name##_map() { return Map::cast(roots_[k##Name##MapRootIndex]); }
-STRUCT_LIST(STRUCT_MAP_ACCESSOR)
-#undef STRUCT_MAP_ACCESSOR
 
 #define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)  \
   Map* Heap::name##_map() {                                \
@@ -61,22 +56,6 @@ STRUCT_LIST(STRUCT_MAP_ACCESSOR)
   }
 DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
 #undef DATA_HANDLER_MAP_ACCESSOR
-
-#define STRING_ACCESSOR(name, str) \
-  String* Heap::name() { return String::cast(roots_[k##name##RootIndex]); }
-INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
-#undef STRING_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name) \
-  Symbol* Heap::name() { return Symbol::cast(roots_[k##name##RootIndex]); }
-PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name, description) \
-  Symbol* Heap::name() { return Symbol::cast(roots_[k##name##RootIndex]); }
-PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
-WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
 
 #define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName)                \
   AccessorInfo* Heap::accessor_name##_accessor() {                         \
@@ -147,13 +126,19 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
 #endif
 
   bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
+  bool new_large_object = FLAG_young_generation_large_objects &&
+                          size_in_bytes > kMaxNewSpaceHeapObjectSize;
   HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
     if (large_object) {
       space = LO_SPACE;
     } else {
-      allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
+      if (new_large_object) {
+        allocation = new_lo_space_->AllocateRaw(size_in_bytes);
+      } else {
+        allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
+      }
       if (allocation.To(&object)) {
         OnAllocationEvent(object, size_in_bytes);
       }
@@ -314,53 +299,68 @@ void Heap::FinalizeExternalString(String* string) {
 
 Address Heap::NewSpaceTop() { return new_space_->top(); }
 
+// static
 bool Heap::InNewSpace(Object* object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object->IsHeapObject() && InNewSpace(HeapObject::cast(object));
 }
 
+// static
 bool Heap::InNewSpace(MaybeObject* object) {
   HeapObject* heap_object;
   return object->ToStrongOrWeakHeapObject(&heap_object) &&
          InNewSpace(heap_object);
 }
 
+// static
 bool Heap::InNewSpace(HeapObject* heap_object) {
   // Inlined check from NewSpace::Contains.
   bool result = MemoryChunk::FromHeapObject(heap_object)->InNewSpace();
-  DCHECK(!result ||                 // Either not in new space
-         gc_state_ != NOT_IN_GC ||  // ... or in the middle of GC
-         InToSpace(heap_object));   // ... or in to-space (where we allocate).
+#ifdef DEBUG
+  // If in NEW_SPACE, then check we're either not in the middle of GC or the
+  // object is in to-space.
+  if (result) {
+    // If the object is in NEW_SPACE, then it's not in RO_SPACE so this is safe.
+    Heap* heap = Heap::FromWritableHeapObject(heap_object);
+    DCHECK(heap->gc_state_ != NOT_IN_GC || InToSpace(heap_object));
+  }
+#endif
   return result;
 }
 
+// static
 bool Heap::InFromSpace(Object* object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object->IsHeapObject() && InFromSpace(HeapObject::cast(object));
 }
 
+// static
 bool Heap::InFromSpace(MaybeObject* object) {
   HeapObject* heap_object;
   return object->ToStrongOrWeakHeapObject(&heap_object) &&
          InFromSpace(heap_object);
 }
 
+// static
 bool Heap::InFromSpace(HeapObject* heap_object) {
   return MemoryChunk::FromHeapObject(heap_object)
       ->IsFlagSet(Page::IN_FROM_SPACE);
 }
 
+// static
 bool Heap::InToSpace(Object* object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object->IsHeapObject() && InToSpace(HeapObject::cast(object));
 }
 
+// static
 bool Heap::InToSpace(MaybeObject* object) {
   HeapObject* heap_object;
   return object->ToStrongOrWeakHeapObject(&heap_object) &&
          InToSpace(heap_object);
 }
 
+// static
 bool Heap::InToSpace(HeapObject* heap_object) {
   return MemoryChunk::FromHeapObject(heap_object)->IsFlagSet(Page::IN_TO_SPACE);
 }
@@ -377,6 +377,19 @@ bool Heap::InNewSpaceSlow(Address address) {
 
 bool Heap::InOldSpaceSlow(Address address) {
   return old_space_->ContainsSlow(address);
+}
+
+// static
+Heap* Heap::FromWritableHeapObject(const HeapObject* obj) {
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
+  // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
+  // find a heap. The exception is when the ReadOnlySpace is writeable, during
+  // bootstrapping, so explicitly allow this case.
+  SLOW_DCHECK(chunk->owner()->identity() != RO_SPACE ||
+              static_cast<ReadOnlySpace*>(chunk->owner())->writable());
+  Heap* heap = chunk->heap();
+  SLOW_DCHECK(heap != nullptr);
+  return heap;
 }
 
 bool Heap::ShouldBePromoted(Address old_address) {
@@ -440,7 +453,7 @@ AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
   MSAN_MEMORY_IS_INITIALIZED(&candidate_map, sizeof(candidate_map));
-  if (candidate_map != allocation_memento_map()) {
+  if (candidate_map != ReadOnlyRoots(this).allocation_memento_map()) {
     return nullptr;
   }
 
@@ -489,13 +502,12 @@ AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
 void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
                                 PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
-  DCHECK(InFromSpace(object) ||
-         (InToSpace(object) &&
-          Page::FromAddress(object->address())
-              ->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) ||
-         (!InNewSpace(object) &&
-          Page::FromAddress(object->address())
-              ->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)));
+  DCHECK(
+      InFromSpace(object) ||
+      (InToSpace(object) && Page::FromAddress(object->address())
+                                ->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) ||
+      (!InNewSpace(object) && Page::FromAddress(object->address())
+                                  ->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)));
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(map->instance_type()))
     return;
@@ -518,7 +530,7 @@ Isolate* Heap::isolate() {
 
 void Heap::ExternalStringTable::AddString(String* string) {
   DCHECK(string->IsExternalString());
-  if (heap_->InNewSpace(string)) {
+  if (InNewSpace(string)) {
     new_space_strings_.push_back(string);
   } else {
     old_space_strings_.push_back(string);
@@ -526,15 +538,16 @@ void Heap::ExternalStringTable::AddString(String* string) {
 }
 
 Oddball* Heap::ToBoolean(bool condition) {
-  return condition ? true_value() : false_value();
+  ReadOnlyRoots roots(this);
+  return condition ? roots.true_value() : roots.false_value();
 }
 
-uint32_t Heap::HashSeed() {
-  uint32_t seed = static_cast<uint32_t>(hash_seed()->value());
+uint64_t Heap::HashSeed() {
+  uint64_t seed;
+  hash_seed()->copy_out(0, reinterpret_cast<byte*>(&seed), kInt64Size);
   DCHECK(FLAG_randomize_hashes || seed == 0);
   return seed;
 }
-
 
 int Heap::NextScriptId() {
   int last_id = last_script_id()->value();
@@ -546,8 +559,8 @@ int Heap::NextScriptId() {
 
 int Heap::NextDebuggingId() {
   int last_id = last_debugging_id()->value();
-  if (last_id == SharedFunctionInfo::DebuggingIdBits::kMax) {
-    last_id = SharedFunctionInfo::kNoDebuggingId;
+  if (last_id == DebugInfo::DebuggingIdBits::kMax) {
+    last_id = DebugInfo::kNoDebuggingId;
   }
   last_id++;
   set_last_debugging_id(Smi::FromInt(last_id));

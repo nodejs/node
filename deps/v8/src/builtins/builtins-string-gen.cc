@@ -347,6 +347,13 @@ TF_BUILTIN(StringAdd_ConvertRight_NotTenured, StringBuiltinsAssembler) {
                      right);
 }
 
+TF_BUILTIN(SubString, StringBuiltinsAssembler) {
+  TNode<String> string = CAST(Parameter(Descriptor::kString));
+  TNode<Smi> from = CAST(Parameter(Descriptor::kFrom));
+  TNode<Smi> to = CAST(Parameter(Descriptor::kTo));
+  Return(SubString(string, SmiUntag(from), SmiUntag(to)));
+}
+
 void StringBuiltinsAssembler::GenerateStringAt(char const* method_name,
                                                TNode<Context> context,
                                                Node* receiver,
@@ -628,8 +635,8 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
   TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
+  Node* context = Parameter(Descriptor::kContext);
 
   CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
   TNode<Smi> smi_argc = SmiTag(arguments.GetLength(INTPTR_PARAMETERS));
@@ -787,9 +794,10 @@ TF_BUILTIN(StringPrototypeConcat, CodeStubAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
   CodeStubArguments arguments(
-      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+      this,
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
   Node* receiver = arguments.GetReceiver();
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
   receiver = ToThisString(context, receiver, "String.prototype.concat");
@@ -990,24 +998,26 @@ TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
 // ES6 String.prototype.includes(searchString [, position])
 // #sec-string.prototype.includes
 TF_BUILTIN(StringPrototypeIncludes, StringIncludesIndexOfAssembler) {
-  Generate(kIncludes);
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  Generate(kIncludes, argc, context);
 }
 
 // ES6 String.prototype.indexOf(searchString [, position])
 // #sec-string.prototype.indexof
 TF_BUILTIN(StringPrototypeIndexOf, StringIncludesIndexOfAssembler) {
-  Generate(kIndexOf);
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  Generate(kIndexOf, argc, context);
 }
 
-void StringIncludesIndexOfAssembler::Generate(SearchVariant variant) {
-  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
-  // arguments are reordered.
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* const context = Parameter(BuiltinDescriptor::kContext);
-  CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
+void StringIncludesIndexOfAssembler::Generate(SearchVariant variant,
+                                              TNode<IntPtrT> argc,
+                                              TNode<Context> context) {
+  CodeStubArguments arguments(this, argc);
   Node* const receiver = arguments.GetReceiver();
-  // From now on use word-size argc value.
-  argc = arguments.GetLength(INTPTR_PARAMETERS);
 
   VARIABLE(var_search_string, MachineRepresentation::kTagged);
   VARIABLE(var_position, MachineRepresentation::kTagged);
@@ -1620,10 +1630,8 @@ class StringPadAssembler : public StringBuiltinsAssembler {
  protected:
   enum Variant { kStart, kEnd };
 
-  void Generate(Variant variant, const char* method_name) {
-    Node* const context = Parameter(BuiltinDescriptor::kContext);
-    Node* argc =
-        ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  void Generate(Variant variant, const char* method_name, TNode<IntPtrT> argc,
+                TNode<Context> context) {
     CodeStubArguments arguments(this, argc);
     Node* const receiver = arguments.GetReceiver();
     Node* const receiver_string = ToThisString(context, receiver, method_name);
@@ -1733,11 +1741,19 @@ class StringPadAssembler : public StringBuiltinsAssembler {
 };
 
 TF_BUILTIN(StringPrototypePadEnd, StringPadAssembler) {
-  Generate(kEnd, "String.prototype.padEnd");
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  Generate(kEnd, "String.prototype.padEnd", argc, context);
 }
 
 TF_BUILTIN(StringPrototypePadStart, StringPadAssembler) {
-  Generate(kStart, "String.prototype.padStart");
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  Generate(kStart, "String.prototype.padStart", argc, context);
 }
 
 // ES6 #sec-string.prototype.search
@@ -1757,12 +1773,12 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   const int kStart = 0;
   const int kEnd = 1;
   Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
   Node* const receiver = args.GetReceiver();
   TNode<Object> start = args.GetOptionalArgumentValue(kStart);
   TNode<Object> end = args.GetOptionalArgumentValue(kEnd);
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   // 1. Let O be ? RequireObjectCoercible(this value).
   RequireObjectCoercible(context, receiver, "String.prototype.slice");
@@ -1821,9 +1837,8 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
     ToDirectStringAssembler to_direct(state(), subject_string);
     to_direct.TryToDirect(&call_runtime);
-    TNode<FixedArray> elements =
-        AllocateFixedArray(PACKED_ELEMENTS, length_smi,
-                           AllocationFlag::kAllowLargeObjectAllocation);
+    TNode<FixedArray> elements = AllocateFixedArray(
+        PACKED_ELEMENTS, length, AllocationFlag::kAllowLargeObjectAllocation);
     // Don't allocate anything while {string_data} is live!
     TNode<RawPtrT> string_data = UncheckedCast<RawPtrT>(
         to_direct.PointerToData(&fill_thehole_and_call_runtime));
@@ -1882,13 +1897,13 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   const int kLimitArg = 1;
 
   Node* const argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   Node* const receiver = args.GetReceiver();
   Node* const separator = args.GetOptionalArgumentValue(kSeparatorArg);
   Node* const limit = args.GetOptionalArgumentValue(kLimitArg);
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   TNode<Smi> smi_zero = SmiConstant(0);
 
@@ -1984,13 +1999,13 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   const int kLengthArg = 1;
 
   Node* const argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   Node* const receiver = args.GetReceiver();
   TNode<Object> start = args.GetOptionalArgumentValue(kStartArg);
   TNode<Object> length = args.GetOptionalArgumentValue(kLengthArg);
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label out(this);
 
@@ -2140,13 +2155,13 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
   const int kEndArg = 1;
 
   Node* const argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   Node* const receiver = args.GetReceiver();
   Node* const start = args.GetOptionalArgumentValue(kStartArg);
   Node* const end = args.GetOptionalArgumentValue(kEndArg);
-  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Label out(this);
 
@@ -2191,26 +2206,37 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
 
 // ES6 #sec-string.prototype.trim
 TF_BUILTIN(StringPrototypeTrim, StringTrimAssembler) {
-  Generate(String::kTrim, "String.prototype.trim");
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  Generate(String::kTrim, "String.prototype.trim", argc, context);
 }
 
 // https://github.com/tc39/proposal-string-left-right-trim
 TF_BUILTIN(StringPrototypeTrimStart, StringTrimAssembler) {
-  Generate(String::kTrimStart, "String.prototype.trimLeft");
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  Generate(String::kTrimStart, "String.prototype.trimLeft", argc, context);
 }
 
 // https://github.com/tc39/proposal-string-left-right-trim
 TF_BUILTIN(StringPrototypeTrimEnd, StringTrimAssembler) {
-  Generate(String::kTrimEnd, "String.prototype.trimRight");
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  Generate(String::kTrimEnd, "String.prototype.trimRight", argc, context);
 }
 
 void StringTrimAssembler::Generate(String::TrimMode mode,
-                                   const char* method_name) {
+                                   const char* method_name, TNode<IntPtrT> argc,
+                                   TNode<Context> context) {
   Label return_emptystring(this), if_runtime(this);
 
-  Node* const argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* const context = Parameter(BuiltinDescriptor::kContext);
-  CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments arguments(this, argc);
   Node* const receiver = arguments.GetReceiver();
 
   // Check that {receiver} is coercible to Object and convert it to a String.

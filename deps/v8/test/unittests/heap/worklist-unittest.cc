@@ -111,7 +111,7 @@ TEST(WorkListTest, CreateEmpty) {
   TestWorklist worklist;
   TestWorklist::View worklist_view(&worklist, 0);
   EXPECT_TRUE(worklist_view.IsLocalEmpty());
-  EXPECT_TRUE(worklist.IsGlobalEmpty());
+  EXPECT_TRUE(worklist.IsEmpty());
 }
 
 TEST(WorkListTest, LocalPushPop) {
@@ -147,14 +147,14 @@ TEST(WorkListTest, LocalPushStaysPrivate) {
   TestWorklist::View worklist_view2(&worklist, 1);
   SomeObject dummy;
   SomeObject* retrieved = nullptr;
-  EXPECT_TRUE(worklist.IsGlobalEmpty());
+  EXPECT_TRUE(worklist.IsEmpty());
   EXPECT_TRUE(worklist_view1.Push(&dummy));
-  EXPECT_FALSE(worklist.IsGlobalEmpty());
+  EXPECT_FALSE(worklist.IsEmpty());
   EXPECT_FALSE(worklist_view2.Pop(&retrieved));
   EXPECT_EQ(nullptr, retrieved);
   EXPECT_TRUE(worklist_view1.Pop(&retrieved));
   EXPECT_EQ(&dummy, retrieved);
-  EXPECT_TRUE(worklist.IsGlobalEmpty());
+  EXPECT_TRUE(worklist.IsEmpty());
 }
 
 TEST(WorkListTest, GlobalUpdateNull) {
@@ -167,7 +167,7 @@ TEST(WorkListTest, GlobalUpdateNull) {
   }
   EXPECT_TRUE(worklist_view.Push(object));
   worklist.Update([](SomeObject* object, SomeObject** out) { return false; });
-  EXPECT_TRUE(worklist.IsGlobalEmpty());
+  EXPECT_TRUE(worklist.IsEmpty());
 }
 
 TEST(WorkListTest, GlobalUpdate) {
@@ -236,7 +236,7 @@ TEST(WorkListTest, Clear) {
   }
   EXPECT_TRUE(worklist_view.Push(object));
   worklist.Clear();
-  EXPECT_TRUE(worklist.IsGlobalEmpty());
+  EXPECT_TRUE(worklist.IsEmpty());
 }
 
 TEST(WorkListTest, SingleSegmentSteal) {
@@ -258,7 +258,7 @@ TEST(WorkListTest, SingleSegmentSteal) {
     EXPECT_EQ(&dummy, retrieved);
     EXPECT_FALSE(worklist_view1.Pop(&retrieved));
   }
-  EXPECT_TRUE(worklist.IsGlobalEmpty());
+  EXPECT_TRUE(worklist.IsEmpty());
 }
 
 TEST(WorkListTest, MultipleSegmentsStolen) {
@@ -298,7 +298,7 @@ TEST(WorkListTest, MultipleSegmentsStolen) {
     EXPECT_EQ(expect_bag3, retrieved);
     EXPECT_FALSE(worklist_view1.Pop(&retrieved));
   }
-  EXPECT_TRUE(worklist.IsGlobalEmpty());
+  EXPECT_TRUE(worklist.IsEmpty());
 }
 
 TEST(WorkListTest, MergeGlobalPool) {
@@ -317,14 +317,14 @@ TEST(WorkListTest, MergeGlobalPool) {
   TestWorklist worklist2;
   TestWorklist::View worklist_view2(&worklist2, 0);
   worklist2.MergeGlobalPool(&worklist1);
-  EXPECT_FALSE(worklist2.IsGlobalEmpty());
+  EXPECT_FALSE(worklist2.IsEmpty());
   for (size_t i = 0; i < TestWorklist::kSegmentCapacity; i++) {
     EXPECT_TRUE(worklist_view2.Pop(&retrieved));
     EXPECT_EQ(&dummy, retrieved);
     EXPECT_FALSE(worklist_view1.Pop(&retrieved));
   }
-  EXPECT_TRUE(worklist1.IsGlobalEmpty());
-  EXPECT_TRUE(worklist2.IsGlobalEmpty());
+  EXPECT_TRUE(worklist1.IsEmpty());
+  EXPECT_TRUE(worklist2.IsEmpty());
 }
 
 }  // namespace internal

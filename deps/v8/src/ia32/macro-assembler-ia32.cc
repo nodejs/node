@@ -27,9 +27,10 @@ namespace internal {
 // -------------------------------------------------------------------------
 // MacroAssembler implementation.
 
-MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
-                               CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, buffer, size, create_code_object) {
+MacroAssembler::MacroAssembler(Isolate* isolate,
+                               const AssemblerOptions& options, void* buffer,
+                               int size, CodeObjectRequired create_code_object)
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
   if (create_code_object == CodeObjectRequired::kYes) {
     // Unlike TurboAssembler, which can be used off the main thread and may not
     // allocate, macro assembler creates its own copy of the self-reference
@@ -41,16 +42,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
   }
 }
 
-TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                               CodeObjectRequired create_code_object)
-    : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    code_object_ = Handle<HeapObject>::New(
-        isolate->heap()->self_reference_marker(), isolate);
-  }
-}
-
-void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
+void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(index)) {
     Handle<Object> object = isolate()->heap()->root_handle(index);
     if (object->IsHeapObject()) {
@@ -67,7 +59,6 @@ void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
                                         times_pointer_size,
                                         roots_array_start));
 }
-
 
 void MacroAssembler::CompareRoot(Register with,
                                  Register scratch,
@@ -510,17 +501,6 @@ void MacroAssembler::AssertSmi(Register object) {
   }
 }
 
-void MacroAssembler::AssertFixedArray(Register object) {
-  if (emit_debug_code()) {
-    test(object, Immediate(kSmiTagMask));
-    Check(not_equal, AbortReason::kOperandIsASmiAndNotAFixedArray);
-    Push(object);
-    CmpObjectType(object, FIXED_ARRAY_TYPE, object);
-    Pop(object);
-    Check(equal, AbortReason::kOperandIsNotAFixedArray);
-  }
-}
-
 void MacroAssembler::AssertConstructor(Register object) {
   if (emit_debug_code()) {
     test(object, Immediate(kSmiTagMask));
@@ -623,14 +603,6 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, esp);
   push(Immediate(StackFrame::TypeToMarker(type)));
-  if (type == StackFrame::INTERNAL) {
-    push(Immediate(CodeObject()));
-    // Check at runtime that this code object was patched correctly.
-    if (emit_debug_code()) {
-      cmp(Operand(esp, 0), Immediate(isolate()->factory()->undefined_value()));
-      Check(not_equal, AbortReason::kCodeObjectNotProperlyPatched);
-    }
-  }
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
@@ -641,6 +613,30 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   }
   leave();
 }
+
+#ifdef V8_OS_WIN
+void TurboAssembler::AllocateStackFrame(Register bytes_scratch) {
+  // In windows, we cannot increment the stack size by more than one page
+  // (minimum page size is 4KB) without accessing at least one byte on the
+  // page. Check this:
+  // https://msdn.microsoft.com/en-us/library/aa227153(v=vs.60).aspx.
+  constexpr int kPageSize = 4 * 1024;
+  Label check_offset;
+  Label touch_next_page;
+  jmp(&check_offset);
+  bind(&touch_next_page);
+  sub(esp, Immediate(kPageSize));
+  // Just to touch the page, before we increment further.
+  mov(Operand(esp, 0), Immediate(0));
+  sub(bytes_scratch, Immediate(kPageSize));
+
+  bind(&check_offset);
+  cmp(bytes_scratch, kPageSize);
+  j(greater, &touch_next_page);
+
+  sub(esp, bytes_scratch);
+}
+#endif
 
 void MacroAssembler::EnterBuiltinFrame(Register context, Register target,
                                        Register argc) {
@@ -850,8 +846,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   Call(code, RelocInfo::CODE_TARGET);
 }
 
-void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
-                                        SaveFPRegsMode save_doubles) {
+void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
+                                           Register centry) {
   const Runtime::Function* f = Runtime::FunctionForId(fid);
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
@@ -859,9 +855,9 @@ void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
   // smarter.
   Move(eax, Immediate(f->nargs));
   mov(ebx, Immediate(ExternalReference::Create(f)));
-  Handle<Code> code =
-      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
-  Call(code, RelocInfo::CODE_TARGET);
+  DCHECK(!AreAliased(centry, eax, ebx));
+  add(centry, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  Call(centry);
 }
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
@@ -1134,7 +1130,8 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
   DCHECK(fun == edi);
   mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-  mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
+  movzx_w(ebx,
+          FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
 
   ParameterCount expected(ebx);
   InvokeFunctionCode(edi, new_target, expected, actual, flag);
@@ -1276,6 +1273,15 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
   }
 }
 
+void TurboAssembler::Pshufhw(XMMRegister dst, Operand src, uint8_t shuffle) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpshufhw(dst, src, shuffle);
+  } else {
+    pshufhw(dst, src, shuffle);
+  }
+}
+
 void TurboAssembler::Pshuflw(XMMRegister dst, Operand src, uint8_t shuffle) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -1291,6 +1297,24 @@ void TurboAssembler::Pshufd(XMMRegister dst, Operand src, uint8_t shuffle) {
     vpshufd(dst, src, shuffle);
   } else {
     pshufd(dst, src, shuffle);
+  }
+}
+
+void TurboAssembler::Psraw(XMMRegister dst, int8_t shift) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsraw(dst, dst, shift);
+  } else {
+    psraw(dst, shift);
+  }
+}
+
+void TurboAssembler::Psrlw(XMMRegister dst, int8_t shift) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsrlw(dst, dst, shift);
+  } else {
+    psrlw(dst, shift);
   }
 }
 
@@ -1336,20 +1360,6 @@ void TurboAssembler::Psignd(XMMRegister dst, Operand src) {
   UNREACHABLE();
 }
 
-void TurboAssembler::Ptest(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vptest(dst, src);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    ptest(dst, src);
-    return;
-  }
-  UNREACHABLE();
-}
-
 void TurboAssembler::Pshufb(XMMRegister dst, Operand src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -1359,6 +1369,34 @@ void TurboAssembler::Pshufb(XMMRegister dst, Operand src) {
   if (CpuFeatures::IsSupported(SSSE3)) {
     CpuFeatureScope sse_scope(this, SSSE3);
     pshufb(dst, src);
+    return;
+  }
+  UNREACHABLE();
+}
+
+void TurboAssembler::Pblendw(XMMRegister dst, Operand src, uint8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpblendw(dst, dst, src, imm8);
+    return;
+  }
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pblendw(dst, src, imm8);
+    return;
+  }
+  UNREACHABLE();
+}
+
+void TurboAssembler::Palignr(XMMRegister dst, Operand src, uint8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpalignr(dst, dst, src, imm8);
+    return;
+  }
+  if (CpuFeatures::IsSupported(SSSE3)) {
+    CpuFeatureScope sse_scope(this, SSSE3);
+    palignr(dst, src, imm8);
     return;
   }
   UNREACHABLE();
@@ -1543,16 +1581,15 @@ void TurboAssembler::CheckStackAlignment() {
 void TurboAssembler::Abort(AbortReason reason) {
 #ifdef DEBUG
   const char* msg = GetAbortReason(reason);
-  if (msg != nullptr) {
-    RecordComment("Abort message: ");
-    RecordComment(msg);
-  }
+  RecordComment("Abort message: ");
+  RecordComment(msg);
+#endif
 
-  if (FLAG_trap_on_abort) {
+  // Avoid emitting call to builtin if requested.
+  if (trap_on_abort()) {
     int3();
     return;
   }
-#endif
 
   Move(edx, Smi::FromInt(static_cast<int>(reason)));
 

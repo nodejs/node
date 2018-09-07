@@ -38,7 +38,7 @@ void Isolate::set_pending_exception(Object* exception_obj) {
 
 void Isolate::clear_pending_exception() {
   DCHECK(!thread_local_top_.pending_exception_->IsException(this));
-  thread_local_top_.pending_exception_ = heap_.the_hole_value();
+  thread_local_top_.pending_exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
 
@@ -60,7 +60,7 @@ void Isolate::clear_wasm_caught_exception() {
 }
 
 void Isolate::clear_pending_message() {
-  thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
+  thread_local_top_.pending_message_obj_ = ReadOnlyRoots(this).the_hole_value();
 }
 
 
@@ -73,17 +73,18 @@ Object* Isolate::scheduled_exception() {
 
 bool Isolate::has_scheduled_exception() {
   DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
-  return thread_local_top_.scheduled_exception_ != heap_.the_hole_value();
+  return thread_local_top_.scheduled_exception_ !=
+         ReadOnlyRoots(this).the_hole_value();
 }
 
 
 void Isolate::clear_scheduled_exception() {
   DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
-  thread_local_top_.scheduled_exception_ = heap_.the_hole_value();
+  thread_local_top_.scheduled_exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
 bool Isolate::is_catchable_by_javascript(Object* exception) {
-  return exception != heap()->termination_exception();
+  return exception != ReadOnlyRoots(heap()).termination_exception();
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {

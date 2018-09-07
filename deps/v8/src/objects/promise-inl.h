@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_PROMISE_INL_H_
 #define V8_OBJECTS_PROMISE_INL_H_
 
+#include "src/objects/js-promise-inl.h"
 #include "src/objects/promise.h"
 
 // Has to be the last include (doesn't have include guards):

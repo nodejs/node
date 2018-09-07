@@ -52,6 +52,10 @@ struct Diamond {
   Node* Phi(MachineRepresentation rep, Node* tv, Node* fv) {
     return graph->NewNode(common->Phi(rep, 2), tv, fv, merge);
   }
+
+  Node* EffectPhi(Node* tv, Node* fv) {
+    return graph->NewNode(common->EffectPhi(2), tv, fv, merge);
+  }
 };
 
 }  // namespace compiler

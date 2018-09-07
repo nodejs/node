@@ -18,11 +18,21 @@ namespace compiler {
 
 class NodeOrigin {
  public:
+  typedef enum { kWasmBytecode, kGraphNode } OriginKind;
   NodeOrigin(const char* phase_name, const char* reducer_name,
              NodeId created_from)
       : phase_name_(phase_name),
         reducer_name_(reducer_name),
+        origin_kind_(kGraphNode),
         created_from_(created_from) {}
+
+  NodeOrigin(const char* phase_name, const char* reducer_name,
+             OriginKind origin_kind, uint64_t created_from)
+      : phase_name_(phase_name),
+        reducer_name_(reducer_name),
+        origin_kind_(origin_kind),
+        created_from_(created_from) {}
+
   NodeOrigin(const NodeOrigin& other) = default;
   static NodeOrigin Unknown() { return NodeOrigin(); }
 
@@ -30,6 +40,8 @@ class NodeOrigin {
   int64_t created_from() const { return created_from_; }
   const char* reducer_name() const { return reducer_name_; }
   const char* phase_name() const { return phase_name_; }
+
+  OriginKind origin_kind() const { return origin_kind_; }
 
   bool operator==(const NodeOrigin& o) const {
     return reducer_name_ == o.reducer_name_ && created_from_ == o.created_from_;
@@ -44,6 +56,7 @@ class NodeOrigin {
         created_from_(std::numeric_limits<int64_t>::min()) {}
   const char* phase_name_;
   const char* reducer_name_;
+  OriginKind origin_kind_;
   int64_t created_from_;
 };
 

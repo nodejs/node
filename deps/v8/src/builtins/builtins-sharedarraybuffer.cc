@@ -29,7 +29,8 @@ inline bool AtomicIsLockFree(uint32_t size) {
 BUILTIN(AtomicsIsLockFree) {
   HandleScope scope(isolate);
   Handle<Object> size = args.atOrUndefined(isolate, 1);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, size, Object::ToNumber(size));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, size,
+                                     Object::ToNumber(isolate, size));
   return *isolate->factory()->ToBoolean(AtomicIsLockFree(size->Number()));
 }
 
@@ -93,7 +94,7 @@ BUILTIN(AtomicsWake) {
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array, true));
 
   Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
-  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  if (maybe_index.IsNothing()) return ReadOnlyRoots(isolate).exception();
   size_t i = maybe_index.FromJust();
 
   uint32_t c;
@@ -130,7 +131,7 @@ BUILTIN(AtomicsWait) {
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array, true));
 
   Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
-  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  if (maybe_index.IsNothing()) return ReadOnlyRoots(isolate).exception();
   size_t i = maybe_index.FromJust();
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
@@ -139,13 +140,13 @@ BUILTIN(AtomicsWait) {
 
   double timeout_number;
   if (timeout->IsUndefined(isolate)) {
-    timeout_number = isolate->heap()->infinity_value()->Number();
+    timeout_number = ReadOnlyRoots(isolate).infinity_value()->Number();
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
-                                       Object::ToNumber(timeout));
+                                       Object::ToNumber(isolate, timeout));
     timeout_number = timeout->Number();
     if (std::isnan(timeout_number))
-      timeout_number = isolate->heap()->infinity_value()->Number();
+      timeout_number = ReadOnlyRoots(isolate).infinity_value()->Number();
     else if (timeout_number < 0)
       timeout_number = 0;
   }

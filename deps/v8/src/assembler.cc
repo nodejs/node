@@ -43,28 +43,40 @@
 #include "src/ostreams.h"
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serializer-common.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
 
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
+AssemblerOptions AssemblerOptions::Default(
+    Isolate* isolate, bool explicitly_support_serialization) {
+  AssemblerOptions options;
+  bool serializer =
+      isolate->serializer_enabled() || explicitly_support_serialization;
+  options.record_reloc_info_for_serialization = serializer;
+  options.enable_root_array_delta_access = !serializer;
+#ifdef USE_SIMULATOR
+  // Don't generate simulator specific code if we are building a snapshot, which
+  // might be run on real hardware.
+  options.enable_simulator_code = !serializer;
+#endif
+  options.isolate_independent_code = isolate->ShouldLoadConstantsFromRootList();
+  options.inline_offheap_trampolines = !serializer;
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+  options.code_range_start =
+      isolate->heap()->memory_allocator()->code_range()->start();
+#endif
+  return options;
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of AssemblerBase
 
-AssemblerBase::IsolateData::IsolateData(Isolate* isolate)
-    : serializer_enabled_(isolate->serializer_enabled())
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-      ,
-      code_range_start_(
-          isolate->heap()->memory_allocator()->code_range()->start())
-#endif
-{
-}
-
-AssemblerBase::AssemblerBase(IsolateData isolate_data, void* buffer,
+AssemblerBase::AssemblerBase(const AssemblerOptions& options, void* buffer,
                              int buffer_size)
-    : isolate_data_(isolate_data),
+    : options_(options),
       enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
@@ -95,7 +107,7 @@ void AssemblerBase::FlushICache(void* start, size_t size) {
 }
 
 void AssemblerBase::Print(Isolate* isolate) {
-  OFStream os(stdout);
+  StdoutStream os;
   v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_);
 }
 
@@ -164,8 +176,7 @@ unsigned CpuFeatures::dcache_line_size_ = 0;
 //
 //   01: code_target:          [6-bit pc delta] 01
 //
-//   10: short_data_record:    [6-bit pc delta] 10 followed by
-//                             [8-bit data delta]
+//   10: wasm_stub_call:       [6-bit pc delta] 10
 //
 //   11: long_record           [6 bit reloc mode] 11
 //                             followed by pc delta
@@ -189,7 +200,7 @@ const int kLongTagBits = 6;
 
 const int kEmbeddedObjectTag = 0;
 const int kCodeTargetTag = 1;
-const int kLocatableTag = 2;
+const int kWasmStubCallTag = 2;
 const int kDefaultTag = 3;
 
 const int kSmallPCDeltaBits = kBitsPerByte - kTagBits;
@@ -201,54 +212,6 @@ const int kChunkMask = (1 << kChunkBits) - 1;
 const int kLastChunkTagBits = 1;
 const int kLastChunkTagMask = 1;
 const int kLastChunkTag = 1;
-
-// static
-bool RelocInfo::OffHeapTargetIsCodedSpecially() {
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
-  return false;
-#elif defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
-    defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_S390)
-  return true;
-#endif
-}
-
-void RelocInfo::set_global_handle(Address address,
-                                  ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, WASM_GLOBAL_HANDLE);
-  set_embedded_address(address, icache_flush_mode);
-}
-
-Address RelocInfo::wasm_call_address() const {
-  DCHECK_EQ(rmode_, WASM_CALL);
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
-void RelocInfo::set_wasm_call_address(Address address,
-                                      ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, WASM_CALL);
-  Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
-}
-
-Address RelocInfo::global_handle() const {
-  DCHECK_EQ(rmode_, WASM_GLOBAL_HANDLE);
-  return embedded_address();
-}
-
-void RelocInfo::set_target_address(Address target,
-                                   WriteBarrierMode write_barrier_mode,
-                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
-  Assembler::set_target_address_at(pc_, constant_pool_, target,
-                                   icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
-      IsCodeTarget(rmode_)) {
-    Code* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  target_code);
-  }
-}
 
 uint32_t RelocInfoWriter::WriteLongPCJump(uint32_t pc_delta) {
   // Return if the pc_delta can fit in kSmallPCDeltaBits bits.
@@ -324,14 +287,15 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteShortTaggedPC(pc_delta, kCodeTargetTag);
     DCHECK_LE(begin_pos - pos_, RelocInfo::kMaxCallSize);
-  } else if (rmode == RelocInfo::DEOPT_REASON) {
-    DCHECK(rinfo->data() < (1 << kBitsPerByte));
-    WriteShortTaggedPC(pc_delta, kLocatableTag);
-    WriteShortData(rinfo->data());
+  } else if (rmode == RelocInfo::WASM_STUB_CALL) {
+    WriteShortTaggedPC(pc_delta, kWasmStubCallTag);
   } else {
     WriteModeAndPC(pc_delta, rmode);
     if (RelocInfo::IsComment(rmode)) {
       WriteData(rinfo->data());
+    } else if (RelocInfo::IsDeoptReason(rmode)) {
+      DCHECK_LT(rinfo->data(), 1 << kBitsPerByte);
+      WriteShortData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) || RelocInfo::IsDeoptId(rmode) ||
                RelocInfo::IsDeoptPosition(rmode)) {
@@ -412,13 +376,9 @@ void RelocIterator::next() {
     } else if (tag == kCodeTargetTag) {
       ReadShortTaggedPC();
       if (SetMode(RelocInfo::CODE_TARGET)) return;
-    } else if (tag == kLocatableTag) {
+    } else if (tag == kWasmStubCallTag) {
       ReadShortTaggedPC();
-      Advance();
-      if (SetMode(RelocInfo::DEOPT_REASON)) {
-        ReadShortData();
-        return;
-      }
+      if (SetMode(RelocInfo::WASM_STUB_CALL)) return;
     } else {
       DCHECK_EQ(tag, kDefaultTag);
       RelocInfo::Mode rmode = GetMode();
@@ -432,6 +392,12 @@ void RelocIterator::next() {
             return;
           }
           Advance(kIntptrSize);
+        } else if (RelocInfo::IsDeoptReason(rmode)) {
+          Advance();
+          if (SetMode(rmode)) {
+            ReadShortData();
+            return;
+          }
         } else if (RelocInfo::IsConstPool(rmode) ||
                    RelocInfo::IsVeneerPool(rmode) ||
                    RelocInfo::IsDeoptId(rmode) ||
@@ -461,6 +427,14 @@ RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
                     code_reference.relocation_end(),
                     code_reference.relocation_start(), mode_mask) {}
 
+RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code* code,
+                             int mode_mask)
+    : RelocIterator(
+          code, embedded_data->InstructionStartOfBuiltin(code->builtin_index()),
+          code->constant_pool(),
+          code->relocation_start() + code->relocation_size(),
+          code->relocation_start(), mode_mask) {}
+
 RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
     : RelocIterator(nullptr, reinterpret_cast<Address>(desc.buffer), 0,
                     desc.buffer + desc.buffer_size,
@@ -472,9 +446,7 @@ RelocIterator::RelocIterator(Vector<byte> instructions,
                              int mode_mask)
     : RelocIterator(nullptr, reinterpret_cast<Address>(instructions.start()),
                     const_pool, reloc_info.start() + reloc_info.size(),
-                    reloc_info.start(), mode_mask) {
-  rinfo_.flags_ = RelocInfo::kInNativeWasmCode;
-}
+                    reloc_info.start(), mode_mask) {}
 
 RelocIterator::RelocIterator(Code* host, Address pc, Address constant_pool,
                              const byte* pos, const byte* end, int mode_mask)
@@ -491,12 +463,63 @@ RelocIterator::RelocIterator(Code* host, Address pc, Address constant_pool,
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
+// static
+bool RelocInfo::OffHeapTargetIsCodedSpecially() {
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
+  return false;
+#elif defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_S390)
+  return true;
+#endif
+}
+
+Address RelocInfo::wasm_call_address() const {
+  DCHECK_EQ(rmode_, WASM_CALL);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+void RelocInfo::set_wasm_call_address(Address address,
+                                      ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, WASM_CALL);
+  Assembler::set_target_address_at(pc_, constant_pool_, address,
+                                   icache_flush_mode);
+}
+
+Address RelocInfo::wasm_stub_call_address() const {
+  DCHECK_EQ(rmode_, WASM_STUB_CALL);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+void RelocInfo::set_wasm_stub_call_address(Address address,
+                                           ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, WASM_STUB_CALL);
+  Assembler::set_target_address_at(pc_, constant_pool_, address,
+                                   icache_flush_mode);
+}
+
+void RelocInfo::set_target_address(Address target,
+                                   WriteBarrierMode write_barrier_mode,
+                                   ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsCodeTargetMode(rmode_) || IsRuntimeEntry(rmode_) ||
+         IsWasmCall(rmode_));
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
+                                   icache_flush_mode);
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
+      IsCodeTargetMode(rmode_)) {
+    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  target_code);
+  }
+}
+
 #ifdef DEBUG
 bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
   // Ensure there are no code targets or embedded objects present in the
   // deoptimization entries, they would require relocation after code
   // generation.
-  int mode_mask = RelocInfo::kCodeTargetMask |
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::kApplyMask;
   RelocIterator it(desc, mode_mask);
@@ -513,6 +536,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "embedded object";
     case CODE_TARGET:
       return "code target";
+    case RELATIVE_CODE_TARGET:
+      return "relative code target";
     case RUNTIME_ENTRY:
       return "runtime entry";
     case COMMENT:
@@ -537,12 +562,10 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "constant pool";
     case VENEER_POOL:
       return "veneer pool";
-    case WASM_GLOBAL_HANDLE:
-      return "global handle";
     case WASM_CALL:
       return "internal wasm call";
-    case WASM_CODE_TABLE_ENTRY:
-      return "wasm code table entry";
+    case WASM_STUB_CALL:
+      return "wasm stub call";
     case JS_TO_WASM_CALL:
       return "js to wasm call";
     case NUMBER_OF_MODES:
@@ -564,33 +587,32 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   } else if (rmode_ == EMBEDDED_OBJECT) {
     os << "  (" << Brief(target_object()) << ")";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
-    ExternalReferenceEncoder ref_encoder(isolate);
-    os << " ("
-       << ref_encoder.NameOfAddress(isolate, target_external_reference())
-       << ")  (" << reinterpret_cast<const void*>(target_external_reference())
-       << ")";
-  } else if (IsCodeTarget(rmode_)) {
-    const Address code_target = target_address();
-    if (flags_ & kInNativeWasmCode) {
-      os << " (wasm trampoline) ";
-    } else {
-      Code* code = Code::GetCodeFromTargetAddress(code_target);
-      DCHECK(code->IsCode());
-      os << " (" << Code::Kind2String(code->kind());
-      if (Builtins::IsBuiltin(code)) {
-        os << " " << Builtins::name(code->builtin_index());
-      } else if (code->kind() == Code::STUB) {
-        os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
-      }
-      os << ") ";
+    if (isolate) {
+      ExternalReferenceEncoder ref_encoder(isolate);
+      os << " ("
+         << ref_encoder.NameOfAddress(isolate, target_external_reference())
+         << ") ";
     }
-    os << " (" << reinterpret_cast<const void*>(target_address()) << ")";
+    os << " (" << reinterpret_cast<const void*>(target_external_reference())
+       << ")";
+  } else if (IsCodeTargetMode(rmode_)) {
+    const Address code_target = target_address();
+    Code* code = Code::GetCodeFromTargetAddress(code_target);
+    DCHECK(code->IsCode());
+    os << " (" << Code::Kind2String(code->kind());
+    if (Builtins::IsBuiltin(code)) {
+      os << " " << Builtins::name(code->builtin_index());
+    } else if (code->kind() == Code::STUB) {
+      os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
+    }
+    os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
-    // Depotimization bailouts are stored as runtime entries.
-    int id = Deoptimizer::GetDeoptimizationId(
-        isolate, target_address(), Deoptimizer::EAGER);
-    if (id != Deoptimizer::kNotDeoptimizationEntry) {
-      os << "  (deoptimization bailout " << id << ")";
+    // Deoptimization bailouts are stored as runtime entries.
+    DeoptimizeKind type;
+    if (Deoptimizer::IsDeoptimizationEntry(isolate, target_address(), &type)) {
+      int id = GetDeoptimizationId(isolate, type);
+      os << "  (" << Deoptimizer::MessageFor(type) << " deoptimization bailout "
+         << id << ")";
     }
   } else if (IsConstPool(rmode_)) {
     os << " (size " << static_cast<int>(data_) << ")";
@@ -604,9 +626,10 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
 void RelocInfo::Verify(Isolate* isolate) {
   switch (rmode_) {
     case EMBEDDED_OBJECT:
-      Object::VerifyPointer(target_object());
+      Object::VerifyPointer(isolate, target_object());
       break;
-    case CODE_TARGET: {
+    case CODE_TARGET:
+    case RELATIVE_CODE_TARGET: {
       // convert inline target address to code object
       Address addr = target_address();
       CHECK_NE(addr, kNullAddress);
@@ -641,10 +664,9 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEOPT_ID:
     case CONST_POOL:
     case VENEER_POOL:
-    case WASM_GLOBAL_HANDLE:
     case WASM_CALL:
+    case WASM_STUB_CALL:
     case JS_TO_WASM_CALL:
-    case WASM_CODE_TABLE_ENTRY:
     case NONE:
       break;
     case NUMBER_OF_MODES:
@@ -888,9 +910,34 @@ void Assembler::DataAlign(int m) {
   }
 }
 
-void Assembler::RequestHeapObject(HeapObjectRequest request) {
+void AssemblerBase::RequestHeapObject(HeapObjectRequest request) {
   request.set_offset(pc_offset());
   heap_object_requests_.push_front(request);
+}
+
+int AssemblerBase::AddCodeTarget(Handle<Code> target) {
+  int current = static_cast<int>(code_targets_.size());
+  if (current > 0 && !target.is_null() &&
+      code_targets_.back().address() == target.address()) {
+    // Optimization if we keep jumping to the same code target.
+    return current - 1;
+  } else {
+    code_targets_.push_back(target);
+    return current;
+  }
+}
+
+Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
+  DCHECK_LE(0, code_target_index);
+  DCHECK_LT(code_target_index, code_targets_.size());
+  return code_targets_[code_target_index];
+}
+
+void AssemblerBase::UpdateCodeTarget(intptr_t code_target_index,
+                                     Handle<Code> code) {
+  DCHECK_LE(0, code_target_index);
+  DCHECK_LT(code_target_index, code_targets_.size());
+  code_targets_[code_target_index] = code;
 }
 
 }  // namespace internal

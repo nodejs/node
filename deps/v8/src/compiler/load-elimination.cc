@@ -445,12 +445,13 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
 }
 
 void LoadElimination::AbstractMaps::Print() const {
+  StdoutStream os;
   for (auto pair : info_for_node_) {
-    PrintF("    #%d:%s\n", pair.first->id(), pair.first->op()->mnemonic());
-    OFStream os(stdout);
+    os << "    #" << pair.first->id() << ":" << pair.first->op()->mnemonic()
+       << std::endl;
     ZoneHandleSet<Map> const& maps = pair.second;
     for (size_t i = 0; i < maps.size(); ++i) {
-      os << "     - " << Brief(*maps[i]) << "\n";
+      os << "     - " << Brief(*maps[i]) << std::endl;
     }
   }
 }
@@ -1367,6 +1368,8 @@ CommonOperatorBuilder* LoadElimination::common() const {
 }
 
 Graph* LoadElimination::graph() const { return jsgraph()->graph(); }
+
+Isolate* LoadElimination::isolate() const { return jsgraph()->isolate(); }
 
 Factory* LoadElimination::factory() const { return jsgraph()->factory(); }
 

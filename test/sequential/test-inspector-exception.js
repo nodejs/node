@@ -29,7 +29,7 @@ async function testBreakpointOnStart(session) {
   ];
 
   await session.send(commands);
-  await session.waitForBreakOnLine(0, script);
+  await session.waitForBreakOnLine(21, script);
 }
 
 

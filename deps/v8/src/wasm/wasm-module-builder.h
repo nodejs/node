@@ -241,13 +241,6 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void WriteTo(ZoneBuffer& buffer) const;
   void WriteAsmJsOffsetTable(ZoneBuffer& buffer) const;
 
-  // TODO(titzer): use SignatureMap from signature-map.h here.
-  // This signature map is zone-allocated, but the other is heap allocated.
-  struct CompareFunctionSigs {
-    bool operator()(FunctionSig* a, FunctionSig* b) const;
-  };
-  typedef ZoneMap<FunctionSig*, uint32_t, CompareFunctionSigs> SignatureMap;
-
   Zone* zone() { return zone_; }
 
   FunctionSig* GetSignature(uint32_t index) { return signatures_[index]; }
@@ -290,7 +283,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<uint32_t> indirect_functions_;
   ZoneVector<WasmGlobal> globals_;
-  SignatureMap signature_map_;
+  ZoneUnorderedMap<FunctionSig, uint32_t> signature_map_;
   int start_function_index_;
   uint32_t min_memory_size_;
   uint32_t max_memory_size_;

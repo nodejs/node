@@ -13,6 +13,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/code-stubs-utils.h"
+#include "src/code-tracer.h"
 #include "src/counters.h"
 #include "src/gdb-jit.h"
 #include "src/heap/heap-inl.h"
@@ -36,9 +37,7 @@ CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       deoptimization_handler_(kNullAddress),
       miss_handler_(),
-      has_miss_handler_(false) {
-  stub->InitializeDescriptor(this);
-}
+      has_miss_handler_(false) {}
 
 CodeStubDescriptor::CodeStubDescriptor(Isolate* isolate, uint32_t stub_key)
     : isolate_(isolate),
@@ -90,17 +89,17 @@ void CodeStub::RecordCodeGeneration(Handle<Code> code) {
   Counters* counters = isolate()->counters();
   counters->total_stubs_code_size()->Increment(code->raw_instruction_size());
 #ifdef DEBUG
-  code->VerifyEmbeddedObjects();
+  code->VerifyEmbeddedObjects(isolate());
 #endif
 }
 
 
 void CodeStub::DeleteStubFromCacheForTesting() {
   Heap* heap = isolate_->heap();
-  Handle<SimpleNumberDictionary> dict(heap->code_stubs());
-  int entry = dict->FindEntry(GetKey());
+  Handle<SimpleNumberDictionary> dict(heap->code_stubs(), isolate());
+  int entry = dict->FindEntry(isolate(), GetKey());
   DCHECK_NE(SimpleNumberDictionary::kNotFound, entry);
-  dict = SimpleNumberDictionary::DeleteEntry(dict, entry);
+  dict = SimpleNumberDictionary::DeleteEntry(isolate(), dict, entry);
   heap->SetRootCodeStubs(*dict);
 }
 
@@ -108,15 +107,16 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate(), nullptr, 256, CodeObjectRequired::kYes);
+  // TODO(yangguo): remove this once we can serialize IC stubs.
+  AssemblerOptions options = AssemblerOptions::Default(isolate(), true);
+  MacroAssembler masm(isolate(), options, nullptr, 256,
+                      CodeObjectRequired::kYes);
 
   {
     // Update the static counter each time a new code stub is generated.
     isolate()->counters()->code_stubs()->Increment();
 
     // Generate the code for the stub.
-    // TODO(yangguo): remove this once we can serialize IC stubs.
-    masm.enable_serializer();
     NoCurrentFrameScope scope(&masm);
     Generate(&masm);
   }
@@ -141,7 +141,7 @@ Handle<Code> CodeStub::GetCode() {
   Code* code;
   if (FindCodeInCache(&code)) {
     DCHECK(code->is_stub());
-    return handle(code);
+    return handle(code, isolate_);
   }
 
   {
@@ -167,7 +167,7 @@ Handle<Code> CodeStub::GetCode() {
 
     // Update the dictionary and the root in Heap.
     Handle<SimpleNumberDictionary> dict = SimpleNumberDictionary::Set(
-        handle(heap->code_stubs()), GetKey(), new_object);
+        isolate(), handle(heap->code_stubs(), isolate_), GetKey(), new_object);
     heap->SetRootCodeStubs(*dict);
     code = *new_object;
   }
@@ -177,7 +177,7 @@ Handle<Code> CodeStub::GetCode() {
   return Handle<Code>(code, isolate());
 }
 
-CodeStub::Major CodeStub::GetMajorKey(Code* code_stub) {
+CodeStub::Major CodeStub::GetMajorKey(const Code* code_stub) {
   return MajorKeyFromKey(code_stub->stub_key());
 }
 
@@ -231,7 +231,6 @@ static void InitializeDescriptorDispatchedCall(CodeStub* stub,
                                                void** value_out) {
   CodeStubDescriptor* descriptor_out =
       reinterpret_cast<CodeStubDescriptor*>(value_out);
-  stub->InitializeDescriptor(descriptor_out);
   descriptor_out->set_call_descriptor(stub->GetCallInterfaceDescriptor());
 }
 
@@ -263,9 +262,10 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
   compiler::CodeAssemblerState state(
       isolate(), &zone, descriptor, Code::STUB, name,
-      PoisoningMitigationLevel::kDontPoison, 1, GetKey());
+      PoisoningMitigationLevel::kDontPoison, GetKey());
   GenerateAssembly(&state);
-  return compiler::CodeAssembler::GenerateCode(&state);
+  return compiler::CodeAssembler::GenerateCode(
+      &state, AssemblerOptions::Default(isolate()));
 }
 
 TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
@@ -302,23 +302,6 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
     Comment("Miss");
     TailCallRuntime(Runtime::kElementsTransitionAndStoreIC_Miss, context,
                     receiver, key, value, map, slot, vector);
-  }
-}
-
-TF_STUB(TransitionElementsKindStub, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* object = Parameter(Descriptor::kObject);
-  Node* new_map = Parameter(Descriptor::kMap);
-
-  Label bailout(this);
-  TransitionElementsKind(object, new_map, stub->from_kind(), stub->to_kind(),
-                         stub->is_jsarray(), &bailout);
-  Return(object);
-
-  BIND(&bailout);
-  {
-    Comment("Call runtime");
-    TailCallRuntime(Runtime::kTransitionElementsKind, context, object, new_map);
   }
 }
 
@@ -475,140 +458,8 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
   entry_hook(function, stack_pointer);
 }
 
-TF_STUB(ArrayNoArgumentConstructorStub, CodeStubAssembler) {
-  ElementsKind elements_kind = stub->elements_kind();
-  Node* native_context = LoadObjectField(Parameter(Descriptor::kFunction),
-                                         JSFunction::kContextOffset);
-  bool track_allocation_site =
-      AllocationSite::ShouldTrack(elements_kind) &&
-      stub->override_mode() != DISABLE_ALLOCATION_SITES;
-  Node* allocation_site =
-      track_allocation_site ? Parameter(Descriptor::kAllocationSite) : nullptr;
-  Node* array_map = LoadJSArrayElementsMap(elements_kind, native_context);
-  Node* array =
-      AllocateJSArray(elements_kind, array_map,
-                      IntPtrConstant(JSArray::kPreallocatedArrayElements),
-                      SmiConstant(0), allocation_site);
-  Return(array);
-}
-
-TF_STUB(InternalArrayNoArgumentConstructorStub, CodeStubAssembler) {
-  Node* array_map = LoadObjectField(Parameter(Descriptor::kFunction),
-                                    JSFunction::kPrototypeOrInitialMapOffset);
-  Node* array = AllocateJSArray(
-      stub->elements_kind(), array_map,
-      IntPtrConstant(JSArray::kPreallocatedArrayElements), SmiConstant(0));
-  Return(array);
-}
-
-class ArrayConstructorAssembler : public CodeStubAssembler {
- public:
-  typedef compiler::Node Node;
-
-  explicit ArrayConstructorAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
-
-  void GenerateConstructor(Node* context, Node* array_function, Node* array_map,
-                           Node* array_size, Node* allocation_site,
-                           ElementsKind elements_kind, AllocationSiteMode mode);
-};
-
-void ArrayConstructorAssembler::GenerateConstructor(
-    Node* context, Node* array_function, Node* array_map, Node* array_size,
-    Node* allocation_site, ElementsKind elements_kind,
-    AllocationSiteMode mode) {
-  Label ok(this);
-  Label smi_size(this);
-  Label small_smi_size(this);
-  Label call_runtime(this, Label::kDeferred);
-
-  Branch(TaggedIsSmi(array_size), &smi_size, &call_runtime);
-
-  BIND(&smi_size);
-
-  if (IsFastPackedElementsKind(elements_kind)) {
-    Label abort(this, Label::kDeferred);
-    Branch(SmiEqual(CAST(array_size), SmiConstant(0)), &small_smi_size, &abort);
-
-    BIND(&abort);
-    Node* reason = SmiConstant(AbortReason::kAllocatingNonEmptyPackedArray);
-    TailCallRuntime(Runtime::kAbort, context, reason);
-  } else {
-    int element_size =
-        IsDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
-    int max_fast_elements =
-        (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
-         AllocationMemento::kSize) /
-        element_size;
-    Branch(SmiAboveOrEqual(CAST(array_size), SmiConstant(max_fast_elements)),
-           &call_runtime, &small_smi_size);
-  }
-
-  BIND(&small_smi_size);
-  {
-    Node* array = AllocateJSArray(
-        elements_kind, array_map, array_size, array_size,
-        mode == DONT_TRACK_ALLOCATION_SITE ? nullptr : allocation_site,
-        CodeStubAssembler::SMI_PARAMETERS);
-    Return(array);
-  }
-
-  BIND(&call_runtime);
-  {
-    TailCallRuntime(Runtime::kNewArray, context, array_function, array_size,
-                    array_function, allocation_site);
-  }
-}
-
-TF_STUB(ArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
-  ElementsKind elements_kind = stub->elements_kind();
-  Node* context = Parameter(Descriptor::kContext);
-  Node* function = Parameter(Descriptor::kFunction);
-  Node* native_context = LoadObjectField(function, JSFunction::kContextOffset);
-  Node* array_map = LoadJSArrayElementsMap(elements_kind, native_context);
-  AllocationSiteMode mode = DONT_TRACK_ALLOCATION_SITE;
-  if (stub->override_mode() == DONT_OVERRIDE) {
-    mode = AllocationSite::ShouldTrack(elements_kind)
-               ? TRACK_ALLOCATION_SITE
-               : DONT_TRACK_ALLOCATION_SITE;
-  }
-
-  Node* array_size = Parameter(Descriptor::kArraySizeSmiParameter);
-  Node* allocation_site = Parameter(Descriptor::kAllocationSite);
-
-  GenerateConstructor(context, function, array_map, array_size, allocation_site,
-                      elements_kind, mode);
-}
-
-TF_STUB(InternalArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* function = Parameter(Descriptor::kFunction);
-  Node* array_map =
-      LoadObjectField(function, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* array_size = Parameter(Descriptor::kArraySizeSmiParameter);
-  Node* allocation_site = UndefinedConstant();
-
-  GenerateConstructor(context, function, array_map, array_size, allocation_site,
-                      stub->elements_kind(), DONT_TRACK_ALLOCATION_SITE);
-}
-
-ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
-    : PlatformCodeStub(isolate) {}
-
-InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
-    : PlatformCodeStub(isolate) {}
-
-CommonArrayConstructorStub::CommonArrayConstructorStub(
-    Isolate* isolate, ElementsKind kind,
-    AllocationSiteOverrideMode override_mode)
-    : TurboFanCodeStub(isolate) {
-  // It only makes sense to override local allocation site behavior
-  // if there is a difference between the global allocation site policy
-  // for an ElementsKind and the desired usage of the stub.
-  DCHECK(override_mode != DISABLE_ALLOCATION_SITES ||
-         AllocationSite::ShouldTrack(kind));
-  set_sub_minor_key(ElementsKindBits::encode(kind) |
-                    AllocationSiteOverrideModeBits::encode(override_mode));
+void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
+  StoreFastElementStub::GenerateAheadOfTime(isolate);
 }
 
 }  // namespace internal

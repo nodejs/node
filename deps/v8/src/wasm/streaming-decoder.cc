@@ -64,8 +64,8 @@ void StreamingDecoder::Finish() {
     return;
   }
 
-  std::unique_ptr<uint8_t[]> bytes(new uint8_t[total_size_]);
-  uint8_t* cursor = bytes.get();
+  OwnedVector<uint8_t> bytes = OwnedVector<uint8_t>::New(total_size_);
+  uint8_t* cursor = bytes.start();
   {
 #define BYTES(x) (x & 0xFF), (x >> 8) & 0xFF, (x >> 16) & 0xFF, (x >> 24) & 0xFF
     uint8_t module_header[]{BYTES(kWasmMagic), BYTES(kWasmVersion)};
@@ -74,11 +74,11 @@ void StreamingDecoder::Finish() {
     cursor += arraysize(module_header);
   }
   for (auto&& buffer : section_buffers_) {
-    DCHECK_LE(cursor - bytes.get() + buffer->length(), total_size_);
+    DCHECK_LE(cursor - bytes.start() + buffer->length(), total_size_);
     memcpy(cursor, buffer->bytes(), buffer->length());
     cursor += buffer->length();
   }
-  processor_->OnFinishedStream(std::move(bytes), total_size_);
+  processor_->OnFinishedStream(std::move(bytes));
 }
 
 void StreamingDecoder::Abort() {

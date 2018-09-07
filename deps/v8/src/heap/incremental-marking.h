@@ -196,7 +196,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   inline void RestartIfNotMarking();
 
-  static int RecordWriteFromCode(HeapObject* obj, Object** slot,
+  static int RecordWriteFromCode(HeapObject* obj, MaybeObject** slot,
                                  Isolate* isolate);
 
   // Record a slot for compaction.  Returns false for objects that are
@@ -225,14 +225,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // unsafe layout change. This is a part of synchronization protocol with
   // the concurrent marker.
   void MarkBlackAndPush(HeapObject* obj);
-
-  inline void SetOldSpacePageFlags(MemoryChunk* chunk) {
-    SetOldSpacePageFlags(chunk, IsMarking());
-  }
-
-  inline void SetNewSpacePageFlags(Page* chunk) {
-    SetNewSpacePageFlags(chunk, IsMarking());
-  }
 
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
@@ -279,10 +271,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     IncrementalMarking& incremental_marking_;
   };
 
-  static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking);
-
-  static void SetNewSpacePageFlags(MemoryChunk* chunk, bool is_marking);
-
   void StartMarking();
 
   void StartBlackAllocation();
@@ -290,6 +278,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void FinishBlackAllocation();
 
   void MarkRoots();
+  bool ShouldRetainMap(Map* map, int age);
   // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
   // increase chances of reusing of map transition tree in future.
   void RetainMaps();

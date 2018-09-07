@@ -158,7 +158,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
     case Runtime::kCreateIterResultObject:
-    case Runtime::kGeneratorGetContinuation:
     case Runtime::kIncBlockCounter:
     case Runtime::kIsFunction:
     case Runtime::kNewClosure:
@@ -185,8 +184,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineGeneratorGetResumeMode:
     case Runtime::kInlineCreateJSGeneratorObject:
     case Runtime::kInlineIsArray:
-    case Runtime::kInlineIsJSMap:
-    case Runtime::kInlineIsJSSet:
     case Runtime::kInlineIsJSWeakMap:
     case Runtime::kInlineIsJSWeakSet:
     case Runtime::kInlineIsJSReceiver:
@@ -343,32 +340,30 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       "js-call");
 }
 
-// TODO(all): Add support for return representations/locations to
-// CallInterfaceDescriptor.
 // TODO(turbofan): cache call descriptors for code stub calls.
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+    Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
-    Operator::Properties properties, MachineType return_type,
-    size_t return_count, Linkage::ContextSpecification context_spec) {
+    Operator::Properties properties, StubCallMode stub_mode) {
   const int register_parameter_count = descriptor.GetRegisterParameterCount();
   const int js_parameter_count =
       register_parameter_count + stack_parameter_count;
-  const int context_count = context_spec == kPassContext ? 1 : 0;
+  const int context_count = descriptor.HasContextParameter() ? 1 : 0;
   const size_t parameter_count =
       static_cast<size_t>(js_parameter_count + context_count);
 
+  size_t return_count = descriptor.GetReturnCount();
   LocationSignature::Builder locations(zone, return_count, parameter_count);
 
   // Add returns.
   if (locations.return_count_ > 0) {
-    locations.AddReturn(regloc(kReturnRegister0, return_type));
+    locations.AddReturn(regloc(kReturnRegister0, descriptor.GetReturnType(0)));
   }
   if (locations.return_count_ > 1) {
-    locations.AddReturn(regloc(kReturnRegister1, return_type));
+    locations.AddReturn(regloc(kReturnRegister1, descriptor.GetReturnType(1)));
   }
   if (locations.return_count_ > 2) {
-    locations.AddReturn(regloc(kReturnRegister2, return_type));
+    locations.AddReturn(regloc(kReturnRegister2, descriptor.GetReturnType(2)));
   }
 
   // Add parameters in registers and on the stack.
@@ -390,57 +385,39 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
   }
 
-  // The target for stub calls is a code object.
-  MachineType target_type = MachineType::AnyTagged();
-  LinkageLocation target_loc =
-      LinkageLocation::ForAnyRegister(MachineType::AnyTagged());
-  return new (zone) CallDescriptor(     // --
-      CallDescriptor::kCallCodeObject,  // kind
-      target_type,                      // target MachineType
-      target_loc,                       // target location
-      locations.Build(),                // location_sig
-      stack_parameter_count,            // stack_parameter_count
-      properties,                       // properties
-      kNoCalleeSaved,                   // callee-saved registers
-      kNoCalleeSaved,                   // callee-saved fp
-      CallDescriptor::kCanUseRoots |    // flags
-          flags,                        // flags
-      descriptor.DebugName(isolate), descriptor.allocatable_registers());
-}
-
-// static
-CallDescriptor* Linkage::GetAllocateCallDescriptor(Zone* zone) {
-  LocationSignature::Builder locations(zone, 1, 1);
-
-  locations.AddParam(regloc(kAllocateSizeRegister, MachineType::Int32()));
-
-  locations.AddReturn(regloc(kReturnRegister0, MachineType::AnyTagged()));
-
-  // The target for allocate calls is a code object.
-  MachineType target_type = MachineType::AnyTagged();
-  LinkageLocation target_loc =
-      LinkageLocation::ForAnyRegister(MachineType::AnyTagged());
-  return new (zone) CallDescriptor(     // --
-      CallDescriptor::kCallCodeObject,  // kind
-      target_type,                      // target MachineType
-      target_loc,                       // target location
-      locations.Build(),                // location_sig
-      0,                                // stack_parameter_count
-      Operator::kNoThrow,               // properties
-      kNoCalleeSaved,                   // callee-saved registers
-      kNoCalleeSaved,                   // callee-saved fp
-      CallDescriptor::kCanUseRoots,     // flags
-      "Allocate");
+  // The target for stub calls depends on the requested mode.
+  CallDescriptor::Kind kind = stub_mode == StubCallMode::kCallWasmRuntimeStub
+                                  ? CallDescriptor::kCallWasmFunction
+                                  : CallDescriptor::kCallCodeObject;
+  MachineType target_type = stub_mode == StubCallMode::kCallWasmRuntimeStub
+                                ? MachineType::Pointer()
+                                : MachineType::AnyTagged();
+  LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
+  return new (zone) CallDescriptor(          // --
+      kind,                                  // kind
+      target_type,                           // target MachineType
+      target_loc,                            // target location
+      locations.Build(),                     // location_sig
+      stack_parameter_count,                 // stack_parameter_count
+      properties,                            // properties
+      kNoCalleeSaved,                        // callee-saved registers
+      kNoCalleeSaved,                        // callee-saved fp
+      CallDescriptor::kCanUseRoots | flags,  // flags
+      descriptor.DebugName(),                // debug name
+      descriptor.allocatable_registers());
 }
 
 // static
 CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
-    Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+    Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count) {
   const int register_parameter_count = descriptor.GetRegisterParameterCount();
   const int parameter_count = register_parameter_count + stack_parameter_count;
 
-  LocationSignature::Builder locations(zone, 0, parameter_count);
+  DCHECK_EQ(descriptor.GetReturnCount(), 1);
+  LocationSignature::Builder locations(zone, 1, parameter_count);
+
+  locations.AddReturn(regloc(kReturnRegister0, descriptor.GetReturnType(0)));
 
   // Add parameters in registers and on the stack.
   for (int i = 0; i < parameter_count; i++) {
@@ -472,7 +449,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
       kNoCalleeSaved,                // callee-saved registers
       kNoCalleeSaved,                // callee-saved fp
       kFlags,                        // flags
-      descriptor.DebugName(isolate));
+      descriptor.DebugName());
 }
 
 LinkageLocation Linkage::GetOsrValueLocation(int index) const {

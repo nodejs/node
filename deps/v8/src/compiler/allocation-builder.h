@@ -75,6 +75,10 @@ class AllocationBuilder final {
   void Store(const FieldAccess& access, Handle<Object> value) {
     Store(access, jsgraph()->Constant(value));
   }
+  // Compound store of a constant into a field.
+  void Store(const FieldAccess& access, const ObjectRef& value) {
+    Store(access, jsgraph()->Constant(value));
+  }
 
   void FinishAndChange(Node* node) {
     NodeProperties::SetType(allocation_, NodeProperties::GetType(node));
@@ -90,6 +94,7 @@ class AllocationBuilder final {
 
  protected:
   JSGraph* jsgraph() { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   Graph* graph() { return jsgraph_->graph(); }
   CommonOperatorBuilder* common() { return jsgraph_->common(); }
   SimplifiedOperatorBuilder* simplified() { return jsgraph_->simplified(); }

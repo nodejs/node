@@ -79,6 +79,8 @@ class V8_EXPORT_PRIVATE GCTracer {
       LAST_GENERAL_BACKGROUND_SCOPE = BACKGROUND_UNMAPPER,
       FIRST_MC_BACKGROUND_SCOPE = MC_BACKGROUND_EVACUATE_COPY,
       LAST_MC_BACKGROUND_SCOPE = MC_BACKGROUND_SWEEPING,
+      FIRST_TOP_MC_SCOPE = MC_CLEAR,
+      LAST_TOP_MC_SCOPE = MC_SWEEP,
       FIRST_MINOR_GC_BACKGROUND_SCOPE = MINOR_MC_BACKGROUND_EVACUATE_COPY,
       LAST_MINOR_GC_BACKGROUND_SCOPE = SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL
     };
@@ -319,6 +321,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   void AddBackgroundScopeSample(BackgroundScope::ScopeId scope, double duration,
                                 RuntimeCallCounter* runtime_call_counter);
 
+  void RecordMarkCompactHistograms(HistogramTimer* gc_timer);
+
  private:
   FRIEND_TEST(GCTracer, AverageSpeed);
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
@@ -334,6 +338,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, IncrementalScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
   FRIEND_TEST(GCTracerTest, MutatorUtilization);
+  FRIEND_TEST(GCTracerTest, RecordMarkCompactHistograms);
 
   struct BackgroundCounter {
     double total_duration_ms;

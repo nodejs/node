@@ -16,14 +16,14 @@ namespace internal {
 
 HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
-      names_(new StringsStorage(heap->HashSeed())),
+      names_(new StringsStorage()),
       is_tracking_object_moves_(false) {}
 
 HeapProfiler::~HeapProfiler() = default;
 
 void HeapProfiler::DeleteAllSnapshots() {
   snapshots_.clear();
-  names_.reset(new StringsStorage(heap()->HashSeed()));
+  names_.reset(new StringsStorage());
 }
 
 
@@ -209,7 +209,8 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
       // Can't break -- kFilterUnreachable requires full heap traversal.
     }
   }
-  return object != nullptr ? Handle<HeapObject>(object) : Handle<HeapObject>();
+  return object != nullptr ? Handle<HeapObject>(object, isolate())
+                           : Handle<HeapObject>();
 }
 
 
@@ -233,9 +234,9 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
   HeapIterator heap_iterator(heap());
   HeapObject* heap_obj;
   while ((heap_obj = heap_iterator.next()) != nullptr) {
-    if (!heap_obj->IsJSObject() || heap_obj->IsExternal()) continue;
+    if (!heap_obj->IsJSObject() || heap_obj->IsExternal(isolate())) continue;
     v8::Local<v8::Object> v8_obj(
-        Utils::ToLocal(handle(JSObject::cast(heap_obj))));
+        Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));
     if (!predicate->Filter(v8_obj)) continue;
     objects->Append(v8_obj);
   }

@@ -84,3 +84,18 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(112358, obj.value, name);
   }
 })();
+
+(function exportImportedMutableGlobal() {
+  let builder = new WasmModuleBuilder();
+  builder.addGlobal(kWasmI32, true).exportAs('g1');
+  let g1 = builder.instantiate().exports.g1;
+
+  builder = new WasmModuleBuilder();
+  builder.addImportedGlobal("mod", "g1", kWasmI32, true);
+  builder.addExportOfKind('g2', kExternalGlobal, 0);
+  let g2 = builder.instantiate({mod: {g1: g1}}).exports.g2;
+
+  g1.value = 123;
+
+  assertEquals(g1.value, g2.value);
+})();

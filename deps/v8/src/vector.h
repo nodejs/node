@@ -5,8 +5,9 @@
 #ifndef V8_VECTOR_H_
 #define V8_VECTOR_H_
 
-#include <string.h>
 #include <algorithm>
+#include <cstring>
+#include <iterator>
 
 #include "src/allocation.h"
 #include "src/checks.h"
@@ -122,9 +123,16 @@ class Vector {
     length_ = 0;
   }
 
-  inline Vector<T> operator+(size_t offset) {
+  Vector<T> operator+(size_t offset) {
     DCHECK_LE(offset, length_);
     return Vector<T>(start_ + offset, length_ - offset);
+  }
+
+  Vector<T> operator+=(size_t offset) {
+    DCHECK_LE(offset, length_);
+    start_ += offset;
+    length_ -= offset;
+    return *this;
   }
 
   // Implicit conversion from Vector<T> to Vector<const T>.
@@ -149,9 +157,6 @@ class Vector {
     }
     return true;
   }
-
- protected:
-  void set_start(T* start) { start_ = start; }
 
  private:
   T* start_;
@@ -183,6 +188,66 @@ class ScopedVector : public Vector<T> {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
 };
 
+template <typename T>
+class OwnedVector {
+ public:
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(OwnedVector);
+  OwnedVector(std::unique_ptr<T[]> data, size_t length)
+      : data_(std::move(data)), length_(length) {
+    DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
+  }
+  // Implicit conversion from {OwnedVector<U>} to {OwnedVector<T>}, instantiable
+  // if {std::unique_ptr<U>} can be converted to {std::unique_ptr<T>}.
+  // Can be used to convert {OwnedVector<T>} to {OwnedVector<const T>}.
+  template <typename U,
+            typename = typename std::enable_if<std::is_convertible<
+                std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
+  OwnedVector(OwnedVector<U>&& other)
+      : data_(other.ReleaseData()), length_(other.size()) {}
+
+  // Returns the length of the vector as a size_t.
+  constexpr size_t size() const { return length_; }
+
+  // Returns whether or not the vector is empty.
+  constexpr bool is_empty() const { return length_ == 0; }
+
+  // Returns the pointer to the start of the data in the vector.
+  T* start() const {
+    DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
+    return data_.get();
+  }
+
+  // Returns a {Vector<T>} view of the data in this vector.
+  Vector<T> as_vector() const { return Vector<T>(start(), size()); }
+
+  // Releases the backing data from this vector and transfers ownership to the
+  // caller. This vectors data can no longer be used afterwards.
+  std::unique_ptr<T[]> ReleaseData() { return std::move(data_); }
+
+  // Allocates a new vector of the specified size via the default allocator.
+  static OwnedVector<T> New(size_t size) {
+    if (size == 0) return {};
+    return OwnedVector<T>(std::unique_ptr<T[]>(new T[size]), size);
+  }
+
+  // Allocates a new vector containing the specified collection of values.
+  // {Iterator} is the common type of {std::begin} and {std::end} called on a
+  // {const U&}. This function is only instantiable if that type exists.
+  template <typename U, typename Iterator = typename std::common_type<
+                            decltype(std::begin(std::declval<const U&>())),
+                            decltype(std::end(std::declval<const U&>()))>::type>
+  static OwnedVector<T> Of(const U& collection) {
+    Iterator begin = std::begin(collection);
+    Iterator end = std::end(collection);
+    OwnedVector<T> vec = New(std::distance(begin, end));
+    std::copy(begin, end, vec.start());
+    return vec;
+  }
+
+ private:
+  std::unique_ptr<T[]> data_;
+  size_t length_ = 0;
+};
 
 inline int StrLength(const char* string) {
   size_t length = strlen(string);

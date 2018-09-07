@@ -57,10 +57,8 @@ class MockStreamingProcessor : public StreamingProcessor {
   void OnFinishedChunk() override {}
 
   // Finish the processing of the stream.
-  void OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
-                        size_t length) override {
+  void OnFinishedStream(OwnedVector<uint8_t> bytes) override {
     received_bytes_ = std::move(bytes);
-    length_ = length;
   }
 
   // Report an error detected in the StreamingDecoder.
@@ -71,16 +69,15 @@ class MockStreamingProcessor : public StreamingProcessor {
   size_t num_sections() const { return num_sections_; }
   size_t num_functions() const { return num_functions_; }
   bool ok() const { return ok_; }
-  Vector<const uint8_t> received_bytes() {
-    return Vector<const uint8_t>(received_bytes_.get(), length_);
+  Vector<const uint8_t> received_bytes() const {
+    return received_bytes_.as_vector();
   }
 
  private:
   size_t num_sections_ = 0;
   size_t num_functions_ = 0;
   bool ok_ = true;
-  std::unique_ptr<uint8_t[]> received_bytes_;
-  size_t length_;
+  OwnedVector<uint8_t> received_bytes_;
 };
 
 class WasmStreamingDecoderTest : public ::testing::Test {

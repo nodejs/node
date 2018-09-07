@@ -6,6 +6,7 @@
 #define V8_INSPECTOR_V8_DEBUGGER_AGENT_IMPL_H_
 
 #include <deque>
+#include <unordered_map>
 #include <vector>
 
 #include "src/base/macros.h"
@@ -183,11 +184,11 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   bool isPaused() const;
 
   using ScriptsMap =
-      protocol::HashMap<String16, std::unique_ptr<V8DebuggerScript>>;
+      std::unordered_map<String16, std::unique_ptr<V8DebuggerScript>>;
   using BreakpointIdToDebuggerBreakpointIdsMap =
-      protocol::HashMap<String16, std::vector<v8::debug::BreakpointId>>;
+      std::unordered_map<String16, std::vector<v8::debug::BreakpointId>>;
   using DebuggerBreakpointIdToBreakpointIdMap =
-      protocol::HashMap<v8::debug::BreakpointId, String16>;
+      std::unordered_map<v8::debug::BreakpointId, String16>;
 
   V8InspectorImpl* m_inspector;
   V8Debugger* m_debugger;
@@ -216,7 +217,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   bool m_breakpointsActive = false;
 
   std::unique_ptr<V8Regex> m_blackboxPattern;
-  protocol::HashMap<String16, std::vector<std::pair<int, int>>>
+  std::unordered_map<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
 
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);

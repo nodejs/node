@@ -7,11 +7,8 @@
 
 #include <memory>
 
-#include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/objects/managed.h"
-#include "src/parsing/preparse-data.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-constants.h"
@@ -20,23 +17,12 @@
 namespace v8 {
 namespace internal {
 
-class WasmCompiledModule;
 class WasmDebugInfo;
-class WasmGlobalObject;
-class WasmInstanceObject;
-class WasmMemoryObject;
 class WasmModuleObject;
-class WasmSharedModuleData;
-class WasmTableObject;
-
-namespace compiler {
-class CallDescriptor;
-}
 
 namespace wasm {
+
 class ErrorThrower;
-class NativeModule;
-class TestingModuleBuilder;
 
 // Static representation of a wasm function.
 struct WasmFunction {
@@ -87,9 +73,9 @@ struct WasmDataSegment {
 };
 
 // Static representation of a wasm indirect call table.
-struct WasmIndirectFunctionTable {
-  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmIndirectFunctionTable);
-
+struct WasmTable {
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmTable);
+  ValueType type = kWasmStmt;     // table type.
   uint32_t initial_size = 0;      // initial table size.
   uint32_t maximum_size = 0;      // maximum table size.
   bool has_maximum_size = false;  // true if there is a maximum size.
@@ -128,6 +114,10 @@ struct WasmExport {
 
 enum ModuleOrigin : uint8_t { kWasmOrigin, kAsmJsOrigin };
 
+#define SELECT_WASM_COUNTER(counters, origin, prefix, suffix)           \
+  ((origin) == wasm::kWasmOrigin ? (counters)->prefix##_wasm_##suffix() \
+                                 : (counters)->prefix##_asm_##suffix())
+
 struct ModuleWireBytes;
 
 // Static representation of a module.
@@ -146,44 +136,35 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmGlobal> globals;
   // Size of the buffer required for all globals that are not imported and
   // mutable.
-  // TODO(wasm): Rename for clarity?
-  uint32_t globals_size = 0;
+  uint32_t globals_buffer_size = 0;
   uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
-  uint32_t num_declared_functions = 0;
+  uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
   WireBytesRef name = {0, 0};
-  // TODO(wasm): Add url here, for spec'ed location information.
   std::vector<FunctionSig*> signatures;  // by signature index
   std::vector<uint32_t> signature_ids;   // by signature index
   std::vector<WasmFunction> functions;
   std::vector<WasmDataSegment> data_segments;
-  std::vector<WasmIndirectFunctionTable> function_tables;
+  std::vector<WasmTable> tables;
   std::vector<WasmImport> import_table;
   std::vector<WasmExport> export_table;
   std::vector<WasmException> exceptions;
   std::vector<WasmTableInit> table_inits;
   SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
-  WasmModule() : WasmModule(nullptr) {}
-  WasmModule(std::unique_ptr<Zone> owned);
+  ModuleOrigin origin = kWasmOrigin;  // origin of the module
+  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
+      function_names;
 
-  ModuleOrigin origin() const { return origin_; }
-  void set_origin(ModuleOrigin new_value) { origin_ = new_value; }
-  bool is_wasm() const { return origin_ == kWasmOrigin; }
-  bool is_asm_js() const { return origin_ == kAsmJsOrigin; }
+  explicit WasmModule(std::unique_ptr<Zone> owned = nullptr);
 
-  WireBytesRef LookupName(const ModuleWireBytes* wire_bytes,
-                          uint32_t function_index) const;
-  WireBytesRef LookupName(SeqOneByteString* wire_bytes,
-                          uint32_t function_index) const;
-  void AddNameForTesting(int function_index, WireBytesRef name);
-
- private:
-  // TODO(kschimpf) - Encapsulate more fields.
-  ModuleOrigin origin_ = kWasmOrigin;  // origin of the module
-  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>> names_;
+  WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
+                                  uint32_t function_index) const;
+  void AddFunctionNameForTesting(int function_index, WireBytesRef name);
 };
+
+size_t EstimateWasmModuleSize(const WasmModule* module);
 
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
@@ -265,7 +246,7 @@ V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
 // Decode local variable names from the names section. Return FixedArray of
 // FixedArray of <undefined|String>. The outer fixed array is indexed by the
 // function index, the inner one by the local index.
-Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmSharedModuleData>);
+Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmModuleObject>);
 
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.

@@ -22,8 +22,6 @@ CAST_ACCESSOR(AccessCheckInfo)
 CAST_ACCESSOR(InterceptorInfo)
 CAST_ACCESSOR(CallHandlerInfo)
 
-TYPE_CHECKER(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)
-
 ACCESSORS(AccessorInfo, name, Name, kNameOffset)
 SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
@@ -104,28 +102,30 @@ ACCESSORS(CallHandlerInfo, js_callback, Object, kJsCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
 
 bool CallHandlerInfo::IsSideEffectFreeCallHandlerInfo() const {
-  DCHECK(map() == GetHeap()->side_effect_call_handler_info_map() ||
-         map() == GetHeap()->side_effect_free_call_handler_info_map() ||
-         map() ==
-             GetHeap()->next_call_side_effect_free_call_handler_info_map());
-  return map() == GetHeap()->side_effect_free_call_handler_info_map();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  DCHECK(map() == roots.side_effect_call_handler_info_map() ||
+         map() == roots.side_effect_free_call_handler_info_map() ||
+         map() == roots.next_call_side_effect_free_call_handler_info_map());
+  return map() == roots.side_effect_free_call_handler_info_map();
 }
 
 bool CallHandlerInfo::IsSideEffectCallHandlerInfo() const {
-  DCHECK(map() == GetHeap()->side_effect_call_handler_info_map() ||
-         map() == GetHeap()->side_effect_free_call_handler_info_map() ||
-         map() ==
-             GetHeap()->next_call_side_effect_free_call_handler_info_map());
-  return map() == GetHeap()->side_effect_call_handler_info_map();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  DCHECK(map() == roots.side_effect_call_handler_info_map() ||
+         map() == roots.side_effect_free_call_handler_info_map() ||
+         map() == roots.next_call_side_effect_free_call_handler_info_map());
+  return map() == roots.side_effect_call_handler_info_map();
 }
 
 void CallHandlerInfo::SetNextCallHasNoSideEffect() {
-  set_map(GetHeap()->next_call_side_effect_free_call_handler_info_map());
+  set_map(
+      GetReadOnlyRoots().next_call_side_effect_free_call_handler_info_map());
 }
 
 bool CallHandlerInfo::NextCallHasNoSideEffect() {
-  if (map() == GetHeap()->next_call_side_effect_free_call_handler_info_map()) {
-    set_map(GetHeap()->side_effect_call_handler_info_map());
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  if (map() == roots.next_call_side_effect_free_call_handler_info_map()) {
+    set_map(roots.side_effect_call_handler_info_map());
     return true;
   }
   return false;

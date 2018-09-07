@@ -20,8 +20,11 @@ enum ValueType : uint8_t {
   kWasmF64,
   kWasmS128,
   kWasmAnyRef,
+  kWasmAnyFunc,
   kWasmVar,
 };
+
+inline size_t hash_value(ValueType type) { return static_cast<size_t>(type); }
 
 // TODO(clemensh): Compute memtype and size from ValueType once we have c++14
 // constexpr support.
@@ -234,6 +237,7 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return MachineType::Float32();
       case kWasmF64:
         return MachineType::Float64();
+      case kWasmAnyFunc:
       case kWasmAnyRef:
         return MachineType::TaggedPointer();
       case kWasmS128:

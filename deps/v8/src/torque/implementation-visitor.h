@@ -37,40 +37,36 @@ class ImplementationVisitor : public FileVisitor {
   const Type* Visit(Statement* stmt);
   void Visit(Declaration* decl);
 
+  VisitResult Visit(StructExpression* decl);
+
   LocationReference GetLocationReference(LocationExpression* location);
   LocationReference GetLocationReference(IdentifierExpression* expr) {
     return LocationReference(declarations()->LookupValue(expr->name), {}, {});
   }
-  LocationReference GetLocationReference(FieldAccessExpression* expr) {
-    return LocationReference({}, Visit(expr->object), {});
-  }
+  LocationReference GetLocationReference(FieldAccessExpression* expr);
   LocationReference GetLocationReference(ElementAccessExpression* expr) {
     return LocationReference({}, Visit(expr->array), Visit(expr->index));
   }
 
+  std::string RValueFlattenStructs(VisitResult result);
+
+  VisitResult GenerateFetchFromLocation(LocationReference reference) {
+    const Value* value = reference.value;
+    return VisitResult(value->type(), value);
+  }
   VisitResult GenerateFetchFromLocation(LocationExpression* location,
                                         LocationReference reference);
   VisitResult GenerateFetchFromLocation(IdentifierExpression* expr,
                                         LocationReference reference) {
-    Value* value = reference.value;
-    if (value->IsVariable() && !Variable::cast(value)->IsDefined()) {
-      std::stringstream s;
-      s << "\"" << value->name() << "\" is used before it is defined";
-      ReportError(s.str());
-    }
-    return VisitResult({value->type(), value->GetValueForRead()});
+    return GenerateFetchFromLocation(reference);
   }
   VisitResult GenerateFetchFromLocation(FieldAccessExpression* expr,
-                                        LocationReference reference) {
-    Arguments arguments;
-    arguments.parameters = {reference.base};
-    return GenerateOperation(std::string(".") + expr->field, arguments);
-  }
+                                        LocationReference reference);
   VisitResult GenerateFetchFromLocation(ElementAccessExpression* expr,
                                         LocationReference reference) {
     Arguments arguments;
     arguments.parameters = {reference.base, reference.index};
-    return GenerateOperation("[]", arguments);
+    return GenerateCall("[]", arguments);
   }
 
   VisitResult GetBuiltinCode(Builtin* builtin);
@@ -83,9 +79,6 @@ class ImplementationVisitor : public FileVisitor {
     return GenerateFetchFromLocation(expr, GetLocationReference(expr));
   }
 
-  VisitResult Visit(CastExpression* expr);
-  VisitResult Visit(ConvertExpression* expr);
-
   void Visit(ModuleDeclaration* decl);
   void Visit(DefaultModuleDeclaration* decl) {
     Visit(implicit_cast<ModuleDeclaration*>(decl));
@@ -94,7 +87,9 @@ class ImplementationVisitor : public FileVisitor {
     Visit(implicit_cast<ModuleDeclaration*>(decl));
   }
   void Visit(TypeDeclaration* decl) {}
-  void Visit(ConstDeclaration* decl) {}
+  void Visit(TypeAliasDeclaration* decl) {}
+  void Visit(ExternConstDeclaration* decl) {}
+  void Visit(StructDeclaration* decl);
   void Visit(StandardDeclaration* decl);
   void Visit(GenericDeclaration* decl) {}
   void Visit(SpecializationDeclaration* decl);
@@ -110,6 +105,7 @@ class ImplementationVisitor : public FileVisitor {
   void Visit(ExternalRuntimeDeclaration* decl, const Signature& signature,
              Statement* body) {}
   void Visit(CallableNode* decl, const Signature& signature, Statement* body);
+  void Visit(ConstDeclaration* decl);
 
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
   const Type* Visit(TailCallStatement* stmt);
@@ -127,7 +123,7 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult Visit(StringLiteralExpression* expr);
   VisitResult Visit(NumberLiteralExpression* expr);
 
-  const Type* Visit(TryCatchStatement* stmt);
+  const Type* Visit(TryLabelStatement* stmt);
   const Type* Visit(ReturnStatement* stmt);
   const Type* Visit(GotoStatement* stmt);
   const Type* Visit(IfStatement* stmt);
@@ -141,6 +137,9 @@ class ImplementationVisitor : public FileVisitor {
   const Type* Visit(ExpressionStatement* stmt);
   const Type* Visit(DebugStatement* stmt);
   const Type* Visit(AssertStatement* stmt);
+
+  void BeginModuleFile(Module* module);
+  void EndModuleFile(Module* module);
 
   void GenerateImplementation(const std::string& dir, Module* module);
 
@@ -172,6 +171,13 @@ class ImplementationVisitor : public FileVisitor {
     ImplementationVisitor* visitor_;
   };
 
+  Callable* LookupCall(const std::string& name, const Arguments& arguments);
+
+  bool GenerateChangedVarFromControlSplit(const Variable* v, bool first = true);
+
+  void GetFlattenedStructsVars(const Variable* base,
+                               std::set<const Variable*>& vars);
+
   void GenerateChangedVarsFromControlSplit(AstNode* node);
 
   const Type* GetCommonType(const Type* left, const Type* right);
@@ -184,6 +190,8 @@ class ImplementationVisitor : public FileVisitor {
                                 const LocationReference& reference,
                                 VisitResult assignment_value);
 
+  void GenerateVariableDeclaration(const Variable* var);
+
   Variable* GenerateVariableDeclaration(
       AstNode* node, const std::string& name,
       const base::Optional<const Type*>& type,
@@ -194,7 +202,7 @@ class ImplementationVisitor : public FileVisitor {
   void GenerateParameterList(const NameVector& list, size_t first = 0);
 
   VisitResult GenerateCall(const std::string& callable_name,
-                           const Arguments& parameters, bool tail_call);
+                           Arguments parameters, bool tail_call = false);
   VisitResult GeneratePointerCall(Expression* callee,
                                   const Arguments& parameters, bool tail_call);
 
@@ -213,10 +221,11 @@ class ImplementationVisitor : public FileVisitor {
   void GenerateMacroFunctionDeclaration(std::ostream& o,
                                         const std::string& macro_prefix,
                                         Macro* macro);
-
-  VisitResult GenerateOperation(const std::string& operation,
-                                Arguments arguments,
-                                base::Optional<const Type*> return_type = {});
+  void GenerateFunctionDeclaration(std::ostream& o,
+                                   const std::string& macro_prefix,
+                                   const std::string& name,
+                                   const Signature& signature,
+                                   const NameVector& parameter_names);
 
   VisitResult GenerateImplicitConvert(const Type* destination_type,
                                       VisitResult source);
@@ -225,7 +234,7 @@ class ImplementationVisitor : public FileVisitor {
                   const CallableNodeSignature* signature,
                   Statement* body) override {
     Declarations::GenericScopeActivator scope(declarations(), key);
-    Visit(callable, MakeSignature(callable, signature), body);
+    Visit(callable, MakeSignature(signature), body);
   }
 
   std::string NewTempVariable();

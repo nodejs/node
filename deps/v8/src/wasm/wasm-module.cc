@@ -7,7 +7,6 @@
 
 #include "src/api.h"
 #include "src/assembler-inl.h"
-#include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/interface-types.h"
 #include "src/frames-inl.h"
@@ -18,7 +17,6 @@
 #include "src/v8.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -37,59 +35,52 @@ constexpr const char* WasmException::kRuntimeIdStr;
 // static
 constexpr const char* WasmException::kRuntimeValuesStr;
 
-WireBytesRef WasmModule::LookupName(const ModuleWireBytes* wire_bytes,
-                                    uint32_t function_index) const {
-  if (!names_) {
-    names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
-    wasm::DecodeFunctionNames(wire_bytes->start(), wire_bytes->end(),
-                              names_.get());
+WireBytesRef WasmModule::LookupFunctionName(const ModuleWireBytes& wire_bytes,
+                                            uint32_t function_index) const {
+  if (!function_names) {
+    function_names.reset(new std::unordered_map<uint32_t, WireBytesRef>());
+    wasm::DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
+                              function_names.get());
   }
-  auto it = names_->find(function_index);
-  if (it == names_->end()) return WireBytesRef();
+  auto it = function_names->find(function_index);
+  if (it == function_names->end()) return WireBytesRef();
   return it->second;
 }
 
-WireBytesRef WasmModule::LookupName(SeqOneByteString* wire_bytes,
-                                    uint32_t function_index) const {
-  DisallowHeapAllocation no_gc;
-  uint8_t* chars = wire_bytes->GetChars();
-  ModuleWireBytes module_wire_bytes(chars, chars + wire_bytes->length());
-  return LookupName(&module_wire_bytes, function_index);
-}
-
-void WasmModule::AddNameForTesting(int function_index, WireBytesRef name) {
-  if (!names_) {
-    names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
+void WasmModule::AddFunctionNameForTesting(int function_index,
+                                           WireBytesRef name) {
+  if (!function_names) {
+    function_names.reset(new std::unordered_map<uint32_t, WireBytesRef>());
   }
-  names_->insert(std::make_pair(function_index, name));
+  function_names->insert(std::make_pair(function_index, name));
 }
 
 // Get a string stored in the module bytes representing a name.
 WasmName ModuleWireBytes::GetName(WireBytesRef ref) const {
   if (ref.is_empty()) return {"<?>", 3};  // no name.
   CHECK(BoundsCheck(ref.offset(), ref.length()));
-  return Vector<const char>::cast(
+  return WasmName::cast(
       module_bytes_.SubVector(ref.offset(), ref.end_offset()));
 }
 
 // Get a string stored in the module bytes representing a function name.
 WasmName ModuleWireBytes::GetName(const WasmFunction* function,
                                   const WasmModule* module) const {
-  return GetName(module->LookupName(this, function->func_index));
+  return GetName(module->LookupFunctionName(*this, function->func_index));
 }
 
 // Get a string stored in the module bytes representing a name.
 WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
   if (!ref.is_set()) return {nullptr, 0};  // no name.
   CHECK(BoundsCheck(ref.offset(), ref.length()));
-  return Vector<const char>::cast(
+  return WasmName::cast(
       module_bytes_.SubVector(ref.offset(), ref.end_offset()));
 }
 
 // Get a string stored in the module bytes representing a function name.
 WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
                                         const WasmModule* module) const {
-  return GetNameOrNull(module->LookupName(this, function->func_index));
+  return GetNameOrNull(module->LookupFunctionName(*this, function->func_index));
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
@@ -127,7 +118,6 @@ bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
 
 Handle<JSArray> GetImports(Isolate* isolate,
                            Handle<WasmModuleObject> module_object) {
-  Handle<WasmSharedModuleData> shared(module_object->shared(), isolate);
   Factory* factory = isolate->factory();
 
   Handle<String> module_string = factory->InternalizeUtf8String("module");
@@ -140,7 +130,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
   Handle<String> global_string = factory->InternalizeUtf8String("global");
 
   // Create the result array.
-  WasmModule* module = shared->module();
+  const WasmModule* module = module_object->module();
   int num_imports = static_cast<int>(module->import_table.size());
   Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   Handle<FixedArray> storage = factory->NewFixedArray(num_imports);
@@ -152,7 +142,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
 
   // Populate the result array.
   for (int index = 0; index < num_imports; ++index) {
-    WasmImport& import = module->import_table[index];
+    const WasmImport& import = module->import_table[index];
 
     Handle<JSObject> entry = factory->NewJSObject(object_function);
 
@@ -175,18 +165,18 @@ Handle<JSArray> GetImports(Isolate* isolate,
     }
 
     MaybeHandle<String> import_module =
-        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-            isolate, shared, import.module_name);
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+            isolate, module_object, import.module_name);
 
     MaybeHandle<String> import_name =
-        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-            isolate, shared, import.field_name);
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+            isolate, module_object, import.field_name);
 
-    JSObject::AddProperty(entry, module_string, import_module.ToHandleChecked(),
-                          NONE);
-    JSObject::AddProperty(entry, name_string, import_name.ToHandleChecked(),
-                          NONE);
-    JSObject::AddProperty(entry, kind_string, import_kind, NONE);
+    JSObject::AddProperty(isolate, entry, module_string,
+                          import_module.ToHandleChecked(), NONE);
+    JSObject::AddProperty(isolate, entry, name_string,
+                          import_name.ToHandleChecked(), NONE);
+    JSObject::AddProperty(isolate, entry, kind_string, import_kind, NONE);
 
     storage->set(index, *entry);
   }
@@ -196,7 +186,6 @@ Handle<JSArray> GetImports(Isolate* isolate,
 
 Handle<JSArray> GetExports(Isolate* isolate,
                            Handle<WasmModuleObject> module_object) {
-  Handle<WasmSharedModuleData> shared(module_object->shared(), isolate);
   Factory* factory = isolate->factory();
 
   Handle<String> name_string = factory->InternalizeUtf8String("name");
@@ -208,7 +197,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
   Handle<String> global_string = factory->InternalizeUtf8String("global");
 
   // Create the result array.
-  WasmModule* module = shared->module();
+  const WasmModule* module = module_object->module();
   int num_exports = static_cast<int>(module->export_table.size());
   Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   Handle<FixedArray> storage = factory->NewFixedArray(num_exports);
@@ -220,7 +209,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
 
   // Populate the result array.
   for (int index = 0; index < num_exports; ++index) {
-    WasmExport& exp = module->export_table[index];
+    const WasmExport& exp = module->export_table[index];
 
     Handle<String> export_kind;
     switch (exp.kind) {
@@ -243,12 +232,12 @@ Handle<JSArray> GetExports(Isolate* isolate,
     Handle<JSObject> entry = factory->NewJSObject(object_function);
 
     MaybeHandle<String> export_name =
-        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(isolate, shared,
-                                                               exp.name);
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+            isolate, module_object, exp.name);
 
-    JSObject::AddProperty(entry, name_string, export_name.ToHandleChecked(),
-                          NONE);
-    JSObject::AddProperty(entry, kind_string, export_kind, NONE);
+    JSObject::AddProperty(isolate, entry, name_string,
+                          export_name.ToHandleChecked(), NONE);
+    JSObject::AddProperty(isolate, entry, kind_string, export_kind, NONE);
 
     storage->set(index, *entry);
   }
@@ -259,26 +248,20 @@ Handle<JSArray> GetExports(Isolate* isolate,
 Handle<JSArray> GetCustomSections(Isolate* isolate,
                                   Handle<WasmModuleObject> module_object,
                                   Handle<String> name, ErrorThrower* thrower) {
-  Handle<WasmSharedModuleData> shared(module_object->shared(), isolate);
   Factory* factory = isolate->factory();
 
-  std::vector<CustomSectionOffset> custom_sections;
-  {
-    DisallowHeapAllocation no_gc;  // for raw access to string bytes.
-    Handle<SeqOneByteString> module_bytes(shared->module_bytes(), isolate);
-    const byte* start =
-        reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
-    const byte* end = start + module_bytes->length();
-    custom_sections = DecodeCustomSections(start, end);
-  }
+  Vector<const uint8_t> wire_bytes =
+      module_object->native_module()->wire_bytes();
+  std::vector<CustomSectionOffset> custom_sections =
+      DecodeCustomSections(wire_bytes.start(), wire_bytes.end());
 
   std::vector<Handle<Object>> matching_sections;
 
   // Gather matching sections.
   for (auto& section : custom_sections) {
     MaybeHandle<String> section_name =
-        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(isolate, shared,
-                                                               section.name);
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+            isolate, module_object, section.name);
 
     if (!name->Equals(*section_name.ToHandleChecked())) continue;
 
@@ -294,11 +277,8 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
     Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
     constexpr bool is_external = false;
     JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size);
-    DisallowHeapAllocation no_gc;  // for raw access to string bytes.
-    Handle<SeqOneByteString> module_bytes(shared->module_bytes(), isolate);
-    const byte* start =
-        reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
-    memcpy(memory, start + section.payload.offset(), section.payload.length());
+    memcpy(memory, wire_bytes.start() + section.payload.offset(),
+           section.payload.length());
 
     matching_sections.push_back(buffer);
   }
@@ -317,15 +297,11 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
 }
 
 Handle<FixedArray> DecodeLocalNames(Isolate* isolate,
-                                    Handle<WasmSharedModuleData> shared) {
-  Handle<SeqOneByteString> wire_bytes(shared->module_bytes(), isolate);
+                                    Handle<WasmModuleObject> module_object) {
+  Vector<const uint8_t> wire_bytes =
+      module_object->native_module()->wire_bytes();
   LocalNames decoded_locals;
-  {
-    DisallowHeapAllocation no_gc;
-    DecodeLocalNames(wire_bytes->GetChars(),
-                     wire_bytes->GetChars() + wire_bytes->length(),
-                     &decoded_locals);
-  }
+  DecodeLocalNames(wire_bytes.start(), wire_bytes.end(), &decoded_locals);
   Handle<FixedArray> locals_names =
       isolate->factory()->NewFixedArray(decoded_locals.max_function_index + 1);
   for (LocalNamesPerFunction& func : decoded_locals.names) {
@@ -334,13 +310,31 @@ Handle<FixedArray> DecodeLocalNames(Isolate* isolate,
     locals_names->set(func.function_index, *func_locals_names);
     for (LocalName& name : func.names) {
       Handle<String> name_str =
-          WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-              isolate, shared, name.name)
+          WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+              isolate, module_object, name.name)
               .ToHandleChecked();
       func_locals_names->set(name.local_index, *name_str);
     }
   }
   return locals_names;
+}
+
+namespace {
+template <typename T>
+inline size_t VectorSize(const std::vector<T>& vector) {
+  return sizeof(T) * vector.size();
+}
+}  // namespace
+
+size_t EstimateWasmModuleSize(const WasmModule* module) {
+  size_t estimate =
+      sizeof(WasmModule) + VectorSize(module->signatures) +
+      VectorSize(module->signature_ids) + VectorSize(module->functions) +
+      VectorSize(module->data_segments) + VectorSize(module->tables) +
+      VectorSize(module->import_table) + VectorSize(module->export_table) +
+      VectorSize(module->exceptions) + VectorSize(module->table_inits);
+  // TODO(wasm): include names table and wire bytes in size estimate
+  return estimate;
 }
 }  // namespace wasm
 }  // namespace internal

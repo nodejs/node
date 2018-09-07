@@ -7,6 +7,7 @@
 
 #include <list>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "src/base/macros.h"
@@ -35,7 +36,8 @@ using ScheduleStepIntoAsyncCallback =
 using TerminateExecutionCallback =
     protocol::Runtime::Backend::TerminateExecutionCallback;
 
-class V8Debugger : public v8::debug::DebugDelegate {
+class V8Debugger : public v8::debug::DebugDelegate,
+                   public v8::debug::AsyncEventDelegate {
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
   ~V8Debugger();
@@ -49,10 +51,11 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
   bool canBreakProgram();
   void breakProgram(int targetContextGroupId);
+  void interruptAndBreak(int targetContextGroupId);
   void continueProgram(int targetContextGroupId);
   void breakProgramOnAssert(int targetContextGroupId);
 
-  void setPauseOnNextStatement(bool, int targetContextGroupId);
+  void setPauseOnNextCall(bool, int targetContextGroupId);
   void stepIntoStatement(int targetContextGroupId, bool breakOnAsyncCall);
   void stepOverStatement(int targetContextGroupId);
   void stepOutOfFunction(int targetContextGroupId);
@@ -169,21 +172,22 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void asyncTaskCanceledForStepping(void* task);
 
   // v8::debug::DebugEventListener implementation.
-  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            bool isBlackboxed) override;
+  void AsyncEventOccurred(v8::debug::DebugAsyncActionType type, int id,
+                          bool isBlackboxed) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(
-      v8::Local<v8::Context> paused_context, v8::Local<v8::Object>,
+      v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& break_points_hit) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
-                       v8::Local<v8::Object>, v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> exception,
                        v8::Local<v8::Value> promise, bool is_uncaught) override;
   bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                             const v8::debug::Location& start,
                             const v8::debug::Location& end) override;
 
   int currentContextGroupId();
+  bool asyncStepOutOfFunction(int targetContextGroupId, bool onlyAtReturn);
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
@@ -200,9 +204,9 @@ class V8Debugger : public v8::debug::DebugDelegate {
   std::unique_ptr<V8StackTraceImpl> m_continueToLocationStack;
 
   using AsyncTaskToStackTrace =
-      protocol::HashMap<void*, std::weak_ptr<AsyncStackTrace>>;
+      std::unordered_map<void*, std::weak_ptr<AsyncStackTrace>>;
   AsyncTaskToStackTrace m_asyncTaskStacks;
-  protocol::HashSet<void*> m_recurringTasks;
+  std::unordered_set<void*> m_recurringTasks;
 
   int m_maxAsyncCallStacks;
   int m_maxAsyncCallStackDepth;
@@ -218,7 +222,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;
   std::unordered_map<int, std::weak_ptr<StackFrame>> m_framesCache;
 
-  protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
+  std::unordered_map<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   void* m_taskWithScheduledBreak = nullptr;
   String16 m_taskWithScheduledBreakDebuggerId;
 
@@ -230,13 +234,13 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8_inspector::V8StackTraceId m_scheduledAsyncCall;
 
   using StackTraceIdToStackTrace =
-      protocol::HashMap<uintptr_t, std::weak_ptr<AsyncStackTrace>>;
+      std::unordered_map<uintptr_t, std::weak_ptr<AsyncStackTrace>>;
   StackTraceIdToStackTrace m_storedStackTraces;
   uintptr_t m_lastStackTraceId = 0;
 
-  protocol::HashMap<int, std::pair<int64_t, int64_t>>
+  std::unordered_map<int, std::pair<int64_t, int64_t>>
       m_contextGroupIdToDebuggerId;
-  protocol::HashMap<String16, std::pair<int64_t, int64_t>>
+  std::unordered_map<String16, std::pair<int64_t, int64_t>>
       m_serializedDebuggerIdToDebuggerId;
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;

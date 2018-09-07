@@ -392,7 +392,7 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
 
 // ES6 section 12.5.5 typeof operator
 TF_BUILTIN(Typeof, CodeStubAssembler) {
-  Node* object = Parameter(TypeofDescriptor::kObject);
+  Node* object = Parameter(Descriptor::kObject);
 
   Return(Typeof(object));
 }

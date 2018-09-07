@@ -67,10 +67,11 @@ class ClearThreadInWasmScope {
 
 RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_UINT32_ARG_CHECKED(delta_pages, 0);
-  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
-                                      isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  // {delta_pages} is checked to be a positive smi in the WasmGrowMemory builtin
+  // which calls this runtime function.
+  CONVERT_UINT32_ARG_CHECKED(delta_pages, 1);
 
   // This runtime function is always being called from wasm code.
   ClearThreadInWasmScope flag_scope(true);
@@ -79,8 +80,11 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   DCHECK_NULL(isolate->context());
   isolate->set_context(instance->native_context());
 
-  return *isolate->factory()->NewNumberFromInt(WasmMemoryObject::Grow(
-      isolate, handle(instance->memory_object(), isolate), delta_pages));
+  int ret = WasmMemoryObject::Grow(
+      isolate, handle(instance->memory_object(), isolate), delta_pages);
+  // The WasmGrowMemory builtin which calls this runtime function expects us to
+  // always return a Smi.
+  return Smi::FromInt(ret);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
@@ -122,7 +126,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
           MessageTemplate::kWasmExceptionError));
   isolate->set_wasm_caught_exception(*exception);
   CONVERT_ARG_HANDLE_CHECKED(Smi, id, 0);
-  CHECK(!JSReceiver::SetProperty(exception,
+  CHECK(!JSReceiver::SetProperty(isolate, exception,
                                  isolate->factory()->InternalizeUtf8String(
                                      wasm::WasmException::kRuntimeIdStr),
                                  id, LanguageMode::kStrict)
@@ -130,12 +134,12 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   CONVERT_SMI_ARG_CHECKED(size, 1);
   Handle<JSTypedArray> values =
       isolate->factory()->NewJSTypedArray(ElementsKind::UINT16_ELEMENTS, size);
-  CHECK(!JSReceiver::SetProperty(exception,
+  CHECK(!JSReceiver::SetProperty(isolate, exception,
                                  isolate->factory()->InternalizeUtf8String(
                                      wasm::WasmException::kRuntimeValuesStr),
                                  values, LanguageMode::kStrict)
              .is_null());
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
@@ -157,9 +161,9 @@ RUNTIME_FUNCTION(Runtime_WasmGetExceptionRuntimeId) {
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   Handle<Object> except_obj(isolate->get_wasm_caught_exception(), isolate);
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
-    Handle<JSReceiver> exception(JSReceiver::cast(*except_obj));
+    Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
     Handle<Object> tag;
-    if (JSReceiver::GetProperty(exception,
+    if (JSReceiver::GetProperty(isolate, exception,
                                 isolate->factory()->InternalizeUtf8String(
                                     wasm::WasmException::kRuntimeIdStr))
             .ToHandle(&tag)) {
@@ -179,9 +183,9 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
   DCHECK_EQ(1, args.length());
   Handle<Object> except_obj(isolate->get_wasm_caught_exception(), isolate);
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
-    Handle<JSReceiver> exception(JSReceiver::cast(*except_obj));
+    Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
     Handle<Object> values_obj;
-    if (JSReceiver::GetProperty(exception,
+    if (JSReceiver::GetProperty(isolate, exception,
                                 isolate->factory()->InternalizeUtf8String(
                                     wasm::WasmException::kRuntimeValuesStr))
             .ToHandle(&values_obj)) {
@@ -207,9 +211,9 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   Handle<Object> except_obj(isolate->get_wasm_caught_exception(), isolate);
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
-    Handle<JSReceiver> exception(JSReceiver::cast(*except_obj));
+    Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
     Handle<Object> values_obj;
-    if (JSReceiver::GetProperty(exception,
+    if (JSReceiver::GetProperty(isolate, exception,
                                 isolate->factory()->InternalizeUtf8String(
                                     wasm::WasmException::kRuntimeValuesStr))
             .ToHandle(&values_obj)) {
@@ -225,7 +229,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
       }
     }
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
@@ -233,7 +237,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   HandleScope scope(isolate);
   CONVERT_NUMBER_CHECKED(int32_t, func_index, Int32, args[0]);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg_buffer_obj, 1);
-  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate));
+  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
+                                      isolate);
 
   // The arg buffer is the raw pointer to the caller's stack. It looks like a
   // Smi (lowest bit not set, as checked by IsSmi), but is no valid Smi. We just
@@ -265,9 +270,9 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
   if (!success) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
@@ -289,19 +294,27 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_WasmCompileLazy) {
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance_on_stack, 0);
-  // TODO(titzer): The location on the stack is not visited by the
-  // roots visitor because the type of the frame is a special
-  // WASM builtin. Reopen the handle in a handle scope as a workaround.
+RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   HandleScope scope(isolate);
-  Handle<WasmInstanceObject> instance(*instance_on_stack, isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_SMI_ARG_CHECKED(func_index, 1);
 
   ClearThreadInWasmScope wasm_flag(true);
 
-  Address entrypoint = wasm::CompileLazy(isolate, instance);
-  return MakePair(reinterpret_cast<Object*>(entrypoint), *instance);
+#ifdef DEBUG
+  StackFrameIterator it(isolate, isolate->thread_local_top());
+  // On top: C entry stub.
+  DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
+  it.Advance();
+  // Next: the wasm lazy compile frame.
+  DCHECK_EQ(StackFrame::WASM_COMPILE_LAZY, it.frame()->type());
+  DCHECK_EQ(*instance, WasmCompileLazyFrame::cast(it.frame())->wasm_instance());
+#endif
+
+  Address entrypoint = wasm::CompileLazy(
+      isolate, instance->module_object()->native_module(), func_index);
+  return reinterpret_cast<Object*>(entrypoint);
 }
 
 }  // namespace internal

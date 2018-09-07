@@ -110,11 +110,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
     bool can_start_incremental_gc;
   };
 
-  explicit MemoryReducer(Heap* heap)
-      : heap_(heap),
-        state_(kDone, 0, 0.0, 0.0, 0),
-        js_calls_counter_(0),
-        js_calls_sample_time_ms_(0.0) {}
+  explicit MemoryReducer(Heap* heap);
   // Callbacks.
   void NotifyMarkCompact(const Event& event);
   void NotifyPossibleGarbage(const Event& event);
@@ -159,6 +155,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   static bool WatchdogGC(const State& state, const Event& event);
 
   Heap* heap_;
+  std::shared_ptr<v8::TaskRunner> taskrunner_;
   State state_;
   unsigned int js_calls_counter_;
   double js_calls_sample_time_ms_;

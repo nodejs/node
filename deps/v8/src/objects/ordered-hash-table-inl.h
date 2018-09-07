@@ -19,11 +19,34 @@ int OrderedHashMap::GetMapRootIndex() {
   return Heap::kOrderedHashMapMapRootIndex;
 }
 
+int SmallOrderedHashMap::GetMapRootIndex() {
+  return Heap::kSmallOrderedHashMapMapRootIndex;
+}
+
+int SmallOrderedHashSet::GetMapRootIndex() {
+  return Heap::kSmallOrderedHashSetMapRootIndex;
+}
+
 inline Object* OrderedHashMap::ValueAt(int entry) {
   DCHECK_LT(entry, this->UsedCapacity());
   return get(EntryToIndex(entry) + kValueOffset);
 }
 
+inline bool OrderedHashSet::Is(Handle<HeapObject> table) {
+  return table->IsOrderedHashSet();
+}
+
+inline bool OrderedHashMap::Is(Handle<HeapObject> table) {
+  return table->IsOrderedHashMap();
+}
+
+inline bool SmallOrderedHashSet::Is(Handle<HeapObject> table) {
+  return table->IsSmallOrderedHashSet();
+}
+
+inline bool SmallOrderedHashMap::Is(Handle<HeapObject> table) {
+  return table->IsSmallOrderedHashMap();
+}
 }  // namespace internal
 }  // namespace v8
 

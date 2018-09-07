@@ -170,8 +170,9 @@ inline uint32_t NumberToUint32(Object* number);
 inline int64_t NumberToInt64(Object* number);
 inline uint64_t PositiveNumberToUint64(Object* number);
 
-double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
-                      int flags, double empty_string_val = 0.0);
+double StringToDouble(Isolate* isolate, UnicodeCache* unicode_cache,
+                      Handle<String> string, int flags,
+                      double empty_string_val = 0.0);
 
 inline bool TryNumberToSize(Object* number, size_t* result);
 

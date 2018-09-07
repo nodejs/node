@@ -57,7 +57,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       ClearExceptionFlag flag);
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
-  static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
+  CompileForLiveEdit(ParseInfo* parse_info, Isolate* isolate);
 
   // Creates a new task that when run will parse and compile the streamed
   // script associated with |streaming_data| and can be finalized with
@@ -300,7 +302,6 @@ class OptimizedCompilationJob : public CompilationJob {
   OptimizedCompilationInfo* compilation_info() const {
     return compilation_info_;
   }
-  virtual size_t AllocatedMemory() const { return 0; }
 
  protected:
   // Overridden by the actual implementation.

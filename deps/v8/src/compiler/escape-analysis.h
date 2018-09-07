@@ -180,6 +180,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysis final
  private:
   void Reduce(Node* node, Reduction* reduction);
   JSGraph* jsgraph() { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   EscapeAnalysisTracker* tracker_;
   JSGraph* jsgraph_;
 };

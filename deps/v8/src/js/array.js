@@ -58,24 +58,26 @@ function GetSortedArrayKeys(array, indices) {
 }
 
 
-function SparseJoinWithSeparatorJS(array, keys, length, use_locale, separator) {
+function SparseJoinWithSeparatorJS(
+    array, keys, length, use_locale, separator, locales, options) {
   var keys_length = keys.length;
   var elements = new InternalArray(keys_length * 2);
   for (var i = 0; i < keys_length; i++) {
     var key = keys[i];
     elements[i * 2] = key;
-    elements[i * 2 + 1] = ConvertToString(use_locale, array[key]);
+    elements[i * 2 + 1] = ConvertToString(
+        use_locale, array[key], locales, options);
   }
   return %SparseJoinWithSeparator(elements, length, separator);
 }
 
 
 // Optimized for sparse arrays if separator is ''.
-function SparseJoin(array, keys, use_locale) {
+function SparseJoin(array, keys, use_locale, locales, options) {
   var keys_length = keys.length;
   var elements = new InternalArray(keys_length);
   for (var i = 0; i < keys_length; i++) {
-    elements[i] = ConvertToString(use_locale, array[keys[i]]);
+    elements[i] = ConvertToString(use_locale, array[keys[i]], locales, options);
   }
   return %StringBuilderConcat(elements, keys_length, '');
 }
@@ -128,28 +130,29 @@ function StackHas(stack, v) {
 // join invocations.
 var visited_arrays = new Stack();
 
-function DoJoin(array, length, is_array, separator, use_locale) {
+function DoJoin(
+    array, length, is_array, separator, use_locale, locales, options) {
   if (UseSparseVariant(array, length, is_array, length)) {
     %NormalizeElements(array);
     var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, length));
     if (separator === '') {
       if (keys.length === 0) return '';
-      return SparseJoin(array, keys, use_locale);
+      return SparseJoin(array, keys, use_locale, locales, options);
     } else {
       return SparseJoinWithSeparatorJS(
-          array, keys, length, use_locale, separator);
+          array, keys, length, use_locale, separator, locales, options);
     }
   }
 
   // Fast case for one-element arrays.
   if (length === 1) {
-    return ConvertToString(use_locale, array[0]);
+    return ConvertToString(use_locale, array[0], locales, options);
   }
 
   // Construct an array for the elements.
   var elements = new InternalArray(length);
   for (var i = 0; i < length; i++) {
-    elements[i] = ConvertToString(use_locale, array[i]);
+    elements[i] = ConvertToString(use_locale, array[i], locales, options);
   }
 
   if (separator === '') {
@@ -159,7 +162,7 @@ function DoJoin(array, length, is_array, separator, use_locale) {
   }
 }
 
-function Join(array, length, separator, use_locale) {
+function Join(array, length, separator, use_locale, locales, options) {
   if (length === 0) return '';
 
   var is_array = IS_ARRAY(array);
@@ -173,7 +176,8 @@ function Join(array, length, separator, use_locale) {
 
   // Attempt to convert the elements.
   try {
-    return DoJoin(array, length, is_array, separator, use_locale);
+    return DoJoin(
+        array, length, is_array, separator, use_locale, locales, options);
   } finally {
     // Make sure to remove the last element of the visited array no
     // matter what happens.
@@ -182,9 +186,18 @@ function Join(array, length, separator, use_locale) {
 }
 
 
-function ConvertToString(use_locale, x) {
+function ConvertToString(use_locale, x, locales, options) {
   if (IS_NULL_OR_UNDEFINED(x)) return '';
-  return TO_STRING(use_locale ? x.toLocaleString() : x);
+  if (use_locale) {
+    if (IS_NULL_OR_UNDEFINED(locales)) {
+      return TO_STRING(x.toLocaleString());
+    } else if (IS_NULL_OR_UNDEFINED(options)) {
+      return TO_STRING(x.toLocaleString(locales));
+    }
+    return TO_STRING(x.toLocaleString(locales, options));
+  }
+
+  return TO_STRING(x);
 }
 
 
@@ -347,17 +360,21 @@ DEFINE_METHOD(
   }
 );
 
-function InnerArrayToLocaleString(array, length) {
-  return Join(array, TO_LENGTH(length), ',', true);
+// ecma402 #sup-array.prototype.tolocalestring
+function InnerArrayToLocaleString(array, length, locales, options) {
+  return Join(array, TO_LENGTH(length), ',', true, locales, options);
 }
 
 
 DEFINE_METHOD(
   GlobalArray.prototype,
+  // ecma402 #sup-array.prototype.tolocalestring
   toLocaleString() {
     var array = TO_OBJECT(this);
     var arrayLen = array.length;
-    return InnerArrayToLocaleString(array, arrayLen);
+    var locales = arguments[0];
+    var options = arguments[1];
+    return InnerArrayToLocaleString(array, arrayLen, locales, options);
   }
 );
 
@@ -389,46 +406,6 @@ DEFINE_METHOD(
     return InnerArrayJoin(separator, array, length);
   }
 );
-
-
-// Removes the last element from the array and returns it. See
-// ECMA-262, section 15.4.4.6.
-function ArrayPopFallback() {
-  var array = TO_OBJECT(this);
-  var n = TO_LENGTH(array.length);
-  if (n == 0) {
-    array.length = n;
-    return;
-  }
-
-  n--;
-  var value = array[n];
-  delete array[n];
-  array.length = n;
-  return value;
-}
-
-
-// Appends the arguments to the end of the array and returns the new
-// length of the array. See ECMA-262, section 15.4.4.7.
-function ArrayPushFallback() {
-  var array = TO_OBJECT(this);
-  var n = TO_LENGTH(array.length);
-  var m = arguments.length;
-
-  // Subtract n from kMaxSafeInteger rather than testing m + n >
-  // kMaxSafeInteger. n may already be kMaxSafeInteger. In that case adding
-  // e.g., 1 would not be safe.
-  if (m > kMaxSafeInteger - n) throw %make_type_error(kPushPastSafeLength, m, n);
-
-  for (var i = 0; i < m; i++) {
-    array[i+n] = arguments[i];
-  }
-
-  var new_length = n + m;
-  array.length = new_length;
-  return new_length;
-}
 
 
 // For implementing reverse() on large, sparse arrays.
@@ -822,7 +799,6 @@ function InnerArraySort(array, length, comparefn) {
   return array;
 }
 
-
 DEFINE_METHOD(
   GlobalArray.prototype,
   sort(comparefn) {
@@ -835,6 +811,7 @@ DEFINE_METHOD(
     return InnerArraySort(array, length, comparefn);
   }
 );
+
 
 DEFINE_METHOD_LEN(
   GlobalArray.prototype,
@@ -1050,7 +1027,6 @@ utils.Export(function(to) {
   to.ArrayToString = ArrayToString;
   to.ArrayValues = ArrayValues;
   to.InnerArrayJoin = InnerArrayJoin;
-  to.InnerArraySort = InnerArraySort;
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;
 });
 
@@ -1060,8 +1036,6 @@ utils.Export(function(to) {
   "array_keys_iterator", ArrayKeys,
   "array_values_iterator", ArrayValues,
   // Fallback implementations of Array builtins.
-  "array_pop", ArrayPopFallback,
-  "array_push", ArrayPushFallback,
   "array_shift", ArrayShiftFallback,
   "array_splice", ArraySpliceFallback,
   "array_unshift", ArrayUnshiftFallback,

@@ -11,7 +11,11 @@
 #include "src/detachable-vector.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
+#include "src/objects/bigint.h"
 #include "src/objects/js-collection.h"
+#include "src/objects/js-promise.h"
+#include "src/objects/module.h"
+#include "src/objects/templates.h"
 
 namespace v8 {
 
@@ -248,9 +252,7 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
   template<class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj) {
-    DCHECK(obj.is_null() ||
-           (obj->IsSmi() ||
-            !obj->IsTheHole(i::HeapObject::cast(*obj)->GetIsolate())));
+    DCHECK(obj.is_null() || (obj->IsSmi() || !obj->IsTheHole()));
     return Local<To>(reinterpret_cast<To*>(obj.location()));
   }
 
@@ -635,7 +637,7 @@ bool HandleScopeImplementer::LastEnteredContextWas(Handle<Context> context) {
 
 Handle<Context> HandleScopeImplementer::LastEnteredContext() {
   if (entered_contexts_.empty()) return Handle<Context>::null();
-  return Handle<Context>(entered_contexts_.back());
+  return Handle<Context>(entered_contexts_.back(), isolate_);
 }
 
 void HandleScopeImplementer::EnterMicrotaskContext(Handle<Context> context) {
@@ -650,7 +652,7 @@ void HandleScopeImplementer::LeaveMicrotaskContext() {
 }
 
 Handle<Context> HandleScopeImplementer::MicrotaskContext() {
-  if (microtask_context_) return Handle<Context>(microtask_context_);
+  if (microtask_context_) return Handle<Context>(microtask_context_, isolate_);
   return Handle<Context>::null();
 }
 

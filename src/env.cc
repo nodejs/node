@@ -46,7 +46,7 @@ IsolateData::IsolateData(Isolate* isolate,
     zero_fill_field_(zero_fill_field),
     platform_(platform) {
   if (platform_ != nullptr)
-    platform_->RegisterIsolate(this, event_loop);
+    platform_->RegisterIsolate(isolate_, event_loop);
 
   options_.reset(new PerIsolateOptions(*per_process_opts->per_isolate));
 
@@ -99,7 +99,7 @@ IsolateData::IsolateData(Isolate* isolate,
 
 IsolateData::~IsolateData() {
   if (platform_ != nullptr)
-    platform_->UnregisterIsolate(this);
+    platform_->UnregisterIsolate(isolate_);
 }
 
 

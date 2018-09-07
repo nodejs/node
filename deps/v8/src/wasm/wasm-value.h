@@ -14,14 +14,11 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define FOREACH_SIMD_TYPE(V)    \
-  V(float, float4, f32x4, 4)    \
-  V(int32_t, int4, i32x4, 4)    \
-  V(uint32_t, uint4, ui32x4, 4) \
-  V(int16_t, int8, i16x8, 8)    \
-  V(uint16_t, uint8, ui16x8, 8) \
-  V(int8_t, int16, i8x16, 16)   \
-  V(uint8_t, uint16, ui8x16, 16)
+#define FOREACH_SIMD_TYPE(V) \
+  V(float, float4, f32x4, 4) \
+  V(int32_t, int4, i32x4, 4) \
+  V(int16_t, int8, i16x8, 8) \
+  V(int8_t, int16, i8x16, 16)
 
 #define DEFINE_SIMD_TYPE(cType, sType, name, kSize) \
   struct sType {                                    \

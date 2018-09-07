@@ -48,7 +48,7 @@ class V8StackTraceImpl : public V8StackTrace {
  public:
   static void setCaptureStackTraceForUncaughtExceptions(v8::Isolate*,
                                                         bool capture);
-  static const int maxCallStackSizeToCapture = 200;
+  static int maxCallStackSizeToCapture;
   static std::unique_ptr<V8StackTraceImpl> create(V8Debugger*,
                                                   int contextGroupId,
                                                   v8::Local<v8::StackTrace>,
@@ -117,6 +117,16 @@ class AsyncStackTrace {
   std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObject(
       V8Debugger* debugger, int maxAsyncDepth) const;
 
+  // If async stack has suspended task id, it means that at moment when we
+  // capture current stack trace we suspended corresponded asynchronous
+  // execution flow and it is possible to request pause for a momemnt when
+  // that flow is resumed.
+  // E.g. every time when we suspend async function we mark corresponded async
+  // stack as suspended and every time when this function is resumed we remove
+  // suspendedTaskId.
+  void setSuspendedTaskId(void* task);
+  void* suspendedTaskId() const;
+
   int contextGroupId() const;
   const String16& description() const;
   std::weak_ptr<AsyncStackTrace> parent() const;
@@ -135,6 +145,7 @@ class AsyncStackTrace {
 
   int m_contextGroupId;
   uintptr_t m_id;
+  void* m_suspendedTaskId;
   String16 m_description;
 
   std::vector<std::shared_ptr<StackFrame>> m_frames;

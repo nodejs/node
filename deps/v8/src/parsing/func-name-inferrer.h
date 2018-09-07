@@ -96,11 +96,7 @@ class FuncNameInferrer : public ZoneObject {
 
   void Enter() { entries_stack_.Add(names_stack_.length(), zone()); }
 
-  void Leave() {
-    DCHECK(IsOpen());
-    names_stack_.Rewind(entries_stack_.RemoveLast());
-    if (entries_stack_.is_empty()) funcs_to_infer_.Clear();
-  }
+  void Leave();
 
   Zone* zone() const { return zone_; }
 

@@ -75,7 +75,7 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::SetAccessor(object, name, error_stack, DONT_ENUM));
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // ES6 section 19.5.3.4 Error.prototype.toString ( )

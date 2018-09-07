@@ -32,11 +32,12 @@ function parseState(s) {
 
 
 function IcProcessor() {
-  var propertyICParser = [parseInt, parseInt, parseInt, null, null, parseInt,
-                          null, null, null];
+  var propertyICParser = [parseInt, parseInt, parseInt, parseString,
+      parseString, parseInt, parseString, parseString, parseString];
   LogReader.call(this, {
       'code-creation': {
-          parsers: [null, parseInt, parseInt, parseInt, parseInt, null, 'var-args'],
+          parsers: [parseString, parseInt, parseInt, parseInt, parseInt,
+              parseString, parseVarArgs],
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },

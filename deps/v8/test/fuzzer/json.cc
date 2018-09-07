@@ -10,6 +10,11 @@
 #include "test/fuzzer/fuzzer-support.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  // Ignore too long inputs as they tend to find OOM or timeouts, not real bugs.
+  if (size > 16 * 1024) {
+    return false;
+  }
+
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
 

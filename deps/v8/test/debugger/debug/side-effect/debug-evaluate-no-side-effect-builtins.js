@@ -68,8 +68,8 @@ function listener(event, exec_state, event_data, data) {
     fail(`Array.from([1, 2, 3])`);
     fail(`Array.of(1, 2, 3)`);
     var function_param = [
-      "forEach", "every", "some", "reduce", "reduceRight", "find", "filter",
-      "map", "findIndex"
+      "flatMap", "forEach", "every", "some", "reduce", "reduceRight", "find",
+      "filter", "map", "findIndex"
     ];
     var fails = ["toString", "join", "toLocaleString", "pop", "push", "reverse",
       "shift", "unshift", "splice", "sort", "copyWithin", "fill"];

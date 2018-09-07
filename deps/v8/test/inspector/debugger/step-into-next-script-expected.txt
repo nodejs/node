@@ -4,7 +4,7 @@ Running test: testStepOut
 test (foo.js:12:2)
 (anonymous) (:0:0)
 
-(anonymous) (:0:5)
+(anonymous) (:0:6)
 
 (anonymous) (timeout1.js:0:8)
 
@@ -22,11 +22,11 @@ test (foo.js:12:2)
 test (foo.js:13:0)
 (anonymous) (:0:0)
 
-(anonymous) (:0:5)
+(anonymous) (:0:6)
 
 (anonymous) (timeout1.js:0:8)
 
-(anonymous) (timeout1.js:0:34)
+(anonymous) (timeout1.js:0:35)
 
 foo (timeout2.js:2:2)
 
@@ -34,7 +34,7 @@ foo (timeout2.js:2:12)
 
 (anonymous) (timeout3.js:0:8)
 
-(anonymous) (timeout3.js:0:34)
+(anonymous) (timeout3.js:0:35)
 
 
 Running test: testStepInto
@@ -55,11 +55,11 @@ test (foo.js:12:2)
 test (foo.js:13:0)
 (anonymous) (:0:0)
 
-(anonymous) (:0:5)
+(anonymous) (:0:6)
 
 (anonymous) (timeout1.js:0:8)
 
-(anonymous) (timeout1.js:0:34)
+(anonymous) (timeout1.js:0:35)
 
 foo (timeout2.js:2:2)
 
@@ -67,5 +67,5 @@ foo (timeout2.js:2:12)
 
 (anonymous) (timeout3.js:0:8)
 
-(anonymous) (timeout3.js:0:34)
+(anonymous) (timeout3.js:0:35)
 

@@ -543,7 +543,7 @@ TEST(MIPS6) {
   } T;
   T t;
 
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
   Label L, C;
 
   // Basic word load/store.
@@ -909,7 +909,7 @@ TEST(MIPS11) {
   } T;
   T t;
 
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
 
   // Test all combinations of LWL and vAddr.
   __ lw(t0, MemOperand(a0, offsetof(T, reg_init)) );
@@ -1334,7 +1334,7 @@ TEST(MIPS15) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
 
   Label target;
   __ beq(v0, v1, &target);
@@ -3151,7 +3151,7 @@ TEST(jump_tables1) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -3218,7 +3218,7 @@ TEST(jump_tables2) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -3287,13 +3287,13 @@ TEST(jump_tables3) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
 
   const int kNumCases = 256;
   Handle<Object> values[kNumCases];
   for (int i = 0; i < kNumCases; ++i) {
     double value = isolate->random_number_generator()->NextDouble();
-    values[i] = isolate->factory()->NewHeapNumber(value, IMMUTABLE, TENURED);
+    values[i] = isolate->factory()->NewHeapNumber(value, TENURED);
   }
   Label labels[kNumCases];
   Object* obj;
@@ -3377,7 +3377,7 @@ TEST(BITSWAP) {
     } T;
     T t;
 
-    Assembler assm(isolate, nullptr, 0);
+    Assembler assm(AssemblerOptions{}, nullptr, 0);
 
     __ lw(a2, MemOperand(a0, offsetof(T, r1)));
     __ nop();

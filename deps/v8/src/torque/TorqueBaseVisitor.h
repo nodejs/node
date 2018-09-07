@@ -148,6 +148,16 @@ class TorqueBaseVisitor : public TorqueVisitor {
     return visitChildren(ctx);
   }
 
+  antlrcpp::Any visitStructExpression(
+      TorqueParser::StructExpressionContext* ctx) override {
+    return visitChildren(ctx);
+  }
+
+  antlrcpp::Any visitFunctionPointerExpression(
+      TorqueParser::FunctionPointerExpressionContext* ctx) override {
+    return visitChildren(ctx);
+  }
+
   antlrcpp::Any visitPrimaryExpression(
       TorqueParser::PrimaryExpressionContext* ctx) override {
     return visitChildren(ctx);
@@ -248,7 +258,8 @@ class TorqueBaseVisitor : public TorqueVisitor {
     return visitChildren(ctx);
   }
 
-  antlrcpp::Any visitTryCatch(TorqueParser::TryCatchContext* ctx) override {
+  antlrcpp::Any visitTryLabelStatement(
+      TorqueParser::TryLabelStatementContext* ctx) override {
     return visitChildren(ctx);
   }
 
@@ -280,6 +291,16 @@ class TorqueBaseVisitor : public TorqueVisitor {
     return visitChildren(ctx);
   }
 
+  antlrcpp::Any visitFieldDeclaration(
+      TorqueParser::FieldDeclarationContext* ctx) override {
+    return visitChildren(ctx);
+  }
+
+  antlrcpp::Any visitFieldListDeclaration(
+      TorqueParser::FieldListDeclarationContext* ctx) override {
+    return visitChildren(ctx);
+  }
+
   antlrcpp::Any visitExtendsDeclaration(
       TorqueParser::ExtendsDeclarationContext* ctx) override {
     return visitChildren(ctx);
@@ -297,6 +318,11 @@ class TorqueBaseVisitor : public TorqueVisitor {
 
   antlrcpp::Any visitTypeDeclaration(
       TorqueParser::TypeDeclarationContext* ctx) override {
+    return visitChildren(ctx);
+  }
+
+  antlrcpp::Any visitTypeAliasDeclaration(
+      TorqueParser::TypeAliasDeclarationContext* ctx) override {
     return visitChildren(ctx);
   }
 
@@ -330,8 +356,18 @@ class TorqueBaseVisitor : public TorqueVisitor {
     return visitChildren(ctx);
   }
 
+  antlrcpp::Any visitExternConstDeclaration(
+      TorqueParser::ExternConstDeclarationContext* ctx) override {
+    return visitChildren(ctx);
+  }
+
   antlrcpp::Any visitConstDeclaration(
       TorqueParser::ConstDeclarationContext* ctx) override {
+    return visitChildren(ctx);
+  }
+
+  antlrcpp::Any visitStructDeclaration(
+      TorqueParser::StructDeclarationContext* ctx) override {
     return visitChildren(ctx);
   }
 

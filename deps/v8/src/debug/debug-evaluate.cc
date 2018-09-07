@@ -44,7 +44,8 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
                                                             context);
   if (throw_on_side_effect) isolate->debug()->StartSideEffectCheckMode();
   MaybeHandle<Object> result = Execution::Call(
-      isolate, fun, Handle<JSObject>(context->global_proxy()), 0, nullptr);
+      isolate, fun, Handle<JSObject>(context->global_proxy(), isolate), 0,
+      nullptr);
   if (throw_on_side_effect) isolate->debug()->StopSideEffectCheckMode();
   return result;
 }
@@ -72,7 +73,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   Handle<Context> context = context_builder.evaluation_context();
-  Handle<JSObject> receiver(context->global_proxy());
+  Handle<JSObject> receiver(context->global_proxy(), isolate);
   MaybeHandle<Object> maybe_result =
       Evaluate(isolate, context_builder.outer_info(), context, receiver, source,
                throw_on_side_effect);
@@ -115,7 +116,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
                                        Handle<Context>(), Handle<StringSet>());
   Handle<SharedFunctionInfo> outer_info(
       native_context->empty_function()->shared(), isolate);
-  Handle<JSObject> receiver(native_context->global_proxy());
+  Handle<JSObject> receiver(native_context->global_proxy(), isolate);
   const bool throw_on_side_effect = false;
   MaybeHandle<Object> maybe_result =
       Evaluate(isolate, outer_info, evaluation_context, receiver, source,
@@ -159,19 +160,23 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   return result;
 }
 
+Handle<SharedFunctionInfo> DebugEvaluate::ContextBuilder::outer_info() const {
+  return handle(frame_inspector_.GetFunction()->shared(), isolate_);
+}
 
 DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
                                               JavaScriptFrame* frame,
                                               int inlined_jsframe_index)
     : isolate_(isolate),
-      frame_(frame),
-      inlined_jsframe_index_(inlined_jsframe_index) {
-  FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
-  Handle<JSFunction> local_function = frame_inspector.GetFunction();
-  Handle<Context> outer_context(local_function->context());
+      frame_inspector_(frame, inlined_jsframe_index, isolate),
+      scope_iterator_(isolate, &frame_inspector_,
+                      ScopeIterator::COLLECT_NON_LOCALS) {
+  Handle<Context> outer_context(frame_inspector_.GetFunction()->context(),
+                                isolate);
   evaluation_context_ = outer_context;
-  outer_info_ = handle(local_function->shared());
   Factory* factory = isolate->factory();
+
+  if (scope_iterator_.Done()) return;
 
   // To evaluate as if we were running eval at the point of the debug break,
   // we reconstruct the context chain as follows:
@@ -189,64 +194,32 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   //  - Look up in the materialized stack variables.
   //  - Look up in the original context.
   //  - Check the whitelist to find out whether to skip contexts during lookup.
-  const ScopeIterator::Option option = ScopeIterator::COLLECT_NON_LOCALS;
-  for (ScopeIterator it(isolate, &frame_inspector, option); !it.Done();
-       it.Next()) {
-    ScopeIterator::ScopeType scope_type = it.Type();
-    if (scope_type == ScopeIterator::ScopeTypeLocal) {
-      DCHECK_EQ(FUNCTION_SCOPE, it.CurrentScopeInfo()->scope_type());
-      Handle<JSObject> materialized = factory->NewJSObjectWithNullProto();
-      Handle<Context> local_context =
-          it.HasContext() ? it.CurrentContext() : outer_context;
-      Handle<StringSet> non_locals = it.GetNonLocals();
-      MaterializeReceiver(materialized, local_context, local_function,
-                          non_locals);
-      MaterializeStackLocals(materialized, local_function, &frame_inspector);
-      ContextChainElement context_chain_element;
-      context_chain_element.scope_info = it.CurrentScopeInfo();
-      context_chain_element.materialized_object = materialized;
-      // Non-locals that are already being referenced by the current function
-      // are guaranteed to be correctly resolved.
-      context_chain_element.whitelist = non_locals;
-      if (it.HasContext()) {
-        context_chain_element.wrapped_context = it.CurrentContext();
-      }
-      context_chain_.push_back(context_chain_element);
-      evaluation_context_ = outer_context;
-      break;
-    } else if (scope_type == ScopeIterator::ScopeTypeCatch ||
-               scope_type == ScopeIterator::ScopeTypeWith ||
-               scope_type == ScopeIterator::ScopeTypeModule) {
-      ContextChainElement context_chain_element;
-      Handle<Context> current_context = it.CurrentContext();
-      if (!current_context->IsDebugEvaluateContext()) {
-        context_chain_element.wrapped_context = current_context;
-      }
-      context_chain_.push_back(context_chain_element);
-    } else if (scope_type == ScopeIterator::ScopeTypeBlock ||
-               scope_type == ScopeIterator::ScopeTypeEval) {
-      Handle<JSObject> materialized = factory->NewJSObjectWithNullProto();
-      frame_inspector.MaterializeStackLocals(materialized,
-                                             it.CurrentScopeInfo());
-      ContextChainElement context_chain_element;
-      context_chain_element.scope_info = it.CurrentScopeInfo();
-      context_chain_element.materialized_object = materialized;
-      if (it.HasContext()) {
-        context_chain_element.wrapped_context = it.CurrentContext();
-      }
-      context_chain_.push_back(context_chain_element);
-    } else {
-      break;
+  for (; scope_iterator_.InInnerScope(); scope_iterator_.Next()) {
+    ScopeIterator::ScopeType scope_type = scope_iterator_.Type();
+    if (scope_type == ScopeIterator::ScopeTypeScript) break;
+    ContextChainElement context_chain_element;
+    if (scope_type == ScopeIterator::ScopeTypeLocal ||
+        scope_iterator_.DeclaresLocals(ScopeIterator::Mode::STACK)) {
+      context_chain_element.materialized_object =
+          scope_iterator_.ScopeObject(ScopeIterator::Mode::STACK);
     }
+    if (scope_iterator_.HasContext()) {
+      context_chain_element.wrapped_context = scope_iterator_.CurrentContext();
+    }
+    if (scope_type == ScopeIterator::ScopeTypeLocal) {
+      context_chain_element.whitelist = scope_iterator_.GetNonLocals();
+    }
+    context_chain_.push_back(context_chain_element);
   }
 
+  Handle<ScopeInfo> scope_info =
+      evaluation_context_->IsNativeContext()
+          ? Handle<ScopeInfo>::null()
+          : handle(evaluation_context_->scope_info(), isolate);
   for (auto rit = context_chain_.rbegin(); rit != context_chain_.rend();
        rit++) {
     ContextChainElement element = *rit;
-    Handle<ScopeInfo> scope_info(ScopeInfo::CreateForWithScope(
-        isolate, evaluation_context_->IsNativeContext()
-                     ? Handle<ScopeInfo>::null()
-                     : Handle<ScopeInfo>(evaluation_context_->scope_info())));
+    scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
     scope_info->SetIsDebugEvaluateScope();
     evaluation_context_ = factory->NewDebugEvaluateContext(
         evaluation_context_, scope_info, element.materialized_object,
@@ -256,62 +229,24 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
 
 
 void DebugEvaluate::ContextBuilder::UpdateValues() {
+  scope_iterator_.Restart();
   for (ContextChainElement& element : context_chain_) {
     if (!element.materialized_object.is_null()) {
-      // Write back potential changes to materialized stack locals to the stack.
-      FrameInspector(frame_, inlined_jsframe_index_, isolate_)
-          .UpdateStackLocalsFromMaterializedObject(element.materialized_object,
-                                                   element.scope_info);
+      Handle<FixedArray> keys =
+          KeyAccumulator::GetKeys(element.materialized_object,
+                                  KeyCollectionMode::kOwnOnly,
+                                  ENUMERABLE_STRINGS)
+              .ToHandleChecked();
+
+      for (int i = 0; i < keys->length(); i++) {
+        DCHECK(keys->get(i)->IsString());
+        Handle<String> key(String::cast(keys->get(i)), isolate_);
+        Handle<Object> value =
+            JSReceiver::GetDataProperty(element.materialized_object, key);
+        scope_iterator_.SetVariableValue(key, value);
+      }
     }
-  }
-}
-
-
-void DebugEvaluate::ContextBuilder::MaterializeReceiver(
-    Handle<JSObject> target, Handle<Context> local_context,
-    Handle<JSFunction> local_function, Handle<StringSet> non_locals) {
-  Handle<Object> recv = isolate_->factory()->undefined_value();
-  Handle<String> name = isolate_->factory()->this_string();
-  if (non_locals->Has(name)) {
-    // 'this' is allocated in an outer context and is is already being
-    // referenced by the current function, so it can be correctly resolved.
-    return;
-  } else if (local_function->shared()->scope_info()->HasReceiver() &&
-             !frame_->receiver()->IsTheHole(isolate_)) {
-    recv = handle(frame_->receiver(), isolate_);
-  }
-  JSObject::SetOwnPropertyIgnoreAttributes(target, name, recv, NONE).Check();
-}
-
-void DebugEvaluate::ContextBuilder::MaterializeStackLocals(
-    Handle<JSObject> target, Handle<JSFunction> function,
-    FrameInspector* frame_inspector) {
-  bool materialize_arguments_object = true;
-
-  // Do not materialize the arguments object for eval or top-level code.
-  if (function->shared()->is_toplevel()) materialize_arguments_object = false;
-
-  // First materialize stack locals (modulo arguments object).
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-  frame_inspector->MaterializeStackLocals(target, scope_info,
-                                          materialize_arguments_object);
-
-  // Then materialize the arguments object.
-  if (materialize_arguments_object) {
-    // Skip if "arguments" is already taken and wasn't optimized out (which
-    // causes {MaterializeStackLocals} above to skip the local variable).
-    Handle<String> arguments_str = isolate_->factory()->arguments_string();
-    Maybe<bool> maybe = JSReceiver::HasOwnProperty(target, arguments_str);
-    DCHECK(maybe.IsJust());
-    if (maybe.FromJust()) return;
-
-    // FunctionGetArguments can't throw an exception.
-    Handle<JSObject> arguments =
-        Accessors::FunctionGetArguments(frame_, inlined_jsframe_index_);
-    JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
-                                             NONE)
-        .Check();
+    scope_iterator_.Next();
   }
 }
 
@@ -332,10 +267,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(IsArray)                             \
   V(IsDate)                              \
   V(IsFunction)                          \
-  V(IsJSMap)                             \
   V(IsJSProxy)                           \
   V(IsJSReceiver)                        \
-  V(IsJSSet)                             \
   V(IsJSWeakMap)                         \
   V(IsJSWeakSet)                         \
   V(IsRegExp)                            \
@@ -398,6 +331,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ObjectHasOwnProperty)                \
   V(ObjectValues)                        \
   V(ObjectValuesSkipFastPath)            \
+  V(ObjectGetOwnPropertyNames)           \
+  V(ObjectGetOwnPropertyNamesTryFast)    \
   V(RegExpInitializeAndCompile)          \
   V(StackGuard)                          \
   V(StringAdd)                           \
@@ -410,6 +345,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowRangeError)                     \
   V(ThrowTypeError)                      \
   V(ToName)                              \
+  V(TransitionElementsKind)              \
   /* Misc. */                            \
   V(Call)                                \
   V(CompleteInobjectSlackTrackingForMap) \
@@ -588,8 +524,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
   }
 }
 
-SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
-    Builtins::Name id) {
+DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
   switch (id) {
     // Whitelist for builtins.
     // Object builtins.
@@ -620,6 +555,8 @@ SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
     case Builtins::kArrayPrototypeEntries:
     case Builtins::kArrayPrototypeFind:
     case Builtins::kArrayPrototypeFindIndex:
+    case Builtins::kArrayPrototypeFlat:
+    case Builtins::kArrayPrototypeFlatMap:
     case Builtins::kArrayPrototypeKeys:
     case Builtins::kArrayPrototypeSlice:
     case Builtins::kArrayForEach:
@@ -630,7 +567,7 @@ SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
     case Builtins::kArrayMap:
     case Builtins::kArrayReduce:
     case Builtins::kArrayReduceRight:
-    // Trace builtins
+    // Trace builtins.
     case Builtins::kIsTraceCategoryEnabled:
     case Builtins::kTrace:
     // TypedArray builtins.
@@ -866,7 +803,7 @@ SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
     case Builtins::kMakeURIError:
     // RegExp builtins.
     case Builtins::kRegExpConstructor:
-      return SharedFunctionInfo::kHasNoSideEffect;
+      return DebugInfo::kHasNoSideEffect;
     // Set builtins.
     case Builtins::kSetIteratorPrototypeNext:
     case Builtins::kSetPrototypeAdd:
@@ -895,13 +832,13 @@ SharedFunctionInfo::SideEffectState BuiltinGetSideEffectState(
     case Builtins::kRegExpPrototypeDotAllGetter:
     case Builtins::kRegExpPrototypeUnicodeGetter:
     case Builtins::kRegExpPrototypeStickyGetter:
-      return SharedFunctionInfo::kRequiresRuntimeChecks;
+      return DebugInfo::kRequiresRuntimeChecks;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] built-in %s may cause side effect.\n",
                Builtins::name(id));
       }
-      return SharedFunctionInfo::kHasSideEffects;
+      return DebugInfo::kHasSideEffects;
   }
 }
 
@@ -923,8 +860,8 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
 }  // anonymous namespace
 
 // static
-SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
-    Handle<SharedFunctionInfo> info) {
+DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
+    Isolate* isolate, Handle<SharedFunctionInfo> info) {
   if (FLAG_trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] Checking function %s for side effect.\n",
            info->DebugName()->ToCString().get());
@@ -933,8 +870,10 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
   DCHECK(info->is_compiled());
   if (info->HasBytecodeArray()) {
     // Check bytecodes against whitelist.
-    Handle<BytecodeArray> bytecode_array(info->GetBytecodeArray());
-    if (FLAG_trace_side_effect_free_debug_evaluate) bytecode_array->Print();
+    Handle<BytecodeArray> bytecode_array(info->GetBytecodeArray(), isolate);
+    if (FLAG_trace_side_effect_free_debug_evaluate) {
+      bytecode_array->Print();
+    }
     bool requires_runtime_checks = false;
     for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
          it.Advance()) {
@@ -946,7 +885,7 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
                 ? it.GetIntrinsicIdOperand(0)
                 : it.GetRuntimeIdOperand(0);
         if (IntrinsicHasNoSideEffect(id)) continue;
-        return SharedFunctionInfo::kHasSideEffects;
+        return DebugInfo::kHasSideEffects;
       }
 
       if (BytecodeHasNoSideEffect(bytecode)) continue;
@@ -961,15 +900,15 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
       }
 
       // Did not match whitelist.
-      return SharedFunctionInfo::kHasSideEffects;
+      return DebugInfo::kHasSideEffects;
     }
-    return requires_runtime_checks ? SharedFunctionInfo::kRequiresRuntimeChecks
-                                   : SharedFunctionInfo::kHasNoSideEffect;
+    return requires_runtime_checks ? DebugInfo::kRequiresRuntimeChecks
+                                   : DebugInfo::kHasNoSideEffect;
   } else if (info->IsApiFunction()) {
     if (info->GetCode()->is_builtin()) {
       return info->GetCode()->builtin_index() == Builtins::kHandleApiCall
-                 ? SharedFunctionInfo::kHasNoSideEffect
-                 : SharedFunctionInfo::kHasSideEffects;
+                 ? DebugInfo::kHasNoSideEffect
+                 : DebugInfo::kHasSideEffects;
     }
   } else {
     // Check built-ins against whitelist.
@@ -977,12 +916,11 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
         info->HasBuiltinId() ? info->builtin_id() : Builtins::kNoBuiltinId;
     DCHECK_NE(Builtins::kDeserializeLazy, builtin_index);
     if (!Builtins::IsBuiltinId(builtin_index))
-      return SharedFunctionInfo::kHasSideEffects;
-    SharedFunctionInfo::SideEffectState state =
+      return DebugInfo::kHasSideEffects;
+    DebugInfo::SideEffectState state =
         BuiltinGetSideEffectState(static_cast<Builtins::Name>(builtin_index));
 #ifdef DEBUG
-    if (state == SharedFunctionInfo::kHasNoSideEffect) {
-      Isolate* isolate = info->GetIsolate();
+    if (state == DebugInfo::kHasNoSideEffect) {
       Code* code = isolate->builtins()->builtin(builtin_index);
       if (code->builtin_index() == Builtins::kDeserializeLazy) {
         // Target builtin is not yet deserialized. Deserialize it now.
@@ -1015,7 +953,7 @@ SharedFunctionInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     return state;
   }
 
-  return SharedFunctionInfo::kHasSideEffects;
+  return DebugInfo::kHasSideEffects;
 }
 
 // static

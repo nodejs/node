@@ -163,8 +163,9 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, int descriptor,
                                      FieldIndex field_index,
                                      PropertyConstness constness,
                                      Representation representation) {
-  DCHECK_IMPLIES(!FLAG_track_constant_fields, constness == kMutable);
-  Kind kind = constness == kMutable ? kField : kConstField;
+  DCHECK_IMPLIES(!FLAG_track_constant_fields,
+                 constness == PropertyConstness::kMutable);
+  Kind kind = constness == PropertyConstness::kMutable ? kField : kConstField;
   return StoreField(isolate, kind, descriptor, field_index, representation);
 }
 

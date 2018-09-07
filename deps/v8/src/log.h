@@ -74,7 +74,6 @@ class PerfJitLogger;
 class Profiler;
 class RuntimeCallTimer;
 class Ticker;
-class WasmCompiledModule;
 
 namespace interpreter {
 enum class Bytecode : uint8_t;
@@ -125,6 +124,14 @@ class Logger : public CodeEventListener {
  public:
   enum StartEnd { START = 0, END = 1, STAMP = 2 };
 
+  enum class ScriptEventType {
+    kReserveId,
+    kCreate,
+    kDeserialize,
+    kBackgroundCompile,
+    kStreamingCompile
+  };
+
   // The separator is used to write an unescaped "," into the log.
   static const LogSeparator kNext = LogSeparator::kSeparator;
 
@@ -165,13 +172,19 @@ class Logger : public CodeEventListener {
   // object.
   void SuspectReadEvent(Name* name, Object* obj);
 
-  void FunctionEvent(const char* reason, Script* script, int script_id,
-                     double time_delta_ms, int start_position = -1,
-                     int end_position = -1, String* function_name = nullptr);
-  void FunctionEvent(const char* reason, Script* script, int script_id,
-                     double time_delta_ms, int start_position, int end_position,
+  // ==== Events logged by --log-function-events ====
+  void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
+                     int start_position = -1, int end_position = -1,
+                     String* function_name = nullptr);
+  void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
+                     int start_position, int end_position,
                      const char* function_name = nullptr,
                      size_t function_name_length = 0);
+
+  void CompilationCacheEvent(const char* action, const char* cache_type,
+                             SharedFunctionInfo* sfi);
+  void ScriptEvent(ScriptEventType type, int script_id);
+  void ScriptDetails(Script* script);
 
   // ==== Events logged by --log-api. ====
   void ApiSecurityCheck();
@@ -220,7 +233,7 @@ class Logger : public CodeEventListener {
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
-  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+  void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta);
 
   void ICEvent(const char* type, bool keyed, Map* map, Object* key,
@@ -246,8 +259,8 @@ class Logger : public CodeEventListener {
 
   static void DefaultEventLoggerSentinel(const char* name, int event) {}
 
-  INLINE(static void CallEventLogger(Isolate* isolate, const char* name,
-                                     StartEnd se, bool expose_to_api));
+  V8_INLINE static void CallEventLogger(Isolate* isolate, const char* name,
+                                        StartEnd se, bool expose_to_api);
 
   bool is_logging() {
     return is_logging_;
@@ -263,7 +276,6 @@ class Logger : public CodeEventListener {
 
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
                            Handle<AbstractCode> code);
-  void LogCompiledModule(Handle<WasmCompiledModule> module);
   // Logs all compiled functions found in the heap.
   void LogCompiledFunctions();
   // Logs all accessor callbacks found in the heap.
@@ -278,8 +290,8 @@ class Logger : public CodeEventListener {
   void LogMaps();
 
   // Converts tag to a corresponding NATIVE_... if the script is native.
-  INLINE(static CodeEventListener::LogEventsAndTags ToNativeByScript(
-      CodeEventListener::LogEventsAndTags, Script*));
+  V8_INLINE static CodeEventListener::LogEventsAndTags ToNativeByScript(
+      CodeEventListener::LogEventsAndTags, Script*);
 
   // Callback from Log, stops profiling in case of insufficient resources.
   void LogFailure();
@@ -315,6 +327,10 @@ class Logger : public CodeEventListener {
 
   // Logs an IntPtrTEvent regardless of whether FLAG_log is true.
   void UncheckedIntPtrTEvent(const char* name, intptr_t value);
+
+  // Logs a scripts sources. Keeps track of all logged scripts to ensure that
+  // each script is logged only once.
+  bool EnsureLogScriptSource(Script* script);
 
   Isolate* isolate_;
 
@@ -398,7 +414,7 @@ class TimerEventScope {
 
 class CodeEventLogger : public CodeEventListener {
  public:
-  CodeEventLogger();
+  explicit CodeEventLogger(Isolate* isolate);
   ~CodeEventLogger() override;
 
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
@@ -419,8 +435,11 @@ class CodeEventLogger : public CodeEventListener {
   void SetterCallbackEvent(Name* name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
-  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+  void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
+
+ protected:
+  Isolate* isolate_;
 
  private:
   class NameBuffer;
@@ -434,6 +453,7 @@ class CodeEventLogger : public CodeEventListener {
 };
 
 struct CodeEvent {
+  Isolate* isolate_;
   uintptr_t code_start_address;
   size_t code_size;
   Handle<String> function_name;
@@ -470,7 +490,7 @@ class ExternalCodeEventListener : public CodeEventListener {
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
   void CodeMovingGCEvent() override {}
-  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+  void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
 
   void StartListening(CodeEventHandler* code_event_handler);

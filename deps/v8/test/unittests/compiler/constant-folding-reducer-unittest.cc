@@ -4,8 +4,8 @@
 
 #include "src/compiler/constant-folding-reducer.h"
 #include "src/code-factory.h"
-#include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
@@ -62,7 +62,10 @@ const double kIntegerValues[] = {-V8_INFINITY, INT_MIN, -1000.0,  -42.0,
 class ConstantFoldingReducerTest : public TypedGraphTest {
  public:
   ConstantFoldingReducerTest()
-      : TypedGraphTest(3), simplified_(zone()), deps_(isolate(), zone()) {}
+      : TypedGraphTest(3),
+        js_heap_broker_(isolate()),
+        simplified_(zone()),
+        deps_(isolate(), zone()) {}
   ~ConstantFoldingReducerTest() override {}
 
  protected:
@@ -73,21 +76,23 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    ConstantFoldingReducer reducer(&graph_reducer, &jsgraph);
+    ConstantFoldingReducer reducer(&graph_reducer, &jsgraph, js_heap_broker());
     return reducer.Reduce(node);
   }
 
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  const JSHeapBroker* js_heap_broker() const { return &js_heap_broker_; }
 
  private:
+  JSHeapBroker js_heap_broker_;
   SimplifiedOperatorBuilder simplified_;
   CompilationDependencies deps_;
 };
 
 TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
   {
-    Reduction r = Reduce(
-        Parameter(Type::NewConstant(factory()->minus_zero_value(), zone())));
+    Reduction r = Reduce(Parameter(Type::NewConstant(
+        js_heap_broker(), factory()->minus_zero_value(), zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(-0.0));
   }
@@ -98,7 +103,8 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
   }
   {
     Reduction r = Reduce(Parameter(Type::Union(
-        Type::MinusZero(), Type::NewConstant(factory()->NewNumber(0), zone()),
+        Type::MinusZero(),
+        Type::NewConstant(js_heap_broker(), factory()->NewNumber(0), zone()),
         zone())));
     EXPECT_FALSE(r.Changed());
   }
@@ -107,7 +113,8 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
 TEST_F(ConstantFoldingReducerTest, ParameterWithNull) {
   Handle<HeapObject> null = factory()->null_value();
   {
-    Reduction r = Reduce(Parameter(Type::NewConstant(null, zone())));
+    Reduction r =
+        Reduce(Parameter(Type::NewConstant(js_heap_broker(), null, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsHeapConstant(null));
   }
@@ -124,13 +131,14 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithNaN) {
                           std::numeric_limits<double>::signaling_NaN()};
   TRACED_FOREACH(double, nan, kNaNs) {
     Handle<Object> constant = factory()->NewNumber(nan);
-    Reduction r = Reduce(Parameter(Type::NewConstant(constant, zone())));
+    Reduction r = Reduce(
+        Parameter(Type::NewConstant(js_heap_broker(), constant, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(IsNaN()));
   }
   {
-    Reduction r =
-        Reduce(Parameter(Type::NewConstant(factory()->nan_value(), zone())));
+    Reduction r = Reduce(Parameter(
+        Type::NewConstant(js_heap_broker(), factory()->nan_value(), zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(IsNaN()));
   }
@@ -144,7 +152,8 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithNaN) {
 TEST_F(ConstantFoldingReducerTest, ParameterWithPlainNumber) {
   TRACED_FOREACH(double, value, kFloat64Values) {
     Handle<Object> constant = factory()->NewNumber(value);
-    Reduction r = Reduce(Parameter(Type::NewConstant(constant, zone())));
+    Reduction r = Reduce(
+        Parameter(Type::NewConstant(js_heap_broker(), constant, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(value));
   }
@@ -163,7 +172,8 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithUndefined) {
     EXPECT_THAT(r.replacement(), IsHeapConstant(undefined));
   }
   {
-    Reduction r = Reduce(Parameter(Type::NewConstant(undefined, zone())));
+    Reduction r = Reduce(
+        Parameter(Type::NewConstant(js_heap_broker(), undefined, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsHeapConstant(undefined));
   }
@@ -185,6 +195,7 @@ TEST_F(ConstantFoldingReducerTest, ToBooleanWithFalsish) {
                       Type::Union(
                           Type::Undetectable(),
                           Type::Union(Type::NewConstant(
+                                          js_heap_broker(),
                                           factory()->false_value(), zone()),
                                       Type::Range(0.0, 0.0, zone()), zone()),
                           zone()),
@@ -201,7 +212,7 @@ TEST_F(ConstantFoldingReducerTest, ToBooleanWithFalsish) {
 TEST_F(ConstantFoldingReducerTest, ToBooleanWithTruish) {
   Node* input = Parameter(
       Type::Union(
-          Type::NewConstant(factory()->true_value(), zone()),
+          Type::NewConstant(js_heap_broker(), factory()->true_value(), zone()),
           Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone()),
           zone()),
       0);

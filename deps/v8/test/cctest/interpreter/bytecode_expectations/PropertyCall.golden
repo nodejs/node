@@ -344,9 +344,9 @@ bytecodes: [
   /* 1672 S> */ B(LdaNamedProperty), R(0), U8(126), U8(252),
   /* 1685 S> */ B(LdaNamedProperty), R(0), U8(127), U8(254),
   /* 1698 S> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(128), U16(256),
-  /* 1715 S> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(128), U16(258),
+  /* 1715 S> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(128), U16(256),
                 B(Star), R(1),
-  /* 1715 E> */ B(Wide), B(CallProperty0), R16(1), R16(arg0), U16(260),
+  /* 1715 E> */ B(Wide), B(CallProperty0), R16(1), R16(arg0), U16(258),
   /* 1722 S> */ B(Return),
 ]
 constant pool: [

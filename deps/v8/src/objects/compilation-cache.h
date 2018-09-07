@@ -66,8 +66,12 @@ class InfoCellPair {
 // recompilation stub, or to "old" code. This avoids memory leaks due to
 // premature caching of scripts and eval strings that are never needed later.
 class CompilationCacheTable
-    : public HashTable<CompilationCacheTable, CompilationCacheShape> {
+    : public HashTable<CompilationCacheTable, CompilationCacheShape>,
+      public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   // Find cached value for a string key, otherwise return null.
   Handle<Object> Lookup(Handle<String> src, Handle<SharedFunctionInfo> shared,
                         LanguageMode language_mode);
@@ -93,7 +97,7 @@ class CompilationCacheTable
       Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
       int position);
   static Handle<CompilationCacheTable> PutRegExp(
-      Handle<CompilationCacheTable> cache, Handle<String> src,
+      Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
   void Remove(Object* value);
   void Age();

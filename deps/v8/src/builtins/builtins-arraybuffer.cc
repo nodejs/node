@@ -82,7 +82,8 @@ BUILTIN(ArrayBufferConstructor) {
 // all cases, or we will expose uinitialized memory to user code.
 BUILTIN(ArrayBufferConstructor_DoNotInitialize) {
   HandleScope scope(isolate);
-  Handle<JSFunction> target(isolate->native_context()->array_buffer_fun());
+  Handle<JSFunction> target(isolate->native_context()->array_buffer_fun(),
+                            isolate);
   Handle<Object> length = args.atOrUndefined(isolate, 1);
   return ConstructBuffer(isolate, target, target, length, false);
 }

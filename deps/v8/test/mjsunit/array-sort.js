@@ -1,29 +1,6 @@
 // Copyright 2010 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
 
@@ -74,56 +51,6 @@ function TestNumberSort() {
 }
 
 TestNumberSort();
-
-function TestSmiLexicographicCompare() {
-
-  assertFalse(%_IsSmi(2147483648), 'Update test for >32 bit Smi');
-
-  // Collect a list of interesting Smis.
-  var seen = {};
-  var smis = [];
-  function add(x) {
-    if (x | 0 == x) {
-      x = x | 0;  // Canonicalizes to Smi if 32-bit signed and fits in Smi.
-    }
-    if (%_IsSmi(x) && !seen[x]) {
-      seen[x] = 1;
-      smis.push(x);
-    }
-  }
-  function addSigned(x) {
-    add(x);
-    add(-x);
-  }
-
-  var BIGGER_THAN_ANY_SMI = 10 * 1000 * 1000 * 1000;
-  for (var xb = 1; xb <= BIGGER_THAN_ANY_SMI; xb *= 10) {
-    for (var xf = 0; xf <= 9; xf++) {
-      for (var xo = -1; xo <= 1; xo++) {
-        addSigned(xb * xf + xo);
-      }
-    }
-  }
-
-  for (var yb = 1; yb <= BIGGER_THAN_ANY_SMI; yb *= 2) {
-    for (var yo = -2; yo <= 2; yo++) {
-      addSigned(yb + yo);
-    }
-  }
-
-  for (var i = 0; i < smis.length; i++) {
-    for (var j = 0; j < smis.length; j++) {
-      var x = smis[i];
-      var y = smis[j];
-      var lex = %SmiLexicographicCompare(x, y);
-      var expected = (x == y) ? 0 : ((x + "") < (y + "") ? -1 : 1);
-      assertEquals(lex, expected, x + " < " + y);
-    }
-  }
-}
-
-TestSmiLexicographicCompare();
-
 
 // Test lexicographical string sorting.
 function TestStringSort() {

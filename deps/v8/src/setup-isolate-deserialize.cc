@@ -21,10 +21,10 @@ void SetupIsolateDelegate::SetupInterpreter(
     interpreter::Interpreter* interpreter) {
 #if defined(V8_USE_SNAPSHOT) && !defined(V8_USE_SNAPSHOT_WITH_UNWINDING_INFO)
   if (FLAG_perf_prof_unwinding_info) {
-    OFStream os(stdout);
-    os << "Warning: The --perf-prof-unwinding-info flag can be passed at "
-          "mksnapshot time to get better results."
-       << std::endl;
+    StdoutStream{}
+        << "Warning: The --perf-prof-unwinding-info flag can be passed at "
+           "mksnapshot time to get better results."
+        << std::endl;
   }
 #endif
   CHECK(interpreter->IsDispatchTableInitialized());

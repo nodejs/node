@@ -231,7 +231,7 @@ void UberDispatcher::registerBackend(const String& name, std::unique_ptr<protoco
     m_dispatchers[name] = std::move(dispatcher);
 }
 
-void UberDispatcher::setupRedirects(const HashMap<String, String>& redirects)
+void UberDispatcher::setupRedirects(const std::unordered_map<String, String>& redirects)
 {
     for (const auto& pair : redirects)
         m_redirects[pair.first] = pair.second;
@@ -269,7 +269,7 @@ DispatchResponse::Status UberDispatcher::dispatch(std::unique_ptr<Value> parsedM
         return DispatchResponse::kError;
     }
 
-    HashMap<String, String>::iterator redirectIt = m_redirects.find(method);
+    std::unordered_map<String, String>::iterator redirectIt = m_redirects.find(method);
     if (redirectIt != m_redirects.end())
         method = redirectIt->second;
 

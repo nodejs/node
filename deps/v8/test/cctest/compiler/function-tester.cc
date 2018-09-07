@@ -133,14 +133,14 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
     FunctionTester f(graph, param_count);
     p = *f.function;
   }
-  return Handle<JSFunction>(p);  // allocated in outer handle scope.
+  return Handle<JSFunction>(
+      p, p->GetIsolate());  // allocated in outer handle scope.
 }
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
-  OptimizedCompilationInfo info(&zone, function->GetIsolate(), shared,
-                                function);
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  OptimizedCompilationInfo info(&zone, isolate, shared, function);
 
   if (flags_ & OptimizedCompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
@@ -152,9 +152,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   JSFunction::EnsureFeedbackVector(function);
 
   Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, function->GetIsolate());
-  CHECK(!code.is_null());
-  info.dependencies()->Commit(code);
+      Pipeline::GenerateCodeForTesting(&info, isolate).ToHandleChecked();
   info.context()->native_context()->AddOptimizedCode(*code);
   function->set_code(*code);
   return function;
@@ -163,14 +161,15 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 // Compile the given machine graph instead of the source of the function
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
-  OptimizedCompilationInfo info(&zone, function->GetIsolate(), shared,
-                                function);
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  OptimizedCompilationInfo info(&zone, isolate, shared, function);
 
+  auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
   Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, function->GetIsolate(), graph);
-  CHECK(!code.is_null());
+      Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph,
+                                       AssemblerOptions::Default(isolate))
+          .ToHandleChecked();
   function->set_code(*code);
   return function;
 }

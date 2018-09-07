@@ -150,17 +150,17 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
 
 std::unique_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
                                                          size_t code_size) {
+  std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule);
+  module->num_declared_functions = 1;
   wasm::ModuleEnv env(
-      nullptr, wasm::UseTrapHandler::kNoTrapHandler,
+      module.get(), wasm::UseTrapHandler::kNoTrapHandler,
       wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
 
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
-  std::unique_ptr<wasm::NativeModule> module =
-      isolate->wasm_engine()->code_manager()->NewNativeModule(code_size, 1, 0,
-                                                              false, env);
-  return module;
+  return isolate->wasm_engine()->code_manager()->NewNativeModule(
+      isolate, code_size, false, std::move(module), env);
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -254,10 +254,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
   callee.Return(static_cast<int>(desc->ReturnCount()), returns.get());
 
-  OptimizedCompilationInfo info(ArrayVector("testing"), &zone,
-                                Code::WASM_FUNCTION);
+  OptimizedCompilationInfo info(ArrayVector("testing"), &zone, Code::STUB);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
-      &info, i_isolate, desc, callee.graph(), callee.Export());
+                          &info, i_isolate, desc, callee.graph(),
+                          AssemblerOptions::Default(i_isolate), callee.Export())
+                          .ToHandleChecked();
 
   std::unique_ptr<wasm::NativeModule> module =
       AllocateNativeModule(i_isolate, code->raw_instruction_size());
@@ -300,8 +301,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Call the wrapper.
   OptimizedCompilationInfo wrapper_info(ArrayVector("wrapper"), &zone,
                                         Code::STUB);
-  Handle<Code> wrapper_code = Pipeline::GenerateCodeForTesting(
-      &wrapper_info, i_isolate, wrapper_desc, caller.graph(), caller.Export());
+  Handle<Code> wrapper_code =
+      Pipeline::GenerateCodeForTesting(
+          &wrapper_info, i_isolate, wrapper_desc, caller.graph(),
+          AssemblerOptions::Default(i_isolate), caller.Export())
+          .ToHandleChecked();
   auto fn = GeneratedCode<int32_t>::FromCode(*wrapper_code);
   int result = fn.Call();
 

@@ -29,9 +29,11 @@ class SourceCodeCache final BASE_EMBEDDED {
                         bit_cast<Object**, FixedArray**>(&cache_));
   }
 
-  bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle);
+  bool Lookup(Isolate* isolate, Vector<const char> name,
+              Handle<SharedFunctionInfo>* handle);
 
-  void Add(Vector<const char> name, Handle<SharedFunctionInfo> shared);
+  void Add(Isolate* isolate, Vector<const char> name,
+           Handle<SharedFunctionInfo> shared);
 
  private:
   Script::Type type_;

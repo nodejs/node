@@ -25,6 +25,7 @@
         "ctor.js",
         "exec.js",
         "flags.js",
+        "inline_test.js",
         "match.js",
         "replace.js",
         "search.js",

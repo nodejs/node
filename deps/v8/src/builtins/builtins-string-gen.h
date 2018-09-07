@@ -120,7 +120,8 @@ class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {
  protected:
   enum SearchVariant { kIncludes, kIndexOf };
 
-  void Generate(SearchVariant variant);
+  void Generate(SearchVariant variant, TNode<IntPtrT> argc,
+                TNode<Context> context);
 };
 
 class StringTrimAssembler : public StringBuiltinsAssembler {
@@ -132,7 +133,8 @@ class StringTrimAssembler : public StringBuiltinsAssembler {
                                            Label* const if_not_whitespace);
 
  protected:
-  void Generate(String::TrimMode mode, const char* method);
+  void Generate(String::TrimMode mode, const char* method, TNode<IntPtrT> argc,
+                TNode<Context> context);
 
   void ScanForNonWhiteSpaceOrLineTerminator(Node* const string_data,
                                             Node* const string_data_offset,

@@ -52,16 +52,16 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
         reinterpret_cast<HeapObjectReference**>(slot_address);
     scavenger_->PageMemoryFence(reinterpret_cast<MaybeObject*>(target));
 
-    if (heap_->InFromSpace(target)) {
+    if (Heap::InFromSpace(target)) {
       scavenger_->ScavengeObject(slot, target);
       bool success = (*slot)->ToStrongOrWeakHeapObject(&target);
       USE(success);
       DCHECK(success);
       scavenger_->PageMemoryFence(reinterpret_cast<MaybeObject*>(target));
 
-      if (heap_->InNewSpace(target)) {
+      if (Heap::InNewSpace(target)) {
         SLOW_DCHECK(target->IsHeapObject());
-        SLOW_DCHECK(heap_->InToSpace(target));
+        SLOW_DCHECK(Heap::InToSpace(target));
         RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot_address),
                                           slot_address);
       }
@@ -125,7 +125,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   RememberedSet<OLD_TO_NEW>::IterateTyped(
       page, [this](SlotType type, Address host_addr, Address addr) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
-            type, addr, [this](MaybeObject** addr) {
+            heap_, type, addr, [this](MaybeObject** addr) {
               return CheckAndScavengeObject(heap(),
                                             reinterpret_cast<Address>(addr));
             });
@@ -139,7 +139,7 @@ void Scavenger::Process(OneshotBarrier* barrier) {
   // Threshold when to switch processing the promotion list to avoid
   // allocating too much backing store in the worklist.
   const int kProcessPromotionListThreshold = kPromotionListSegmentSize / 2;
-  ScavengeVisitor scavenge_visitor(heap(), this);
+  ScavengeVisitor scavenge_visitor(this);
 
   const bool have_barrier = barrier != nullptr;
   bool done;
@@ -196,7 +196,7 @@ void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
 void RootScavengeVisitor::ScavengePointer(Object** p) {
   Object* object = *p;
   DCHECK(!HasWeakHeapObjectTag(object));
-  if (!heap_->InNewSpace(object)) return;
+  if (!Heap::InNewSpace(object)) return;
 
   scavenger_->ScavengeObject(reinterpret_cast<HeapObjectReference**>(p),
                              reinterpret_cast<HeapObject*>(object));

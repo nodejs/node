@@ -15,7 +15,7 @@
 // and include Domain::API version from there.
 {% for name in domain.dependencies %}
   {% if protocol.is_imported_dependency(name) %}
-#include {{format_include(config.protocol.package, name)}}
+#include {{format_domain_include(config.protocol.package, name)}}
   {% endif %}
 {% endfor %}
 {% if protocol.is_exported_domain(domain.domain) %}
@@ -46,7 +46,7 @@ using {{type.id}} = {{protocol.resolve_type(type).type}};
 
 namespace {{type.id}}Enum {
       {% for literal in type.enum %}
-{{config.protocol.export_macro}} extern const char* {{ literal | dash_to_camelcase}};
+{{config.protocol.export_macro}} extern const char {{ literal | dash_to_camelcase}}[];
       {% endfor %}
 } // namespace {{type.id}}Enum
     {% endif %}

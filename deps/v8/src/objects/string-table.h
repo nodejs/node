@@ -67,13 +67,15 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
 
   // Shink the StringTable if it's very empty (kMaxEmptyFactor) to avoid the
   // performance overhead of re-allocating the StringTable over and over again.
-  static Handle<StringTable> CautiousShrink(Handle<StringTable> table);
+  static Handle<StringTable> CautiousShrink(Isolate* isolate,
+                                            Handle<StringTable> table);
 
   // Looks up a string that is equal to the given string and returns
   // string handle if it is found, or an empty handle otherwise.
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> LookupTwoCharsStringIfExists(
       Isolate* isolate, uint16_t c1, uint16_t c2);
-  static Object* LookupStringIfExists_NoAllocate(String* string);
+  static Object* LookupStringIfExists_NoAllocate(Isolate* isolate,
+                                                 String* string);
 
   static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
 
@@ -103,9 +105,9 @@ class StringSetShape : public BaseShape<String*> {
 class StringSet : public HashTable<StringSet, StringSetShape> {
  public:
   static Handle<StringSet> New(Isolate* isolate);
-  static Handle<StringSet> Add(Handle<StringSet> blacklist,
+  static Handle<StringSet> Add(Isolate* isolate, Handle<StringSet> blacklist,
                                Handle<String> name);
-  bool Has(Handle<String> name);
+  bool Has(Isolate* isolate, Handle<String> name);
 
   DECL_CAST(StringSet)
 };

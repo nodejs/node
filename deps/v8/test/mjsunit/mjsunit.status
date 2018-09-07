@@ -55,6 +55,8 @@
   # Issue 5495: enable the test when the constant field tracking in enabled.
   'const-field-tracking': [SKIP],
 
+  # Issue 7872: flaky OOM
+  'regress/wasm/regress-827806': [SKIP],
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],
@@ -87,7 +89,7 @@
   'array-constructor': [PASS, SLOW, ['arch == arm and simulator == True', SKIP]],
 
   # Very slow test
-  'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],
+  'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['mode == debug or arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
   'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
@@ -153,8 +155,6 @@
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
 
   # Slow tests.
-  'compiler/osr-one': [PASS, SLOW],
-  'compiler/osr-two': [PASS, SLOW],
   'copy-on-write-assert': [PASS, SLOW],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
@@ -164,6 +164,7 @@
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
+  'wasm/asm-wasm-f32': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
@@ -199,6 +200,9 @@
   #                  which makes the test useless.
   'big-object-literal': [PASS, ['mode == debug', SKIP]],
 
+  # Runs out of stack space in debug builds.
+  'big-array-literal': [PASS, ['mode == debug', SKIP]],
+
   # BUG(v8:6306).
   'wasm/huge-memory': [SKIP],
 
@@ -210,6 +214,9 @@
 
   # https://crbug.com/v8/7697
   'array-literal-feedback': [PASS, FAIL],
+
+  # https://crbug.com/v8/7775
+  'allocation-site-info': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -243,7 +250,6 @@
   'osr-elements-kind': [SKIP],
   'regress/regress-crbug-137689': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
-  'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
   'regress/regress-4121': [SKIP],
   'compare-known-objects-slow': [SKIP],
@@ -264,6 +270,7 @@
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
+  'lexicographic-compare': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
   'regress/regress-transcendental': [PASS, ['arch == arm64', NO_VARIANTS]],
   'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
@@ -283,8 +290,6 @@
   # Slow tests.
   'array-constructor': [PASS, SLOW],
   'json': [PASS, SLOW],
-  'regress/regress-446389': [PASS, SLOW],
-  'regress/regress-inline-getter-near-stack-limit': [PASS, SLOW],
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', NO_VARIANTS]],
@@ -295,6 +300,15 @@
   # BUG(chromium:773631): Crashes flakily.
   'wasm/streaming-trap-location': [SKIP],
 
+  # BUG(v8:7880): Slow tests.
+  'regress/regress-707066': [SKIP],
+  'regress/regress-446389': [SKIP],
+  'regress/regress-458987': [SKIP],
+  'es6/regress/regress-crbug-465671': [SKIP],
+  'regress/regress-inline-getter-near-stack-limit': [SKIP],
+  'es6/regress/regress-crbug-465671-null': [SKIP],
+  'regress/regress-148378': [SKIP],
+  'regress/regress-crbug-762472': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -334,10 +348,6 @@
   'regress/regress-91013': [SKIP],
   'regress/regress-99167': [SKIP],
 
-  # Sometimes fails because the hard-coded timeout in the test is exceeded when
-  # dcheck_always_on = true.
-  'regress/regress-165637': [SKIP],
-
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
 
@@ -356,11 +366,11 @@
   'compiler/osr-with-args': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
   'json2': [PASS, SLOW],
+  'lexicographic-compare': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
   'messages': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
-  'regress/regress-2185-2': [PASS, SLOW],
   'regress/regress-2185': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
   'regress/regress-331444': [PASS, SLOW],
@@ -383,6 +393,7 @@
 
   # Pass but take too long with the simulator in debug mode.
   'array-sort': [PASS, SLOW],
+  'lexicographic-compare': [PASS, SLOW],
   'packed-elements': [SKIP],
   'regexp-global': [SKIP],
   'math-floor-of-div': [PASS, SLOW],
@@ -391,8 +402,6 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
-  # Expects to finish in a certain time, but sometimes doesn't.
-  'regress/regress-165637': [SKIP],
 }],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
@@ -433,10 +442,6 @@
 
   # Too slow.
   'harmony/regexp-property-lu-ui': [SKIP],
-  'regress/regress-165637': [SKIP],
-
-  # Flaky with baseline?
-  'regress/regress-2185-2': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
@@ -497,8 +502,8 @@
   # Slow tests.
   'array-sort': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
+  'lexicographic-compare': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
-  'regress/regress-2185-2': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
   'regress/regress-91008': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
@@ -643,7 +648,6 @@
 
   # Skip tests that are not suitable for deoptimization fuzzing.
   'never-optimize': [SKIP],
-  'regress/regress-2185-2': [SKIP],
   'readonly': [SKIP],
   'array-feedback': [SKIP],
   'deopt-recursive-eager-once': [SKIP],
@@ -727,7 +731,7 @@
 }],  # 'predictable == True'
 
 ##############################################################################
-['arch == ppc and simulator_run or arch == ppc64 and simulator_run', {
+['simulator_run and (arch == ppc or arch == ppc64 or arch == s390 or arch == s390x)', {
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
@@ -736,7 +740,7 @@
   'regress/regress-91008': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
-}],  # 'arch == ppc and simulator_run'
+}],  # 'simulator_run and (arch == ppc or arch == ppc64 or arch == s390 or arch == s390x)'
 
 ##############################################################################
 ['arch == ppc64', {
@@ -765,16 +769,15 @@
 
   # Flaky crash on Odroid devices: https://crbug.com/v8/7678
   'regress/regress-336820': [PASS, ['arch == arm and not simulator_run', SKIP]],
-
-  # Slow tests.
-  'regress/regress-2185-2': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
-['variant == nooptimization', {
-  # Slow tests.
-  'regress/regress-2185-2': [SKIP],
-}],  # variant == nooptimization
+['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'lexicographic-compare': [SKIP],
+  'regress/regress-2185': [SKIP],
+  'wasm/grow-memory': [SKIP],
+}],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 ['gcov_coverage', {
@@ -818,18 +821,12 @@
 }], # arch != x64 or deopt_fuzzer
 
 ##############################################################################
-# Liftoff is currently only sufficiently implemented on x64 and ia32.
+# Liftoff is currently only sufficiently implemented on x64, ia32 and arm64.
 # TODO(clemensh): Implement on all other platforms (crbug.com/v8/6600).
-['arch != x64 and arch != ia32', {
+['arch != x64 and arch != ia32 and arch != arm64', {
   'wasm/liftoff': [SKIP],
-}], # arch != x64 and arch != ia32
-
-##############################################################################
-['variant == liftoff or variant == future', {
-  # In the liftoff and future variant, liftoff compilation happens even
-  # though the test does not explicitly enable it.
-  'wasm/default-liftoff-setting': [SKIP],
-}], # variant == liftoff
+  'wasm/tier-up-testing-flag': [SKIP],
+}], # arch != x64 and arch != ia32 and arch != arm64
 
 ##############################################################################
 ['variant == slow_path and gc_stress', {
@@ -837,5 +834,12 @@
   'regress/regress-crbug-493779': [SKIP],
   'string-replace-gc': [SKIP],
 }],  # variant == slow_path
+
+##############################################################################
+['arch == x64', {
+  # TODO: Flaky test: crbug.com/v8/7899
+  'wasm/asm-wasm-i32': [SKIP],
+  'wasm/asm-wasm-f64': [SKIP],
+}], # arch == x64
 
 ]

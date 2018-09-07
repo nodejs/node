@@ -79,7 +79,6 @@ class BuiltinSnapshotData final : public SnapshotData {
   // ... list of builtins offsets
 };
 
-#ifdef V8_EMBEDDED_BUILTINS
 class EmbeddedData final {
  public:
   static EmbeddedData FromIsolate(Isolate* isolate);
@@ -140,10 +139,11 @@ class EmbeddedData final {
   }
   const uint8_t* RawData() const { return data_ + RawDataOffset(); }
 
+  void PrintStatistics() const;
+
   const uint8_t* data_;
   uint32_t size_;
 };
-#endif
 
 class Snapshot : public AllStatic {
  public:

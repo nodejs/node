@@ -298,7 +298,7 @@ bool JSInliner::DetermineCallTarget(
       return false;
     }
 
-    shared_info_out = handle(function->shared());
+    shared_info_out = handle(function->shared(), isolate());
     return true;
   }
 
@@ -343,8 +343,8 @@ void JSInliner::DetermineCallContext(
     JSFunction::EnsureFeedbackVector(function);
 
     // The inlinee specializes to the context from the JSFunction object.
-    context_out = jsgraph()->Constant(handle(function->context()));
-    feedback_vector_out = handle(function->feedback_vector());
+    context_out = jsgraph()->Constant(handle(function->context(), isolate()));
+    feedback_vector_out = handle(function->feedback_vector(), isolate());
     return;
   }
 
@@ -358,7 +358,8 @@ void JSInliner::DetermineCallContext(
 
     // The inlinee uses the locally provided context at instantiation.
     context_out = NodeProperties::GetContextInput(match.node());
-    feedback_vector_out = handle(FeedbackVector::cast(cell->value()));
+    feedback_vector_out =
+        handle(FeedbackVector::cast(cell->value()), isolate());
     return;
   }
 
@@ -372,7 +373,7 @@ Reduction JSInliner::Reduce(Node* node) {
 }
 
 Handle<Context> JSInliner::native_context() const {
-  return handle(info_->context()->native_context());
+  return handle(info_->context()->native_context(), isolate());
 }
 
 Reduction JSInliner::ReduceJSCall(Node* node) {
@@ -604,10 +605,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   if (node->opcode() == IrOpcode::kJSCall &&
       is_sloppy(shared_info->language_mode()) && !shared_info->native()) {
     Node* effect = NodeProperties::GetEffectInput(node);
-    if (NodeProperties::CanBePrimitive(call.receiver(), effect)) {
+    if (NodeProperties::CanBePrimitive(isolate(), call.receiver(), effect)) {
       CallParameters const& p = CallParametersOf(node->op());
       Node* global_proxy = jsgraph()->HeapConstant(
-          handle(info_->native_context()->global_proxy()));
+          handle(info_->native_context()->global_proxy(), isolate()));
       Node* receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
                            call.receiver(), global_proxy, effect, start);

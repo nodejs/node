@@ -35,7 +35,8 @@ void ExternalReferenceTable::Init(Isolate* isolate) {
   AddIsolateAddresses(isolate, &index);
   AddAccessors(isolate, &index);
   AddStubCache(isolate, &index);
-  is_initialized_ = true;
+  is_initialized_ = static_cast<uint32_t>(true);
+  USE(unused_padding_);
 
   CHECK_EQ(kSize, index);
 }

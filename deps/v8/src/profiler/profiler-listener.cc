@@ -17,9 +17,7 @@ namespace internal {
 
 ProfilerListener::ProfilerListener(Isolate* isolate,
                                    CodeEventObserver* observer)
-    : isolate_(isolate),
-      observer_(observer),
-      function_and_resource_names_(isolate->heap()->HashSeed()) {}
+    : isolate_(isolate), observer_(observer) {}
 
 ProfilerListener::~ProfilerListener() = default;
 
@@ -37,10 +35,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry = NewCodeEntry(
-      tag, GetFunctionName(name), CodeEntry::kEmptyResourceName,
-      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      nullptr, code->InstructionStart());
+  rec->entry = NewCodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
+                            CpuProfileNode::kNoLineNumberInfo,
+                            CpuProfileNode::kNoColumnNumberInfo, nullptr,
+                            code->InstructionStart());
   RecordInliningInfo(rec->entry, code);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
@@ -51,10 +49,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry = NewCodeEntry(
-      tag, GetFunctionName(name), CodeEntry::kEmptyResourceName,
-      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      nullptr, code->InstructionStart());
+  rec->entry = NewCodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
+                            CpuProfileNode::kNoLineNumberInfo,
+                            CpuProfileNode::kNoColumnNumberInfo, nullptr,
+                            code->InstructionStart());
   RecordInliningInfo(rec->entry, code);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
@@ -67,7 +65,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry = NewCodeEntry(tag, GetFunctionName(shared->DebugName()),
+  rec->entry = NewCodeEntry(tag, GetName(shared->DebugName()),
                             GetName(InferScriptName(script_name, shared)),
                             CpuProfileNode::kNoLineNumberInfo,
                             CpuProfileNode::kNoColumnNumberInfo, nullptr,
@@ -102,7 +100,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
     }
   }
   rec->entry =
-      NewCodeEntry(tag, GetFunctionName(shared->DebugName()),
+      NewCodeEntry(tag, GetName(shared->DebugName()),
                    GetName(InferScriptName(script_name, shared)), line, column,
                    std::move(line_table), abstract_code->InstructionStart());
   RecordInliningInfo(rec->entry, abstract_code);
@@ -117,14 +115,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
-  // TODO(herhut): Instead of sanitizing here, make sure all wasm functions
-  //               have names.
-  const char* name_ptr =
-      name.start() == nullptr ? "<anonymous>" : GetFunctionName(name.start());
-  rec->entry = NewCodeEntry(tag, name_ptr, CodeEntry::kEmptyResourceName,
-                            CpuProfileNode::kNoLineNumberInfo,
-                            CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                            code->instruction_start());
+  rec->entry = NewCodeEntry(
+      tag, GetName(name.start()), CodeEntry::kWasmResourceNamePrefix,
+      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
+      nullptr, code->instruction_start());
   rec->instruction_size = code->instructions().length();
   DispatchCodeEvent(evt_rec);
 }
@@ -146,8 +140,8 @@ void ProfilerListener::CodeDisableOptEvent(AbstractCode* code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
-                                      int fp_to_sp_delta) {
+void ProfilerListener::CodeDeoptEvent(Code* code, DeoptimizeKind kind,
+                                      Address pc, int fp_to_sp_delta) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DEOPT);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
@@ -243,7 +237,7 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
               : CodeEntry::kEmptyResourceName;
 
       CodeEntry* inline_entry =
-          new CodeEntry(entry->tag(), GetFunctionName(shared_info->DebugName()),
+          new CodeEntry(entry->tag(), GetName(shared_info->DebugName()),
                         resource_name, CpuProfileNode::kNoLineNumberInfo,
                         CpuProfileNode::kNoColumnNumberInfo, nullptr,
                         code->InstructionStart());
@@ -286,7 +280,7 @@ void ProfilerListener::AttachDeoptInlinedFrames(Code* code,
       // scope limits their lifetime.
       HandleScope scope(isolate_);
       std::vector<SourcePositionInfo> stack =
-          last_position.InliningStack(handle(code));
+          last_position.InliningStack(handle(code, isolate_));
       CpuProfileDeoptFrame* deopt_frames =
           new CpuProfileDeoptFrame[stack.size()];
 

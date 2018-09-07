@@ -26,11 +26,11 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   }
   Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(argument);
   if (!array_buffer->is_neuterable()) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   if (array_buffer->backing_store() == nullptr) {
     CHECK_EQ(Smi::kZero, array_buffer->byte_length());
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   // Shared array buffers should never be neutered.
   CHECK(!array_buffer->is_shared());
@@ -41,7 +41,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   isolate->heap()->UnregisterArrayBuffer(*array_buffer);
   array_buffer->Neuter();
   isolate->array_buffer_allocator()->Free(backing_store, byte_length);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
@@ -121,7 +121,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   if (length <= 1) return *array;
 
   Handle<FixedTypedArrayBase> elements(
-      FixedTypedArrayBase::cast(array->elements()));
+      FixedTypedArrayBase::cast(array->elements()), isolate);
   switch (array->type()) {
 #define TYPED_ARRAY_SORT(Type, type, TYPE, ctype, size)     \
   case kExternal##Type##Array: {                            \
@@ -175,7 +175,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   Handle<Object> len;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, len,
-      Object::GetProperty(obj, isolate->factory()->length_string()));
+      Object::GetProperty(isolate, obj, isolate->factory()->length_string()));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
                                      Object::ToLength(isolate, len));
 

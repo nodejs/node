@@ -9,6 +9,7 @@
 #include "src/bailout-reason.h"
 #include "src/globals.h"
 #include "src/ia32/assembler-ia32.h"
+#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -25,9 +26,13 @@ constexpr Register kInterpreterAccumulatorRegister = eax;
 constexpr Register kInterpreterBytecodeOffsetRegister = edx;
 constexpr Register kInterpreterBytecodeArrayRegister = edi;
 constexpr Register kInterpreterDispatchTableRegister = esi;
+
 constexpr Register kJavaScriptCallArgCountRegister = eax;
 constexpr Register kJavaScriptCallCodeStartRegister = ecx;
+constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = edx;
+constexpr Register kJavaScriptCallExtraArg1Register = ebx;
+
 constexpr Register kOffHeapTrampolineRegister = ecx;
 constexpr Register kRuntimeCallFunctionRegister = ebx;
 constexpr Register kRuntimeCallArgCountRegister = eax;
@@ -49,20 +54,13 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
                 Register reg8 = no_reg);
 #endif
 
-class TurboAssembler : public Assembler {
+class TurboAssembler : public TurboAssemblerBase {
  public:
-  TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object);
-
-  void set_has_frame(bool value) { has_frame_ = value; }
-  bool has_frame() const { return has_frame_; }
-
-  Isolate* isolate() const { return isolate_; }
-
-  Handle<HeapObject> CodeObject() {
-    DCHECK(!code_object_.is_null());
-    return code_object_;
-  }
+  TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int buffer_size,
+                 CodeObjectRequired create_code_object)
+      : TurboAssemblerBase(isolate, options, buffer, buffer_size,
+                           create_code_object) {}
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met,
@@ -75,6 +73,19 @@ class TurboAssembler : public Assembler {
     UNREACHABLE();
   }
   void LeaveFrame(StackFrame::Type type);
+
+// Allocate a stack frame of given size (i.e. decrement {esp} by the value
+// stored in the given register).
+#ifdef V8_OS_WIN
+  // On win32, take special care if the number of bytes is greater than 4096:
+  // Ensure that each page within the new stack frame is touched once in
+  // decreasing order. See
+  // https://msdn.microsoft.com/en-us/library/aa227153(v=vs.60).aspx.
+  // Use {bytes_scratch} as scratch register for this procedure.
+  void AllocateStackFrame(Register bytes_scratch);
+#else
+  void AllocateStackFrame(Register bytes) { sub(esp, bytes); }
+#endif
 
   // Print a message to stdout and abort execution.
   void Abort(AbortReason reason);
@@ -123,16 +134,18 @@ class TurboAssembler : public Assembler {
 
   void RetpolineJump(Register reg);
 
-  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+  void CallForDeoptimization(Address target, int deopt_id,
+                             RelocInfo::Mode rmode) {
+    USE(deopt_id);
     call(target, rmode);
   }
 
   inline bool AllowThisStubCall(CodeStub* stub);
   void CallStubDelayed(CodeStub* stub);
 
-  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
-  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
-                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
+  // builtin for the target runtime function and uses an indirect call.
+  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
 
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label,
@@ -145,6 +158,16 @@ class TurboAssembler : public Assembler {
                         Label::Distance distance = Label::kFar) {
     test(value, Immediate(kSmiTagMask));
     j(zero, smi_label, distance);
+  }
+
+  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+    cmp(a, Immediate(b));
+    j(equal, dest);
+  }
+
+  void JumpIfLessThan(Register a, int32_t b, Label* dest) {
+    cmp(a, Immediate(b));
+    j(less, dest);
   }
 
   void SmiUntag(Register reg) { sar(reg, kSmiTagSize); }
@@ -201,10 +224,28 @@ class TurboAssembler : public Assembler {
 
   void Ret();
 
+  void LoadRoot(Register destination, Heap::RootListIndex index) override;
+
+  // TODO(jgruber,v8:6666): Implement embedded builtins.
+  void LoadFromConstantsTable(Register destination,
+                              int constant_index) override {
+    UNREACHABLE();
+  }
+  void LoadRootRegisterOffset(Register destination, intptr_t offset) override {
+    UNREACHABLE();
+  }
+  void LoadRootRelative(Register destination, int32_t offset) override {
+    UNREACHABLE();
+  }
+
   // Return and drop arguments from stack, where the number of arguments
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
+  void Pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+    Pshufhw(dst, Operand(src), shuffle);
+  }
+  void Pshufhw(XMMRegister dst, Operand src, uint8_t shuffle);
   void Pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     Pshuflw(dst, Operand(src), shuffle);
   }
@@ -213,6 +254,8 @@ class TurboAssembler : public Assembler {
     Pshufd(dst, Operand(src), shuffle);
   }
   void Pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
+  void Psraw(XMMRegister dst, int8_t shift);
+  void Psrlw(XMMRegister dst, int8_t shift);
 
 // SSE/SSE2 instructions with AVX version.
 #define AVX_OP2_WITH_TYPE(macro_name, name, dst_type, src_type) \
@@ -252,12 +295,16 @@ class TurboAssembler : public Assembler {
   AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
   AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
 
+  AVX_OP3_XO(Packsswb, packsswb)
+  AVX_OP3_XO(Packuswb, packuswb)
   AVX_OP3_XO(Pcmpeqb, pcmpeqb)
   AVX_OP3_XO(Pcmpeqw, pcmpeqw)
   AVX_OP3_XO(Pcmpeqd, pcmpeqd)
   AVX_OP3_XO(Psubb, psubb)
   AVX_OP3_XO(Psubw, psubw)
   AVX_OP3_XO(Psubd, psubd)
+  AVX_OP3_XO(Punpcklbw, punpcklbw)
+  AVX_OP3_XO(Punpckhbw, punpckhbw)
   AVX_OP3_XO(Pxor, pxor)
   AVX_OP3_XO(Andps, andps)
   AVX_OP3_XO(Andpd, andpd)
@@ -269,12 +316,41 @@ class TurboAssembler : public Assembler {
 #undef AVX_OP3_XO
 #undef AVX_OP3_WITH_TYPE
 
-  // Non-SSE2 instructions.
-  void Ptest(XMMRegister dst, XMMRegister src) { Ptest(dst, Operand(src)); }
-  void Ptest(XMMRegister dst, Operand src);
+// Non-SSE2 instructions.
+#define AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
+                                sse_scope)                            \
+  void macro_name(dst_type dst, src_type src) {                       \
+    if (CpuFeatures::IsSupported(AVX)) {                              \
+      CpuFeatureScope scope(this, AVX);                               \
+      v##name(dst, src);                                              \
+      return;                                                         \
+    }                                                                 \
+    if (CpuFeatures::IsSupported(sse_scope)) {                        \
+      CpuFeatureScope scope(this, sse_scope);                         \
+      name(dst, src);                                                 \
+      return;                                                         \
+    }                                                                 \
+    UNREACHABLE();                                                    \
+  }
+#define AVX_OP2_XO_SSE4(macro_name, name)                                     \
+  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSE4_1) \
+  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
+
+  AVX_OP2_XO_SSE4(Ptest, ptest)
+  AVX_OP2_XO_SSE4(Pmovsxbw, pmovsxbw)
+  AVX_OP2_XO_SSE4(Pmovsxwd, pmovsxwd)
+  AVX_OP2_XO_SSE4(Pmovzxbw, pmovzxbw)
+  AVX_OP2_XO_SSE4(Pmovzxwd, pmovzxwd)
+
+#undef AVX_OP2_WITH_TYPE_SCOPE
+#undef AVX_OP2_XO_SSE4
 
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, Operand(src)); }
   void Pshufb(XMMRegister dst, Operand src);
+  void Pblendw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
+    Pblendw(dst, Operand(src), imm8);
+  }
+  void Pblendw(XMMRegister dst, Operand src, uint8_t imm8);
 
   void Psignb(XMMRegister dst, XMMRegister src) { Psignb(dst, Operand(src)); }
   void Psignb(XMMRegister dst, Operand src);
@@ -282,6 +358,11 @@ class TurboAssembler : public Assembler {
   void Psignw(XMMRegister dst, Operand src);
   void Psignd(XMMRegister dst, XMMRegister src) { Psignd(dst, Operand(src)); }
   void Psignd(XMMRegister dst, Operand src);
+
+  void Palignr(XMMRegister dst, XMMRegister src, uint8_t imm8) {
+    Palignr(dst, Operand(src), imm8);
+  }
+  void Palignr(XMMRegister dst, Operand src, uint8_t imm8);
 
   void Pextrb(Register dst, XMMRegister src, int8_t imm8);
   void Pextrw(Register dst, XMMRegister src, int8_t imm8);
@@ -358,25 +439,17 @@ class TurboAssembler : public Assembler {
   void ComputeCodeStartAddress(Register dst);
 
   void ResetSpeculationPoisonRegister();
-
-  bool root_array_available() const { return root_array_available_; }
-  void set_root_array_available(bool v) { root_array_available_ = v; }
-
- protected:
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
-
- private:
-  bool has_frame_ = false;
-  bool root_array_available_ = false;
-  Isolate* const isolate_;
 };
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
-                 CodeObjectRequired create_code_object);
+                 CodeObjectRequired create_code_object)
+      : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
+                       size, create_code_object) {}
+  MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int size, CodeObjectRequired create_code_object);
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int32_t x) {
@@ -389,7 +462,6 @@ class MacroAssembler : public TurboAssembler {
   void Set(Operand dst, int32_t x) { mov(dst, Immediate(x)); }
 
   // Operations on roots in the root-array.
-  void LoadRoot(Register destination, Heap::RootListIndex index);
   void CompareRoot(Register with, Register scratch, Heap::RootListIndex index);
   // These methods can only be used with constant roots (i.e. non-writable
   // and not in new space).
@@ -554,9 +626,6 @@ class MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
-
-  // Abort execution if argument is not a FixedArray, enabled via --debug-code.
-  void AssertFixedArray(Register object);
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);

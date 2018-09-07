@@ -164,7 +164,7 @@ void PerfJitLogger::CloseMarkerFile(void* marker_address) {
   munmap(marker_address, page_size);
 }
 
-PerfJitLogger::PerfJitLogger() {
+PerfJitLogger::PerfJitLogger(Isolate* isolate) : CodeEventLogger(isolate) {
   base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
 
   reference_count_++;
@@ -332,7 +332,8 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   if (entry_count == 0) return;
   // The WasmToJS wrapper stubs have source position entries.
   if (!shared->HasSourceCode()) return;
-  Handle<Script> script(Script::cast(shared->script()));
+  Isolate* isolate = shared->GetIsolate();
+  Handle<Script> script(Script::cast(shared->script()), isolate);
 
   PerfJitCodeDebugInfo debug_info;
 
@@ -346,8 +347,8 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   size += entry_count * sizeof(PerfJitDebugEntry);
   // Add the size of the name after each entry.
 
-  Handle<Code> code_handle(code);
-  Handle<SharedFunctionInfo> function_handle(shared);
+  Handle<Code> code_handle(code, isolate);
+  Handle<SharedFunctionInfo> function_handle(shared, isolate);
   for (SourcePositionTableIterator iterator(code->SourcePositionTable());
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(GetSourcePositionInfo(code_handle, function_handle,

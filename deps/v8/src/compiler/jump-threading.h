@@ -22,7 +22,8 @@ class JumpThreading {
 
   // Rewrite the instructions to forward jumps and branches.
   // May also negate some branches.
-  static void ApplyForwarding(ZoneVector<RpoNumber>& forwarding,
+  static void ApplyForwarding(Zone* local_zone,
+                              ZoneVector<RpoNumber>& forwarding,
                               InstructionSequence* code);
 };
 

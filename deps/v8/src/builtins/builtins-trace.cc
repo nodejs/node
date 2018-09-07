@@ -21,7 +21,7 @@ using v8::tracing::TracedValue;
 class MaybeUtf8 {
  public:
   explicit MaybeUtf8(Isolate* isolate, Handle<String> string) : buf_(data_) {
-    string = String::Flatten(string);
+    string = String::Flatten(isolate, string);
     int len;
     if (string->IsOneByteRepresentation()) {
       // Technically this allows unescaped latin1 characters but the trace
@@ -119,7 +119,7 @@ BUILTIN(Trace) {
 
   // Exit early if the category group is not enabled.
   if (!*category_group_enabled) {
-    return isolate->heap()->false_value();
+    return ReadOnlyRoots(isolate).false_value();
   }
 
   if (!phase_arg->IsNumber()) {
@@ -184,7 +184,7 @@ BUILTIN(Trace) {
       category_group_enabled, *name, tracing::kGlobalScope, id, tracing::kNoId,
       num_args, &arg_name, &arg_type, &arg_value, flags);
 
-  return isolate->heap()->true_value();
+  return ReadOnlyRoots(isolate).true_value();
 }
 
 }  // namespace internal

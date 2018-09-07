@@ -397,26 +397,26 @@ enum Coprocessor {
 class Operand BASE_EMBEDDED {
  public:
   // immediate
-  INLINE(explicit Operand(int32_t immediate,
-                          RelocInfo::Mode rmode = RelocInfo::NONE));
-  INLINE(static Operand Zero());
-  INLINE(explicit Operand(const ExternalReference& f));
+  V8_INLINE explicit Operand(int32_t immediate,
+                             RelocInfo::Mode rmode = RelocInfo::NONE);
+  V8_INLINE static Operand Zero();
+  V8_INLINE explicit Operand(const ExternalReference& f);
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value));
+  V8_INLINE explicit Operand(Smi* value);
 
   // rm
-  INLINE(explicit Operand(Register rm));
+  V8_INLINE explicit Operand(Register rm);
 
   // rm <shift_op> shift_imm
   explicit Operand(Register rm, ShiftOp shift_op, int shift_imm);
-  INLINE(static Operand SmiUntag(Register rm)) {
+  V8_INLINE static Operand SmiUntag(Register rm) {
     return Operand(rm, ASR, kSmiTagSize);
   }
-  INLINE(static Operand PointerOffsetFromSmiKey(Register key)) {
+  V8_INLINE static Operand PointerOffsetFromSmiKey(Register key) {
     STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
     return Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize);
   }
-  INLINE(static Operand DoubleOffsetFromSmiKey(Register key)) {
+  V8_INLINE static Operand DoubleOffsetFromSmiKey(Register key) {
     STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
     return Operand(key, LSL, kDoubleSizeLog2 - kSmiTagSize);
   }
@@ -519,9 +519,9 @@ class MemOperand BASE_EMBEDDED {
   // [rn], +/- rm <shift_op> shift_imm     PostIndex/NegPostIndex
   explicit MemOperand(Register rn, Register rm,
                       ShiftOp shift_op, int shift_imm, AddrMode am = Offset);
-  INLINE(static MemOperand PointerAddressFromSmiKey(Register array,
-                                                    Register key,
-                                                    AddrMode am = Offset)) {
+  V8_INLINE static MemOperand PointerAddressFromSmiKey(Register array,
+                                                       Register key,
+                                                       AddrMode am = Offset) {
     STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
     return MemOperand(array, key, LSL, kPointerSizeLog2 - kSmiTagSize, am);
   }
@@ -628,9 +628,7 @@ class Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size)
-      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
-  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
+  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~Assembler();
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -662,27 +660,27 @@ class Assembler : public AssemblerBase {
 
   // Returns true if the given pc address is the start of a constant pool load
   // instruction sequence.
-  INLINE(static bool is_constant_pool_load(Address pc));
+  V8_INLINE static bool is_constant_pool_load(Address pc);
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc, or the object in a mov.
-  INLINE(static Address constant_pool_entry_address(Address pc,
-                                                    Address constant_pool));
+  V8_INLINE static Address constant_pool_entry_address(Address pc,
+                                                       Address constant_pool);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
-  INLINE(static Address target_address_at(Address pc, Address constant_pool));
-  INLINE(static void set_target_address_at(
+  V8_INLINE static Address target_address_at(Address pc, Address constant_pool);
+  V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
-  INLINE(static Address target_address_from_return_address(Address pc));
+  V8_INLINE static Address target_address_from_return_address(Address pc);
 
   // Given the address of the beginning of a call, return the address
   // in the instruction stream that the call will return from.
-  INLINE(static Address return_address_from_call_start(Address pc));
+  V8_INLINE static Address return_address_from_call_start(Address pc);
 
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
@@ -705,9 +703,6 @@ class Assembler : public AssemblerBase {
   // Size of an instruction.
   static constexpr int kInstrSize = sizeof(Instr);
 
-  // Difference between address of current opcode and value read from pc
-  // register.
-  static constexpr int kPcLoadDelta = 8;
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   VfpRegList* GetScratchVfpRegisterList() {
     return &scratch_vfp_register_list_;
@@ -727,8 +722,10 @@ class Assembler : public AssemblerBase {
   void CodeTargetAlign();
 
   // Branch instructions
-  void b(int branch_offset, Condition cond = al);
-  void bl(int branch_offset, Condition cond = al);
+  void b(int branch_offset, Condition cond = al,
+         RelocInfo::Mode rmode = RelocInfo::NONE);
+  void bl(int branch_offset, Condition cond = al,
+          RelocInfo::Mode rmode = RelocInfo::NONE);
   void blx(int branch_offset);  // v5 and above
   void blx(Register target, Condition cond = al);  // v5 and above
   void bx(Register target, Condition cond = al);  // v5 and above, plus v4t
@@ -1427,36 +1424,6 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
-  // Class for blocking sharing of code targets in constant pool.
-  class BlockCodeTargetSharingScope {
-   public:
-    explicit BlockCodeTargetSharingScope(Assembler* assem) : assem_(nullptr) {
-      Open(assem);
-    }
-    // This constructor does not initialize the scope. The user needs to
-    // explicitly call Open() before using it.
-    BlockCodeTargetSharingScope() : assem_(nullptr) {}
-    ~BlockCodeTargetSharingScope() {
-      Close();
-    }
-    void Open(Assembler* assem) {
-      DCHECK_NULL(assem_);
-      DCHECK_NOT_NULL(assem);
-      assem_ = assem;
-      assem_->StartBlockCodeTargetSharing();
-    }
-
-   private:
-    void Close() {
-      if (assem_ != nullptr) {
-        assem_->EndBlockCodeTargetSharing();
-      }
-    }
-    Assembler* assem_;
-
-    DISALLOW_COPY_AND_ASSIGN(BlockCodeTargetSharingScope);
-  };
-
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
@@ -1504,8 +1471,6 @@ class Assembler : public AssemblerBase {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
   static Condition GetCondition(Instr instr);
-  static bool IsBranch(Instr instr);
-  static int GetBranchOffset(Instr instr);
   static bool IsLdrRegisterImmediate(Instr instr);
   static bool IsVldrDRegisterImmediate(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
@@ -1579,6 +1544,13 @@ class Assembler : public AssemblerBase {
     UNREACHABLE();
   }
 
+  // Move a 32-bit immediate into a register, potentially via the constant pool.
+  void Move32BitImmediate(Register rd, const Operand& x, Condition cond = al);
+
+  // Get the code target object for a pc-relative call or jump.
+  V8_INLINE Handle<Code> relative_code_target_object_handle_at(
+      Address pc_) const;
+
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
@@ -1587,20 +1559,6 @@ class Assembler : public AssemblerBase {
 
   // Patch branch instruction at pos to branch to given branch target pos
   void target_at_put(int pos, int target_pos);
-
-  // Prevent sharing of code target constant pool entries until
-  // EndBlockCodeTargetSharing is called. Calls to this function can be nested
-  // but must be followed by an equal number of call to
-  // EndBlockCodeTargetSharing.
-  void StartBlockCodeTargetSharing() {
-    ++code_target_sharing_blocked_nesting_;
-  }
-
-  // Resume sharing of constant pool code target entries. Needs to be called
-  // as many times as StartBlockCodeTargetSharing to have an effect.
-  void EndBlockCodeTargetSharing() {
-    --code_target_sharing_blocked_nesting_;
-  }
 
   // Prevent contant pool emission until EndBlockConstPool is called.
   // Calls to this function can be nested but must be followed by an equal
@@ -1709,12 +1667,6 @@ class Assembler : public AssemblerBase {
   static constexpr int kCheckPoolIntervalInst = 32;
   static constexpr int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
 
-  // Sharing of code target entries may be blocked in some code sequences.
-  int code_target_sharing_blocked_nesting_;
-  bool IsCodeTargetSharingAllowed() const {
-    return code_target_sharing_blocked_nesting_ == 0;
-  }
-
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
   int no_const_pool_before_;  // Block emission before this pc offset.
@@ -1729,9 +1681,6 @@ class Assembler : public AssemblerBase {
 
   inline void CheckBuffer();
   void GrowBuffer();
-
-  // 32-bit immediate values
-  void Move32BitImmediate(Register rd, const Operand& x, Condition cond = al);
 
   // Instruction generation
   void AddrMode1(Instr instr, Register rd, Register rn, const Operand& x);
@@ -1757,35 +1706,23 @@ class Assembler : public AssemblerBase {
   void ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                             intptr_t value);
   void ConstantPoolAddEntry(int position, Double value);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
   friend class RelocInfo;
   friend class BlockConstPoolScope;
-  friend class BlockCodeTargetSharingScope;
   friend class EnsureSpace;
   friend class UseScratchRegisterScope;
-
-  // The following functions help with avoiding allocations of embedded heap
-  // objects during the code assembly phase. {RequestHeapObject} records the
-  // need for a future heap number allocation or code stub generation. After
-  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request). That is, for each request, it will patch the
-  // dummy heap object handle that we emitted during code assembly with the
-  // actual heap object handle.
-  void RequestHeapObject(HeapObjectRequest request);
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
-
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
 class EnsureSpace BASE_EMBEDDED {
  public:
-  INLINE(explicit EnsureSpace(Assembler* assembler));
+  V8_INLINE explicit EnsureSpace(Assembler* assembler);
 };
 
 class PatchingAssembler : public Assembler {
  public:
-  PatchingAssembler(IsolateData isolate_data, byte* address, int instructions);
+  PatchingAssembler(const AssemblerOptions& options, byte* address,
+                    int instructions);
   ~PatchingAssembler();
 
   void Emit(Address addr);

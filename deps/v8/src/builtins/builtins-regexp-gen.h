@@ -41,7 +41,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocateRegExpResult(Node* context, Node* length, Node* index,
                              Node* input);
 
-  Node* FastLoadLastIndex(Node* regexp);
+  TNode<Object> FastLoadLastIndex(Node* regexp);
   Node* SlowLoadLastIndex(Node* context, Node* regexp);
   Node* LoadLastIndex(Node* context, Node* regexp, bool is_fastpath);
 
@@ -89,6 +89,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   // Performs fast path checks on the given object itself, but omits prototype
   // checks.
   Node* IsFastRegExpNoPrototype(Node* const context, Node* const object);
+  TNode<BoolT> IsFastRegExpWithOriginalExec(TNode<Context> context,
+                                            TNode<JSRegExp> object);
   Node* IsFastRegExpNoPrototype(Node* const context, Node* const object,
                                 Node* const map);
 

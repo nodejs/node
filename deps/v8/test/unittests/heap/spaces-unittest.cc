@@ -20,7 +20,6 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   CompactionSpace* compaction_space =
       new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
   EXPECT_TRUE(compaction_space != NULL);
-  EXPECT_TRUE(compaction_space->SetUp());
 
   for (Page* p : *old_space) {
     // Unlink free lists from the main space to avoid reusing the memory for
@@ -50,6 +49,31 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
             old_space->CountTotalPages());
 
   delete compaction_space;
+}
+
+TEST_F(SpacesTest, CodeRangeAddressReuse) {
+  CodeRangeAddressHint hint;
+  // Create code ranges.
+  void* code_range1 = hint.GetAddressHint(100);
+  void* code_range2 = hint.GetAddressHint(200);
+  void* code_range3 = hint.GetAddressHint(100);
+
+  // Since the addresses are random, we cannot check that they are different.
+
+  // Free two code ranges.
+  hint.NotifyFreedCodeRange(code_range1, 100);
+  hint.NotifyFreedCodeRange(code_range2, 200);
+
+  // The next two code ranges should reuse the freed addresses.
+  void* code_range4 = hint.GetAddressHint(100);
+  EXPECT_EQ(code_range4, code_range1);
+  void* code_range5 = hint.GetAddressHint(200);
+  EXPECT_EQ(code_range5, code_range2);
+
+  // Free the third code range and check address reuse.
+  hint.NotifyFreedCodeRange(code_range3, 100);
+  void* code_range6 = hint.GetAddressHint(100);
+  EXPECT_EQ(code_range6, code_range3);
 }
 
 }  // namespace internal

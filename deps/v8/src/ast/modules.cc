@@ -6,11 +6,26 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/objects-inl.h"
-#include "src/objects/module.h"
+#include "src/objects/module-inl.h"
 #include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
 namespace internal {
+
+bool ModuleDescriptor::AstRawStringComparer::operator()(
+    const AstRawString* lhs, const AstRawString* rhs) const {
+  // Fast path for equal pointers: a pointer is not strictly less than itself.
+  if (lhs == rhs) return false;
+
+  // Order by contents (ordering by hash is unstable across runs).
+  if (lhs->is_one_byte() != rhs->is_one_byte()) {
+    return lhs->is_one_byte();
+  }
+  if (lhs->byte_length() != rhs->byte_length()) {
+    return lhs->byte_length() < rhs->byte_length();
+  }
+  return memcmp(lhs->raw_data(), rhs->raw_data(), lhs->byte_length()) < 0;
+}
 
 void ModuleDescriptor::AddImport(const AstRawString* import_name,
                                  const AstRawString* local_name,

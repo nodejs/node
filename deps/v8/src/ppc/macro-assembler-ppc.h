@@ -10,6 +10,7 @@
 #include "src/double.h"
 #include "src/globals.h"
 #include "src/ppc/assembler-ppc.h"
+#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -26,9 +27,13 @@ constexpr Register kInterpreterAccumulatorRegister = r3;
 constexpr Register kInterpreterBytecodeOffsetRegister = r15;
 constexpr Register kInterpreterBytecodeArrayRegister = r16;
 constexpr Register kInterpreterDispatchTableRegister = r17;
+
 constexpr Register kJavaScriptCallArgCountRegister = r3;
-constexpr Register kJavaScriptCallNewTargetRegister = r6;
 constexpr Register kJavaScriptCallCodeStartRegister = r5;
+constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
+constexpr Register kJavaScriptCallNewTargetRegister = r6;
+constexpr Register kJavaScriptCallExtraArg1Register = r5;
+
 constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r4;
 constexpr Register kRuntimeCallArgCountRegister = r3;
@@ -110,20 +115,14 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
 #define Div divw
 #endif
 
-class TurboAssembler : public Assembler {
+class TurboAssembler : public TurboAssemblerBase {
  public:
-  TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object);
+  TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int buffer_size,
+                 CodeObjectRequired create_code_object)
+      : TurboAssemblerBase(isolate, options, buffer, buffer_size,
+                           create_code_object) {}
 
-  void set_has_frame(bool value) { has_frame_ = value; }
-  bool has_frame() { return has_frame_; }
-
-  Isolate* isolate() const { return isolate_; }
-
-  Handle<HeapObject> CodeObject() {
-    DCHECK(!code_object_.is_null());
-    return code_object_;
-  }
   // Converts the integer (untagged smi) in |src| to a double, storing
   // the result to |dst|
   void ConvertIntToDouble(Register src, DoubleRegister dst);
@@ -194,6 +193,7 @@ class TurboAssembler : public Assembler {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
     mov(kRootRegister, Operand(roots_array_start));
+    addi(kRootRegister, kRootRegister, Operand(kRootRegisterBias));
   }
 
   // These exist to provide portability between 32 and 64bit
@@ -220,9 +220,6 @@ class TurboAssembler : public Assembler {
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
 
-  bool root_array_available() const { return root_array_available_; }
-  void set_root_array_available(bool v) { root_array_available_ = v; }
-
   void StoreDouble(DoubleRegister src, const MemOperand& mem,
                    Register scratch = no_reg);
   void StoreDoubleU(DoubleRegister src, const MemOperand& mem,
@@ -233,6 +230,8 @@ class TurboAssembler : public Assembler {
   void StoreSingleU(DoubleRegister src, const MemOperand& mem,
                     Register scratch = no_reg);
 
+  void Cmpi(Register src1, const Operand& src2, Register scratch,
+            CRegister cr = cr7);
   void Cmpli(Register src1, const Operand& src2, Register scratch,
              CRegister cr = cr7);
   void Cmpwi(Register src1, const Operand& src2, Register scratch,
@@ -349,8 +348,11 @@ class TurboAssembler : public Assembler {
                      Register exclusion3 = no_reg);
 
   // Load an object from the root table.
+  void LoadRoot(Register destination, Heap::RootListIndex index) override {
+    LoadRoot(destination, index, al);
+  }
   void LoadRoot(Register destination, Heap::RootListIndex index,
-                Condition cond = al);
+                Condition cond);
 
   void SwapP(Register src, Register dst, Register scratch);
   void SwapP(Register src, MemOperand dst, Register scratch);
@@ -405,9 +407,10 @@ class TurboAssembler : public Assembler {
   void CallCFunction(Register function, int num_reg_arguments,
                      int num_double_arguments);
 
-  // TODO(jgruber): Remove in favor of MacroAssembler::CallRuntime.
-  void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
-                          SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
+  // builtin for the target runtime function and uses an indirect call.
+  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
+
   void MovFromFloatParameter(DoubleRegister dst);
   void MovFromFloatResult(DoubleRegister dst);
 
@@ -437,11 +440,10 @@ class TurboAssembler : public Assembler {
                          Register src_high, uint32_t shift);
 #endif
 
-#ifdef V8_EMBEDDED_BUILTINS
-  void LookupConstant(Register destination, Handle<Object> object);
-  void LookupExternalReference(Register destination,
-                               ExternalReference reference);
-#endif  // V8_EMBEDDED_BUILTINS
+  void LoadFromConstantsTable(Register destination,
+                              int constant_index) override;
+  void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
+  void LoadRootRelative(Register destination, int32_t offset) override;
 
   // Returns the size of a call in instructions. Note, the value returned is
   // only valid as long as no entries are added to the constant pool between
@@ -455,6 +457,8 @@ class TurboAssembler : public Assembler {
             CRegister cr = cr7);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
+  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
+            CRegister cr = cr7);
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
   int CallSize(Handle<Code> code,
@@ -464,7 +468,9 @@ class TurboAssembler : public Assembler {
             Condition cond = al);
   void Call(Label* target);
 
-  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+  void CallForDeoptimization(Address target, int deopt_id,
+                             RelocInfo::Mode rmode) {
+    USE(deopt_id);
     Call(target, rmode);
   }
 
@@ -615,6 +621,9 @@ class TurboAssembler : public Assembler {
     TestIfSmi(value, r0);
     beq(smi_label, cr0);  // branch if SMI
   }
+  void JumpIfEqual(Register x, int32_t y, Label* dest);
+  void JumpIfLessThan(Register x, int32_t y, Label* dest);
+
 #if V8_TARGET_ARCH_PPC64
   inline void TestIfInt32(Register value, Register scratch,
                           CRegister cr = cr7) {
@@ -658,7 +667,7 @@ class TurboAssembler : public Assembler {
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
                                   Label* done);
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
-                         DoubleRegister double_input);
+                         DoubleRegister double_input, StubCallMode stub_mode);
 
   // Call a code stub.
   void CallStubDelayed(CodeStub* stub);
@@ -677,19 +686,9 @@ class TurboAssembler : public Assembler {
 
   void ResetSpeculationPoisonRegister();
 
- protected:
-  // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
-
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
-  bool has_frame_ = false;
-  bool root_array_available_ = true;
-  Isolate* const isolate_;
-
-  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
-            CRegister cr = cr7);
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
   void CallCFunctionHelper(Register function, int num_reg_arguments,
@@ -700,7 +699,11 @@ class TurboAssembler : public Assembler {
 class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
-                 CodeObjectRequired create_code_object);
+                 CodeObjectRequired create_code_object)
+      : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
+                       size, create_code_object) {}
+  MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int size, CodeObjectRequired create_code_object);
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -797,7 +800,8 @@ class MacroAssembler : public TurboAssembler {
   void LoadWord(Register dst, const MemOperand& mem, Register scratch);
   void StoreWord(Register src, const MemOperand& mem, Register scratch);
 
-  void LoadHalfWord(Register dst, const MemOperand& mem, Register scratch);
+  void LoadHalfWord(Register dst, const MemOperand& mem,
+                    Register scratch = no_reg);
   void LoadHalfWordArith(Register dst, const MemOperand& mem,
                          Register scratch = no_reg);
   void StoreHalfWord(Register src, const MemOperand& mem, Register scratch);
@@ -812,8 +816,6 @@ class MacroAssembler : public TurboAssembler {
   void LoadDoubleU(DoubleRegister dst, const MemOperand& mem,
                    Register scratch = no_reg);
 
-  void Cmpi(Register src1, const Operand& src2, Register scratch,
-            CRegister cr = cr7);
   void Cmplwi(Register src1, const Operand& src2, Register scratch,
               CRegister cr = cr7);
   void And(Register ra, Register rs, const Operand& rb, RCBit rc = LeaveRC);
@@ -1021,9 +1023,6 @@ class MacroAssembler : public TurboAssembler {
 #else
 #define SmiWordOffset(offset) offset
 #endif
-
-  // Abort execution if argument is not a FixedArray, enabled via --debug-code.
-  void AssertFixedArray(Register object);
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object);

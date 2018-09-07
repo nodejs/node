@@ -14,6 +14,7 @@
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/frames.h"
+#include "src/interface-descriptors.h"
 #include "src/isolate.h"
 #include "src/libsampler/sampler.h"
 #include "src/objects-inl.h"
@@ -46,6 +47,7 @@ void V8::TearDown() {
 #if defined(USE_SIMULATOR)
   Simulator::GlobalTearDown();
 #endif
+  CallDescriptors::TearDown();
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   RegisteredExtension::UnregisterAll();
@@ -81,6 +83,7 @@ void V8::InitializeOncePerProcessImpl() {
   CpuFeatures::Probe(false);
   ElementsAccessor::InitializeOncePerProcess();
   Bootstrapper::InitializeOncePerProcess();
+  CallDescriptors::InitializeOncePerProcess();
 }
 
 

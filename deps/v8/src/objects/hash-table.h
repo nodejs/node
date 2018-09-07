@@ -58,8 +58,8 @@ class BaseShape {
   static inline int GetMapRootIndex();
   static const bool kNeedsHoleCheck = true;
   static Object* Unwrap(Object* key) { return key; }
-  static inline bool IsKey(Isolate* isolate, Object* key);
-  static inline bool IsLive(Isolate* isolate, Object* key);
+  static inline bool IsKey(ReadOnlyRoots roots, Object* key);
+  static inline bool IsLive(ReadOnlyRoots roots, Object* key);
 };
 
 class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
@@ -87,7 +87,7 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
   static inline int ComputeCapacity(int at_least_space_for);
 
   // Compute the probe offset (quadratic probing).
-  INLINE(static uint32_t GetProbeOffset(uint32_t n)) {
+  V8_INLINE static uint32_t GetProbeOffset(uint32_t n) {
     return (n + n * n) >> 1;
   }
 
@@ -144,18 +144,17 @@ class HashTable : public HashTableBase {
   void IterateElements(ObjectVisitor* visitor);
 
   // Find entry for key otherwise return kNotFound.
-  inline int FindEntry(Key key);
-  inline int FindEntry(Isolate* isolate, Key key, int32_t hash);
+  inline int FindEntry(ReadOnlyRoots roots, Key key, int32_t hash);
   int FindEntry(Isolate* isolate, Key key);
 
   // Rehashes the table in-place.
-  void Rehash();
+  void Rehash(Isolate* isolate);
 
   // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
-  static bool IsKey(Isolate* isolate, Object* k);
+  static bool IsKey(ReadOnlyRoots roots, Object* k);
 
-  inline bool ToKey(Isolate* isolate, int entry, Object** out_k);
+  inline bool ToKey(ReadOnlyRoots roots, int entry, Object** out_k);
 
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry) + kEntryKeyIndex); }
@@ -185,7 +184,8 @@ class HashTable : public HashTableBase {
 
   // Ensure enough space for n additional elements.
   V8_WARN_UNUSED_RESULT static Handle<Derived> EnsureCapacity(
-      Handle<Derived> table, int n, PretenureFlag pretenure = NOT_TENURED);
+      Isolate* isolate, Handle<Derived> table, int n,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Returns true if this table has sufficient capacity for adding n elements.
   bool HasSufficientCapacityToAdd(int number_of_additional_elements);
@@ -202,7 +202,7 @@ class HashTable : public HashTableBase {
 
   // Attempt to shrink hash table after removal of key.
   V8_WARN_UNUSED_RESULT static Handle<Derived> Shrink(
-      Handle<Derived> table, int additionalCapacity = 0);
+      Isolate* isolate, Handle<Derived> table, int additionalCapacity = 0);
 
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
@@ -226,12 +226,13 @@ class HashTable : public HashTableBase {
   // Returns _expected_ if one of entries given by the first _probe_ probes is
   // equal to  _expected_. Otherwise, returns the entry given by the probe
   // number _probe_.
-  uint32_t EntryForProbe(Object* k, int probe, uint32_t expected);
+  uint32_t EntryForProbe(Isolate* isolate, Object* k, int probe,
+                         uint32_t expected);
 
   void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(Derived* new_table);
+  void Rehash(Isolate* isolate, Derived* new_table);
 };
 
 // HashTableKey is an abstract superclass for virtual key behavior.
@@ -269,52 +270,72 @@ class ObjectHashTableShape : public BaseShape<Handle<Object>> {
   static const bool kNeedsHoleCheck = false;
 };
 
-// ObjectHashTable maps keys that are arbitrary objects to object values by
-// using the identity hash of the key for hashing purposes.
-class ObjectHashTable
-    : public HashTable<ObjectHashTable, ObjectHashTableShape> {
-  typedef HashTable<ObjectHashTable, ObjectHashTableShape> DerivedHashTable;
-
+template <typename Derived, typename Shape>
+class ObjectHashTableBase : public HashTable<Derived, Shape> {
  public:
-  DECL_CAST(ObjectHashTable)
-
-  // Attempt to shrink hash table after removal of key.
-  V8_WARN_UNUSED_RESULT static inline Handle<ObjectHashTable> Shrink(
-      Handle<ObjectHashTable> table);
-
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
   Object* Lookup(Handle<Object> key);
   Object* Lookup(Handle<Object> key, int32_t hash);
-  Object* Lookup(Isolate* isolate, Handle<Object> key, int32_t hash);
+  Object* Lookup(ReadOnlyRoots roots, Handle<Object> key, int32_t hash);
 
   // Returns the value at entry.
   Object* ValueAt(int entry);
 
+  // Overwrite all keys and values with the hole value.
+  static void FillEntriesWithHoles(Handle<Derived>);
+
   // Adds (or overwrites) the value associated with the given key.
-  static Handle<ObjectHashTable> Put(Handle<ObjectHashTable> table,
-                                     Handle<Object> key, Handle<Object> value);
-  static Handle<ObjectHashTable> Put(Handle<ObjectHashTable> table,
-                                     Handle<Object> key, Handle<Object> value,
-                                     int32_t hash);
+  static Handle<Derived> Put(Handle<Derived> table, Handle<Object> key,
+                             Handle<Object> value);
+  static Handle<Derived> Put(Isolate* isolate, Handle<Derived> table,
+                             Handle<Object> key, Handle<Object> value,
+                             int32_t hash);
 
   // Returns an ObjectHashTable (possibly |table|) where |key| has been removed.
-  static Handle<ObjectHashTable> Remove(Handle<ObjectHashTable> table,
-                                        Handle<Object> key, bool* was_present);
-  static Handle<ObjectHashTable> Remove(Handle<ObjectHashTable> table,
-                                        Handle<Object> key, bool* was_present,
-                                        int32_t hash);
+  static Handle<Derived> Remove(Isolate* isolate, Handle<Derived> table,
+                                Handle<Object> key, bool* was_present);
+  static Handle<Derived> Remove(Isolate* isolate, Handle<Derived> table,
+                                Handle<Object> key, bool* was_present,
+                                int32_t hash);
 
   // Returns the index to the value of an entry.
   static inline int EntryToValueIndex(int entry) {
-    return EntryToIndex(entry) + ObjectHashTableShape::kEntryValueIndex;
+    return HashTable<Derived, Shape>::EntryToIndex(entry) +
+           Shape::kEntryValueIndex;
   }
 
  protected:
-  friend class MarkCompactCollector;
-
   void AddEntry(int entry, Object* key, Object* value);
   void RemoveEntry(int entry);
+};
+
+// ObjectHashTable maps keys that are arbitrary objects to object values by
+// using the identity hash of the key for hashing purposes.
+class ObjectHashTable
+    : public ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape> {
+ public:
+  DECL_CAST(ObjectHashTable)
+  DECL_PRINTER(ObjectHashTable)
+};
+
+class EphemeronHashTableShape : public ObjectHashTableShape {
+ public:
+  static inline int GetMapRootIndex();
+};
+
+// EphemeronHashTable is similar to ObjectHashTable but gets special treatment
+// by the GC. The GC treats its entries as ephemerons: both key and value are
+// weak references, however if the key is strongly reachable its corresponding
+// value is also kept alive.
+class EphemeronHashTable
+    : public ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape> {
+ public:
+  DECL_CAST(EphemeronHashTable)
+  DECL_PRINTER(EphemeronHashTable)
+
+ protected:
+  friend class MarkCompactCollector;
 };
 
 class ObjectHashSetShape : public ObjectHashTableShape {
@@ -325,7 +346,7 @@ class ObjectHashSetShape : public ObjectHashTableShape {
 
 class ObjectHashSet : public HashTable<ObjectHashSet, ObjectHashSetShape> {
  public:
-  static Handle<ObjectHashSet> Add(Handle<ObjectHashSet> set,
+  static Handle<ObjectHashSet> Add(Isolate* isolate, Handle<ObjectHashSet> set,
                                    Handle<Object> key);
 
   inline bool Has(Isolate* isolate, Handle<Object> key, int32_t hash);

@@ -90,7 +90,7 @@ HeapObjectReference** TransitionArray::GetTargetSlot(int transition_number) {
 
 // static
 PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
-  DCHECK(!IsSpecialTransition(name));
+  DCHECK(!IsSpecialTransition(name->GetReadOnlyRoots(), name));
   int descriptor = target->LastAdded();
   DescriptorArray* descriptors = target->instance_descriptors();
   // Transitions are allowed only for the last added property.

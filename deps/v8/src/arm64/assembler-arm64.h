@@ -898,9 +898,7 @@ class Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size)
-      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
-  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
+  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
 
   virtual ~Assembler();
 
@@ -972,10 +970,6 @@ class Assembler : public AssemblerBase {
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  // Add 'target' to the code_targets_ vector, if necessary, and return the
-  // offset at which it is stored.
-  int GetCodeTargetIndex(Handle<Code> target);
-
   // Returns the handle for the code object called at 'pc'.
   // This might need to be temporarily encoded as an offset into code_targets_.
   inline Handle<Code> code_target_object_handle_at(Address pc);
@@ -984,7 +978,7 @@ class Assembler : public AssemblerBase {
   // at 'pc'.
   // Runtime entries can be temporarily encoded as the offset between the
   // runtime function entrypoint and the code range start (stored in the
-  // code_range_start_ field), in order to be encodable as we generate the code,
+  // code_range_start field), in order to be encodable as we generate the code,
   // before it is moved into the code space.
   inline Address runtime_entry_at(Address pc);
 
@@ -2887,6 +2881,10 @@ class Assembler : public AssemblerBase {
     return reinterpret_cast<byte*>(instr) - buffer_;
   }
 
+  static const char* GetSpecialRegisterName(int code) {
+    return (code == kSPRegInternalCode) ? "sp" : "UNKNOWN";
+  }
+
   // Register encoding.
   static Instr Rd(CPURegister rd) {
     DCHECK_NE(rd.code(), kSPRegInternalCode);
@@ -3229,34 +3227,6 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
   };
 
-  // Class for blocking sharing of code targets in constant pool.
-  class BlockCodeTargetSharingScope {
-   public:
-    explicit BlockCodeTargetSharingScope(Assembler* assem) : assem_(nullptr) {
-      Open(assem);
-    }
-    // This constructor does not initialize the scope. The user needs to
-    // explicitly call Open() before using it.
-    BlockCodeTargetSharingScope() : assem_(nullptr) {}
-    ~BlockCodeTargetSharingScope() { Close(); }
-    void Open(Assembler* assem) {
-      DCHECK_NULL(assem_);
-      DCHECK_NOT_NULL(assem);
-      assem_ = assem;
-      assem_->StartBlockCodeTargetSharing();
-    }
-
-   private:
-    void Close() {
-      if (assem_ != nullptr) {
-        assem_->EndBlockCodeTargetSharing();
-      }
-    }
-    Assembler* assem_;
-
-    DISALLOW_COPY_AND_ASSIGN(BlockCodeTargetSharingScope);
-  };
-
  protected:
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const;
 
@@ -3340,16 +3310,6 @@ class Assembler : public AssemblerBase {
   // chain if the link chain cannot be fixed up without this branch.
   void RemoveBranchFromLabelLinkChain(Instruction* branch, Label* label,
                                       Instruction* label_veneer = nullptr);
-
-  // Prevent sharing of code target constant pool entries until
-  // EndBlockCodeTargetSharing is called. Calls to this function can be nested
-  // but must be followed by an equal number of call to
-  // EndBlockCodeTargetSharing.
-  void StartBlockCodeTargetSharing() { ++code_target_sharing_blocked_nesting_; }
-
-  // Resume sharing of constant pool code target entries. Needs to be called
-  // as many times as StartBlockCodeTargetSharing to have an effect.
-  void EndBlockCodeTargetSharing() { --code_target_sharing_blocked_nesting_; }
 
  private:
   static uint32_t FPToImm8(double imm);
@@ -3530,12 +3490,6 @@ class Assembler : public AssemblerBase {
   // Emission of the veneer pools may be blocked in some code sequences.
   int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
 
-  // Sharing of code target entries may be blocked in some code sequences.
-  int code_target_sharing_blocked_nesting_;
-  bool IsCodeTargetSharingAllowed() const {
-    return code_target_sharing_blocked_nesting_ == 0;
-  }
-
   // Relocation info generation
   // Each relocation is encoded as a variable size value
   static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
@@ -3545,14 +3499,6 @@ class Assembler : public AssemblerBase {
   // GrowBuffer(); contains only those internal references whose labels
   // are already bound.
   std::deque<int> internal_reference_positions_;
-
-  // Before we copy code into the code space, we cannot encode calls to code
-  // targets as we normally would, as the difference between the instruction's
-  // location in the temporary buffer and the call target is not guaranteed to
-  // fit in the offset field. We keep track of the code handles we encounter
-  // in calls in this vector, and encode the index of the code handle in the
-  // vector instead.
-  std::vector<Handle<Code>> code_targets_;
 
   // Relocation info records are also used during code generation as temporary
   // containers for constants and code target addresses until they are emitted
@@ -3649,20 +3595,8 @@ class Assembler : public AssemblerBase {
   // the length of the label chain.
   void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
 
-  // The following functions help with avoiding allocations of embedded heap
-  // objects during the code assembly phase. {RequestHeapObject} records the
-  // need for a future heap number allocation or code stub generation. After
-  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request). That is, for each request, it will patch the
-  // dummy heap object handle that we emitted during code assembly with the
-  // actual heap object handle.
-  void RequestHeapObject(HeapObjectRequest request);
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
-
- private:
   friend class EnsureSpace;
   friend class ConstPool;
 };
@@ -3678,8 +3612,9 @@ class PatchingAssembler : public Assembler {
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
   // Note that the instruction cache will not be flushed.
-  PatchingAssembler(IsolateData isolate_data, byte* start, unsigned count)
-      : Assembler(isolate_data, start, count * kInstructionSize + kGap) {
+  PatchingAssembler(const AssemblerOptions& options, byte* start,
+                    unsigned count)
+      : Assembler(options, start, count * kInstructionSize + kGap) {
     // Block constant pool emission.
     StartBlockPools();
   }

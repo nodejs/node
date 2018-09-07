@@ -79,7 +79,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ JumpIfSmi(r3, &context_check);
   __ LoadP(r2, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ LoadImmP(r3, Operand(type()));  // bailout type,
+  __ LoadImmP(r3, Operand(static_cast<int>(deopt_kind())));
   // r4: bailout id already loaded.
   // r5: code address or 0 already loaded.
   // r6: Fp-to-sp delta.

@@ -156,6 +156,8 @@ int ReclaimInaccessibleMemory(void* address, size_t size) {
 #else
   int ret = madvise(address, size, MADV_FREE);
 #endif
+  if (ret != 0 && errno == ENOSYS)
+    return 0;  // madvise is not available on all systems.
   if (ret != 0 && errno == EINVAL) {
     // MADV_FREE only works on Linux 4.5+ . If request failed, retry with older
     // MADV_DONTNEED . Note that MADV_FREE being defined at compile time doesn't

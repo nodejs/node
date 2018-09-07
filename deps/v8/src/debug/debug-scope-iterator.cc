@@ -75,26 +75,8 @@ void DebugScopeIterator::Advance() {
 }
 
 bool DebugScopeIterator::ShouldIgnore() {
-  // Almost always Script scope will be empty, so just filter out that noise.
-  // Also drop empty Block, Eval and Script scopes, should we get any.
-  DCHECK(!Done());
-  debug::ScopeIterator::ScopeType type = GetType();
-  if (type != debug::ScopeIterator::ScopeTypeBlock &&
-      type != debug::ScopeIterator::ScopeTypeScript &&
-      type != debug::ScopeIterator::ScopeTypeEval &&
-      type != debug::ScopeIterator::ScopeTypeModule) {
-    return false;
-  }
-
-  // TODO(kozyatinskiy): make this function faster.
-  Handle<JSObject> value;
-  if (!iterator_.ScopeObject().ToHandle(&value)) return false;
-  Handle<FixedArray> keys =
-      KeyAccumulator::GetKeys(value, KeyCollectionMode::kOwnOnly,
-                              ENUMERABLE_STRINGS,
-                              GetKeysConversion::kConvertToString)
-          .ToHandleChecked();
-  return keys->length() == 0;
+  if (GetType() == debug::ScopeIterator::ScopeTypeLocal) return false;
+  return !iterator_.DeclaresLocals(i::ScopeIterator::Mode::ALL);
 }
 
 v8::debug::ScopeIterator::ScopeType DebugScopeIterator::GetType() {
@@ -104,19 +86,10 @@ v8::debug::ScopeIterator::ScopeType DebugScopeIterator::GetType() {
 
 v8::Local<v8::Object> DebugScopeIterator::GetObject() {
   DCHECK(!Done());
-  Handle<JSObject> value;
-  if (iterator_.ScopeObject().ToHandle(&value)) {
-    return Utils::ToLocal(value);
-  }
-  return v8::Local<v8::Object>();
+  Handle<JSObject> value = iterator_.ScopeObject(i::ScopeIterator::Mode::ALL);
+  return Utils::ToLocal(value);
 }
 
-v8::Local<v8::Function> DebugScopeIterator::GetFunction() {
-  DCHECK(!Done());
-  Handle<JSFunction> closure = iterator_.GetFunction();
-  if (closure.is_null()) return v8::Local<v8::Function>();
-  return Utils::ToLocal(closure);
-}
 int DebugScopeIterator::GetScriptId() {
   DCHECK(!Done());
   return iterator_.GetScript()->id();
@@ -199,11 +172,6 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
 int DebugWasmScopeIterator::GetScriptId() {
   DCHECK(!Done());
   return -1;
-}
-
-v8::Local<v8::Function> DebugWasmScopeIterator::GetFunction() {
-  DCHECK(!Done());
-  return v8::Local<v8::Function>();
 }
 
 v8::Local<v8::Value> DebugWasmScopeIterator::GetFunctionDebugName() {

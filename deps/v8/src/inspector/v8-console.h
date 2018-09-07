@@ -82,16 +82,10 @@ class V8Console : public v8::debug::ConsoleDelegate {
                   const v8::debug::ConsoleContext& consoleContext) override;
   void Assert(const v8::debug::ConsoleCallArguments&,
               const v8::debug::ConsoleContext& consoleContext) override;
-  void MarkTimeline(const v8::debug::ConsoleCallArguments&,
-                    const v8::debug::ConsoleContext& consoleContext) override;
   void Profile(const v8::debug::ConsoleCallArguments&,
                const v8::debug::ConsoleContext& consoleContext) override;
   void ProfileEnd(const v8::debug::ConsoleCallArguments&,
                   const v8::debug::ConsoleContext& consoleContext) override;
-  void Timeline(const v8::debug::ConsoleCallArguments&,
-                const v8::debug::ConsoleContext& consoleContext) override;
-  void TimelineEnd(const v8::debug::ConsoleCallArguments&,
-                   const v8::debug::ConsoleContext& consoleContext) override;
   void Time(const v8::debug::ConsoleCallArguments&,
             const v8::debug::ConsoleContext& consoleContext) override;
   void TimeEnd(const v8::debug::ConsoleCallArguments&,

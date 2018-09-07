@@ -39,10 +39,9 @@ TEST(NodeWithNullInputReachableFromEnd) {
   phi->ReplaceInput(0, nullptr);
   graph.SetEnd(phi);
 
-  OFStream os(stdout);
   SourcePositionTable table(&graph);
   NodeOriginTable table2(&graph);
-  os << AsJSON(graph, &table, &table2);
+  StdoutStream{} << AsJSON(graph, &table, &table2);
 }
 
 
@@ -59,10 +58,9 @@ TEST(NodeWithNullControlReachableFromEnd) {
   phi->ReplaceInput(1, nullptr);
   graph.SetEnd(phi);
 
-  OFStream os(stdout);
   SourcePositionTable table(&graph);
   NodeOriginTable table2(&graph);
-  os << AsJSON(graph, &table, &table2);
+  StdoutStream{} << AsJSON(graph, &table, &table2);
 }
 
 
@@ -79,10 +77,9 @@ TEST(NodeWithNullInputReachableFromStart) {
   phi->ReplaceInput(0, nullptr);
   graph.SetEnd(start);
 
-  OFStream os(stdout);
   SourcePositionTable table(&graph);
   NodeOriginTable table2(&graph);
-  os << AsJSON(graph, &table, &table2);
+  StdoutStream{} << AsJSON(graph, &table, &table2);
 }
 
 
@@ -97,10 +94,9 @@ TEST(NodeWithNullControlReachableFromStart) {
   merge->ReplaceInput(1, nullptr);
   graph.SetEnd(merge);
 
-  OFStream os(stdout);
   SourcePositionTable table(&graph);
   NodeOriginTable table2(&graph);
-  os << AsJSON(graph, &table, &table2);
+  StdoutStream{} << AsJSON(graph, &table, &table2);
 }
 
 
@@ -125,10 +121,9 @@ TEST(NodeNetworkOfDummiesReachableFromEnd) {
   Node* end = graph.NewNode(&dummy_operator6, 6, end_dependencies);
   graph.SetEnd(end);
 
-  OFStream os(stdout);
   SourcePositionTable table(&graph);
   NodeOriginTable table2(&graph);
-  os << AsJSON(graph, &table, &table2);
+  StdoutStream{} << AsJSON(graph, &table, &table2);
 }
 
 TEST(TestSourceIdAssigner) {

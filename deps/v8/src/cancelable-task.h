@@ -96,7 +96,7 @@ class V8_EXPORT_PRIVATE Cancelable {
  protected:
   bool TryRun() { return status_.TrySetValue(kWaiting, kRunning); }
   bool IsRunning() { return status_.Value() == kRunning; }
-  intptr_t CancelAttempts() { return cancel_counter_.Value(); }
+  intptr_t CancelAttempts() { return cancel_counter_; }
 
  private:
   // Identifies the state a cancelable task is in:
@@ -116,7 +116,7 @@ class V8_EXPORT_PRIVATE Cancelable {
     if (status_.TrySetValue(kWaiting, kCanceled)) {
       return true;
     }
-    cancel_counter_.Increment(1);
+    cancel_counter_++;
     return false;
   }
 
@@ -127,7 +127,7 @@ class V8_EXPORT_PRIVATE Cancelable {
   // The counter is incremented for failing tries to cancel a task. This can be
   // used by the task itself as an indication how often external entities tried
   // to abort it.
-  base::AtomicNumber<intptr_t> cancel_counter_;
+  std::atomic<intptr_t> cancel_counter_;
 
   friend class CancelableTaskManager;
 

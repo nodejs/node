@@ -318,6 +318,31 @@ function checkStack(stack, expected_lines) {
   }
 })();
 
+(function testImportExportedFunction() {
+  // See https://crbug.com/860392.
+  print(arguments.callee.name);
+  let instance0 = (() => {
+    let builder = new WasmModuleBuilder();
+    builder.addFunction('f11', kSig_i_v).addBody(wasmI32Const(11)).exportFunc();
+    builder.addFunction('f17', kSig_i_v).addBody(wasmI32Const(17)).exportFunc();
+    return builder.instantiate();
+  })();
+
+  let builder = new WasmModuleBuilder();
+  let sig_i_v = builder.addType(kSig_i_v);
+  let f11_imp = builder.addImport('q', 'f11', sig_i_v);
+  let f17_imp = builder.addImport('q', 'f17', sig_i_v);
+  let add = builder.addFunction('add', sig_i_v).addBody([
+    kExprCallFunction, f11_imp,  // call f11
+    kExprCallFunction, f17_imp,  // call f17
+    kExprI32Add                  // i32.add
+  ]).exportFunc();
+  let instance = builder.instantiate(
+      {q: {f11: instance0.exports.f11, f17: instance0.exports.f17}});
+
+  assertEquals(28, instance.exports.add());
+})();
+
 (function testInfiniteRecursion() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();

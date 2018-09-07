@@ -58,7 +58,7 @@ TickSample* ProfilerEventsProcessor::StartTickSample() {
   void* address = ticks_buffer_.StartEnqueue();
   if (address == nullptr) return nullptr;
   TickSampleEventRecord* evt =
-      new (address) TickSampleEventRecord(last_code_event_id_.Value());
+      new (address) TickSampleEventRecord(last_code_event_id_);
   return &evt->sample;
 }
 

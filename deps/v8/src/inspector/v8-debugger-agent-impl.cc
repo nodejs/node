@@ -294,62 +294,6 @@ Response buildScopes(v8::debug::ScopeIterator* iterator,
   return Response::OK();
 }
 
-bool liveEditExceptionToDetails(
-    V8InspectorImpl* inspector, v8::Local<v8::Context> context,
-    v8::Local<v8::Value> exceptionValue,
-    Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
-  if (!exceptionValue->IsObject()) return false;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::Local<v8::Object> exception = exceptionValue.As<v8::Object>();
-  v8::Local<v8::Value> detailsValue;
-  if (!exception->Get(context, toV8String(isolate, "details"))
-           .ToLocal(&detailsValue) ||
-      !detailsValue->IsObject()) {
-    return false;
-  }
-  v8::Local<v8::Object> details = detailsValue.As<v8::Object>();
-  v8::Local<v8::Value> message;
-  if (!details->Get(context, toV8String(isolate, "syntaxErrorMessage"))
-           .ToLocal(&message) ||
-      !message->IsString()) {
-    return false;
-  }
-  v8::Local<v8::Value> positionValue;
-  if (!details->Get(context, toV8String(isolate, "position"))
-           .ToLocal(&positionValue) ||
-      !positionValue->IsObject()) {
-    return false;
-  }
-  v8::Local<v8::Value> startPositionValue;
-  if (!positionValue.As<v8::Object>()
-           ->Get(context, toV8String(isolate, "start"))
-           .ToLocal(&startPositionValue) ||
-      !startPositionValue->IsObject()) {
-    return false;
-  }
-  v8::Local<v8::Object> startPosition = startPositionValue.As<v8::Object>();
-  v8::Local<v8::Value> lineValue;
-  if (!startPosition->Get(context, toV8String(isolate, "line"))
-           .ToLocal(&lineValue) ||
-      !lineValue->IsInt32()) {
-    return false;
-  }
-  v8::Local<v8::Value> columnValue;
-  if (!startPosition->Get(context, toV8String(isolate, "column"))
-           .ToLocal(&columnValue) ||
-      !columnValue->IsInt32()) {
-    return false;
-  }
-  *exceptionDetails =
-      protocol::Runtime::ExceptionDetails::create()
-          .setExceptionId(inspector->nextExceptionId())
-          .setText(toProtocolString(message.As<v8::String>()))
-          .setLineNumber(lineValue->Int32Value(context).FromJust() - 1)
-          .setColumnNumber(columnValue->Int32Value(context).FromJust() - 1)
-          .build();
-  return true;
-}
-
 protocol::DictionaryValue* getOrCreateObject(protocol::DictionaryValue* object,
                                              const String16& key) {
   protocol::DictionaryValue* value = object->getObject(key);
@@ -477,7 +421,7 @@ Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
   m_debugger->setBreakpointsActive(active);
   if (!active && !m_breakReason.empty()) {
     clearBreakDetails();
-    m_debugger->setPauseOnNextStatement(false, m_session->contextGroupId());
+    m_debugger->setPauseOnNextCall(false, m_session->contextGroupId());
   }
   return Response::OK();
 }
@@ -717,9 +661,12 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   std::vector<v8::debug::BreakLocation> v8Locations;
   {
     v8::HandleScope handleScope(m_isolate);
-    v8::Local<v8::Context> debuggerContext =
-        v8::debug::GetDebugContext(m_isolate);
-    v8::Context::Scope contextScope(debuggerContext);
+    int contextId = it->second->executionContextId();
+    InspectedContext* inspected = m_inspector->getContext(contextId);
+    if (!inspected) {
+      return Response::Error("Cannot retrive script context");
+    }
+    v8::Context::Scope contextScope(inspected->context());
     v8::MicrotasksScope microtasks(m_isolate,
                                    v8::MicrotasksScope::kDoNotRunMicrotasks);
     v8::TryCatch tryCatch(m_isolate);
@@ -924,23 +871,22 @@ Response V8DebuggerAgentImpl::setScriptSource(
   v8::HandleScope handleScope(m_isolate);
   v8::Local<v8::Context> context = inspected->context();
   v8::Context::Scope contextScope(context);
-  v8::TryCatch tryCatch(m_isolate);
 
-  bool stackChangedValue = false;
-  it->second->setSource(newContent, dryRun.fromMaybe(false),
-                        &stackChangedValue);
-  if (tryCatch.HasCaught()) {
-    if (liveEditExceptionToDetails(m_inspector, context, tryCatch.Exception(),
-                                   optOutCompileError)) {
-      return Response::OK();
-    }
-    v8::Local<v8::Message> message = tryCatch.Message();
-    if (!message.IsEmpty())
-      return Response::Error(toProtocolStringWithTypeCheck(message->Get()));
-    else
-      return Response::InternalError();
+  v8::debug::LiveEditResult result;
+  it->second->setSource(newContent, dryRun.fromMaybe(false), &result);
+  if (result.status != v8::debug::LiveEditResult::OK) {
+    *optOutCompileError =
+        protocol::Runtime::ExceptionDetails::create()
+            .setExceptionId(m_inspector->nextExceptionId())
+            .setText(toProtocolString(result.message))
+            .setLineNumber(result.line_number != -1 ? result.line_number - 1
+                                                    : 0)
+            .setColumnNumber(result.column_number != -1 ? result.column_number
+                                                        : 0)
+            .build();
+    return Response::OK();
   } else {
-    *stackChanged = stackChangedValue;
+    *stackChanged = result.stack_changed;
   }
   std::unique_ptr<Array<CallFrame>> callFrames;
   Response response = currentCallFrames(&callFrames);
@@ -1006,7 +952,7 @@ void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
     std::unique_ptr<protocol::DictionaryValue> data) {
   if (isPaused() || !acceptsPause(false) || !m_breakpointsActive) return;
   if (m_breakReason.empty()) {
-    m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
+    m_debugger->setPauseOnNextCall(true, m_session->contextGroupId());
   }
   pushBreakDetails(breakReason, std::move(data));
 }
@@ -1014,7 +960,7 @@ void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
 void V8DebuggerAgentImpl::cancelPauseOnNextStatement() {
   if (isPaused() || !acceptsPause(false) || !m_breakpointsActive) return;
   if (m_breakReason.size() == 1) {
-    m_debugger->setPauseOnNextStatement(false, m_session->contextGroupId());
+    m_debugger->setPauseOnNextCall(false, m_session->contextGroupId());
   }
   popBreakDetails();
 }
@@ -1022,10 +968,14 @@ void V8DebuggerAgentImpl::cancelPauseOnNextStatement() {
 Response V8DebuggerAgentImpl::pause() {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
   if (isPaused()) return Response::OK();
-  if (m_breakReason.empty()) {
-    m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
+  if (m_debugger->canBreakProgram()) {
+    m_debugger->interruptAndBreak(m_session->contextGroupId());
+  } else {
+    if (m_breakReason.empty()) {
+      m_debugger->setPauseOnNextCall(true, m_session->contextGroupId());
+    }
+    pushBreakDetails(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
   }
-  pushBreakDetails(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
   return Response::OK();
 }
 
@@ -1206,7 +1156,9 @@ Response V8DebuggerAgentImpl::setReturnValue(
 }
 
 Response V8DebuggerAgentImpl::setAsyncCallStackDepth(int depth) {
-  if (!enabled()) return Response::Error(kDebuggerNotEnabled);
+  if (!enabled() && !m_session->runtimeAgent()->enabled()) {
+    return Response::Error(kDebuggerNotEnabled);
+  }
   m_state->setInteger(DebuggerAgentState::asyncCallStackDepth, depth);
   m_debugger->setAsyncCallStackDepth(this, depth);
   return Response::OK();
@@ -1668,7 +1620,7 @@ void V8DebuggerAgentImpl::breakProgram(
   popBreakDetails();
   m_breakReason.swap(currentScheduledReason);
   if (!m_breakReason.empty()) {
-    m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
+    m_debugger->setPauseOnNextCall(true, m_session->contextGroupId());
   }
 }
 

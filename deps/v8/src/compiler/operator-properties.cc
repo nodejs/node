@@ -123,6 +123,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSResolvePromise:
     case IrOpcode::kJSPerformPromiseThen:
     case IrOpcode::kJSObjectIsArray:
+    case IrOpcode::kJSRegExpTest:
       return true;
 
     default:

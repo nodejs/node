@@ -7,6 +7,7 @@
 
 #define INTERNALIZED_STRING_LIST(V)                                \
   V(add_string, "add")                                             \
+  V(always_string, "always")                                       \
   V(anonymous_function_string, "(anonymous function)")             \
   V(anonymous_string, "anonymous")                                 \
   V(apply_string, "apply")                                         \
@@ -19,6 +20,7 @@
   V(ArrayIterator_string, "Array Iterator")                        \
   V(assign_string, "assign")                                       \
   V(async_string, "async")                                         \
+  V(auto_string, "auto")                                           \
   V(await_string, "await")                                         \
   V(BigInt_string, "BigInt")                                       \
   V(bigint_string, "bigint")                                       \
@@ -115,6 +117,8 @@
   V(line_string, "line")                                           \
   V(LinkError_string, "LinkError")                                 \
   V(literal_string, "literal")                                     \
+  V(locale_string, "locale")                                       \
+  V(long_string, "long")                                           \
   V(Map_string, "Map")                                             \
   V(MapIterator_string, "Map Iterator")                            \
   V(message_string, "message")                                     \
@@ -128,6 +132,7 @@
   V(name_string, "name")                                           \
   V(NaN_string, "NaN")                                             \
   V(nan_string, "nan")                                             \
+  V(narrow_string, "narrow")                                       \
   V(native_string, "native")                                       \
   V(new_target_string, ".new.target")                              \
   V(next_string, "next")                                           \
@@ -141,6 +146,7 @@
   V(Number_string, "Number")                                       \
   V(number_string, "number")                                       \
   V(number_to_string, "[object Number]")                           \
+  V(numeric_string, "numeric")                                     \
   V(Object_string, "Object")                                       \
   V(object_string, "object")                                       \
   V(object_to_string, "[object Object]")                           \
@@ -172,6 +178,8 @@
   V(RuntimeError_string, "RuntimeError")                           \
   V(Script_string, "Script")                                       \
   V(script_string, "script")                                       \
+  V(short_string, "short")                                         \
+  V(style_string, "style")                                         \
   V(second_string, "second")                                       \
   V(set_space_string, "set ")                                      \
   V(Set_string, "Set")                                             \
@@ -210,6 +218,7 @@
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
   V(unicode_string, "unicode")                                     \
+  V(unit_string, "unit")                                           \
   V(URIError_string, "URIError")                                   \
   V(use_asm_string, "use asm")                                     \
   V(use_strict_string, "use strict")                               \
@@ -292,6 +301,15 @@
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
   F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)
 
+#define TOP_MC_SCOPES(F) \
+  F(MC_CLEAR)            \
+  F(MC_EPILOGUE)         \
+  F(MC_EVACUATE)         \
+  F(MC_FINISH)           \
+  F(MC_MARK)             \
+  F(MC_PROLOGUE)         \
+  F(MC_SWEEP)
+
 #define TRACER_SCOPES(F)                             \
   INCREMENTAL_SCOPES(F)                              \
   F(HEAP_EPILOGUE)                                   \
@@ -300,7 +318,7 @@
   F(HEAP_EXTERNAL_PROLOGUE)                          \
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
   F(HEAP_PROLOGUE)                                   \
-  F(MC_CLEAR)                                        \
+  TOP_MC_SCOPES(F)                                   \
   F(MC_CLEAR_DEPENDENT_CODE)                         \
   F(MC_CLEAR_MAPS)                                   \
   F(MC_CLEAR_SLOTS_BUFFER)                           \
@@ -310,8 +328,6 @@
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
   F(MC_CLEAR_WEAK_LISTS)                             \
   F(MC_CLEAR_WEAK_REFERENCES)                        \
-  F(MC_EPILOGUE)                                     \
-  F(MC_EVACUATE)                                     \
   F(MC_EVACUATE_CANDIDATES)                          \
   F(MC_EVACUATE_CLEAN_UP)                            \
   F(MC_EVACUATE_COPY)                                \
@@ -323,21 +339,19 @@
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
-  F(MC_FINISH)                                       \
-  F(MC_MARK)                                         \
   F(MC_MARK_FINISH_INCREMENTAL)                      \
   F(MC_MARK_MAIN)                                    \
   F(MC_MARK_ROOTS)                                   \
   F(MC_MARK_WEAK_CLOSURE)                            \
-  F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)                  \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON)                  \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)          \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)           \
   F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)               \
   F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)                 \
   F(MC_MARK_WEAK_CLOSURE_HARMONY)                    \
   F(MC_MARK_WRAPPER_EPILOGUE)                        \
   F(MC_MARK_WRAPPER_PROLOGUE)                        \
   F(MC_MARK_WRAPPER_TRACING)                         \
-  F(MC_PROLOGUE)                                     \
-  F(MC_SWEEP)                                        \
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_OLD)                                    \
@@ -370,6 +384,7 @@
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)  \
   F(SCAVENGER_SCAVENGE_PARALLEL)                     \
   F(SCAVENGER_SCAVENGE_ROOTS)                        \
+  F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
   F(SCAVENGER_SCAVENGE_WEAK)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \

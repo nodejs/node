@@ -67,7 +67,8 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(),
                                     Code::STUB);
       code_ = Pipeline::GenerateCodeForTesting(
-          &info, main_isolate(), call_descriptor, graph, schedule);
+          &info, main_isolate(), call_descriptor, graph,
+          AssemblerOptions::Default(main_isolate()), schedule);
     }
     return this->code_.ToHandleChecked()->entry();
   }

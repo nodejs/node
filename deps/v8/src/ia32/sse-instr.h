@@ -42,8 +42,14 @@
   V(psubsw, 66, 0F, E9)          \
   V(psubusb, 66, 0F, D8)         \
   V(psubusw, 66, 0F, D9)         \
-  V(punpckhdq, 66, 0F, 6A)       \
+  V(punpcklbw, 66, 0F, 60)       \
+  V(punpcklwd, 66, 0F, 61)       \
   V(punpckldq, 66, 0F, 62)       \
+  V(punpcklqdq, 66, 0F, 6C)      \
+  V(punpckhbw, 66, 0F, 68)       \
+  V(punpckhwd, 66, 0F, 69)       \
+  V(punpckhdq, 66, 0F, 6A)       \
+  V(punpckhqdq, 66, 0F, 6D)      \
   V(pxor, 66, 0F, EF)
 
 #define SSSE3_INSTRUCTION_LIST(V) \
@@ -65,5 +71,12 @@
   V(pmaxuw, 66, 0F, 38, 3E)      \
   V(pmaxud, 66, 0F, 38, 3F)      \
   V(pmulld, 66, 0F, 38, 40)
+
+#define SSE4_RM_INSTRUCTION_LIST(V) \
+  V(pmovsxbw, 66, 0F, 38, 20)       \
+  V(pmovsxwd, 66, 0F, 38, 23)       \
+  V(pmovzxbw, 66, 0F, 38, 30)       \
+  V(pmovzxwd, 66, 0F, 38, 33)       \
+  V(ptest, 66, 0F, 38, 17)
 
 #endif  // V8_IA32_SSE_INSTR_H_

@@ -1314,13 +1314,52 @@ domain Runtime
       # Exception details.
       optional ExceptionDetails exceptionDetails
 
+  # Enables or disables async call stacks tracking.
+  command setAsyncCallStackDepth
+    redirect Debugger
+    parameters
+      # Maximum depth of async call stacks. Setting to `0` will effectively disable collecting async
+      # call stacks (default).
+      integer maxDepth
+
   experimental command setCustomObjectFormatterEnabled
     parameters
       boolean enabled
 
+  experimental command setMaxCallStackSizeToCapture
+    parameters
+      integer size
+
   # Terminate current or next JavaScript execution.
   # Will cancel the termination when the outer-most script execution ends.
   experimental command terminateExecution
+
+  # If executionContextId is empty, adds binding with the given name on the
+  # global objects of all inspected contexts, including those created later,
+  # bindings survive reloads.
+  # If executionContextId is specified, adds binding only on global object of
+  # given execution context.
+  # Binding function takes exactly one argument, this argument should be string,
+  # in case of any other input, function throws an exception.
+  # Each binding function call produces Runtime.bindingCalled notification.
+  experimental command addBinding
+    parameters
+      string name
+      optional ExecutionContextId executionContextId
+
+  # This method does not remove binding function from global object but
+  # unsubscribes current runtime agent from Runtime.bindingCalled notifications.
+  experimental command removeBinding
+    parameters
+      string name
+
+  # Notification is issued every time when binding is called.
+  experimental event bindingCalled
+    parameters
+      string name
+      string payload
+      # Identifier of the context where the call was made.
+      ExecutionContextId executionContextId
 
   # Issued when console API was called.
   event consoleAPICalled

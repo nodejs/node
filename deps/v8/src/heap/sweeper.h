@@ -188,7 +188,7 @@ class Sweeper {
   // the semaphore for maintaining a task counter on the main thread.
   std::atomic<intptr_t> num_sweeping_tasks_;
   // Used by PauseOrCompleteScope to signal early bailout to tasks.
-  base::AtomicValue<bool> stop_sweeper_tasks_;
+  std::atomic<bool> stop_sweeper_tasks_;
 
   // Pages that are only made iterable but have their free lists ignored.
   IterabilityList iterability_list_;

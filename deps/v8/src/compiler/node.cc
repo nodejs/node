@@ -296,22 +296,8 @@ bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
   return mask == 3;
 }
 
-bool Node::OwnedByAddressingOperand() const {
-  for (Use* use = first_use_; use; use = use->next) {
-    Node* from = use->from();
-    if (from->opcode() != IrOpcode::kLoad &&
-        // If {from} is store, make sure it does not use {this} as value
-        (from->opcode() != IrOpcode::kStore || from->InputAt(2) == this) &&
-        from->opcode() != IrOpcode::kInt32Add &&
-        from->opcode() != IrOpcode::kInt64Add) {
-      return false;
-    }
-  }
-  return true;
-}
-
 void Node::Print() const {
-  OFStream os(stdout);
+  StdoutStream os;
   os << *this << std::endl;
   for (Node* input : this->inputs()) {
     os << "  " << *input << std::endl;

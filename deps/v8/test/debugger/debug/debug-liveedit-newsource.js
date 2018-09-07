@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
 Debug = debug.Debug
 
@@ -47,9 +48,7 @@ eval("var something1 = 25; \n"
 assertEquals("Cat", ChooseAnimal());
 assertEquals(25, something1);
 
-var script = Debug.findScript(ChooseAnimal);
-
-var new_source = script.source.replace("Cat", "Cap' + 'yb' + 'ara");
+var new_source = Debug.scriptSource(ChooseAnimal).replace("Cat", "Cap' + 'yb' + 'ara");
 var new_source = new_source.replace("25", "26");
 var new_source = new_source.replace("Help", "Hello");
 var new_source = new_source.replace("17", "18");
@@ -62,10 +61,7 @@ var new_source = new_source.replace("17", "18");
 var new_source = new_source.replace("// Array", "Array");
 print("new source: " + new_source);
 
-var change_log = new Array();
-var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
-print("Result: " + JSON.stringify(result) + "\n");
-print("Change log: " + JSON.stringify(change_log) + "\n");
+%LiveEditPatchScript(ChooseAnimal, new_source);
 
 assertEquals("Capybara", ChooseAnimal());
 // Global variable do not get changed (without restarting script).

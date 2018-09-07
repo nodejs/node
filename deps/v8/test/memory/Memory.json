@@ -1,11 +1,11 @@
 {
-  "owners": ["yangguo@chromium.org"],
+  "owners": ["yangguo@chromium.org", "jgruber@chromium.org"],
   "name": "Memory",
   "run_count": 5,
   "units": "bytes",
   "path" : ["."],
   "binary": "cctest",
-  "main": "test-serialize/SerializationMemoryStats",
+  "main": "test-serialize/SerializationStats",
   "tests": [
     {
       "name": "ReservedMemoryIsolate",
@@ -17,7 +17,7 @@
     },
     {
       "name": "SnapshotSizeStartup",
-      "results_regexp": "(\\d+) bytes for startup$"
+      "results_regexp": "(\\d+) bytes in \\d+ chunks for startup$"
     },
     {
       "name": "SnapshotSizeBuiltins",
@@ -25,7 +25,7 @@
     },
     {
       "name": "SnapshotSizeContext",
-      "results_regexp": "(\\d+) bytes for context #0$"
+      "results_regexp": "(\\d+) bytes in \\d+ chunks for context #0$"
     },
     {
       "name": "DeserializationTimeIsolate",
@@ -34,6 +34,10 @@
     {
       "name": "DeserializationTimeContext",
       "results_regexp": "\\[Deserializing context #0 \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
+    },
+    {
+      "name": "EmbeddedBuiltinsSize",
+      "results_regexp": "^Embedded blob is (\\d+) bytes$"
     }
   ]
 }

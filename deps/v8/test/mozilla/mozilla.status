@@ -122,6 +122,10 @@
   # (https://chromium-review.googlesource.com/c/546941#message-5dc0f5efe277388501e8870e39ec70383dfc7db8)
   'js1_5/Scope/regress-185485': [FAIL],
 
+  # Georgina is bicameral as of Unicode 11, but the test assumes that it's unicameral.
+  # no_i18n build has an old ICU data and Georgian is treated as unicameral.
+  'ecma/String/15.5.4.12-3': [FAIL, ['no_i18n == True', PASS]],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory

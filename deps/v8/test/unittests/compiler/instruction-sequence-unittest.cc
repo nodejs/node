@@ -159,6 +159,10 @@ Instruction* InstructionSequenceTest::EndBlock(BlockCompletion completion) {
   }
   completions_.push_back(completion);
   CHECK_NOT_NULL(current_block_);
+  int end = static_cast<int>(sequence()->instructions().size());
+  if (current_block_->code_start() == end) {  // Empty block.  Insert a nop.
+    sequence()->AddInstruction(Instruction::New(zone(), kArchNop));
+  }
   sequence()->EndBlock(current_block_->rpo_number());
   current_block_ = nullptr;
   return result;
@@ -507,6 +511,7 @@ void InstructionSequenceTest::WireBlocks() {
   CHECK(loop_blocks_.empty());
   // Wire in end block to look like a scheduler produced cfg.
   auto end_block = NewBlock();
+  Emit(kArchNop);
   current_block_ = nullptr;
   sequence()->EndBlock(end_block->rpo_number());
   size_t offset = 0;

@@ -62,16 +62,16 @@ namespace internal {
   DisassemblingDecoder* disasm = new DisassemblingDecoder();             \
   decoder->AppendVisitor(disasm)
 
-#define SET_UP_ASM()                                         \
-  InitializeVM();                                            \
-  Isolate* isolate = CcTest::i_isolate();                    \
-  HandleScope scope(isolate);                                \
-  byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));        \
-  uint32_t encoding = 0;                                     \
-  Assembler* assm = new Assembler(isolate, buf, INSTR_SIZE); \
-  Decoder<DispatchingDecoderVisitor>* decoder =              \
-      new Decoder<DispatchingDecoderVisitor>();              \
-  DisassemblingDecoder* disasm = new DisassemblingDecoder(); \
+#define SET_UP_ASM()                                                    \
+  InitializeVM();                                                       \
+  Isolate* isolate = CcTest::i_isolate();                               \
+  HandleScope scope(isolate);                                           \
+  byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));                   \
+  uint32_t encoding = 0;                                                \
+  Assembler* assm = new Assembler(AssemblerOptions{}, buf, INSTR_SIZE); \
+  Decoder<DispatchingDecoderVisitor>* decoder =                         \
+      new Decoder<DispatchingDecoderVisitor>();                         \
+  DisassemblingDecoder* disasm = new DisassemblingDecoder();            \
   decoder->AppendVisitor(disasm)
 
 #define COMPARE(ASM, EXP)                                                \
@@ -1872,27 +1872,39 @@ TEST_(system_nop) {
 
 
 TEST_(debug) {
-  SET_UP_ASM();
+  InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
 
-  CHECK_EQ(kImmExceptionIsDebug, 0xdeb0);
+  for (int i = 0; i < 2; i++) {
+    // Loop runs with and without the simulator code enabled.
+    HandleScope scope(isolate);
+    byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));
+    uint32_t encoding = 0;
+    AssemblerOptions options;
+    options.enable_simulator_code = (i == 1);
+    Assembler* assm = new Assembler(options, buf, INSTR_SIZE);
+    Decoder<DispatchingDecoderVisitor>* decoder =
+        new Decoder<DispatchingDecoderVisitor>();
+    DisassemblingDecoder* disasm = new DisassemblingDecoder();
+    decoder->AppendVisitor(disasm);
 
-  // All debug codes should produce the same instruction, and the debug code
-  // can be any uint32_t.
-#ifdef USE_SIMULATOR
-  const char* expected_instruction = "hlt #0xdeb0";
-#else
-  const char* expected_instruction = "brk #0x0";
-#endif
+    CHECK_EQ(kImmExceptionIsDebug, 0xdeb0);
 
-  COMPARE(debug("message", 0, BREAK), expected_instruction);
-  COMPARE(debug("message", 1, BREAK), expected_instruction);
-  COMPARE(debug("message", 0xffff, BREAK), expected_instruction);
-  COMPARE(debug("message", 0x10000, BREAK), expected_instruction);
-  COMPARE(debug("message", 0x7fffffff, BREAK), expected_instruction);
-  COMPARE(debug("message", 0x80000000u, BREAK), expected_instruction);
-  COMPARE(debug("message", 0xffffffffu, BREAK), expected_instruction);
+    // All debug codes should produce the same instruction, and the debug code
+    // can be any uint32_t.
+    const char* expected_instruction =
+        options.enable_simulator_code ? "hlt #0xdeb0" : "brk #0x0";
 
-  CLEANUP();
+    COMPARE(debug("message", 0, BREAK), expected_instruction);
+    COMPARE(debug("message", 1, BREAK), expected_instruction);
+    COMPARE(debug("message", 0xffff, BREAK), expected_instruction);
+    COMPARE(debug("message", 0x10000, BREAK), expected_instruction);
+    COMPARE(debug("message", 0x7fffffff, BREAK), expected_instruction);
+    COMPARE(debug("message", 0x80000000u, BREAK), expected_instruction);
+    COMPARE(debug("message", 0xffffffffu, BREAK), expected_instruction);
+
+    CLEANUP();
+  }
 }
 
 

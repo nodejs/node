@@ -38,7 +38,7 @@ namespace internal {
 // Linux perf tool logging support
 class PerfJitLogger : public CodeEventLogger {
  public:
-  PerfJitLogger();
+  explicit PerfJitLogger(Isolate* isolate);
   virtual ~PerfJitLogger();
 
   void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
@@ -118,6 +118,8 @@ class PerfJitLogger : public CodeEventLogger {
 // PerfJitLogger is only implemented on Linux
 class PerfJitLogger : public CodeEventLogger {
  public:
+  explicit PerfJitLogger(Isolate* isolate) : CodeEventLogger(isolate) {}
+
   void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override {
     UNIMPLEMENTED();
   }

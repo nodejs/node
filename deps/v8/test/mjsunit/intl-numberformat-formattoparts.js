@@ -60,7 +60,7 @@ if (this.Intl) {
   var usDollarsCode = new Intl.NumberFormat("en-US", usdCodeOptions);
 
   assertParts(usDollarsCode, 25,
-              [Currency("USD"), Integer("25")]);
+              [Currency("USD"), Literal("\u00a0"), Integer("25")]);
 
   // ISO 4217 currency codes are formed from an ISO 3166-1 alpha-2 country code
   // followed by a third letter.  ISO 3166 guarantees that no country code
@@ -79,7 +79,7 @@ if (this.Intl) {
   var xqqMoneyCode = new Intl.NumberFormat("en-US", xqqCodeOptions);
 
   assertParts(xqqMoneyCode, 25,
-              [Currency("XQQ"), Integer("25")]);
+              [Currency("XQQ"), Literal("\u00a0"), Integer("25")]);
 
   // Test currencyDisplay: "name".
   var usdNameOptions =
@@ -187,7 +187,7 @@ if (this.Intl) {
                PercentSign("%")]);
 
   assertParts(usPercentFormatter, NaN,
-              [Nan("NaN")]);
+              [Nan("NaN"), PercentSign("%")]);
 
   assertParts(usPercentFormatter, Infinity,
               [Inf("∞"), PercentSign("%")]);

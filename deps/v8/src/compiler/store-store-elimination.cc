@@ -147,6 +147,7 @@ class RedundantStoreFinder final {
   bool HasBeenVisited(Node* node);
 
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() { return jsgraph()->isolate(); }
   Zone* temp_zone() const { return temp_zone_; }
   ZoneVector<UnobservablesSet>& unobservable() { return unobservable_; }
   UnobservablesSet& unobservable_for_id(NodeId id) {

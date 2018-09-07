@@ -10,17 +10,16 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
-
 #include "src/api.h"
 #include "src/base/logging.h"
-#include "src/objects-inl.h"
-#include "src/runtime/runtime.h"
-
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects-inl.h"
+#include "src/objects/module-inl.h"
+#include "src/runtime/runtime.h"
 #include "src/source-position-table.h"
 
 namespace v8 {

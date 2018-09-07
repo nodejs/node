@@ -259,8 +259,7 @@ NodePlatform::NodePlatform(int thread_pool_size,
       std::make_shared<WorkerThreadsTaskRunner>(thread_pool_size);
 }
 
-void NodePlatform::RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) {
-  Isolate* isolate = isolate_data->isolate();
+void NodePlatform::RegisterIsolate(Isolate* isolate, uv_loop_t* loop) {
   Mutex::ScopedLock lock(per_isolate_mutex_);
   std::shared_ptr<PerIsolatePlatformData> existing = per_isolate_[isolate];
   if (existing) {
@@ -272,8 +271,7 @@ void NodePlatform::RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) {
   }
 }
 
-void NodePlatform::UnregisterIsolate(IsolateData* isolate_data) {
-  Isolate* isolate = isolate_data->isolate();
+void NodePlatform::UnregisterIsolate(Isolate* isolate) {
   Mutex::ScopedLock lock(per_isolate_mutex_);
   std::shared_ptr<PerIsolatePlatformData> existing = per_isolate_[isolate];
   CHECK(existing);

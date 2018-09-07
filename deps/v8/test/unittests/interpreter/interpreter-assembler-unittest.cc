@@ -25,11 +25,9 @@ namespace interpreter_assembler_unittest {
 InterpreterAssemblerTestState::InterpreterAssemblerTestState(
     InterpreterAssemblerTest* test, Bytecode bytecode)
     : compiler::CodeAssemblerState(
-          test->isolate(), test->zone(),
-          InterpreterDispatchDescriptor(test->isolate()),
+          test->isolate(), test->zone(), InterpreterDispatchDescriptor{},
           Code::BYTECODE_HANDLER, Bytecodes::ToString(bytecode),
-          PoisoningMitigationLevel::kPoisonCriticalOnly,
-          Bytecodes::ReturnCount(bytecode)) {}
+          PoisoningMitigationLevel::kPoisonCriticalOnly) {}
 
 const interpreter::Bytecode kBytecodes[] = {
 #define DEFINE_BYTECODE(Name, ...) interpreter::Bytecode::k##Name,

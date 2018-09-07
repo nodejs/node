@@ -26,9 +26,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import re
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
+
+ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
 
 class TestSuite(testsuite.TestSuite):
   def ListTests(self):
@@ -58,6 +61,20 @@ class TestCase(testcase.TestCase):
     super(TestCase, self).__init__(*args, **kwargs)
 
     self._source_flags = self._parse_source_flags()
+    source = self.get_source()
+    self._env = self._parse_source_env(source)
+
+  def _parse_source_env(self, source):
+    env_match = ENV_PATTERN.search(source)
+    env = {}
+    if env_match:
+      for env_pair in env_match.group(1).strip().split():
+        var, value = env_pair.split('=')
+        env[var] = value
+    return env
+
+  def _get_cmd_env(self):
+    return self._env
 
   def _get_files_params(self):
     files = map(lambda f: os.path.join(self.suite.root, f), [

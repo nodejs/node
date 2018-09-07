@@ -32,7 +32,6 @@
       'direct_dependent_settings': {
         'defines': [
           'UCONFIG_NO_SERVICE=1',
-          'UCONFIG_NO_REGULAR_EXPRESSIONS=1',
           'U_ENABLE_DYLOAD=0',
           'U_STATIC_IMPLEMENTATION=1',
           'U_HAVE_STD_STRING=1',

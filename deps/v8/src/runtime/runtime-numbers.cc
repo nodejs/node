@@ -25,7 +25,7 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  return *String::ToNumber(subject);
+  return *String::ToNumber(isolate, subject);
 }
 
 
@@ -40,15 +40,16 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
   Handle<String> subject;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, subject,
                                      Object::ToString(isolate, string));
-  subject = String::Flatten(subject);
+  subject = String::Flatten(isolate, subject);
 
   // Convert {radix} to Int32.
   if (!radix->IsNumber()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix, Object::ToNumber(radix));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix,
+                                       Object::ToNumber(isolate, radix));
   }
   int radix32 = DoubleToInt32(radix->Number());
   if (radix32 != 0 && (radix32 < 2 || radix32 > 36)) {
-    return isolate->heap()->nan_value();
+    return ReadOnlyRoots(isolate).nan_value();
   }
 
   double result = StringToInt(isolate, subject, radix32);
@@ -62,9 +63,9 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
-  double value =
-      StringToDouble(isolate->unicode_cache(), subject, ALLOW_TRAILING_JUNK,
-                     std::numeric_limits<double>::quiet_NaN());
+  double value = StringToDouble(isolate, isolate->unicode_cache(), subject,
+                                ALLOW_TRAILING_JUNK,
+                                std::numeric_limits<double>::quiet_NaN());
 
   return *isolate->factory()->NewNumber(value);
 }

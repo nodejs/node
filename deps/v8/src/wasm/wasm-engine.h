@@ -9,10 +9,13 @@
 
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-memory.h"
+#include "src/zone/accounting-allocator.h"
 
 namespace v8 {
 namespace internal {
 
+class CodeTracer;
+class CompilationStatistics;
 class WasmModuleObject;
 class WasmInstanceObject;
 
@@ -21,12 +24,26 @@ namespace wasm {
 class ErrorThrower;
 struct ModuleWireBytes;
 
+class V8_EXPORT_PRIVATE CompilationResultResolver {
+ public:
+  virtual void OnCompilationSucceeded(Handle<WasmModuleObject> result) = 0;
+  virtual void OnCompilationFailed(Handle<Object> error_reason) = 0;
+  virtual ~CompilationResultResolver() {}
+};
+
+class V8_EXPORT_PRIVATE InstantiationResultResolver {
+ public:
+  virtual void OnInstantiationSucceeded(Handle<WasmInstanceObject> result) = 0;
+  virtual void OnInstantiationFailed(Handle<Object> error_reason) = 0;
+  virtual ~InstantiationResultResolver() {}
+};
+
 // The central data structure that represents an engine instance capable of
 // loading, instantiating, and executing WASM code.
 class V8_EXPORT_PRIVATE WasmEngine {
  public:
-  explicit WasmEngine(std::unique_ptr<WasmCodeManager> code_manager)
-      : code_manager_(std::move(code_manager)) {}
+  explicit WasmEngine(std::unique_ptr<WasmCodeManager> code_manager);
+  ~WasmEngine();
 
   // Synchronously validates the given bytes that represent an encoded WASM
   // module.
@@ -54,28 +71,40 @@ class V8_EXPORT_PRIVATE WasmEngine {
       MaybeHandle<JSArrayBuffer> memory);
 
   // Begin an asynchronous compilation of the given bytes that represent an
-  // encoded WASM module, placing the result in the supplied {promise}.
+  // encoded WASM module.
   // The {is_shared} flag indicates if the bytes backing the module could
   // be shared across threads, i.e. could be concurrently modified.
-  void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
+  void AsyncCompile(Isolate* isolate,
+                    std::unique_ptr<CompilationResultResolver> resolver,
                     const ModuleWireBytes& bytes, bool is_shared);
 
-  // Begin an asynchronous instantiation of the given WASM module, placing the
-  // result in the supplied {promise}.
-  void AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
+  // Begin an asynchronous instantiation of the given WASM module.
+  void AsyncInstantiate(Isolate* isolate,
+                        std::unique_ptr<InstantiationResultResolver> resolver,
                         Handle<WasmModuleObject> module_object,
                         MaybeHandle<JSReceiver> imports);
 
   std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
-      Isolate* isolate, Handle<Context> context, Handle<JSPromise> promise);
+      Isolate* isolate, Handle<Context> context,
+      std::unique_ptr<CompilationResultResolver> resolver);
 
   WasmCodeManager* code_manager() const { return code_manager_.get(); }
 
   WasmMemoryTracker* memory_tracker() { return &memory_tracker_; }
 
-  // We register and unregister CancelableTaskManagers that run
-  // isolate-dependent tasks. These tasks need to be shutdown if the isolate is
-  // shut down.
+  AccountingAllocator* allocator() { return &allocator_; }
+
+  // Compilation statistics for TurboFan compilations.
+  CompilationStatistics* GetOrCreateTurboStatistics();
+
+  // Prints the gathered compilation statistics, then resets them.
+  void DumpAndResetTurboStatistics();
+
+  // Used to redirect tracing output from {stdout} to a file.
+  CodeTracer* GetCodeTracer();
+
+  // We register and unregister CancelableTaskManagers that run engine-dependent
+  // tasks. These tasks need to be shutdown if the engine is shut down.
   void Register(CancelableTaskManager* task_manager);
   void Unregister(CancelableTaskManager* task_manager);
 
@@ -85,29 +114,42 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Returns true if at lease one AsyncCompileJob is currently running.
   bool HasRunningCompileJob() const { return !jobs_.empty(); }
 
-  // Cancel all AsyncCompileJobs so that they are not processed any further,
-  // but delay the deletion of their state until all tasks accessing the
-  // AsyncCompileJob finish their execution. This is used to clean-up the
-  // isolate to be reused.
-  void AbortAllCompileJobs();
+  // Cancel all AsyncCompileJobs that belong to the given Isolate. Their
+  // deletion is delayed until all tasks accessing the AsyncCompileJob finish
+  // their execution. This is used to clean-up the isolate to be reused.
+  void AbortCompileJobsOnIsolate(Isolate*);
 
   void TearDown();
 
  private:
-  AsyncCompileJob* CreateAsyncCompileJob(Isolate* isolate,
-                                         std::unique_ptr<byte[]> bytes_copy,
-                                         size_t length, Handle<Context> context,
-                                         Handle<JSPromise> promise);
+  AsyncCompileJob* CreateAsyncCompileJob(
+      Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
+      Handle<Context> context,
+      std::unique_ptr<CompilationResultResolver> resolver);
 
   // We use an AsyncCompileJob as the key for itself so that we can delete the
   // job from the map when it is finished.
   std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>> jobs_;
   std::unique_ptr<WasmCodeManager> code_manager_;
   WasmMemoryTracker memory_tracker_;
+  AccountingAllocator allocator_;
 
   // Contains all CancelableTaskManagers that run tasks that are dependent
   // on the isolate.
   std::list<CancelableTaskManager*> task_managers_;
+
+  // This mutex protects all information which is mutated concurrently or
+  // fields that are initialized lazily on the first access.
+  base::Mutex mutex_;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Protected by {mutex_}:
+
+  std::unique_ptr<CompilationStatistics> compilation_stats_;
+  std::unique_ptr<CodeTracer> code_tracer_;
+
+  // End of fields protected by {mutex_}.
+  //////////////////////////////////////////////////////////////////////////////
 
   DISALLOW_COPY_AND_ASSIGN(WasmEngine);
 };

@@ -81,13 +81,21 @@ class ConcurrentMarking {
 
   int TaskCount() { return task_count_; }
 
+  // Checks if all threads are stopped.
+  bool IsStopped();
+
   size_t TotalMarkedBytes();
+
+  void set_ephemeron_marked(bool ephemeron_marked) {
+    ephemeron_marked_.store(ephemeron_marked);
+  }
+  bool ephemeron_marked() { return ephemeron_marked_.load(); }
 
  private:
   struct TaskState {
     // The main thread sets this flag to true when it wants the concurrent
     // marker to give up the worker thread.
-    base::AtomicValue<bool> preemption_request;
+    std::atomic<bool> preemption_request;
 
     LiveBytesMap live_bytes;
     size_t marked_bytes = 0;
@@ -102,6 +110,7 @@ class ConcurrentMarking {
   WeakObjects* const weak_objects_;
   TaskState task_state_[kMaxTasks + 1];
   std::atomic<size_t> total_marked_bytes_{0};
+  std::atomic<bool> ephemeron_marked_{false};
   base::Mutex pending_lock_;
   base::ConditionVariable pending_condition_;
   int pending_task_count_ = 0;

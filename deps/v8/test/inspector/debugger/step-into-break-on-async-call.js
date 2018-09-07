@@ -9,6 +9,8 @@ InspectorTest.runAsyncTestSuite([
   async function testSetTimeout() {
     Protocol.Debugger.enable();
     Protocol.Debugger.pause();
+    Protocol.Debugger.setAsyncCallStackDepth({maxDepth: 128});
+
     let pausedPromise = Protocol.Debugger.oncePaused();
     Protocol.Runtime.evaluate({
       expression: 'setTimeout(() => 42, 0)//# sourceURL=test.js'
@@ -35,6 +37,8 @@ InspectorTest.runAsyncTestSuite([
 
   async function testPromiseThen() {
     Protocol.Debugger.enable();
+    Protocol.Debugger.setAsyncCallStackDepth({maxDepth: 128});
+
     Protocol.Runtime.evaluate({expression: 'var p = Promise.resolve()'});
     Protocol.Debugger.pause();
     let pausedPromise = Protocol.Debugger.oncePaused();

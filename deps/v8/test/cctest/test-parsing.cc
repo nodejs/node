@@ -641,15 +641,14 @@ TEST(ScopeUsesArgumentsSuperThis) {
           factory->NewStringFromUtf8(i::CStrVector(program.start()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::ParseInfo info(isolate, script);
       // The information we're checking is only produced when eager parsing.
       info.set_allow_lazy_parsing(false);
       CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Rewriter::Rewrite(&info));
       info.ast_value_factory()->Internalize(isolate);
       CHECK(i::DeclarationScope::Analyze(&info));
-      i::DeclarationScope::AllocateScopeInfos(&info, isolate,
-                                              i::AnalyzeMode::kRegular);
+      i::DeclarationScope::AllocateScopeInfos(&info, isolate);
       CHECK_NOT_NULL(info.literal());
 
       i::DeclarationScope* script_scope = info.literal()->scope();
@@ -708,7 +707,7 @@ static void CheckParsesToNumber(const char* source) {
 
   i::Handle<i::Script> script = factory->NewScript(source_code);
 
-  i::ParseInfo info(script);
+  i::ParseInfo info(isolate, script);
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
 
@@ -1017,7 +1016,7 @@ TEST(ScopePositions) {
         i::CStrVector(program.start())).ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
     info.set_language_mode(source_data[i].language_mode);
     i::parsing::ParseProgram(&info, isolate);
     CHECK_NOT_NULL(info.literal());
@@ -1063,7 +1062,7 @@ TEST(DiscardFunctionBody) {
     i::Handle<i::String> source_code =
         factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
     i::parsing::ParseProgram(&info, isolate);
     function = info.literal();
     CHECK_NOT_NULL(function);
@@ -1121,7 +1120,6 @@ enum ParserFlag {
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
   kAllowHarmonyDoExpressions,
-  kAllowHarmonyOptionalCatchBinding,
   kAllowHarmonyNumericSeparator
 };
 
@@ -1139,8 +1137,6 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_do_expressions = flags.Contains(kAllowHarmonyDoExpressions);
-  i::FLAG_harmony_optional_catch_binding =
-      flags.Contains(kAllowHarmonyOptionalCatchBinding);
   i::FLAG_harmony_numeric_separator =
       flags.Contains(kAllowHarmonyNumericSeparator);
 }
@@ -1159,8 +1155,6 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyImportMeta));
   parser->set_allow_harmony_do_expressions(
       flags.Contains(kAllowHarmonyDoExpressions));
-  parser->set_allow_harmony_optional_catch_binding(
-      flags.Contains(kAllowHarmonyOptionalCatchBinding));
   parser->set_allow_harmony_numeric_separator(
       flags.Contains(kAllowHarmonyNumericSeparator));
 }
@@ -1180,7 +1174,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   if (test_preparser) {
     i::Scanner scanner(isolate->unicode_cache());
     std::unique_ptr<i::Utf16CharacterStream> stream(
-        i::ScannerStream::For(source));
+        i::ScannerStream::For(isolate, source));
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->ast_string_constants(),
@@ -1199,7 +1193,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::FunctionLiteral* function;
   {
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
     info.set_allow_lazy_parsing(flags.Contains(kAllowLazy));
     SetGlobalFlags(flags);
     if (is_module) info.set_module();
@@ -1212,7 +1206,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     // Extract exception from the parser.
     CHECK(isolate->has_pending_exception());
     i::Handle<i::JSObject> exception_handle(
-        i::JSObject::cast(isolate->pending_exception()));
+        i::JSObject::cast(isolate->pending_exception()), isolate);
     i::Handle<i::String> message_string = i::Handle<i::String>::cast(
         i::JSReceiver::GetProperty(isolate, exception_handle, "message")
             .ToHandleChecked());
@@ -1241,7 +1235,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     if (test_preparser && !ignore_error_msg) {
       i::Handle<i::String> preparser_message =
           pending_error_handler.FormatErrorMessageForTest(CcTest::i_isolate());
-      if (!i::String::Equals(message_string, preparser_message)) {
+      if (!i::String::Equals(isolate, message_string, preparser_message)) {
         FATAL(
             "Expected parser and preparser to produce the same error on:\n"
             "\t%s\n"
@@ -2259,9 +2253,9 @@ TEST(FunctionDeclaresItselfStrict) {
 TEST(ErrorsTryWithoutCatchOrFinally) {
   const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-      "try { }",           "try { } foo();",         "try { } catch (e) foo();",
-      "try { } catch { }", "try { } finally foo();", nullptr};
+  const char* statement_data[] = {"try { }", "try { } foo();",
+                                  "try { } catch (e) foo();",
+                                  "try { } finally foo();", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -2299,13 +2293,7 @@ TEST(OptionalCatchBinding) {
   };
   // clang-format on
 
-  // No error with flag
-  static const ParserFlag flags[] = {kAllowHarmonyOptionalCatchBinding};
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0, flags,
-                    arraysize(flags));
-
-  // Still an error without flag
-  RunParserSyncTest(context_data, statement_data, kError);
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 TEST(OptionalCatchBindingInDoExpression) {
@@ -2326,16 +2314,9 @@ TEST(OptionalCatchBindingInDoExpression) {
   };
   // clang-format on
 
-  // No error with flag
-  static const ParserFlag do_and_catch_flags[] = {
-      kAllowHarmonyDoExpressions, kAllowHarmonyOptionalCatchBinding};
+  static const ParserFlag do_and_catch_flags[] = {kAllowHarmonyDoExpressions};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     do_and_catch_flags, arraysize(do_and_catch_flags));
-
-  // Still an error without flag
-  static const ParserFlag do_flag[] = {kAllowHarmonyDoExpressions};
-  RunParserSyncTest(context_data, statement_data, kError, NULL, 0, do_flag,
-                    arraysize(do_flag));
 }
 
 TEST(ErrorsRegexpLiteral) {
@@ -2861,7 +2842,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      &zone, context->scope_info(), script_scope, &avf,
+      isolate, &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
   CHECK_NOT_NULL(name);
@@ -2910,7 +2891,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      &zone, context->scope_info(), script_scope, &avf,
+      isolate, &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
 
@@ -3059,8 +3040,10 @@ TEST(InnerAssignment) {
           v8::Local<v8::Value> v = CompileRun(program.start());
           i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-          i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
+          i::Handle<i::SharedFunctionInfo> shared =
+              i::handle(f->shared(), isolate);
+          info =
+              std::unique_ptr<i::ParseInfo>(new i::ParseInfo(isolate, shared));
           CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
         } else {
           i::Handle<i::String> source =
@@ -3068,7 +3051,8 @@ TEST(InnerAssignment) {
           source->PrintOn(stdout);
           printf("\n");
           i::Handle<i::Script> script = factory->NewScript(source);
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(script));
+          info =
+              std::unique_ptr<i::ParseInfo>(new i::ParseInfo(isolate, script));
           info->set_allow_lazy_parsing(false);
           CHECK(i::parsing::ParseProgram(info.get(), isolate));
         }
@@ -3172,8 +3156,8 @@ TEST(MaybeAssignedParameters) {
       v8::Local<v8::Value> v = CompileRun(program.start());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
-      info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
+      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
+      info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(isolate, shared));
       info->set_allow_lazy_parsing(allow_lazy);
       CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
       CHECK(i::Compiler::Analyze(info.get()));
@@ -3210,7 +3194,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
   i::Handle<i::Script> script = factory->NewScript(string);
 
   std::unique_ptr<i::ParseInfo> info;
-  info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(script));
+  info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(isolate, script));
   info->set_module(module);
   info->set_allow_lazy_parsing(allow_lazy_parsing);
 
@@ -3628,7 +3612,7 @@ i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
   i::DeclarationScope* script_scope =
       new (zone) i::DeclarationScope(zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      zone, f->context()->scope_info(), script_scope, &avf,
+      isolate, zone, f->context()->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   return s;
 }
@@ -4230,6 +4214,39 @@ TEST(ImportExpressionErrors) {
 
     const char* data[] = {
       "import('x')",
+      nullptr
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
+
+    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
+                      arraysize(flags));
+    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
+                            arraysize(flags));
+  }
+
+  // Import statements as arrow function params and destructuring targets.
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      {"(", ") => {}"},
+      {"(a, ", ") => {}"},
+      {"(1, ", ") => {}"},
+      {"let f = ", " => {}"},
+      {"[", "] = [1];"},
+      {"{", "} = {'a': 1};"},
+      {nullptr, nullptr}
+    };
+
+    const char* data[] = {
+      "import(foo)",
+      "import(1)",
+      "import(y=x)",
+      "import(import(x))",
+      "import(x).then()",
       nullptr
     };
 
@@ -6206,11 +6223,11 @@ TEST(BasicImportExportParsing) {
     // Show that parsing as a module works
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::ParseInfo info(isolate, script);
       info.set_module();
       if (!i::parsing::ParseProgram(&info, isolate)) {
         i::Handle<i::JSObject> exception_handle(
-            i::JSObject::cast(isolate->pending_exception()));
+            i::JSObject::cast(isolate->pending_exception()), isolate);
         i::Handle<i::String> message_string = i::Handle<i::String>::cast(
             i::JSReceiver::GetProperty(isolate, exception_handle, "message")
                 .ToHandleChecked());
@@ -6229,7 +6246,7 @@ TEST(BasicImportExportParsing) {
     // And that parsing a script does not.
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::ParseInfo info(isolate, script);
       CHECK(!i::parsing::ParseProgram(&info, isolate));
       isolate->clear_pending_exception();
     }
@@ -6319,7 +6336,7 @@ TEST(ImportExportParsingErrors) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
     info.set_module();
     CHECK(!i::parsing::ParseProgram(&info, isolate));
     isolate->clear_pending_exception();
@@ -6355,7 +6372,7 @@ TEST(ModuleTopLevelFunctionDecl) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
     info.set_module();
     CHECK(!i::parsing::ParseProgram(&info, isolate));
     isolate->clear_pending_exception();
@@ -6552,7 +6569,7 @@ TEST(ModuleParsingInternals) {
       "export {foob};";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::ParseInfo info(script);
+  i::ParseInfo info(isolate, script);
   info.set_module();
   CHECK(i::parsing::ParseProgram(&info, isolate));
   CHECK(i::Compiler::Analyze(&info));
@@ -6567,54 +6584,62 @@ TEST(ModuleParsingInternals) {
   CHECK_EQ(13, declarations->LengthForTest());
 
   CHECK(declarations->AtForTest(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
-  CHECK(declarations->AtForTest(0)->proxy()->var()->mode() == i::LET);
+  CHECK(declarations->AtForTest(0)->proxy()->var()->mode() ==
+        i::VariableMode::kLet);
   CHECK(declarations->AtForTest(0)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(0)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->AtForTest(1)->proxy()->raw_name()->IsOneByteEqualTo("z"));
-  CHECK(declarations->AtForTest(1)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->AtForTest(1)->proxy()->var()->mode() ==
+        i::VariableMode::kConst);
   CHECK(declarations->AtForTest(1)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(1)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->AtForTest(2)->proxy()->raw_name()->IsOneByteEqualTo("n"));
-  CHECK(declarations->AtForTest(2)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->AtForTest(2)->proxy()->var()->mode() ==
+        i::VariableMode::kConst);
   CHECK(declarations->AtForTest(2)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(2)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(
       declarations->AtForTest(3)->proxy()->raw_name()->IsOneByteEqualTo("foo"));
-  CHECK(declarations->AtForTest(3)->proxy()->var()->mode() == i::VAR);
+  CHECK(declarations->AtForTest(3)->proxy()->var()->mode() ==
+        i::VariableMode::kVar);
   CHECK(!declarations->AtForTest(3)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(3)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(
       declarations->AtForTest(4)->proxy()->raw_name()->IsOneByteEqualTo("goo"));
-  CHECK(declarations->AtForTest(4)->proxy()->var()->mode() == i::LET);
+  CHECK(declarations->AtForTest(4)->proxy()->var()->mode() ==
+        i::VariableMode::kLet);
   CHECK(!declarations->AtForTest(4)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(4)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(
       declarations->AtForTest(5)->proxy()->raw_name()->IsOneByteEqualTo("hoo"));
-  CHECK(declarations->AtForTest(5)->proxy()->var()->mode() == i::LET);
+  CHECK(declarations->AtForTest(5)->proxy()->var()->mode() ==
+        i::VariableMode::kLet);
   CHECK(declarations->AtForTest(5)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(5)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(
       declarations->AtForTest(6)->proxy()->raw_name()->IsOneByteEqualTo("joo"));
-  CHECK(declarations->AtForTest(6)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->AtForTest(6)->proxy()->var()->mode() ==
+        i::VariableMode::kConst);
   CHECK(declarations->AtForTest(6)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(6)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->AtForTest(7)->proxy()->raw_name()->IsOneByteEqualTo(
       "*default*"));
-  CHECK(declarations->AtForTest(7)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->AtForTest(7)->proxy()->var()->mode() ==
+        i::VariableMode::kConst);
   CHECK(declarations->AtForTest(7)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(7)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
@@ -6627,28 +6652,32 @@ TEST(ModuleParsingInternals) {
 
   CHECK(
       declarations->AtForTest(9)->proxy()->raw_name()->IsOneByteEqualTo("mm"));
-  CHECK(declarations->AtForTest(9)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->AtForTest(9)->proxy()->var()->mode() ==
+        i::VariableMode::kConst);
   CHECK(declarations->AtForTest(9)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(9)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(
       declarations->AtForTest(10)->proxy()->raw_name()->IsOneByteEqualTo("aa"));
-  CHECK(declarations->AtForTest(10)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->AtForTest(10)->proxy()->var()->mode() ==
+        i::VariableMode::kConst);
   CHECK(declarations->AtForTest(10)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(10)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->AtForTest(11)->proxy()->raw_name()->IsOneByteEqualTo(
       "loo"));
-  CHECK(declarations->AtForTest(11)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->AtForTest(11)->proxy()->var()->mode() ==
+        i::VariableMode::kConst);
   CHECK(!declarations->AtForTest(11)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(11)->proxy()->var()->location() !=
         i::VariableLocation::MODULE);
 
   CHECK(declarations->AtForTest(12)->proxy()->raw_name()->IsOneByteEqualTo(
       "foob"));
-  CHECK(declarations->AtForTest(12)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->AtForTest(12)->proxy()->var()->mode() ==
+        i::VariableMode::kConst);
   CHECK(!declarations->AtForTest(12)->proxy()->var()->binding_needs_init());
   CHECK(declarations->AtForTest(12)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
@@ -6801,7 +6830,7 @@ void TestLanguageMode(const char* source,
 
   i::Handle<i::Script> script =
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
-  i::ParseInfo info(script);
+  i::ParseInfo info(isolate, script);
   i::parsing::ParseProgram(&info, isolate);
   CHECK_NOT_NULL(info.literal());
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
@@ -8137,6 +8166,8 @@ TEST(ImportMetaFailure) {
     {"({", "} = {1})"},
     {"var {", " = 1} = 1"},
     {"for (var ", " of [1]) {}"},
+    {"(", ") => {}"},
+    {"let f = ", " => {}"},
     {nullptr}
   };
 
@@ -8697,6 +8728,14 @@ TEST(AsyncAwait) {
 
     "function* g() { var f = async(yield); }",
     "function* g() { var f = async(x = yield); }",
+
+    // v8:7817 assert that `await` is still allowed in the body of an arrow fn
+    // within formal parameters
+    "async(a = a => { var await = 1; return 1; }) => a()",
+    "async(a = await => 1); async(a) => 1",
+    "(async(a = await => 1), async(a) => 1)",
+    "async(a = await => 1, b = async() => 1);",
+
     nullptr
   };
   // clang-format on
@@ -8843,6 +8882,12 @@ TEST(AsyncAwaitErrors) {
     "async(...a = b) => b",
     "async(...a,) => b",
     "async(...a, b) => b",
+
+    // v8:7817 assert that `await` is an invalid identifier in arrow formal
+    // parameters nested within an async arrow function
+    "async(a = await => 1) => a",
+    "async(a = (await) => 1) => a",
+    "async(a = (...await) => 1) => a",
     nullptr
   };
 
@@ -9563,7 +9608,7 @@ TEST(NoPessimisticContextAllocation) {
       printf("\n");
 
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::ParseInfo info(isolate, script);
 
       CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Compiler::Analyze(&info));
@@ -10123,14 +10168,13 @@ TEST(LexicalLoopVariable) {
     i::Handle<i::String> source =
         factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
 
     info.set_allow_lazy_parsing(false);
     CHECK(i::parsing::ParseProgram(&info, isolate));
     CHECK(i::Rewriter::Rewrite(&info));
     CHECK(i::DeclarationScope::Analyze(&info));
-    i::DeclarationScope::AllocateScopeInfos(&info, isolate,
-                                            i::AnalyzeMode::kRegular);
+    i::DeclarationScope::AllocateScopeInfos(&info, isolate);
     CHECK_NOT_NULL(info.literal());
 
     i::DeclarationScope* script_scope = info.literal()->scope();
@@ -10309,7 +10353,7 @@ TEST(PrivateNamesSyntaxError) {
     i::Handle<i::String> source =
         factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
 
     info.set_allow_lazy_parsing(is_lazy);
     i::FLAG_harmony_private_fields = true;

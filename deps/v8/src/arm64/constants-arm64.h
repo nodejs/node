@@ -26,6 +26,7 @@ STATIC_ASSERT(sizeof(1L) == sizeof(int64_t));
 namespace v8 {
 namespace internal {
 
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 128;
 
 const unsigned kInstructionSize = 4;
 const unsigned kInstructionSizeLog2 = 2;
@@ -139,6 +140,11 @@ const unsigned kFloatExponentBias = 127;
 const unsigned kFloat16MantissaBits = 10;
 const unsigned kFloat16ExponentBits = 5;
 const unsigned kFloat16ExponentBias = 15;
+
+// Actual value of root register is offset from the root array's start
+// to take advantage of negative displacement values.
+// TODO(sigurds): Choose best value.
+constexpr int kRootRegisterBias = 256;
 
 typedef uint16_t float16;
 

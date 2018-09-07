@@ -38,6 +38,19 @@ class FailedParseErrorStrategy : public antlr4::DefaultErrorStrategy {
   bool failed_;
 };
 
+class TorqueErrorListener : public antlr4::BaseErrorListener {
+ public:
+  TorqueErrorListener() : BaseErrorListener() {}
+
+  void syntaxError(antlr4::Recognizer* recognizer,
+                   antlr4::Token* /*offendingSymbol*/, size_t line,
+                   size_t charPositionInLine, const std::string& msg,
+                   std::exception_ptr /*e*/) {
+    std::cerr << recognizer->getInputStream()->getSourceName() << ": " << line
+              << ":" << charPositionInLine << " " << msg << "\n";
+  }
+};
+
 int WrappedMain(int argc, const char** argv) {
   std::string output_directory;
   std::vector<SourceFileContext> file_contexts;
@@ -45,6 +58,7 @@ int WrappedMain(int argc, const char** argv) {
   SourceFileContext context;
   size_t lexer_errors = 0;
   auto error_strategy = std::make_shared<FailedParseErrorStrategy>();
+  TorqueErrorListener error_listener;
   bool verbose = false;
   SourceFileMap::Scope scope;
   for (int i = 1; i < argc; ++i) {
@@ -66,6 +80,8 @@ int WrappedMain(int argc, const char** argv) {
         new antlr4::ANTLRFileStream(context.name.c_str()));
     context.lexer =
         std::unique_ptr<TorqueLexer>(new TorqueLexer(context.stream.get()));
+    context.lexer->removeErrorListeners();
+    context.lexer->addErrorListener(&error_listener);
     context.tokens = std::unique_ptr<antlr4::CommonTokenStream>(
         new antlr4::CommonTokenStream(context.lexer.get()));
     context.tokens->fill();
@@ -73,6 +89,8 @@ int WrappedMain(int argc, const char** argv) {
     context.parser =
         std::unique_ptr<TorqueParser>(new TorqueParser(context.tokens.get()));
     context.parser->setErrorHandler(error_strategy);
+    context.parser->removeErrorListeners();
+    context.parser->addErrorListener(&error_listener);
     context.file = context.parser->file();
     ast_generator.visitSourceFile(&context);
   }
@@ -83,6 +101,7 @@ int WrappedMain(int argc, const char** argv) {
 
   GlobalContext global_context(std::move(ast_generator).GetAst());
   if (verbose) global_context.SetVerbose();
+  TypeOracle::Scope type_oracle(global_context.declarations());
 
   if (output_directory.length() != 0) {
     {
@@ -96,9 +115,14 @@ int WrappedMain(int argc, const char** argv) {
     }
 
     ImplementationVisitor visitor(global_context);
+    for (auto& module : global_context.GetModules()) {
+      visitor.BeginModuleFile(module.second.get());
+    }
+
     visitor.Visit(global_context.ast());
 
     for (auto& module : global_context.GetModules()) {
+      visitor.EndModuleFile(module.second.get());
       visitor.GenerateImplementation(output_directory, module.second.get());
     }
   }

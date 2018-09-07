@@ -12,7 +12,7 @@ namespace internal {
 BuiltinsConstantsTableBuilder::BuiltinsConstantsTableBuilder(Isolate* isolate)
     : isolate_(isolate), map_(isolate->heap()) {
   // Ensure this is only called once per Isolate.
-  DCHECK_EQ(isolate_->heap()->empty_fixed_array(),
+  DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
 
   // And that the initial value of the builtins constants table can be treated
@@ -30,9 +30,13 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   DCHECK(!isolate_->heap()->IsRootHandle(object, &root_list_index));
 
   // Not yet finalized.
-  DCHECK_EQ(isolate_->heap()->empty_fixed_array(),
+  DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
 
+  // Must be on the main thread.
+  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+
+  // Must be serializing.
   DCHECK(isolate_->serializer_enabled());
 #endif
 
@@ -56,7 +60,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
   DCHECK(!isolate_->heap()->IsRootHandle(code_object, &root_list_index));
 
   // Not yet finalized.
-  DCHECK_EQ(isolate_->heap()->empty_fixed_array(),
+  DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
 
   DCHECK(isolate_->serializer_enabled());
@@ -68,7 +72,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
   // During indirection generation, we always create a distinct marker for each
   // macro assembler. The canonical marker is only used when not generating a
   // snapshot.
-  DCHECK(*self_reference != isolate_->heap()->self_reference_marker());
+  DCHECK(*self_reference != ReadOnlyRoots(isolate_).self_reference_marker());
 #endif
 
   uint32_t key;
@@ -81,7 +85,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
 void BuiltinsConstantsTableBuilder::Finalize() {
   HandleScope handle_scope(isolate_);
 
-  DCHECK_EQ(isolate_->heap()->empty_fixed_array(),
+  DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
   DCHECK(isolate_->serializer_enabled());
 
@@ -108,8 +112,8 @@ void BuiltinsConstantsTableBuilder::Finalize() {
 #ifdef DEBUG
   for (int i = 0; i < map_.size(); i++) {
     DCHECK(table->get(i)->IsHeapObject());
-    DCHECK_NE(isolate_->heap()->undefined_value(), table->get(i));
-    DCHECK_NE(isolate_->heap()->self_reference_marker(), table->get(i));
+    DCHECK_NE(ReadOnlyRoots(isolate_).undefined_value(), table->get(i));
+    DCHECK_NE(ReadOnlyRoots(isolate_).self_reference_marker(), table->get(i));
   }
 #endif
 

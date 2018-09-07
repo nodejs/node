@@ -29,6 +29,7 @@ class JSMap;
 class JSRegExp;
 class JSSet;
 class JSValue;
+class MutableHeapNumber;
 class Object;
 class Oddball;
 class Smi;
@@ -115,6 +116,7 @@ class ValueSerializer {
   void WriteOddball(Oddball* oddball);
   void WriteSmi(Smi* smi);
   void WriteHeapNumber(HeapNumber* number);
+  void WriteMutableHeapNumber(MutableHeapNumber* number);
   void WriteBigInt(BigInt* bigint);
   void WriteString(Handle<String> string);
   Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver)

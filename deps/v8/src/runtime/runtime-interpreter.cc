@@ -58,7 +58,7 @@ void AdvanceToOffsetForTracing(
               interpreter::OperandScale::kSingle));
 }
 
-void PrintRegisters(std::ostream& os, bool is_input,
+void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
                     interpreter::BytecodeArrayIterator& bytecode_iterator,
                     Handle<Object> accumulator) {
   static const char kAccumulator[] = "accumulator";
@@ -82,8 +82,7 @@ void PrintRegisters(std::ostream& os, bool is_input,
   }
 
   // Print the registers.
-  JavaScriptFrameIterator frame_iterator(
-      bytecode_iterator.bytecode_array()->GetIsolate());
+  JavaScriptFrameIterator frame_iterator(isolate);
   InterpretedFrame* frame =
       reinterpret_cast<InterpretedFrame*>(frame_iterator.frame());
   int operand_count = interpreter::Bytecodes::NumberOfOperands(bytecode);
@@ -119,7 +118,7 @@ void PrintRegisters(std::ostream& os, bool is_input,
 
 RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
   if (!FLAG_trace_ignition) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   SealHandleScope shs(isolate);
@@ -132,7 +131,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecode_array);
   AdvanceToOffsetForTracing(bytecode_iterator, offset);
   if (offset == bytecode_iterator.current_offset()) {
-    OFStream os(stdout);
+    StdoutStream os;
 
     // Print bytecode.
     const uint8_t* base_address = reinterpret_cast<const uint8_t*>(
@@ -144,16 +143,16 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
                                          bytecode_array->parameter_count());
     os << std::endl;
     // Print all input registers and accumulator.
-    PrintRegisters(os, true, bytecode_iterator, accumulator);
+    PrintRegisters(isolate, os, true, bytecode_iterator, accumulator);
 
     os << std::flush;
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
   if (!FLAG_trace_ignition) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   SealHandleScope shs(isolate);
@@ -171,12 +170,12 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
   if (bytecode_iterator.current_operand_scale() ==
           interpreter::OperandScale::kSingle ||
       offset > bytecode_iterator.current_offset()) {
-    OFStream os(stdout);
+    StdoutStream os;
     // Print all output registers and accumulator.
-    PrintRegisters(os, false, bytecode_iterator, accumulator);
+    PrintRegisters(isolate, os, false, bytecode_iterator, accumulator);
     os << std::flush;
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 #endif
@@ -185,7 +184,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
 
 RUNTIME_FUNCTION(Runtime_InterpreterTraceUpdateFeedback) {
   if (!FLAG_trace_feedback_updates) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   SealHandleScope shs(isolate);
@@ -196,7 +195,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceUpdateFeedback) {
 
   int slot_count = function->feedback_vector()->metadata()->slot_count();
 
-  OFStream os(stdout);
+  StdoutStream os;
   os << "[Feedback slot " << slot << "/" << slot_count << " in ";
   function->shared()->ShortPrint(os);
   os << " updated to ";
@@ -211,7 +210,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceUpdateFeedback) {
 
   os << "]" << std::endl;
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 #endif

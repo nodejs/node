@@ -98,10 +98,6 @@ void ExternalizeStringExtension::Externalize(
     SimpleOneByteStringResource* resource = new SimpleOneByteStringResource(
         reinterpret_cast<char*>(data), string->length());
     result = string->MakeExternal(resource);
-    if (result) {
-      i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-      isolate->heap()->RegisterExternalString(*string);
-    }
     if (!result) delete resource;
   } else {
     uc16* data = new uc16[string->length()];
@@ -109,10 +105,6 @@ void ExternalizeStringExtension::Externalize(
     SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
         data, string->length());
     result = string->MakeExternal(resource);
-    if (result) {
-      i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-      isolate->heap()->RegisterExternalString(*string);
-    }
     if (!result) delete resource;
   }
   if (!result) {

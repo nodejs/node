@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "src/accessors.h"
-#include "src/address-map.h"
 #include "src/builtins/builtins.h"
 #include "src/external-reference.h"
 
@@ -43,18 +42,24 @@ class ExternalReferenceTable {
       kIsolateAddressReferenceCount + kAccessorReferenceCount +
       kStubCacheReferenceCount;
 
-  uint32_t size() const { return static_cast<uint32_t>(kSize); }
+  static constexpr uint32_t size() { return static_cast<uint32_t>(kSize); }
   Address address(uint32_t i) { return refs_[i].address; }
   const char* name(uint32_t i) { return refs_[i].name; }
 
-  bool is_initialized() const { return is_initialized_; }
+  bool is_initialized() const { return is_initialized_ != 0; }
 
   static const char* ResolveSymbol(void* address);
 
-  static uint32_t OffsetOfEntry(uint32_t i) {
+  static constexpr uint32_t OffsetOfEntry(uint32_t i) {
     // Used in CodeAssembler::LookupExternalReference.
     STATIC_ASSERT(offsetof(ExternalReferenceEntry, address) == 0);
     return i * sizeof(ExternalReferenceEntry);
+  }
+
+  static constexpr uint32_t SizeInBytes() {
+    STATIC_ASSERT(OffsetOfEntry(size()) + 2 * kUInt32Size ==
+                  sizeof(ExternalReferenceTable));
+    return OffsetOfEntry(size()) + 2 * kUInt32Size;
   }
 
   ExternalReferenceTable() {}
@@ -80,7 +85,8 @@ class ExternalReferenceTable {
   void AddStubCache(Isolate* isolate, int* index);
 
   ExternalReferenceEntry refs_[kSize];
-  bool is_initialized_ = false;
+  uint32_t is_initialized_ = 0;  // Not bool to guarantee deterministic size.
+  uint32_t unused_padding_ = 0;  // For alignment.
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);
 };

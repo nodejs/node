@@ -5,6 +5,7 @@
 #include "src/snapshot/default-serializer-allocator.h"
 
 #include "src/heap/heap-inl.h"
+#include "src/snapshot/references.h"
 #include "src/snapshot/serializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
@@ -19,18 +20,34 @@ DefaultSerializerAllocator::DefaultSerializerAllocator(
   }
 }
 
+void DefaultSerializerAllocator::UseCustomChunkSize(uint32_t chunk_size) {
+  custom_chunk_size_ = chunk_size;
+}
+
+static uint32_t PageSizeOfSpace(int space) {
+  return static_cast<uint32_t>(
+      MemoryAllocator::PageAreaSize(static_cast<AllocationSpace>(space)));
+}
+
+uint32_t DefaultSerializerAllocator::TargetChunkSize(int space) {
+  if (custom_chunk_size_ == 0) return PageSizeOfSpace(space);
+  DCHECK_LE(custom_chunk_size_, PageSizeOfSpace(space));
+  return custom_chunk_size_;
+}
+
 SerializerReference DefaultSerializerAllocator::Allocate(AllocationSpace space,
                                                          uint32_t size) {
   DCHECK(space >= 0 && space < kNumberOfPreallocatedSpaces);
-  DCHECK(size > 0 && size <= MaxChunkSizeInSpace(space));
+  DCHECK(size > 0 && size <= PageSizeOfSpace(space));
 
   // Maps are allocated through AllocateMap.
   DCHECK_NE(MAP_SPACE, space);
 
-  uint32_t new_chunk_size = pending_chunk_[space] + size;
-  if (new_chunk_size > MaxChunkSizeInSpace(space)) {
-    // The new chunk size would not fit onto a single page. Complete the
-    // current chunk and start a new one.
+  uint32_t old_chunk_size = pending_chunk_[space];
+  uint32_t new_chunk_size = old_chunk_size + size;
+  // Start a new chunk if the new size exceeds the target chunk size.
+  // We may exceed the target chunk size if the single object size does.
+  if (new_chunk_size > TargetChunkSize(space) && old_chunk_size != 0) {
     serializer_->PutNextChunk(space);
     completed_chunks_[space].push_back(pending_chunk_[space]);
     pending_chunk_[space] = 0;
@@ -134,14 +151,6 @@ void DefaultSerializerAllocator::OutputStatistics() {
 
   STATIC_ASSERT(LO_SPACE == MAP_SPACE + 1);
   PrintF("%16d\n", large_objects_total_size_);
-}
-
-// static
-uint32_t DefaultSerializerAllocator::MaxChunkSizeInSpace(int space) {
-  DCHECK(0 <= space && space < kNumberOfPreallocatedSpaces);
-
-  return static_cast<uint32_t>(
-      MemoryAllocator::PageAreaSize(static_cast<AllocationSpace>(space)));
 }
 
 }  // namespace internal

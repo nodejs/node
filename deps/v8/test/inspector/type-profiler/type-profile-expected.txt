@@ -5,4 +5,5 @@ function f(/*Object, number, undefined*/a, /*Array, number, null*/b, /*boolean, 
 /*string*/};
 f({}, [], true);
 f(3, 2.3, {a: 42});
-f(undefined, null, Symbol('hello'));/*string*/
+f(undefined, null, Symbol('hello'));
+/*string*/

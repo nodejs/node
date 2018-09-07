@@ -184,7 +184,7 @@ CodeMap.prototype.findInTree_ = function(tree, addr) {
  *
  * @private
  */
-CodeMap.prototype.isEmbeddedBuiltin_ = function(entry) {
+CodeMap.prototype.isIsolateIndependentBuiltin_ = function(entry) {
   return entry.type == "CPP" && /v8_\w*embedded_blob_/.test(entry.name);
 };
 
@@ -205,7 +205,7 @@ CodeMap.prototype.findAddress = function(addr) {
       result = this.findInTree_(this.libraries_, addr);
       if (!result) return null;
     }
-    if (!this.isEmbeddedBuiltin_(result.value)) {
+    if (!this.isIsolateIndependentBuiltin_(result.value)) {
       // Embedded builtins are handled in the following dynamic section.
       return { entry : result.value, offset : addr - result.key };
     }

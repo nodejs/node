@@ -53,15 +53,15 @@ class StatsCounter;
   V(address_of_pending_message_obj, "address_of_pending_message_obj")          \
   V(get_or_create_hash_raw, "get_or_create_hash_raw")                          \
   V(jsreceiver_create_identity_hash, "jsreceiver_create_identity_hash")        \
-  V(promise_hook_or_debug_is_active_address,                                   \
-    "Isolate::promise_hook_or_debug_is_active_address()")                      \
+  V(promise_hook_address, "Isolate::promise_hook_address()")                   \
+  V(async_event_delegate_address, "Isolate::async_event_delegate_address()")   \
+  V(promise_hook_or_async_event_delegate_address,                              \
+    "Isolate::promise_hook_or_async_event_delegate_address()")                 \
   V(debug_is_active_address, "Debug::is_active_address()")                     \
   V(debug_hook_on_function_call_address,                                       \
     "Debug::hook_on_function_call_address()")                                  \
-  V(debug_execution_mode_address, "Isolate::debug_execution_mode()")           \
   V(runtime_function_table_address,                                            \
     "Runtime::runtime_function_table_address()")                               \
-  V(debug_last_step_action_address, "Debug::step_in_enabled_address()")        \
   V(is_profiling_address, "Isolate::is_profiling")                             \
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
@@ -74,8 +74,6 @@ class StatsCounter;
   V(address_of_float_abs_constant, "float_absolute_constant")                 \
   V(address_of_float_neg_constant, "float_negate_constant")                   \
   V(address_of_min_int, "LDoubleConstant::min_int")                           \
-  V(address_of_minus_one_half, "double_constants.minus_one_half")             \
-  V(address_of_negative_infinity, "LDoubleConstant::negative_infinity")       \
   V(address_of_one_half, "LDoubleConstant::one_half")                         \
   V(address_of_the_hole_nan, "the_hole_nan")                                  \
   V(address_of_uint32_bias, "uint32_bias")                                    \
@@ -260,7 +258,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference Create(const Runtime::Function* f);
   static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
   static ExternalReference Create(Runtime::FunctionId id);
-  static ExternalReference Create(Address address);
+  static V8_EXPORT_PRIVATE ExternalReference Create(Address address);
 
   template <typename SubjectChar, typename PatternChar>
   static ExternalReference search_string_raw();

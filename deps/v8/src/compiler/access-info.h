@@ -18,12 +18,12 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CompilationDependencies;
 class Factory;
 
 namespace compiler {
 
 // Forward declarations.
+class CompilationDependencies;
 class Type;
 class TypeCache;
 
@@ -140,7 +140,9 @@ class PropertyAccessInfo final {
 // Factory class for {ElementAccessInfo}s and {PropertyAccessInfo}s.
 class AccessInfoFactory final {
  public:
-  AccessInfoFactory(CompilationDependencies* dependencies,
+  AccessInfoFactory(const JSHeapBroker* js_heap_broker,
+                    CompilationDependencies* dependencies,
+
                     Handle<Context> native_context, Zone* zone);
 
   bool ComputeElementAccessInfo(Handle<Map> map, AccessMode access_mode,
@@ -167,11 +169,13 @@ class AccessInfoFactory final {
                         PropertyAccessInfo* access_info);
 
   CompilationDependencies* dependencies() const { return dependencies_; }
+  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Factory* factory() const;
   Isolate* isolate() const { return isolate_; }
   Handle<Context> native_context() const { return native_context_; }
   Zone* zone() const { return zone_; }
 
+  const JSHeapBroker* const js_heap_broker_;
   CompilationDependencies* const dependencies_;
   Handle<Context> const native_context_;
   Isolate* const isolate_;

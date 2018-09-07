@@ -38,11 +38,6 @@ class CodeAssemblerState;
     Node* Parameter(Descriptor::ParameterIndices index) {                \
       return CodeAssembler::Parameter(static_cast<int>(index));          \
     }                                                                    \
-    /* TODO(ishell): Remove this way of accessing parameters once the */ \
-    /* JSFunction linkage arguments are reordered. */                    \
-    Node* Parameter(BuiltinDescriptor::ParameterIndices index) {         \
-      return CodeAssembler::Parameter(static_cast<int>(index));          \
-    }                                                                    \
   };                                                                     \
   void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) {  \
     Name##Assembler assembler(state);                                    \

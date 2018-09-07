@@ -83,3 +83,11 @@ macro DEFINE_METHOD(obj, method_def) = DEFINE_METHOD_LEN(obj, method_def, -1);
 # Constants.  The compiler constant folds them.
 define INFINITY = (1/0);
 define UNDEFINED = (void 0);
+
+# This should be kept consistent with Intl::Type.
+define NUMBER_FORMAT_TYPE = 0;
+define COLLATOR_TYPE = 1;
+define DATE_TIME_FORMAT_TYPE = 2;
+define PLURAL_RULES_TYPE = 3;
+define BREAK_ITERATOR_TYPE = 4;
+define LOCALE_TYPE = 5;

@@ -57,7 +57,7 @@ BUILTIN(SymbolKeyFor) {
     result = symbol->name();
     DCHECK(result->IsString());
   } else {
-    result = isolate->heap()->undefined_value();
+    result = ReadOnlyRoots(isolate).undefined_value();
   }
   DCHECK_EQ(isolate->heap()->public_symbol_table()->SlowReverseLookup(*symbol),
             result);

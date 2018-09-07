@@ -63,8 +63,7 @@ class LoopPeelingTest : public GraphTest {
 
   LoopTree* GetLoopTree() {
     if (FLAG_trace_turbo_graph) {
-      OFStream os(stdout);
-      os << AsRPO(*graph());
+      StdoutStream{} << AsRPO(*graph());
     }
     Zone zone(isolate()->allocator(), ZONE_NAME);
     return LoopFinder::BuildLoopTree(graph(), &zone);
@@ -84,8 +83,7 @@ class LoopPeelingTest : public GraphTest {
     EXPECT_TRUE(peeler.CanPeel(loop));
     PeeledIteration* peeled = peeler.Peel(loop);
     if (FLAG_trace_turbo_graph) {
-      OFStream os(stdout);
-      os << AsRPO(*graph());
+      StdoutStream{} << AsRPO(*graph());
     }
     return peeled;
   }

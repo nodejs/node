@@ -89,7 +89,7 @@ BUILTIN(GlobalEval) {
   if (!x->IsString()) return *x;
   if (!Builtins::AllowDynamicFunction(isolate, target, target_global_proxy)) {
     isolate->CountUsage(v8::Isolate::kFunctionConstructorReturnedUndefined);
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   Handle<JSFunction> function;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

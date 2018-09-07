@@ -8,7 +8,7 @@ load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestBasic() {
-  let global = new WebAssembly.Global({type: 'i32'}, 1);
+  let global = new WebAssembly.Global({value: 'i32'}, 1);
   let builder = new WasmModuleBuilder();
   builder.addImportedGlobal("mod", "g", kWasmI32);
   builder.addFunction("main", kSig_i_v)
@@ -20,7 +20,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function TestTypeMismatch() {
-  let global = new WebAssembly.Global({type: 'f32'}, 1);
+  let global = new WebAssembly.Global({value: 'f32'}, 1);
   let builder = new WasmModuleBuilder();
   builder.addImportedGlobal("mod", "g", kWasmI32);
 
@@ -28,13 +28,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function TestMutableMismatch() {
-  let global = new WebAssembly.Global({type: 'f64'}, 1);
+  let global = new WebAssembly.Global({value: 'f64'}, 1);
   let builder = new WasmModuleBuilder();
   builder.addImportedGlobal("mod", "g", kWasmF64, true);
 
   assertThrows(() => builder.instantiate({mod: {g: global}}));
 
-  global = new WebAssembly.Global({type: 'i32', mutable: true}, 1);
+  global = new WebAssembly.Global({value: 'i32', mutable: true}, 1);
   builder = new WasmModuleBuilder();
   builder.addImportedGlobal("mod", "g", kWasmI32);
 
@@ -73,7 +73,7 @@ function addGlobalGetterAndSetter(builder, index, name, type) {
   let builder = new WasmModuleBuilder();
 
   for (let [index, {name, type}] of globalDesc.entries()) {
-    globals[name] = new WebAssembly.Global({type: name, mutable: true});
+    globals[name] = new WebAssembly.Global({value: name, mutable: true});
     builder.addImportedGlobal("mod", name, type, true);
     addGlobalGetterAndSetter(builder, index, name, type);
   }
@@ -190,4 +190,12 @@ function addGlobalGetterAndSetter(builder, index, name, type) {
 
   inst2.exports.seti32(0x789abcde);
   assertEquals(0x789abcde, inst2.exports.geti32());
+})();
+
+(function TestImportedAndNonImportedMutableGlobal() {
+  let global = new WebAssembly.Global({value: 'i32', mutable: true}, 1);
+  let builder = new WasmModuleBuilder();
+  builder.addGlobal(kWasmI32, true).exportAs('i32');
+  builder.addImportedGlobal("mod", "g", kWasmI32, true);
+  builder.instantiate({mod: {g: global}});
 })();

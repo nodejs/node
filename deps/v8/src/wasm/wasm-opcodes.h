@@ -218,14 +218,15 @@ using WasmName = Vector<const char>;
   V(I32ReinterpretF32, 0xbc, i_f) \
   V(I64ReinterpretF64, 0xbd, l_d) \
   V(F32ReinterpretI32, 0xbe, f_i) \
-  V(F64ReinterpretI64, 0xbf, d_l) \
-  V(I32SExtendI8, 0xc0, i_i)      \
-  V(I32SExtendI16, 0xc1, i_i)     \
-  V(I64SExtendI8, 0xc2, l_l)      \
-  V(I64SExtendI16, 0xc3, l_l)     \
-  V(I64SExtendI32, 0xc4, l_l)     \
-  V(RefIsNull, 0xd1, i_r)         \
-  V(RefEq, 0xd2, i_rr)
+  V(F64ReinterpretI64, 0xbf, d_l)
+
+#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) \
+  V(I32SExtendI8, 0xc0, i_i)               \
+  V(I32SExtendI16, 0xc1, i_i)              \
+  V(I64SExtendI8, 0xc2, l_l)               \
+  V(I64SExtendI16, 0xc3, l_l)              \
+  V(I64SExtendI32, 0xc4, l_l)              \
+  V(RefIsNull, 0xd1, i_r)
 
 // For compatibility with Asm.js.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
@@ -374,24 +375,30 @@ using WasmName = Vector<const char>;
   V(S1x16AnyTrue, 0xfd90, i_s)           \
   V(S1x16AllTrue, 0xfd91, i_s)
 
-#define FOREACH_SIMD_1_OPERAND_OPCODE(V) \
-  V(F32x4ExtractLane, 0xfd01, _)         \
-  V(F32x4ReplaceLane, 0xfd02, _)         \
-  V(I32x4ExtractLane, 0xfd1c, _)         \
-  V(I32x4ReplaceLane, 0xfd1d, _)         \
-  V(I32x4Shl, 0xfd24, _)                 \
-  V(I32x4ShrS, 0xfd25, _)                \
-  V(I32x4ShrU, 0xfd32, _)                \
-  V(I16x8ExtractLane, 0xfd39, _)         \
-  V(I16x8ReplaceLane, 0xfd3a, _)         \
-  V(I16x8Shl, 0xfd43, _)                 \
-  V(I16x8ShrS, 0xfd44, _)                \
-  V(I16x8ShrU, 0xfd52, _)                \
-  V(I8x16ExtractLane, 0xfd58, _)         \
-  V(I8x16ReplaceLane, 0xfd59, _)         \
-  V(I8x16Shl, 0xfd62, _)                 \
-  V(I8x16ShrS, 0xfd63, _)                \
+#define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
+  V(F32x4ExtractLane, 0xfd01, _)                 \
+  V(I32x4ExtractLane, 0xfd1c, _)                 \
+  V(I32x4Shl, 0xfd24, _)                         \
+  V(I32x4ShrS, 0xfd25, _)                        \
+  V(I32x4ShrU, 0xfd32, _)                        \
+  V(I16x8ExtractLane, 0xfd39, _)                 \
+  V(I16x8Shl, 0xfd43, _)                         \
+  V(I16x8ShrS, 0xfd44, _)                        \
+  V(I16x8ShrU, 0xfd52, _)                        \
+  V(I8x16ExtractLane, 0xfd58, _)                 \
+  V(I8x16Shl, 0xfd62, _)                         \
+  V(I8x16ShrS, 0xfd63, _)                        \
   V(I8x16ShrU, 0xfd71, _)
+
+#define FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V) \
+  V(F32x4ReplaceLane, 0xfd02, _)                 \
+  V(I32x4ReplaceLane, 0xfd1d, _)                 \
+  V(I16x8ReplaceLane, 0xfd3a, _)                 \
+  V(I8x16ReplaceLane, 0xfd59, _)
+
+#define FOREACH_SIMD_1_OPERAND_OPCODE(V)   \
+  FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
+  FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)
 
 #define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(S8x16Shuffle, 0xfd6b, s_ss)
 
@@ -479,6 +486,7 @@ using WasmName = Vector<const char>;
   FOREACH_CONTROL_OPCODE(V)           \
   FOREACH_MISC_OPCODE(V)              \
   FOREACH_SIMPLE_OPCODE(V)            \
+  FOREACH_SIMPLE_PROTOTYPE_OPCODE(V)  \
   FOREACH_STORE_MEM_OPCODE(V)         \
   FOREACH_LOAD_MEM_OPCODE(V)          \
   FOREACH_MISC_MEM_OPCODE(V)          \
@@ -526,8 +534,7 @@ using WasmName = Vector<const char>;
   V(l_il, kWasmI64, kWasmI32, kWasmI64)            \
   V(i_iii, kWasmI32, kWasmI32, kWasmI32, kWasmI32) \
   V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64) \
-  V(i_r, kWasmI32, kWasmAnyRef)                    \
-  V(i_rr, kWasmI32, kWasmAnyRef, kWasmAnyRef)
+  V(i_r, kWasmI32, kWasmAnyRef)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
   V(s_s, kWasmS128, kWasmS128)             \
@@ -536,6 +543,7 @@ using WasmName = Vector<const char>;
   V(s_i, kWasmS128, kWasmI32)              \
   V(s_si, kWasmS128, kWasmS128, kWasmI32)  \
   V(i_s, kWasmI32, kWasmS128)              \
+  V(v_is, kWasmStmt, kWasmI32, kWasmS128)  \
   V(s_sss, kWasmS128, kWasmS128, kWasmS128, kWasmS128)
 
 #define FOREACH_PREFIX(V) \
@@ -553,23 +561,14 @@ enum WasmOpcode {
 #undef DECLARE_PREFIX
 };
 
-// The reason for a trap.
-#define FOREACH_WASM_TRAPREASON(V) \
-  V(TrapUnreachable)               \
-  V(TrapMemOutOfBounds)            \
-  V(TrapDivByZero)                 \
-  V(TrapDivUnrepresentable)        \
-  V(TrapRemByZero)                 \
-  V(TrapFloatUnrepresentable)      \
-  V(TrapFuncInvalid)               \
-  V(TrapFuncSigMismatch)
-
 enum TrapReason {
 #define DECLARE_ENUM(name) k##name,
   FOREACH_WASM_TRAPREASON(DECLARE_ENUM)
   kTrapCount
 #undef DECLARE_ENUM
 };
+
+extern const std::array<const FunctionSig*, 256> kSimpleOpcodeSigs;
 
 // A collection of opcode-related static methods.
 class V8_EXPORT_PRIVATE WasmOpcodes {

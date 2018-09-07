@@ -63,14 +63,14 @@ ProfilerEventsProcessor::~ProfilerEventsProcessor() {
 }
 
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
-  event.generic.order = last_code_event_id_.Increment(1);
+  event.generic.order = ++last_code_event_id_;
   events_buffer_.Enqueue(event);
 }
 
 
 void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
                                             int fp_to_sp_delta) {
-  TickSampleEventRecord record(last_code_event_id_.Value());
+  TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
   Address fp = isolate->c_entry_fp(isolate->thread_local_top());
   regs.sp = reinterpret_cast<void*>(fp - fp_to_sp_delta);
@@ -82,7 +82,7 @@ void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
 
 void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate,
                                               bool update_stats) {
-  TickSampleEventRecord record(last_code_event_id_.Value());
+  TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
   StackFrameIterator it(isolate);
   if (!it.done()) {

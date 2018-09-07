@@ -45,11 +45,10 @@ bool LocalEmbedderHeapTracer::Trace(
   return remote_tracer_->AdvanceTracing(deadline, actions);
 }
 
-size_t LocalEmbedderHeapTracer::NumberOfWrappersToTrace() {
-  return (InUse())
-             ? cached_wrappers_to_trace_.size() +
-                   remote_tracer_->NumberOfWrappersToTrace()
-             : 0;
+bool LocalEmbedderHeapTracer::IsRemoteTracingDone() {
+  return (InUse()) ? cached_wrappers_to_trace_.empty() &&
+                         remote_tracer_->IsTracingDone()
+                   : true;
 }
 
 void LocalEmbedderHeapTracer::RegisterWrappersWithRemoteTracer() {

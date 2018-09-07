@@ -103,7 +103,7 @@ RUNTIME_FUNCTION(Runtime_ThrowNotSuperConstructor) {
 
 RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->home_object_symbol();
+  return ReadOnlyRoots(isolate).home_object_symbol();
 }
 
 namespace {
@@ -128,7 +128,7 @@ inline void SetHomeObject(Isolate* isolate, JSFunction* method,
   if (method->shared()->needs_home_object()) {
     const int kPropertyIndex = JSFunction::kMaybeHomeObjectDescriptorIndex;
     CHECK_EQ(method->map()->instance_descriptors()->GetKey(kPropertyIndex),
-             isolate->heap()->home_object_symbol());
+             ReadOnlyRoots(isolate).home_object_symbol());
 
     FieldIndex field_index =
         FieldIndex::ForDescriptor(method->map(), kPropertyIndex);
@@ -213,7 +213,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
     Object* value = dictionary->ValueAt(i);
     if (value->IsAccessorPair()) {
       Handle<AccessorPair> pair(AccessorPair::cast(value), isolate);
-      pair = AccessorPair::Copy(pair);
+      pair = AccessorPair::Copy(isolate, pair);
       dictionary->ValueAtPut(i, *pair);
     }
   }
@@ -228,9 +228,10 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
 
   // Replace all indices with proper methods.
   int capacity = dictionary->Capacity();
+  ReadOnlyRoots roots(isolate);
   for (int i = 0; i < capacity; i++) {
     Object* maybe_key = dictionary->KeyAt(i);
-    if (!Dictionary::IsKey(isolate, maybe_key)) continue;
+    if (!Dictionary::IsKey(roots, maybe_key)) continue;
     if (install_name_accessor && *install_name_accessor &&
         (maybe_key == *name_string)) {
       *install_name_accessor = false;
@@ -287,7 +288,7 @@ bool AddDescriptorsByTemplate(
 
   Handle<NumberDictionary> elements_dictionary =
       *elements_dictionary_template ==
-              isolate->heap()->empty_slow_element_dictionary()
+              ReadOnlyRoots(isolate).empty_slow_element_dictionary()
           ? elements_dictionary_template
           : ShallowCopyDictionaryTemplate(isolate,
                                           elements_dictionary_template);
@@ -295,10 +296,10 @@ bool AddDescriptorsByTemplate(
   // Read values from |descriptors_template| and store possibly post-processed
   // values into "instantiated" |descriptors| array.
   for (int i = 0; i < nof_descriptors; i++) {
-    Object* value = descriptors_template->GetValue(i);
+    Object* value = descriptors_template->GetStrongValue(i);
     if (value->IsAccessorPair()) {
-      Handle<AccessorPair> pair =
-          AccessorPair::Copy(handle(AccessorPair::cast(value), isolate));
+      Handle<AccessorPair> pair = AccessorPair::Copy(
+          isolate, handle(AccessorPair::cast(value), isolate));
       value = *pair;
     }
     DisallowHeapAllocation no_gc;
@@ -335,7 +336,7 @@ bool AddDescriptorsByTemplate(
       DCHECK(!details.representation().IsDouble());
     }
     DCHECK(value->FitsRepresentation(details.representation()));
-    descriptors->Set(i, name, value, details);
+    descriptors->Set(i, name, MaybeObject::FromObject(value), details);
   }
 
   map->InitializeDescriptors(*descriptors,
@@ -409,7 +410,7 @@ bool AddDescriptorsByTemplate(
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
     PropertyDetails details(kAccessor, attribs, PropertyCellType::kNoCell);
     Handle<NameDictionary> dict = NameDictionary::Add(
-        properties_dictionary, isolate->factory()->name_string(),
+        isolate, properties_dictionary, isolate->factory()->name_string(),
         isolate->factory()->function_name_accessor(), details);
     CHECK_EQ(*dict, *properties_dictionary);
   }
@@ -449,9 +450,9 @@ bool InitClassPrototype(Isolate* isolate,
                         Handle<Object> prototype_parent,
                         Handle<JSFunction> constructor, Arguments& args) {
   Handle<Map> map(prototype->map(), isolate);
-  map = Map::CopyDropDescriptors(map);
+  map = Map::CopyDropDescriptors(isolate, map);
   map->set_is_prototype_map(true);
-  Map::SetPrototype(map, prototype_parent);
+  Map::SetPrototype(isolate, map, prototype_parent);
   constructor->set_prototype_or_initial_map(*prototype);
   map->SetConstructor(*constructor);
   Handle<FixedArray> computed_properties(
@@ -462,7 +463,7 @@ bool InitClassPrototype(Isolate* isolate,
 
   Handle<Object> properties_template(
       class_boilerplate->instance_properties_template(), isolate);
-  if (properties_template->IsDictionary()) {
+  if (properties_template->IsNameDictionary()) {
     Handle<NameDictionary> properties_dictionary_template =
         Handle<NameDictionary>::cast(properties_template);
 
@@ -496,13 +497,13 @@ bool InitClassConstructor(Isolate* isolate,
                           Handle<Object> constructor_parent,
                           Handle<JSFunction> constructor, Arguments& args) {
   Handle<Map> map(constructor->map(), isolate);
-  map = Map::CopyDropDescriptors(map);
+  map = Map::CopyDropDescriptors(isolate, map);
   DCHECK(map->is_prototype_map());
 
   if (!constructor_parent.is_null()) {
     // Set map's prototype without enabling prototype setup mode for superclass
     // because it does not make sense.
-    Map::SetPrototype(map, constructor_parent, false);
+    Map::SetPrototype(isolate, map, constructor_parent, false);
   }
 
   Handle<NumberDictionary> elements_dictionary_template(
@@ -514,12 +515,12 @@ bool InitClassConstructor(Isolate* isolate,
   Handle<Object> properties_template(
       class_boilerplate->static_properties_template(), isolate);
 
-  if (properties_template->IsDictionary()) {
+  if (properties_template->IsNameDictionary()) {
     Handle<NameDictionary> properties_dictionary_template =
         Handle<NameDictionary>::cast(properties_template);
 
     map->set_is_dictionary_map(true);
-    map->InitializeDescriptors(isolate->heap()->empty_descriptor_array(),
+    map->InitializeDescriptors(ReadOnlyRoots(isolate).empty_descriptor_array(),
                                LayoutDescriptor::FastPointerLayout());
     map->set_is_migration_target(false);
     map->set_may_have_interesting_symbols(true);
@@ -628,7 +629,7 @@ MaybeHandle<JSReceiver> GetSuperHolder(
     Isolate* isolate, Handle<Object> receiver, Handle<JSObject> home_object,
     SuperMode mode, MaybeHandle<Name> maybe_name, uint32_t index) {
   if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), home_object)) {
+      !isolate->MayAccess(handle(isolate->context(), isolate), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, JSReceiver);
   }

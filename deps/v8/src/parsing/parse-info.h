@@ -37,15 +37,16 @@ class Zone;
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  explicit ParseInfo(AccountingAllocator* zone_allocator);
-  ParseInfo(Handle<Script> script);
-  ParseInfo(Handle<SharedFunctionInfo> shared);
+  ParseInfo(Isolate*);
+  ParseInfo(Isolate*, AccountingAllocator* zone_allocator);
+  ParseInfo(Isolate* isolate, Handle<Script> script);
+  ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
   ~ParseInfo();
 
-  void InitFromIsolate(Isolate* isolate);
-
-  static ParseInfo* AllocateWithoutScript(Handle<SharedFunctionInfo> shared);
+  Handle<Script> CreateScript(Isolate* isolate, Handle<String> source,
+                              ScriptOriginOptions origin_options,
+                              NativesFlag natives = NOT_NATIVES_CODE);
 
   // Either returns the ast-value-factory associcated with this ParseInfo, or
   // creates and returns a new factory if none exists.
@@ -139,8 +140,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   uintptr_t stack_limit() const { return stack_limit_; }
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
 
-  uint32_t hash_seed() const { return hash_seed_; }
-  void set_hash_seed(uint32_t hash_seed) { hash_seed_ = hash_seed; }
+  uint64_t hash_seed() const { return hash_seed_; }
+  void set_hash_seed(uint64_t hash_seed) { hash_seed_ = hash_seed; }
 
   int function_flags() const { return function_flags_; }
   void set_function_flags(int function_flags) {
@@ -207,11 +208,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
     return maybe_outer_scope_info_;
   }
-  void clear_script() { script_ = Handle<Script>::null(); }
   void set_outer_scope_info(Handle<ScopeInfo> outer_scope_info) {
     maybe_outer_scope_info_ = outer_scope_info;
   }
-  void set_script(Handle<Script> script) { script_ = script; }
+
+  int script_id() const { return script_id_; }
   //--------------------------------------------------------------------------
 
   LanguageMode language_mode() const {
@@ -222,20 +223,13 @@ class V8_EXPORT_PRIVATE ParseInfo {
     set_strict_mode(is_strict(language_mode));
   }
 
-  void ReopenHandlesInNewHandleScope() {
-    if (!script_.is_null()) {
-      script_ = Handle<Script>(*script_);
-    }
-    Handle<ScopeInfo> outer_scope_info;
-    if (maybe_outer_scope_info_.ToHandle(&outer_scope_info)) {
-      maybe_outer_scope_info_ = Handle<ScopeInfo>(*outer_scope_info);
-    }
-  }
-
   void EmitBackgroundParseStatisticsOnBackgroundThread();
   void UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate);
 
  private:
+  void SetScriptForToplevelCompile(Isolate* isolate, Handle<Script> script);
+  void set_script(Handle<Script> script);
+
   // Various configuration flags for parsing.
   enum Flag {
     // ---------- Input flags ---------------------------
@@ -264,10 +258,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   DeclarationScope* script_scope_;
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
-  uint32_t hash_seed_;
+  uint64_t hash_seed_;
   // TODO(leszeks): Move any remaining flags used here either to the flags_
   // field or to other fields.
   int function_flags_;
+  int script_id_;
   int start_position_;
   int end_position_;
   int parameters_end_pos_;
