@@ -1050,6 +1050,16 @@ deprecated along with the undocumented aliases `crypto.prng()` and
 `crypto.rng()` in favor of [`crypto.randomBytes()`][] and will be removed in a
 future release.
 
+<a id="DEP00XX"></a>
+### DEP00XX: Legacy URL API
+
+Type: Documentation
+
+The [Legacy URL API][] is deprecated. This includes [`url.format()`][],
+[`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
+use the [WHATWG URL API][] instead.
+
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -1098,6 +1108,7 @@ future release.
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
+[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
 [`require.extensions`]: modules.html#modules_require_extensions
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
@@ -1108,6 +1119,9 @@ future release.
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
 [`tls.checkServerIdentity()`]: tls.html#tls_tls_checkserveridentity_hostname_cert
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
+[`url.format()`]: url.html#url_url_format_urlobject
+[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
+[`url.resolve()`]: url.html#url_url_resolve_from_to
 [`util._extend()`]: util.html#util_util_extend_target_source
 [`util.debug()`]: util.html#util_util_debug_string
 [`util.error()`]: util.html#util_util_error_strings
@@ -1139,5 +1153,7 @@ future release.
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
+[Legacy URL API]: url.html#url_legacy_url_api
+[legacy `urlObject`]: url.html#url_legacy_urlobject
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
-[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
+[WHATWG URL API]: url.html#url_the_whatwg_url_api
