@@ -60,7 +60,7 @@
   * The methods `fs.read`, `fs.readSync`, `fs.write`, `fs.writeSync`,
     `fs.writeFile` and `fs.writeFileSync` now all accept `TypedArray` and
     `DataView` objects. [#22150](https://github.com/nodejs/node/pull/22150)
-  * A new boolean option, `withFileTypes`, can be passed to to `fs.readdir` and
+  * A new boolean option, `withFileTypes`, can be passed to `fs.readdir` and
     `fs.readdirSync`. If set to true, the methods return an array of directory
     entries. These are objects that can be used to determine the type of each
     entry and filter them based on that without calling `fs.stat`. [#22020](https://github.com/nodejs/node/pull/22020)
