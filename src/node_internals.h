@@ -905,6 +905,11 @@ void EnvSetter(v8::Local<v8::Name> property,
 void EnvQuery(v8::Local<v8::Name> property,
               const v8::PropertyCallbackInfo<v8::Integer>& info);
 void EnvEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info);
+void DebugPortGetter(v8::Local<v8::Name> property,
+                     const v8::PropertyCallbackInfo<v8::Value>& info);
+void DebugPortSetter(v8::Local<v8::Name> property,
+                     v8::Local<v8::Value> value,
+                     const v8::PropertyCallbackInfo<void>& info);
 
 void GetParentProcessId(v8::Local<v8::Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info);
