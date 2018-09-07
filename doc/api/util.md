@@ -634,10 +634,10 @@ changes:
 
 In addition to being accessible through `util.inspect.custom`, this
 symbol is [registered globally][global symbol registry] and can be
-accessed in any environment as `Symbol.for('util.inspect.custom')`.
+accessed in any environment as `Symbol.for('nodejs.util.inspect.custom')`.
 
 ```js
-const inspect = Symbol.for('util.inspect.custom');
+const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 class Password {
   constructor(value) {
