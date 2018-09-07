@@ -486,15 +486,19 @@ level.
 
 ### Involving the TSC
 
-Collaborators may opt to elevate pull requests or issues to the [TSC][] for
-discussion by assigning the `tsc-review` label or @-mentioning the
-`@nodejs/tsc` GitHub team. This should be done where a pull request:
+Collaborators may opt to elevate pull requests or issues to the [TSC][].
+This should be done where a pull request:
 
 - is labeled `semver-major`, or
 - has a significant impact on the codebase, or
 - is inherently controversial, or
 - has failed to reach consensus amongst the Collaborators who are
   actively participating in the discussion.
+
+Assign the `tsc-review` label or @-mention the
+`@nodejs/tsc` GitHub team if you want to elevate an issue to the [TSC][].
+Do not use the GitHub UI on the right hand side to assign to
+`@nodejs/tsc` or request a review from `@nodejs/tsc`.
 
 The TSC should serve as the final arbiter where required.
 
