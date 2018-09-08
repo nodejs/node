@@ -1052,7 +1052,7 @@ future release.
 <a id="DEP0116"></a>
 ### DEP0116: Legacy URL API
 
-Type: Documentation
+Type: Documentation-only
 
 The [Legacy URL API][] is deprecated. This includes [`url.format()`][],
 [`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
