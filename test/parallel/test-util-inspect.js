@@ -25,7 +25,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
-const { JSStream } = internalBinding('js_stream');
+const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
 const { previewEntries } = internalBinding('util');
@@ -261,7 +261,7 @@ assert.strictEqual(
     name: { value: 'Tim', enumerable: true },
     hidden: { value: 'secret' }
   }), { showHidden: true }),
-  "{ name: 'Tim', [hidden]: 'secret' }"
+  "[Object: null prototype] { name: 'Tim', [hidden]: 'secret' }"
 );
 
 assert.strictEqual(
@@ -269,7 +269,7 @@ assert.strictEqual(
     name: { value: 'Tim', enumerable: true },
     hidden: { value: 'secret' }
   })),
-  "{ name: 'Tim' }"
+  "[Object: null prototype] { name: 'Tim' }"
 );
 
 // Dynamic properties.
@@ -505,11 +505,17 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
       set: function() {}
     }
   });
-  assert.strictEqual(util.inspect(getter, true), '{ [a]: [Getter] }');
-  assert.strictEqual(util.inspect(setter, true), '{ [b]: [Setter] }');
+  assert.strictEqual(
+    util.inspect(getter, true),
+    '[Object: null prototype] { [a]: [Getter] }'
+  );
+  assert.strictEqual(
+    util.inspect(setter, true),
+    '[Object: null prototype] { [b]: [Setter] }'
+  );
   assert.strictEqual(
     util.inspect(getterAndSetter, true),
-    '{ [c]: [Getter/Setter] }'
+    '[Object: null prototype] { [c]: [Getter/Setter] }'
   );
 }
 
@@ -1084,7 +1090,7 @@ if (typeof Symbol !== 'undefined') {
 
 {
   const x = Object.create(null);
-  assert.strictEqual(util.inspect(x), '{}');
+  assert.strictEqual(util.inspect(x), '[Object: null prototype] {}');
 }
 
 {
@@ -1224,7 +1230,7 @@ util.inspect(process);
 
   assert.strictEqual(util.inspect(
     Object.create(null, { [Symbol.toStringTag]: { value: 'foo' } })),
-                     '[foo] {}');
+                     '[Object: null prototype] [foo] {}');
 
   assert.strictEqual(util.inspect(new Foo()), "Foo [bar] { foo: 'bar' }");
 
@@ -1574,20 +1580,12 @@ assert.strictEqual(util.inspect('"\''), '`"\'`');
 // eslint-disable-next-line no-template-curly-in-string
 assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 
-// Verify the output in case the value has no prototype.
-// Sadly, these cases can not be fully inspected :(
-[
-  [/a/, '/undefined/undefined'],
-  [new DataView(new ArrayBuffer(2)),
-   'DataView {\n  byteLength: undefined,\n  byteOffset: undefined,\n  ' +
-     'buffer: undefined }'],
-  [new SharedArrayBuffer(2), 'SharedArrayBuffer { byteLength: undefined }']
-].forEach(([value, expected]) => {
+{
   assert.strictEqual(
-    util.inspect(Object.setPrototypeOf(value, null)),
-    expected
+    util.inspect(Object.setPrototypeOf(/a/, null)),
+    '/undefined/undefined'
   );
-});
+}
 
 // Verify that throwing in valueOf and having no prototype still produces nice
 // results.
@@ -1623,6 +1621,39 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
     }
   });
   assert.strictEqual(util.inspect(value), expected);
+  value.foo = 'bar';
+  assert.notStrictEqual(util.inspect(value), expected);
+  delete value.foo;
+  value[Symbol('foo')] = 'yeah';
+  assert.notStrictEqual(util.inspect(value), expected);
+});
+
+[
+  [[1, 3, 4], '[Array: null prototype] [ 1, 3, 4 ]'],
+  [new Set([1, 2]), '[Set: null prototype] { 1, 2 }'],
+  [new Map([[1, 2]]), '[Map: null prototype] { 1 => 2 }'],
+  [new Promise((resolve) => setTimeout(resolve, 10)),
+   '[Promise: null prototype] { <pending> }'],
+  [new WeakSet(), '[WeakSet: null prototype] { <items unknown> }'],
+  [new WeakMap(), '[WeakMap: null prototype] { <items unknown> }'],
+  [new Uint8Array(2), '[Uint8Array: null prototype] [ 0, 0 ]'],
+  [new Uint16Array(2), '[Uint16Array: null prototype] [ 0, 0 ]'],
+  [new Uint32Array(2), '[Uint32Array: null prototype] [ 0, 0 ]'],
+  [new Int8Array(2), '[Int8Array: null prototype] [ 0, 0 ]'],
+  [new Int16Array(2), '[Int16Array: null prototype] [ 0, 0 ]'],
+  [new Int32Array(2), '[Int32Array: null prototype] [ 0, 0 ]'],
+  [new Float32Array(2), '[Float32Array: null prototype] [ 0, 0 ]'],
+  [new Float64Array(2), '[Float64Array: null prototype] [ 0, 0 ]'],
+  [new BigInt64Array(2), '[BigInt64Array: null prototype] [ 0n, 0n ]'],
+  [new BigUint64Array(2), '[BigUint64Array: null prototype] [ 0n, 0n ]'],
+  [new ArrayBuffer(16), '[ArrayBuffer: null prototype] ' +
+   '{ byteLength: undefined }'],
+  [new DataView(new ArrayBuffer(16)),
+   '[DataView: null prototype] {\n  byteLength: undefined,\n  ' +
+    'byteOffset: undefined,\n  buffer: undefined }'],
+  [new SharedArrayBuffer(2), '[SharedArrayBuffer: null prototype] ' +
+  '{ byteLength: undefined }']
+].forEach(([value, expected]) => {
   assert.strictEqual(
     util.inspect(Object.setPrototypeOf(value, null)),
     expected
@@ -1705,4 +1736,31 @@ assert.strictEqual(
     inspect(arr, { sorted: true }),
     '[ 3, 2, 1, [Symbol(a)]: false, [Symbol(b)]: true, a: 1, b: 2, c: 3 ]'
   );
+}
+
+// Manipulate the prototype to one that we can not handle.
+{
+  let obj = { a: true };
+  let value = (function() { return function() {}; })();
+  Object.setPrototypeOf(value, null);
+  Object.setPrototypeOf(obj, value);
+  assert.strictEqual(util.inspect(obj), '{ a: true }');
+
+  obj = { a: true };
+  value = [];
+  Object.setPrototypeOf(value, null);
+  Object.setPrototypeOf(obj, value);
+  assert.strictEqual(util.inspect(obj), '{ a: true }');
+}
+
+// Check that the fallback always works.
+{
+  const obj = new Set([1, 2]);
+  const iterator = obj[Symbol.iterator];
+  Object.setPrototypeOf(obj, null);
+  Object.defineProperty(obj, Symbol.iterator, {
+    value: iterator,
+    configurable: true
+  });
+  assert.strictEqual(util.inspect(obj), '[Set: null prototype] { 1, 2 }');
 }
