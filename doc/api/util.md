@@ -536,10 +536,10 @@ console.log(inspect(weakSet, { showHidden: true }));
 ```
 
 Please note that `util.inspect()` is a synchronous method that is mainly
-intended as a debugging tool. It's maximum output length is limited to 128 MB
-and input values that result in output bigger than that will not be inspected
-fully. Such values can have a significant performance overhead that can block
-the event loop for a significant amount of time.
+intended as a debugging tool. Its maximum output length is limited to 128 MB and
+input values that result in output bigger than that will not be inspected fully.
+Such values can have a significant performance overhead that can block the event
+loop for a significant amount of time.
 
 ### Customizing `util.inspect` colors
 
