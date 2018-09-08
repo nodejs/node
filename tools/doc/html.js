@@ -308,7 +308,9 @@ function parseYAML(text) {
         .use(htmlStringify)
         .processSync(change.description).toString();
 
-      result += `<tr><td>${change.version}</td>\n` +
+      const version = common.arrify(change.version).join(', ');
+
+      result += `<tr><td>${version}</td>\n` +
                   `<td>${description}</td></tr>\n`;
     });
 
@@ -326,10 +328,16 @@ function parseYAML(text) {
   return result;
 }
 
+function minVersion(a) {
+  return common.arrify(a).reduce((min, e) => {
+    return !min || versionSort(min, e) < 0 ? e : min;
+  });
+}
+
 const numberRe = /^\d*/;
 function versionSort(a, b) {
-  a = a.trim();
-  b = b.trim();
+  a = minVersion(a).trim();
+  b = minVersion(b).trim();
   let i = 0; // Common prefix length.
   while (i < a.length && i < b.length && a[i] === b[i]) i++;
   a = a.substr(i);

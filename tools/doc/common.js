@@ -43,4 +43,4 @@ function extractAndParseYAML(text) {
   return meta;
 }
 
-module.exports = { isYAMLBlock, extractAndParseYAML };
+module.exports = { arrify, isYAMLBlock, extractAndParseYAML };
