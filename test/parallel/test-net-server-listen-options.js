@@ -54,10 +54,10 @@ const listenOnPort = [
 
 {
   function shouldFailToListen(options) {
-    const block = () => {
+    const fn = () => {
       net.createServer().listen(options, common.mustNotCall());
     };
-    common.expectsError(block,
+    common.expectsError(fn,
                         {
                           code: 'ERR_INVALID_OPT_VALUE',
                           type: TypeError,
