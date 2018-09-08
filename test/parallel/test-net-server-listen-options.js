@@ -54,20 +54,20 @@ const listenOnPort = [
 
 {
   function shouldFailToListen(options) {
-    const block = () => {
+    const fn = () => {
       net.createServer().listen(options, common.mustNotCall());
     };
 
     if (typeof options === 'object' &&
       !(('port' in options) || ('path' in options))) {
-      common.expectsError(block,
+      common.expectsError(fn,
                           {
                             code: 'ERR_INVALID_ARG_VALUE',
                             type: TypeError,
                             message: /^The argument 'options' must have the property "port" or "path"\. Received .+$/,
                           });
     } else {
-      common.expectsError(block,
+      common.expectsError(fn,
                           {
                             code: 'ERR_INVALID_OPT_VALUE',
                             type: TypeError,
