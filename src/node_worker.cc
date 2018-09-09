@@ -71,14 +71,6 @@ Worker::Worker(Environment* env, Local<Object> wrap)
   isolate_ = NewIsolate(array_buffer_allocator_.get(), &loop_);
   CHECK_NE(isolate_, nullptr);
 
-  thread_exit_async_.reset(new uv_async_t);
-  thread_exit_async_->data = this;
-  CHECK_EQ(uv_async_init(env->event_loop(),
-                         thread_exit_async_.get(),
-                         [](uv_async_t* handle) {
-    static_cast<Worker*>(handle->data)->OnThreadStopped();
-  }), 0);
-
   {
     // Enter an environment capable of executing code in the child Isolate
     // (and only in it).
@@ -242,9 +234,6 @@ void Worker::Run() {
 
   DisposeIsolate();
 
-  // Need to run the loop one more time to close the platform's uv_async_t
-  uv_run(&loop_, UV_RUN_ONCE);
-
   {
     Mutex::ScopedLock lock(mutex_);
     CHECK(thread_exit_async_);
@@ -256,6 +245,13 @@ void Worker::Run() {
 }
 
 void Worker::DisposeIsolate() {
+  if (env_) {
+    CHECK_NOT_NULL(isolate_);
+    Locker locker(isolate_);
+    Isolate::Scope isolate_scope(isolate_);
+    env_.reset();
+  }
+
   if (isolate_ == nullptr)
     return;
 
@@ -332,11 +328,15 @@ Worker::~Worker() {
   CHECK(stopped_);
   CHECK(thread_joined_);
   CHECK_EQ(child_port_, nullptr);
-  CheckedUvLoopClose(&loop_);
 
   // This has most likely already happened within the worker thread -- this
   // is just in case Worker creation failed early.
   DisposeIsolate();
+
+  // Need to run the loop one more time to close the platform's uv_async_t
+  uv_run(&loop_, UV_RUN_ONCE);
+
+  CheckedUvLoopClose(&loop_);
 
   Debug(this, "Worker %llu destroyed", thread_id_);
 }
@@ -361,10 +361,19 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
 
   w->env()->add_sub_worker_context(w);
   w->stopped_ = false;
+  w->thread_joined_ = false;
+
+  w->thread_exit_async_.reset(new uv_async_t);
+  w->thread_exit_async_->data = w;
+  CHECK_EQ(uv_async_init(w->env()->event_loop(),
+                         w->thread_exit_async_.get(),
+                         [](uv_async_t* handle) {
+    static_cast<Worker*>(handle->data)->OnThreadStopped();
+  }), 0);
+
   CHECK_EQ(uv_thread_create(&w->tid_, [](void* arg) {
     static_cast<Worker*>(arg)->Run();
   }, static_cast<void*>(w)), 0);
-  w->thread_joined_ = false;
 }
 
 void Worker::StopThread(const FunctionCallbackInfo<Value>& args) {
