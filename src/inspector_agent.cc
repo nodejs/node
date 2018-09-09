@@ -190,6 +190,12 @@ static int StartDebugSignalHandler() {
 
 const int CONTEXT_GROUP_ID = 1;
 
+std::string GetWorkerLabel(node::Environment* env) {
+  std::ostringstream result;
+  result << "Worker[" << env->thread_id() << "]";
+  return result.str();
+}
+
 class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                           public protocol::FrontendChannel {
  public:
@@ -393,10 +399,13 @@ bool IsFilePath(const std::string& path) {
 
 class NodeInspectorClient : public V8InspectorClient {
  public:
-  explicit NodeInspectorClient(node::Environment* env) : env_(env) {
+  explicit NodeInspectorClient(node::Environment* env, bool is_main)
+      : env_(env), is_main_(is_main) {
     client_ = V8Inspector::create(env->isolate(), this);
     // TODO(bnoordhuis) Make name configurable from src/node.cc.
-    ContextInfo info(GetHumanReadableProcessName());
+    std::string name =
+        is_main_ ? GetHumanReadableProcessName() : GetWorkerLabel(env);
+    ContextInfo info(name);
     info.is_default = true;
     contextCreated(env->context(), info);
   }
@@ -625,6 +634,7 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   node::Environment* env_;
+  bool is_main_;
   bool running_nested_loop_ = false;
   std::unique_ptr<V8Inspector> client_;
   std::unordered_map<int, std::unique_ptr<ChannelImpl>> channels_;
@@ -642,13 +652,23 @@ Agent::Agent(Environment* env)
   : parent_env_(env),
     debug_options_(env->options()->debug_options) {}
 
-Agent::~Agent() = default;
+Agent::~Agent() {
+  if (start_io_thread_async.data == this) {
+    start_io_thread_async.data = nullptr;
+    // This is global, will never get freed
+    uv_close(reinterpret_cast<uv_handle_t*>(&start_io_thread_async), nullptr);
+  }
+}
 
 bool Agent::Start(const std::string& path,
-                  std::shared_ptr<DebugOptions> options) {
+                  std::shared_ptr<DebugOptions> options,
+                  bool is_main) {
+  if (options == nullptr) {
+    options = std::make_shared<DebugOptions>();
+  }
   path_ = path;
   debug_options_ = options;
-  client_ = std::make_shared<NodeInspectorClient>(parent_env_);
+  client_ = std::make_shared<NodeInspectorClient>(parent_env_, is_main);
   if (parent_env_->is_main_thread()) {
     CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
                               &start_io_thread_async,

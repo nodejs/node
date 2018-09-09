@@ -3,6 +3,7 @@
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
+common.skipIfWorker(); // https://github.com/nodejs/node/issues/22767
 
 const assert = require('assert');
 const { Session } = require('inspector');

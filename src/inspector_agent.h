@@ -47,7 +47,9 @@ class Agent {
   ~Agent();
 
   // Create client_, may create io_ if option enabled
-  bool Start(const std::string& path, std::shared_ptr<DebugOptions> options);
+  bool Start(const std::string& path,
+             std::shared_ptr<DebugOptions> options,
+             bool is_worker);
   // Stop and destroy io_
   void Stop();
 

@@ -35,10 +35,26 @@ namespace {
 uint64_t next_thread_id = 1;
 Mutex next_thread_id_mutex;
 
+#if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
+void StartWorkerInspector(Environment* child, const std::string& url) {
+  child->inspector_agent()->Start(url, nullptr, false);
+}
+
+void WaitForWorkerInspectorToStop(Environment* child) {
+  child->inspector_agent()->WaitForDisconnect();
+  child->inspector_agent()->Stop();
+}
+
+#else
+// No-ops
+void StartWorkerInspector(Environment* child, const std::string& url) {}
+void WaitForWorkerInspectorToStop(Environment* child) {}
+#endif
+
 }  // anonymous namespace
 
-Worker::Worker(Environment* env, Local<Object> wrap)
-    : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER) {
+Worker::Worker(Environment* env, Local<Object> wrap, const std::string& url)
+    : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER), url_(url) {
   // Generate a new thread id.
   {
     Mutex::ScopedLock next_thread_id_lock(next_thread_id_mutex);
@@ -155,6 +171,7 @@ void Worker::Run() {
         env_->async_hooks()->pop_async_id(1);
 
         Debug(this, "Loaded environment for worker %llu", thread_id_);
+        StartWorkerInspector(env_.get(), url_);
       }
 
       {
@@ -215,6 +232,7 @@ void Worker::Run() {
       env_->stop_sub_worker_contexts();
       env_->RunCleanup();
       RunAtExit(env_.get());
+      WaitForWorkerInspectorToStop(env_.get());
 
       {
         Mutex::ScopedLock stopped_lock(stopped_mutex_);
@@ -351,7 +369,15 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  new Worker(env, args.This());
+  std::string url;
+  // Argument might be a string or URL
+  if (args.Length() == 1 && !args[0]->IsNullOrUndefined()) {
+    Utf8Value value(
+        args.GetIsolate(),
+        args[0]->ToString(env->context()).FromMaybe(v8::Local<v8::String>()));
+    url.append(value.out(), value.length());
+  }
+  new Worker(env, args.This(), url);
 }
 
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {

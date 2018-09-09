@@ -6,6 +6,8 @@ common.skipIf32Bits();
 const { NodeInstance } = require('../common/inspector-helper.js');
 const assert = require('assert');
 
+common.skipIfWorker(); // Signal starts a server for a main thread inspector
+
 const script = `
 process._rawDebug('Waiting until a signal enables the inspector...');
 let waiting = setInterval(waitUntilDebugged, 50);

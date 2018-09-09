@@ -361,6 +361,11 @@ was disabled at compile time.
 Skip the rest of the tests in the current file when the Node.js executable
 was compiled with a pointer size smaller than 64 bits.
 
+### skipIfWorker()
+
+Skip the rest of the tests in the current file when not running on a main
+thread.
+
 ## ArrayStream Module
 
 The `ArrayStream` module provides a simple `Stream` that pushes elements from

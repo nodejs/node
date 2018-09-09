@@ -54,7 +54,6 @@ class MainThreadHandle : public std::enable_shared_from_this<MainThreadHandle> {
     return ++next_object_id_;
   }
   bool Post(std::unique_ptr<Request> request);
-  Agent* GetInspectorAgent();
   std::unique_ptr<InspectorSessionDelegate> MakeDelegateThreadSafe(
       std::unique_ptr<InspectorSessionDelegate> delegate);
   bool Expired();
