@@ -446,7 +446,7 @@ For more information about the governance of the Node.js project, see
 * [misterdjules](https://github.com/misterdjules) -
 **Julien Gilli** &lt;jgilli@nodejs.org&gt;
 * [mmarchini](https://github.com/mmarchini) -
-**Matheus Marchini** &lt;matheus@sthima.com&gt;
+**Matheus Marchini** &lt;mat@mmarchini.me&gt;
 * [MoonBall](https://github.com/MoonBall) -
 **Chen Gang** &lt;gangc.cxy@foxmail.com&gt;
 * [mscdex](https://github.com/mscdex) -
