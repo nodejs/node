@@ -28,12 +28,13 @@ const seen = new Set();
 // `Co-authored-by:` in the message body. Both have been used in the past
 // to indicate multiple authors per commit, with the latter standardized
 // by GitHub now.
-const authorRe = /(?:^Author:|^Co-authored-by:)\s+([^<]+)\s+(<[^>]+>)/i;
+const authorRe =
+  /(^Author:|^Co-authored-by:)\s+(?<author>[^<]+)\s+(?<email><[^>]+>)/i;
 rl.on('line', (line) => {
   const match = line.match(authorRe);
   if (!match) return;
 
-  const [ _, author, email ] = match;  // eslint-disable-line no-unused-vars
+  const { author, email } = match.groups;
   if (seen.has(email) ||
       /@chromium\.org/.test(email) ||
       email === '<erik.corry@gmail.com>') {
