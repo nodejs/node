@@ -40,6 +40,14 @@ void StartWorkerInspector(Environment* child, const std::string& url) {
   child->inspector_agent()->Start(url, nullptr, false);
 }
 
+void AddWorkerInspector(Environment* parent,
+                        Environment* child,
+                        int id,
+                        const std::string& url) {
+  parent->inspector_agent()->AddWorkerInspector(id, url,
+                                                child->inspector_agent());
+}
+
 void WaitForWorkerInspectorToStop(Environment* child) {
   child->inspector_agent()->WaitForDisconnect();
   child->inspector_agent()->Stop();
@@ -48,6 +56,10 @@ void WaitForWorkerInspectorToStop(Environment* child) {
 #else
 // No-ops
 void StartWorkerInspector(Environment* child, const std::string& url) {}
+void AddWorkerInspector(Environment* parent,
+                        Environment* child,
+                        int id,
+                        const std::string& url) {}
 void WaitForWorkerInspectorToStop(Environment* child) {}
 #endif
 
@@ -115,6 +127,8 @@ Worker::Worker(Environment* env, Local<Object> wrap, const std::string& url)
     env_->Start(std::vector<std::string>{},
                 std::vector<std::string>{},
                 env->profiler_idle_notifier_started());
+    // Done while on the parent thread
+    AddWorkerInspector(env, env_.get(), thread_id_, url_);
   }
 
   // The new isolate won't be bothered on this thread again.

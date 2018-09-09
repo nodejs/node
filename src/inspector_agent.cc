@@ -4,6 +4,8 @@
 #include "inspector/main_thread_interface.h"
 #include "inspector/node_string.h"
 #include "inspector/tracing_agent.h"
+#include "inspector/worker_agent.h"
+#include "inspector/worker_inspector.h"
 #include "node/inspector/protocol/Protocol.h"
 #include "node_internals.h"
 #include "node_url.h"
@@ -201,6 +203,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
  public:
   explicit ChannelImpl(Environment* env,
                        const std::unique_ptr<V8Inspector>& inspector,
+                       std::shared_ptr<WorkerManager> worker_manager,
                        std::unique_ptr<InspectorSessionDelegate> delegate,
                        bool prevent_shutdown)
                        : delegate_(std::move(delegate)),
@@ -209,11 +212,15 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     node_dispatcher_.reset(new protocol::UberDispatcher(this));
     tracing_agent_.reset(new protocol::TracingAgent(env));
     tracing_agent_->Wire(node_dispatcher_.get());
+    worker_agent_.reset(new protocol::WorkerAgent(worker_manager));
+    worker_agent_->Wire(node_dispatcher_.get());
   }
 
   virtual ~ChannelImpl() {
     tracing_agent_->disable();
     tracing_agent_.reset();  // Dispose before the dispatchers
+    worker_agent_->disable();
+    worker_agent_.reset();  // Dispose before the dispatchers
   }
 
   std::string dispatchProtocolMessage(const StringView& message) {
@@ -273,6 +280,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   }
 
   std::unique_ptr<protocol::TracingAgent> tracing_agent_;
+  std::unique_ptr<protocol::WorkerAgent> worker_agent_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<protocol::UberDispatcher> node_dispatcher_;
@@ -469,7 +477,8 @@ class NodeInspectorClient : public V8InspectorClient {
     // TODO(addaleax): Revert back to using make_unique once we get issues
     // with CI resolved (i.e. revert the patch that added this comment).
     channels_[session_id].reset(
-        new ChannelImpl(env_, client_, std::move(delegate), prevent_shutdown));
+        new ChannelImpl(env_, client_, getWorkerManager(),
+                        std::move(delegate), prevent_shutdown));
     return session_id;
   }
 
@@ -589,6 +598,14 @@ class NodeInspectorClient : public V8InspectorClient {
     return interface_->GetHandle();
   }
 
+  std::shared_ptr<WorkerManager> getWorkerManager() {
+    if (worker_manager_ == nullptr) {
+      worker_manager_ =
+          std::make_shared<WorkerManager>(getThreadHandle());
+    }
+    return worker_manager_;
+  }
+
   bool IsActive() {
     return !channels_.empty();
   }
@@ -646,6 +663,7 @@ class NodeInspectorClient : public V8InspectorClient {
   bool waiting_for_io_shutdown_ = false;
   // Allows accessing Inspector from non-main threads
   std::unique_ptr<MainThreadInterface> interface_;
+  std::shared_ptr<WorkerManager> worker_manager_;
 };
 
 Agent::Agent(Environment* env)
@@ -680,7 +698,10 @@ bool Agent::Start(const std::string& path,
   }
 
   bool wait_for_connect = options->wait_for_connect();
-  if (!options->inspector_enabled || !StartIoThread()) {
+  if (parent_handle_) {
+    wait_for_connect = parent_handle_->WaitForConnect();
+    parent_handle_->WorkerStarted(client_->getThreadHandle(), wait_for_connect);
+  } else if (!options->inspector_enabled || !StartIoThread()) {
     return false;
   }
   if (wait_for_connect) {
@@ -727,7 +748,9 @@ std::unique_ptr<InspectorSession> Agent::Connect(
 
 void Agent::WaitForDisconnect() {
   CHECK_NOT_NULL(client_);
-  if (client_->hasConnectedSessions()) {
+  bool is_worker = parent_handle_ != nullptr;
+  parent_handle_.reset();
+  if (client_->hasConnectedSessions() && !is_worker) {
     fprintf(stderr, "Waiting for the debugger to disconnect...\n");
     fflush(stderr);
   }
@@ -842,7 +865,11 @@ void Agent::ContextCreated(Local<Context> context, const ContextInfo& info) {
 }
 
 bool Agent::WillWaitForConnect() {
-  return debug_options_->wait_for_connect();
+  if (debug_options_->wait_for_connect())
+    return true;
+  if (parent_handle_)
+    return parent_handle_->WaitForConnect();
+  return false;
 }
 
 bool Agent::IsActive() {
@@ -851,9 +878,22 @@ bool Agent::IsActive() {
   return io_ != nullptr || client_->IsActive();
 }
 
+void Agent::AddWorkerInspector(int thread_id,
+                               const std::string& url,
+                               Agent* agent) {
+  CHECK_NOT_NULL(client_);
+  agent->parent_handle_ =
+      client_->getWorkerManager()->NewParentHandle(thread_id, url);
+}
+
 void Agent::WaitForConnect() {
   CHECK_NOT_NULL(client_);
   client_->waitForFrontend();
+}
+
+std::shared_ptr<WorkerManager> Agent::GetWorkerManager() {
+  CHECK_NOT_NULL(client_);
+  return client_->getWorkerManager();
 }
 
 SameThreadInspectorSession::~SameThreadInspectorSession() {
