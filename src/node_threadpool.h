@@ -271,6 +271,10 @@ class Threadpool {
 // Subclass for customized threadpool(s).
 class NodeThreadpool {
  public:
+  // TODO(davisjam): Is this OK? It permits sub-classing.
+  // But maybe we should take an interface approach and have all of these virtual
+  // methods be pure virtual?
+  NodeThreadpool();
   // If threadpool_size <= 0:
   //   - checks UV_THREADPOOL_SIZE to determine threadpool_size
   //   - if this is not set, takes a guess
@@ -293,10 +297,32 @@ class NodeThreadpool {
   virtual int NWorkers() const;
 
  protected:
-  virtual int GoodCPUThreadpoolSize();
+  int GoodCPUThreadpoolSize();
 
  private:
   std::shared_ptr<Threadpool> tp_;
+};
+
+// Splits based on task type: CPU or I/O
+class SplitTaskTypeNodeThreadpool : public NodeThreadpool {
+ public:
+  // If cpu_pool_size == -1, check UV_THREADPOOL_SIZE and then guess
+  // based on # cores.
+  // If io_pool_size == -1, uses 4x cpu_pool_size.
+  explicit SplitTaskTypeNodeThreadpool(int cpu_pool_size, int io_pool_size);
+  // Waits for queue to drain.
+  ~SplitTaskTypeNodeThreadpool();
+
+  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) override;
+  virtual void BlockingDrain() override;
+
+  virtual int QueueLength() const override;
+
+  virtual int NWorkers() const override;
+
+ private:
+  std::shared_ptr<Threadpool> cpu_tp_;
+  std::shared_ptr<Threadpool> io_tp_;
 };
 
 }  // namespace threadpool

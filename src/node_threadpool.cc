@@ -26,6 +26,9 @@ namespace threadpool {
  * NodeThreadpool
  ***************/
 
+NodeThreadpool::NodeThreadpool() : tp_(nullptr) {
+}
+
 NodeThreadpool::NodeThreadpool(int threadpool_size) {
   if (threadpool_size <= 0) {
     // Check UV_THREADPOOL_SIZE
@@ -40,7 +43,7 @@ NodeThreadpool::NodeThreadpool(int threadpool_size) {
     // No/bad UV_THREADPOOL_SIZE, so take a guess.
     threadpool_size = GoodCPUThreadpoolSize();
   }
-  LOG("Threadpool::Threadpool: threadpool_size %d\n", threadpool_size);
+  LOG("NodeThreadpool::NodeThreadpool: threadpool_size %d\n", threadpool_size);
   CHECK_GT(threadpool_size, 0);
 
   tp_ = std::make_shared<Threadpool>(threadpool_size);
@@ -52,12 +55,12 @@ int NodeThreadpool::GoodCPUThreadpoolSize(void) {
   int cpu_count;
 
   if (uv_cpu_info(&cpu_infos, &cpu_count)) {
-    LOG("Threadpool::GoodThreadpoolSize: Huh, uv_cpu_info failed?\n");
+    LOG("NodeThreadpool::GoodCPUThreadpoolSize: Huh, uv_cpu_info failed?\n");
     return 4;  // Old libuv TP default.
   }
 
   uv_free_cpu_info(cpu_infos, cpu_count);
-    LOG("Threadpool::GoodThreadpoolSize: cpu_count %d\n", cpu_count);
+    LOG("NodeThreadpool::GoodCPUThreadpoolSize: cpu_count %d\n", cpu_count);
   return cpu_count - 1;  // Leave one core for main loop
 }
 
@@ -78,6 +81,68 @@ int NodeThreadpool::QueueLength() const {
 
 int NodeThreadpool::NWorkers() const {
   return tp_->NWorkers();
+}
+
+/**************
+ * SplitTaskTypeNodeThreadpool
+ ***************/
+
+SplitTaskTypeNodeThreadpool::SplitTaskTypeNodeThreadpool(int cpu_pool_size, int io_pool_size) {
+  if (cpu_pool_size <= 0) {
+    // Check UV_THREADPOOL_SIZE
+    char buf[32];
+    size_t buf_size = sizeof(buf);
+    if (uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size) == 0) {
+      cpu_pool_size = atoi(buf);
+    }
+  }
+
+  if (cpu_pool_size <= 0) {
+    // No/bad UV_THREADPOOL_SIZE, so take a guess.
+    cpu_pool_size = GoodCPUThreadpoolSize();
+  }
+  LOG("SplitTaskTypeNodeThreadpool::SplitTaskTypeNodeThreadpool: cpu_pool_size %d\n", cpu_pool_size);
+  CHECK_GT(cpu_pool_size, 0);
+
+  cpu_tp_ = std::make_shared<Threadpool>(cpu_pool_size);
+
+  if (io_pool_size < 0) {
+    io_pool_size = 4 * cpu_pool_size;
+  }
+  LOG("SplitTaskTypeNodeThreadpool::SplitTaskTypeNodeThreadpool: io_pool_size %d\n", io_pool_size);
+  CHECK_GT(io_pool_size, 0);
+  io_tp_ = std::make_shared<Threadpool>(io_pool_size);
+}
+
+SplitTaskTypeNodeThreadpool::~SplitTaskTypeNodeThreadpool() {
+}
+
+std::shared_ptr<TaskState> SplitTaskTypeNodeThreadpool::Post(std::unique_ptr<Task> task) {
+  switch (task->details_.type) {
+    case TaskDetails::MEMORY:
+    case TaskDetails::CPU:
+    case TaskDetails::CPU_SLOW:
+    case TaskDetails::CPU_FAST:
+    case TaskDetails::V8:
+      LOG("SplitTaskTypeNodeThreadpool::Post: CPU\n");
+      return cpu_tp_->Post(std::move(task));
+    default:
+      LOG("SplitTaskTypeNodeThreadpool::Post: IO\n");
+      return io_tp_->Post(std::move(task));
+  }
+}
+
+void SplitTaskTypeNodeThreadpool::BlockingDrain() {
+  io_tp_->BlockingDrain();
+  cpu_tp_->BlockingDrain();
+}
+
+int SplitTaskTypeNodeThreadpool::QueueLength() const {
+  return cpu_tp_->QueueLength() + io_tp_->QueueLength();
+}
+
+int SplitTaskTypeNodeThreadpool::NWorkers() const {
+  return cpu_tp_->NWorkers() + io_tp_->NWorkers();
 }
 
 /**************

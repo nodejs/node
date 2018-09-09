@@ -286,7 +286,18 @@ class NodeTraceStateObserver :
 
 static struct {
   void Initialize(void) {
-    tp_ = std::make_shared<threadpool::NodeThreadpool>(4);
+    // What kind of threadpool is desired?
+    char *tp_type = getenv("NODE_THREADPOOL_TYPE");
+    if (!tp_type || strcmp(tp_type, "SHARED") == 0) {
+      tp_ = std::make_shared<threadpool::NodeThreadpool>(-1);
+    } else if (strcmp(tp_type, "SPLIT_IO_CPU") == 0) {
+      tp_ = std::make_shared<threadpool::SplitTaskTypeNodeThreadpool>(-1, -1);
+    } else if (strcmp(tp_type, "SPLIT_V8_LIBUV") == 0) {
+      CHECK(!"Not yet supported");
+    } else {
+      CHECK(0);
+    }
+
     libuv_executor_ = std::unique_ptr<threadpool::LibuvExecutor>(
       new threadpool::LibuvExecutor(tp_));
   }
