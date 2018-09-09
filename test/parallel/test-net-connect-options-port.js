@@ -186,7 +186,7 @@ function canConnect(port) {
   }
 
   // connect({port, host}, cb) and connect({port, host})
-  const portHostOptFns = doConnect([{ port: port, host: 'localhost' }], noop);
+  const portHostOptFns = doConnect([{ port, host: 'localhost' }], noop);
   for (const fn of portHostOptFns) {
     fn();
   }
@@ -212,7 +212,7 @@ function asyncFailToConnect(port) {
   }
 
   // connect({port, host}, cb) and connect({port, host})
-  const portHostOptFns = doConnect([{ port: port, host: 'localhost' }], dont);
+  const portHostOptFns = doConnect([{ port, host: 'localhost' }], dont);
   for (const fn of portHostOptFns) {
     fn().on('error', onError());
   }
