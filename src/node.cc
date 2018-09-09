@@ -327,7 +327,7 @@ static struct {
     // right away on the websocket port and fails to bind/etc, this will return
     // false.
     return env->inspector_agent()->Start(
-        script_path == nullptr ? "" : script_path, options);
+        script_path == nullptr ? "" : script_path, options, true);
   }
 
   bool InspectorStarted(Environment* env) {

@@ -3,6 +3,7 @@
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
+common.skipIfWorker();
 
 // Assert that even when started with `--inspect=0` workers are assigned
 // consecutive (i.e. deterministically predictable) debug ports
