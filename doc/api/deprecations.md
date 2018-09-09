@@ -870,6 +870,7 @@ The [`tls.CryptoStream`][] class was removed. Please use
 <a id="DEP0043"></a>
 ### DEP0043: tls.SecurePair
 <!-- YAML
+changes:
   - version:
     - v4.8.6
     - v6.12.0
@@ -1838,7 +1839,7 @@ Type: Runtime
 
 <a id="DEP0097"></a>
 ### DEP0097: MakeCallback with domain property
-<!--
+<!-- YAML
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17417
@@ -2206,6 +2207,8 @@ use the [WHATWG URL API][] instead.
 [`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
 [`fs.lchmod(path, mode, callback)`]: fs.html#fs_fs_lchmod_path_mode_callback
 [`fs.lchmodSync(path, mode)`]: fs.html#fs_fs_lchmodsync_path_mode
+[`fs.lchown(path, uid, gid, callback)`]: fs.html#fs_fs_lchown_path_uid_gid_callback
+[`fs.lchownSync(path, uid, gid)`]: fs.html#fs_fs_lchownsync_path_uid_gid
 [`fs.read()`]: fs.html#fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readSync()`]: fs.html#fs_fs_readsync_fd_buffer_offset_length_position
 [`fs.stat()`]: fs.html#fs_fs_stat_path_options_callback
