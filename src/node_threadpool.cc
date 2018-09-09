@@ -16,11 +16,69 @@
 #include <stdio.h>
 #define LOG(...) fprintf(stderr, __VA_ARGS__)
 #else
-#define LOG(...) (void) 0
+#define LOG(...) () 0
 #endif
 
 namespace node {
 namespace threadpool {
+
+/**************
+ * NodeThreadpool
+ ***************/
+
+NodeThreadpool::NodeThreadpool(int threadpool_size) {
+  if (threadpool_size <= 0) {
+    // Check UV_THREADPOOL_SIZE
+    char buf[32];
+    size_t buf_size = sizeof(buf);
+    if (uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size) == 0) {
+      threadpool_size = atoi(buf);
+    }
+  }
+
+  if (threadpool_size <= 0) {
+    // No/bad UV_THREADPOOL_SIZE, so take a guess.
+    threadpool_size = GoodCPUThreadpoolSize();
+  }
+  LOG("Threadpool::Threadpool: threadpool_size %d\n", threadpool_size);
+  CHECK_GT(threadpool_size, 0);
+
+  tp_ = std::make_shared<Threadpool>(threadpool_size);
+}
+
+int NodeThreadpool::GoodCPUThreadpoolSize(void) {
+  // Ask libuv how many cores we have.
+  uv_cpu_info_t* cpu_infos;
+  int cpu_count;
+
+  if (uv_cpu_info(&cpu_infos, &cpu_count)) {
+    LOG("Threadpool::GoodThreadpoolSize: Huh, uv_cpu_info failed?\n");
+    return 4;  // Old libuv TP default.
+  }
+
+  uv_free_cpu_info(cpu_infos, cpu_count);
+    LOG("Threadpool::GoodThreadpoolSize: cpu_count %d\n", cpu_count);
+  return cpu_count - 1;  // Leave one core for main loop
+}
+
+NodeThreadpool::~NodeThreadpool() {
+}
+
+std::shared_ptr<TaskState> NodeThreadpool::Post(std::unique_ptr<Task> task) {
+  return tp_->Post(std::move(task));
+}
+
+void NodeThreadpool::BlockingDrain() {
+  return tp_->BlockingDrain();
+}
+
+int NodeThreadpool::QueueLength() const {
+  return tp_->QueueLength();
+}
+
+int NodeThreadpool::NWorkers() const {
+  return tp_->NWorkers();
+}
 
 /**************
  * WorkerGroup
@@ -56,7 +114,7 @@ void Worker::Start() {
   CHECK_EQ(0, uv_thread_create(&self_, _Run, reinterpret_cast<void *>(this)));
 }
 
-void Worker::Join(void) {
+void Worker::Join() {
   CHECK_EQ(0, uv_thread_join(&self_));
 }
 
@@ -227,7 +285,7 @@ class LibuvTask : public Task {
   uv_work_t* req_;
 };
 
-LibuvExecutor::LibuvExecutor(std::shared_ptr<Threadpool> tp)
+LibuvExecutor::LibuvExecutor(std::shared_ptr<NodeThreadpool> tp)
   : tp_(tp) {
   executor_.init = uv_executor_init;
   executor_.destroy = nullptr;
@@ -313,7 +371,7 @@ bool TaskQueue::Push(std::unique_ptr<Task> task) {
   return true;
 }
 
-std::unique_ptr<Task> TaskQueue::Pop(void) {
+std::unique_ptr<Task> TaskQueue::Pop() {
   Mutex::ScopedLock scoped_lock(lock_);
 
   if (queue_.empty()) {
@@ -325,7 +383,7 @@ std::unique_ptr<Task> TaskQueue::Pop(void) {
   return task;
 }
 
-std::unique_ptr<Task> TaskQueue::BlockingPop(void) {
+std::unique_ptr<Task> TaskQueue::BlockingPop() {
   Mutex::ScopedLock scoped_lock(lock_);
 
   while (queue_.empty() && !stopped_) {
@@ -341,7 +399,7 @@ std::unique_ptr<Task> TaskQueue::BlockingPop(void) {
   return result;
 }
 
-void TaskQueue::NotifyOfCompletion(void) {
+void TaskQueue::NotifyOfCompletion() {
   Mutex::ScopedLock scoped_lock(lock_);
   outstanding_tasks_--;
   CHECK_GE(outstanding_tasks_, 0);
@@ -350,7 +408,7 @@ void TaskQueue::NotifyOfCompletion(void) {
   }
 }
 
-void TaskQueue::BlockingDrain(void) {
+void TaskQueue::BlockingDrain() {
   Mutex::ScopedLock scoped_lock(lock_);
   while (outstanding_tasks_) {
     tasks_drained_.Wait(scoped_lock);
@@ -358,13 +416,13 @@ void TaskQueue::BlockingDrain(void) {
   LOG("TaskQueue::BlockingDrain: Fully drained\n");
 }
 
-void TaskQueue::Stop(void) {
+void TaskQueue::Stop() {
   Mutex::ScopedLock scoped_lock(lock_);
   stopped_ = true;
   task_available_.Broadcast(scoped_lock);
 }
 
-int TaskQueue::Length(void) const {
+int TaskQueue::Length() const {
   Mutex::ScopedLock scoped_lock(lock_);
   return queue_.size();
 }
@@ -373,50 +431,14 @@ int TaskQueue::Length(void) const {
  * Threadpool
  ***************/
 
-Threadpool::Threadpool(int threadpool_size)
-  : threadpool_size_(threadpool_size) {
-  LOG("Threadpool::Threadpool: threadpool_size_ %d\n", threadpool_size_);
-  if (threadpool_size_ <= 0) {
-    // Check UV_THREADPOOL_SIZE
-    char buf[32];
-    size_t buf_size = sizeof(buf);
-    if (uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size) == 0) {
-      threadpool_size_ = atoi(buf);
-    }
-  }
-
-  if (threadpool_size_ <= 0) {
-    // No/bad UV_THREADPOOL_SIZE, so take a guess.
-    threadpool_size_ = GoodThreadpoolSize();
-  }
-  LOG("Threadpool::Threadpool: threadpool_size_ %d\n", threadpool_size_);
-  CHECK_GT(threadpool_size_, 0);
-
-  Initialize();
-}
-
-int Threadpool::GoodThreadpoolSize(void) {
-  // Ask libuv how many cores we have.
-  uv_cpu_info_t* cpu_infos;
-  int count;
-
-  if (uv_cpu_info(&cpu_infos, &count)) {
-    LOG("Threadpool::GoodThreadpoolSize: Huh, uv_cpu_info failed?\n");
-    return 4;  // Old libuv TP default.
-  }
-
-  uv_free_cpu_info(cpu_infos, count);
-    LOG("Threadpool::GoodThreadpoolSize: cpu count %d\n", count);
-  return count;
-}
-
-void Threadpool::Initialize() {
+Threadpool::Threadpool(int threadpool_size) {
+  CHECK_GT(threadpool_size, 0);
   task_queue_ = std::make_shared<TaskQueue>();
   worker_group_ = std::unique_ptr<WorkerGroup>(
-    new WorkerGroup(threadpool_size_, task_queue_));
+    new WorkerGroup(threadpool_size, task_queue_));
 }
 
-Threadpool::~Threadpool(void) {
+Threadpool::~Threadpool() {
   // Block future Push's.
   task_queue_->Stop();
   // As worker_group_ leaves scope, it drains tq and Join's its threads.
@@ -434,15 +456,15 @@ std::shared_ptr<TaskState> Threadpool::Post(std::unique_ptr<Task> task) {
   return task_state;
 }
 
-int Threadpool::QueueLength(void) const {
+int Threadpool::QueueLength() const {
   return task_queue_->Length();
 }
 
-void Threadpool::BlockingDrain(void) {
+void Threadpool::BlockingDrain() {
   task_queue_->BlockingDrain();
 }
 
-int Threadpool::NWorkers(void) const {
+int Threadpool::NWorkers() const {
   return worker_group_->Size();
 }
 

@@ -286,18 +286,18 @@ class NodeTraceStateObserver :
 
 static struct {
   void Initialize(void) {
-    tp_ = std::make_shared<threadpool::Threadpool>(-1);
+    tp_ = std::make_shared<threadpool::NodeThreadpool>(4);
     libuv_executor_ = std::unique_ptr<threadpool::LibuvExecutor>(
       new threadpool::LibuvExecutor(tp_));
   }
 
-  std::shared_ptr<threadpool::Threadpool> tp_;
+  std::shared_ptr<threadpool::NodeThreadpool> tp_;
   std::unique_ptr<threadpool::LibuvExecutor> libuv_executor_;
 } node_threadpool;
 
 static struct {
 #if NODE_USE_V8_PLATFORM
-  void Initialize(std::shared_ptr<threadpool::Threadpool> tp) {
+  void Initialize(std::shared_ptr<threadpool::NodeThreadpool> tp) {
     tracing_agent_.reset(new tracing::Agent());
     auto controller = tracing_agent_->GetTracingController();
     controller->AddTraceStateObserver(new NodeTraceStateObserver(controller));

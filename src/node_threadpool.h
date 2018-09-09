@@ -14,10 +14,12 @@
 namespace node {
 namespace threadpool {
 
-// Consumer of Threadpool.
+class NodeThreadpool;
+
+// Consumer of NodeThreadpool.
 class LibuvExecutor;
 
-// Threadpool components.
+// NodeThreadpool components.
 class Threadpool;
 
 class TaskQueue;
@@ -52,7 +54,7 @@ class Worker {
   // Starts a thread and returns control to the caller.
   void Start();
   // Join the internal uv_thread_t.
-  void Join(void);
+  void Join();
 
  protected:
   // Override e.g. to implement cancellation.
@@ -163,7 +165,7 @@ class Task {
 // internal Node.js Threadpool.
 class LibuvExecutor {
  public:
-  explicit LibuvExecutor(std::shared_ptr<Threadpool> tp);
+  explicit LibuvExecutor(std::shared_ptr<NodeThreadpool> tp);
 
   uv_executor_t* GetExecutor();
 
@@ -179,7 +181,7 @@ class LibuvExecutor {
   static int uv_executor_cancel(uv_executor_t* executor,
                                 uv_work_t* req);
 
-  std::shared_ptr<Threadpool> tp_;
+  std::shared_ptr<NodeThreadpool> tp_;
   uv_executor_t executor_;  // executor_.data points to an
                             // instance of LibuvExecutor.
 };
@@ -201,21 +203,21 @@ class TaskQueue {
   bool Push(std::unique_ptr<Task> task);
 
   // Non-blocking Pop. Returns nullptr if queue is empty.
-  std::unique_ptr<Task> Pop(void);
+  std::unique_ptr<Task> Pop();
   // Blocking Pop. Returns nullptr if queue is empty or Stop'd.
-  std::unique_ptr<Task> BlockingPop(void);
+  std::unique_ptr<Task> BlockingPop();
 
   // Workers should call this after completing a Pop'd Task.
-  void NotifyOfCompletion(void);
+  void NotifyOfCompletion();
 
   // Block until there are no Tasks pending or scheduled.
-  void BlockingDrain(void);
+  void BlockingDrain();
 
   // Subsequent Push() will fail.
   // Pop calls will return nullptr once queue is drained.
   void Stop();
 
-  int Length(void) const;
+  int Length() const;
 
  private:
   // Synchronization.
@@ -240,31 +242,61 @@ class TaskQueue {
 //   - Elastic workers (scale up and down)
 class Threadpool {
  public:
-  // If threadpool_size <= 0:
-  //   - checks UV_THREADPOOL_SIZE to determine threadpool_size
-  //   - if this is not set, takes a guess
-  // TODO(davisjam): Ponder --v8-pool-size and UV_THREADPOOL_SIZE.
   explicit Threadpool(int threadpool_size);
   // Waits for queue to drain.
-  ~Threadpool(void);
+  ~Threadpool();
 
   // Returns a TaskState by which caller can track the progress of the Task.
   // Caller can also use the TaskState to cancel the Task.
   // Returns nullptr on failure.
   std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task);
-  int QueueLength(void) const;
   // Block until there are no tasks pending or scheduled in the TP.
-  void BlockingDrain(void);
+  void BlockingDrain();
 
-  int NWorkers(void) const;
+  // Status monitoring
+  int QueueLength() const;
+
+  // Attributes
+  int NWorkers() const;
+
+ protected:
+  void Initialize();
 
  private:
-  int GoodThreadpoolSize(void);
-  void Initialize(void);
-
-  int threadpool_size_;
   std::shared_ptr<TaskQueue> task_queue_;
   std::unique_ptr<WorkerGroup> worker_group_;
+};
+
+// Public face of the threadpool.
+// Subclass for customized threadpool(s).
+class NodeThreadpool {
+ public:
+  // If threadpool_size <= 0:
+  //   - checks UV_THREADPOOL_SIZE to determine threadpool_size
+  //   - if this is not set, takes a guess
+  // TODO(davisjam): Ponder --v8-pool-size and UV_THREADPOOL_SIZE.
+  explicit NodeThreadpool(int threadpool_size);
+  // Waits for queue to drain.
+  ~NodeThreadpool();
+
+  // Returns a TaskState by which caller can track the progress of the Task.
+  // Caller can also use the TaskState to cancel the Task.
+  // Returns nullptr on failure.
+  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task);
+  // Block until there are no tasks pending or scheduled in the TP.
+  virtual void BlockingDrain();
+
+  // Status monitoring
+  virtual int QueueLength() const;
+
+  // Attributes
+  virtual int NWorkers() const;
+
+ protected:
+  virtual int GoodCPUThreadpoolSize();
+
+ private:
+  std::shared_ptr<Threadpool> tp_;
 };
 
 }  // namespace threadpool

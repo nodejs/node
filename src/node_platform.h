@@ -100,7 +100,7 @@ class PerIsolatePlatformData :
 // API is modeled on v8::TaskRunner.
 class WorkerThreadsTaskRunner {
  public:
-  explicit WorkerThreadsTaskRunner(std::shared_ptr<threadpool::Threadpool> tp);
+  explicit WorkerThreadsTaskRunner(std::shared_ptr<threadpool::NodeThreadpool> tp);
 
   // Add task to queue for eventual Run()
   void PostTask(std::unique_ptr<v8::Task> task);
@@ -119,7 +119,7 @@ class WorkerThreadsTaskRunner {
   std::unique_ptr<DelayedTaskScheduler> delayed_task_scheduler_;
   std::unique_ptr<uv_thread_t> delayed_task_scheduler_thread_;
 
-  std::shared_ptr<threadpool::Threadpool> tp_;
+  std::shared_ptr<threadpool::NodeThreadpool> tp_;
 };
 
 class NodePlatform : public MultiIsolatePlatform {
@@ -127,7 +127,7 @@ class NodePlatform : public MultiIsolatePlatform {
   // Create a NodePlatform with its own TP
   NodePlatform(int thread_pool_size, v8::TracingController* tracing_controller);
   // Create a NodePlatform using the provided TP
-  NodePlatform(std::shared_ptr<threadpool::Threadpool> tp,
+  NodePlatform(std::shared_ptr<threadpool::NodeThreadpool> tp,
     v8::TracingController* tracing_controller);
   virtual ~NodePlatform() {}
 

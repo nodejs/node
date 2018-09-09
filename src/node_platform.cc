@@ -16,7 +16,7 @@ using v8::Platform;
 using v8::Task;
 using v8::TracingController;
 
-// Wrapper for delivery to threadpool::Threadpool.
+// Wrapper for delivery to threadpool::NodeThreadpool.
 class V8Task : public threadpool::Task {
  public:
   explicit V8Task(std::unique_ptr<v8::Task> task) {
@@ -37,7 +37,7 @@ class V8Task : public threadpool::Task {
 
 class WorkerThreadsTaskRunner::DelayedTaskScheduler {
  public:
-  explicit DelayedTaskScheduler(std::shared_ptr<threadpool::Threadpool> tp)
+  explicit DelayedTaskScheduler(std::shared_ptr<threadpool::NodeThreadpool> tp)
     : tp_(tp) {}
 
   std::unique_ptr<uv_thread_t> Start() {
@@ -146,7 +146,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   }
 
   uv_sem_t ready_;
-  std::shared_ptr<threadpool::Threadpool> tp_;
+  std::shared_ptr<threadpool::NodeThreadpool> tp_;
 
   TaskQueue<v8::Task> tasks_;
   uv_loop_t loop_;
@@ -155,7 +155,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 };
 
 WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
-  std::shared_ptr<threadpool::Threadpool> tp) {
+  std::shared_ptr<threadpool::NodeThreadpool> tp) {
   tp_ = tp;
   delayed_task_scheduler_.reset(
       new DelayedTaskScheduler(tp_));
@@ -258,12 +258,12 @@ NodePlatform::NodePlatform(int thread_pool_size,
   }
 
   // Give wttr its own TP.
-  std::shared_ptr<threadpool::Threadpool> tp =
-    std::make_shared<threadpool::Threadpool>(thread_pool_size);
+  std::shared_ptr<threadpool::NodeThreadpool> tp =
+    std::make_shared<threadpool::NodeThreadpool>(thread_pool_size);
   worker_thread_task_runner_ = std::make_shared<WorkerThreadsTaskRunner>(tp);
 }
 
-NodePlatform::NodePlatform(std::shared_ptr<threadpool::Threadpool> tp,
+NodePlatform::NodePlatform(std::shared_ptr<threadpool::NodeThreadpool> tp,
                            TracingController* tracing_controller) {
   if (tracing_controller) {
     tracing_controller_.reset(tracing_controller);

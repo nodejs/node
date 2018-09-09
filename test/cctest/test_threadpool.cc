@@ -20,6 +20,7 @@ using node::threadpool::TaskQueue;
 using node::threadpool::Worker;
 using node::threadpool::WorkerGroup;
 using node::threadpool::Threadpool;
+using node::threadpool::NodeThreadpool;
 
 // Thread-safe counters
 static std::atomic<int> testTaskRunCount(0);
@@ -173,7 +174,7 @@ TEST_F(ThreadpoolTest, ThreadpoolEndToEnd) {
   int nTasks = 100;
 
   {
-    std::unique_ptr<Threadpool> tp(new Threadpool(-1));
+    std::unique_ptr<Threadpool> tp(new Threadpool(10));
 
     // Reset globals
     testTaskRunCount = 0;
@@ -197,7 +198,7 @@ TEST_F(ThreadpoolTest, ThreadpoolBlockingDrain) {
   // Enough that we will probably have to wait for them to finish.
   int nTasks = 10000;
 
-  std::unique_ptr<Threadpool> tp(new Threadpool(-1));
+  std::unique_ptr<Threadpool> tp(new Threadpool(10));
 
   // Reset globals
   testTaskRunCount = 0;
@@ -212,25 +213,6 @@ TEST_F(ThreadpoolTest, ThreadpoolBlockingDrain) {
   tp->BlockingDrain();
   EXPECT_EQ(testTaskRunCount, nTasks);
   EXPECT_EQ(testTaskDestroyedCount, nTasks);
-}
-
-TEST_F(ThreadpoolTest, ThreadpoolSize) {
-  char* old = getenv("UV_THREADPOOL_SIZE");
-
-  int tp_size = 17;
-  char tp_size_str[4];
-  snprintf(tp_size_str, sizeof(tp_size_str), "%d", tp_size);
-
-  setenv("UV_THREADPOOL_SIZE", tp_size_str, 1);
-  std::unique_ptr<Threadpool> tp(new Threadpool(-1));
-  EXPECT_EQ(tp->NWorkers(), tp_size);
-
-  // Restore previous value of UV_THREADPOOL_SIZE.
-  if (old) {
-    setenv("UV_THREADPOOL_SIZE", old, 1);
-  } else {
-    unsetenv("UV_THREADPOOL_SIZE");
-  }
 }
 
 TEST_F(ThreadpoolTest, ThreadpoolCancel) {
@@ -273,4 +255,47 @@ TEST_F(ThreadpoolTest, ThreadpoolCancel) {
 
   // We used SlowTestTasks so we should have managed to cancel at least 1.
   EXPECT_GT(nCancelled, 0);
+}
+
+TEST_F(ThreadpoolTest, NodeThreadpoolEndToEnd) {
+  int nTasks = 100;
+
+  {
+    std::unique_ptr<NodeThreadpool> tp(new NodeThreadpool(10));
+
+    // Reset globals
+    testTaskRunCount = 0;
+    testTaskDestroyedCount = 0;
+
+    EXPECT_GT(tp->NWorkers(), 0);
+
+    // Push
+    EXPECT_EQ(tp->QueueLength(), 0);
+    for (int i = 0; i < nTasks; i++) {
+      tp->Post(std::unique_ptr<FastTestTask>(new FastTestTask()));
+    }
+  }
+  // tp leaves scope. In destructor it drains the queue.
+
+  EXPECT_EQ(testTaskRunCount, nTasks);
+  EXPECT_EQ(testTaskDestroyedCount, nTasks);
+}
+
+TEST_F(ThreadpoolTest, NodeThreadpoolSize) {
+  char* old = getenv("UV_THREADPOOL_SIZE");
+
+  int tp_size = 17;
+  char tp_size_str[4];
+  snprintf(tp_size_str, sizeof(tp_size_str), "%d", tp_size);
+
+  setenv("UV_THREADPOOL_SIZE", tp_size_str, 1);
+  std::unique_ptr<NodeThreadpool> tp(new NodeThreadpool(-1));
+  EXPECT_EQ(tp->NWorkers(), tp_size);
+
+  // Restore previous value of UV_THREADPOOL_SIZE.
+  if (old) {
+    setenv("UV_THREADPOOL_SIZE", old, 1);
+  } else {
+    unsetenv("UV_THREADPOOL_SIZE");
+  }
 }
