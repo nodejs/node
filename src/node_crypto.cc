@@ -3887,7 +3887,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   bool r = Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
       kbuf,
       klen,
-      args.Length() >= 3 && !args[2]->IsNull() ? *passphrase : nullptr,
+      args.Length() >= 4 && !args[3]->IsNull() ? *passphrase : nullptr,
       padding,
       reinterpret_cast<const unsigned char*>(buf),
       len,
