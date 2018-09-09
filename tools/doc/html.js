@@ -329,9 +329,9 @@ function parseYAML(text) {
 }
 
 function minVersion(a) {
-  if (!Array.isArray(a))
-    return a;
-  return a.reduce((min, e) => !min || versionSort(min, e) < 0 ? e : min);
+  return common.arrify(a).reduce((min, e) => {
+    return !min || versionSort(min, e) < 0 ? e : min;
+  });
 }
 
 const numberRe = /^\d*/;
