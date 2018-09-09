@@ -155,6 +155,13 @@ ByTaskTypePartitionedNodeThreadpool::ByTaskTypePartitionedNodeThreadpool(
   CHECK_GT(tp_sizes[CPU_TP_IX], 0);
 
   // IO TP size
+  if (tp_sizes[IO_TP_IX] <= 0) {
+    char buf[32];
+    size_t buf_size = sizeof(buf);
+    if (uv_os_getenv("NODE_THREADPOOL_IO_TP_SIZE", buf, &buf_size) == 0) {
+      tp_sizes[IO_TP_IX] = atoi(buf);
+    }
+  }
   if (tp_sizes[IO_TP_IX] < 0) {
     tp_sizes[IO_TP_IX] = 1 * tp_sizes[CPU_TP_IX];
   }
@@ -169,16 +176,67 @@ ByTaskTypePartitionedNodeThreadpool::~ByTaskTypePartitionedNodeThreadpool() {
 
 std::shared_ptr<TaskState> ByTaskTypePartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
   switch (task->details_.type) {
-    case TaskDetails::MEMORY:
     case TaskDetails::CPU:
-    case TaskDetails::CPU_SLOW:
-    case TaskDetails::CPU_FAST:
-    case TaskDetails::V8:
+    case TaskDetails::MEMORY:
       LOG("ByTaskTypePartitionedNodeThreadpool::Post: CPU\n");
       return tps_[CPU_TP_IX]->Post(std::move(task));
     default:
       LOG("ByTaskTypePartitionedNodeThreadpool::Post: IO\n");
       return tps_[IO_TP_IX]->Post(std::move(task));
+  }
+}
+
+/**************
+ * ByTaskOriginPartitionedNodeThreadpool
+ ***************/
+
+ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool(
+  std::vector<int> tp_sizes) : V8_TP_IX(0), LIBUV_TP_IX(1) {
+  CHECK_EQ(tp_sizes.size(), 2);
+
+  // V8 TP size
+  if (tp_sizes[V8_TP_IX] <= 0) {
+    char buf[32];
+    size_t buf_size = sizeof(buf);
+    if (uv_os_getenv("NODE_THREADPOOL_V8_TP_SIZE", buf, &buf_size) == 0) {
+      tp_sizes[V8_TP_IX] = atoi(buf);
+    }
+  }
+  if (tp_sizes[V8_TP_IX] <= 0) {
+    // No/bad env var, so take a guess.
+    tp_sizes[V8_TP_IX] = GoodCPUThreadpoolSize();
+  }
+  LOG("ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool: v8 tp size %d\n", tp_sizes[V8_TP_IX]);
+  CHECK_GT(tp_sizes[V8_TP_IX], 0);
+
+  // LIBUV TP size
+  if (tp_sizes[LIBUV_TP_IX] <= 0) {
+    char buf[32];
+    size_t buf_size = sizeof(buf);
+    if (uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size) == 0) {
+      tp_sizes[LIBUV_TP_IX] = atoi(buf);
+    }
+  }
+  if (tp_sizes[LIBUV_TP_IX] <= 0) {
+    tp_sizes[LIBUV_TP_IX] = 1 * tp_sizes[V8_TP_IX];
+  }
+  LOG("ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool: libuv tp size %d\n", tp_sizes[LIBUV_TP_IX]);
+  CHECK_GT(tp_sizes[LIBUV_TP_IX], 0);
+
+  Initialize(tp_sizes);
+}
+
+ByTaskOriginPartitionedNodeThreadpool::~ByTaskOriginPartitionedNodeThreadpool() {
+}
+
+std::shared_ptr<TaskState> ByTaskOriginPartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
+  switch (task->details_.origin) {
+    case TaskDetails::V8:
+      LOG("ByTaskOriginPartitionedNodeThreadpool::Post: V8\n");
+      return tps_[V8_TP_IX]->Post(std::move(task));
+    default:
+      LOG("ByTaskOriginPartitionedNodeThreadpool::Post: LIBUV\n");
+      return tps_[LIBUV_TP_IX]->Post(std::move(task));
   }
 }
 
@@ -244,6 +302,11 @@ void Worker::_Run(void* data) {
  ***************/
 
 Task::Task() : task_state_() {
+  details_.origin = TaskDetails::TASK_ORIGIN_UNKNOWN;
+  details_.type = TaskDetails::TASK_TYPE_UNKNOWN;
+  details_.size = TaskDetails::TASK_SIZE_UNKNOWN;
+  details_.priority = -1;
+  details_.cancelable = false;
 }
 
 void Task::SetTaskState(std::shared_ptr<TaskState> task_state) {
@@ -335,7 +398,10 @@ class LibuvTask : public Task {
     CHECK(req_);
     req_->reserved[0] = nullptr;
 
-    // Fill in TaskDetails based on opts.
+    details_.origin = TaskDetails::LIBUV;
+    details_.size = TaskDetails::TASK_SIZE_UNKNOWN;
+
+    // type
     if (opts) {
       switch (opts->type) {
         case UV_WORK_FS:
@@ -351,13 +417,13 @@ class LibuvTask : public Task {
           details_.type = TaskDetails::CPU;
           break;
         default:
-          details_.type = TaskDetails::UNKNOWN;
+          details_.type = TaskDetails::TASK_TYPE_UNKNOWN;
       }
 
       details_.priority = opts->priority;
       details_.cancelable = opts->cancelable;
     } else {
-      details_.type = TaskDetails::UNKNOWN;
+      details_.type = TaskDetails::TASK_TYPE_UNKNOWN;
       details_.priority = -1;
       details_.cancelable = false;
     }

@@ -37,7 +37,9 @@ class ThreadpoolTest : public NodeTestFixture { };
 class FastTestTask : public node::threadpool::Task {
  public:
   FastTestTask() {
-    details_.type = TaskDetails::CPU_FAST;
+    details_.origin = TaskDetails::USER;
+    details_.type = TaskDetails::CPU;
+    details_.size = TaskDetails::SMALL;
     details_.priority = -1;
     details_.cancelable = false;
   }
@@ -53,7 +55,9 @@ class FastTestTask : public node::threadpool::Task {
 class SlowTestTask : public node::threadpool::Task {
  public:
   SlowTestTask() {
-    details_.type = TaskDetails::CPU_SLOW;
+    details_.origin = TaskDetails::USER;
+    details_.type = TaskDetails::CPU;
+    details_.size = TaskDetails::LARGE;
     details_.priority = -1;
     details_.cancelable = false;
   }

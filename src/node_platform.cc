@@ -21,7 +21,9 @@ class V8Task : public threadpool::Task {
  public:
   explicit V8Task(std::unique_ptr<v8::Task> task) {
     task_ = std::move(task);
-    details_.type = threadpool::TaskDetails::V8;
+    details_.origin = threadpool::TaskDetails::V8;
+    details_.type = threadpool::TaskDetails::CPU;
+    details_.size = threadpool::TaskDetails::TASK_SIZE_UNKNOWN;
     details_.priority = -1;
     details_.cancelable = -1;
   }

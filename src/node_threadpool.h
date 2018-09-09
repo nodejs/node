@@ -67,26 +67,35 @@ class Worker {
 // This is basically a struct
 class TaskDetails {
  public:
+  enum TaskOrigin {
+       V8
+     , LIBUV
+     , USER   // N-API
+     , TASK_ORIGIN_UNKNOWN
+  };
+
   enum TaskType {
       FS
-    , FS_LIKELY_CACHED  // Likely to be bound by memory or CPU
-    , OTHER_DISK_IO
     , DNS
-    , OTHER_NETWORK_IO
     , IO
     , MEMORY
     , CPU
-    , CPU_SLOW
-    , CPU_FAST
-    , V8
-    , UNKNOWN
+    , TASK_TYPE_UNKNOWN
   };
 
+  enum TaskSize {
+      SMALL
+    , LARGE
+    , TASK_SIZE_UNKNOWN
+  };
+
+  TaskOrigin origin;
   TaskType type;
+  TaskSize size;
   int priority;  // Larger numbers signal higher priority.i
                  // Does nothing in this class.
   bool cancelable;  // If true, by some yet-to-be-determined mechanism we can
-                    // cancel this Task while it is scheduled.
+                    // cancel this Task *while* it is scheduled.
 };
 
 // Each TaskState is shared by a Task and its Post()'er.
@@ -341,6 +350,23 @@ class ByTaskTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
  private:
   int CPU_TP_IX;
   int IO_TP_IX;
+};
+
+// Splits based on task origin: V8 or libuv
+class ByTaskOriginPartitionedNodeThreadpool : public PartitionedNodeThreadpool {
+ public:
+  // tp_sizes[0] is V8, tp_sizes[1] is libuv
+  // tp_sizes[0] -1: reads NODE_THREADPOOL_V8_TP_SIZE, or guesses based on # cores
+  // tp_sizes[1] -1: reads UV_THREADPOOL_SIZE, defaults to 4
+  explicit ByTaskOriginPartitionedNodeThreadpool(std::vector<int> tp_sizes);
+  // Waits for queue to drain.
+  ~ByTaskOriginPartitionedNodeThreadpool();
+
+  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) override;
+
+ private:
+  int V8_TP_IX;
+  int LIBUV_TP_IX;
 };
 
 }  // namespace threadpool
