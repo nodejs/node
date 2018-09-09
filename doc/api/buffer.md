@@ -1632,7 +1632,7 @@ console.log(buf.readBigUInt64LE(1));
 added: v0.11.15
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -1665,7 +1665,7 @@ console.log(buf.readDoubleLE(1));
 added: v0.11.15
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -1697,7 +1697,7 @@ console.log(buf.readFloatLE(1));
 added: v0.5.0
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -1730,7 +1730,7 @@ console.log(buf.readInt8(2));
 added: v0.5.5
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -1765,7 +1765,7 @@ console.log(buf.readInt16LE(1));
 added: v0.5.5
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -1800,7 +1800,7 @@ console.log(buf.readInt32LE(1));
 added: v0.11.15
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -1836,7 +1836,7 @@ console.log(buf.readIntBE(1, 0).toString(16));
 added: v0.5.0
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -1867,7 +1867,7 @@ console.log(buf.readUInt8(2));
 added: v0.5.5
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -1904,7 +1904,7 @@ console.log(buf.readUInt16LE(2).toString(16));
 added: v0.5.5
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -1937,7 +1937,7 @@ console.log(buf.readUInt32LE(1).toString(16));
 added: v0.11.15
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -2257,7 +2257,7 @@ console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 added: v0.11.15
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -2295,7 +2295,7 @@ console.log(buf);
 added: v0.11.15
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -2332,7 +2332,7 @@ console.log(buf);
 added: v0.5.0
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -2367,7 +2367,7 @@ console.log(buf);
 added: v0.5.5
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -2403,7 +2403,7 @@ console.log(buf);
 added: v0.5.5
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -2439,7 +2439,7 @@ console.log(buf);
 added: v0.11.15
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -2477,7 +2477,7 @@ console.log(buf);
 added: v0.5.0
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -2512,7 +2512,7 @@ console.log(buf);
 added: v0.5.5
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -2552,7 +2552,7 @@ console.log(buf);
 added: v0.5.5
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
@@ -2590,7 +2590,7 @@ console.log(buf);
 added: v0.5.5
 changes:
   - version: v11.0.0-pre
-    pr-url: null
+    pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
