@@ -303,26 +303,44 @@ class NodeThreadpool {
   std::shared_ptr<Threadpool> tp_;
 };
 
-// Splits based on task type: CPU or I/O
-class SplitTaskTypeNodeThreadpool : public NodeThreadpool {
+// Maintains multiple Threadpools
+class PartitionedNodeThreadpool : public NodeThreadpool {
  public:
-  // If cpu_pool_size == -1, check UV_THREADPOOL_SIZE and then guess
-  // based on # cores.
-  // If io_pool_size == -1, uses 4x cpu_pool_size.
-  explicit SplitTaskTypeNodeThreadpool(int cpu_pool_size, int io_pool_size);
+  // So sub-classes can define their own constructors.
+  PartitionedNodeThreadpool();
+  // Create tp_sizes.size() TPs with these sizes.
+  explicit PartitionedNodeThreadpool(std::vector<int> tp_sizes);
   // Waits for queue to drain.
-  ~SplitTaskTypeNodeThreadpool();
+  ~PartitionedNodeThreadpool();
 
-  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) override;
+  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) =0;
   virtual void BlockingDrain() override;
 
   virtual int QueueLength() const override;
 
   virtual int NWorkers() const override;
 
+ protected:
+  // Permits sub-classes to compute tp_sizes as needed.
+  void Initialize(const std::vector<int>& tp_sizes);
+  std::vector<std::shared_ptr<Threadpool>> tps_;
+};
+
+// Splits based on task type: CPU or I/O
+class ByTaskTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
+ public:
+  // tp_sizes[0] is CPU, tp_sizes[1] is I/O
+  // tp_sizes[0] -1: reads NODE_THREADPOOL_CPU_TP_SIZE, or guesses based on # cores
+  // tp_sizes[1] -1: reads NODE_THREADPOOL_IO_TP_SIZE, or guesses based on # cores
+  explicit ByTaskTypePartitionedNodeThreadpool(std::vector<int> tp_sizes);
+  // Waits for queue to drain.
+  ~ByTaskTypePartitionedNodeThreadpool();
+
+  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) override;
+
  private:
-  std::shared_ptr<Threadpool> cpu_tp_;
-  std::shared_ptr<Threadpool> io_tp_;
+  int CPU_TP_IX;
+  int IO_TP_IX;
 };
 
 }  // namespace threadpool

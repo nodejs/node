@@ -291,7 +291,8 @@ static struct {
     if (!tp_type || strcmp(tp_type, "SHARED") == 0) {
       tp_ = std::make_shared<threadpool::NodeThreadpool>(-1);
     } else if (strcmp(tp_type, "SPLIT_IO_CPU") == 0) {
-      tp_ = std::make_shared<threadpool::SplitTaskTypeNodeThreadpool>(-1, -1);
+      std::vector<int> sizes{-1, -1};
+      tp_ = std::make_shared<threadpool::ByTaskTypePartitionedNodeThreadpool>(sizes);
     } else if (strcmp(tp_type, "SPLIT_V8_LIBUV") == 0) {
       CHECK(!"Not yet supported");
     } else {

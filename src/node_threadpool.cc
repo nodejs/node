@@ -84,65 +84,102 @@ int NodeThreadpool::NWorkers() const {
 }
 
 /**************
- * SplitTaskTypeNodeThreadpool
+ * PartitionedNodeThreadpool
  ***************/
 
-SplitTaskTypeNodeThreadpool::SplitTaskTypeNodeThreadpool(int cpu_pool_size, int io_pool_size) {
-  if (cpu_pool_size <= 0) {
-    // Check UV_THREADPOOL_SIZE
+PartitionedNodeThreadpool::PartitionedNodeThreadpool() {
+  LOG("PartitionedNodeThreadpool::PartitionedNodeThreadpool: default constructor\n");
+}
+
+PartitionedNodeThreadpool::PartitionedNodeThreadpool(std::vector<int> tp_sizes) {
+  LOG("PartitionedNodeThreadpool::PartitionedNodeThreadpool: vector constructor\n");
+  Initialize(tp_sizes);
+}
+
+void PartitionedNodeThreadpool::Initialize(const std::vector<int>& tp_sizes) {
+  int i = 0;
+  for (auto size : tp_sizes) {
+    LOG("PartitionedNodeThreadpool::Initialize: tp %d: %d threads\n", i, size);
+    std::shared_ptr<Threadpool> tp = std::make_shared<Threadpool>(size);
+    tps_.push_back(tp);
+    i++;
+  }
+}
+
+PartitionedNodeThreadpool::~PartitionedNodeThreadpool() {
+}
+
+void PartitionedNodeThreadpool::BlockingDrain() {
+  for (auto &tp : tps_) {
+    tp->BlockingDrain();
+  }
+}
+
+int PartitionedNodeThreadpool::QueueLength() const {
+  int sum = 0;
+  for (auto &tp : tps_) {
+    sum += tp->QueueLength();
+  }
+  return sum;
+}
+
+int PartitionedNodeThreadpool::NWorkers() const {
+  int sum = 0;
+  for (auto &tp : tps_) {
+    sum += tp->NWorkers();
+  }
+  return sum;
+}
+
+/**************
+ * ByTaskTypePartitionedNodeThreadpool
+ ***************/
+
+ByTaskTypePartitionedNodeThreadpool::ByTaskTypePartitionedNodeThreadpool(
+  std::vector<int> tp_sizes) : CPU_TP_IX(0), IO_TP_IX(1) {
+  CHECK_EQ(tp_sizes.size(), 2);
+
+  // CPU TP size
+  if (tp_sizes[CPU_TP_IX] <= 0) {
     char buf[32];
     size_t buf_size = sizeof(buf);
-    if (uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size) == 0) {
-      cpu_pool_size = atoi(buf);
+    if (uv_os_getenv("NODE_THREADPOOL_CPU_TP_SIZE", buf, &buf_size) == 0) {
+      tp_sizes[CPU_TP_IX] = atoi(buf);
     }
   }
-
-  if (cpu_pool_size <= 0) {
-    // No/bad UV_THREADPOOL_SIZE, so take a guess.
-    cpu_pool_size = GoodCPUThreadpoolSize();
+  if (tp_sizes[CPU_TP_IX] <= 0) {
+    // No/bad env var, so take a guess.
+    tp_sizes[CPU_TP_IX] = GoodCPUThreadpoolSize();
   }
-  LOG("SplitTaskTypeNodeThreadpool::SplitTaskTypeNodeThreadpool: cpu_pool_size %d\n", cpu_pool_size);
-  CHECK_GT(cpu_pool_size, 0);
+  LOG("ByTaskTypePartitionedNodeThreadpool::ByTaskTypePartitionedNodeThreadpool: cpu_pool_size %d\n", tp_sizes[CPU_TP_IX]);
+  CHECK_GT(tp_sizes[CPU_TP_IX], 0);
 
-  cpu_tp_ = std::make_shared<Threadpool>(cpu_pool_size);
-
-  if (io_pool_size < 0) {
-    io_pool_size = 4 * cpu_pool_size;
+  // IO TP size
+  if (tp_sizes[IO_TP_IX] < 0) {
+    tp_sizes[IO_TP_IX] = 1 * tp_sizes[CPU_TP_IX];
   }
-  LOG("SplitTaskTypeNodeThreadpool::SplitTaskTypeNodeThreadpool: io_pool_size %d\n", io_pool_size);
-  CHECK_GT(io_pool_size, 0);
-  io_tp_ = std::make_shared<Threadpool>(io_pool_size);
+  LOG("ByTaskTypePartitionedNodeThreadpool::ByTaskTypePartitionedNodeThreadpool: io_pool_size %d\n", tp_sizes[IO_TP_IX]);
+  CHECK_GT(tp_sizes[IO_TP_IX], 0);
+
+  Initialize(tp_sizes);
 }
 
-SplitTaskTypeNodeThreadpool::~SplitTaskTypeNodeThreadpool() {
+ByTaskTypePartitionedNodeThreadpool::~ByTaskTypePartitionedNodeThreadpool() {
 }
 
-std::shared_ptr<TaskState> SplitTaskTypeNodeThreadpool::Post(std::unique_ptr<Task> task) {
+std::shared_ptr<TaskState> ByTaskTypePartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
   switch (task->details_.type) {
     case TaskDetails::MEMORY:
     case TaskDetails::CPU:
     case TaskDetails::CPU_SLOW:
     case TaskDetails::CPU_FAST:
     case TaskDetails::V8:
-      LOG("SplitTaskTypeNodeThreadpool::Post: CPU\n");
-      return cpu_tp_->Post(std::move(task));
+      LOG("ByTaskTypePartitionedNodeThreadpool::Post: CPU\n");
+      return tps_[CPU_TP_IX]->Post(std::move(task));
     default:
-      LOG("SplitTaskTypeNodeThreadpool::Post: IO\n");
-      return io_tp_->Post(std::move(task));
+      LOG("ByTaskTypePartitionedNodeThreadpool::Post: IO\n");
+      return tps_[IO_TP_IX]->Post(std::move(task));
   }
-}
-
-void SplitTaskTypeNodeThreadpool::BlockingDrain() {
-  io_tp_->BlockingDrain();
-  cpu_tp_->BlockingDrain();
-}
-
-int SplitTaskTypeNodeThreadpool::QueueLength() const {
-  return cpu_tp_->QueueLength() + io_tp_->QueueLength();
-}
-
-int SplitTaskTypeNodeThreadpool::NWorkers() const {
-  return cpu_tp_->NWorkers() + io_tp_->NWorkers();
 }
 
 /**************
