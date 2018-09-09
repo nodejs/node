@@ -354,13 +354,6 @@ void MainThreadHandle::Reset() {
   main_thread_ = nullptr;
 }
 
-Agent* MainThreadHandle::GetInspectorAgent() {
-  Mutex::ScopedLock scoped_lock(block_lock_);
-  if (main_thread_ == nullptr)
-    return nullptr;
-  return main_thread_->inspector_agent();
-}
-
 std::unique_ptr<InspectorSessionDelegate>
 MainThreadHandle::MakeDelegateThreadSafe(
     std::unique_ptr<InspectorSessionDelegate> delegate) {

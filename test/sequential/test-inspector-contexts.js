@@ -33,7 +33,11 @@ async function testContextCreatedAndDestroyed() {
       // the PID.
       strictEqual(name.includes(`[${process.pid}]`), true);
     } else {
-      strictEqual(`${process.argv0}[${process.pid}]`, name);
+      let expects = `${process.argv0}[${process.pid}]`;
+      if (!common.isMainThread) {
+        expects = `Worker[${require('worker_threads').threadId}]`;
+      }
+      strictEqual(expects, name);
     }
     strictEqual(origin, '',
                 JSON.stringify(contextCreated));

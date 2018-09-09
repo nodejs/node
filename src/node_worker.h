@@ -12,7 +12,7 @@ namespace worker {
 // A worker thread, as represented in its parent thread.
 class Worker : public AsyncWrap {
  public:
-  Worker(Environment* env, v8::Local<v8::Object> wrap);
+  Worker(Environment* env, v8::Local<v8::Object> wrap, const std::string& url);
   ~Worker();
 
   // Run the worker. This is only called from the worker thread.
@@ -52,6 +52,7 @@ class Worker : public AsyncWrap {
   uv_loop_t loop_;
   DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
   DeleteFnPtr<Environment, FreeEnvironment> env_;
+  const std::string url_;
   v8::Isolate* isolate_ = nullptr;
   DeleteFnPtr<ArrayBufferAllocator, FreeArrayBufferAllocator>
       array_buffer_allocator_;

@@ -3,6 +3,7 @@
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
+common.skipIfWorker();
 
 const assert = require('assert');
 const cluster = require('cluster');
