@@ -19,21 +19,39 @@ class LibuvExecutor;
 
 // Threadpool components.
 class Threadpool;
+
 class TaskQueue;
+class WorkerGroup;
+
 class Task;
 class TaskDetails;
 class TaskState;
+
 class Worker;
+
+// Represents a set of Workers
+class WorkerGroup {
+ public:
+  WorkerGroup(int n_workers, std::shared_ptr<TaskQueue> tq);
+  // Assumes tq has been Stop'd by its owner.
+  ~WorkerGroup();
+
+  int Size() const;
+
+ private:
+  std::vector<std::unique_ptr<Worker>> workers_;
+};
 
 // Inhabited by a uv_thread_t.
 // Subclass to experiment, e.g.:
 //   - cancellation (a la Davis et al. 2018's Manager-Worker-Hangman approach)
 class Worker {
  public:
-  Worker();
+  Worker(std::shared_ptr<TaskQueue> tq);
 
   // Starts a thread and returns control to the caller.
-  void Start(TaskQueue* queue);
+  void Start();
+  // Join the internal uv_thread_t.
   void Join(void);
 
  protected:
@@ -41,8 +59,7 @@ class Worker {
   static void _Run(void* data);
 
   uv_thread_t self_;
-
- private:
+  std::shared_ptr<TaskQueue> tq_;
 };
 
 // This is basically a struct
@@ -246,8 +263,8 @@ class Threadpool {
   void Initialize(void);
 
   int threadpool_size_;
-  TaskQueue queue_;
-  std::vector<std::unique_ptr<Worker>> workers_;
+  std::shared_ptr<TaskQueue> task_queue_;
+  std::unique_ptr<WorkerGroup> worker_group_;
 };
 
 }  // namespace threadpool

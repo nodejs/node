@@ -23,14 +23,37 @@ namespace node {
 namespace threadpool {
 
 /**************
+ * WorkerGroup
+ ***************/
+
+WorkerGroup::WorkerGroup(int n_workers, std::shared_ptr<TaskQueue> tq)
+ : workers_() {
+  for (int i = 0; i < n_workers; i++) {
+    std::unique_ptr<Worker> worker(new Worker(tq));
+    worker->Start();
+    workers_.push_back(std::move(worker));
+  }
+}
+
+WorkerGroup::~WorkerGroup() {
+  for (auto& worker : workers_) {
+    worker->Join();
+  }
+}
+
+int WorkerGroup::Size() const {
+  return workers_.size();
+}
+
+/**************
  * Worker
  ***************/
 
-Worker::Worker() {
+Worker::Worker(std::shared_ptr<TaskQueue> tq) : tq_(tq) {
 }
 
-void Worker::Start(TaskQueue* queue) {
-  CHECK_EQ(0, uv_thread_create(&self_, _Run, reinterpret_cast<void *>(queue)));
+void Worker::Start() {
+  CHECK_EQ(0, uv_thread_create(&self_, _Run, reinterpret_cast<void *>(this)));
 }
 
 void Worker::Join(void) {
@@ -38,9 +61,10 @@ void Worker::Join(void) {
 }
 
 void Worker::_Run(void* data) {
-  TaskQueue* queue = static_cast<TaskQueue*>(data);
+  Worker* worker = static_cast<Worker*>(data);
+
   TaskState::State task_state;
-  while (std::unique_ptr<Task> task = queue->BlockingPop()) {
+  while (std::unique_ptr<Task> task = worker->tq_->BlockingPop()) {
     // May have been cancelled while queued.
     task_state = task->TryUpdateState(TaskState::ASSIGNED);
     if (task_state == TaskState::ASSIGNED) {
@@ -51,7 +75,7 @@ void Worker::_Run(void* data) {
 
     CHECK_EQ(task->TryUpdateState(TaskState::COMPLETED),
                                   TaskState::COMPLETED);
-    queue->NotifyOfCompletion();
+    worker->tq_->NotifyOfCompletion();
   }
 }
 
@@ -85,10 +109,8 @@ TaskState::State TaskState::GetState() const {
 
 bool TaskState::Cancel() {
   if (TryUpdateState(CANCELLED) == CANCELLED) {
-    LOG("TaskState::Cancel: Succeed\n");
     return true;
   }
-  LOG("TaskState::Cancel: Fail\n");
   return false;
 }
 
@@ -352,7 +374,7 @@ int TaskQueue::Length(void) const {
  ***************/
 
 Threadpool::Threadpool(int threadpool_size)
-  : threadpool_size_(threadpool_size), queue_(), workers_() {
+  : threadpool_size_(threadpool_size) {
   LOG("Threadpool::Threadpool: threadpool_size_ %d\n", threadpool_size_);
   if (threadpool_size_ <= 0) {
     // Check UV_THREADPOOL_SIZE
@@ -389,21 +411,15 @@ int Threadpool::GoodThreadpoolSize(void) {
 }
 
 void Threadpool::Initialize() {
-  for (int i = 0; i < threadpool_size_; i++) {
-    std::unique_ptr<Worker> worker(new Worker());
-    worker->Start(&queue_);
-    workers_.push_back(std::move(worker));
-  }
+  task_queue_ = std::make_shared<TaskQueue>();
+  worker_group_ = std::unique_ptr<WorkerGroup>(
+    new WorkerGroup(threadpool_size_, task_queue_));
 }
 
 Threadpool::~Threadpool(void) {
   // Block future Push's.
-  queue_.Stop();
-
-  // Workers will drain the queue and then return.
-  for (auto& worker : workers_) {
-    worker->Join();
-  }
+  task_queue_->Stop();
+  // As worker_group_ leaves scope, it drains tq and Join's its threads.
 }
 
 std::shared_ptr<TaskState> Threadpool::Post(std::unique_ptr<Task> task) {
@@ -413,21 +429,21 @@ std::shared_ptr<TaskState> Threadpool::Post(std::unique_ptr<Task> task) {
   std::shared_ptr<TaskState> task_state = std::make_shared<TaskState>();
   task->SetTaskState(task_state);
 
-  queue_.Push(std::move(task));
+  task_queue_->Push(std::move(task));
 
   return task_state;
 }
 
 int Threadpool::QueueLength(void) const {
-  return queue_.Length();
+  return task_queue_->Length();
 }
 
 void Threadpool::BlockingDrain(void) {
-  queue_.BlockingDrain();
+  task_queue_->BlockingDrain();
 }
 
 int Threadpool::NWorkers(void) const {
-  return workers_.size();
+  return worker_group_->Size();
 }
 
 }  // namespace threadpool

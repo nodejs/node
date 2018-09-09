@@ -18,6 +18,7 @@ using node::threadpool::TaskState;
 using node::threadpool::Task;
 using node::threadpool::TaskQueue;
 using node::threadpool::Worker;
+using node::threadpool::WorkerGroup;
 using node::threadpool::Threadpool;
 
 // Thread-safe counters
@@ -106,30 +107,62 @@ TEST_F(ThreadpoolTest, TaskQueueEndToEnd) {
 
 TEST_F(ThreadpoolTest, WorkersWorkWithTaskQueue) {
   int nTasks = 100;
-  TaskQueue tq;
-  Worker w;
+  std::shared_ptr<TaskQueue> tq = std::make_shared<TaskQueue>();
+  Worker w(tq);
 
   // Reset globals
   testTaskRunCount = 0;
   testTaskDestroyedCount = 0;
 
   // Push
-  EXPECT_EQ(tq.Length(), 0);
+  EXPECT_EQ(tq->Length(), 0);
   for (int i = 0; i < nTasks; i++) {
     auto task_state = std::make_shared<TaskState>();
     auto task = std::unique_ptr<FastTestTask>(new FastTestTask());
     task->SetTaskState(task_state);
-    EXPECT_EQ(tq.Push(std::move(task)), true);
+    EXPECT_EQ(tq->Push(std::move(task)), true);
   }
   // Worker hasn't started yet, so tq should be at high water mark.
-  EXPECT_EQ(tq.Length(), nTasks);
+  EXPECT_EQ(tq->Length(), nTasks);
 
   // Once we start the worker, it should empty tq.
-  w.Start(&tq);
+  w.Start();
 
-  tq.Stop();  // Signal Worker that we're done
+  tq->Stop();  // Signal Worker that we're done
   w.Join();   // Wait for Worker to finish
-  EXPECT_EQ(tq.Length(), 0);
+  EXPECT_EQ(tq->Length(), 0);
+
+  // And it should have run and destroyed every Task.
+  EXPECT_EQ(testTaskRunCount, nTasks);
+  EXPECT_EQ(testTaskDestroyedCount, nTasks);
+}
+
+TEST_F(ThreadpoolTest, WorkerGroupWorksWithTaskQueue) {
+  int nTasks = 100;
+  std::shared_ptr<TaskQueue> tq = std::make_shared<TaskQueue>();
+
+  // Reset globals
+  testTaskRunCount = 0;
+  testTaskDestroyedCount = 0;
+
+  // Push
+  EXPECT_EQ(tq->Length(), 0);
+  for (int i = 0; i < nTasks; i++) {
+    auto task_state = std::make_shared<TaskState>();
+    auto task = std::unique_ptr<FastTestTask>(new FastTestTask());
+    task->SetTaskState(task_state);
+    EXPECT_EQ(tq->Push(std::move(task)), true);
+  }
+  // Worker hasn't started yet, so tq should be at high water mark.
+  EXPECT_EQ(tq->Length(), nTasks);
+
+  {
+    // Once we create the WorkerGroup, it should empty tq.
+    WorkerGroup wg(4, tq);
+    tq->Stop();
+  } // wg leaves scope
+  // wg destructor should drain tq
+  EXPECT_EQ(tq->Length(), 0);
 
   // And it should have run and destroyed every Task.
   EXPECT_EQ(testTaskRunCount, nTasks);
