@@ -183,9 +183,6 @@ static node_module* modlist_internal;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
 
-// TODO(addaleax): This should not be global.
-static bool abort_on_uncaught_exception = false;
-
 // Bit flag used to track security reverts (see node_revert.h)
 unsigned int reverted = 0;
 
@@ -2670,7 +2667,7 @@ void ProcessArgv(std::vector<std::string>* args,
                 "--abort-on-uncaught-exception") != v8_args.end() ||
       std::find(v8_args.begin(), v8_args.end(),
                 "--abort_on_uncaught_exception") != v8_args.end()) {
-    abort_on_uncaught_exception = true;
+    env_opts->abort_on_uncaught_exception = true;
   }
 
   // TODO(bnoordhuis) Intercept --prof arguments and start the CPU profiler
@@ -3041,8 +3038,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       !v8_platform.InspectorStarted(&env)) {
     return 12;  // Signal internal error.
   }
-
-  env.set_abort_on_uncaught_exception(abort_on_uncaught_exception);
 
   // TODO(addaleax): Maybe access this option directly instead of setting
   // a boolean member of Environment. Ditto below for trace_sync_io.
