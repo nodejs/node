@@ -613,15 +613,17 @@ function skipIfInspectorDisabled() {
   if (process.config.variables.v8_enable_inspector === 0) {
     skip('V8 inspector is disabled');
   }
-  if (!isMainThread) {
-    // TODO(addaleax): Fix me.
-    skip('V8 inspector is not available in Workers');
-  }
 }
 
 function skipIf32Bits() {
   if (bits < 64) {
     skip('The tested feature is not available in 32bit builds');
+  }
+}
+
+function skipIfWorker() {
+  if (!isMainThread) {
+    skip('This test only works on a main thread');
   }
 }
 
@@ -743,6 +745,7 @@ module.exports = {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfWorker,
 
   get localhostIPv6() { return '::1'; },
 
