@@ -108,6 +108,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--prof-process",
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
+  // Options after --prof-process are passed through to the prof processor.
+  AddAlias("--prof-process", { "--prof-process", "--" });
   AddOption("--redirect-warnings",
             "write warnings to file instead of stderr",
             &EnvironmentOptions::redirect_warnings,
