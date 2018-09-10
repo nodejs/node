@@ -335,6 +335,23 @@ class PartitionedNodeThreadpool : public NodeThreadpool {
   std::vector<std::shared_ptr<Threadpool>> tps_;
 };
 
+// Splits based on task origin: V8 or libuv
+class ByTaskOriginPartitionedNodeThreadpool : public PartitionedNodeThreadpool {
+ public:
+  // tp_sizes[0] is V8, tp_sizes[1] is libuv
+  // tp_sizes[0] -1: reads NODE_THREADPOOL_V8_TP_SIZE, or guesses based on # cores
+  // tp_sizes[1] -1: reads UV_THREADPOOL_SIZE, defaults to 4
+  explicit ByTaskOriginPartitionedNodeThreadpool(std::vector<int> tp_sizes);
+  // Waits for queue to drain.
+  ~ByTaskOriginPartitionedNodeThreadpool();
+
+  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) override;
+
+ private:
+  int V8_TP_IX;
+  int LIBUV_TP_IX;
+};
+
 // Splits based on task type: CPU or I/O
 class ByTaskTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
  public:
@@ -352,21 +369,22 @@ class ByTaskTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
   int IO_TP_IX;
 };
 
-// Splits based on task origin: V8 or libuv
-class ByTaskOriginPartitionedNodeThreadpool : public PartitionedNodeThreadpool {
+// Splits based on task origin and type: V8 or libuv-{CPU or I/O}
+class ByTaskOriginAndTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
  public:
-  // tp_sizes[0] is V8, tp_sizes[1] is libuv
-  // tp_sizes[0] -1: reads NODE_THREADPOOL_V8_TP_SIZE, or guesses based on # cores
-  // tp_sizes[1] -1: reads UV_THREADPOOL_SIZE, defaults to 4
-  explicit ByTaskOriginPartitionedNodeThreadpool(std::vector<int> tp_sizes);
+  // tp_sizes[0] is V8, tp_sizes[1] is libuv-CPU, tp_sizes[2] is libuv-I/O
+  // tp_sizes[1] -1: reads NODE_THREADPOOL_UVTP_CPU_TP_SIZE, or guesses based on # cores
+  // tp_sizes[2] -1: reads NODE_THREADPOOL_UVTP_IO_TP_SIZE, or guesses based on # cores
+  explicit ByTaskOriginAndTypePartitionedNodeThreadpool(std::vector<int> tp_sizes);
   // Waits for queue to drain.
-  ~ByTaskOriginPartitionedNodeThreadpool();
+  ~ByTaskOriginAndTypePartitionedNodeThreadpool();
 
   virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) override;
 
  private:
   int V8_TP_IX;
-  int LIBUV_TP_IX;
+  int LIBUV_CPU_TP_IX;
+  int LIBUV_IO_TP_IX;
 };
 
 }  // namespace threadpool

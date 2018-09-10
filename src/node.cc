@@ -290,12 +290,15 @@ static struct {
     char *tp_type = getenv("NODE_THREADPOOL_TYPE");
     if (!tp_type || strcmp(tp_type, "SHARED") == 0) {
       tp_ = std::make_shared<threadpool::NodeThreadpool>(-1);
-    } else if (strcmp(tp_type, "SPLIT_BY_TYPE") == 0) {
-      std::vector<int> sizes{-1, -1};
-      tp_ = std::make_shared<threadpool::ByTaskTypePartitionedNodeThreadpool>(sizes);
     } else if (strcmp(tp_type, "SPLIT_BY_ORIGIN") == 0) {
       std::vector<int> sizes{-1, -1};
       tp_ = std::make_shared<threadpool::ByTaskOriginPartitionedNodeThreadpool>(sizes);
+    } else if (strcmp(tp_type, "SPLIT_BY_TYPE") == 0) {
+      std::vector<int> sizes{-1, -1};
+      tp_ = std::make_shared<threadpool::ByTaskTypePartitionedNodeThreadpool>(sizes);
+    } else if (strcmp(tp_type, "SPLIT_BY_ORIGIN_AND_TYPE") == 0) {
+      std::vector<int> sizes{-1, -1, -1};
+      tp_ = std::make_shared<threadpool::ByTaskOriginAndTypePartitionedNodeThreadpool>(sizes);
     } else {
       CHECK(0);
     }

@@ -132,6 +132,60 @@ int PartitionedNodeThreadpool::NWorkers() const {
 }
 
 /**************
+ * ByTaskOriginPartitionedNodeThreadpool
+ ***************/
+
+ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool(
+  std::vector<int> tp_sizes) : V8_TP_IX(0), LIBUV_TP_IX(1) {
+  CHECK_EQ(tp_sizes.size(), 2);
+
+  // V8 TP size
+  if (tp_sizes[V8_TP_IX] <= 0) {
+    char buf[32];
+    size_t buf_size = sizeof(buf);
+    if (uv_os_getenv("NODE_THREADPOOL_V8_TP_SIZE", buf, &buf_size) == 0) {
+      tp_sizes[V8_TP_IX] = atoi(buf);
+    }
+  }
+  if (tp_sizes[V8_TP_IX] <= 0) {
+    // No/bad env var, so take a guess.
+    tp_sizes[V8_TP_IX] = GoodCPUThreadpoolSize();
+  }
+  LOG("ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool: v8 tp size %d\n", tp_sizes[V8_TP_IX]);
+  CHECK_GT(tp_sizes[V8_TP_IX], 0);
+
+  // LIBUV TP size
+  if (tp_sizes[LIBUV_TP_IX] <= 0) {
+    char buf[32];
+    size_t buf_size = sizeof(buf);
+    if (uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size) == 0) {
+      tp_sizes[LIBUV_TP_IX] = atoi(buf);
+    }
+  }
+  if (tp_sizes[LIBUV_TP_IX] <= 0) {
+    tp_sizes[LIBUV_TP_IX] = 1 * tp_sizes[V8_TP_IX];
+  }
+  LOG("ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool: libuv tp size %d\n", tp_sizes[LIBUV_TP_IX]);
+  CHECK_GT(tp_sizes[LIBUV_TP_IX], 0);
+
+  Initialize(tp_sizes);
+}
+
+ByTaskOriginPartitionedNodeThreadpool::~ByTaskOriginPartitionedNodeThreadpool() {
+}
+
+std::shared_ptr<TaskState> ByTaskOriginPartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
+  switch (task->details_.origin) {
+    case TaskDetails::V8:
+      LOG("ByTaskOriginPartitionedNodeThreadpool::Post: V8\n");
+      return tps_[V8_TP_IX]->Post(std::move(task));
+    default:
+      LOG("ByTaskOriginPartitionedNodeThreadpool::Post: LIBUV\n");
+      return tps_[LIBUV_TP_IX]->Post(std::move(task));
+  }
+}
+
+/**************
  * ByTaskTypePartitionedNodeThreadpool
  ***************/
 
@@ -187,12 +241,12 @@ std::shared_ptr<TaskState> ByTaskTypePartitionedNodeThreadpool::Post(std::unique
 }
 
 /**************
- * ByTaskOriginPartitionedNodeThreadpool
+ * ByTaskOriginAndTypePartitionedNodeThreadpool
  ***************/
 
-ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool(
-  std::vector<int> tp_sizes) : V8_TP_IX(0), LIBUV_TP_IX(1) {
-  CHECK_EQ(tp_sizes.size(), 2);
+ByTaskOriginAndTypePartitionedNodeThreadpool::ByTaskOriginAndTypePartitionedNodeThreadpool(
+  std::vector<int> tp_sizes) : V8_TP_IX(0), LIBUV_CPU_TP_IX(1), LIBUV_IO_TP_IX(2) {
+  CHECK_EQ(tp_sizes.size(), 3);
 
   // V8 TP size
   if (tp_sizes[V8_TP_IX] <= 0) {
@@ -209,34 +263,58 @@ ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool(
   LOG("ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool: v8 tp size %d\n", tp_sizes[V8_TP_IX]);
   CHECK_GT(tp_sizes[V8_TP_IX], 0);
 
-  // LIBUV TP size
-  if (tp_sizes[LIBUV_TP_IX] <= 0) {
+  // LIBUV-CPU TP size
+  if (tp_sizes[LIBUV_CPU_TP_IX] <= 0) {
     char buf[32];
     size_t buf_size = sizeof(buf);
-    if (uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size) == 0) {
-      tp_sizes[LIBUV_TP_IX] = atoi(buf);
+    if (uv_os_getenv("NODE_THREADPOOL_UVTP_CPU_TP_SIZE", buf, &buf_size) == 0) {
+      tp_sizes[LIBUV_CPU_TP_IX] = atoi(buf);
     }
   }
-  if (tp_sizes[LIBUV_TP_IX] <= 0) {
-    tp_sizes[LIBUV_TP_IX] = 1 * tp_sizes[V8_TP_IX];
+  if (tp_sizes[LIBUV_CPU_TP_IX] <= 0) {
+    // No/bad env var, so take a guess.
+    tp_sizes[LIBUV_CPU_TP_IX] = GoodCPUThreadpoolSize();
   }
-  LOG("ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool: libuv tp size %d\n", tp_sizes[LIBUV_TP_IX]);
-  CHECK_GT(tp_sizes[LIBUV_TP_IX], 0);
+  LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::ByTaskOriginAndTypePartitionedNodeThreadpool: libuv cpu pool size %d\n", tp_sizes[LIBUV_CPU_TP_IX]);
+  CHECK_GT(tp_sizes[LIBUV_CPU_TP_IX], 0);
+
+  // IO TP size
+  if (tp_sizes[LIBUV_IO_TP_IX] <= 0) {
+    char buf[32];
+    size_t buf_size = sizeof(buf);
+    if (uv_os_getenv("NODE_THREADPOOL_UVTP_IO_TP_SIZE", buf, &buf_size) == 0) {
+      tp_sizes[LIBUV_IO_TP_IX] = atoi(buf);
+    }
+  }
+  if (tp_sizes[LIBUV_IO_TP_IX] < 0) {
+    tp_sizes[LIBUV_IO_TP_IX] = 1 * tp_sizes[LIBUV_CPU_TP_IX];
+  }
+  LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::ByTaskOriginAndTypePartitionedNodeThreadpool: libuv io pool size %d\n", tp_sizes[LIBUV_IO_TP_IX]);
+  CHECK_GT(tp_sizes[LIBUV_IO_TP_IX], 0);
 
   Initialize(tp_sizes);
 }
 
-ByTaskOriginPartitionedNodeThreadpool::~ByTaskOriginPartitionedNodeThreadpool() {
+ByTaskOriginAndTypePartitionedNodeThreadpool::~ByTaskOriginAndTypePartitionedNodeThreadpool() {
 }
 
-std::shared_ptr<TaskState> ByTaskOriginPartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
-  switch (task->details_.origin) {
-    case TaskDetails::V8:
-      LOG("ByTaskOriginPartitionedNodeThreadpool::Post: V8\n");
-      return tps_[V8_TP_IX]->Post(std::move(task));
-    default:
-      LOG("ByTaskOriginPartitionedNodeThreadpool::Post: LIBUV\n");
-      return tps_[LIBUV_TP_IX]->Post(std::move(task));
+std::shared_ptr<TaskState> ByTaskOriginAndTypePartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
+  if (task->details_.origin == TaskDetails::V8) {
+    LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::Post: V8\n");
+    return tps_[V8_TP_IX]->Post(std::move(task));
+  } else if (task->details_.origin == TaskDetails::LIBUV) {
+    switch (task->details_.type) {
+      case TaskDetails::CPU:
+      case TaskDetails::MEMORY:
+        LOG("ByTaskTypePartitionedNodeThreadpool::Post: CPU\n");
+        return tps_[LIBUV_CPU_TP_IX]->Post(std::move(task));
+      default:
+        LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::Post: I/O\n");
+        return tps_[LIBUV_IO_TP_IX]->Post(std::move(task));
+    }
+  } else {
+    LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::Post: Unexpected origin %d. Using libuv I/O pool\n", task->details_.origin);
+    return tps_[LIBUV_IO_TP_IX]->Post(std::move(task));
   }
 }
 
