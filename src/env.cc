@@ -189,6 +189,9 @@ Environment::Environment(IsolateData* isolate_data,
 
   isolate()->GetHeapProfiler()->AddBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
+  if (options_->no_force_async_hooks_checks) {
+    async_hooks_.no_force_checks();
+  }
 }
 
 Environment::~Environment() {
