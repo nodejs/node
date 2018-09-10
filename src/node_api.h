@@ -623,6 +623,10 @@ NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
 
 NAPI_EXTERN napi_status napi_fatal_exception(napi_env env, napi_value err);
 
+#endif  // NAPI_VERSION >= 3
+
+#if NAPI_VERSION >= 4
+
 NAPI_EXTERN napi_status napi_add_env_cleanup_hook(napi_env env,
                                                   void (*fun)(void* arg),
                                                   void* arg);
@@ -631,7 +635,7 @@ NAPI_EXTERN napi_status napi_remove_env_cleanup_hook(napi_env env,
                                                      void (*fun)(void* arg),
                                                      void* arg);
 
-#endif  // NAPI_VERSION >= 3
+#endif  // NAPI_VERSION >= 4
 
 #ifdef NAPI_EXPERIMENTAL
 

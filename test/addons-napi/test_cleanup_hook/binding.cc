@@ -1,3 +1,4 @@
+#define NAPI_VERSION 4
 #include "node_api.h"
 #include "uv.h"
 #include "../common.h"
