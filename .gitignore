@@ -39,6 +39,7 @@ icu_config.gypi
 .eslintcache
 node_trace.*.log
 coverage/
+compile_commands.json
 
 /out
 
