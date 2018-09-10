@@ -1529,7 +1529,7 @@ The `buf.parent` property is a deprecated alias for `buf.buffer`.
 ### buf.readBigInt128BE(offset)
 ### buf.readBigInt128LE(offset)
 <!-- YAML
-added: v11.0.0-pre
+added: REPLACEME
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1554,7 +1554,7 @@ console.log(buf.readBigInt128LE(1));
 ### buf.readBigInt64BE(offset)
 ### buf.readBigInt64LE(offset)
 <!-- YAML
-added: v11.0.0-pre
+added: REPLACEME
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1579,7 +1579,7 @@ console.log(buf.readBigInt64LE(1));
 ### buf.readBigUInt128BE(offset)
 ### buf.readBigUInt128LE(offset)
 <!-- YAML
-added: v11.0.0-pre
+added: REPLACEME
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1604,7 +1604,7 @@ console.log(buf.readBigUInt128LE(1));
 ### buf.readBigUInt64BE(offset)
 ### buf.readBigUInt64LE(offset)
 <!-- YAML
-added: v11.0.0-pre
+added: REPLACEME
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1631,7 +1631,7 @@ console.log(buf.readBigUInt64LE(1));
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -1664,7 +1664,7 @@ console.log(buf.readDoubleLE(1));
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -1696,7 +1696,7 @@ console.log(buf.readFloatLE(1));
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -1729,7 +1729,7 @@ console.log(buf.readInt8(2));
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -1764,7 +1764,7 @@ console.log(buf.readInt16LE(1));
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -1799,7 +1799,7 @@ console.log(buf.readInt32LE(1));
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -1835,9 +1835,6 @@ console.log(buf.readIntBE(1, 0).toString(16));
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: v11.0.0-pre
-    pr-url: https://github.com/nodejs/node/pull/22746
-    description: Changed internal representation to use `DataView`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
     description: Removed `noAssert` and no implicit coercion of the offset
@@ -1866,7 +1863,7 @@ console.log(buf.readUInt8(2));
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -1903,7 +1900,7 @@ console.log(buf.readUInt16LE(2).toString(16));
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -1936,7 +1933,7 @@ console.log(buf.readUInt32LE(1).toString(16));
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -2256,7 +2253,7 @@ console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -2294,7 +2291,7 @@ console.log(buf);
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -2331,7 +2328,7 @@ console.log(buf);
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -2366,7 +2363,7 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -2402,7 +2399,7 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -2438,7 +2435,7 @@ console.log(buf);
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -2476,7 +2473,7 @@ console.log(buf);
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -2511,7 +2508,7 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -2551,7 +2548,7 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
@@ -2589,7 +2586,7 @@ console.log(buf);
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: v11.0.0-pre
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22746
     description: Changed internal representation to use `DataView`.
   - version: v10.0.0
