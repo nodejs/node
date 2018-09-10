@@ -1,9 +1,12 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
+
+if (!common.isMainThread)
+  common.skip('chdir not available in workers');
 
 tmpdir.refresh();
 process.chdir(tmpdir.path);
@@ -14,7 +17,10 @@ spawnSync(process.execPath, [ '--prof', '-p', '42' ]);
 const logfile = fs.readdirSync('.').filter((name) => name.endsWith('.log'))[0];
 assert(logfile);
 
-// Make sure that the --preprocess argument is passed through correctly.
+// Make sure that the --preprocess argument is passed through correctly,
+// as an example flag listed in deps/v8/tools/tickprocessor.js.
+// Any of the other flags there should work for this test too, if --preprocess
+// is ever removed.
 const { stdout } = spawnSync(
   process.execPath,
   [ '--prof-process', '--preprocess', logfile ],
