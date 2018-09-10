@@ -23,7 +23,8 @@ function re(literals, ...values) {
       depth: 1000,
       customInspect: false,
       maxArrayLength: Infinity,
-      breakLength: Infinity
+      breakLength: Infinity,
+      sorted: true
     });
     // Need to escape special characters.
     result += str;

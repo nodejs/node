@@ -293,7 +293,7 @@ testAssertionMessage(-Infinity, '-Infinity');
 testAssertionMessage([1, 2, 3], '[\n+   1,\n+   2,\n+   3\n+ ]');
 testAssertionMessage(function f() {}, '[Function: f]');
 testAssertionMessage(function() {}, '[Function]');
-testAssertionMessage(circular, '{\n+   y: 1,\n+   x: [Circular]\n+ }');
+testAssertionMessage(circular, '{\n+   x: [Circular],\n+   y: 1\n+ }');
 testAssertionMessage({ a: undefined, b: null },
                      '{\n+   a: undefined,\n+   b: null\n+ }');
 testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
@@ -602,8 +602,8 @@ assert.throws(
     '\n' +
     '+ {}\n' +
     '- {\n' +
-    "-   loop: 'forever',\n" +
-    '-   [Symbol(nodejs.util.inspect.custom)]: [Function]\n' +
+    '-   [Symbol(nodejs.util.inspect.custom)]: [Function],\n' +
+    "-   loop: 'forever'\n" +
     '- }'
   });
 
@@ -870,9 +870,12 @@ common.expectsError(
       code: 'ERR_ASSERTION',
       name: 'AssertionError [ERR_ASSERTION]',
       message: `${start}\n${actExp}\n\n` +
-               "  Comparison {\n    name: 'TypeError',\n" +
-               "    message: 'Wrong value',\n+   code: 404\n" +
-               '-   code: 404,\n-   foo: undefined\n  }'
+               '  Comparison {\n' +
+               '    code: 404,\n' +
+               '-   foo: undefined,\n' +
+               "    message: 'Wrong value',\n" +
+               "    name: 'TypeError'\n" +
+               '  }'
     }
   );
 
@@ -884,9 +887,13 @@ common.expectsError(
       code: 'ERR_ASSERTION',
       name: 'AssertionError [ERR_ASSERTION]',
       message: `${start}\n${actExp}\n\n` +
-               "  Comparison {\n    name: 'TypeError',\n" +
-               "    message: 'Wrong value',\n+   code: 404\n" +
-               "-   code: '404',\n-   foo: undefined\n  }"
+               '  Comparison {\n' +
+               '+   code: 404,\n' +
+               "-   code: '404',\n" +
+               '-   foo: undefined,\n' +
+               "    message: 'Wrong value',\n" +
+               "    name: 'TypeError'\n" +
+               '  }'
     }
   );
 
@@ -916,8 +923,11 @@ common.expectsError(
       name: 'AssertionError [ERR_ASSERTION]',
       code: 'ERR_ASSERTION',
       message: `${start}\n${actExp}\n\n` +
-               "  Comparison {\n+   name: 'TypeError',\n-   name: 'Error'," +
-               "\n    message: 'e'\n  }"
+               '  Comparison {\n' +
+               "    message: 'e',\n" +
+               "+   name: 'TypeError'\n" +
+               "-   name: 'Error'\n" +
+               '  }'
     }
   );
   assert.throws(
@@ -927,8 +937,11 @@ common.expectsError(
       code: 'ERR_ASSERTION',
       generatedMessage: true,
       message: `${start}\n${actExp}\n\n` +
-               "  Comparison {\n    name: 'Error',\n+   message: 'foo'" +
-               "\n-   message: ''\n  }"
+               '  Comparison {\n' +
+               "+   message: 'foo',\n" +
+               "-   message: '',\n" +
+               "    name: 'Error'\n" +
+               '  }'
     }
   );
 
