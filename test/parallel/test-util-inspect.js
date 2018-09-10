@@ -1675,3 +1675,19 @@ assert.strictEqual(inspect(new BigUint64Array([0n])), 'BigUint64Array [ 0n ]');
   );
   rejection.catch(() => {});
 }
+
+assert.strictEqual(
+  inspect([1, 3, 2], { sorted: true }),
+  inspect([1, 3, 2])
+);
+assert.strictEqual(
+  inspect({ c: 3, a: 1, b: 2 }, { sorted: true }),
+  '{ a: 1, b: 2, c: 3 }'
+);
+assert.strictEqual(
+  inspect(
+    { a200: 4, a100: 1, a102: 3, a101: 2 },
+    { sorted(a, b) { return a < b; } }
+  ),
+  '{ a200: 4, a102: 3, a101: 2, a100: 1 }'
+);

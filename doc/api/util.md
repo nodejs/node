@@ -361,6 +361,9 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `sorted` option is supported now.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22756
     description: The inspection output is now limited to about 128 MB. Data
                  above that size will not be fully inspected.
@@ -426,6 +429,10 @@ changes:
     objects the same as arrays. Note that no text will be reduced below 16
     characters, no matter the `breakLength` size. For more information, see the
     example below. **Default:** `true`.
+  * `sorted` {boolean|Function} If specified, the output for all object types
+    besides arrays and typed arrays is going to be stable. If set to `true` the
+    default sort is going to be used. If set to a function, it is used as
+    [compare function][].
 * Returns: {string} The representation of passed object
 
 The `util.inspect()` method returns a string representation of `object` that is
@@ -2150,6 +2157,7 @@ Deprecated predecessor of `console.log`.
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [Common System Errors]: errors.html#errors_common_system_errors
 [async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
+[compare function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [constructor]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [list of deprecated APIS]: deprecations.html#deprecations_list_of_deprecated_apis
