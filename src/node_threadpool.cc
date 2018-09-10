@@ -10,13 +10,13 @@
 // TODO(davisjam): DO NOT MERGE. Only for debugging.
 // TODO(davisjam): There must be a better way to do this.
 #define DEBUG_LOG 1
-// #undef DEBUG_LOG
+//#undef DEBUG_LOG
 
 #ifdef DEBUG_LOG
 #include <stdio.h>
 #define LOG(...) fprintf(stderr, __VA_ARGS__)
 #else
-#define LOG(...) () 0
+#define LOG(...) (void) 0
 #endif
 
 namespace node {
@@ -107,6 +107,20 @@ void PartitionedNodeThreadpool::Initialize(const std::vector<int>& tp_sizes) {
 }
 
 PartitionedNodeThreadpool::~PartitionedNodeThreadpool() {
+  // If we just return, the destructors of the tp's will drain them.
+  // But if we want to report meaningful statistics we must drain them first.
+  for (auto &tp : tps_) {
+    tp->BlockingDrain();
+  }
+
+  for (size_t i = 0; i < tps_.size(); i++) {
+    auto &tp = tps_[i];
+    LOG("TP %lu taskSummaries:\n", i);
+    const std::vector<std::unique_ptr<TaskSummary>> &summaries = tp->GetTaskSummaries();
+    for (const std::unique_ptr<TaskSummary> &summary : summaries) {
+      LOG("  origin %d type %d queue_time %lu run_time %lu\n", summary->details_.origin, summary->details_.type, summary->time_in_queue_, summary->time_in_run_);
+    }
+  }
 }
 
 void PartitionedNodeThreadpool::BlockingDrain() {
@@ -364,14 +378,18 @@ void Worker::_Run(void* data) {
     // May have been cancelled while queued.
     task_state = task->TryUpdateState(TaskState::ASSIGNED);
     if (task_state == TaskState::ASSIGNED) {
+      task->task_state_->MarkEnteredRun();
       task->Run();
+      task->task_state_->MarkExitedRun();
     } else {
       CHECK_EQ(task_state, TaskState::CANCELLED);
+      task->task_state_->MarkEnteredRun();
+      task->task_state_->MarkExitedRun();
     }
 
     CHECK_EQ(task->TryUpdateState(TaskState::COMPLETED),
                                   TaskState::COMPLETED);
-    worker->tq_->NotifyOfCompletion();
+    worker->tq_->NotifyOfCompletion(std::move(task));
   }
 }
 
@@ -395,12 +413,24 @@ TaskState::State Task::TryUpdateState(TaskState::State new_state) {
   return task_state_->TryUpdateState(new_state);
 }
 
+/**************
+ * TaskSummary
+ ***************/
+
+TaskSummary::TaskSummary(Task* completed_task) {
+  details_ = completed_task->details_;
+  time_in_queue_ = completed_task->task_state_->TimeInQueue();
+  time_in_run_ = completed_task->task_state_->TimeInRun();
+}
 
 /**************
  * TaskState
  ***************/
 
-TaskState::TaskState() : state_(INITIAL) {
+TaskState::TaskState() : state_(INITIAL)
+  , time_in_queue_(0), time_in_run_(0)
+  , time_entered_queue_(0), time_exited_queue_(0)
+  , time_entered_run_(0), time_exited_run_(0) {
 }
 
 TaskState::State TaskState::GetState() const {
@@ -414,6 +444,23 @@ bool TaskState::Cancel() {
   }
   return false;
 }
+
+uint64_t TaskState::TimeInQueue() const {
+  Mutex::ScopedLock scoped_lock(lock_);
+  return time_in_queue_;
+}
+
+uint64_t TaskState::TimeInRun() const {
+  Mutex::ScopedLock scoped_lock(lock_);
+  return time_in_run_;
+}
+
+uint64_t TaskState::TimeInThreadpool() const {
+  Mutex::ScopedLock scoped_lock(lock_);
+  return time_in_queue_ + time_in_run_;
+}
+
+
 
 TaskState::State TaskState::TryUpdateState(TaskState::State new_state) {
   Mutex::ScopedLock scoped_lock(lock_);
@@ -444,6 +491,29 @@ bool TaskState::ValidStateTransition(TaskState::State old_state, TaskState::Stat
   return false;
 }
 
+void TaskState::MarkEnteredQueue() {
+  Mutex::ScopedLock scoped_lock(lock_);
+  time_entered_queue_ = uv_hrtime();
+}
+
+void TaskState::MarkExitedQueue() {
+  Mutex::ScopedLock scoped_lock(lock_);
+  time_exited_queue_ = uv_hrtime();
+  CHECK_GE(time_exited_queue_, time_entered_queue_);
+  time_in_queue_ = time_exited_queue_ - time_entered_queue_;
+}
+
+void TaskState::MarkEnteredRun() {
+  Mutex::ScopedLock scoped_lock(lock_);
+  time_entered_run_ = uv_hrtime();
+}
+
+void TaskState::MarkExitedRun() {
+  Mutex::ScopedLock scoped_lock(lock_);
+  time_exited_run_ = uv_hrtime();
+  CHECK_GE(time_exited_run_, time_entered_run_);
+  time_in_run_ = time_exited_run_ - time_entered_run_;
+}
 
 /**************
  * LibuvExecutor
@@ -595,11 +665,12 @@ int LibuvExecutor::uv_executor_cancel(uv_executor_t* executor,
 TaskQueue::TaskQueue()
   : lock_()
   , task_available_(), tasks_drained_()
-  , queue_(), outstanding_tasks_(0), stopped_(false) {
+  , queue_(), outstanding_tasks_(0), stopped_(false), task_summaries_() {
 }
 
 bool TaskQueue::Push(std::unique_ptr<Task> task) {
   Mutex::ScopedLock scoped_lock(lock_);
+  task->task_state_->MarkEnteredQueue();
 
   if (stopped_) {
     return false;
@@ -625,6 +696,8 @@ std::unique_ptr<Task> TaskQueue::Pop() {
   }
 
   std::unique_ptr<Task> task = std::move(queue_.front());
+  task->task_state_->MarkExitedQueue();
+
   queue_.pop();
   return task;
 }
@@ -640,18 +713,23 @@ std::unique_ptr<Task> TaskQueue::BlockingPop() {
     return std::unique_ptr<Task>(nullptr);
   }
 
-  std::unique_ptr<Task> result = std::move(queue_.front());
+  std::unique_ptr<Task> task = std::move(queue_.front());
+  task->task_state_->MarkExitedQueue();
+
   queue_.pop();
-  return result;
+  return task;
 }
 
-void TaskQueue::NotifyOfCompletion() {
+void TaskQueue::NotifyOfCompletion(std::unique_ptr<Task> completed_task) {
   Mutex::ScopedLock scoped_lock(lock_);
   outstanding_tasks_--;
   CHECK_GE(outstanding_tasks_, 0);
   if (!outstanding_tasks_) {
     tasks_drained_.Broadcast(scoped_lock);
   }
+
+  task_summaries_.push_back(
+    std::unique_ptr<TaskSummary>(new TaskSummary(completed_task.get())));
 }
 
 void TaskQueue::BlockingDrain() {
@@ -671,6 +749,10 @@ void TaskQueue::Stop() {
 int TaskQueue::Length() const {
   Mutex::ScopedLock scoped_lock(lock_);
   return queue_.size();
+}
+
+std::vector<std::unique_ptr<TaskSummary>> const& TaskQueue::GetTaskSummaries() const {
+  return task_summaries_;
 }
 
 /**************
@@ -712,6 +794,10 @@ void Threadpool::BlockingDrain() {
 
 int Threadpool::NWorkers() const {
   return worker_group_->Size();
+}
+
+std::vector<std::unique_ptr<TaskSummary>> const& Threadpool::GetTaskSummaries() const {
+  return task_queue_->GetTaskSummaries();
 }
 
 }  // namespace threadpool

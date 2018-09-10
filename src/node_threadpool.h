@@ -28,6 +28,7 @@ class WorkerGroup;
 class Task;
 class TaskDetails;
 class TaskState;
+class TaskSummary;
 
 class Worker;
 
@@ -64,6 +65,17 @@ class Worker {
   std::shared_ptr<TaskQueue> tq_;
 };
 
+// TODO(davisjam): Who should keep track of time, and for what?
+// At what level does the user want to monitor TP performance?
+// Presumably they want this info via APIs in NodeThreadpool.
+// Tracking it on a per-Task basis might be overkill. But on the other hand
+// this would permit users to dynamically identify slower and faster tasks for us.
+// Which would be cool.
+// If we track this in TaskState, then Task knows about it, and can tell TaskQueue about it,
+// which can propagate to Threadpool, which can propagate to NodeThreadpool.
+
+// TODO(davisjam): I don't like all of the 'friend class XXX' I introduced to make the time APIs compile.
+
 // This is basically a struct
 class TaskDetails {
  public:
@@ -92,7 +104,7 @@ class TaskDetails {
   TaskOrigin origin;
   TaskType type;
   TaskSize size;
-  int priority;  // Larger numbers signal higher priority.i
+  int priority;  // Larger numbers signal higher priority.
                  // Does nothing in this class.
   bool cancelable;  // If true, by some yet-to-be-determined mechanism we can
                     // cancel this Task *while* it is scheduled.
@@ -100,15 +112,16 @@ class TaskDetails {
 
 // Each TaskState is shared by a Task and its Post()'er.
 // A TaskState is a two-way communication channel:
-//  - The threadpool updates its State
-//  - The Post'er can try to Cancel it
-//
-// TODO(davisjam): Could add tracking of how long
-//  it spent in QUEUED, ASSIGNED, COMPLETED states,
-//  and what its total lifetime was.
+//  - The threadpool updates its State and TimeInX.
+//  - The Post'er can:
+//      - try to Cancel it
+//      - monitor how long it spends in the QUEUED and ASSIGNED states.
 class TaskState {
- // My friends can call TryUpdateState.
+ // My friends may TryUpdateState, update my time, etc.
  friend class Task;
+ friend class TaskQueue;
+ friend class Worker;
+ friend class TaskSummary;
 
  public:
   enum State {
@@ -127,6 +140,11 @@ class TaskState {
   // Attempt to cancel the associated Task.
   bool Cancel();
 
+  // Time in nanoseconds.
+  uint64_t TimeInQueue() const;
+  uint64_t TimeInRun() const;
+  uint64_t TimeInThreadpool() const;
+
  protected:
   // Synchronization.
   Mutex lock_;
@@ -141,6 +159,20 @@ class TaskState {
   bool ValidStateTransition(State old_state, State new_state);
 
   State state_;
+
+  void MarkEnteredQueue();
+  void MarkExitedQueue();
+  void MarkEnteredRun();
+  void MarkExitedRun();
+
+ private:
+  uint64_t time_in_queue_;
+  uint64_t time_in_run_;
+
+  uint64_t time_entered_queue_;
+  uint64_t time_exited_queue_;
+  uint64_t time_entered_run_;
+  uint64_t time_exited_run_;
 };
 
 // Abstract notion of a Task.
@@ -149,6 +181,11 @@ class TaskState {
 //  - libuv async work
 //  - User work from the N-API
 class Task {
+  // For access to task_state_'s time tracking.
+ friend class TaskQueue;   
+ friend class Worker;
+ friend class TaskSummary;
+
  public:
   // Subclasses should set details_ in their constructor.
   Task();
@@ -166,6 +203,15 @@ class Task {
 
  protected:
   std::shared_ptr<TaskState> task_state_;
+};
+
+class TaskSummary {
+ public:
+  TaskSummary(Task* completed_task);
+
+  TaskDetails details_;
+  uint64_t time_in_queue_;
+  uint64_t time_in_run_;
 };
 
 // Shim that we plug into the libuv "pluggable TP" interface.
@@ -217,7 +263,7 @@ class TaskQueue {
   std::unique_ptr<Task> BlockingPop();
 
   // Workers should call this after completing a Pop'd Task.
-  void NotifyOfCompletion();
+  void NotifyOfCompletion(std::unique_ptr<Task> completed_task);
 
   // Block until there are no Tasks pending or scheduled.
   void BlockingDrain();
@@ -227,6 +273,8 @@ class TaskQueue {
   void Stop();
 
   int Length() const;
+
+  std::vector<std::unique_ptr<TaskSummary>> const& GetTaskSummaries() const;
 
  private:
   // Synchronization.
@@ -240,6 +288,7 @@ class TaskQueue {
   std::queue<std::unique_ptr<Task>> queue_;
   int outstanding_tasks_;  // Number of Tasks in non-COMPLETED states.
   bool stopped_;
+  std::vector<std::unique_ptr<TaskSummary>> task_summaries_;   // For statistics tracking.
 };
 
 // A threadpool works on asynchronous Tasks.
@@ -267,6 +316,8 @@ class Threadpool {
 
   // Attributes
   int NWorkers() const;
+
+  std::vector<std::unique_ptr<TaskSummary>> const& GetTaskSummaries() const;
 
  protected:
   void Initialize();
@@ -309,6 +360,7 @@ class NodeThreadpool {
   int GoodCPUThreadpoolSize();
 
  private:
+  // For default implementation.
   std::shared_ptr<Threadpool> tp_;
 };
 
