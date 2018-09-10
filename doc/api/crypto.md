@@ -1731,6 +1731,9 @@ buffer containing the data encoded as DER. Note that Node.js itself does not
 accept DER, it is supported for interoperability with other libraries such as
 WebCrypto only.
 
+If this method is invoked as its [`util.promisify()`][]ed version, it returns
+a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
+
 ### crypto.generateKeyPairSync(type, options)
 <!-- YAML
 added: REPLACEME
@@ -2882,6 +2885,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`sign.update()`]: #crypto_sign_update_data_inputencoding
 [`stream.transform` options]: stream.html#stream_new_stream_transform_options
 [`stream.Writable` options]: stream.html#stream_constructor_new_stream_writable_options
+[`util.promisify()`]: util.html#util_util_promisify_original
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureformat
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption

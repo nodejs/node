@@ -13,6 +13,7 @@ const {
   publicEncrypt,
   privateDecrypt
 } = require('crypto');
+const { promisify } = require('util');
 
 // Asserts that the size of the given key (in chars or bytes) is within 10% of
 // the expected size.
@@ -238,6 +239,34 @@ function convertDERToPEM(label, der) {
       passphrase: 'top secret'
     });
   }));
+}
+
+{
+  // Test the util.promisified API with async RSA key generation.
+  promisify(generateKeyPair)('rsa', {
+    publicExponent: 0x10001,
+    modulusLength: 3072,
+    publicKeyEncoding: {
+      type: 'pkcs1',
+      format: 'pem'
+    },
+    privateKeyEncoding: {
+      type: 'pkcs1',
+      format: 'pem'
+    }
+  }).then(common.mustCall((keys) => {
+    const { publicKey, privateKey } = keys;
+    assert.strictEqual(typeof publicKey, 'string');
+    assert(pkcs1PubExp.test(publicKey));
+    assertApproximateSize(publicKey, 600);
+
+    assert.strictEqual(typeof privateKey, 'string');
+    assert(pkcs1PrivExp.test(privateKey));
+    assertApproximateSize(privateKey, 2455);
+
+    testEncryptDecrypt(publicKey, privateKey);
+    testSignVerify(publicKey, privateKey);
+  })).catch(common.mustNotCall());
 }
 
 {
