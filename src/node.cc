@@ -2896,12 +2896,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     return 12;  // Signal internal error.
   }
 
-  // TODO(addaleax): Maybe access this option directly instead of setting
-  // a boolean member of Environment. Ditto below for trace_sync_io.
-  if (env.options()->no_force_async_hooks_checks) {
-    env.async_hooks()->no_force_checks();
-  }
-
   {
     Environment::AsyncCallbackScope callback_scope(&env);
     env.async_hooks()->push_async_ids(1, 0);
