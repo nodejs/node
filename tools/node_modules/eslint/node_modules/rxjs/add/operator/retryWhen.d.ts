@@ -1,6 +1,1 @@
-import { retryWhen } from '../../operator/retryWhen';
-declare module '../../Observable' {
-    interface Observable<T> {
-        retryWhen: typeof retryWhen;
-    }
-}
+import 'rxjs-compat/add/operator/retryWhen';

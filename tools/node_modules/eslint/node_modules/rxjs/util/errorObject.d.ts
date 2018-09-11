@@ -1,1 +1,1 @@
-export declare const errorObject: any;
+export * from 'rxjs-compat/util/errorObject';

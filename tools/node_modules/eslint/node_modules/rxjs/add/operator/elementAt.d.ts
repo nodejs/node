@@ -1,6 +1,1 @@
-import { elementAt } from '../../operator/elementAt';
-declare module '../../Observable' {
-    interface Observable<T> {
-        elementAt: typeof elementAt;
-    }
-}
+import 'rxjs-compat/add/operator/elementAt';

@@ -1,6 +1,1 @@
-import { of as staticOf } from '../../observable/of';
-declare module '../../Observable' {
-    namespace Observable {
-        let of: typeof staticOf;
-    }
-}
+import 'rxjs-compat/add/observable/of';

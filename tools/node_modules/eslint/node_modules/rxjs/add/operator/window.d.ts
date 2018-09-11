@@ -1,6 +1,1 @@
-import { window } from '../../operator/window';
-declare module '../../Observable' {
-    interface Observable<T> {
-        window: typeof window;
-    }
-}
+import 'rxjs-compat/add/operator/window';

@@ -1,1 +1,1 @@
-export declare const isArrayLike: <T>(x: any) => x is ArrayLike<T>;
+export * from 'rxjs-compat/util/isArrayLike';

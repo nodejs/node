@@ -1,1 +1,0 @@
-{"version":3,"file":"publish.js","sourceRoot":"","sources":["../../src/operators/publish.ts"],"names":[],"mappings":"OACO,EAAE,OAAO,EAAE,MAAM,YAAY;OAC7B,EAAE,SAAS,EAAE,MAAM,aAAa;AAQvC,mCAAmC;AAEnC;;;;;;;;;;;;GAYG;AACH,wBAA8B,QAAiC;IAC7D,MAAM,CAAC,QAAQ;QACb,SAAS,CAAC,MAAM,IAAI,OAAO,EAAK,EAAE,QAAQ,CAAC;QAC3C,SAAS,CAAC,IAAI,OAAO,EAAK,CAAC,CAAC;AAChC,CAAC"}

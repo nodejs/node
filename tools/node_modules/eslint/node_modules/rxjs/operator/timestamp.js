@@ -1,15 +1,7 @@
 "use strict";
-var async_1 = require('../scheduler/async');
-var timestamp_1 = require('../operators/timestamp');
-/**
- * @param scheduler
- * @return {Observable<Timestamp<any>>|WebSocketSubject<T>|Observable<T>}
- * @method timestamp
- * @owner Observable
- */
-function timestamp(scheduler) {
-    if (scheduler === void 0) { scheduler = async_1.async; }
-    return timestamp_1.timestamp(scheduler)(this);
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-exports.timestamp = timestamp;
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("rxjs-compat/operator/timestamp"));
 //# sourceMappingURL=timestamp.js.map

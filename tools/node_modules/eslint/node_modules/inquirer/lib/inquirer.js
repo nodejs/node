@@ -54,6 +54,7 @@ inquirer.createPromptModule = function(opt) {
   promptModule.restoreDefaultPrompts = function() {
     this.registerPrompt('list', require('./prompts/list'));
     this.registerPrompt('input', require('./prompts/input'));
+    this.registerPrompt('number', require('./prompts/number'));
     this.registerPrompt('confirm', require('./prompts/confirm'));
     this.registerPrompt('rawlist', require('./prompts/rawlist'));
     this.registerPrompt('expand', require('./prompts/expand'));

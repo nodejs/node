@@ -1,3 +1,1 @@
-import {  AjaxObservable, AjaxCreationMethod  } from './AjaxObservable';
-
-export const ajax: AjaxCreationMethod = AjaxObservable.create;
+export * from 'rxjs-compat/observable/dom/ajax';
