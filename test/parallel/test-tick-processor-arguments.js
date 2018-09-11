@@ -7,6 +7,8 @@ const { spawnSync } = require('child_process');
 
 if (!common.isMainThread)
   common.skip('chdir not available in workers');
+if (!common.enoughTestMem)
+  common.skip('skipped due to memory requirements');
 
 tmpdir.refresh();
 process.chdir(tmpdir.path);
