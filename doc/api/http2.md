@@ -1780,9 +1780,9 @@ added: v8.4.0
 * `callback` {Function}
 * Returns: {Http2SecureServer}
 
-Used to set the timeout value for http2 server requests, 
+Used to set the timeout value for http2 secure server requests, 
 and sets a callback function that is called when there is no activity 
-on the `Http2Server` after `msecs` milliseconds. 
+on the `Http2SecureServer` after `msecs` milliseconds. 
 
 The given callback is registered as a listener on the `'timeout'` event.
 
