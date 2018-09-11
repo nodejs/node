@@ -1,0 +1,5 @@
+typedef int Test;
+
+interface Test {
+  void foo();
+};

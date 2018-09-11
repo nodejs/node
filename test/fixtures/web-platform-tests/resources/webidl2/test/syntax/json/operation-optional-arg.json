@@ -1,0 +1,99 @@
+[
+    {
+        "type": "interface",
+        "name": "ColorCreator",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "object",
+                    "extAttrs": []
+                },
+                "name": "createColor",
+                "escapedName": "createColor",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "float",
+                            "extAttrs": []
+                        },
+                        "name": "v1",
+                        "escapedName": "v1"
+                    },
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "float",
+                            "extAttrs": []
+                        },
+                        "name": "v2",
+                        "escapedName": "v2"
+                    },
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "float",
+                            "extAttrs": []
+                        },
+                        "name": "v3",
+                        "escapedName": "v3"
+                    },
+                    {
+                        "optional": true,
+                        "variadic": false,
+                        "default": {
+                            "type": "number",
+                            "value": "3.5"
+                        },
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "float",
+                            "extAttrs": []
+                        },
+                        "name": "alpha",
+                        "escapedName": "alpha"
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

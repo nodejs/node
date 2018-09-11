@@ -1,0 +1,55 @@
+[
+    {
+        "type": "interface",
+        "name": "Query",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "any",
+                    "extAttrs": []
+                },
+                "name": "lookupEntry",
+                "escapedName": "lookupEntry",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "unsigned long",
+                            "extAttrs": []
+                        },
+                        "name": "key",
+                        "escapedName": "key"
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": [
+            {
+                "name": "NoInterfaceObject",
+                "arguments": null,
+                "type": "extended-attribute",
+                "rhs": null
+            }
+        ]
+    }
+]

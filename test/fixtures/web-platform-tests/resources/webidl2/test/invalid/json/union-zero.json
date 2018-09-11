@@ -1,0 +1,4 @@
+{
+    "message": "Got an error before parsing any named definition: No type after open parenthesis or 'or' in union type",
+    "line": 1
+}

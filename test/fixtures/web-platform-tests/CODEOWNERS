@@ -1,0 +1,2 @@
+# Prevent accidentially touching CSS submodules
+/css/tools/ @plinss @kojiishi @jgraham @gsnedders

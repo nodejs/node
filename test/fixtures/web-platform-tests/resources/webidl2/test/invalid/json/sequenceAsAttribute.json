@@ -1,0 +1,4 @@
+{
+    "message":  "Got an error during or right after parsing `interface sequenceAsAttribute`: Attributes cannot accept sequence types"
+,   "line":     2
+}

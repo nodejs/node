@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `interface X`: Unterminated operation",
+    "line": 2
+}

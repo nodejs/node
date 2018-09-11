@@ -1,0 +1,240 @@
+[
+    {
+        "type": "interface",
+        "name": "ServiceWorkerGlobalScope",
+        "partial": false,
+        "members": [],
+        "inheritance": "WorkerGlobalScope",
+        "extAttrs": [
+            {
+                "name": "Global",
+                "arguments": null,
+                "type": "extended-attribute",
+                "rhs": {
+                    "type": "identifier-list",
+                    "value": [
+                        "Worker",
+                        "ServiceWorker"
+                    ]
+                }
+            },
+            {
+                "name": "Exposed",
+                "arguments": null,
+                "type": "extended-attribute",
+                "rhs": {
+                    "type": "identifier",
+                    "value": "ServiceWorker"
+                }
+            }
+        ]
+    },
+    {
+        "type": "interface",
+        "name": "IdInterface",
+        "partial": false,
+        "members": [],
+        "inheritance": null,
+        "extAttrs": [
+            {
+                "name": "IntAttr",
+                "arguments": null,
+                "type": "extended-attribute",
+                "rhs": {
+                    "type": "integer",
+                    "value": "0"
+                }
+            },
+            {
+                "name": "FloatAttr",
+                "arguments": null,
+                "type": "extended-attribute",
+                "rhs": {
+                    "type": "float",
+                    "value": "3.14"
+                }
+            },
+            {
+                "name": "StringAttr",
+                "arguments": null,
+                "type": "extended-attribute",
+                "rhs": {
+                    "type": "string",
+                    "value": "\"abc\""
+                }
+            }
+        ]
+    },
+    {
+        "type": "interface",
+        "name": "Circle",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "double",
+                    "extAttrs": []
+                },
+                "name": "r",
+                "escapedName": "r",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "double",
+                    "extAttrs": []
+                },
+                "name": "cx",
+                "escapedName": "cx",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "double",
+                    "extAttrs": []
+                },
+                "name": "cy",
+                "escapedName": "cy",
+                "extAttrs": []
+            },
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "double",
+                    "extAttrs": []
+                },
+                "name": "circumference",
+                "escapedName": "circumference",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": [
+            {
+                "name": "Constructor",
+                "arguments": null,
+                "type": "extended-attribute",
+                "rhs": null
+            },
+            {
+                "name": "Constructor",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "double",
+                            "extAttrs": []
+                        },
+                        "name": "radius",
+                        "escapedName": "radius"
+                    }
+                ],
+                "type": "extended-attribute",
+                "rhs": null
+            }
+        ]
+    },
+    {
+        "type": "interface",
+        "name": "I",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": false,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": true,
+                    "idlType": [
+                        {
+                            "type": null,
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "long",
+                            "extAttrs": []
+                        },
+                        {
+                            "type": null,
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "Node",
+                            "extAttrs": []
+                        }
+                    ],
+                    "extAttrs": [
+                        {
+                            "name": "XAttr",
+                            "arguments": null,
+                            "type": "extended-attribute",
+                            "rhs": null
+                        }
+                    ]
+                },
+                "name": "attrib",
+                "escapedName": "attrib",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": [
+            {
+                "name": "Exposed",
+                "arguments": null,
+                "type": "extended-attribute",
+                "rhs": {
+                    "type": "identifier",
+                    "value": "Window"
+                }
+            }
+        ]
+    }
+]

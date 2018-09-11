@@ -1,0 +1,36 @@
+[
+    {
+        "type": "exception",
+        "name": "DOMException",
+        "members": [
+            {
+                "type": "field",
+                "name": "code",
+                "idlType": {
+                    "sequence": false,
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "unsigned short"
+                },
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "exception",
+        "name": "HierarchyRequestError",
+        "members": [],
+        "inheritance": "DOMException",
+        "extAttrs": []
+    },
+    {
+        "type": "exception",
+        "name": "NoModificationAllowedError",
+        "members": [],
+        "inheritance": "DOMException",
+        "extAttrs": []
+    }
+]

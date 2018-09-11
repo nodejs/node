@@ -1,0 +1,4 @@
+{
+    "message":  "Got an error during or right after parsing `dictionary Dict`: Required member must not have a default"
+,   "line":     4
+}

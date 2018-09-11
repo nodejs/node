@@ -1,0 +1,50 @@
+.testrefs {
+    font-size: small;
+    margin-left: 0.2em;
+    margin-right: 0.2em;
+    border-bottom: none !important;
+
+    font-weight: normal;
+    font-style: normal;
+    white-space: normal;
+    font-family: sans-serif;
+}
+
+.kw-must, .kw-required {
+    background: #fda;
+}
+
+.kw-should {
+    background: #ffa;
+}
+
+.kw-none {
+    background: #dfa;
+}
+
+
+pre.idl .testrefs :link {
+    color: #00c;
+}
+
+pre.idl .testrefs :visited {
+    color: #609;
+}
+
+.testrefs a:hover {
+    background: transparent;
+    text-decoration: none;
+}
+
+.testrefs:before {
+    content: '[';
+}
+
+.testrefs:after {
+    content: ']';
+}
+
+.testrefs a:first-child {
+    font-weight: bold;
+    text-decoration: none;
+}

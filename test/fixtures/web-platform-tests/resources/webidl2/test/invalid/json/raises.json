@@ -1,0 +1,4 @@
+{
+    "message":  "Got an error during or right after parsing `interface Person`: Unterminated attribute"
+,   "line":     5
+}

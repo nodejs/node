@@ -1,0 +1,141 @@
+[
+    {
+        "type": "namespace",
+        "name": "VectorUtils",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Vector",
+                    "extAttrs": []
+                },
+                "name": "unit",
+                "escapedName": "unit",
+                "extAttrs": []
+            },
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "double",
+                    "extAttrs": []
+                },
+                "name": "dotProduct",
+                "escapedName": "dotProduct",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "Vector",
+                            "extAttrs": []
+                        },
+                        "name": "x",
+                        "escapedName": "x"
+                    },
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "Vector",
+                            "extAttrs": []
+                        },
+                        "name": "y",
+                        "escapedName": "y"
+                    }
+                ],
+                "extAttrs": []
+            },
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Vector",
+                    "extAttrs": []
+                },
+                "name": "crossProduct",
+                "escapedName": "crossProduct",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "Vector",
+                            "extAttrs": []
+                        },
+                        "name": "x",
+                        "escapedName": "x"
+                    },
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "Vector",
+                            "extAttrs": []
+                        },
+                        "name": "y",
+                        "escapedName": "y"
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "extAttrs": []
+    },
+    {
+        "type": "namespace",
+        "name": "SomeNamespace",
+        "partial": true,
+        "members": [],
+        "extAttrs": []
+    }
+]

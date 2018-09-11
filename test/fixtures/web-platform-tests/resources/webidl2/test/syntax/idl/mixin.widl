@@ -1,0 +1,12 @@
+// Extracted from https://heycam.github.io/webidl/#using-mixins-and-partials on 2017-11-02
+
+interface mixin GlobalCrypto {
+  readonly attribute Crypto crypto;
+};
+
+Window includes GlobalCrypto;
+WorkerGlobalScope includes GlobalCrypto;
+
+partial interface mixin WindowOrWorkerGlobalScope {
+  readonly attribute Crypto crypto;
+};

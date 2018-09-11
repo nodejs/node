@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `interface Foo`: Missing comma after record key type",
+    "line": 2
+}

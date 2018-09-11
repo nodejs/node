@@ -1,0 +1,66 @@
+[
+    {
+        "type": "interface mixin",
+        "name": "GlobalCrypto",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Crypto",
+                    "extAttrs": []
+                },
+                "name": "crypto",
+                "escapedName": "crypto",
+                "extAttrs": []
+            }
+        ],
+        "extAttrs": []
+    },
+    {
+        "type": "includes",
+        "target": "Window",
+        "includes": "GlobalCrypto",
+        "extAttrs": []
+    },
+    {
+        "type": "includes",
+        "target": "WorkerGlobalScope",
+        "includes": "GlobalCrypto",
+        "extAttrs": []
+    },
+    {
+        "type": "interface mixin",
+        "name": "WindowOrWorkerGlobalScope",
+        "partial": true,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "Crypto",
+                    "extAttrs": []
+                },
+                "name": "crypto",
+                "escapedName": "crypto",
+                "extAttrs": []
+            }
+        ],
+        "extAttrs": []
+    }
+]

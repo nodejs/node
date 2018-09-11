@@ -268,6 +268,10 @@ endif
 v8:
 	tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
+.PHONY: wpt
+wpt: all
+	$(NODE) ./test/wpt.js
+
 .PHONY: jstest
 jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
@@ -285,6 +289,7 @@ test: all ## Runs default tests, linters, and builds docs.
 	$(MAKE) -s build-addons-napi
 	$(MAKE) -s cctest
 	$(MAKE) -s jstest
+	$(MAKE) -s wpt
 
 .PHONY: test-only
 test-only: all  ## For a quick test, does not run linter or build docs.
@@ -465,6 +470,7 @@ test-ci: | clear-stalled build-addons build-addons-napi doc-only
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
+	$(NODE) test/wpt.js --tap
 	@echo "Clean up any leftover processes, error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -1100,7 +1106,8 @@ endif
 LINT_MD_TARGETS = src lib benchmark test tools/doc tools/icu
 LINT_MD_ROOT_DOCS := $(wildcard *.md)
 LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
-  -not -path '*node_modules*' -name '*.md') $(LINT_MD_ROOT_DOCS)
+  -not -path '*node_modules*' -not -path '*fixtures*' -name '*.md') \
+  $(LINT_MD_ROOT_DOCS)
 run-lint-misc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_MISC_FILES)
 # Lint other changed markdown files maintained by us
 tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)

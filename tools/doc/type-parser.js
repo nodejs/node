@@ -101,6 +101,10 @@ const customTypesMap = {
 
   'readline.Interface': 'readline.html#readline_class_interface',
 
+  'ReadableStream': 'https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream',
+  'WritableStream': 'https://developer.mozilla.org/en-US/docs/Web/API/WritableStream',
+  'TransformStream': 'https://streams.spec.whatwg.org/#ts-class',
+
   'Stream': 'stream.html#stream_stream',
   'stream.Duplex': 'stream.html#stream_class_stream_duplex',
   'stream.Readable': 'stream.html#stream_class_stream_readable',

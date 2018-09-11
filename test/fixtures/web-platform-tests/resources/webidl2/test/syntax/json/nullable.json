@@ -1,0 +1,56 @@
+[
+    {
+        "type": "interface",
+        "name": "MyConstants",
+        "partial": false,
+        "members": [
+            {
+                "type": "const",
+                "nullable": true,
+                "idlType": {
+                    "type": "const-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "boolean",
+                    "extAttrs": []
+                },
+                "name": "ARE_WE_THERE_YET",
+                "value": {
+                    "type": "boolean",
+                    "value": false
+                },
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "Node",
+        "partial": false,
+        "members": [
+            {
+                "type": "attribute",
+                "static": false,
+                "stringifier": false,
+                "inherit": false,
+                "readonly": true,
+                "idlType": {
+                    "type": "attribute-type",
+                    "generic": null,
+                    "nullable": true,
+                    "union": false,
+                    "idlType": "DOMString",
+                    "extAttrs": []
+                },
+                "name": "namespaceURI",
+                "escapedName": "namespaceURI",
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

@@ -1650,6 +1650,10 @@ static void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
     // internalBinding('natives_hash')
     exports = Object::New(env->isolate());
     DefineJavaScriptHash(env, exports);
+  } else if (!strcmp(*module_v, "v8_extras")) {
+    // override `exports` return value, GetExtrasBindingObject is persistent.
+    args.GetReturnValue().Set(env->context()->GetExtrasBindingObject());
+    return;
   } else {
     return ThrowIfNoSuchModule(env, *module_v);
   }

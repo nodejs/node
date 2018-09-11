@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `typedef Test`: The name \"Test\" of type \"typedef\" is already seen",
+    "line": 3
+}

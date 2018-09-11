@@ -1,0 +1,142 @@
+[
+    {
+        "type": "interface",
+        "name": "Canvas",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "void",
+                    "extAttrs": []
+                },
+                "name": "drawPolygon",
+                "escapedName": "drawPolygon",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": "sequence",
+                            "nullable": false,
+                            "union": false,
+                            "idlType": {
+                                "type": "argument-type",
+                                "generic": null,
+                                "nullable": false,
+                                "union": false,
+                                "idlType": "float",
+                                "extAttrs": []
+                            },
+                            "extAttrs": []
+                        },
+                        "name": "coordinates",
+                        "escapedName": "coordinates"
+                    }
+                ],
+                "extAttrs": []
+            },
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": "sequence",
+                    "nullable": false,
+                    "union": false,
+                    "idlType": {
+                        "type": "return-type",
+                        "generic": null,
+                        "nullable": false,
+                        "union": false,
+                        "idlType": "float",
+                        "extAttrs": []
+                    },
+                    "extAttrs": []
+                },
+                "name": "getInflectionPoints",
+                "escapedName": "getInflectionPoints",
+                "arguments": [],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "interface",
+        "name": "I",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "void",
+                    "extAttrs": []
+                },
+                "name": "f1",
+                "escapedName": "f1",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": "sequence",
+                            "nullable": false,
+                            "union": false,
+                            "idlType": {
+                                "type": "argument-type",
+                                "generic": null,
+                                "nullable": false,
+                                "union": false,
+                                "idlType": "long",
+                                "extAttrs": [
+                                    {
+                                        "name": "XAttr",
+                                        "arguments": null,
+                                        "type": "extended-attribute",
+                                        "rhs": null
+                                    }
+                                ]
+                            },
+                            "extAttrs": []
+                        },
+                        "name": "arg",
+                        "escapedName": "arg"
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    }
+]

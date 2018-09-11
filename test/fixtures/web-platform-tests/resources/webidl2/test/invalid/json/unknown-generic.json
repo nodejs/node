@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `interface FetchEvent`: Unsupported generic type ResponsePromise",
+    "line": 2
+}

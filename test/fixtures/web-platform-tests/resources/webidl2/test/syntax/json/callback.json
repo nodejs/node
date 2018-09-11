@@ -1,0 +1,126 @@
+[
+    {
+        "type": "callback",
+        "name": "AsyncOperationCallback",
+        "idlType": {
+            "type": "return-type",
+            "generic": null,
+            "nullable": false,
+            "union": false,
+            "idlType": "void",
+            "extAttrs": []
+        },
+        "arguments": [
+            {
+                "optional": false,
+                "variadic": false,
+                "default": null,
+                "extAttrs": [],
+                "idlType": {
+                    "type": "argument-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "DOMString",
+                    "extAttrs": []
+                },
+                "name": "status",
+                "escapedName": "status"
+            }
+        ],
+        "extAttrs": []
+    },
+    {
+        "type": "callback interface",
+        "name": "EventHandler",
+        "partial": false,
+        "members": [
+            {
+                "type": "operation",
+                "getter": false,
+                "setter": false,
+                "deleter": false,
+                "static": false,
+                "stringifier": false,
+                "idlType": {
+                    "type": "return-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "void",
+                    "extAttrs": []
+                },
+                "name": "eventOccurred",
+                "escapedName": "eventOccurred",
+                "arguments": [
+                    {
+                        "optional": false,
+                        "variadic": false,
+                        "default": null,
+                        "extAttrs": [],
+                        "idlType": {
+                            "type": "argument-type",
+                            "generic": null,
+                            "nullable": false,
+                            "union": false,
+                            "idlType": "DOMString",
+                            "extAttrs": []
+                        },
+                        "name": "details",
+                        "escapedName": "details"
+                    }
+                ],
+                "extAttrs": []
+            }
+        ],
+        "inheritance": null,
+        "extAttrs": []
+    },
+    {
+        "type": "callback",
+        "name": "SortCallback",
+        "idlType": {
+            "type": "return-type",
+            "generic": null,
+            "nullable": false,
+            "union": false,
+            "idlType": "boolean",
+            "extAttrs": []
+        },
+        "arguments": [
+            {
+                "optional": false,
+                "variadic": false,
+                "default": null,
+                "extAttrs": [],
+                "idlType": {
+                    "type": "argument-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "any",
+                    "extAttrs": []
+                },
+                "name": "a",
+                "escapedName": "a"
+            },
+            {
+                "optional": false,
+                "variadic": false,
+                "default": null,
+                "extAttrs": [],
+                "idlType": {
+                    "type": "argument-type",
+                    "generic": null,
+                    "nullable": false,
+                    "union": false,
+                    "idlType": "any",
+                    "extAttrs": []
+                },
+                "name": "b",
+                "escapedName": "b"
+            }
+        ],
+        "extAttrs": []
+    }
+]

@@ -1,0 +1,4 @@
+{
+    "message": "Got an error during or right after parsing `namespace CSS`: Attributes must be readonly in this context",
+    "line": 2
+}

@@ -1,0 +1,3 @@
+interface LegacyIterable {
+  legacyiterable<long>;
+};
