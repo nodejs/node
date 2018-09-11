@@ -5,6 +5,7 @@
 
 #include <queue>
 #include <vector>
+#include <map>
 #include <functional>
 
 #include "node.h"
@@ -243,11 +244,15 @@ class LibuvExecutor {
 
 class QueueLengthSample {
  public:
-  QueueLengthSample(int length, uint64_t time)
-   : length_(length), time_(time) {}
+  QueueLengthSample(int n_cpu, int n_io, uint64_t time)
+   : time_(time), length_(n_cpu + n_io), n_cpu_(n_cpu), n_io_(n_io) { }
  
-  int length_;
   uint64_t time_;
+
+  int length_;
+  // Length = sum of these
+  int n_cpu_;
+  int n_io_;
 };
 
 // Abstract notion of a queue of Tasks.
@@ -289,7 +294,7 @@ class TaskQueue {
 
  private:
   // Caller must hold lock_.
-  void UpdateLength(bool grew);
+  void UpdateLength(Task* task, bool grew);
 
   int id_;
 
@@ -306,7 +311,9 @@ class TaskQueue {
   bool stopped_;
 
   // For statistics tracking.
-  int length_;
+  int n_cpu_in_queue_;
+  int n_io_in_queue_;
+
   int n_changes_since_last_length_sample_;
   int length_report_freq_;
   std::vector<std::unique_ptr<TaskSummary>> task_summaries_;
@@ -419,6 +426,11 @@ class PartitionedNodeThreadpool : public NodeThreadpool {
   // Sub-classes should call this after computing tp_sizes in their c'tors.
   void Initialize(const std::vector<int>& tp_sizes);
   std::vector<std::shared_ptr<Threadpool>> tps_;
+
+  // Sub-classes should populate these.
+  // Helps with statistics reporting
+  std::map<int, std::string> tp_labels_;
+  std::map<int, int> tp_sizes_;
 };
 
 // This is the same as a NodeThreadpool, but by inheriting from PartitionedNodeThreadpool

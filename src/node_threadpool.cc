@@ -6,6 +6,10 @@
 #include "util.h"
 
 #include <algorithm>
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 
 // TODO(davisjam): DO NOT MERGE. Only for debugging.
 // TODO(davisjam): There must be a better way to do this.
@@ -13,9 +17,10 @@
 //#undef DEBUG_LOG
 
 #ifdef DEBUG_LOG
-#include <stdio.h>
-#define LOG(...) fprintf(stderr, __VA_ARGS__)
+#define LOG_TO_FILE(fd, ...) fprintf(fd, __VA_ARGS__)
+#define LOG(...) LOG_TO_FILE(stderr, __VA_ARGS__)
 #else
+#define LOG_TO_FILE(...) (void) 0
 #define LOG(...) (void) 0
 #endif
 
@@ -113,6 +118,23 @@ PartitionedNodeThreadpool::~PartitionedNodeThreadpool() {
     tp->BlockingDrain();
   }
 
+  // TODO(davisjam) Let's hope the application didn't make more than one of these :-D.
+  char logFile[128];
+  snprintf(logFile, sizeof(logFile), "/tmp/node-%d-PartitionedNodeThreadpool-result.log", getpid());
+  FILE* fd = fopen(logFile, "w");
+  CHECK(fd);
+
+  // Emit records in machine-parseable format as well as human-readable.
+  // We want to be able to easily grep for and extract lines into data frames
+  // so we can slice and dice quickly.
+  LOG_TO_FILE(fd, "TP key format: TP,name,size\n");
+  for (auto pair : tp_labels_) {
+    LOG_TO_FILE(fd, "TP key: %d,%s,%d\n", pair.first, tp_labels_[pair.first].c_str(), tp_sizes_[pair.first]);
+  }
+
+  LOG_TO_FILE(fd, "QueueLengths data format: TP,queue-length,n_cpu,n_io,time\n");
+  LOG_TO_FILE(fd, "TaskSummary data format: TP,task-origin,task-type,queue_time,run_time\n");
+
   for (size_t i = 0; i < tps_.size(); i++) {
     auto &tp = tps_[i];
     LOG("Report on TP %d\n", tp->Id());
@@ -121,11 +143,9 @@ PartitionedNodeThreadpool::~PartitionedNodeThreadpool() {
     LOG("  TP %d: Lengths at the %lu update intervals:\n", tp->Id(), lengths.size());
 
     if (lengths.size()) {
-      // Print time relative to the first entry.
-      uint64_t prev_time = lengths[0]->time_;
       for (const std::unique_ptr<QueueLengthSample> &length : lengths) {
-        LOG("    TP %d length %d time-step %lu\n", tp->Id(), length->length_, length->time_ - prev_time);
-        prev_time = length->time_;
+        LOG("    TP %d length %d n-cpu %d n-io %d time %lu\n", tp->Id(), length->length_, length->n_cpu_, length->n_io_, length->time_);
+        LOG_TO_FILE(fd, "QueueLengths data: %d,%d,%d,%d,%lu\n", tp->Id(), length->length_, length->n_cpu_, length->n_io_, length->time_);
       }
     }
 
@@ -133,6 +153,7 @@ PartitionedNodeThreadpool::~PartitionedNodeThreadpool() {
     LOG("  TP %d: Task summaries for the %lu tasks:\n", tp->Id(), summaries.size());
     for (const std::unique_ptr<TaskSummary> &summary : summaries) {
       LOG("    TP %d origin %d type %d queue_time %lu run_time %lu\n", tp->Id(), summary->details_.origin, summary->details_.type, summary->time_in_queue_, summary->time_in_run_);
+      LOG_TO_FILE(fd, "TaskSummary data: %d,%d,%d,%lu,%lu\n", tp->Id(), summary->details_.origin, summary->details_.type, summary->time_in_queue_, summary->time_in_run_);
     }
   }
 }
@@ -189,6 +210,9 @@ UnpartitionedPartitionedNodeThreadpool::UnpartitionedPartitionedNodeThreadpool(
   CHECK_GT(tp_sizes[ONLY_TP_IX], 0);
 
   Initialize(tp_sizes);
+
+  tp_labels_[ONLY_TP_IX] = "Universal TP";
+  tp_sizes_[ONLY_TP_IX] = tp_sizes[ONLY_TP_IX];
 }
 
 UnpartitionedPartitionedNodeThreadpool::~UnpartitionedPartitionedNodeThreadpool() {
@@ -236,6 +260,11 @@ ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool(
   CHECK_GT(tp_sizes[LIBUV_TP_IX], 0);
 
   Initialize(tp_sizes);
+
+  tp_labels_[V8_TP_IX] = "V8 TP";
+  tp_sizes_[V8_TP_IX] = tp_sizes[V8_TP_IX];
+  tp_labels_[LIBUV_TP_IX] = "Libuv TP";
+  tp_sizes_[LIBUV_TP_IX] = tp_sizes[LIBUV_TP_IX];
 }
 
 ByTaskOriginPartitionedNodeThreadpool::~ByTaskOriginPartitionedNodeThreadpool() {
@@ -290,6 +319,11 @@ ByTaskTypePartitionedNodeThreadpool::ByTaskTypePartitionedNodeThreadpool(
   CHECK_GT(tp_sizes[IO_TP_IX], 0);
 
   Initialize(tp_sizes);
+
+  tp_labels_[CPU_TP_IX] = "CPU TP";
+  tp_sizes_[CPU_TP_IX] = tp_sizes[CPU_TP_IX];
+  tp_labels_[IO_TP_IX] = "IO TP";
+  tp_sizes_[IO_TP_IX] = tp_sizes[IO_TP_IX];
 }
 
 ByTaskTypePartitionedNodeThreadpool::~ByTaskTypePartitionedNodeThreadpool() {
@@ -299,6 +333,7 @@ int ByTaskTypePartitionedNodeThreadpool::ChooseThreadpool(Task* task) const {
   switch (task->details_.type) {
     case TaskDetails::CPU:
     case TaskDetails::MEMORY:
+    case TaskDetails::TASK_TYPE_UNKNOWN:
       LOG("ByTaskTypePartitionedNodeThreadpool::ChooseThreadpool: CPU\n");
       return CPU_TP_IX;
     default:
@@ -360,6 +395,13 @@ ByTaskOriginAndTypePartitionedNodeThreadpool::ByTaskOriginAndTypePartitionedNode
   CHECK_GT(tp_sizes[LIBUV_IO_TP_IX], 0);
 
   Initialize(tp_sizes);
+
+  tp_labels_[V8_TP_IX] = "V8 TP";
+  tp_sizes_[V8_TP_IX] = tp_sizes[V8_TP_IX];
+  tp_labels_[LIBUV_CPU_TP_IX] = "Libuv CPU TP";
+  tp_sizes_[LIBUV_CPU_TP_IX] = tp_sizes[LIBUV_CPU_TP_IX];
+  tp_labels_[LIBUV_IO_TP_IX] = "Libuv IO TP";
+  tp_sizes_[LIBUV_IO_TP_IX] = tp_sizes[LIBUV_IO_TP_IX];
 }
 
 ByTaskOriginAndTypePartitionedNodeThreadpool::~ByTaskOriginAndTypePartitionedNodeThreadpool() {
@@ -373,6 +415,7 @@ int ByTaskOriginAndTypePartitionedNodeThreadpool::ChooseThreadpool(Task* task) c
     switch (task->details_.type) {
       case TaskDetails::CPU:
       case TaskDetails::MEMORY:
+      case TaskDetails::TASK_TYPE_UNKNOWN:
         LOG("ByTaskTypePartitionedNodeThreadpool::ChooseThreadpool: CPU\n");
         return LIBUV_CPU_TP_IX;
       default:
@@ -719,7 +762,7 @@ TaskQueue::TaskQueue(int id)
   : id_(id), lock_()
   , task_available_(), tasks_drained_()
   , queue_(), outstanding_tasks_(0), stopped_(false)
-  , length_(0), n_changes_since_last_length_sample_(0), length_report_freq_(10)
+  , n_cpu_in_queue_(0), n_io_in_queue_(0), n_changes_since_last_length_sample_(0), length_report_freq_(10)
   , task_summaries_(), queue_lengths_() {
 }
 
@@ -736,27 +779,36 @@ bool TaskQueue::Push(std::unique_ptr<Task> task) {
   TaskState::State task_state = task->TryUpdateState(TaskState::QUEUED);
   CHECK(task_state == TaskState::QUEUED || task_state == TaskState::CANCELLED);
 
+  UpdateLength(task.get(), true);
   queue_.push(std::move(task));
-  UpdateLength(true);
   outstanding_tasks_++;
   task_available_.Signal(scoped_lock);
 
   return true;
 }
 
-void TaskQueue::UpdateLength(bool grew) {
-  if (grew) {
-    length_++;
+void TaskQueue::UpdateLength(Task* task, bool grew) {
+  int *counter = nullptr;
+  if (task->details_.type == TaskDetails::CPU
+   || task->details_.type == TaskDetails::MEMORY
+   || task->details_.type == TaskDetails::TASK_TYPE_UNKNOWN) {
+    counter = &n_cpu_in_queue_;
   } else {
-    length_--;
+    counter = &n_io_in_queue_;
   }
-  CHECK_GE(length_, 0);
+
+  if (grew) {
+    (*counter)++;
+  } else {
+    (*counter)--;
+  }
+  CHECK_GE(*counter, 0);
 
   n_changes_since_last_length_sample_++;
   if (n_changes_since_last_length_sample_ == length_report_freq_) {
     queue_lengths_.push_back(
       std::unique_ptr<QueueLengthSample>(
-        new QueueLengthSample(length_, uv_hrtime())));
+        new QueueLengthSample(n_cpu_in_queue_, n_io_in_queue_, uv_hrtime())));
     n_changes_since_last_length_sample_ = 0;
   }
 }
@@ -772,7 +824,7 @@ std::unique_ptr<Task> TaskQueue::Pop() {
   task->task_state_->MarkExitedQueue();
 
   queue_.pop();
-  UpdateLength(false);
+  UpdateLength(task.get(), false);
   return task;
 }
 
@@ -791,7 +843,7 @@ std::unique_ptr<Task> TaskQueue::BlockingPop() {
   task->task_state_->MarkExitedQueue();
 
   queue_.pop();
-  UpdateLength(false);
+  UpdateLength(task.get(), false);
   return task;
 }
 
@@ -823,8 +875,9 @@ void TaskQueue::Stop() {
 
 int TaskQueue::Length() const {
   Mutex::ScopedLock scoped_lock(lock_);
-  CHECK_EQ(queue_.size(), length_);
-  return length_;
+  int length = n_cpu_in_queue_ + n_io_in_queue_;
+  CHECK_EQ(queue_.size(), length);
+  return length;
 }
 
 std::vector<std::unique_ptr<TaskSummary>> const& TaskQueue::GetTaskSummaries() const {
