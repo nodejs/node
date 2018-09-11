@@ -1644,7 +1644,7 @@ on the `Http2Server` after `msecs` milliseconds.
 
 The given callback is registered as a listener on the `'timeout'` event.
 
-In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` 
+In case of no callback function were assigned, a new `ERR_INVALID_CALLBACK` 
 error will be thrown.
 
 ### Class: Http2SecureServer
@@ -1786,7 +1786,7 @@ on the `Http2Server` after `msecs` milliseconds.
 
 The given callback is registered as a listener on the `'timeout'` event.
 
-In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` 
+In case of no callback function were assigned, a new `ERR_INVALID_CALLBACK` 
 error will be thrown.
 
 ### http2.createServer(options[, onRequestHandler])
