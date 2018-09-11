@@ -118,9 +118,16 @@ PartitionedNodeThreadpool::~PartitionedNodeThreadpool() {
     LOG("TP %lu taskSummaries:\n", i);
     const std::vector<std::unique_ptr<TaskSummary>> &summaries = tp->GetTaskSummaries();
     for (const std::unique_ptr<TaskSummary> &summary : summaries) {
-      LOG("  origin %d type %d queue_time %lu run_time %lu\n", summary->details_.origin, summary->details_.type, summary->time_in_queue_, summary->time_in_run_);
+      LOG("  TP %lu origin %d type %d queue_time %lu run_time %lu\n", i, summary->details_.origin, summary->details_.type, summary->time_in_queue_, summary->time_in_run_);
     }
   }
+}
+
+std::shared_ptr<TaskState> PartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
+  int tp = ChooseThreadpool(task.get());
+  CHECK_GE(tp, 0);
+  CHECK_LT(tp, tps_.size());
+  return tps_[tp]->Post(std::move(task));
 }
 
 void PartitionedNodeThreadpool::BlockingDrain() {
@@ -188,14 +195,14 @@ ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool(
 ByTaskOriginPartitionedNodeThreadpool::~ByTaskOriginPartitionedNodeThreadpool() {
 }
 
-std::shared_ptr<TaskState> ByTaskOriginPartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
+int ByTaskOriginPartitionedNodeThreadpool::ChooseThreadpool(Task* task) const {
   switch (task->details_.origin) {
     case TaskDetails::V8:
-      LOG("ByTaskOriginPartitionedNodeThreadpool::Post: V8\n");
-      return tps_[V8_TP_IX]->Post(std::move(task));
+      LOG("ByTaskOriginPartitionedNodeThreadpool::ChooseThreadpool: V8\n");
+      return V8_TP_IX;
     default:
-      LOG("ByTaskOriginPartitionedNodeThreadpool::Post: LIBUV\n");
-      return tps_[LIBUV_TP_IX]->Post(std::move(task));
+      LOG("ByTaskOriginPartitionedNodeThreadpool::ChooseThreadpool: LIBUV\n");
+      return LIBUV_TP_IX;
   }
 }
 
@@ -242,15 +249,15 @@ ByTaskTypePartitionedNodeThreadpool::ByTaskTypePartitionedNodeThreadpool(
 ByTaskTypePartitionedNodeThreadpool::~ByTaskTypePartitionedNodeThreadpool() {
 }
 
-std::shared_ptr<TaskState> ByTaskTypePartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
+int ByTaskTypePartitionedNodeThreadpool::ChooseThreadpool(Task* task) const {
   switch (task->details_.type) {
     case TaskDetails::CPU:
     case TaskDetails::MEMORY:
-      LOG("ByTaskTypePartitionedNodeThreadpool::Post: CPU\n");
-      return tps_[CPU_TP_IX]->Post(std::move(task));
+      LOG("ByTaskTypePartitionedNodeThreadpool::ChooseThreadpool: CPU\n");
+      return CPU_TP_IX;
     default:
-      LOG("ByTaskTypePartitionedNodeThreadpool::Post: IO\n");
-      return tps_[IO_TP_IX]->Post(std::move(task));
+      LOG("ByTaskTypePartitionedNodeThreadpool::ChooseThreadpool: IO\n");
+      return IO_TP_IX;
   }
 }
 
@@ -312,23 +319,23 @@ ByTaskOriginAndTypePartitionedNodeThreadpool::ByTaskOriginAndTypePartitionedNode
 ByTaskOriginAndTypePartitionedNodeThreadpool::~ByTaskOriginAndTypePartitionedNodeThreadpool() {
 }
 
-std::shared_ptr<TaskState> ByTaskOriginAndTypePartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
+int ByTaskOriginAndTypePartitionedNodeThreadpool::ChooseThreadpool(Task* task) const {
   if (task->details_.origin == TaskDetails::V8) {
-    LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::Post: V8\n");
-    return tps_[V8_TP_IX]->Post(std::move(task));
+    LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::ChooseThreadpool: V8\n");
+    return V8_TP_IX;
   } else if (task->details_.origin == TaskDetails::LIBUV) {
     switch (task->details_.type) {
       case TaskDetails::CPU:
       case TaskDetails::MEMORY:
-        LOG("ByTaskTypePartitionedNodeThreadpool::Post: CPU\n");
-        return tps_[LIBUV_CPU_TP_IX]->Post(std::move(task));
+        LOG("ByTaskTypePartitionedNodeThreadpool::ChooseThreadpool: CPU\n");
+        return LIBUV_CPU_TP_IX;
       default:
-        LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::Post: I/O\n");
-        return tps_[LIBUV_IO_TP_IX]->Post(std::move(task));
+        LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::ChooseThreadpool: I/O\n");
+        return LIBUV_IO_TP_IX;
     }
   } else {
-    LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::Post: Unexpected origin %d. Using libuv I/O pool\n", task->details_.origin);
-    return tps_[LIBUV_IO_TP_IX]->Post(std::move(task));
+    LOG("ByTaskOriginAndTypePartitionedNodeThreadpool::ChooseThreadpool: Unexpected origin %d. Using libuv I/O pool\n", task->details_.origin);
+    return LIBUV_IO_TP_IX;
   }
 }
 
@@ -427,7 +434,7 @@ TaskSummary::TaskSummary(Task* completed_task) {
  * TaskState
  ***************/
 
-TaskState::TaskState() : state_(INITIAL)
+TaskState::TaskState() : lock_(), state_(INITIAL)
   , time_in_queue_(0), time_in_run_(0)
   , time_entered_queue_(0), time_exited_queue_(0)
   , time_entered_run_(0), time_exited_run_(0) {

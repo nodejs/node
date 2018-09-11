@@ -255,6 +255,7 @@ class TaskQueue {
   TaskQueue();
 
   // Return true if Push succeeds, else false.
+  // Thread-safe.
   bool Push(std::unique_ptr<Task> task);
 
   // Non-blocking Pop. Returns nullptr if queue is empty.
@@ -304,9 +305,14 @@ class Threadpool {
   // Waits for queue to drain.
   ~Threadpool();
 
+  // Thread-safe.
   // Returns a TaskState by which caller can track the progress of the Task.
   // Caller can also use the TaskState to cancel the Task.
   // Returns nullptr on failure.
+  // TODO(davisjam): It should not return nullptr on failure.
+  // Then the task would be destroyed!
+  // Since the underlying queues should not be Stop'd until the Threadpool d'tor,
+  // I think it's reasonable that Post will *never* fail.
   std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task);
   // Block until there are no tasks pending or scheduled in the TP.
   void BlockingDrain();
@@ -374,7 +380,9 @@ class PartitionedNodeThreadpool : public NodeThreadpool {
   // Waits for queue to drain.
   ~PartitionedNodeThreadpool();
 
-  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) =0;
+  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task);
+  // Sub-class can use our Post, but needs to tell us which TP to use.
+  virtual int ChooseThreadpool(Task* task) const =0;
   virtual void BlockingDrain() override;
 
   virtual int QueueLength() const override;
@@ -382,7 +390,7 @@ class PartitionedNodeThreadpool : public NodeThreadpool {
   virtual int NWorkers() const override;
 
  protected:
-  // Permits sub-classes to compute tp_sizes as needed.
+  // Sub-classes should call this after computing tp_sizes in their c'tors.
   void Initialize(const std::vector<int>& tp_sizes);
   std::vector<std::shared_ptr<Threadpool>> tps_;
 };
@@ -397,7 +405,7 @@ class ByTaskOriginPartitionedNodeThreadpool : public PartitionedNodeThreadpool {
   // Waits for queue to drain.
   ~ByTaskOriginPartitionedNodeThreadpool();
 
-  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) override;
+  int ChooseThreadpool(Task* task) const;
 
  private:
   int V8_TP_IX;
@@ -414,7 +422,7 @@ class ByTaskTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
   // Waits for queue to drain.
   ~ByTaskTypePartitionedNodeThreadpool();
 
-  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) override;
+  int ChooseThreadpool(Task* task) const;
 
  private:
   int CPU_TP_IX;
@@ -431,7 +439,7 @@ class ByTaskOriginAndTypePartitionedNodeThreadpool : public PartitionedNodeThrea
   // Waits for queue to drain.
   ~ByTaskOriginAndTypePartitionedNodeThreadpool();
 
-  virtual std::shared_ptr<TaskState> Post(std::unique_ptr<Task> task) override;
+  int ChooseThreadpool(Task* task) const;
 
  private:
   int V8_TP_IX;
