@@ -1617,6 +1617,23 @@ The `'timeout'` event is emitted when there is no activity on the Server for
 a given number of milliseconds set using `http2server.setTimeout()`.
 **Default:** 2 minutes.
 
+#### server.setTimeout([msecs][, callback])
+<!-- YAML
+added: v8.4.0
+-->
+
+* `msecs` {number} **Default:** `120000` (2 minutes)
+* `callback` {Function}
+* Returns: {Http2SecureServer}
+
+Sets the timeout value for http2 secure server requests, and emits a `'timeout'` event on
+the Server object if a timeout occurs.
+
+By default, the Server's timeout value is 2 minutes, if a callback is assigned
+to the Server's `'timeout'` event, timeouts must be handled explicitly.
+
+In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` error will be throwen.
+
 #### server.close([callback])
 <!-- YAML
 added: v8.4.0
@@ -1740,6 +1757,23 @@ The `'unknownProtocol'` event is emitted when a connecting client fails to
 negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
 receives the socket for handling. If no listener is registered for this event,
 the connection is terminated. See the [Compatibility API][].
+
+#### server.setTimeout([msecs][, callback])
+<!-- YAML
+added: v8.4.0
+-->
+
+* `msecs` {number} **Default:** `120000` (2 minutes)
+* `callback` {Function}
+* Returns: {Http2SecureServer}
+
+Sets the timeout value for http2 secure server requests, and emits a `'timeout'` event on
+the Server object if a timeout occurs.
+
+By default, the Server's timeout value is 2 minutes, if a callback is assigned
+to the Server's `'timeout'` event, timeouts must be handled explicitly.
+
+In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` error will be throwen.
 
 #### server.close([callback])
 <!-- YAML
