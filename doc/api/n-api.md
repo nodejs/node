@@ -105,6 +105,15 @@ opt-in to access those APIs:
 In this case the entire API surface, including any experimental APIs, will be
 available to the module code.
 
+### Badges
+The use of badges is recommended to indicate the minimum version of N-API required for the module. This helps to determine which Node.js major versions are supported. The following badges are available:
+
+![N--API-v1-green](https://img.shields.io/badge/N--API-v1-green.svg)
+![N--API-v2-green](https://img.shields.io/badge/N--API-v2-green.svg)
+![N--API-v3-green](https://img.shields.io/badge/N--API-v3-green.svg)
+![N--API-experimental-orange](https://img.shields.io/badge/N--API-experimental-orange.svg)
+
+
 ## N-API Version Matrix
 
 |       | 1       | 2        | 3        |
