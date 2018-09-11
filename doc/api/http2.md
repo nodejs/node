@@ -1617,24 +1617,6 @@ The `'timeout'` event is emitted when there is no activity on the Server for
 a given number of milliseconds set using `http2server.setTimeout()`.
 **Default:** 2 minutes.
 
-#### server.setTimeout([msecs][, callback])
-<!-- YAML
-added: v8.4.0
--->
-
-* `msecs` {number} **Default:** `120000` (2 minutes)
-* `callback` {Function}
-* Returns: {Http2Server}
-
-Used to set the timeout value for http2 secure server requests, 
-and sets a callback function that is called when there is no activity 
-on the Http2Server after `msecs` milliseconds. 
-
-The given callback is registered as a listener on the 'timeout' event.
-
-In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` 
-error will be throw.
-
 #### server.close([callback])
 <!-- YAML
 added: v8.4.0
@@ -1646,6 +1628,24 @@ Stops the server from accepting new connections.  See [`net.Server.close()`][].
 Note that this is not analogous to restricting new requests since HTTP/2
 connections are persistent. To achieve a similar graceful shutdown behavior,
 consider also using [`http2session.close()`] on active sessions.
+
+#### server.setTimeout([msecs][, callback])
+<!-- YAML
+added: v8.4.0
+-->
+
+* `msecs` {number} **Default:** `120000` (2 minutes)
+* `callback` {Function}
+* Returns: {Http2Server}
+
+Used to set the timeout value for http2 server requests, 
+and sets a callback function that is called when there is no activity 
+on the `Http2Server` after `msecs` milliseconds. 
+
+The given callback is registered as a listener on the `'timeout'` event.
+
+In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` 
+error will be thrown.
 
 ### Class: Http2SecureServer
 <!-- YAML
@@ -1759,24 +1759,6 @@ negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
 receives the socket for handling. If no listener is registered for this event,
 the connection is terminated. See the [Compatibility API][].
 
-#### server.setTimeout([msecs][, callback])
-<!-- YAML
-added: v8.4.0
--->
-
-* `msecs` {number} **Default:** `120000` (2 minutes)
-* `callback` {Function}
-* Returns: {Http2Server}
-
-Used to set the timeout value for http2 secure server requests, 
-and sets a callback function that is called when there is no activity 
-on the Http2Server after `msecs` milliseconds. 
-
-The given callback is registered as a listener on the 'timeout' event.
-
-In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` 
-error will be throw.
-
 #### server.close([callback])
 <!-- YAML
 added: v8.4.0
@@ -1788,6 +1770,24 @@ Stops the server from accepting new connections.  See [`tls.Server.close()`][].
 Note that this is not analogous to restricting new requests since HTTP/2
 connections are persistent. To achieve a similar graceful shutdown behavior,
 consider also using [`http2session.close()`] on active sessions.
+
+#### server.setTimeout([msecs][, callback])
+<!-- YAML
+added: v8.4.0
+-->
+
+* `msecs` {number} **Default:** `120000` (2 minutes)
+* `callback` {Function}
+* Returns: {Http2SecureServer}
+
+Used to set the timeout value for http2 server requests, 
+and sets a callback function that is called when there is no activity 
+on the `Http2Server` after `msecs` milliseconds. 
+
+The given callback is registered as a listener on the `'timeout'` event.
+
+In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` 
+error will be thrown.
 
 ### http2.createServer(options[, onRequestHandler])
 <!-- YAML
