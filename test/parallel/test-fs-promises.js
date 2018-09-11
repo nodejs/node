@@ -93,6 +93,15 @@ function verifyStatObject(stat) {
     await handle.datasync();
     await handle.sync();
 
+    // test fs.read promises when length to read is zero bytes
+    {
+      const buf = Buffer.from('DAWGS WIN');
+      const bufLen = buf.length;
+      await handle.write(buf);
+      const ret = await handle.read(Buffer.alloc(bufLen), 0, 0, 0);
+      assert.strictEqual(ret.bytesRead, 0);
+    }
+
     const buf = Buffer.from('hello fsPromises');
     const bufLen = buf.length;
     await handle.write(buf);
