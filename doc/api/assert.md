@@ -1245,6 +1245,28 @@ assert.throws(throwingFirst, /Second$/);
 Due to the confusing notation, it is recommended not to use a string as the
 second argument. This might lead to difficult-to-spot errors.
 
+## assert.propertyNotSet
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+This property can be used in combination with `assert.throws()` and
+`assert.rejects()` when using the object notation to validate the actual error.
+Using it causes `assert.throws()` to check that the property is not set on the
+error object.
+
+```js
+assert.throws(
+  () => { throw new Error('foo'); },
+  {
+    nonExistingProperty: assert.propertyNotSet,
+    message: 'foo'
+  }
+);
+```
+
 [`ERR_INVALID_RETURN_VALUE`]: errors.html#errors_err_invalid_return_value
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt

@@ -19,7 +19,9 @@ assert.throws(() => {
   message: '\'first\' != \'second\'',
   operator: '!=',
   actual: 'first',
-  expected: 'second'
+  expected: 'second',
+  generatedMessage: true,
+  userMessage: assert.propertyNotSet
 });
 
 // Three args
