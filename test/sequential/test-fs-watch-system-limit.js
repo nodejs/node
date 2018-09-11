@@ -37,7 +37,6 @@ spawnProcesses();
 let accumulated = '';
 gatherStderr.on('data', common.mustCallAtLeast((chunk) => {
   accumulated += chunk;
-  // console.log(chunk);
   if (accumulated.includes('Error:') && !finished) {
     assert(
       accumulated.includes('ENOSPC: System limit for number ' +
