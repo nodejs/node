@@ -289,7 +289,8 @@ static struct {
     // What kind of threadpool is desired?
     char *tp_type = getenv("NODE_THREADPOOL_TYPE");
     if (!tp_type || strcmp(tp_type, "SHARED") == 0) {
-      tp_ = std::make_shared<threadpool::NodeThreadpool>(-1);
+      std::vector<int> sizes{-1};
+      tp_ = std::make_shared<threadpool::UnpartitionedPartitionedNodeThreadpool>(sizes);
     } else if (strcmp(tp_type, "SPLIT_BY_ORIGIN") == 0) {
       std::vector<int> sizes{-1, -1};
       tp_ = std::make_shared<threadpool::ByTaskOriginPartitionedNodeThreadpool>(sizes);

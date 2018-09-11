@@ -167,6 +167,38 @@ int PartitionedNodeThreadpool::NWorkers() const {
 }
 
 /**************
+ * UnpartitionedPartitionedNodeThreadpool
+ ***************/
+
+UnpartitionedPartitionedNodeThreadpool::UnpartitionedPartitionedNodeThreadpool(
+  std::vector<int> tp_sizes) : ONLY_TP_IX(0) {
+  CHECK_EQ(tp_sizes.size(), 1);
+
+  // TP size
+  if (tp_sizes[ONLY_TP_IX] <= 0) {
+    char buf[32];
+    size_t buf_size = sizeof(buf);
+    if (uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size) == 0) {
+      tp_sizes[ONLY_TP_IX] = atoi(buf);
+    }
+  }
+  if (tp_sizes[ONLY_TP_IX] <= 0) {
+    tp_sizes[ONLY_TP_IX] = 4;  // libuv default
+  }
+  LOG("UnpartitionedPartitionedNodeThreadpool::UnpartitionedPartitionedNodeThreadpool: only tp size %d\n", tp_sizes[ONLY_TP_IX]);
+  CHECK_GT(tp_sizes[ONLY_TP_IX], 0);
+
+  Initialize(tp_sizes);
+}
+
+UnpartitionedPartitionedNodeThreadpool::~UnpartitionedPartitionedNodeThreadpool() {
+}
+
+int UnpartitionedPartitionedNodeThreadpool::ChooseThreadpool(Task* task) const {
+  return ONLY_TP_IX;
+}
+
+/**************
  * ByTaskOriginPartitionedNodeThreadpool
  ***************/
 

@@ -421,6 +421,21 @@ class PartitionedNodeThreadpool : public NodeThreadpool {
   std::vector<std::shared_ptr<Threadpool>> tps_;
 };
 
+// This is the same as a NodeThreadpool, but by inheriting from PartitionedNodeThreadpool
+// we get to benefit from its built-in monitoring.
+class UnpartitionedPartitionedNodeThreadpool : public PartitionedNodeThreadpool {
+ public:
+  // tp_sizes[0] defines the only pool. Reads UV_THREADPOOL_SIZE, defaults to 4.
+  explicit UnpartitionedPartitionedNodeThreadpool(std::vector<int> tp_sizes);
+  // Waits for queue to drain.
+  ~UnpartitionedPartitionedNodeThreadpool();
+
+  int ChooseThreadpool(Task* task) const;
+ 
+ private:
+  int ONLY_TP_IX;
+};
+
 // Splits based on task origin: V8 or libuv
 class ByTaskOriginPartitionedNodeThreadpool : public PartitionedNodeThreadpool {
  public:
