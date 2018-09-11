@@ -63,13 +63,15 @@ uint64_t TracingController::AddTraceEvent(
     const uint64_t* arg_values,
     std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
     unsigned int flags) {
-  uint64_t handle;
-  TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
-  if (trace_object) {
-    trace_object->Initialize(
-        phase, category_enabled_flag, name, scope, id, bind_id, num_args,
-        arg_names, arg_types, arg_values, arg_convertables, flags,
-        CurrentTimestampMicroseconds(), CurrentCpuTimestampMicroseconds());
+  uint64_t handle = 0;
+  if (mode_ != DISABLED) {
+    TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
+    if (trace_object) {
+      trace_object->Initialize(
+          phase, category_enabled_flag, name, scope, id, bind_id, num_args,
+          arg_names, arg_types, arg_values, arg_convertables, flags,
+          CurrentTimestampMicroseconds(), CurrentCpuTimestampMicroseconds());
+    }
   }
   return handle;
 }
@@ -81,13 +83,15 @@ uint64_t TracingController::AddTraceEventWithTimestamp(
     const uint64_t* arg_values,
     std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
     unsigned int flags, int64_t timestamp) {
-  uint64_t handle;
-  TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
-  if (trace_object) {
-    trace_object->Initialize(phase, category_enabled_flag, name, scope, id,
-                             bind_id, num_args, arg_names, arg_types,
-                             arg_values, arg_convertables, flags, timestamp,
-                             CurrentCpuTimestampMicroseconds());
+  uint64_t handle = 0;
+  if (mode_ != DISABLED) {
+    TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
+    if (trace_object) {
+      trace_object->Initialize(phase, category_enabled_flag, name, scope, id,
+                               bind_id, num_args, arg_names, arg_types,
+                               arg_values, arg_convertables, flags, timestamp,
+                               CurrentCpuTimestampMicroseconds());
+    }
   }
   return handle;
 }
