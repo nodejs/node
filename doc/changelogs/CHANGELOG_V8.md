@@ -62,6 +62,43 @@ will be supported actively until April 2019 and maintained until December 2019.
 
 ### Notable Changes
 
+* **async_hooks**:
+  - rename PromiseWrap.parentId (Ali Ijaz Sheikh) [#18633](https://github.com/nodejs/node/pull/18633)
+  - remove runtime deprecation (Ali Ijaz Sheikh) [#19517](https://github.com/nodejs/node/pull/19517)
+  - deprecate unsafe emit{Before,After} (Ali Ijaz Sheikh) [#18513](https://github.com/nodejs/node/pull/18513)
+* **cluster**:
+  - add cwd to cluster.settings (cjihrig) [#18399](https://github.com/nodejs/node/pull/18399)
+  - support windowsHide option for workers (Todd Wong) [#17412](https://github.com/nodejs/node/pull/17412)
+* **crypto**:
+  - allow passing null as IV unless required (Tobias Nießen) [#18644](https://github.com/nodejs/node/pull/18644)
+* **deps**:
+  - upgrade npm to 6.4.1 (Kat Marchán) [#22591](https://github.com/nodejs/node/pull/22591)
+  - upgrade libuv to 1.19.2 (cjihrig) [#18918](https://github.com/nodejs/node/pull/18918)
+  - Upgrade node-inspect to 1.11.5 (Jan Krems) [#21055](https://github.com/nodejs/node/pull/21055)
+* **fs,net**:
+  - support as and as+ flags in stringToFlags() (Sarat Addepalli) [#18801](https://github.com/nodejs/node/pull/18801)
+  - emit 'ready' for fs streams and sockets (Sameer Srivastava) [#19408](https://github.com/nodejs/node/pull/19408)
+* **http, http2**:
+  - add options to http.createServer() (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)- 
+  - add 103 Early Hints status code (Yosuke Furukawa) [#16644](https://github.com/nodejs/node/pull/16644)
+  - add http fallback options to .createServer (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)
+* **n-api**:
+  - take n-api out of experimental (Michael Dawson) [#19262](https://github.com/nodejs/node/pull/19262)
+* **perf_hooks**:
+  - add warning when too many entries in the timeline (James M Snell) [#18087](https://github.com/nodejs/node/pull/18087)
+* **src**:
+  - add public API for managing NodePlatform (Cheng Zhao) [#16981](https://github.com/nodejs/node/pull/16981)
+  - allow --perf-(basic-)?prof in NODE\_OPTIONS (Leko) [#17600](https://github.com/nodejs/node/pull/17600)
+  - node internals' postmortem metadata (Matheus Marchini) [#14901](https://github.com/nodejs/node/pull/14901)
+* **tls**:
+  - expose Finished messages in TLSSocket (Anton Salikhmetov) [#19102](https://github.com/nodejs/node/pull/19102)
+* **trace_events**:
+  - add file pattern cli option (Andreas Madsen) [#18480](https://github.com/nodejs/node/pull/18480)
+* **util**:
+  - implement util.getSystemErrorName() (Joyee Cheung) [#18186](https://github.com/nodejs/node/pull/18186)
+
+### Commits
+
 * [[`b7f9334454`](https://github.com/nodejs/node/commit/b7f9334454)] - **(SEMVER-MINOR)** **async_hooks**: rename PromiseWrap.parentId (Ali Ijaz Sheikh) [#18633](https://github.com/nodejs/node/pull/18633)
 * [[`373f4d6225`](https://github.com/nodejs/node/commit/373f4d6225)] - **(SEMVER-MINOR)** **async_hooks**: remove runtime deprecation (Ali Ijaz Sheikh) [#19517](https://github.com/nodejs/node/pull/19517)
 * [[`daacff8584`](https://github.com/nodejs/node/commit/daacff8584)] - **(SEMVER-MINOR)** **async_hooks**: deprecate unsafe emit{Before,After} (Ali Ijaz Sheikh) [#18513](https://github.com/nodejs/node/pull/18513)
