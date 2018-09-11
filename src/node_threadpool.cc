@@ -46,7 +46,7 @@ NodeThreadpool::NodeThreadpool(int threadpool_size) {
   LOG("NodeThreadpool::NodeThreadpool: threadpool_size %d\n", threadpool_size);
   CHECK_GT(threadpool_size, 0);
 
-  tp_ = std::make_shared<Threadpool>(threadpool_size);
+  tp_ = std::make_shared<Threadpool>(threadpool_size, 0);
 }
 
 int NodeThreadpool::GoodCPUThreadpoolSize(void) {
@@ -100,7 +100,7 @@ void PartitionedNodeThreadpool::Initialize(const std::vector<int>& tp_sizes) {
   int i = 0;
   for (auto size : tp_sizes) {
     LOG("PartitionedNodeThreadpool::Initialize: tp %d: %d threads\n", i, size);
-    std::shared_ptr<Threadpool> tp = std::make_shared<Threadpool>(size);
+    std::shared_ptr<Threadpool> tp = std::make_shared<Threadpool>(size, i);
     tps_.push_back(tp);
     i++;
   }
@@ -115,10 +115,24 @@ PartitionedNodeThreadpool::~PartitionedNodeThreadpool() {
 
   for (size_t i = 0; i < tps_.size(); i++) {
     auto &tp = tps_[i];
-    LOG("TP %lu taskSummaries:\n", i);
+    LOG("Report on TP %d\n", tp->Id());
+
+    const std::vector<std::unique_ptr<QueueLengthSample>> &lengths = tp->GetQueueLengths();
+    LOG("  TP %d: Lengths at the %lu update intervals:\n", tp->Id(), lengths.size());
+
+    if (lengths.size()) {
+      // Print time relative to the first entry.
+      uint64_t prev_time = lengths[0]->time_;
+      for (const std::unique_ptr<QueueLengthSample> &length : lengths) {
+        LOG("    TP %d length %d time-step %lu\n", tp->Id(), length->length_, length->time_ - prev_time);
+        prev_time = length->time_;
+      }
+    }
+
     const std::vector<std::unique_ptr<TaskSummary>> &summaries = tp->GetTaskSummaries();
+    LOG("  TP %d: Task summaries for the %lu tasks:\n", tp->Id(), summaries.size());
     for (const std::unique_ptr<TaskSummary> &summary : summaries) {
-      LOG("  TP %lu origin %d type %d queue_time %lu run_time %lu\n", i, summary->details_.origin, summary->details_.type, summary->time_in_queue_, summary->time_in_run_);
+      LOG("    TP %d origin %d type %d queue_time %lu run_time %lu\n", tp->Id(), summary->details_.origin, summary->details_.type, summary->time_in_queue_, summary->time_in_run_);
     }
   }
 }
@@ -669,10 +683,12 @@ int LibuvExecutor::uv_executor_cancel(uv_executor_t* executor,
  * TaskQueue
  ***************/
 
-TaskQueue::TaskQueue()
-  : lock_()
+TaskQueue::TaskQueue(int id)
+  : id_(id), lock_()
   , task_available_(), tasks_drained_()
-  , queue_(), outstanding_tasks_(0), stopped_(false), task_summaries_() {
+  , queue_(), outstanding_tasks_(0), stopped_(false)
+  , length_(0), n_changes_since_last_length_sample_(0), length_report_freq_(10)
+  , task_summaries_(), queue_lengths_() {
 }
 
 bool TaskQueue::Push(std::unique_ptr<Task> task) {
@@ -689,10 +705,28 @@ bool TaskQueue::Push(std::unique_ptr<Task> task) {
   CHECK(task_state == TaskState::QUEUED || task_state == TaskState::CANCELLED);
 
   queue_.push(std::move(task));
+  UpdateLength(true);
   outstanding_tasks_++;
   task_available_.Signal(scoped_lock);
 
   return true;
+}
+
+void TaskQueue::UpdateLength(bool grew) {
+  if (grew) {
+    length_++;
+  } else {
+    length_--;
+  }
+  CHECK_GE(length_, 0);
+
+  n_changes_since_last_length_sample_++;
+  if (n_changes_since_last_length_sample_ == length_report_freq_) {
+    queue_lengths_.push_back(
+      std::unique_ptr<QueueLengthSample>(
+        new QueueLengthSample(length_, uv_hrtime())));
+    n_changes_since_last_length_sample_ = 0;
+  }
 }
 
 std::unique_ptr<Task> TaskQueue::Pop() {
@@ -706,6 +740,7 @@ std::unique_ptr<Task> TaskQueue::Pop() {
   task->task_state_->MarkExitedQueue();
 
   queue_.pop();
+  UpdateLength(false);
   return task;
 }
 
@@ -724,6 +759,7 @@ std::unique_ptr<Task> TaskQueue::BlockingPop() {
   task->task_state_->MarkExitedQueue();
 
   queue_.pop();
+  UpdateLength(false);
   return task;
 }
 
@@ -755,20 +791,25 @@ void TaskQueue::Stop() {
 
 int TaskQueue::Length() const {
   Mutex::ScopedLock scoped_lock(lock_);
-  return queue_.size();
+  CHECK_EQ(queue_.size(), length_);
+  return length_;
 }
 
 std::vector<std::unique_ptr<TaskSummary>> const& TaskQueue::GetTaskSummaries() const {
   return task_summaries_;
 }
 
+std::vector<std::unique_ptr<QueueLengthSample>> const& TaskQueue::GetQueueLengths() const {
+  return queue_lengths_;
+}
+
 /**************
  * Threadpool
  ***************/
 
-Threadpool::Threadpool(int threadpool_size) {
+Threadpool::Threadpool(int threadpool_size, int id) : id_(id) {
   CHECK_GT(threadpool_size, 0);
-  task_queue_ = std::make_shared<TaskQueue>();
+  task_queue_ = std::make_shared<TaskQueue>(id);
   worker_group_ = std::unique_ptr<WorkerGroup>(
     new WorkerGroup(threadpool_size, task_queue_));
 }
@@ -805,6 +846,10 @@ int Threadpool::NWorkers() const {
 
 std::vector<std::unique_ptr<TaskSummary>> const& Threadpool::GetTaskSummaries() const {
   return task_queue_->GetTaskSummaries();
+}
+
+std::vector<std::unique_ptr<QueueLengthSample>> const& Threadpool::GetQueueLengths() const {
+  return task_queue_->GetQueueLengths();
 }
 
 }  // namespace threadpool

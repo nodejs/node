@@ -241,6 +241,15 @@ class LibuvExecutor {
                             // instance of LibuvExecutor.
 };
 
+class QueueLengthSample {
+ public:
+  QueueLengthSample(int length, uint64_t time)
+   : length_(length), time_(time) {}
+ 
+  int length_;
+  uint64_t time_;
+};
+
 // Abstract notion of a queue of Tasks.
 // The default implementation is a FIFO queue.
 // Subclass to experiment, e.g.:
@@ -252,7 +261,7 @@ class LibuvExecutor {
 // Users should check the state of Tasks they Pop.
 class TaskQueue {
  public:
-  TaskQueue();
+  TaskQueue(int id =-1);
 
   // Return true if Push succeeds, else false.
   // Thread-safe.
@@ -276,8 +285,14 @@ class TaskQueue {
   int Length() const;
 
   std::vector<std::unique_ptr<TaskSummary>> const& GetTaskSummaries() const;
+  std::vector<std::unique_ptr<QueueLengthSample>> const& GetQueueLengths() const;
 
  private:
+  // Caller must hold lock_.
+  void UpdateLength(bool grew);
+
+  int id_;
+
   // Synchronization.
   Mutex lock_;
   // Signal'd when there is at least one task in the queue.
@@ -289,7 +304,13 @@ class TaskQueue {
   std::queue<std::unique_ptr<Task>> queue_;
   int outstanding_tasks_;  // Number of Tasks in non-COMPLETED states.
   bool stopped_;
-  std::vector<std::unique_ptr<TaskSummary>> task_summaries_;   // For statistics tracking.
+
+  // For statistics tracking.
+  int length_;
+  int n_changes_since_last_length_sample_;
+  int length_report_freq_;
+  std::vector<std::unique_ptr<TaskSummary>> task_summaries_;
+  std::vector<std::unique_ptr<QueueLengthSample>> queue_lengths_;
 };
 
 // A threadpool works on asynchronous Tasks.
@@ -301,9 +322,11 @@ class TaskQueue {
 //   - Elastic workers (scale up and down)
 class Threadpool {
  public:
-  explicit Threadpool(int threadpool_size);
+  explicit Threadpool(int threadpool_size, int id = -1);
   // Waits for queue to drain.
   ~Threadpool();
+
+  int Id() const { return id_; }
 
   // Thread-safe.
   // Returns a TaskState by which caller can track the progress of the Task.
@@ -324,11 +347,14 @@ class Threadpool {
   int NWorkers() const;
 
   std::vector<std::unique_ptr<TaskSummary>> const& GetTaskSummaries() const;
+  std::vector<std::unique_ptr<QueueLengthSample>> const& GetQueueLengths() const;
 
  protected:
   void Initialize();
 
  private:
+  int id_;
+
   std::shared_ptr<TaskQueue> task_queue_;
   std::unique_ptr<WorkerGroup> worker_group_;
 };

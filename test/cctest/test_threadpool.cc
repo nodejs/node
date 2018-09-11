@@ -80,6 +80,7 @@ TEST_F(ThreadpoolTest, TaskQueueEndToEnd) {
   testTaskDestroyedCount = 0;
 
   // Push
+  fprintf(stderr, "TaskQueueEndToEnd: Push\n");
   EXPECT_EQ(tq.Length(), 0);
   for (int i = 0; i < nTasks; i++) {
     auto task_state = std::make_shared<TaskState>();
@@ -90,6 +91,7 @@ TEST_F(ThreadpoolTest, TaskQueueEndToEnd) {
   EXPECT_EQ(tq.Length(), nTasks);
 
   // Successful Pop, BlockingPop
+  fprintf(stderr, "TaskQueueEndToEnd: Pop\n");
   for (int i = 0; i < nTasks; i++) {
     std::unique_ptr<Task> task;
     if (i % 2)
@@ -106,6 +108,7 @@ TEST_F(ThreadpoolTest, TaskQueueEndToEnd) {
   EXPECT_EQ(tq.Length(), 0);
 
   // Stop works
+  fprintf(stderr, "TaskQueueEndToEnd: Push after Stop\n");
   tq.Stop();
   EXPECT_EQ(tq.Push(std::unique_ptr<FastTestTask>(new FastTestTask())), false);
 }
