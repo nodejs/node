@@ -1624,15 +1624,13 @@ added: v8.4.0
 
 * `msecs` {number} **Default:** `120000` (2 minutes)
 * `callback` {Function}
-* Returns: {Http2SecureServer}
+* Returns: {Http2Server}
 
-Sets the timeout value for http2 secure server requests, and emits a `'timeout'` event on
-the Server object if a timeout occurs.
+Used to set the timeout value for http2 secure server requests, and sets a callback function that is called when there is no activity on the Http2Server after `msecs` milliseconds. 
 
-By default, the Server's timeout value is 2 minutes, if a callback is assigned
-to the Server's `'timeout'` event, timeouts must be handled explicitly.
+The given callback is registered as a listener on the 'timeout' event.
 
-In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` error will be throwen.
+In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` error will be throw.
 
 #### server.close([callback])
 <!-- YAML
@@ -1767,13 +1765,11 @@ added: v8.4.0
 * `callback` {Function}
 * Returns: {Http2SecureServer}
 
-Sets the timeout value for http2 secure server requests, and emits a `'timeout'` event on
-the Server object if a timeout occurs.
+Used to set the timeout value for http2 secure server requests, and sets a callback function that is called when there is no activity on the Http2SecureServer after `msecs` milliseconds. 
 
-By default, the Server's timeout value is 2 minutes, if a callback is assigned
-to the Server's `'timeout'` event, timeouts must be handled explicitly.
+The given callback is registered as a listener on the 'timeout' event.
 
-In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` error will be throwen.
+In case of no callback were assigned, a new `ERR_INVALID_CALLBACK` error will be throw.
 
 #### server.close([callback])
 <!-- YAML
