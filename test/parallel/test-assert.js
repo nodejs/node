@@ -348,15 +348,15 @@ try {
 }
 
 {
-  // Verify that throws() and doesNotThrow() throw on non-function block.
-  const testBlockTypeError = (method, block) => {
+  // Verify that throws() and doesNotThrow() throw on non-functions.
+  const testBlockTypeError = (method, fn) => {
     common.expectsError(
-      () => method(block),
+      () => method(fn),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "block" argument must be of type Function. Received ' +
-                 `type ${typeof block}`
+        message: 'The "fn" argument must be of type Function. Received ' +
+                 `type ${typeof fn}`
       }
     );
   };
