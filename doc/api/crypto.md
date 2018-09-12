@@ -1124,6 +1124,8 @@ changes:
 * `privateKey` {string | Object}
   - `key` {string}
   - `passphrase` {string}
+  - `padding` {integer}
+  - `saltLength` {integer}
 * `outputFormat` {string}
 * Returns: {Buffer | string}
 
