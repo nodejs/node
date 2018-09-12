@@ -408,11 +408,11 @@ changes:
     TODO(BridgeAR): Deprecate `maxArrayLength` and replace it with
                     `maxEntries`.
     -->
-  * `maxArrayLength` {number} Specifies the maximum number of `Array`,
+  * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
     [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
     formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
     negative to show no elements. **Default:** `100`.
-  * `breakLength` {number} The length at which an object's keys are split
+  * `breakLength` {integer} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
     line. **Default:** `60` for legacy compatibility.
   * `compact` {boolean} Setting this to `false` changes the default indentation
@@ -422,6 +422,13 @@ changes:
     objects the same as arrays. Note that no text will be reduced below 16
     characters, no matter the `breakLength` size. For more information, see the
     example below. **Default:** `true`.
+  * `budget` {integer} This limits the maximum time spend inspecting an object.
+    The budget corresponds roughly to the number of properties that are
+    inspected. If the object exceeds that complexity while inspecting, the
+    inspection is continued up to one more second. If the inspection does not
+    complete in that second, it will limit all further inspection to the
+    absolute minimum and an `INSPECTION_ABORTED` warning is emitted.
+    **Default:** `Infinity`.
 * Returns: {string} The representation of passed object
 
 The `util.inspect()` method returns a string representation of `object` that is
