@@ -61,6 +61,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   PromiseRejectEvent event = message.GetEvent();
 
   Environment* env = Environment::GetCurrent(isolate);
+  if (env == nullptr) return;
   Local<Function> callback;
   Local<Value> value;
 
