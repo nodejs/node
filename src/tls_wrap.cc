@@ -222,7 +222,10 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
     }
   }
 
-  if (where & SSL_CB_HANDSHAKE_DONE) {
+  // SSL_CB_HANDSHAKE_START and SSL_CB_HANDSHAKE_DONE are called
+  // sending HelloRequest in OpenSSL-1.1.1.
+  // We need to check whether this is in a renegotiation state or not.
+  if (where & SSL_CB_HANDSHAKE_DONE && !SSL_renegotiate_pending(ssl)) {
     Local<Value> callback;
 
     c->established_ = true;
