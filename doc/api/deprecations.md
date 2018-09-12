@@ -2184,8 +2184,8 @@ The [Legacy URL API][] is deprecated. This includes [`url.format()`][],
 [`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
 use the [WHATWG URL API][] instead.
 
-<a id="DEP00XX"></a>
-### DEP00XX: Native crypto handles
+<a id="DEP0117"></a>
+### DEP0117: Native crypto handles
 <!-- YAML
 changes:
   - version: REPLACEME
