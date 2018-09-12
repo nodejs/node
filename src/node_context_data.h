@@ -25,16 +25,11 @@ namespace node {
 #define NODE_CONTEXT_TAG 35
 #endif
 
-#ifndef NODE_CONTEXT_TAG_BOUNDARY
-#define NODE_CONTEXT_TAG_BOUNDARY 36
-#endif
-
 enum ContextEmbedderIndex {
   kEnvironment = NODE_CONTEXT_EMBEDDER_DATA_INDEX,
   kSandboxObject = NODE_CONTEXT_SANDBOX_OBJECT_INDEX,
   kAllowWasmCodeGeneration = NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX,
   kContextTag = NODE_CONTEXT_TAG,
-  kContextTagBoundary = NODE_CONTEXT_TAG_BOUNDARY,
 };
 
 }  // namespace node
