@@ -371,6 +371,9 @@ priority classes, `priority` is mapped to one of six priority constants in
 mapping may cause the return value to be slightly different on Windows. To avoid
 confusion, it is recommended to set `priority` to one of the priority constants.
 
+On Windows setting priority to `PRIORITY_HIGHEST` requires elevated user,
+otherwise the set priority will be silently reduced to `PRIORITY_HIGH`.
+
 ## os.tmpdir()
 <!-- YAML
 added: v0.9.9
