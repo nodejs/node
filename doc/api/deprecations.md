@@ -1060,6 +1060,12 @@ use the [WHATWG URL API][] instead.
 
 <a id="DEP00XX"></a>
 ### DEP00XX: Native crypto handles
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22747
+    description: Runtime deprecation.
+-->
 
 Type: Runtime
 
