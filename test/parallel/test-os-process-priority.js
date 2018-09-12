@@ -116,8 +116,10 @@ function checkPriority(pid, expected) {
     return;
   }
 
+  // On Windows setting PRIORITY_HIGHEST will only work for elevated user,
+  // for others it will be silently reduced to PRIORITY_HIGH
   if (expected < PRIORITY_HIGH)
-    assert.strictEqual(priority, PRIORITY_HIGHEST);
+    assert.ok(priority === PRIORITY_HIGHEST || priority === PRIORITY_HIGH);
   else if (expected < PRIORITY_ABOVE_NORMAL)
     assert.strictEqual(priority, PRIORITY_HIGH);
   else if (expected < PRIORITY_NORMAL)
