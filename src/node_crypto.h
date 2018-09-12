@@ -363,6 +363,11 @@ class CipherBase : public BaseObject {
     kErrorMessageSize,
     kErrorState
   };
+  enum AuthTagState {
+    kAuthTagUnknown,
+    kAuthTagKnown,
+    kAuthTagPassedToOpenSSL
+  };
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
   void Init(const char* cipher_type,
@@ -404,7 +409,7 @@ class CipherBase : public BaseObject {
       : BaseObject(env, wrap),
         ctx_(nullptr),
         kind_(kind),
-        auth_tag_set_(false),
+        auth_tag_state_(kAuthTagUnknown),
         auth_tag_len_(kNoAuthTagLength),
         pending_auth_failed_(false) {
     MakeWeak();
@@ -413,7 +418,7 @@ class CipherBase : public BaseObject {
  private:
   DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> ctx_;
   const CipherKind kind_;
-  bool auth_tag_set_;
+  AuthTagState auth_tag_state_;
   unsigned int auth_tag_len_;
   char auth_tag_[EVP_GCM_TLS_TAG_LEN];
   bool pending_auth_failed_;
