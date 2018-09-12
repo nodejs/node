@@ -631,7 +631,8 @@ namespace {
 bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   HandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  return env->should_abort_on_uncaught_toggle()[0] &&
+  return env != nullptr &&
+         env->should_abort_on_uncaught_toggle()[0] &&
          !env->inside_should_not_abort_on_uncaught_scope();
 }
 
@@ -640,6 +641,7 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 
 void AddPromiseHook(Isolate* isolate, promise_hook_func fn, void* arg) {
   Environment* env = Environment::GetCurrent(isolate);
+  CHECK_NOT_NULL(env);
   env->AddPromiseHook(fn, arg);
 }
 
@@ -647,6 +649,7 @@ void AddEnvironmentCleanupHook(Isolate* isolate,
                                void (*fun)(void* arg),
                                void* arg) {
   Environment* env = Environment::GetCurrent(isolate);
+  CHECK_NOT_NULL(env);
   env->AddCleanupHook(fun, arg);
 }
 
@@ -655,6 +658,7 @@ void RemoveEnvironmentCleanupHook(Isolate* isolate,
                                   void (*fun)(void* arg),
                                   void* arg) {
   Environment* env = Environment::GetCurrent(isolate);
+  CHECK_NOT_NULL(env);
   env->RemoveCleanupHook(fun, arg);
 }
 
@@ -739,6 +743,7 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   // Because of the AssignToContext() call in src/node_contextify.cc,
   // the two contexts need not be the same.
   Environment* env = Environment::GetCurrent(callback->CreationContext());
+  CHECK_NOT_NULL(env);
   Context::Scope context_scope(env->context());
   MaybeLocal<Value> ret = InternalMakeCallback(env, recv, callback,
                                                argc, argv, asyncContext);
@@ -1433,6 +1438,7 @@ void FatalException(Isolate* isolate,
   HandleScope scope(isolate);
 
   Environment* env = Environment::GetCurrent(isolate);
+  CHECK_NOT_NULL(env);  // TODO(addaleax): Handle nullptr here.
   Local<Object> process_object = env->process_object();
   Local<String> fatal_exception_string = env->fatal_exception_string();
   Local<Value> fatal_exception_function =
@@ -1658,7 +1664,7 @@ static void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsString());
 
@@ -2789,10 +2795,13 @@ void RunAtExit(Environment* env) {
 
 uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
   HandleScope handle_scope(isolate);
-  auto context = isolate->GetCurrentContext();
+  Local<Context> context = isolate->GetCurrentContext();
   if (context.IsEmpty())
     return nullptr;
-  return Environment::GetCurrent(context)->event_loop();
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr)
+    return nullptr;
+  return env->event_loop();
 }
 
 

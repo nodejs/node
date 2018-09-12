@@ -736,6 +736,8 @@ napi_env GetEnv(v8::Local<v8::Context> context) {
   // because we need to stop hard if either of them is empty.
   //
   // Re https://github.com/nodejs/node/pull/14217#discussion_r128775149
+  // TODO(addaleax): This requires a Node.js Environment attached to the
+  // current context.
   auto value = global->GetPrivate(context, NAPI_PRIVATE_KEY(context, env))
       .ToLocalChecked();
 
@@ -946,7 +948,7 @@ class ThreadSafeFunction : public node::AsyncResource {
         return napi_ok;
       }
 
-      node::Environment::GetCurrent(env->isolate)->CloseHandle(
+      NodeEnv()->CloseHandle(
           reinterpret_cast<uv_handle_t*>(&async),
           [](uv_handle_t* handle) -> void {
             ThreadSafeFunction* ts_fn =
@@ -1036,9 +1038,12 @@ class ThreadSafeFunction : public node::AsyncResource {
   }
 
   node::Environment* NodeEnv() {
-    // For some reason grabbing the Node.js environment requires a handle scope.
+    // Grabbing the Node.js environment requires a handle scope because it
+    // looks up fields on the current context.
     v8::HandleScope scope(env->isolate);
-    return node::Environment::GetCurrent(env->isolate);
+    node::Environment* node_env = node::Environment::GetCurrent(env->isolate);
+    CHECK_NOT_NULL(node_env);
+    return node_env;
   }
 
   void MaybeStartIdle() {
@@ -1177,7 +1182,9 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Context> context,
                                     napi_addon_register_func init) {
   if (init == nullptr) {
-    node::Environment::GetCurrent(context)->ThrowError(
+    node::Environment* node_env = node::Environment::GetCurrent(context);
+    CHECK_NOT_NULL(node_env);
+    node_env->ThrowError(
         "Module has no declared entry point.");
     return;
   }
