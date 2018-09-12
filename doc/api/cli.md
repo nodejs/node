@@ -12,13 +12,13 @@ To view this documentation as a manual page in a terminal, run `man node`.
 
 `node [options] [V8 options] [script.js | -e "script" | -] [--] [arguments]`
 
-`node debug [script.js | -e "script" | <host>:<port>] …`
+`node inspect [script.js | -e "script" | <host>:<port>] …`
 
 `node --v8-options`
 
 Execute without arguments to start the [REPL][].
 
-_For more info about `node debug`, please see the [debugger][] documentation._
+_For more info about `node inspect`, please see the [debugger][] documentation._
 
 ## Options
 
