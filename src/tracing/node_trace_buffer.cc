@@ -59,7 +59,13 @@ void InternalTraceBuffer::Flush(bool blocking) {
       for (size_t i = 0; i < total_chunks_; ++i) {
         auto& chunk = chunks_[i];
         for (size_t j = 0; j < chunk->size(); ++j) {
-          agent_->AppendTraceEvent(chunk->GetEventAt(j));
+          TraceObject* trace_event = chunk->GetEventAt(j);
+          // Another thread may have added a trace that is yet to be
+          // initialized. Skip such traces.
+          // https://github.com/nodejs/node/issues/21038.
+          if (trace_event->name()) {
+            agent_->AppendTraceEvent(trace_event);
+          }
         }
       }
       total_chunks_ = 0;
