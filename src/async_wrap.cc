@@ -681,12 +681,16 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
 
 async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
-  return Environment::GetCurrent(isolate)->execution_async_id();
+  Environment* env = Environment::GetCurrent(isolate);
+  if (env == nullptr) return -1;
+  return env->execution_async_id();
 }
 
 
 async_id AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
-  return Environment::GetCurrent(isolate)->trigger_async_id();
+  Environment* env = Environment::GetCurrent(isolate);
+  if (env == nullptr) return -1;
+  return env->trigger_async_id();
 }
 
 
@@ -705,6 +709,7 @@ async_context EmitAsyncInit(Isolate* isolate,
                             v8::Local<v8::String> name,
                             async_id trigger_async_id) {
   Environment* env = Environment::GetCurrent(isolate);
+  CHECK_NOT_NULL(env);
 
   // Initialize async context struct
   if (trigger_async_id == -1)

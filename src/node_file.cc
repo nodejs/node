@@ -431,7 +431,7 @@ void FSReqWrap::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
 
 void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   new FSReqWrap(env, args.This(), args[0]->IsTrue());
 }
 
@@ -772,7 +772,7 @@ inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value,
 }
 
 void Access(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  Environment* env = Environment::GetCurrent(args);
   HandleScope scope(env->isolate());
 
   const int argc = args.Length();
@@ -2089,9 +2089,8 @@ void Initialize(Local<Object> target,
 
   StatWatcher::Initialize(env, target);
 
-  // Create FunctionTemplate for FSReqWrap
-  Local<FunctionTemplate> fst =
-      FunctionTemplate::New(env->isolate(), NewFSReqWrap);
+  // Create FunctionTemplate for FSReqCallback
+  Local<FunctionTemplate> fst = env->NewFunctionTemplate(NewFSReqWrap);
   fst->InstanceTemplate()->SetInternalFieldCount(1);
   AsyncWrap::AddWrapMethods(env, fst);
   Local<String> wrapString =
