@@ -2818,6 +2818,7 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
 
     // Remember the given authentication tag length for later.
     auth_tag_len_ = auth_tag_len;
+    auth_tag_state_ = kAuthTagLengthKnown;
 
     if (mode == EVP_CIPH_CCM_MODE) {
       // Restrict the message length to min(INT_MAX, 2^(8*(15-iv_len))-1) bytes.
@@ -2840,6 +2841,7 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
 
       // Remember the given authentication tag length for later.
       auth_tag_len_ = auth_tag_len;
+      auth_tag_state_ = kAuthTagLengthKnown;
     }
   }
 
@@ -2921,6 +2923,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
 
   cipher->auth_tag_len_ = tag_len;
+  cipher->auth_tag_state_ = kAuthTagKnown;
   CHECK_LE(cipher->auth_tag_len_, sizeof(cipher->auth_tag_));
 
   memset(cipher->auth_tag_, 0, sizeof(cipher->auth_tag_));
@@ -2931,14 +2934,14 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
 
 bool CipherBase::MaybePassAuthTagToOpenSSL() {
-  if (!auth_tag_set_ && auth_tag_len_ != kNoAuthTagLength) {
+  if (auth_tag_state_ == kAuthTagKnown) {
     if (!EVP_CIPHER_CTX_ctrl(ctx_.get(),
                              EVP_CTRL_AEAD_SET_TAG,
                              auth_tag_len_,
                              reinterpret_cast<unsigned char*>(auth_tag_))) {
       return false;
     }
-    auth_tag_set_ = true;
+    auth_tag_state_ = kAuthTagPassedToOpenSSL;
   }
   return true;
 }
