@@ -176,7 +176,6 @@ module. This can be one of the following:
 | `'esm'` | Load a standard JavaScript module |
 | `'cjs'` | Load a node-style CommonJS module |
 | `'builtin'` | Load a node builtin CommonJS module |
-| `'addon'` | Load a [C++ Addon][addons] |
 | `'dynamic'` | Use a [dynamic instantiate hook][] |
 
 For example, a dummy loader to load JavaScript restricted to browser resolution
@@ -253,5 +252,4 @@ then be called at the exact point of module evaluation order for that module
 in the import tree.
 
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
-[addons]: addons.html
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
