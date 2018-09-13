@@ -958,6 +958,17 @@ added: v8.4.0
 Set to `true` if the `Http2Stream` instance has been destroyed and is no longer
 usable.
 
+#### http2stream.endAfterHeaders
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Set the `true` if the `END_STREAM` flag was set in the request or response
+HEADERS frame received, indicating that no additional data should be received
+and the readable side of the `Http2Stream` will be closed.
+
 #### http2stream.pending
 <!-- YAML
 added: v9.4.0
