@@ -25,7 +25,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
-const { JSStream } = internalBinding('js_stream');
+const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
 const { previewEntries } = internalBinding('util');
@@ -1736,4 +1736,31 @@ assert.strictEqual(
     inspect(arr, { sorted: true }),
     '[ 3, 2, 1, [Symbol(a)]: false, [Symbol(b)]: true, a: 1, b: 2, c: 3 ]'
   );
+}
+
+// Manipulate the prototype to one that we can not handle.
+{
+  let obj = { a: true };
+  let value = (function() { return function() {}; })();
+  Object.setPrototypeOf(value, null);
+  Object.setPrototypeOf(obj, value);
+  assert.strictEqual(util.inspect(obj), '{ a: true }');
+
+  obj = { a: true };
+  value = [];
+  Object.setPrototypeOf(value, null);
+  Object.setPrototypeOf(obj, value);
+  assert.strictEqual(util.inspect(obj), '{ a: true }');
+}
+
+// Check that the fallback always works.
+{
+  const obj = new Set([1, 2]);
+  const iterator = obj[Symbol.iterator];
+  Object.setPrototypeOf(obj, null);
+  Object.defineProperty(obj, Symbol.iterator, {
+    value: iterator,
+    configurable: true
+  });
+  assert.strictEqual(util.inspect(obj), '[Set: null prototype] { 1, 2 }');
 }
