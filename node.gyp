@@ -161,6 +161,7 @@
       'lib/internal/url.js',
       'lib/internal/util.js',
       'lib/internal/util/comparisons.js',
+      'lib/internal/util/inspect.js',
       'lib/internal/util/inspector.js',
       'lib/internal/util/types.js',
       'lib/internal/http2/core.js',
