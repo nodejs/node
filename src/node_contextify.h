@@ -104,6 +104,8 @@ class ContextifyContext {
   static void IndexedPropertyDeleterCallback(
       uint32_t index,
       const v8::PropertyCallbackInfo<v8::Boolean>& args);
+  static void IndexedPropertyEnumeratorCallback(
+      const v8::PropertyCallbackInfo<v8::Array>& args);
   Environment* const env_;
   Persistent<v8::Context> context_;
 };

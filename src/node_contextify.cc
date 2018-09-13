@@ -155,7 +155,7 @@ Local<Context> ContextifyContext::CreateV8Context(
       IndexedPropertySetterCallback,
       IndexedPropertyQueryCallback,
       IndexedPropertyDeleterCallback,
-      PropertyEnumeratorCallback,
+      IndexedPropertyEnumeratorCallback,
       IndexedPropertyDefinerCallback,
       IndexedPropertyDescriptorCallback,
       CreateDataWrapper(env));
@@ -528,7 +528,16 @@ void ContextifyContext::PropertyEnumeratorCallback(
   if (ctx->context_.IsEmpty())
     return;
 
-  args.GetReturnValue().Set(ctx->sandbox()->GetPropertyNames());
+  Local<Array> ret;
+  if (!ctx->sandbox()->GetPropertyNames(
+          ctx->context(),
+          v8::KeyCollectionMode::kOwnOnly,
+          v8::SKIP_SYMBOLS,
+          v8::IndexFilter::kSkipIndices).ToLocal(&ret)) {
+    return;
+  }
+
+  args.GetReturnValue().Set(ret);
 }
 
 // static
@@ -621,6 +630,39 @@ void ContextifyContext::IndexedPropertyDeleterCallback(
   // Delete failed on the sandbox, intercept and do not delete on
   // the global object.
   args.GetReturnValue().Set(false);
+}
+
+// static
+void ContextifyContext::IndexedPropertyEnumeratorCallback(
+    const PropertyCallbackInfo<Array>& args) {
+  ContextifyContext* ctx = ContextifyContext::Get(args);
+
+  // Still initializing
+  if (ctx->context_.IsEmpty())
+    return;
+
+  Local<Array> all_keys;
+  if (!ctx->sandbox()->GetPropertyNames(
+          ctx->context(),
+          v8::KeyCollectionMode::kOwnOnly,
+          v8::SKIP_SYMBOLS,
+          v8::IndexFilter::kIncludeIndices).ToLocal(&all_keys)) {
+    return;
+  }
+  uint32_t all_keys_len = all_keys->Length();
+
+  Local<Array> ret = Array::New(ctx->env()->isolate());
+  for (uint32_t i = 0, j = 0; i < all_keys_len; ++i) {
+    Local<Value> entry;
+    if (!all_keys->Get(ctx->context(), i).ToLocal(&entry))
+      return;
+    if (!entry->IsUint32())
+      continue;
+    if (!ret->Set(ctx->context(), j++, entry).FromMaybe(false))
+      return;
+  }
+
+  args.GetReturnValue().Set(ret);
 }
 
 class ContextifyScript : public BaseObject {
