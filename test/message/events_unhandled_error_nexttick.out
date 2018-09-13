@@ -14,6 +14,7 @@ Error
     at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
 Emitted 'error' event at:
     at process.nextTick (*events_unhandled_error_nexttick.js:*:*)
+    at internalTickCallback (internal/process/next_tick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
     at startup (internal/bootstrap/node.js:*:*)

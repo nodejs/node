@@ -195,9 +195,8 @@ function testError() {
       /setImmediate/,
       /^    at/,
       /^    at/,
-      /^    at/,
-      /^    at/,
     ];
+    console.log(lines);
     for (const line of lines) {
       const expected = expectedLines.shift();
       if (typeof expected === 'string')

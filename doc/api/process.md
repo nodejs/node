@@ -1461,13 +1461,11 @@ changes:
 * `callback` {Function}
 * `...args` {any} Additional arguments to pass when invoking the `callback`
 
-The `process.nextTick()` method adds the `callback` to the "next tick queue".
-Once the current turn of the event loop turn runs to completion, all callbacks
-currently in the next tick queue will be called.
-
-This is *not* a simple alias to [`setTimeout(fn, 0)`][]. It is much more
-efficient. It runs before any additional I/O events (including
-timers) fire in subsequent ticks of the event loop.
+`process.nextTick()` adds `callback` to the "next tick queue". This queue is
+fully drained after the current operation on the JavaScript stack runs to
+completion and before the event loop is allowed to continue. As a result, it's
+possible to create an infinite loop if one were to recursively call
+`process.nextTick()`.
 
 ```js
 console.log('start');
@@ -1541,11 +1539,6 @@ function definitelyAsync(arg, cb) {
   fs.stat('file', cb);
 }
 ```
-
-The next tick queue is completely drained on each pass of the event loop
-**before** additional I/O is processed. As a result, recursively setting
-`nextTick()` callbacks will block any I/O from happening, just like a
-`while(true);` loop.
 
 ## process.noDeprecation
 <!-- YAML
@@ -2162,7 +2155,6 @@ cases:
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
-[`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
 [`v8.setFlagsFromString()`]: v8.html#v8_v8_setflagsfromstring_flags
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [Child Process]: child_process.html

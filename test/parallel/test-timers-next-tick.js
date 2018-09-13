@@ -2,14 +2,29 @@
 
 const common = require('../common');
 
-// This test documents an internal implementation detail of the Timers:
-// since timers of different durations are stored in separate lists,
-// a nextTick queue will clear after each list of timers. While this
-// behaviour is not documented it could be relied on by Node's users.
+// This test verifies that the next tick queue runs after each
+// individual Timeout, as well as each individual Immediate.
 
 setTimeout(common.mustCall(() => {
-  process.nextTick(() => { clearTimeout(t2); });
+  process.nextTick(() => {
+    // Confirm that clearing Timeouts from a next tick doesn't explode.
+    clearTimeout(t2);
+    clearTimeout(t3);
+  });
 }), 1);
-const t2 = setTimeout(common.mustNotCall(), 2);
+const t2 = setTimeout(common.mustNotCall(), 1);
+const t3 = setTimeout(common.mustNotCall(), 1);
+setTimeout(common.mustCall(), 1);
 
 common.busyLoop(5);
+
+setImmediate(common.mustCall(() => {
+  process.nextTick(() => {
+    // Confirm that clearing Immediates from a next tick doesn't explode.
+    clearImmediate(i2);
+    clearImmediate(i3);
+  });
+}));
+const i2 = setImmediate(common.mustNotCall());
+const i3 = setImmediate(common.mustNotCall());
+setImmediate(common.mustCall());
