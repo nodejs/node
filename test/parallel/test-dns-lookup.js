@@ -134,8 +134,8 @@ dns.lookup('example.com', common.mustCall((error, result, addressType) => {
   assert.strictEqual(tickValue, 1);
   assert.strictEqual(error.code, 'ENOENT');
   const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
-  assert.strictEqual(descriptor.enumerable,
-                     false, 'The error message should be non-enumerable');
+  // The error message should be non-enumerable.
+  assert.strictEqual(descriptor.enumerable, false);
 }));
 
 // Make sure that the error callback is called
