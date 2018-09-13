@@ -29,5 +29,4 @@ test_general.wrap(finalizeAndWrap);
 test_general.addFinalizerOnly(finalizeAndWrap, common.mustCall());
 finalizeAndWrap = null;
 global.gc();
-assert.strictEqual(test_general.derefItemWasCalled(), true,
-                   'finalize callback was called');
+assert.strictEqual(test_general.derefItemWasCalled(), true);
