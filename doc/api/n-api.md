@@ -3238,6 +3238,11 @@ JavaScript functions from native code. One can either call a function
 like a regular JavaScript function call, or as a constructor
 function.
 
+Any non-`NULL` data which is passed to this API via the `data` field of the
+`napi_property_descriptor` items can be associated with `object` and freed
+whenever `object` is garbage-collected by passing both `object` and the data to
+[`napi_add_finalizer`][].
+
 ### napi_call_function
 <!-- YAML
 added: v8.0.0
@@ -3374,6 +3379,11 @@ myaddon.sayHello();
 
 The string passed to `require()` is the name of the target in `binding.gyp`
 responsible for creating the `.node` file.
+
+Any non-`NULL` data which is passed to this API via the `data` parameter can
+be associated with the resulting JavaScript function (which is returned in the
+`result` parameter) and freed whenever the function is garbage-collected by
+passing both the JavaScript function and the data to [`napi_add_finalizer`][].
 
 JavaScript `Function`s are described in
 [Section 19.2](https://tc39.github.io/ecma262/#sec-function-objects)
@@ -3581,6 +3591,12 @@ case, to prevent the function value from being garbage-collected, create a
 persistent reference to it using [`napi_create_reference`][] and ensure the
 reference count is kept >= 1.
 
+Any non-`NULL` data which is passed to this API via the `data` parameter or via
+the `data` field of the `napi_property_descriptor` array items can be associated
+with the resulting JavaScript constructor (which is returned in the `result`
+parameter) and freed whenever the class is garbage-collected by passing both
+the JavaScript function and the data to [`napi_add_finalizer`][].
+
 ### napi_wrap
 <!-- YAML
 added: v8.0.0
@@ -3684,6 +3700,47 @@ Retrieves a native instance that was previously wrapped in the JavaScript
 object `js_object` using `napi_wrap()` and removes the wrapping. If a finalize
 callback was associated with the wrapping, it will no longer be called when the
 JavaScript object becomes garbage-collected.
+
+### napi_add_finalizer
+<!-- YAML
+added: v8.0.0
+napiVersion: 1
+-->
+```C
+napi_status napi_add_finalizer(napi_env env,
+                               napi_value js_object,
+                               void* native_object,
+                               napi_finalize finalize_cb,
+                               void* finalize_hint,
+                               napi_ref* result);
+```
+
+ - `[in] env`: The environment that the API is invoked under.
+ - `[in] js_object`: The JavaScript object to which the native data will be
+   attached.
+ - `[in] native_object`: The native data that will be attached to the JavaScript
+   object.
+ - `[in] finalize_cb`: Native callback that will be used to free the
+   native data when the JavaScript object is ready for garbage-collection.
+ - `[in] finalize_hint`: Optional contextual hint that is passed to the
+   finalize callback.
+ - `[out] result`: Optional reference to the JavaScript object.
+
+Returns `napi_ok` if the API succeeded.
+
+Adds a `napi_finalize` callback which will be called when the JavaScript object
+in `js_object` is ready for garbage collection. This API is similar to
+`napi_wrap()` except that
+* the native data cannot be retrieved later using `napi_unwrap()`,
+* nor can it be removed later using `napi_remove_wrap()`, and
+* the API can be called multiple times with different data items in order to
+  attach each of them to the JavaScript object.
+
+*Caution*: The optional returned reference (if obtained) should be deleted via
+[`napi_delete_reference`][] ONLY in response to the finalize callback
+invocation. If it is deleted before then, then the finalize callback may never
+be invoked. Therefore, when obtaining a reference a finalize callback is also
+required in order to enable correct disposal of the reference.
 
 ## Simple Asynchronous Operations
 
@@ -4559,6 +4616,7 @@ This API may only be called from the main thread.
 [Working with JavaScript Values]: #n_api_working_with_javascript_values
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
 
+[`napi_add_finalizer`]: #n_api_napi_add_finalizer
 [`napi_async_init`]: #n_api_napi_async_init
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
 [`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
