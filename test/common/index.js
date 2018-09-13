@@ -41,7 +41,7 @@ const noop = () => {};
 const isMainThread = (() => {
   try {
     return require('worker_threads').isMainThread;
-  } catch {
+  } catch (e) {
     // Worker module not enabled → only a single main thread exists.
     return true;
   }
