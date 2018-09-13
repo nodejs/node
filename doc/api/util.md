@@ -360,6 +360,9 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-rul: https://github.com/nodejs/node/pull/22753
+    description: Deprecated legacy signature.
   - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/20725
     description: Inspecting linked lists and similar objects is now possible
@@ -384,6 +387,9 @@ changes:
   - version: v6.1.0
     pr-url: https://github.com/nodejs/node/pull/6465
     description: The `showProxy` option is supported now.
+  - version: v0.9.3
+    pr-url: https://github.com/nodejs/node-v0.x-archive/issues/4085
+    description: Take an "options" object as second argument
 -->
 
 * `object` {any} Any JavaScript primitive or `Object`.
@@ -423,6 +429,9 @@ changes:
     characters, no matter the `breakLength` size. For more information, see the
     example below. **Default:** `true`.
 * Returns: {string} The representation of passed object
+
+Deprecation notice: The legacy function signature that was changed in v0.9.3
+`util.inspect(object, [showHidden], [depth], [colors])` has been deprecated.
 
 The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
