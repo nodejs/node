@@ -75,6 +75,8 @@ TEST_F(EnvironmentTest, NonNodeJSContext) {
   const Argv argv;
   Env test_env {handle_scope, argv};
 
+  EXPECT_EQ(node::Environment::GetCurrent(v8::Local<v8::Context>()), nullptr);
+
   node::Environment* env = *test_env;
   EXPECT_EQ(node::Environment::GetCurrent(isolate_), env);
   EXPECT_EQ(node::Environment::GetCurrent(env->context()), env);
