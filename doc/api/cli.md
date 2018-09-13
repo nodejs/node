@@ -90,6 +90,13 @@ added: v8.5.0
 
 Enable experimental ES module support and caching modules.
 
+### `--experimental-policy`
+<!-- YAML
+added: TODO
+-->
+
+Use the specified file as a security policy.
+
 ### `--experimental-repl-await`
 <!-- YAML
 added: v10.0.0

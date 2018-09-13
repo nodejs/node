@@ -39,6 +39,7 @@
 * [OS](os.html)
 * [Path](path.html)
 * [Performance Hooks](perf_hooks.html)
+* [Policies](policy.html)
 * [Process](process.html)
 * [Punycode](punycode.html)
 * [Query Strings](querystring.html)

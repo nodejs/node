@@ -101,6 +101,15 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
             kAllowedInEnvironment);
+  AddOption("[has_experimental_policy]",
+            "",
+            &EnvironmentOptions::has_experimental_policy);
+  AddOption("--experimental-policy",
+            "use the specified file as a "
+            "security policy",
+            &EnvironmentOptions::experimental_policy,
+            kAllowedInEnvironment);
+  Implies("--experimental-policy", "[has_experimental_policy]");
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
             &EnvironmentOptions::experimental_repl_await,
