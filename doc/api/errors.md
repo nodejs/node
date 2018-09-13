@@ -1380,6 +1380,39 @@ An attempt was made to open an IPC communication channel with a synchronously
 forked Node.js process. See the documentation for the [`child_process`][] module
 for more information.
 
+<a id="ERR_MANIFEST_ASSERT_INTEGRITY"></a>
+### ERR_MANIFEST_ASSERT_INTEGRITY
+
+An attempt was made to load a resource, but the resource did not match the
+integrity defined by the policy manifest. See the documentation for [policy]
+manifests for more information.
+
+<a id="ERR_MANIFEST_INTEGRITY_MISMATCH"></a>
+### ERR_MANIFEST_INTEGRITY_MISMATCH
+
+An attempt was made to load a policy manifest, but the manifest had multiple
+entries for a resource which did not match each other. Update the manifest
+entries to match in order to resolve this error. See the documentation for
+[policy] manifests for more information.
+
+<a id="ERR_MANIFEST_PARSE_POLICY"></a>
+### ERR_MANIFEST_PARSE_POLICY
+
+An attempt was made to load a policy manifest, but the manifest was unable to
+be parsed. See the documentation for [policy] manifests for more information.
+
+<a id="ERR_MANIFEST_TDZ"></a>
+### ERR_MANIFEST_TDZ
+
+An attempt was made to read from a policy manifest, but the manifest
+initialization has not yet taken place. This is likely a bug in Node.js.
+
+<a id="ERR_MANIFEST_UNKNOWN_ONERROR"></a>
+### ERR_MANIFEST_UNKNOWN_ONERROR
+
+A policy manifest was loaded, but had an unknown value for its "onerror"
+behavior. See the documentation for [policy] manifests for more information.
+
 <a id="ERR_MEMORY_ALLOCATION_FAILED"></a>
 ### ERR_MEMORY_ALLOCATION_FAILED
 
@@ -1589,6 +1622,13 @@ An attempt was made to operate on an already closed socket.
 ### ERR_SOCKET_DGRAM_NOT_RUNNING
 
 A call was made and the UDP subsystem was not running.
+
+<a id="ERR_SRI_PARSE"></a>
+### ERR_SRI_PARSE
+
+A string was provided for a Subresource Integrity check, but was unable to be
+parsed. Check the format of integrity attributes by looking at the
+[Subresource Integrity specification][].
 
 <a id="ERR_STREAM_CANNOT_PIPE"></a>
 ### ERR_STREAM_CANNOT_PIPE
@@ -2229,7 +2269,9 @@ such as `process.stdout.on('data')`.
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[policy]: policy.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscalls.2.html
+[Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
