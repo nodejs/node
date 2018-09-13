@@ -610,11 +610,11 @@ try {
 }
 
 try {
-  assert.strictEqual(1, 2, 'oh no');
+  assert.strictEqual(1, 2, 'oh no'); // eslint-disable-line no-restricted-syntax
 } catch (e) {
   assert.strictEqual(e.message.split('\n')[0], 'oh no');
-  assert.strictEqual(e.generatedMessage, false,
-                     'Message incorrectly marked as generated');
+  // Message should not be marked as generated.
+  assert.strictEqual(e.generatedMessage, false);
 }
 
 {
