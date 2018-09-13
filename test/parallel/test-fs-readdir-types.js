@@ -57,6 +57,14 @@ fs.readdir(readdirDir, {
   assertDirents(dirents);
 }));
 
+// Check the promisified version
+assert.doesNotReject(async () => {
+  const dirents = await fs.promises.readdir(readdirDir, {
+    withFileTypes: true
+  });
+  assertDirents(dirents);
+});
+
 // Check for correct types when the binding returns unknowns
 const UNKNOWN = constants.UV_DIRENT_UNKNOWN;
 const oldReaddir = binding.readdir;
