@@ -27,5 +27,5 @@ const origNextTick = process.nextTick;
 
 require('domain');
 
-assert.strictEqual(origNextTick, process.nextTick,
-                   'Requiring domain should not change nextTick');
+// Requiring domain should not change nextTick.
+assert.strictEqual(origNextTick, process.nextTick);
