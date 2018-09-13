@@ -54,6 +54,6 @@ for (const e of fileInfo) {
   fs.readFile(e.name, common.mustCall((err, buf) => {
     console.log(`Validating readFile on file ${e.name} of length ${e.len}`);
     assert.ifError(err);
-    assert.deepStrictEqual(buf, e.contents, 'Incorrect file contents');
+    assert.deepStrictEqual(buf, e.contents);
   }));
 }
