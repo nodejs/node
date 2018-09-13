@@ -195,8 +195,6 @@ function testError() {
       /setImmediate/,
       /^    at/,
       /^    at/,
-      /^    at/,
-      /^    at/,
     ];
     for (const line of lines) {
       const expected = expectedLines.shift();
