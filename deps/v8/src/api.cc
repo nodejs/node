@@ -9950,6 +9950,47 @@ debug::TypeProfile::ScriptData debug::TypeProfile::GetScriptData(
   return ScriptData(i, type_profile_);
 }
 
+v8::MaybeLocal<v8::Value> debug::WeakMap::Get(v8::Local<v8::Context> context,
+                                              v8::Local<v8::Value> key) {
+  PREPARE_FOR_EXECUTION(context, WeakMap, Get, Value);
+  auto self = Utils::OpenHandle(this);
+  Local<Value> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  has_pending_exception =
+      !ToLocal<Value>(i::Execution::Call(isolate, isolate->weakmap_get(), self,
+                                         arraysize(argv), argv),
+                      &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
+}
+
+v8::MaybeLocal<debug::WeakMap> debug::WeakMap::Set(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> key,
+    v8::Local<v8::Value> value) {
+  PREPARE_FOR_EXECUTION(context, WeakMap, Set, WeakMap);
+  auto self = Utils::OpenHandle(this);
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key),
+                                 Utils::OpenHandle(*value)};
+  has_pending_exception = !i::Execution::Call(isolate, isolate->weakmap_set(),
+                                              self, arraysize(argv), argv)
+                               .ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION(WeakMap);
+  RETURN_ESCAPED(Local<WeakMap>::Cast(Utils::ToLocal(result)));
+}
+
+Local<debug::WeakMap> debug::WeakMap::New(v8::Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, WeakMap, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::Handle<i::JSWeakMap> obj = i_isolate->factory()->NewJSWeakMap();
+  return ToApiHandle<debug::WeakMap>(obj);
+}
+
+debug::WeakMap* debug::WeakMap::Cast(v8::Value* value) {
+  return static_cast<debug::WeakMap*>(value);
+}
+
 const char* CpuProfileNode::GetFunctionNameStr() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   return node->entry()->name();
