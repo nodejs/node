@@ -6,6 +6,7 @@
 #include "inspector/tracing_agent.h"
 #include "node/inspector/protocol/Protocol.h"
 #include "node_internals.h"
+#include "node_url.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
 
@@ -369,6 +370,25 @@ void NotifyClusterWorkersDebugEnabled(Environment* env) {
   MakeCallback(env->isolate(), process_object, emit_fn.As<Function>(),
                arraysize(argv), argv, {0, 0});
 }
+
+#ifdef _WIN32
+bool IsFilePath(const std::string& path) {
+  // '\\'
+  if (path.length() > 2 && path[0] == '\\' && path[1] == '\\')
+    return true;
+  // '[A-Z]:[/\\]'
+  if (path.length() < 3)
+    return false;
+  if ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z'))
+    return path[1] == ':' && (path[2] == '/' || path[2] == '\\');
+  return false;
+}
+#else
+bool IsFilePath(const std::string& path) {
+  return path.length() && path[0] == '/';
+}
+#endif  // __POSIX__
+
 }  // namespace
 
 class NodeInspectorClient : public V8InspectorClient {
@@ -590,6 +610,18 @@ class NodeInspectorClient : public V8InspectorClient {
 
   double currentTimeMS() override {
     return env_->isolate_data()->platform()->CurrentClockTimeMillis();
+  }
+
+  std::unique_ptr<StringBuffer> resourceNameToUrl(
+      const StringView& resource_name_view) override {
+    std::string resource_name =
+        protocol::StringUtil::StringViewToUtf8(resource_name_view);
+    if (!IsFilePath(resource_name))
+      return nullptr;
+    node::url::URL url = node::url::URL::FromFilePath(resource_name);
+    // TODO(ak239spb): replace this code with url.href().
+    // Refs: https://github.com/nodejs/node/issues/22610
+    return Utf8ToStringView(url.protocol() + "//" + url.path());
   }
 
   node::Environment* env_;

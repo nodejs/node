@@ -24,7 +24,7 @@ async function testBreakpointOnStart(session) {
   ];
 
   session.send(commands);
-  await session.waitForBreakOnLine(0, session.scriptPath());
+  await session.waitForBreakOnLine(0, session.scriptURL());
 }
 
 async function runTests() {

@@ -226,13 +226,15 @@ void V8Debugger::getCompiledScripts(
     v8::Local<v8::debug::Script> script = scripts.Get(i);
     if (!script->WasCompiled()) continue;
     if (script->IsEmbedded()) {
-      result.push_back(V8DebuggerScript::Create(m_isolate, script, false));
+      result.push_back(V8DebuggerScript::Create(m_isolate, script, false,
+                                                m_inspector->client()));
       continue;
     }
     int contextId;
     if (!script->ContextId().To(&contextId)) continue;
     if (m_inspector->contextGroupId(contextId) != contextGroupId) continue;
-    result.push_back(V8DebuggerScript::Create(m_isolate, script, false));
+    result.push_back(V8DebuggerScript::Create(m_isolate, script, false,
+                                              m_inspector->client()));
   }
 }
 
@@ -585,13 +587,14 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
         });
   } else if (m_ignoreScriptParsedEventsCounter == 0) {
     v8::Isolate* isolate = m_isolate;
+    V8InspectorClient* client = m_inspector->client();
     m_inspector->forEachSession(
         m_inspector->contextGroupId(contextId),
-        [&isolate, &script, &has_compile_error,
-         &is_live_edited](V8InspectorSessionImpl* session) {
+        [&isolate, &script, &has_compile_error, &is_live_edited,
+         &client](V8InspectorSessionImpl* session) {
           if (!session->debuggerAgent()->enabled()) return;
           session->debuggerAgent()->didParseSource(
-              V8DebuggerScript::Create(isolate, script, is_live_edited),
+              V8DebuggerScript::Create(isolate, script, is_live_edited, client),
               !has_compile_error);
         });
   }
