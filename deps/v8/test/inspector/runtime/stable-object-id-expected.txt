@@ -1,0 +1,14 @@
+Checks that protocol returns the same RemoteObjectId for the same object
+
+Running test: testGlobal
+Compare global evaluated twice: true
+
+Running test: testObject
+Compare object evaluated twice: true
+
+Running test: testObjectInArray
+Compare first and second element: true
+
+Running test: testObjectOnPause
+Compare global and this: true
+Compare a and a on pause: true
