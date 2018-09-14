@@ -33,9 +33,8 @@ Modifications of the contents of the nodejs/node repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a
 modification via pull request and it will be considered by the project
 Collaborators. All pull requests must be reviewed and accepted by at least two
-Collaborators with sufficient expertise who are able to take full
-responsibility for the change. Approval must be from Collaborators who are not
-authors of the proposed changes.
+Collaborators who are able to take full responsibility for the change. Approval
+must be from Collaborators who are not authors of the proposed changes.
 
 If one or more Collaborators oppose a proposed change, then the change cannot
 be accepted unless:
