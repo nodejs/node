@@ -1753,7 +1753,9 @@ added: REPLACEME
       the given `cipher` and `passphrase` using PKCS#5 v2.0 password based
       encryption.
     - `passphrase`: {string} The passphrase to use for encryption, see `cipher`.
-* Returns: {Array} An array of the form `[publicKey, privateKey]`
+* Returns: {Object}
+  - `publicKey`: {string|Buffer}
+  - `privateKey`: {string|Buffer}
 
 Generates a new asymmetric key pair of the given `type`. Only RSA, DSA and EC
 are currently supported.
@@ -1763,7 +1765,7 @@ It is recommended to encode public keys as `'spki'` and private keys as
 
 ```js
 const { generateKeyPairSync } = require('crypto');
-const [publicKey, privateKey] = generateKeyPairSync('rsa', {
+const { publicKey, privateKey } = generateKeyPairSync('rsa', {
   modulusLength: 4096,
   publicKeyEncoding: {
     type: 'spki',
@@ -1778,7 +1780,7 @@ const [publicKey, privateKey] = generateKeyPairSync('rsa', {
 });
 ```
 
-The return value `[publicKey, privateKey]` represents the generated key pair.
+The return value `{ publicKey, privateKey }` represents the generated key pair.
 When PEM encoding was selected, the respective key will be a string, otherwise
 it will be a buffer containing the data encoded as DER.
 

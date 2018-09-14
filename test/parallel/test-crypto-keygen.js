@@ -81,7 +81,7 @@ function convertDERToPEM(label, der) {
 {
   // To make the test faster, we will only test sync key generation once and
   // with a relatively small key.
-  const [publicKey, privateKey] = generateKeyPairSync('rsa', {
+  const ret = generateKeyPairSync('rsa', {
     publicExponent: 0x10001,
     modulusLength: 1024,
     publicKeyEncoding: {
@@ -93,6 +93,9 @@ function convertDERToPEM(label, der) {
       format: 'pem'
     }
   });
+
+  assert.strictEqual(Object.keys(ret).length, 2);
+  const { publicKey, privateKey } = ret;
 
   assert.strictEqual(typeof publicKey, 'string');
   assert(pkcs1PubExp.test(publicKey));
