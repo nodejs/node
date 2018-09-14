@@ -45,6 +45,8 @@ InspectorTest.logMessage = function(originalMessage) {
   var objects = [ message ];
   while (objects.length) {
     var object = objects.shift();
+    if (object && object.name === '[[StableObjectId]]')
+      object.value = '<StablectObjectId>';
     for (var key in object) {
       if (nonStableFields.has(key))
         object[key] = `<${key}>`;

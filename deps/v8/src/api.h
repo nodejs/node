@@ -124,6 +124,7 @@ class RegisteredExtension {
   V(Proxy, JSProxy)                            \
   V(debug::GeneratorObject, JSGeneratorObject) \
   V(debug::Script, Script)                     \
+  V(debug::WeakMap, JSWeakMap)                 \
   V(Promise, JSPromise)                        \
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \
