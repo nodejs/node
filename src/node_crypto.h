@@ -365,7 +365,6 @@ class CipherBase : public BaseObject {
   };
   enum AuthTagState {
     kAuthTagUnknown,
-    kAuthTagLengthKnown,
     kAuthTagKnown,
     kAuthTagPassedToOpenSSL
   };

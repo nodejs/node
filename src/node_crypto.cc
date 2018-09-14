@@ -2818,7 +2818,6 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
 
     // Remember the given authentication tag length for later.
     auth_tag_len_ = auth_tag_len;
-    auth_tag_state_ = kAuthTagLengthKnown;
 
     if (mode == EVP_CIPH_CCM_MODE) {
       // Restrict the message length to min(INT_MAX, 2^(8*(15-iv_len))-1) bytes.
@@ -2841,7 +2840,6 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
 
       // Remember the given authentication tag length for later.
       auth_tag_len_ = auth_tag_len;
-      auth_tag_state_ = kAuthTagLengthKnown;
     }
   }
 
