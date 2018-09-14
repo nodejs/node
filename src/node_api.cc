@@ -736,8 +736,6 @@ napi_env GetEnv(v8::Local<v8::Context> context) {
   // because we need to stop hard if either of them is empty.
   //
   // Re https://github.com/nodejs/node/pull/14217#discussion_r128775149
-  // TODO(addaleax): This requires a Node.js Environment attached to the
-  // current context.
   auto value = global->GetPrivate(context, NAPI_PRIVATE_KEY(context, env))
       .ToLocalChecked();
 
