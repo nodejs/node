@@ -833,7 +833,8 @@ bool Agent::IsActive() {
 
 void Agent::WaitForConnect() {
   CHECK_NOT_NULL(client_);
-  client_->waitForFrontend();
+  if (!client_->hasConnectedSessions())
+    client_->waitForFrontend();
 }
 
 SameThreadInspectorSession::~SameThreadInspectorSession() {

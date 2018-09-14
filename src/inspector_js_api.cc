@@ -259,6 +259,16 @@ void Open(const FunctionCallbackInfo<Value>& args) {
     agent->WaitForConnect();
 }
 
+void WaitForConnection(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Agent* agent = env->inspector_agent();
+  if (!agent->IsActive()) {
+    env->ThrowError("inspector error, inspector.open should be called first");
+    return;
+  }
+  agent->WaitForConnect();
+}
+
 void Url(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Agent* agent = env->inspector_agent();
@@ -291,6 +301,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "open", Open);
   env->SetMethodNoSideEffect(target, "url", Url);
+  env->SetMethod(target, "waitForConnection", WaitForConnection);
 
   env->SetMethod(target, "asyncTaskScheduled", AsyncTaskScheduledWrapper);
   env->SetMethod(target, "asyncTaskCanceled",

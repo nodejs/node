@@ -49,6 +49,13 @@ and flow control has been passed to the debugger client.
 
 Return the URL of the active inspector, or `undefined` if there is none.
 
+## inspector.waitForConnection()
+
+This method blocks until first client has connection, inspector should be open
+before call to this method.
+
+Call to this method when inspector is closed will throw an exception.
+
 ## Class: inspector.Session
 
 The `inspector.Session` is used for dispatching messages to the V8 inspector

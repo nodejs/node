@@ -504,5 +504,6 @@ function fires(promise, error, timeoutMs) {
 }
 
 module.exports = {
-  NodeInstance
+  NodeInstance,
+  formatWSFrame
 };
