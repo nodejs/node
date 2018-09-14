@@ -750,6 +750,9 @@ class RuntimeCallTimer final {
   V(Map_Has)                                               \
   V(Map_New)                                               \
   V(Map_Set)                                               \
+  V(WeakMap_Get)                                           \
+  V(WeakMap_Set)                                           \
+  V(WeakMap_New)                                           \
   V(Message_GetEndColumn)                                  \
   V(Message_GetLineNumber)                                 \
   V(Message_GetSourceLine)                                 \
