@@ -113,9 +113,10 @@ comment that explains why the PR does not require a CI run.
 ### Code Reviews
 
 At least two Collaborators must approve a pull request before the pull request
-lands. Approving a pull request indicates that the Collaborator accepts
-responsibility for the change. Approval must be from Collaborators who are not
-authors of the proposed changes.
+lands. (One Collaborator approval is enough if the pull request has been open
+for more than 7 days.) Approving a pull request indicates that the Collaborator
+accepts responsibility for the change. Approval must be from Collaborators who
+are not authors of the proposed changes.
 
 In some cases, it may be necessary to summon a GitHub team to a pull request for
 review by @-mention.

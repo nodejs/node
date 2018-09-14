@@ -32,8 +32,11 @@ Their privileges include but are not limited to:
 Modifications of the contents of the nodejs/node repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a
 modification via pull request and it will be considered by the project
-Collaborators. At least two Collaborators must approve a pull request before the
-pull request lands. Approving a pull request indicates that the Collaborator
+Collaborators.
+
+At least two Collaborators must approve a pull request before the pull request
+lands. (One Collaborator approval is enough if the pull request has been open
+for more than 7 days.) Approving a pull request indicates that the Collaborator
 accepts responsibility for the change. Approval must be from Collaborators who
 are not authors of the proposed changes.
 
