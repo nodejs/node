@@ -2899,6 +2899,10 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(false);
   }
 
+  // TODO(tniessen): Throw if the authentication tag has already been set.
+  if (cipher->auth_tag_state_ == kAuthTagPassedToOpenSSL)
+    return args.GetReturnValue().Set(true);
+
   unsigned int tag_len = Buffer::Length(args[0]);
   const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_.get());
   bool is_valid;
