@@ -38,7 +38,7 @@ At least two Collaborators must approve a pull request before the pull request
 lands. (One Collaborator approval is enough if the pull request has been open
 for more than 7 days.) Approving a pull request indicates that the Collaborator
 accepts responsibility for the change. Approval must be from Collaborators who
-are not authors of the proposed changes.
+are not authors of the change.
 
 If one or more Collaborators oppose a proposed change, then the change cannot
 be accepted unless:
