@@ -240,10 +240,6 @@
       'includes': [
         'node.gypi'
       ],
-      'include_dirs': [
-        'src',
-        'deps/v8/include',
-      ],
 
       # - "C4244: conversion from 'type1' to 'type2', possible loss of data"
       #   Ususaly safe. Disable for `dep`, enable for `src`
@@ -317,7 +313,6 @@
       ],
 
       'include_dirs': [
-        'src',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
 
@@ -513,7 +508,6 @@
           'defines': [ 'HAVE_ETW=1' ],
           'dependencies': [ 'node_etw' ],
           'include_dirs': [
-            'src',
             'tools/msvs/genfiles',
             '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
           ],
@@ -873,9 +867,7 @@
       ],
 
       'include_dirs': [
-        'src',
         'tools/msvs/genfiles',
-        'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
         '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
@@ -962,10 +954,6 @@
             'node.gypi'
           ],
           'dependencies': [ '<(node_lib_target_name)' ],
-          'include_dirs': [
-            'src',
-            'deps/v8/include',
-          ],
           'sources': [
             '<@(library_files)',
             'common.gypi',

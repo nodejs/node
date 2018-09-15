@@ -76,7 +76,7 @@ The externally maintained libraries used by Node.js are:
 
 - c-ares, located at deps/cares, is licensed as follows:
   """
-    Copyright (c) 2007 - 2016, Daniel Stenberg with many contributors, see AUTHORS
+    Copyright (c) 2007 - 2018, Daniel Stenberg with many contributors, see AUTHORS
     file.
 
     Copyright 1998 by the Massachusetts Institute of Technology.
@@ -89,6 +89,31 @@ The externally maintained libraries used by Node.js are:
     distribution of the software without specific, written prior permission.
     M.I.T. makes no representations about the suitability of this software for any
     purpose.  It is provided "as is" without express or implied warranty.
+  """
+
+- GSL, located at deps/GSL, is licensed as follows:
+  """
+    Copyright (c) 2015 Microsoft Corporation. All rights reserved.
+
+    This code is licensed under the MIT License (MIT).
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+    of the Software, and to permit persons to whom the Software is furnished to do
+    so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
   """
 
 - HTTP Parser, located at deps/http_parser, is licensed as follows:
@@ -114,13 +139,13 @@ The externally maintained libraries used by Node.js are:
     IN THE SOFTWARE.
   """
 
-- ICU, located at deps/icu-small, is licensed as follows:
+- ICU, located at deps/icu, is licensed as follows:
   """
     COPYRIGHT AND PERMISSION NOTICE (ICU 58 and later)
-
+    
     Copyright © 1991-2018 Unicode, Inc. All rights reserved.
     Distributed under the Terms of Use in http://www.unicode.org/copyright.html.
-
+    
     Permission is hereby granted, free of charge, to any person obtaining
     a copy of the Unicode data files and any associated documentation
     (the "Data Files") or Unicode software and any associated documentation
@@ -133,7 +158,7 @@ The externally maintained libraries used by Node.js are:
     of the Data Files or Software, or
     (b) this copyright and permission notice appear in associated
     Documentation.
-
+    
     THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF
     ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
     WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -144,27 +169,27 @@ The externally maintained libraries used by Node.js are:
     DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
     TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
     PERFORMANCE OF THE DATA FILES OR SOFTWARE.
-
+    
     Except as contained in this notice, the name of a copyright holder
     shall not be used in advertising or otherwise to promote the sale,
     use or other dealings in these Data Files or Software without prior
     written authorization of the copyright holder.
-
+    
     ---------------------
-
+    
     Third-Party Software Licenses
-
+    
     This section contains third-party software notices and/or additional
     terms for licensed third-party software components included within ICU
     libraries.
-
+    
     1. ICU License - ICU 1.8.1 to ICU 57.1
-
+    
     COPYRIGHT AND PERMISSION NOTICE
-
+    
     Copyright (c) 1995-2016 International Business Machines Corporation and others
     All rights reserved.
-
+    
     Permission is hereby granted, free of charge, to any person obtaining
     a copy of this software and associated documentation files (the
     "Software"), to deal in the Software without restriction, including
@@ -174,7 +199,7 @@ The externally maintained libraries used by Node.js are:
     copyright notice(s) and this permission notice appear in all copies of
     the Software and that both the above copyright notice(s) and this
     permission notice appear in supporting documentation.
-
+    
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
     MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
@@ -184,17 +209,17 @@ The externally maintained libraries used by Node.js are:
     RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
     CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
     CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
+    
     Except as contained in this notice, the name of a copyright holder
     shall not be used in advertising or otherwise to promote the sale, use
     or other dealings in this Software without prior written authorization
     of the copyright holder.
-
+    
     All trademarks and registered trademarks mentioned herein are the
     property of their respective owners.
-
+    
     2. Chinese/Japanese Word Break Dictionary Data (cjdict.txt)
-
+    
      #     The Google Chrome software developed by Google is licensed under
      # the BSD license. Other software included in this distribution is
      # provided under other licenses, as set forth below.
@@ -396,9 +421,9 @@ The externally maintained libraries used by Node.js are:
      #  above as far as the program is concerned.
      #
      #  ---------------COPYING.ipadic-----END----------------------------------
-
+    
     3. Lao Word Break Dictionary Data (laodict.txt)
-
+    
      #  Copyright (c) 2013 International Business Machines Corporation
      #  and others. All Rights Reserved.
      #
@@ -438,9 +463,9 @@ The externally maintained libraries used by Node.js are:
      # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
      # OF THE POSSIBILITY OF SUCH DAMAGE.
      #  --------------------------------------------------------------------------
-
+    
     4. Burmese Word Break Dictionary Data (burmesedict.txt)
-
+    
      #  Copyright (c) 2014 International Business Machines Corporation
      #  and others. All Rights Reserved.
      #
@@ -478,14 +503,14 @@ The externally maintained libraries used by Node.js are:
      #  THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
      #  SUCH DAMAGE.
      #  --------------------------------------------------------------------------
-
+    
     5. Time Zone Database
-
+    
       ICU uses the public domain data and code derived from Time Zone
     Database for its time zone support. The ownership of the TZ database
     is explained in BCP 175: Procedure for Maintaining the Time Zone
     Database section 7.
-
+    
      # 7.  Database Ownership
      #
      #    The TZ database itself is not an IETF Contribution or an IETF
@@ -501,14 +526,14 @@ The externally maintained libraries used by Node.js are:
      #    by ICANN or the IETF Trust on the database or the code.  Any person
      #    making a contribution to the database or code waives all rights to
      #    future claims in that contribution or in the TZ Database.
-
+    
     6. Google double-conversion
-
+    
     Copyright 2006-2011, the V8 project authors. All rights reserved.
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are
     met:
-
+    
         * Redistributions of source code must retain the above copyright
           notice, this list of conditions and the following disclaimer.
         * Redistributions in binary form must reproduce the above
@@ -518,7 +543,7 @@ The externally maintained libraries used by Node.js are:
         * Neither the name of Google Inc. nor the names of its
           contributors may be used to endorse or promote products derived
           from this software without specific prior written permission.
-
+    
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
     "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
     LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR

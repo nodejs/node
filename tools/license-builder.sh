@@ -31,6 +31,7 @@ fi
 # Dependencies bundled in distributions
 addlicense "Acorn" "deps/acorn" "$(cat ${rootdir}/deps/acorn/LICENSE)"
 addlicense "c-ares" "deps/cares" "$(tail -n +3 ${rootdir}/deps/cares/LICENSE.md)"
+addlicense "GSL" "deps/GSL" "$(cat ${rootdir}/deps/GSL/LICENSE)"
 addlicense "HTTP Parser" "deps/http_parser" "$(cat deps/http_parser/LICENSE-MIT)"
 if [ -f "${rootdir}/deps/icu/LICENSE" ]; then
   # ICU 57 and following. Drop the BOM

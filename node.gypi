@@ -24,6 +24,11 @@
     },
     'force_load%': '<(force_load)',
   },
+  'include_dirs': [
+    'deps/GSL',
+    'deps/v8/include',
+    'src',
+  ],
   # Putting these explicitly here so not to be dependant on common.gypi.
   'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
   'xcode_settings': {
