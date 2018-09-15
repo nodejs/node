@@ -54,6 +54,7 @@ server.listen(0, common.mustCall(() => {
       assert.strictEqual(headers['content-type'], 'text/html');
       assert.strictEqual(headers['x-push-data'], 'pushed by server');
     }));
+    stream.on('aborted', common.mustNotCall());
   }));
 
   let data = '';
