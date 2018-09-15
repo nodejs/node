@@ -574,9 +574,10 @@ terminals.
 
 <!-- type=misc -->
 
-Objects may also define their own `[util.inspect.custom](depth, opts)` function
-that `util.inspect()` will invoke and use the result of when inspecting the
-object:
+Objects may also define their own
+[`[util.inspect.custom](depth, opts)`][util.inspect.custom] function,
+which `util.inspect()` will invoke and use the result of when inspecting
+the object:
 
 ```js
 const util = require('util');
@@ -628,10 +629,41 @@ util.inspect(obj);
 ### util.inspect.custom
 <!-- YAML
 added: v6.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20857
+    description: This is now defined as a shared symbol.
 -->
 
-* {symbol} that can be used to declare custom inspect functions, see
-[Custom inspection functions on Objects][].
+* {symbol} that can be used to declare custom inspect functions.
+
+In addition to being accessible through `util.inspect.custom`, this
+symbol is [registered globally][global symbol registry] and can be
+accessed in any environment as `Symbol.for('nodejs.util.inspect.custom')`.
+
+```js
+const inspect = Symbol.for('nodejs.util.inspect.custom');
+
+class Password {
+  constructor(value) {
+    this.value = value;
+  }
+
+  toString() {
+    return 'xxxxxxxx';
+  }
+
+  [inspect]() {
+    return `Password <${this.toString()}>`;
+  }
+}
+
+const password = new Password('r0sebud');
+console.log(password);
+// Prints Password <xxxxxxxx>
+```
+
+See [Custom inspection functions on Objects][] for more details.
 
 ### util.inspect.defaultOptions
 <!-- YAML
@@ -2076,7 +2108,6 @@ Deprecated predecessor of `console.log`.
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
-[async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`console.error()`]: console.html#console_console_error_data_args
@@ -2118,6 +2149,9 @@ Deprecated predecessor of `console.log`.
 [Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [Common System Errors]: errors.html#errors_common_system_errors
+[async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [constructor]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
+[global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [list of deprecated APIS]: deprecations.html#deprecations_list_of_deprecated_apis
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
+[util.inspect.custom]: #util_util_inspect_custom
