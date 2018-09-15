@@ -2,6 +2,11 @@
 
 'use strict';
 
+// This tests `internal/errors.useOriginalName`
+// This testing feature is needed to allows us to assert the types of
+// errors without using instanceof, which is necessary in WPT harness.
+// Refs: https://github.com/nodejs/node/pull/22556
+
 require('../common');
 const assert = require('assert');
 const errors = require('internal/errors');
