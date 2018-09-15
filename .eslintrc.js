@@ -123,6 +123,7 @@ module.exports = {
     'no-proto': 'error',
     'no-redeclare': 'error',
     'no-restricted-modules': ['error', 'sys'],
+    /* eslint-disable max-len */
     'no-restricted-properties': [
       'error',
       {
@@ -154,7 +155,6 @@ module.exports = {
         message: '__defineSetter__ is deprecated.',
       }
     ],
-    /* eslint-disable max-len */
     // If this list is modified, please copy the change to lib/.eslintrc.yaml
     'no-restricted-syntax': [
       'error',
