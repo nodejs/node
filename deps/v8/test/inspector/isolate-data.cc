@@ -423,3 +423,32 @@ void IsolateData::maxAsyncCallStackDepthChanged(int depth) {
   if (!log_max_async_call_stack_depth_changed_) return;
   fprintf(stdout, "maxAsyncCallStackDepthChanged: %d\n", depth);
 }
+
+void IsolateData::SetResourceNamePrefix(v8::Local<v8::String> prefix) {
+  resource_name_prefix_.Reset(v8::Isolate::GetCurrent(), prefix);
+}
+
+namespace {
+class StringBufferImpl : public v8_inspector::StringBuffer {
+ public:
+  StringBufferImpl(v8::Isolate* isolate, v8::Local<v8::String> string)
+      : data_(ToVector(string)),
+        view_(data_.start(), data_.length()) {}
+  const v8_inspector::StringView& string() override { return view_; }
+
+ private:
+  v8::internal::Vector<uint16_t> data_;
+  v8_inspector::StringView view_;
+};
+}  // anonymous namespace
+
+std::unique_ptr<v8_inspector::StringBuffer> IsolateData::resourceNameToUrl(
+    const v8_inspector::StringView& resourceName) {
+  if (resource_name_prefix_.IsEmpty()) return nullptr;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::String> name = ToString(isolate, resourceName);
+  v8::Local<v8::String> prefix = resource_name_prefix_.Get(isolate);
+  v8::Local<v8::String> url = v8::String::Concat(prefix, name);
+  return std::unique_ptr<StringBufferImpl>(new StringBufferImpl(isolate, url));
+}

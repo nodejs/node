@@ -6,6 +6,7 @@
 
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
+#include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/wasm-translation.h"
 #include "src/utils.h"
 
@@ -110,9 +111,9 @@ class ActualScript : public V8DebuggerScript {
 
  public:
   ActualScript(v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
-               bool isLiveEdit)
+               bool isLiveEdit, V8InspectorClient* client)
       : V8DebuggerScript(isolate, String16::fromInteger(script->Id()),
-                         GetNameOrSourceUrl(script)),
+                         GetScriptURL(script, client)),
         m_isLiveEdit(isLiveEdit) {
     Initialize(script);
   }
@@ -218,10 +219,18 @@ class ActualScript : public V8DebuggerScript {
   }
 
  private:
-  String16 GetNameOrSourceUrl(v8::Local<v8::debug::Script> script) {
-    v8::Local<v8::String> name;
-    if (script->Name().ToLocal(&name) || script->SourceURL().ToLocal(&name))
-      return toProtocolString(name);
+  String16 GetScriptURL(v8::Local<v8::debug::Script> script,
+                        V8InspectorClient* client) {
+    v8::Local<v8::String> sourceURL;
+    if (script->SourceURL().ToLocal(&sourceURL) && sourceURL->Length() > 0)
+      return toProtocolString(sourceURL);
+    v8::Local<v8::String> v8Name;
+    if (script->Name().ToLocal(&v8Name) && v8Name->Length() > 0) {
+      String16 name = toProtocolString(v8Name);
+      std::unique_ptr<StringBuffer> url =
+          client->resourceNameToUrl(toStringView(name));
+      return url ? toString16(url->string()) : name;
+    }
     return String16();
   }
 
@@ -231,7 +240,8 @@ class ActualScript : public V8DebuggerScript {
 
   void Initialize(v8::Local<v8::debug::Script> script) {
     v8::Local<v8::String> tmp;
-    if (script->SourceURL().ToLocal(&tmp)) m_sourceURL = toProtocolString(tmp);
+    m_hasSourceURLComment =
+        script->SourceURL().ToLocal(&tmp) && tmp->Length() > 0;
     if (script->SourceMappingURL().ToLocal(&tmp))
       m_sourceMappingURL = toProtocolString(tmp);
     m_startLine = script->LineOffset();
@@ -398,9 +408,9 @@ class WasmVirtualScript : public V8DebuggerScript {
 
 std::unique_ptr<V8DebuggerScript> V8DebuggerScript::Create(
     v8::Isolate* isolate, v8::Local<v8::debug::Script> scriptObj,
-    bool isLiveEdit) {
+    bool isLiveEdit, V8InspectorClient* client) {
   return std::unique_ptr<ActualScript>(
-      new ActualScript(isolate, scriptObj, isLiveEdit));
+      new ActualScript(isolate, scriptObj, isLiveEdit, client));
 }
 
 std::unique_ptr<V8DebuggerScript> V8DebuggerScript::CreateWasm(
@@ -418,12 +428,11 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate, String16 id,
 
 V8DebuggerScript::~V8DebuggerScript() {}
 
-const String16& V8DebuggerScript::sourceURL() const {
-  return m_sourceURL.isEmpty() ? m_url : m_sourceURL;
-}
-
 void V8DebuggerScript::setSourceURL(const String16& sourceURL) {
-  m_sourceURL = sourceURL;
+  if (sourceURL.length() > 0) {
+    m_hasSourceURLComment = true;
+    m_url = sourceURL;
+  }
 }
 
 bool V8DebuggerScript::setBreakpoint(const String16& condition,
@@ -431,5 +440,4 @@ bool V8DebuggerScript::setBreakpoint(const String16& condition,
   v8::HandleScope scope(m_isolate);
   return script()->SetBreakpoint(toV8String(m_isolate, condition), loc, id);
 }
-
 }  // namespace v8_inspector

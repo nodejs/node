@@ -160,7 +160,6 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
 using v8::PropertyAttribute;
-using v8::PropertyCallbackInfo;
 using v8::ReadOnly;
 using v8::Script;
 using v8::ScriptCompiler;
@@ -1040,61 +1039,6 @@ static MaybeLocal<Value> ExecuteString(Environment* env,
 }
 
 
-static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  Local<Array> ary = Array::New(args.GetIsolate());
-  Local<Context> ctx = env->context();
-  Local<Function> fn = env->push_values_to_array_function();
-  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  size_t idx = 0;
-
-  for (auto w : *env->req_wrap_queue()) {
-    if (w->persistent().IsEmpty())
-      continue;
-    argv[idx] = w->GetOwner();
-    if (++idx >= arraysize(argv)) {
-      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-      idx = 0;
-    }
-  }
-
-  if (idx > 0) {
-    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-  }
-
-  args.GetReturnValue().Set(ary);
-}
-
-
-// Non-static, friend of HandleWrap. Could have been a HandleWrap method but
-// implemented here for consistency with GetActiveRequests().
-void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  Local<Array> ary = Array::New(env->isolate());
-  Local<Context> ctx = env->context();
-  Local<Function> fn = env->push_values_to_array_function();
-  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  size_t idx = 0;
-
-  for (auto w : *env->handle_wrap_queue()) {
-    if (!HandleWrap::HasRef(w))
-      continue;
-    argv[idx] = w->GetOwner();
-    if (++idx >= arraysize(argv)) {
-      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-      idx = 0;
-    }
-  }
-  if (idx > 0) {
-    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
-  }
-
-  args.GetReturnValue().Set(ary);
-}
-
-
 NO_RETURN void Abort() {
   DumpBacktrace(stderr);
   fflush(stderr);
@@ -1726,32 +1670,6 @@ static Local<Object> GetFeatures(Environment* env) {
 
   return scope.Escape(obj);
 }
-
-
-static void DebugPortGetter(Local<Name> property,
-                            const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  Mutex::ScopedLock lock(process_mutex);
-  int port = env->options()->debug_options->port();
-#if HAVE_INSPECTOR
-  if (port == 0) {
-    if (auto io = env->inspector_agent()->io())
-      port = io->port();
-  }
-#endif  // HAVE_INSPECTOR
-  info.GetReturnValue().Set(port);
-}
-
-
-static void DebugPortSetter(Local<Name> property,
-                            Local<Value> value,
-                            const PropertyCallbackInfo<void>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  Mutex::ScopedLock lock(process_mutex);
-  env->options()->debug_options->host_port.port =
-      value->Int32Value(env->context()).FromMaybe(0);
-}
-
 
 static void DebugProcess(const FunctionCallbackInfo<Value>& args);
 static void DebugEnd(const FunctionCallbackInfo<Value>& args);

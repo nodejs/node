@@ -883,6 +883,8 @@ void Abort(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Chdir(const v8::FunctionCallbackInfo<v8::Value>& args);
 void CPUUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Cwd(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetActiveRequests(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Hrtime(const v8::FunctionCallbackInfo<v8::Value>& args);
 void HrtimeBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Kill(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -903,6 +905,11 @@ void EnvSetter(v8::Local<v8::Name> property,
 void EnvQuery(v8::Local<v8::Name> property,
               const v8::PropertyCallbackInfo<v8::Integer>& info);
 void EnvEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info);
+void DebugPortGetter(v8::Local<v8::Name> property,
+                     const v8::PropertyCallbackInfo<v8::Value>& info);
+void DebugPortSetter(v8::Local<v8::Name> property,
+                     v8::Local<v8::Value> value,
+                     const v8::PropertyCallbackInfo<void>& info);
 
 void GetParentProcessId(v8::Local<v8::Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info);
