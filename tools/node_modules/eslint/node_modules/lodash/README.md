@@ -1,4 +1,4 @@
-# lodash v4.17.10
+# lodash v4.17.11
 
 The [Lodash](https://lodash.com/) library exported as [Node.js](https://nodejs.org/) modules.
 
@@ -28,12 +28,12 @@ var at = require('lodash/at');
 var curryN = require('lodash/fp/curryN');
 ```
 
-See the [package source](https://github.com/lodash/lodash/tree/4.17.10-npm) for more details.
+See the [package source](https://github.com/lodash/lodash/tree/4.17.11-npm) for more details.
 
 **Note:**<br>
 Install [n_](https://www.npmjs.com/package/n_) for Lodash use in the Node.js < 6 REPL.
 
 ## Support
 
-Tested in Chrome 63-64, Firefox 57-58, IE 11, Edge 14, Safari 10-11, Node.js 4-9, & PhantomJS 2.1.1.<br>
+Tested in Chrome 68-69, Firefox 61-62, IE 11, Edge 17, Safari 10-11, Node.js 6-10, & PhantomJS 2.1.1.<br>
 Automated [browser](https://saucelabs.com/u/lodash) & [CI](https://travis-ci.org/lodash/lodash/) test runs are available.
