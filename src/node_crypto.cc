@@ -4830,7 +4830,7 @@ void Scrypt(const FunctionCallbackInfo<Value>& args) {
 
 class KeyPairGenerationConfig {
  public:
-  virtual EVP_PKEY_CTX* Setup() = 0;
+  virtual EVPKeyCtxPointer Setup() = 0;
   virtual bool Configure(const EVPKeyCtxPointer& ctx) {
     return true;
   }
@@ -4841,11 +4841,11 @@ class RSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
   RSAKeyPairGenerationConfig(unsigned int modulus_bits, unsigned int exponent)
     : modulus_bits_(modulus_bits), exponent_(exponent) {}
 
-  EVP_PKEY_CTX* Setup() {
-    return EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
+  EVPKeyCtxPointer Setup() override {
+    return EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr));
   }
 
-  bool Configure(const EVPKeyCtxPointer &ctx) {
+  bool Configure(const EVPKeyCtxPointer& ctx) override {
     if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx.get(), modulus_bits_) <= 0)
       return false;
 
@@ -4871,7 +4871,7 @@ class DSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
   DSAKeyPairGenerationConfig(unsigned int modulus_bits, int divisor_bits)
     : modulus_bits_(modulus_bits), divisor_bits_(divisor_bits) {}
 
-  EVP_PKEY_CTX* Setup() {
+  EVPKeyCtxPointer Setup() override {
     EVPKeyCtxPointer param_ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, nullptr));
     if (!param_ctx)
       return nullptr;
@@ -4899,7 +4899,7 @@ class DSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
     EVP_PKEY_free(params);
     if (!key_ctx)
       return nullptr;
-    return key_ctx.release();
+    return key_ctx;
   }
 
  private:
@@ -4912,7 +4912,7 @@ class ECKeyPairGenerationConfig : public KeyPairGenerationConfig {
   ECKeyPairGenerationConfig(int curve_nid, int param_encoding)
     : curve_nid_(curve_nid), param_encoding_(param_encoding) {}
 
-  EVP_PKEY_CTX* Setup() {
+  EVPKeyCtxPointer Setup() override {
     EVPKeyCtxPointer param_ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr));
     if (!param_ctx)
       return nullptr;
@@ -4936,7 +4936,7 @@ class ECKeyPairGenerationConfig : public KeyPairGenerationConfig {
     EVP_PKEY_free(params);
     if (!key_ctx)
       return nullptr;
-    return key_ctx.release();
+    return key_ctx;
   }
 
  private:
@@ -4995,7 +4995,7 @@ class GenerateKeyPairJob : public CryptoJob {
     CheckEntropy();
 
     // Create the key generation context.
-    EVPKeyCtxPointer ctx(config_->Setup());
+    EVPKeyCtxPointer ctx = config_->Setup();
     if (!ctx)
       return false;
 
@@ -5165,6 +5165,10 @@ class GenerateKeyPairJob : public CryptoJob {
   EVPKeyPointer pkey_;
 };
 
+static bool IsNotTrue(Maybe<bool> maybe) {
+  return maybe.IsNothing() || !maybe.ToChecked();
+}
+
 void GenerateKeyPair(const FunctionCallbackInfo<Value>& args,
                      unsigned int n_opts,
                      std::unique_ptr<KeyPairGenerationConfig> config) {
@@ -5225,7 +5229,10 @@ void GenerateKeyPair(const FunctionCallbackInfo<Value>& args,
   Local<Value> err, pubkey, privkey;
   job->ToResult(&err, &pubkey, &privkey);
   Local<Array> ret = Array::New(env->isolate(), 3);
-  CHECK(ret->Set(0, err) && ret->Set(1, pubkey) && ret->Set(2, privkey));
+  if (IsNotTrue(ret->Set(env->context(), 0, err)) ||
+      IsNotTrue(ret->Set(env->context(), 1, pubkey)) ||
+      IsNotTrue(ret->Set(env->context(), 2, privkey)))
+    return;
   args.GetReturnValue().Set(ret);
 }
 
