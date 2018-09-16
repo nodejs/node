@@ -1,0 +1,18 @@
+{
+  "resources": {
+    "commit": "679a364421ce3704289df21e1ff985c14b360981",
+    "path": "resources"
+  },
+  "interfaces": {
+    "commit": "db7f86289e47f0d124593cd27926529a6265ddb3",
+    "path": "interfaces"
+  },
+  "console": {
+    "commit": "9786a4b1317c03b89ea3bf2e997f2e2b6a3690ae",
+    "path": "console"
+  },
+  "url": {
+    "commit": "75b0f336c50105c6fea47ad253d57219dfa744d3",
+    "path": "url"
+  }
+}
