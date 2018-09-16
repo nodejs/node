@@ -306,10 +306,20 @@ static struct {
 
     libuv_executor_ = std::unique_ptr<threadpool::LibuvExecutor>(
       new threadpool::LibuvExecutor(tp_));
+    printed_stats = false;
+  }
+
+  void DrainAndPrintStats(void) {
+    if (!printed_stats) {
+      tp_->BlockingDrain();
+      tp_->PrintStats();
+      printed_stats = true;
+    }
   }
 
   std::shared_ptr<threadpool::NodeThreadpool> tp_;
   std::unique_ptr<threadpool::LibuvExecutor> libuv_executor_;
+  bool printed_stats;
 } node_threadpool;
 
 static struct {
@@ -1224,6 +1234,9 @@ static void Exit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   WaitForInspectorDisconnect(env);
   v8_platform.StopTracingAgent();
+
+  node_threadpool.DrainAndPrintStats();
+
   env->Exit(args[0]->Int32Value());
 }
 
@@ -2213,6 +2226,9 @@ void SetupProcessObject(Environment* env,
 
 
 void SignalExit(int signo) {
+  // Yeah, yeah, this is not signal safe.
+  node_threadpool.DrainAndPrintStats();
+
   uv_tty_reset_mode();
   v8_platform.StopTracingAgent();
 #ifdef __FreeBSD__
@@ -3377,6 +3393,7 @@ int Start(int argc, char** argv) {
   // Replace the default V8 platform with our implementation.
   // Use our threadpool.
   v8_platform.Initialize(node_threadpool.tp_);
+
   V8::Initialize();
   performance::performance_v8_start = PERFORMANCE_NOW();
   v8_initialized = true;
@@ -3393,6 +3410,8 @@ int Start(int argc, char** argv) {
   // Since uv_run cannot be called, uv_async handles held by the platform
   // will never be fully cleaned up.
   v8_platform.Dispose();
+
+  node_threadpool.DrainAndPrintStats();
 
   return exit_code;
 }

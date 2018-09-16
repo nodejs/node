@@ -88,6 +88,9 @@ int NodeThreadpool::NWorkers() const {
   return tp_->NWorkers();
 }
 
+void NodeThreadpool::PrintStats() const {
+}
+
 /**************
  * PartitionedNodeThreadpool
  ***************/
@@ -112,12 +115,17 @@ void PartitionedNodeThreadpool::Initialize(const std::vector<int>& tp_sizes) {
 }
 
 PartitionedNodeThreadpool::~PartitionedNodeThreadpool() {
+  LOG("PartitionedNodeThreadpool::~PartitionedNodeThreadpool: Goodbye\n");
+  fflush(stderr);
+
   // If we just return, the destructors of the tp's will drain them.
   // But if we want to report meaningful statistics we must drain them first.
   for (auto &tp : tps_) {
     tp->BlockingDrain();
   }
+}
 
+void PartitionedNodeThreadpool::PrintStats(void) const {
   // TODO(davisjam) Let's hope the application didn't make more than one of these :-D.
   char logFile[128];
   snprintf(logFile, sizeof(logFile), "/tmp/node-%d-PartitionedNodeThreadpool-result.log", getpid());
@@ -129,7 +137,7 @@ PartitionedNodeThreadpool::~PartitionedNodeThreadpool() {
   // so we can slice and dice quickly.
   LOG_TO_FILE(fd, "TP key format: TP,name,size\n");
   for (auto pair : tp_labels_) {
-    LOG_TO_FILE(fd, "TP key: %d,%s,%d\n", pair.first, tp_labels_[pair.first].c_str(), tp_sizes_[pair.first]);
+    LOG_TO_FILE(fd, "TP key: %d,%s,%d\n", pair.first, tp_labels_.at(pair.first).c_str(), tp_sizes_.at(pair.first));
   }
 
   LOG_TO_FILE(fd, "QueueLengths data format: TP,queue-length,n_cpu,n_io,time\n");

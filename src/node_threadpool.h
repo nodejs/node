@@ -395,6 +395,9 @@ class NodeThreadpool {
   // Attributes
   virtual int NWorkers() const;
 
+  // Does nothing. Subclasses can implement.
+  virtual void PrintStats() const;
+
  protected:
   int GoodCPUThreadpoolSize();
 
@@ -421,6 +424,8 @@ class PartitionedNodeThreadpool : public NodeThreadpool {
   virtual int QueueLength() const override;
 
   virtual int NWorkers() const override;
+
+  virtual void PrintStats() const override;
 
  protected:
   // Sub-classes should call this after computing tp_sizes in their c'tors.
