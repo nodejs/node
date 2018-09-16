@@ -4,9 +4,14 @@
 
 require('../common');
 const { URL, URLSearchParams } = require('url');
-const { test, assert_array_equals } = require('../common/wpt');
+const { test, assert_array_equals } = require('../common/wpt').harness;
 
-// Test bottom-up iterative stable merge sort
+// TODO(joyeecheung): upstream this to WPT, if possible - even
+// just as a test for large inputs. Other implementations may
+// have a similar cutoff anyway.
+
+// Test bottom-up iterative stable merge sort because we only use that
+// algorithm to sort > 100 search params.
 const tests = [{ input: '', output: [] }];
 const pairs = [];
 for (let i = 10; i < 100; i++) {

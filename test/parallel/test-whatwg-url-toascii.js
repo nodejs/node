@@ -7,7 +7,7 @@ if (!common.hasIntl) {
 
 const fixtures = require('../common/fixtures');
 const { URL } = require('url');
-const { test, assert_equals, assert_throws } = require('../common/wpt');
+const { test, assert_equals, assert_throws } = require('../common/wpt').harness;
 
 const request = {
   response: require(

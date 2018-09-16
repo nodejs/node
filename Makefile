@@ -496,6 +496,9 @@ test-debug: test-build
 test-message: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) message
 
+test-wpt: all
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt
+
 test-simple: | cctest bench-addons-build  # Depends on 'all'.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) parallel sequential
 
