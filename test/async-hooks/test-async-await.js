@@ -64,15 +64,15 @@ const timeout = common.platformTimeout(10);
 
 function checkPromisesInitState() {
   for (const initState of promisesInitState.values()) {
-    assert.strictEqual(initState, 'resolved',
-                       'promise initialized without being resolved');
+    // Promise should not be initialized without being resolved.
+    assert.strictEqual(initState, 'resolved');
   }
 }
 
 function checkPromisesExecutionState() {
   for (const executionState of promisesExecutionState.values()) {
-    assert.strictEqual(executionState, 'after',
-                       'mismatch between before and after hook calls');
+    // Check for mismatch between before and after hook calls.
+    assert.strictEqual(executionState, 'after');
   }
 }
 
