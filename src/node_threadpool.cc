@@ -251,6 +251,8 @@ ByTaskOriginPartitionedNodeThreadpool::ByTaskOriginPartitionedNodeThreadpool(
     size_t buf_size = sizeof(buf);
     if (uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size) == 0) {
       tp_sizes[LIBUV_TP_IX] = atoi(buf);
+    } else if (uv_os_getenv("NODE_THREADPOOL_UV_TP_SIZE", buf, &buf_size) == 0) {
+      tp_sizes[LIBUV_TP_IX] = atoi(buf);
     }
   }
   if (tp_sizes[LIBUV_TP_IX] <= 0) {
@@ -369,7 +371,7 @@ ByTaskOriginAndTypePartitionedNodeThreadpool::ByTaskOriginAndTypePartitionedNode
   if (tp_sizes[LIBUV_CPU_TP_IX] <= 0) {
     char buf[32];
     size_t buf_size = sizeof(buf);
-    if (uv_os_getenv("NODE_THREADPOOL_UVTP_CPU_TP_SIZE", buf, &buf_size) == 0) {
+    if (uv_os_getenv("NODE_THREADPOOL_UV_CPU_TP_SIZE", buf, &buf_size) == 0) {
       tp_sizes[LIBUV_CPU_TP_IX] = atoi(buf);
     }
   }
@@ -384,7 +386,7 @@ ByTaskOriginAndTypePartitionedNodeThreadpool::ByTaskOriginAndTypePartitionedNode
   if (tp_sizes[LIBUV_IO_TP_IX] <= 0) {
     char buf[32];
     size_t buf_size = sizeof(buf);
-    if (uv_os_getenv("NODE_THREADPOOL_UVTP_IO_TP_SIZE", buf, &buf_size) == 0) {
+    if (uv_os_getenv("NODE_THREADPOOL_UV_IO_TP_SIZE", buf, &buf_size) == 0) {
       tp_sizes[LIBUV_IO_TP_IX] = atoi(buf);
     }
   }

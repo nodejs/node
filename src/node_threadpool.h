@@ -453,7 +453,7 @@ class ByTaskOriginPartitionedNodeThreadpool : public PartitionedNodeThreadpool {
  public:
   // tp_sizes[0] is V8, tp_sizes[1] is libuv
   // tp_sizes[0] -1: reads NODE_THREADPOOL_V8_TP_SIZE, or guesses based on # cores
-  // tp_sizes[1] -1: reads UV_THREADPOOL_SIZE, defaults to 4
+  // tp_sizes[1] -1: reads UV_THREADPOOL_SIZE or NODE_THREADPOOL_UV_THREADPOOL_SIZE defaults to 4
   explicit ByTaskOriginPartitionedNodeThreadpool(std::vector<int> tp_sizes);
   // Waits for queue to drain.
   ~ByTaskOriginPartitionedNodeThreadpool();
@@ -486,8 +486,9 @@ class ByTaskTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
 class ByTaskOriginAndTypePartitionedNodeThreadpool : public PartitionedNodeThreadpool {
  public:
   // tp_sizes[0] is V8, tp_sizes[1] is libuv-CPU, tp_sizes[2] is libuv-I/O
-  // tp_sizes[1] -1: reads NODE_THREADPOOL_UVTP_CPU_TP_SIZE, or guesses based on # cores
-  // tp_sizes[2] -1: reads NODE_THREADPOOL_UVTP_IO_TP_SIZE, or guesses based on # cores
+  // tp_sizes[0] -1: reads NODE_THREADPOOL_V8_TP_SIZE, or guesses based on # cores
+  // tp_sizes[1] -1: reads NODE_THREADPOOL_UV_CPU_TP_SIZE, or guesses based on # cores
+  // tp_sizes[2] -1: reads NODE_THREADPOOL_UV_IO_TP_SIZE, or guesses based on # cores
   explicit ByTaskOriginAndTypePartitionedNodeThreadpool(std::vector<int> tp_sizes);
   // Waits for queue to drain.
   ~ByTaskOriginAndTypePartitionedNodeThreadpool();
