@@ -33,11 +33,31 @@ module.exports = {
             url: "https://eslint.org/docs/rules/func-names"
         },
 
-        schema: [
-            {
-                enum: ["always", "as-needed", "never"]
-            }
-        ],
+        schema: {
+            definitions: {
+                value: {
+                    enum: [
+                        "always",
+                        "as-needed",
+                        "never"
+                    ]
+                }
+            },
+            items: [
+                {
+                    $ref: "#/definitions/value"
+                },
+                {
+                    type: "object",
+                    properties: {
+                        generators: {
+                            $ref: "#/definitions/value"
+                        }
+                    },
+                    additionalProperties: false
+                }
+            ]
+        },
         messages: {
             unnamed: "Unexpected unnamed {{name}}.",
             named: "Unexpected named {{name}}."
@@ -45,8 +65,23 @@ module.exports = {
     },
 
     create(context) {
-        const never = context.options[0] === "never";
-        const asNeeded = context.options[0] === "as-needed";
+
+        /**
+         * Returns the config option for the given node.
+         * @param {ASTNode} node - A node to get the config for.
+         * @returns {string} The config option.
+         */
+        function getConfigForNode(node) {
+            if (
+                node.generator &&
+                context.options.length > 1 &&
+                context.options[1].generators
+            ) {
+                return context.options[1].generators;
+            }
+
+            return context.options[0] || "always";
+        }
 
         /**
          * Determines whether the current FunctionExpression node is a get, set, or
@@ -83,6 +118,32 @@ module.exports = {
                 (parent.type === "AssignmentPattern" && parent.right === node);
         }
 
+        /**
+         * Reports that an unnamed function should be named
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @returns {void}
+         */
+        function reportUnexpectedUnnamedFunction(node) {
+            context.report({
+                node,
+                messageId: "unnamed",
+                data: { name: astUtils.getFunctionNameWithKind(node) }
+            });
+        }
+
+        /**
+         * Reports that a named function should be unnamed
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @returns {void}
+         */
+        function reportUnexpectedNamedFunction(node) {
+            context.report({
+                node,
+                messageId: "named",
+                data: { name: astUtils.getFunctionNameWithKind(node) }
+            });
+        }
+
         return {
             "FunctionExpression:exit"(node) {
 
@@ -94,23 +155,19 @@ module.exports = {
                 }
 
                 const hasName = Boolean(node.id && node.id.name);
-                const name = astUtils.getFunctionNameWithKind(node);
+                const config = getConfigForNode(node);
 
-                if (never) {
+                if (config === "never") {
                     if (hasName) {
-                        context.report({
-                            node,
-                            messageId: "named",
-                            data: { name }
-                        });
+                        reportUnexpectedNamedFunction(node);
+                    }
+                } else if (config === "as-needed") {
+                    if (!hasName && !hasInferredName(node)) {
+                        reportUnexpectedUnnamedFunction(node);
                     }
                 } else {
-                    if (!hasName && (asNeeded ? !hasInferredName(node) : !isObjectOrClassMethod(node))) {
-                        context.report({
-                            node,
-                            messageId: "unnamed",
-                            data: { name }
-                        });
+                    if (!hasName && !isObjectOrClassMethod(node)) {
+                        reportUnexpectedUnnamedFunction(node);
                     }
                 }
             }

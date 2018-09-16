@@ -261,16 +261,6 @@ exports.mutate = {
   }
 };
 
-/** Used to track methods with placeholder support */
-exports.placeholder = {
-  'bind': true,
-  'bindKey': true,
-  'curry': true,
-  'curryRight': true,
-  'partial': true,
-  'partialRight': true
-};
-
 /** Used to map real names to their aliases. */
 exports.realToAlias = (function() {
   var hasOwnProperty = Object.prototype.hasOwnProperty,
