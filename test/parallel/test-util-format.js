@@ -88,6 +88,15 @@ assert.strictEqual(util.format('%i', -0.5), '0');
 assert.strictEqual(util.format('%i', ''), 'NaN');
 assert.strictEqual(util.format('%i %i', 42, 43), '42 43');
 assert.strictEqual(util.format('%i %i', 42), '42 %i');
+assert.strictEqual(
+  util.format('%i', 1180591620717411303424),
+  '1'
+);
+assert.strictEqual(
+  util.format('%i', 1180591620717411303424n),
+  '1180591620717411303424n'
+);
+
 
 // Float format specifier
 assert.strictEqual(util.format('%f'), '%f');
