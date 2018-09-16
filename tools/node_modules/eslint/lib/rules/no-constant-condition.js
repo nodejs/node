@@ -207,6 +207,8 @@ module.exports = {
             "ForStatement:exit": checkConstantConditionLoopInSet,
             FunctionDeclaration: enterFunction,
             "FunctionDeclaration:exit": exitFunction,
+            FunctionExpression: enterFunction,
+            "FunctionExpression:exit": exitFunction,
             YieldExpression: () => loopsInCurrentScope.clear()
         };
 
