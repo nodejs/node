@@ -6,7 +6,6 @@ const { dnsException } = require('internal/errors');
 const { internalBinding } = require('internal/test/binding');
 const { getaddrinfo, GetAddrInfoReqWrap } = internalBinding('cares_wrap');
 const dns = require('dns');
-const dnsPromises = dns.promises;
 
 // Stub `getaddrinfo` to *always* error.
 
