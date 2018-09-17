@@ -323,6 +323,9 @@ struct ares_channeldata {
 
   const struct ares_socket_functions * sock_funcs;
   void *sock_func_cb_data;
+
+  /* Path for resolv.conf file, configurable via ares_options */
+  char *resolvconf_path;
 };
 
 /* Memory management functions */
