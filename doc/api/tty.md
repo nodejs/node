@@ -106,6 +106,60 @@ added: v0.7.7
 A `number` specifying the number of columns the TTY currently has. This property
 is updated whenever the `'resize'` event is emitted.
 
+### writeStream.cursorTo(x, y)
+<!-- YAML
+added: v0.7.7
+-->
+
+* `x` {number}
+* `y` {number}
+
+`writeStream.cursorTo` moves this `WriteStream`'s cursor to the specified
+position.
+
+### writeStream.moveCursor(dx, dy)
+<!-- YAML
+added: v0.7.7
+-->
+
+* `dx` {number}
+* `dy` {number}
+
+`writeStream.moveCursor` moves this `WriteStream`'s cursor *relative* to its
+current position.
+
+### writeStream.clearLine(dir)
+<!-- YAML
+added: v0.7.7
+-->
+
+* `dir` {number}
+  * `-1` - to the left from cursor
+  * `1` - to the right from cursor
+  * `0` - the entire line
+
+`writeStream.clearLine` clears the current line of this `WriteStream` in a
+direction identified by `dir`.
+
+### writeStream.clearScreenDown()
+<!-- YAML
+added: v0.7.7
+-->
+
+`writeStream.clearScreenDown` clears this `WriteStream` from the current
+cursor down.
+
+### writeStream.getWindowSize()
+<!-- YAML
+added: v0.7.7
+-->
+* Returns: {array}
+
+`writeStream.getWindowSize` returns the size of the [TTY]() corresponding
+to this `WriteStream`. The array is of the type `[numColumns, numRows]`
+where `numColumns` and `numRows` represents the number of columns and rows
+in the corresponding [TTY]().
+
 ### writeStream.isTTY
 <!-- YAML
 added: v0.5.8
