@@ -27,14 +27,18 @@ assert.throws(common.mustCall(() => {
 port2.onmessage = common.mustCall((message) => {
   assert.strictEqual(message, 2);
 
-  assert(util.inspect(port1).includes('active: true'), util.inspect(port1));
-  assert(util.inspect(port2).includes('active: true'), util.inspect(port2));
+  const inspectedPort1 = util.inspect(port1);
+  const inspectedPort2 = util.inspect(port2);
+  assert(inspectedPort1.includes('active: true'), inspectedPort1);
+  assert(inspectedPort2.includes('active: true'), inspectedPort2);
 
   port1.close();
 
   tick(10, () => {
-    assert(util.inspect(port1).includes('active: false'), util.inspect(port1));
-    assert(util.inspect(port2).includes('active: false'), util.inspect(port2));
+    const inspectedPort1 = util.inspect(port1);
+    const inspectedPort2 = util.inspect(port2);
+    assert(inspectedPort1.includes('active: false'), inspectedPort1);
+    assert(inspectedPort2.includes('active: false'), inspectedPort2);
   });
 });
 port1.postMessage(2);

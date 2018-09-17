@@ -136,7 +136,12 @@ for (const tr in tests) {
   }
 
   // Make sure the operation is successful.
-  assert.strictEqual(proc.status, 0, `${tr}:\n${util.inspect(proc)}`);
+  // Don't use assert with a custom message here. Otherwise the
+  // inspection in the message is done eagerly and wastes a lot of CPU
+  // time.
+  if (proc.status !== 0) {
+    throw new Error(`${tr}:\n${util.inspect(proc)}`);
+  }
 
   // Confirm that trace log file is created.
   assert(fs.existsSync(traceFile));
