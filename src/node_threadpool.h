@@ -80,12 +80,29 @@ class Worker {
 // This is basically a struct
 class TaskDetails {
  public:
+  // Handy types
+
   enum TaskOrigin {
        V8
      , LIBUV
      , USER   // N-API
      , TASK_ORIGIN_UNKNOWN
   };
+
+  static std::string AsString(TaskOrigin to) {
+    switch (to) {
+      case V8:
+        return "V8";
+      case LIBUV:
+        return "LIBUV";
+      case USER:
+        return "USER";
+      case TASK_ORIGIN_UNKNOWN:
+        return "UNKNOWN";
+      default:
+        return "UNKNOWN";
+    }
+  }
 
   enum TaskType {
       FS
@@ -96,11 +113,45 @@ class TaskDetails {
     , TASK_TYPE_UNKNOWN
   };
 
+  static std::string AsString(TaskType tt) {
+    switch (tt) {
+      case FS:
+        return "FS";
+      case DNS:
+        return "DNS";
+      case IO:
+        return "IO";
+      case MEMORY:
+        return "MEMORY";
+      case CPU:
+        return "CPU";
+      case TASK_TYPE_UNKNOWN:
+        return "UNKNOWN";
+      default:
+        return "UNKNOWN";
+    }
+  }
+
   enum TaskSize {
       SMALL
     , LARGE
     , TASK_SIZE_UNKNOWN
   };
+
+  static std::string AsString(TaskSize ts) {
+    switch (ts) {
+      case SMALL:
+        return "SMALL";
+      case LARGE:
+        return "LARGE";
+      case TASK_SIZE_UNKNOWN:
+        return "UNKNOWN";
+      default:
+        return "UNKNOWN";
+    }
+  }
+
+  // Members
 
   TaskOrigin origin;
   TaskType type;
@@ -142,9 +193,10 @@ class TaskState {
   bool Cancel();
 
   // Time in nanoseconds.
-  uint64_t TimeInQueue() const;
-  uint64_t TimeInRun() const;
-  uint64_t TimeInThreadpool() const;
+  uint64_t TimeInQueue() const;  // Duration
+  uint64_t TimeInRun() const;  // Duration
+  uint64_t TimeInThreadpool() const;  // Duration
+  uint64_t TimeAtCompletion() const;  // Timestamp from uv_hrtime
 
  protected:
   // Synchronization.
@@ -213,6 +265,7 @@ class TaskSummary {
   TaskDetails details_;
   uint64_t time_in_queue_;
   uint64_t time_in_run_;
+  uint64_t time_at_completion_;
 };
 
 // Shim that we plug into the libuv "pluggable TP" interface.

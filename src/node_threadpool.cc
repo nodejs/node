@@ -141,7 +141,7 @@ void PartitionedNodeThreadpool::PrintStats(void) const {
   }
 
   LOG_TO_FILE(fd, "QueueLengths data format: TP,queue-length,n_cpu,n_io,time\n");
-  LOG_TO_FILE(fd, "TaskSummary data format: TP,task-origin,task-type,queue_time,run_time\n");
+  LOG_TO_FILE(fd, "TaskSummary data format: TP,task-origin,task-type,queue-duration,run-duration,time-at-completion\n");
 
   for (size_t i = 0; i < tps_.size(); i++) {
     auto &tp = tps_[i];
@@ -160,8 +160,10 @@ void PartitionedNodeThreadpool::PrintStats(void) const {
     const std::vector<std::unique_ptr<TaskSummary>> &summaries = tp->GetTaskSummaries();
     LOG("  TP %d: Task summaries for the %lu tasks:\n", tp->Id(), summaries.size());
     for (const std::unique_ptr<TaskSummary> &summary : summaries) {
-      LOG("    TP %d origin %d type %d queue_time %lu run_time %lu\n", tp->Id(), summary->details_.origin, summary->details_.type, summary->time_in_queue_, summary->time_in_run_);
-      LOG_TO_FILE(fd, "TaskSummary data: %d,%d,%d,%lu,%lu\n", tp->Id(), summary->details_.origin, summary->details_.type, summary->time_in_queue_, summary->time_in_run_);
+      LOG("    TP %d origin %s type %s queue-duration %lu run-duration %lu time-at-completion %lu\n",
+        tp->Id(), TaskDetails::AsString(summary->details_.origin).c_str(), TaskDetails::AsString(summary->details_.type).c_str(), summary->time_in_queue_, summary->time_in_run_, summary->time_at_completion_);
+      LOG_TO_FILE(fd, "TaskSummary data: %d,%s,%s,%lu,%lu,%lu\n",
+        tp->Id(), TaskDetails::AsString(summary->details_.origin).c_str(), TaskDetails::AsString(summary->details_.type).c_str(), summary->time_in_queue_, summary->time_in_run_, summary->time_at_completion_);
     }
   }
 }
@@ -169,7 +171,7 @@ void PartitionedNodeThreadpool::PrintStats(void) const {
 std::shared_ptr<TaskState> PartitionedNodeThreadpool::Post(std::unique_ptr<Task> task) {
   int tp = ChooseThreadpool(task.get());
   CHECK_GE(tp, 0);
-  CHECK_LT(tp, tps_.size());
+  CHECK_LT(tp, (int) tps_.size());
   return tps_[tp]->Post(std::move(task));
 }
 
@@ -527,6 +529,7 @@ TaskSummary::TaskSummary(Task* completed_task) {
   details_ = completed_task->details_;
   time_in_queue_ = completed_task->task_state_->TimeInQueue();
   time_in_run_ = completed_task->task_state_->TimeInRun();
+  time_at_completion_ = completed_task->task_state_->TimeAtCompletion();
 }
 
 /**************
@@ -559,6 +562,11 @@ uint64_t TaskState::TimeInQueue() const {
 uint64_t TaskState::TimeInRun() const {
   Mutex::ScopedLock scoped_lock(lock_);
   return time_in_run_;
+}
+
+uint64_t TaskState::TimeAtCompletion() const {
+  Mutex::ScopedLock scoped_lock(lock_);
+  return time_exited_run_;
 }
 
 uint64_t TaskState::TimeInThreadpool() const {
