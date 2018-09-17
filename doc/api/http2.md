@@ -432,6 +432,8 @@ If the `Http2Session` is connected to a `TLSSocket`, the `originSet` property
 will return an `Array` of origins for which the `Http2Session` may be
 considered authoritative.
 
+The `originSet` property is only available when using a secure TLS connection.
+
 #### http2session.pendingSettingsAck
 <!-- YAML
 added: v8.4.0
@@ -670,6 +672,56 @@ The protocol identifier (`'h2'` in the examples) may be any valid
 The syntax of these values is not validated by the Node.js implementation and
 are passed through as provided by the user or received from the peer.
 
+#### serverhttp2session.origin(...origins)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `origins` { string | URL | Object } One or more URL Strings passed as
+  separate arguments.
+
+Submits an `ORIGIN` frame (as defined by [RFC 8336][]) to the connected client
+to advertise the set of origins for which the server is capable of providing
+authoritative responses.
+
+```js
+const http2 = require('http2');
+const options = getSecureOptionsSomehow();
+const server = http2.createSecureServer(options);
+server.on('stream', (stream) => {
+  stream.respond();
+  stream.end('ok');
+});
+server.on('session', (session) => {
+  session.origin('https://example.com', 'https://example.org');
+});
+```
+
+When a string is passed as an `origin`, it will be parsed as a URL and the
+origin will be derived. For instance, the origin for the HTTP URL
+`'https://example.org/foo/bar'` is the ASCII string
+`'https://example.org'`. An error will be thrown if either the given string
+cannot be parsed as a URL or if a valid origin cannot be derived.
+
+A `URL` object, or any object with an `origin` property, may be passed as
+an `origin`, in which case the value of the `origin` property will be
+used. The value of the `origin` property *must* be a properly serialized
+ASCII origin.
+
+Alternatively, the `origins` option may be used when creating a new HTTP/2
+server using the `http2.createSecureServer()` method:
+
+```js
+const http2 = require('http2');
+const options = getSecureOptionsSomehow();
+options.origins = ['https://example.com', 'https://example.org'];
+const server = http2.createSecureServer(options);
+server.on('stream', (stream) => {
+  stream.respond();
+  stream.end('ok');
+});
+```
+
 ### Class: ClientHttp2Session
 <!-- YAML
 added: v8.4.0
@@ -699,6 +751,30 @@ client.on('altsvc', (alt, origin, streamId) => {
   console.log(streamId);
 });
 ```
+
+#### Event: 'origin'
+<!-- YAML
+added: REPLACEME
+-->
+
+* `origins` {string[]}
+
+The `'origin'`  event is emitted whenever an `ORIGIN` frame is received by
+the client. The event is emitted with an array of `origin` strings. The
+`http2session.originSet` will be updated to include the received
+origins.
+
+```js
+const http2 = require('http2');
+const client = http2.connect('https://example.org');
+
+client.on('origin', (origins) => {
+  for (let n = 0; n < origins.length; n++)
+    console.log(origins[n]);
+});
+```
+
+The `'origin'` event is only emitted when using a secure TLS connection.
 
 #### clienthttp2session.request(headers[, options])
 <!-- YAML
@@ -1914,6 +1990,10 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22956
+    description: Added the `origins` option to automatically send an `ORIGIN`
+                 frame on `Http2Session` startup.
   - version: v8.9.3
     pr-url: https://github.com/nodejs/node/pull/17105
     description: Added the `maxOutstandingPings` option with a default limit of
@@ -1977,6 +2057,8 @@ changes:
     remote peer upon connection.
   * ...: Any [`tls.createServer()`][] options can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
+  * `origins` {string[]} An array of origin strings to send within an `ORIGIN`
+    frame immediately following creation of a new server `Http2Session`.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2SecureServer}
 
@@ -3268,6 +3350,7 @@ following additional properties:
 [Performance Observer]: perf_hooks.html
 [Readable Stream]: stream.html#stream_class_stream_readable
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
+[RFC 8336]: https://tools.ietf.org/html/rfc8336
 [Using `options.selectPadding()`]: #http2_using_options_selectpadding
 [`'checkContinue'`]: #http2_event_checkcontinue
 [`'request'`]: #http2_event_request

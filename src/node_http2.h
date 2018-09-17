@@ -364,7 +364,7 @@ class Http2Scope {
 // configured.
 class Http2Options {
  public:
-  explicit Http2Options(Environment* env);
+  Http2Options(Environment* env, nghttp2_session_type type);
 
   ~Http2Options() {
     nghttp2_option_del(options_);
@@ -700,6 +700,8 @@ class Http2Session : public AsyncWrap, public StreamListener {
               size_t origin_len,
               uint8_t* value,
               size_t value_len);
+  void Origin(nghttp2_origin_entry* ov, size_t count);
+
 
   bool Ping(v8::Local<v8::Function> function);
 
@@ -796,6 +798,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
   static void RefreshState(const FunctionCallbackInfo<Value>& args);
   static void Ping(const FunctionCallbackInfo<Value>& args);
   static void AltSvc(const FunctionCallbackInfo<Value>& args);
+  static void Origin(const FunctionCallbackInfo<Value>& args);
 
   template <get_setting fn>
   static void RefreshSettings(const FunctionCallbackInfo<Value>& args);
@@ -871,6 +874,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
   void HandleSettingsFrame(const nghttp2_frame* frame);
   void HandlePingFrame(const nghttp2_frame* frame);
   void HandleAltSvcFrame(const nghttp2_frame* frame);
+  void HandleOriginFrame(const nghttp2_frame* frame);
 
   // nghttp2 callbacks
   static int OnBeginHeadersCallback(
@@ -1222,6 +1226,27 @@ class Headers {
  private:
   size_t count_;
   MaybeStackBuffer<char, 3000> buf_;
+};
+
+class Origins {
+ public:
+  Origins(Isolate* isolate,
+          Local<Context> context,
+          Local<v8::String> origin_string,
+          size_t origin_count);
+  ~Origins() {}
+
+  nghttp2_origin_entry* operator*() {
+    return reinterpret_cast<nghttp2_origin_entry*>(*buf_);
+  }
+
+  size_t length() const {
+    return count_;
+  }
+
+ private:
+  size_t count_;
+  MaybeStackBuffer<char, 512> buf_;
 };
 
 }  // namespace http2
