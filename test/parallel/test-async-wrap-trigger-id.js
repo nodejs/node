@@ -13,16 +13,12 @@ process.nextTick(() => {
     triggerAsyncId1 = triggerAsyncId();
     assert.notStrictEqual(
       triggerAsyncId0,
-      triggerAsyncId1,
-      'Async resources having different causal ancestry ' +
-      'should have different triggerAsyncIds');
+      triggerAsyncId1);
   });
   process.nextTick(() => {
     const triggerAsyncId2 = triggerAsyncId();
     assert.strictEqual(
       triggerAsyncId1,
-      triggerAsyncId2,
-      'Async resources having the same causal ancestry ' +
-      'should have the same triggerAsyncId');
+      triggerAsyncId2);
   });
 });
