@@ -232,8 +232,8 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
     `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
     run V8 tests.
 
-The [`update-v8`] tool can be used to simplify this task. Run
-`update-v8 backport --sha=SHA` to cherry-pick a commit.
+The [`git-node`] tool can be used to simplify this task. Run
+`git node v8 backport <sha>` to cherry-pick a commit.
 
 An example for workflow how to cherry-pick consider the bug
 [RegExp show inconsistent result with other browsers](https://crbug.com/v8/5199).
@@ -341,8 +341,8 @@ curl -L https://github.com/v8/v8/compare/${V8_OLD_VERSION}...${V8_NEW_VERSION}.p
 V8 also keeps tags of the form *5.4-lkgr* which point to the *Last Known Good
 Revision* from the 5.4 branch that can be useful in the update process above.
 
-The [`update-v8`](https://github.com/targos/update-v8) tool can be used to
-simplify this task. Run `update-v8 minor` to apply a minor update.
+The [`git-node`] tool can be used to simplify this task. Run `git node v8 minor`
+to apply a minor update.
 
 ### Major Updates
 
@@ -368,13 +368,13 @@ To audit for floating patches:
 git log --oneline deps/v8
 ```
 
-To replace the copy of V8 in Node.js, use the [`update-v8`] tool. For example,
-if you want to replace the copy of V8 in Node.js with the branch-head for V8 5.1
+To replace the copy of V8 in Node.js, use the [`git-node`] tool. For example, if
+you want to replace the copy of V8 in Node.js with the branch-head for V8 5.1
 branch:
 
 ```shell
 cd $NODE_DIR
-update-v8 major --branch=5.1-lkgr
+git node v8 major --branch=5.1-lkgr
 ```
 
 This should be followed up with manual refloating of all relevant patches.
@@ -422,7 +422,7 @@ as their support has ended.
 [NodeJS-Backport-Rejected-V8]: https://bugs.chromium.org/p/v8/issues/list?can=1&q=label%3ANodeJS-Backport-Rejected
 [NodeJS-Backport-Review-Chromium]: https://bugs.chromium.org/p/chromium/issues/list?can=1&q=label%3ANodeJS-Backport-Review
 [NodeJS-Backport-Review-V8]: https://bugs.chromium.org/p/v8/issues/list?can=1&q=label%3ANodeJS-Backport-Review
-[`update-v8`]: https://github.com/targos/update-v8
+[`git-node`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-v8
 [V8 CI]: https://ci.nodejs.org/job/node-test-commit-v8-linux/
 [V8ActiveBranches]: https://build.chromium.org/p/client.v8.branches/console
 [V8Contributing]: https://github.com/v8/v8/wiki/Contributing
