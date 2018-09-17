@@ -32,3 +32,11 @@ const args = [
   assert.ifError(ret.error);
   assert.deepStrictEqual(ret.stdout, msgOutBuf);
 }
+
+// maxBuffer size is Infinity at default.
+{
+  const args = ['-e', "console.log('a'.repeat(200 * 1024))"];
+  const ret = spawnSync(process.execPath, args, { encoding: 'utf-8' });
+
+  assert.ifError(ret.error);
+}
