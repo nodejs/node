@@ -168,7 +168,7 @@ module.exports = {
       },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.1.type='Literal']:not([arguments.1.regex])",
-        message: 'Use an object as second argument of `assert.throws()`',
+        message: 'Use an object as second argument of `assert.throws()`.',
       },
       {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.length<2]",
@@ -184,7 +184,7 @@ module.exports = {
       },
       {
         selector: 'ThrowStatement > CallExpression[callee.name=/Error$/]',
-        message: 'Use `new` keyword when throwing an Error.',
+        message: 'Use `new` keyword when throwing an `Error`.',
       }
     ],
     /* eslint-enable max-len */
