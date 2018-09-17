@@ -1081,8 +1081,8 @@ run-lint-doc-md = tools/lint-md.js -q -f $(LINT_MD_DOC_FILES)
 # Lint all changed markdown files under doc/
 tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
 	@echo "Running Markdown linter on docs..."
-	$(call available-node,$(run-lint-doc-md))
-	touch $@
+	@$(call available-node,$(run-lint-doc-md))
+	@touch $@
 
 LINT_MD_TARGETS = src lib benchmark test tools/doc tools/icu
 LINT_MD_ROOT_DOCS := $(wildcard *.md)
@@ -1092,8 +1092,8 @@ run-lint-misc-md = tools/lint-md.js -q -f $(LINT_MD_MISC_FILES)
 # Lint other changed markdown files maintained by us
 tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)
 	@echo "Running Markdown linter on misc docs..."
-	$(call available-node,$(run-lint-misc-md))
-	touch $@
+	@$(call available-node,$(run-lint-misc-md))
+	@touch $@
 
 tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
 
