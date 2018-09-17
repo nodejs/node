@@ -10,6 +10,29 @@ function runChecks(err, stdio, streamName, expected) {
   assert.deepStrictEqual(stdio[streamName], expected);
 }
 
+// default value
+{
+  const cmd = `"${process.execPath}" -e "console.log('a'.repeat(200 * 1024))"`;
+
+  cp.exec(cmd, common.mustCall((err) => {
+    assert(err instanceof RangeError);
+    assert.strictEqual(err.message, 'stdout maxBuffer length exceeded');
+    assert.strictEqual(err.code, 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER');
+  }));
+}
+
+// default value
+{
+  const cmd =
+    `${process.execPath} -e "console.log('a'.repeat(200 * 1024 - 1))"`;
+
+  cp.exec(cmd, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout.trim(), 'a'.repeat(200 * 1024 - 1));
+    assert.strictEqual(stderr, '');
+  }));
+}
+
 {
   const cmd = `"${process.execPath}" -e "console.log('hello world');"`;
   const options = { maxBuffer: Infinity };
