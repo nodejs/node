@@ -78,6 +78,7 @@ void FieldType::PrintTo(std::ostream& os) {
     os << "None";
   } else {
     DCHECK(IsClass());
+    HandleScope scope(Map::cast(this)->GetIsolate());
     os << "Class(" << static_cast<void*>(*AsClass()) << ")";
   }
 }
