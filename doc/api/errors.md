@@ -737,6 +737,11 @@ An invalid HTTP/2 header value was specified.
 An invalid HTTP informational status code has been specified. Informational
 status codes must be an integer between `100` and `199` (inclusive).
 
+<a id="ERR_HTTP2_INVALID_ORIGIN"></a>
+### ERR_HTTP2_INVALID_ORIGIN
+
+HTTP/2 `ORIGIN` frames require a valid origin.
+
 <a id="ERR_HTTP2_INVALID_PACKED_SETTINGS_LENGTH"></a>
 ### ERR_HTTP2_INVALID_PACKED_SETTINGS_LENGTH
 
@@ -786,6 +791,11 @@ Nested push streams are not permitted.
 
 An attempt was made to directly manipulate (read, write, pause, resume, etc.) a
 socket attached to an `Http2Session`.
+
+<a id="ERR_HTTP2_ORIGIN_LENGTH"></a>
+### ERR_HTTP2_ORIGIN_LENGTH
+
+HTTP/2 `ORIGIN` frames are limited to a length of 16382 bytes.
 
 <a id="ERR_HTTP2_OUT_OF_STREAMS"></a>
 ### ERR_HTTP2_OUT_OF_STREAMS

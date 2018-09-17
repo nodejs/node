@@ -93,7 +93,7 @@ Http2Scope::~Http2Scope() {
 // instances to configure an appropriate nghttp2_options struct. The class
 // uses a single TypedArray instance that is shared with the JavaScript side
 // to more efficiently pass values back and forth.
-Http2Options::Http2Options(Environment* env) {
+Http2Options::Http2Options(Environment* env, nghttp2_session_type type) {
   nghttp2_option_new(&options_);
 
   // We manually handle flow control within a session in order to
@@ -104,10 +104,12 @@ Http2Options::Http2Options(Environment* env) {
   // are required to buffer.
   nghttp2_option_set_no_auto_window_update(options_, 1);
 
-  // Enable built in support for ALTSVC frames. Once we add support for
-  // other non-built in extension frames, this will need to be handled
-  // a bit differently. For now, let's let nghttp2 take care of it.
-  nghttp2_option_set_builtin_recv_extension_type(options_, NGHTTP2_ALTSVC);
+  // Enable built in support for receiving ALTSVC and ORIGIN frames (but
+  // only on client side sessions
+  if (type == NGHTTP2_SESSION_CLIENT) {
+    nghttp2_option_set_builtin_recv_extension_type(options_, NGHTTP2_ALTSVC);
+    nghttp2_option_set_builtin_recv_extension_type(options_, NGHTTP2_ORIGIN);
+  }
 
   AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
       env->http2_state()->options_buffer;
@@ -446,6 +448,54 @@ Headers::Headers(Isolate* isolate,
   }
 }
 
+Origins::Origins(Local<Context> context,
+                 Local<String> origin_string,
+                 size_t origin_count) : count_(origin_count) {
+  int origin_string_len = origin_string->Length();
+  if (count_ == 0) {
+    CHECK_EQ(origin_string_len, 0);
+    return;
+  }
+
+  // Allocate a single buffer with count_ nghttp2_nv structs, followed
+  // by the raw header data as passed from JS. This looks like:
+  // | possible padding | nghttp2_nv | nghttp2_nv | ... | header contents |
+  buf_.AllocateSufficientStorage((alignof(nghttp2_origin_entry) - 1) +
+                                 count_ * sizeof(nghttp2_origin_entry) +
+                                 origin_string_len);
+
+  // Make sure the start address is aligned appropriately for an nghttp2_nv*.
+  char* start = reinterpret_cast<char*>(
+      ROUND_UP(reinterpret_cast<uintptr_t>(*buf_),
+               alignof(nghttp2_origin_entry)));
+  char* origin_contents = start + (count_ * sizeof(nghttp2_origin_entry));
+  nghttp2_origin_entry* const nva =
+      reinterpret_cast<nghttp2_origin_entry*>(start);
+
+  CHECK_LE(origin_contents + origin_string_len, *buf_ + buf_.length());
+  CHECK_EQ(origin_string->WriteOneByte(
+               reinterpret_cast<uint8_t*>(origin_contents),
+               0,
+               origin_string_len,
+               String::NO_NULL_TERMINATION),
+           origin_string_len);
+
+  size_t n = 0;
+  char* p;
+  for (p = origin_contents; p < origin_contents + origin_string_len; n++) {
+    if (n >= count_) {
+      static uint8_t zero = '\0';
+      nva[0].origin = &zero;
+      nva[0].origin_len = 1;
+      count_ = 1;
+      return;
+    }
+
+    nva[n].origin = reinterpret_cast<uint8_t*>(p);
+    nva[n].origin_len = strlen(p);
+    p += nva[n].origin_len + 1;
+  }
+}
 
 // Sets the various callback functions that nghttp2 will use to notify us
 // about significant events while processing http2 stuff.
@@ -581,7 +631,7 @@ Http2Session::Http2Session(Environment* env,
   statistics_.start_time = uv_hrtime();
 
   // Capture the configuration options for this session
-  Http2Options opts(env);
+  Http2Options opts(env, type);
 
   max_session_memory_ = opts.GetMaxSessionMemory();
 
@@ -985,6 +1035,9 @@ inline int Http2Session::OnFrameReceive(nghttp2_session* handle,
     case NGHTTP2_ALTSVC:
       session->HandleAltSvcFrame(frame);
       break;
+    case NGHTTP2_ORIGIN:
+      session->HandleOriginFrame(frame);
+      break;
     default:
       break;
   }
@@ -1376,6 +1429,41 @@ inline void Http2Session::HandleAltSvcFrame(const nghttp2_frame* frame) {
   };
 
   MakeCallback(env()->onaltsvc_string(), arraysize(argv), argv);
+}
+
+void Http2Session::HandleOriginFrame(const nghttp2_frame* frame) {
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env()->context();
+  Context::Scope context_scope(context);
+
+  DEBUG_HTTP2SESSION2(this, "handling origin frame");
+
+  nghttp2_extension ext = frame->ext;
+  nghttp2_ext_origin* origin = static_cast<nghttp2_ext_origin*>(ext.payload);
+
+  Local<Array> holder = Array::New(isolate);
+  Local<Function> fn = env()->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+
+  size_t n = 0;
+  while (n < origin->nov) {
+    size_t j = 0;
+    while (n < origin->nov && j < arraysize(argv)) {
+      auto entry = origin->ov[n++];
+      argv[j++] =
+        String::NewFromOneByte(isolate,
+                               entry.origin,
+                               v8::NewStringType::kNormal,
+                               entry.origin_len).ToLocalChecked();
+    }
+    if (j > 0)
+      fn->Call(context, holder, j, argv).ToLocalChecked();
+  }
+
+  Local<Value> args[1] = { holder };
+
+  MakeCallback(env()->onorigin_string(), arraysize(args), args);
 }
 
 // Called by OnFrameReceived when a complete PING frame has been received.
@@ -2809,7 +2897,12 @@ void Http2Session::AltSvc(int32_t id,
                                  origin, origin_len, value, value_len), 0);
 }
 
-// Submits an AltSvc frame to the sent to the connected peer.
+void Http2Session::Origin(nghttp2_origin_entry* ov, size_t count) {
+  Http2Scope h2scope(this);
+  CHECK_EQ(nghttp2_submit_origin(session_, NGHTTP2_FLAG_NONE, ov, count), 0);
+}
+
+// Submits an AltSvc frame to be sent to the connected peer.
 void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
@@ -2835,6 +2928,23 @@ void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
   value_str->WriteOneByte(*value);
 
   session->AltSvc(id, *origin, origin_len, *value, value_len);
+}
+
+void Http2Session::Origin(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+
+  Local<String> origin_string = args[0].As<String>();
+  int count = args[1]->IntegerValue(context).ToChecked();
+
+
+  Origins origins(env->context(),
+                  origin_string,
+                  count);
+
+  session->Origin(*origins, origins.length());
 }
 
 // Submits a PING frame to be sent to the connected peer.
@@ -3063,6 +3173,7 @@ void Initialize(Local<Object> target,
   session->SetClassName(http2SessionClassName);
   session->InstanceTemplate()->SetInternalFieldCount(1);
   AsyncWrap::AddWrapMethods(env, session);
+  env->SetProtoMethod(session, "origin", Http2Session::Origin);
   env->SetProtoMethod(session, "altsvc", Http2Session::AltSvc);
   env->SetProtoMethod(session, "ping", Http2Session::Ping);
   env->SetProtoMethod(session, "consume", Http2Session::Consume);
