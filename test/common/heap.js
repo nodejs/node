@@ -33,10 +33,17 @@ class State {
             (node) => [expectedChild.name, 'Node / ' + expectedChild.name]
               .includes(node.name);
 
-          assert(snapshot.some((node) => {
+          const hasChild = snapshot.some((node) => {
             return node.outgoingEdges.map((edge) => edge.toNode).some(check);
-          }), `expected to find child ${util.inspect(expectedChild)} ` +
-              `in ${util.inspect(snapshot)}`);
+          });
+          // Don't use assert with a custom message here. Otherwise the
+          // inspection in the message is done eagerly and wastes a lot of CPU
+          // time.
+          if (!hasChild) {
+            throw new Error(
+              'expected to find child ' +
+              `${util.inspect(expectedChild)} in ${util.inspect(snapshot)}`);
+          }
         }
       }
     }
@@ -61,9 +68,15 @@ class State {
                 node.value.constructor.name === expectedChild.name);
           };
 
-          assert(graph.some((node) => node.edges.some(check)),
-                 `expected to find child ${util.inspect(expectedChild)} ` +
-                 `in ${util.inspect(snapshot)}`);
+          // Don't use assert with a custom message here. Otherwise the
+          // inspection in the message is done eagerly and wastes a lot of CPU
+          // time.
+          const hasChild = graph.some((node) => node.edges.some(check));
+          if (!hasChild) {
+            throw new Error(
+              'expected to find child ' +
+              `${util.inspect(expectedChild)} in ${util.inspect(snapshot)}`);
+          }
         }
       }
     }
