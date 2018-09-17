@@ -106,9 +106,13 @@ The tools are currently assigned to Tiers as follows:
 
 ## Tier 3
 
- | Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
- |-----------|---------------------------|-------------------------------|-------------------------|-------------|
- |           |                           |                               |                         |             |
+ | Tool Type | Tool/API Name                        | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
+ |-----------|--------------------------------------|-------------------------------|-------------------------|-------------|
+ | Profiling | V8 CPU profiler                      | Partial (V8 Tests)            | Yes                     |     1       |
+ | Profiling | --prof/--prof-process flags          | Yes                           | Yes                     |     1       |
+ | Profiling | V8 CodeEventHandler API              | Partial (V8 Tests)            | Yes                     |     2       |
+ | Profiling | V8 --interpreted-frames-native-stack | Yes                           | Yes                     |     2       |
+ | Profiling | Linux perf                           | Yes                           | Partial                 |     2       |
 
 ## Tier 4
 
@@ -136,10 +140,6 @@ The tools are currently assigned to Tiers as follows:
  | Tracing   | LTTng                     | No                            | Removed?                |     N/A     |
  | Tracing   | ETW                       | No                            | Partial                 |     3       |
  | Tracing   | Systemtap                 | No                            | Partial                 |     ?       |
- | Profiling | V8 CPU profiler  (--prof) | No                            | Yes                     |     1       |
- | Profiling | V8 CodeEventHandler API   | No                            | Yes                     |     ?       |
- | Profiling | V8 --interpreted-frames-native-stack | Yes                | Yes                     |     ?       |
- | Profiling | Linux perf                | Yes                           | Partial                 |     ?       |
  | Profiling | DTrace                    | No                            | Partial                 |     3       |
  | Profiling | Windows Xperf             | No                            | ?                       |     ?       |
  | Profiling | 0x                        | No                            | No                      |     4       |
