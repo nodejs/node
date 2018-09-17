@@ -143,21 +143,19 @@ Local<Context> ContextifyContext::CreateV8Context(
 
   NamedPropertyHandlerConfiguration config(PropertyGetterCallback,
                                            PropertySetterCallback,
-                                           PropertyQueryCallback,
+                                           PropertyDescriptorCallback,
                                            PropertyDeleterCallback,
                                            PropertyEnumeratorCallback,
                                            PropertyDefinerCallback,
-                                           PropertyDescriptorCallback,
                                            CreateDataWrapper(env));
 
   IndexedPropertyHandlerConfiguration indexed_config(
       IndexedPropertyGetterCallback,
       IndexedPropertySetterCallback,
-      IndexedPropertyQueryCallback,
+      IndexedPropertyDescriptorCallback,
       IndexedPropertyDeleterCallback,
       PropertyEnumeratorCallback,
       IndexedPropertyDefinerCallback,
-      IndexedPropertyDescriptorCallback,
       CreateDataWrapper(env));
 
   object_template->SetHandler(config);
@@ -394,28 +392,6 @@ void ContextifyContext::PropertySetterCallback(
 }
 
 // static
-void ContextifyContext::PropertyQueryCallback(
-    Local<Name> property,
-    const PropertyCallbackInfo<Integer>& args) {
-  ContextifyContext* ctx = ContextifyContext::Get(args);
-
-  // Still initializing
-  if (ctx->context_.IsEmpty())
-    return;
-
-  Local<Context> context = ctx->context();
-
-  Local<Object> sandbox = ctx->sandbox();
-
-  PropertyAttribute attributes;
-  if (sandbox->HasOwnProperty(context, property).FromMaybe(false) &&
-      sandbox->GetPropertyAttributes(context, property).To(&attributes)) {
-    args.GetReturnValue().Set(attributes);
-  }
-}
-
-
-// static
 void ContextifyContext::PropertyDescriptorCallback(
     Local<Name> property,
     const PropertyCallbackInfo<Value>& args) {
@@ -558,20 +534,6 @@ void ContextifyContext::IndexedPropertySetterCallback(
 
   ContextifyContext::PropertySetterCallback(
       Uint32ToName(ctx->context(), index), value, args);
-}
-
-// static
-void ContextifyContext::IndexedPropertyQueryCallback(
-    uint32_t index,
-    const PropertyCallbackInfo<Integer>& args) {
-  ContextifyContext* ctx = ContextifyContext::Get(args);
-
-  // Still initializing
-  if (ctx->context_.IsEmpty())
-    return;
-
-  ContextifyContext::PropertyQueryCallback(
-      Uint32ToName(ctx->context(), index), args);
 }
 
 // static
