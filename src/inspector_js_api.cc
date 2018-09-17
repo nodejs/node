@@ -149,12 +149,11 @@ void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
-  Isolate* isolate = info.GetIsolate();
-  HandleScope handle_scope(isolate);
+  Environment* env = Environment::GetCurrent(info);
+  Isolate* isolate = env->isolate();
   Local<Context> context = isolate->GetCurrentContext();
   CHECK_LT(2, info.Length());
   SlicedArguments call_args(info, /* start */ 3);
-  Environment* env = Environment::GetCurrent(isolate);
   if (InspectorEnabled(env)) {
     Local<Value> inspector_method = info[0];
     CHECK(inspector_method->IsFunction());
