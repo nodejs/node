@@ -160,6 +160,10 @@ module.exports = {
     'no-restricted-syntax': [
       'error',
       {
+        selector: "CallExpression[callee.object.name='assert'][callee.property.name='deepStrictEqual'][arguments.2.type='Literal']",
+        message: 'Do not use a literal for the third argument of assert.deepStrictEqual()'
+      },
+      {
         selector: "CallExpression[callee.object.name='assert'][callee.property.name='doesNotThrow']",
         message: 'Please replace `assert.doesNotThrow()` and add a comment next to the code instead.'
       },
