@@ -333,6 +333,8 @@ For more information about the governance of the Node.js project, see
 **Benedikt Meurer** &lt;benedikt.meurer@gmail.com&gt;
 * [bnoordhuis](https://github.com/bnoordhuis) -
 **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
+* [boneskull](https://github.com/boneskull) -
+**Christopher Hiller** &lt;boneskull@boneskull.com&gt; (he/him)
 * [brendanashworth](https://github.com/brendanashworth) -
 **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt;
 * [BridgeAR](https://github.com/BridgeAR) -
