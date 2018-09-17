@@ -1,5 +1,4 @@
 // Flags: --expose-internals
-
 'use strict';
 
 const common = require('../common');
@@ -32,16 +31,15 @@ const { setUnrefTimeout } = require('internal/timers');
     // For checking the arguments.length,
     // callback function should not be arrow fucntion.
     const timer = setUnrefTimeout(common.mustCall(
-      function(arg1, arg2, arg3, arg4) {
+      function(...args) {
         // check the number of arguments passed to this callback.
-        strictEqual(arguments.length, i + 1,
+        strictEqual(args.length, i + 1,
                     `arguments.length should be ${i + 1}.` +
-                    `actual ${arguments.length}`
+                    `actual ${args.length}`
         );
-        results.push(arg1);
-        results.push(arg2);
-        results.push(arg3);
-        results.push(arg4);
+        for (const arg of args) {
+          results.push(arg);
+        }
       }
     ), 1, ...inputArgs);
 
@@ -49,7 +47,7 @@ const { setUnrefTimeout } = require('internal/timers');
       for (let k = 0; k < maxArgsNum; k++) {
         // Checking the arguments passed to setUnrefTimeout
         const expected = (k <= i) ? inputArgs[k] : undefined;
-        strictEqual(expected, results[k],
+        strictEqual(results[k], expected,
                     `result ${k} should be ${expected}.` +
                     `actual ${inputArgs[k]}`);
       }
