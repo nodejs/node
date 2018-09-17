@@ -6,6 +6,8 @@ const stream = require('stream');
 
 if (!common.isLinux)
   common.skip('The fs watch limit is OS-dependent');
+if (!common.enoughTestCpu)
+  common.skip('This test is resource-intensive');
 
 const processes = [];
 const gatherStderr = new stream.PassThrough();
