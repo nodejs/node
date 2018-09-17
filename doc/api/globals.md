@@ -138,6 +138,25 @@ added: v0.0.1
 
 [`setTimeout`] is described in the [timers][] section.
 
+## TextDecoder
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
+
+## TextEncoder
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
+
+
 ## URL
 <!-- YAML
 added: v10.0.0
@@ -169,6 +188,8 @@ The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 [`setImmediate`]: timers.html#timers_setimmediate_callback_args
 [`setInterval`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout`]: timers.html#timers_settimeout_callback_delay_args
+[`TextDecoder`]: util.html#util_class_util_textdecoder
+[`TextEncoder`]: util.html#util_class_util_textencoder
 [`URL`]: url.html#url_class_url
 [`URLSearchParams`]: url.html#url_class_urlsearchparams
 [buffer section]: buffer.html

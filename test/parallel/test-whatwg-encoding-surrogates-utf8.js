@@ -5,10 +5,6 @@
 require('../common');
 
 const assert = require('assert');
-const {
-  TextDecoder,
-  TextEncoder
-} = require('util');
 
 const badStrings = [
   {

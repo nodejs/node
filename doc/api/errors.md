@@ -794,13 +794,13 @@ The stack trace is extended to include the point in time at which the
 <a id="ERR_ENCODING_INVALID_ENCODED_DATA"></a>
 ### ERR_ENCODING_INVALID_ENCODED_DATA
 
-Data provided to `util.TextDecoder()` API was invalid according to the encoding
+Data provided to `TextDecoder()` API was invalid according to the encoding
 provided.
 
 <a id="ERR_ENCODING_NOT_SUPPORTED"></a>
 ### ERR_ENCODING_NOT_SUPPORTED
 
-Encoding provided to `util.TextDecoder()` API was not one of the
+Encoding provided to `TextDecoder()` API was not one of the
 [WHATWG Supported Encodings][].
 
 <a id="ERR_FALSY_VALUE_REJECTION"></a>

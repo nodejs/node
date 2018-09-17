@@ -5,9 +5,6 @@
 const common = require('../common');
 
 const assert = require('assert');
-const {
-  TextDecoder
-} = require('util');
 
 const string =
   '\x00123ABCabc\x80\xFF\u0100\u1000\uFFFD\uD800\uDC00\uDBFF\uDFFF';
