@@ -97,6 +97,17 @@ assert.strictEqual(decoder.lastTotal, 3);
 
 assert.strictEqual(decoder.end(), '\ufffd');
 
+// ArrayBufferView tests
+const arrayBufferViewStr = 'String for ArrayBufferView tests\n';
+const inputBuffer = Buffer.from(arrayBufferViewStr.repeat(8), 'utf8');
+for (const expectView of common.getArrayBufferViews(inputBuffer)) {
+  assert.strictEqual(
+    decoder.write(expectView),
+    inputBuffer.toString('utf8')
+  );
+  assert.strictEqual(decoder.end(), '');
+}
+
 decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.write(Buffer.from('E18B', 'hex')), '');
 assert.strictEqual(decoder.end(), '\ufffd');
@@ -174,8 +185,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "buf" argument must be one of type Buffer, Uint8Array, or' +
-      ' ArrayBufferView. Received type object'
+    message: 'The "buf" argument must be one of type Buffer, TypedArray,' +
+      ' or DataView. Received type object'
   }
 );
 
