@@ -1691,3 +1691,17 @@ assert.strictEqual(
   ),
   '{ a200: 4, a102: 3, a101: 2, a100: 1 }'
 );
+
+// Non-indices array properties are sorted as well.
+{
+  const arr = [3, 2, 1];
+  arr.b = 2;
+  arr.c = 3;
+  arr.a = 1;
+  arr[Symbol('b')] = true;
+  arr[Symbol('a')] = false;
+  assert.strictEqual(
+    inspect(arr, { sorted: true }),
+    '[ 3, 2, 1, [Symbol(a)]: false, [Symbol(b)]: true, a: 1, b: 2, c: 3 ]'
+  );
+}
