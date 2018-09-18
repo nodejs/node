@@ -70,7 +70,9 @@ class Agent {
   Agent();
   ~Agent();
 
-  TracingController* GetTracingController() { return tracing_controller_; }
+  TracingController* GetTracingController() {
+    return tracing_controller_.get();
+  }
 
   enum UseDefaultCategoryMode {
     kUseDefaultCategories,
@@ -121,7 +123,7 @@ class Agent {
   // These maps store the original arguments to AddClient(), by id.
   std::unordered_map<int, std::multiset<std::string>> categories_;
   std::unordered_map<int, std::unique_ptr<AsyncTraceWriter>> writers_;
-  TracingController* tracing_controller_ = nullptr;
+  std::unique_ptr<TracingController> tracing_controller_;
 
   // Variables related to initializing per-event-loop properties of individual
   // writers, such as libuv handles.
