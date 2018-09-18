@@ -158,11 +158,6 @@ Indicates `hasCrypto` and `crypto` with fips.
 
 Indicates if [internationalization] is supported.
 
-### hasSmallICU
-* [&lt;boolean>]
-
-Indicates `hasIntl` and `small-icu` are supported.
-
 ### hasIPv6
 * [&lt;boolean>]
 
