@@ -48,8 +48,7 @@ using v8::platform::tracing::TraceConfig;
 using v8::platform::tracing::TraceWriter;
 using std::string;
 
-Agent::Agent() {
-  tracing_controller_ = new TracingController();
+Agent::Agent() : tracing_controller_(new TracingController()) {
   tracing_controller_->Initialize(nullptr);
 
   CHECK_EQ(uv_loop_init(&tracing_loop_), 0);
@@ -117,7 +116,7 @@ AgentWriterHandle Agent::AddClient(
     use_categories = &categories_with_default;
   }
 
-  ScopedSuspendTracing suspend(tracing_controller_, this);
+  ScopedSuspendTracing suspend(tracing_controller_.get(), this);
   int id = next_writer_id_++;
   AsyncTraceWriter* raw = writer.get();
   writers_[id] = std::move(writer);
@@ -157,7 +156,7 @@ void Agent::Disconnect(int client) {
     Mutex::ScopedLock lock(initialize_writer_mutex_);
     to_be_initialized_.erase(writers_[client].get());
   }
-  ScopedSuspendTracing suspend(tracing_controller_, this);
+  ScopedSuspendTracing suspend(tracing_controller_.get(), this);
   writers_.erase(client);
   categories_.erase(client);
 }
@@ -166,13 +165,13 @@ void Agent::Enable(int id, const std::set<std::string>& categories) {
   if (categories.empty())
     return;
 
-  ScopedSuspendTracing suspend(tracing_controller_, this,
+  ScopedSuspendTracing suspend(tracing_controller_.get(), this,
                                id != kDefaultHandleId);
   categories_[id].insert(categories.begin(), categories.end());
 }
 
 void Agent::Disable(int id, const std::set<std::string>& categories) {
-  ScopedSuspendTracing suspend(tracing_controller_, this,
+  ScopedSuspendTracing suspend(tracing_controller_.get(), this,
                                id != kDefaultHandleId);
   std::multiset<std::string>& writer_categories = categories_[id];
   for (const std::string& category : categories) {
