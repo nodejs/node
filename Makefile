@@ -476,7 +476,7 @@ test-ci: | clear-stalled build-addons build-addons-napi doc-only
 # Prepare the build for running the tests.
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 build-ci:
-	$(PYTHON) ./configure $(CONFIG_FLAGS)
+	$(PYTHON) ./configure --verbose $(CONFIG_FLAGS)
 	$(MAKE)
 
 .PHONY: run-ci
