@@ -589,3 +589,29 @@ for (const test of TEST_CASES) {
     }
   }
 }
+
+// Test that setAuthTag can only be called once.
+{
+  const plain = Buffer.from('Hello world', 'utf8');
+  const key = Buffer.from('0123456789abcdef', 'utf8');
+  const iv = Buffer.from('0123456789ab', 'utf8');
+  const opts = { authTagLength: 8 };
+
+  for (const mode of ['gcm', 'ccm', 'ocb']) {
+    const cipher = crypto.createCipheriv(`aes-128-${mode}`, key, iv, opts);
+    const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
+    const tag = cipher.getAuthTag();
+
+    const decipher = crypto.createDecipheriv(`aes-128-${mode}`, key, iv, opts);
+    decipher.setAuthTag(tag);
+    assert.throws(() => {
+      decipher.setAuthTag(tag);
+    }, errMessages.state);
+    // Decryption should still work.
+    const plaintext = Buffer.concat([
+      decipher.update(ciphertext),
+      decipher.final()
+    ]);
+    assert(plain.equals(plaintext));
+  }
+}
