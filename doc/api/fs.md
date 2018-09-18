@@ -4205,7 +4205,7 @@ a colon, Node.js will open a file system stream, as described by
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v10.11.0
     pr-url: https://github.com/nodejs/node/pull/22020
     description: New option `withFileTypes` was added.
 -->

@@ -960,7 +960,7 @@ usable.
 
 #### http2stream.endAfterHeaders
 <!-- YAML
-added: REPLACEME
+added: v10.11.0
 -->
 
 * {boolean}
