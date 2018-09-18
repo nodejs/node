@@ -109,14 +109,18 @@ CODE_CACHE_FILE ?= $(CODE_CACHE_DIR)/node_code_cache.cc
 ifeq ($(BUILDTYPE),Debug)
 CONFIG_FLAGS += --debug
 endif
+
+.PHONY: generate-code-cache
+generate-code-cache: all
+	mkdir -p $(CODE_CACHE_DIR)
+	out/$(BUILDTYPE)/$(NODE_EXE) --expose-internals tools/generate_code_cache.js $(CODE_CACHE_FILE)
+
 .PHONY: with-code-cache
 with-code-cache:
 	@echo $(CONFIG_FLAGS)
 	$(PYTHON) ./configure $(CONFIG_FLAGS)
-	$(MAKE)
-	mkdir -p $(CODE_CACHE_DIR)
-	out/$(BUILDTYPE)/$(NODE_EXE) --expose-internals tools/generate_code_cache.js $(CODE_CACHE_FILE)
-	$(PYTHON) ./configure --code-cache-path $(CODE_CACHE_FILE) $(CONFIG_FLAGS)
+	$(MAKE) generate-code-cache
+	$(PYTHON) ./configure $(CONFIG_FLAGS) --code-cache-path $(CODE_CACHE_FILE)
 	$(MAKE)
 
 .PHONY: test-code-cache
@@ -475,9 +479,7 @@ test-ci: | clear-stalled build-addons build-addons-napi doc-only
 .PHONY: build-ci
 # Prepare the build for running the tests.
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
-build-ci:
-	$(PYTHON) ./configure $(CONFIG_FLAGS)
-	$(MAKE)
+build-ci: with-code-cache
 
 .PHONY: run-ci
 # Run by CI tests, exceptions:
@@ -870,12 +872,23 @@ $(PKG): release-only
 			| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g"  \
 		>$(MACOSOUTDIR)/installer/productbuild/Resources/$$lang/conclusion.html ; \
 	done
+
+	# Pass 1: build the binary without empty code cache to generate code cache
 	$(PYTHON) ./configure \
 		--dest-cpu=x64 \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
+	$(MAKE) generate-code-cache
+	# Pass 2: build the binary with the code cache
+	$(PYTHON) ./configure \
+		--dest-cpu=x64 \
+		--tag=$(TAG) \
+		--release-urlbase=$(RELEASE_URLBASE) \
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS) \
+		--code-cache-path $(CODE_CACHE_FILE)
 	$(MAKE) install V=$(V) DESTDIR=$(MACOSOUTDIR)/dist/node
+
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(MACOSOUTDIR)/dist/node/usr/local" bash \
 		tools/osx-codesign.sh
 	mkdir -p $(MACOSOUTDIR)/dist/npm/usr/local/lib/node_modules
@@ -1005,13 +1018,25 @@ endif
 $(BINARYTAR): release-only
 	$(RM) -r $(BINARYNAME)
 	$(RM) -r out/deps out/Release
+
+	# Pass 1: build the binary without empty code cache to generate code cache
 	$(PYTHON) ./configure \
 		--prefix=/ \
 		--dest-cpu=$(DESTCPU) \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
+	$(MAKE) generate-code-cache
+	# Pass 2: build the binary with the code cache
+	$(PYTHON) ./configure \
+		--prefix=/ \
+		--dest-cpu=$(DESTCPU) \
+		--tag=$(TAG) \
+		--release-urlbase=$(RELEASE_URLBASE) \
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS) \
+		--code-cache-path $(CODE_CACHE_FILE)
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
+
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
 	cp CHANGELOG.md $(BINARYNAME)

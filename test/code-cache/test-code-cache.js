@@ -4,7 +4,7 @@
 // This test verifies that the binary is compiled with code cache and the
 // cache is used when built in modules are compiled.
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const {
   types: {
@@ -17,6 +17,10 @@ const {
   compiledWithCache,
   compiledWithoutCache
 } = require('internal/bootstrap/cache');
+
+if (process.config.variables.node_code_cache_path === undefined) {
+  common.skip('Not configured with --code-cache-path');
+}
 
 assert.strictEqual(
   typeof process.config.variables.node_code_cache_path,
