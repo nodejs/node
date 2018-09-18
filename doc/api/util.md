@@ -199,7 +199,7 @@ corresponding argument. Supported placeholders are:
 
 * `%s` - `String`.
 * `%d` - `Number` (integer or floating point value) or `BigInt`.
-* `%i` - Integer.
+* `%i` - Integer or `BigInt`.
 * `%f` - Floating point value.
 * `%j` - JSON. Replaced with the string `'[Circular]'` if the argument
 contains circular references.
