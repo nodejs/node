@@ -1062,7 +1062,7 @@ util.types.isBooleanObject(Boolean(true));  // Returns false
 
 ### util.types.isBoxedPrimitive(value)
 <!-- YAML
-added: REPLACEME
+added: v10.11.0
 -->
 
 * `value` {any}
