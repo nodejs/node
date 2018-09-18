@@ -21,3 +21,8 @@ test-trace-events-fs-sync: PASS,FLAKY
 [$system==freebsd]
 
 [$system==aix]
+
+# https://github.com/nodejs/node/issues/22775
+# ATM This fails with V8 6.9. Should be fixed in 7.0.
+[$mode==debug]
+test-http-same-map: FAIL
