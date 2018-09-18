@@ -542,8 +542,8 @@ console.log(inspect(weakSet, { showHidden: true }));
 // WeakSet { { a: 1 }, { b: 2 } }
 ```
 
-The `sorted` option makes sure the output is stable, no matter of the properties
-insertion order:
+The `sorted` option makes sure the output is identical, no matter of the
+properties insertion order:
 
 ```js
 const { inspect } = require('util');
