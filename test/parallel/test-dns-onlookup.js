@@ -30,8 +30,8 @@ new Promise((resolve, reject) => {
   req.resolve = resolve;
   req.reject = reject;
 }).then((err, rw) => {
+  assert.ifError(err);
   assert.deepStrictEqual(rw, { address: '127.0.0.1', family: 4 });
-  assert.strictEqual(tickValue, 1);
 });
 
 new Promise((resolve, reject) => {
