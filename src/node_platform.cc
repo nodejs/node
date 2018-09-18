@@ -283,10 +283,9 @@ int PerIsolatePlatformData::unref() {
 NodePlatform::NodePlatform(int thread_pool_size,
                            TracingController* tracing_controller) {
   if (tracing_controller) {
-    tracing_controller_.reset(tracing_controller);
+    tracing_controller_ = tracing_controller;
   } else {
-    TracingController* controller = new TracingController();
-    tracing_controller_.reset(controller);
+    tracing_controller_ = new TracingController();
   }
   worker_thread_task_runner_ =
       std::make_shared<WorkerThreadsTaskRunner>(thread_pool_size);
@@ -456,7 +455,7 @@ double NodePlatform::CurrentClockTimeMillis() {
 }
 
 TracingController* NodePlatform::GetTracingController() {
-  return tracing_controller_.get();
+  return tracing_controller_;
 }
 
 template <class T>
