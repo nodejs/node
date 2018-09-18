@@ -183,9 +183,12 @@ can be fast-tracked and may be landed after a shorter delay. For example:
   * Regressions that happen right before a release, or reported soon after.
 
 When a pull request is deemed suitable to be fast-tracked, label it with
-`fast-track`. The pull request can be landed once 2 or more Collaborators
-approve both the pull request and the fast-tracking request, and the necessary
-CI testing is done.
+`fast-track` and add a comment that collaborators may upvote. Please mention the
+collaborators that gave an approval before in that comment. If someone disagrees
+with the fast-tracking request, remove the label and leave a comment why it
+should not be fast-tracked. The pull request can be landed once 2 or more
+Collaborators approve both the pull request and the fast-tracking request, and
+the necessary CI testing is done.
 
 ### Testing and CI
 
