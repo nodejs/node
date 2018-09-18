@@ -557,27 +557,35 @@ for (const test of TEST_CASES) {
 }
 
 // Test that the authentication tag can be set at any point before calling
-// final() in GCM mode.
+// final() in GCM or OCB mode.
 {
   const plain = Buffer.from('Hello world', 'utf8');
   const key = Buffer.from('0123456789abcdef', 'utf8');
   const iv = Buffer.from('0123456789ab', 'utf8');
 
-  const cipher = crypto.createCipheriv('aes-128-gcm', key, iv);
-  const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
-  const authTag = cipher.getAuthTag();
+  for (const mode of ['gcm', 'ocb']) {
+    for (const authTagLength of mode === 'gcm' ? [undefined, 8] : [8]) {
+      const cipher = crypto.createCipheriv(`aes-128-${mode}`, key, iv, {
+        authTagLength
+      });
+      const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
+      const authTag = cipher.getAuthTag();
 
-  for (const authTagBeforeUpdate of [true, false]) {
-    const decipher = crypto.createDecipheriv('aes-128-gcm', key, iv);
-    if (authTagBeforeUpdate) {
-      decipher.setAuthTag(authTag);
+      for (const authTagBeforeUpdate of [true, false]) {
+        const decipher = crypto.createDecipheriv(`aes-128-${mode}`, key, iv, {
+          authTagLength
+        });
+        if (authTagBeforeUpdate) {
+          decipher.setAuthTag(authTag);
+        }
+        const resultUpdate = decipher.update(ciphertext);
+        if (!authTagBeforeUpdate) {
+          decipher.setAuthTag(authTag);
+        }
+        const resultFinal = decipher.final();
+        const result = Buffer.concat([resultUpdate, resultFinal]);
+        assert(result.equals(plain));
+      }
     }
-    const resultUpdate = decipher.update(ciphertext);
-    if (!authTagBeforeUpdate) {
-      decipher.setAuthTag(authTag);
-    }
-    const resultFinal = decipher.final();
-    const result = Buffer.concat([resultUpdate, resultFinal]);
-    assert(result.equals(plain));
   }
 }

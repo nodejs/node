@@ -2897,6 +2897,10 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(false);
   }
 
+  // TODO(tniessen): Throw if the authentication tag has already been set.
+  if (cipher->auth_tag_state_ == kAuthTagPassedToOpenSSL)
+    return args.GetReturnValue().Set(true);
+
   unsigned int tag_len = Buffer::Length(args[0]);
   const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_.get());
   bool is_valid;
@@ -2921,6 +2925,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
 
   cipher->auth_tag_len_ = tag_len;
+  cipher->auth_tag_state_ = kAuthTagKnown;
   CHECK_LE(cipher->auth_tag_len_, sizeof(cipher->auth_tag_));
 
   memset(cipher->auth_tag_, 0, sizeof(cipher->auth_tag_));
@@ -2931,14 +2936,14 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
 
 bool CipherBase::MaybePassAuthTagToOpenSSL() {
-  if (!auth_tag_set_ && auth_tag_len_ != kNoAuthTagLength) {
+  if (auth_tag_state_ == kAuthTagKnown) {
     if (!EVP_CIPHER_CTX_ctrl(ctx_.get(),
                              EVP_CTRL_AEAD_SET_TAG,
                              auth_tag_len_,
                              reinterpret_cast<unsigned char*>(auth_tag_))) {
       return false;
     }
-    auth_tag_set_ = true;
+    auth_tag_state_ = kAuthTagPassedToOpenSSL;
   }
   return true;
 }
