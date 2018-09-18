@@ -91,5 +91,5 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /must be one of type Buffer or Uint8Array/
+  message: /must be one of type Buffer, TypedArray, or DataView/
 });
