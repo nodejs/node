@@ -94,7 +94,7 @@ function testInitialized(req, ctor_name) {
 
 
 {
-  const JSStream = process.binding('js_stream').JSStream;
+  const JSStream = internalBinding('js_stream').JSStream;
   testInitialized(new JSStream(), 'JSStream');
 }
 

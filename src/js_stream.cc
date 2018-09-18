@@ -216,4 +216,4 @@ void JSStream::Initialize(Local<Object> target,
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(js_stream, node::JSStream::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(js_stream, node::JSStream::Initialize)
