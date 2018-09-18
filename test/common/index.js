@@ -33,8 +33,7 @@ const { fixturesDir } = require('./fixtures');
 const tmpdir = require('./tmpdir');
 const {
   bits,
-  hasIntl,
-  hasSmallICU
+  hasIntl
 } = process.binding('config');
 
 const noop = () => {};
@@ -712,7 +711,6 @@ module.exports = {
   hasIntl,
   hasCrypto,
   hasIPv6,
-  hasSmallICU,
   hasMultiLocalhost,
   isAIX,
   isAlive,
