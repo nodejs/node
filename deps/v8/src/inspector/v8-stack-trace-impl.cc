@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "src/inspector/v8-debugger.h"
+#include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/wasm-translation.h"
 
 namespace v8_inspector {
@@ -71,7 +72,10 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
   std::unique_ptr<protocol::Array<protocol::Runtime::CallFrame>>
       inspectorFrames = protocol::Array<protocol::Runtime::CallFrame>::create();
   for (size_t i = 0; i < frames.size(); i++) {
-    inspectorFrames->addItem(frames[i]->buildInspectorObject());
+    V8InspectorClient* client = nullptr;
+    if (debugger && debugger->inspector())
+      client = debugger->inspector()->client();
+    inspectorFrames->addItem(frames[i]->buildInspectorObject(client));
   }
   std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
       protocol::Runtime::StackTrace::create()
@@ -115,7 +119,9 @@ StackFrame::StackFrame(v8::Local<v8::StackFrame> v8Frame)
       m_scriptId(String16::fromInteger(v8Frame->GetScriptId())),
       m_sourceURL(toProtocolString(v8Frame->GetScriptNameOrSourceURL())),
       m_lineNumber(v8Frame->GetLineNumber() - 1),
-      m_columnNumber(v8Frame->GetColumn() - 1) {
+      m_columnNumber(v8Frame->GetColumn() - 1),
+      m_hasSourceURLComment(v8Frame->GetScriptName() !=
+                            v8Frame->GetScriptNameOrSourceURL()) {
   DCHECK_NE(v8::Message::kNoLineNumberInfo, m_lineNumber + 1);
   DCHECK_NE(v8::Message::kNoColumnInfo, m_columnNumber + 1);
 }
@@ -135,12 +141,20 @@ int StackFrame::lineNumber() const { return m_lineNumber; }
 
 int StackFrame::columnNumber() const { return m_columnNumber; }
 
-std::unique_ptr<protocol::Runtime::CallFrame> StackFrame::buildInspectorObject()
-    const {
+std::unique_ptr<protocol::Runtime::CallFrame> StackFrame::buildInspectorObject(
+    V8InspectorClient* client) const {
+  String16 frameUrl = m_sourceURL;
+  if (client && !m_hasSourceURLComment && frameUrl.length() > 0) {
+    std::unique_ptr<StringBuffer> url =
+        client->resourceNameToUrl(toStringView(m_sourceURL));
+    if (url) {
+      frameUrl = toString16(url->string());
+    }
+  }
   return protocol::Runtime::CallFrame::create()
       .setFunctionName(m_functionName)
       .setScriptId(m_scriptId)
-      .setUrl(m_sourceURL)
+      .setUrl(frameUrl)
       .setLineNumber(m_lineNumber)
       .setColumnNumber(m_columnNumber)
       .build();
