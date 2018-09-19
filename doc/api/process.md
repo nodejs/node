@@ -119,7 +119,9 @@ constructor. Otherwise such mistakes are silently swallowed due to being in a
 dead zone.
 
 It is recommended to end the process on such errors, since the process could be
-in an undefined state.
+in an undefined state. While using the promise constructor make sure that it is
+guaranteed to trigger the `resolve()` or `reject()` functions exactly once per
+call and never call both functions in the same call.
 
 ```js
 process.on('multipleResolves', (type, promise, reason) => {
