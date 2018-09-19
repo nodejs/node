@@ -2467,7 +2467,7 @@ void ProcessArgv(std::vector<std::string>* args,
                  bool is_env) {
   // Parse a few arguments which are specific to Node.
   std::vector<std::string> v8_args;
-  std::string error;
+  std::vector<std::string> errors{};
 
   {
     // TODO(addaleax): The mutex here should ideally be held during the
@@ -2479,11 +2479,13 @@ void ProcessArgv(std::vector<std::string>* args,
         &v8_args,
         per_process_opts.get(),
         is_env ? kAllowedInEnvironment : kDisallowedInEnvironment,
-        &error);
+        &errors);
   }
 
-  if (!error.empty()) {
-    fprintf(stderr, "%s: %s\n", args->at(0).c_str(), error.c_str());
+  if (!errors.empty()) {
+    for (auto const& error : errors) {
+      fprintf(stderr, "%s: %s\n", args->at(0).c_str(), error.c_str());
+    }
     exit(9);
   }
 
@@ -2500,30 +2502,7 @@ void ProcessArgv(std::vector<std::string>* args,
   for (const std::string& cve : per_process_opts->security_reverts)
     Revert(cve.c_str());
 
-  // TODO(addaleax): Move this validation to the option parsers.
   auto env_opts = per_process_opts->per_isolate->per_env;
-  if (!env_opts->userland_loader.empty() &&
-      !env_opts->experimental_modules) {
-    fprintf(stderr, "%s: --loader requires --experimental-modules be enabled\n",
-            args->at(0).c_str());
-    exit(9);
-  }
-
-  if (env_opts->syntax_check_only && env_opts->has_eval_string) {
-    fprintf(stderr, "%s: either --check or --eval can be used, not both\n",
-            args->at(0).c_str());
-    exit(9);
-  }
-
-#if HAVE_OPENSSL
-  if (per_process_opts->use_openssl_ca && per_process_opts->use_bundled_ca) {
-    fprintf(stderr, "%s: either --use-openssl-ca or --use-bundled-ca can be "
-                    "used, not both\n",
-            args->at(0).c_str());
-    exit(9);
-  }
-#endif
-
   if (std::find(v8_args.begin(), v8_args.end(),
                 "--abort-on-uncaught-exception") != v8_args.end() ||
       std::find(v8_args.begin(), v8_args.end(),

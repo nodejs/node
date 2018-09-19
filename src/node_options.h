@@ -21,11 +21,16 @@ struct HostPort {
   }
 };
 
+class Options {
+ public:
+  virtual void CheckOptions(std::vector<std::string>* errors) {}
+};
+
 // These options are currently essentially per-Environment, but it can be nice
 // to keep them separate since they are a group of options applying to a very
 // specific part of Node. It might also make more sense for them to be
 // per-Isolate, rather than per-Environment.
-class DebugOptions {
+class DebugOptions : public Options {
  public:
   bool inspector_enabled = false;
   bool deprecated_debug = false;
@@ -57,7 +62,7 @@ class DebugOptions {
   }
 };
 
-class EnvironmentOptions {
+class EnvironmentOptions : public Options {
  public:
   std::shared_ptr<DebugOptions> debug_options { new DebugOptions() };
   bool abort_on_uncaught_exception = false;
@@ -91,9 +96,10 @@ class EnvironmentOptions {
   std::vector<std::string> user_argv;
 
   inline DebugOptions* get_debug_options();
+  void CheckOptions(std::vector<std::string>* errors);
 };
 
-class PerIsolateOptions {
+class PerIsolateOptions : public Options {
  public:
   std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
   bool track_heap_objects = false;
@@ -101,7 +107,7 @@ class PerIsolateOptions {
   inline EnvironmentOptions* get_per_env_options();
 };
 
-class PerProcessOptions {
+class PerProcessOptions : public Options {
  public:
   std::shared_ptr<PerIsolateOptions> per_isolate { new PerIsolateOptions() };
 
@@ -138,13 +144,15 @@ class PerProcessOptions {
 #endif
 
   inline PerIsolateOptions* get_per_isolate_options();
+  void CheckOptions(std::vector<std::string>* errors);
 };
 
 // The actual options parser, as opposed to the structs containing them:
 
 namespace options_parser {
 
-HostPort SplitHostPort(const std::string& arg, std::string* error);
+HostPort SplitHostPort(const std::string& arg,
+    std::vector<std::string>* errors);
 void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 enum OptionEnvvarSettings {
@@ -254,7 +262,7 @@ class OptionsParser {
                      std::vector<std::string>* const v8_args,
                      Options* const options,
                      OptionEnvvarSettings required_env_settings,
-                     std::string* const error);
+                     std::vector<std::string>* const errors);
 
  private:
   // We support the wide variety of different option types by remembering
