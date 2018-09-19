@@ -415,12 +415,17 @@ unhelpful is likely safe to ignore.
 
 ### Step 10: Landing
 
-In order to land, a Pull Request needs to be reviewed and [approved][] by
-at least one Node.js Collaborator and pass a
+In order to land, a Pull Request should be reviewed and [approved][] by
+at least two Node.js Collaborator and pass a
 [CI (Continuous Integration) test run][]. After that, as long as there are no
 objections from other contributors, the Pull Request can be merged. If you find
 your Pull Request waiting longer than you expect, see the
 [notes about the waiting time](#waiting-until-the-pull-request-gets-landed).
+
+Pull requests with only a single approval may land if: (a) a request for review
+from other individual Collaborators or teams has been made, (b) there are no
+objections after a period of 72 hours (3 days) from the time of that request,
+and (c) all other conditions to land have been met.
 
 When a collaborator lands your Pull Request, they will post
 a comment to the Pull Request page mentioning the commit(s) it
@@ -492,19 +497,15 @@ having good code.
 
 ### Respect the minimum wait time for comments
 
-There is a minimum waiting time which we try to respect for non-trivial
-changes, so that people who may have important input in such a distributed
-project are able to respond.
+To provide enough time for pull requests to receive adequate review,
+all pull requests not approved for fast-tracking must remain open for at 48
+hours from either the time it was opened, or from the most recent request for
+review from specific individuals or teams.
 
-For non-trivial changes, Pull Requests must be left open for *at least* 48
-hours during the week, and 72 hours on a weekend. In most cases, when the
-PR is relatively small and focused on a narrow set of changes, these periods
-provide more than enough time to adequately review. Sometimes changes take far
-longer to review, or need more specialized review from subject matter experts.
-When in doubt, do not rush.
-
-Trivial changes, typically limited to small formatting changes or fixes to
-documentation, may be landed within the minimum 48 hour window.
+To qualify for fast-tracking, the changes proposed by a pull request must: (a)
+be labeled `fast-track`, (b) must have 2 or more Collaborators approving both
+the pull request and the fast-tracking request, (c) must have the necessary
+CI testing complete.
 
 ### Abandoned or Stalled Pull Requests
 
