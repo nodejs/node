@@ -1992,8 +1992,8 @@ added: v8.4.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/22956
-    description: Added the `origins` option to automatically send an ORIGIN
-                 frame on Http2Session startup.
+    description: Added the `origins` option to automatically send an `ORIGIN`
+                 frame on `Http2Session` startup.
   - version: v8.9.3
     pr-url: https://github.com/nodejs/node/pull/17105
     description: Added the `maxOutstandingPings` option with a default limit of
