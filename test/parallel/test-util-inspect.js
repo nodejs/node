@@ -1676,3 +1676,33 @@ assert.strictEqual(inspect(new BigUint64Array([0n])), 'BigUint64Array [ 0n ]');
   );
   rejection.catch(() => {});
 }
+
+assert.strictEqual(
+  inspect([1, 3, 2], { sorted: true }),
+  inspect([1, 3, 2])
+);
+assert.strictEqual(
+  inspect({ c: 3, a: 1, b: 2 }, { sorted: true }),
+  '{ a: 1, b: 2, c: 3 }'
+);
+assert.strictEqual(
+  inspect(
+    { a200: 4, a100: 1, a102: 3, a101: 2 },
+    { sorted(a, b) { return a < b; } }
+  ),
+  '{ a200: 4, a102: 3, a101: 2, a100: 1 }'
+);
+
+// Non-indices array properties are sorted as well.
+{
+  const arr = [3, 2, 1];
+  arr.b = 2;
+  arr.c = 3;
+  arr.a = 1;
+  arr[Symbol('b')] = true;
+  arr[Symbol('a')] = false;
+  assert.strictEqual(
+    inspect(arr, { sorted: true }),
+    '[ 3, 2, 1, [Symbol(a)]: false, [Symbol(b)]: true, a: 1, b: 2, c: 3 ]'
+  );
+}
