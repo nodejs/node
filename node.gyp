@@ -4,7 +4,6 @@
     'v8_trace_maps%': 0,
     'node_use_dtrace%': 'false',
     'node_use_etw%': 'false',
-    'node_use_perfctr%': 'false',
     'node_no_browser_globals%': 'false',
     'node_code_cache_path%': '',
     'node_use_v8_platform%': 'true',
@@ -285,11 +284,6 @@
                   'sources': [
                     'tools/msvs/genfiles/node_etw_provider.rc'
                   ],
-                }],
-                [ 'node_use_perfctr=="true"', {
-                  'sources': [
-                    'tools/msvs/genfiles/node_perfctr_provider.rc',
-                   ],
                 }]
               ],
             }],
@@ -569,28 +563,6 @@
             }],
           ],
         }],
-        [ 'node_use_perfctr=="true"', {
-          'defines': [ 'HAVE_PERFCTR=1' ],
-          'dependencies': [ 'node_perfctr' ],
-          'include_dirs': [
-            'src',
-            'tools/msvs/genfiles',
-            '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
-          ],
-          'sources': [
-            'src/node_win32_perfctr_provider.h',
-            'src/node_win32_perfctr_provider.cc',
-            'src/node_counters.cc',
-            'src/node_counters.h',
-          ],
-          'conditions': [
-            ['node_intermediate_lib_type != "static_library"', {
-              'sources': [
-                'tools/msvs/genfiles/node_perfctr_provider.rc',
-              ],
-            }],
-          ],
-        }],
         [ 'node_use_dtrace=="true"', {
           'defines': [ 'HAVE_DTRACE=1' ],
           'dependencies': [
@@ -714,30 +686,6 @@
         } ]
       ]
     },
-    # generate perf counter header and resource files
-    {
-      'target_name': 'node_perfctr',
-      'type': 'none',
-      'conditions': [
-        [ 'node_use_perfctr=="true"', {
-          'actions': [
-            {
-              'action_name': 'node_perfctr_man',
-              'inputs': [ 'src/res/node_perfctr_provider.man' ],
-              'outputs': [
-                'tools/msvs/genfiles/node_perfctr_provider.h',
-                'tools/msvs/genfiles/node_perfctr_provider.rc',
-                'tools/msvs/genfiles/MSG00001.BIN',
-              ],
-              'action': [ 'ctrpp <@(_inputs) '
-                          '-o tools/msvs/genfiles/node_perfctr_provider.h '
-                          '-rc tools/msvs/genfiles/node_perfctr_provider.rc'
-              ]
-            },
-          ],
-        } ]
-      ]
-    },
     {
       'target_name': 'node_js2c',
       'type': 'none',
@@ -757,9 +705,6 @@
           'conditions': [
             [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
               'inputs': [ 'src/notrace_macros.py' ]
-            }],
-            [ 'node_use_perfctr=="false"', {
-              'inputs': [ 'src/noperfctr_macros.py' ]
             }],
             [ 'node_debug_lib=="false"', {
               'inputs': [ 'tools/nodcheck_macros.py' ]
@@ -988,9 +933,6 @@
           'defines': [
             'HAVE_OPENSSL=1',
           ],
-        }],
-        [ 'node_use_perfctr=="true"', {
-          'defines': [ 'HAVE_PERFCTR=1' ],
         }],
         ['v8_enable_inspector==1', {
           'sources': [
