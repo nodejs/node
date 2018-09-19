@@ -714,7 +714,7 @@ server using the `http2.createSecureServer()` method:
 ```js
 const http2 = require('http2');
 const options = getSecureOptionsSomehow();
-options.origins = ['http://example.com', 'https://example.org'];
+options.origins = ['https://example.com', 'https://example.org'];
 const server = http2.createSecureServer(options);
 server.on('stream', (stream) => {
   stream.respond();
