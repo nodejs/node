@@ -1648,17 +1648,20 @@ the `REPLServer` itself. Do not use this function.
 ### DEP0083: Disabling ECDH by setting ecdhCurve to false
 <!-- YAML
 changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19794
+    description: End-of-Life.
   - version: v9.2.0
     pr-url: https://github.com/nodejs/node/pull/16130
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life.
 
 The `ecdhCurve` option to `tls.createSecureContext()` and `tls.TLSSocket` could
-be set to `false` to disable ECDH entirely on the server only. This mode is
+be set to `false` to disable ECDH entirely on the server only. This mode was
 deprecated in preparation for migrating to OpenSSL 1.1.0 and consistency with
-the client. Use the `ciphers` parameter instead.
+the client and is now unsupported. Use the `ciphers` parameter instead.
 
 <a id="DEP0084"></a>
 ### DEP0084: requiring bundled internal dependencies
