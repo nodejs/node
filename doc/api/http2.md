@@ -679,7 +679,9 @@ added: REPLACEME
 
 * `origins` { string } One or more URL Strings passed as separate arguments.
 
-Submits an `ORIGIN` frame (as defined by [RFC 8336][]) to the connected client.
+Submits an `ORIGIN` frame (as defined by [RFC 8336][]) to the connected client
+to advertise the set of origins for which the server is capable of providing
+authoritative responses.
 
 ```js
 const http2 = require('http2');
