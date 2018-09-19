@@ -10,6 +10,7 @@ prefix sequential
 test-fs-readfile-tostring-fail: PASS, FLAKY
 
 [$system==win32]
+test-http2-large-file: PASS, FLAKY
 
 [$system==linux]
 

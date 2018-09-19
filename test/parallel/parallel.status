@@ -9,6 +9,9 @@ prefix parallel
 test-trace-events-fs-sync: PASS,FLAKY
 
 [$system==win32]
+test-http2-pipe: PASS,FLAKY
+test-worker-syntax-error: PASS,FLAKY
+test-worker-syntax-error-file: PASS,FLAKY
 
 [$system==linux]
 
