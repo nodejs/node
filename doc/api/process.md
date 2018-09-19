@@ -102,17 +102,17 @@ not be the same as what is originally sent.
 added: REPLACEME
 -->
 
-* `type` {string} The error type. One of `'resolveAfterResolved'` or
-  `'rejectAfterResolved'`.
+* `type` {string} The error type. One of `'resolve'` or `'reject'`.
 * `promise` {Promise} The promise that resolved or rejected more than once.
 * `value` {any} The value with which the promise was either resolved or
   rejected after the original resolve.
-* `message` {string} A short description of what happened.
 
 The `'multipleResolves'` event is emitted whenever a `Promise` has been either:
 
 * Resolved more than once.
+* Rejected more than once.
 * Rejected after resolve.
+* Resolved after reject.
 
 This is useful for tracking errors in your application while using the promise
 constructor. Otherwise such mistakes are silently swallowed due to being in a
@@ -122,10 +122,9 @@ It is recommended to end the process on such errors, since the process could be
 in an undefined state.
 
 ```js
-process.on('multipleResolves', (type, promise, reason, message) => {
-  console.error(`${type}: ${message}`);
-  console.error(promise, reason);
-  process.exit(1);
+process.on('multipleResolves', (type, promise, reason) => {
+  console.error(type, promise, reason);
+  setImmediate(() => process.exit(1));
 });
 
 async function main() {
@@ -141,10 +140,8 @@ async function main() {
 }
 
 main().then(console.log);
-// resolveAfterResolved: Resolve was called more than once.
-// Promise { 'First call' } 'Swallowed resolve'
-// rejectAfterResolved: Reject was called after resolve.
-// Promise { 'First call' } Error: Swallowed reject
+// resolve: Promise { 'First call' } 'Swallowed resolve'
+// reject: Promise { 'First call' } Error: Swallowed reject
 //     at Promise (*)
 //     at new Promise (<anonymous>)
 //     at main (*)
