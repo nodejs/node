@@ -4862,8 +4862,8 @@ class RSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
   }
 
  private:
-  unsigned int modulus_bits_;
-  unsigned int exponent_;
+  const unsigned int modulus_bits_;
+  const unsigned int exponent_;
 };
 
 class DSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
@@ -4897,14 +4897,12 @@ class DSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
 
     EVPKeyCtxPointer key_ctx(EVP_PKEY_CTX_new(params, nullptr));
     EVP_PKEY_free(params);
-    if (!key_ctx)
-      return nullptr;
     return key_ctx;
   }
 
  private:
-  unsigned int modulus_bits_;
-  int divisor_bits_;
+  const unsigned int modulus_bits_;
+  const int divisor_bits_;
 };
 
 class ECKeyPairGenerationConfig : public KeyPairGenerationConfig {
@@ -4934,14 +4932,12 @@ class ECKeyPairGenerationConfig : public KeyPairGenerationConfig {
 
     EVPKeyCtxPointer key_ctx(EVP_PKEY_CTX_new(params, nullptr));
     EVP_PKEY_free(params);
-    if (!key_ctx)
-      return nullptr;
     return key_ctx;
   }
 
  private:
-  int curve_nid_;
-  int param_encoding_;
+  const int curve_nid_;
+  const int param_encoding_;
 };
 
 enum PKEncodingType {
@@ -4969,6 +4965,7 @@ typedef KeyPairEncodingConfig PublicKeyEncodingConfig;
 
 struct PrivateKeyEncodingConfig : public KeyPairEncodingConfig {
   const EVP_CIPHER* cipher_;
+  // This char* will be passed to OPENSSL_clear_free.
   std::shared_ptr<char> passphrase_;
   unsigned int passphrase_length_;
 };
@@ -5165,10 +5162,6 @@ class GenerateKeyPairJob : public CryptoJob {
   EVPKeyPointer pkey_;
 };
 
-static bool IsNotTrue(Maybe<bool> maybe) {
-  return maybe.IsNothing() || !maybe.ToChecked();
-}
-
 void GenerateKeyPair(const FunctionCallbackInfo<Value>& args,
                      unsigned int n_opts,
                      std::unique_ptr<KeyPairGenerationConfig> config) {
@@ -5199,14 +5192,15 @@ void GenerateKeyPair(const FunctionCallbackInfo<Value>& args,
     if (private_key_encoding.cipher_ == nullptr)
       return env->ThrowError("Unknown cipher");
 
-    // We need to take ownership of the string here, that's why we are not using
-    // String::Utf8Value.
+    // We need to take ownership of the string and want to avoid creating an
+    // unnecessary copy in memory, that's why we are not using String::Utf8Value
+    // here.
     CHECK(args[n_opts + 5]->IsString());
     Local<String> passphrase = args[n_opts + 5].As<String>();
     int len = passphrase->Utf8Length(env->isolate());
     private_key_encoding.passphrase_length_ = len;
     void* mem = OPENSSL_malloc(private_key_encoding.passphrase_length_ + 1);
-    CHECK(mem);
+    CHECK_NOT_NULL(mem);
     private_key_encoding.passphrase_.reset(static_cast<char*>(mem),
         [len](char* p) {
           OPENSSL_clear_free(p, len);
@@ -5228,6 +5222,10 @@ void GenerateKeyPair(const FunctionCallbackInfo<Value>& args,
   job->DoThreadPoolWork();
   Local<Value> err, pubkey, privkey;
   job->ToResult(&err, &pubkey, &privkey);
+
+  bool (*IsNotTrue)(Maybe<bool>) = [](Maybe<bool> maybe) {
+    return maybe.IsNothing() || !maybe.ToChecked();
+  };
   Local<Array> ret = Array::New(env->isolate(), 3);
   if (IsNotTrue(ret->Set(env->context(), 0, err)) ||
       IsNotTrue(ret->Set(env->context(), 1, pubkey)) ||
