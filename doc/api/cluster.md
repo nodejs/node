@@ -61,7 +61,7 @@ The worker processes are spawned using the [`child_process.fork()`][] method,
 so that they can communicate with the parent via IPC and pass server
 handles back and forth.
 
-The cluster module supports two methods of distributing incoming
+The cluster module supports three methods of distributing incoming
 connections.
 
 The first one (and the default one on all platforms except Windows),
@@ -79,6 +79,11 @@ In practice however, distribution tends to be very unbalanced due
 to operating system scheduler vagaries. Loads have been observed
 where over 70% of all connections ended up in just two processes,
 out of a total of eight.
+
+The third one is the ip-hash approach, Like a round-robin approach,
+master process listen and accept new connections, but the difference
+is that connections with the same remote address will be distributed
+to the same worker.
 
 Because `server.listen()` hands off most of the work to the master
 process, there are three cases where the behavior between a normal
@@ -681,18 +686,28 @@ True if the process is not a master (it is the negation of `cluster.isMaster`).
 added: v0.11.2
 -->
 
-The scheduling policy, either `cluster.SCHED_RR` for round-robin or
-`cluster.SCHED_NONE` to leave it to the operating system. This is a
-global setting and effectively frozen once either the first worker is spawned,
-or `cluster.setupMaster()` is called, whichever comes first.
+The scheduling policy consists of these following options:
+
+* `cluster.SCHED_RR` for round-robin
+* `cluster.SCHED_NONE` to leave it to the operating system
+* `cluster.SCHED_IP` for ip-hash
+
+This is a global setting and effectively frozen once either the first worker
+is spawned, or `cluster.setupMaster()` is called, whichever comes first.
 
 `SCHED_RR` is the default on all operating systems except Windows.
 Windows will change to `SCHED_RR` once libuv is able to effectively
 distribute IOCP handles without incurring a large performance hit.
 
+Although using `SCHED_IP` scheduling policy to distribute 
+a large number of connections will lead to a large performance hit
+under Windows (like `SCHED_RR`), the common scenario is that
+long connection occurs more often than short connection,
+thus, `SCHED_IP` option is availiable under Windows.
+
 `cluster.schedulingPolicy` can also be set through the
 `NODE_CLUSTER_SCHED_POLICY` environment variable. Valid
-values are `'rr'` and `'none'`.
+values are `'rr'`, `'none'` and `'ip'`.
 
 ## cluster.settings
 <!-- YAML
