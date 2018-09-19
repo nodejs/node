@@ -270,7 +270,7 @@ void OptionsParser<Options>::Parse(
     std::vector<std::string>* const v8_args,
     Options* const options,
     OptionEnvvarSettings required_env_settings,
-    std::string* const error) {
+    std::vector<std::string>* const errors) {
   ArgsInfo args(orig_args, exec_args);
 
   // The first entry is the process name. Make sure it ends up in the V8 argv,
@@ -279,7 +279,7 @@ void OptionsParser<Options>::Parse(
   if (v8_args->empty())
     v8_args->push_back(args.program_name());
 
-  while (!args.empty() && error->empty()) {
+  while (!args.empty() && errors->empty()) {
     if (args.first().size() <= 1 || args.first()[0] != '-') break;
 
     // We know that we're either going to consume this
@@ -288,7 +288,7 @@ void OptionsParser<Options>::Parse(
 
     if (arg == "--") {
       if (required_env_settings == kAllowedInEnvironment)
-        *error = NotAllowedInEnvErr("--");
+        errors->push_back(NotAllowedInEnvErr("--"));
       break;
     }
 
@@ -357,7 +357,7 @@ void OptionsParser<Options>::Parse(
     if ((it == options_.end() ||
          it->second.env_setting == kDisallowedInEnvironment) &&
         required_env_settings == kAllowedInEnvironment) {
-      *error = NotAllowedInEnvErr(original_name);
+      errors->push_back(NotAllowedInEnvErr(original_name));
       break;
     }
 
@@ -379,7 +379,7 @@ void OptionsParser<Options>::Parse(
         value = arg.substr(equals_index + 1);
         if (value.empty()) {
         missing_argument:
-          *error = RequiresArgumentErr(original_name);
+          errors->push_back(RequiresArgumentErr(original_name));
           break;
         }
       } else {
@@ -413,7 +413,7 @@ void OptionsParser<Options>::Parse(
         break;
       case kHostPort:
         Lookup<HostPort>(info.field, options)
-            ->Update(SplitHostPort(value, error));
+            ->Update(SplitHostPort(value, errors));
         break;
       case kNoOp:
         break;
@@ -424,6 +424,7 @@ void OptionsParser<Options>::Parse(
         UNREACHABLE();
     }
   }
+  options->CheckOptions(errors);
 }
 
 }  // namespace options_parser
