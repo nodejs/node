@@ -6,6 +6,11 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
+common.expectWarning(
+  'DeprecationWarning',
+  'Calling pbkdf2 or pbkdf2Sync with "digest" set to null is deprecated.',
+  'DEP0009');
+
 //
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
@@ -64,7 +69,7 @@ assert.throws(
 );
 
 assert.throws(
-  () => crypto.pbkdf2Sync('password', 'salt', -1, 20, null),
+  () => crypto.pbkdf2Sync('password', 'salt', -1, 20, 'sha1'),
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError [ERR_OUT_OF_RANGE]',
