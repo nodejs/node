@@ -130,6 +130,9 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: v8.5.0
+    pr-url: https://github.com/nodejs/node/pull/14731
+    description: The `verbatim` option is supported now.
   - version: v1.2.0
     pr-url: https://github.com/nodejs/node/pull/744
     description: The `all` option is supported now.
