@@ -3,12 +3,7 @@
         "path": "node_protocol.json",
         "package": "src/node/inspector/protocol",
         "output": "node/inspector/protocol",
-        "namespace": ["node", "inspector", "protocol"],
-        "options": [
-            {
-                "domain": "NodeTracing"
-            }
-        ]
+        "namespace": ["node", "inspector", "protocol"]
     },
     "exported": {
         "package": "include/inspector",
