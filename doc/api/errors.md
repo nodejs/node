@@ -923,7 +923,7 @@ status codes must be an integer between `100` and `199` (inclusive).
 <a id="ERR_HTTP2_INVALID_ORIGIN"></a>
 ### ERR_HTTP2_INVALID_ORIGIN
 
-HTTP/2 ORIGIN frames require a valid origin.
+HTTP/2 `ORIGIN` frames require a valid origin.
 
 <a id="ERR_HTTP2_INVALID_PACKED_SETTINGS_LENGTH"></a>
 ### ERR_HTTP2_INVALID_PACKED_SETTINGS_LENGTH
@@ -978,7 +978,7 @@ socket attached to an `Http2Session`.
 <a id="ERR_HTTP2_ORIGIN_LENGTH"></a>
 ### ERR_HTTP2_ORIGIN_LENGTH
 
-HTTP/2 ORIGIN frames are limited to a length of 16382 bytes.
+HTTP/2 `ORIGIN` frames are limited to a length of 16382 bytes.
 
 <a id="ERR_HTTP2_OUT_OF_STREAMS"></a>
 ### ERR_HTTP2_OUT_OF_STREAMS

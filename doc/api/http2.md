@@ -677,7 +677,8 @@ are passed through as provided by the user or received from the peer.
 added: REPLACEME
 -->
 
-* `origins` { string } One or more URL Strings passed as separate arguments.
+* `origins` { string | URL | Object } One or more URL Strings passed as
+  separate arguments.
 
 Submits an `ORIGIN` frame (as defined by [RFC 8336][]) to the connected client
 to advertise the set of origins for which the server is capable of providing
@@ -708,13 +709,12 @@ used. The value of the `origin` property *must* be a properly serialized
 ASCII origin.
 
 Alternatively, the `origins` option may be used when creating a new HTTP/2
-server using either the `http2.createServer()` or `http2.createSecureServer()`
-methods:
+server using the `http2.createSecureServer()` method:
 
 ```js
 const http2 = require('http2');
 const options = getSecureOptionsSomehow();
-options.origins = ['http://example.com', 'http://example.org'];
+options.origins = ['http://example.com', 'https://example.org'];
 const server = http2.createSecureServer(options);
 server.on('stream', (stream) => {
   stream.respond();
@@ -1990,6 +1990,10 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22956
+    description: Added the `origins` option to automatically send an ORIGIN
+                 frame on Http2Session startup.
   - version: v8.9.3
     pr-url: https://github.com/nodejs/node/pull/17105
     description: Added the `maxOutstandingPings` option with a default limit of
