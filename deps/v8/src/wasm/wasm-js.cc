@@ -729,6 +729,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     thrower.CompileError("Wasm code generation disallowed by embedder");
     compilation_resolver->OnCompilationFailed(thrower.Reify());
+    return;
   }
 
   // Asynchronous compilation handles copying wire bytes if necessary.
