@@ -1779,7 +1779,8 @@ added: v0.3.6
 changes:
   - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21616
-    description: allow both url and options to be passed to `http.get()`
+    description: The `url` parameter can now be passed along with a separate
+                 `options` object.
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
@@ -1856,7 +1857,8 @@ added: v0.3.6
 changes:
   - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21616
-    description: allow both url and options to be passed to `http.request()`
+    description: The `url` parameter can now be passed along with a separate
+                 `options` object.
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
