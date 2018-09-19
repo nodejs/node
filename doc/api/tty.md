@@ -65,7 +65,7 @@ added: v0.7.7
   default mode. The `readStream.isRaw` property will be set to the resulting
   mode. 
   
-  Returns {this} - the read stream instance.
+* Returns {this} - the read stream instance.
 
 Allows configuration of `tty.ReadStream` so that it operates as a raw device.
 
