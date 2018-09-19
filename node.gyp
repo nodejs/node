@@ -89,6 +89,7 @@
       'lib/internal/child_process.js',
       'lib/internal/cluster/child.js',
       'lib/internal/cluster/master.js',
+      'lib/internal/cluster/iphash_handle.js',
       'lib/internal/cluster/round_robin_handle.js',
       'lib/internal/cluster/shared_handle.js',
       'lib/internal/cluster/utils.js',
@@ -503,18 +504,14 @@
             'src/inspector_socket.cc',
             'src/inspector_socket_server.cc',
             'src/inspector/main_thread_interface.cc',
-            'src/inspector/worker_inspector.cc',
             'src/inspector/node_string.cc',
-            'src/inspector/worker_agent.cc',
             'src/inspector/tracing_agent.cc',
             'src/inspector_agent.h',
             'src/inspector_io.h',
             'src/inspector_socket.h',
             'src/inspector_socket_server.h',
             'src/inspector/main_thread_interface.h',
-            'src/inspector/worker_inspector.h',
             'src/inspector/node_string.h',
-            'src/inspector/worker_agent.h',
             'src/inspector/tracing_agent.h',
             '<@(node_inspector_generated_sources)'
           ],
@@ -948,10 +945,6 @@
         ['OS=="solaris"', {
           'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
         }],
-        # Skip cctest while building shared lib node for Windows
-        [ 'OS=="win" and node_shared=="true"', {
-          'type': 'none',
-        }],
       ],
     }
   ], # end targets
@@ -1012,8 +1005,6 @@
           '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Forward.h',
           '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Protocol.cpp',
           '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Protocol.h',
-          '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/NodeWorker.cpp',
-          '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/NodeWorker.h',
           '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/NodeTracing.cpp',
           '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/NodeTracing.h',
         ],
