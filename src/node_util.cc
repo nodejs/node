@@ -7,8 +7,10 @@ namespace util {
 using v8::ALL_PROPERTIES;
 using v8::Array;
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::ONLY_CONFIGURABLE;
@@ -172,6 +174,15 @@ void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
             v8::NewStringType::kNormal).ToLocalChecked());
 }
 
+void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK(args[0]->IsFunction());
+
+  isolate->EnqueueMicrotask(args[0].As<Function>());
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
@@ -218,6 +229,8 @@ void Initialize(Local<Object> target,
                              WatchdogHasPendingSigint);
 
   env->SetMethod(target, "safeGetenv", SafeGetenv);
+
+  env->SetMethod(target, "enqueueMicrotask", EnqueueMicrotask);
 
   Local<Object> constants = Object::New(env->isolate());
   NODE_DEFINE_CONSTANT(constants, ALL_PROPERTIES);

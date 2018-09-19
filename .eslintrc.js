@@ -277,6 +277,7 @@ module.exports = {
     DTRACE_NET_SERVER_CONNECTION: false,
     DTRACE_NET_STREAM_END: false,
     TextEncoder: false,
-    TextDecoder: false
+    TextDecoder: false,
+    queueMicrotask: false,
   },
 };

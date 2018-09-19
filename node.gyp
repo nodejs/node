@@ -146,6 +146,7 @@
       'lib/internal/querystring.js',
       'lib/internal/process/write-coverage.js',
       'lib/internal/process/coverage.js',
+      'lib/internal/queue_microtask.js',
       'lib/internal/readline.js',
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
