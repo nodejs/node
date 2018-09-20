@@ -1,120 +1,106 @@
 'use strict'
-var path = require('path')
-var rimraf = require('rimraf')
-var fs = require('graceful-fs')
-var mkdirp = require('mkdirp')
-var asyncMap = require('slide').asyncMap
-var iferr = require('iferr')
+const path = require('path')
+const fs = require('graceful-fs')
+const Bluebird = require('bluebird')
+const rimraf = Bluebird.promisify(require('rimraf'))
+const mkdirp = Bluebird.promisify(require('mkdirp'))
+const lstat = Bluebird.promisify(fs.lstat)
+const readdir = Bluebird.promisify(fs.readdir)
+const symlink = Bluebird.promisify(fs.symlink)
+const gentlyRm = Bluebird.promisify(require('../../utils/gently-rm'))
+const moduleStagingPath = require('../module-staging-path.js')
+const move = require('move-concurrently')
+const moveOpts = {fs: fs, Promise: Bluebird, maxConcurrency: 4}
+const getRequested = require('../get-requested.js')
+const log = require('npmlog')
+const packageId = require('../../utils/package-id.js')
 
-function getTree (pkg) {
-  while (pkg.parent) pkg = pkg.parent
-  return pkg
-}
+module.exports = function (staging, pkg, log) {
+  log.silly('finalize', pkg.realpath)
 
-function warn (pkg, code, msg) {
-  var tree = getTree(pkg)
-  var err = new Error(msg)
-  err.code = code
-  tree.warnings.push(err)
-}
+  const extractedTo = moduleStagingPath(staging, pkg)
 
-function pathToShortname (modpath) {
-  return modpath.replace(/node_modules[/]/g, '').replace(/[/]/g, ' > ')
-}
+  const delpath = path.join(path.dirname(pkg.realpath), '.' + path.basename(pkg.realpath) + '.DELETE')
+  let movedDestAway = false
 
-module.exports = function (top, buildpath, pkg, log, next) {
-  log.silly('finalize', pkg.path)
-
-  var delpath = path.join(path.dirname(pkg.path), '.' + path.basename(pkg.path) + '.DELETE')
-
-  mkdirp(path.resolve(pkg.path, '..'), whenParentExists)
-
-  function whenParentExists (mkdirEr) {
-    if (mkdirEr) return next(mkdirEr)
-    // We stat first, because we can't rely on ENOTEMPTY from Windows.
-    // Windows, by contrast, gives the generic EPERM of a folder already exists.
-    fs.lstat(pkg.path, destStated)
-  }
-
-  function destStated (doesNotExist) {
-    if (doesNotExist) {
-      fs.rename(buildpath, pkg.path, whenMoved)
-    } else {
-      moveAway()
-    }
-  }
-
-  function whenMoved (renameEr) {
-    if (!renameEr) return next()
-    if (renameEr.code !== 'ENOTEMPTY') return next(renameEr)
-    moveAway()
-  }
-
-  function moveAway () {
-    fs.rename(pkg.path, delpath, whenOldMovedAway)
-  }
-
-  function whenOldMovedAway (renameEr) {
-    if (renameEr) return next(renameEr)
-    fs.rename(buildpath, pkg.path, whenConflictMoved)
-  }
-
-  function whenConflictMoved (renameEr) {
-    // if we got an error we'll try to put back the original module back,
-    // succeed or fail though we want the original error that caused this
-    if (renameEr) return fs.rename(delpath, pkg.path, function () { next(renameEr) })
-    fs.readdir(path.join(delpath, 'node_modules'), makeTarget)
-  }
-
-  function makeTarget (readdirEr, files) {
-    if (readdirEr) return cleanup()
-    if (!files.length) return cleanup()
-    mkdirp(path.join(pkg.path, 'node_modules'), function (mkdirEr) { moveModules(mkdirEr, files) })
-  }
-
-  function moveModules (mkdirEr, files) {
-    if (mkdirEr) return next(mkdirEr)
-    asyncMap(files, function (file, done) {
-      // `from` wins over `to`, because if `from` was there it's because the
-      // module installer wanted it to be there.  By contrast, `to` is just
-      // whatever was bundled in this module.  And the intentions of npm's
-      // installer should always beat out random module contents.
-      var from = path.join(delpath, 'node_modules', file)
-      var to = path.join(pkg.path, 'node_modules', file)
-      fs.stat(to, function (er, info) {
-        if (er) return fs.rename(from, to, done)
-
-        var shortname = pathToShortname(path.relative(getTree(pkg).path, to))
-        warn(pkg, 'EBUNDLEOVERRIDE', 'Replacing bundled ' + shortname + ' with new installed version')
-        rimraf(to, iferr(done, function () {
-          fs.rename(from, to, done)
-        }))
+  const requested = pkg.package._requested || getRequested(pkg)
+  if (requested.type === 'directory') {
+    const relative = path.relative(path.dirname(pkg.path), pkg.realpath)
+    return makeParentPath(pkg.path)
+      .then(() => symlink(relative, pkg.path, 'junction'))
+      .catch((ex) => {
+        return rimraf(pkg.path).then(() => symlink(relative, pkg.path, 'junction'))
       })
-    }, cleanup)
+  } else {
+    return makeParentPath(pkg.realpath)
+      .then(moveStagingToDestination)
+      .then(restoreOldNodeModules)
+      .catch((err) => {
+        if (movedDestAway) {
+          return rimraf(pkg.realpath).then(moveOldDestinationBack).then(() => {
+            throw err
+          })
+        } else {
+          throw err
+        }
+      })
+      .then(() => rimraf(delpath))
   }
 
-  function cleanup (moveEr) {
-    if (moveEr) return next(moveEr)
-    rimraf(delpath, afterCleanup)
+  function makeParentPath (dir) {
+    return mkdirp(path.dirname(dir))
   }
 
-  function afterCleanup (rimrafEr) {
-    if (rimrafEr) log.warn('finalize', rimrafEr)
-    next()
+  function moveStagingToDestination () {
+    return destinationIsClear()
+      .then(actuallyMoveStaging)
+      .catch(() => moveOldDestinationAway().then(actuallyMoveStaging))
   }
-}
 
-module.exports.rollback = function (buildpath, pkg, next) {
-  var top = path.resolve(buildpath, '..')
-  rimraf(pkg.path, function () {
-    removeEmptyParents(pkg.path)
-  })
-  function removeEmptyParents (pkgdir) {
-    if (path.relative(top, pkgdir)[0] === '.') return next()
-    fs.rmdir(pkgdir, function (er) {
-      // FIXME: Make sure windows does what we want here
-      if (er && er.code !== 'ENOENT') return next()
-      removeEmptyParents(path.resolve(pkgdir, '..'))
+  function destinationIsClear () {
+    return lstat(pkg.realpath).then(() => {
+      throw new Error('destination exists')
+    }, () => {})
+  }
+
+  function actuallyMoveStaging () {
+    return move(extractedTo, pkg.realpath, moveOpts)
+  }
+
+  function moveOldDestinationAway () {
+    return rimraf(delpath).then(() => {
+      return move(pkg.realpath, delpath, moveOpts)
+    }).then(() => { movedDestAway = true })
+  }
+
+  function moveOldDestinationBack () {
+    return move(delpath, pkg.realpath, moveOpts).then(() => { movedDestAway = false })
+  }
+
+  function restoreOldNodeModules () {
+    if (!movedDestAway) return
+    return readdir(path.join(delpath, 'node_modules')).catch(() => []).then((modules) => {
+      if (!modules.length) return
+      return mkdirp(path.join(pkg.realpath, 'node_modules')).then(() => Bluebird.map(modules, (file) => {
+        const from = path.join(delpath, 'node_modules', file)
+        const to = path.join(pkg.realpath, 'node_modules', file)
+        return move(from, to, moveOpts)
+      }))
     })
   }
+}
+
+module.exports.rollback = function (top, staging, pkg) {
+  return Bluebird.try(() => {
+    const requested = pkg.package._requested || getRequested(pkg)
+    if (requested && requested.type === 'directory') return Promise.resolve()
+    // strictly speaking rolling back a finalize should ONLY remove module that
+    // was being finalized, not any of the things under it. But currently
+    // those modules are guaranteed to be useless so we may as well remove them too.
+    // When/if we separate `commit` step and can rollback to previous versions
+    // of upgraded modules then we'll need to revisit this…
+    return gentlyRm(pkg.path, false, top).catch((err) => {
+      log.warn('rollback', `Rolling back ${packageId(pkg)} failed (this is probably harmless): ${err.message ? err.message : err}`)
+    })
+  })
 }

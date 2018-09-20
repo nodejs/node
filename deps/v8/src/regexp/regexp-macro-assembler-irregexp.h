@@ -5,12 +5,12 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
 
+#ifdef V8_INTERPRETED_REGEXP
+
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
 namespace internal {
-
-#ifdef V8_INTERPRETED_REGEXP
 
 // A light-weight assembler for the Irregexp byte code.
 class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
@@ -20,14 +20,15 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   // relocation information starting from the end of the buffer. See CodeDesc
   // for a detailed comment on the layout (globals.h).
   //
-  // If the provided buffer is NULL, the assembler allocates and grows its own
-  // buffer, and buffer_size determines the initial buffer size. The buffer is
-  // owned by the assembler and deallocated upon destruction of the assembler.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer, and buffer_size determines the initial buffer size. The buffer
+  // is owned by the assembler and deallocated upon destruction of the
+  // assembler.
   //
-  // If the provided buffer is not NULL, the assembler uses the provided buffer
-  // for code generation and assumes its size to be buffer_size. If the buffer
-  // is too small, a fatal error occurs. No deallocation of the buffer is done
-  // upon destruction of the assembler.
+  // If the provided buffer is not nullptr, the assembler uses the provided
+  // buffer for code generation and assumes its size to be buffer_size. If the
+  // buffer is too small, a fatal error occurs. No deallocation of the buffer is
+  // done upon destruction of the assembler.
   RegExpMacroAssemblerIrregexp(Isolate* isolate, Vector<byte> buffer,
                                Zone* zone);
   virtual ~RegExpMacroAssemblerIrregexp();
@@ -66,7 +67,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
   virtual void CheckAtStart(Label* on_at_start);
-  virtual void CheckNotAtStart(Label* on_not_at_start);
+  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
   virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(unsigned c,
                                          unsigned mask,
@@ -82,8 +83,10 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
                                         uc16 to,
                                         Label* on_not_in_range);
   virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
-  virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
+  virtual void CheckNotBackReference(int start_reg, bool read_backward,
+                                     Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
+                                               bool read_backward, bool unicode,
                                                Label* on_no_match);
   virtual void IfRegisterLT(int register_index, int comparand, Label* if_lt);
   virtual void IfRegisterGE(int register_index, int comparand, Label* if_ge);
@@ -102,7 +105,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   inline void Emit(uint32_t bc, uint32_t arg);
   // Bytecode buffer.
   int length();
-  void Copy(Address a);
+  void Copy(byte* a);
 
   // The buffer into which code and relocation info are generated.
   Vector<byte> buffer_;
@@ -123,8 +126,9 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpMacroAssemblerIrregexp);
 };
 
-#endif  // V8_INTERPRETED_REGEXP
+}  // namespace internal
+}  // namespace v8
 
-} }  // namespace v8::internal
+#endif  // V8_INTERPRETED_REGEXP
 
 #endif  // V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_

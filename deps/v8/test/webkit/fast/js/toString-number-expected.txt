@@ -232,9 +232,9 @@ PASS Number(0.1).toString(10) is "0.1"
 PASS Number(0.1).toString(2) is "0.0001100110011001100110011001100110011001100110011001101"
 PASS Number.prototype.toString.call(0.1, 2) is "0.0001100110011001100110011001100110011001100110011001101"
 PASS Number.prototype.toString.call(new Number(0.1), 2) is "0.0001100110011001100110011001100110011001100110011001101"
-FAIL Number(0.1).toString(36) should be 0.3lllllllllm. Was 0.3llllllllllqsn8td1p464unmi.
-FAIL Number.prototype.toString.call(0.1, 36) should be 0.3lllllllllm. Was 0.3llllllllllqsn8td1p464unmi.
-FAIL Number.prototype.toString.call(new Number(0.1), 36) should be 0.3lllllllllm. Was 0.3llllllllllqsn8td1p464unmi.
+PASS Number(0.1).toString(36) is "0.3lllllllllm"
+PASS Number.prototype.toString.call(0.1, 36) is "0.3lllllllllm"
+PASS Number.prototype.toString.call(new Number(0.1), 36) is "0.3lllllllllm"
 PASS Number(-1.1).toString() is "-1.1"
 PASS Number.prototype.toString.call(-1.1) is "-1.1"
 PASS Number.prototype.toString.call(new Number(-1.1)) is "-1.1"
@@ -243,9 +243,9 @@ PASS Number(-1.1).toString(10) is "-1.1"
 PASS Number(-1.1).toString(2) is "-1.000110011001100110011001100110011001100110011001101"
 PASS Number.prototype.toString.call(-1.1, 2) is "-1.000110011001100110011001100110011001100110011001101"
 PASS Number.prototype.toString.call(new Number(-1.1), 2) is "-1.000110011001100110011001100110011001100110011001101"
-FAIL Number(-1.1).toString(36) should be -1.3llllllllm. Was -1.3lllllllllxagau2ctidswz5mi.
-FAIL Number.prototype.toString.call(-1.1, 36) should be -1.3llllllllm. Was -1.3lllllllllxagau2ctidswz5mi.
-FAIL Number.prototype.toString.call(new Number(-1.1), 36) should be -1.3llllllllm. Was -1.3lllllllllxagau2ctidswz5mi.
+PASS Number(-1.1).toString(36) is "-1.3llllllllm"
+PASS Number.prototype.toString.call(-1.1, 36) is "-1.3llllllllm"
+PASS Number.prototype.toString.call(new Number(-1.1), 36) is "-1.3llllllllm"
 PASS Number(1.1).toString() is "1.1"
 PASS Number.prototype.toString.call(1.1) is "1.1"
 PASS Number.prototype.toString.call(new Number(1.1)) is "1.1"
@@ -254,9 +254,9 @@ PASS Number(1.1).toString(10) is "1.1"
 PASS Number(1.1).toString(2) is "1.000110011001100110011001100110011001100110011001101"
 PASS Number.prototype.toString.call(1.1, 2) is "1.000110011001100110011001100110011001100110011001101"
 PASS Number.prototype.toString.call(new Number(1.1), 2) is "1.000110011001100110011001100110011001100110011001101"
-FAIL Number(1.1).toString(36) should be 1.3llllllllm. Was 1.3lllllllllxagau2ctidswz5mi.
-FAIL Number.prototype.toString.call(1.1, 36) should be 1.3llllllllm. Was 1.3lllllllllxagau2ctidswz5mi.
-FAIL Number.prototype.toString.call(new Number(1.1), 36) should be 1.3llllllllm. Was 1.3lllllllllxagau2ctidswz5mi.
+PASS Number(1.1).toString(36) is "1.3llllllllm"
+PASS Number.prototype.toString.call(1.1, 36) is "1.3llllllllm"
+PASS Number.prototype.toString.call(new Number(1.1), 36) is "1.3llllllllm"
 PASS Number(1984.1).toString() is "1984.1"
 PASS Number.prototype.toString.call(1984.1) is "1984.1"
 PASS Number.prototype.toString.call(new Number(1984.1)) is "1984.1"
@@ -265,9 +265,9 @@ PASS Number(1984.1).toString(10) is "1984.1"
 PASS Number(1984.1).toString(2) is "11111000000.00011001100110011001100110011001100110011"
 PASS Number.prototype.toString.call(1984.1, 2) is "11111000000.00011001100110011001100110011001100110011"
 PASS Number.prototype.toString.call(new Number(1984.1), 2) is "11111000000.00011001100110011001100110011001100110011"
-FAIL Number(1984.1).toString(36) should be 1j4.3lllllllc. Was 1j4.3lllllllcd2obsszcl3di.
-FAIL Number.prototype.toString.call(1984.1, 36) should be 1j4.3lllllllc. Was 1j4.3lllllllcd2obsszcl3di.
-FAIL Number.prototype.toString.call(new Number(1984.1), 36) should be 1j4.3lllllllc. Was 1j4.3lllllllcd2obsszcl3di.
+PASS Number(1984.1).toString(36) is "1j4.3lllllllc"
+PASS Number.prototype.toString.call(1984.1, 36) is "1j4.3lllllllc"
+PASS Number.prototype.toString.call(new Number(1984.1), 36) is "1j4.3lllllllc"
 PASS Number(-1984.1).toString() is "-1984.1"
 PASS Number.prototype.toString.call(-1984.1) is "-1984.1"
 PASS Number.prototype.toString.call(new Number(-1984.1)) is "-1984.1"
@@ -276,9 +276,9 @@ PASS Number(-1984.1).toString(10) is "-1984.1"
 PASS Number(-1984.1).toString(2) is "-11111000000.00011001100110011001100110011001100110011"
 PASS Number.prototype.toString.call(-1984.1, 2) is "-11111000000.00011001100110011001100110011001100110011"
 PASS Number.prototype.toString.call(new Number(-1984.1), 2) is "-11111000000.00011001100110011001100110011001100110011"
-FAIL Number(-1984.1).toString(36) should be -1j4.3lllllllc. Was -1j4.3lllllllcd2obsszcl3di.
-FAIL Number.prototype.toString.call(-1984.1, 36) should be -1j4.3lllllllc. Was -1j4.3lllllllcd2obsszcl3di.
-FAIL Number.prototype.toString.call(new Number(-1984.1), 36) should be -1j4.3lllllllc. Was -1j4.3lllllllcd2obsszcl3di.
+PASS Number(-1984.1).toString(36) is "-1j4.3lllllllc"
+PASS Number.prototype.toString.call(-1984.1, 36) is "-1j4.3lllllllc"
+PASS Number.prototype.toString.call(new Number(-1984.1), 36) is "-1j4.3lllllllc"
 PASS Number(2147483647.1).toString() is "2147483647.1"
 PASS Number.prototype.toString.call(2147483647.1) is "2147483647.1"
 PASS Number.prototype.toString.call(new Number(2147483647.1)) is "2147483647.1"
@@ -287,9 +287,9 @@ PASS Number(2147483647.1).toString(10) is "2147483647.1"
 PASS Number(2147483647.1).toString(2) is "1111111111111111111111111111111.000110011001100110011"
 PASS Number.prototype.toString.call(2147483647.1, 2) is "1111111111111111111111111111111.000110011001100110011"
 PASS Number.prototype.toString.call(new Number(2147483647.1), 2) is "1111111111111111111111111111111.000110011001100110011"
-FAIL Number(2147483647.1).toString(36) should be zik0zj.3lllg. Was zik0zj.3lllfu07ldi.
-FAIL Number.prototype.toString.call(2147483647.1, 36) should be zik0zj.3lllg. Was zik0zj.3lllfu07ldi.
-FAIL Number.prototype.toString.call(new Number(2147483647.1), 36) should be zik0zj.3lllg. Was zik0zj.3lllfu07ldi.
+PASS Number(2147483647.1).toString(36) is "zik0zj.3lllg"
+PASS Number.prototype.toString.call(2147483647.1, 36) is "zik0zj.3lllg"
+PASS Number.prototype.toString.call(new Number(2147483647.1), 36) is "zik0zj.3lllg"
 PASS Number(-2147483648.1).toString() is "-2147483648.1"
 PASS Number.prototype.toString.call(-2147483648.1) is "-2147483648.1"
 PASS Number.prototype.toString.call(new Number(-2147483648.1)) is "-2147483648.1"
@@ -298,9 +298,9 @@ PASS Number(-2147483648.1).toString(10) is "-2147483648.1"
 PASS Number(-2147483648.1).toString(2) is "-10000000000000000000000000000000.000110011001100110011"
 PASS Number.prototype.toString.call(-2147483648.1, 2) is "-10000000000000000000000000000000.000110011001100110011"
 PASS Number.prototype.toString.call(new Number(-2147483648.1), 2) is "-10000000000000000000000000000000.000110011001100110011"
-FAIL Number(-2147483648.1).toString(36) should be -zik0zk.3lllg. Was -zik0zk.3lllfu07ldi.
-FAIL Number.prototype.toString.call(-2147483648.1, 36) should be -zik0zk.3lllg. Was -zik0zk.3lllfu07ldi.
-FAIL Number.prototype.toString.call(new Number(-2147483648.1), 36) should be -zik0zk.3lllg. Was -zik0zk.3lllfu07ldi.
+PASS Number(-2147483648.1).toString(36) is "-zik0zk.3lllg"
+PASS Number.prototype.toString.call(-2147483648.1, 36) is "-zik0zk.3lllg"
+PASS Number.prototype.toString.call(new Number(-2147483648.1), 36) is "-zik0zk.3lllg"
 PASS Number(9007199254740992).toString() is "9007199254740992"
 PASS Number.prototype.toString.call(9007199254740992) is "9007199254740992"
 PASS Number.prototype.toString.call(new Number(9007199254740992)) is "9007199254740992"

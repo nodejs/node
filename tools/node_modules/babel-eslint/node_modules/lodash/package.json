@@ -1,0 +1,68 @@
+{
+  "_from": "lodash@^4.2.0",
+  "_id": "lodash@4.17.4",
+  "_inBundle": false,
+  "_integrity": "sha1-eCA6TRwyiuHYbcpkYONptX9AVa4=",
+  "_location": "/babel-eslint/lodash",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "lodash@^4.2.0",
+    "name": "lodash",
+    "escapedName": "lodash",
+    "rawSpec": "^4.2.0",
+    "saveSpec": null,
+    "fetchSpec": "^4.2.0"
+  },
+  "_requiredBy": [
+    "/babel-eslint/@babel/template",
+    "/babel-eslint/@babel/traverse",
+    "/babel-eslint/@babel/types"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.4.tgz",
+  "_shasum": "78203a4d1c328ae1d86dca6460e369b57f4055ae",
+  "_spec": "lodash@^4.2.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/babel-eslint-tmp/node_modules/babel-eslint/node_modules/@babel/traverse",
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "deprecated": false,
+  "description": "Lodash modular utilities.",
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "keywords": [
+    "modules",
+    "stdlib",
+    "util"
+  ],
+  "license": "MIT",
+  "main": "lodash.js",
+  "name": "lodash",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "4.17.4"
+}

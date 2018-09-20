@@ -1,65 +1,16 @@
-/* p12_crt.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project.
- */
-/* ====================================================================
- * Copyright (c) 1999-2002 The OpenSSL Project.  All rights reserved.
+ * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/pkcs12.h>
+#include "p12_lcl.h"
 
 static int pkcs12_add_bag(STACK_OF(PKCS12_SAFEBAG) **pbags,
                           PKCS12_SAFEBAG *bag);
@@ -77,7 +28,7 @@ static int copy_bag_attr(PKCS12_SAFEBAG *bag, EVP_PKEY *pkey, int nid)
     return 1;
 }
 
-PKCS12 *PKCS12_create(char *pass, char *name, EVP_PKEY *pkey, X509 *cert,
+PKCS12 *PKCS12_create(const char *pass, const char *name, EVP_PKEY *pkey, X509 *cert,
                       STACK_OF(X509) *ca, int nid_key, int nid_cert, int iter,
                       int mac_iter, int keytype)
 {
@@ -90,18 +41,12 @@ PKCS12 *PKCS12_create(char *pass, char *name, EVP_PKEY *pkey, X509 *cert,
     unsigned int keyidlen = 0;
 
     /* Set defaults */
-    if (!nid_cert) {
-#ifdef OPENSSL_FIPS
-        if (FIPS_mode())
-            nid_cert = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
-        else
-#endif
+    if (!nid_cert)
 #ifdef OPENSSL_NO_RC2
-            nid_cert = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
+        nid_cert = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
 #else
-            nid_cert = NID_pbe_WithSHA1And40BitRC2_CBC;
+        nid_cert = NID_pbe_WithSHA1And40BitRC2_CBC;
 #endif
-    }
     if (!nid_key)
         nid_key = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
     if (!iter)
@@ -179,13 +124,9 @@ PKCS12 *PKCS12_create(char *pass, char *name, EVP_PKEY *pkey, X509 *cert,
     return p12;
 
  err:
-
-    if (p12)
-        PKCS12_free(p12);
-    if (safes)
-        sk_PKCS7_pop_free(safes, PKCS7_free);
-    if (bags)
-        sk_PKCS12_SAFEBAG_pop_free(bags, PKCS12_SAFEBAG_free);
+    PKCS12_free(p12);
+    sk_PKCS7_pop_free(safes, PKCS7_free);
+    sk_PKCS12_SAFEBAG_pop_free(bags, PKCS12_SAFEBAG_free);
     return NULL;
 
 }
@@ -199,7 +140,7 @@ PKCS12_SAFEBAG *PKCS12_add_cert(STACK_OF(PKCS12_SAFEBAG) **pbags, X509 *cert)
     int keyidlen = -1;
 
     /* Add user certificate */
-    if (!(bag = PKCS12_x5092certbag(cert)))
+    if ((bag = PKCS12_SAFEBAG_create_cert(cert)) == NULL)
         goto err;
 
     /*
@@ -222,32 +163,30 @@ PKCS12_SAFEBAG *PKCS12_add_cert(STACK_OF(PKCS12_SAFEBAG) **pbags, X509 *cert)
     return bag;
 
  err:
-
-    if (bag)
-        PKCS12_SAFEBAG_free(bag);
-
+    PKCS12_SAFEBAG_free(bag);
     return NULL;
 
 }
 
 PKCS12_SAFEBAG *PKCS12_add_key(STACK_OF(PKCS12_SAFEBAG) **pbags,
                                EVP_PKEY *key, int key_usage, int iter,
-                               int nid_key, char *pass)
+                               int nid_key, const char *pass)
 {
 
     PKCS12_SAFEBAG *bag = NULL;
     PKCS8_PRIV_KEY_INFO *p8 = NULL;
 
     /* Make a PKCS#8 structure */
-    if (!(p8 = EVP_PKEY2PKCS8(key)))
+    if ((p8 = EVP_PKEY2PKCS8(key)) == NULL)
         goto err;
     if (key_usage && !PKCS8_add_keyusage(p8, key_usage))
         goto err;
     if (nid_key != -1) {
-        bag = PKCS12_MAKE_SHKEYBAG(nid_key, pass, -1, NULL, 0, iter, p8);
+        bag = PKCS12_SAFEBAG_create_pkcs8_encrypt(nid_key, pass, -1, NULL, 0,
+                                                  iter, p8);
         PKCS8_PRIV_KEY_INFO_free(p8);
     } else
-        bag = PKCS12_MAKE_KEYBAG(p8);
+        bag = PKCS12_SAFEBAG_create0_p8inf(p8);
 
     if (!bag)
         goto err;
@@ -258,16 +197,13 @@ PKCS12_SAFEBAG *PKCS12_add_key(STACK_OF(PKCS12_SAFEBAG) **pbags,
     return bag;
 
  err:
-
-    if (bag)
-        PKCS12_SAFEBAG_free(bag);
-
+    PKCS12_SAFEBAG_free(bag);
     return NULL;
 
 }
 
 int PKCS12_add_safe(STACK_OF(PKCS7) **psafes, STACK_OF(PKCS12_SAFEBAG) *bags,
-                    int nid_safe, int iter, char *pass)
+                    int nid_safe, int iter, const char *pass)
 {
     PKCS7 *p7 = NULL;
     int free_safes = 0;
@@ -304,10 +240,7 @@ int PKCS12_add_safe(STACK_OF(PKCS7) **psafes, STACK_OF(PKCS12_SAFEBAG) *bags,
         sk_PKCS7_free(*psafes);
         *psafes = NULL;
     }
-
-    if (p7)
-        PKCS7_free(p7);
-
+    PKCS7_free(p7);
     return 0;
 
 }

@@ -1,8 +1,9 @@
 'use strict'
 var test = require('tap').test
+var Tacks = require('tacks')
+var File = Tacks.File
+var Dir = Tacks.Dir
 var fs = require('fs')
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 var path = require('path')
 var common = require('../common-tap.js')
 
@@ -11,77 +12,71 @@ var modAdir = path.resolve(testdir, 'modA')
 var modB1dir = path.resolve(testdir, 'modB@1')
 var modB2dir = path.resolve(testdir, 'modB@2')
 var modCdir = path.resolve(testdir, 'modC')
-var testjson = {
-  dependencies: {
-    modA: 'file://' + modAdir,
-    modC: 'file://' + modCdir
-  }
-}
-var testshrinkwrap = {
-  dependencies: {
-    modA: {
-      version: '1.0.0',
-      from: 'modA',
-      resolved: 'file://' + modAdir
-    },
-    modB: {
-      version: '1.0.0',
-      from: 'modB@1',
-      resolved: 'file://' + modB1dir
-    }
-  }
-}
-var modAjson = {
-  name: 'modA',
-  version: '1.0.0',
-  dependencies: {
-    'modB': 'file://' + modB1dir
-  }
-}
-var modCjson = {
-  name: 'modC',
-  version: '1.0.0',
-  dependencies: {
-    'modB': 'file://' + modB2dir
-  }
-}
-var modB1json = {
-  name: 'modB',
-  version: '1.0.0'
-}
-var modB2json = {
-  name: 'modB',
-  version: '2.0.0'
-}
 
-function writepjson (dir, content) {
-  writejson(dir, 'package.json', content)
-}
-function writejson (dir, file, content) {
-  writefile(dir, file, JSON.stringify(content, null, 2))
-}
-function writefile (dir, file, content) {
-  fs.writeFileSync(path.join(dir, file), content)
-}
+var fixture = new Tacks(Dir({
+  'package.json': File({
+    dependencies: {
+      modA: 'file://' + modAdir
+    },
+    devDependencies: {
+      modC: 'file://' + modCdir
+    }
+  }),
+  'npm-shrinkwrap.json': File({
+    requires: true,
+    lockfileVersion: 1,
+    dependencies: {
+      modA: {
+        version: 'file://' + modAdir,
+        requires: {
+          modB: 'file://' + modB1dir
+        }
+      },
+      modB: {
+        version: 'file://' + modB1dir
+      }
+    }
+  }),
+  'modA': Dir({
+    'package.json': File({
+      name: 'modA',
+      version: '1.0.0',
+      dependencies: {
+        'modB': 'file://' + modB1dir
+      }
+    })
+  }),
+  'modB@1': Dir({
+    'package.json': File({
+      name: 'modB',
+      version: '1.0.0'
+    }),
+    'B1': File('')
+  }),
+  'modB@2': Dir({
+    'package.json': File({
+      name: 'modB',
+      version: '2.0.0'
+    }),
+    'B2': File('')
+  }),
+  'modC': Dir({
+    'package.json': File({
+      name: 'modC',
+      version: '1.0.0',
+      dependencies: {
+        'modB': 'file://' + modB2dir
+      }
+    })
+  })
+}))
 
 function setup () {
-  mkdirp.sync(testdir)
-  writepjson(testdir, testjson)
-  writejson(testdir, 'npm-shrinkwrap.json', testshrinkwrap)
-  mkdirp.sync(modAdir)
-  writepjson(modAdir, modAjson)
-  mkdirp.sync(modB1dir)
-  writepjson(modB1dir, modB1json)
-  writefile(modB1dir, 'B1', '')
-  mkdirp.sync(modB2dir)
-  writepjson(modB2dir, modB2json)
-  writefile(modB2dir, 'B2', '')
-  mkdirp.sync(modCdir)
-  writepjson(modCdir, modCjson)
+  fixture.create(testdir)
 }
 
 function cleanup () {
-  rimraf.sync(testdir)
+  fixture.remove(testdir)
 }
 
 test('setup', function (t) {

@@ -1,0 +1,12 @@
+{
+  "path": ["."],
+  "flags": [],
+  "main": "run.js",
+  "run_count": 2,
+  "results_processor": "results_processor.py",
+  "results_regexp": "^%s: (.+)$",
+  "tests": [
+    {"name": "Richards"},
+    {"name": "DeltaBlue"}
+  ]
+}

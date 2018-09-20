@@ -1,9 +1,9 @@
-npm-rm(1) -- Remove a package
+npm-uninstall(1) -- Remove a package
 =============================
 
 ## SYNOPSIS
 
-    npm uninstall [<@scope>/]<pkg>[@<version>]... [-S|--save|-D|--save-dev|-O|--save-optional]
+    npm uninstall [<@scope>/]<pkg>[@<version>]... [-S|--save|-D|--save-dev|-O|--save-optional|--no-save]
 
     aliases: remove, rm, r, un, unlink
 
@@ -28,6 +28,8 @@ the package version in your main package.json:
 
 * `-O, --save-optional`: Package will be removed from your `optionalDependencies`.
 
+* `--no-save`: Package will not be removed from your `package.json` file.
+
 Further, if you have an `npm-shrinkwrap.json` then it will be updated as
 well.
 
@@ -39,6 +41,7 @@ Examples:
     npm uninstall @myorg/privatepackage --save
     npm uninstall node-tap --save-dev
     npm uninstall dtrace-provider --save-optional
+    npm uninstall lodash --no-save
 
 ## SEE ALSO
 

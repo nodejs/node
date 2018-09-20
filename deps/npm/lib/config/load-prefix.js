@@ -1,6 +1,6 @@
 module.exports = loadPrefix
 
-var findPrefix = require('./find-prefix.js')
+var findPrefix = require('find-npm-prefix')
 var path = require('path')
 
 function loadPrefix (cb) {
@@ -34,7 +34,7 @@ function loadPrefix (cb) {
   Object.defineProperty(this, 'localPrefix',
     { set: function (prefix) { p = prefix },
       get: function () { return p },
-    enumerable: true })
+      enumerable: true })
 
   // try to guess at a good node_modules location.
   // If we are *explicitly* given a prefix on the cli, then
@@ -43,9 +43,9 @@ function loadPrefix (cb) {
     p = path.resolve(cli.prefix)
     process.nextTick(cb)
   } else {
-    findPrefix(process.cwd(), function (er, found) {
+    findPrefix(process.cwd()).then((found) => {
       p = found
-      cb(er)
-    })
+      cb()
+    }, cb)
   }
 }

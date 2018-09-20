@@ -126,6 +126,30 @@ test('npm deprecate bad semver range', function (t) {
   })
 })
 
+test('npm deprecate a package with no semver range', function (t) {
+  var deprecated = JSON.parse(JSON.stringify(cache))
+  deprecated.versions = {
+    '0.0.0': { deprecated: 'make it dead' },
+    '0.0.1': { deprecated: 'make it dead' },
+    '0.0.2': { deprecated: 'make it dead' }
+  }
+  server.get('/cond?write=true').reply(200, cache)
+  server.put('/cond', deprecated).reply(201, { deprecated: true })
+  common.npm([
+    'deprecate',
+    'cond',
+    'make it dead',
+    '--registry', common.registry,
+    '--loglevel', 'silent'
+  ], {},
+  function (er, code, stdout, stderr) {
+    t.ifError(er, 'npm deprecate')
+    t.equal(stderr, '', 'no error output')
+    t.equal(code, 0, 'exited OK')
+    t.end()
+  })
+})
+
 test('cleanup', function (t) {
   server.close()
   t.ok(true)

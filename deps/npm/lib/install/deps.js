@@ -1,185 +1,239 @@
 'use strict'
+
+const BB = require('bluebird')
+
+var fs = require('fs')
 var assert = require('assert')
 var path = require('path')
-var url = require('url')
 var semver = require('semver')
 var asyncMap = require('slide').asyncMap
 var chain = require('slide').chain
-var union = require('lodash.union')
 var iferr = require('iferr')
 var npa = require('npm-package-arg')
 var validate = require('aproba')
-var realizePackageSpecifier = require('realize-package-specifier')
 var dezalgo = require('dezalgo')
 var fetchPackageMetadata = require('../fetch-package-metadata.js')
 var andAddParentToErrors = require('./and-add-parent-to-errors.js')
-var addShrinkwrap = require('../fetch-package-metadata.js').addShrinkwrap
 var addBundled = require('../fetch-package-metadata.js').addBundled
 var readShrinkwrap = require('./read-shrinkwrap.js')
 var inflateShrinkwrap = require('./inflate-shrinkwrap.js')
 var inflateBundled = require('./inflate-bundled.js')
 var andFinishTracker = require('./and-finish-tracker.js')
 var npm = require('../npm.js')
-var flatName = require('./flatten-tree.js').flatName
+var flatNameFromTree = require('./flatten-tree.js').flatNameFromTree
 var createChild = require('./node.js').create
 var resetMetadata = require('./node.js').reset
-var andIgnoreErrors = require('./and-ignore-errors.js')
 var isInstallable = require('./validate-args.js').isInstallable
 var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
-
-exports.test = {} // used to hold functions for testing by unit tests
+var isDevDep = require('./is-dev-dep.js')
+var isProdDep = require('./is-prod-dep.js')
+var reportOptionalFailure = require('./report-optional-failure.js')
+var getSaveType = require('./save.js').getSaveType
+var unixFormatPath = require('../utils/unix-format-path.js')
+var isExtraneous = require('./is-extraneous.js')
+var isRegistry = require('../utils/is-registry.js')
+var hasModernMeta = require('./has-modern-meta.js')
 
 // The export functions in this module mutate a dependency tree, adding
 // items to them.
 
-function isDep (tree, child) {
-  if (child.fromShrinkwrap) return true
-  var name = moduleName(child)
-  var requested = isProdDep(tree, name)
-  var matches
-  if (requested) matches = doesChildVersionMatch(child, requested, tree)
-  if (matches) return matches
-  requested = isDevDep(tree, name)
-  if (!requested) return
-  return doesChildVersionMatch(child, requested, tree)
-}
-
-function isDevDep (tree, name) {
-  var devDeps = tree.package.devDependencies || {}
-  var reqVer = devDeps[name]
-  if (reqVer == null) return
-  return npa(name + '@' + reqVer)
-}
-
-function isProdDep (tree, name) {
-  var deps = tree.package.dependencies || {}
-  var reqVer = deps[name]
-  if (reqVer == null) return false
-  return npa(name + '@' + reqVer)
-}
-
 var registryTypes = { range: true, version: true }
 
 function doesChildVersionMatch (child, requested, requestor) {
-  // we always consider deps provided by a shrinkwrap as "correct" or else
-  // we'll subvert them if they're intentionally "invalid"
-  if (child.parent === requestor && child.fromShrinkwrap) return true
+  if (child.fromShrinkwrap && !child.hasRequiresFromLock) return true
   // ranges of * ALWAYS count as a match, because when downloading we allow
   // prereleases to match * if there are ONLY prereleases
-  if (requested.spec === '*') return true
+  if (requested.type === 'range' && requested.fetchSpec === '*') return true
 
-  var childReq = child.package._requested
-  if (childReq) {
-    if (childReq.rawSpec === requested.rawSpec) return true
-    if (childReq.type === requested.type && childReq.spec === requested.spec) return true
+  if (requested.type === 'directory') {
+    if (!child.isLink) return false
+    return path.relative(child.realpath, requested.fetchSpec) === ''
   }
-  if (!registryTypes[requested.type]) return requested.rawSpec === child.package._from
-  return semver.satisfies(child.package.version, requested.spec)
+
+  if (requested.type === 'git' && child.fromShrinkwrap) {
+    const fromSw = child.package._from ? npa(child.package._from) : child.fromShrinkwrap
+    fromSw.name = requested.name // we're only checking specifiers here
+    if (fromSw.toString() === requested.toString()) return true
+  }
+
+  if (!registryTypes[requested.type]) {
+    var childReq = child.package._requested
+    if (childReq) {
+      if (childReq.rawSpec === requested.rawSpec) return true
+      if (childReq.type === requested.type && childReq.saveSpec === requested.saveSpec) return true
+    }
+    // If _requested didn't exist OR if it didn't match then we'll try using
+    // _from. We pass it through npa to normalize the specifier.
+    // This can happen when installing from an `npm-shrinkwrap.json` where `_requested` will
+    // be the tarball URL from `resolved` and thus can't match what's in the `package.json`.
+    // In those cases _from, will be preserved and we can compare that to ensure that they
+    // really came from the same sources.
+    // You'll see this scenario happen with at least tags and git dependencies.
+    // Some buggy clients will write spaces into the module name part of a _from.
+    if (child.package._from) {
+      var fromReq = npa.resolve(moduleName(child), child.package._from.replace(new RegExp('^\\s*' + moduleName(child) + '\\s*@'), ''))
+      if (fromReq.rawSpec === requested.rawSpec) return true
+      if (fromReq.type === requested.type && fromReq.saveSpec && fromReq.saveSpec === requested.saveSpec) return true
+    }
+    return false
+  }
+  try {
+    return semver.satisfies(child.package.version, requested.fetchSpec, true)
+  } catch (e) {
+    return false
+  }
 }
 
-exports.recalculateMetadata = function (tree, log, next) {
-  recalculateMetadata(tree, log, {}, next)
+function childDependencySpecifier (tree, name, spec, where) {
+  return npa.resolve(name, spec, where || packageRelativePath(tree))
 }
 
-function recalculateMetadata (tree, log, seen, next) {
-  validate('OOOF', arguments)
-  if (seen[tree.path]) return next()
-  seen[tree.path] = true
-  if (tree.parent == null) resetMetadata(tree)
-  function markDeps (spec, done) {
-    validate('SF', arguments)
-    realizePackageSpecifier(spec, packageRelativePath(tree), function (er, req) {
-      if (er || !req.name) return done()
-      var child = findRequirement(tree, req.name, req)
-      if (child) {
-        resolveWithExistingModule(child, tree, log, andIgnoreErrors(done))
-      } else if (tree.package.dependencies[req.name] != null) {
-        tree.missingDeps[req.name] = req.rawSpec
-        done()
-      } else if (tree.package.devDependencies[req.name] != null) {
-        tree.missingDevDeps[req.name] = req.rawSpec
-        done()
-      } else {
-        done()
-      }
-    })
+exports.computeMetadata = computeMetadata
+function computeMetadata (tree, seen) {
+  if (!seen) seen = new Set()
+  if (!tree || seen.has(tree)) return
+  seen.add(tree)
+  if (tree.parent == null) {
+    resetMetadata(tree)
+    tree.isTop = true
   }
-  function specs (deps) {
-    return Object.keys(deps).map(function (depname) { return depname + '@' + deps[depname] })
+  tree.location = flatNameFromTree(tree)
+
+  function findChild (name, spec, kind) {
+    try {
+      var req = childDependencySpecifier(tree, name, spec)
+    } catch (err) {
+      return
+    }
+    var child = findRequirement(tree, req.name, req)
+    if (child) {
+      resolveWithExistingModule(child, tree)
+      return true
+    }
   }
-  var tomark = specs(tree.package.dependencies)
-  if (!tree.parent && (npm.config.get('dev') || !npm.config.get('production'))) {
-    tomark = union(tomark, specs(tree.package.devDependencies))
+
+  const deps = tree.package.dependencies || {}
+  const reqs = tree.swRequires || {}
+  for (let name of Object.keys(deps)) {
+    if (findChild(name, deps[name])) continue
+    if (name in reqs && findChild(name, reqs[name])) continue
+    tree.missingDeps[name] = deps[name]
   }
-  tree.children = tree.children.filter(function (child) { return !child.failed })
-  chain([
-    [asyncMap, tomark, markDeps],
-    [asyncMap, tree.children, function (child, done) { recalculateMetadata(child, log, seen, done) }]
-  ], function () {
-    tree.userRequired = tree.package._requiredBy.some(function (req) { req === '#USER' })
-    tree.existing = tree.package._requiredBy.some(function (req) { req === '#EXISTING' })
-    tree.package._location = flatNameFromTree(tree)
-    next(null, tree)
-  })
+  if (tree.isTop) {
+    const devDeps = tree.package.devDependencies || {}
+    for (let name of Object.keys(devDeps)) {
+      if (findChild(name, devDeps[name])) continue
+      tree.missingDevDeps[name] = devDeps[name]
+    }
+  }
+
+  tree.children.filter((child) => !child.removed).forEach((child) => computeMetadata(child, seen))
+
+  return tree
+}
+
+function isDep (tree, child) {
+  var name = moduleName(child)
+  var prodVer = isProdDep(tree, name)
+  var devVer = isDevDep(tree, name)
+
+  try {
+    var prodSpec = childDependencySpecifier(tree, name, prodVer)
+  } catch (err) {
+    return {isDep: true, isProdDep: false, isDevDep: false}
+  }
+  var matches
+  if (prodSpec) matches = doesChildVersionMatch(child, prodSpec, tree)
+  if (matches) return {isDep: true, isProdDep: prodSpec, isDevDep: false}
+  if (devVer === prodVer) return {isDep: child.fromShrinkwrap, isProdDep: false, isDevDep: false}
+  try {
+    var devSpec = childDependencySpecifier(tree, name, devVer)
+    return {isDep: doesChildVersionMatch(child, devSpec, tree) || child.fromShrinkwrap, isProdDep: false, isDevDep: devSpec}
+  } catch (err) {
+    return {isDep: child.fromShrinkwrap, isProdDep: false, isDevDep: false}
+  }
 }
 
 function addRequiredDep (tree, child) {
-  if (!isDep(tree, child)) return false
-  var name = isProdDep(tree, moduleName(child)) ? flatNameFromTree(tree) : '#DEV:' + flatNameFromTree(tree)
-  replaceModuleName(child.package, '_requiredBy', name)
-  replaceModule(child, 'requiredBy', tree)
-  replaceModule(tree, 'requires', child)
+  var dep = isDep(tree, child)
+  if (!dep.isDep) return false
+  replaceModuleByPath(child, 'requiredBy', tree)
+  replaceModuleByName(tree, 'requires', child)
+  if (dep.isProdDep && tree.missingDeps) delete tree.missingDeps[moduleName(child)]
+  if (dep.isDevDep && tree.missingDevDeps) delete tree.missingDevDeps[moduleName(child)]
   return true
 }
 
-function removeObsoleteDep (child) {
+exports.removeObsoleteDep = removeObsoleteDep
+function removeObsoleteDep (child, log) {
   if (child.removed) return
   child.removed = true
+  if (log) {
+    log.silly('removeObsoleteDep', 'removing ' + packageId(child) +
+      ' from the tree as its been replaced by a newer version or is no longer required')
+  }
+  // remove from physical tree
+  if (child.parent) {
+    child.parent.children = child.parent.children.filter(function (pchild) { return pchild !== child })
+  }
+  // remove from logical tree
   var requires = child.requires || []
   requires.forEach(function (requirement) {
-    requirement.requiredBy = requirement.requiredBy.filter(function (reqBy) { reqBy !== child })
-    if (requirement.requiredBy.length === 0) removeObsoleteDep(requirement)
+    requirement.requiredBy = requirement.requiredBy.filter(function (reqBy) { return reqBy !== child })
+    // we don't just check requirement.requires because that doesn't account
+    // for circular deps.  isExtraneous does.
+    if (isExtraneous(requirement)) removeObsoleteDep(requirement, log)
   })
-}
-
-function matchingDep (tree, name) {
-  if (tree.package.dependencies && tree.package.dependencies[name]) return tree.package.dependencies[name]
-  if (tree.package.devDependencies && tree.package.devDependencies[name]) return tree.package.devDependencies[name]
-  return
 }
 
 function packageRelativePath (tree) {
   if (!tree) return ''
   var requested = tree.package._requested || {}
-  var isLocal = requested.type === 'directory' || requested.type === 'local'
-  return isLocal ? requested.spec : tree.path
+  var isLocal = requested.type === 'directory' || requested.type === 'file'
+  return isLocal ? requested.fetchSpec
+    : (tree.isLink || tree.isInLink) && !preserveSymlinks() ? tree.realpath
+      : tree.path
 }
 
-function getShrinkwrap (tree, name) {
-  return tree.package._shrinkwrap && tree.package._shrinkwrap.dependencies && tree.package._shrinkwrap.dependencies[name]
+function matchingDep (tree, name) {
+  if (!tree || !tree.package) return
+  if (tree.package.dependencies && tree.package.dependencies[name]) return tree.package.dependencies[name]
+  if (tree.package.devDependencies && tree.package.devDependencies[name]) return tree.package.devDependencies[name]
 }
 
-exports.getAllMetadata = function (args, tree, next) {
-  asyncMap(args, function (spec, done) {
-    if (tree && spec.lastIndexOf('@') <= 0) {
-      var sw = getShrinkwrap(tree, spec)
-      if (sw) {
-        // FIXME: This is duplicated in inflate-shrinkwrap and should be factoed
-        // into a shared function
-        spec = sw.resolved
-             ? spec + '@' + sw.resolved
-             : (sw.from && url.parse(sw.from).protocol)
-             ? spec + '@' + sw.from
-             : spec + '@' + sw.version
-      } else {
-        var version = matchingDep(tree, spec)
-        if (version != null) {
-          spec += '@' + version
-        }
-      }
+exports.getAllMetadata = function (args, tree, where, next) {
+  asyncMap(args, function (arg, done) {
+    let spec
+    try {
+      spec = npa(arg)
+    } catch (e) {
+      return done(e)
     }
-    fetchPackageMetadata(spec, packageRelativePath(tree), done)
+    if (spec.type !== 'file' && spec.type !== 'directory' && (spec.name == null || spec.rawSpec === '')) {
+      return fs.stat(path.join(arg, 'package.json'), (err) => {
+        if (err) {
+          var version = matchingDep(tree, spec.name)
+          if (version) {
+            try {
+              return fetchPackageMetadata(npa.resolve(spec.name, version), where, done)
+            } catch (e) {
+              return done(e)
+            }
+          } else {
+            return fetchPackageMetadata(spec, where, done)
+          }
+        } else {
+          try {
+            return fetchPackageMetadata(npa('file:' + arg), where, done)
+          } catch (e) {
+            return done(e)
+          }
+        }
+      })
+    } else {
+      return fetchPackageMetadata(spec, where, done)
+    }
   }, next)
 }
 
@@ -194,53 +248,121 @@ exports.loadRequestedDeps = function (args, tree, saveToDependencies, log, next)
         child.isGlobal = true
       }
       var childName = moduleName(child)
-      if (saveToDependencies) {
-        tree.package[saveToDependencies][childName] =
-          child.package._requested.rawSpec || child.package._requested.spec
+      child.saveSpec = computeVersionSpec(tree, child)
+      child.userRequired = true
+      child.save = getSaveType(tree, child)
+      const types = ['dependencies', 'devDependencies', 'optionalDependencies']
+      if (child.save) {
+        tree.package[child.save][childName] = child.saveSpec
+        // Astute readers might notice that this exact same code exists in
+        // save.js under a different guise. That code is responsible for deps
+        // being removed from the final written `package.json`. The removal in
+        // this function is specifically to prevent "installed as both X and Y"
+        // warnings when moving an existing dep between different dep fields.
+        //
+        // Or, try it by removing this loop, and do `npm i -P x && npm i -D x`
+        for (let saveType of types) {
+          if (child.save !== saveType) {
+            delete tree.package[saveType][childName]
+          }
+        }
+        if (child.save === 'optionalDependencies') tree.package.dependencies[childName] = child.saveSpec
       }
-      if (saveToDependencies && saveToDependencies !== 'devDependencies') {
-        tree.package.dependencies[childName] =
-          child.package._requested.rawSpec || child.package._requested.spec
-      }
-      child.directlyRequested = true
-      child.save = saveToDependencies
 
       // For things the user asked to install, that aren't a dependency (or
       // won't be when we're done), flag it as "depending" on the user
       // themselves, so we don't remove it as a dep that no longer exists
-      if (!addRequiredDep(tree, child)) {
-        replaceModuleName(child.package, '_requiredBy', '#USER')
-        child.directlyRequested = true
-      }
+      var childIsDep = addRequiredDep(tree, child)
+      if (!childIsDep) child.userRequired = true
       depLoaded(null, child, tracker)
     }))
   }, andForEachChild(loadDeps, andFinishTracker(log, next)))
+}
+
+function isNotEmpty (value) {
+  return value != null && value !== ''
+}
+
+exports.computeVersionSpec = computeVersionSpec
+function computeVersionSpec (tree, child) {
+  validate('OO', arguments)
+  var requested
+  var childReq = child.package._requested
+  if (child.isLink) {
+    requested = npa.resolve(child.package.name, 'file:' + child.realpath, getTop(tree).path)
+  } else if (childReq && (isNotEmpty(childReq.saveSpec) || (isNotEmpty(childReq.rawSpec) && isNotEmpty(childReq.fetchSpec)))) {
+    requested = child.package._requested
+  } else if (child.package._from) {
+    requested = npa(child.package._from, tree.path)
+  } else {
+    requested = npa.resolve(child.package.name, child.package.version)
+  }
+  if (isRegistry(requested)) {
+    var version = child.package.version
+    var rangeDescriptor = ''
+    if (semver.valid(version, true) &&
+        semver.gte(version, '0.1.0', true) &&
+        !npm.config.get('save-exact')) {
+      rangeDescriptor = npm.config.get('save-prefix')
+    }
+    return rangeDescriptor + version
+  } else if (requested.type === 'directory' || requested.type === 'file') {
+    return 'file:' + unixFormatPath(path.relative(getTop(tree).path, requested.fetchSpec))
+  } else {
+    return requested.saveSpec || requested.rawSpec
+  }
 }
 
 function moduleNameMatches (name) {
   return function (child) { return moduleName(child) === name }
 }
 
-function noModuleNameMatches (name) {
-  return function (child) { return moduleName(child) !== name }
-}
-
 // while this implementation does not require async calling, doing so
 // gives this a consistent interface with loadDeps et al
-exports.removeDeps = function (args, tree, saveToDependencies, log, next) {
-  validate('AOOF', [args, tree, log, next])
-  args.forEach(function (pkg) {
+exports.removeDeps = function (args, tree, saveToDependencies, next) {
+  validate('AOSF|AOZF', [args, tree, saveToDependencies, next])
+  for (let pkg of args) {
     var pkgName = moduleName(pkg)
-    if (saveToDependencies) {
-      var toRemove = tree.children.filter(moduleNameMatches(pkgName))
-      replaceModule(tree, 'removed', toRemove[0])
-      toRemove.forEach(function (parent) {
-        parent.save = saveToDependencies
-      })
+    var toRemove = tree.children.filter(moduleNameMatches(pkgName))
+    var pkgToRemove = toRemove[0] || createChild({package: {name: pkgName}})
+    var saveType = getSaveType(tree, pkg) || 'dependencies'
+    if (tree.isTop && saveToDependencies) {
+      pkgToRemove.save = saveType
     }
-    tree.children = tree.children.filter(noModuleNameMatches(pkgName))
+    if (tree.package[saveType][pkgName]) {
+      delete tree.package[saveType][pkgName]
+      if (saveType === 'optionalDependencies' && tree.package.dependencies[pkgName]) {
+        delete tree.package.dependencies[pkgName]
+      }
+    }
+    replaceModuleByPath(tree, 'removedChildren', pkgToRemove)
+    for (let parent of pkgToRemove.requiredBy) {
+      parent.requires = parent.requires.filter((child) => child !== pkgToRemove)
+    }
+    pkgToRemove.requiredBy = pkgToRemove.requiredBy.filter((parent) => parent !== tree)
+    flagAsRemoving(pkgToRemove)
+  }
+  next()
+}
+
+function flagAsRemoving (toRemove, seen) {
+  if (!seen) seen = new Set()
+  if (seen.has(toRemove)) return
+  seen.add(toRemove)
+  toRemove.removing = true
+  toRemove.requires.forEach((required) => {
+    flagAsRemoving(required, seen)
   })
-  log.finish()
+}
+
+exports.removeExtraneous = function (args, tree, next) {
+  for (let pkg of args) {
+    var pkgName = moduleName(pkg)
+    var toRemove = tree.children.filter(moduleNameMatches(pkgName))
+    if (toRemove.length) {
+      removeObsoleteDep(toRemove[0])
+    }
+  }
   next()
 }
 
@@ -265,38 +387,51 @@ function andForEachChild (load, next) {
   }
 }
 
-function isDepOptional (tree, name) {
-  if (!tree.package.optionalDependencies) return false
-  if (tree.package.optionalDependencies[name] != null) return true
+function isDepOptional (tree, name, pkg) {
+  if (pkg.package && pkg.package._optional) return true
+  const optDeps = tree.package.optionalDependencies
+  if (optDeps && optDeps[name] != null) return true
+
+  const devDeps = tree.package.devDependencies
+  if (devDeps && devDeps[name] != null) {
+    const includeDev = npm.config.get('dev') ||
+      (!/^prod(uction)?$/.test(npm.config.get('only')) && !npm.config.get('production')) ||
+      /^dev(elopment)?$/.test(npm.config.get('only')) ||
+      /^dev(elopment)?$/.test(npm.config.get('also'))
+    return !includeDev
+  }
+  const prodDeps = tree.package.dependencies
+  if (prodDeps && prodDeps[name] != null) {
+    const includeProd = !/^dev(elopment)?$/.test(npm.config.get('only'))
+    return !includeProd
+  }
   return false
 }
 
-var failedDependency = exports.failedDependency = function (tree, name_pkg) {
-  var name, pkg
-  if (typeof name_pkg === 'string') {
-    name = name_pkg
-  } else {
-    pkg = name_pkg
-    name = moduleName(pkg)
-  }
-
-  tree.children = tree.children.filter(noModuleNameMatches(name))
-
-  if (isDepOptional(tree, name)) {
-    return false
+exports.failedDependency = failedDependency
+function failedDependency (tree, name, pkg) {
+  if (name) {
+    if (isDepOptional(tree, name, pkg || {})) {
+      return false
+    }
   }
 
   tree.failed = true
 
-  if (!tree.parent) return true
+  if (tree.isTop) return true
 
+  if (tree.userRequired) return true
+
+  if (!tree.requiredBy) return false
+
+  let anyFailed = false
   for (var ii = 0; ii < tree.requiredBy.length; ++ii) {
     var requireParent = tree.requiredBy[ii]
-    if (failedDependency(requireParent, tree.package)) {
-      return true
+    if (failedDependency(requireParent, moduleName(tree), tree)) {
+      anyFailed = true
     }
   }
-  return false
+  return anyFailed
 }
 
 function andHandleOptionalErrors (log, tree, name, done) {
@@ -306,9 +441,7 @@ function andHandleOptionalErrors (log, tree, name, done) {
     if (!er) return done(er, child, childLog)
     var isFatal = failedDependency(tree, name)
     if (er && !isFatal) {
-      tree.children = tree.children.filter(noModuleNameMatches(name))
-      log.warn('install', "Couldn't install optional dependency:", er.message)
-      log.verbose('install', er.stack)
+      reportOptionalFailure(tree, name, er)
       return done()
     } else {
       return done(er, child, childLog)
@@ -316,21 +449,52 @@ function andHandleOptionalErrors (log, tree, name, done) {
   }
 }
 
+exports.prefetchDeps = prefetchDeps
+function prefetchDeps (tree, deps, log, next) {
+  validate('OOOF', arguments)
+  var skipOptional = !npm.config.get('optional')
+  var seen = new Set()
+  const finished = andFinishTracker(log, next)
+  const fpm = BB.promisify(fetchPackageMetadata)
+  resolveBranchDeps(tree.package, deps).then(
+    () => finished(), finished
+  )
+
+  function resolveBranchDeps (pkg, deps) {
+    return BB.resolve(null).then(() => {
+      var allDependencies = Object.keys(deps).map((dep) => {
+        return npa.resolve(dep, deps[dep])
+      }).filter((dep) => {
+        return isRegistry(dep) &&
+               !seen.has(dep.toString()) &&
+               !findRequirement(tree, dep.name, dep)
+      })
+      if (skipOptional) {
+        var optDeps = pkg.optionalDependencies || {}
+        allDependencies = allDependencies.filter((dep) => !optDeps[dep.name])
+      }
+      return BB.map(allDependencies, (dep) => {
+        seen.add(dep.toString())
+        return fpm(dep, '', {tracker: log.newItem('fetchMetadata')}).then(
+          (pkg) => {
+            return pkg && pkg.dependencies && resolveBranchDeps(pkg, pkg.dependencies)
+          },
+          () => null
+        )
+      })
+    })
+  }
+}
+
 // Load any missing dependencies in the given tree
 exports.loadDeps = loadDeps
 function loadDeps (tree, log, next) {
   validate('OOF', arguments)
-  if (tree.loaded || (tree.parent && tree.parent.failed)) return andFinishTracker.now(log, next)
+  if (tree.loaded || (tree.parent && tree.parent.failed) || tree.removed) return andFinishTracker.now(log, next)
   if (tree.parent) tree.loaded = true
   if (!tree.package.dependencies) tree.package.dependencies = {}
   asyncMap(Object.keys(tree.package.dependencies), function (dep, done) {
     var version = tree.package.dependencies[dep]
-    if (tree.package.optionalDependencies &&
-        tree.package.optionalDependencies[dep] &&
-        !npm.config.get('optional')) {
-      return done()
-    }
-
     addDependency(dep, version, tree, log.newGroup('loadDep:' + dep), andHandleOptionalErrors(log, tree, dep, done))
   }, andForEachChild(loadDeps, andFinishTracker(log, next)))
 }
@@ -345,94 +509,134 @@ exports.loadDevDeps = function (tree, log, next) {
     if (tree.package.dependencies[dep]) return done()
 
     var logGroup = log.newGroup('loadDevDep:' + dep)
-    addDependency(dep, tree.package.devDependencies[dep], tree, logGroup, done)
+    addDependency(dep, tree.package.devDependencies[dep], tree, logGroup, andHandleOptionalErrors(log, tree, dep, done))
   }, andForEachChild(loadDeps, andFinishTracker(log, next)))
 }
 
-exports.loadExtraneous = function loadExtraneous (tree, log, next) {
-  var seen = {}
-  function loadExtraneous (tree, log, next) {
-    validate('OOF', arguments)
-    if (seen[tree.path]) return next()
-    seen[tree.path] = true
-    asyncMap(tree.children.filter(function (child) { return !child.loaded }), function (child, done) {
-      resolveWithExistingModule(child, tree, log, done)
-    }, andForEachChild(loadExtraneous, andFinishTracker(log, next)))
+var loadExtraneous = exports.loadExtraneous = function (tree, log, next) {
+  var seen = new Set()
+
+  function loadExtraneous (tree) {
+    if (seen.has(tree)) return
+    seen.add(tree)
+    for (var child of tree.children) {
+      if (child.loaded) continue
+      resolveWithExistingModule(child, tree)
+      loadExtraneous(child)
+    }
   }
-  loadExtraneous(tree, log, next)
+  loadExtraneous(tree)
+  log.finish()
+  next()
 }
 
 exports.loadExtraneous.andResolveDeps = function (tree, log, next) {
   validate('OOF', arguments)
+  // For canonicalized trees (eg from shrinkwrap) we don't want to bother
+  // resolving the dependencies of extraneous deps.
+  if (tree.loaded) return loadExtraneous(tree, log, next)
   asyncMap(tree.children.filter(function (child) { return !child.loaded }), function (child, done) {
-    resolveWithExistingModule(child, tree, log, done)
+    resolveWithExistingModule(child, tree)
+    done(null, child, log)
   }, andForEachChild(loadDeps, andFinishTracker(log, next)))
 }
 
 function addDependency (name, versionSpec, tree, log, done) {
   validate('SSOOF', arguments)
   var next = andAddParentToErrors(tree, done)
-  var spec = name + '@' + versionSpec
-  realizePackageSpecifier(spec, packageRelativePath(tree), iferr(done, function (req) {
-    var child = findRequirement(tree, name, req)
-    if (child) {
-      resolveWithExistingModule(child, tree, log, iferr(next, function (child, log) {
-        if (child.package._shrinkwrap === undefined) {
-          readShrinkwrap.andInflate(child, function (er) { next(er, child, log) })
-        } else {
-          next(null, child, log)
-        }
-      }))
-    } else {
-      resolveWithNewModule(req, tree, log, next)
+  try {
+    var req = childDependencySpecifier(tree, name, versionSpec)
+    if (tree.swRequires && tree.swRequires[name]) {
+      var swReq = childDependencySpecifier(tree, name, tree.swRequires[name], tree.package._where)
     }
-  }))
+  } catch (err) {
+    return done(err)
+  }
+  var child = findRequirement(tree, name, req)
+  if (!child && swReq) child = findRequirement(tree, name, swReq)
+  if (hasModernMeta(child)) {
+    resolveWithExistingModule(child, tree)
+    if (child.package._shrinkwrap === undefined) {
+      readShrinkwrap.andInflate(child, function (er) { next(er, child, log) })
+    } else {
+      next(null, child, log)
+    }
+  } else {
+    if (child) {
+      if (req.registry) {
+        req = childDependencySpecifier(tree, name, child.package.version)
+      }
+      if (child.fromBundle) reportBundleOverride(child, log)
+      removeObsoleteDep(child, log)
+    }
+    fetchPackageMetadata(req, packageRelativePath(tree), {tracker: log.newItem('fetchMetadata')}, iferr(next, function (pkg) {
+      resolveWithNewModule(pkg, tree, log, next)
+    }))
+  }
 }
 
-function resolveWithExistingModule (child, tree, log, next) {
-  validate('OOOF', arguments)
+function getTop (pkg) {
+  const seen = new Set()
+  while (pkg.parent && !seen.has(pkg.parent)) {
+    pkg = pkg.parent
+    seen.add(pkg)
+  }
+  return pkg
+}
+
+function reportBundleOverride (child, log) {
+  const code = 'EBUNDLEOVERRIDE'
+  const top = getTop(child.fromBundle)
+  const bundlerId = packageId(child.fromBundle)
+  if (!top.warnings.some((w) => {
+    return w.code === code
+  })) {
+    const err = new Error(`${bundlerId} had bundled packages that do not match the required version(s). They have been replaced with non-bundled versions.`)
+    err.code = code
+    top.warnings.push(err)
+  }
+  if (log) log.verbose('bundle', `${code}: Replacing ${bundlerId}'s bundled version of ${moduleName(child)} with ${packageId(child)}.`)
+}
+
+function resolveWithExistingModule (child, tree) {
+  validate('OO', arguments)
   addRequiredDep(tree, child)
-
   if (tree.parent && child.parent !== tree) updatePhantomChildren(tree.parent, child)
-
-  next(null, child, log)
 }
 
 var updatePhantomChildren = exports.updatePhantomChildren = function (current, child) {
   validate('OO', arguments)
   while (current && current !== child.parent) {
-    // FIXME: phantomChildren doesn't actually belong in the package.json
-    if (!current.package._phantomChildren) current.package._phantomChildren = {}
-    current.package._phantomChildren[moduleName(child)] = child.package.version
+    if (!current.phantomChildren) current.phantomChildren = {}
+    current.phantomChildren[moduleName(child)] = child
     current = current.parent
   }
 }
 
-function flatNameFromTree (tree) {
-  validate('O', arguments)
-  if (!tree.parent) return '/'
-  var path = flatNameFromTree(tree.parent)
-  if (path !== '/') path += '/'
-  return flatName(path, tree)
+exports._replaceModuleByPath = replaceModuleByPath
+function replaceModuleByPath (obj, key, child) {
+  return replaceModule(obj, key, child, function (replacing, child) {
+    return replacing.path === child.path
+  })
 }
 
-exports.test.replaceModuleName = replaceModuleName
-function replaceModuleName (obj, key, name) {
-  validate('OSS', arguments)
-  obj[key] = union(obj[key] || [], [name])
+exports._replaceModuleByName = replaceModuleByName
+function replaceModuleByName (obj, key, child) {
+  var childName = moduleName(child)
+  return replaceModule(obj, key, child, function (replacing, child) {
+    return moduleName(replacing) === childName
+  })
 }
 
-exports.test.replaceModule = replaceModule
-function replaceModule (obj, key, child) {
-  validate('OSO', arguments)
+function replaceModule (obj, key, child, matchBy) {
+  validate('OSOF', arguments)
   if (!obj[key]) obj[key] = []
   // we replace children with a new array object instead of mutating it
   // because mutating it results in weird failure states.
   // I would very much like to know _why_ this is. =/
   var children = [].concat(obj[key])
-  var childName = moduleName(child)
   for (var replaceAt = 0; replaceAt < children.length; ++replaceAt) {
-    if (moduleName(children[replaceAt]) === childName) break
+    if (matchBy(children[replaceAt], child)) break
   }
   var replacing = children.splice(replaceAt, 1, child)
   obj[key] = children
@@ -441,74 +645,72 @@ function replaceModule (obj, key, child) {
 
 function resolveWithNewModule (pkg, tree, log, next) {
   validate('OOOF', arguments)
-  if (pkg.type) {
-    return fetchPackageMetadata(pkg, packageRelativePath(tree), log.newItem('fetchMetadata'), iferr(next, function (pkg) {
-      resolveWithNewModule(pkg, tree, log, next)
-    }))
-  }
 
-  if (!pkg._installable) {
-    log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
-    return isInstallable(pkg, iferr(next, function () {
-      pkg._installable = true
-      resolveWithNewModule(pkg, tree, log, next)
-    }))
-  }
-
-  if (!pkg._from) {
-    pkg._from = pkg._requested.name + '@' + pkg._requested.spec
-  }
-  addShrinkwrap(pkg, iferr(next, function () {
-    addBundled(pkg, iferr(next, function () {
-      var parent = earliestInstallable(tree, tree, pkg) || tree
+  log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
+  return isInstallable(pkg, (err) => {
+    let installable = !err
+    addBundled(pkg, (bundleErr) => {
+      var parent = earliestInstallable(tree, tree, pkg, log) || tree
+      var isLink = pkg._requested.type === 'directory'
       var child = createChild({
         package: pkg,
         parent: parent,
-        path: path.join(parent.path, 'node_modules', pkg.name),
-        realpath: path.resolve(parent.realpath, 'node_modules', pkg.name),
+        path: path.join(parent.isLink ? parent.realpath : parent.path, 'node_modules', pkg.name),
+        realpath: isLink ? pkg._requested.fetchSpec : path.join(parent.realpath, 'node_modules', pkg.name),
         children: pkg._bundled || [],
-        isLink: tree.isLink
+        isLink: isLink,
+        isInLink: parent.isLink,
+        knownInstallable: installable
       })
+      if (!installable || bundleErr) child.failed = true
+      delete pkg._bundled
+      var hasBundled = child.children.length
 
-      var replaced = replaceModule(parent, 'children', child)
-      if (replaced) removeObsoleteDep(replaced)
+      var replaced = replaceModuleByName(parent, 'children', child)
+      if (replaced) {
+        if (replaced.fromBundle) reportBundleOverride(replaced, log)
+        removeObsoleteDep(replaced)
+      }
       addRequiredDep(tree, child)
-      pkg._location = flatNameFromTree(child)
+      child.location = flatNameFromTree(child)
 
       if (tree.parent && parent !== tree) updatePhantomChildren(tree.parent, child)
 
-      if (pkg._bundled) {
-        inflateBundled(child, child.children)
+      if (hasBundled) {
+        inflateBundled(child, child, child.children)
       }
 
       if (pkg._shrinkwrap && pkg._shrinkwrap.dependencies) {
-        return inflateShrinkwrap(child, pkg._shrinkwrap.dependencies, function (er) {
-          next(er, child, log)
+        return inflateShrinkwrap(child, pkg._shrinkwrap, (swErr) => {
+          if (swErr) child.failed = true
+          next(err || bundleErr || swErr, child, log)
         })
       }
-
-      next(null, child, log)
-    }))
-  }))
+      next(err || bundleErr, child, log)
+    })
+  })
 }
 
 var validatePeerDeps = exports.validatePeerDeps = function (tree, onInvalid) {
   if (!tree.package.peerDependencies) return
   Object.keys(tree.package.peerDependencies).forEach(function (pkgname) {
     var version = tree.package.peerDependencies[pkgname]
-    var match = findRequirement(tree.parent || tree, pkgname, npa(pkgname + '@' + version))
+    try {
+      var spec = npa.resolve(pkgname, version)
+    } catch (e) {}
+    var match = spec && findRequirement(tree.parent || tree, pkgname, spec)
     if (!match) onInvalid(tree, pkgname, version)
   })
 }
 
 exports.validateAllPeerDeps = function (tree, onInvalid) {
-  validateAllPeerDeps(tree, onInvalid, {})
+  validateAllPeerDeps(tree, onInvalid, new Set())
 }
 
 function validateAllPeerDeps (tree, onInvalid, seen) {
   validate('OFO', arguments)
-  if (seen[tree.path]) return
-  seen[tree.path] = true
+  if (seen.has(tree)) return
+  seen.add(tree)
   validatePeerDeps(tree, onInvalid)
   tree.children.forEach(function (child) { validateAllPeerDeps(child, onInvalid, seen) })
 }
@@ -538,30 +740,50 @@ var findRequirement = exports.findRequirement = function (tree, name, requested,
     if (matches.length) return matches[0]
     return null
   }
-  if (!tree.parent) return null
+  if (tree.isTop) return null
+  if (!preserveSymlinks() && /^[.][.][\\/]/.test(path.relative(tree.parent.realpath, tree.realpath))) return null
   return findRequirement(tree.parent, name, requested, requestor)
+}
+
+function preserveSymlinks () {
+  if (!('NODE_PRESERVE_SYMLINKS' in process.env)) return false
+  const value = process.env.NODE_PRESERVE_SYMLINKS
+  if (value == null || value === '' || value === 'false' || value === 'no' || value === '0') return false
+  return true
 }
 
 // Find the highest level in the tree that we can install this module in.
 // If the module isn't installed above us yet, that'd be the very top.
 // If it is, then it's the level below where its installed.
-var earliestInstallable = exports.earliestInstallable = function (requiredBy, tree, pkg) {
-  validate('OOO', arguments)
+var earliestInstallable = exports.earliestInstallable = function (requiredBy, tree, pkg, log) {
+  validate('OOOO', arguments)
 
   function undeletedModuleMatches (child) {
     return !child.removed && moduleName(child) === pkg.name
   }
-  if (tree.children.some(undeletedModuleMatches)) return null
+  const undeletedMatches = tree.children.filter(undeletedModuleMatches)
+  if (undeletedMatches.length) {
+    // if there's a conflict with another child AT THE SAME level then we're replacing it, so
+    // mark it as removed and continue with resolution normally.
+    if (tree === requiredBy) {
+      undeletedMatches.forEach((pkg) => {
+        if (pkg.fromBundle) reportBundleOverride(pkg, log)
+        removeObsoleteDep(pkg, log)
+      })
+    } else {
+      return null
+    }
+  }
 
   // If any of the children of this tree have conflicting
   // binaries then we need to decline to install this package here.
-  var binaryMatches = typeof pkg.bin === 'object' && tree.children.some(function (child) {
-    if (child.removed) return false
-    if (typeof child.package.bin !== 'object') return false
+  var binaryMatches = pkg.bin && tree.children.some(function (child) {
+    if (child.removed || !child.package.bin) return false
     return Object.keys(child.package.bin).some(function (bin) {
       return pkg.bin[bin]
     })
   })
+
   if (binaryMatches) return null
 
   // if this tree location requested the same module then we KNOW it
@@ -572,11 +794,23 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
     return null
   }
 
-  // FIXME: phantomChildren doesn't actually belong in the package.json
-  if (tree.package._phantomChildren && tree.package._phantomChildren[pkg.name]) return null
+  var devDeps = tree.package.devDependencies || {}
+  if (tree.isTop && devDeps[pkg.name]) {
+    var requested = childDependencySpecifier(tree, pkg.name, devDeps[pkg.name])
+    if (!doesChildVersionMatch({package: pkg}, requested, tree)) {
+      return null
+    }
+  }
 
-  if (!tree.parent) return tree
+  if (tree.phantomChildren && tree.phantomChildren[pkg.name]) return null
+
+  if (tree.isTop) return tree
   if (tree.isGlobal) return tree
 
-  return (earliestInstallable(requiredBy, tree.parent, pkg) || tree)
+  if (npm.config.get('global-style') && tree.parent.isTop) return tree
+  if (npm.config.get('legacy-bundling')) return tree
+
+  if (!preserveSymlinks() && /^[.][.][\\/]/.test(path.relative(tree.parent.realpath, tree.realpath))) return tree
+
+  return (earliestInstallable(requiredBy, tree.parent, pkg, log) || tree)
 }

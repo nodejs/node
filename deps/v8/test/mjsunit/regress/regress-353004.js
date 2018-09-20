@@ -6,12 +6,12 @@
 
 var buffer1 = new ArrayBuffer(100 * 1024);
 
-var array1 = new Uint8Array(buffer1, {valueOf : function() {
-  %ArrayBufferNeuter(buffer1);
-  return 0;
-}});
-
-assertEquals(0, array1.length);
+assertThrows(function() {
+  var array1 = new Uint8Array(buffer1, {valueOf : function() {
+    %ArrayBufferNeuter(buffer1);
+    return 0;
+  }});
+}, TypeError);
 
 var buffer2 = new ArrayBuffer(100 * 1024);
 
@@ -20,8 +20,21 @@ assertThrows(function() {
       %ArrayBufferNeuter(buffer2);
       return 100 * 1024;
   }});
-}, RangeError);
+}, TypeError);
 
+let convertedOffset = false;
+let convertedLength = false;
+assertThrows(() =>
+  new Uint8Array(buffer1, {valueOf : function() {
+      convertedOffset = true;
+      return 0;
+    }}, {valueOf : function() {
+      convertedLength = true;
+      %ArrayBufferNeuter(buffer1);
+      return 0;
+  }}), TypeError);
+assertTrue(convertedOffset);
+assertTrue(convertedLength);
 
 var buffer3 = new ArrayBuffer(100 * 1024 * 1024);
 var dataView1 = new DataView(buffer3, {valueOf : function() {
@@ -41,34 +54,36 @@ assertThrows(function() {
 
 
 var buffer5 = new ArrayBuffer(100 * 1024);
-var buffer6 = buffer5.slice({valueOf : function() {
-  %ArrayBufferNeuter(buffer5);
-  return 0;
-}}, 100 * 1024 * 1024);
-assertEquals(0, buffer6.byteLength);
+assertThrows(function() {
+  buffer5.slice({valueOf : function() {
+    %ArrayBufferNeuter(buffer5);
+    return 0;
+  }}, 100 * 1024 * 1024);
+}, TypeError);
 
 
 var buffer7 = new ArrayBuffer(100 * 1024 * 1024);
-var buffer8 = buffer7.slice(0, {valueOf : function() {
-  %ArrayBufferNeuter(buffer7);
-  return 100 * 1024 * 1024;
-}});
-assertEquals(0, buffer8.byteLength);
+assertThrows(function() {
+  buffer7.slice(0, {valueOf : function() {
+    %ArrayBufferNeuter(buffer7);
+    return 100 * 1024 * 1024;
+  }});
+}, TypeError);
 
 var buffer9 = new ArrayBuffer(1024);
 var array9 = new Uint8Array(buffer9);
-var array10 = array9.subarray({valueOf : function() {
+assertThrows(() =>
+  array9.subarray({valueOf : function() {
     %ArrayBufferNeuter(buffer9);
     return 0;
-  }}, 1024);
+  }}, 1024), TypeError);
 assertEquals(0, array9.length);
-assertEquals(0, array10.length);
 
 var buffer11 = new ArrayBuffer(1024);
 var array11 = new Uint8Array(buffer11);
-var array12 = array11.subarray(0, {valueOf : function() {
-      %ArrayBufferNeuter(buffer11);
-      return 1024;
-    }});
+assertThrows(() =>
+  array11.subarray(0, {valueOf : function() {
+    %ArrayBufferNeuter(buffer11);
+    return 1024;
+  }}), TypeError);
 assertEquals(0, array11.length);
-assertEquals(0, array12.length);

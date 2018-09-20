@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 
 // Inlining shift with holey smi arrays shouldn't deopt just because it
 // encounters the hole on the copy step.

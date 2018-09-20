@@ -2,27 +2,28 @@
 
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
-const readdirDir = common.tmpDir;
+const tmpdir = require('../common/tmpdir');
+
+const readdirDir = tmpdir.path;
 const files = ['empty', 'files', 'for', 'just', 'testing'];
 
 // Make sure tmp directory is clean
-common.refreshTmpDir();
+tmpdir.refresh();
 
 // Create the necessary files
 files.forEach(function(currentFile) {
-  fs.closeSync(fs.openSync(readdirDir + '/' + currentFile, 'w'));
+  fs.closeSync(fs.openSync(`${readdirDir}/${currentFile}`, 'w'));
 });
 
 // Check the readdir Sync version
-assert.deepEqual(files, fs.readdirSync(readdirDir).sort());
+assert.deepStrictEqual(files, fs.readdirSync(readdirDir).sort());
 
 // Check the readdir async version
 fs.readdir(readdirDir, common.mustCall(function(err, f) {
   assert.ifError(err);
-  assert.deepEqual(files, f.sort());
+  assert.deepStrictEqual(files, f.sort());
 }));
 
 // readdir() on file should throw ENOTDIR
@@ -32,5 +33,22 @@ assert.throws(function() {
 }, /Error: ENOTDIR: not a directory/);
 
 fs.readdir(__filename, common.mustCall(function(e) {
-  assert.equal(e.code, 'ENOTDIR');
+  assert.strictEqual(e.code, 'ENOTDIR');
 }));
+
+[false, 1, [], {}, null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.readdir(i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.readdirSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});

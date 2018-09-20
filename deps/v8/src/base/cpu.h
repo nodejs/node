@@ -13,6 +13,7 @@
 #ifndef V8_BASE_CPU_H_
 #define V8_BASE_CPU_H_
 
+#include "src/base/base-export.h"
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -28,7 +29,7 @@ namespace base {
 // architectures. For each architecture the file cpu_<arch>.cc contains the
 // implementation of these static functions.
 
-class CPU final {
+class V8_BASE_EXPORT CPU final {
  public:
   CPU();
 
@@ -68,6 +69,7 @@ class CPU final {
     PPC_POWER6,
     PPC_POWER7,
     PPC_POWER8,
+    PPC_POWER9,
     PPC_G4,
     PPC_G5,
     PPC_PA6T
@@ -75,6 +77,9 @@ class CPU final {
 
   // General features
   bool has_fpu() const { return has_fpu_; }
+  int icache_line_size() const { return icache_line_size_; }
+  int dcache_line_size() const { return dcache_line_size_; }
+  static const int UNKNOWN_CACHE_LINE_SIZE = 0;
 
   // x86 features
   bool has_cmov() const { return has_cmov_; }
@@ -94,6 +99,9 @@ class CPU final {
   bool has_lzcnt() const { return has_lzcnt_; }
   bool has_popcnt() const { return has_popcnt_; }
   bool is_atom() const { return is_atom_; }
+  bool has_non_stop_time_stamp_counter() const {
+    return has_non_stop_time_stamp_counter_;
+  }
 
   // arm features
   bool has_idiva() const { return has_idiva_; }
@@ -105,6 +113,7 @@ class CPU final {
 
   // mips features
   bool is_fp64_mode() const { return is_fp64_mode_; }
+  bool has_msa() const { return has_msa_; }
 
  private:
   char vendor_[13];
@@ -118,6 +127,8 @@ class CPU final {
   int architecture_;
   int variant_;
   int part_;
+  int icache_line_size_;
+  int dcache_line_size_;
   bool has_fpu_;
   bool has_cmov_;
   bool has_sahf_;
@@ -143,8 +154,11 @@ class CPU final {
   bool has_vfp3_;
   bool has_vfp3_d32_;
   bool is_fp64_mode_;
+  bool has_non_stop_time_stamp_counter_;
+  bool has_msa_;
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_CPU_H_

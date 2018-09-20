@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var child_process = require('child_process');
+const common = require('../common');
+const assert = require('assert');
+const child_process = require('child_process');
 
-var p = child_process.spawn(process.execPath, [
+const p = child_process.spawn(process.execPath, [
   '-e',
   'vm = require("vm");' +
       'context = vm.createContext({});' +
@@ -11,16 +11,12 @@ var p = child_process.spawn(process.execPath, [
       'catch (e) { console.log(e.message); }'
 ]);
 
-p.stderr.on('data', function(data) {
-  assert(false, 'Unexpected stderr data: ' + data);
-});
+p.stderr.on('data', common.mustNotCall());
 
-var output = '';
+let output = '';
 
-p.stdout.on('data', function(data) {
-  output += data;
-});
+p.stdout.on('data', (data) => output += data);
 
-process.on('exit', function() {
-  assert.equal(output.replace(/[\r\n]+/g, ''), 'boo');
-});
+p.stdout.on('end', common.mustCall(() => {
+  assert.strictEqual(output.replace(/[\r\n]+/g, ''), 'boo');
+}));

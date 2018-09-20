@@ -28,8 +28,25 @@
 [
 [ALWAYS, {
   # Too slow in Debug mode.
-  'octane/mandreel': [PASS, ['mode == debug', SKIP]],
+  'octane/mandreel': [PASS, SLOW, ['mode == debug', SKIP]],
   # TODO(turbofan): Too slow in debug mode for now.
   'octane/pdfjs': [PASS, ['mode == debug', SKIP]],
+
+  # Slow tests.
+  'kraken/imaging-gaussian-blur': [PASS, SLOW],
+  'octane/typescript': [PASS, SLOW],
 }],  # ALWAYS
+
+['variant == stress', {
+  # Too slow for stress mode.
+  'octane/mandreel': [SKIP],
+  'octane/typescript': [SKIP],
+}],
+
+['gc_fuzzer', {
+  # Too slow for gc fuzzing.
+  'octane/earley-boyer' : [PASS, SLOW, ['mode == debug', SKIP]],
+  'octane/splay': [SKIP],
+  'octane/typescript': [SKIP],
+}],  # 'gc_fuzzer'
 ]

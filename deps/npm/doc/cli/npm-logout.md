@@ -22,23 +22,18 @@ connected to that scope, if set.
 
 ### registry
 
-Default: http://registry.npmjs.org/
+Default: https://registry.npmjs.org/
 
 The base URL of the npm package registry. If `scope` is also specified,
 it takes precedence.
 
 ### scope
 
-Default: none
+Default: The scope of your current project, if any, otherwise none.
 
-If specified, the user and login credentials given will be associated
-with the specified scope. See `npm-scope(7)`. You can use both at the same time,
-e.g.
+If specified, you will be logged out of the specified scope. See `npm-scope(7)`.
 
-    npm adduser --registry=http://myregistry.example.com --scope=@myco
-
-This will set a registry for the given scope and login or create a user for
-that registry at the same time.
+    npm logout --scope=@myco
 
 ## SEE ALSO
 

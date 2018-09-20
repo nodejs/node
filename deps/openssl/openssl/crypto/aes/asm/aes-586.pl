@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -45,7 +52,7 @@
 # the undertaken effort was that it appeared that in tight IA-32
 # register window little-endian flavor could achieve slightly higher
 # Instruction Level Parallelism, and it indeed resulted in up to 15%
-# better performance on most recent µ-archs...
+# better performance on most recent Âµ-archs...
 #
 # Third version adds AES_cbc_encrypt implementation, which resulted in
 # up to 40% performance imrovement of CBC benchmark results. 40% was
@@ -191,6 +198,10 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 
+$output = pop;
+open OUT,">$output";
+*STDOUT=*OUT;
+
 &asm_init($ARGV[0],"aes-586.pl",$x86only = $ARGV[$#ARGV] eq "386");
 &static_label("AES_Te");
 &static_label("AES_Td");
@@ -224,7 +235,7 @@ sub _data_word() { my $i; while(defined($i=shift)) { &data_word($i,$i); } }
 $speed_limit=512;	# chunks smaller than $speed_limit are
 			# processed with compact routine in CBC mode
 $small_footprint=1;	# $small_footprint=1 code is ~5% slower [on
-			# recent µ-archs], but ~5 times smaller!
+			# recent Âµ-archs], but ~5 times smaller!
 			# I favor compact code to minimize cache
 			# contention and in hope to "collect" 5% back
 			# in real-life applications...
@@ -565,7 +576,7 @@ sub enctransform()
 # Performance is not actually extraordinary in comparison to pure
 # x86 code. In particular encrypt performance is virtually the same.
 # Decrypt performance on the other hand is 15-20% better on newer
-# µ-archs [but we're thankful for *any* improvement here], and ~50%
+# Âµ-archs [but we're thankful for *any* improvement here], and ~50%
 # better on PIII:-) And additionally on the pros side this code
 # eliminates redundant references to stack and thus relieves/
 # minimizes the pressure on the memory bus.
@@ -2861,12 +2872,12 @@ sub enckey()
     &set_label("exit");
 &function_end("_x86_AES_set_encrypt_key");
 
-# int private_AES_set_encrypt_key(const unsigned char *userKey, const int bits,
+# int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 #                        AES_KEY *key)
-&function_begin_B("private_AES_set_encrypt_key");
+&function_begin_B("AES_set_encrypt_key");
 	&call	("_x86_AES_set_encrypt_key");
 	&ret	();
-&function_end_B("private_AES_set_encrypt_key");
+&function_end_B("AES_set_encrypt_key");
 
 sub deckey()
 { my ($i,$key,$tp1,$tp2,$tp4,$tp8) = @_;
@@ -2923,9 +2934,9 @@ sub deckey()
 	&mov	(&DWP(4*$i,$key),$tp1);
 }
 
-# int private_AES_set_decrypt_key(const unsigned char *userKey, const int bits,
+# int AES_set_decrypt_key(const unsigned char *userKey, const int bits,
 #                        AES_KEY *key)
-&function_begin_B("private_AES_set_decrypt_key");
+&function_begin_B("AES_set_decrypt_key");
 	&call	("_x86_AES_set_encrypt_key");
 	&cmp	("eax",0);
 	&je	(&label("proceed"));
@@ -2981,7 +2992,9 @@ sub deckey()
 	&jb	(&label("permute"));
 
 	&xor	("eax","eax");			# return success
-&function_end("private_AES_set_decrypt_key");
+&function_end("AES_set_decrypt_key");
 &asciz("AES for x86, CRYPTOGAMS by <appro\@openssl.org>");
 
 &asm_finish();
+
+close STDOUT;

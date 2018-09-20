@@ -44,14 +44,14 @@ test('cursory test of unpublishing with config', function (t) {
     res.end(JSON.stringify({
       error: 'shh no tears, only dreams now'
     }))
-    child.kill('SIGHUP')
+    child.kill('SIGINT')
   }).listen(common.port, function () {
     t.pass('server is listening')
 
     child = common.npm(
       [
         '--userconfig', fixturePath,
-        '--loglevel', 'silent',
+        '--loglevel', 'error',
         '--force',
         'unpublish'
       ],

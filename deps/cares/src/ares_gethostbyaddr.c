@@ -79,7 +79,7 @@ void ares_gethostbyaddr(ares_channel channel, const void *addr, int addrlen,
       return;
     }
 
-  aquery = malloc(sizeof(struct addr_query));
+  aquery = ares_malloc(sizeof(struct addr_query));
   if (!aquery)
     {
       callback(arg, ARES_ENOMEM, 0, NULL);
@@ -157,7 +157,7 @@ static void addr_callback(void *arg, int status, int timeouts,
         }
       end_aquery(aquery, status, host);
     }
-  else if (status == ARES_EDESTRUCTION)
+  else if (status == ARES_EDESTRUCTION || status == ARES_ECANCELLED)
     end_aquery(aquery, status, NULL);
   else
     next_lookup(aquery);
@@ -169,7 +169,7 @@ static void end_aquery(struct addr_query *aquery, int status,
   aquery->callback(aquery->arg, status, aquery->timeouts, host);
   if (host)
     ares_free_hostent(host);
-  free(aquery);
+  ares_free(aquery);
 }
 
 static int file_lookup(struct ares_addr *addr, struct hostent **host)
@@ -190,18 +190,18 @@ static int file_lookup(struct ares_addr *addr, struct hostent **host)
     char tmp[MAX_PATH];
     HKEY hkeyHosts;
 
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ,
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ,
                      &hkeyHosts) == ERROR_SUCCESS)
     {
       DWORD dwLength = MAX_PATH;
-      RegQueryValueEx(hkeyHosts, DATABASEPATH, NULL, NULL, (LPBYTE)tmp,
+      RegQueryValueExA(hkeyHosts, DATABASEPATH, NULL, NULL, (LPBYTE)tmp,
                       &dwLength);
-      ExpandEnvironmentStrings(tmp, PATH_HOSTS, MAX_PATH);
+      ExpandEnvironmentStringsA(tmp, PATH_HOSTS, MAX_PATH);
       RegCloseKey(hkeyHosts);
     }
   }
   else if (platform == WIN_9X)
-    GetWindowsDirectory(PATH_HOSTS, MAX_PATH);
+    GetWindowsDirectoryA(PATH_HOSTS, MAX_PATH);
   else
     return ARES_ENOTFOUND;
 

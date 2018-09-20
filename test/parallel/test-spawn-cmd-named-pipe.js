@@ -1,12 +1,10 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
 // This test is intended for Windows only
-if (!common.isWindows) {
-  console.log('1..0 # Skipped: this test is Windows-specific.');
-  return;
-}
+if (!common.isWindows)
+  common.skip('this test is Windows-specific.');
+
+const assert = require('assert');
 
 if (!process.argv[2]) {
   // parent
@@ -14,9 +12,9 @@ if (!process.argv[2]) {
   const spawn = require('child_process').spawn;
   const path = require('path');
 
-  const pipeNamePrefix = path.basename(__filename) + '.' + process.pid;
-  const stdinPipeName = '\\\\.\\pipe\\' + pipeNamePrefix + '.stdin';
-  const stdoutPipeName = '\\\\.\\pipe\\' + pipeNamePrefix + '.stdout';
+  const pipeNamePrefix = `${path.basename(__filename)}.${process.pid}`;
+  const stdinPipeName = `\\\\.\\pipe\\${pipeNamePrefix}.stdin`;
+  const stdoutPipeName = `\\\\.\\pipe\\${pipeNamePrefix}.stdout`;
 
   const stdinPipeServer = net.createServer(function(c) {
     c.on('end', common.mustCall(function() {
@@ -37,15 +35,10 @@ if (!process.argv[2]) {
   });
   stdoutPipeServer.listen(stdoutPipeName);
 
-  const comspec = process.env['comspec'];
-  if (!comspec || comspec.length === 0) {
-    assert.fail(null, null, 'Failed to get COMSPEC');
-  }
+  const args =
+    [`"${__filename}"`, 'child', '<', stdinPipeName, '>', stdoutPipeName];
 
-  const args = ['/c', process.execPath, __filename, 'child',
-              '<', stdinPipeName, '>', stdoutPipeName];
-
-  const child = spawn(comspec, args);
+  const child = spawn(`"${process.execPath}"`, args, { shell: true });
 
   child.on('exit', common.mustCall(function(exitCode) {
     stdinPipeServer.close();

@@ -1,70 +1,20 @@
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2006.
- */
-/* ====================================================================
- * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
+ * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
 #include <openssl/ec.h>
 #include "ec_lcl.h"
-#include <openssl/ecdsa.h>
 #include <openssl/evp.h>
-#include "evp_locl.h"
+#include "internal/evp_int.h"
 
 /* EC pkey context structure */
 
@@ -91,22 +41,14 @@ typedef struct {
 static int pkey_ec_init(EVP_PKEY_CTX *ctx)
 {
     EC_PKEY_CTX *dctx;
-    dctx = OPENSSL_malloc(sizeof(EC_PKEY_CTX));
-    if (!dctx)
+
+    dctx = OPENSSL_zalloc(sizeof(*dctx));
+    if (dctx == NULL)
         return 0;
-    dctx->gen_group = NULL;
-    dctx->md = NULL;
 
     dctx->cofactor_mode = -1;
-    dctx->co_key = NULL;
     dctx->kdf_type = EVP_PKEY_ECDH_KDF_NONE;
-    dctx->kdf_md = NULL;
-    dctx->kdf_outlen = 0;
-    dctx->kdf_ukm = NULL;
-    dctx->kdf_ukmlen = 0;
-
     ctx->data = dctx;
-
     return 1;
 }
 
@@ -133,7 +75,7 @@ static int pkey_ec_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src)
     dctx->kdf_md = sctx->kdf_md;
     dctx->kdf_outlen = sctx->kdf_outlen;
     if (sctx->kdf_ukm) {
-        dctx->kdf_ukm = BUF_memdup(sctx->kdf_ukm, sctx->kdf_ukmlen);
+        dctx->kdf_ukm = OPENSSL_memdup(sctx->kdf_ukm, sctx->kdf_ukmlen);
         if (!dctx->kdf_ukm)
             return 0;
     } else
@@ -146,12 +88,9 @@ static void pkey_ec_cleanup(EVP_PKEY_CTX *ctx)
 {
     EC_PKEY_CTX *dctx = ctx->data;
     if (dctx) {
-        if (dctx->gen_group)
-            EC_GROUP_free(dctx->gen_group);
-        if (dctx->co_key)
-            EC_KEY_free(dctx->co_key);
-        if (dctx->kdf_ukm)
-            OPENSSL_free(dctx->kdf_ukm);
+        EC_GROUP_free(dctx->gen_group);
+        EC_KEY_free(dctx->co_key);
+        OPENSSL_free(dctx->kdf_ukm);
         OPENSSL_free(dctx);
     }
 }
@@ -203,7 +142,7 @@ static int pkey_ec_verify(EVP_PKEY_CTX *ctx,
     return ret;
 }
 
-#ifndef OPENSSL_NO_ECDH
+#ifndef OPENSSL_NO_EC
 static int pkey_ec_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
                           size_t *keylen)
 {
@@ -259,7 +198,7 @@ static int pkey_ec_kdf_derive(EVP_PKEY_CTX *ctx,
     if (!pkey_ec_derive(ctx, NULL, &ktmplen))
         return 0;
     ktmp = OPENSSL_malloc(ktmplen);
-    if (!ktmp)
+    if (ktmp == NULL)
         return 0;
     if (!pkey_ec_derive(ctx, ktmp, &ktmplen))
         goto err;
@@ -270,10 +209,7 @@ static int pkey_ec_kdf_derive(EVP_PKEY_CTX *ctx,
     rv = 1;
 
  err:
-    if (ktmp) {
-        OPENSSL_cleanse(ktmp, ktmplen);
-        OPENSSL_free(ktmp);
-    }
+    OPENSSL_clear_free(ktmp, ktmplen);
     return rv;
 }
 #endif
@@ -289,8 +225,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
             ECerr(EC_F_PKEY_EC_CTRL, EC_R_INVALID_CURVE);
             return 0;
         }
-        if (dctx->gen_group)
-            EC_GROUP_free(dctx->gen_group);
+        EC_GROUP_free(dctx->gen_group);
         dctx->gen_group = group;
         return 1;
 
@@ -302,7 +237,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         EC_GROUP_set_asn1_flag(dctx->gen_group, p1);
         return 1;
 
-#ifndef OPENSSL_NO_ECDH
+#ifndef OPENSSL_NO_EC
     case EVP_PKEY_CTRL_EC_ECDH_COFACTOR:
         if (p1 == -2) {
             if (dctx->cofactor_mode != -1)
@@ -320,7 +255,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
             if (!ec_key->group)
                 return -2;
             /* If cofactor is 1 cofactor mode does nothing */
-            if (BN_is_one(&ec_key->group->cofactor))
+            if (BN_is_one(ec_key->group->cofactor))
                 return 1;
             if (!dctx->co_key) {
                 dctx->co_key = EC_KEY_dup(ec_key);
@@ -331,7 +266,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
                 EC_KEY_set_flags(dctx->co_key, EC_FLAG_COFACTOR_ECDH);
             else
                 EC_KEY_clear_flags(dctx->co_key, EC_FLAG_COFACTOR_ECDH);
-        } else if (dctx->co_key) {
+        } else {
             EC_KEY_free(dctx->co_key);
             dctx->co_key = NULL;
         }
@@ -365,8 +300,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         return 1;
 
     case EVP_PKEY_CTRL_EC_KDF_UKM:
-        if (dctx->kdf_ukm)
-            OPENSSL_free(dctx->kdf_ukm);
+        OPENSSL_free(dctx->kdf_ukm);
         dctx->kdf_ukm = p2;
         if (p2)
             dctx->kdf_ukmlen = p1;
@@ -411,7 +345,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 static int pkey_ec_ctrl_str(EVP_PKEY_CTX *ctx,
                             const char *type, const char *value)
 {
-    if (!strcmp(type, "ec_paramgen_curve")) {
+    if (strcmp(type, "ec_paramgen_curve") == 0) {
         int nid;
         nid = EC_curve_nist2nid(value);
         if (nid == NID_undef)
@@ -423,23 +357,23 @@ static int pkey_ec_ctrl_str(EVP_PKEY_CTX *ctx,
             return 0;
         }
         return EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid);
-    } else if (!strcmp(type, "ec_param_enc")) {
+    } else if (strcmp(type, "ec_param_enc") == 0) {
         int param_enc;
-        if (!strcmp(value, "explicit"))
+        if (strcmp(value, "explicit") == 0)
             param_enc = 0;
-        else if (!strcmp(value, "named_curve"))
+        else if (strcmp(value, "named_curve") == 0)
             param_enc = OPENSSL_EC_NAMED_CURVE;
         else
             return -2;
         return EVP_PKEY_CTX_set_ec_param_enc(ctx, param_enc);
-    } else if (!strcmp(type, "ecdh_kdf_md")) {
+    } else if (strcmp(type, "ecdh_kdf_md") == 0) {
         const EVP_MD *md;
-        if (!(md = EVP_get_digestbyname(value))) {
+        if ((md = EVP_get_digestbyname(value)) == NULL) {
             ECerr(EC_F_PKEY_EC_CTRL_STR, EC_R_INVALID_DIGEST);
             return 0;
         }
         return EVP_PKEY_CTX_set_ecdh_kdf_md(ctx, md);
-    } else if (!strcmp(type, "ecdh_cofactor_mode")) {
+    } else if (strcmp(type, "ecdh_cofactor_mode") == 0) {
         int co_mode;
         co_mode = atoi(value);
         return EVP_PKEY_CTX_set_ecdh_cofactor_mode(ctx, co_mode);
@@ -458,7 +392,7 @@ static int pkey_ec_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
         return 0;
     }
     ec = EC_KEY_new();
-    if (!ec)
+    if (ec == NULL)
         return 0;
     ret = EC_KEY_set_group(ec, dctx->gen_group);
     if (ret)
@@ -519,12 +453,11 @@ const EVP_PKEY_METHOD ec_pkey_meth = {
     0, 0,
 
     0,
-#ifndef OPENSSL_NO_ECDH
+#ifndef OPENSSL_NO_EC
     pkey_ec_kdf_derive,
 #else
     0,
 #endif
-
     pkey_ec_ctrl,
     pkey_ec_ctrl_str
 };

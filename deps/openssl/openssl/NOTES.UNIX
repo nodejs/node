@@ -1,0 +1,30 @@
+
+ NOTES FOR UNIX LIKE PLATFORMS
+ =============================
+
+ For Unix/POSIX runtime systems on Windows, please see NOTES.WIN.
+
+
+ Shared libraries and installation in non-standard locations
+ -----------------------------------------------------------
+
+ Binaries on Unix variants expect to find shared libraries in standard
+ locations, such as /usr/lib, /usr/local/lib and some other locations
+ configured in the system (for example /etc/ld.so.conf on some systems).
+ If the libraries are installed in non-standard locations, binaries
+ will not find them and therefore fail to run unless they get a bit of
+ help from a defined RPATH or RUNPATH.  This can be applied by adding
+ the appropriate linker flags to the configuration command, such as
+ this (/usr/local/ssl was the default location for OpenSSL installation
+ in versions before 1.1.0):
+
+    $ ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl \
+        -Wl,-rpath,/usr/local/ssl/lib
+
+ Because the actual library location may vary further (for example on
+ multilib installations), there is a convenience variable in Makefile
+ that holds the exact installation directory and that can be used like
+ this:
+
+    $ ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl \
+        -Wl,-rpath,'$(LIBRPATH)'

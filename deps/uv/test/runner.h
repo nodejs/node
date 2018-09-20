@@ -126,6 +126,8 @@ int run_test_part(const char* test, const char* part);
  */
 void print_tests(FILE* stream);
 
+/* Print lines in |buffer| as TAP diagnostics to |stream|. */
+void print_lines(const char* buffer, size_t size, FILE* stream);
 
 /*
  * Stuff that should be implemented by test-runner-<platform>.h
@@ -136,20 +138,20 @@ void print_tests(FILE* stream);
 /* Do platform-specific initialization. */
 int platform_init(int argc, char** argv);
 
-/* Invoke "argv[0] test-name [test-part]". Store process info in *p. */
-/* Make sure that all stdio output of the processes is buffered up. */
+/* Invoke "argv[0] test-name [test-part]". Store process info in *p. Make sure
+ * that all stdio output of the processes is buffered up. */
 int process_start(char *name, char* part, process_info_t *p, int is_helper);
 
-/* Wait for all `n` processes in `vec` to terminate. */
-/* Time out after `timeout` msec, or never if timeout == -1 */
-/* Return 0 if all processes are terminated, -1 on error, -2 on timeout. */
+/* Wait for all `n` processes in `vec` to terminate. Time out after `timeout`
+ * msec, or never if timeout == -1. Return 0 if all processes are terminated,
+ * -1 on error, -2 on timeout. */
 int process_wait(process_info_t *vec, int n, int timeout);
 
 /* Returns the number of bytes in the stdio output buffer for process `p`. */
 long int process_output_size(process_info_t *p);
 
-/* Copy the contents of the stdio output buffer to `fd`. */
-int process_copy_output(process_info_t *p, int fd);
+/* Copy the contents of the stdio output buffer to `stream`. */
+int process_copy_output(process_info_t* p, FILE* stream);
 
 /* Copy the last line of the stdio output buffer to `buffer` */
 int process_read_last_line(process_info_t *p,
@@ -162,8 +164,7 @@ char* process_get_name(process_info_t *p);
 /* Terminate process `p`. */
 int process_terminate(process_info_t *p);
 
-/* Return the exit code of process p. */
-/* On error, return -1. */
+/* Return the exit code of process p. On error, return -1. */
 int process_reap(process_info_t *p);
 
 /* Clean up after terminating process `p` (e.g. free the output buffer etc.). */
@@ -171,8 +172,5 @@ void process_cleanup(process_info_t *p);
 
 /* Move the console cursor one line up and back to the first column. */
 void rewind_cursor(void);
-
-/* trigger output as tap */
-extern int tap_output;
 
 #endif /* RUNNER_H_ */

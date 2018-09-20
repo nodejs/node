@@ -29,10 +29,17 @@
 # if defined(__APPLE__) ||                                                    \
      defined(__DragonFly__) ||                                                \
      defined(__FreeBSD__) ||                                                  \
+     defined(__FreeBSD_kernel__) ||                                           \
      defined(__OpenBSD__) ||                                                  \
      defined(__NetBSD__)
 #  define HAVE_KQUEUE 1
 # endif
+#endif
+
+#if defined(__arm__)/* Increase the timeout so the test passes on arm CI bots */
+# define CREATE_TIMEOUT 100
+#else
+# define CREATE_TIMEOUT 1
 #endif
 
 static uv_fs_event_t fs_event;
@@ -53,6 +60,14 @@ static char fs_event_filename[PATH_MAX];
 static char fs_event_filename[1024];
 #endif  /* defined(PATH_MAX) */
 static int timer_cb_touch_called;
+static int timer_cb_exact_called;
+
+static void fs_event_fail(uv_fs_event_t* handle,
+                          const char* filename,
+                          int events,
+                          int status) {
+  ASSERT(0 && "should never be called");
+}
 
 static void create_dir(const char* name) {
   int r;
@@ -114,8 +129,12 @@ static void fs_event_cb_dir(uv_fs_event_t* handle, const char* filename,
   ++fs_event_cb_called;
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
-  ASSERT(events == UV_RENAME);
+  ASSERT(events == UV_CHANGE);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strcmp(filename, "file1") == 0);
+  #else
   ASSERT(filename == NULL || strcmp(filename, "file1") == 0);
+  #endif
   ASSERT(0 == uv_fs_event_stop(handle));
   uv_close((uv_handle_t*)handle, close_cb);
 }
@@ -139,7 +158,10 @@ static void fs_event_create_files(uv_timer_t* handle) {
   if (++fs_event_created < fs_event_file_count) {
     /* Create another file on a different event loop tick.  We do it this way
      * to avoid fs events coalescing into one fs event. */
-    ASSERT(0 == uv_timer_start(&timer, fs_event_create_files, 1, 0));
+    ASSERT(0 == uv_timer_start(&timer,
+                               fs_event_create_files,
+                               CREATE_TIMEOUT,
+                               0));
   }
 }
 
@@ -177,9 +199,13 @@ static void fs_event_cb_dir_multi_file(uv_fs_event_t* handle,
   fs_event_cb_called++;
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
-  ASSERT(events == UV_CHANGE || UV_RENAME);
+  ASSERT(events == UV_CHANGE || events == UV_RENAME);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strncmp(filename, file_prefix, sizeof(file_prefix) - 1) == 0);
+  #else
   ASSERT(filename == NULL ||
          strncmp(filename, file_prefix, sizeof(file_prefix) - 1) == 0);
+  #endif
 
   if (fs_event_created + fs_event_removed == fs_event_file_count) {
     /* Once we've processed all create events, delete all files */
@@ -246,12 +272,28 @@ static void fs_event_cb_dir_multi_file_in_subdir(uv_fs_event_t* handle,
                                                  const char* filename,
                                                  int events,
                                                  int status) {
+#ifdef _WIN32
+  /* Each file created (or deleted) will cause this callback to be called twice
+   * under Windows: once with the name of the file, and second time with the
+   * name of the directory. We will ignore the callback for the directory
+   * itself. */
+  if (filename && strcmp(filename, file_prefix_in_subdir) == 0)
+    return;
+#endif
   fs_event_cb_called++;
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
-  ASSERT(events == UV_CHANGE || UV_RENAME);
+  ASSERT(events == UV_CHANGE || events == UV_RENAME);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strncmp(filename,
+                 file_prefix_in_subdir,
+                 sizeof(file_prefix_in_subdir) - 1) == 0);
+  #else
   ASSERT(filename == NULL ||
-         strncmp(filename, file_prefix_in_subdir, sizeof(file_prefix_in_subdir) - 1) == 0);
+         strncmp(filename,
+                 file_prefix_in_subdir,
+                 sizeof(file_prefix_in_subdir) - 1) == 0);
+  #endif
 
   if (fs_event_created + fs_event_removed == fs_event_file_count) {
     /* Once we've processed all create events, delete all files */
@@ -270,7 +312,11 @@ static void fs_event_cb_file(uv_fs_event_t* handle, const char* filename,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strcmp(filename, "file2") == 0);
+  #else
   ASSERT(filename == NULL || strcmp(filename, "file2") == 0);
+  #endif
   ASSERT(0 == uv_fs_event_stop(handle));
   uv_close((uv_handle_t*)handle, close_cb);
 }
@@ -293,7 +339,11 @@ static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strcmp(filename, "watch_file") == 0);
+  #else
   ASSERT(filename == NULL || strcmp(filename, "watch_file") == 0);
+  #endif
 
   /* Regression test for SunOS: touch should generate just one event. */
   {
@@ -321,6 +371,21 @@ static void timer_cb_touch(uv_timer_t* timer) {
   timer_cb_touch_called++;
 }
 
+static void timer_cb_exact(uv_timer_t* handle) {
+  int r;
+
+  if (timer_cb_exact_called == 0) {
+    touch_file("watch_dir/file.js");
+  } else {
+    uv_close((uv_handle_t*)handle, NULL);
+    r = uv_fs_event_stop(&fs_event);
+    ASSERT(r == 0);
+    uv_close((uv_handle_t*) &fs_event, NULL);
+  }
+
+  ++timer_cb_exact_called;
+}
+
 static void timer_cb_watch_twice(uv_timer_t* handle) {
   uv_fs_event_t* handles = handle->data;
   uv_close((uv_handle_t*) (handles + 0), NULL);
@@ -329,6 +394,12 @@ static void timer_cb_watch_twice(uv_timer_t* handle) {
 }
 
 TEST_IMPL(fs_event_watch_dir) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#elif defined(__MVS__)
+  RETURN_SKIP("Directory watching not supported on this platform.");
+#endif
+
   uv_loop_t* loop = uv_default_loop();
   int r;
 
@@ -406,8 +477,48 @@ TEST_IMPL(fs_event_watch_dir_recursive) {
 #endif
 }
 
+#ifdef _WIN32
+TEST_IMPL(fs_event_watch_dir_short_path) {
+  uv_loop_t* loop;
+  int r;
+
+  /* Setup */
+  loop = uv_default_loop();
+  remove("watch_dir/file1");
+  remove("watch_dir/");
+  create_dir("watch_dir");
+  create_file("watch_dir/file1");
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  r = uv_fs_event_start(&fs_event, fs_event_cb_dir, "watch_~1", 0);
+  ASSERT(r == 0);
+  r = uv_timer_init(loop, &timer);
+  ASSERT(r == 0);
+  r = uv_timer_start(&timer, timer_cb_file, 100, 0);
+  ASSERT(r == 0);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  ASSERT(fs_event_cb_called == 1);
+  ASSERT(timer_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  /* Cleanup */
+  remove("watch_dir/file1");
+  remove("watch_dir/");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
+
 
 TEST_IMPL(fs_event_watch_file) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
+
   uv_loop_t* loop = uv_default_loop();
   int r;
 
@@ -443,7 +554,54 @@ TEST_IMPL(fs_event_watch_file) {
   return 0;
 }
 
+TEST_IMPL(fs_event_watch_file_exact_path) {
+  /*
+    This test watches a file named "file.jsx" and modifies a file named
+    "file.js". The test verifies that no events occur for file.jsx.
+  */
+
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
+
+  uv_loop_t* loop;
+  int r;
+
+  loop = uv_default_loop();
+
+  /* Setup */
+  remove("watch_dir/file.js");
+  remove("watch_dir/file.jsx");
+  remove("watch_dir/");
+  create_dir("watch_dir");
+  create_file("watch_dir/file.js");
+  create_file("watch_dir/file.jsx");
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  r = uv_fs_event_start(&fs_event, fs_event_fail, "watch_dir/file.jsx", 0);
+  ASSERT(r == 0);
+  r = uv_timer_init(loop, &timer);
+  ASSERT(r == 0);
+  r = uv_timer_start(&timer, timer_cb_exact, 100, 100);
+  ASSERT(r == 0);
+  r = uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+  ASSERT(timer_cb_exact_called == 2);
+
+  /* Cleanup */
+  remove("watch_dir/file.js");
+  remove("watch_dir/file.jsx");
+  remove("watch_dir/");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
 TEST_IMPL(fs_event_watch_file_twice) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
   const char path[] = "test/fixtures/empty_file";
   uv_fs_event_t watchers[2];
   uv_timer_t timer;
@@ -465,6 +623,9 @@ TEST_IMPL(fs_event_watch_file_twice) {
 }
 
 TEST_IMPL(fs_event_watch_file_current_dir) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
   uv_timer_t timer;
   uv_loop_t* loop;
   int r;
@@ -487,7 +648,7 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   r = uv_timer_init(loop, &timer);
   ASSERT(r == 0);
 
-  r = uv_timer_start(&timer, timer_cb_touch, 1, 0);
+  r = uv_timer_start(&timer, timer_cb_touch, 100, 0);
   ASSERT(r == 0);
 
   ASSERT(timer_cb_touch_called == 0);
@@ -507,7 +668,38 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   return 0;
 }
 
+#ifdef _WIN32
+TEST_IMPL(fs_event_watch_file_root_dir) {
+  uv_loop_t* loop;
+  int r;
+
+  const char* sys_drive = getenv("SystemDrive");
+  char path[] = "\\\\?\\X:\\bootsect.bak";
+
+  ASSERT(sys_drive != NULL);
+  strncpy(path + sizeof("\\\\?\\") - 1, sys_drive, 1);
+
+  loop = uv_default_loop();
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  r = uv_fs_event_start(&fs_event, fail_cb, path, 0);
+  if (r == UV_ENOENT)
+    RETURN_SKIP("bootsect.bak doesn't exist in system root.\n");
+  ASSERT(r == 0);
+
+  uv_close((uv_handle_t*) &fs_event, NULL);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
+
 TEST_IMPL(fs_event_no_callback_after_close) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
+
   uv_loop_t* loop = uv_default_loop();
   int r;
 
@@ -542,6 +734,10 @@ TEST_IMPL(fs_event_no_callback_after_close) {
 }
 
 TEST_IMPL(fs_event_no_callback_on_close) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
+
   uv_loop_t* loop = uv_default_loop();
   int r;
 
@@ -575,12 +771,6 @@ TEST_IMPL(fs_event_no_callback_on_close) {
 }
 
 
-static void fs_event_fail(uv_fs_event_t* handle, const char* filename,
-    int events, int status) {
-  ASSERT(0 && "should never be called");
-}
-
-
 static void timer_cb(uv_timer_t* handle) {
   int r;
 
@@ -595,6 +785,9 @@ static void timer_cb(uv_timer_t* handle) {
 
 
 TEST_IMPL(fs_event_immediate_close) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
   uv_timer_t timer;
   uv_loop_t* loop;
   int r;
@@ -617,6 +810,9 @@ TEST_IMPL(fs_event_immediate_close) {
 
 
 TEST_IMPL(fs_event_close_with_pending_event) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
   uv_loop_t* loop;
   int r;
 
@@ -647,19 +843,6 @@ TEST_IMPL(fs_event_close_with_pending_event) {
   return 0;
 }
 
-#if defined(HAVE_KQUEUE)
-
-/* kqueue doesn't register fs events if you don't have an active watcher.
- * The file descriptor needs to be part of the kqueue set of interest and
- * that's not the case until we actually enter the event loop.
- */
-TEST_IMPL(fs_event_close_in_callback) {
-  fprintf(stderr, "Skipping test, doesn't work with kqueue.\n");
-  return 0;
-}
-
-#else /* !HAVE_KQUEUE */
-
 static void fs_event_cb_close(uv_fs_event_t* handle, const char* filename,
     int events, int status) {
   ASSERT(status == 0);
@@ -672,52 +855,51 @@ static void fs_event_cb_close(uv_fs_event_t* handle, const char* filename,
   }
 }
 
-
 TEST_IMPL(fs_event_close_in_callback) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#elif defined(__MVS__)
+  RETURN_SKIP("Directory watching not supported on this platform.");
+#endif
   uv_loop_t* loop;
   int r;
 
   loop = uv_default_loop();
 
+  fs_event_unlink_files(NULL);
   create_dir("watch_dir");
-  create_file("watch_dir/file1");
-  create_file("watch_dir/file2");
-  create_file("watch_dir/file3");
-  create_file("watch_dir/file4");
-  create_file("watch_dir/file5");
 
   r = uv_fs_event_init(loop, &fs_event);
   ASSERT(r == 0);
   r = uv_fs_event_start(&fs_event, fs_event_cb_close, "watch_dir", 0);
   ASSERT(r == 0);
 
-  /* Generate a couple of fs events. */
-  touch_file("watch_dir/file1");
-  touch_file("watch_dir/file2");
-  touch_file("watch_dir/file3");
-  touch_file("watch_dir/file4");
-  touch_file("watch_dir/file5");
+  r = uv_timer_init(loop, &timer);
+  ASSERT(r == 0);
+  r = uv_timer_start(&timer, fs_event_create_files, 100, 0);
+  ASSERT(r == 0);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  ASSERT(close_cb_called == 1);
+  uv_close((uv_handle_t*)&timer, close_cb);
+
+  uv_run(loop, UV_RUN_ONCE);
+
+  ASSERT(close_cb_called == 2);
   ASSERT(fs_event_cb_called == 3);
 
   /* Clean up */
-  remove("watch_dir/file1");
-  remove("watch_dir/file2");
-  remove("watch_dir/file3");
-  remove("watch_dir/file4");
-  remove("watch_dir/file5");
+  fs_event_unlink_files(NULL);
   remove("watch_dir/");
 
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
-#endif /* HAVE_KQUEUE */
-
 TEST_IMPL(fs_event_start_and_close) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
   uv_loop_t* loop;
   uv_fs_event_t fs_event1;
   uv_fs_event_t fs_event2;
@@ -750,6 +932,9 @@ TEST_IMPL(fs_event_start_and_close) {
 }
 
 TEST_IMPL(fs_event_getpath) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
   uv_loop_t* loop = uv_default_loop();
   int r;
   char buf[1024];
@@ -768,6 +953,7 @@ TEST_IMPL(fs_event_getpath) {
   r = uv_fs_event_getpath(&fs_event, buf, &len);
   ASSERT(r == 0);
   ASSERT(buf[len - 1] != 0);
+  ASSERT(buf[len] == '\0');
   ASSERT(memcmp(buf, "watch_dir", len) == 0);
   r = uv_fs_event_stop(&fs_event);
   ASSERT(r == 0);
@@ -881,3 +1067,21 @@ TEST_IMPL(fs_event_error_reporting) {
 }
 
 #endif  /* defined(__APPLE__) */
+
+TEST_IMPL(fs_event_watch_invalid_path) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
+
+  uv_loop_t* loop;
+  int r;
+
+  loop = uv_default_loop();
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  r = uv_fs_event_start(&fs_event, fs_event_cb_file, "<:;", 0);
+  ASSERT(r != 0);
+  ASSERT(uv_is_active((uv_handle_t*) &fs_event) == 0);
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

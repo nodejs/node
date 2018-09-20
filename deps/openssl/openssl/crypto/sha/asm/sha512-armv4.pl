@@ -1,10 +1,19 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
+#
+# Permission to use under GPL terms is granted.
 # ====================================================================
 
 # SHA512 block procedure for ARMv4. September 2007.
@@ -34,16 +43,9 @@
 # terms it's 22.6 cycles per byte, which is disappointing result.
 # Technical writers asserted that 3-way S4 pipeline can sustain
 # multiple NEON instructions per cycle, but dual NEON issue could
-# not be observed, and for NEON-only sequences IPC(*) was found to
-# be limited by 1:-( 0.33 and 0.66 were measured for sequences with
-# ILPs(*) of 1 and 2 respectively. This in turn means that you can
-# even find yourself striving, as I did here, for achieving IPC
-# adequate to one delivered by Cortex A8 [for reference, it's
-# 0.5 for ILP of 1, and 1 for higher ILPs].
-#
-# (*) ILP, instruction-level parallelism, how many instructions
-#     *can* execute at the same time. IPC, instructions per cycle,
-#     indicates how many instructions actually execute.
+# not be observed, see http://www.openssl.org/~appro/Snapdragon-S4.html
+# for further details. On side note Cortex-A15 processes one byte in
+# 16 cycles.
 
 # Byte order [in]dependence. =========================================
 #
@@ -55,8 +57,20 @@ $hi="HI";
 $lo="LO";
 # ====================================================================
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
-open STDOUT,">$output";
+$flavour = shift;
+if ($flavour=~/\w[\w\-]*\.\w+$/) { $output=$flavour; undef $flavour; }
+else { while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {} }
+
+if ($flavour && $flavour ne "void") {
+    $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+    ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
+    ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
+    die "can't locate arm-xlate.pl";
+
+    open STDOUT,"| \"$^X\" $xlate $flavour $output";
+} else {
+    open STDOUT,">$output";
+}
 
 $ctx="r0";	# parameter block
 $inp="r1";
@@ -143,6 +157,9 @@ $code.=<<___;
 	teq	$t0,#$magic
 
 	ldr	$t3,[sp,#$Coff+0]	@ c.lo
+#ifdef	__thumb2__
+	it	eq			@ Thumb2 thing, sanity check in ARM
+#endif
 	orreq	$Ktbl,$Ktbl,#1
 	@ Sigma0(x)	(ROTR((x),28) ^ ROTR((x),34) ^ ROTR((x),39))
 	@ LO		lo>>28^hi<<4  ^ hi>>2^lo<<30 ^ hi>>7^lo<<25
@@ -180,7 +197,17 @@ $code.=<<___;
 ___
 }
 $code=<<___;
-#include "arm_arch.h"
+#ifndef __KERNEL__
+# include "arm_arch.h"
+# define VFP_ABI_PUSH	vstmdb	sp!,{d8-d15}
+# define VFP_ABI_POP	vldmia	sp!,{d8-d15}
+#else
+# define __ARM_ARCH__ __LINUX_ARM_ARCH__
+# define __ARM_MAX_ARCH__ 7
+# define VFP_ABI_PUSH
+# define VFP_ABI_POP
+#endif
+
 #ifdef __ARMEL__
 # define LO 0
 # define HI 4
@@ -192,7 +219,14 @@ $code=<<___;
 #endif
 
 .text
+#if defined(__thumb2__)
+.syntax unified
+.thumb
+# define adrl adr
+#else
 .code	32
+#endif
+
 .type	K512,%object
 .align	5
 K512:
@@ -237,9 +271,9 @@ WORD64(0x3c9ebe0a,0x15c9bebc, 0x431d67c4,0x9c100d4c)
 WORD64(0x4cc5d4be,0xcb3e42b6, 0x597f299c,0xfc657e2a)
 WORD64(0x5fcb6fab,0x3ad6faec, 0x6c44198c,0x4a475817)
 .size	K512,.-K512
-#if __ARM_MAX_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 .LOPENSSL_armcap:
-.word	OPENSSL_armcap_P-sha512_block_data_order
+.word	OPENSSL_armcap_P-.Lsha512_block_data_order
 .skip	32-4
 #else
 .skip	32
@@ -248,14 +282,22 @@ WORD64(0x5fcb6fab,0x3ad6faec, 0x6c44198c,0x4a475817)
 .global	sha512_block_data_order
 .type	sha512_block_data_order,%function
 sha512_block_data_order:
+.Lsha512_block_data_order:
+#if __ARM_ARCH__<7 && !defined(__thumb2__)
 	sub	r3,pc,#8		@ sha512_block_data_order
-	add	$len,$inp,$len,lsl#7	@ len to point at the end of inp
-#if __ARM_MAX_ARCH__>=7
+#else
+	adr	r3,.Lsha512_block_data_order
+#endif
+#if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 	ldr	r12,.LOPENSSL_armcap
 	ldr	r12,[r3,r12]		@ OPENSSL_armcap_P
-	tst	r12,#1
+#ifdef	__APPLE__
+	ldr	r12,[r12]
+#endif
+	tst	r12,#ARMV7_NEON
 	bne	.LNEON
 #endif
+	add	$len,$inp,$len,lsl#7	@ len to point at the end of inp
 	stmdb	sp!,{r4-r12,lr}
 	sub	$Ktbl,r3,#672		@ K512
 	sub	sp,sp,#9*8
@@ -369,6 +411,9 @@ $code.=<<___;
 ___
 	&BODY_00_15(0x17);
 $code.=<<___;
+#ifdef	__thumb2__
+	ittt	eq			@ Thumb2 thing, sanity check in ARM
+#endif
 	ldreq	$t0,[sp,#`$Xoff+8*(16-1)`+0]
 	ldreq	$t1,[sp,#`$Xoff+8*(16-1)`+4]
 	beq	.L16_79
@@ -453,6 +498,7 @@ $code.=<<___;
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
 #endif
+.size	sha512_block_data_order,.-sha512_block_data_order
 ___
 
 {
@@ -559,11 +605,15 @@ $code.=<<___;
 .arch	armv7-a
 .fpu	neon
 
+.global	sha512_block_data_order_neon
+.type	sha512_block_data_order_neon,%function
 .align	4
+sha512_block_data_order_neon:
 .LNEON:
 	dmb				@ errata #451034 on early Cortex A8
-	vstmdb	sp!,{d8-d15}		@ ABI specification says so
-	sub	$Ktbl,r3,#672		@ K512
+	add	$len,$inp,$len,lsl#7	@ len to point at the end of inp
+	adr	$Ktbl,K512
+	VFP_ABI_PUSH
 	vldmia	$ctx,{$A-$H}		@ load context
 .Loop_neon:
 ___
@@ -588,16 +638,16 @@ $code.=<<___;
 	sub		$Ktbl,#640	@ rewind K512
 	bne		.Loop_neon
 
-	vldmia	sp!,{d8-d15}		@ epilogue
+	VFP_ABI_POP
 	ret				@ bx lr
+.size	sha512_block_data_order_neon,.-sha512_block_data_order_neon
 #endif
 ___
 }
 $code.=<<___;
-.size	sha512_block_data_order,.-sha512_block_data_order
 .asciz	"SHA512 block transform for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
 .align	2
-#if __ARM_MAX_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 .comm	OPENSSL_armcap_P,4,4
 #endif
 ___
@@ -605,5 +655,14 @@ ___
 $code =~ s/\`([^\`]*)\`/eval $1/gem;
 $code =~ s/\bbx\s+lr\b/.word\t0xe12fff1e/gm;	# make it possible to compile with -march=armv4
 $code =~ s/\bret\b/bx	lr/gm;
+
+open SELF,$0;
+while(<SELF>) {
+	next if (/^#!/);
+	last if (!s/^#/@/ and !/^$/);
+	print;
+}
+close SELF;
+
 print $code;
 close STDOUT; # enforce flush

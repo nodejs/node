@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --dead-code-elimination
+// Flags: --allow-natives-syntax
 
 // This tests that stores on captured objects are correctly tracked even
 // when DCE is enabled. We cannot delete simulations of captured objects

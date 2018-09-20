@@ -8,10 +8,10 @@ RSA_public_encrypt, RSA_private_decrypt - RSA public key cryptography
 
  #include <openssl/rsa.h>
 
- int RSA_public_encrypt(int flen, unsigned char *from,
+ int RSA_public_encrypt(int flen, const unsigned char *from,
     unsigned char *to, RSA *rsa, int padding);
 
- int RSA_private_decrypt(int flen, unsigned char *from,
+ int RSA_private_decrypt(int flen, const unsigned char *from,
      unsigned char *to, RSA *rsa, int padding);
 
 =head1 DESCRIPTION
@@ -65,7 +65,14 @@ RSA_size(B<rsa>)). RSA_private_decrypt() returns the size of the
 recovered plaintext.
 
 On error, -1 is returned; the error codes can be
-obtained by L<ERR_get_error(3)|ERR_get_error(3)>.
+obtained by L<ERR_get_error(3)>.
+
+=head1 WARNING
+
+Decryption failures in the RSA_PKCS1_PADDING mode leak information
+which can potentially be used to mount a Bleichenbacher padding oracle
+attack. This is an inherent weakness in the PKCS #1 v1.5 padding
+design. Prefer RSA_PKCS1_OAEP_PADDING.
 
 =head1 CONFORMING TO
 
@@ -73,12 +80,16 @@ SSL, PKCS #1 v2.0
 
 =head1 SEE ALSO
 
-L<ERR_get_error(3)|ERR_get_error(3)>, L<rand(3)|rand(3)>, L<rsa(3)|rsa(3)>,
-L<RSA_size(3)|RSA_size(3)>
+L<ERR_get_error(3)>, L<rand(3)>,
+L<RSA_size(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-The B<padding> argument was added in SSLeay 0.8. RSA_NO_PADDING is
-available since SSLeay 0.9.0, OAEP was added in OpenSSL 0.9.2b.
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

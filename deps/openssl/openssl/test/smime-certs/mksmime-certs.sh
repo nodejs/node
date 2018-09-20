@@ -1,4 +1,11 @@
 #!/bin/sh
+# Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # Utility to recreate S/MIME certificates
 
@@ -57,6 +64,10 @@ CN="Test S/MIME EE EC #2" $OPENSSL req -config ca.cnf -nodes \
 	-keyout smec2.pem -out req.pem -newkey ec:ecp2.pem
 $OPENSSL x509 -req -in req.pem -CA smroot.pem -days 3600 \
 	-extfile ca.cnf -extensions usr_cert -CAcreateserial >>smec2.pem
+CN="Test S/MIME EE EC #3" $OPENSSL req -config ca.cnf -nodes \
+	-keyout smec3.pem -out req.pem -newkey ec:ecp.pem
+$OPENSSL x509 -req -in req.pem -CA smroot.pem -days 3600 \
+	-extfile ca.cnf -extensions usr_cert -CAcreateserial >>smec3.pem
 # Create X9.42 DH parameters.
 $OPENSSL genpkey -genparam -algorithm DH -pkeyopt dh_paramgen_type:2 \
 	-out dhp.pem

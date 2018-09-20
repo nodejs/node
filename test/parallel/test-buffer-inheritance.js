@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 
@@ -23,15 +23,16 @@ T.prototype.sum = function sum() {
 const vals = [new T(4), T(4)];
 
 vals.forEach(function(t) {
-  assert.equal(t.constructor, T);
-  assert.equal(t.__proto__, T.prototype);
-  assert.equal(t.__proto__.__proto__, Buffer.prototype);
+  assert.strictEqual(t.constructor, T);
+  assert.strictEqual(Object.getPrototypeOf(t), T.prototype);
+  assert.strictEqual(Object.getPrototypeOf(Object.getPrototypeOf(t)),
+                     Buffer.prototype);
 
   t.fill(5);
   let cntr = 0;
   for (let i = 0; i < t.length; i++)
     cntr += t[i];
-  assert.equal(t.length * 5, cntr);
+  assert.strictEqual(t.length * 5, cntr);
 
   // Check this does not throw
   t.toString();

@@ -1,41 +1,28 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
-const util = require('util');
 const repl = require('repl');
 
-var referenceErrorCount = 0;
-
-// A stream to push an array into a REPL
-function ArrayStream() {
-  this.run = function(data) {
-    const self = this;
-    data.forEach(function(line) {
-      self.emit('data', line + '\n');
-    });
-  };
-}
-util.inherits(ArrayStream, require('stream').Stream);
-ArrayStream.prototype.readable = true;
-ArrayStream.prototype.writable = true;
-ArrayStream.prototype.resume = function() {};
-ArrayStream.prototype.write = function(msg) {
-  if (msg.startsWith('ReferenceError: ')) {
-    referenceErrorCount++;
-  }
-};
+ArrayStream.prototype.write = () => {};
 
 const putIn = new ArrayStream();
 const testMe = repl.start('', putIn);
 
 // https://github.com/nodejs/node/issues/3346
-// Tab-completion for an undefined variable inside a function should report a
-// ReferenceError.
+// Tab-completion should be empty
 putIn.run(['.clear']);
 putIn.run(['function () {']);
-testMe.complete('arguments.');
+testMe.complete('arguments.', common.mustCall((err, completions) => {
+  assert.strictEqual(err, null);
+  assert.deepStrictEqual(completions, [[], 'arguments.']);
+}));
 
-process.on('exit', function() {
-  assert.strictEqual(referenceErrorCount, 1);
-});
+putIn.run(['.clear']);
+putIn.run(['function () {']);
+putIn.run(['undef;']);
+testMe.complete('undef.', common.mustCall((err, completions) => {
+  assert.strictEqual(err, null);
+  assert.deepStrictEqual(completions, [[], 'undef.']);
+}));

@@ -67,6 +67,11 @@ was required by each matching version of yui3:
 
     npm view yui3@'>0.5.4' dependencies.jsdom
 
+To show the `connect` package version history, you can do
+this:
+
+    npm view connect versions
+
 ## OUTPUT
 
 If only a single string field for a single version is output, then it

@@ -26,7 +26,8 @@ module.exports = function (idealTree, log, next) {
       ], done)
     }],
     [thenValidateAllPeerDeps, idealTree],
-    [thenCheckTop, idealTree]
+    [thenCheckTop, idealTree],
+    [thenCheckDuplicateDeps, idealTree]
   ], andFinishTracker(log, next))
 }
 
@@ -39,7 +40,7 @@ function thenValidateAllPeerDeps (idealTree, next) {
   validate('OF', arguments)
   validateAllPeerDeps(idealTree, function (tree, pkgname, version) {
     var warn = new Error(packageId(tree) + ' requires a peer of ' + pkgname + '@' +
-      version + ' but none was installed.')
+      version + ' but none is installed. You must install peer dependencies yourself.')
     warn.code = 'EPEERINVALID'
     idealTree.warnings.push(warn)
   })
@@ -65,5 +66,30 @@ function thenCheckTop (idealTree, next) {
     er.code = 'EPACKAGEJSON'
     idealTree.warnings.push(er)
   }
+
+  var nodeVersion = npm.config.get('node-version')
+  if (/-/.test(nodeVersion)) {
+    // if this is a prerelease node…
+    var warnObj = new Error('You are using a pre-release version of node and things may not work as expected')
+    warnObj.code = 'ENODEPRE'
+    idealTree.warnings.push(warnObj)
+  }
+
+  next()
+}
+
+// check for deps duplciated between devdeps and regular deps
+function thenCheckDuplicateDeps (idealTree, next) {
+  var deps = idealTree.package.dependencies || {}
+  var devDeps = idealTree.package.devDependencies || {}
+
+  for (var pkg in devDeps) {
+    if (pkg in deps) {
+      var warnObj = new Error('The package ' + pkg + ' is included as both a dev and production dependency.')
+      warnObj.code = 'EDUPLICATEDEP'
+      idealTree.warnings.push(warnObj)
+    }
+  }
+
   next()
 }

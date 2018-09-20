@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Summary of the spec: lastIndex is reset to 0 if
-// - a regexp fails to match, regardless of global or non-global.
+// - a global or sticky regexp fails to match.
 // - a global regexp is used in a function that returns multiple results,
 //   such as String.prototype.replace or String.prototype.match, since it
 //   repeats the regexp until it fails to match.
@@ -37,49 +37,49 @@
 r = /a/;
 r.lastIndex = 1;
 r.exec("zzzz");
-assertEquals(0, r.lastIndex);
+assertEquals(1, r.lastIndex);
 
 // Test Regexp.prototype.test
 r = /a/;
 r.lastIndex = 1;
 r.test("zzzz");
-assertEquals(0, r.lastIndex);
+assertEquals(1, r.lastIndex);
 
 // Test String.prototype.match
 r = /a/;
 r.lastIndex = 1;
 "zzzz".match(r);
-assertEquals(0, r.lastIndex);
+assertEquals(1, r.lastIndex);
 
 // Test String.prototype.replace with atomic regexp and empty string.
 r = /a/;
 r.lastIndex = 1;
 "zzzz".replace(r, "");
-assertEquals(0, r.lastIndex);
+assertEquals(1, r.lastIndex);
 
 // Test String.prototype.replace with non-atomic regexp and empty string.
 r = /\d/;
 r.lastIndex = 1;
 "zzzz".replace(r, "");
-assertEquals(0, r.lastIndex);
+assertEquals(1, r.lastIndex);
 
 // Test String.prototype.replace with atomic regexp and non-empty string.
 r = /a/;
 r.lastIndex = 1;
 "zzzz".replace(r, "a");
-assertEquals(0, r.lastIndex);
+assertEquals(1, r.lastIndex);
 
 // Test String.prototype.replace with non-atomic regexp and non-empty string.
 r = /\d/;
 r.lastIndex = 1;
 "zzzz".replace(r, "a");
-assertEquals(0, r.lastIndex);
+assertEquals(1, r.lastIndex);
 
 // Test String.prototype.replace with replacement function
 r = /a/;
 r.lastIndex = 1;
 "zzzz".replace(r, function() { return ""; });
-assertEquals(0, r.lastIndex);
+assertEquals(1, r.lastIndex);
 
 // Regexp functions that returns multiple results:
 // A global regexp always resets lastIndex regardless of whether it matches.
@@ -100,7 +100,7 @@ r.lastIndex = -1;
 "01234567".match(r);
 assertEquals(0, r.lastIndex);
 
-// A non-global regexp resets lastIndex iff it does not match.
+// A non-global regexp resets lastIndex iff it is sticky.
 r = /a/;
 r.lastIndex = -1;
 "0123abcd".replace(r, "x");
@@ -108,7 +108,7 @@ assertEquals(-1, r.lastIndex);
 
 r.lastIndex = -1;
 "01234567".replace(r, "x");
-assertEquals(0, r.lastIndex);
+assertEquals(-1, r.lastIndex);
 
 r.lastIndex = -1;
 "0123abcd".match(r);
@@ -116,7 +116,17 @@ assertEquals(-1, r.lastIndex);
 
 r.lastIndex = -1;
 "01234567".match(r);
+assertEquals(-1, r.lastIndex);
+
+r = /a/y;
+r.lastIndex = -1;
+"0123abcd".replace(r, "x");
 assertEquals(0, r.lastIndex);
+
+r.lastIndex = -1;
+"01234567".replace(r, "x");
+assertEquals(0, r.lastIndex);
+
 
 // Also test RegExp.prototype.exec and RegExp.prototype.test
 r = /a/g;
@@ -131,7 +141,7 @@ assertEquals(5, r.lastIndex);
 r = /a/;
 r.lastIndex = 1;
 r.exec("01234567");
-assertEquals(0, r.lastIndex);
+assertEquals(1, r.lastIndex);
 
 r.lastIndex = 1;
 r.exec("0123abcd");
@@ -149,7 +159,7 @@ assertEquals(5, r.lastIndex);
 r = /a/;
 r.lastIndex = 1;
 r.test("01234567");
-assertEquals(0, r.lastIndex);
+assertEquals(1, r.lastIndex);
 
 r.lastIndex = 1;
 r.test("0123abcd");

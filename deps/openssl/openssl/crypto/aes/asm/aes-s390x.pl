@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
 # Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -92,7 +99,7 @@ if ($flavour =~ /3[12]/) {
 	$g="g";
 }
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
+while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
 
 $softonly=0;	# allow hardware support
@@ -779,10 +786,10 @@ ___
 $code.=<<___;
 # void AES_set_encrypt_key(const unsigned char *in, int bits,
 # 		 AES_KEY *key) {
-.globl	private_AES_set_encrypt_key
-.type	private_AES_set_encrypt_key,\@function
+.globl	AES_set_encrypt_key
+.type	AES_set_encrypt_key,\@function
 .align	16
-private_AES_set_encrypt_key:
+AES_set_encrypt_key:
 _s390x_AES_set_encrypt_key:
 	lghi	$t0,0
 	cl${g}r	$inp,$t0
@@ -806,7 +813,7 @@ _s390x_AES_set_encrypt_key:
 .Lproceed:
 ___
 $code.=<<___ if (!$softonly);
-	# convert bits to km code, [128,192,256]->[18,19,20]
+	# convert bits to km(c) code, [128,192,256]->[18,19,20]
 	lhi	%r5,-128
 	lhi	%r0,18
 	ar	%r5,$bits
@@ -814,17 +821,10 @@ $code.=<<___ if (!$softonly);
 	ar	%r5,%r0
 
 	larl	%r1,OPENSSL_s390xcap_P
-	lg	%r0,0(%r1)
-	tmhl	%r0,0x4000	# check for message-security assist
-	jz	.Lekey_internal
-
-	lghi	%r0,0		# query capability vector
-	la	%r1,16($sp)
-	.long	0xb92f0042	# kmc %r4,%r2
-
-	llihh	%r1,0x8000
-	srlg	%r1,%r1,0(%r5)
-	ng	%r1,16($sp)
+	llihh	%r0,0x8000
+	srlg	%r0,%r0,0(%r5)
+	ng	%r0,32(%r1)	# check availability of both km...
+	ng	%r0,48(%r1)	# ...and kmc support for given key length
 	jz	.Lekey_internal
 
 	lmg	%r0,%r1,0($inp)	# just copy 128 bits...
@@ -839,7 +839,7 @@ $code.=<<___ if (!$softonly);
 	stg	%r1,24($key)
 1:	st	$bits,236($key)	# save bits [for debugging purposes]
 	lgr	$t0,%r5
-	st	%r5,240($key)	# save km code
+	st	%r5,240($key)	# save km(c) code
 	lghi	%r2,0
 	br	%r14
 ___
@@ -1063,14 +1063,14 @@ $code.=<<___;
 .Lminus1:
 	lghi	%r2,-1
 	br	$ra
-.size	private_AES_set_encrypt_key,.-private_AES_set_encrypt_key
+.size	AES_set_encrypt_key,.-AES_set_encrypt_key
 
 # void AES_set_decrypt_key(const unsigned char *in, int bits,
 # 		 AES_KEY *key) {
-.globl	private_AES_set_decrypt_key
-.type	private_AES_set_decrypt_key,\@function
+.globl	AES_set_decrypt_key
+.type	AES_set_decrypt_key,\@function
 .align	16
-private_AES_set_decrypt_key:
+AES_set_decrypt_key:
 	#st${g}	$key,4*$SIZE_T($sp)	# I rely on AES_set_encrypt_key to
 	st${g}	$ra,14*$SIZE_T($sp)	# save non-volatile registers and $key!
 	bras	$ra,_s390x_AES_set_encrypt_key
@@ -1170,7 +1170,7 @@ $code.=<<___;
 	lm${g}	%r6,%r13,6*$SIZE_T($sp)# as was saved by AES_set_encrypt_key!
 	lghi	%r2,0
 	br	$ra
-.size	private_AES_set_decrypt_key,.-private_AES_set_decrypt_key
+.size	AES_set_decrypt_key,.-AES_set_decrypt_key
 ___
 
 ########################################################################
@@ -1436,21 +1436,13 @@ $code.=<<___ if (!$softonly);
 
 .Lctr32_hw_switch:
 ___
-$code.=<<___ if (0);	######### kmctr code was measured to be ~12% slower
-	larl	$s0,OPENSSL_s390xcap_P
-	lg	$s0,8($s0)
-	tmhh	$s0,0x0004	# check for message_security-assist-4
-	jz	.Lctr32_km_loop
-
+$code.=<<___ if (!$softonly && 0);# kmctr code was measured to be ~12% slower
 	llgfr	$s0,%r0
 	lgr	$s1,%r1
-	lghi	%r0,0
-	la	%r1,16($sp)
-	.long	0xb92d2042	# kmctr %r4,%r2,%r2
-
+	larl	%r1,OPENSSL_s390xcap_P
 	llihh	%r0,0x8000	# check if kmctr supports the function code
 	srlg	%r0,%r0,0($s0)
-	ng	%r0,16($sp)
+	ng	%r0,64(%r1)	# check kmctr capability vector
 	lgr	%r0,$s0
 	lgr	%r1,$s1
 	jz	.Lctr32_km_loop
@@ -1488,7 +1480,7 @@ $code.=<<___ if (0);	######### kmctr code was measured to be ~12% slower
 	br	$ra
 .align	16
 ___
-$code.=<<___;
+$code.=<<___ if (!$softonly);
 .Lctr32_km_loop:
 	la	$s2,16($sp)
 	lgr	$s3,$fp
@@ -1597,12 +1589,10 @@ $code.=<<___ if(1);
 	llgfr	$s0,%r0			# put aside the function code
 	lghi	$s1,0x7f
 	nr	$s1,%r0
-	lghi	%r0,0			# query capability vector
-	la	%r1,$tweak-16($sp)
-	.long	0xb92e0042		# km %r4,%r2
-	llihh	%r1,0x8000
-	srlg	%r1,%r1,32($s1)		# check for 32+function code
-	ng	%r1,$tweak-16($sp)
+	larl	%r1,OPENSSL_s390xcap_P
+	llihh	%r0,0x8000
+	srlg	%r0,%r0,32($s1)		# check for 32+function code
+	ng	%r0,32(%r1)		# check km capability vector
 	lgr	%r0,$s0			# restore the function code
 	la	%r1,0($key1)		# restore $key1
 	jz	.Lxts_km_vanilla
@@ -2229,7 +2219,6 @@ ___
 }
 $code.=<<___;
 .string	"AES for s390x, CRYPTOGAMS by <appro\@openssl.org>"
-.comm	OPENSSL_s390xcap_P,16,8
 ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;

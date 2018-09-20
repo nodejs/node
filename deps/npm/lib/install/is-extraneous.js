@@ -1,14 +1,27 @@
 'use strict'
-var path = require('path')
-var isDev = require('./is-dev.js').isDev
-var npm = require('../npm.js')
+module.exports = isExtraneous
 
-module.exports = function (tree) {
-  var pkg = tree.package
-  var requiredBy = pkg._requiredBy.filter(function (req) { return req[0] !== '#' })
-  var isTopLevel = tree.parent == null
-  var isChildOfTop = !isTopLevel && tree.parent.parent == null
-  var isTopGlobal = isChildOfTop && tree.parent.path === path.resolve(npm.globalDir, '..')
-  var topHasNoPackageJson = isChildOfTop && tree.parent.error
-  return !isTopLevel && (!isChildOfTop || !topHasNoPackageJson) && !isTopGlobal && requiredBy.length === 0 && !isDev(tree)
+function isExtraneous (tree) {
+  var result = !isNotExtraneous(tree)
+  return result
+}
+
+function topHasNoPjson (tree) {
+  var top = tree
+  while (!top.isTop) top = top.parent
+  return top.error
+}
+
+function isNotExtraneous (tree, isCycle) {
+  if (!isCycle) isCycle = {}
+  if (tree.isTop || tree.userRequired) {
+    return true
+  } else if (isCycle[tree.path]) {
+    return topHasNoPjson(tree)
+  } else {
+    isCycle[tree.path] = true
+    return tree.requiredBy && tree.requiredBy.some(function (node) {
+      return isNotExtraneous(node, Object.create(isCycle))
+    })
+  }
 }

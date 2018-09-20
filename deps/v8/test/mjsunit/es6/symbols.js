@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc --allow-natives-syntax --harmony-tostring
+// Flags: --expose-gc --allow-natives-syntax
 
 var symbols = []
 
@@ -67,8 +67,6 @@ function TestType() {
     assertEquals("symbol", typeof symbols[i])
     assertTrue(typeof symbols[i] === "symbol")
     assertFalse(%SymbolIsPrivate(symbols[i]))
-    assertEquals(null, %_ClassOf(symbols[i]))
-    assertEquals("Symbol", %_ClassOf(Object(symbols[i])))
   }
 }
 TestType()
@@ -86,6 +84,7 @@ TestPrototype()
 
 
 function TestConstructor() {
+  assertEquals(0, Symbol.length);
   assertSame(Function.prototype, Symbol.__proto__)
   assertFalse(Object === Symbol.prototype.constructor)
   assertFalse(Symbol === Object.prototype.constructor)
@@ -167,8 +166,8 @@ function TestEquality() {
     assertTrue(symbols[i] == symbols[i])
     assertFalse(symbols[i] === Object(symbols[i]))
     assertFalse(Object(symbols[i]) === symbols[i])
-    assertFalse(symbols[i] == Object(symbols[i]))
-    assertFalse(Object(symbols[i]) == symbols[i])
+    assertTrue(symbols[i] == Object(symbols[i]))
+    assertTrue(Object(symbols[i]) == symbols[i])
     assertTrue(symbols[i] === symbols[i].valueOf())
     assertTrue(symbols[i].valueOf() === symbols[i])
     assertTrue(symbols[i] == symbols[i].valueOf())
@@ -352,7 +351,7 @@ function TestKeyDelete(obj) {
 }
 
 
-var objs = [{}, [], Object.create(null), Object(1), new Map, function(){}]
+var objs = [{}, [], Object.create({}), Object(1), new Map, function(){}]
 
 for (var i in objs) {
   var obj = objs[i]
@@ -441,8 +440,9 @@ TestGetOwnPropertySymbolsWithProto()
 
 function TestWellKnown() {
   var symbols = [
+    "hasInstance",
     // TODO(rossberg): reactivate once implemented.
-    // "hasInstance", "isConcatSpreadable", "isRegExp",
+    // "isConcatSpreadable", "isRegExp",
     "iterator", /* "toStringTag", */ "unscopables"
   ]
 
@@ -526,3 +526,41 @@ function TestComparison() {
   }
 }
 TestComparison();
+
+
+// Make sure that throws occur in the context of the Symbol function.
+function TestContext() {
+  var r = Realm.create();
+  var rSymbol = Realm.eval(r, "Symbol");
+  var rError = Realm.eval(r, "TypeError");
+
+  function verifier(symbol, error) {
+    try {
+      new symbol();
+    } catch(e) {
+      return e.__proto__ === error.__proto__;
+    }
+    assertTrue(false);  // should never get here.
+  }
+
+  assertTrue(verifier(Symbol, TypeError()));
+  assertTrue(verifier(rSymbol, rError()));
+  assertFalse(verifier(Symbol, rError()));
+  assertFalse(verifier(rSymbol, TypeError()));
+}
+TestContext();
+
+
+function TestStringify(expected, input) {
+  assertEquals(expected, JSON.stringify(input));
+  assertEquals(expected, JSON.stringify(input, (key, value) => value));
+  assertEquals(JSON.stringify(input, null, "="),
+               JSON.stringify(input, (key, value) => value, "="));
+}
+
+TestStringify(undefined, Symbol("a"));
+TestStringify('[{}]', [Object(Symbol())]);
+var symbol_wrapper = Object(Symbol("a"))
+TestStringify('{}', symbol_wrapper);
+symbol_wrapper.a = 1;
+TestStringify('{"a":1}', symbol_wrapper);

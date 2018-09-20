@@ -14,6 +14,7 @@ using testing::IsNull;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace node_properties_unittest {
 
 class NodePropertiesTest : public TestWithZone {
  public:
@@ -37,8 +38,6 @@ const Operator kMockOperator(IrOpcode::kDead, Operator::kNoProperties,
 const Operator kMockCallOperator(IrOpcode::kCall, Operator::kNoProperties,
                                  "MockCallOperator", 0, 0, 0, 0, 0, 2);
 
-const IfExceptionHint kNoHint = IfExceptionHint::kLocallyCaught;
-
 }  // namespace
 
 
@@ -49,7 +48,7 @@ TEST_F(NodePropertiesTest, ReplaceUses) {
   Node* use_value = NewMockNode(common.Return(), node);
   Node* use_effect = NewMockNode(common.EffectPhi(1), node);
   Node* use_success = NewMockNode(common.IfSuccess(), node);
-  Node* use_exception = NewMockNode(common.IfException(kNoHint), effect, node);
+  Node* use_exception = NewMockNode(common.IfException(), effect, node);
   Node* r_value = NewMockNode(&kMockOperator);
   Node* r_effect = NewMockNode(&kMockOperator);
   Node* r_success = NewMockNode(&kMockOperator);
@@ -99,7 +98,7 @@ TEST_F(NodePropertiesTest, CollectControlProjections_Call) {
   Node* result[2];
   CommonOperatorBuilder common(zone());
   Node* call = NewMockNode(&kMockCallOperator);
-  Node* if_ex = NewMockNode(common.IfException(kNoHint), call, call);
+  Node* if_ex = NewMockNode(common.IfException(), call, call);
   Node* if_ok = NewMockNode(common.IfSuccess(), call);
   NodeProperties::CollectControlProjections(call, result, arraysize(result));
   EXPECT_EQ(if_ok, result[0]);
@@ -120,6 +119,7 @@ TEST_F(NodePropertiesTest, CollectControlProjections_Switch) {
   EXPECT_EQ(if_default, result[2]);
 }
 
+}  // namespace node_properties_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

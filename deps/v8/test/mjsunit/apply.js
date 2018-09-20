@@ -110,11 +110,12 @@ function s() {
 assertEquals("bar42foofishhorse", s.apply("bar", arr), "apply to string");
 
 function al() {
+  print(this);
   assertEquals(Object(345), this);
   return arguments.length + arguments[arguments.length - 1];
 }
 
-for (var j = 1; j < 0x40000000; j <<= 1) {
+for (var j = 1; j < 0x400000; j <<= 1) {
   try {
     var a = %NormalizeElements([]);
     a.length = j;
@@ -122,7 +123,7 @@ for (var j = 1; j < 0x40000000; j <<= 1) {
     assertEquals(42 + j, al.apply(345, a));
   } catch (e) {
     assertTrue(e.toString().indexOf("Maximum call stack size exceeded") != -1);
-    for (; j < 0x40000000; j <<= 1) {
+    for (; j < 0x400000; j <<= 1) {
       var caught = false;
       try {
         a = %NormalizeElements([]);
@@ -140,6 +141,28 @@ for (var j = 1; j < 0x40000000; j <<= 1) {
     break;
   }
 }
+
+// Check packed double arrays
+var arr = [0.0];
+for (var i = 1; i < 4; i++) {
+  arr.push(i * 0.1);
+}
+assertEquals(0.0, Math.min.apply(Math, arr));
+assertEquals(0.30000000000000004, Math.max.apply(Math, arr));
+
+// Check holey double arrays
+var arr = Array(4);
+for (var i = 0; i < 4; i++) {
+  arr[i] = i * 0.1;
+}
+assertEquals(0.0, Math.min.apply(Math, arr));
+assertEquals(0.30000000000000004, Math.max.apply(Math, arr));
+
+// Check that holes are set properly
+arr[5] = 0.5;
+assertEquals(NaN, Math.min.apply(Math, arr));
+assertEquals(NaN, Math.max.apply(Math, arr));
+
 
 var primes = new Array(0);
 

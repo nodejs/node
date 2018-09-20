@@ -1,7 +1,7 @@
 'use strict'
 
 var url = require('url')
-  , tunnel = require('tunnel-agent')
+var tunnel = require('tunnel-agent')
 
 var defaultProxyHeaderWhiteList = [
   'accept',
@@ -12,7 +12,6 @@ var defaultProxyHeaderWhiteList = [
   'cache-control',
   'content-encoding',
   'content-language',
-  'content-length',
   'content-location',
   'content-md5',
   'content-range',
@@ -24,7 +23,6 @@ var defaultProxyHeaderWhiteList = [
   'pragma',
   'referer',
   'te',
-  'transfer-encoding',
   'user-agent',
   'via'
 ]
@@ -33,10 +31,10 @@ var defaultProxyHeaderExclusiveList = [
   'proxy-authorization'
 ]
 
-function constructProxyHost(uriObject) {
-  var port = uriObject.portA
-    , protocol = uriObject.protocol
-    , proxyHost = uriObject.hostname + ':'
+function constructProxyHost (uriObject) {
+  var port = uriObject.port
+  var protocol = uriObject.protocol
+  var proxyHost = uriObject.hostname + ':'
 
   if (port) {
     proxyHost += port
@@ -49,7 +47,7 @@ function constructProxyHost(uriObject) {
   return proxyHost
 }
 
-function constructProxyHeaderWhiteList(headers, proxyHeaderWhiteList) {
+function constructProxyHeaderWhiteList (headers, proxyHeaderWhiteList) {
   var whiteList = proxyHeaderWhiteList
     .reduce(function (set, header) {
       set[header.toLowerCase()] = true
@@ -70,61 +68,57 @@ function constructTunnelOptions (request, proxyHeaders) {
   var proxy = request.proxy
 
   var tunnelOptions = {
-    proxy : {
-      host      : proxy.hostname,
-      port      : +proxy.port,
-      proxyAuth : proxy.auth,
-      headers   : proxyHeaders
+    proxy: {
+      host: proxy.hostname,
+      port: +proxy.port,
+      proxyAuth: proxy.auth,
+      headers: proxyHeaders
     },
-    headers            : request.headers,
-    ca                 : request.ca,
-    cert               : request.cert,
-    key                : request.key,
-    passphrase         : request.passphrase,
-    pfx                : request.pfx,
-    ciphers            : request.ciphers,
-    rejectUnauthorized : request.rejectUnauthorized,
-    secureOptions      : request.secureOptions,
-    secureProtocol     : request.secureProtocol
+    headers: request.headers,
+    ca: request.ca,
+    cert: request.cert,
+    key: request.key,
+    passphrase: request.passphrase,
+    pfx: request.pfx,
+    ciphers: request.ciphers,
+    rejectUnauthorized: request.rejectUnauthorized,
+    secureOptions: request.secureOptions,
+    secureProtocol: request.secureProtocol
   }
 
   return tunnelOptions
 }
 
-function constructTunnelFnName(uri, proxy) {
+function constructTunnelFnName (uri, proxy) {
   var uriProtocol = (uri.protocol === 'https:' ? 'https' : 'http')
   var proxyProtocol = (proxy.protocol === 'https:' ? 'Https' : 'Http')
   return [uriProtocol, proxyProtocol].join('Over')
 }
 
-function getTunnelFn(request) {
+function getTunnelFn (request) {
   var uri = request.uri
   var proxy = request.proxy
   var tunnelFnName = constructTunnelFnName(uri, proxy)
   return tunnel[tunnelFnName]
 }
 
-
 function Tunnel (request) {
   this.request = request
   this.proxyHeaderWhiteList = defaultProxyHeaderWhiteList
   this.proxyHeaderExclusiveList = []
+  if (typeof request.tunnel !== 'undefined') {
+    this.tunnelOverride = request.tunnel
+  }
 }
 
-Tunnel.prototype.isEnabled = function (options) {
-  var request = this.request
-  // Tunnel HTTPS by default, or if a previous request in the redirect chain
-  // was tunneled.  Allow the user to override this setting.
+Tunnel.prototype.isEnabled = function () {
+  var self = this
+  var request = self.request
+    // Tunnel HTTPS by default. Allow the user to override this setting.
 
-  // If self.tunnel is already set (because this is a redirect), use the
-  // existing value.
-  if (typeof request.tunnel !== 'undefined') {
-    return request.tunnel
-  }
-
-  // If options.tunnel is set (the user specified a value), use it.
-  if (typeof options.tunnel !== 'undefined') {
-    return options.tunnel
+  // If self.tunnelOverride is set (the user specified a value), use it.
+  if (typeof self.tunnelOverride !== 'undefined') {
+    return self.tunnelOverride
   }
 
   // If the destination is HTTPS, tunnel.
@@ -132,15 +126,13 @@ Tunnel.prototype.isEnabled = function (options) {
     return true
   }
 
-  // Otherwise, leave tunnel unset, because if a later request in the redirect
-  // chain is HTTPS then that request (and any subsequent ones) should be
-  // tunneled.
-  return undefined
+  // Otherwise, do not use tunnel.
+  return false
 }
 
 Tunnel.prototype.setup = function (options) {
   var self = this
-    , request = self.request
+  var request = self.request
 
   options = options || {}
 

@@ -1,18 +1,20 @@
 'use strict';
 const common = require('../common');
+// Fails with EINVAL on SmartOS, EBUSY on Windows, EBUSY on AIX.
+if (common.isSunOS || common.isWindows || common.isAIX)
+  common.skip('cannot rmdir current working directory');
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 const assert = require('assert');
 const fs = require('fs');
 const spawn = require('child_process').spawn;
+const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 
-// Fails with EINVAL on SmartOS, EBUSY on Windows, EBUSY on AIX.
-if (process.platform === 'sunos' || common.isWindows || common.isAix) {
-  console.log('1..0 # Skipped: cannot rmdir current working directory');
-  return;
-}
-
-const dirname = common.tmpDir + '/cwd-does-not-exist-' + process.pid;
-const abspathFile = require('path').join(common.fixturesDir, 'a.js');
-common.refreshTmpDir();
+const dirname = `${tmpdir.path}/cwd-does-not-exist-${process.pid}`;
+const abspathFile = fixtures.path('a.js');
+tmpdir.refresh();
 fs.mkdirSync(dirname);
 process.chdir(dirname);
 fs.rmdirSync(dirname);

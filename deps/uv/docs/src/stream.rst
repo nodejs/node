@@ -6,7 +6,7 @@
 
 Stream handles provide an abstraction of a duplex communication channel.
 :c:type:`uv_stream_t` is an abstract type, libuv provides 3 stream implementations
-in the for of :c:type:`uv_tcp_t`, :c:type:`uv_pipe_t` and :c:type:`uv_tty_t`.
+in the form of :c:type:`uv_tcp_t`, :c:type:`uv_pipe_t` and :c:type:`uv_tty_t`.
 
 
 Data types
@@ -26,7 +26,11 @@ Data types
 
 .. c:type:: uv_write_t
 
-    Write request type.
+    Write request type. Careful attention must be paid when reusing objects of
+    this type. When a stream is in non-blocking mode, write requests sent
+    with ``uv_write`` will be queued. Reusing objects at this point is undefined
+    behaviour. It is safe to reuse the ``uv_write_t`` object only after the
+    callback passed to ``uv_write`` is fired.
 
 .. c:type:: void (*uv_read_cb)(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
 
@@ -61,7 +65,7 @@ Data types
 
 .. c:type:: void (*uv_shutdown_cb)(uv_shutdown_t* req, int status)
 
-    Callback called after s shutdown request has been completed. `status` will
+    Callback called after a shutdown request has been completed. `status` will
     be 0 in case of success, < 0 otherwise.
 
 .. c:type:: void (*uv_connection_cb)(uv_stream_t* server, int status)
@@ -92,7 +96,7 @@ Public members
 
 .. c:member:: uv_stream_t* uv_write_t.send_handle
 
-    Pointer to the stream being sent using this write request..
+    Pointer to the stream being sent using this write request.
 
 .. seealso:: The :c:type:`uv_handle_t` members also apply.
 
@@ -148,6 +152,10 @@ API
 
     ::
 
+        void cb(uv_write_t* req, int status) {
+            /* Logic which handles the write result */
+        }
+
         uv_buf_t a[] = {
             { .base = "1", .len = 1 },
             { .base = "2", .len = 1 }
@@ -162,8 +170,12 @@ API
         uv_write_t req2;
 
         /* writes "1234" */
-        uv_write(&req1, stream, a, 2);
-        uv_write(&req2, stream, b, 2);
+        uv_write(&req1, stream, a, 2, cb);
+        uv_write(&req2, stream, b, 2, cb);
+
+    .. note::
+        The memory pointed to by the buffers must remain valid until the callback gets called.
+        This also holds for :c:func:`uv_write2`.
 
 .. c:function:: int uv_write2(uv_write_t* req, uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs, uv_stream_t* send_handle, uv_write_cb cb)
 
@@ -215,5 +227,11 @@ API
         the stream.
 
     .. versionchanged:: 1.4.0 UNIX implementation added.
+
+.. c:function:: size_t uv_stream_get_write_queue_size(const uv_stream_t* stream)
+
+    Returns `stream->write_queue_size`.
+
+    .. versionadded:: 1.19.0
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.

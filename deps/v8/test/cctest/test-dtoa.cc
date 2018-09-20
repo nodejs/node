@@ -38,9 +38,9 @@
 #include "test/cctest/gay-precision.h"
 #include "test/cctest/gay-shortest.h"
 
-
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
+namespace test_dtoa {
 
 // Removes trailing '0' digits.
 static void TrimRepresentation(Vector<char> representation) {
@@ -329,3 +329,7 @@ TEST(DtoaGayPrecision) {
     CHECK_EQ(0, strcmp(current_test.representation, buffer.start()));
   }
 }
+
+}  // namespace test_dtoa
+}  // namespace internal
+}  // namespace v8

@@ -2,20 +2,25 @@
 
 =head1 NAME
 
-SSL_CTX_set_verify, SSL_set_verify, SSL_CTX_set_verify_depth, SSL_set_verify_depth - set peer certificate verification parameters
+SSL_get_ex_data_X509_STORE_CTX_idx,
+SSL_CTX_set_verify, SSL_set_verify,
+SSL_CTX_set_verify_depth, SSL_set_verify_depth,
+SSL_verify_cb
+- set peer certificate verification parameters
 
 =head1 SYNOPSIS
 
  #include <openssl/ssl.h>
 
- void SSL_CTX_set_verify(SSL_CTX *ctx, int mode,
-                         int (*verify_callback)(int, X509_STORE_CTX *));
- void SSL_set_verify(SSL *s, int mode,
-                     int (*verify_callback)(int, X509_STORE_CTX *));
- void SSL_CTX_set_verify_depth(SSL_CTX *ctx,int depth);
+ void SSL_CTX_set_verify(SSL_CTX *ctx, int mode, SSL_verify_cb verify_callback);
+ void SSL_set_verify(SSL *s, int mode, SSL_verify_cb verify_callback);
+ SSL_get_ex_data_X509_STORE_CTX_idx(void);
+
+ void SSL_CTX_set_verify_depth(SSL_CTX *ctx, int depth);
  void SSL_set_verify_depth(SSL *s, int depth);
 
- int verify_callback(int preverify_ok, X509_STORE_CTX *x509_ctx);
+
+ typedef int (*SSL_verify_cb)(int preverify_ok, X509_STORE_CTX *x509_ctx);
 
 =head1 DESCRIPTION
 
@@ -29,13 +34,15 @@ shall be specified, the NULL pointer can be used for B<verify_callback>. In
 this case last B<verify_callback> set specifically for this B<ssl> remains. If
 no special B<callback> was set before, the default callback for the underlying
 B<ctx> is used, that was valid at the time B<ssl> was created with
-L<SSL_new(3)|SSL_new(3)>.
+L<SSL_new(3)>. Within the callback function,
+B<SSL_get_ex_data_X509_STORE_CTX_idx> can be called to get the data index
+of the current SSL object that is doing the verification.
 
 SSL_CTX_set_verify_depth() sets the maximum B<depth> for the certificate chain
-verification that shall be allowed for B<ctx>. (See the BUGS section.)
+verification that shall be allowed for B<ctx>.
 
 SSL_set_verify_depth() sets the maximum B<depth> for the certificate chain
-verification that shall be allowed for B<ssl>. (See the BUGS section.)
+verification that shall be allowed for B<ssl>.
 
 =head1 NOTES
 
@@ -52,7 +59,7 @@ client, so the client will not send a certificate.
 B<Client mode:> if not using an anonymous cipher (by default disabled), the
 server will send a certificate which will be checked. The result of the
 certificate verification process can be checked after the TLS/SSL handshake
-using the L<SSL_get_verify_result(3)|SSL_get_verify_result(3)> function.
+using the L<SSL_get_verify_result(3)> function.
 The handshake will be continued regardless of the verification result.
 
 =item SSL_VERIFY_PEER
@@ -89,28 +96,30 @@ B<Client mode:> ignored
 
 =back
 
-Exactly one of the B<mode> flags SSL_VERIFY_NONE and SSL_VERIFY_PEER must be
-set at any time.
+If the B<mode> is SSL_VERIFY_NONE none of the other flags may be set.
 
 The actual verification procedure is performed either using the built-in
 verification procedure or using another application provided verification
 function set with
-L<SSL_CTX_set_cert_verify_callback(3)|SSL_CTX_set_cert_verify_callback(3)>.
+L<SSL_CTX_set_cert_verify_callback(3)>.
 The following descriptions apply in the case of the built-in procedure. An
 application provided procedure also has access to the verify depth information
 and the verify_callback() function, but the way this information is used
 may be different.
 
-SSL_CTX_set_verify_depth() and SSL_set_verify_depth() set the limit up
-to which depth certificates in a chain are used during the verification
-procedure. If the certificate chain is longer than allowed, the certificates
-above the limit are ignored. Error messages are generated as if these
-certificates would not be present, most likely a
-X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY will be issued.
+SSL_CTX_set_verify_depth() and SSL_set_verify_depth() set a limit on the
+number of certificates between the end-entity and trust-anchor certificates.
+Neither the
+end-entity nor the trust-anchor certificates count against B<depth>. If the
+certificate chain needed to reach a trusted issuer is longer than B<depth+2>,
+X509_V_ERR_CERT_CHAIN_TOO_LONG will be issued.
 The depth count is "level 0:peer certificate", "level 1: CA certificate",
 "level 2: higher level CA certificate", and so on. Setting the maximum
-depth to 2 allows the levels 0, 1, and 2. The default depth limit is 100,
-allowing for the peer certificate and additional 100 CA certificates.
+depth to 2 allows the levels 0, 1, 2 and 3 (0 being the end-entity and 3 the
+trust-anchor).
+The default depth limit is 100,
+allowing for the peer certificate, at most 100 intermediate CA certificates and
+a final trust anchor certificate.
 
 The B<verify_callback> function is used to control the behaviour when the
 SSL_VERIFY_PEER flag is set. It must be supplied by the application and
@@ -138,7 +147,7 @@ the verification process is continued. If B<verify_callback> always returns
 1, the TLS/SSL handshake will not be terminated with respect to verification
 failures and the connection will be established. The calling process can
 however retrieve the error code of the last verification error using
-L<SSL_get_verify_result(3)|SSL_get_verify_result(3)> or by maintaining its
+L<SSL_get_verify_result(3)> or by maintaining its
 own error storage managed by B<verify_callback>.
 
 If no B<verify_callback> is specified, the default callback will be used.
@@ -149,14 +158,9 @@ alert message, if SSL_VERIFY_PEER is set.
 =head1 BUGS
 
 In client mode, it is not checked whether the SSL_VERIFY_PEER flag
-is set, but whether SSL_VERIFY_NONE is not set. This can lead to
-unexpected behaviour, if the SSL_VERIFY_PEER and SSL_VERIFY_NONE are not
-used as required (exactly one must be set at any time).
-
-The certificate verification depth set with SSL[_CTX]_verify_depth()
-stops the verification at a certain depth. The error message produced
-will be that of an incomplete certificate chain and not
-X509_V_ERR_CERT_CHAIN_TOO_LONG as may be expected.
+is set, but whether any flags are set. This can lead to
+unexpected behaviour if SSL_VERIFY_PEER and other flags are not used as
+required.
 
 =head1 RETURN VALUES
 
@@ -176,8 +180,8 @@ certificates.
 
 The example makes use of the ex_data technique to store application data
 into/retrieve application data from the SSL structure
-(see L<SSL_get_ex_new_index(3)|SSL_get_ex_new_index(3)>,
-L<SSL_get_ex_data_X509_STORE_CTX_idx(3)|SSL_get_ex_data_X509_STORE_CTX_idx(3)>).
+(see L<CRYPTO_get_ex_new_index(3)>,
+L<SSL_get_ex_data_X509_STORE_CTX_idx(3)>).
 
  ...
  typedef struct {
@@ -221,7 +225,7 @@ L<SSL_get_ex_data_X509_STORE_CTX_idx(3)|SSL_get_ex_data_X509_STORE_CTX_idx(3)>).
         preverify_ok = 0;
         err = X509_V_ERR_CERT_CHAIN_TOO_LONG;
         X509_STORE_CTX_set_error(ctx, err);
-    } 
+    }
     if (!preverify_ok) {
         printf("verify error:num=%d:%s:depth=%d:%s\n", err,
                  X509_verify_cert_error_string(err), depth, buf);
@@ -237,7 +241,7 @@ L<SSL_get_ex_data_X509_STORE_CTX_idx(3)|SSL_get_ex_data_X509_STORE_CTX_idx(3)>).
      */
     if (!preverify_ok && (err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT))
     {
-      X509_NAME_oneline(X509_get_issuer_name(ctx->current_cert), buf, 256);
+      X509_NAME_oneline(X509_get_issuer_name(err_cert), buf, 256);
       printf("issuer= %s\n", buf);
     }
 
@@ -269,9 +273,9 @@ L<SSL_get_ex_data_X509_STORE_CTX_idx(3)|SSL_get_ex_data_X509_STORE_CTX_idx(3)>).
   */
  mydata.verify_depth = verify_depth; ...
  SSL_set_ex_data(ssl, mydata_index, &mydata);
-					     
+
  ...
- SSL_accept(ssl);	/* check of success left out for clarity */
+ SSL_accept(ssl);       /* check of success left out for clarity */
  if (peer = SSL_get_peer_certificate(ssl))
  {
    if (SSL_get_verify_result(ssl) == X509_V_OK)
@@ -282,13 +286,22 @@ L<SSL_get_ex_data_X509_STORE_CTX_idx(3)|SSL_get_ex_data_X509_STORE_CTX_idx(3)>).
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>, L<SSL_new(3)|SSL_new(3)>,
-L<SSL_CTX_get_verify_mode(3)|SSL_CTX_get_verify_mode(3)>,
-L<SSL_get_verify_result(3)|SSL_get_verify_result(3)>,
-L<SSL_CTX_load_verify_locations(3)|SSL_CTX_load_verify_locations(3)>,
-L<SSL_get_peer_certificate(3)|SSL_get_peer_certificate(3)>,
-L<SSL_CTX_set_cert_verify_callback(3)|SSL_CTX_set_cert_verify_callback(3)>,
-L<SSL_get_ex_data_X509_STORE_CTX_idx(3)|SSL_get_ex_data_X509_STORE_CTX_idx(3)>,
-L<SSL_get_ex_new_index(3)|SSL_get_ex_new_index(3)>
+L<ssl(7)>, L<SSL_new(3)>,
+L<SSL_CTX_get_verify_mode(3)>,
+L<SSL_get_verify_result(3)>,
+L<SSL_CTX_load_verify_locations(3)>,
+L<SSL_get_peer_certificate(3)>,
+L<SSL_CTX_set_cert_verify_callback(3)>,
+L<SSL_get_ex_data_X509_STORE_CTX_idx(3)>,
+L<CRYPTO_get_ex_new_index(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

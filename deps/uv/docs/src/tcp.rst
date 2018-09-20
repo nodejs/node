@@ -34,7 +34,7 @@ API
 
 .. c:function:: int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* handle, unsigned int flags)
 
-    Initialize the handle with the specified flags. At the moment the lower 8 bits
+    Initialize the handle with the specified flags. At the moment only the lower 8 bits
     of the `flags` parameter are used as the socket domain. A socket will be created
     for the given domain. If the specified domain is ``AF_UNSPEC`` no socket is created,
     just like :c:func:`uv_tcp_init`.
@@ -53,7 +53,7 @@ API
 
 .. c:function:: int uv_tcp_nodelay(uv_tcp_t* handle, int enable)
 
-    Enable / disable Nagle's algorithm.
+    Enable `TCP_NODELAY`, which disables Nagle's algorithm.
 
 .. c:function:: int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay)
 
@@ -102,7 +102,14 @@ API
     and an uninitialized :c:type:`uv_connect_t`. `addr` should point to an
     initialized ``struct sockaddr_in`` or ``struct sockaddr_in6``.
 
+    On Windows if the `addr` is initialized to point to an unspecified address
+    (``0.0.0.0`` or ``::``) it will be changed to point to ``localhost``.
+    This is done to match the behavior of Linux systems.
+
     The callback is made when the connection has been established or when a
     connection error happened.
+
+    .. versionchanged:: 1.19.0 added ``0.0.0.0`` and ``::`` to ``localhost``
+        mapping
 
 .. seealso:: The :c:type:`uv_stream_t` API functions also apply.

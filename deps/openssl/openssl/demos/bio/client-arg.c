@@ -1,3 +1,13 @@
+/*
+ * Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+#include <string.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
@@ -13,11 +23,7 @@ int main(int argc, char **argv)
     const char *connect_str = "localhost:4433";
     int nargs = argc - 1;
 
-    ERR_load_crypto_strings();
-    ERR_load_SSL_strings();
-    SSL_library_init();
-
-    ctx = SSL_CTX_new(SSLv23_client_method());
+    ctx = SSL_CTX_new(TLS_client_method());
     cctx = SSL_CONF_CTX_new();
     SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_CLIENT);
     SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
@@ -38,7 +44,7 @@ int main(int argc, char **argv)
         if (rv > 0)
             continue;
         /* Otherwise application specific argument processing */
-        if (!strcmp(*args, "-connect")) {
+        if (strcmp(*args, "-connect") == 0) {
             connect_str = args[1];
             if (connect_str == NULL) {
                 fprintf(stderr, "Missing -connect argument\n");
@@ -56,7 +62,7 @@ int main(int argc, char **argv)
     if (!SSL_CONF_CTX_finish(cctx)) {
         fprintf(stderr, "Finish error\n");
         ERR_print_errors_fp(stderr);
-        goto err;
+        goto end;
     }
 
     /*

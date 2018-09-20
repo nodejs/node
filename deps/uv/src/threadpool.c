@@ -23,18 +23,6 @@
 
 #if !defined(_WIN32)
 # include "unix/internal.h"
-#else
-# include "win/req-inl.h"
-/* TODO(saghul): unify internal req functions */
-static void uv__req_init(uv_loop_t* loop,
-                         uv_req_t* req,
-                         uv_req_type type) {
-  uv_req_init(loop, req);
-  req->type = type;
-  uv__req_register(loop, req);
-}
-# define uv__req_init(loop, req, type) \
-    uv__req_init((loop), (uv_req_t*)(req), (type))
 #endif
 
 #include <stdlib.h>
@@ -50,7 +38,6 @@ static uv_thread_t* threads;
 static uv_thread_t default_threads[4];
 static QUEUE exit_message;
 static QUEUE wq;
-static volatile int initialized;
 
 
 static void uv__cancelled(struct uv__work* w) {
@@ -65,7 +52,8 @@ static void worker(void* arg) {
   struct uv__work* w;
   QUEUE* q;
 
-  (void) arg;
+  uv_sem_post((uv_sem_t*) arg);
+  arg = NULL;
 
   for (;;) {
     uv_mutex_lock(&mutex);
@@ -117,7 +105,7 @@ static void post(QUEUE* q) {
 UV_DESTRUCTOR(static void cleanup(void)) {
   unsigned int i;
 
-  if (initialized == 0)
+  if (nthreads == 0)
     return;
 
   post(&exit_message);
@@ -134,14 +122,14 @@ UV_DESTRUCTOR(static void cleanup(void)) {
 
   threads = NULL;
   nthreads = 0;
-  initialized = 0;
 }
 #endif
 
 
-static void init_once(void) {
+static void init_threads(void) {
   unsigned int i;
   const char* val;
+  uv_sem_t sem;
 
   nthreads = ARRAY_SIZE(default_threads);
   val = getenv("UV_THREADPOOL_SIZE");
@@ -169,11 +157,38 @@ static void init_once(void) {
 
   QUEUE_INIT(&wq);
 
+  if (uv_sem_init(&sem, 0))
+    abort();
+
   for (i = 0; i < nthreads; i++)
-    if (uv_thread_create(threads + i, worker, NULL))
+    if (uv_thread_create(threads + i, worker, &sem))
       abort();
 
-  initialized = 1;
+  for (i = 0; i < nthreads; i++)
+    uv_sem_wait(&sem);
+
+  uv_sem_destroy(&sem);
+}
+
+
+#ifndef _WIN32
+static void reset_once(void) {
+  uv_once_t child_once = UV_ONCE_INIT;
+  memcpy(&once, &child_once, sizeof(child_once));
+}
+#endif
+
+
+static void init_once(void) {
+#ifndef _WIN32
+  /* Re-initialize the threadpool after fork.
+   * Note that this discards the global mutex and condition as well
+   * as the work queue.
+   */
+  if (pthread_atfork(NULL, NULL, &reset_once))
+    abort();
+#endif
+  init_threads();
 }
 
 
@@ -223,13 +238,8 @@ void uv__work_done(uv_async_t* handle) {
   int err;
 
   loop = container_of(handle, uv_loop_t, wq_async);
-  QUEUE_INIT(&wq);
-
   uv_mutex_lock(&loop->wq_mutex);
-  if (!QUEUE_EMPTY(&loop->wq)) {
-    q = QUEUE_HEAD(&loop->wq);
-    QUEUE_SPLIT(&loop->wq, q, &wq);
-  }
+  QUEUE_MOVE(&loop->wq, &wq);
   uv_mutex_unlock(&loop->wq_mutex);
 
   while (!QUEUE_EMPTY(&wq)) {

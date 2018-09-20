@@ -10,11 +10,11 @@
  * This behavior is a private implementation detail and should not be
  * considered public interface.
  */
-const common = require('../common');
+require('../common');
 const timers = require('timers');
 const assert = require('assert');
 
-var nbTimersFired = 0;
+let nbTimersFired = 0;
 
 const foo = {
   _onTimeout: function() {
@@ -37,5 +37,5 @@ timers.enroll(foo, 1);
 timers._unrefActive(foo);
 
 setTimeout(function() {
-  assert.notEqual(nbTimersFired, 2);
+  assert.notStrictEqual(nbTimersFired, 2);
 }, 20);

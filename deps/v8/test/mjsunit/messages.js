@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=100 --harmony --harmony-reflect --harmony-regexps
-// Flags: --harmony-simd --strong-mode
+// Flags: --allow-natives-syntax --stack-size=100 --harmony
 
 function test(f, expected, type) {
   try {
@@ -15,6 +14,18 @@ function test(f, expected, type) {
   }
   assertUnreachable("Exception expected");
 }
+
+const typedArrayConstructors = [
+  Uint8Array,
+  Int8Array,
+  Uint16Array,
+  Int16Array,
+  Uint32Array,
+  Int32Array,
+  Float32Array,
+  Float64Array,
+  Uint8ClampedArray
+];
 
 // === Error ===
 
@@ -29,23 +40,22 @@ test(function() {
 
 // kApplyNonFunction
 test(function() {
-  Function.prototype.apply.call(1, []);
+  Reflect.apply(1, []);
 }, "Function.prototype.apply was called on 1, which is a number " +
    "and not a function", TypeError);
 
-// kArrayFunctionsOnFrozen
 test(function() {
   var a = [1, 2];
   Object.freeze(a);
   a.splice(1, 1, [1]);
-}, "Cannot modify frozen array elements", TypeError);
+}, "Cannot assign to read only property '1' of object '[object Array]'",
+   TypeError);
 
-// kArrayFunctionsOnSealed
 test(function() {
   var a = [1];
   Object.seal(a);
   a.shift();
-}, "Cannot add/remove sealed array elements", TypeError);
+}, "Cannot delete property '0' of [object Array]", TypeError);
 
 // kCalledNonCallable
 test(function() {
@@ -57,15 +67,51 @@ test(function() {
   Object.defineProperty(1, "x", {});
 }, "Object.defineProperty called on non-object", TypeError);
 
+test(function() {
+  (function() {}).apply({}, 1);
+}, "CreateListFromArrayLike called on non-object", TypeError);
+
+test(function() {
+  Reflect.apply(function() {}, {}, 1);
+}, "CreateListFromArrayLike called on non-object", TypeError);
+
+test(function() {
+  Reflect.construct(function() {}, 1);
+}, "CreateListFromArrayLike called on non-object", TypeError);
+
 // kCalledOnNullOrUndefined
 test(function() {
-  Array.prototype.shift.call(null);
-}, "Array.prototype.shift called on null or undefined", TypeError);
+  String.prototype.includes.call(null);
+}, "String.prototype.includes called on null or undefined", TypeError);
 
-// kCannotPreventExtExternalArray
 test(function() {
-  Object.preventExtensions(new Uint16Array(1));
-}, "Cannot prevent extension of an object with external array elements", TypeError);
+  String.prototype.match.call(null);
+}, "String.prototype.match called on null or undefined", TypeError);
+
+test(function() {
+  String.prototype.search.call(null);
+}, "String.prototype.search called on null or undefined", TypeError);
+
+test(function() {
+  Array.prototype.shift.call(null);
+}, "Cannot convert undefined or null to object", TypeError);
+
+test(function() {
+  String.prototype.trim.call(null);
+}, "String.prototype.trim called on null or undefined", TypeError);
+
+test(function() {
+  String.prototype.trimLeft.call(null);
+}, "String.prototype.trimLeft called on null or undefined", TypeError);
+
+test(function() {
+  String.prototype.trimRight.call(null);
+}, "String.prototype.trimRight called on null or undefined", TypeError);
+
+// kCannotFreezeArrayBufferView
+test(function() {
+  Object.freeze(new Uint16Array(1));
+}, "Cannot freeze array buffer views with elements", TypeError);
 
 // kConstAssign
 test(function() {
@@ -76,7 +122,8 @@ test(function() {
 
 // kCannotConvertToPrimitive
 test(function() {
-  [].join(Object(Symbol(1)));
+  var o = { toString: function() { return this } };
+  [].join(o);
 }, "Cannot convert object to primitive value", TypeError);
 
 // kCircularStructure
@@ -88,18 +135,29 @@ test(function() {
 
 // kConstructorNotFunction
 test(function() {
+  Map();
+}, "Constructor Map requires 'new'", TypeError);
+
+test(function() {
+  Set();
+}, "Constructor Set requires 'new'", TypeError);
+
+test(function() {
   Uint16Array(1);
 }, "Constructor Uint16Array requires 'new'", TypeError);
+
+test(function() {
+  WeakSet();
+}, "Constructor WeakSet requires 'new'", TypeError);
+
+test(function() {
+  WeakMap();
+}, "Constructor WeakMap requires 'new'", TypeError);
 
 // kDataViewNotArrayBuffer
 test(function() {
   new DataView(1);
 }, "First argument to DataView constructor must be an ArrayBuffer", TypeError);
-
-// kDateType
-test(function() {
-  Date.prototype.setYear.call({}, 1);
-}, "this is not a Date object.", TypeError);
 
 // kDefineDisallowed
 test(function() {
@@ -107,12 +165,32 @@ test(function() {
   var o = {};
   Object.preventExtensions(o);
   Object.defineProperty(o, "x", { value: 1 });
-}, "Cannot define property:x, object is not extensible.", TypeError);
+}, "Cannot define property x, object is not extensible", TypeError);
+
+// kDetachedOperation
+for (constructor of typedArrayConstructors) {
+  test(() => {
+    const ta = new constructor([1]);
+    %ArrayBufferNeuter(ta.buffer);
+    ta.find(() => {});
+  }, "Cannot perform %TypedArray%.prototype.find on a detached ArrayBuffer", TypeError);
+
+  test(() => {
+    const ta = new constructor([1]);
+    %ArrayBufferNeuter(ta.buffer);
+    ta.findIndex(() => {});
+  }, "Cannot perform %TypedArray%.prototype.findIndex on a detached ArrayBuffer", TypeError);
+}
 
 // kFirstArgumentNotRegExp
 test(function() {
   "a".startsWith(/a/);
 }, "First argument to String.prototype.startsWith " +
+   "must not be a regular expression", TypeError);
+
+test(function() {
+  "a".includes(/a/);
+}, "First argument to String.prototype.includes " +
    "must not be a regular expression", TypeError);
 
 // kFlagsGetterNonObject
@@ -135,14 +213,39 @@ test(function() {
 
 // kIncompatibleMethodReceiver
 test(function() {
-  RegExp.prototype.compile.call(RegExp.prototype);
-}, "Method RegExp.prototype.compile called on incompatible receiver " +
-   "[object RegExp]", TypeError);
+  Set.prototype.add.call([]);
+}, "Method Set.prototype.add called on incompatible receiver [object Array]",
+TypeError);
 
-// kInstanceofFunctionExpected
+test(function() {
+  WeakSet.prototype.add.call([]);
+}, "Method WeakSet.prototype.add called on incompatible receiver [object Array]",
+TypeError);
+
+test(function() {
+  WeakSet.prototype.delete.call([]);
+}, "Method WeakSet.prototype.delete called on incompatible receiver [object Array]",
+TypeError);
+
+test(function() {
+  WeakMap.prototype.set.call([]);
+}, "Method WeakMap.prototype.set called on incompatible receiver [object Array]",
+TypeError);
+
+test(function() {
+  WeakMap.prototype.delete.call([]);
+}, "Method WeakMap.prototype.delete called on incompatible receiver [object Array]",
+TypeError);
+
+// kNonCallableInInstanceOfCheck
+test(function() {
+  1 instanceof {};
+}, "Right-hand side of 'instanceof' is not callable", TypeError);
+
+// kNonObjectInInstanceOfCheck
 test(function() {
   1 instanceof 1;
-}, "Expecting a function in instanceof check, but got 1", TypeError);
+}, "Right-hand side of 'instanceof' is not an object", TypeError);
 
 // kInstanceofNonobjectProto
 test(function() {
@@ -157,6 +260,24 @@ test(function() {
   1 in 1;
 }, "Cannot use 'in' operator to search for '1' in 1", TypeError);
 
+// kInvalidWeakMapKey
+test(function() {
+  new WeakMap([[1, 1]]);
+}, "Invalid value used as weak map key", TypeError);
+
+test(function() {
+  new WeakMap().set(1, 1);
+}, "Invalid value used as weak map key", TypeError);
+
+// kInvalidWeakSetValue
+test(function() {
+  new WeakSet([1]);
+}, "Invalid value used in weak set", TypeError);
+
+test(function() {
+  new WeakSet().add(1);
+}, "Invalid value used in weak set", TypeError);
+
 // kIteratorResultNotAnObject
 test(function() {
   var obj = {};
@@ -169,10 +290,19 @@ test(function() {
   new Map([1]);
 }, "Iterator value 1 is not an entry object", TypeError);
 
-// kNotAPromise
 test(function() {
-  Promise.prototype.chain.call(1);
-}, "1 is not a promise", TypeError);
+  let holeyDoubleArray = [, 123.123];
+  assertTrue(%HasDoubleElements(holeyDoubleArray));
+  assertTrue(%HasHoleyElements(holeyDoubleArray));
+  new Map(holeyDoubleArray);
+}, "Iterator value undefined is not an entry object", TypeError);
+
+test(function() {
+  let holeyDoubleArray = [, 123.123];
+  assertTrue(%HasDoubleElements(holeyDoubleArray));
+  assertTrue(%HasHoleyElements(holeyDoubleArray));
+  new WeakMap(holeyDoubleArray);
+}, "Iterator value undefined is not an entry object", TypeError);
 
 // kNotConstructor
 test(function() {
@@ -181,37 +311,37 @@ test(function() {
 
 // kNotDateObject
 test(function() {
-  Date.prototype.setHours.call(1);
+  Date.prototype.getHours.call(1);
 }, "this is not a Date object.", TypeError);
 
 // kNotGeneric
-test(function() {
-  String.prototype.toString.call(1);
-}, "String.prototype.toString is not generic", TypeError);
+test(() => String.prototype.toString.call(1),
+    "String.prototype.toString requires that 'this' be a String",
+    TypeError);
 
-test(function() {
-  String.prototype.valueOf.call(1);
-}, "String.prototype.valueOf is not generic", TypeError);
+test(() => String.prototype.valueOf.call(1),
+    "String.prototype.valueOf requires that 'this' be a String",
+    TypeError);
 
-test(function() {
-  Boolean.prototype.toString.call(1);
-}, "Boolean.prototype.toString is not generic", TypeError);
+test(() => Boolean.prototype.toString.call(1),
+    "Boolean.prototype.toString requires that 'this' be a Boolean",
+    TypeError);
 
-test(function() {
-  Boolean.prototype.valueOf.call(1);
-}, "Boolean.prototype.valueOf is not generic", TypeError);
+test(() => Boolean.prototype.valueOf.call(1),
+    "Boolean.prototype.valueOf requires that 'this' be a Boolean",
+    TypeError);
 
-test(function() {
-  Number.prototype.toString.call({});
-}, "Number.prototype.toString is not generic", TypeError);
+test(() => Number.prototype.toString.call({}),
+    "Number.prototype.toString requires that 'this' be a Number",
+    TypeError);
 
-test(function() {
-  Number.prototype.valueOf.call({});
-}, "Number.prototype.valueOf is not generic", TypeError);
+test(() => Number.prototype.valueOf.call({}),
+    "Number.prototype.valueOf requires that 'this' be a Number",
+    TypeError);
 
-test(function() {
-  Function.prototype.toString.call(1);
-}, "Function.prototype.toString is not generic", TypeError);
+test(() => Function.prototype.toString.call(1),
+    "Function.prototype.toString requires that 'this' be a Function",
+    TypeError);
 
 // kNotTypedArray
 test(function() {
@@ -234,7 +364,7 @@ test(function() {
   var o = {};
   Object.freeze(o);
   o.a = 1;
-}, "Can't add property a, object is not extensible", TypeError);
+}, "Cannot add property a, object is not extensible", TypeError);
 
 // kObjectSetterExpectingFunction
 test(function() {
@@ -253,9 +383,24 @@ test(function() {
 
 // kPropertyNotFunction
 test(function() {
+  Map.prototype.set = 0;
+  new Map([[1, 2]]);
+}, "'0' returned for property 'set' of object '#<Map>' is not a function", TypeError);
+
+test(function() {
   Set.prototype.add = 0;
-  new Set(1);
-}, "Property 'add' of object #<Set> is not a function", TypeError);
+  new Set([1]);
+}, "'0' returned for property 'add' of object '#<Set>' is not a function", TypeError);
+
+test(function() {
+  WeakMap.prototype.set = 0;
+  new WeakMap([[{}, 1]]);
+}, "'0' returned for property 'set' of object '#<WeakMap>' is not a function", TypeError);
+
+test(function() {
+  WeakSet.prototype.add = 0;
+  new WeakSet([{}]);
+}, "'0' returned for property 'add' of object '#<WeakSet>' is not a function", TypeError);
 
 // kProtoObjectOrNull
 test(function() {
@@ -300,13 +445,7 @@ test(function() {
 test(function() {
   "use strict";
   (1).a = 1;
-}, "Cannot assign to read only property 'a' of 1", TypeError);
-
-// kStrongImplicitCast
-test(function() {
-  "use strong";
-  "a" + 1;
-}, "In strong mode, implicit conversions are deprecated", TypeError);
+}, "Cannot create property 'a' on number '1'", TypeError);
 
 // kSymbolToString
 test(function() {
@@ -318,11 +457,6 @@ test(function() {
   1 + Symbol();
 }, "Cannot convert a Symbol value to a number", TypeError);
 
-// kSimdToNumber
-test(function() {
-  1 + SIMD.Float32x4(1, 2, 3, 4);
-}, "Cannot convert a SIMD value to a number", TypeError);
-
 // kUndefinedOrNullToObject
 test(function() {
   Array.prototype.toString.call(null);
@@ -331,34 +465,41 @@ test(function() {
 // kValueAndAccessor
 test(function() {
   Object.defineProperty({}, "x", { get: function(){}, value: 1});
-}, "Invalid property.  A property cannot both have accessors and be " +
-   "writable or have a value, #<Object>", TypeError);
-
-// kWithExpression
-test(function() {
-  with (null) {}
-}, "null has no properties", TypeError);
-
-// kWrongArgs
-test(function() {
-  (function() {}).apply({}, 1);
-}, "Function.prototype.apply: Arguments list has wrong type", TypeError);
-
-test(function() {
-  Reflect.apply(function() {}, {}, 1);
-}, "Reflect.apply: Arguments list has wrong type", TypeError);
-
-test(function() {
-  Reflect.construct(function() {}, 1);
-}, "Reflect.construct: Arguments list has wrong type", TypeError);
+}, "Invalid property descriptor. Cannot both specify accessors " +
+   "and a value or writable attribute, #<Object>", TypeError);
 
 
 // === SyntaxError ===
 
 // kInvalidRegExpFlags
 test(function() {
-  /a/x.test("a");
-}, "Invalid flags supplied to RegExp constructor 'x'", SyntaxError);
+  eval("/a/x.test(\"a\");");
+}, "Invalid regular expression flags", SyntaxError);
+
+// kInvalidOrUnexpectedToken
+test(function() {
+  eval("'\n'");
+}, "Invalid or unexpected token", SyntaxError);
+
+//kJsonParseUnexpectedEOS
+test(function() {
+  JSON.parse("{")
+}, "Unexpected end of JSON input", SyntaxError);
+
+// kJsonParseUnexpectedTokenAt
+test(function() {
+  JSON.parse("/")
+}, "Unexpected token / in JSON at position 0", SyntaxError);
+
+// kJsonParseUnexpectedTokenNumberAt
+test(function() {
+  JSON.parse("{ 1")
+}, "Unexpected number in JSON at position 2", SyntaxError);
+
+// kJsonParseUnexpectedTokenStringAt
+test(function() {
+  JSON.parse('"""')
+}, "Unexpected string in JSON at position 2", SyntaxError);
 
 // kMalformedRegExp
 test(function() {
@@ -368,28 +509,7 @@ test(function() {
 // kParenthesisInArgString
 test(function() {
   new Function(")", "");
-}, "Function arg string contains parenthesis", SyntaxError);
-
-// kUnexpectedEOS
-test(function() {
-  JSON.parse("{")
-}, "Unexpected end of input", SyntaxError);
-
-// kUnexpectedToken
-test(function() {
-  JSON.parse("/")
-}, "Unexpected token /", SyntaxError);
-
-// kUnexpectedTokenNumber
-test(function() {
-  JSON.parse("{ 1")
-}, "Unexpected number", SyntaxError);
-
-// kUnexpectedTokenString
-test(function() {
-  JSON.parse('"""')
-}, "Unexpected string", SyntaxError);
-
+}, "Arg string terminates parameters early", SyntaxError);
 
 // === ReferenceError ===
 
@@ -400,6 +520,11 @@ test(function() {
 }, "o is not defined", ReferenceError);
 
 // === RangeError ===
+
+// kInvalidOffset
+test(function() {
+  new Uint8Array(new ArrayBuffer(1),2);
+}, "Start offset 2 is outside the bounds of the buffer", RangeError);
 
 // kArrayLengthOutOfRange
 test(function() {
@@ -430,7 +555,20 @@ test(function() {
 // kInvalidArrayBufferLength
 test(function() {
   new Uint16Array(-1);
-}, "Invalid typed array length", RangeError);
+}, "Invalid typed array length: -1", RangeError);
+
+// kThrowInvalidStringLength
+test(function() {
+  "a".padEnd(1 << 30);
+}, "Invalid string length", RangeError);
+
+test(function() {
+  "a".padStart(1 << 30);
+}, "Invalid string length", RangeError);
+
+test(function() {
+  "a".repeat(1 << 30);
+}, "Invalid string length", RangeError);
 
 // kNormalizationForm
 test(function() {
@@ -439,12 +577,12 @@ test(function() {
 
 // kNumberFormatRange
 test(function() {
-  Number(1).toFixed(100);
-}, "toFixed() digits argument must be between 0 and 20", RangeError);
+  Number(1).toFixed(101);
+}, "toFixed() digits argument must be between 0 and 100", RangeError);
 
 test(function() {
-  Number(1).toExponential(100);
-}, "toExponential() argument must be between 0 and 20", RangeError);
+  Number(1).toExponential(101);
+}, "toExponential() argument must be between 0 and 100", RangeError);
 
 // kStackOverflow
 test(function() {
@@ -454,8 +592,8 @@ test(function() {
 
 // kToPrecisionFormatRange
 test(function() {
-  Number(1).toPrecision(100);
-}, "toPrecision() argument must be between 1 and 21", RangeError);
+  Number(1).toPrecision(101);
+}, "toPrecision() argument must be between 1 and 100", RangeError);
 
 // kToPrecisionFormatRange
 test(function() {

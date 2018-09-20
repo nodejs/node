@@ -1,36 +1,35 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
+const common = require('../common');
 
 // simulate `cat readfile.js | node readfile.js`
 
-if (common.isWindows || common.isAix) {
-  console.log(`1..0 # Skipped: No /dev/stdin on ${process.platform}.`);
-  return;
-}
+if (common.isWindows || common.isAIX)
+  common.skip(`No /dev/stdin on ${process.platform}.`);
 
-var fs = require('fs');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
 if (process.argv[2] === 'child') {
   process.stdout.write(fs.readFileSync('/dev/stdin', 'utf8'));
   return;
 }
 
-var filename = path.join(common.tmpDir, '/readfilesync_pipe_large_test.txt');
-var dataExpected = new Array(1000000).join('a');
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+
+const filename = path.join(tmpdir.path, '/readfilesync_pipe_large_test.txt');
+const dataExpected = 'a'.repeat(999999);
+tmpdir.refresh();
 fs.writeFileSync(filename, dataExpected);
 
-var exec = require('child_process').exec;
-var f = JSON.stringify(__filename);
-var node = JSON.stringify(process.execPath);
-var cmd = 'cat ' + filename + ' | ' + node + ' ' + f + ' child';
+const exec = require('child_process').exec;
+const f = JSON.stringify(__filename);
+const node = JSON.stringify(process.execPath);
+const cmd = `cat ${filename} | ${node} ${f} child`;
 exec(cmd, { maxBuffer: 1000000 }, function(err, stdout, stderr) {
-  if (err) console.error(err);
-  assert(!err, 'it exits normally');
-  assert(stdout === dataExpected, 'it reads the file and outputs it');
-  assert(stderr === '', 'it does not write to stderr');
+  assert.ifError(err);
+  assert.strictEqual(stdout, dataExpected);
+  assert.strictEqual(stderr, '');
   console.log('ok');
 });
 

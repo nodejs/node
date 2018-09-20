@@ -85,7 +85,7 @@ function apiUri (registryUri) {
 function teamAssertions (subcommand, uri, params, cb) {
   assert(subcommand, 'subcommand is required')
   assert(subcommands.hasOwnProperty(subcommand),
-         'team subcommand must be one of ' + Object.keys(subcommands))
+    'team subcommand must be one of ' + Object.keys(subcommands))
   assert(typeof uri === 'string', 'registry URI is required')
   assert(typeof params === 'object', 'params are required')
   assert(typeof params.auth === 'object', 'auth is required')
@@ -100,6 +100,6 @@ function teamAssertions (subcommand, uri, params, cb) {
   if (subcommand === 'edit') {
     assert(typeof params.users === 'object' &&
            params.users.length != null,
-           'users is required')
+    'users is required')
   }
 }

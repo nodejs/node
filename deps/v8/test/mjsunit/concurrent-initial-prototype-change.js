@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
-// Flags: --nostress-opt
+// Flags: --nostress-opt --no-always-opt
 
 // --nostress-opt is in place because this particular optimization
 // (guaranteeing that the Array prototype chain has no elements) is
@@ -64,4 +64,4 @@ assertUnoptimized(f1, "no sync");
 // due to map dependency.
 assertUnoptimized(f1, "sync");
 //Clear type info for stress runs.
-%ClearFunctionTypeFeedback(f1);
+%ClearFunctionFeedback(f1);

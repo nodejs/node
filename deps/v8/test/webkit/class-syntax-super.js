@@ -21,8 +21,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-sloppy
-
 description('Tests for ES6 class syntax "super"');
 
 var baseMethodValue = {};
@@ -77,15 +75,15 @@ shouldThrow('new (class extends Base { constructor() { return undefined } })');
 shouldBeTrue('new (class extends Base { constructor() { super(); return undefined } }) instanceof Object');
 shouldBe('x = { }; new (class extends Base { constructor() { return x } });', 'x');
 shouldBeFalse('x instanceof Base');
-shouldThrow('new (class extends Base { constructor() { } })', '"ReferenceError: this is not defined"');
+shouldThrow('new (class extends Base { constructor() { } })', '"ReferenceError: Must call super constructor in derived class before accessing \'this\' or returning from derived constructor"');
 shouldThrow('new (class extends Base { constructor() { return 1; } })', '"TypeError: Derived constructors may only return object or undefined"');
 shouldThrow('new (class extends null { constructor() { return undefined } })');
-shouldThrow('new (class extends null { constructor() { super(); return undefined } })', '"TypeError: function () {} is not a constructor"');
+shouldThrow('new (class extends null { constructor() { super(); return undefined } })', '"TypeError: Super constructor null of anonymous class is not a constructor"');
 shouldBe('x = { }; new (class extends null { constructor() { return x } });', 'x');
 shouldBeTrue('x instanceof Object');
-shouldThrow('new (class extends null { constructor() { } })', '"ReferenceError: this is not defined"');
+shouldThrow('new (class extends null { constructor() { } })', '"ReferenceError: Must call super constructor in derived class before accessing \'this\' or returning from derived constructor"');
 shouldThrow('new (class extends null { constructor() { return 1; } })', '"TypeError: Derived constructors may only return object or undefined"');
-shouldThrow('new (class extends null { constructor() { super() } })', '"TypeError: function () {} is not a constructor"');
+shouldThrow('new (class extends null { constructor() { super() } })', '"TypeError: Super constructor null of anonymous class is not a constructor"');
 shouldThrow('new (class { constructor() { super() } })', '"SyntaxError: \'super\' keyword unexpected here"');
 shouldThrow('function x() { super(); }', '"SyntaxError: \'super\' keyword unexpected here"');
 shouldThrow('new (class extends Object { constructor() { function x() { super() } } })', '"SyntaxError: \'super\' keyword unexpected here"');

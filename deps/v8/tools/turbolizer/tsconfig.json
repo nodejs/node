@@ -1,0 +1,32 @@
+{
+    "compilerOptions": {
+        "outDir": "build/",
+        "allowJs": false,
+        "target": "es2017",
+        "module": "es2015",
+        "sourceMap": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "moduleResolution": "node"
+    },
+    "files": [
+        "src/util.ts",
+        "src/lang-disassembly.ts",
+        "src/node.ts",
+        "src/edge.ts",
+        "src/source-resolver.ts",
+        "src/selection.ts",
+        "src/selection-broker.ts",
+        "src/selection-handler.ts",
+        "src/constants.ts",
+        "src/view.ts",
+        "src/text-view.ts",
+        "src/code-view.ts",
+        "src/graph-layout.ts",
+        "src/graph-view.ts",
+        "src/schedule-view.ts",
+        "src/disassembly-view.ts",
+        "src/graphmultiview.ts",
+        "src/turbo-visualizer.ts"
+    ]
+}

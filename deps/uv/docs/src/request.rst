@@ -46,13 +46,20 @@ Public members
             UV_WORK,
             UV_GETADDRINFO,
             UV_GETNAMEINFO,
-            UV_REQ_TYPE_PRIVATE,
             UV_REQ_TYPE_MAX,
         } uv_req_type;
 
 
 API
 ---
+
+.. c:function:: UV_REQ_TYPE_MAP(iter_macro)
+
+    Macro that expands to a series of invocations of `iter_macro` for
+    each of the request types. `iter_macro` is invoked with two
+    arguments: the name of the `uv_req_type` element without the `UV_`
+    prefix, and the name of the corresponding structure type without the
+    `uv_` prefix and `_t` suffix.
 
 .. c:function:: int uv_cancel(uv_req_t* req)
 
@@ -80,3 +87,30 @@ API
 
     Returns the size of the given request type. Useful for FFI binding writers
     who don't want to know the structure layout.
+
+.. c:function:: void* uv_req_get_data(const uv_req_t* req)
+
+    Returns `req->data`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: void* uv_req_set_data(uv_req_t* req, void* data)
+
+    Sets `req->data` to `data`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: uv_req_type uv_req_get_type(const uv_req_t* req)
+
+    Returns `req->type`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: const char* uv_req_type_name(uv_req_type type)
+
+    Returns the name for the equivalent struct for a given request type,
+    e.g. `"connect"` (as in :c:type:`uv_connect_t`) for `UV_CONNECT`.
+
+    If no such request type exists, this returns `NULL`.
+
+    .. versionadded:: 1.19.0

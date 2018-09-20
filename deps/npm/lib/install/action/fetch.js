@@ -1,29 +1,16 @@
 'use strict'
-// var cache = require('../../cache.js')
-// var packageId = require('../../utils/package-id.js')
-// var moduleName = require('../../utils/module-name.js')
 
-module.exports = function (top, buildpath, pkg, log, next) {
-  next()
-/*
-// FIXME: Unnecessary as long as we have to have the tarball to resolve all deps, which
-// is progressively seeming to be likely for the indefinite future.
-// ALSO fails for local deps specified with relative URLs outside of the top level.
+const BB = require('bluebird')
 
-  var name = moduleName(pkg)
-  var version
-  switch (pkg.package._requested.type) {
-    case 'version':
-    case 'range':
-      version = pkg.package.version
-      break
-    case 'hosted':
-      name = name + '@' + pkg.package._requested.spec
-      break
-    default:
-      name = pkg.package._requested.raw
-  }
+const finished = BB.promisify(require('mississippi').finished)
+const packageId = require('../../utils/package-id.js')
+const pacote = require('pacote')
+const pacoteOpts = require('../../config/pacote')
+
+module.exports = fetch
+function fetch (staging, pkg, log, next) {
   log.silly('fetch', packageId(pkg))
-  cache.add(name, version, top, false, next)
-*/
+  const opts = pacoteOpts({integrity: pkg.package._integrity})
+  return finished(pacote.tarball.stream(pkg.package._requested, opts))
+    .then(() => next(), next)
 }

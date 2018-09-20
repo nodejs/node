@@ -203,6 +203,7 @@ my $skipnum = 0;
 my $start_of_cert = 0;
 
 open(TXT,"$txt") or die "Couldn't open $txt: $!\n";
+print CRT "#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS\n";
 while (<TXT>) {
   if (/\*\*\*\*\* BEGIN LICENSE BLOCK \*\*\*\*\*/) {
     print CRT;
@@ -310,6 +311,7 @@ while (<TXT>) {
     }
   }
 }
+print CRT "#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS\n";
 close(TXT) or die "Couldn't close $txt: $!\n";
 close(CRT) or die "Couldn't close $crt.~: $!\n";
 unless( $stdout ) {

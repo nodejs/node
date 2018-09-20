@@ -2,28 +2,24 @@
 
 =head1 NAME
 
-BIO_should_retry, BIO_should_read, BIO_should_write,
+BIO_should_read, BIO_should_write,
 BIO_should_io_special, BIO_retry_type, BIO_should_retry,
-BIO_get_retry_BIO, BIO_get_retry_reason - BIO retry functions
+BIO_get_retry_BIO, BIO_get_retry_reason, BIO_set_retry_reason - BIO retry
+functions
 
 =head1 SYNOPSIS
 
  #include <openssl/bio.h>
 
- #define BIO_should_read(a)		((a)->flags & BIO_FLAGS_READ)
- #define BIO_should_write(a)		((a)->flags & BIO_FLAGS_WRITE)
- #define BIO_should_io_special(a)	((a)->flags & BIO_FLAGS_IO_SPECIAL)
- #define BIO_retry_type(a)		((a)->flags & BIO_FLAGS_RWS)
- #define BIO_should_retry(a)		((a)->flags & BIO_FLAGS_SHOULD_RETRY)
+ int BIO_should_read(BIO *b);
+ int BIO_should_write(BIO *b);
+ int BIO_should_io_special(iBIO *b);
+ int BIO_retry_type(BIO *b);
+ int BIO_should_retry(BIO *b);
 
- #define BIO_FLAGS_READ		0x01
- #define BIO_FLAGS_WRITE	0x02
- #define BIO_FLAGS_IO_SPECIAL	0x04
- #define BIO_FLAGS_RWS (BIO_FLAGS_READ|BIO_FLAGS_WRITE|BIO_FLAGS_IO_SPECIAL)
- #define BIO_FLAGS_SHOULD_RETRY	0x08
-
- BIO *	BIO_get_retry_BIO(BIO *bio, int *reason);
- int	BIO_get_retry_reason(BIO *bio);
+ BIO *BIO_get_retry_BIO(BIO *bio, int *reason);
+ int BIO_get_retry_reason(BIO *bio);
+ void BIO_set_retry_reason(BIO *bio, int reason);
 
 =head1 DESCRIPTION
 
@@ -51,7 +47,7 @@ B<BIO_FLAGS_IO_SPECIAL> though current BIO types will only set one of
 these.
 
 BIO_get_retry_BIO() determines the precise reason for the special
-condition, it returns the BIO that caused this condition and if 
+condition, it returns the BIO that caused this condition and if
 B<reason> is not NULL it contains the reason code. The meaning of
 the reason code and the action that should be taken depends on
 the type of BIO that resulted in this condition.
@@ -59,7 +55,13 @@ the type of BIO that resulted in this condition.
 BIO_get_retry_reason() returns the reason for a special condition if
 passed the relevant BIO, for example as returned by BIO_get_retry_BIO().
 
+BIO_set_retry_reason() sets the retry reason for a special condition for a given
+BIO. This would usually only be called by BIO implementations.
+
 =head1 NOTES
+
+BIO_should_read(), BIO_should_write(), BIO_should_io_special(),
+BIO_retry_type(), and BIO_should_retry(), are implemented as macros.
 
 If BIO_should_retry() returns false then the precise "error condition"
 depends on the BIO type that caused it and the return code of the BIO
@@ -94,7 +96,7 @@ available and then retry the BIO operation. By combining the retry
 conditions of several non blocking BIOs in a single select() call
 it is possible to service several BIOs in a single thread, though
 the performance may be poor if SSL BIOs are present because long delays
-can occur during the initial handshake process. 
+can occur during the initial handshake process.
 
 It is possible for a BIO to block indefinitely if the underlying I/O
 structure cannot process or return any data. This depends on the behaviour of
@@ -111,4 +113,20 @@ the entire structure can be read or written.
 
 =head1 SEE ALSO
 
-TBA
+L<bio>
+
+=head1 HISTORY
+
+The BIO_get_retry_reason() and BIO_set_retry_reason() functions were added in
+OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

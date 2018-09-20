@@ -1,22 +1,32 @@
+'use strict'
 module.exports = update
 
-update.usage = 'npm update [-g] [<pkg>...]'
+const url = require('url')
+const log = require('npmlog')
+const Bluebird = require('bluebird')
+const npm = require('./npm.js')
+const Installer = require('./install.js').Installer
+const usage = require('./utils/usage')
+const outdated = Bluebird.promisify(npm.commands.outdated)
 
-var url = require('url')
-var log = require('npmlog')
-var chain = require('slide').chain
-var npm = require('./npm.js')
-var Installer = require('./install.js').Installer
+update.usage = usage(
+  'update',
+  'npm update [-g] [<pkg>...]'
+)
 
 update.completion = npm.commands.outdated.completion
 
 function update (args, cb) {
-  var dryrun = false
+  return update_(args).asCallback(cb)
+}
+
+function update_ (args) {
+  let dryrun = false
   if (npm.config.get('dry-run')) dryrun = true
 
-  npm.commands.outdated(args, true, function (er, rawOutdated) {
-    if (er) return cb(er)
-    var outdated = rawOutdated.map(function (ww) {
+  log.verbose('update', 'computing outdated modules to update')
+  return outdated(args, true).then((rawOutdated) => {
+    const outdated = rawOutdated.map(function (ww) {
       return {
         dep: ww[0],
         depname: ww[1],
@@ -28,7 +38,7 @@ function update (args, cb) {
       }
     })
 
-    var wanted = outdated.filter(function (ww) {
+    const wanted = outdated.filter(function (ww) {
       if (ww.current === ww.wanted && ww.wanted !== ww.latest) {
         log.verbose(
           'outdated',
@@ -36,25 +46,27 @@ function update (args, cb) {
           "because it's currently at the maximum version that matches its specified semver range"
         )
       }
-      return ww.current !== ww.wanted
+      return ww.current !== ww.wanted && ww.latest !== 'linked'
     })
-    if (wanted.length === 0) return cb()
+    if (wanted.length === 0) return
 
     log.info('outdated', 'updating', wanted)
-    var toInstall = {}
+    const toInstall = {}
+
     wanted.forEach(function (ww) {
       // use the initial installation method (repo, tar, git) for updating
       if (url.parse(ww.req).protocol) ww.what = ww.req
 
-      var where = ww.dep.parent && ww.dep.parent.path || ww.dep.path
-      if (toInstall[where]) {
-        toInstall[where].push(ww.what)
-      } else {
-        toInstall[where] = [ww.what]
-      }
+      const where = (ww.dep.parent && ww.dep.parent.path) || ww.dep.path
+      const isTransitive = !(ww.dep.requiredBy || []).some((p) => p.isTop)
+      const key = where + ':' + String(isTransitive)
+      if (!toInstall[key]) toInstall[key] = {where: where, opts: {saveOnlyLock: isTransitive}, what: []}
+      if (toInstall[key].what.indexOf(ww.what) === -1) toInstall[key].what.push(ww.what)
     })
-    chain(Object.keys(toInstall).map(function (where) {
-      return [new Installer(where, dryrun, toInstall[where]), 'run']
-    }), cb)
+    return Bluebird.each(Object.keys(toInstall), (key) => {
+      const deps = toInstall[key]
+      const inst = new Installer(deps.where, dryrun, deps.what, deps.opts)
+      return inst.run()
+    })
   })
 }

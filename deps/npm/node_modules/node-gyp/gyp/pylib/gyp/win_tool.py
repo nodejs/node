@@ -123,7 +123,9 @@ class WinTool(object):
                             stderr=subprocess.STDOUT)
     out, _ = link.communicate()
     for line in out.splitlines():
-      if not line.startswith('   Creating library '):
+      if (not line.startswith('   Creating library ') and
+          not line.startswith('Generating code') and
+          not line.startswith('Finished generating code')):
         print line
     return link.returncode
 

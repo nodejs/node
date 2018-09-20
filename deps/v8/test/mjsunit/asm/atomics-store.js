@@ -2,18 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-atomics --harmony-sharedarraybuffer
+// Flags: --harmony-sharedarraybuffer
 
-function Module(stdlib, foreign, heap) {
+function Module(stdlib, foreign, heap, offset) {
   "use asm";
-  var MEM8 = new stdlib.Int8Array(heap);
-  var MEM16 = new stdlib.Int16Array(heap);
-  var MEM32 = new stdlib.Int32Array(heap);
-  var MEMU8 = new stdlib.Uint8Array(heap);
-  var MEMU16 = new stdlib.Uint16Array(heap);
-  var MEMU32 = new stdlib.Uint32Array(heap);
-  var MEMF32 = new stdlib.Float32Array(heap);
-  var MEMF64 = new stdlib.Float64Array(heap);
+  var MEM8 = new stdlib.Int8Array(heap, offset);
+  var MEM16 = new stdlib.Int16Array(heap, offset);
+  var MEM32 = new stdlib.Int32Array(heap, offset);
+  var MEMU8 = new stdlib.Uint8Array(heap, offset);
+  var MEMU16 = new stdlib.Uint16Array(heap, offset);
+  var MEMU32 = new stdlib.Uint32Array(heap, offset);
   var store = stdlib.Atomics.store;
   var fround = stdlib.Math.fround;
 
@@ -53,18 +51,6 @@ function Module(stdlib, foreign, heap) {
     return store(MEMU32, i, x)>>>0;
   }
 
-  function storef32(i, x) {
-    i = i | 0;
-    x = fround(x);
-    return fround(store(MEMF32, i, x));
-  }
-
-  function storef64(i, x) {
-    i = i | 0;
-    x = +x;
-    return +store(MEMF64, i, x);
-  }
-
   return {
     storei8: storei8,
     storei16: storei16,
@@ -72,13 +58,8 @@ function Module(stdlib, foreign, heap) {
     storeu8: storeu8,
     storeu16: storeu16,
     storeu32: storeu32,
-    storef32: storef32,
-    storef64: storef64
   };
 }
-
-var sab = new SharedArrayBuffer(16);
-var m = Module(this, {}, sab);
 
 function clearArray() {
   var ui8 = new Uint8Array(sab);
@@ -87,23 +68,33 @@ function clearArray() {
   }
 }
 
-function testElementType(taConstr, f, oobValue) {
+function testElementType(taConstr, f, offset) {
   clearArray();
 
-  var ta = new taConstr(sab);
+  var ta = new taConstr(sab, offset);
   var name = Object.prototype.toString.call(ta);
   assertEquals(10, f(0, 10), name);
   assertEquals(10, ta[0]);
   // out of bounds
-  assertEquals(oobValue, f(-1, 0), name);
-  assertEquals(oobValue, f(ta.length, 0), name);
+  assertThrows(function() { f(-1, 0); });
+  assertThrows(function() { f(ta.length, 0); });
 }
 
-testElementType(Int8Array, m.storei8, 0);
-testElementType(Int16Array, m.storei16, 0);
-testElementType(Int32Array, m.storei32, 0);
-testElementType(Uint8Array, m.storeu8, 0);
-testElementType(Uint16Array, m.storeu16, 0);
-testElementType(Uint32Array, m.storeu32, 0);
-testElementType(Float32Array, m.storef32, NaN);
-testElementType(Float64Array, m.storef64, NaN);
+function testElement(m, offset) {
+  testElementType(Int8Array, m.storei8, offset);
+  testElementType(Int16Array, m.storei16, offset);
+  testElementType(Int32Array, m.storei32, offset);
+  testElementType(Uint8Array, m.storeu8, offset);
+  testElementType(Uint16Array, m.storeu16, offset);
+  testElementType(Uint32Array, m.storeu32, offset);
+}
+
+var offset = 0;
+var sab = new SharedArrayBuffer(16);
+var m1 = Module(this, {}, sab, offset);
+testElement(m1, offset);
+
+offset = 32;
+sab = new SharedArrayBuffer(64);
+var m2 = Module(this, {}, sab, offset);
+testElement(m2, offset);

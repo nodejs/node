@@ -90,5 +90,5 @@ function __f_6() {
   equals(__v_6[0]);
 }
 __f_6();
-__f_6(); % OptimizeFunctionOnNextCall(__f_6);
+__f_6(); %OptimizeFunctionOnNextCall(__f_6);
 __f_6();

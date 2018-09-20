@@ -2,11 +2,13 @@
 
 =head1 NAME
 
+openssl-passwd,
 passwd - compute password hashes
 
 =head1 SYNOPSIS
 
 B<openssl passwd>
+[B<-help>]
 [B<-crypt>]
 [B<-1>]
 [B<-apr1>]
@@ -30,6 +32,10 @@ algorithm B<1> and its Apache variant B<apr1> are available.
 =head1 OPTIONS
 
 =over 4
+
+=item B<-help>
+
+Print out a usage message.
 
 =item B<-crypt>
 
@@ -78,5 +84,14 @@ B<openssl passwd -crypt -salt xx password> prints B<xxj31ZMTZzkVA>.
 B<openssl passwd -1 -salt xxxxxxxx password> prints B<$1$xxxxxxxx$UYCIxa628.9qXjpQCjM4a.>.
 
 B<openssl passwd -apr1 -salt xxxxxxxx password> prints B<$apr1$xxxxxxxx$dxHfLAsjHkDRmG83UXe8K0>.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

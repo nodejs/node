@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_memory_reducer_H
-#define V8_HEAP_memory_reducer_H
+#ifndef V8_HEAP_MEMORY_REDUCER_H_
+#define V8_HEAP_MEMORY_REDUCER_H_
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
 #include "src/cancelable-task.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -79,43 +80,40 @@ class Heap;
 // now_ms is the current time,
 // t' is t if the current event is not a GC event and is now_ms otherwise,
 // long_delay_ms, short_delay_ms, and watchdog_delay_ms are constants.
-class MemoryReducer {
+class V8_EXPORT_PRIVATE MemoryReducer {
  public:
   enum Action { kDone, kWait, kRun };
 
   struct State {
     State(Action action, int started_gcs, double next_gc_start_ms,
-          double last_gc_time_ms)
+          double last_gc_time_ms, size_t committed_memory_at_last_run)
         : action(action),
           started_gcs(started_gcs),
           next_gc_start_ms(next_gc_start_ms),
-          last_gc_time_ms(last_gc_time_ms) {}
+          last_gc_time_ms(last_gc_time_ms),
+          committed_memory_at_last_run(committed_memory_at_last_run) {}
     Action action;
     int started_gcs;
     double next_gc_start_ms;
     double last_gc_time_ms;
+    size_t committed_memory_at_last_run;
   };
 
-  enum EventType {
-    kTimer,
-    kMarkCompact,
-    kContextDisposed,
-    kBackgroundIdleNotification
-  };
+  enum EventType { kTimer, kMarkCompact, kPossibleGarbage };
 
   struct Event {
     EventType type;
     double time_ms;
-    bool low_allocation_rate;
+    size_t committed_memory;
     bool next_gc_likely_to_collect_more;
+    bool should_start_incremental_gc;
     bool can_start_incremental_gc;
   };
 
-  explicit MemoryReducer(Heap* heap)
-      : heap_(heap), state_(kDone, 0, 0.0, 0.0) {}
+  explicit MemoryReducer(Heap* heap);
   // Callbacks.
   void NotifyMarkCompact(const Event& event);
-  void NotifyContextDisposed(const Event& event);
+  void NotifyPossibleGarbage(const Event& event);
   void NotifyBackgroundIdleNotification(const Event& event);
   // The step function that computes the next state from the current state and
   // the incoming event.
@@ -127,6 +125,12 @@ class MemoryReducer {
   static const int kShortDelayMs;
   static const int kWatchdogDelayMs;
   static const int kMaxNumberOfGCs;
+  // The committed memory has to increase by at least this factor since the
+  // last run in order to trigger a new run after mark-compact.
+  static const double kCommittedMemoryFactor;
+  // The committed memory has to increase by at least this amount since the
+  // last run in order to trigger a new run after mark-compact.
+  static const size_t kCommittedMemoryDelta;
 
   Heap* heap() { return heap_; }
 
@@ -151,11 +155,17 @@ class MemoryReducer {
   static bool WatchdogGC(const State& state, const Event& event);
 
   Heap* heap_;
+  std::shared_ptr<v8::TaskRunner> taskrunner_;
   State state_;
+  unsigned int js_calls_counter_;
+  double js_calls_sample_time_ms_;
+
+  // Used in cctest.
+  friend class HeapTester;
   DISALLOW_COPY_AND_ASSIGN(MemoryReducer);
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_memory_reducer_H
+#endif  // V8_HEAP_MEMORY_REDUCER_H_

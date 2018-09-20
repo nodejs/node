@@ -1,3 +1,12 @@
+/*
+ * Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 #ifndef __ARM_ARCH_H__
 # define __ARM_ARCH_H__
 
@@ -48,10 +57,6 @@
 #  endif
 # endif
 
-# ifdef OPENSSL_FIPSCANISTER
-#  include <openssl/fipssyms.h>
-# endif
-
 # if !defined(__ARM_MAX_ARCH__)
 #  define __ARM_MAX_ARCH__ __ARM_ARCH__
 # endif
@@ -64,7 +69,7 @@
 #  endif
 # endif
 
-# if !__ASSEMBLER__
+# ifndef __ASSEMBLER__
 extern unsigned int OPENSSL_armcap_P;
 # endif
 

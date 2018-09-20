@@ -7,10 +7,18 @@
 
 #include <iterator>
 
-#include "src/base/macros.h"
-
 namespace v8 {
 namespace base {
+
+template <class Category, class Type, class Diff = std::ptrdiff_t,
+          class Pointer = Type*, class Reference = Type&>
+struct iterator {
+  typedef Category iterator_category;
+  typedef Type value_type;
+  typedef Diff difference_type;
+  typedef Pointer pointer;
+  typedef Reference reference;
+};
 
 // The intention of the base::iterator_range class is to encapsulate two
 // iterators so that the range defined by the iterators can be used like
@@ -28,9 +36,10 @@ class iterator_range {
       typename std::iterator_traits<iterator>::difference_type difference_type;
 
   iterator_range() : begin_(), end_() {}
-  template <typename ForwardIterator2>
-  iterator_range(ForwardIterator2 const& begin, ForwardIterator2 const& end)
-      : begin_(begin), end_(end) {}
+  template <typename ForwardIterator1, typename ForwardIterator2>
+  iterator_range(ForwardIterator1&& begin, ForwardIterator2&& end)
+      : begin_(std::forward<ForwardIterator1>(begin)),
+        end_(std::forward<ForwardIterator2>(end)) {}
 
   iterator begin() { return begin_; }
   iterator end() { return end_; }

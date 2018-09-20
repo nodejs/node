@@ -1,3 +1,5 @@
+'use strict'
+
 var fs = require('fs')
 var resolve = require('path').resolve
 var url = require('url')
@@ -8,6 +10,7 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 
 var npm = require('../../lib/npm.js')
+var fetchPackageMetadata = require('../../lib/fetch-package-metadata.js')
 var common = require('../common-tap.js')
 
 var pkg = resolve(__dirname, 'add-remote-git-file')
@@ -32,13 +35,35 @@ test('setup', function (t) {
 
 test('cache from repo', function (t) {
   process.chdir(pkg)
-  var addRemoteGit = require('../../lib/cache/add-remote-git.js')
-  addRemoteGit(cloneURL, function (er, data) {
-    t.ifError(er, 'cached via git')
+  fetchPackageMetadata(cloneURL, process.cwd(), {}, (err, manifest) => {
+    if (err) t.fail(err.message)
     t.equal(
-      url.parse(data._resolved).protocol,
+      url.parse(manifest._resolved).protocol,
       'git+file:',
       'npm didn\'t go crazy adding git+git+git+git'
+    )
+    t.equal(manifest._requested.type, 'git', 'cached git')
+    t.end()
+  })
+})
+
+test('save install', function (t) {
+  process.chdir(pkg)
+  fs.writeFileSync('package.json', JSON.stringify({
+    name: 'parent',
+    version: '5.4.3'
+  }, null, 2) + '\n')
+  var prev = npm.config.get('save')
+  npm.config.set('save', true)
+  npm.commands.install('.', [cloneURL], function (er) {
+    npm.config.set('save', prev)
+    t.ifError(er, 'npm installed via git')
+    var pj = JSON.parse(fs.readFileSync('package.json', 'utf-8'))
+    var dep = pj.dependencies.child
+    t.equal(
+      url.parse(dep).protocol,
+      'git+file:',
+      'npm didn\'t strip the git+ from git+file://'
     )
 
     t.end()

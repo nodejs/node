@@ -1,20 +1,21 @@
 'use strict'
+var fs = require('fs')
 var test = require('tap').test
 var requireInject = require('require-inject')
 var semver = require('semver')
 
 var globalProcess = global.process
 
-function loadIsFsAccessAvailable (newProcess, fs) {
-  global.process = newProcess
-  var mocks = {fs: fs}
+function loadIsFsAccessAvailable (newProcess, newFs) {
+  global.process = Object.assign({}, global.process, newProcess)
+  var mocks = {fs: Object.assign({}, fs, newFs)}
   var isFsAccessAvailable = requireInject('../../lib/install/is-fs-access-available.js', mocks)
   global.process = globalProcess
   return isFsAccessAvailable
 }
 
 var fsWithAccess = {access: function () {}}
-var fsWithoutAccess = {}
+var fsWithoutAccess = {access: undefined}
 
 if (semver.lt(process.version, '0.12.0')) {
   test('skipping', function (t) {

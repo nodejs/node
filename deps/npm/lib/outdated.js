@@ -23,44 +23,43 @@ outdated.completion = require('./utils/completion/installed-deep.js')
 var os = require('os')
 var url = require('url')
 var path = require('path')
-var log = require('npmlog')
 var readPackageTree = require('read-package-tree')
-var readJson = require('read-package-json')
 var asyncMap = require('slide').asyncMap
 var color = require('ansicolors')
 var styles = require('ansistyles')
 var table = require('text-table')
 var semver = require('semver')
 var npa = require('npm-package-arg')
+var pickManifest = require('npm-pick-manifest')
+var fetchPackageMetadata = require('./fetch-package-metadata.js')
 var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
-var cache = require('./cache.js')
 var npm = require('./npm.js')
 var long = npm.config.get('long')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var isExtraneous = require('./install/is-extraneous.js')
-var recalculateMetadata = require('./install/deps.js').recalculateMetadata
+var computeMetadata = require('./install/deps.js').computeMetadata
+var computeVersionSpec = require('./install/deps.js').computeVersionSpec
 var moduleName = require('./utils/module-name.js')
-
-function uniqName (item) {
-  return item[0].path + '|' + item[1] + '|' + item[7]
-}
+var output = require('./utils/output.js')
+var ansiTrim = require('./utils/ansi-trim')
 
 function uniq (list) {
+  // we maintain the array because we need an array, not iterator, return
+  // value.
   var uniqed = []
-  var seen = {}
+  var seen = new Set()
   list.forEach(function (item) {
-    var name = uniqName(item)
-    if (seen[name]) return
-    seen[name] = true
+    if (seen.has(item)) return
+    seen.add(item)
     uniqed.push(item)
   })
   return uniqed
 }
 
-function andRecalculateMetadata (next) {
+function andComputeMetadata (next) {
   return function (er, tree) {
     if (er) return next(er)
-    recalculateMetadata(tree, log, next)
+    next(null, computeMetadata(tree))
   }
 }
 
@@ -74,7 +73,8 @@ function outdated (args, silent, cb) {
   // default depth for `outdated` is 0 (cf. `ls`)
   if (npm.config.get('depth') === Infinity) npm.config.set('depth', 0)
 
-  readPackageTree(dir, andRecalculateMetadata(function (er, tree) {
+  readPackageTree(dir, andComputeMetadata(function (er, tree) {
+    if (!tree) return cb(er)
     mutateIntoLogicalTree(tree)
     outdated_(args, '', tree, {}, 0, function (er, list) {
       list = uniq(list || []).sort(function (aa, bb) {
@@ -82,19 +82,18 @@ function outdated (args, silent, cb) {
           aa[1].localeCompare(bb[1])
       })
       if (er || silent || list.length === 0) return cb(er, list)
-      log.disableProgress()
       if (npm.config.get('json')) {
-        console.log(makeJSON(list))
+        output(makeJSON(list))
       } else if (npm.config.get('parseable')) {
-        console.log(makeParseable(list))
+        output(makeParseable(list))
       } else {
         var outList = list.map(makePretty)
         var outHead = [ 'Package',
-                        'Current',
-                        'Wanted',
-                        'Latest',
-                        'Location'
-                      ]
+          'Current',
+          'Wanted',
+          'Latest',
+          'Location'
+        ]
         if (long) outHead.push('Package Type')
         var outTable = [outHead].concat(outList)
 
@@ -108,8 +107,9 @@ function outdated (args, silent, cb) {
           align: ['l', 'r', 'r', 'r', 'l'],
           stringLength: function (s) { return ansiTrim(s).length }
         }
-        console.log(table(outTable, tableOpts))
+        output(table(outTable, tableOpts))
       }
+      process.exitCode = 1
       cb(null, list.map(function (item) { return [item[0].parent.path].concat(item.slice(1, 7)) }))
     })
   }))
@@ -117,42 +117,28 @@ function outdated (args, silent, cb) {
 
 // [[ dir, dep, has, want, latest, type ]]
 function makePretty (p) {
-  var dep = p[0]
   var depname = p[1]
-  var dir = dep.path
   var has = p[2]
   var want = p[3]
   var latest = p[4]
   var type = p[6]
   var deppath = p[7]
 
-  if (!npm.config.get('global')) {
-    dir = path.relative(process.cwd(), dir)
-  }
-
   var columns = [ depname,
-                  has || 'MISSING',
-                  want,
-                  latest,
-                  deppath
-                ]
+    has || 'MISSING',
+    want,
+    latest,
+    deppath
+  ]
   if (long) columns[5] = type
 
   if (npm.color) {
-    columns[0] = color[has === want ? 'yellow' : 'red'](columns[0]) // dep
+    columns[0] = color[has === want || want === 'linked' ? 'yellow' : 'red'](columns[0]) // dep
     columns[2] = color.green(columns[2]) // want
     columns[3] = color.magenta(columns[3]) // latest
-    columns[4] = color.brightBlack(columns[4]) // dir
-    if (long) columns[5] = color.brightBlack(columns[5]) // type
   }
 
   return columns
-}
-
-function ansiTrim (str) {
-  var r = new RegExp('\x1b(?:\\[(?:\\d+[ABCDEFGJKSTm]|\\d+;\\d+[Hfm]|' +
-        '\\d+;\\d+;\\d+m|6n|s|u|\\?25[lh])|\\w)', 'g')
-  return str.replace(r, '')
 }
 
 function makeParseable (list) {
@@ -191,10 +177,10 @@ function makeJSON (list) {
       dir = path.relative(process.cwd(), dir)
     }
     out[depname] = { current: has,
-                  wanted: want,
-                  latest: latest,
-                  location: dir
-                }
+      wanted: want,
+      latest: latest,
+      location: dir
+    }
     if (long) out[depname].type = type
   })
   return JSON.stringify(out, null, 2)
@@ -210,13 +196,15 @@ function outdated_ (args, path, tree, parentHas, depth, cb) {
   var types = {}
   var pkg = tree.package
 
-  var deps = tree.children.filter(function (child) { return !isExtraneous(child) }) || []
+  if (!tree.children) tree.children = []
+
+  var deps = tree.error ? tree.children : tree.children.filter((child) => !isExtraneous(child))
 
   deps.forEach(function (dep) {
     types[moduleName(dep)] = 'dependencies'
   })
 
-  Object.keys(tree.missingDeps).forEach(function (name) {
+  Object.keys(tree.missingDeps || {}).forEach(function (name) {
     deps.push({
       package: { name: name },
       path: tree.path,
@@ -270,7 +258,7 @@ function outdated_ (args, path, tree, parentHas, depth, cb) {
     !npm.config.get('global')
   )
   if (doUpdate) {
-    Object.keys(pkg.devDependencies).forEach(function (k) {
+    Object.keys(pkg.devDependencies || {}).forEach(function (k) {
       if (!(k in parentHas)) {
         deps[k] = pkg.devDependencies[k]
         types[k] = 'devDependencies'
@@ -284,8 +272,8 @@ function outdated_ (args, path, tree, parentHas, depth, cb) {
       deps = deps.filter(function (dep) { return dep !== child })
     }
     has[child.package.name] = {
-      version: child.package.version,
-      from: child.package._from
+      version: child.isLink ? 'linked' : child.package.version,
+      from: child.isLink ? 'file:' + child.path : child.package._from
     }
   })
 
@@ -294,11 +282,17 @@ function outdated_ (args, path, tree, parentHas, depth, cb) {
   // otherwise dive into the folder
   asyncMap(deps, function (dep, cb) {
     var name = moduleName(dep)
-    var required = (tree.package.dependencies)[name] ||
-                   (tree.package.optionalDependencies)[name] ||
-                   (tree.package.devDependencies)[name] ||
-                   dep.package._requested && dep.package._requested.spec ||
-                   '*'
+    var required
+    if (tree.package.dependencies && name in tree.package.dependencies) {
+      required = tree.package.dependencies[name]
+    } else if (tree.package.optionalDependencies && name in tree.package.optionalDependencies) {
+      required = tree.package.optionalDependencies[name]
+    } else if (tree.package.devDependencies && name in tree.package.devDependencies) {
+      required = tree.package.devDependencies[name]
+    } else if (has[name]) {
+      required = computeVersionSpec(tree, dep)
+    }
+
     if (!long) return shouldUpdate(args, dep, name, has, required, depth, path, cb)
 
     shouldUpdate(args, dep, name, has, required, depth, path, cb, types[name])
@@ -317,11 +311,11 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
     // show user that no viable version can be found
     if (er) return cb(er)
     outdated_(args,
-              pkgpath,
-              tree,
-              has,
-              depth + 1,
-              cb)
+      pkgpath,
+      tree,
+      has,
+      depth + 1,
+      cb)
   }
 
   function doIt (wanted, latest) {
@@ -332,20 +326,32 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
   }
 
   if (args.length && args.indexOf(dep) === -1) return skip()
-  var parsed = npa(dep + '@' + req)
-  if (parsed.type === 'git' || parsed.type === 'hosted') {
+
+  if (tree.isLink && req == null) return skip()
+
+  if (req == null || req === '') req = '*'
+
+  var parsed = npa.resolve(dep, req)
+  if (parsed.type === 'directory') {
+    if (tree.isLink) {
+      return skip()
+    } else {
+      return doIt('linked', 'linked')
+    }
+  } else if (parsed.type === 'git') {
     return doIt('git', 'git')
+  } else if (parsed.type === 'file') {
+    return updateLocalDeps()
+  } else {
+    return mapToRegistry(dep, npm.config, function (er, uri, auth) {
+      if (er) return cb(er)
+
+      npm.registry.get(uri, { auth: auth }, updateDeps)
+    })
   }
 
-  // search for the latest package
-  mapToRegistry(dep, npm.config, function (er, uri, auth) {
-    if (er) return cb(er)
-
-    npm.registry.get(uri, { auth: auth }, updateDeps)
-  })
-
   function updateLocalDeps (latestRegistryVersion) {
-    readJson(path.resolve(parsed.spec, 'package.json'), function (er, localDependency) {
+    fetchPackageMetadata('file:' + parsed.fetchSpec, '.', (er, localDependency) => {
       if (er) return cb()
 
       var wanted = localDependency.version
@@ -359,7 +365,7 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
         }
       }
 
-      if (curr.version !== wanted) {
+      if (!curr || curr.version !== wanted) {
         doIt(wanted, latest)
       } else {
         skip()
@@ -368,59 +374,31 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
   }
 
   function updateDeps (er, d) {
-    if (er) {
-      if (parsed.type !== 'local') return cb(er)
-      return updateLocalDeps()
-    }
+    if (er) return cb(er)
 
-    if (!d || !d['dist-tags'] || !d.versions) return cb()
-    var l = d.versions[d['dist-tags'].latest]
-    if (!l) return cb()
-
-    var r = req
-    if (d['dist-tags'][req]) {
-      r = d['dist-tags'][req]
-    }
-
-    if (semver.validRange(r, true)) {
-      // some kind of semver range.
-      // see if it's in the doc.
-      var vers = Object.keys(d.versions)
-      var v = semver.maxSatisfying(vers, r, true)
-      if (v) {
-        return onCacheAdd(null, d.versions[v])
-      }
-    }
-
-    // We didn't find the version in the doc.  See if cache can find it.
-    cache.add(dep, req, null, false, onCacheAdd)
-
-    function onCacheAdd (er, d) {
-      // if this fails, then it means we can't update this thing.
-      // it's probably a thing that isn't published.
-      if (er) {
-        if (er.code && er.code === 'ETARGET') {
-          // no viable version found
-          return skip(er)
-        }
+    try {
+      var l = pickManifest(d, 'latest')
+      var m = pickManifest(d, req)
+    } catch (er) {
+      if (er.code === 'ETARGET') {
+        return skip(er)
+      } else {
         return skip()
       }
+    }
 
-      // check that the url origin hasn't changed (#1727) and that
-      // there is no newer version available
-      var dFromUrl = d._from && url.parse(d._from).protocol
-      var cFromUrl = curr && curr.from && url.parse(curr.from).protocol
+    // check that the url origin hasn't changed (#1727) and that
+    // there is no newer version available
+    var dFromUrl = m._from && url.parse(m._from).protocol
+    var cFromUrl = curr && curr.from && url.parse(curr.from).protocol
 
-      if (!curr ||
-          dFromUrl && cFromUrl && d._from !== curr.from ||
-          d.version !== curr.version ||
-          d.version !== l.version) {
-        if (parsed.type === 'local') return updateLocalDeps(l.version)
-
-        doIt(d.version, l.version)
-      } else {
-        skip()
-      }
+    if (!curr ||
+        (dFromUrl && cFromUrl && m._from !== curr.from) ||
+        m.version !== curr.version ||
+        m.version !== l.version) {
+      doIt(m.version, l.version)
+    } else {
+      skip()
     }
   }
 }

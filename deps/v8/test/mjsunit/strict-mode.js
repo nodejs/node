@@ -1018,11 +1018,7 @@ function CheckFunctionPillDescriptor(func, name) {
     assertThrows(function() { 'use strict'; pill.property = "value"; },
                  TypeError);
     assertThrows(pill, TypeError);
-    assertEquals(pill.prototype, (function(){}).prototype);
-    var d = Object.getOwnPropertyDescriptor(pill, "prototype");
-    assertFalse(d.writable);
-    assertFalse(d.configurable);
-    assertFalse(d.enumerable);
+    assertEquals(undefined, pill.prototype);
   }
 
   // Poisoned accessors are no longer own properties
@@ -1046,11 +1042,7 @@ function CheckArgumentsPillDescriptor(func, name) {
     assertThrows(function() { 'use strict'; pill.property = "value"; },
                  TypeError);
     assertThrows(pill, TypeError);
-    assertEquals(pill.prototype, (function(){}).prototype);
-    var d = Object.getOwnPropertyDescriptor(pill, "prototype");
-    assertFalse(d.writable);
-    assertFalse(d.configurable);
-    assertFalse(d.enumerable);
+    assertEquals(undefined, pill.prototype);
   }
 
   var descriptor = Object.getOwnPropertyDescriptor(func, name);
@@ -1119,14 +1111,14 @@ function CheckArgumentsPillDescriptor(func, name) {
   }
 
   var args = strict();
-  CheckArgumentsPillDescriptor(args, "caller");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
   CheckArgumentsPillDescriptor(args, "callee");
 
   args = strict(17, "value", strict);
   assertEquals(17, args[0])
   assertEquals("value", args[1])
   assertEquals(strict, args[2]);
-  CheckArgumentsPillDescriptor(args, "caller");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
   CheckArgumentsPillDescriptor(args, "callee");
 
   function outer() {
@@ -1138,14 +1130,14 @@ function CheckArgumentsPillDescriptor(func, name) {
   }
 
   var args = outer()();
-  CheckArgumentsPillDescriptor(args, "caller");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
   CheckArgumentsPillDescriptor(args, "callee");
 
   args = outer()(17, "value", strict);
   assertEquals(17, args[0])
   assertEquals("value", args[1])
   assertEquals(strict, args[2]);
-  CheckArgumentsPillDescriptor(args, "caller");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
   CheckArgumentsPillDescriptor(args, "callee");
 })();
 
@@ -1157,7 +1149,9 @@ function CheckArgumentsPillDescriptor(func, name) {
 
   function strict() {
     "use strict";
-    return return_my_caller();
+    // Returning result via local variable to avoid tail call elimination.
+    var res = return_my_caller();
+    return res;
   }
   assertSame(null, strict());
 
@@ -1171,7 +1165,9 @@ function CheckArgumentsPillDescriptor(func, name) {
 (function TestNonStrictFunctionCallerPill() {
   function strict(n) {
     "use strict";
-    return non_strict(n);
+    // Returning result via local variable to avoid tail call elimination.
+    var res = non_strict(n);
+    return res;
   }
 
   function recurse(n, then) {
@@ -1199,7 +1195,9 @@ function CheckArgumentsPillDescriptor(func, name) {
 (function TestNonStrictFunctionCallerDescriptorPill() {
   function strict(n) {
     "use strict";
-    return non_strict(n);
+    // Returning result via local variable to avoid tail call elimination.
+    var res = non_strict(n);
+    return res;
   }
 
   function recurse(n, then) {

@@ -1,6 +1,6 @@
 ;(function () {
   // windows: running 'npm blah' in this folder will invoke WSH, not node.
-  /*globals WScript*/
+  /* globals WScript */
   if (typeof WScript !== 'undefined') {
     WScript.echo(
       'npm does not work when run\n' +
@@ -13,6 +13,9 @@
     return
   }
 
+  var unsupported = require('../lib/utils/unsupported.js')
+  unsupported.checkForBrokenNode()
+
   var gfs = require('graceful-fs')
   // Patch the global fs module here at the app level
   var fs = gfs.gracefulify(require('fs'))
@@ -21,12 +24,36 @@
   var npm = module.exports = new EventEmitter()
   var npmconf = require('./config/core.js')
   var log = require('npmlog')
+  var inspect = require('util').inspect
+
+  // capture global logging
+  process.on('log', function (level) {
+    try {
+      return log[level].apply(log, [].slice.call(arguments, 1))
+    } catch (ex) {
+      log.verbose('attempt to log ' + inspect(arguments) + ' crashed: ' + ex.message)
+    }
+  })
 
   var path = require('path')
   var abbrev = require('abbrev')
   var which = require('which')
-  var CachingRegClient = require('./cache/caching-client.js')
+  var glob = require('glob')
+  var rimraf = require('rimraf')
+  var lazyProperty = require('lazy-property')
   var parseJSON = require('./utils/parse-json.js')
+  var clientConfig = require('./config/reg-client.js')
+  var aliases = require('./config/cmd-list').aliases
+  var cmdList = require('./config/cmd-list').cmdList
+  var plumbing = require('./config/cmd-list').plumbing
+  var output = require('./utils/output.js')
+  var startMetrics = require('./utils/metrics.js').start
+  var perf = require('./utils/perf.js')
+
+  perf.emit('time', 'npm')
+  perf.on('timing', function (name, finished) {
+    log.timing(name, 'Completed in', finished + 'ms')
+  })
 
   npm.config = {
     loaded: false,
@@ -40,12 +67,22 @@
 
   npm.commands = {}
 
+  // TUNING
+  npm.limit = {
+    fetch: 10,
+    action: 50
+  }
+  // ***
+
+  npm.lockfileVersion = 1
+
   npm.rollbacks = []
 
   try {
     // startup, ok to do this synchronously
     var j = parseJSON(fs.readFileSync(
       path.join(__dirname, '../package.json')) + '')
+    npm.name = j.name
     npm.version = j.version
   } catch (ex) {
     try {
@@ -55,112 +92,9 @@
   }
 
   var commandCache = {}
-
-  // short names for common things
-  var aliases = {
-    'rm': 'uninstall',
-    'r': 'uninstall',
-    'un': 'uninstall',
-    'unlink': 'uninstall',
-    'remove': 'uninstall',
-    'rb': 'rebuild',
-    'list': 'ls',
-    'la': 'ls',
-    'll': 'ls',
-    'ln': 'link',
-    'i': 'install',
-    'isntall': 'install',
-    'up': 'update',
-    'upgrade': 'update',
-    'c': 'config',
-    'dist-tags': 'dist-tag',
-    'info': 'view',
-    'show': 'view',
-    'find': 'search',
-    's': 'search',
-    'se': 'search',
-    'author': 'owner',
-    'home': 'docs',
-    'issues': 'bugs',
-    'unstar': 'star', // same function
-    'apihelp': 'help',
-    'login': 'adduser',
-    'add-user': 'adduser',
-    'tst': 'test',
-    't': 'test',
-    'find-dupes': 'dedupe',
-    'ddp': 'dedupe',
-    'v': 'view',
-    'verison': 'version'
-  }
-
   var aliasNames = Object.keys(aliases)
 
-  // these are filenames in .
-  var cmdList = [
-    'install',
-    'uninstall',
-    'cache',
-    'config',
-    'set',
-    'get',
-    'update',
-    'outdated',
-    'prune',
-    'pack',
-    'dedupe',
-
-    'rebuild',
-    'link',
-
-    'publish',
-    'star',
-    'stars',
-    'tag',
-    'adduser',
-    'logout',
-    'unpublish',
-    'owner',
-    'access',
-    'team',
-    'deprecate',
-    'shrinkwrap',
-
-    'help',
-    'help-search',
-    'ls',
-    'search',
-    'view',
-    'init',
-    'version',
-    'edit',
-    'explore',
-    'docs',
-    'repo',
-    'bugs',
-    'faq',
-    'root',
-    'prefix',
-    'bin',
-    'whoami',
-    'dist-tag',
-    'ping',
-
-    'test',
-    'stop',
-    'start',
-    'restart',
-    'run-script',
-    'completion'
-  ]
-  var plumbing = [
-    'build',
-    'unbuild',
-    'xmas',
-    'substack',
-    'visnup'
-  ]
-  var littleGuys = [ 'isntall' ]
+  var littleGuys = [ 'isntall', 'verison' ]
   var fullList = cmdList.concat(aliasNames).filter(function (c) {
     return plumbing.indexOf(c) === -1
   })
@@ -171,12 +105,15 @@
     return littleGuys.indexOf(c) === -1
   })
 
+  var registryRefer
+  var registryLoaded
+
   Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
     Object.defineProperty(npm.commands, c, { get: function () {
       if (!loaded) {
         throw new Error(
           'Call npm.load(config, cb) before using this command.\n' +
-            'See the README.md or cli.js for example usage.'
+            'See the README.md or bin/npm-cli.js for example usage.'
         )
       }
       var a = npm.deref(c)
@@ -187,7 +124,7 @@
       npm.command = c
       if (commandCache[a]) return commandCache[a]
 
-      var cmd = require(__dirname + '/' + a + '.js')
+      var cmd = require(path.join(__dirname, a + '.js'))
 
       commandCache[a] = function () {
         var args = Array.prototype.slice.call(arguments, 0)
@@ -196,9 +133,16 @@
         }
         if (args.length === 1) args.unshift([])
 
-        npm.registry.version = npm.version
-        if (!npm.registry.refer) {
-          npm.registry.refer = [a].concat(args[0]).map(function (arg) {
+        // Options are prefixed by a hyphen-minus (-, \u2d).
+        // Other dash-type chars look similar but are invalid.
+        Array(args[0]).forEach(function (arg) {
+          if (/^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg)) {
+            log.error('arg', 'Argument starts with non-ascii dash, this is probably invalid:', arg)
+          }
+        })
+
+        if (!registryRefer) {
+          registryRefer = [a].concat(args[0]).map(function (arg) {
             // exclude anything that might be a URL, path, or private module
             // Those things will always have a slash in them somewhere
             if (arg && arg.match && arg.match(/\/|\\/)) {
@@ -209,6 +153,7 @@
           }).filter(function (arg) {
             return arg && arg.match
           }).join(' ')
+          if (registryLoaded) npm.registry.refer = registryRefer
         }
 
         cmd.apply(npm, args)
@@ -219,11 +164,13 @@
       })
 
       return commandCache[a]
-    }, enumerable: fullList.indexOf(c) !== -1, configurable: true })
+    },
+    enumerable: fullList.indexOf(c) !== -1,
+    configurable: true })
 
     // make css-case commands callable via camelCase as well
-    if (c.match(/\-([a-z])/)) {
-      addCommand(c.replace(/\-([a-z])/g, function (a, b) {
+    if (c.match(/-([a-z])/)) {
+      addCommand(c.replace(/-([a-z])/g, function (a, b) {
         return b.toUpperCase()
       }))
     }
@@ -232,7 +179,7 @@
   function defaultCb (er, data) {
     log.disableProgress()
     if (er) console.error(er.stack || er.message)
-    else console.log(data)
+    else output(data)
   }
 
   npm.deref = function (c) {
@@ -244,7 +191,9 @@
     }
     if (plumbing.indexOf(c) !== -1) return c
     var a = abbrevs[c]
-    if (aliases[a]) a = aliases[a]
+    while (aliases[a]) {
+      a = aliases[a]
+    }
     return a
   }
 
@@ -285,7 +234,12 @@
       loadCb(loadErr = er)
       onload = onload && npm.config.get('onload-script')
       if (onload) {
-        require(onload)
+        try {
+          require(onload)
+        } catch (err) {
+          log.warn('onload-script', 'failed to require onload script', onload)
+          log.warn('onload-script', err)
+        }
         onload = false
       }
     }
@@ -332,41 +286,59 @@
         ua = ua.replace(/\{arch\}/gi, process.arch)
         config.set('user-agent', ua)
 
+        if (config.get('metrics-registry') == null) {
+          config.set('metrics-registry', config.get('registry'))
+        }
+
         var color = config.get('color')
 
-        log.level = config.get('loglevel')
+        if (npm.config.get('timing') && npm.config.get('loglevel') === 'notice') {
+          log.level = 'timing'
+        } else {
+          log.level = config.get('loglevel')
+        }
         log.heading = config.get('heading') || 'npm'
         log.stream = config.get('logstream')
 
         switch (color) {
           case 'always':
-            log.enableColor()
             npm.color = true
             break
           case false:
-            log.disableColor()
             npm.color = false
             break
           default:
-            var tty = require('tty')
-            if (process.stdout.isTTY) npm.color = true
-            else if (!tty.isatty) npm.color = true
-            else if (tty.isatty(1)) npm.color = true
-            else npm.color = false
+            npm.color = process.stdout.isTTY && process.env['TERM'] !== 'dumb'
             break
         }
+        if (npm.color) {
+          log.enableColor()
+        } else {
+          log.disableColor()
+        }
 
-        log.resume()
+        if (config.get('unicode')) {
+          log.enableUnicode()
+        } else {
+          log.disableUnicode()
+        }
 
-        if (config.get('progress')) {
+        if (config.get('progress') && process.stderr.isTTY && process.env['TERM'] !== 'dumb') {
           log.enableProgress()
         } else {
           log.disableProgress()
         }
 
-        // at this point the configs are all set.
-        // go ahead and spin up the registry client.
-        npm.registry = new CachingRegClient(npm.config)
+        glob(path.resolve(npm.cache, '_logs', '*-debug.log'), function (er, files) {
+          if (er) return cb(er)
+
+          while (files.length >= npm.config.get('logs-max')) {
+            rimraf.sync(files[0])
+            files.splice(0, 1)
+          }
+        })
+
+        log.resume()
 
         var umask = npm.config.get('umask')
         npm.modes = {
@@ -380,6 +352,23 @@
 
         var lp = Object.getOwnPropertyDescriptor(config, 'localPrefix')
         Object.defineProperty(npm, 'localPrefix', lp)
+
+        config.set('scope', scopeifyScope(config.get('scope')))
+        npm.projectScope = config.get('scope') ||
+         scopeifyScope(getProjectScope(npm.prefix))
+
+        // at this point the configs are all set.
+        // go ahead and spin up the registry client.
+        lazyProperty(npm, 'registry', function () {
+          registryLoaded = true
+          var RegClient = require('npm-registry-client')
+          var registry = new RegClient(clientConfig(npm, log, npm.config))
+          registry.version = npm.version
+          registry.refer = registryRefer
+          return registry
+        })
+
+        startMetrics()
 
         return cb(null, npm)
       })
@@ -430,8 +419,8 @@
     {
       get: function () {
         return (process.platform !== 'win32')
-             ? path.resolve(npm.globalPrefix, 'lib', 'node_modules')
-             : path.resolve(npm.globalPrefix, 'node_modules')
+          ? path.resolve(npm.globalPrefix, 'lib', 'node_modules')
+          : path.resolve(npm.globalPrefix, 'node_modules')
       },
       enumerable: true
     })
@@ -474,10 +463,28 @@
         }
         npm.commands[n](args, cb)
       }
-    }, enumerable: false, configurable: true })
+    },
+    enumerable: false,
+    configurable: true })
   })
 
   if (require.main === module) {
     require('../bin/npm-cli.js')
+  }
+
+  function scopeifyScope (scope) {
+    return (!scope || scope[0] === '@') ? scope : ('@' + scope)
+  }
+
+  function getProjectScope (prefix) {
+    try {
+      var pkg = JSON.parse(fs.readFileSync(path.join(prefix, 'package.json')))
+      if (typeof pkg.name !== 'string') return ''
+      var sep = pkg.name.indexOf('/')
+      if (sep === -1) return ''
+      return pkg.name.slice(0, sep)
+    } catch (ex) {
+      return ''
+    }
   }
 })()

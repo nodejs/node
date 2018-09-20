@@ -417,7 +417,7 @@ def FixVCMacroSlashes(s):
 
 
 def ConvertVCMacrosToMSBuild(s):
-  """Convert the the MSVS macros found in the string to the MSBuild equivalent.
+  """Convert the MSVS macros found in the string to the MSBuild equivalent.
 
   This list is probably not exhaustive.  Add as needed.
   """
@@ -592,6 +592,7 @@ _Same(_compile, 'UndefinePreprocessorDefinitions', _string_list)  # /U
 _Same(_compile, 'UseFullPaths', _boolean)  # /FC
 _Same(_compile, 'WholeProgramOptimization', _boolean)  # /GL
 _Same(_compile, 'XMLDocumentationFileName', _file_name)
+_Same(_compile, 'CompileAsWinRT', _boolean)  # /ZW
 
 _Same(_compile, 'AssemblerOutput',
       _Enumeration(['NoListing',

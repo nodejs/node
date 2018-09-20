@@ -1,27 +1,43 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #include "tty_wrap.h"
 
-#include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_wrap.h"
-#include "req-wrap.h"
-#include "req-wrap-inl.h"
+#include "stream_base-inl.h"
 #include "stream_wrap.h"
-#include "util.h"
 #include "util-inl.h"
 
 namespace node {
 
 using v8::Array;
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::PropertyAttribute;
 using v8::String;
 using v8::Value;
 
@@ -31,22 +47,23 @@ void TTYWrap::Initialize(Local<Object> target,
                          Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
+  Local<String> ttyString = FIXED_ONE_BYTE_STRING(env->isolate(), "TTY");
+
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"));
+  t->SetClassName(ttyString);
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  env->SetProtoMethod(t, "close", HandleWrap::Close);
-  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
+  AsyncWrap::AddWrapMethods(env, t);
+  HandleWrap::AddWrapMethods(env, t);
+  LibuvStreamWrap::AddMethods(env, t);
 
-  StreamWrap::AddMethods(env, t, StreamBase::kFlagNoShutdown);
-
-  env->SetProtoMethod(t, "getWindowSize", TTYWrap::GetWindowSize);
+  env->SetProtoMethodNoSideEffect(t, "getWindowSize", TTYWrap::GetWindowSize);
   env->SetProtoMethod(t, "setRawMode", SetRawMode);
 
-  env->SetMethod(target, "isTTY", IsTTY);
-  env->SetMethod(target, "guessHandleType", GuessHandleType);
+  env->SetMethodNoSideEffect(target, "isTTY", IsTTY);
+  env->SetMethodNoSideEffect(target, "guessHandleType", GuessHandleType);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"), t->GetFunction());
+  target->Set(ttyString, t->GetFunction());
   env->set_tty_constructor_template(t);
 }
 
@@ -58,7 +75,8 @@ uv_tty_t* TTYWrap::UVHandle() {
 
 void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  int fd = args[0]->Int32Value();
+  int fd;
+  if (!args[0]->Int32Value(env->context()).To(&fd)) return;
   CHECK_GE(fd, 0);
 
   uv_handle_type t = uv_guess_handle(fd);
@@ -80,7 +98,9 @@ void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
 
 
 void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
-  int fd = args[0]->Int32Value();
+  Environment* env = Environment::GetCurrent(args);
+  int fd;
+  if (!args[0]->Int32Value(env->context()).To(&fd)) return;
   CHECK_GE(fd, 0);
   bool rc = uv_guess_handle(fd) == UV_TTY;
   args.GetReturnValue().Set(rc);
@@ -90,7 +110,10 @@ void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
 void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  TTYWrap* wrap = Unwrap<TTYWrap>(args.Holder());
+  TTYWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
   CHECK(args[0]->IsArray());
 
   int width, height;
@@ -107,7 +130,10 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
 
 
 void TTYWrap::SetRawMode(const FunctionCallbackInfo<Value>& args) {
-  TTYWrap* wrap = Unwrap<TTYWrap>(args.Holder());
+  TTYWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
   int err = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
   args.GetReturnValue().Set(err);
 }
@@ -121,22 +147,34 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
   // normal function.
   CHECK(args.IsConstructCall());
 
-  int fd = args[0]->Int32Value();
+  int fd;
+  if (!args[0]->Int32Value(env->context()).To(&fd)) return;
   CHECK_GE(fd, 0);
 
-  TTYWrap* wrap = new TTYWrap(env, args.This(), fd, args[1]->IsTrue());
-  wrap->UpdateWriteQueueSize();
+  int err = 0;
+  new TTYWrap(env, args.This(), fd, args[1]->IsTrue(), &err);
+  if (err != 0) {
+    env->CollectUVExceptionInfo(args[2], err, "uv_tty_init");
+    args.GetReturnValue().SetUndefined();
+  }
 }
 
 
-TTYWrap::TTYWrap(Environment* env, Local<Object> object, int fd, bool readable)
-    : StreamWrap(env,
-                 object,
-                 reinterpret_cast<uv_stream_t*>(&handle_),
-                 AsyncWrap::PROVIDER_TTYWRAP) {
-  uv_tty_init(env->event_loop(), &handle_, fd, readable);
+TTYWrap::TTYWrap(Environment* env,
+                 Local<Object> object,
+                 int fd,
+                 bool readable,
+                 int* init_err)
+    : LibuvStreamWrap(env,
+                      object,
+                      reinterpret_cast<uv_stream_t*>(&handle_),
+                      AsyncWrap::PROVIDER_TTYWRAP) {
+  *init_err = uv_tty_init(env->event_loop(), &handle_, fd, readable);
+  set_fd(fd);
+  if (*init_err != 0)
+    MarkAsUninitialized();
 }
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(tty_wrap, node::TTYWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(tty_wrap, node::TTYWrap::Initialize)

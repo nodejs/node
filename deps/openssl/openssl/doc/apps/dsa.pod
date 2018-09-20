@@ -2,11 +2,13 @@
 
 =head1 NAME
 
+openssl-dsa,
 dsa - DSA key processing
 
 =head1 SYNOPSIS
 
 B<openssl> B<dsa>
+[B<-help>]
 [B<-inform PEM|DER>]
 [B<-outform PEM|DER>]
 [B<-in filename>]
@@ -36,9 +38,13 @@ forms and their components printed out. B<Note> This command uses the
 traditional SSLeay compatible format for private key encryption: newer
 applications should use the more secure PKCS#8 format using the B<pkcs8>
 
-=head1 COMMAND OPTIONS
+=head1 OPTIONS
 
 =over 4
+
+=item B<-help>
+
+Print out a usage message.
 
 =item B<-inform DER|PEM>
 
@@ -54,7 +60,7 @@ PKCS#8 format is also accepted.
 
 =item B<-outform DER|PEM>
 
-This specifies the output format, the options have the same meaning as the 
+This specifies the output format, the options have the same meaning as the
 B<-inform> option.
 
 =item B<-in filename>
@@ -66,7 +72,7 @@ prompted for.
 =item B<-passin arg>
 
 the input file password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-out filename>
 
@@ -78,7 +84,7 @@ filename.
 =item B<-passout arg>
 
 the output file password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-aes128|-aes192|-aes256|-camellia128|-camellia192|-camellia256|-des|-des3|-idea>
 
@@ -144,7 +150,7 @@ To encrypt a private key using triple DES:
 
  openssl dsa -in key.pem -des3 -out keyout.pem
 
-To convert a private key from PEM to DER format: 
+To convert a private key from PEM to DER format:
 
  openssl dsa -in key.pem -outform DER -out keyout.der
 
@@ -158,7 +164,16 @@ To just output the public part of a private key:
 
 =head1 SEE ALSO
 
-L<dsaparam(1)|dsaparam(1)>, L<gendsa(1)|gendsa(1)>, L<rsa(1)|rsa(1)>,
-L<genrsa(1)|genrsa(1)>
+L<dsaparam(1)>, L<gendsa(1)>, L<rsa(1)>,
+L<genrsa(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

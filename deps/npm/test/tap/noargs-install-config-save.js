@@ -1,15 +1,11 @@
 var common = require('../common-tap.js')
 var test = require('tap').test
-var npm = require.resolve('../../bin/npm-cli.js')
 var path = require('path')
 var fs = require('fs')
 var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 
 var mr = require('npm-registry-mock')
-
-var spawn = require('child_process').spawn
-var node = process.execPath
 
 var pkg = path.resolve(process.env.npm_config_tmp || '/tmp',
   'noargs-install-config-save')
@@ -29,33 +25,31 @@ function writePackageJson () {
   }), 'utf8')
 }
 
-function createChild (args) {
-  var env = {
-    'npm_config_save': true,
-    'npm_config_registry': common.registry,
-    'npm_config_cache': pkg + '/cache',
-    HOME: process.env.HOME,
-    Path: process.env.PATH,
-    PATH: process.env.PATH
-  }
-
-  if (process.platform === 'win32') {
-    env.npm_config_cache = '%APPDATA%\\npm-cache'
-  }
-
-  return spawn(node, args, {
-    cwd: pkg,
-    env: env
-  })
+var env = {
+  'npm_config_save': true,
+  'npm_config_registry': common.registry,
+  'npm_config_cache': pkg + '/cache',
+  HOME: process.env.HOME,
+  Path: process.env.PATH,
+  PATH: process.env.PATH
+}
+var OPTS = {
+  cwd: pkg,
+  env: env
 }
 
 test('does not update the package.json with empty arguments', function (t) {
   writePackageJson()
-  t.plan(1)
+  t.plan(2)
 
   mr({ port: common.port }, function (er, s) {
-    var child = createChild([npm, 'install'])
-    child.on('close', function () {
+    common.npm('install', OPTS, function (er, code, stdout, stderr) {
+      if (er) throw er
+      t.is(code, 0)
+      if (code !== 0) {
+        console.error('#', stdout)
+        console.error('#', stderr)
+      }
       var text = JSON.stringify(fs.readFileSync(pkg + '/package.json', 'utf8'))
       s.close()
       t.equal(text.indexOf('"dependencies'), -1, 'dependencies do not exist in file')
@@ -65,11 +59,12 @@ test('does not update the package.json with empty arguments', function (t) {
 
 test('updates the package.json (adds dependencies) with an argument', function (t) {
   writePackageJson()
-  t.plan(1)
+  t.plan(2)
 
   mr({ port: common.port }, function (er, s) {
-    var child = createChild([npm, 'install', 'underscore'])
-    child.on('close', function () {
+    common.npm(['install', 'underscore', '-P'], OPTS, function (er, code, stdout, stderr) {
+      if (er) throw er
+      t.is(code, 0)
       s.close()
       var text = JSON.stringify(fs.readFileSync(pkg + '/package.json', 'utf8'))
       t.notEqual(text.indexOf('"dependencies'), -1, 'dependencies exist in file')

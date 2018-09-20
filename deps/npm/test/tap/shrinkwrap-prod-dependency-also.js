@@ -7,35 +7,59 @@ var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
-var npm = npm = require('../../')
-
 var common = require('../common-tap.js')
-var pkg = path.resolve(__dirname, 'shrinkwrap-prod-dependency')
+var pkg = path.resolve(__dirname, path.basename(__filename, '.js'))
+var opts = [
+  '--cache=' + path.resolve(pkg, 'cache'),
+  '--registry=' + common.registry
+]
 
+function reportOutput (t, fh, out) {
+  var trimmed = out.trim()
+  if (!trimmed.length) return
+  var prefix = fh + '> '
+  t.comment(prefix + trimmed.split(/\n/).join('\n' + prefix))
+}
+
+var server
 test("shrinkwrap --also=development doesn't strip out prod dependencies", function (t) {
-  t.plan(1)
+  t.plan(4)
 
   mr({port: common.port}, function (er, s) {
-    setup({}, function (err) {
+    server = s
+    setup()
+    common.npm(['install', '.'].concat(opts), {cwd: pkg}, function (err, code, stdout, stderr) {
       if (err) return t.fail(err)
-
-      npm.install('.', function (err) {
+      t.is(code, 0, 'install')
+      reportOutput(t, 'out', stdout)
+      reportOutput(t, 'err', stderr)
+      common.npm(['shrinkwrap', '--also=development'].concat(opts), {cwd: pkg}, function (err, code, stdout, stderr) {
         if (err) return t.fail(err)
-
-        npm.config.set('also', 'development')
-        npm.commands.shrinkwrap([], true, function (err, results) {
-          if (err) return t.fail(err)
-
-          t.deepEqual(results, desired)
-          s.close()
-          t.end()
-        })
+        var ok = t.is(code, 0, 'shrinkwrap')
+        reportOutput(t, 'out', stdout)
+        reportOutput(t, 'err', stderr)
+        if (ok) {
+          try {
+            var results = JSON.parse(fs.readFileSync(path.join(pkg, 'npm-shrinkwrap.json')))
+            t.pass('read shrinkwrap')
+          } catch (ex) {
+            t.ifError(ex, 'read shrinkwrap')
+          }
+        }
+        t.deepEqual(
+          results.dependencies,
+          desired.dependencies,
+          'results have dev dep'
+        )
+        s.done()
+        t.end()
       })
     })
   })
 })
 
 test('cleanup', function (t) {
+  server.close()
   cleanup()
   t.end()
 })
@@ -46,13 +70,14 @@ var desired = {
   dependencies: {
     request: {
       version: '0.9.0',
-      from: 'request@0.9.0',
-      resolved: common.registry + '/request/-/request-0.9.0.tgz'
+      resolved: common.registry + '/request/-/request-0.9.0.tgz',
+      integrity: 'sha1-EEn1mm9GWI5tAwkh+7hMovDCcU4='
     },
     underscore: {
+      dev: true,
       version: '1.5.1',
-      from: 'underscore@1.5.1',
-      resolved: common.registry + '/underscore/-/underscore-1.5.1.tgz'
+      resolved: common.registry + '/underscore/-/underscore-1.5.1.tgz',
+      integrity: 'sha1-0r3oF9F2/63olKtxRY5oKhS4bck='
     }
   }
 }
@@ -69,22 +94,10 @@ var json = {
   }
 }
 
-function setup (opts, cb) {
+function setup (opts) {
   cleanup()
   mkdirp.sync(pkg)
   fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify(json, null, 2))
-  process.chdir(pkg)
-
-  var allOpts = {
-    cache: path.resolve(pkg, 'cache'),
-    registry: common.registry
-  }
-
-  for (var key in opts) {
-    allOpts[key] = opts[key]
-  }
-
-  npm.load(allOpts, cb)
 }
 
 function cleanup () {

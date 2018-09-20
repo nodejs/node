@@ -3,10 +3,12 @@
 const common = require('../common');
 const http = require('http');
 const assert = require('assert');
+const Countdown = require('../common/countdown');
 
 // Test that certain response header fields do not repeat.
-// 'content-length' should also be in this list, but it needs
-// a numeric value, so it's tested slightly differently.
+// 'content-length' should also be in this list but it is
+// handled differently because multiple content-lengths are
+// an error (see test-http-response-multi-content-length.js).
 const norepeat = [
   'content-type',
   'user-agent',
@@ -26,18 +28,17 @@ const norepeat = [
   'age',
   'expires'
 ];
+const runCount = 2;
 
 const server = http.createServer(function(req, res) {
-  var num = req.headers['x-num'];
-  if (num == 1) {
-    res.setHeader('content-length', [1, 2]);
+  const num = req.headers['x-num'];
+  if (num === '1') {
     for (const name of norepeat) {
       res.setHeader(name, ['A', 'B']);
     }
     res.setHeader('X-A', ['A', 'B']);
-  } else if (num == 2) {
+  } else if (num === '2') {
     const headers = {};
-    headers['content-length'] = [1, 2];
     for (const name of norepeat) {
       headers[name] = ['A', 'B'];
     }
@@ -47,8 +48,9 @@ const server = http.createServer(function(req, res) {
   res.end('ok');
 });
 
-server.listen(common.PORT, common.mustCall(function() {
-  for (let n = 1; n <= 2 ; n++) {
+server.listen(0, common.mustCall(function() {
+  const countdown = new Countdown(runCount, () => server.close());
+  for (let n = 1; n <= runCount; n++) {
     // this runs twice, the first time, the server will use
     // setHeader, the second time it uses writeHead. The
     // result on the client side should be the same in
@@ -56,14 +58,13 @@ server.listen(common.PORT, common.mustCall(function() {
     // value should be reported for the header fields listed
     // in the norepeat array.
     http.get(
-      {port:common.PORT, headers:{'x-num': n}},
+      { port: this.address().port, headers: { 'x-num': n } },
       common.mustCall(function(res) {
-        if (n == 2) server.close();
-        assert.equal(res.headers['content-length'], 1);
+        countdown.dec();
         for (const name of norepeat) {
-          assert.equal(res.headers[name], 'A');
+          assert.strictEqual(res.headers[name], 'A');
         }
-        assert.equal(res.headers['x-a'], 'A, B');
+        assert.strictEqual(res.headers['x-a'], 'A, B');
       })
     );
   }

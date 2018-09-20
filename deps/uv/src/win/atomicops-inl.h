@@ -23,18 +23,19 @@
 #define UV_WIN_ATOMICOPS_INL_H_
 
 #include "uv.h"
+#include "internal.h"
 
 
 /* Atomic set operation on char */
 #ifdef _MSC_VER /* MSVC */
 
-/* _InterlockedOr8 is supported by MSVC on x32 and x64. It is  slightly less */
-/* efficient than InterlockedExchange, but InterlockedExchange8 does not */
-/* exist, and interlocked operations on larger targets might require the */
-/* target to be aligned. */
+/* _InterlockedOr8 is supported by MSVC on x32 and x64. It is slightly less
+ * efficient than InterlockedExchange, but InterlockedExchange8 does not exist,
+ * and interlocked operations on larger targets might require the target to be
+ * aligned. */
 #pragma intrinsic(_InterlockedOr8)
 
-static char __declspec(inline) uv__atomic_exchange_set(char volatile* target) {
+static char INLINE uv__atomic_exchange_set(char volatile* target) {
   return _InterlockedOr8(target, 1);
 }
 

@@ -73,8 +73,8 @@ TEST_IMPL(getnameinfo_basic_ip4_sync) {
                              NULL,
                              (const struct sockaddr*)&addr4,
                              0));
-  ASSERT(req.host != NULL);
-  ASSERT(req.service != NULL);
+  ASSERT(req.host[0] != '\0');
+  ASSERT(req.service[0] != '\0');
 
   MAKE_VALGRIND_HAPPY();
   return 0;

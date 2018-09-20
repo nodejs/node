@@ -1,28 +1,38 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #ifndef SRC_NODE_CRYPTO_CLIENTHELLO_H_
 #define SRC_NODE_CRYPTO_CLIENTHELLO_H_
 
-#include "node.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <stddef.h>  // size_t
-#include <stdlib.h>  // nullptr
+#include <stdint.h>
 
 namespace node {
+namespace crypto {
 
 class ClientHelloParser {
  public:
-  ClientHelloParser() : state_(kEnded),
-                        onhello_cb_(nullptr),
-                        onend_cb_(nullptr),
-                        cb_arg_(nullptr),
-                        session_size_(0),
-                        session_id_(nullptr),
-                        servername_size_(0),
-                        servername_(nullptr),
-                        ocsp_request_(0),
-                        tls_ticket_size_(0),
-                        tls_ticket_(nullptr) {
-    Reset();
-  }
+  inline ClientHelloParser();
 
   class ClientHello {
    public:
@@ -89,7 +99,7 @@ class ClientHelloParser {
 
   bool ParseRecordHeader(const uint8_t* data, size_t avail);
   void ParseHeader(const uint8_t* data, size_t avail);
-  void ParseExtension(ExtensionType type,
+  void ParseExtension(const uint16_t type,
                       const uint8_t* data,
                       size_t len);
   bool ParseTLSClientHello(const uint8_t* data, size_t avail);
@@ -110,6 +120,9 @@ class ClientHelloParser {
   const uint8_t* tls_ticket_;
 };
 
+}  // namespace crypto
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_CLIENTHELLO_H_

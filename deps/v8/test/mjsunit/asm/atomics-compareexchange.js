@@ -2,18 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-atomics --harmony-sharedarraybuffer
+// Flags: --harmony-sharedarraybuffer
 
-function Module(stdlib, foreign, heap) {
+function Module(stdlib, foreign, heap, offset) {
   "use asm";
-  var MEM8 = new stdlib.Int8Array(heap);
-  var MEM16 = new stdlib.Int16Array(heap);
-  var MEM32 = new stdlib.Int32Array(heap);
-  var MEMU8 = new stdlib.Uint8Array(heap);
-  var MEMU16 = new stdlib.Uint16Array(heap);
-  var MEMU32 = new stdlib.Uint32Array(heap);
-  var MEMF32 = new stdlib.Float32Array(heap);
-  var MEMF64 = new stdlib.Float64Array(heap);
+  var MEM8 = new stdlib.Int8Array(heap, offset);
+  var MEM16 = new stdlib.Int16Array(heap, offset);
+  var MEM32 = new stdlib.Int32Array(heap, offset);
+  var MEMU8 = new stdlib.Uint8Array(heap, offset);
+  var MEMU16 = new stdlib.Uint16Array(heap, offset);
+  var MEMU32 = new stdlib.Uint32Array(heap, offset);
   var compareExchange = stdlib.Atomics.compareExchange;
   var fround = stdlib.Math.fround;
 
@@ -59,20 +57,6 @@ function Module(stdlib, foreign, heap) {
     return compareExchange(MEMU32, i, o, n)>>>0;
   }
 
-  function compareExchangef32(i, o, n) {
-    i = i | 0;
-    o = fround(o);
-    n = fround(n);
-    return fround(compareExchange(MEMF32, i, o, n));
-  }
-
-  function compareExchangef64(i, o, n) {
-    i = i | 0;
-    o = +o;
-    n = +n;
-    return +compareExchange(MEMF64, i, o, n);
-  }
-
   return {
     compareExchangei8: compareExchangei8,
     compareExchangei16: compareExchangei16,
@@ -80,13 +64,8 @@ function Module(stdlib, foreign, heap) {
     compareExchangeu8: compareExchangeu8,
     compareExchangeu16: compareExchangeu16,
     compareExchangeu32: compareExchangeu32,
-    compareExchangef32: compareExchangef32,
-    compareExchangef64: compareExchangef64
   };
 }
-
-var sab = new SharedArrayBuffer(16);
-var m = Module(this, {}, sab);
 
 function clearArray() {
   var ui8 = new Uint8Array(sab);
@@ -95,10 +74,10 @@ function clearArray() {
   }
 }
 
-function testElementType(taConstr, f, oobValue) {
+function testElementType(taConstr, f, oobValue, offset) {
   clearArray();
 
-  var ta = new taConstr(sab);
+  var ta = new taConstr(sab, offset);
   var name = Object.prototype.toString.call(ta);
   assertEquals(0, ta[0]);
   assertEquals(0, f(0, 0, 50), name);
@@ -107,15 +86,25 @@ function testElementType(taConstr, f, oobValue) {
   assertEquals(50, f(0, 0, 100), name);
   assertEquals(50, ta[0]);
   // out of bounds
-  assertEquals(oobValue, f(-1, 0, 0), name);
-  assertEquals(oobValue, f(ta.length, 0, 0), name);
+  assertThrows(function() { f(-1, 0, 0); });
+  assertThrows(function() { f(ta.length, 0, 0); });
 }
 
-testElementType(Int8Array, m.compareExchangei8, 0);
-testElementType(Int16Array, m.compareExchangei16, 0);
-testElementType(Int32Array, m.compareExchangei32, 0);
-testElementType(Uint8Array, m.compareExchangeu8, 0);
-testElementType(Uint16Array, m.compareExchangeu16, 0);
-testElementType(Uint32Array, m.compareExchangeu32, 0);
-testElementType(Float32Array, m.compareExchangef32, NaN);
-testElementType(Float64Array, m.compareExchangef64, NaN);
+function testElement(m, offset) {
+  testElementType(Int8Array, m.compareExchangei8, 0, offset);
+  testElementType(Int16Array, m.compareExchangei16, 0, offset);
+  testElementType(Int32Array, m.compareExchangei32, 0, offset);
+  testElementType(Uint8Array, m.compareExchangeu8, 0, offset);
+  testElementType(Uint16Array, m.compareExchangeu16, 0, offset);
+  testElementType(Uint32Array, m.compareExchangeu32, 0, offset);
+}
+
+var offset = 0;
+var sab = new SharedArrayBuffer(16);
+var m1 = Module(this, {}, sab, offset);
+testElement(m1, offset);
+
+offset = 32;
+sab = new SharedArrayBuffer(64);
+var m2 = Module(this, {}, sab, offset);
+testElement(m2, offset);

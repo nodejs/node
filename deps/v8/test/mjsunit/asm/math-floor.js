@@ -9,8 +9,8 @@ function Module(stdlib) {
 
   // f: double -> float
   function f(a) {
-    a = +a;
-    return floor(a);
+    a = +a
+    return +floor(a);
   }
 
   return { f: f };

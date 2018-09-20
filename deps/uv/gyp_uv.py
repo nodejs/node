@@ -27,6 +27,7 @@ except ImportError:
 def host_arch():
   machine = platform.machine()
   if machine == 'i386': return 'ia32'
+  if machine == 'AMD64': return 'x64'
   if machine == 'x86_64': return 'x64'
   if machine.startswith('arm'): return 'arm'
   if machine.startswith('mips'): return 'mips'
@@ -36,34 +37,13 @@ def host_arch():
 def run_gyp(args):
   rc = gyp.main(args)
   if rc != 0:
-    print 'Error running GYP'
+    print('Error running GYP')
     sys.exit(rc)
 
 
 if __name__ == '__main__':
   args = sys.argv[1:]
-
-  # GYP bug.
-  # On msvs it will crash if it gets an absolute path.
-  # On Mac/make it will crash if it doesn't get an absolute path.
-  if sys.platform == 'win32':
-    args.append(os.path.join(uv_root, 'uv.gyp'))
-    common_fn  = os.path.join(uv_root, 'common.gypi')
-    options_fn = os.path.join(uv_root, 'options.gypi')
-    # we force vs 2010 over 2008 which would otherwise be the default for gyp
-    if not os.environ.get('GYP_MSVS_VERSION'):
-      os.environ['GYP_MSVS_VERSION'] = '2010'
-  else:
-    args.append(os.path.join(os.path.abspath(uv_root), 'uv.gyp'))
-    common_fn  = os.path.join(os.path.abspath(uv_root), 'common.gypi')
-    options_fn = os.path.join(os.path.abspath(uv_root), 'options.gypi')
-
-  if os.path.exists(common_fn):
-    args.extend(['-I', common_fn])
-
-  if os.path.exists(options_fn):
-    args.extend(['-I', options_fn])
-
+  args.extend('-I common.gypi test/test.gyp'.split(' '))
   args.append('--depth=' + uv_root)
 
   # There's a bug with windows which doesn't allow this feature.
@@ -83,14 +63,11 @@ if __name__ == '__main__':
   if not any(a.startswith('-Duv_library=') for a in args):
     args.append('-Duv_library=static_library')
 
-  if not any(a.startswith('-Dcomponent=') for a in args):
-    args.append('-Dcomponent=static_library')
-
   # Some platforms (OpenBSD for example) don't have multiprocessing.synchronize
   # so gyp must be run with --no-parallel
   if not gyp_parallel_support:
     args.append('--no-parallel')
 
   gyp_args = list(args)
-  print gyp_args
+  print(gyp_args)
   run_gyp(gyp_args)

@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 ##############################################################################
 #                                                                            #
@@ -60,7 +67,7 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
@@ -81,7 +88,7 @@ if (!$addx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	$addx = ($1>=12);
 }
 
-if (!$addx && `$ENV{CC} -v 2>&1` =~ /(^clang version|based on LLVM) ([3-9])\.([0-9]+)/) {
+if (!$addx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9])\.([0-9]+)/) {
 	my $ver = $2 + $3/100.0;	# 3.1->3.01, 3.10->3.10
 	$avx = ($ver>=3.0) + ($ver>=3.01);
 	$addx = ($ver>=3.03);
@@ -128,6 +135,7 @@ ecp_nistz256_mul_by_2:
 	push	%r13
 
 	mov	8*0($a_ptr), $a0
+	xor	$t4,$t4
 	mov	8*1($a_ptr), $a1
 	add	$a0, $a0		# a0:a3+a0:a3
 	mov	8*2($a_ptr), $a2
@@ -138,7 +146,7 @@ ecp_nistz256_mul_by_2:
 	adc	$a2, $a2
 	adc	$a3, $a3
 	 mov	$a1, $t1
-	sbb	$t4, $t4
+	adc	\$0, $t4
 
 	sub	8*0($a_ptr), $a0
 	 mov	$a2, $t2
@@ -146,14 +154,14 @@ ecp_nistz256_mul_by_2:
 	sbb	8*2($a_ptr), $a2
 	 mov	$a3, $t3
 	sbb	8*3($a_ptr), $a3
-	test	$t4, $t4
+	sbb	\$0, $t4
 
-	cmovz	$t0, $a0
-	cmovz	$t1, $a1
+	cmovc	$t0, $a0
+	cmovc	$t1, $a1
 	mov	$a0, 8*0($r_ptr)
-	cmovz	$t2, $a2
+	cmovc	$t2, $a2
 	mov	$a1, 8*1($r_ptr)
-	cmovz	$t3, $a3
+	cmovc	$t3, $a3
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
@@ -250,12 +258,12 @@ ecp_nistz256_mul_by_3:
 	sbb	\$0, $a2
 	 mov	$a3, $t3
 	sbb	.Lpoly+8*3(%rip), $a3
-	test	$t4, $t4
+	sbb	\$0, $t4
 
-	cmovz	$t0, $a0
-	cmovz	$t1, $a1
-	cmovz	$t2, $a2
-	cmovz	$t3, $a3
+	cmovc	$t0, $a0
+	cmovc	$t1, $a1
+	cmovc	$t2, $a2
+	cmovc	$t3, $a3
 
 	xor	$t4, $t4
 	add	8*0($a_ptr), $a0	# a0:a3+=a_ptr[0:3]
@@ -272,14 +280,14 @@ ecp_nistz256_mul_by_3:
 	sbb	\$0, $a2
 	 mov	$a3, $t3
 	sbb	.Lpoly+8*3(%rip), $a3
-	test	$t4, $t4
+	sbb	\$0, $t4
 
-	cmovz	$t0, $a0
-	cmovz	$t1, $a1
+	cmovc	$t0, $a0
+	cmovc	$t1, $a1
 	mov	$a0, 8*0($r_ptr)
-	cmovz	$t2, $a2
+	cmovc	$t2, $a2
 	mov	$a1, 8*1($r_ptr)
-	cmovz	$t3, $a3
+	cmovc	$t3, $a3
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
@@ -318,14 +326,14 @@ ecp_nistz256_add:
 	sbb	8*2($a_ptr), $a2
 	 mov	$a3, $t3
 	sbb	8*3($a_ptr), $a3
-	test	$t4, $t4
+	sbb	\$0, $t4
 
-	cmovz	$t0, $a0
-	cmovz	$t1, $a1
+	cmovc	$t0, $a0
+	cmovc	$t1, $a1
 	mov	$a0, 8*0($r_ptr)
-	cmovz	$t2, $a2
+	cmovc	$t2, $a2
 	mov	$a1, 8*1($r_ptr)
-	cmovz	$t3, $a3
+	cmovc	$t3, $a3
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
@@ -1177,19 +1185,18 @@ __ecp_nistz256_sqr_montx:
 	adox	$t1, $acc5
 	.byte	0x67,0x67
 	mulx	%rdx, $t0, $t4
-	 mov	$acc0, %rdx
+	 mov	.Lpoly+8*3(%rip), %rdx
 	adox	$t0, $acc6
 	 shlx	$a_ptr, $acc0, $t0
 	adox	$t4, $acc7
 	 shrx	$a_ptr, $acc0, $t4
-	 mov	.Lpoly+8*3(%rip), $t1
+	mov	%rdx,$t1
 
 	# reduction step 1
 	add	$t0, $acc1
 	adc	$t4, $acc2
 
-	mulx	$t1, $t0, $acc0
-	 mov	$acc1, %rdx
+	mulx	$acc0, $t0, $acc0
 	adc	$t0, $acc3
 	 shlx	$a_ptr, $acc1, $t0
 	adc	\$0, $acc0
@@ -1199,8 +1206,7 @@ __ecp_nistz256_sqr_montx:
 	add	$t0, $acc2
 	adc	$t4, $acc3
 
-	mulx	$t1, $t0, $acc1
-	 mov	$acc2, %rdx
+	mulx	$acc1, $t0, $acc1
 	adc	$t0, $acc0
 	 shlx	$a_ptr, $acc2, $t0
 	adc	\$0, $acc1
@@ -1210,8 +1216,7 @@ __ecp_nistz256_sqr_montx:
 	add	$t0, $acc3
 	adc	$t4, $acc0
 
-	mulx	$t1, $t0, $acc2
-	 mov	$acc3, %rdx
+	mulx	$acc2, $t0, $acc2
 	adc	$t0, $acc1
 	 shlx	$a_ptr, $acc3, $t0
 	adc	\$0, $acc2
@@ -1221,12 +1226,12 @@ __ecp_nistz256_sqr_montx:
 	add	$t0, $acc0
 	adc	$t4, $acc1
 
-	mulx	$t1, $t0, $acc3
+	mulx	$acc3, $t0, $acc3
 	adc	$t0, $acc2
 	adc	\$0, $acc3
 
-	xor	$t3, $t3		# cf=0
-	adc	$acc0, $acc4		# accumulate upper half
+	xor	$t3, $t3
+	add	$acc0, $acc4		# accumulate upper half
 	 mov	.Lpoly+8*1(%rip), $a_ptr
 	adc	$acc1, $acc5
 	 mov	$acc4, $acc0
@@ -1235,8 +1240,7 @@ __ecp_nistz256_sqr_montx:
 	 mov	$acc5, $acc1
 	adc	\$0, $t3
 
-	xor	%eax, %eax		# cf=0
-	sbb	\$-1, $acc4		# .Lpoly[0]
+	sub	\$-1, $acc4		# .Lpoly[0]
 	 mov	$acc6, $acc2
 	sbb	$a_ptr, $acc5		# .Lpoly[1]
 	sbb	\$0, $acc6		# .Lpoly[2]
@@ -1370,20 +1374,44 @@ my ($M1,$T2a,$T2b,$TMP2,$M2,$T2a,$T2b,$TMP2)=map("%xmm$_",(8..15));
 
 $code.=<<___;
 ################################################################################
-# void ecp_nistz256_select_w5(uint64_t *val, uint64_t *in_t, int index);
-.globl	ecp_nistz256_select_w5
-.type	ecp_nistz256_select_w5,\@abi-omnipotent
+# void ecp_nistz256_scatter_w5(uint64_t *val, uint64_t *in_t, int index);
+.globl	ecp_nistz256_scatter_w5
+.type	ecp_nistz256_scatter_w5,\@abi-omnipotent
 .align	32
-ecp_nistz256_select_w5:
+ecp_nistz256_scatter_w5:
+	lea	-3($index,$index,2), $index
+	movdqa	0x00($in_t), %xmm0
+	shl	\$5, $index
+	movdqa	0x10($in_t), %xmm1
+	movdqa	0x20($in_t), %xmm2
+	movdqa	0x30($in_t), %xmm3
+	movdqa	0x40($in_t), %xmm4
+	movdqa	0x50($in_t), %xmm5
+	movdqa	%xmm0, 0x00($val,$index)
+	movdqa	%xmm1, 0x10($val,$index)
+	movdqa	%xmm2, 0x20($val,$index)
+	movdqa	%xmm3, 0x30($val,$index)
+	movdqa	%xmm4, 0x40($val,$index)
+	movdqa	%xmm5, 0x50($val,$index)
+
+	ret
+.size	ecp_nistz256_scatter_w5,.-ecp_nistz256_scatter_w5
+
+################################################################################
+# void ecp_nistz256_gather_w5(uint64_t *val, uint64_t *in_t, int index);
+.globl	ecp_nistz256_gather_w5
+.type	ecp_nistz256_gather_w5,\@abi-omnipotent
+.align	32
+ecp_nistz256_gather_w5:
 ___
 $code.=<<___	if ($avx>1);
 	mov	OPENSSL_ia32cap_P+8(%rip), %eax
 	test	\$`1<<5`, %eax
-	jnz	.Lavx2_select_w5
+	jnz	.Lavx2_gather_w5
 ___
 $code.=<<___	if ($win64);
 	lea	-0x88(%rsp), %rax
-.LSEH_begin_ecp_nistz256_select_w5:
+.LSEH_begin_ecp_nistz256_gather_w5:
 	.byte	0x48,0x8d,0x60,0xe0		#lea	-0x20(%rax), %rsp
 	.byte	0x0f,0x29,0x70,0xe0		#movaps	%xmm6, -0x20(%rax)
 	.byte	0x0f,0x29,0x78,0xf0		#movaps	%xmm7, -0x10(%rax)
@@ -1460,27 +1488,46 @@ $code.=<<___	if ($win64);
 	movaps	0x80(%rsp), %xmm14
 	movaps	0x90(%rsp), %xmm15
 	lea	0xa8(%rsp), %rsp
-.LSEH_end_ecp_nistz256_select_w5:
+.LSEH_end_ecp_nistz256_gather_w5:
 ___
 $code.=<<___;
 	ret
-.size	ecp_nistz256_select_w5,.-ecp_nistz256_select_w5
+.size	ecp_nistz256_gather_w5,.-ecp_nistz256_gather_w5
 
 ################################################################################
-# void ecp_nistz256_select_w7(uint64_t *val, uint64_t *in_t, int index);
-.globl	ecp_nistz256_select_w7
-.type	ecp_nistz256_select_w7,\@abi-omnipotent
+# void ecp_nistz256_scatter_w7(uint64_t *val, uint64_t *in_t, int index);
+.globl	ecp_nistz256_scatter_w7
+.type	ecp_nistz256_scatter_w7,\@abi-omnipotent
 .align	32
-ecp_nistz256_select_w7:
+ecp_nistz256_scatter_w7:
+	movdqu	0x00($in_t), %xmm0
+	shl	\$6, $index
+	movdqu	0x10($in_t), %xmm1
+	movdqu	0x20($in_t), %xmm2
+	movdqu	0x30($in_t), %xmm3
+	movdqa	%xmm0, 0x00($val,$index)
+	movdqa	%xmm1, 0x10($val,$index)
+	movdqa	%xmm2, 0x20($val,$index)
+	movdqa	%xmm3, 0x30($val,$index)
+
+	ret
+.size	ecp_nistz256_scatter_w7,.-ecp_nistz256_scatter_w7
+
+################################################################################
+# void ecp_nistz256_gather_w7(uint64_t *val, uint64_t *in_t, int index);
+.globl	ecp_nistz256_gather_w7
+.type	ecp_nistz256_gather_w7,\@abi-omnipotent
+.align	32
+ecp_nistz256_gather_w7:
 ___
 $code.=<<___	if ($avx>1);
 	mov	OPENSSL_ia32cap_P+8(%rip), %eax
 	test	\$`1<<5`, %eax
-	jnz	.Lavx2_select_w7
+	jnz	.Lavx2_gather_w7
 ___
 $code.=<<___	if ($win64);
 	lea	-0x88(%rsp), %rax
-.LSEH_begin_ecp_nistz256_select_w7:
+.LSEH_begin_ecp_nistz256_gather_w7:
 	.byte	0x48,0x8d,0x60,0xe0		#lea	-0x20(%rax), %rsp
 	.byte	0x0f,0x29,0x70,0xe0		#movaps	%xmm6, -0x20(%rax)
 	.byte	0x0f,0x29,0x78,0xf0		#movaps	%xmm7, -0x10(%rax)
@@ -1546,11 +1593,11 @@ $code.=<<___	if ($win64);
 	movaps	0x80(%rsp), %xmm14
 	movaps	0x90(%rsp), %xmm15
 	lea	0xa8(%rsp), %rsp
-.LSEH_end_ecp_nistz256_select_w7:
+.LSEH_end_ecp_nistz256_gather_w7:
 ___
 $code.=<<___;
 	ret
-.size	ecp_nistz256_select_w7,.-ecp_nistz256_select_w7
+.size	ecp_nistz256_gather_w7,.-ecp_nistz256_gather_w7
 ___
 }
 if ($avx>1) {
@@ -1561,16 +1608,16 @@ my ($M1,$T1a,$T1b,$T1c,$TMP1)=map("%ymm$_",(10..14));
 
 $code.=<<___;
 ################################################################################
-# void ecp_nistz256_avx2_select_w5(uint64_t *val, uint64_t *in_t, int index);
-.type	ecp_nistz256_avx2_select_w5,\@abi-omnipotent
+# void ecp_nistz256_avx2_gather_w5(uint64_t *val, uint64_t *in_t, int index);
+.type	ecp_nistz256_avx2_gather_w5,\@abi-omnipotent
 .align	32
-ecp_nistz256_avx2_select_w5:
-.Lavx2_select_w5:
+ecp_nistz256_avx2_gather_w5:
+.Lavx2_gather_w5:
 	vzeroupper
 ___
 $code.=<<___	if ($win64);
 	lea	-0x88(%rsp), %rax
-.LSEH_begin_ecp_nistz256_avx2_select_w5:
+.LSEH_begin_ecp_nistz256_avx2_gather_w5:
 	.byte	0x48,0x8d,0x60,0xe0		#lea	-0x20(%rax), %rsp
 	.byte	0xc5,0xf8,0x29,0x70,0xe0	#vmovaps %xmm6, -0x20(%rax)
 	.byte	0xc5,0xf8,0x29,0x78,0xf0	#vmovaps %xmm7, -0x10(%rax)
@@ -1648,11 +1695,11 @@ $code.=<<___	if ($win64);
 	movaps	0x80(%rsp), %xmm14
 	movaps	0x90(%rsp), %xmm15
 	lea	0xa8(%rsp), %rsp
-.LSEH_end_ecp_nistz256_avx2_select_w5:
+.LSEH_end_ecp_nistz256_avx2_gather_w5:
 ___
 $code.=<<___;
 	ret
-.size	ecp_nistz256_avx2_select_w5,.-ecp_nistz256_avx2_select_w5
+.size	ecp_nistz256_avx2_gather_w5,.-ecp_nistz256_avx2_gather_w5
 ___
 }
 if ($avx>1) {
@@ -1665,17 +1712,17 @@ my ($M2,$T2a,$T2b,$TMP2)=map("%ymm$_",(12..15));
 $code.=<<___;
 
 ################################################################################
-# void ecp_nistz256_avx2_select_w7(uint64_t *val, uint64_t *in_t, int index);
-.globl	ecp_nistz256_avx2_select_w7
-.type	ecp_nistz256_avx2_select_w7,\@abi-omnipotent
+# void ecp_nistz256_avx2_gather_w7(uint64_t *val, uint64_t *in_t, int index);
+.globl	ecp_nistz256_avx2_gather_w7
+.type	ecp_nistz256_avx2_gather_w7,\@abi-omnipotent
 .align	32
-ecp_nistz256_avx2_select_w7:
-.Lavx2_select_w7:
+ecp_nistz256_avx2_gather_w7:
+.Lavx2_gather_w7:
 	vzeroupper
 ___
 $code.=<<___	if ($win64);
 	lea	-0x88(%rsp), %rax
-.LSEH_begin_ecp_nistz256_avx2_select_w7:
+.LSEH_begin_ecp_nistz256_avx2_gather_w7:
 	.byte	0x48,0x8d,0x60,0xe0		#lea	-0x20(%rax), %rsp
 	.byte	0xc5,0xf8,0x29,0x70,0xe0	#vmovaps %xmm6, -0x20(%rax)
 	.byte	0xc5,0xf8,0x29,0x78,0xf0	#vmovaps %xmm7, -0x10(%rax)
@@ -1768,21 +1815,21 @@ $code.=<<___	if ($win64);
 	movaps	0x80(%rsp), %xmm14
 	movaps	0x90(%rsp), %xmm15
 	lea	0xa8(%rsp), %rsp
-.LSEH_end_ecp_nistz256_avx2_select_w7:
+.LSEH_end_ecp_nistz256_avx2_gather_w7:
 ___
 $code.=<<___;
 	ret
-.size	ecp_nistz256_avx2_select_w7,.-ecp_nistz256_avx2_select_w7
+.size	ecp_nistz256_avx2_gather_w7,.-ecp_nistz256_avx2_gather_w7
 ___
 } else {
 $code.=<<___;
-.globl	ecp_nistz256_avx2_select_w7
-.type	ecp_nistz256_avx2_select_w7,\@function,3
+.globl	ecp_nistz256_avx2_gather_w7
+.type	ecp_nistz256_avx2_gather_w7,\@function,3
 .align	32
-ecp_nistz256_avx2_select_w7:
+ecp_nistz256_avx2_gather_w7:
 	.byte	0x0f,0x0b	# ud2
 	ret
-.size	ecp_nistz256_avx2_select_w7,.-ecp_nistz256_avx2_select_w7
+.size	ecp_nistz256_avx2_gather_w7,.-ecp_nistz256_avx2_gather_w7
 ___
 }
 {{{
@@ -1840,13 +1887,14 @@ $code.=<<___;
 .type	__ecp_nistz256_add_toq,\@abi-omnipotent
 .align	32
 __ecp_nistz256_add_toq:
+	xor	$t4,$t4
 	add	8*0($b_ptr), $a0
 	adc	8*1($b_ptr), $a1
 	 mov	$a0, $t0
 	adc	8*2($b_ptr), $a2
 	adc	8*3($b_ptr), $a3
 	 mov	$a1, $t1
-	sbb	$t4, $t4
+	adc	\$0, $t4
 
 	sub	\$-1, $a0
 	 mov	$a2, $t2
@@ -1854,14 +1902,14 @@ __ecp_nistz256_add_toq:
 	sbb	\$0, $a2
 	 mov	$a3, $t3
 	sbb	$poly3, $a3
-	test	$t4, $t4
+	sbb	\$0, $t4
 
-	cmovz	$t0, $a0
-	cmovz	$t1, $a1
+	cmovc	$t0, $a0
+	cmovc	$t1, $a1
 	mov	$a0, 8*0($r_ptr)
-	cmovz	$t2, $a2
+	cmovc	$t2, $a2
 	mov	$a1, 8*1($r_ptr)
-	cmovz	$t3, $a3
+	cmovc	$t3, $a3
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
@@ -1929,13 +1977,14 @@ __ecp_nistz256_subq:
 .type	__ecp_nistz256_mul_by_2q,\@abi-omnipotent
 .align	32
 __ecp_nistz256_mul_by_2q:
+	xor	$t4, $t4
 	add	$a0, $a0		# a0:a3+a0:a3
 	adc	$a1, $a1
 	 mov	$a0, $t0
 	adc	$a2, $a2
 	adc	$a3, $a3
 	 mov	$a1, $t1
-	sbb	$t4, $t4
+	adc	\$0, $t4
 
 	sub	\$-1, $a0
 	 mov	$a2, $t2
@@ -1943,14 +1992,14 @@ __ecp_nistz256_mul_by_2q:
 	sbb	\$0, $a2
 	 mov	$a3, $t3
 	sbb	$poly3, $a3
-	test	$t4, $t4
+	sbb	\$0, $t4
 
-	cmovz	$t0, $a0
-	cmovz	$t1, $a1
+	cmovc	$t0, $a0
+	cmovc	$t1, $a1
 	mov	$a0, 8*0($r_ptr)
-	cmovz	$t2, $a2
+	cmovc	$t2, $a2
 	mov	$a1, 8*1($r_ptr)
-	cmovz	$t3, $a3
+	cmovc	$t3, $a3
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
@@ -2001,6 +2050,7 @@ $code.=<<___;
 	push	%r15
 	sub	\$32*5+8, %rsp
 
+.Lpoint_double_shortcut$x:
 	movdqu	0x00($a_ptr), %xmm0		# copy	*(P256_POINT *)$a_ptr.x
 	mov	$a_ptr, $b_ptr			# backup copy
 	movdqu	0x10($a_ptr), %xmm1
@@ -2240,16 +2290,14 @@ $code.=<<___;
 	mov	$b_org, $a_ptr			# reassign
 	movdqa	%xmm0, $in1_x(%rsp)
 	movdqa	%xmm1, $in1_x+0x10(%rsp)
-	por	%xmm0, %xmm1
 	movdqa	%xmm2, $in1_y(%rsp)
 	movdqa	%xmm3, $in1_y+0x10(%rsp)
-	por	%xmm2, %xmm3
 	movdqa	%xmm4, $in1_z(%rsp)
 	movdqa	%xmm5, $in1_z+0x10(%rsp)
-	por	%xmm1, %xmm3
+	por	%xmm4, %xmm5
 
 	movdqu	0x00($a_ptr), %xmm0		# copy	*(P256_POINT *)$b_ptr
-	 pshufd	\$0xb1, %xmm3, %xmm5
+	 pshufd	\$0xb1, %xmm5, %xmm3
 	movdqu	0x10($a_ptr), %xmm1
 	movdqu	0x20($a_ptr), %xmm2
 	 por	%xmm3, %xmm5
@@ -2261,14 +2309,14 @@ $code.=<<___;
 	movdqa	%xmm0, $in2_x(%rsp)
 	 pshufd	\$0x1e, %xmm5, %xmm4
 	movdqa	%xmm1, $in2_x+0x10(%rsp)
-	por	%xmm0, %xmm1
-	 movq	$r_ptr, %xmm0			# save $r_ptr
+	movdqu	0x40($a_ptr),%xmm0		# in2_z again
+	movdqu	0x50($a_ptr),%xmm1
 	movdqa	%xmm2, $in2_y(%rsp)
 	movdqa	%xmm3, $in2_y+0x10(%rsp)
-	por	%xmm2, %xmm3
 	 por	%xmm4, %xmm5
 	 pxor	%xmm4, %xmm4
-	por	%xmm1, %xmm3
+	por	%xmm0, %xmm1
+	 movq	$r_ptr, %xmm0			# save $r_ptr
 
 	lea	0x40-$bias($a_ptr), $a_ptr	# $a_ptr is still valid
 	 mov	$src0, $in2_z+8*0(%rsp)		# make in2_z copy
@@ -2279,8 +2327,8 @@ $code.=<<___;
 	call	__ecp_nistz256_sqr_mont$x	# p256_sqr_mont(Z2sqr, in2_z);
 
 	pcmpeqd	%xmm4, %xmm5
-	pshufd	\$0xb1, %xmm3, %xmm4
-	por	%xmm3, %xmm4
+	pshufd	\$0xb1, %xmm1, %xmm4
+	por	%xmm1, %xmm4
 	pshufd	\$0, %xmm5, %xmm5		# in1infty
 	pshufd	\$0x1e, %xmm4, %xmm3
 	por	%xmm3, %xmm4
@@ -2291,6 +2339,7 @@ $code.=<<___;
 	 mov	0x40+8*1($b_ptr), $acc6
 	 mov	0x40+8*2($b_ptr), $acc7
 	 mov	0x40+8*3($b_ptr), $acc0
+	movq	$b_ptr, %xmm1
 
 	lea	0x40-$bias($b_ptr), $a_ptr
 	lea	$Z1sqr(%rsp), $r_ptr		# Z1^2
@@ -2346,7 +2395,7 @@ $code.=<<___;
 	test	$acc0, $acc0
 	jnz	.Ladd_proceed$x			# (in1infty || in2infty)?
 	test	$acc1, $acc1
-	jz	.Ladd_proceed$x			# is_equal(S1,S2)?
+	jz	.Ladd_double$x			# is_equal(S1,S2)?
 
 	movq	%xmm0, $r_ptr			# restore $r_ptr
 	pxor	%xmm0, %xmm0
@@ -2357,6 +2406,13 @@ $code.=<<___;
 	movdqu	%xmm0, 0x40($r_ptr)
 	movdqu	%xmm0, 0x50($r_ptr)
 	jmp	.Ladd_done$x
+
+.align	32
+.Ladd_double$x:
+	movq	%xmm1, $a_ptr			# restore $a_ptr
+	movq	%xmm0, $r_ptr			# restore $r_ptr
+	add	\$`32*(18-5)`, %rsp		# difference in frame sizes
+	jmp	.Lpoint_double_shortcut$x
 
 .align	32
 .Ladd_proceed$x:
@@ -2396,6 +2452,7 @@ $code.=<<___;
 	#lea	$Hsqr(%rsp), $r_ptr	# 2*U1*H^2
 	#call	__ecp_nistz256_mul_by_2	# ecp_nistz256_mul_by_2(Hsqr, U2);
 
+	xor	$t4, $t4
 	add	$acc0, $acc0		# a0:a3+a0:a3
 	lea	$Rsqr(%rsp), $a_ptr
 	adc	$acc1, $acc1
@@ -2403,7 +2460,7 @@ $code.=<<___;
 	adc	$acc2, $acc2
 	adc	$acc3, $acc3
 	 mov	$acc1, $t1
-	sbb	$t4, $t4
+	adc	\$0, $t4
 
 	sub	\$-1, $acc0
 	 mov	$acc2, $t2
@@ -2411,15 +2468,15 @@ $code.=<<___;
 	sbb	\$0, $acc2
 	 mov	$acc3, $t3
 	sbb	$poly3, $acc3
-	test	$t4, $t4
+	sbb	\$0, $t4
 
-	cmovz	$t0, $acc0
+	cmovc	$t0, $acc0
 	mov	8*0($a_ptr), $t0
-	cmovz	$t1, $acc1
+	cmovc	$t1, $acc1
 	mov	8*1($a_ptr), $t1
-	cmovz	$t2, $acc2
+	cmovc	$t2, $acc2
 	mov	8*2($a_ptr), $t2
-	cmovz	$t3, $acc3
+	cmovc	$t3, $acc3
 	mov	8*3($a_ptr), $t3
 
 	call	__ecp_nistz256_sub$x		# p256_sub(res_x, Rsqr, Hsqr);
@@ -2603,16 +2660,14 @@ $code.=<<___;
 	 mov	0x40+8*3($a_ptr), $acc0
 	movdqa	%xmm0, $in1_x(%rsp)
 	movdqa	%xmm1, $in1_x+0x10(%rsp)
-	por	%xmm0, %xmm1
 	movdqa	%xmm2, $in1_y(%rsp)
 	movdqa	%xmm3, $in1_y+0x10(%rsp)
-	por	%xmm2, %xmm3
 	movdqa	%xmm4, $in1_z(%rsp)
 	movdqa	%xmm5, $in1_z+0x10(%rsp)
-	por	%xmm1, %xmm3
+	por	%xmm4, %xmm5
 
 	movdqu	0x00($b_ptr), %xmm0	# copy	*(P256_POINT_AFFINE *)$b_ptr
-	 pshufd	\$0xb1, %xmm3, %xmm5
+	 pshufd	\$0xb1, %xmm5, %xmm3
 	movdqu	0x10($b_ptr), %xmm1
 	movdqu	0x20($b_ptr), %xmm2
 	 por	%xmm3, %xmm5
@@ -2701,6 +2756,7 @@ $code.=<<___;
 	#lea	$Hsqr(%rsp), $r_ptr	# 2*U1*H^2
 	#call	__ecp_nistz256_mul_by_2	# ecp_nistz256_mul_by_2(Hsqr, U2);
 
+	xor	$t4, $t4
 	add	$acc0, $acc0		# a0:a3+a0:a3
 	lea	$Rsqr(%rsp), $a_ptr
 	adc	$acc1, $acc1
@@ -2708,7 +2764,7 @@ $code.=<<___;
 	adc	$acc2, $acc2
 	adc	$acc3, $acc3
 	 mov	$acc1, $t1
-	sbb	$t4, $t4
+	adc	\$0, $t4
 
 	sub	\$-1, $acc0
 	 mov	$acc2, $t2
@@ -2716,15 +2772,15 @@ $code.=<<___;
 	sbb	\$0, $acc2
 	 mov	$acc3, $t3
 	sbb	$poly3, $acc3
-	test	$t4, $t4
+	sbb	\$0, $t4
 
-	cmovz	$t0, $acc0
+	cmovc	$t0, $acc0
 	mov	8*0($a_ptr), $t0
-	cmovz	$t1, $acc1
+	cmovc	$t1, $acc1
 	mov	8*1($a_ptr), $t1
-	cmovz	$t2, $acc2
+	cmovc	$t2, $acc2
 	mov	8*2($a_ptr), $t2
-	cmovz	$t3, $acc3
+	cmovc	$t3, $acc3
 	mov	8*3($a_ptr), $t3
 
 	call	__ecp_nistz256_sub$x		# p256_sub(res_x, Rsqr, Hsqr);
@@ -2876,14 +2932,14 @@ __ecp_nistz256_add_tox:
 	sbb	\$0, $a2
 	 mov	$a3, $t3
 	sbb	$poly3, $a3
+	sbb	\$0, $t4
 
-	bt	\$0, $t4
-	cmovnc	$t0, $a0
-	cmovnc	$t1, $a1
+	cmovc	$t0, $a0
+	cmovc	$t1, $a1
 	mov	$a0, 8*0($r_ptr)
-	cmovnc	$t2, $a2
+	cmovc	$t2, $a2
 	mov	$a1, 8*1($r_ptr)
-	cmovnc	$t3, $a3
+	cmovc	$t3, $a3
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
@@ -2971,14 +3027,14 @@ __ecp_nistz256_mul_by_2x:
 	sbb	\$0, $a2
 	 mov	$a3, $t3
 	sbb	$poly3, $a3
+	sbb	\$0, $t4
 
-	bt	\$0, $t4
-	cmovnc	$t0, $a0
-	cmovnc	$t1, $a1
+	cmovc	$t0, $a0
+	cmovc	$t1, $a1
 	mov	$a0, 8*0($r_ptr)
-	cmovnc	$t2, $a2
+	cmovc	$t2, $a2
 	mov	$a1, 8*1($r_ptr)
-	cmovnc	$t3, $a3
+	cmovc	$t3, $a3
 	mov	$a2, 8*2($r_ptr)
 	mov	$a3, 8*3($r_ptr)
 
@@ -2991,6 +3047,36 @@ ___
 &gen_add_affine("x");
 }
 }}}
+
+########################################################################
+# Convert ecp_nistz256_table.c to layout expected by ecp_nistz_gather_w7
+#
+open TABLE,"<ecp_nistz256_table.c"		or 
+open TABLE,"<${dir}../ecp_nistz256_table.c"	or 
+die "failed to open ecp_nistz256_table.c:",$!;
+
+use integer;
+
+foreach(<TABLE>) {
+	s/TOBN\(\s*(0x[0-9a-f]+),\s*(0x[0-9a-f]+)\s*\)/push @arr,hex($2),hex($1)/geo;
+}
+close TABLE;
+
+die "insane number of elements" if ($#arr != 64*16*37-1);
+
+print <<___;
+.text
+.globl	ecp_nistz256_precomputed
+.type	ecp_nistz256_precomputed,\@object
+.align	4096
+ecp_nistz256_precomputed:
+___
+while (@line=splice(@arr,0,16)) {
+	print ".long\t",join(',',map { sprintf "0x%08x",$_} @line),"\n";
+}
+print <<___;
+.size	ecp_nistz256_precomputed,.-ecp_nistz256_precomputed
+___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;
 print $code;

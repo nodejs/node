@@ -1,15 +1,20 @@
-var assert = require('assert');
-var common = require('../common.js');
+'use strict';
+const assert = require('assert');
+const common = require('../common.js');
 
-var bench = common.createBenchmark(main, {});
+const bench = common.createBenchmark(main, {
+  n: [32],
+  size: [8 << 20]
+});
 
-function main(conf) {
-  for (var s = 'abcd'; s.length < 32 << 20; s += s);
+function main({ n, size }) {
+  const s = 'abcd'.repeat(size);
+  // eslint-disable-next-line node-core/no-unescaped-regexp-dot
   s.match(/./);  // Flatten string.
-  assert.equal(s.length % 4, 0);
-  var b = Buffer(s.length / 4 * 3);
+  assert.strictEqual(s.length % 4, 0);
+  const b = Buffer.allocUnsafe(s.length / 4 * 3);
   b.write(s, 0, s.length, 'base64');
   bench.start();
-  for (var i = 0; i < 32; i += 1) b.base64Write(s, 0, s.length);
-  bench.end(32);
+  for (var i = 0; i < n; i += 1) b.base64Write(s, 0, s.length);
+  bench.end(n);
 }

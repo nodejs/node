@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var nativeProcess = require('process');
-assert.strictEqual(nativeProcess, process,
-  'require("process") should return a reference to global process');
+const nativeProcess = require('process');
+// require('process') should return global process reference
+assert.strictEqual(nativeProcess, process);

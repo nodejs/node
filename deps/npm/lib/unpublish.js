@@ -1,3 +1,4 @@
+/* eslint-disable standard/no-callback-literal */
 
 module.exports = unpublish
 
@@ -8,6 +9,7 @@ var path = require('path')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var npa = require('npm-package-arg')
 var getPublishConfig = require('./utils/get-publish-config.js')
+var output = require('./utils/output.js')
 
 unpublish.usage = 'npm unpublish [<@scope>/]<pkg>[@<version>]'
 
@@ -89,7 +91,7 @@ function gotProject (project, version, publishConfig, cb_) {
 
   function cb (er) {
     if (er) return cb_(er)
-    console.log('- ' + project + (version ? '@' + version : ''))
+    output('- ' + project + (version ? '@' + version : ''))
     cb_()
   }
 
@@ -98,20 +100,20 @@ function gotProject (project, version, publishConfig, cb_) {
   var registry = mappedConfig.client
 
   // remove from the cache first
-  npm.commands.cache(['clean', project, version], function (er) {
-    if (er) {
-      log.error('unpublish', 'Failed to clean cache')
-      return cb(er)
+  // npm.commands.cache(['clean', project, version], function (er) {
+  // if (er) {
+  //   log.error('unpublish', 'Failed to clean cache')
+  //   return cb(er)
+  // }
+
+  mapToRegistry(project, config, function (er, uri, auth) {
+    if (er) return cb(er)
+
+    var params = {
+      version: version,
+      auth: auth
     }
-
-    mapToRegistry(project, config, function (er, uri, auth) {
-      if (er) return cb(er)
-
-      var params = {
-        version: version,
-        auth: auth
-      }
-      registry.unpublish(uri, params, cb)
-    })
+    registry.unpublish(uri, params, cb)
   })
+  // })
 }

@@ -1,26 +1,28 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var spawn = require('child_process').spawn;
-
+const common = require('../common');
 // Fails with EINVAL on SmartOS, EBUSY on Windows, EBUSY on AIX.
-if (process.platform === 'sunos' || common.isWindows || common.isAix) {
-  console.log('1..0 # Skipped: cannot rmdir current working directory');
-  return;
-}
+if (common.isSunOS || common.isWindows || common.isAIX)
+  common.skip('cannot rmdir current working directory');
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
-var dirname = common.tmpDir + '/cwd-does-not-exist-' + process.pid;
-common.refreshTmpDir();
+const assert = require('assert');
+const fs = require('fs');
+const spawn = require('child_process').spawn;
+
+const tmpdir = require('../common/tmpdir');
+
+const dirname = `${tmpdir.path}/cwd-does-not-exist-${process.pid}`;
+tmpdir.refresh();
 fs.mkdirSync(dirname);
 process.chdir(dirname);
 fs.rmdirSync(dirname);
 
-var proc = spawn(process.execPath, ['-e', '0']);
+const proc = spawn(process.execPath, ['-e', '0']);
 proc.stdout.pipe(process.stdout);
 proc.stderr.pipe(process.stderr);
 
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {
-  assert.equal(exitCode, 0);
-  assert.equal(signalCode, null);
+  assert.strictEqual(exitCode, 0);
+  assert.strictEqual(signalCode, null);
 }));
