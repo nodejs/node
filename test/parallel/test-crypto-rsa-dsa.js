@@ -100,7 +100,7 @@ const decryptError =
   assert.throws(() => {
     crypto.publicDecrypt({
       key: rsaKeyPemEncrypted,
-      passphrase: [].concat.apply([], Buffer.from('password'))
+      passphrase: Buffer.from('wrong')
     }, encryptedBuffer);
   }, decryptError);
 }
