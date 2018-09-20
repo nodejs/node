@@ -88,6 +88,7 @@ using v8::SideEffectType;
 using v8::Signature;
 using v8::String;
 using v8::Uint32;
+using v8::Undefined;
 using v8::Value;
 
 
@@ -4832,6 +4833,453 @@ void Scrypt(const FunctionCallbackInfo<Value>& args) {
 #endif  // OPENSSL_NO_SCRYPT
 
 
+class KeyPairGenerationConfig {
+ public:
+  virtual EVPKeyCtxPointer Setup() = 0;
+  virtual bool Configure(const EVPKeyCtxPointer& ctx) {
+    return true;
+  }
+};
+
+class RSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
+ public:
+  RSAKeyPairGenerationConfig(unsigned int modulus_bits, unsigned int exponent)
+    : modulus_bits_(modulus_bits), exponent_(exponent) {}
+
+  EVPKeyCtxPointer Setup() override {
+    return EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr));
+  }
+
+  bool Configure(const EVPKeyCtxPointer& ctx) override {
+    if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx.get(), modulus_bits_) <= 0)
+      return false;
+
+    // 0x10001 is the default RSA exponent.
+    if (exponent_ != 0x10001) {
+      BignumPointer bn(BN_new());
+      CHECK_NOT_NULL(bn.get());
+      CHECK(BN_set_word(bn.get(), exponent_));
+      if (EVP_PKEY_CTX_set_rsa_keygen_pubexp(ctx.get(), bn.get()) <= 0)
+        return false;
+    }
+
+    return true;
+  }
+
+ private:
+  const unsigned int modulus_bits_;
+  const unsigned int exponent_;
+};
+
+class DSAKeyPairGenerationConfig : public KeyPairGenerationConfig {
+ public:
+  DSAKeyPairGenerationConfig(unsigned int modulus_bits, int divisor_bits)
+    : modulus_bits_(modulus_bits), divisor_bits_(divisor_bits) {}
+
+  EVPKeyCtxPointer Setup() override {
+    EVPKeyCtxPointer param_ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, nullptr));
+    if (!param_ctx)
+      return nullptr;
+
+    if (EVP_PKEY_paramgen_init(param_ctx.get()) <= 0)
+      return nullptr;
+
+    if (EVP_PKEY_CTX_set_dsa_paramgen_bits(param_ctx.get(), modulus_bits_) <= 0)
+      return nullptr;
+
+    if (divisor_bits_ != -1) {
+      if (EVP_PKEY_CTX_ctrl(param_ctx.get(), EVP_PKEY_DSA, EVP_PKEY_OP_PARAMGEN,
+                            EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS, divisor_bits_,
+                            nullptr) <= 0) {
+        return nullptr;
+      }
+    }
+
+    EVP_PKEY* params = nullptr;
+    if (EVP_PKEY_paramgen(param_ctx.get(), &params) <= 0)
+      return nullptr;
+    param_ctx.reset();
+
+    EVPKeyCtxPointer key_ctx(EVP_PKEY_CTX_new(params, nullptr));
+    EVP_PKEY_free(params);
+    return key_ctx;
+  }
+
+ private:
+  const unsigned int modulus_bits_;
+  const int divisor_bits_;
+};
+
+class ECKeyPairGenerationConfig : public KeyPairGenerationConfig {
+ public:
+  ECKeyPairGenerationConfig(int curve_nid, int param_encoding)
+    : curve_nid_(curve_nid), param_encoding_(param_encoding) {}
+
+  EVPKeyCtxPointer Setup() override {
+    EVPKeyCtxPointer param_ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr));
+    if (!param_ctx)
+      return nullptr;
+
+    if (EVP_PKEY_paramgen_init(param_ctx.get()) <= 0)
+      return nullptr;
+
+    if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(param_ctx.get(),
+                                               curve_nid_) <= 0)
+      return nullptr;
+
+    if (EVP_PKEY_CTX_set_ec_param_enc(param_ctx.get(), param_encoding_) <= 0)
+      return nullptr;
+
+    EVP_PKEY* params = nullptr;
+    if (EVP_PKEY_paramgen(param_ctx.get(), &params) <= 0)
+      return nullptr;
+    param_ctx.reset();
+
+    EVPKeyCtxPointer key_ctx(EVP_PKEY_CTX_new(params, nullptr));
+    EVP_PKEY_free(params);
+    return key_ctx;
+  }
+
+ private:
+  const int curve_nid_;
+  const int param_encoding_;
+};
+
+enum PKEncodingType {
+  // RSAPublicKey / RSAPrivateKey according to PKCS#1.
+  PK_ENCODING_PKCS1,
+  // PrivateKeyInfo or EncryptedPrivateKeyInfo according to PKCS#8.
+  PK_ENCODING_PKCS8,
+  // SubjectPublicKeyInfo according to X.509.
+  PK_ENCODING_SPKI,
+  // ECPrivateKey according to SEC1.
+  PK_ENCODING_SEC1
+};
+
+enum PKFormatType {
+  PK_FORMAT_DER,
+  PK_FORMAT_PEM
+};
+
+struct KeyPairEncodingConfig {
+  PKEncodingType type_;
+  PKFormatType format_;
+};
+
+typedef KeyPairEncodingConfig PublicKeyEncodingConfig;
+
+struct PrivateKeyEncodingConfig : public KeyPairEncodingConfig {
+  const EVP_CIPHER* cipher_;
+  // This char* will be passed to OPENSSL_clear_free.
+  std::shared_ptr<char> passphrase_;
+  unsigned int passphrase_length_;
+};
+
+class GenerateKeyPairJob : public CryptoJob {
+ public:
+  GenerateKeyPairJob(Environment* env,
+                     std::unique_ptr<KeyPairGenerationConfig> config,
+                     PublicKeyEncodingConfig public_key_encoding,
+                     PrivateKeyEncodingConfig private_key_encoding)
+    : CryptoJob(env),
+    config_(std::move(config)),
+    public_key_encoding_(public_key_encoding),
+    private_key_encoding_(private_key_encoding),
+    pkey_(nullptr) {}
+
+  inline void DoThreadPoolWork() override {
+    if (!GenerateKey())
+      errors_.Capture();
+  }
+
+  inline bool GenerateKey() {
+    // Make sure that the CSPRNG is properly seeded so the results are secure.
+    CheckEntropy();
+
+    // Create the key generation context.
+    EVPKeyCtxPointer ctx = config_->Setup();
+    if (!ctx)
+      return false;
+
+    // Initialize key generation.
+    if (EVP_PKEY_keygen_init(ctx.get()) <= 0)
+      return false;
+
+    // Configure key generation.
+    if (!config_->Configure(ctx))
+      return false;
+
+    // Generate the key.
+    EVP_PKEY* pkey = nullptr;
+    if (EVP_PKEY_keygen(ctx.get(), &pkey) != 1)
+      return false;
+    pkey_.reset(pkey);
+    return true;
+  }
+
+  inline void AfterThreadPoolWork() override {
+    Local<Value> args[3];
+    ToResult(&args[0], &args[1], &args[2]);
+    async_wrap->MakeCallback(env->ondone_string(), 3, args);
+  }
+
+  inline void ToResult(Local<Value>* err,
+                       Local<Value>* pubkey,
+                       Local<Value>* privkey) {
+    if (pkey_ && EncodeKeys(pubkey, privkey)) {
+      CHECK(errors_.empty());
+      *err = Undefined(env->isolate());
+    } else {
+      if (errors_.empty())
+        errors_.Capture();
+      CHECK(!errors_.empty());
+      *err = errors_.ToException(env);
+      *pubkey = Undefined(env->isolate());
+      *privkey = Undefined(env->isolate());
+    }
+  }
+
+  inline bool EncodeKeys(Local<Value>* pubkey, Local<Value>* privkey) {
+    EVP_PKEY* pkey = pkey_.get();
+    BIOPointer bio(BIO_new(BIO_s_mem()));
+    CHECK(bio);
+
+    // Encode the public key.
+    if (public_key_encoding_.type_ == PK_ENCODING_PKCS1) {
+      // PKCS#1 is only valid for RSA keys.
+      CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_RSA);
+      RSAPointer rsa(EVP_PKEY_get1_RSA(pkey));
+      if (public_key_encoding_.format_ == PK_FORMAT_PEM) {
+        // Encode PKCS#1 as PEM.
+        if (PEM_write_bio_RSAPublicKey(bio.get(), rsa.get()) != 1)
+          return false;
+      } else {
+        // Encode PKCS#1 as DER.
+        CHECK_EQ(public_key_encoding_.format_, PK_FORMAT_DER);
+        if (i2d_RSAPublicKey_bio(bio.get(), rsa.get()) != 1)
+          return false;
+      }
+    } else {
+      CHECK_EQ(public_key_encoding_.type_, PK_ENCODING_SPKI);
+      if (public_key_encoding_.format_ == PK_FORMAT_PEM) {
+        // Encode SPKI as PEM.
+        if (PEM_write_bio_PUBKEY(bio.get(), pkey) != 1)
+          return false;
+      } else {
+        // Encode SPKI as DER.
+        CHECK_EQ(public_key_encoding_.format_, PK_FORMAT_DER);
+        if (i2d_PUBKEY_bio(bio.get(), pkey) != 1)
+          return false;
+      }
+    }
+
+    // Convert the contents of the BIO to a JavaScript object.
+    BIOToStringOrBuffer(bio.get(), public_key_encoding_.format_, pubkey);
+    USE(BIO_reset(bio.get()));
+
+    // Now do the same for the private key (which is a bit more difficult).
+    if (private_key_encoding_.type_ == PK_ENCODING_PKCS1) {
+      // PKCS#1 is only permitted for RSA keys and without encryption.
+      CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_RSA);
+      CHECK_NULL(private_key_encoding_.cipher_);
+
+      RSAPointer rsa(EVP_PKEY_get1_RSA(pkey));
+      if (private_key_encoding_.format_ == PK_FORMAT_PEM) {
+        // Encode PKCS#1 as PEM.
+        if (PEM_write_bio_RSAPrivateKey(bio.get(), rsa.get(),
+                                        nullptr, nullptr, 0,
+                                        nullptr, nullptr) != 1)
+          return false;
+      } else {
+        // Encode PKCS#1 as DER.
+        CHECK_EQ(private_key_encoding_.format_, PK_FORMAT_DER);
+        if (i2d_RSAPrivateKey_bio(bio.get(), rsa.get()) != 1)
+          return false;
+      }
+    } else if (private_key_encoding_.type_ == PK_ENCODING_PKCS8) {
+      if (private_key_encoding_.format_ == PK_FORMAT_PEM) {
+        // Encode PKCS#8 as PEM.
+        if (PEM_write_bio_PKCS8PrivateKey(
+                bio.get(), pkey,
+                private_key_encoding_.cipher_,
+                private_key_encoding_.passphrase_.get(),
+                private_key_encoding_.passphrase_length_,
+                nullptr, nullptr) != 1)
+          return false;
+      } else {
+        // Encode PKCS#8 as DER.
+        CHECK_EQ(private_key_encoding_.format_, PK_FORMAT_DER);
+        if (i2d_PKCS8PrivateKey_bio(
+                bio.get(), pkey,
+                private_key_encoding_.cipher_,
+                private_key_encoding_.passphrase_.get(),
+                private_key_encoding_.passphrase_length_,
+                nullptr, nullptr) != 1)
+          return false;
+      }
+    } else {
+      CHECK_EQ(private_key_encoding_.type_, PK_ENCODING_SEC1);
+
+      // SEC1 is only permitted for EC keys and without encryption.
+      CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_EC);
+      CHECK_NULL(private_key_encoding_.cipher_);
+
+      ECKeyPointer ec_key(EVP_PKEY_get1_EC_KEY(pkey));
+      if (private_key_encoding_.format_ == PK_FORMAT_PEM) {
+        // Encode SEC1 as PEM.
+        if (PEM_write_bio_ECPrivateKey(bio.get(), ec_key.get(),
+                                       nullptr, nullptr, 0,
+                                       nullptr, nullptr) != 1)
+          return false;
+      } else {
+        // Encode SEC1 as DER.
+        CHECK_EQ(private_key_encoding_.format_, PK_FORMAT_DER);
+        if (i2d_ECPrivateKey_bio(bio.get(), ec_key.get()) != 1)
+          return false;
+      }
+    }
+
+    BIOToStringOrBuffer(bio.get(), private_key_encoding_.format_, privkey);
+    return true;
+  }
+
+  inline void BIOToStringOrBuffer(BIO* bio, PKFormatType format,
+                                  Local<Value>* out) const {
+    BUF_MEM* bptr;
+    BIO_get_mem_ptr(bio, &bptr);
+    if (format == PK_FORMAT_PEM) {
+      // PEM is an ASCII format, so we will return it as a string.
+      *out = String::NewFromUtf8(env->isolate(), bptr->data,
+                                 NewStringType::kNormal,
+                                 bptr->length).ToLocalChecked();
+    } else {
+      CHECK_EQ(format, PK_FORMAT_DER);
+      // DER is binary, return it as a buffer.
+      *out = Buffer::Copy(env, bptr->data, bptr->length).ToLocalChecked();
+    }
+  }
+
+ private:
+  CryptoErrorVector errors_;
+  std::unique_ptr<KeyPairGenerationConfig> config_;
+  PublicKeyEncodingConfig public_key_encoding_;
+  PrivateKeyEncodingConfig private_key_encoding_;
+  EVPKeyPointer pkey_;
+};
+
+void GenerateKeyPair(const FunctionCallbackInfo<Value>& args,
+                     unsigned int n_opts,
+                     std::unique_ptr<KeyPairGenerationConfig> config) {
+  Environment* env = Environment::GetCurrent(args);
+  PublicKeyEncodingConfig public_key_encoding;
+  PrivateKeyEncodingConfig private_key_encoding;
+
+  // Public key encoding: type (int) + pem (bool)
+  CHECK(args[n_opts]->IsInt32());
+  public_key_encoding.type_ = static_cast<PKEncodingType>(
+      args[n_opts].As<Int32>()->Value());
+  CHECK(args[n_opts + 1]->IsInt32());
+  public_key_encoding.format_ = static_cast<PKFormatType>(
+      args[n_opts + 1].As<Int32>()->Value());
+
+  // Private key encoding: type (int) + pem (bool) + cipher (optional, string) +
+  //                       passphrase (optional, string)
+  CHECK(args[n_opts + 2]->IsInt32());
+  private_key_encoding.type_ = static_cast<PKEncodingType>(
+      args[n_opts + 2].As<Int32>()->Value());
+  CHECK(args[n_opts + 1]->IsInt32());
+  private_key_encoding.format_ = static_cast<PKFormatType>(
+      args[n_opts + 3].As<Int32>()->Value());
+  if (args[n_opts + 4]->IsString()) {
+    String::Utf8Value cipher_name(env->isolate(),
+                                  args[n_opts + 4].As<String>());
+    private_key_encoding.cipher_ = EVP_get_cipherbyname(*cipher_name);
+    if (private_key_encoding.cipher_ == nullptr)
+      return env->ThrowError("Unknown cipher");
+
+    // We need to take ownership of the string and want to avoid creating an
+    // unnecessary copy in memory, that's why we are not using String::Utf8Value
+    // here.
+    CHECK(args[n_opts + 5]->IsString());
+    Local<String> passphrase = args[n_opts + 5].As<String>();
+    int len = passphrase->Utf8Length(env->isolate());
+    private_key_encoding.passphrase_length_ = len;
+    void* mem = OPENSSL_malloc(private_key_encoding.passphrase_length_ + 1);
+    CHECK_NOT_NULL(mem);
+    private_key_encoding.passphrase_.reset(static_cast<char*>(mem),
+        [len](char* p) {
+          OPENSSL_clear_free(p, len);
+        });
+    passphrase->WriteUtf8(env->isolate(),
+                          private_key_encoding.passphrase_.get());
+  } else {
+    CHECK(args[n_opts + 5]->IsNullOrUndefined());
+    private_key_encoding.cipher_ = nullptr;
+    private_key_encoding.passphrase_length_ = 0;
+  }
+
+  std::unique_ptr<GenerateKeyPairJob> job(
+      new GenerateKeyPairJob(env, std::move(config), public_key_encoding,
+                             private_key_encoding));
+  if (args[n_opts + 6]->IsObject())
+    return GenerateKeyPairJob::Run(std::move(job), args[n_opts + 6]);
+  env->PrintSyncTrace();
+  job->DoThreadPoolWork();
+  Local<Value> err, pubkey, privkey;
+  job->ToResult(&err, &pubkey, &privkey);
+
+  bool (*IsNotTrue)(Maybe<bool>) = [](Maybe<bool> maybe) {
+    return maybe.IsNothing() || !maybe.ToChecked();
+  };
+  Local<Array> ret = Array::New(env->isolate(), 3);
+  if (IsNotTrue(ret->Set(env->context(), 0, err)) ||
+      IsNotTrue(ret->Set(env->context(), 1, pubkey)) ||
+      IsNotTrue(ret->Set(env->context(), 2, privkey)))
+    return;
+  args.GetReturnValue().Set(ret);
+}
+
+void GenerateKeyPairRSA(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  const uint32_t modulus_bits = args[0].As<Uint32>()->Value();
+  CHECK(args[1]->IsUint32());
+  const uint32_t exponent = args[1].As<Uint32>()->Value();
+  std::unique_ptr<KeyPairGenerationConfig> config(
+      new RSAKeyPairGenerationConfig(modulus_bits, exponent));
+  GenerateKeyPair(args, 2, std::move(config));
+}
+
+void GenerateKeyPairDSA(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  const uint32_t modulus_bits = args[0].As<Uint32>()->Value();
+  CHECK(args[1]->IsInt32());
+  const int32_t divisor_bits = args[1].As<Int32>()->Value();
+  std::unique_ptr<KeyPairGenerationConfig> config(
+      new DSAKeyPairGenerationConfig(modulus_bits, divisor_bits));
+  GenerateKeyPair(args, 2, std::move(config));
+}
+
+void GenerateKeyPairEC(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  String::Utf8Value curve_name(args.GetIsolate(), args[0].As<String>());
+  int curve_nid = EC_curve_nist2nid(*curve_name);
+  if (curve_nid == NID_undef)
+    curve_nid = OBJ_sn2nid(*curve_name);
+  // TODO(tniessen): Should we also support OBJ_ln2nid? (Other APIs don't.)
+  if (curve_nid == NID_undef) {
+    Environment* env = Environment::GetCurrent(args);
+    return env->ThrowTypeError("Invalid ECDH curve name");
+  }
+  CHECK(args[1]->IsUint32());
+  const uint32_t param_encoding = args[1].As<Int32>()->Value();
+  CHECK(param_encoding == OPENSSL_EC_NAMED_CURVE ||
+        param_encoding == OPENSSL_EC_EXPLICIT_CURVE);
+  std::unique_ptr<KeyPairGenerationConfig> config(
+      new ECKeyPairGenerationConfig(curve_nid, param_encoding));
+  GenerateKeyPair(args, 2, std::move(config));
+}
+
+
 void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -5242,6 +5690,17 @@ void Initialize(Local<Object> target,
 #endif
 
   env->SetMethod(target, "pbkdf2", PBKDF2);
+  env->SetMethod(target, "generateKeyPairRSA", GenerateKeyPairRSA);
+  env->SetMethod(target, "generateKeyPairDSA", GenerateKeyPairDSA);
+  env->SetMethod(target, "generateKeyPairEC", GenerateKeyPairEC);
+  NODE_DEFINE_CONSTANT(target, OPENSSL_EC_NAMED_CURVE);
+  NODE_DEFINE_CONSTANT(target, OPENSSL_EC_EXPLICIT_CURVE);
+  NODE_DEFINE_CONSTANT(target, PK_ENCODING_PKCS1);
+  NODE_DEFINE_CONSTANT(target, PK_ENCODING_PKCS8);
+  NODE_DEFINE_CONSTANT(target, PK_ENCODING_SPKI);
+  NODE_DEFINE_CONSTANT(target, PK_ENCODING_SEC1);
+  NODE_DEFINE_CONSTANT(target, PK_FORMAT_DER);
+  NODE_DEFINE_CONSTANT(target, PK_FORMAT_PEM);
   env->SetMethod(target, "randomBytes", RandomBytes);
   env->SetMethodNoSideEffect(target, "timingSafeEqual", TimingSafeEqual);
   env->SetMethodNoSideEffect(target, "getSSLCiphers", GetSSLCiphers);
