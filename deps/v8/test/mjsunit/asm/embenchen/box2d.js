@@ -1121,7 +1121,7 @@ Module['HEAPF64'] = HEAPF64;
 function callRuntimeCallbacks(callbacks) {
   while(callbacks.length > 0) {
     var callback = callbacks.shift();
-    if (typeof callback == 'function') {
+    if (typeof callback === 'function') {
       callback();
       continue;
     }
