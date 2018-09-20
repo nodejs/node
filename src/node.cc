@@ -2271,6 +2271,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   HANDLE mapping = nullptr;
   wchar_t mapping_name[32];
   LPTHREAD_START_ROUTINE* handler = nullptr;
+  DWORD pid = 0;
 
   if (args.Length() != 1) {
     env->ThrowError("Invalid number of arguments.");
@@ -2278,7 +2279,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   }
 
   CHECK(args[0]->IsNumber());
-  DWORD pid = args[0].As<Integer>()->Value();
+  pid = args[0].As<Integer>()->Value();
 
   process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
                             PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
