@@ -17,7 +17,7 @@ const { setUnrefTimeout } = require('internal/timers');
   );
 }
 
-// Test this if correctly passes arguments to the callback
+// Test that setUnrefTimeout correctly passes arguments to the callback
 {
   const maxArgsNum = 4;
   for (let i = 0; i < maxArgsNum; i++) {
@@ -28,20 +28,16 @@ const { setUnrefTimeout } = require('internal/timers');
       inputArgs.push(j);
     }
 
-    // For checking the arguments.length,
-    // callback function should not be arrow fucntion.
-    const timer = setUnrefTimeout(common.mustCall(
-      function(...args) {
-        // check the number of arguments passed to this callback.
-        strictEqual(args.length, i + 1,
-                    `arguments.length should be ${i + 1}.` +
-                    `actual ${args.length}`
-        );
-        for (const arg of args) {
-          results.push(arg);
-        }
+    const timer = setUnrefTimeout(common.mustCall((...args) => {
+      // check the number of arguments passed to this callback.
+      strictEqual(args.length, i + 1,
+                  `arguments.length should be ${i + 1}.` +
+                  `actual ${args.length}`
+      );
+      for (const arg of args) {
+        results.push(arg);
       }
-    ), 1, ...inputArgs);
+    }), 1, ...inputArgs);
 
     const testTimer = setTimeout(common.mustCall(() => {
       for (let k = 0; k < maxArgsNum; k++) {
