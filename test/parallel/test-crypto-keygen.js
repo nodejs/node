@@ -169,7 +169,7 @@ function convertDERToPEM(label, der) {
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => {
       testSignVerify(publicKey, privateKey);
-    }, /bad decrypt/);
+    }, /bad decrypt|asn1 encoding routines/);
 
     // Signing should work with the correct password.
     testSignVerify(publicKey, {
@@ -232,7 +232,7 @@ function convertDERToPEM(label, der) {
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => {
       testSignVerify(publicKey, privateKey);
-    }, /bad decrypt/);
+    }, /bad decrypt|asn1 encoding routines/);
 
     testSignVerify(publicKey, {
       key: privateKey,
