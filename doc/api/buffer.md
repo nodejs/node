@@ -1085,7 +1085,7 @@ console.log(buf1.compare(buf2, 5, 6, 5));
 // Prints: 1
 ```
 
-[`ERR_INDEX_OUT_OF_RANGE`] is thrown if `targetStart < 0`, `sourceStart < 0`,
+[`ERR_OUT_OF_RANGE`] is thrown if `targetStart < 0`, `sourceStart < 0`,
 `targetEnd > target.byteLength`, or `sourceEnd > source.byteLength`.
 
 ### buf.copy(target[, targetStart[, sourceStart[, sourceEnd]]])
@@ -1211,6 +1211,9 @@ changes:
   - version: v5.7.0
     pr-url: https://github.com/nodejs/node/pull/4935
     description: The `encoding` parameter is supported now.
+
+  - version: REPLACEME
+    description: Throws `ERR_OUT_OF_RANGE` instead of `ERR_INDEX_OUT_OF_RANGE`.
 -->
 
 * `value` {string|Buffer|integer} The value with which to fill `buf`.
@@ -1708,7 +1711,7 @@ console.log(buf.readIntLE(0, 6).toString(16));
 console.log(buf.readIntBE(0, 6).toString(16));
 // Prints: 1234567890ab
 console.log(buf.readIntBE(1, 6).toString(16));
-// Throws ERR_INDEX_OUT_OF_RANGE
+// Throws ERR_OUT_OF_RANGE
 console.log(buf.readIntBE(1, 0).toString(16));
 // Throws ERR_OUT_OF_RANGE
 ```
@@ -2640,9 +2643,9 @@ This value may depend on the JS engine that is being used.
 [`Buffer.from(string)`]: #buffer_class_method_buffer_from_string_encoding
 [`Buffer.poolSize`]: #buffer_class_property_buffer_poolsize
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
-[`ERR_INDEX_OUT_OF_RANGE`]: errors.html#ERR_INDEX_OUT_OF_RANGE
 [`ERR_INVALID_BUFFER_SIZE`]: errors.html#ERR_INVALID_BUFFER_SIZE
 [`ERR_INVALID_OPT_VALUE`]: errors.html#ERR_INVALID_OPT_VALUE
+[`ERR_OUT_OF_RANGE`]: errors.html#ERR_OUT_OF_RANGE
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`String#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
