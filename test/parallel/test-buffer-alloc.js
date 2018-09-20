@@ -1012,8 +1012,7 @@ common.expectsError(() => {
   a.copy(b, 0, 0x100000000, 0x100000001);
 }, {
   code: 'ERR_OUT_OF_RANGE',
-  type: RangeError,
-  message: 'The value of "sourceStart" is out of range.'
+  type: RangeError
 });
 
 // Unpooled buffer (replaces SlowBuffer)
