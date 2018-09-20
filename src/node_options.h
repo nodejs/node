@@ -105,6 +105,7 @@ class PerIsolateOptions : public Options {
   bool track_heap_objects = false;
 
   inline EnvironmentOptions* get_per_env_options();
+  void CheckOptions(std::vector<std::string>* errors);
 };
 
 class PerProcessOptions : public Options {

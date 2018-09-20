@@ -18,7 +18,6 @@ using v8::Value;
 namespace node {
 
 void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
-  // Check any per-process options here.
 #if HAVE_OPENSSL
   if (use_openssl_ca && use_bundled_ca) {
     errors->push_back("either --use-openssl-ca or --use-bundled-ca can be "
@@ -26,8 +25,10 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 #endif
   per_isolate->CheckOptions(errors);
-  per_isolate->per_env->CheckOptions(errors);
-  per_isolate->per_env->debug_options->CheckOptions(errors);
+}
+
+void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
+  per_env->CheckOptions(errors);
 }
 
 void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
@@ -38,6 +39,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   if (syntax_check_only && has_eval_string) {
     errors->push_back("either --check or --eval can be used, not both");
   }
+  debug_options->CheckOptions(errors);
 }
 
 namespace options_parser {
