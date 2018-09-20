@@ -340,6 +340,163 @@ class SSLWrap {
   friend class SecureContext;
 };
 
+// A helper class representing a read-only byte array. When deallocated, its
+// contents are zeroed.
+class ByteSource {
+ public:
+  ByteSource() = default;
+  ByteSource(ByteSource&& other);
+  ~ByteSource();
+
+  ByteSource& operator=(ByteSource&& other);
+
+  const char* get() const;
+  size_t size() const;
+
+  static ByteSource FromStringOrBuffer(Environment* env,
+                                       v8::Local<v8::Value> value);
+
+  static ByteSource FromString(Environment* env,
+                               v8::Local<v8::String> str,
+                               bool ntc = false);
+
+  static ByteSource FromBuffer(v8::Local<v8::Value> buffer,
+                               bool ntc = false);
+
+  static ByteSource NullTerminatedCopy(Environment* env,
+                                       v8::Local<v8::Value> value);
+
+  static ByteSource FromSymmetricKeyObject(v8::Local<v8::Value> handle);
+
+ private:
+  const char* data_ = nullptr;
+  char* allocated_data_ = nullptr;
+  size_t size_ = 0;
+
+  ByteSource(const char* data, char* allocated_data, size_t size);
+
+  static ByteSource Allocated(char* data, size_t size);
+  static ByteSource Foreign(const char* data, size_t size);
+
+  DISALLOW_COPY_AND_ASSIGN(ByteSource);
+};
+
+enum PKEncodingType {
+  // RSAPublicKey / RSAPrivateKey according to PKCS#1.
+  kKeyEncodingPKCS1,
+  // PrivateKeyInfo or EncryptedPrivateKeyInfo according to PKCS#8.
+  kKeyEncodingPKCS8,
+  // SubjectPublicKeyInfo according to X.509.
+  kKeyEncodingSPKI,
+  // ECPrivateKey according to SEC1.
+  kKeyEncodingSEC1
+};
+
+enum PKFormatType {
+  kKeyFormatDER,
+  kKeyFormatPEM
+};
+
+struct AsymmetricKeyEncodingConfig {
+  bool output_key_object_;
+  PKFormatType format_;
+  v8::Maybe<PKEncodingType> type_ = v8::Nothing<PKEncodingType>();
+};
+
+typedef AsymmetricKeyEncodingConfig PublicKeyEncodingConfig;
+
+struct PrivateKeyEncodingConfig : public AsymmetricKeyEncodingConfig {
+  const EVP_CIPHER* cipher_;
+  ByteSource passphrase_;
+};
+
+enum KeyType {
+  kKeyTypeSecret,
+  kKeyTypePublic,
+  kKeyTypePrivate
+};
+
+// This uses the built-in reference counter of OpenSSL to manage an EVP_PKEY
+// which is slightly more efficient than using a shared pointer and easier to
+// use.
+class ManagedEVPPKey {
+ public:
+  ManagedEVPPKey();
+  explicit ManagedEVPPKey(EVP_PKEY* pkey);
+  ManagedEVPPKey(const ManagedEVPPKey& key);
+  ManagedEVPPKey(ManagedEVPPKey&& key);
+  ~ManagedEVPPKey();
+
+  ManagedEVPPKey& operator=(const ManagedEVPPKey& key);
+  ManagedEVPPKey& operator=(ManagedEVPPKey&& key);
+
+  operator bool() const;
+  EVP_PKEY* get() const;
+
+ private:
+  EVP_PKEY* pkey_;
+};
+
+class KeyObject : public BaseObject {
+ public:
+  static v8::Local<v8::Function> Initialize(Environment* env,
+                                            v8::Local<v8::Object> target);
+
+  static v8::Local<v8::Object> Create(Environment* env,
+                                      KeyType type,
+                                      const ManagedEVPPKey& pkey);
+
+  // TODO(tniessen): track the memory used by OpenSSL types
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(KeyObject)
+  SET_SELF_SIZE(KeyObject)
+
+  KeyType GetKeyType() const;
+
+  // These functions allow unprotected access to the raw key material and should
+  // only be used to implement cryptograohic operations requiring the key.
+  ManagedEVPPKey GetAsymmetricKey() const;
+  const char* GetSymmetricKey() const;
+  size_t GetSymmetricKeySize() const;
+
+ protected:
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
+  void InitSecret(const char* key, size_t key_len);
+  void InitPublic(const ManagedEVPPKey& pkey);
+  void InitPrivate(const ManagedEVPPKey& pkey);
+
+  static void GetAsymmetricKeyType(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  v8::Local<v8::String> GetAsymmetricKeyType() const;
+
+  static void GetSymmetricKeySize(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void Export(const v8::FunctionCallbackInfo<v8::Value>& args);
+  v8::Local<v8::Value> ExportSecretKey() const;
+  v8::MaybeLocal<v8::Value> ExportPublicKey(
+      const PublicKeyEncodingConfig& config) const;
+  v8::MaybeLocal<v8::Value> ExportPrivateKey(
+      const PrivateKeyEncodingConfig& config) const;
+
+  KeyObject(Environment* env,
+            v8::Local<v8::Object> wrap,
+            KeyType key_type)
+      : BaseObject(env, wrap),
+        key_type_(key_type),
+        symmetric_key_(nullptr, nullptr) {
+    MakeWeak();
+  }
+
+ private:
+  const KeyType key_type_;
+  std::unique_ptr<char, std::function<void(char*)>> symmetric_key_;
+  unsigned int symmetric_key_len_;
+  ManagedEVPPKey asymmetric_key_;
+};
+
 class CipherBase : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
@@ -528,9 +685,7 @@ class Sign : public SignBase {
   };
 
   SignResult SignFinal(
-      const char* key_pem,
-      int key_pem_len,
-      const char* passphrase,
+      const ManagedEVPPKey& pkey,
       int padding,
       int saltlen);
 
@@ -549,8 +704,7 @@ class Verify : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  Error VerifyFinal(const char* key_pem,
-                    int key_pem_len,
+  Error VerifyFinal(const ManagedEVPPKey& key,
                     const char* sig,
                     int siglen,
                     int padding,
@@ -583,9 +737,7 @@ class PublicKeyCipher {
   template <Operation operation,
             EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
             EVP_PKEY_cipher_t EVP_PKEY_cipher>
-  static bool Cipher(const char* key_pem,
-                     int key_pem_len,
-                     const char* passphrase,
+  static bool Cipher(const ManagedEVPPKey& pkey,
                      int padding,
                      const unsigned char* data,
                      int len,

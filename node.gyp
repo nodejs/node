@@ -102,6 +102,7 @@
       'lib/internal/crypto/diffiehellman.js',
       'lib/internal/crypto/hash.js',
       'lib/internal/crypto/keygen.js',
+      'lib/internal/crypto/keys.js',
       'lib/internal/crypto/pbkdf2.js',
       'lib/internal/crypto/random.js',
       'lib/internal/crypto/scrypt.js',

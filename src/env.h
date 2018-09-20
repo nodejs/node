@@ -142,6 +142,9 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(code_string, "code")                                                       \
   V(config_string, "config")                                                   \
   V(constants_string, "constants")                                             \
+  V(crypto_dsa_string, "dsa")                                                  \
+  V(crypto_ec_string, "ec")                                                    \
+  V(crypto_rsa_string, "rsa")                                                  \
   V(cwd_string, "cwd")                                                         \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \
@@ -324,6 +327,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(buffer_prototype_object, v8::Object)                                       \
   V(context, v8::Context)                                                      \
+  V(crypto_key_object_constructor, v8::Function)                               \
   V(domain_callback, v8::Function)                                             \
   V(domexception_function, v8::Function)                                       \
   V(fd_constructor_template, v8::ObjectTemplate)                               \

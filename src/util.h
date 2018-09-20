@@ -473,6 +473,29 @@ struct MallocedBuffer {
   MallocedBuffer& operator=(const MallocedBuffer&) = delete;
 };
 
+template <typename T>
+class NonCopyableMaybe {
+ public:
+  NonCopyableMaybe() : empty_(true) {}
+  explicit NonCopyableMaybe(T&& value)
+      : empty_(false),
+        value_(std::move(value)) {}
+
+  bool IsEmpty() const {
+    return empty_;
+  }
+
+  T&& Release() {
+    CHECK_EQ(empty_, false);
+    empty_ = true;
+    return std::move(value_);
+  }
+
+ private:
+  bool empty_;
+  T value_;
+};
+
 // Test whether some value can be called with ().
 template <typename T, typename = void>
 struct is_callable : std::is_function<T> { };
