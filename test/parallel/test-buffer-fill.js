@@ -2,7 +2,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { codes: { ERR_INDEX_OUT_OF_RANGE } } = require('internal/errors');
+const { codes: { ERR_OUT_OF_RANGE } } = require('internal/errors');
 const SIZE = 28;
 
 const buf1 = Buffer.allocUnsafe(SIZE);
@@ -173,7 +173,7 @@ deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, 1]), [0, 0, 0, 0]);
 ].forEach((args) => {
   common.expectsError(
     () => buf1.fill(...args),
-    { code: 'ERR_INDEX_OUT_OF_RANGE' }
+    { code: 'ERR_OUT_OF_RANGE' }
   );
 });
 
@@ -237,7 +237,7 @@ function writeToFill(string, offset, end, encoding) {
 
   // Should never be reached.
   if (offset < 0 || end > buf2.length)
-    throw new ERR_INDEX_OUT_OF_RANGE();
+    throw new ERR_OUT_OF_RANGE();
 
   if (end <= offset)
     return buf2;
@@ -276,10 +276,10 @@ function testBufs(string, offset, length, encoding) {
 // Make sure these throw.
 common.expectsError(
   () => Buffer.allocUnsafe(8).fill('a', -1),
-  { code: 'ERR_INDEX_OUT_OF_RANGE' });
+  { code: 'ERR_OUT_OF_RANGE' });
 common.expectsError(
   () => Buffer.allocUnsafe(8).fill('a', 0, 9),
-  { code: 'ERR_INDEX_OUT_OF_RANGE' });
+  { code: 'ERR_OUT_OF_RANGE' });
 
 // Make sure this doesn't hang indefinitely.
 Buffer.allocUnsafe(8).fill('');
@@ -333,6 +333,9 @@ assert.strictEqual(
 // Symbol.toPrimitive.
 {
   let elseWasLast = false;
+  const expectedErrorMessage =
+    'The value of "end" is out of range. It must be >= 0 and <= 1. Received -1';
+
   common.expectsError(() => {
     let ctr = 0;
     const end = {
@@ -350,9 +353,9 @@ assert.strictEqual(
     };
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
   }, {
-    code: 'ERR_INDEX_OUT_OF_RANGE',
+    code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
-    message: 'Index out of range'
+    message: expectedErrorMessage
   });
   // Make sure -1 is making it to Buffer::Fill().
   assert.ok(elseWasLast,
@@ -373,9 +376,9 @@ common.expectsError(() => {
   });
   buf.fill('');
 }, {
-  code: 'ERR_INDEX_OUT_OF_RANGE',
+  code: 'ERR_BUFFER_OUT_OF_BOUNDS',
   type: RangeError,
-  message: 'Index out of range'
+  message: 'Attempt to write outside buffer bounds'
 });
 
 assert.deepStrictEqual(

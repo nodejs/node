@@ -57,7 +57,7 @@ assert.strictEqual(1, a.compare(b, Infinity, -Infinity));
 // zero length target because default for targetEnd <= targetSource
 assert.strictEqual(1, a.compare(b, '0xff'));
 
-const oor = common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' }, 7);
+const oor = common.expectsError({ code: 'ERR_OUT_OF_RANGE' }, 7);
 
 assert.throws(() => a.compare(b, 0, 100, 0), oor);
 assert.throws(() => a.compare(b, 0, 1, 0, 100), oor);

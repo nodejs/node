@@ -1011,9 +1011,8 @@ common.expectsError(() => {
   const b = Buffer.alloc(1);
   a.copy(b, 0, 0x100000000, 0x100000001);
 }, {
-  code: 'ERR_INDEX_OUT_OF_RANGE',
-  type: RangeError,
-  message: 'Index out of range'
+  code: 'ERR_OUT_OF_RANGE',
+  type: RangeError
 });
 
 // Unpooled buffer (replaces SlowBuffer)
