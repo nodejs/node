@@ -11,11 +11,11 @@ let triggerAsyncId1;
 process.nextTick(() => {
   process.nextTick(() => {
     triggerAsyncId1 = triggerAsyncId();
-    assert.strictEqual(
+    assert.notStrictEqual(
       triggerAsyncId0,
-      triggerAsyncId1);
-      // 'Async resources having different causal ancestry ' +
-      // 'should have different triggerAsyncIds');
+      triggerAsyncId1,
+      'Async resources having different causal ancestry ' +
+      'should have different triggerAsyncIds');
   });
   process.nextTick(() => {
     const triggerAsyncId2 = triggerAsyncId();
