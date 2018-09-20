@@ -1211,7 +1211,6 @@ changes:
   - version: v5.7.0
     pr-url: https://github.com/nodejs/node/pull/4935
     description: The `encoding` parameter is supported now.
-
   - version: REPLACEME
     description: Throws `ERR_OUT_OF_RANGE` instead of `ERR_INDEX_OUT_OF_RANGE`.
 -->
