@@ -144,7 +144,6 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
     CHECK_NOT_NULL(data_);
 
   persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
-  persistent_.SetWrapperClassId(BUFFER_ID);
   isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
 }
 
