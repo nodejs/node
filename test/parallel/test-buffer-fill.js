@@ -333,6 +333,9 @@ assert.strictEqual(
 // Symbol.toPrimitive.
 {
   let elseWasLast = false;
+  const expectedErrorMessage =
+    'The value of "end" is out of range. It must be >= 0 and <= 1. Received -1';
+
   common.expectsError(() => {
     let ctr = 0;
     const end = {
@@ -351,7 +354,8 @@ assert.strictEqual(
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
   }, {
     code: 'ERR_OUT_OF_RANGE',
-    type: RangeError
+    type: RangeError,
+    message: expectedErrorMessage
   });
   // Make sure -1 is making it to Buffer::Fill().
   assert.ok(elseWasLast,
@@ -374,6 +378,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_BUFFER_OUT_OF_BOUNDS',
   type: RangeError,
+  message: 'Attempt to write outside buffer bounds'
 });
 
 assert.deepStrictEqual(
