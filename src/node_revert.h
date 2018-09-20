@@ -15,8 +15,8 @@
  **/
 namespace node {
 
-#define SECURITY_REVERSIONS(XX)
-//  XX(CVE_2016_PEND, "CVE-2016-PEND", "Vulnerability Title")
+#define SECURITY_REVERSIONS(XX) \
+  XX(CVE_2018_12116, "CVE-2018-12116", "HTTP request splitting")
 
 enum reversion {
 #define V(code, ...) SECURITY_REVERT_##code,
