@@ -352,7 +352,7 @@ common.expectsError(
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
       message: 'The "key" argument must be one of type string, Buffer, ' +
-               `TypedArray, or DataView. Received type ${type}`
+               `TypedArray, DataView, or KeyObject. Received type ${type}`
     };
 
     assert.throws(() => sign.sign(input), errObj);

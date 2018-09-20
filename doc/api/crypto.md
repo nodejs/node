@@ -1101,6 +1101,81 @@ encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
 
 This can be called many times with new data as it is streamed.
 
+## Class: KeyObject
+<!-- YAML
+added: REPLACEME
+-->
+
+Node.js uses an internal `KeyObject` class which should not be accessed
+directly. Instead, factory functions exist to create instances of this class
+in a secure manner, see [`crypto.createSecretKey()`][],
+[`crypto.createPublicKey()`][] and [`crypto.createPrivateKey()`][]. A
+`KeyObject` can represent a symmetric or asymmetric key, and each kind of key
+exposes different functions.
+
+Most applications should consider using the new `KeyObject` API instead of
+passing keys as strings or `Buffer`s due to improved security features.
+
+### keyObject.asymmetricKeyType
+<!-- YAML
+added: REPLACEME
+-->
+* {string}
+
+For asymmetric keys, this property represents the type of the embedded key
+(`'rsa'`, `'dsa'` or `'ec'`). This property is `undefined` for symmetric keys.
+
+### keyObject.export([options])
+<!-- YAML
+added: REPLACEME
+-->
+* `options`: {Object}
+* Returns: {string | Buffer}
+
+For symmetric keys, this function allocates a `Buffer` containing the key
+material and ignores any options.
+
+For asymmetric keys, the `options` parameter is used to determine the export
+format.
+
+For public keys, the following encoding options can be used:
+
+* `type`: {string} Must be one of `'pkcs1'` (RSA only) or `'spki'`.
+* `format`: {string} Must be `'pem'` or `'der'`.
+
+For private keys, the following encoding options can be used:
+
+* `type`: {string} Must be one of `'pkcs1'` (RSA only), `'pkcs8'` or
+  `'sec1'` (EC only).
+* `format`: {string} Must be `'pem'` or `'der'`.
+* `cipher`: {string} If specified, the private key will be encrypted with
+   the given `cipher` and `passphrase` using PKCS#5 v2.0 password based
+   encryption.
+* `passphrase`: {string | Buffer} The passphrase to use for encryption, see
+  `cipher`.
+
+When PEM encoding was selected, the result will be a string, otherwise it will
+be a buffer containing the data encoded as DER.
+
+### keyObject.symmetricSize
+<!-- YAML
+added: REPLACEME
+-->
+* {number}
+
+For secret keys, this property represents the size of the key in bytes. This
+property is `undefined` for asymmetric keys.
+
+### keyObject.type
+<!-- YAML
+added: REPLACEME
+-->
+* {string}
+
+Depending on the type of this `KeyObject`, this property is either
+`'secret'` for secret (symmetric) keys, `'public'` for public (asymmetric) keys
+or `'private'` for private (asymmetric) keys.
+
 ## Class: Sign
 <!-- YAML
 added: v0.1.92
@@ -1169,13 +1244,14 @@ console.log(sign.sign(privateKey, 'hex'));
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: This function now supports key objects.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11705
     description: Support for RSASSA-PSS and additional options was added.
 -->
-* `privateKey` {string | Object}
-  - `key` {string}
-  - `passphrase` {string}
+* `privateKey` {Object | string | Buffer | KeyObject}
   - `padding` {integer}
   - `saltLength` {integer}
 * `outputEncoding` {string} The [encoding][] of the return value.
@@ -1184,12 +1260,10 @@ changes:
 Calculates the signature on all the data passed through using either
 [`sign.update()`][] or [`sign.write()`][stream-writable-write].
 
-The `privateKey` argument can be an object or a string. If `privateKey` is a
-string, it is treated as a raw key with no passphrase. If `privateKey` is an
-object, it must contain one or more of the following properties:
+If `privateKey` is not a [`KeyObject`][], this function behaves as if
+`privateKey` had been passed to [`crypto.createPrivateKey()`][]. If it is an
+object, the following additional properties can be passed:
 
-* `key`: {string} - PEM encoded private key (required)
-* `passphrase`: {string} - passphrase for the private key
 * `padding`: {integer} - Optional padding value for RSA, one of the following:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
@@ -1299,18 +1373,20 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/11705
     description: Support for RSASSA-PSS and additional options was added.
 -->
-* `object` {string | Object}
+* `object` {Object | string | Buffer | KeyObject}
+  - `padding` {integer}
+  - `saltLength` {integer}
 * `signature` {string | Buffer | TypedArray | DataView}
 * `signatureEncoding` {string} The [encoding][] of the `signature` string.
 * Returns: {boolean} `true` or `false` depending on the validity of the
   signature for the data and public key.
 
 Verifies the provided data using the given `object` and `signature`.
-The `object` argument can be either a string containing a PEM encoded object,
-which can be an RSA public key, a DSA public key, or an X.509 certificate,
-or an object with one or more of the following properties:
 
-* `key`: {string} - PEM encoded public key (required)
+If `object` is not a [`KeyObject`][], this function behaves as if
+`object` had been passed to [`crypto.createPublicKey()`][]. If it is an
+object, the following additional properties can be passed:
+
 * `padding`: {integer} - Optional padding value for RSA, one of the following:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
@@ -1436,6 +1512,9 @@ Adversaries][] for details.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: The `key` argument can now be a `KeyObject`.
   - version: v11.2.0
     pr-url: https://github.com/nodejs/node/pull/24081
     description: The cipher `chacha20-poly1305` is now supported.
@@ -1452,7 +1531,7 @@ changes:
                  need an initialization vector.
 -->
 * `algorithm` {string}
-* `key` {string | Buffer | TypedArray | DataView}
+* `key` {string | Buffer | TypedArray | DataView | KeyObject}
 * `iv` {string | Buffer | TypedArray | DataView}
 * `options` {Object} [`stream.transform` options][]
 * Returns: {Cipher}
@@ -1474,7 +1553,8 @@ display the available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
-[Buffers][`Buffer`], `TypedArray`, or `DataView`s. If the cipher does not need
+[Buffers][`Buffer`], `TypedArray`, or `DataView`s. The `key` may optionally be
+a [`KeyObject`][] of type `secret`. If the cipher does not need
 an initialization vector, `iv` may be `null`.
 
 Initialization vectors should be unpredictable and unique; ideally, they will be
@@ -1525,6 +1605,9 @@ to create the `Decipher` object.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: The `key` argument can now be a `KeyObject`.
   - version: v11.2.0
     pr-url: https://github.com/nodejs/node/pull/24081
     description: The cipher `chacha20-poly1305` is now supported.
@@ -1563,7 +1646,8 @@ display the available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
-[Buffers][`Buffer`], `TypedArray`, or `DataView`s. If the cipher does not need
+[Buffers][`Buffer`], `TypedArray`, or `DataView`s. The `key` may optionally be
+a [`KeyObject`][] of type `secret`. If the cipher does not need
 an initialization vector, `iv` may be `null`.
 
 Initialization vectors should be unpredictable and unique; ideally, they will be
@@ -1674,9 +1758,13 @@ input.on('readable', () => {
 ### crypto.createHmac(algorithm, key[, options])
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: The `key` argument can now be a `KeyObject`.
 -->
 * `algorithm` {string}
-* `key` {string | Buffer | TypedArray | DataView}
+* `key` {string | Buffer | TypedArray | DataView | KeyObject}
 * `options` {Object} [`stream.transform` options][]
 * Returns: {Hmac}
 
@@ -1689,7 +1777,8 @@ On recent releases of OpenSSL, `openssl list -digest-algorithms`
 (`openssl list-message-digest-algorithms` for older versions of OpenSSL) will
 display the available digest algorithms.
 
-The `key` is the HMAC key used to generate the cryptographic HMAC hash.
+The `key` is the HMAC key used to generate the cryptographic HMAC hash. If it is
+a [`KeyObject`][], its type must be `secret`.
 
 Example: generating the sha256 HMAC of a file
 
@@ -1710,6 +1799,47 @@ input.on('readable', () => {
   }
 });
 ```
+
+### crypto.createPrivateKey(key)
+<!-- YAML
+added: REPLACEME
+-->
+* `key` {Object | string | Buffer}
+  - `key`: {string | Buffer} The key material, either in PEM or DER format.
+  - `format`: {string} Must be `'pem'` or `'der'`. **Default:** `'pem'`.
+  - `type`: {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
+     required only if the `format` is `'der'` and ignored if it is `'pem'`.
+  - `passphrase`: {string | Buffer} The passphrase to use for decryption.
+* Returns: {KeyObject}
+
+Creates and returns a new key object containing a private key. If `key` is a
+string or `Buffer`, `format` is assumed to be `'pem'`; otherwise, `key`
+must be an object with the properties described above.
+
+### crypto.createPublicKey(key)
+<!-- YAML
+added: REPLACEME
+-->
+* `key` {Object | string | Buffer}
+  - `key`: {string | Buffer}
+  - `format`: {string} Must be `'pem'` or `'der'`. **Default:** `'pem'`.
+  - `type`: {string} Must be `'pkcs1'` or `'spki'`. This option is required
+    only if the `format` is `'der'`.
+* Returns: {KeyObject}
+
+Creates and returns a new key object containing a public key. If `key` is a
+string or `Buffer`, `format` is assumed to be `'pem'`; otherwise, `key`
+must be an object with the properties described above.
+
+### crypto.createSecretKey(key)
+<!-- YAML
+added: REPLACEME
+-->
+* `key` {Buffer}
+* Returns: {KeyObject}
+
+Creates and returns a new key object containing a secret key for symmetric
+encryption or `Hmac`.
 
 ### crypto.createSign(algorithm[, options])
 <!-- YAML
@@ -1740,6 +1870,11 @@ signing algorithms. Optional `options` argument controls the
 ### crypto.generateKeyPair(type, options, callback)
 <!-- YAML
 added: v10.12.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: The `generateKeyPair` and `generateKeyPairSync` functions now
+                 produce key objects if no encoding was specified.
 -->
 * `type`: {string} Must be `'rsa'`, `'dsa'` or `'ec'`.
 * `options`: {Object}
@@ -1747,27 +1882,22 @@ added: v10.12.0
   - `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
   - `divisorLength`: {number} Size of `q` in bits (DSA).
   - `namedCurve`: {string} Name of the curve to use (EC).
-  - `publicKeyEncoding`: {Object}
-    - `type`: {string} Must be one of `'pkcs1'` (RSA only) or `'spki'`.
-    - `format`: {string} Must be `'pem'` or `'der'`.
-  - `privateKeyEncoding`: {Object}
-    - `type`: {string} Must be one of `'pkcs1'` (RSA only), `'pkcs8'` or
-      `'sec1'` (EC only).
-    - `format`: {string} Must be `'pem'` or `'der'`.
-    - `cipher`: {string} If specified, the private key will be encrypted with
-      the given `cipher` and `passphrase` using PKCS#5 v2.0 password based
-      encryption.
-    - `passphrase`: {string} The passphrase to use for encryption, see `cipher`.
+  - `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
+  - `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
 * `callback`: {Function}
   - `err`: {Error}
-  - `publicKey`: {string|Buffer}
-  - `privateKey`: {string|Buffer}
+  - `publicKey`: {string | Buffer | KeyObject}
+  - `privateKey`: {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. Only RSA, DSA and EC
 are currently supported.
 
+If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
+behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
+the respective part of the key is returned as a [`KeyObject`].
+
 It is recommended to encode public keys as `'spki'` and private keys as
-`'pkcs8'` with encryption:
+`'pkcs8'` with encryption for long-term storage:
 
 ```js
 const { generateKeyPair } = require('crypto');
@@ -1789,11 +1919,7 @@ generateKeyPair('rsa', {
 ```
 
 On completion, `callback` will be called with `err` set to `undefined` and
-`publicKey` / `privateKey` representing the generated key pair. When PEM
-encoding was selected, the result will be a string, otherwise it will be a
-buffer containing the data encoded as DER. Note that Node.js itself does not
-accept DER, it is supported for interoperability with other libraries such as
-WebCrypto only.
+`publicKey` / `privateKey` representing the generated key pair.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
@@ -1801,6 +1927,11 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 ### crypto.generateKeyPairSync(type, options)
 <!-- YAML
 added: v10.12.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: The `generateKeyPair` and `generateKeyPairSync` functions now
+                 produce key objects if no encoding was specified.
 -->
 * `type`: {string} Must be `'rsa'`, `'dsa'` or `'ec'`.
 * `options`: {Object}
@@ -1818,10 +1949,11 @@ added: v10.12.0
     - `cipher`: {string} If specified, the private key will be encrypted with
       the given `cipher` and `passphrase` using PKCS#5 v2.0 password based
       encryption.
-    - `passphrase`: {string} The passphrase to use for encryption, see `cipher`.
+    - `passphrase`: {string | Buffer} The passphrase to use for encryption, see
+      `cipher`.
 * Returns: {Object}
-  - `publicKey`: {string|Buffer}
-  - `privateKey`: {string|Buffer}
+  - `publicKey`: {string | Buffer | KeyObject}
+  - `privateKey`: {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. Only RSA, DSA and EC
 are currently supported.
@@ -2062,10 +2194,12 @@ An array of supported digest functions can be retrieved using
 ### crypto.privateDecrypt(privateKey, buffer)
 <!-- YAML
 added: v0.11.14
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: This function now supports key objects.
 -->
-* `privateKey` {Object | string}
-  - `key` {string} A PEM encoded private key.
-  - `passphrase` {string} An optional passphrase for the private key.
+* `privateKey` {Object | string | Buffer | KeyObject}
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `crypto.constants.RSA_PKCS1_PADDING`, or
@@ -2076,16 +2210,22 @@ added: v0.11.14
 Decrypts `buffer` with `privateKey`. `buffer` was previously encrypted using
 the corresponding public key, for example using [`crypto.publicEncrypt()`][].
 
-`privateKey` can be an object or a string. If `privateKey` is a string, it is
-treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
+If `privateKey` is not a [`KeyObject`][], this function behaves as if
+`privateKey` had been passed to [`crypto.createPrivateKey()`][]. If it is an
+object, the `padding` property can be passed. Otherwise, this function uses
+`RSA_PKCS1_OAEP_PADDING`.
 
 ### crypto.privateEncrypt(privateKey, buffer)
 <!-- YAML
 added: v1.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: This function now supports key objects.
 -->
-* `privateKey` {Object | string}
-  - `key` {string} A PEM encoded private key.
-  - `passphrase` {string} An optional passphrase for the private key.
+* `privateKey` {Object | string | Buffer | KeyObject}
+  - `key` {string | Buffer | KeyObject} A PEM encoded private key.
+  - `passphrase` {string | Buffer} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `crypto.constants.RSA_PKCS1_PADDING`.
@@ -2095,16 +2235,21 @@ added: v1.1.0
 Encrypts `buffer` with `privateKey`. The returned data can be decrypted using
 the corresponding public key, for example using [`crypto.publicDecrypt()`][].
 
-`privateKey` can be an object or a string. If `privateKey` is a string, it is
-treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
+If `privateKey` is not a [`KeyObject`][], this function behaves as if
+`privateKey` had been passed to [`crypto.createPrivateKey()`][]. If it is an
+object, the `padding` property can be passed. Otherwise, this function uses
+`RSA_PKCS1_PADDING`.
 
 ### crypto.publicDecrypt(key, buffer)
 <!-- YAML
 added: v1.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: This function now supports key objects.
 -->
-* `key` {Object | string}
-  - `key` {string} A PEM encoded public or private key.
-  - `passphrase` {string} An optional passphrase for the private key.
+* `key` {Object | string | Buffer | KeyObject}
+  - `passphrase` {string | Buffer} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `crypto.constants.RSA_PKCS1_PADDING`.
@@ -2114,8 +2259,10 @@ added: v1.1.0
 Decrypts `buffer` with `key`.`buffer` was previously encrypted using
 the corresponding private key, for example using [`crypto.privateEncrypt()`][].
 
-`key` can be an object or a string. If `key` is a string, it is treated as
-the key with no passphrase and will use `RSA_PKCS1_PADDING`.
+If `key` is not a [`KeyObject`][], this function behaves as if
+`key` had been passed to [`crypto.createPublicKey()`][]. If it is an
+object, the `padding` property can be passed. Otherwise, this function uses
+`RSA_PKCS1_PADDING`.
 
 Because RSA public keys can be derived from private keys, a private key may
 be passed instead of a public key.
@@ -2123,10 +2270,14 @@ be passed instead of a public key.
 ### crypto.publicEncrypt(key, buffer)
 <!-- YAML
 added: v0.11.14
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24234
+    description: This function now supports key objects.
 -->
-* `key` {Object | string}
-  - `key` {string} A PEM encoded public or private key.
-  - `passphrase` {string} An optional passphrase for the private key.
+* `key` {Object | string | Buffer | KeyObject}
+  - `key` {string | Buffer | KeyObject} A PEM encoded public or private key.
+  - `passphrase` {string | Buffer} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `crypto.constants.RSA_PKCS1_PADDING`, or
@@ -2138,8 +2289,10 @@ Encrypts the content of `buffer` with `key` and returns a new
 [`Buffer`][] with encrypted content. The returned data can be decrypted using
 the corresponding private key, for example using [`crypto.privateDecrypt()`][].
 
-`key` can be an object or a string. If `key` is a string, it is treated as
-the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
+If `key` is not a [`KeyObject`][], this function behaves as if
+`key` had been passed to [`crypto.createPublicKey()`][]. If it is an
+object, the `padding` property can be passed. Otherwise, this function uses
+`RSA_PKCS1_OAEP_PADDING`.
 
 Because RSA public keys can be derived from private keys, a private key may
 be passed instead of a public key.
@@ -2917,6 +3070,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 [`Buffer`]: buffer.html
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_BytesToKey.html
+[`KeyObject`]: #crypto_class_keyobject
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [`cipher.final()`]: #crypto_cipher_final_outputencoding
 [`cipher.update()`]: #crypto_cipher_update_data_inputencoding_outputencoding
@@ -2928,6 +3082,9 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`crypto.createECDH()`]: #crypto_crypto_createecdh_curvename
 [`crypto.createHash()`]: #crypto_crypto_createhash_algorithm_options
 [`crypto.createHmac()`]: #crypto_crypto_createhmac_algorithm_key_options
+[`crypto.createPrivateKey()`]: #crypto_crypto_createprivatekey_key
+[`crypto.createPublicKey()`]: #crypto_crypto_createpublickey_key
+[`crypto.createSecretKey()`]: #crypto_crypto_createsecretkey_key
 [`crypto.createSign()`]: #crypto_crypto_createsign_algorithm_options
 [`crypto.createVerify()`]: #crypto_crypto_createverify_algorithm_options
 [`crypto.getCurves()`]: #crypto_crypto_getcurves
@@ -2949,6 +3106,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`hash.update()`]: #crypto_hash_update_data_inputencoding
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
 [`hmac.update()`]: #crypto_hmac_update_data_inputencoding
+[`keyObject.export()`]: #crypto_keyobject_export_options
 [`sign.sign()`]: #crypto_sign_sign_privatekey_outputencoding
 [`sign.update()`]: #crypto_sign_update_data_inputencoding
 [`stream.Writable` options]: stream.html#stream_constructor_new_stream_writable_options

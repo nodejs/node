@@ -65,23 +65,6 @@ const pkcs8EncExp = getRegExpForPEM('ENCRYPTED PRIVATE KEY');
 const sec1Exp = getRegExpForPEM('EC PRIVATE KEY');
 const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
-// Since our own APIs only accept PEM, not DER, we need to convert DER to PEM
-// for testing.
-function convertDERToPEM(label, der) {
-  const base64 = der.toString('base64');
-  const lines = [];
-  let i = 0;
-  while (i < base64.length) {
-    const n = Math.min(base64.length - i, 64);
-    lines.push(base64.substr(i, n));
-    i += n;
-  }
-  const body = lines.join('\n');
-  const r = `-----BEGIN ${label}-----\n${body}\n-----END ${label}-----\n`;
-  assert(getRegExpForPEM(label).test(r));
-  return r;
-}
-
 {
   // To make the test faster, we will only test sync key generation once and
   // with a relatively small key.
@@ -113,14 +96,16 @@ function convertDERToPEM(label, der) {
 }
 
 {
+  const publicKeyEncoding = {
+    type: 'pkcs1',
+    format: 'der'
+  };
+
   // Test async RSA key generation.
   generateKeyPair('rsa', {
     publicExponent: 0x10001,
     modulusLength: 512,
-    publicKeyEncoding: {
-      type: 'pkcs1',
-      format: 'der'
-    },
+    publicKeyEncoding,
     privateKeyEncoding: {
       type: 'pkcs1',
       format: 'pem'
@@ -128,16 +113,14 @@ function convertDERToPEM(label, der) {
   }, common.mustCall((err, publicKeyDER, privateKey) => {
     assert.ifError(err);
 
-    // The public key is encoded as DER (which is binary) instead of PEM. We
-    // will still need to convert it to PEM for testing.
     assert(Buffer.isBuffer(publicKeyDER));
-    const publicKey = convertDERToPEM('RSA PUBLIC KEY', publicKeyDER);
-    assertApproximateSize(publicKey, 180);
+    assertApproximateSize(publicKeyDER, 74);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1PrivExp.test(privateKey));
     assertApproximateSize(privateKey, 512);
 
+    const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
     testEncryptDecrypt(publicKey, privateKey);
     testSignVerify(publicKey, privateKey);
   }));
@@ -146,10 +129,7 @@ function convertDERToPEM(label, der) {
   generateKeyPair('rsa', {
     publicExponent: 0x10001,
     modulusLength: 512,
-    publicKeyEncoding: {
-      type: 'pkcs1',
-      format: 'der'
-    },
+    publicKeyEncoding,
     privateKeyEncoding: {
       type: 'pkcs1',
       format: 'pem',
@@ -159,16 +139,14 @@ function convertDERToPEM(label, der) {
   }, common.mustCall((err, publicKeyDER, privateKey) => {
     assert.ifError(err);
 
-    // The public key is encoded as DER (which is binary) instead of PEM. We
-    // will still need to convert it to PEM for testing.
     assert(Buffer.isBuffer(publicKeyDER));
-    const publicKey = convertDERToPEM('RSA PUBLIC KEY', publicKeyDER);
-    assertApproximateSize(publicKey, 180);
+    assertApproximateSize(publicKeyDER, 74);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1EncExp('AES-256-CBC').test(privateKey));
 
     // Since the private key is encrypted, signing shouldn't work anymore.
+    const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
     assert.throws(() => {
       testSignVerify(publicKey, privateKey);
     }, /bad decrypt|asn1 encoding routines/);
@@ -180,6 +158,11 @@ function convertDERToPEM(label, der) {
 }
 
 {
+  const privateKeyEncoding = {
+    type: 'pkcs8',
+    format: 'der'
+  };
+
   // Test async DSA key generation.
   generateKeyPair('dsa', {
     modulusLength: 512,
@@ -189,10 +172,9 @@ function convertDERToPEM(label, der) {
       format: 'pem'
     },
     privateKeyEncoding: {
-      type: 'pkcs8',
-      format: 'der',
       cipher: 'aes-128-cbc',
-      passphrase: 'secret'
+      passphrase: 'secret',
+      ...privateKeyEncoding
     }
   }, common.mustCall((err, publicKey, privateKeyDER) => {
     assert.ifError(err);
@@ -201,19 +183,22 @@ function convertDERToPEM(label, der) {
     assert(spkiExp.test(publicKey));
     // The private key is DER-encoded.
     assert(Buffer.isBuffer(privateKeyDER));
-    const privateKey = convertDERToPEM('ENCRYPTED PRIVATE KEY', privateKeyDER);
 
     assertApproximateSize(publicKey, 440);
-    assertApproximateSize(privateKey, 512);
+    assertApproximateSize(privateKeyDER, 336);
 
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => {
-      testSignVerify(publicKey, privateKey);
+      testSignVerify(publicKey, {
+        key: privateKeyDER,
+        ...privateKeyEncoding
+      });
     }, /bad decrypt|asn1 encoding routines/);
 
     // Signing should work with the correct password.
     testSignVerify(publicKey, {
-      key: privateKey,
+      key: privateKeyDER,
+      ...privateKeyEncoding,
       passphrase: 'secret'
     });
   }));
@@ -369,8 +354,52 @@ function convertDERToPEM(label, der) {
 }
 
 {
-  // Missing / invalid publicKeyEncoding.
-  for (const enc of [undefined, null, 0, 'a', true]) {
+  // If no publicKeyEncoding is specified, a key object should be returned.
+  generateKeyPair('rsa', {
+    modulusLength: 1024,
+    privateKeyEncoding: {
+      type: 'pkcs1',
+      format: 'pem'
+    }
+  }, common.mustCall((err, publicKey, privateKey) => {
+    assert.ifError(err);
+
+    assert.strictEqual(typeof publicKey, 'object');
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+
+    // The private key should still be a string.
+    assert.strictEqual(typeof privateKey, 'string');
+
+    testEncryptDecrypt(publicKey, privateKey);
+    testSignVerify(publicKey, privateKey);
+  }));
+
+  // If no privateKeyEncoding is specified, a key object should be returned.
+  generateKeyPair('rsa', {
+    modulusLength: 1024,
+    publicKeyEncoding: {
+      type: 'pkcs1',
+      format: 'pem'
+    }
+  }, common.mustCall((err, publicKey, privateKey) => {
+    assert.ifError(err);
+
+    // The public key should still be a string.
+    assert.strictEqual(typeof publicKey, 'string');
+
+    assert.strictEqual(typeof privateKey, 'object');
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+
+    testEncryptDecrypt(publicKey, privateKey);
+    testSignVerify(publicKey, privateKey);
+  }));
+}
+
+{
+  // Invalid publicKeyEncoding.
+  for (const enc of [0, 'a', true]) {
     common.expectsError(() => generateKeyPairSync('rsa', {
       modulusLength: 4096,
       publicKeyEncoding: enc,
@@ -425,8 +454,8 @@ function convertDERToPEM(label, der) {
     });
   }
 
-  // Missing / invalid privateKeyEncoding.
-  for (const enc of [undefined, null, 0, 'a', true]) {
+  // Invalid privateKeyEncoding.
+  for (const enc of [0, 'a', true]) {
     common.expectsError(() => generateKeyPairSync('rsa', {
       modulusLength: 4096,
       publicKeyEncoding: {

@@ -101,8 +101,8 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "key" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type object'
+      message: 'The "key" argument must be one of type Buffer, TypedArray, ' +
+               'DataView, string, or KeyObject. Received type object'
     });
 
   common.expectsError(
@@ -138,8 +138,8 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "key" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type object'
+      message: 'The "key" argument must be one of type Buffer, TypedArray, ' +
+               'DataView, string, or KeyObject. Received type object'
     });
 
   common.expectsError(
