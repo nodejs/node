@@ -5,7 +5,7 @@ const path = require('path');
 
 // A windows path
 assert.strictEqual(
-  path.directories(
+  path.directoriesNames(
     'D:\\DDL\\ANIME\\les chevaliers du zodiaques\\whateverFile.avi'
   ),
   ['D:', 'DDL', 'ANIME', 'les chevaliers du zodiaques']
@@ -13,7 +13,7 @@ assert.strictEqual(
 
 // A Linux path
 assert.strictEqual(
-  path.directories(
+  path.directoriesNames(
     'D:/DDL/EBOOK/whatEverFile.pub'
   ),
   [ 'D:', 'DDL', 'EBOOK' ]
@@ -21,14 +21,14 @@ assert.strictEqual(
 
 // Path near root (Windows / Linux)
 assert.strictEqual(
-  path.directories(
+  path.directoriesNames(
     '/foo'
   ),
   ['/']
 );
 
 assert.strictEqual(
-  path.directories(
+  path.directoriesNames(
     'D:\\test.avi'
   ),
   ['D:']
