@@ -266,7 +266,7 @@ function convertDERToPEM(label, der) {
 
     testEncryptDecrypt(publicKey, privateKey);
     testSignVerify(publicKey, privateKey);
-  })).catch((err) => console.log(err));
+  })).catch(common.mustNotCall());
 }
 
 {
