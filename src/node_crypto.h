@@ -370,14 +370,21 @@ class CipherBase : public BaseObject {
   };
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
+  void CommonInit(const char* cipher_type,
+                  const EVP_CIPHER* cipher,
+                  const unsigned char* key,
+                  int key_len,
+                  const unsigned char* iv,
+                  int iv_len,
+                  unsigned int auth_tag_len);
   void Init(const char* cipher_type,
             const char* key_buf,
             int key_buf_len,
             unsigned int auth_tag_len);
   void InitIv(const char* cipher_type,
-              const char* key,
+              const unsigned char* key,
               int key_len,
-              const char* iv,
+              const unsigned char* iv,
               int iv_len,
               unsigned int auth_tag_len);
   bool InitAuthenticated(const char* cipher_type, int iv_len,
