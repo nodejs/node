@@ -1730,7 +1730,7 @@ assert.strictEqual(
 assert.strictEqual(
   inspect(
     { a200: 4, a100: 1, a102: 3, a101: 2 },
-    { sorted(a, b) { return a < b; } }
+    { sorted(a, b) { return b.localeCompare(a); } }
   ),
   '{ a200: 4, a102: 3, a101: 2, a100: 1 }'
 );
