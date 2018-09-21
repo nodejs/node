@@ -2545,6 +2545,12 @@ int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   return 1;
 }
 
+static bool IsSupportedAuthenticatedMode(int mode) {
+  return mode == EVP_CIPH_CCM_MODE ||
+         mode == EVP_CIPH_GCM_MODE ||
+         mode == EVP_CIPH_OCB_MODE;
+}
+
 void CipherBase::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
@@ -2571,6 +2577,43 @@ void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
   new CipherBase(env, args.This(), kind);
 }
 
+void CipherBase::CommonInit(const char* cipher_type,
+                            const EVP_CIPHER* cipher,
+                            const unsigned char* key,
+                            int key_len,
+                            const unsigned char* iv,
+                            int iv_len,
+                            unsigned int auth_tag_len) {
+  CHECK(!ctx_);
+  ctx_.reset(EVP_CIPHER_CTX_new());
+
+  const int mode = EVP_CIPHER_mode(cipher);
+  if (mode == EVP_CIPH_WRAP_MODE)
+    EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+
+  const bool encrypt = (kind_ == kCipher);
+  if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
+                             nullptr, nullptr, encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
+
+  if (IsSupportedAuthenticatedMode(mode)) {
+    CHECK_GE(iv_len, 0);
+    if (!InitAuthenticated(cipher_type, iv_len, auth_tag_len))
+      return;
+  }
+
+  if (!EVP_CIPHER_CTX_set_key_length(ctx_.get(), key_len)) {
+    ctx_.reset();
+    return env()->ThrowError("Invalid key length");
+  }
+
+  if (1 != EVP_CipherInit_ex(ctx_.get(), nullptr, nullptr, key, iv, encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
+}
 
 void CipherBase::Init(const char* cipher_type,
                       const char* key_buf,
@@ -2586,7 +2629,6 @@ void CipherBase::Init(const char* cipher_type,
   }
 #endif  // NODE_FIPS_MODE
 
-  CHECK(!ctx_);
   const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
   if (cipher == nullptr)
     return env()->ThrowError("Unknown cipher");
@@ -2604,21 +2646,10 @@ void CipherBase::Init(const char* cipher_type,
                                iv);
   CHECK_NE(key_len, 0);
 
-  ctx_.reset(EVP_CIPHER_CTX_new());
-
   const int mode = EVP_CIPHER_mode(cipher);
-  if (mode == EVP_CIPH_WRAP_MODE)
-    EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
-
-  const bool encrypt = (kind_ == kCipher);
-  if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
-                             nullptr, nullptr, encrypt)) {
-    return ThrowCryptoError(env(), ERR_get_error(),
-                            "Failed to initialize cipher");
-  }
-
-  if (encrypt && (mode == EVP_CIPH_CTR_MODE || mode == EVP_CIPH_GCM_MODE ||
-      mode == EVP_CIPH_CCM_MODE)) {
+  if (kind_ == kCipher && (mode == EVP_CIPH_CTR_MODE ||
+                           mode == EVP_CIPH_GCM_MODE ||
+                           mode == EVP_CIPH_CCM_MODE)) {
     // Ignore the return value (i.e. possible exception) because we are
     // not calling back into JS anyway.
     ProcessEmitWarning(env(),
@@ -2626,23 +2657,8 @@ void CipherBase::Init(const char* cipher_type,
                        cipher_type);
   }
 
-  if (IsAuthenticatedMode()) {
-    if (!InitAuthenticated(cipher_type, EVP_CIPHER_iv_length(cipher),
-                           auth_tag_len))
-      return;
-  }
-
-  CHECK_EQ(1, EVP_CIPHER_CTX_set_key_length(ctx_.get(), key_len));
-
-  if (1 != EVP_CipherInit_ex(ctx_.get(),
-                             nullptr,
-                             nullptr,
-                             reinterpret_cast<unsigned char*>(key),
-                             reinterpret_cast<unsigned char*>(iv),
-                             encrypt)) {
-    return ThrowCryptoError(env(), ERR_get_error(),
-                            "Failed to initialize cipher");
-  }
+  CommonInit(cipher_type, cipher, key, key_len, iv,
+             EVP_CIPHER_iv_length(cipher), auth_tag_len);
 }
 
 
@@ -2669,16 +2685,10 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   cipher->Init(*cipher_type, key_buf, key_buf_len, auth_tag_len);
 }
 
-static bool IsSupportedAuthenticatedMode(int mode) {
-  return mode == EVP_CIPH_CCM_MODE ||
-         mode == EVP_CIPH_GCM_MODE ||
-         mode == EVP_CIPH_OCB_MODE;
-}
-
 void CipherBase::InitIv(const char* cipher_type,
-                        const char* key,
+                        const unsigned char* key,
                         int key_len,
-                        const char* iv,
+                        const unsigned char* iv,
                         int iv_len,
                         unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
@@ -2706,38 +2716,7 @@ void CipherBase::InitIv(const char* cipher_type,
     return env()->ThrowError("Invalid IV length");
   }
 
-  ctx_.reset(EVP_CIPHER_CTX_new());
-
-  if (mode == EVP_CIPH_WRAP_MODE)
-    EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
-
-  const bool encrypt = (kind_ == kCipher);
-  if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
-                             nullptr, nullptr, encrypt)) {
-    return ThrowCryptoError(env(), ERR_get_error(),
-                            "Failed to initialize cipher");
-  }
-
-  if (is_authenticated_mode) {
-    CHECK(has_iv);
-    if (!InitAuthenticated(cipher_type, iv_len, auth_tag_len))
-      return;
-  }
-
-  if (!EVP_CIPHER_CTX_set_key_length(ctx_.get(), key_len)) {
-    ctx_.reset();
-    return env()->ThrowError("Invalid key length");
-  }
-
-  if (1 != EVP_CipherInit_ex(ctx_.get(),
-                             nullptr,
-                             nullptr,
-                             reinterpret_cast<const unsigned char*>(key),
-                             reinterpret_cast<const unsigned char*>(iv),
-                             encrypt)) {
-    return ThrowCryptoError(env(), ERR_get_error(),
-                            "Failed to initialize cipher");
-  }
+  CommonInit(cipher_type, cipher, key, key_len, iv, iv_len, auth_tag_len);
 }
 
 
@@ -2750,14 +2729,15 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
   ssize_t key_len = Buffer::Length(args[1]);
-  const char* key_buf = Buffer::Data(args[1]);
+  const unsigned char* key_buf = reinterpret_cast<unsigned char*>(
+      Buffer::Data(args[1]));
   ssize_t iv_len;
-  const char* iv_buf;
+  const unsigned char* iv_buf;
   if (args[2]->IsNull()) {
     iv_buf = nullptr;
     iv_len = -1;
   } else {
-    iv_buf = Buffer::Data(args[2]);
+    iv_buf = reinterpret_cast<unsigned char*>(Buffer::Data(args[2]));
     iv_len = Buffer::Length(args[2]);
   }
 
