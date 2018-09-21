@@ -150,7 +150,7 @@ if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
   net.createServer()
     .listen({ fd }, common.mustNotCall())
     .on('error', common.mustCall(function(err) {
-      assert.strictEqual(String(err), 'Error: listen EINVAL');
+      assert.strictEqual(String(err), 'Error: listen EINVAL: invalid argument');
       this.close();
     }));
 }
