@@ -14,13 +14,13 @@ const repl = require('repl');
 
 ## Design and Features
 
-The `repl` module exports the `repl.REPLServer` class. While running, instances
-of `repl.REPLServer` will accept individual lines of user input, evaluate those
-according to a user-defined evaluation function, then output the result. Input
-and output may be from `stdin` and `stdout`, respectively, or may be connected
-to any Node.js [stream][].
+The `repl` module exports the [`repl.REPLServer`][] class. While running,
+instances of [`repl.REPLServer`][] will accept individual lines of user input,
+evaluate those according to a user-defined evaluation function, then output the
+result. Input and output may be from `stdin` and `stdout`, respectively, or may
+be connected to any Node.js [stream][].
 
-Instances of `repl.REPLServer` support automatic completion of inputs,
+Instances of [`repl.REPLServer`][] support automatic completion of inputs,
 simplistic Emacs-style line editing, multi-line inputs, ANSI-styled output,
 saving and restoring current REPL session state, error recovery, and
 customizable evaluation functions.
@@ -69,10 +69,10 @@ The following key combinations in the REPL have these special effects:
 
 ### Default Evaluation
 
-By default, all instances of `repl.REPLServer` use an evaluation function that
-evaluates JavaScript expressions and provides access to Node.js' built-in
+By default, all instances of [`repl.REPLServer`][] use an evaluation function
+that evaluates JavaScript expressions and provides access to Node.js' built-in
 modules. This default behavior can be overridden by passing in an alternative
-evaluation function when the `repl.REPLServer` instance is created.
+evaluation function when the [`repl.REPLServer`][] instance is created.
 
 #### JavaScript Expressions
 
@@ -211,7 +211,7 @@ undefined
 
 ### Custom Evaluation Functions
 
-When a new `repl.REPLServer` is created, a custom evaluation function may be
+When a new [`repl.REPLServer`][] is created, a custom evaluation function may be
 provided. This can be used, for instance, to implement fully customized REPL
 applications.
 
@@ -261,13 +261,13 @@ function isRecoverableError(error) {
 
 ### Customizing REPL Output
 
-By default, `repl.REPLServer` instances format output using the
+By default, [`repl.REPLServer`][] instances format output using the
 [`util.inspect()`][] method before writing the output to the provided `Writable`
 stream (`process.stdout` by default). The `useColors` boolean option can be
 specified at construction to instruct the default writer to use ANSI style
 codes to colorize the output from the `util.inspect()` method.
 
-It is possible to fully customize the output of a `repl.REPLServer` instance
+It is possible to fully customize the output of a [`repl.REPLServer`][] instance
 by passing a new function in using the `writer` option on construction. The
 following example, for instance, simply converts any input text to upper case:
 
@@ -500,7 +500,7 @@ changes:
     `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
     with a custom `eval` function. **Default:** `false`.
 
-The `repl.start()` method creates and starts a `repl.REPLServer` instance.
+The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.
 
 If `options` is a string, then it specifies the input prompt:
 
@@ -631,6 +631,7 @@ For an example of running a REPL instance over [curl(1)][], see:
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
 [`readline.Interface`]: readline.html#readline_class_interface
+[`repl.ReplServer`]: #repl_class_replserver
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [curl(1)]: https://curl.haxx.se/docs/manpage.html
 [stream]: stream.html
