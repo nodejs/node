@@ -57,7 +57,8 @@ class SignalWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
 
-    target->Set(signalString, constructor->GetFunction());
+    target->Set(signalString,
+                constructor->GetFunction(env->context()).ToLocalChecked());
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override {

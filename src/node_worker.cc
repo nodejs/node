@@ -447,7 +447,7 @@ void InitWorker(Local<Object> target,
     Local<String> workerString =
         FIXED_ONE_BYTE_STRING(env->isolate(), "Worker");
     w->SetClassName(workerString);
-    target->Set(workerString, w->GetFunction());
+    target->Set(workerString, w->GetFunction(env->context()).ToLocalChecked());
   }
 
   env->SetMethod(target, "getEnvMessagePort", GetEnvMessagePort);

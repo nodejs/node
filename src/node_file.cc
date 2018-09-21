@@ -2096,7 +2096,10 @@ void Initialize(Local<Object> target,
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap");
   fst->SetClassName(wrapString);
-  target->Set(context, wrapString, fst->GetFunction()).FromJust();
+  target
+      ->Set(context, wrapString,
+            fst->GetFunction(env->context()).ToLocalChecked())
+      .FromJust();
 
   // Create FunctionTemplate for FileHandleReadWrap. There’s no need
   // to do anything in the constructor, so we only store the instance template.
@@ -2130,7 +2133,10 @@ void Initialize(Local<Object> target,
        FIXED_ONE_BYTE_STRING(env->isolate(), "FileHandle");
   fd->SetClassName(handleString);
   StreamBase::AddMethods<FileHandle>(env, fd);
-  target->Set(context, handleString, fd->GetFunction()).FromJust();
+  target
+      ->Set(context, handleString,
+            fd->GetFunction(env->context()).ToLocalChecked())
+      .FromJust();
   env->set_fd_constructor_template(fdt);
 
   // Create FunctionTemplate for FileHandle::CloseReq

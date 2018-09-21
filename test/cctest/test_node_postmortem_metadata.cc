@@ -134,8 +134,10 @@ TEST_F(DebugSymbolsTest, HandleWrapList) {
   auto obj_template = v8::FunctionTemplate::New(isolate_);
   obj_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  v8::Local<v8::Object> object =
-      obj_template->GetFunction()->NewInstance(env.context()).ToLocalChecked();
+  v8::Local<v8::Object> object = obj_template->GetFunction(env.context())
+                                     .ToLocalChecked()
+                                     ->NewInstance(env.context())
+                                     .ToLocalChecked();
   TestHandleWrap obj(*env, object, &handle);
 
   auto queue = reinterpret_cast<uintptr_t>((*env)->handle_wrap_queue());
@@ -161,8 +163,10 @@ TEST_F(DebugSymbolsTest, ReqWrapList) {
   auto obj_template = v8::FunctionTemplate::New(isolate_);
   obj_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  v8::Local<v8::Object> object =
-      obj_template->GetFunction()->NewInstance(env.context()).ToLocalChecked();
+  v8::Local<v8::Object> object = obj_template->GetFunction(env.context())
+                                     .ToLocalChecked()
+                                     ->NewInstance(env.context())
+                                     .ToLocalChecked();
   TestReqWrap obj(*env, object);
 
   // NOTE (mmarchini): Workaround to fix failing tests on ARM64 machines with

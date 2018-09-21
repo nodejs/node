@@ -57,7 +57,9 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "errname"),
-              env->NewFunctionTemplate(ErrName)->GetFunction());
+              env->NewFunctionTemplate(ErrName)
+                  ->GetFunction(env->context())
+                  .ToLocalChecked());
 
 #define V(name, _) NODE_DEFINE_CONSTANT(target, UV_##name);
   UV_ERRNO_MAP(V)

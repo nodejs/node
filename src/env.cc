@@ -230,8 +230,10 @@ void Environment::Start(const std::vector<std::string>& args,
   auto process_template = FunctionTemplate::New(isolate());
   process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate(), "process"));
 
-  auto process_object =
-      process_template->GetFunction()->NewInstance(context()).ToLocalChecked();
+  auto process_object = process_template->GetFunction(context())
+                            .ToLocalChecked()
+                            ->NewInstance(context())
+                            .ToLocalChecked();
   set_process_object(process_object);
 
   SetupProcessObject(this, args, exec_args);

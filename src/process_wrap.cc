@@ -64,7 +64,8 @@ class ProcessWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "spawn", Spawn);
     env->SetProtoMethod(constructor, "kill", Kill);
 
-    target->Set(processString, constructor->GetFunction());
+    target->Set(processString,
+                constructor->GetFunction(context).ToLocalChecked());
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override {

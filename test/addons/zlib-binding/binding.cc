@@ -46,7 +46,9 @@ inline void Initialize(v8::Local<v8::Object> exports,
                        v8::Local<v8::Context> context) {
   auto isolate = context->GetIsolate();
   auto key = v8::String::NewFromUtf8(isolate, "compressBytes");
-  auto value = v8::FunctionTemplate::New(isolate, CompressBytes)->GetFunction();
+  auto value = v8::FunctionTemplate::New(isolate, CompressBytes)
+                   ->GetFunction(context)
+                   .ToLocalChecked();
   assert(exports->Set(context, key, value).IsJust());
 }
 

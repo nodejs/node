@@ -2987,7 +2987,7 @@ void Initialize(Local<Object> target,
   env->set_http2stream_constructor_template(streamt);
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Stream"),
-              stream->GetFunction()).FromJust();
+              stream->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
   Local<FunctionTemplate> session =
       env->NewFunctionTemplate(Http2Session::New);
@@ -3015,7 +3015,7 @@ void Initialize(Local<Object> target,
       Http2Session::RefreshSettings<nghttp2_session_get_remote_settings>);
   target->Set(context,
               http2SessionClassName,
-              session->GetFunction()).FromJust();
+              session->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
   Local<Object> constants = Object::New(isolate);
   Local<Array> name_for_error_code = Array::New(isolate);

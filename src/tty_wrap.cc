@@ -63,7 +63,7 @@ void TTYWrap::Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "isTTY", IsTTY);
   env->SetMethodNoSideEffect(target, "guessHandleType", GuessHandleType);
 
-  target->Set(ttyString, t->GetFunction());
+  target->Set(ttyString, t->GetFunction(env->context()).ToLocalChecked());
   env->set_tty_constructor_template(t);
 }
 
