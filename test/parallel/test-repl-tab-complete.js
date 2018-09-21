@@ -154,9 +154,8 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-// See: https://github.com/nodejs/node/issues/21586
-// testMe.complete('inner.o', getNoResultsFunction());
 testMe.complete('inner.o', common.mustCall(function(error, data) {
+  assert.deepStrictEqual(data, works);
 }));
 
 putIn.run(['.clear']);
