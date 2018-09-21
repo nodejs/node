@@ -36,10 +36,6 @@
 #define MAX_ITEMS_PER_EPOLL       1024
 
 #define UV__O_CLOEXEC             0x80000
-#define UV__EPOLL_CLOEXEC         UV__O_CLOEXEC
-#define UV__EPOLL_CTL_ADD         EPOLL_CTL_ADD
-#define UV__EPOLL_CTL_DEL         EPOLL_CTL_DEL
-#define UV__EPOLL_CTL_MOD         EPOLL_CTL_MOD
 
 struct epoll_event {
   int events;

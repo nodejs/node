@@ -283,6 +283,7 @@ TEST_IMPL(fork_signal_to_child_closed) {
   int sync_pipe[2];
   int sync_pipe2[2];
   char sync_buf[1];
+  int r;
 
   fork_signal_cb_called = 0;    /* reset */
 
@@ -326,9 +327,10 @@ TEST_IMPL(fork_signal_to_child_closed) {
     /* Don't run the loop. Wait for the parent to call us */
     printf("Waiting on parent in child\n");
     /* Wait for parent. read may fail if the parent tripped an ASSERT
-       and exited, so this isn't in an ASSERT.
+       and exited, so this ASSERT is generous.
     */
-    read(sync_pipe2[0], sync_buf, 1);
+    r = read(sync_pipe2[0], sync_buf, 1);
+    ASSERT(-1 <= r && r <= 1);
     ASSERT(0 == fork_signal_cb_called);
     printf("Exiting child \n");
     /* Note that we're deliberately not running the loop

@@ -86,13 +86,13 @@ API
 
 .. c:function:: int uv_tcp_getsockname(const uv_tcp_t* handle, struct sockaddr* name, int* namelen)
 
-    Get the current address to which the handle is bound. `addr` must point to
+    Get the current address to which the handle is bound. `name` must point to
     a valid and big enough chunk of memory, ``struct sockaddr_storage`` is
     recommended for IPv4 and IPv6 support.
 
 .. c:function:: int uv_tcp_getpeername(const uv_tcp_t* handle, struct sockaddr* name, int* namelen)
 
-    Get the address of the peer connected to the handle. `addr` must point to
+    Get the address of the peer connected to the handle. `name` must point to
     a valid and big enough chunk of memory, ``struct sockaddr_storage`` is
     recommended for IPv4 and IPv6 support.
 

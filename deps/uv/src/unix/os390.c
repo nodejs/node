@@ -662,7 +662,7 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
 
   /* Remove the file descriptor from the epoll. */
   if (loop->ep != NULL)
-    epoll_ctl(loop->ep, UV__EPOLL_CTL_DEL, fd, &dummy);
+    epoll_ctl(loop->ep, EPOLL_CTL_DEL, fd, &dummy);
 }
 
 
@@ -838,9 +838,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     e.fd = w->fd;
 
     if (w->events == 0)
-      op = UV__EPOLL_CTL_ADD;
+      op = EPOLL_CTL_ADD;
     else
-      op = UV__EPOLL_CTL_MOD;
+      op = EPOLL_CTL_MOD;
 
     /* XXX Future optimization: do EPOLL_CTL_MOD lazily if we stop watching
      * events, skip the syscall and squelch the events after epoll_wait().
@@ -849,10 +849,10 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       if (errno != EEXIST)
         abort();
 
-      assert(op == UV__EPOLL_CTL_ADD);
+      assert(op == EPOLL_CTL_ADD);
 
       /* We've reactivated a file descriptor that's been watched before. */
-      if (epoll_ctl(loop->ep, UV__EPOLL_CTL_MOD, w->fd, &e))
+      if (epoll_ctl(loop->ep, EPOLL_CTL_MOD, w->fd, &e))
         abort();
     }
 
@@ -934,7 +934,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
          * Ignore all errors because we may be racing with another thread
          * when the file descriptor is closed.
          */
-        epoll_ctl(loop->ep, UV__EPOLL_CTL_DEL, fd, pe);
+        epoll_ctl(loop->ep, EPOLL_CTL_DEL, fd, pe);
         continue;
       }
 

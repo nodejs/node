@@ -1,3 +1,49 @@
+2018.09.22, Version 1.23.1 (Stable), d2282b3d67821dc53c907c2155fa8c5c6ce25180
+
+Changes since version 1.23.0:
+
+* unix,win: limit concurrent DNS calls to nthreads/2 (Anna Henningsen)
+
+* doc: add addaleax to maintainers (Anna Henningsen)
+
+* doc: add missing slash in stream.rst (Emil Bay)
+
+* unix,fs: use utimes & friends for uv_fs_utime (Jeremiah Senkpiel)
+
+* unix,fs: remove linux fallback from utimesat() (Jeremiah Senkpiel)
+
+* unix,fs: remove uv__utimesat() syscall fallback (Jeremiah Senkpiel)
+
+* doc: fix argument name in tcp.rts (Emil Bay)
+
+* doc: notes on running tests, benchmarks, tools (Jamie Davis)
+
+* linux: remove epoll syscall wrappers (Ben Noordhuis)
+
+* linux: drop code path for epoll_pwait-less kernels (Ben Noordhuis)
+
+* Partially revert "win,code: remove GetQueuedCompletionStatus-based poller"
+  (Jameson Nash)
+
+* build: add compile for android arm64/x86/x86-64 (Andy Zhang)
+
+* doc: clarify that some remarks apply to windows (Bert Belder)
+
+* test: fix compiler warnings (Jamie Davis)
+
+* ibmi: return 0 from uv_resident_set_memory() (dmabupt)
+
+* win: fix uv_udp_recv_start() error translation (Ryan Liptak)
+
+* win,doc: improve uv_os_setpriority() documentation (Bartosz Sosnowski)
+
+* test: increase upper bound in condvar_5 (Jamie Davis)
+
+* win,tty: remove deadcode (Jameson Nash)
+
+* stream: autodetect direction (Jameson Nash)
+
+
 2018.08.18, Version 1.23.0 (Stable), 7ebb26225f2eaae6db22f4ef34ce76fa16ff89ec
 
 Changes since version 1.22.0:
