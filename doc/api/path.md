@@ -122,6 +122,26 @@ process.env.PATH.split(path.delimiter);
 // Returns ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
 ```
 
+## path.directoriesNames(path)
+<!-- YAML
+added: v10.11.1
+-->
+
+* `path` {string}
+* Returns: {string[]}
+
+The `path.directoriesNames()` method returns an array that contains
+all directories names contained in a `path`
+
+```js
+// Windows path - gives [ 'D:', 'DDL', 'ANIME', 'les chevaliers du zodiaques' ]
+path.directoriesNames("D:\\DDL\\ANIME\\les chevaliers du zodiaques\\whateverFile.avi");
+// POSIX path - gives [ '/' ]
+path.directoriesNames("/foo");
+```
+
+A [`TypeError`][] is thrown if `path` is not a string.
+
 ## path.dirname(path)
 <!-- YAML
 added: v0.1.16
