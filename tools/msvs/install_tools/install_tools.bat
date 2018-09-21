@@ -5,8 +5,8 @@ echo Tools for Node.js Native Modules Installation Script
 echo ====================================================
 echo.
 echo This Boxstarter script will install Python and the Visual Studio Build Tools,
-echo necessary to compile Node.js native modules. All necessary Windows updates
-echo will also be installed.
+echo necessary to compile Node.js native modules. Note that Boxstarter,
+echo Chocolatey and required Windows updates will also be installed.
 echo.
 echo This will require about 3 Gb of free disk space, plus any space necessary to
 echo install Windows updates.
