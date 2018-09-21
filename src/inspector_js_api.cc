@@ -310,7 +310,10 @@ void Initialize(Local<Object> target, Local<Value> unused,
   AsyncWrap::AddWrapMethods(env, tmpl);
   env->SetProtoMethod(tmpl, "dispatch", JSBindingsConnection::Dispatch);
   env->SetProtoMethod(tmpl, "disconnect", JSBindingsConnection::Disconnect);
-  target->Set(env->context(), conn_str, tmpl->GetFunction()).ToChecked();
+  target
+      ->Set(env->context(), conn_str,
+            tmpl->GetFunction(env->context()).ToLocalChecked())
+      .ToChecked();
 }
 
 }  // namespace

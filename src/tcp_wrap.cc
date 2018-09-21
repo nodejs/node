@@ -60,7 +60,9 @@ Local<Object> TCPWrap::Instantiate(Environment* env,
   EscapableHandleScope handle_scope(env->isolate());
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent);
   CHECK_EQ(env->tcp_constructor_template().IsEmpty(), false);
-  Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
+  Local<Function> constructor = env->tcp_constructor_template()
+                                    ->GetFunction(env->context())
+                                    .ToLocalChecked();
   CHECK_EQ(constructor.IsEmpty(), false);
   Local<Value> type_value = Int32::New(env->isolate(), type);
   Local<Object> instance =
@@ -107,7 +109,7 @@ void TCPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
 #endif
 
-  target->Set(tcpString, t->GetFunction());
+  target->Set(tcpString, t->GetFunction(env->context()).ToLocalChecked());
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
@@ -117,7 +119,7 @@ void TCPWrap::Initialize(Local<Object> target,
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");
   cwt->SetClassName(wrapString);
-  target->Set(wrapString, cwt->GetFunction());
+  target->Set(wrapString, cwt->GetFunction(env->context()).ToLocalChecked());
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());

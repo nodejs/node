@@ -905,9 +905,10 @@ void TLSWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "getServername", GetServername);
   env->SetProtoMethod(t, "setServername", SetServername);
 
-  env->set_tls_wrap_constructor_function(t->GetFunction());
+  env->set_tls_wrap_constructor_function(
+      t->GetFunction(env->context()).ToLocalChecked());
 
-  target->Set(tlsWrapString, t->GetFunction());
+  target->Set(tlsWrapString, t->GetFunction(env->context()).ToLocalChecked());
 }
 
 }  // namespace node

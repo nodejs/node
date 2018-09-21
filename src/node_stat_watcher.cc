@@ -56,7 +56,8 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
 
   env->SetProtoMethod(t, "start", StatWatcher::Start);
 
-  target->Set(statWatcherString, t->GetFunction());
+  target->Set(statWatcherString,
+              t->GetFunction(env->context()).ToLocalChecked());
 }
 
 

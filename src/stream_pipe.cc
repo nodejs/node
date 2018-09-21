@@ -260,7 +260,10 @@ void InitializeStreamPipe(Local<Object> target,
   AsyncWrap::AddWrapMethods(env, pipe);
   pipe->SetClassName(stream_pipe_string);
   pipe->InstanceTemplate()->SetInternalFieldCount(1);
-  target->Set(context, stream_pipe_string, pipe->GetFunction()).FromJust();
+  target
+      ->Set(context, stream_pipe_string,
+            pipe->GetFunction(context).ToLocalChecked())
+      .FromJust();
 }
 
 }  // anonymous namespace
