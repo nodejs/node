@@ -544,4 +544,8 @@ API
         process priority, the result will equal one of the `UV_PRIORITY`
         constants, and not necessarily the exact value of `priority`.
 
+    .. note::
+        On Windows, setting `PRIORITY_HIGHEST` will only work for elevated user,
+        for others it will be silently reduced to `PRIORITY_HIGH`.
+
     .. versionadded:: 1.23.0
