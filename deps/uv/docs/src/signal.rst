@@ -17,12 +17,12 @@ Reception of some signals is emulated on Windows:
   program is given approximately 10 seconds to perform cleanup. After that
   Windows will unconditionally terminate it.
 
-Watchers for other signals can be successfully created, but these signals
-are never received. These signals are: `SIGILL`, `SIGABRT`, `SIGFPE`, `SIGSEGV`,
-`SIGTERM` and `SIGKILL.`
+* Watchers for other signals can be successfully created, but these signals
+  are never received. These signals are: `SIGILL`, `SIGABRT`, `SIGFPE`, `SIGSEGV`,
+  `SIGTERM` and `SIGKILL.`
 
-Calls to raise() or abort() to programmatically raise a signal are
-not detected by libuv; these will not trigger a signal watcher.
+* Calls to raise() or abort() to programmatically raise a signal are
+  not detected by libuv; these will not trigger a signal watcher.
 
 .. note::
     On Linux SIGRT0 and SIGRT1 (signals 32 and 33) are used by the NPTL pthreads library to

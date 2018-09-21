@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export TOOLCHAIN=$PWD/android-toolchain
+export TOOLCHAIN=$PWD/android-toolchain-arm
 mkdir -p $TOOLCHAIN
 API=${3:-24}
 $1/build/tools/make-standalone-toolchain.sh \

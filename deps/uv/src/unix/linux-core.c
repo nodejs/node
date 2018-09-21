@@ -20,7 +20,7 @@
 
 /* We lean on the fact that POLL{IN,OUT,ERR,HUP} correspond with their
  * EPOLL* counterparts.  We use the POLL* variants in this file because that
- * is what libuv uses elsewhere and it avoids a dependency on <sys/epoll.h>.
+ * is what libuv uses elsewhere.
  */
 
 #include "uv.h"
@@ -34,6 +34,7 @@
 #include <errno.h>
 
 #include <net/if.h>
+#include <sys/epoll.h>
 #include <sys/param.h>
 #include <sys/prctl.h>
 #include <sys/sysinfo.h>
@@ -84,13 +85,13 @@ static unsigned long read_cpufreq(unsigned int cpunum);
 int uv__platform_loop_init(uv_loop_t* loop) {
   int fd;
 
-  fd = uv__epoll_create1(UV__EPOLL_CLOEXEC);
+  fd = epoll_create1(EPOLL_CLOEXEC);
 
   /* epoll_create1() can fail either because it's not implemented (old kernel)
    * or because it doesn't understand the EPOLL_CLOEXEC flag.
    */
   if (fd == -1 && (errno == ENOSYS || errno == EINVAL)) {
-    fd = uv__epoll_create(256);
+    fd = epoll_create(256);
 
     if (fd != -1)
       uv__cloexec(fd, 1);
@@ -134,20 +135,20 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 
 
 void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
-  struct uv__epoll_event* events;
-  struct uv__epoll_event dummy;
+  struct epoll_event* events;
+  struct epoll_event dummy;
   uintptr_t i;
   uintptr_t nfds;
 
   assert(loop->watchers != NULL);
 
-  events = (struct uv__epoll_event*) loop->watchers[loop->nwatchers];
+  events = (struct epoll_event*) loop->watchers[loop->nwatchers];
   nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];
   if (events != NULL)
     /* Invalidate events with same file descriptor */
     for (i = 0; i < nfds; i++)
-      if ((int) events[i].data == fd)
-        events[i].data = -1;
+      if (events[i].data.fd == fd)
+        events[i].data.fd = -1;
 
   /* Remove the file descriptor from the epoll.
    * This avoids a problem where the same file description remains open
@@ -160,25 +161,25 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
      * has the EPOLLWAKEUP flag set generates spurious audit syslog warnings.
      */
     memset(&dummy, 0, sizeof(dummy));
-    uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_DEL, fd, &dummy);
+    epoll_ctl(loop->backend_fd, EPOLL_CTL_DEL, fd, &dummy);
   }
 }
 
 
 int uv__io_check_fd(uv_loop_t* loop, int fd) {
-  struct uv__epoll_event e;
+  struct epoll_event e;
   int rc;
 
   e.events = POLLIN;
-  e.data = -1;
+  e.data.fd = -1;
 
   rc = 0;
-  if (uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_ADD, fd, &e))
+  if (epoll_ctl(loop->backend_fd, EPOLL_CTL_ADD, fd, &e))
     if (errno != EEXIST)
       rc = UV__ERR(errno);
 
   if (rc == 0)
-    if (uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_DEL, fd, &e))
+    if (epoll_ctl(loop->backend_fd, EPOLL_CTL_DEL, fd, &e))
       abort();
 
   return rc;
@@ -195,16 +196,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
    * that being the largest value I have seen in the wild (and only once.)
    */
   static const int max_safe_timeout = 1789569;
-  static int no_epoll_pwait;
-  static int no_epoll_wait;
-  struct uv__epoll_event events[1024];
-  struct uv__epoll_event* pe;
-  struct uv__epoll_event e;
+  struct epoll_event events[1024];
+  struct epoll_event* pe;
+  struct epoll_event e;
   int real_timeout;
   QUEUE* q;
   uv__io_t* w;
   sigset_t sigset;
-  uint64_t sigmask;
+  sigset_t* psigset;
   uint64_t base;
   int have_signals;
   int nevents;
@@ -230,35 +229,35 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     assert(w->fd < (int) loop->nwatchers);
 
     e.events = w->pevents;
-    e.data = w->fd;
+    e.data.fd = w->fd;
 
     if (w->events == 0)
-      op = UV__EPOLL_CTL_ADD;
+      op = EPOLL_CTL_ADD;
     else
-      op = UV__EPOLL_CTL_MOD;
+      op = EPOLL_CTL_MOD;
 
     /* XXX Future optimization: do EPOLL_CTL_MOD lazily if we stop watching
      * events, skip the syscall and squelch the events after epoll_wait().
      */
-    if (uv__epoll_ctl(loop->backend_fd, op, w->fd, &e)) {
+    if (epoll_ctl(loop->backend_fd, op, w->fd, &e)) {
       if (errno != EEXIST)
         abort();
 
-      assert(op == UV__EPOLL_CTL_ADD);
+      assert(op == EPOLL_CTL_ADD);
 
       /* We've reactivated a file descriptor that's been watched before. */
-      if (uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_MOD, w->fd, &e))
+      if (epoll_ctl(loop->backend_fd, EPOLL_CTL_MOD, w->fd, &e))
         abort();
     }
 
     w->events = w->pevents;
   }
 
-  sigmask = 0;
+  psigset = NULL;
   if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
     sigemptyset(&sigset);
     sigaddset(&sigset, SIGPROF);
-    sigmask |= 1 << (SIGPROF - 1);
+    psigset = &sigset;
   }
 
   assert(timeout >= -1);
@@ -273,30 +272,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (sizeof(int32_t) == sizeof(long) && timeout >= max_safe_timeout)
       timeout = max_safe_timeout;
 
-    if (sigmask != 0 && no_epoll_pwait != 0)
-      if (pthread_sigmask(SIG_BLOCK, &sigset, NULL))
-        abort();
-
-    if (no_epoll_wait != 0 || (sigmask != 0 && no_epoll_pwait == 0)) {
-      nfds = uv__epoll_pwait(loop->backend_fd,
-                             events,
-                             ARRAY_SIZE(events),
-                             timeout,
-                             sigmask);
-      if (nfds == -1 && errno == ENOSYS)
-        no_epoll_pwait = 1;
-    } else {
-      nfds = uv__epoll_wait(loop->backend_fd,
-                            events,
-                            ARRAY_SIZE(events),
-                            timeout);
-      if (nfds == -1 && errno == ENOSYS)
-        no_epoll_wait = 1;
-    }
-
-    if (sigmask != 0 && no_epoll_pwait != 0)
-      if (pthread_sigmask(SIG_UNBLOCK, &sigset, NULL))
-        abort();
+    nfds = epoll_pwait(loop->backend_fd,
+                       events,
+                       ARRAY_SIZE(events),
+                       timeout,
+                       psigset);
 
     /* Update loop->time unconditionally. It's tempting to skip the update when
      * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
@@ -317,12 +297,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     if (nfds == -1) {
-      if (errno == ENOSYS) {
-        /* epoll_wait() or epoll_pwait() failed, try the other system call. */
-        assert(no_epoll_wait == 0 || no_epoll_pwait == 0);
-        continue;
-      }
-
       if (errno != EINTR)
         abort();
 
@@ -344,7 +318,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     loop->watchers[loop->nwatchers + 1] = (void*) (uintptr_t) nfds;
     for (i = 0; i < nfds; i++) {
       pe = events + i;
-      fd = pe->data;
+      fd = pe->data.fd;
 
       /* Skip invalidated events, see uv__platform_invalidate_fd */
       if (fd == -1)
@@ -361,7 +335,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
          * Ignore all errors because we may be racing with another thread
          * when the file descriptor is closed.
          */
-        uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_DEL, fd, pe);
+        epoll_ctl(loop->backend_fd, EPOLL_CTL_DEL, fd, pe);
         continue;
       }
 

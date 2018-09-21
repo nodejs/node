@@ -1676,6 +1676,7 @@ void uv__stream_close(uv_stream_t* handle) {
   uv__io_close(handle->loop, &handle->io_watcher);
   uv_read_stop(handle);
   uv__handle_stop(handle);
+  handle->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
 
   if (handle->io_watcher.fd != -1) {
     /* Don't close stdio file descriptors.  Nothing good comes from it. */
