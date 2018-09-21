@@ -556,7 +556,7 @@ const o1 = {
 };
 console.log(inspect(o1, { sorted: true }));
 // { a: '`a` comes before `b`', b: [ 2, 3, 1 ], c: Set { 1, 2, 3 } }
-console.log(inspect(o1, { sorted: (a, b) => a < b }));
+console.log(inspect(o1, { sorted: (a, b) => b.localeCompare(a) }));
 // { c: Set { 3, 2, 1 }, b: [ 2, 3, 1 ], a: '`a` comes before `b`' }
 
 const o2 = {
