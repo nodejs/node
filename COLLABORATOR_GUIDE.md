@@ -803,6 +803,7 @@ commit final.
 >>>>>>> 3
 ### Long Term Support
 #### What is LTS?
+
 Long Term Support (often referred to as *LTS*) guarantees application developers
 <<<<<<< HEAD
 a 30-month support cycle with specific versions of Node.js.
@@ -815,8 +816,11 @@ You can find more information
 Once a Current branch enters LTS, changes in that branch are limited to bug
 =======
 a 30 month support cycle with specific versions of Node.js.
+
 You can find more information [in the full LTS plan](https://github.com/nodejs/lts#lts-plan).
+
 #### How does LTS work?
+
 Once a stable branch enters LTS, changes in that branch are limited to bug
 >>>>>>> 30
 fixes, security updates, possible npm updates, documentation updates, and

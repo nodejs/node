@@ -101,9 +101,12 @@ changed and why. Follow these guidelines when writing one:
    subsystem (e.g. "net: add localAddress and localPort to Socket").
 2. Keep the second line blank.
 3. Wrap all other lines at 72 columns.
+
 A good commit log can look something like this:
-``
+
+```
 subsystem: explaining the commit in one line
+
 Body of commit message is a few lines of text, explaining things
 in more detail, possibly giving some background about the issue
 being fixed, etc. etc.
@@ -113,16 +116,24 @@ please do proper word-wrap and keep columns shorter than about
 72 characters or so. That way `git log` will show things
 nicely even when it is indented.
 ```
+
 The header line should be meaningful; it is what other people see when they
 run `git shortlog` or `git log --oneline`.
+
 Check the output of `git log --oneline files_that_you_changed` to find out
 what subsystem (or subsystems) your changes touch.
+
+
 ### Step 4: Rebase
+
 Use `git rebase` (not `git merge`) to sync your work from time to time.
+
 ```text
 $ git fetch upstream
 $ git rebase upstream/master
 ```
+
+
 ### Step 5: Test
 
 Bug fixes and features **should come with tests**. Add your tests in the
