@@ -27,10 +27,13 @@ const assert = require('assert');
 const { execFile } = require('child_process');
 
 // test for leaked global detection
-global.gc = 42;  // Not a valid global unless --expose_gc is set.
-assert.deepStrictEqual(common.leakedGlobals(), ['gc']);
-delete global.gc;
-
+{
+  const p = fixtures.path('leakedGlobal.js');
+  execFile(process.argv[0], [p], common.mustCall((ex, stdout, stderr) => {
+    assert.notStrictEqual(ex.code, 0);
+    assert.ok(/\bAssertionError\b.*\bUnexpected global\b.*\bgc\b/.test(stderr));
+  }));
+}
 
 // common.mustCall() tests
 assert.throws(function() {
